@@ -1045,7 +1045,7 @@
             if(rawData.length === 0) return;
 
             const today = new Date();
-            let minDateObj = rawData.length > 0 ? parseDateSafely(rawData[rawData.length-1].date) : today;
+            let minDateObj = rawData.length > 0 ? parseDateSafely(rawData[rawData.length-1].dateStr) : today;
             if (minDateObj > today) minDateObj = new Date(today.getFullYear()-1, today.getMonth(), today.getDate());
 
             const day = minDateObj.getDay();
@@ -1127,7 +1127,7 @@
             contSess.innerHTML = '';
             if(rawData.length === 0) return;
 
-            let minDate = parseDateSafely(rawData[rawData.length-1].date);
+            let minDate = parseDateSafely(rawData[rawData.length-1].dateStr);
             let today = new Date();
             let monthMap = {};
             let curr = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
