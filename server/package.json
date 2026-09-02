@@ -1,0 +1,26 @@
+{
+  "name": "themusicledger-backend",
+  "version": "1.0.0",
+  "description": "Backend for TheMusicLedger music practice tracking app",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["music", "practice", "tracker"],
+  "author": "Andrew Storey",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "firebase-admin": "^12.0.0",
+    "googleapis": "^118.0.0",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {}
+}
