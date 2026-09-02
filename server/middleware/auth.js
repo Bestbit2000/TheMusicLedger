@@ -1,4 +1,5 @@
-import { getFirestore, getAuth } from '../config/firebase.js';
+// Simple token verification - tokens are passed from the client
+// The token format should include both access and refresh tokens
 
 export async function requireAuth(req, res, next) {
   try {
@@ -7,12 +8,13 @@ export async function requireAuth(req, res, next) {
       return res.status(401).json({ error: 'Missing authorization token' });
     }
 
+    // Extract the token payload (should contain userId)
     const token = authHeader.substring(7);
-    const firebaseAuth = getAuth();
-    const decodedToken = await firebaseAuth.verifyIdToken(token);
+    const tokenData = JSON.parse(Buffer.from(token, 'base64').toString());
 
-    req.userId = decodedToken.uid;
-    req.user = decodedToken;
+    req.userId = tokenData.userId;
+    req.googleAccessToken = tokenData.access_token;
+    req.googleRefreshToken = tokenData.refresh_token;
     next();
   } catch (error) {
     console.error('Auth error:', error);
@@ -20,32 +22,15 @@ export async function requireAuth(req, res, next) {
   }
 }
 
-export async function getUserTokens(userId) {
-  const db = getFirestore();
-  const userDoc = await db.collection('users').doc(userId).get();
-
-  if (!userDoc.exists) {
-    throw new Error('User not found');
-  }
-
-  const userData = userDoc.data();
-  if (!userData.googleAccessToken) {
-    throw new Error('No Google access token found');
-  }
-
+export function getUserTokens(req) {
   return {
-    access_token: userData.googleAccessToken,
-    refresh_token: userData.googleRefreshToken,
-    expiry_date: userData.googleTokenExpiry
+    access_token: req.googleAccessToken,
+    refresh_token: req.googleRefreshToken,
+    expiry_date: req.googleRefreshToken ? null : undefined
   };
 }
 
-export async function saveUserTokens(userId, tokens) {
-  const db = getFirestore();
-  await db.collection('users').doc(userId).update({
-    googleAccessToken: tokens.access_token,
-    googleRefreshToken: tokens.refresh_token || undefined,
-    googleTokenExpiry: tokens.expiry_date,
-    lastTokenUpdate: new Date()
-  });
+export async function saveUserTokens(tokens) {
+  // Tokens are managed on the client side, no server-side storage needed
+  return tokens;
 }

@@ -7,7 +7,6 @@ import { fileURLToPath } from 'url';
 import session from 'express-session';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { initializeFirebase } from './config/firebase.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,9 +15,6 @@ const { default: apiRoutes } = await import('./routes/api.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// Initialize Firebase
-initializeFirebase();
 
 // Middleware
 app.use(cors({

@@ -1,38 +1,8 @@
-import admin from 'firebase-admin';
-
-let firebaseApp;
+// Firebase has been removed - using Google Sheets as the only database
+// Authentication is handled via Google OAuth 2.0
 
 export function initializeFirebase() {
-  if (firebaseApp) return firebaseApp;
-
-  const serviceAccount = {
-    type: process.env.FIREBASE_TYPE,
-    project_id: process.env.FIREBASE_PROJECT_ID,
-    private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-    private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    client_email: process.env.FIREBASE_CLIENT_EMAIL,
-    client_id: process.env.FIREBASE_CLIENT_ID,
-    auth_uri: process.env.FIREBASE_AUTH_URI,
-    token_uri: process.env.FIREBASE_TOKEN_URI,
-  };
-
-  firebaseApp = admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: process.env.FIREBASE_PROJECT_ID
-  });
-
-  console.log('✅ Firebase initialized');
-  return firebaseApp;
+  console.log('✅ Firebase disabled - using Google Sheets only');
 }
 
-export function getFirestore() {
-  if (!firebaseApp) initializeFirebase();
-  return admin.firestore();
-}
-
-export function getAuth() {
-  if (!firebaseApp) initializeFirebase();
-  return admin.auth();
-}
-
-export default admin;
+export default {};

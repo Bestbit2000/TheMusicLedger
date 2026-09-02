@@ -1,18 +1,17 @@
 import express from 'express';
-import { requireAuth, getUserTokens, saveUserTokens } from '../middleware/auth.js';
+import { requireAuth, getUserTokens } from '../middleware/auth.js';
 import { getSheetsClient, refreshAccessToken, SHEET_ID } from '../config/google.js';
-import { getFirestore } from '../config/firebase.js';
 
 const router = express.Router();
 
 // Helper: Get valid Google Sheets client
-async function getSheetsAuth(userId) {
-  const tokens = await getUserTokens(userId);
+async function getSheetsAuth(req) {
+  let tokens = getUserTokens(req);
 
   // Check if token needs refresh
   if (tokens.expiry_date && new Date(tokens.expiry_date) < new Date()) {
     const newTokens = await refreshAccessToken(tokens.refresh_token);
-    await saveUserTokens(userId, newTokens);
+    req.googleAccessToken = newTokens.access_token;
     return newTokens;
   }
 
@@ -20,79 +19,60 @@ async function getSheetsAuth(userId) {
 }
 
 // ========================================
-// SESSIONS (Practice logging)
+// SESSIONS (Practice logging) - Google Sheets only
 // ========================================
 
 router.post('/sessions', requireAuth, async (req, res) => {
   try {
     const { category, duration, who, date } = req.body;
-    const userId = req.userId;
-    const db = getFirestore();
 
-    // Save to Firestore
-    const sessionRef = db.collection('sessions').doc();
-    await sessionRef.set({
-      userId,
-      category,
-      duration: Number(duration),
-      who: who || null,
-      date: new Date(date),
-      createdAt: new Date(),
-      syncedToSheet: false
-    });
+    const tokens = await getSheetsAuth(req);
+    const sheets = getSheetsClient(tokens);
 
-    // Try to sync to Google Sheet
-    try {
-      const tokens = await getSheetsAuth(userId);
-      const sheets = getSheetsClient(tokens);
+    const dateObj = new Date(date);
+    const practiceYear = `Year ${dateObj.getFullYear() - 2023}`;
 
-      const dateObj = new Date(date);
-      const practiceYear = `Year ${dateObj.getFullYear() - 2023}`;
+    const categoryMap = {
+      'Practise': { yearCol: 'A', dateCol: 'B', durationCol: 'C' },
+      'Rehearsal': { yearCol: 'E', whoCol: 'F', dateCol: 'G', durationCol: 'H' },
+      'Lesson': { yearCol: 'J', whoCol: 'K', dateCol: 'L', durationCol: 'M' },
+      'Performance': { yearCol: 'O', whoCol: 'P', dateCol: 'Q', durationCol: 'R' }
+    };
 
-      const categoryMap = {
-        'Practise': { yearCol: 'A', dateCol: 'B', durationCol: 'C' },
-        'Rehearsal': { yearCol: 'E', whoCol: 'F', dateCol: 'G', durationCol: 'H' },
-        'Lesson': { yearCol: 'J', whoCol: 'K', dateCol: 'L', durationCol: 'M' },
-        'Performance': { yearCol: 'O', whoCol: 'P', dateCol: 'Q', durationCol: 'R' }
-      };
-
-      const cols = categoryMap[category];
-
-      // Get the last row
-      const response = await sheets.spreadsheets.values.get({
-        spreadsheetId: SHEET_ID,
-        range: `'Music time'!${cols.dateCol}:${cols.dateCol}`
-      });
-
-      const values = response.data.values || [];
-      const lastRow = values.length + 1;
-
-      // Update sheet
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: SHEET_ID,
-        range: `'Music time'!${cols.yearCol}${lastRow}:${cols.durationCol}${lastRow}`,
-        valueInputOption: 'RAW',
-        resource: {
-          values: [[
-            practiceYear,
-            null, // This will be handled by date formula
-            duration,
-            null, // Optional fields
-            ...(cols.whoCol ? [who || ''] : [])
-          ]]
-        }
-      });
-
-      // Mark as synced
-      await sessionRef.update({ syncedToSheet: true });
-    } catch (sheetError) {
-      console.warn('Sheet sync failed, data saved to Firestore only:', sheetError.message);
+    const cols = categoryMap[category];
+    if (!cols) {
+      return res.status(400).json({ error: 'Invalid category' });
     }
 
+    // Get the last row
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `'Music time'!${cols.dateCol}:${cols.dateCol}`
+    });
+
+    const values = response.data.values || [];
+    const lastRow = values.length + 1;
+
+    // Prepare the row data
+    const rowData = [practiceYear];
+    if (cols.dateCol) rowData.push(new Date(date).toLocaleDateString());
+    if (cols.durationCol) rowData.push(duration);
+    if (cols.whoCol) rowData.push(who || '');
+
+    // Update sheet
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `'Music time'!${cols.yearCol}${lastRow}`,
+      valueInputOption: 'RAW',
+      resource: {
+        values: [rowData]
+      }
+    });
+
     res.json({
-      message: `Saved ${duration} mins!`,
-      sessionId: sessionRef.id,
-      category
+      message: `Saved ${duration} mins to sheet!`,
+      category,
+      row: lastRow
     });
   } catch (error) {
     console.error('Session save error:', error);
@@ -102,22 +82,68 @@ router.post('/sessions', requireAuth, async (req, res) => {
 
 router.get('/sessions', requireAuth, async (req, res) => {
   try {
-    const userId = req.userId;
-    const db = getFirestore();
+    const tokens = await getSheetsAuth(req);
+    const sheets = getSheetsClient(tokens);
 
-    const snapshot = await db.collection('sessions')
-      .where('userId', '==', userId)
-      .orderBy('date', 'desc')
-      .get();
-
-    const sessions = [];
-    snapshot.forEach(doc => {
-      sessions.push({
-        id: doc.id,
-        ...doc.data(),
-        date: doc.data().date.toDate().toISOString().split('T')[0]
-      });
+    // Read all data from the sheet
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `'Music time'!A:R`
     });
+
+    const values = response.data.values || [];
+    const sessions = [];
+
+    const categoryMap = {
+      'Practise': { yearCol: 0, dateCol: 1, durationCol: 2 },
+      'Rehearsal': { yearCol: 4, whoCol: 5, dateCol: 6, durationCol: 7 },
+      'Lesson': { yearCol: 9, whoCol: 10, dateCol: 11, durationCol: 12 },
+      'Performance': { yearCol: 14, whoCol: 15, dateCol: 16, durationCol: 17 }
+    };
+
+    // Parse sessions from sheet
+    for (let i = 1; i < values.length; i++) {
+      const row = values[i];
+      if (row[0] && row[2]) {
+        sessions.push({
+          row: i,
+          category: 'Practise',
+          year: row[0],
+          date: row[1],
+          duration: row[2]
+        });
+      }
+      if (row[4] && row[7]) {
+        sessions.push({
+          row: i,
+          category: 'Rehearsal',
+          year: row[4],
+          who: row[5],
+          date: row[6],
+          duration: row[7]
+        });
+      }
+      if (row[9] && row[12]) {
+        sessions.push({
+          row: i,
+          category: 'Lesson',
+          year: row[9],
+          who: row[10],
+          date: row[11],
+          duration: row[12]
+        });
+      }
+      if (row[14] && row[17]) {
+        sessions.push({
+          row: i,
+          category: 'Performance',
+          year: row[14],
+          who: row[15],
+          date: row[16],
+          duration: row[17]
+        });
+      }
+    }
 
     res.json(sessions);
   } catch (error) {
@@ -126,251 +152,6 @@ router.get('/sessions', requireAuth, async (req, res) => {
   }
 });
 
-router.put('/sessions/:id', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { duration, who, date } = req.body;
-    const userId = req.userId;
-    const db = getFirestore();
-
-    const sessionRef = db.collection('sessions').doc(id);
-    const sessionDoc = await sessionRef.get();
-
-    if (!sessionDoc.exists || sessionDoc.data().userId !== userId) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
-    await sessionRef.update({
-      duration: Number(duration),
-      who: who || null,
-      date: new Date(date),
-      updatedAt: new Date()
-    });
-
-    res.json({ message: 'Session updated' });
-  } catch (error) {
-    console.error('Session update error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.delete('/sessions/:id', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.userId;
-    const db = getFirestore();
-
-    const sessionRef = db.collection('sessions').doc(id);
-    const sessionDoc = await sessionRef.get();
-
-    if (!sessionDoc.exists || sessionDoc.data().userId !== userId) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
-    await sessionRef.delete();
-    res.json({ message: 'Session deleted' });
-  } catch (error) {
-    console.error('Session delete error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ========================================
-// CHALLENGES
-// ========================================
-
-router.get('/challenges', requireAuth, async (req, res) => {
-  try {
-    const userId = req.userId;
-    const db = getFirestore();
-
-    const snapshot = await db.collection('challenges')
-      .where('userId', '==', userId)
-      .orderBy('priority', 'asc')
-      .get();
-
-    const challenges = [];
-    snapshot.forEach(doc => {
-      challenges.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
-
-    res.json(challenges);
-  } catch (error) {
-    console.error('Challenges fetch error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post('/challenges', requireAuth, async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { type, who, name, items } = req.body;
-    const db = getFirestore();
-
-    const challengeRef = db.collection('challenges').doc();
-    await challengeRef.set({
-      userId,
-      type,
-      who: who || null,
-      name,
-      items: items || [],
-      priority: 999,
-      createdAt: new Date(),
-      syncedToSheet: false
-    });
-
-    res.json({
-      message: 'Challenge created',
-      challengeId: challengeRef.id
-    });
-  } catch (error) {
-    console.error('Challenge create error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.put('/challenges/:id', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.userId;
-    const db = getFirestore();
-    const { items, priority, ...updates } = req.body;
-
-    const challengeRef = db.collection('challenges').doc(id);
-    const challengeDoc = await challengeRef.get();
-
-    if (!challengeDoc.exists || challengeDoc.data().userId !== userId) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
-    await challengeRef.update({
-      ...updates,
-      ...(items && { items }),
-      ...(priority !== undefined && { priority }),
-      updatedAt: new Date()
-    });
-
-    res.json({ message: 'Challenge updated' });
-  } catch (error) {
-    console.error('Challenge update error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.delete('/challenges/:id', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.userId;
-    const db = getFirestore();
-
-    const challengeRef = db.collection('challenges').doc(id);
-    const challengeDoc = await challengeRef.get();
-
-    if (!challengeDoc.exists || challengeDoc.data().userId !== userId) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
-    await challengeRef.delete();
-    res.json({ message: 'Challenge deleted' });
-  } catch (error) {
-    console.error('Challenge delete error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ========================================
-// SETTINGS (Organisations, Teachers)
-// ========================================
-
-router.get('/settings', requireAuth, async (req, res) => {
-  try {
-    const userId = req.userId;
-    const db = getFirestore();
-
-    const settingsRef = db.collection('settings').doc(userId);
-    const settingsDoc = await settingsRef.get();
-
-    if (!settingsDoc.exists) {
-      // Return defaults
-      return res.json({
-        organisations: [],
-        teachers: [],
-        darkMode: false
-      });
-    }
-
-    res.json(settingsDoc.data());
-  } catch (error) {
-    console.error('Settings fetch error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post('/settings/organisations', requireAuth, async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { name } = req.body;
-    const db = getFirestore();
-
-    const settingsRef = db.collection('settings').doc(userId);
-    const settingsDoc = await settingsRef.get();
-
-    const orgs = settingsDoc.exists ? (settingsDoc.data().organisations || []) : [];
-    orgs.push(name);
-
-    await settingsRef.set({
-      organisations: [...new Set(orgs)] // Remove duplicates
-    }, { merge: true });
-
-    res.json({ message: 'Organisation added' });
-  } catch (error) {
-    console.error('Organisation add error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post('/settings/teachers', requireAuth, async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { name } = req.body;
-    const db = getFirestore();
-
-    const settingsRef = db.collection('settings').doc(userId);
-    const settingsDoc = await settingsRef.get();
-
-    const teachers = settingsDoc.exists ? (settingsDoc.data().teachers || []) : [];
-    teachers.push(name);
-
-    await settingsRef.set({
-      teachers: [...new Set(teachers)] // Remove duplicates
-    }, { merge: true });
-
-    res.json({ message: 'Teacher added' });
-  } catch (error) {
-    console.error('Teacher add error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.delete('/settings/organisations/:name', requireAuth, async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { name } = req.params;
-    const db = getFirestore();
-
-    const settingsRef = db.collection('settings').doc(userId);
-    await settingsRef.update({
-      organisations: admin.firestore.FieldValue.arrayRemove(name)
-    });
-
-    res.json({ message: 'Organisation removed' });
-  } catch (error) {
-    console.error('Organisation remove error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+// All data is stored in Google Sheets - keep endpoints simple and focused on sessions
 
 export default router;
