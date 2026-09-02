@@ -132,11 +132,23 @@ router.get('/sessions', requireAuth, async (req, res) => {
             let dateObj;
             if (dateVal instanceof Date) {
               dateObj = dateVal;
-            } else if (typeof dateVal === 'string' && dateVal.includes('-')) {
-              // YYYY-MM-DD format
-              dateObj = new Date(dateVal);
+            } else if (typeof dateVal === 'string') {
+              // Try DD/MM/YYYY format (e.g., "31/08/2026")
+              if (dateVal.includes('/')) {
+                const parts = dateVal.split('/');
+                if (parts.length === 3) {
+                  const day = parseInt(parts[0], 10);
+                  const month = parseInt(parts[1], 10) - 1;
+                  const year = parseInt(parts[2], 10);
+                  dateObj = new Date(year, month, day);
+                } else {
+                  dateObj = new Date(dateVal);
+                }
+              } else {
+                // Try other formats
+                dateObj = new Date(dateVal);
+              }
             } else {
-              // Try as-is (might be serial date or other format)
               dateObj = new Date(dateVal);
             }
 
