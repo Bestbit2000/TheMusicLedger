@@ -22,7 +22,11 @@ export function getSheetsClient(tokens) {
 export function getAuthorizationUrl() {
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
-    scope: ['https://www.googleapis.com/auth/spreadsheets'],
+    scope: [
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/spreadsheets'
+    ],
     prompt: 'consent'
   });
 }
