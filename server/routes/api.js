@@ -128,20 +128,36 @@ router.get('/sessions', requireAuth, async (req, res) => {
         const dateVal = data[i][map.date];
         const dur = Number(data[i][map.duration]);
         if (dateVal && dur > 0) {
-          let dateObj;
-          if (dateVal instanceof Date) {
-            dateObj = dateVal;
-          } else {
-            dateObj = new Date(dateVal);
+          try {
+            let dateObj;
+            if (dateVal instanceof Date) {
+              dateObj = dateVal;
+            } else if (typeof dateVal === 'string' && dateVal.includes('-')) {
+              // YYYY-MM-DD format
+              dateObj = new Date(dateVal);
+            } else {
+              // Try as-is (might be serial date or other format)
+              dateObj = new Date(dateVal);
+            }
+
+            // Validate the date
+            if (isNaN(dateObj.getTime())) {
+              console.warn(`Invalid date value: ${dateVal}`);
+              continue;
+            }
+
+            const dateStr = dateObj.toISOString().split('T')[0];
+            allRecords.push({
+              row: i + 2,
+              category: cat,
+              dateStr: dateStr,
+              duration: dur,
+              who: map.who !== null ? (data[i][map.who] || '') : ''
+            });
+          } catch (e) {
+            console.warn(`Error processing date ${dateVal}:`, e.message);
+            continue;
           }
-          const dateStr = dateObj.toISOString().split('T')[0];
-          allRecords.push({
-            row: i + 2,
-            category: cat,
-            dateStr: dateStr,
-            duration: dur,
-            who: map.who !== null ? (data[i][map.who] || '') : ''
-          });
         }
       }
     }
