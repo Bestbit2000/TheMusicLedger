@@ -1,4 +1,5 @@
 import express from 'express';
+import { google } from 'googleapis';
 import { getAuthorizationUrl, getTokensFromCode } from '../config/google.js';
 import { getFirestore, getAuth } from '../config/firebase.js';
 
@@ -22,8 +23,17 @@ router.get('/callback', async (req, res) => {
     // Exchange code for tokens
     const tokens = await getTokensFromCode(code);
 
-    // Get user info from Google (via tokens)
-    const userEmail = req.query.user_email || 'user@example.com'; // You'll need to get this from Google
+    // Get user info from Google
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+    oauth2Client.setCredentials(tokens);
+
+    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+    const userInfo = await oauth2.userinfo.get();
+    const userEmail = userInfo.data.email;
 
     const db = getFirestore();
     const auth = getAuth();
