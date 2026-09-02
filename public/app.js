@@ -146,7 +146,7 @@
 
         try {
             await loadAppData();
-            fetchDataAndRender();
+            await fetchDataAndRender();
             document.getElementById('date').valueAsDate = new Date();
             if (localStorage.getItem('darkMode') === 'true') {
                 document.body.classList.add('dark-mode');
@@ -192,10 +192,15 @@
     }
 
     function fetchDataAndRender() {
-        Promise.all([
+        return Promise.all([
             API.sessions.get().then(data => { rawData = data; renderAllViews(); }),
             loadChallenges()
-        ]).catch(err => showWarningToast('Error loading data: ' + err.message));
+        ]).then(() => {
+            displayMainApp();
+        }).catch(err => {
+            showWarningToast('Error loading data: ' + err.message);
+            displayLoginScreen();
+        });
     }
 
     // ========================================
