@@ -1026,7 +1026,7 @@
             const filtered = rawData.filter(d => activeFilters[d.category]);
             let dailyMins = {}, dailySess = {};
             filtered.forEach(d => {
-                const dateKey = parseDateSafely(d.dateStr).toISOString().split('T')[0];
+                const dateKey = d.dateStr;
                 dailyMins[dateKey] = (dailyMins[dateKey]||0) + d.duration;
                 dailySess[dateKey] = (dailySess[dateKey]||0) + 1;
             });
