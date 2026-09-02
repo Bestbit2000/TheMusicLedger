@@ -911,7 +911,7 @@
         let totalMins = 0; let totalSess = 0;
 
         rawData.forEach(d => {
-            const dObj = parseDateSafely(d.date);
+            const dObj = parseDateSafely(d.dateStr);
             if (dObj >= start && dObj <= end) {
                 totalMins += d.duration; totalSess++;
                 if (catStats[d.category]) { catStats[d.category].m += d.duration; catStats[d.category].s++; }
@@ -1026,7 +1026,7 @@
             const filtered = rawData.filter(d => activeFilters[d.category]);
             let dailyMins = {}, dailySess = {};
             filtered.forEach(d => {
-                const dateKey = new Date(d.date).toISOString().split('T')[0];
+                const dateKey = new Date(parseDateSafely(d.dateStr)).toISOString().split('T')[0];
                 dailyMins[dateKey] = (dailyMins[dateKey]||0) + d.duration;
                 dailySess[dateKey] = (dailySess[dateKey]||0) + 1;
             });
@@ -1142,7 +1142,7 @@
             }
 
             filtered.forEach(d => {
-                const dateStr = new Date(d.date).toISOString().split('T')[0];
+                const dateStr = parseDateSafely(d.dateStr).toISOString().split('T')[0];
                 let k = dateStr.substring(0,7);
                 if(monthMap[k]) {
                     monthMap[k].days.add(dateStr);
@@ -1257,7 +1257,7 @@
             list.innerHTML = '';
 
             const monthData = filtered.filter(d => {
-                let dObj = parseDateSafely(d.date);
+                let dObj = parseDateSafely(d.dateStr);
                 return dObj.getFullYear()===y && dObj.getMonth()===m;
             });
 
