@@ -5,7 +5,7 @@
     // ========================================
     class AuthManager {
         constructor() {
-            this.token = localStorage.getItem('firebaseToken');
+            this.token = localStorage.getItem('authToken');
             this.userId = localStorage.getItem('userId');
             this.isAuthenticated = !!this.token;
         }
@@ -17,11 +17,11 @@
 
         async handleCallback() {
             const params = new URLSearchParams(window.location.search);
-            const token = params.get('firebaseToken');
+            const token = params.get('authToken');
             const userId = params.get('userId');
 
             if (token && userId) {
-                localStorage.setItem('firebaseToken', token);
+                localStorage.setItem('authToken', token);
                 localStorage.setItem('userId', userId);
                 this.token = token;
                 this.userId = userId;
@@ -33,7 +33,7 @@
         }
 
         logout() {
-            localStorage.removeItem('firebaseToken');
+            localStorage.removeItem('authToken');
             localStorage.removeItem('userId');
             this.token = null;
             this.userId = null;
@@ -81,24 +81,26 @@
 
     // API endpoint wrappers
     const API = {
+        dropdownOptions: () => apiCall('/api/dropdown-options'),
         sessions: {
             get: () => apiCall('/api/sessions'),
             create: (data) => apiCall('/api/sessions', 'POST', data),
-            update: (id, data) => apiCall(`/api/sessions/${id}`, 'PUT', data),
-            delete: (id) => apiCall(`/api/sessions/${id}`, 'DELETE')
+            update: (row, data) => apiCall(`/api/sessions/${row}`, 'PUT', data),
+            delete: (row, category) => apiCall(`/api/sessions/${row}`, 'DELETE', { category })
         },
         challenges: {
             get: () => apiCall('/api/challenges'),
             create: (data) => apiCall('/api/challenges', 'POST', data),
-            update: (id, data) => apiCall(`/api/challenges/${id}`, 'PUT', data),
-            delete: (id) => apiCall(`/api/challenges/${id}`, 'DELETE')
+            update: (row, data) => apiCall(`/api/challenges/${row}`, 'PUT', data),
+            delete: (row) => apiCall(`/api/challenges/${row}`, 'DELETE')
         },
         settings: {
-            get: () => apiCall('/api/settings'),
             addOrganisation: (name) => apiCall('/api/settings/organisations', 'POST', { name }),
             addTeacher: (name) => apiCall('/api/settings/teachers', 'POST', { name }),
             deleteOrganisation: (name) => apiCall(`/api/settings/organisations/${encodeURIComponent(name)}`, 'DELETE'),
-            deleteTeacher: (name) => apiCall(`/api/settings/teachers/${encodeURIComponent(name)}`, 'DELETE')
+            deleteTeacher: (name) => apiCall(`/api/settings/teachers/${encodeURIComponent(name)}`, 'DELETE'),
+            renameOrganisation: (oldName, newName) => apiCall('/api/settings/organisations', 'PUT', { oldName, newName }),
+            renameTeacher: (oldName, newName) => apiCall('/api/settings/teachers', 'PUT', { oldName, newName })
         }
     };
 
@@ -171,7 +173,7 @@
 
     async function loadAppData() {
         try {
-            appData = await API.settings.get();
+            appData = await API.dropdownOptions();
             populateWhoDropdowns();
         } catch (error) {
             console.warn('Failed to load settings:', error);
@@ -1268,7 +1270,7 @@
                 div.className = 'history-item';
                 div.style.borderLeftColor = colorMap[item.category];
 
-                let dObj = parseDateSafely(item.date);
+                let dObj = parseDateSafely(item.dateStr);
                 let safeWho = String(item.who || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                 let mNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -1278,8 +1280,8 @@
                         ${dObj.getDate() || '?'} ${mNames[dObj.getMonth()] || '?'} ${dObj.getFullYear() || '?'} | ${Math.round(item.duration)} mins
                     </div>
                     <div style="display:flex; gap: 5px;">
-                        <button class="btn-edit" onclick="openEdit('${item.id}', '${item.category}')">Edit</button>
-                        <button class="btn-delete" onclick="deleteHistory('${item.id}', '${item.category}', '${item.duration}', '${safeWho}')">Delete</button>
+                        <button class="btn-edit" onclick="openEdit(${item.row}, '${item.category}')">Edit</button>
+                        <button class="btn-delete" onclick="deleteHistory(${item.row}, '${item.category}', '${item.duration}', '${safeWho}')">Delete</button>
                     </div>
                 `;
                 list.appendChild(div);
@@ -1387,14 +1389,14 @@
         renderHistoryList(rawData.filter(d=>activeFilters[d.category]));
     });
 
-    window.deleteHistory = function(id, cat, dur, who) {
+    window.deleteHistory = function(row, cat, dur, who) {
         let mNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         let detailStr = `${cat} for ${dur} mins`;
         if (who) detailStr += ` with ${who}`;
         showConfirmModal('Delete entry', `Are you sure you want to delete this entry?\n\n${detailStr}`, async () => {
             showInfoToast('Deleting...');
             try {
-                await API.sessions.delete(id);
+                await API.sessions.delete(row, cat);
                 showSuccessToast('Entry deleted');
                 fetchDataAndRender();
             } catch (error) {
@@ -1403,13 +1405,13 @@
         });
     }
 
-    window.openEdit = async function(id, cat) {
-        const session = rawData.find(s => s.id === id);
+    window.openEdit = async function(row, cat) {
+        const session = rawData.find(s => s.row === row);
         if (!session) return showWarningToast('Session not found');
 
         document.getElementById('editCat').value = cat;
-        document.getElementById('editId').value = id;
-        document.getElementById('editDate').value = new Date(session.date).toISOString().split('T')[0];
+        document.getElementById('editRow').value = row;
+        document.getElementById('editDate').value = session.dateStr;
         document.getElementById('editDuration').value = session.duration;
 
         const group = document.getElementById('editWhoGroup');
@@ -1432,7 +1434,7 @@
     }
 
     document.getElementById('saveEditBtn')?.addEventListener('click', async () => {
-        const id = document.getElementById('editId').value;
+        const row = document.getElementById('editRow').value;
         const cat = document.getElementById('editCat').value;
         const dur = document.getElementById('editDuration').value;
         const dStr = document.getElementById('editDate').value;
@@ -1445,7 +1447,7 @@
         btn.disabled = true;
 
         try {
-            await API.sessions.update(id, {
+            await API.sessions.update(row, {
                 category: cat,
                 duration: Number(dur),
                 who: who || null,
