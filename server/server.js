@@ -36,9 +36,20 @@ app.use(session({
   }
 }));
 
+// Serve static frontend files
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+app.use(express.static(path.join(__dirname, '../public')));
+
 // Routes
 app.use('/auth', authRoutes);
 app.use('/api', apiRoutes);
+
+// Serve index.html for all non-API routes (SPA support)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
 
 // Health check
 app.get('/health', (req, res) => {
