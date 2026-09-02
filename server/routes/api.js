@@ -159,7 +159,11 @@ router.get('/sessions', requireAuth, async (req, res) => {
               continue;
             }
 
-            const dateStr = dateObj.toISOString().split('T')[0];
+            // Format as YYYY-MM-DD using local time (not UTC)
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
             allRecords.push({
               row: i + 2,
               category: cat,
