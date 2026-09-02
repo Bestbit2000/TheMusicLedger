@@ -128,8 +128,13 @@ router.get('/sessions', requireAuth, async (req, res) => {
         const dateVal = data[i][map.date];
         const dur = Number(data[i][map.duration]);
         if (dateVal && dur > 0) {
-          const dateStr = dateVal instanceof Date ? dateVal.toISOString().split('T')[0] :
-                          typeof dateVal === 'string' ? dateVal : new Date(dateVal).toISOString().split('T')[0];
+          let dateObj;
+          if (dateVal instanceof Date) {
+            dateObj = dateVal;
+          } else {
+            dateObj = new Date(dateVal);
+          }
+          const dateStr = dateObj.toISOString().split('T')[0];
           allRecords.push({
             row: i + 2,
             category: cat,
