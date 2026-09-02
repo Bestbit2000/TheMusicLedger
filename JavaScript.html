@@ -1,0 +1,1009 @@
+<script>
+    let rawData = [];
+    let appData = { organisations: [], teachers: [] };
+    let currentHistDate = new Date(); 
+    let activeFilters = { 'Practise': true, 'Rehearsal': true, 'Lesson': true, 'Performance': true };
+    const colorMap = { 'Practise': 'var(--cat-practise)', 'Rehearsal': 'var(--cat-rehearsal)', 'Lesson': 'var(--cat-lesson)', 'Performance': 'var(--cat-performance)' };
+
+    // Challenge Data
+    let allChallenges = [];
+    let currentSessionLog = { time: 0, items: [] };
+    let activeChallengeItems = [];
+    let currentPlayIndex = 0;
+    let currentSessionChallengeId = null;
+    let editChallengeMeta = {}; 
+
+    function parseDateSafely(dateStr) {
+        if (!dateStr) return new Date();
+        if (typeof dateStr !== 'string') return new Date(dateStr); 
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        }
+        return new Date(dateStr);
+    }
+
+    google.script.run.withSuccessHandler(data => { appData = data; populateWhoDropdowns(); }).getDropdownOptions();
+    document.getElementById('date').valueAsDate = new Date();
+    if (localStorage.getItem('darkMode') === 'true') { document.body.classList.add('dark-mode'); document.getElementById('darkModeToggle').checked = true; }
+
+    function fetchDataAndRender() {
+        google.script.run.withSuccessHandler(data => { rawData = data; renderAllViews(); }).getAllData();
+        loadChallenges();
+    }
+    fetchDataAndRender();
+
+    function populateWhoDropdowns() {
+        const cWho = document.getElementById('cWho');
+        cWho.innerHTML = '<option value="">None</option>';
+        appData.organisations.forEach(org => {
+            let safeOrg = String(org).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            cWho.innerHTML += `<option value="${safeOrg}">${org}</option>`;
+        });
+    }
+
+    // --- BURGER MENU LOGIC ---
+    document.getElementById('navBurgerMenuBtn').addEventListener('click', (e) => { 
+        e.stopPropagation(); 
+        document.getElementById('burgerDropdown').classList.toggle('show'); 
+    });
+    document.addEventListener('click', () => {
+        const dropdown = document.getElementById('burgerDropdown');
+        if(dropdown) dropdown.classList.remove('show');
+    });
+    function closeMenu() { document.getElementById('burgerDropdown').classList.remove('show'); }
+
+    // --- CUSTOM MODALS LOGIC ---
+    let confirmCallback = null;
+    function showConfirmModal(title, msg, callback, isDanger=true) {
+        document.getElementById('confirmTitle').innerText = title; document.getElementById('confirmMessage').innerText = msg;
+        const btn = document.getElementById('confirmActionBtn'); btn.style.background = isDanger ? 'var(--danger-color)' : 'var(--primary-action)'; btn.innerText = isDanger ? 'Delete' : 'Confirm';
+        confirmCallback = callback; document.getElementById('confirmModal').style.display = 'flex';
+    }
+    window.closeConfirmModal = function() { document.getElementById('confirmModal').style.display = 'none'; confirmCallback = null; }
+    document.getElementById('confirmActionBtn').addEventListener('click', () => { if(confirmCallback) confirmCallback(); closeConfirmModal(); });
+
+    let promptCallback = null;
+    function showPromptModal(title, defaultVal, callback) {
+        document.getElementById('promptTitle').innerText = title; const input = document.getElementById('promptInput'); input.value = defaultVal || ''; promptCallback = callback; document.getElementById('promptModal').style.display = 'flex'; input.focus();
+    }
+    window.closePromptModal = function() { document.getElementById('promptModal').style.display = 'none'; promptCallback = null; }
+    document.getElementById('promptActionBtn').addEventListener('click', () => { const val = document.getElementById('promptInput').value.trim(); if(promptCallback) promptCallback(val); closePromptModal(); });
+
+    // --- VIEW NAVIGATION ---
+    const views = ['mainView', 'historyView', 'statsView', 'entryForm', 'manageListsView', 'settingsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView'];
+    let viewStack = ['mainView'];
+
+    const viewAliasMap = {
+        'main': 'mainView', 'history': 'historyView', 'stats': 'statsView', 'addForm': 'entryForm', 
+        'lists': 'manageListsView', 'settings': 'settingsView', 'challengesList': 'manageChallengesView', 
+        'challengeSelect': 'challengeSelectView', 'challengePlay': 'challengePlayView', 
+        'challengeSummary': 'challengeSummaryView', 'editChallenge': 'editChallengeView'
+    };
+
+    window.switchView = function(viewName, isBack = false) {
+        if (viewAliasMap[viewName]) viewName = viewAliasMap[viewName];
+
+        if (!isBack && viewStack[viewStack.length - 1] !== viewName) viewStack.push(viewName);
+        
+        views.forEach(v => {
+            const el = document.getElementById(v);
+            if(el) el.style.display = 'none';
+        });
+        
+        const targetEl = document.getElementById(viewName);
+        if(targetEl) targetEl.style.display = 'block';
+        
+        const topBackBtn = document.getElementById('topBackBtn');
+        if (viewName === 'mainView') { topBackBtn.classList.add('hidden-btn'); document.getElementById('topTitle').innerText = 'The Music Ledger'; } 
+        else { topBackBtn.classList.remove('hidden-btn'); }
+
+        if (viewName === 'historyView') { document.getElementById('topTitle').innerText = 'Session history'; renderHistoryList(rawData.filter(d => activeFilters[d.category])); }
+        if (viewName === 'statsView') { document.getElementById('topTitle').innerText = 'Detailed stats'; scrollStatsToRight(); }
+        if (viewName === 'entryForm') { document.getElementById('topTitle').innerText = 'Add record'; document.getElementById('duration').focus(); }
+        if (viewName === 'manageListsView') { document.getElementById('topTitle').innerText = 'Manage lists'; renderManageLists(); }
+        if (viewName === 'settingsView') { document.getElementById('topTitle').innerText = 'Settings'; }
+        if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
+        if (viewName === 'challengeSelectView') { document.getElementById('topTitle').innerText = 'Select challenge'; renderChallengeSelect(); }
+        if (viewName === 'challengePlayView') { document.getElementById('topTitle').innerText = 'Practise'; }
+        if (viewName === 'challengeSummaryView') { document.getElementById('topTitle').innerText = 'Session complete'; topBackBtn.classList.add('hidden-btn'); }
+        if (viewName === 'editChallengeView') { document.getElementById('topTitle').innerText = 'Edit challenge'; }
+    }
+
+    window.goBack = function() {
+        if (viewStack.length > 1) { viewStack.pop(); switchView(viewStack[viewStack.length - 1], true); } 
+        else switchView('mainView', true);
+    }
+    
+    // ==========================================
+    // CHALLENGE LOGIC
+    // ==========================================
+    
+    function loadChallenges() {
+        google.script.run.withSuccessHandler(data => { 
+            allChallenges = data; 
+            if(document.getElementById('editChallengeView').style.display === 'block') renderEditChallengeItems();
+            if(document.getElementById('manageChallengesView').style.display === 'block') renderChallengesList();
+            if(document.getElementById('challengeSelectView').style.display === 'block') renderChallengeSelect();
+        }).getChallenges();
+    }
+
+    document.getElementById('challTypeRadios').addEventListener('change', (e) => {
+        const type = e.target.value;
+        const perfFields = document.getElementById('cPerformanceFields');
+        const techFields = document.getElementById('cTechniqueFields');
+        const whoGroup = document.getElementById('cWhoGroup');
+        const pieceLbl = document.getElementById('cPieceLabel');
+        
+        if(type === 'Performance') {
+            perfFields.classList.remove('hidden-group'); techFields.classList.add('hidden-group');
+            whoGroup.classList.remove('hidden-group'); pieceLbl.innerText = "Piece name";
+        } else {
+            perfFields.classList.add('hidden-group'); techFields.classList.remove('hidden-group');
+            whoGroup.classList.add('hidden-group'); pieceLbl.innerText = "Exercise/Book name";
+        }
+    });
+
+    document.getElementById('cTechAutoGenToggle').addEventListener('change', (e) => {
+        if(e.target.checked) {
+            document.getElementById('cTechAutoGenYes').classList.remove('hidden-group');
+            document.getElementById('cTechAutoGenNo').classList.add('hidden-group');
+        } else {
+            document.getElementById('cTechAutoGenYes').classList.add('hidden-group');
+            document.getElementById('cTechAutoGenNo').classList.remove('hidden-group');
+        }
+    });
+    
+    document.getElementsByName('techBpmMode').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if(e.target.value === 'fixed') {
+                document.getElementById('cTechBpmFixedGroup').classList.remove('hidden-group');
+                document.getElementById('cTechBpmRandomGroup').classList.add('hidden-group');
+            } else {
+                document.getElementById('cTechBpmFixedGroup').classList.add('hidden-group');
+                document.getElementById('cTechBpmRandomGroup').classList.remove('hidden-group');
+            }
+        });
+    });
+
+    document.getElementById('saveNewChallBtn').addEventListener('click', () => {
+        const type = document.querySelector('input[name="challType"]:checked').value;
+        const who = document.getElementById('cWho').value;
+        const name = document.getElementById('cName').value;
+        const piece = document.getElementById('cPiece').value;
+        
+        if(!name || !piece) return showWarningToast("Name and piece are required!");
+        
+        let itemsToSave = [];
+        if (type === 'Performance') {
+            itemsToSave.push({ type, who, name, piece, ref: document.getElementById('cRef').value, barFrom: document.getElementById('cBarFrom').value, barTo: document.getElementById('cBarTo').value, bpm: document.getElementById('cBPM').value });
+        } else {
+            const isAuto = document.getElementById('cTechAutoGenToggle').checked;
+            if (!isAuto) {
+                itemsToSave.push({
+                    type, who: '', name, piece, 
+                    ref: document.getElementById('cTechManualRef').value,
+                    bpm: document.getElementById('cTechManualBpm').value
+                });
+            } else {
+                const prefix = document.getElementById('cTechPrefix').value || '';
+                const fNum = parseInt(document.getElementById('cTechFrom').value);
+                const tNum = parseInt(document.getElementById('cTechTo').value);
+                const bpmMode = document.querySelector('input[name="techBpmMode"]:checked').value;
+                
+                const fixedBpm = document.getElementById('cTechBpmFixed').value;
+                const minBpm = parseInt(document.getElementById('cTechBpmMin').value) || 60;
+                const maxBpm = parseInt(document.getElementById('cTechBpmMax').value) || 120;
+                const interval = parseInt(document.getElementById('cTechBpmInterval').value) || 5;
+
+                if (!isNaN(fNum) && !isNaN(tNum) && tNum >= fNum) {
+                    for(let i = fNum; i <= tNum; i++) {
+                        let finalBpm = '';
+                        if (bpmMode === 'fixed') { finalBpm = fixedBpm; } 
+                        else {
+                            let steps = Math.floor((maxBpm - minBpm) / interval);
+                            if (steps < 0) steps = 0;
+                            let rStep = Math.floor(Math.random() * (steps + 1));
+                            finalBpm = minBpm + (rStep * interval);
+                        }
+                        let refStr = prefix ? `${prefix} ${i}`.trim() : `${i}`;
+                        itemsToSave.push({ type, who: '', name, piece, ref: refStr, bpm: finalBpm });
+                    }
+                } else { return showWarningToast("Please enter valid From and To numbers."); }
+            }
+        }
+        
+        const btn = document.getElementById('saveNewChallBtn'); btn.innerText = "Creating..."; btn.disabled = true;
+        
+        google.script.run.withSuccessHandler((newId) => {
+            showSuccessToast("Challenge created!"); btn.innerText = "Create & add tasks"; btn.disabled = false;
+            document.getElementById('addChallengeModal').style.display = 'none';
+            ['cName','cPiece','cRef','cBarFrom','cBarTo','cBPM','cTechFrom','cTechTo'].forEach(id => {
+                let el = document.getElementById(id); if(el) el.value = '';
+            });
+            
+            google.script.run.withSuccessHandler(data => { 
+                allChallenges = data; openEditChallenge(newId); 
+            }).getChallenges();
+            
+        }).withFailureHandler(err => {
+            showWarningToast("Creation error: " + err.message);
+            btn.innerText = "Create & add tasks"; btn.disabled = false;
+        }).saveChallengeItems(itemsToSave);
+    });
+
+    // List view filters
+    document.getElementById('toggleShowCompletedChallenges').addEventListener('change', renderChallengesList);
+    document.getElementById('filterChallPerf').addEventListener('change', renderChallengesList);
+    document.getElementById('filterChallTech').addEventListener('change', renderChallengesList);
+
+    function renderChallengesList() {
+        try {
+            const ui = document.getElementById('challengesListUI'); ui.innerHTML = '';
+            if(!allChallenges.length) { ui.innerHTML = "<p>No active challenges found.</p>"; return; }
+            
+            let groups = {};
+            allChallenges.forEach(c => {
+                if(!groups[c.id]) {
+                    groups[c.id] = { id: c.id, name: c.name, type: c.type, total:0, complete:0, time:0, p: c.challPriority };
+                }
+                groups[c.id].total++;
+                if(c.status === 'Complete') groups[c.id].complete++;
+                groups[c.id].time += c.timeSpent;
+            });
+            
+            let showCompleted = document.getElementById('toggleShowCompletedChallenges').checked;
+            let showPerf = document.getElementById('filterChallPerf').checked;
+            let showTech = document.getElementById('filterChallTech').checked;
+            
+            let sortedIds = Object.keys(groups).sort((a,b) => groups[a].p - groups[b].p);
+            
+            sortedIds.forEach(id => {
+                let g = groups[id];
+                if(g.type === 'Performance' && !showPerf) return;
+                if(g.type === 'Technique' && !showTech) return;
+                
+                let pct = Math.round((g.complete / g.total) * 100) || 0;
+                if(!showCompleted && pct === 100) return;
+                
+                let typeColor = g.type === 'Performance' ? 'var(--cat-performance)' : 'var(--cat-lesson)';
+                let typeIcon = g.type === 'Performance' ? '🎭' : '🛠️';
+
+                ui.innerHTML += `<div class="history-item draggable-item" draggable="true" data-id="${g.id}" style="align-items:center; border-left-color: ${typeColor}; padding-left:5px;">
+                    <span class="drag-handle" title="Drag to reorder">☰</span>
+                    <div style="flex-grow:1; cursor:pointer;" onclick="openEditChallenge('${g.id}')">
+                        <div style="display:flex; justify-content:space-between; width:100%; margin-bottom:8px;">
+                            <strong>${typeIcon} ${g.name}</strong>
+                            <span style="font-weight:bold; color:${pct===100?'var(--success-color)':'inherit'}">${pct}%</span>
+                        </div>
+                        <div style="font-size:0.85rem; color:#666;">
+                            ${g.complete} / ${g.total} tasks complete | ${formatMins(g.time)} total time
+                        </div>
+                    </div>
+                </div>`;
+            });
+            setupDragAndDrop(ui, 'challenge');
+        } catch(err) { showWarningToast("Error loading challenges: " + err.message); }
+    }
+
+    // --- CHALLENGE EDITOR (Items View) ---
+    document.getElementById('toggleShowCompletedItems').addEventListener('change', renderEditChallengeItems);
+
+    window.openEditChallenge = function(id) {
+        editChallengeMeta.id = id;
+        renderEditChallengeItems();
+        switchView('editChallengeView');
+    }
+    
+    window.editEntireChallenge = function() {
+        showPromptModal('Rename challenge', editChallengeMeta.name, (newName) => {
+            if(newName && newName !== editChallengeMeta.name) {
+                showInfoToast("Renaming...");
+                google.script.run.withSuccessHandler(() => {
+                    showSuccessToast("Challenge renamed!");
+                    editChallengeMeta.name = newName;
+                    document.getElementById('ecName').innerText = newName;
+                    loadChallenges(); 
+                }).withFailureHandler(err => showWarningToast(err.message)).updateChallengeName(editChallengeMeta.id, newName);
+            }
+        });
+    }
+
+    window.deleteEntireChallenge = function() {
+        const items = allChallenges.filter(c => c.id == editChallengeMeta.id);
+        const count = items.length;
+        showConfirmModal('Delete challenge', `Are you sure? This will remove the challenge and all ${count} tasks.`, () => {
+            showInfoToast("Deleting challenge...");
+            google.script.run.withSuccessHandler(() => {
+                showSuccessToast("Challenge deleted");
+                loadChallenges(); 
+                goBack(); 
+            }).withFailureHandler(err => showWarningToast("Error: " + err.message)).deleteFullChallenge(editChallengeMeta.id);
+        });
+    }
+
+    function renderEditChallengeItems() {
+        try {
+            const items = allChallenges.filter(c => c.id == editChallengeMeta.id);
+            if(!items.length) { 
+                document.getElementById('ecItemsList').innerHTML = "<p>No tasks remaining in this challenge.</p>"; 
+                document.getElementById('ecStats').innerText = "0 / 0 tasks complete | 0h 0m total time";
+                return; 
+            }
+            
+            editChallengeMeta.type = items[0].type; 
+            editChallengeMeta.who = items[0].who; 
+            editChallengeMeta.name = items[0].name;
+
+            document.getElementById('ecName').innerText = editChallengeMeta.name;
+            document.getElementById('ecWhoType').innerText = `${editChallengeMeta.type} ${editChallengeMeta.who ? 'for ' + editChallengeMeta.who : ''}`;
+            
+            let completeCount = items.filter(i => i.status === 'Complete').length;
+            let totalTime = items.reduce((sum, i) => sum + i.timeSpent, 0);
+            document.getElementById('ecStats').innerText = `${completeCount} / ${items.length} tasks complete | ${formatMins(totalTime)} total time`;
+            
+            let showCompleted = document.getElementById('toggleShowCompletedItems').checked;
+            const list = document.getElementById('ecItemsList'); list.innerHTML = '';
+            
+            items.forEach(item => {
+                if(!showCompleted && item.status === 'Complete') return;
+                let refStr = item.ref || '';
+                if (item.barFrom || item.barTo) refStr += ` (Bars ${item.barFrom || '?'} - ${item.barTo || '?'})`;
+                let safePiece = String(item.piece).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+
+                list.innerHTML += `
+                <div class="history-item draggable-item" draggable="true" data-row="${item.row}" style="align-items:center; border-left: 4px solid ${item.status === 'Complete' ? 'var(--success-color)' : 'var(--primary-action)'}; padding-left:5px;">
+                    <span class="drag-handle" title="Drag to reorder">☰</span>
+                    <div style="flex-grow:1;">
+                        <div style="display:flex; justify-content:space-between; width:100%;">
+                            <strong>${item.piece}</strong>
+                            <span style="font-size:0.85rem; color:#888;">${item.status}</span>
+                        </div>
+                        <div style="font-size:0.85rem; color:#666; margin-bottom:10px;">${refStr} ${item.bpm ? '| '+item.bpm+' bpm' : ''}</div>
+                        <div style="display:flex; gap:5px; width:100%;">
+                            <button class="btn-edit" style="flex:1" onclick="openItemDetailModal(${item.row})">Edit</button>
+                            <button class="btn-delete" style="flex:1" onclick="deleteChallengeItem(${item.row}, '${safePiece}')">Delete</button>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            setupDragAndDrop(list, 'item');
+        } catch(err) { showWarningToast("Error loading challenge editor: " + err.message); }
+    }
+
+    window.openItemDetailModal = function(row = null) {
+        const modal = document.getElementById('itemDetailModal'); const title = document.getElementById('itemModalTitle'); document.getElementById('itemEditRow').value = row || '';
+        if(row) {
+            title.innerText = "Edit task"; const item = allChallenges.find(c => c.row == row);
+            document.getElementById('iPiece').value = item.piece; document.getElementById('iRef').value = item.ref;
+            document.getElementById('iBarFrom').value = item.barFrom; document.getElementById('iBarTo').value = item.barTo; document.getElementById('iBPM').value = item.bpm;
+        } else {
+            title.innerText = "Add new task"; ['iPiece','iRef','iBarFrom','iBarTo','iBPM'].forEach(id => document.getElementById(id).value = '');
+        }
+        modal.style.display = 'flex';
+    }
+
+    document.getElementById('saveItemBtn').addEventListener('click', () => {
+        const row = document.getElementById('itemEditRow').value; const piece = document.getElementById('iPiece').value;
+        if(!piece) return showWarningToast("Task piece name is required!");
+        
+        const ref = document.getElementById('iRef').value; const bf = document.getElementById('iBarFrom').value;
+        const bt = document.getElementById('iBarTo').value; const bpm = document.getElementById('iBPM').value;
+        
+        const btn = document.getElementById('saveItemBtn'); btn.innerText = "Saving..."; btn.disabled = true;
+
+        if (row) {
+            google.script.run.withSuccessHandler(() => {
+                btn.innerText = "Save task"; btn.disabled = false; document.getElementById('itemDetailModal').style.display = 'none';
+                loadChallenges(); showSuccessToast("Task updated!");
+            }).updateChallengeItemDetails(row, piece, ref, bf, bt, bpm);
+        } else {
+            const newItem = [{ id: editChallengeMeta.id, type: editChallengeMeta.type, who: editChallengeMeta.who, name: editChallengeMeta.name, piece, ref, barFrom: bf, barTo: bt, bpm }];
+            google.script.run.withSuccessHandler(() => {
+                btn.innerText = "Save task"; btn.disabled = false; document.getElementById('itemDetailModal').style.display = 'none';
+                loadChallenges(); showSuccessToast("Task added!");
+            }).saveChallengeItems(newItem);
+        }
+    });
+
+    window.deleteChallengeItem = function(row, piece) {
+        showConfirmModal('Delete task', `Remove '${piece}' from this challenge?`, () => {
+            showInfoToast("Deleting..."); google.script.run.withSuccessHandler(() => { showSuccessToast("Task deleted"); loadChallenges(); }).deleteChallengeRow(row);
+        });
+    }
+
+    // --- DRAG AND DROP HANDLERS ---
+    function setupDragAndDrop(container, mode) {
+        let draggedItem = null;
+        
+        container.addEventListener('touchstart', (e) => {
+            if (e.target.classList.contains('drag-handle')) {
+                draggedItem = e.target.closest('.draggable-item'); draggedItem.classList.add('dragging'); document.body.style.overflow = 'hidden'; 
+            }
+        }, {passive: false});
+
+        container.addEventListener('touchmove', (e) => {
+            if (!draggedItem) return; e.preventDefault();
+            const touch = e.touches[0]; const afterElement = getDragAfterElement(container, touch.clientY);
+            if (afterElement == null) container.appendChild(draggedItem);
+            else container.insertBefore(draggedItem, afterElement);
+        }, {passive: false});
+
+        container.addEventListener('touchend', (e) => {
+            if (!draggedItem) return;
+            draggedItem.classList.remove('dragging'); document.body.style.overflow = ''; draggedItem = null;
+            saveNewOrder(container, mode);
+        });
+
+        const draggables = container.querySelectorAll('.draggable-item');
+        draggables.forEach(draggable => {
+            draggable.addEventListener('dragstart', () => { draggable.classList.add('dragging'); });
+            draggable.addEventListener('dragend', () => { draggable.classList.remove('dragging'); saveNewOrder(container, mode); });
+        });
+
+        container.addEventListener('dragover', e => {
+            e.preventDefault(); const afterElement = getDragAfterElement(container, e.clientY); const draggable = document.querySelector('.dragging');
+            if(draggable) { if (afterElement == null) container.appendChild(draggable); else container.insertBefore(draggable, afterElement); }
+        });
+    }
+
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.draggable-item:not(.dragging)')];
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect(); const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) return { offset: offset, element: child };
+            else return closest;
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    function saveNewOrder(container, mode) {
+        showInfoToast("Saving order...");
+        if(mode === 'challenge') {
+            const visibleIds = [...container.querySelectorAll('.draggable-item')].map(el => el.dataset.id);
+            let allIdsOrdered = [...new Set(allChallenges.map(c => c.id))].sort((a,b) => {
+                let pA = allChallenges.find(c=>c.id==a).challPriority;
+                let pB = allChallenges.find(c=>c.id==b).challPriority;
+                return pA - pB;
+            });
+            let indices = visibleIds.map(id => allIdsOrdered.indexOf(id)).filter(i => i !== -1).sort((a,b) => a-b);
+            visibleIds.forEach((id, i) => { if (indices[i] !== undefined) allIdsOrdered[indices[i]] = id; });
+            
+            google.script.run.withSuccessHandler(()=>{ loadChallenges(); closeToast('toastInfo'); }).updateChallengePriorities(allIdsOrdered);
+        } else {
+            const visibleRows = [...container.querySelectorAll('.draggable-item')].map(el => Number(el.dataset.row));
+            let allRowsOrdered = allChallenges.filter(c => c.id == editChallengeMeta.id).sort((a,b) => a.itemPriority - b.itemPriority).map(c => c.row);
+            let indices = visibleRows.map(r => allRowsOrdered.indexOf(r)).filter(i => i !== -1).sort((a,b) => a-b);
+            visibleRows.forEach((r, i) => { if (indices[i] !== undefined) allRowsOrdered[indices[i]] = r; });
+            
+            google.script.run.withSuccessHandler(()=>{ loadChallenges(); closeToast('toastInfo'); }).updateItemPriorities(allRowsOrdered);
+        }
+    }
+
+
+    // --- START PRACTISE SELECT SCREEN ---
+    document.getElementById('toggleShowCompletedSelect').addEventListener('change', renderChallengeSelect);
+    document.getElementById('filterSelectPerf').addEventListener('change', renderChallengeSelect);
+    document.getElementById('filterSelectTech').addEventListener('change', renderChallengeSelect);
+
+    function renderChallengeSelect() {
+        const ui = document.getElementById('activeChallengesList'); ui.innerHTML = '';
+        let groups = {};
+        
+        allChallenges.forEach(c => {
+            if(!groups[c.id]) {
+                groups[c.id] = { id: c.id, name: c.name, type: c.type, who: c.who, p: c.challPriority, total: 0, complete: 0 };
+            }
+            groups[c.id].total++;
+            if(c.status === 'Complete') groups[c.id].complete++;
+        });
+        
+        let showCompleted = document.getElementById('toggleShowCompletedSelect').checked;
+        let showPerf = document.getElementById('filterSelectPerf').checked;
+        let showTech = document.getElementById('filterSelectTech').checked;
+        
+        let sortedIds = Object.keys(groups)
+            .filter(id => showCompleted || groups[id].complete < groups[id].total)
+            .sort((a,b) => groups[a].p - groups[b].p);
+            
+        if(sortedIds.length === 0) { ui.innerHTML = "<p>No active challenges to practise right now!</p>"; return; }
+        
+        sortedIds.forEach(id => {
+            let g = groups[id];
+            if(g.type === 'Performance' && !showPerf) return;
+            if(g.type === 'Technique' && !showTech) return;
+
+            let remaining = g.total - g.complete;
+            let pct = Math.round((g.complete / g.total) * 100) || 0;
+            
+            let typeColor = g.type === 'Performance' ? 'var(--cat-performance)' : 'var(--cat-lesson)';
+            let typeIcon = g.type === 'Performance' ? '🎭' : '🛠️';
+            
+            let btn = document.createElement('button'); 
+            btn.className = 'btn-large'; 
+            btn.style.background = 'var(--container-bg)'; 
+            btn.style.color = 'var(--text-color)'; 
+            btn.style.border = `2px solid ${typeColor}`; 
+            btn.style.marginBottom = '10px'; 
+            btn.style.textAlign = 'left';
+            btn.style.padding = '15px';
+            
+            btn.innerHTML = `
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:15px; padding-left: 5px;">
+                    <div style="flex:1; min-width:0;">
+                        <span style="display:block; font-size:1.1rem; font-weight:bold; white-space:normal; word-wrap:break-word; line-height:1.2; margin-bottom:4px;">${typeIcon} ${g.name} ${g.who ? '<span style="font-size:0.9rem; color:#888;">('+g.who+')</span>' : ''}</span>
+                        <span style="font-size:0.85rem; color:#666; font-weight:normal;">${remaining} tasks remaining out of ${g.total}</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:45px;">
+                        <div style="width:36px; height:36px; border-radius:50%; background:conic-gradient(var(--success-color) ${pct}%, var(--input-border) 0); display:flex; align-items:center; justify-content:center; margin-bottom:4px;">
+                            <div style="width:28px; height:28px; background:var(--container-bg); border-radius:50%;"></div>
+                        </div>
+                        <span style="font-size:0.8rem; font-weight:bold; color:var(--text-color);">${pct}%</span>
+                    </div>
+                </div>
+            `;
+            btn.onclick = () => startChallengeSession(id);
+            ui.appendChild(btn);
+        });
+    }
+
+    function startChallengeSession(id) {
+        currentSessionChallengeId = String(id);
+        activeChallengeItems = allChallenges.filter(c => c.id == id && c.status !== 'Complete');
+        currentSessionLog = { time: 0, items: [] };
+        currentPlayIndex = 0;
+        
+        if(!activeChallengeItems.length) return showWarningToast("No active tasks found in this challenge.");
+        
+        document.getElementById('playCustomTime').value = '';
+        document.getElementById('stat-ongoing').checked = true;
+        document.getElementById('customTimeGroup').classList.add('hidden-group');
+        
+        switchView('challengePlayView');
+        loadNextChallengeItem();
+    }
+
+    document.getElementById('playTimeRadios').addEventListener('change', (e) => {
+        if(e.target.value === 'custom') document.getElementById('customTimeGroup').classList.remove('hidden-group');
+        else document.getElementById('customTimeGroup').classList.add('hidden-group');
+    });
+
+    function loadNextChallengeItem() {
+        if (currentPlayIndex >= activeChallengeItems.length) return navigateToNextChallenge();
+        
+        const item = activeChallengeItems[currentPlayIndex];
+        document.getElementById('playWho').innerText = item.who ? `For: ${item.who}` : '';
+        document.getElementById('playName').innerText = item.name;
+        document.getElementById('playPiece').innerText = item.piece;
+        
+        let refStr = item.ref || '';
+        if (item.barFrom || item.barTo) refStr += ` (Bars ${item.barFrom || '?'} - ${item.barTo || '?'})`;
+        document.getElementById('playRef').innerText = refStr;
+        
+        document.getElementById('playMeta').innerHTML = item.bpm ? `<span>BPM: <strong>${item.bpm}</strong></span>` : '';
+        document.getElementById('playStats').innerText = `Time to date: ${formatMins(item.timeSpent)} | Sessions: ${item.sessions}`;
+        
+        document.getElementById('stat-ongoing').checked = true;
+        document.getElementById('time-10').checked = true;
+        document.getElementById('customTimeGroup').classList.add('hidden-group');
+    }
+
+    function navigateToNextChallenge() {
+        let uniqueActiveChallIds = [...new Set(allChallenges.filter(c => c.status !== 'Complete').map(c => c.id))];
+        uniqueActiveChallIds.sort((a,b) => {
+            let pA = allChallenges.find(c=>c.id==a).challPriority; let pB = allChallenges.find(c=>c.id==b).challPriority; return pA - pB;
+        });
+        
+        if(uniqueActiveChallIds.length === 0) return endChallengeSession(true); 
+        let currIdx = uniqueActiveChallIds.indexOf(currentSessionChallengeId);
+        let nextId = uniqueActiveChallIds[(currIdx + 1) % uniqueActiveChallIds.length];
+        
+        currentSessionChallengeId = nextId;
+        activeChallengeItems = allChallenges.filter(c => c.id == nextId && c.status !== 'Complete');
+        currentPlayIndex = 0;
+        
+        if(activeChallengeItems.length === 0) return endChallengeSession(true); 
+        loadNextChallengeItem();
+    }
+
+    function processChallengeSave(proceedNext) {
+        const item = activeChallengeItems[currentPlayIndex];
+        const timeRadio = document.querySelector('input[name="playTime"]:checked').value;
+        const addTime = timeRadio === 'custom' ? document.getElementById('playCustomTime').value : timeRadio;
+        const newStatus = document.querySelector('input[name="playStatus"]:checked').value;
+        
+        if(!addTime || isNaN(addTime)) return showWarningToast("Please provide a valid time!");
+        
+        const btnNext = document.getElementById('saveNextBtn'); const btnEnd = document.getElementById('saveEndBtn');
+        btnNext.disabled = true; btnEnd.disabled = true; showInfoToast("Saving...");
+        
+        google.script.run.withSuccessHandler(() => {
+            showSuccessToast(`Saved ${addTime} mins`);
+            currentSessionLog.time += Number(addTime);
+            currentSessionLog.items.push({ piece: item.piece, ref: item.ref, status: newStatus, time: addTime });
+            
+            item.timeSpent += Number(addTime); item.sessions++; item.status = newStatus;
+            btnNext.disabled = false; btnEnd.disabled = false;
+            
+            if(proceedNext) { currentPlayIndex++; loadNextChallengeItem(); } 
+            else { endChallengeSession(false); }
+            
+        }).withFailureHandler(err => { showWarningToast("Error saving: " + err.message); btnNext.disabled = false; btnEnd.disabled = false; }).updateChallengeProgress(item.row, addTime, newStatus);
+    }
+
+    document.getElementById('saveNextBtn').addEventListener('click', () => processChallengeSave(true));
+    document.getElementById('saveEndBtn').addEventListener('click', () => processChallengeSave(false));
+
+    window.endChallengeSession = function(allCompleted = false) {
+        switchView('challengeSummaryView');
+        const title = document.getElementById('summaryTitle');
+        if (allCompleted) { title.innerText = "All challenges complete! 🎉"; title.style.color = "var(--success-color)"; } 
+        else { title.innerText = "Session complete!"; title.style.color = "var(--primary-action)"; }
+        
+        document.getElementById('sumTime').innerText = formatMins(currentSessionLog.time);
+        document.getElementById('sumItems').innerText = currentSessionLog.items.length;
+        
+        let ul = document.getElementById('sumCompletedItems'); ul.innerHTML = '';
+        currentSessionLog.items.forEach(i => {
+            let color = i.status === 'Complete' ? 'var(--success-color)' : 'var(--selection-color)';
+            ul.innerHTML += `<div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;"><span><strong>${i.piece}</strong> ${i.ref}</span><span style="color:${color}; font-weight:bold;">${i.status} (${i.time}m)</span></div>`;
+        });
+        fetchDataAndRender();
+    }
+
+    // ==========================================
+    // GENERAL DASHBOARD/STATS LOGIC
+    // ==========================================
+    window.scrollArea = function(btn, amount) { let container = btn.parentElement.querySelector('.chart-scroll-area, .heatmap-wrapper'); if(container) container.scrollBy({ left: amount, behavior: 'smooth' }); }
+    function scrollStatsToRight() { setTimeout(() => { document.querySelectorAll('.chart-scroll-area, .heatmap-wrapper').forEach(w => w.scrollLeft = w.scrollWidth); }, 80); }
+
+    document.getElementById('statsTimeframe').addEventListener('change', function() {
+        const customDateRange = document.getElementById('customDateRange');
+        if (this.value === 'custom') { customDateRange.classList.remove('hidden-group'); } 
+        else { customDateRange.classList.add('hidden-group'); renderStatsBoxes(); }
+    });
+    document.getElementById('customStartDate').addEventListener('change', renderStatsBoxes);
+    document.getElementById('customEndDate').addEventListener('change', renderStatsBoxes);
+
+    function getDateRange(tf) {
+        const today = new Date();
+        let start = new Date(0);
+        let end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+
+        if (tf === 'this_cal_year') start = new Date(today.getFullYear(), 0, 1);
+        else if (tf === 'this_prac_year') start = new Date((today.getMonth() >= 10) ? today.getFullYear() : today.getFullYear() - 1, 10, 1); 
+        else if (tf === 'this_month') start = new Date(today.getFullYear(), today.getMonth(), 1);
+        else if (tf === 'last_3_months') start = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+        else if (tf === 'last_6_months') start = new Date(today.getFullYear(), today.getMonth() - 5, 1);
+        else if (tf === 'this_week') start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7));
+        else if (tf === 'last_2_weeks') start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7) - 7);
+        else if (tf === 'last_4_weeks') start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7) - 21);
+        else if (tf === 'custom') {
+            const sVal = document.getElementById('customStartDate').value;
+            const eVal = document.getElementById('customEndDate').value;
+            if (sVal) start = parseDateSafely(sVal);
+            if (eVal) { end = parseDateSafely(eVal); end.setHours(23, 59, 59); }
+        }
+        return { start, end };
+    }
+
+    function renderStatsBoxes() {
+        const tf = document.getElementById('statsTimeframe').value;
+        const { start, end } = getDateRange(tf);
+        let catStats = { 'Practise':{m:0,s:0}, 'Rehearsal':{m:0,s:0}, 'Performance':{m:0,s:0}, 'Lesson':{m:0,s:0} };
+        let totalMins = 0; let totalSess = 0;
+        
+        rawData.forEach(d => {
+            const dObj = parseDateSafely(d.dateStr);
+            if (dObj >= start && dObj <= end) {
+                totalMins += d.duration; totalSess++;
+                if (catStats[d.category]) { catStats[d.category].m += d.duration; catStats[d.category].s++; }
+            }
+        });
+
+        document.getElementById('statOverall').innerHTML = `${formatMins(totalMins)} <span class="sess-count">(${totalSess})</span>`;
+        document.getElementById('statPrac').innerHTML = `${formatMins(catStats['Practise'].m)} <span class="sess-count">(${catStats['Practise'].s})</span>`;
+        document.getElementById('statReh').innerHTML = `${formatMins(catStats['Rehearsal'].m)} <span class="sess-count">(${catStats['Rehearsal'].s})</span>`;
+        document.getElementById('statPerf').innerHTML = `${formatMins(catStats['Performance'].m)} <span class="sess-count">(${catStats['Performance'].s})</span>`;
+        document.getElementById('statLess').innerHTML = `${formatMins(catStats['Lesson'].m)} <span class="sess-count">(${catStats['Lesson'].s})</span>`;
+    }
+
+    function updateFilterButtonText() {
+        let active = Object.keys(activeFilters).filter(k => activeFilters[k]);
+        let text = active.length === 4 ? 'All' : (active.length === 0 ? 'None' : active.join(', '));
+        document.getElementById('filterStatsBtn').innerText = 'Filter stats (' + text + ')';
+        document.getElementById('filterHistoryBtn').innerText = 'Filter history (' + text + ')';
+    }
+
+    document.getElementById('filterAllOn').addEventListener('click', () => document.querySelectorAll('.cat-filter').forEach(cb => cb.checked = true));
+    document.getElementById('filterAllOff').addEventListener('click', () => document.querySelectorAll('.cat-filter').forEach(cb => cb.checked = false));
+    document.getElementById('applyFilterBtn').addEventListener('click', () => {
+        document.querySelectorAll('.cat-filter').forEach(cb => activeFilters[cb.value] = cb.checked);
+        document.getElementById('filterModal').style.display = 'none';
+        updateFilterButtonText(); renderFilteredVisuals();
+    });
+
+    document.getElementById('categoryRadios').addEventListener('change', function(e) {
+        if(e.target.name === 'category') {
+            const cat = e.target.value; const whoSelect = document.getElementById('who'); whoSelect.innerHTML = '';
+            if (cat === 'Practise') document.getElementById('whoGroup').classList.add('hidden-group');
+            else {
+                document.getElementById('whoGroup').classList.remove('hidden-group');
+                let opts = (cat === 'Lesson') ? appData.teachers : appData.organisations;
+                opts.forEach(item => { let safeItem = String(item).replace(/'/g, "\\'").replace(/"/g, "&quot;"); whoSelect.innerHTML += `<option value="${safeItem}">${item}</option>`; });
+            }
+        }
+    });
+
+    document.getElementById('submitBtn').addEventListener('click', () => {
+        const cat = document.querySelector('input[name="category"]:checked').value;
+        const dur = document.getElementById('duration').value;
+        const dStr = document.getElementById('date').value;
+        const who = !document.getElementById('whoGroup').classList.contains('hidden-group') ? document.getElementById('who').value : '';
+        if (!dur) { showWarningToast('Duration required!'); return; }
+        const btn = document.getElementById('submitBtn'); btn.innerText = 'Saving...'; btn.disabled = true;
+        
+        google.script.run.withSuccessHandler((res) => {
+            showSuccessToast(res.message, res.category, res.row); btn.innerText = 'Save session'; btn.disabled = false; document.getElementById('duration').value = ''; goBack(); fetchDataAndRender();
+        }).withFailureHandler((err) => { showWarningToast('Save error: ' + err.message); btn.innerText = 'Save session'; btn.disabled = false; }).saveRecord(cat, who, dStr, dur);
+    });
+
+    function formatMins(mins) { mins = Math.round(mins); const h = Math.floor(mins / 60); const m = mins % 60; return `${h}h ${m}m`; }
+
+    function renderAllViews() {
+        try {
+            let tMins = 0, tSess = 0; rawData.forEach(d => { tMins += d.duration; tSess++; });
+            document.getElementById('mainTotalTime').innerText = formatMins(tMins); document.getElementById('mainTotalSessions').innerText = tSess;
+            updateFilterButtonText(); renderStatsBoxes(); renderFilteredVisuals();
+        } catch(err) { showWarningToast("Render Error: " + err.message); }
+    }
+
+    function renderFilteredVisuals() {
+        try {
+            const filtered = rawData.filter(d => activeFilters[d.category]);
+            let dailyMins = {}, dailySess = {};
+            filtered.forEach(d => { dailyMins[d.dateStr] = (dailyMins[d.dateStr]||0) + d.duration; dailySess[d.dateStr] = (dailySess[d.dateStr]||0) + 1; });
+            buildHeatmap('timeHeatmap', dailyMins, 'time'); buildHeatmap('sessHeatmap', dailySess, 'sess'); buildCharts(filtered); renderHistoryList(filtered);
+        } catch(err) { showWarningToast("Visuals Error: " + err.message); }
+    }
+
+    function buildHeatmap(containerId, dataMap, type) {
+        try {
+            const container = document.getElementById(containerId); container.innerHTML = '';
+            if(rawData.length === 0) return;
+            const today = new Date(); let minDateObj = parseDateSafely(rawData[rawData.length-1].dateStr);
+            if (minDateObj > today) minDateObj = new Date(today.getFullYear()-1, today.getMonth(), today.getDate());
+
+            const day = minDateObj.getDay(); const diff = minDateObj.getDate() - day + (day === 0 ? -6 : 1);
+            let current = new Date(minDateObj.setDate(diff)); let col = document.createElement('div'); col.className = 'heat-col';
+            
+            while (current <= today) {
+                let dow = (current.getDay() + 6) % 7;
+                if (current.getDate() === 1 && col.children.length > 0) {
+                    container.appendChild(col);
+                    if (current.getMonth() === 0) { let ys = document.createElement('div'); ys.className = 'year-spacer'; ys.innerHTML = `<span>${current.getFullYear()}</span>`; container.appendChild(ys); } 
+                    else { let ms = document.createElement('div'); ms.className = 'month-spacer'; container.appendChild(ms); }
+                    col = document.createElement('div'); col.className = 'heat-col';
+                    let ml = document.createElement('div'); ml.className = 'month-label'; ml.innerText = current.toLocaleString('default', { month: 'short' }); col.appendChild(ml);
+                    for(let i=0; i<dow; i++){ let b = document.createElement('div'); b.className = 'heat-cell blank'; col.appendChild(b); }
+                } else if (dow === 0 && col.children.length > 0) { container.appendChild(col); col = document.createElement('div'); col.className = 'heat-col'; }
+
+                let key = current.getFullYear() + '-' + String(current.getMonth()+1).padStart(2,'0') + '-' + String(current.getDate()).padStart(2,'0');
+                let val = dataMap[key] || 0; let level = 0;
+                if(type === 'time') { if(val > 0) level=1; if(val>=30) level=2; if(val>=60) level=3; if(val>=120) level=4; } 
+                else { if(val > 0) level=1; if(val>=2) level=2; if(val>=3) level=3; if(val>=4) level=4; }
+
+                let cell = document.createElement('div'); cell.className = `heat-cell h-${type}-${level}`; 
+                let [y, m, d] = key.split('-'); let mNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                let fDate = parseInt(d, 10) + ' ' + mNames[parseInt(m, 10)-1] + ' ' + y;
+                cell.addEventListener('click', function() { showInfoToast(`${fDate}: ${type==='time' ? Math.round(val)+' mins' : Math.round(val)+' sess'}`); });
+                col.appendChild(cell); current.setDate(current.getDate() + 1);
+            }
+            container.appendChild(col);
+        } catch(err) { showWarningToast("Heatmap Error: " + err.message); }
+    }
+
+    function buildCharts(filtered) {
+        try {
+            const contDays = document.getElementById('chartDays'); const contHrs = document.getElementById('chartHours'); const contSess = document.getElementById('chartSess');
+            contDays.innerHTML = ''; contHrs.innerHTML = ''; contSess.innerHTML = '';
+            if(rawData.length === 0) return;
+            
+            let minDate = parseDateSafely(rawData[rawData.length-1].dateStr); let today = new Date();
+            let monthMap = {}; let curr = new Date(minDate.getFullYear(), minDate.getMonth(), 1); let end = new Date(today.getFullYear(), today.getMonth(), 1);
+            let order = [];
+            
+            while(curr <= end) {
+                let key = curr.getFullYear() + '-' + String(curr.getMonth()+1).padStart(2,'0');
+                order.push(key); monthMap[key] = { days: new Set(), hours: 0, sess: 0 }; curr.setMonth(curr.getMonth() + 1);
+            }
+
+            filtered.forEach(d => { let k = d.dateStr.substring(0,7); if(monthMap[k]) { monthMap[k].days.add(d.dateStr); monthMap[k].hours += (d.duration / 60); monthMap[k].sess += 1; } });
+
+            let maxDays=0, maxHrs=0, maxSess=0;
+            order.forEach(k => { if(monthMap[k].days.size > maxDays) maxDays = monthMap[k].days.size; if(monthMap[k].hours > maxHrs) maxHrs = monthMap[k].hours; if(monthMap[k].sess > maxSess) maxSess = monthMap[k].sess; });
+
+            renderBarChart(contHrs, order, monthMap, maxHrs, 'hours'); renderBarChart(contDays, order, monthMap, maxDays, 'days'); renderBarChart(contSess, order, monthMap, maxSess, 'sess');
+        } catch(err) { showWarningToast("Chart Error: " + err.message); }
+    }
+
+    function renderBarChart(cont, order, dataMap, maxVal, type) {
+        if (maxVal === 0) maxVal = 1;
+        let steps = [1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 250, 300, 500, 1000];
+        let step = steps.find(s => s * 3.5 >= maxVal) || Math.ceil(maxVal/3); let chartMax = Math.max(maxVal * 1.05, step * 3);
+
+        let gridLines = document.createElement('div'); gridLines.className = 'chart-grid-lines';
+        let yAxis = document.createElement('div'); yAxis.className = 'chart-y-axis';
+        let yAxisCont = document.createElement('div'); yAxisCont.className = 'chart-y-axis-container'; yAxis.appendChild(yAxisCont);
+
+        [0, 1, 2, 3].forEach(i => {
+            let val = step * i; let pct = (val / chartMax) * 100;
+            let gl = document.createElement('div'); gl.className = 'grid-line'; gl.style.bottom = `${pct}%`;
+            if(i===0) gl.style.opacity = '0'; gridLines.appendChild(gl);
+            let yl = document.createElement('span'); yl.style.position = 'absolute'; yl.style.bottom = `${pct}%`; yl.style.right = `0px`; yl.style.transform = 'translateY(50%)'; yl.innerText = val; yAxisCont.appendChild(yl);
+        });
+
+        cont.appendChild(gridLines); cont.appendChild(yAxis);
+        let scroll = document.createElement('div'); scroll.className = 'chart-scroll-area';
+        
+        order.forEach((k, idx) => {
+            let val = (type === 'days') ? dataMap[k].days.size : dataMap[k][type]; let pct = (val / chartMax) * 100;
+            let barCont = document.createElement('div'); barCont.className = 'chart-bar-container';
+            let vStr = type === 'hours' ? val.toFixed(1) + ' hours' : Math.round(val) + (type === 'days' ? ' active days' : ' sessions');
+            barCont.addEventListener('click', function() { let [y, m] = k.split('-'); let mNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]; showInfoToast(`${mNames[parseInt(m, 10)-1]} ${y}: ${vStr}`); });
+
+            let bar = document.createElement('div'); bar.className = 'chart-bar'; bar.style.height = `${pct}%`;
+            if(type === 'hours') bar.style.background = '#4CAF50'; if(type === 'days') bar.style.background = '#FFC107'; if(type === 'sess') bar.style.background = '#9C27B0';
+            barCont.appendChild(bar);
+            
+            let [y, m] = k.split('-'); let mIdx = parseInt(m, 10) - 1; let mName = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][mIdx];
+            let showLabel = false; let showYear = false;
+            if (idx === 0) { showLabel = true; showYear = true; } else if (mIdx === 0) { showLabel = true; showYear = true; } else if (mIdx === 3 || mIdx === 6 || mIdx === 9) { showLabel = true; } 
+            
+            if (showLabel) {
+                let lbl = document.createElement('span'); lbl.className = 'chart-x-label';
+                if (showYear) { lbl.innerHTML = `${mName}<br><span style="font-size:0.6rem;opacity:0.8;">${y}</span>`; } else { lbl.innerHTML = mName; }
+                barCont.appendChild(lbl);
+            }
+            scroll.appendChild(barCont);
+        });
+        cont.appendChild(scroll);
+    }
+
+    function renderHistoryList(filtered) {
+        try {
+            const y = currentHistDate.getFullYear(); const m = currentHistDate.getMonth();
+            const mNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            document.getElementById('currentMonthDisplay').innerText = `${mNames[m]} ${y}`;
+            const list = document.getElementById('historyList'); list.innerHTML = '';
+            
+            const monthData = filtered.filter(d => { 
+                let dObj = parseDateSafely(d.dateStr); 
+                return dObj.getFullYear()===y && dObj.getMonth()===m; 
+            });
+            
+            if(monthData.length === 0) { list.innerHTML = '<div style="text-align:center; padding: 20px;">No entries.</div>'; document.getElementById('historySummary').innerText = `0h 0m (0)`; return; }
+            
+            let totalMins = 0;
+            monthData.forEach(item => {
+                totalMins += item.duration;
+                const div = document.createElement('div'); div.className = 'history-item'; div.style.borderLeftColor = colorMap[item.category]; 
+                
+                let dObj = parseDateSafely(item.dateStr); 
+                let safeWho = String(item.who || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                
+                div.innerHTML = `
+                    <div class="history-details">
+                        <strong style="color: ${colorMap[item.category]}">${item.category} ${item.who ? '('+item.who+')' : ''}</strong>
+                        ${dObj.getDate() || '?'} ${mNames[dObj.getMonth()] || '?'} ${dObj.getFullYear() || '?'} | ${Math.round(item.duration)} mins
+                    </div>
+                    <div style="display:flex; gap: 5px;">
+                        <button class="btn-edit" onclick="openEdit('${item.category}', ${item.row}, '${item.dateStr}', ${item.duration}, '${safeWho}')">Edit</button>
+                        <button class="btn-delete" onclick="deleteHistory('${item.category}', ${item.row}, '${item.dateStr}', ${item.duration}, '${safeWho}')">Delete</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+            document.getElementById('historySummary').innerText = `${formatMins(totalMins)} (${monthData.length})`;
+        } catch (err) {
+            document.getElementById('historyList').innerHTML = `<div style="color:var(--danger-color); text-align:center; padding: 20px;">Error rendering history:<br>${err.message}</div>`;
+            showWarningToast("History error: " + err.message);
+        }
+    }
+
+    // --- MANAGE LISTS ---
+    function renderManageLists() {
+        const orgList = document.getElementById('orgList'); orgList.innerHTML = '';
+        appData.organisations.forEach(org => {
+            let safeOrg = String(org).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            orgList.innerHTML += `<div class="history-item"><span>${org}</span><div style="display:flex; gap:5px;"><button class="btn-edit" onclick="editListItem('organisations', '${safeOrg}')">Edit</button><button class="btn-delete" onclick="deleteListItem('organisations', '${safeOrg}')">Delete</button></div></div>`;
+        });
+        const teacherList = document.getElementById('teacherList'); teacherList.innerHTML = '';
+        appData.teachers.forEach(t => {
+            let safeT = String(t).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            teacherList.innerHTML += `<div class="history-item"><span>${t}</span><div style="display:flex; gap:5px;"><button class="btn-edit" onclick="editListItem('teachers', '${safeT}')">Edit</button><button class="btn-delete" onclick="deleteListItem('teachers', '${safeT}')">Delete</button></div></div>`;
+        });
+    }
+
+    window.addListItem = function(type) {
+        const input = type === 'teachers' ? document.getElementById('newTeacherInput') : document.getElementById('newOrgInput');
+        const name = input.value.trim();
+        if(name) {
+            showInfoToast('Adding...');
+            google.script.run.withSuccessHandler(data => { appData = data; input.value = ''; renderManageLists(); showSuccessToast('Added successfully'); }).withFailureHandler(err => showWarningToast("Error adding item: " + err.message)).addSettingOption(type, name);
+        }
+    }
+
+    window.editListItem = function(type, oldName) {
+        showPromptModal(`Rename ${oldName}`, oldName, (newName) => {
+            if (newName && newName !== oldName) {
+                showInfoToast('Updating histories...');
+                google.script.run.withSuccessHandler(data => { appData = data; renderManageLists(); fetchDataAndRender(); showSuccessToast('Name updated'); }).withFailureHandler(err => showWarningToast("Error updating name: " + err.message)).renameSettingOption(type, oldName, newName);
+            }
+        });
+    }
+
+    window.deleteListItem = function(type, name) {
+        showConfirmModal('Delete item', `Are you sure you want to delete ${name}?`, () => {
+            showInfoToast('Deleting...');
+            google.script.run.withSuccessHandler(data => { appData = data; renderManageLists(); showSuccessToast('Deleted successfully'); }).withFailureHandler(err => showWarningToast("Error deleting item: " + err.message)).deleteSettingOption(type, name);
+        });
+    }
+
+    document.getElementById('prevMonthBtn').addEventListener('click', () => { currentHistDate.setMonth(currentHistDate.getMonth() - 1); renderHistoryList(rawData.filter(d=>activeFilters[d.category])); });
+    document.getElementById('nextMonthBtn').addEventListener('click', () => { currentHistDate.setMonth(currentHistDate.getMonth() + 1); renderHistoryList(rawData.filter(d=>activeFilters[d.category])); });
+
+    window.deleteHistory = function(cat, row, dateStr, dur, who) {
+        let [y, m, d] = dateStr.split('-'); let mNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        let fDate = parseInt(d, 10) + ' ' + mNames[parseInt(m, 10)-1] + ' ' + y;
+        let detailStr = `${cat} for ${dur} mins on ${fDate}`;
+        if (who) detailStr += ` with ${who}`;
+        showConfirmModal('Delete entry', `Are you sure you want to delete this entry?\n\n${detailStr}`, () => {
+            showInfoToast('Deleting...');
+            google.script.run.withSuccessHandler(() => { showSuccessToast('Entry deleted'); fetchDataAndRender(); }).withFailureHandler(err => showWarningToast("Delete error: " + err.message)).deleteRecord(cat, row);
+        });
+    }
+
+    window.openEdit = function(cat, row, dateStr, dur, who) {
+        document.getElementById('editCat').value = cat; document.getElementById('editRow').value = row;
+        document.getElementById('editDate').value = dateStr; document.getElementById('editDuration').value = dur;
+        const group = document.getElementById('editWhoGroup'); const sel = document.getElementById('editWho');
+        sel.innerHTML = '';
+        if (cat === 'Practise') group.classList.add('hidden-group');
+        else {
+            group.classList.remove('hidden-group');
+            let opts = (cat === 'Lesson') ? appData.teachers : appData.organisations;
+            opts.forEach(item => { let safeItem = String(item).replace(/'/g, "\\'").replace(/"/g, "&quot;"); sel.innerHTML += `<option value="${safeItem}">${item}</option>`; });
+            if(who) sel.value = who;
+        }
+        document.getElementById('editModal').style.display = 'flex';
+    }
+    
+    document.getElementById('saveEditBtn').addEventListener('click', () => {
+        const cat = document.getElementById('editCat').value; const row = document.getElementById('editRow').value;
+        const dur = document.getElementById('editDuration').value; const dStr = document.getElementById('editDate').value;
+        const who = !document.getElementById('editWhoGroup').classList.contains('hidden-group') ? document.getElementById('editWho').value : '';
+        if(!dur) return showWarningToast('Duration required!');
+        const btn = document.getElementById('saveEditBtn'); btn.innerText = 'Updating...'; btn.disabled = true;
+        google.script.run.withSuccessHandler(() => { 
+            document.getElementById('editModal').style.display = 'none'; btn.innerText = 'Update record'; btn.disabled = false;
+            showInfoToast('Record updated successfully'); fetchDataAndRender();
+        }).withFailureHandler(err => { showWarningToast("Update error: " + err.message); btn.innerText = 'Update record'; btn.disabled = false; }).updateRecord(cat, row, dStr, dur, who);
+    });
+
+    // --- TOASTS ---
+    let tInt, tInfoTimeout;
+    function showSuccessToast(msg, cat, row) { 
+        closeToast('toastWarning'); closeToast('toastInfo'); const t = document.getElementById('toastSuccess'); 
+        document.getElementById('toastMsg').innerText = msg; clearInterval(tInt); clearTimeout(tInfoTimeout); 
+        if (cat && row) {
+            let tl = 3; document.getElementById('toastCountdown').innerText = tl; 
+            document.getElementById('toastUndoBtn').style.display = 'inline-block';
+            document.getElementById('toastUndoBtn').onclick = () => { closeToast('toastSuccess'); google.script.run.undoRecord(cat, row); fetchDataAndRender(); }; 
+            tInt = setInterval(() => { tl--; if(tl > 0) document.getElementById('toastCountdown').innerText = tl; }, 1000); 
+        } else { document.getElementById('toastUndoBtn').style.display = 'none'; }
+        t.classList.add('show'); tInfoTimeout = setTimeout(() => closeToast('toastSuccess'), 3000); 
+    }
+    function showWarningToast(msg) { closeToast('toastSuccess'); closeToast('toastInfo'); const t = document.getElementById('toastWarning'); document.getElementById('toastWarningMsg').innerText = msg; t.classList.add('show'); setTimeout(() => closeToast('toastWarning'), 4000); }
+    function showInfoToast(msg) { closeToast('toastWarning'); closeToast('toastSuccess'); const t = document.getElementById('toastInfo'); document.getElementById('toastInfoMsg').innerText = msg; clearTimeout(tInfoTimeout); t.classList.add('show'); tInfoTimeout = setTimeout(() => closeToast('toastInfo'), 3000); }
+    window.closeToast = function(id) { if(id === 'toastSuccess') { clearInterval(tInt); clearTimeout(tInfoTimeout); } document.getElementById(id).classList.remove('show'); }
+</script>
