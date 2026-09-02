@@ -5,13 +5,14 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import session from 'express-session';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import { initializeFirebase } from './config/firebase.js';
-import authRoutes from './routes/auth.js';
-import apiRoutes from './routes/api.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const { default: authRoutes } = await import('./routes/auth.js');
+const { default: apiRoutes } = await import('./routes/api.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
