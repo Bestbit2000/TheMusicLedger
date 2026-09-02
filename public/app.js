@@ -125,10 +125,14 @@
         if (!dateStr) return new Date();
         if (typeof dateStr !== 'string') return new Date(dateStr);
 
-        // Try DD MMM YY format first (e.g., "02 Oct 24")
-        const mmmFormat = /^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{2})$/.test(dateStr);
-        if (mmmFormat) {
-            return new Date(dateStr);
+        // Try DD MMM YY format (e.g., "02 Oct 24")
+        const mmmMatch = dateStr.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{2})$/);
+        if (mmmMatch) {
+            const months = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+            const day = parseInt(mmmMatch[1], 10);
+            const month = months[mmmMatch[2]];
+            const year = 2000 + parseInt(mmmMatch[3], 10);
+            return new Date(year, month, day);
         }
 
         // Try YYYY-MM-DD format
