@@ -124,10 +124,19 @@
     function parseDateSafely(dateStr) {
         if (!dateStr) return new Date();
         if (typeof dateStr !== 'string') return new Date(dateStr);
+
+        // Try DD MMM YY format first (e.g., "02 Oct 24")
+        const mmmFormat = /^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{2})$/.test(dateStr);
+        if (mmmFormat) {
+            return new Date(dateStr);
+        }
+
+        // Try YYYY-MM-DD format
         const parts = dateStr.split('-');
         if (parts.length === 3) {
             return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
         }
+
         return new Date(dateStr);
     }
 
