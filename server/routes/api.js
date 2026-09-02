@@ -109,7 +109,7 @@ router.get('/sessions', requireAuth, async (req, res) => {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `'${SHEET_NAME}'!A2:R`
+      range: `'${SHEET_NAME}'!A2:R1000`
     });
 
     const data = response.data.values || [];
