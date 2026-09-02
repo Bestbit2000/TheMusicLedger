@@ -138,9 +138,10 @@ router.get('/sessions', requireAuth, async (req, res) => {
                 const parts = dateVal.split('/');
                 if (parts.length === 3) {
                   const day = parseInt(parts[0], 10);
-                  const month = parseInt(parts[1], 10) - 1;
+                  const month = parseInt(parts[1], 10);
                   const year = parseInt(parts[2], 10);
-                  dateObj = new Date(year, month, day);
+                  dateObj = new Date(year, month - 1, day);
+                  console.log(`Parsed DD/MM/YYYY: ${dateVal} -> ${dateObj.toISOString()}`);
                 } else {
                   dateObj = new Date(dateVal);
                 }
