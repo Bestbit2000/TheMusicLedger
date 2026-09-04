@@ -1,6 +1,12 @@
 import dotenv from 'dotenv';
+import express from 'express';
+import session from 'express-session';
+import cors from 'cors';
+import bodyParser from 'body-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import authRoutes from '../server/routes/auth.js';
+import apiRoutes from '../server/routes/api.js';
 
 // Load environment variables
 dotenv.config({ path: path.join(process.cwd(), '.env') });
@@ -9,81 +15,48 @@ dotenv.config({ path: path.join(process.cwd(), 'server', '.env') });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Import Express app creation
-async function createApp() {
-  const express = (await import('express')).default;
-  const session = (await import('express-session')).default;
-  const cors = (await import('cors')).default;
-  const bodyParser = (await import('body-parser')).default;
+// Create app
+const app = express();
 
-  const app = express();
+// Middleware
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5000',
+    'http://127.0.0.1:3000',
+    'https://the-music-ledger.vercel.app'
+  ],
+  credentials: true
+}));
 
-  // Middleware
-  app.use(cors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:5000',
-      'http://127.0.0.1:3000',
-      'https://the-music-ledger.vercel.app'
-    ],
-    credentials: true
-  }));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-  app.use(bodyParser.json());
-  app.use(bodyParser.urlencoded({ extended: true }));
-
-  // Session configuration
-  app.use(session({
-    secret: process.env.SESSION_SECRET || 'dev-secret-key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000
-    }
-  }));
-
-  // Serve static files
-  app.use(express.static(path.join(__dirname, '../public')));
-
-  // Import routes
-  try {
-    const authModule = await import('../server/routes/auth.js');
-    const apiModule = await import('../server/routes/api.js');
-
-    app.use('/auth', authModule.default);
-    app.use('/api', apiModule.default);
-  } catch (error) {
-    console.error('Error importing routes:', error);
-    throw error;
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'dev-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000
   }
+}));
 
-  // SPA fallback
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/index.html'));
-  });
+// Serve static files
+app.use(express.static(path.join(__dirname, '../public')));
 
-  return app;
-}
+// Routes
+app.use('/auth', authRoutes);
+app.use('/api', apiRoutes);
 
-// Create app instance (cached)
-let appInstance = null;
-
-async function getApp() {
-  if (!appInstance) {
-    appInstance = await createApp();
-  }
-  return appInstance;
-}
+// SPA fallback
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
 
 // Export handler for Vercel
-export default async (req, res) => {
-  try {
-    const app = await getApp();
-    return app(req, res);
-  } catch (error) {
-    console.error('Handler error:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
-  }
+export default (req, res) => {
+  app(req, res);
 };
