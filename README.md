@@ -31,7 +31,9 @@ cd TheMusicLedger
    - Create a new project
    - Enable Google Sheets API and Google+ API
    - Create OAuth 2.0 credentials (Web Application)
-   - Add `http://localhost:3000/auth/callback` to authorized redirect URIs
+   - Add redirect URIs:
+     - `http://localhost:3000/auth/callback` (local development)
+     - `https://the-music-ledger.vercel.app/auth/callback` (production)
 
 3. Create `.env` file in the `server/` directory
 ```

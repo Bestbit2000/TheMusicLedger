@@ -22,7 +22,7 @@ app.use(cors({
     'http://localhost:3000',
     'http://localhost:5000',
     'http://127.0.0.1:3000',
-    'https://the-music-ledger-2000.vercel.app'
+    'https://the-music-ledger.vercel.app'
   ],
   credentials: true
 }));
