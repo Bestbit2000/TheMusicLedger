@@ -144,3 +144,43 @@
     .toast.warning { background-color: var(--warning-color); color: #000; font-weight: bold; }
     .toast.info { background-color: var(--primary-action); color: #fff; font-weight: bold; box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4); }
     .toast button { background: rgba(255,255,255,0.3); border: none; color: inherit; border-radius: 4px; cursor: pointer; font-weight: bold; padding: 6px 12px; }
+
+    /* Mobile responsive - remove max-width and adjust spacing */
+    @media (max-width: 768px) {
+        body { align-items: stretch; }
+        .top-bar { max-width: 100%; padding: 12px 15px; }
+        .top-bar-title { font-size: 1.1rem; }
+        .container { max-width: 100%; padding: 15px; min-height: calc(100vh - 55px); }
+        .btn-large, .btn-submit, .btn-nav, .btn-filter { padding: 14px; font-size: 1rem; }
+        .form-group { margin-bottom: 15px; }
+        label { margin-bottom: 6px; font-size: 0.95rem; }
+        input, select { padding: 10px 12px; font-size: 16px; }
+        .dashboard-grid { gap: 8px; margin-bottom: 12px; }
+        .stat-card { padding: 12px; }
+        .stat-card .value { font-size: 1.3rem; }
+        .section-title { margin: 20px 0 8px 0; font-size: 1rem; }
+        .heatmap-wrapper { padding-top: 20px; padding-bottom: 5px; }
+        .heatmap-legend { margin-bottom: 15px; }
+        .chart-wrapper { height: 200px; margin-bottom: 8px; }
+        .chart-scroll-area { padding: 8px 5px 30px 5px; }
+        .chart-bar-container { min-width: 12px; margin-right: 1px; }
+        .history-item { padding: 10px; margin-bottom: 8px; }
+        .play-card { padding: 20px 15px; margin-bottom: 20px; }
+        .modal-content { width: 95%; max-width: none; padding: 20px; }
+        .scroll-btn { width: 28px; height: 28px; font-size: 0.9rem; }
+        .scroll-btn.left { left: 40px; }
+    }
+
+    @media (max-width: 480px) {
+        body { align-items: stretch; }
+        .top-bar { padding: 10px 12px; }
+        .top-bar-title { font-size: 1rem; }
+        .container { padding: 12px; }
+        .btn-large, .btn-submit, .btn-nav, .btn-filter { padding: 12px; font-size: 0.95rem; margin-bottom: 12px; }
+        input, select { font-size: 16px; padding: 10px; }
+        .dashboard-grid { gap: 6px; }
+        .stat-card { padding: 10px; }
+        .stat-card .value { font-size: 1.1rem; }
+        .stat-card .label { font-size: 0.8rem; }
+        .history-item { padding: 8px; margin-bottom: 6px; font-size: 0.9rem; }
+    }
