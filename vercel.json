@@ -1,0 +1,23 @@
+{
+  "buildCommand": "cd server && npm install",
+  "installCommand": "npm install --legacy-peer-deps",
+  "functions": {
+    "server/server.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/auth/(.*)",
+      "destination": "/server/server.js"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/server/server.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/public/$1"
+    }
+  ]
+}
