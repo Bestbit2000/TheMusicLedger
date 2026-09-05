@@ -10,6 +10,8 @@ if (envResult.error) {
   console.error('Dotenv error:', envResult.error.message);
 } else {
   console.log('Dotenv loaded successfully');
+  console.log('Parsed variables:', Object.keys(envResult.parsed || {}).join(', '));
+  console.log('GOOGLE_CLIENT_ID in process.env?', !!process.env.GOOGLE_CLIENT_ID);
 }
 
 import express from 'express';
