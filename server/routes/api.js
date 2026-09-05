@@ -47,6 +47,23 @@ function getPracticeYear(dateObj) {
   return `Year ${practiceYearEnd - 2024}`;
 }
 
+function formatDateForSheet(dateObj) {
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Builds a values row matching the actual column order for a category
+// (year, [who], date, duration) - some categories have a "who" column
+// between year and date, others don't.
+function buildSessionRow(cols, practiceYear, dateStr, duration, who) {
+  const row = [practiceYear];
+  if (cols.whoCol) row.push(who || '');
+  row.push(dateStr, Number(duration));
+  return row;
+}
+
 // ========================================
 // DROPDOWN OPTIONS
 // ========================================
@@ -102,8 +119,7 @@ router.post('/sessions', requireAuth, async (req, res) => {
     }
     const targetRow = lastRow + 1;
 
-    const rowData = [[practiceYear, dateObj, Number(duration)]];
-    if (cols.whoCol) rowData[0].push(who || '');
+    const rowData = [buildSessionRow(cols, practiceYear, formatDateForSheet(dateObj), duration, who)];
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
@@ -214,11 +230,13 @@ router.put('/sessions/:row', requireAuth, async (req, res) => {
     const practiceYear = getPracticeYear(dateObj);
     const cols = COLUMNS[category];
 
+    if (!cols) return res.status(400).json({ error: 'Invalid category' });
+
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
       range: `'${SHEET_NAME}'!${cols.yearCol}${row}:${cols.durationCol}${row}`,
       valueInputOption: 'USER_ENTERED',
-      resource: { values: [[practiceYear, dateObj, Number(duration), who || '']] }
+      resource: { values: [buildSessionRow(cols, practiceYear, formatDateForSheet(dateObj), duration, who)] }
     });
 
     res.json({ message: 'Session updated', row });
@@ -236,11 +254,14 @@ router.delete('/sessions/:row', requireAuth, async (req, res) => {
     const sheets = getSheetsClient(tokens);
     const cols = COLUMNS[category];
 
-    await sheets.spreadsheets.values.update({
+    if (!cols) return res.status(400).json({ error: 'Invalid category' });
+
+    // values.update with an empty values array is a no-op - it does not
+    // clear existing cell contents. The dedicated clear endpoint is
+    // required to actually remove the row's data.
+    await sheets.spreadsheets.values.clear({
       spreadsheetId: SHEET_ID,
-      range: `'${SHEET_NAME}'!${cols.yearCol}${row}:${cols.durationCol}${row}`,
-      valueInputOption: 'RAW',
-      resource: { values: [[]] }
+      range: `'${SHEET_NAME}'!${cols.yearCol}${row}:${cols.durationCol}${row}`
     });
 
     res.json({ message: 'Session deleted' });
