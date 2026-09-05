@@ -3,7 +3,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, '.env') });
+const envPath = path.join(__dirname, '.env');
+console.log('Loading .env from:', envPath);
+const envResult = dotenv.config({ path: envPath });
+if (envResult.error) {
+  console.error('Dotenv error:', envResult.error.message);
+} else {
+  console.log('Dotenv loaded successfully');
+}
 
 import express from 'express';
 import session from 'express-session';
