@@ -1,6 +1,14 @@
 {
   "buildCommand": "npm install && cd server && npm install",
-  "env": {
-    "NODE_ENV": "production"
-  }
+  "functions": {
+    "api/[...slug].js": {
+      "includeFiles": "public/**"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/[...slug]"
+    }
+  ]
 }
