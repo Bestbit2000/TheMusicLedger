@@ -42,10 +42,11 @@ router.get('/callback', async (req, res) => {
     };
     const authToken = Buffer.from(JSON.stringify(tokenData)).toString('base64');
 
-    // Redirect to frontend with token. Prefer an explicit FRONTEND_URL if set,
-    // otherwise derive it from the incoming request so this works correctly
-    // on localhost and on Vercel without needing extra configuration.
-    const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+    // Redirect to frontend with token. Always derive this from the incoming
+    // request rather than an env var - a stale FRONTEND_URL (e.g. copied
+    // from a local .env into Vercel) would otherwise silently send every
+    // deployment back to localhost after login.
+    const frontendUrl = `${req.protocol}://${req.get('host')}`;
     res.redirect(`${frontendUrl}?authToken=${authToken}&userId=${userEmail}`);
   } catch (error) {
     console.error('OAuth callback error:', error);
