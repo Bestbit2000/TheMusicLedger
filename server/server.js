@@ -7,12 +7,10 @@ import { fileURLToPath } from 'url';
 import session from 'express-session';
 import cors from 'cors';
 import bodyParser from 'body-parser';
+import authRoutes from './routes/auth.js';
+import apiRoutes from './routes/api.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const { default: authRoutes } = await import('./routes/auth.js');
-const { default: apiRoutes } = await import('./routes/api.js');
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -38,36 +36,33 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 24 * 60 * 60 * 1000
   }
 }));
+
+// Routes FIRST (before static files)
+app.use('/auth', authRoutes);
+app.use('/api', apiRoutes);
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Routes
-app.use('/auth', authRoutes);
-app.use('/api', apiRoutes);
-
-// Serve index.html for all non-API routes (SPA support)
+// SPA fallback - must be last
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
-});
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Error handling
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error'
-  });
+  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
 app.listen(PORT, () => {
   console.log(`🎵 TheMusicLedger backend running on http://localhost:${PORT}`);
-  console.log(`📝 Make sure .env file is configured with your credentials`);
 });
