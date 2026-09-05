@@ -32,7 +32,8 @@ export function getAuthorizationUrl() {
       'https://www.googleapis.com/auth/userinfo.profile',
       'https://www.googleapis.com/auth/spreadsheets'
     ],
-    prompt: 'consent'
+    prompt: 'consent',
+    redirect_uri: process.env.GOOGLE_REDIRECT_URI
   });
 }
 
