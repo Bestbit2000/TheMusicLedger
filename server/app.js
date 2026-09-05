@@ -10,6 +10,10 @@ import apiRoutes from './routes/api.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
+// Trust Vercel's proxy so req.protocol correctly reports "https" instead of
+// the "http" used internally between Vercel's edge and the function.
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors({
   origin: [

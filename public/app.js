@@ -1765,3 +1765,13 @@
 
     // Initialize app on page load
     window.addEventListener('load', initializeApp);
+
+    // Register service worker so the app can be installed (Add to Home
+    // Screen / desktop install prompt on Chrome and Android require one).
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').catch(err => {
+                console.warn('Service worker registration failed:', err);
+            });
+        });
+    }
