@@ -1,17 +1,16 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env' });
-dotenv.config({ path: '../.env' });
-
-import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+import express from 'express';
 import session from 'express-session';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import authRoutes from './routes/auth.js';
 import apiRoutes from './routes/api.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
