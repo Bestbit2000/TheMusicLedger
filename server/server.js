@@ -50,7 +50,9 @@ app.get('/health', (req, res) => {
 });
 
 // Serve static frontend files
-app.use(express.static(path.join(__dirname, '../public')));
+const publicPath = path.resolve(__dirname, '../public');
+console.log('Serving static files from:', publicPath);
+app.use(express.static(publicPath));
 
 // SPA fallback - must be last
 app.get('*', (req, res) => {
