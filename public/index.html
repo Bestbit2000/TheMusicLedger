@@ -49,6 +49,10 @@
             <div class="stat-card clickable" onclick="switchView('statsView')"><div class="label">Total time</div><div class="value" id="mainTotalTime">Loading...</div></div>
             <div class="stat-card clickable" onclick="switchView('historyView')"><div class="label">Total sessions</div><div class="value" id="mainTotalSessions">...</div></div>
         </div>
+        <div class="dashboard-grid">
+            <div class="stat-card clickable" onclick="switchView('streakStatsView')"><div class="label">Current practise streak</div><div class="value" id="mainPractiseStreak">...</div></div>
+            <div class="stat-card clickable" onclick="switchView('streakStatsView')"><div class="label">Current playing streak</div><div class="value" id="mainPlayingStreak">...</div></div>
+        </div>
     </div>
 
     <div id="statsView" style="display:none;">
@@ -109,10 +113,28 @@
     </div>
 
     <div id="historyView" style="display:none;">
+        <button class="btn-submit" onclick="switchView('entryForm')" style="margin-bottom: 15px;">Add session time</button>
         <button class="btn-filter" id="filterHistoryBtn" onclick="document.getElementById('filterModal').style.display='flex'">Filter history (All)</button>
         <div class="month-nav"><button id="prevMonthBtn">&lt;</button><span id="currentMonthDisplay" style="font-weight:bold;">Loading...</span><button id="nextMonthBtn">&gt;</button></div>
         <div id="historySummary" style="text-align:center; margin-bottom:15px; font-weight:bold;"></div>
         <div id="historyList"><div style="text-align:center; color:#888;">Loading entries...</div></div>
+    </div>
+
+    <div id="streakStatsView" style="display:none;">
+        <div class="dashboard-grid">
+            <div class="stat-card"><div class="label">Current practise streak</div><div class="value" id="streakCurrentPractise">0 days</div></div>
+            <div class="stat-card"><div class="label">Current playing streak</div><div class="value" id="streakCurrentPlaying">0 days</div></div>
+        </div>
+        <div class="dashboard-grid">
+            <div class="stat-card"><div class="label">Average practise streak</div><div class="value" id="streakAvgPractise">0 days</div></div>
+            <div class="stat-card"><div class="label">Average playing streak</div><div class="value" id="streakAvgPlaying">0 days</div></div>
+        </div>
+
+        <div class="section-title">Practise streak lengths</div>
+        <div class="chart-wrapper" id="streakChartPractise"></div>
+
+        <div class="section-title">Playing streak lengths</div>
+        <div class="chart-wrapper" id="streakChartPlaying"></div>
     </div>
 
     <div id="challengeSelectView" style="display:none;">

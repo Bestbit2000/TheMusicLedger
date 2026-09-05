@@ -143,6 +143,170 @@
         return new Date(dateStr);
     }
 
+    // ========================================
+    // STREAK CALCULATIONS
+    // ========================================
+    function formatLocalDateStr(dateObj) {
+        return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+    }
+
+    function dateStrAddDays(dateStr, delta) {
+        const d = parseDateSafely(dateStr);
+        d.setDate(d.getDate() + delta);
+        return formatLocalDateStr(d);
+    }
+
+    // Current streak counting backward from today. If today has no entry yet,
+    // start from yesterday instead so an ongoing streak isn't shown as broken
+    // just because today hasn't been logged yet.
+    function calculateCurrentStreak(dateSet) {
+        let streak = 0;
+        let cursor = formatLocalDateStr(new Date());
+        if (!dateSet.has(cursor)) cursor = dateStrAddDays(cursor, -1);
+        while (dateSet.has(cursor)) {
+            streak++;
+            cursor = dateStrAddDays(cursor, -1);
+        }
+        return streak;
+    }
+
+    // Every historical streak length (runs of consecutive days present in dateSet)
+    function calculateAllStreaks(dateSet) {
+        const sorted = Array.from(dateSet).sort();
+        const streaks = [];
+        let current = 0;
+        let prevDateStr = null;
+        sorted.forEach(dStr => {
+            if (prevDateStr && dateStrAddDays(prevDateStr, 1) === dStr) {
+                current++;
+            } else {
+                if (current > 0) streaks.push(current);
+                current = 1;
+            }
+            prevDateStr = dStr;
+        });
+        if (current > 0) streaks.push(current);
+        return streaks;
+    }
+
+    function getStreakData() {
+        const practiseDates = new Set();
+        const playingDates = new Set();
+        rawData.forEach(d => {
+            playingDates.add(d.dateStr);
+            if (d.category === 'Practise') practiseDates.add(d.dateStr);
+        });
+        return {
+            currentPractise: calculateCurrentStreak(practiseDates),
+            currentPlaying: calculateCurrentStreak(playingDates),
+            practiseStreaks: calculateAllStreaks(practiseDates),
+            playingStreaks: calculateAllStreaks(playingDates)
+        };
+    }
+
+    function dayLabel(n) { return `${n} day${n === 1 ? '' : 's'}`; }
+
+    function updateStreakBoxes() {
+        const data = getStreakData();
+        const p = document.getElementById('mainPractiseStreak');
+        const pl = document.getElementById('mainPlayingStreak');
+        if (p) p.innerText = dayLabel(data.currentPractise);
+        if (pl) pl.innerText = dayLabel(data.currentPlaying);
+    }
+
+    function renderStreakStats() {
+        try {
+            const data = getStreakData();
+            const avg = (arr) => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+
+            const elCurP = document.getElementById('streakCurrentPractise');
+            const elCurPl = document.getElementById('streakCurrentPlaying');
+            const elAvgP = document.getElementById('streakAvgPractise');
+            const elAvgPl = document.getElementById('streakAvgPlaying');
+            if (elCurP) elCurP.innerText = dayLabel(data.currentPractise);
+            if (elCurPl) elCurPl.innerText = dayLabel(data.currentPlaying);
+            if (elAvgP) elAvgP.innerText = `${avg(data.practiseStreaks).toFixed(1)} days`;
+            if (elAvgPl) elAvgPl.innerText = `${avg(data.playingStreaks).toFixed(1)} days`;
+
+            renderStreakHistogram('streakChartPractise', data.practiseStreaks, '#4CAF50');
+            renderStreakHistogram('streakChartPlaying', data.playingStreaks, 'var(--primary-action)');
+        } catch (err) { showWarningToast("Streak stats error: " + err.message); }
+    }
+
+    function renderStreakHistogram(containerId, streaks, color) {
+        const cont = document.getElementById(containerId);
+        if (!cont) return;
+        cont.innerHTML = '';
+        if (!streaks.length) {
+            cont.innerHTML = '<div style="text-align:center; color:#888; width:100%;">No streak data yet.</div>';
+            return;
+        }
+
+        const maxLen = Math.max(...streaks);
+        const counts = new Array(maxLen + 1).fill(0);
+        streaks.forEach(s => counts[s]++);
+
+        let maxCount = Math.max(...counts);
+        if (maxCount === 0) maxCount = 1;
+        let steps = [1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30, 40, 50];
+        let step = steps.find(s => s * 3.5 >= maxCount) || Math.ceil(maxCount / 3);
+        let chartMax = Math.max(maxCount * 1.05, step * 3);
+
+        let gridLines = document.createElement('div');
+        gridLines.className = 'chart-grid-lines';
+        let yAxis = document.createElement('div');
+        yAxis.className = 'chart-y-axis';
+        let yAxisCont = document.createElement('div');
+        yAxisCont.className = 'chart-y-axis-container';
+        yAxis.appendChild(yAxisCont);
+
+        [0, 1, 2, 3].forEach(i => {
+            let val = step * i;
+            let pct = (val / chartMax) * 100;
+            let gl = document.createElement('div');
+            gl.className = 'grid-line';
+            gl.style.bottom = `${pct}%`;
+            if (i === 0) gl.style.opacity = '0';
+            gridLines.appendChild(gl);
+            let yl = document.createElement('span');
+            yl.style.position = 'absolute';
+            yl.style.bottom = `${pct}%`;
+            yl.style.right = '0px';
+            yl.style.transform = 'translateY(50%)';
+            yl.innerText = Math.round(val);
+            yAxisCont.appendChild(yl);
+        });
+
+        cont.appendChild(gridLines);
+        cont.appendChild(yAxis);
+        let scroll = document.createElement('div');
+        scroll.className = 'chart-scroll-area';
+
+        for (let len = 1; len <= maxLen; len++) {
+            let val = counts[len];
+            let pct = (val / chartMax) * 100;
+            let barCont = document.createElement('div');
+            barCont.className = 'chart-bar-container';
+            barCont.addEventListener('click', () => {
+                showInfoToast(`${dayLabel(len)} streak: ${val} time${val === 1 ? '' : 's'}`);
+            });
+
+            let bar = document.createElement('div');
+            bar.className = 'chart-bar';
+            bar.style.height = `${pct}%`;
+            bar.style.background = color;
+            barCont.appendChild(bar);
+
+            let lbl = document.createElement('span');
+            lbl.className = 'chart-x-label';
+            lbl.innerText = len;
+            barCont.appendChild(lbl);
+
+            scroll.appendChild(barCont);
+        }
+        cont.appendChild(scroll);
+    }
+
     async function initializeApp() {
         // Check if coming back from OAuth callback
         if (await auth.handleCallback()) {
@@ -280,7 +444,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'statsView', 'entryForm', 'manageListsView', 'settingsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'settingsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView'];
     let viewStack = ['mainView'];
 
     const viewAliasMap = {
@@ -312,6 +476,7 @@
         }
 
         if (viewName === 'historyView') { document.getElementById('topTitle').innerText = 'Session history'; renderHistoryList(rawData.filter(d => activeFilters[d.category])); }
+        if (viewName === 'streakStatsView') { document.getElementById('topTitle').innerText = 'Streaks'; renderStreakStats(); }
         if (viewName === 'statsView') { document.getElementById('topTitle').innerText = 'Detailed stats'; scrollStatsToRight(); }
         if (viewName === 'entryForm') { document.getElementById('topTitle').innerText = 'Add record'; }
         if (viewName === 'manageListsView') { document.getElementById('topTitle').innerText = 'Manage lists'; renderManageLists(); }
@@ -546,9 +711,9 @@
                 if (g.incomplete > 0) {
                     const typeIcon = g.type === 'Performance' ? '🎭' : '🛠️';
                     const typeColor = g.type === 'Performance' ? 'var(--cat-performance)' : 'var(--cat-lesson)';
-                    ui.innerHTML += `<button class="history-item" style="border-left-color: ${typeColor}; padding-left:5px; width:100%; text-align:left; cursor:pointer;" onclick="startChallenge('${g.id}')">
-                        <div><strong>${typeIcon} ${g.name}</strong></div>
-                        <div class="text-muted" style="font-size:0.85rem;">${g.incomplete} incomplete tasks</div>
+                    ui.innerHTML += `<button class="history-item" style="border-left-color: ${typeColor}; padding-left:5px; width:100%; text-align:left; cursor:pointer; flex-direction: column; align-items: flex-start; gap:4px;" onclick="startChallenge('${g.id}')">
+                        <div style="width:100%;"><strong>${typeIcon} ${g.name}</strong></div>
+                        <div class="text-muted" style="font-size:0.85rem;">${g.incomplete} remaining</div>
                     </button>`;
                 }
             });
@@ -1058,6 +1223,7 @@
             const mainTotalSessions = document.getElementById('mainTotalSessions');
             if(mainTotalTime) mainTotalTime.innerText = formatMins(tMins);
             if(mainTotalSessions) mainTotalSessions.innerText = tSess;
+            updateStreakBoxes();
             updateFilterButtonText();
             renderStatsBoxes();
             renderFilteredVisuals();
@@ -1436,10 +1602,14 @@
         renderHistoryList(rawData.filter(d=>activeFilters[d.category]));
     });
 
-    window.deleteHistory = function(row, cat, dur, who) {
+    window.deleteHistory = function(row, cat, dur, who, dateStr) {
         let mNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         let detailStr = `${cat} for ${dur} mins`;
         if (who) detailStr += ` with ${who}`;
+        if (dateStr) {
+            const dObj = parseDateSafely(dateStr);
+            detailStr += ` on ${dObj.getDate()} ${mNames[dObj.getMonth()]} ${dObj.getFullYear()}`;
+        }
         showConfirmModal('Delete entry', `Are you sure you want to delete this entry?\n\n${detailStr}`, async () => {
             showInfoToast('Deleting...');
             try {
@@ -1482,7 +1652,7 @@
         if (deleteBtn) {
             deleteBtn.onclick = () => {
                 document.getElementById('editModal').style.display = 'none';
-                deleteHistory(row, cat, session.duration, session.who || '');
+                deleteHistory(row, cat, session.duration, session.who || '', session.dateStr);
             };
         }
 
