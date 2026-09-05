@@ -139,9 +139,8 @@
             console.log('OAuth callback processed');
         }
 
-        // Check authentication
+        // Check authentication - not logged in, so reveal the login button
         if (!auth.isAuthenticated) {
-            showWarningToast('Please log in');
             displayLoginScreen();
             return;
         }
@@ -155,7 +154,7 @@
                 document.getElementById('darkModeToggle').checked = true;
             }
         } catch (error) {
-            showWarningToast('Failed to initialize app: ' + error.message);
+            console.warn('Failed to initialize app:', error.message);
             displayLoginScreen();
         }
     }
@@ -163,6 +162,10 @@
     function displayLoginScreen() {
         document.getElementById('mainContainer').style.display = 'none';
         document.getElementById('loginScreen').style.display = 'flex';
+        const statusText = document.getElementById('loginStatusText');
+        if (statusText) statusText.textContent = 'Please log in to continue';
+        const btn = document.getElementById('loginBtn');
+        if (btn) btn.style.display = 'inline-block';
     }
 
     function displayMainApp() {
