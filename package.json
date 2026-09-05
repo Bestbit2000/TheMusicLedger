@@ -5,9 +5,9 @@
   "main": "server/server.js",
   "type": "module",
   "scripts": {
-    "start": "cd server && npm install && node server.js",
+    "start": "node server/server.js",
     "dev": "cd server && npm run dev",
-    "build": "cd server && npm install"
+    "build": "npm install && cd server && npm install"
   },
   "engines": {
     "node": "24.x"

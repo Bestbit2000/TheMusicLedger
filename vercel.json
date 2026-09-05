@@ -1,9 +1,1 @@
-{
-  "buildCommand": "npm install && cd server && npm install",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/api/[...slug]"
-    }
-  ]
-}
+{}
