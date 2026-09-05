@@ -15,12 +15,29 @@ const COLUMNS = {
   'Performance': { yearCol: 'O', whoCol: 'P', dateCol: 'Q', durationCol: 'R' }
 };
 
-async function getSheetsAuth(req) {
+async function getSheetsAuth(req, res) {
   let tokens = getUserTokens(req);
   if (tokens.expiry_date && new Date(tokens.expiry_date) < new Date()) {
     const newTokens = await refreshAccessToken(tokens.refresh_token);
     req.googleAccessToken = newTokens.access_token;
-    return newTokens;
+
+    // The client holds its own bearer token in localStorage - if we don't
+    // tell it about the refreshed access token, every subsequent request
+    // keeps sending the now-expired one and the user gets bounced back to
+    // the login screen. Send the refreshed token back via a response
+    // header so the client can update what it has stored.
+    if (res) {
+      const refreshedPayload = {
+        userId: req.userId,
+        email: req.userId,
+        access_token: newTokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expiry_date: newTokens.expiry_date
+      };
+      res.set('X-Refreshed-Token', Buffer.from(JSON.stringify(refreshedPayload)).toString('base64'));
+    }
+
+    return { ...newTokens, refresh_token: tokens.refresh_token };
   }
   return tokens;
 }
@@ -35,7 +52,7 @@ function getPracticeYear(dateObj) {
 // ========================================
 router.get('/dropdown-options', requireAuth, async (req, res) => {
   try {
-    const tokens = await getSheetsAuth(req);
+    const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
     const orgsResponse = await sheets.spreadsheets.values.get({
@@ -64,7 +81,7 @@ router.get('/dropdown-options', requireAuth, async (req, res) => {
 router.post('/sessions', requireAuth, async (req, res) => {
   try {
     const { category, duration, who, date } = req.body;
-    const tokens = await getSheetsAuth(req);
+    const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
     const dateObj = new Date(date);
@@ -104,7 +121,7 @@ router.post('/sessions', requireAuth, async (req, res) => {
 
 router.get('/sessions', requireAuth, async (req, res) => {
   try {
-    const tokens = await getSheetsAuth(req);
+    const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
     const response = await sheets.spreadsheets.values.get({
@@ -190,7 +207,7 @@ router.put('/sessions/:row', requireAuth, async (req, res) => {
   try {
     const { row } = req.params;
     const { category, duration, who, date } = req.body;
-    const tokens = await getSheetsAuth(req);
+    const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
     const dateObj = new Date(date);
@@ -215,7 +232,7 @@ router.delete('/sessions/:row', requireAuth, async (req, res) => {
   try {
     const { row } = req.params;
     const { category } = req.body;
-    const tokens = await getSheetsAuth(req);
+    const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
     const cols = COLUMNS[category];
 
@@ -239,7 +256,7 @@ router.delete('/sessions/:row', requireAuth, async (req, res) => {
 router.post('/settings/organisations', requireAuth, async (req, res) => {
   try {
     const { name } = req.body;
-    const tokens = await getSheetsAuth(req);
+    const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
     const response = await sheets.spreadsheets.values.get({
@@ -279,7 +296,7 @@ router.post('/settings/organisations', requireAuth, async (req, res) => {
 router.post('/settings/teachers', requireAuth, async (req, res) => {
   try {
     const { name } = req.body;
-    const tokens = await getSheetsAuth(req);
+    const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
     const response = await sheets.spreadsheets.values.get({
@@ -319,7 +336,7 @@ router.post('/settings/teachers', requireAuth, async (req, res) => {
 router.delete('/settings/organisations/:name', requireAuth, async (req, res) => {
   try {
     const { name } = req.params;
-    const tokens = await getSheetsAuth(req);
+    const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
     const response = await sheets.spreadsheets.values.get({
@@ -347,7 +364,7 @@ router.delete('/settings/organisations/:name', requireAuth, async (req, res) => 
 router.delete('/settings/teachers/:name', requireAuth, async (req, res) => {
   try {
     const { name } = req.params;
-    const tokens = await getSheetsAuth(req);
+    const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
     const response = await sheets.spreadsheets.values.get({
@@ -377,7 +394,7 @@ router.delete('/settings/teachers/:name', requireAuth, async (req, res) => {
 // ========================================
 router.get('/challenges', requireAuth, async (req, res) => {
   try {
-    const tokens = await getSheetsAuth(req);
+    const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
     const response = await sheets.spreadsheets.values.get({
@@ -423,7 +440,7 @@ router.get('/challenges', requireAuth, async (req, res) => {
 router.post('/challenges', requireAuth, async (req, res) => {
   try {
     const { items } = req.body;
-    const tokens = await getSheetsAuth(req);
+    const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
     const newId = items[0].id || Date.now().toString().slice(-6);
@@ -470,7 +487,7 @@ router.put('/challenges/:row', requireAuth, async (req, res) => {
   try {
     const { row } = req.params;
     const { timeSpent, status } = req.body;
-    const tokens = await getSheetsAuth(req);
+    const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
     const response = await sheets.spreadsheets.values.get({
@@ -498,7 +515,7 @@ router.put('/challenges/:row', requireAuth, async (req, res) => {
 router.delete('/challenges/:row', requireAuth, async (req, res) => {
   try {
     const { row } = req.params;
-    const tokens = await getSheetsAuth(req);
+    const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
     await sheets.spreadsheets.values.clear({

@@ -15,6 +15,7 @@ export async function requireAuth(req, res, next) {
     req.userId = tokenData.userId;
     req.googleAccessToken = tokenData.access_token;
     req.googleRefreshToken = tokenData.refresh_token;
+    req.googleExpiryDate = tokenData.expiry_date;
     next();
   } catch (error) {
     console.error('Auth error:', error);
@@ -26,7 +27,7 @@ export function getUserTokens(req) {
   return {
     access_token: req.googleAccessToken,
     refresh_token: req.googleRefreshToken,
-    expiry_date: req.googleRefreshToken ? null : undefined
+    expiry_date: req.googleExpiryDate
   };
 }
 

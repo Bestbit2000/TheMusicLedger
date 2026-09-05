@@ -40,11 +40,16 @@
             this.token = null;
             this.userId = null;
             this.isAuthenticated = false;
-            window.location.href = `${API_BASE_URL}/auth/logout`;
+            window.location.href = window.location.pathname;
         }
 
         getAuthHeader() {
             return this.token ? { 'Authorization': `Bearer ${this.token}` } : {};
+        }
+
+        updateToken(newToken) {
+            localStorage.setItem('authToken', newToken);
+            this.token = newToken;
         }
     }
 
@@ -67,11 +72,16 @@
             }
         };
 
-        if (body && (method === 'POST' || method === 'PUT')) {
+        if (body && (method === 'POST' || method === 'PUT' || method === 'DELETE')) {
             options.body = JSON.stringify(body);
         }
 
         const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+
+        const refreshedToken = response.headers.get('X-Refreshed-Token');
+        if (refreshedToken) {
+            auth.updateToken(refreshedToken);
+        }
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
@@ -174,7 +184,9 @@
     }
 
     document.getElementById('loginBtn')?.addEventListener('click', () => auth.login());
-    document.getElementById('logoutBtn')?.addEventListener('click', () => auth.logout());
+    window.logoutUser = function() {
+        showConfirmModal('Log out', 'Are you sure you want to log out of Google?', () => auth.logout(), false);
+    }
 
     async function loadAppData() {
         try {
@@ -301,7 +313,7 @@
 
         if (viewName === 'historyView') { document.getElementById('topTitle').innerText = 'Session history'; renderHistoryList(rawData.filter(d => activeFilters[d.category])); }
         if (viewName === 'statsView') { document.getElementById('topTitle').innerText = 'Detailed stats'; scrollStatsToRight(); }
-        if (viewName === 'entryForm') { document.getElementById('topTitle').innerText = 'Add record'; document.getElementById('duration').focus(); }
+        if (viewName === 'entryForm') { document.getElementById('topTitle').innerText = 'Add record'; }
         if (viewName === 'manageListsView') { document.getElementById('topTitle').innerText = 'Manage lists'; renderManageLists(); }
         if (viewName === 'settingsView') { document.getElementById('topTitle').innerText = 'Settings'; }
         if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
@@ -536,7 +548,7 @@
                     const typeColor = g.type === 'Performance' ? 'var(--cat-performance)' : 'var(--cat-lesson)';
                     ui.innerHTML += `<button class="history-item" style="border-left-color: ${typeColor}; padding-left:5px; width:100%; text-align:left; cursor:pointer;" onclick="startChallenge('${g.id}')">
                         <div><strong>${typeIcon} ${g.name}</strong></div>
-                        <div style="font-size:0.85rem; color:#666;">${g.incomplete} incomplete tasks</div>
+                        <div class="text-muted" style="font-size:0.85rem;">${g.incomplete} incomplete tasks</div>
                     </button>`;
                 }
             });
@@ -789,6 +801,7 @@
         document.querySelector('input[name="playStatus"][value="Attempted"]').checked = true;
         document.querySelector('input[name="playTime"][value="30"]').checked = true;
         document.getElementById('playCustomTime').value = '';
+        document.getElementById('customTimeGroup')?.classList.add('hidden-group');
     }
 
     async function processChallengeSave(proceedNext) {
@@ -835,6 +848,17 @@
 
     document.getElementById('saveNextBtn')?.addEventListener('click', () => processChallengeSave(true));
     document.getElementById('saveEndBtn')?.addEventListener('click', () => processChallengeSave(false));
+
+    document.getElementById('playTimeRadios')?.addEventListener('change', (e) => {
+        if (e.target.name !== 'playTime') return;
+        const customGroup = document.getElementById('customTimeGroup');
+        if (e.target.value === 'custom') {
+            customGroup.classList.remove('hidden-group');
+            document.getElementById('playCustomTime')?.focus();
+        } else {
+            customGroup.classList.add('hidden-group');
+        }
+    });
 
     window.endChallengeSession = function(allCompleted = false) {
         switchView('challengeSummaryView');
@@ -973,13 +997,25 @@
         }
     });
 
+    document.getElementById('durationRadios')?.addEventListener('change', (e) => {
+        if (e.target.name !== 'durationOption') return;
+        const customGroup = document.getElementById('customDurationGroup');
+        if (e.target.value === 'custom') {
+            customGroup.classList.remove('hidden-group');
+            document.getElementById('duration')?.focus();
+        } else {
+            customGroup.classList.add('hidden-group');
+        }
+    });
+
     document.getElementById('submitBtn')?.addEventListener('click', async () => {
         const cat = document.querySelector('input[name="category"]:checked')?.value;
-        const dur = document.getElementById('duration')?.value;
+        const durRadio = document.querySelector('input[name="durationOption"]:checked')?.value;
+        const dur = durRadio === 'custom' ? document.getElementById('duration')?.value : durRadio;
         const dStr = document.getElementById('date')?.value;
         const who = !document.getElementById('whoGroup')?.classList.contains('hidden-group') ? document.getElementById('who')?.value : '';
 
-        if (!dur) { showWarningToast('Duration required!'); return; }
+        if (!dur || isNaN(dur)) { showWarningToast('Duration required!'); return; }
 
         const btn = document.getElementById('submitBtn');
         btn.innerText = 'Saving...';
@@ -996,6 +1032,8 @@
             btn.innerText = 'Save session';
             btn.disabled = false;
             document.getElementById('duration').value = '';
+            document.querySelectorAll('input[name="durationOption"]').forEach(r => r.checked = false);
+            document.getElementById('customDurationGroup')?.classList.add('hidden-group');
             goBack();
             fetchDataAndRender();
         } catch (error) {
@@ -1290,8 +1328,7 @@
                         ${dObj.getDate() || '?'} ${mNames[dObj.getMonth()] || '?'} ${dObj.getFullYear() || '?'} | ${Math.round(item.duration)} mins
                     </div>
                     <div style="display:flex; gap: 5px;">
-                        <button class="btn-edit" onclick="openEdit(${item.row}, '${item.category}')">Edit</button>
-                        <button class="btn-delete" onclick="deleteHistory(${item.row}, '${item.category}', '${item.duration}', '${safeWho}')">Delete</button>
+                        <button class="btn-icon-edit" onclick="openEdit(${item.row}, '${item.category}')" aria-label="Edit"><span class="material-symbols-outlined">edit</span></button>
                     </div>
                 `;
                 list.appendChild(div);
@@ -1440,6 +1477,15 @@
             });
             if(session.who) sel.value = session.who;
         }
+
+        const deleteBtn = document.getElementById('deleteEditBtn');
+        if (deleteBtn) {
+            deleteBtn.onclick = () => {
+                document.getElementById('editModal').style.display = 'none';
+                deleteHistory(row, cat, session.duration, session.who || '');
+            };
+        }
+
         document.getElementById('editModal').style.display = 'flex';
     }
 

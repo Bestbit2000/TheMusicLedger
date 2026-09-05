@@ -51,8 +51,4 @@ router.get('/callback', async (req, res) => {
   }
 });
 
-router.post('/logout', (req, res) => {
-  res.json({ message: 'Logout successful' });
-});
-
 export default router;

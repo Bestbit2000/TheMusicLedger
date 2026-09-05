@@ -18,7 +18,8 @@ app.use(cors({
     'http://127.0.0.1:3000',
     'https://the-music-ledger.vercel.app'
   ],
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['X-Refreshed-Token']
 }));
 
 app.use(bodyParser.json());
