@@ -14,18 +14,19 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Music Ledger">
 
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <!-- LOGIN / SPLASH SCREEN -->
-<div id="loginScreen" style="display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #0a0a0a; align-items: center; justify-content: center; z-index: 9999; padding: 20px; box-sizing: border-box;">
-    <div style="text-align: center; max-width: 480px; width: 100%;">
-        <img src="images/LedgeSplash.jpg" alt="The Music Ledger" style="width: 100%; max-width: 420px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); margin-bottom: 30px;">
-        <h1 style="color: #f5d78e; margin: 0 0 10px 0; font-size: 2rem; letter-spacing: 1px;">Welcome</h1>
-        <p id="loginStatusText" style="color: #cfcfcf; font-size: 1rem; margin: 0 0 25px 0;">Just a moment, getting ready to open&hellip;</p>
-        <button id="loginBtn" style="display: none; width: 100%; padding: 15px 20px; font-size: 1.1rem; font-weight: bold; cursor: pointer; background: linear-gradient(135deg, #d4af37, #f5d78e); color: #1a1400; border: none; border-radius: 8px;">Log in to Google</button>
+<div id="loginScreen" class="splash-screen">
+    <div class="splash-content">
+        <img src="images/LedgeSplash.jpg" alt="The Music Ledger" class="splash-image">
+        <h1 class="splash-title">Welcome</h1>
+        <p id="loginStatusText" class="splash-subtitle">Just a moment, getting ready to open&hellip;</p>
+        <button id="loginBtn" class="splash-login-btn">Log in to Google</button>
     </div>
 </div>
 
@@ -44,6 +45,7 @@
             <div class="dropdown-item" onclick="switchView('manageChallengesView'); closeMenu();">Manage challenges</div>
             <div class="dropdown-item" onclick="switchView('manageListsView'); closeMenu();">Manage lists</div>
             <div class="dropdown-item" onclick="switchView('settingsView'); closeMenu();">Settings</div>
+            <div class="dropdown-item" onclick="switchView('aboutView'); closeMenu();">About</div>
             <div class="dropdown-item" onclick="closeMenu(); logoutUser();">Log out</div>
         </div>
     </div>
@@ -83,8 +85,8 @@
         </div>
 
         <div id="customDateRange" class="hidden-group" style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <div style="flex: 1;"><label style="font-size:0.8rem;">From</label><input type="date" id="customStartDate"></div>
-            <div style="flex: 1;"><label style="font-size:0.8rem;">To</label><input type="date" id="customEndDate"></div>
+            <div class="flex-1"><label style="font-size:0.8rem;">From</label><input type="date" id="customStartDate"></div>
+            <div class="flex-1"><label style="font-size:0.8rem;">To</label><input type="date" id="customEndDate"></div>
         </div>
 
         <div class="dashboard-grid" style="grid-template-columns: 1fr; margin-bottom: 10px;">
@@ -182,8 +184,8 @@
         </div>
 
         <div style="display:flex; flex-direction:column; gap:10px; margin-top:30px;">
-            <button class="btn-submit" id="saveNextBtn" style="margin:0;">Save and next</button>
-            <button class="btn-cancel btn-nav" id="saveEndBtn" style="margin:0;">Save and end session</button>
+            <button class="btn-submit no-margin" id="saveNextBtn">Save and next</button>
+            <button class="btn-cancel btn-nav no-margin" id="saveEndBtn">Save and end session</button>
         </div>
     </div>
 
@@ -248,6 +250,12 @@
         </div>
     </div>
 
+    <div id="aboutView" style="display:none;">
+        <div id="aboutCurrentRelease"></div>
+        <div class="section-title">Release history</div>
+        <div id="aboutReleaseHistory"></div>
+    </div>
+
     <div id="entryForm" style="display:none;">
         <div class="form-group"><label>What did you do?</label>
             <div class="radio-group" id="categoryRadios">
@@ -300,7 +308,7 @@
         
         <div id="cPerformanceFields">
             <div class="form-group"><label>Reference / section</label><input type="text" id="cRef" placeholder="e.g., Intro or A"></div>
-            <div style="display:flex; gap:10px;">
+            <div class="flex-row gap-md">
                 <div class="form-group" style="flex:1;"><label>Bar from</label><input type="number" id="cBarFrom"></div>
                 <div class="form-group" style="flex:1;"><label>Bar to</label><input type="number" id="cBarTo"></div>
             </div>
@@ -310,7 +318,7 @@
         <div id="cTechniqueFields" class="hidden-group">
             
             <div class="form-group" style="display:flex; justify-content:space-between; align-items:center; background:var(--secondary-color); padding:10px 15px; border-radius:10px;">
-                <label style="margin:0;">Auto-generate list?</label>
+                <label class="no-margin">Auto-generate list?</label>
                 <label class="toggle-switch"><input type="checkbox" id="cTechAutoGenToggle" checked><span class="toggle-slider"></span></label>
             </div>
 
@@ -331,7 +339,7 @@
                     <input type="number" id="cTechBpmFixed" placeholder="Enter fixed BPM (optional)">
                 </div>
                 
-                <div id="cTechBpmRandomGroup" class="hidden-group" style="display:flex; gap:10px;">
+                <div id="cTechBpmRandomGroup" class="hidden-group flex-row gap-md">
                     <div style="flex:1;"><label style="font-size:0.8rem;">Min BPM</label><input type="number" id="cTechBpmMin" placeholder="e.g. 60"></div>
                     <div style="flex:1;"><label style="font-size:0.8rem;">Max BPM</label><input type="number" id="cTechBpmMax" placeholder="e.g. 120"></div>
                     <div style="flex:1;"><label style="font-size:0.8rem;">Interval</label><input type="number" id="cTechBpmInterval" placeholder="e.g. 5"></div>
@@ -345,8 +353,8 @@
         </div>
 
         <div style="display:flex; gap:10px; margin-top:20px;">
-            <button class="btn-cancel btn-nav" style="margin:0;" onclick="document.getElementById('addChallengeModal').style.display='none'">Cancel</button>
-            <button class="btn-submit" id="saveNewChallBtn" style="margin:0;">Create & add tasks</button>
+            <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('addChallengeModal').style.display='none'">Cancel</button>
+            <button class="btn-submit no-margin" id="saveNewChallBtn">Create & add tasks</button>
         </div>
     </div>
 </div>
@@ -357,24 +365,24 @@
         <input type="hidden" id="itemEditId">
         <div class="form-group"><label>Piece / exercise name</label><input type="text" id="iPiece"></div>
         <div class="form-group"><label>Reference / section</label><input type="text" id="iRef"></div>
-        <div style="display:flex; gap:10px;">
+        <div class="flex-row gap-md">
             <div class="form-group" style="flex:1;"><label>Bar from</label><input type="number" id="iBarFrom"></div>
             <div class="form-group" style="flex:1;"><label>Bar to</label><input type="number" id="iBarTo"></div>
         </div>
         <div class="form-group"><label>Target BPM</label><input type="number" id="iBPM"></div>
         <div style="display:flex; gap:10px; margin-top:10px;">
-            <button class="btn-cancel btn-nav" style="margin:0;" onclick="document.getElementById('itemDetailModal').style.display='none'">Cancel</button>
-            <button class="btn-submit" id="saveItemBtn" style="margin:0;">Save task</button>
+            <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('itemDetailModal').style.display='none'">Cancel</button>
+            <button class="btn-submit no-margin" id="saveItemBtn">Save task</button>
         </div>
     </div>
 </div>
 
 <div class="modal" id="confirmModal">
-    <div class="modal-content"><h2 id="confirmTitle">Confirm</h2><p id="confirmMessage" style="margin-bottom: 25px; line-height: 1.4;"></p><div style="display:flex; gap:10px;"><button class="btn-cancel btn-nav" style="margin:0;" onclick="closeConfirmModal()">Cancel</button><button class="btn-submit" id="confirmActionBtn" style="margin:0;">Confirm</button></div></div>
+    <div class="modal-content"><h2 id="confirmTitle">Confirm</h2><p id="confirmMessage" style="margin-bottom: 25px; line-height: 1.4;"></p><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" onclick="closeConfirmModal()">Cancel</button><button class="btn-submit no-margin" id="confirmActionBtn">Confirm</button></div></div>
 </div>
 
 <div class="modal" id="promptModal">
-    <div class="modal-content"><h2 id="promptTitle">Enter value</h2><input type="text" id="promptInput" style="margin-bottom: 25px;"><div style="display:flex; gap:10px;"><button class="btn-cancel btn-nav" style="margin:0;" onclick="closePromptModal()">Cancel</button><button class="btn-submit" id="promptActionBtn" style="margin:0;">Save</button></div></div>
+    <div class="modal-content"><h2 id="promptTitle">Enter value</h2><input type="text" id="promptInput" style="margin-bottom: 25px;"><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" onclick="closePromptModal()">Cancel</button><button class="btn-submit no-margin" id="promptActionBtn">Save</button></div></div>
 </div>
 
 <div class="modal" id="filterModal">
@@ -384,7 +392,7 @@
 <div class="modal" id="editModal">
     <div class="modal-content">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h2 style="margin:0;">Edit record</h2>
+            <h2 class="no-margin">Edit record</h2>
             <button class="btn-icon-delete" id="deleteEditBtn" type="button" aria-label="Delete entry"><span class="material-symbols-outlined">delete</span></button>
         </div>
         <input type="hidden" id="editRow"><input type="hidden" id="editCat">

@@ -444,7 +444,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'settingsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView'];
     let viewStack = ['mainView'];
 
     const viewAliasMap = {
@@ -481,6 +481,7 @@
         if (viewName === 'entryForm') { document.getElementById('topTitle').innerText = 'Add record'; }
         if (viewName === 'manageListsView') { document.getElementById('topTitle').innerText = 'Manage lists'; renderManageLists(); }
         if (viewName === 'settingsView') { document.getElementById('topTitle').innerText = 'Settings'; }
+        if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
         if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
         if (viewName === 'challengeSelectView') { document.getElementById('topTitle').innerText = 'Select challenge'; renderChallengeSelect(); }
         if (viewName === 'challengePlayView') { document.getElementById('topTitle').innerText = 'Practise'; }
@@ -494,6 +495,67 @@
             switchView(viewStack[viewStack.length - 1], true);
         } else {
             switchView('mainView', true);
+        }
+    }
+
+    // ========================================
+    // ABOUT / RELEASES
+    // ========================================
+    function formatReleaseDate(dateStr) {
+        const mNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const d = parseDateSafely(dateStr);
+        return `${d.getDate()} ${mNames[d.getMonth()]} ${d.getFullYear()}`;
+    }
+
+    function renderChangeList(changes) {
+        if (!changes.length) return '<div class="text-muted">No changes recorded for this release.</div>';
+        const groups = [
+            { label: '✨ New', items: changes.filter(c => c.type !== 'Fixes') },
+            { label: '🐛 Fixes', items: changes.filter(c => c.type === 'Fixes') }
+        ];
+        return groups.filter(g => g.items.length).map(g => `
+            <div style="margin-bottom:10px;">
+                <strong style="font-size:0.85rem;">${g.label}</strong>
+                <ul style="margin:5px 0 0 0; padding-left:20px;">
+                    ${g.items.map(c => `<li style="margin-bottom:4px;">${c.summary}</li>`).join('')}
+                </ul>
+            </div>`).join('');
+    }
+
+    async function renderAboutView() {
+        const currentEl = document.getElementById('aboutCurrentRelease');
+        const historyEl = document.getElementById('aboutReleaseHistory');
+        currentEl.innerHTML = 'Loading...';
+        historyEl.innerHTML = '';
+
+        try {
+            const res = await fetch('/releases.json');
+            const releases = await res.json();
+
+            if (!releases.length) {
+                currentEl.innerHTML = '<div class="text-muted">No releases recorded yet.</div>';
+                return;
+            }
+
+            const [current, ...older] = releases;
+            currentEl.innerHTML = `
+                <div class="play-card" style="text-align:left;">
+                    <div style="font-size:0.85rem; color:#888; margin-bottom:5px;">Current version</div>
+                    <div class="play-piece">v${current.version}</div>
+                    <div class="text-muted" style="margin-bottom:15px;">Released ${formatReleaseDate(current.date)}</div>
+                    ${renderChangeList(current.changes)}
+                </div>`;
+
+            historyEl.innerHTML = older.length
+                ? older.map(r => `
+                    <div class="history-item" style="flex-direction:column; align-items:flex-start;">
+                        <strong>v${r.version}</strong>
+                        <div class="text-muted" style="font-size:0.85rem; margin-bottom:8px;">${formatReleaseDate(r.date)}</div>
+                        ${renderChangeList(r.changes)}
+                    </div>`).join('')
+                : '<div class="text-muted">This is the first recorded release.</div>';
+        } catch (err) {
+            currentEl.innerHTML = `<div style="color:var(--danger-color);">Error loading releases: ${err.message}</div>`;
         }
     }
 

@@ -1,0 +1,28 @@
+[
+  {
+    "version": "0.1.0",
+    "date": "2026-09-06",
+    "changes": [
+      {
+        "key": "ML-14",
+        "type": "New",
+        "summary": "create design system"
+      },
+      {
+        "key": "ML-5",
+        "type": "Fixes",
+        "summary": "Logging in to the server"
+      },
+      {
+        "key": "ML-4",
+        "type": "Fixes",
+        "summary": "Install as app on mobile phone"
+      },
+      {
+        "key": "ML-1",
+        "type": "New",
+        "summary": "Get basic time recording working using Google sheet"
+      }
+    ]
+  }
+]

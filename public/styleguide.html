@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Music Ledger — Style Guide</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+<link rel="stylesheet" href="style.css">
+<style>
+    .sg-page { width: 100%; max-width: 900px; margin: 0 auto; padding: 40px 20px 80px; box-sizing: border-box; }
+    .sg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+    .sg-header h1 { font-size: var(--font-2xl); margin: 0; }
+    .sg-toggle { background: var(--nav-action); color: var(--nav-action-text); border: none; border-radius: var(--radius-pill); padding: var(--space-3) var(--space-5); font-weight: bold; cursor: pointer; }
+    .sg-section { margin-bottom: 50px; }
+    .sg-section h2 { font-size: var(--font-lg); border-bottom: 2px solid var(--input-border); padding-bottom: var(--space-2); margin-bottom: var(--space-5); }
+    .sg-section h3 { font-size: var(--font-md); margin: var(--space-6) 0 var(--space-3); color: var(--label-color); }
+    .sg-note { font-size: var(--font-sm); color: var(--label-color); margin: -var(--space-3) 0 var(--space-5); }
+    .sg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-4); }
+    .sg-swatch { border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--input-border); }
+    .sg-swatch-color { height: 60px; }
+    .sg-swatch-label { padding: var(--space-2) var(--space-3); background: var(--container-bg); }
+    .sg-swatch-label strong { display: block; font-size: var(--font-sm); }
+    .sg-swatch-label span { display: block; font-size: var(--font-xs); color: var(--label-color); font-family: monospace; }
+    .sg-type-row { display: flex; align-items: baseline; gap: var(--space-5); padding: var(--space-3) 0; border-bottom: 1px solid var(--input-border); }
+    .sg-type-row .sg-label { width: 90px; flex-shrink: 0; font-size: var(--font-xs); color: var(--label-color); font-family: monospace; }
+    .sg-space-row { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-2); }
+    .sg-space-row .sg-label { width: 90px; flex-shrink: 0; font-size: var(--font-xs); color: var(--label-color); font-family: monospace; }
+    .sg-space-bar { background: var(--primary-action); height: 18px; border-radius: 3px; }
+    .sg-shape-row { display: flex; align-items: center; gap: var(--space-6); flex-wrap: wrap; margin-bottom: var(--space-4); }
+    .sg-shape { width: 70px; height: 70px; background: var(--input-bg); border: 1px solid var(--input-border); display: flex; align-items: center; justify-content: center; font-size: var(--font-xs); color: var(--label-color); text-align: center; }
+    .sg-shadow { width: 120px; height: 70px; background: var(--container-bg); display: flex; align-items: center; justify-content: center; font-size: var(--font-xs); color: var(--label-color); }
+    .sg-component-block { background: var(--secondary-color); border-radius: var(--radius-md); padding: var(--space-5); margin-bottom: var(--space-4); }
+    .sg-component-block > * + * { margin-top: var(--space-3); }
+    .sg-inline-demo { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center; }
+    .sg-modal-preview { position: static; background: rgba(0,0,0,0.6); display: flex; padding: var(--space-6); border-radius: var(--radius-md); }
+</style>
+</head>
+<body>
+<div class="sg-page">
+
+    <div class="sg-header">
+        <h1>The Music Ledger — Style Guide</h1>
+        <button class="sg-toggle" id="sgDarkToggle">Toggle dark mode</button>
+    </div>
+
+    <div class="sg-section">
+        <h2>Colors</h2>
+        <p class="sg-note">CSS custom properties defined in <code>:root</code> / <code>body.dark-mode</code> in style.css. Toggle dark mode above to preview overrides.</p>
+
+        <h3>Base</h3>
+        <div class="sg-grid" id="sgColorsBase"></div>
+
+        <h3>Brand &amp; action</h3>
+        <div class="sg-grid" id="sgColorsBrand"></div>
+
+        <h3>Semantic</h3>
+        <div class="sg-grid" id="sgColorsSemantic"></div>
+
+        <h3>Category</h3>
+        <div class="sg-grid" id="sgColorsCategory"></div>
+
+        <h3>Heatmap — time</h3>
+        <div class="sg-grid" id="sgColorsHeatTime"></div>
+
+        <h3>Heatmap — sessions</h3>
+        <div class="sg-grid" id="sgColorsHeatSess"></div>
+    </div>
+
+    <div class="sg-section">
+        <h2>Typography</h2>
+        <p class="sg-note">Font family: <code>var(--font-sans)</code> — Inter, falling back to Segoe UI / Tahoma / sans-serif.</p>
+        <div id="sgType"></div>
+    </div>
+
+    <div class="sg-section">
+        <h2>Spacing</h2>
+        <div id="sgSpace"></div>
+    </div>
+
+    <div class="sg-section">
+        <h2>Radius</h2>
+        <div class="sg-shape-row">
+            <div class="sg-shape" style="border-radius: var(--radius-sm);">sm<br>8px</div>
+            <div class="sg-shape" style="border-radius: var(--radius-md);">md<br>12px</div>
+            <div class="sg-shape" style="border-radius: var(--radius-lg);">lg<br>15px</div>
+            <div class="sg-shape" style="border-radius: var(--radius-xl);">xl<br>20px</div>
+            <div class="sg-shape" style="border-radius: var(--radius-pill); width: 110px;">pill<br>50px</div>
+            <div class="sg-shape" style="border-radius: var(--radius-circle);">circle<br>50%</div>
+        </div>
+    </div>
+
+    <div class="sg-section">
+        <h2>Shadow</h2>
+        <div class="sg-shape-row">
+            <div class="sg-shadow" style="box-shadow: var(--shadow-sm);">sm</div>
+            <div class="sg-shadow" style="box-shadow: var(--shadow-md);">md</div>
+            <div class="sg-shadow" style="box-shadow: var(--shadow-lg);">lg</div>
+            <div class="sg-shadow" style="box-shadow: var(--shadow-xl);">xl</div>
+        </div>
+    </div>
+
+    <div class="sg-section">
+        <h2>Components</h2>
+
+        <h3>Buttons</h3>
+        <div class="sg-component-block">
+            <button class="btn-large">.btn-large</button>
+            <button class="btn-submit">.btn-submit</button>
+            <button class="btn-nav">.btn-nav</button>
+            <button class="btn-filter">.btn-filter</button>
+            <div class="sg-inline-demo">
+                <button class="btn-edit">.btn-edit</button>
+                <button class="btn-delete">.btn-delete</button>
+                <button class="btn-icon-edit"><span class="material-symbols-outlined">edit</span></button>
+                <button class="btn-icon-delete"><span class="material-symbols-outlined">delete</span></button>
+            </div>
+        </div>
+
+        <h3>Stat cards</h3>
+        <div class="dashboard-grid">
+            <div class="stat-card"><div class="label">Total time</div><div class="value">42h 15m</div></div>
+            <div class="stat-card clickable"><div class="label">Total sessions</div><div class="value">128</div></div>
+        </div>
+
+        <h3>History item</h3>
+        <div class="history-item">
+            <div class="history-details"><strong>Practise</strong>30 minutes — 5 Sep 2026</div>
+            <div class="sg-inline-demo"><button class="btn-edit">Edit</button><button class="btn-delete">Delete</button></div>
+        </div>
+
+        <h3>Inputs &amp; radio group</h3>
+        <div class="sg-component-block">
+            <div class="form-group no-margin">
+                <label class="no-margin">Text input</label>
+                <input type="text" placeholder="e.g., Alfie">
+            </div>
+        </div>
+        <div class="radio-group compact">
+            <input type="radio" id="sgR1" name="sgRadio" checked><label for="sgR1">10</label>
+            <input type="radio" id="sgR2" name="sgRadio"><label for="sgR2">20</label>
+            <input type="radio" id="sgR3" name="sgRadio"><label for="sgR3">30</label>
+            <input type="radio" id="sgR4" name="sgRadio"><label for="sgR4">Custom</label>
+        </div>
+
+        <h3>Toggle switch</h3>
+        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+
+        <h3>Filter item</h3>
+        <div class="filter-list">
+            <label class="filter-item"><input type="checkbox" checked> <span>Practise</span></label>
+            <label class="filter-item"><input type="checkbox"> <span>Rehearsal</span></label>
+        </div>
+
+        <h3>Toasts</h3>
+        <div class="sg-component-block">
+            <div class="toast show" style="position: static; transform: none; display: inline-flex;"><span>Saved!</span></div><br>
+            <div class="toast show warning" style="position: static; transform: none; display: inline-flex;"><span>Warning message</span></div><br>
+            <div class="toast show info" style="position: static; transform: none; display: inline-flex;"><span>Info message</span></div>
+        </div>
+
+        <h3>Modal (static preview)</h3>
+        <div class="sg-modal-preview">
+            <div class="modal-content">
+                <h2>Modal title</h2>
+                <p>Modal body content goes here.</p>
+                <div class="flex-row gap-md">
+                    <button class="btn-cancel btn-nav no-margin">Cancel</button>
+                    <button class="btn-submit no-margin">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const colorGroups = {
+        sgColorsBase: ['--bg-color', '--container-bg', '--text-color', '--secondary-color', '--input-bg', '--input-border', '--label-color'],
+        sgColorsBrand: ['--primary-action', '--nav-action', '--radio-highlight', '--selection-color'],
+        sgColorsSemantic: ['--success-color', '--danger-color', '--warning-color', '--info-color'],
+        sgColorsCategory: ['--cat-practise', '--cat-rehearsal', '--cat-lesson', '--cat-performance'],
+        sgColorsHeatTime: ['--heat-time-0', '--heat-time-1', '--heat-time-2', '--heat-time-3', '--heat-time-4'],
+        sgColorsHeatSess: ['--heat-sess-0', '--heat-sess-1', '--heat-sess-2', '--heat-sess-3', '--heat-sess-4'],
+    };
+
+    function renderSwatches() {
+        const styles = getComputedStyle(document.body);
+        for (const [containerId, tokens] of Object.entries(colorGroups)) {
+            const el = document.getElementById(containerId);
+            el.innerHTML = tokens.map(t => {
+                const value = styles.getPropertyValue(t).trim();
+                return `<div class="sg-swatch">
+                    <div class="sg-swatch-color" style="background: var(${t});"></div>
+                    <div class="sg-swatch-label"><strong>${t}</strong><span>${value}</span></div>
+                </div>`;
+            }).join('');
+        }
+    }
+
+    const typeScale = [
+        ['--font-xs', '0.65rem'], ['--font-sm', '0.8rem'], ['--font-base', '0.95rem'],
+        ['--font-md', '1.1rem'], ['--font-lg', '1.3rem'], ['--font-xl', '1.6rem'], ['--font-2xl', '2rem']
+    ];
+    document.getElementById('sgType').innerHTML = typeScale.map(([t, v]) =>
+        `<div class="sg-type-row"><span class="sg-label">${t}</span><span style="font-size: var(${t});">The quick brown fox (${v})</span></div>`
+    ).join('');
+
+    const spaceScale = [1,2,3,4,5,6,7,8].map(n => [`--space-${n}`, [4,8,12,15,20,25,30,40][n-1]]);
+    document.getElementById('sgSpace').innerHTML = spaceScale.map(([t, px]) =>
+        `<div class="sg-space-row"><span class="sg-label">${t}</span><div class="sg-space-bar" style="width: var(${t});"></div><span>${px}px</span></div>`
+    ).join('');
+
+    document.getElementById('sgDarkToggle').addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+        renderSwatches();
+    });
+
+    renderSwatches();
+</script>
+</body>
+</html>
