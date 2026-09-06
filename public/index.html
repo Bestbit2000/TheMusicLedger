@@ -10,6 +10,7 @@
 
     <link rel="icon" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Music Ledger">
@@ -218,8 +219,9 @@
             <div id="ecWhoType" style="color:#888; font-size:0.9rem;"></div>
             <div id="ecStats" style="font-weight:bold; margin-top:10px; margin-bottom:15px; font-size:0.95rem; color:var(--primary-action);"></div>
             
-            <div style="display:flex; gap:10px; justify-content:center;">
+            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
                 <button class="btn-edit" style="width:auto; padding:8px 15px; margin:0;" onclick="editEntireChallenge()">Edit name</button>
+                <button class="btn-nav" style="width:auto; padding:8px 15px; margin:0;" onclick="closeEntireChallenge()">Close challenge</button>
                 <button class="btn-delete" style="width:auto; padding:8px 15px; margin:0;" onclick="deleteEntireChallenge()">Delete</button>
             </div>
         </div>
@@ -235,10 +237,20 @@
     </div>
 
     <div id="manageListsView" style="display:none;">
-        <div class="section-title">Organisations</div>
+        <div class="section-title">
+            <span>Organisations</span>
+            <label style="font-size:0.8rem; font-weight:normal; display:flex; align-items:center; gap:5px; margin:0;">
+                <input type="checkbox" id="showArchivedOrgs" style="width:16px; height:16px;"> Show archived
+            </label>
+        </div>
         <div id="orgList"></div>
         <div style="display:flex; gap:10px; margin-top:10px; margin-bottom: 25px;"><input type="text" id="newOrgInput" placeholder="New organisation"><button class="btn-submit" style="width:auto; padding:10px 20px;" onclick="addListItem('organisations')">Add</button></div>
-        <div class="section-title">Teachers</div>
+        <div class="section-title">
+            <span>Teachers</span>
+            <label style="font-size:0.8rem; font-weight:normal; display:flex; align-items:center; gap:5px; margin:0;">
+                <input type="checkbox" id="showArchivedTeachers" style="width:16px; height:16px;"> Show archived
+            </label>
+        </div>
         <div id="teacherList"></div>
         <div style="display:flex; gap:10px; margin-top:10px;"><input type="text" id="newTeacherInput" placeholder="New teacher"><button class="btn-submit" style="width:auto; padding:10px 20px;" onclick="addListItem('teachers')">Add</button></div>
     </div>
@@ -374,6 +386,20 @@
             <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('itemDetailModal').style.display='none'">Cancel</button>
             <button class="btn-submit no-margin" id="saveItemBtn">Save task</button>
         </div>
+    </div>
+</div>
+
+<div class="modal" id="listItemModal">
+    <div class="modal-content">
+        <h2 id="listItemModalTitle">Edit item</h2>
+        <input type="hidden" id="liType">
+        <input type="hidden" id="liOriginalName">
+        <div class="form-group"><label>Name</label><input type="text" id="liName"></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('listItemModal').style.display='none'">Cancel</button>
+            <button class="btn-submit no-margin" id="liSaveBtn">Save</button>
+        </div>
+        <button class="btn-icon-delete" id="liActionBtn" style="margin:10px auto 0 auto;" aria-label="Remove"><span class="material-symbols-outlined">delete</span></button>
     </div>
 </div>
 

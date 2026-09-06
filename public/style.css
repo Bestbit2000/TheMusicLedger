@@ -156,7 +156,9 @@
     .btn-icon-edit { background: transparent; color: #fff; border: 2px solid var(--selection-color); width: 36px; height: 36px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .btn-icon-delete { background: var(--danger-color); color: #fff; border: none; width: 36px; height: 36px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
-    .play-card { background: var(--input-bg); padding: var(--space-6) var(--space-5); border-radius: var(--radius-lg); border: 2px solid var(--primary-action); text-align: center; margin-bottom: var(--space-6); }
+    .play-card { background: var(--input-bg); padding: var(--space-6) var(--space-5); border-radius: var(--radius-lg); border: 2px solid var(--primary-action); text-align: center; margin-bottom: var(--space-6); transition: transform 0.22s ease, opacity 0.22s ease; }
+    .play-card.slide-out-left, .play-card.slide-in-left { transform: translateX(-40px); opacity: 0; }
+    .play-card.slide-out-right, .play-card.slide-in-right { transform: translateX(40px); opacity: 0; }
     .play-piece { font-size: var(--font-xl); font-weight: bold; margin-bottom: 5px; color: var(--primary-action); }
     .play-ref { font-size: 1.2rem; font-weight: bold; margin-bottom: var(--space-4); }
     .play-meta { font-size: var(--font-base); color: #666; display: flex; justify-content: center; gap: var(--space-4); margin-bottom: var(--space-3); }

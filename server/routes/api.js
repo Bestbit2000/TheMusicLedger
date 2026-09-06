@@ -15,6 +15,21 @@ const COLUMNS = {
   'Performance': { yearCol: 'O', whoCol: 'P', dateCol: 'Q', durationCol: 'R' }
 };
 
+// Organisations live in column A with their archived flag in B; teachers in
+// D with their flag in E. Kept as parallel columns (rather than a lookup
+// table) since this is still a flat-file Sheet, not a real database.
+const SETTINGS_RANGES = {
+  organisations: { name: 'A', archived: 'B' },
+  teachers: { name: 'D', archived: 'E' }
+};
+
+// Which "who" columns on the Music time sheet reference each list - used to
+// decide whether removing an entry should archive it instead of deleting it.
+const USAGE_WHO_COLUMNS = {
+  organisations: ['F', 'P'],
+  teachers: ['K']
+};
+
 async function getSheetsAuth(req, res) {
   let tokens = getUserTokens(req);
   if (tokens.expiry_date && new Date(tokens.expiry_date) < new Date()) {
@@ -40,6 +55,60 @@ async function getSheetsAuth(req, res) {
     return { ...newTokens, refresh_token: tokens.refresh_token };
   }
   return tokens;
+}
+
+async function readSettingsList(sheets, type) {
+  const { name, archived } = SETTINGS_RANGES[type];
+  // Read both columns as ONE range so each row comes back as a matched
+  // [name, archived] pair. Fetching them as two separate single-column
+  // ranges doesn't work: the Sheets API trims blank cells out of a
+  // single-column result entirely (rather than returning a placeholder),
+  // so a blank flag cell shifts every later flag onto the wrong name.
+  const resp = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID,
+    range: `'${SETTINGS_SHEET}'!${name}4:${archived}100`
+  });
+  const rows = resp.data.values || [];
+  return rows
+    .filter(row => row[0])
+    .map(row => ({ name: row[0], archived: String(row[1] || '').toUpperCase() === 'TRUE' }));
+}
+
+async function writeSettingsList(sheets, type, list) {
+  const { name, archived } = SETTINGS_RANGES[type];
+  const range = `'${SETTINGS_SHEET}'!${name}4:${archived}100`;
+
+  // values.update only touches cells it's given rows for - when the list
+  // shrinks (an item removed), the row that used to hold it would otherwise
+  // be left untouched with its old content, so a removal never actually
+  // disappears from the sheet. Clear the whole range first.
+  await sheets.spreadsheets.values.clear({ spreadsheetId: SHEET_ID, range });
+
+  if (list.length) {
+    const values = list.map(item => [item.name, item.archived ? 'TRUE' : '']);
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range,
+      valueInputOption: 'RAW',
+      resource: { values }
+    });
+  }
+}
+
+async function getUsedNamesSet(sheets, cols) {
+  const lists = await Promise.all(cols.map(async col => {
+    const resp = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `'${SHEET_NAME}'!${col}2:${col}1000`
+    });
+    return (resp.data.values || []).flat();
+  }));
+  return new Set(lists.flat());
+}
+
+async function isNameUsedInHistory(sheets, name, cols) {
+  const used = await getUsedNamesSet(sheets, cols);
+  return used.has(name);
 }
 
 function getPracticeYear(dateObj) {
@@ -72,18 +141,10 @@ router.get('/dropdown-options', requireAuth, async (req, res) => {
     const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
-    const orgsResponse = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `'${SETTINGS_SHEET}'!A4:A100`
-    });
-
-    const teachersResponse = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `'${SETTINGS_SHEET}'!D4:D100`
-    });
-
-    const organisations = (orgsResponse.data.values || []).flat().filter(String);
-    const teachers = (teachersResponse.data.values || []).flat().filter(String);
+    const [organisations, teachers] = await Promise.all([
+      readSettingsList(sheets, 'organisations'),
+      readSettingsList(sheets, 'teachers')
+    ]);
 
     res.json({ organisations, teachers });
   } catch (error) {
@@ -280,35 +341,12 @@ router.post('/settings/organisations', requireAuth, async (req, res) => {
     const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `'${SETTINGS_SHEET}'!A4:A100`
-    });
+    const organisations = await readSettingsList(sheets, 'organisations');
+    organisations.push({ name, archived: false });
+    await writeSettingsList(sheets, 'organisations', organisations);
 
-    let values = (response.data.values || []).flat().filter(String);
-    values.push(name);
-    const out = values.map(v => [v]);
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: SHEET_ID,
-      range: `'${SETTINGS_SHEET}'!A4:A100`,
-      valueInputOption: 'RAW',
-      resource: { values: out }
-    });
-
-    const orgResponse = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `'${SETTINGS_SHEET}'!A4:A100`
-    });
-    const teachersResponse = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `'${SETTINGS_SHEET}'!D4:D100`
-    });
-
-    res.json({
-      organisations: (orgResponse.data.values || []).flat().filter(String),
-      teachers: (teachersResponse.data.values || []).flat().filter(String)
-    });
+    const teachers = await readSettingsList(sheets, 'teachers');
+    res.json({ organisations, teachers });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -320,63 +358,93 @@ router.post('/settings/teachers', requireAuth, async (req, res) => {
     const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `'${SETTINGS_SHEET}'!D4:D100`
-    });
+    const teachers = await readSettingsList(sheets, 'teachers');
+    teachers.push({ name, archived: false });
+    await writeSettingsList(sheets, 'teachers', teachers);
 
-    let values = (response.data.values || []).flat().filter(String);
-    values.push(name);
-    const out = values.map(v => [v]);
+    const organisations = await readSettingsList(sheets, 'organisations');
+    res.json({ organisations, teachers });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: SHEET_ID,
-      range: `'${SETTINGS_SHEET}'!D4:D100`,
-      valueInputOption: 'RAW',
-      resource: { values: out }
-    });
+router.put('/settings/organisations', requireAuth, async (req, res) => {
+  try {
+    const { oldName, newName } = req.body;
+    const tokens = await getSheetsAuth(req, res);
+    const sheets = getSheetsClient(tokens);
 
-    const orgResponse = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `'${SETTINGS_SHEET}'!A4:A100`
-    });
-    const teachersResponse = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `'${SETTINGS_SHEET}'!D4:D100`
-    });
+    const list = await readSettingsList(sheets, 'organisations');
+    const updated = list.map(o => o.name === oldName ? { ...o, name: newName } : o);
+    await writeSettingsList(sheets, 'organisations', updated);
+
+    res.json({ message: 'Organisation renamed' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/settings/teachers', requireAuth, async (req, res) => {
+  try {
+    const { oldName, newName } = req.body;
+    const tokens = await getSheetsAuth(req, res);
+    const sheets = getSheetsClient(tokens);
+
+    const list = await readSettingsList(sheets, 'teachers');
+    const updated = list.map(t => t.name === oldName ? { ...t, name: newName } : t);
+    await writeSettingsList(sheets, 'teachers', updated);
+
+    res.json({ message: 'Teacher renamed' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Manage Lists needs to know, per item, whether it's referenced in history
+// so it can label the archive/remove action correctly before the user acts -
+// dropdown-options stays cheap for the common app-load path by not doing this.
+router.get('/settings/lists-with-usage', requireAuth, async (req, res) => {
+  try {
+    const tokens = await getSheetsAuth(req, res);
+    const sheets = getSheetsClient(tokens);
+
+    const [organisations, teachers, orgUsed, teacherUsed] = await Promise.all([
+      readSettingsList(sheets, 'organisations'),
+      readSettingsList(sheets, 'teachers'),
+      getUsedNamesSet(sheets, USAGE_WHO_COLUMNS.organisations),
+      getUsedNamesSet(sheets, USAGE_WHO_COLUMNS.teachers)
+    ]);
 
     res.json({
-      organisations: (orgResponse.data.values || []).flat().filter(String),
-      teachers: (teachersResponse.data.values || []).flat().filter(String)
+      organisations: organisations.map(o => ({ ...o, usedInHistory: orgUsed.has(o.name) })),
+      teachers: teachers.map(t => ({ ...t, usedInHistory: teacherUsed.has(t.name) }))
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
+// Deleting an organisation/teacher that's still referenced in session history
+// would silently orphan those past sessions, so it's archived instead - kept
+// in the list (hidden from new-entry pickers) rather than removed outright.
 router.delete('/settings/organisations/:name', requireAuth, async (req, res) => {
   try {
-    const { name } = req.params;
+    const name = decodeURIComponent(req.params.name);
     const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `'${SETTINGS_SHEET}'!A4:A100`
+    const usedInHistory = await isNameUsedInHistory(sheets, name, USAGE_WHO_COLUMNS.organisations);
+    let list = await readSettingsList(sheets, 'organisations');
+    list = usedInHistory
+      ? list.map(o => o.name === name ? { ...o, archived: true } : o)
+      : list.filter(o => o.name !== name);
+    await writeSettingsList(sheets, 'organisations', list);
+
+    res.json({
+      message: usedInHistory ? 'Organisation archived (still used in history)' : 'Organisation deleted',
+      archived: usedInHistory
     });
-
-    let values = (response.data.values || []).flat().filter(String);
-    values = values.filter(v => v !== decodeURIComponent(name));
-    const out = values.map(v => [v]);
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: SHEET_ID,
-      range: `'${SETTINGS_SHEET}'!A4:A100`,
-      valueInputOption: 'RAW',
-      resource: { values: out }
-    });
-
-    res.json({ message: 'Organisation deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -384,27 +452,53 @@ router.delete('/settings/organisations/:name', requireAuth, async (req, res) => 
 
 router.delete('/settings/teachers/:name', requireAuth, async (req, res) => {
   try {
-    const { name } = req.params;
+    const name = decodeURIComponent(req.params.name);
     const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `'${SETTINGS_SHEET}'!D4:D100`
+    const usedInHistory = await isNameUsedInHistory(sheets, name, USAGE_WHO_COLUMNS.teachers);
+    let list = await readSettingsList(sheets, 'teachers');
+    list = usedInHistory
+      ? list.map(t => t.name === name ? { ...t, archived: true } : t)
+      : list.filter(t => t.name !== name);
+    await writeSettingsList(sheets, 'teachers', list);
+
+    res.json({
+      message: usedInHistory ? 'Teacher archived (still used in history)' : 'Teacher deleted',
+      archived: usedInHistory
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-    let values = (response.data.values || []).flat().filter(String);
-    values = values.filter(v => v !== decodeURIComponent(name));
-    const out = values.map(v => [v]);
+router.post('/settings/organisations/:name/unarchive', requireAuth, async (req, res) => {
+  try {
+    const name = decodeURIComponent(req.params.name);
+    const tokens = await getSheetsAuth(req, res);
+    const sheets = getSheetsClient(tokens);
 
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: SHEET_ID,
-      range: `'${SETTINGS_SHEET}'!D4:D100`,
-      valueInputOption: 'RAW',
-      resource: { values: out }
-    });
+    const list = await readSettingsList(sheets, 'organisations');
+    const updated = list.map(o => o.name === name ? { ...o, archived: false } : o);
+    await writeSettingsList(sheets, 'organisations', updated);
 
-    res.json({ message: 'Teacher deleted' });
+    res.json({ message: 'Organisation unarchived' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/settings/teachers/:name/unarchive', requireAuth, async (req, res) => {
+  try {
+    const name = decodeURIComponent(req.params.name);
+    const tokens = await getSheetsAuth(req, res);
+    const sheets = getSheetsClient(tokens);
+
+    const list = await readSettingsList(sheets, 'teachers');
+    const updated = list.map(t => t.name === name ? { ...t, archived: false } : t);
+    await writeSettingsList(sheets, 'teachers', updated);
+
+    res.json({ message: 'Teacher unarchived' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -507,27 +601,189 @@ router.post('/challenges', requireAuth, async (req, res) => {
 router.put('/challenges/:row', requireAuth, async (req, res) => {
   try {
     const { row } = req.params;
-    const { timeSpent, status } = req.body;
+    const { timeSpent, status, piece, ref, barFrom, barTo, bpm } = req.body;
+    const tokens = await getSheetsAuth(req, res);
+    const sheets = getSheetsClient(tokens);
+
+    // Editing a task's details (piece/ref/bars/bpm, columns E-I) and logging
+    // practise progress (timeSpent/status, columns J-L) are independent -
+    // only touch whichever half of the row the caller actually sent.
+    if ([piece, ref, barFrom, barTo, bpm].some(v => v !== undefined)) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: `'${CHALLENGES_SHEET}'!E${row}:I${row}`,
+        valueInputOption: 'RAW',
+        resource: { values: [[piece || '', ref || '', barFrom || '', barTo || '', bpm || '']] }
+      });
+    }
+
+    if (timeSpent !== undefined || status !== undefined) {
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: `'${CHALLENGES_SHEET}'!J${row}:L${row}`
+      });
+
+      const currentRow = (response.data.values || [[0, 0, '']])[0];
+      const newTimeSpent = (Number(currentRow[0]) || 0) + (timeSpent || 0);
+      const newSessions = (Number(currentRow[1]) || 0) + 1;
+
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: `'${CHALLENGES_SHEET}'!J${row}:L${row}`,
+        valueInputOption: 'RAW',
+        resource: { values: [[newTimeSpent, newSessions, status || currentRow[2]]] }
+      });
+    }
+
+    res.json({ message: 'Challenge updated' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Appends a new task to an existing challenge group, reusing that group's
+// shared id/type/who/name/challPriority (mirrors what POST /challenges does
+// for a brand-new challenge, but for one more task under an existing one).
+router.post('/challenges/group/:id/items', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { piece, ref, barFrom, barTo, bpm } = req.body;
     const tokens = await getSheetsAuth(req, res);
     const sheets = getSheetsClient(tokens);
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `'${CHALLENGES_SHEET}'!J${row}:L${row}`
+      range: `'${CHALLENGES_SHEET}'!A:N`
     });
+    const data = response.data.values || [];
 
-    const currentRow = (response.data.values || [[0, 0, '']])[0];
-    const newTimeSpent = (Number(currentRow[0]) || 0) + (timeSpent || 0);
-    const newSessions = (Number(currentRow[1]) || 0) + 1;
+    let groupRow = null;
+    let maxItemPriority = 0;
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(id)) {
+        groupRow = data[i];
+        const p = Number(data[i][13]);
+        if (!isNaN(p) && p > maxItemPriority) maxItemPriority = p;
+      }
+    }
+    if (!groupRow) return res.status(404).json({ error: 'Challenge not found' });
+
+    const newRow = [
+      id, groupRow[1] || '', groupRow[2] || '', groupRow[3] || '',
+      piece || '', ref || '', barFrom || '', barTo || '', bpm || '',
+      0, 0, 'To do', groupRow[12] || 999, maxItemPriority + 1
+    ];
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
-      range: `'${CHALLENGES_SHEET}'!J${row}:L${row}`,
+      range: `'${CHALLENGES_SHEET}'!A${data.length + 1}`,
       valueInputOption: 'RAW',
-      resource: { values: [[newTimeSpent, newSessions, status || currentRow[2]]] }
+      resource: { values: [newRow] }
     });
 
-    res.json({ message: 'Challenge updated' });
+    res.json({ message: 'Task added' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Whole-challenge operations act on every row sharing a challenge's group id
+// (not a single sheet row) - renaming or deleting "the challenge" means every
+// task under it, so these can't reuse the single-row :row endpoints below.
+router.put('/challenges/group/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, priority } = req.body;
+    const tokens = await getSheetsAuth(req, res);
+    const sheets = getSheetsClient(tokens);
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `'${CHALLENGES_SHEET}'!A:N`
+    });
+
+    const data = response.data.values || [];
+    const updates = [];
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(id)) {
+        if (name !== undefined) updates.push({ range: `'${CHALLENGES_SHEET}'!D${i + 1}`, values: [[name]] });
+        if (priority !== undefined) updates.push({ range: `'${CHALLENGES_SHEET}'!M${i + 1}`, values: [[priority]] });
+      }
+    }
+
+    if (updates.length) {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: SHEET_ID,
+        resource: { valueInputOption: 'RAW', data: updates }
+      });
+    }
+
+    res.json({ message: 'Challenge updated', updated: updates.length });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/challenges/group/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tokens = await getSheetsAuth(req, res);
+    const sheets = getSheetsClient(tokens);
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `'${CHALLENGES_SHEET}'!A:A`
+    });
+
+    const data = response.data.values || [];
+    const ranges = [];
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(id)) ranges.push(`'${CHALLENGES_SHEET}'!${i + 1}:${i + 1}`);
+    }
+
+    if (ranges.length) {
+      await sheets.spreadsheets.values.batchClear({
+        spreadsheetId: SHEET_ID,
+        resource: { ranges }
+      });
+    }
+
+    res.json({ message: 'Challenge deleted', deleted: ranges.length });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Closes every not-yet-complete task in a challenge (grouped by shared id,
+// not sheet row) in one go, marking them "Closed" rather than "Complete" so
+// abandoned work doesn't read as finished.
+router.put('/challenges/:id/close', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tokens = await getSheetsAuth(req, res);
+    const sheets = getSheetsClient(tokens);
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `'${CHALLENGES_SHEET}'!A:L`
+    });
+
+    const data = response.data.values || [];
+    const updates = [];
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(id) && data[i][11] !== 'Complete') {
+        updates.push({ range: `'${CHALLENGES_SHEET}'!L${i + 1}`, values: [['Closed']] });
+      }
+    }
+
+    if (updates.length) {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: SHEET_ID,
+        resource: { valueInputOption: 'RAW', data: updates }
+      });
+    }
+
+    res.json({ message: 'Challenge closed', updated: updates.length });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

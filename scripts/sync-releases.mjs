@@ -33,7 +33,10 @@ async function fetchReleasedVersions() {
   );
   return data
     .filter(v => v.released && v.releaseDate)
-    .sort((a, b) => new Date(b.releaseDate) - new Date(a.releaseDate));
+    // Releases cut on the same day tie on releaseDate alone; break ties by
+    // Jira's version id (higher id = created later) so the most recent
+    // release is reliably first, not whatever order the API happens to return.
+    .sort((a, b) => new Date(b.releaseDate) - new Date(a.releaseDate) || Number(b.id) - Number(a.id));
 }
 
 async function fetchChangesForVersion(versionName) {

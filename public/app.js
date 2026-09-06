@@ -104,15 +104,23 @@
             get: () => apiCall('/api/challenges'),
             create: (data) => apiCall('/api/challenges', 'POST', data),
             update: (row, data) => apiCall(`/api/challenges/${row}`, 'PUT', data),
-            delete: (row) => apiCall(`/api/challenges/${row}`, 'DELETE')
+            delete: (row) => apiCall(`/api/challenges/${row}`, 'DELETE'),
+            close: (id) => apiCall(`/api/challenges/${id}/close`, 'PUT'),
+            updateGroup: (id, data) => apiCall(`/api/challenges/group/${id}`, 'PUT', data),
+            deleteGroup: (id) => apiCall(`/api/challenges/group/${id}`, 'DELETE'),
+            addItem: (groupId, data) => apiCall(`/api/challenges/group/${groupId}/items`, 'POST', data)
         },
         settings: {
+            get: () => apiCall('/api/dropdown-options'),
+            getListsWithUsage: () => apiCall('/api/settings/lists-with-usage'),
             addOrganisation: (name) => apiCall('/api/settings/organisations', 'POST', { name }),
             addTeacher: (name) => apiCall('/api/settings/teachers', 'POST', { name }),
             deleteOrganisation: (name) => apiCall(`/api/settings/organisations/${encodeURIComponent(name)}`, 'DELETE'),
             deleteTeacher: (name) => apiCall(`/api/settings/teachers/${encodeURIComponent(name)}`, 'DELETE'),
             renameOrganisation: (oldName, newName) => apiCall('/api/settings/organisations', 'PUT', { oldName, newName }),
-            renameTeacher: (oldName, newName) => apiCall('/api/settings/teachers', 'PUT', { oldName, newName })
+            renameTeacher: (oldName, newName) => apiCall('/api/settings/teachers', 'PUT', { oldName, newName }),
+            unarchiveOrganisation: (name) => apiCall(`/api/settings/organisations/${encodeURIComponent(name)}/unarchive`, 'POST'),
+            unarchiveTeacher: (name) => apiCall(`/api/settings/teachers/${encodeURIComponent(name)}/unarchive`, 'POST')
         }
     };
 
@@ -362,14 +370,30 @@
         }
     }
 
+    // Archived organisations/teachers are hidden from pickers used for new
+    // entries, but a record already assigned to one must keep showing it
+    // (labelled as archived) so editing that record doesn't silently drop it.
+    function activeNames(list) {
+        return (list || []).filter(item => !item.archived).map(item => item.name);
+    }
+
+    function buildWhoOptionsHtml(list, selectedName) {
+        const names = activeNames(list);
+        let html = names.map(n => {
+            const safe = String(n).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            return `<option value="${safe}">${n}</option>`;
+        }).join('');
+        if (selectedName && !names.includes(selectedName)) {
+            const safe = String(selectedName).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            html += `<option value="${safe}">${selectedName} (archived)</option>`;
+        }
+        return html;
+    }
+
     function populateWhoDropdowns() {
         const cWho = document.getElementById('cWho');
         if (!cWho) return;
-        cWho.innerHTML = '<option value="">None</option>';
-        appData.organisations.forEach(org => {
-            let safeOrg = String(org).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-            cWho.innerHTML += `<option value="${safeOrg}">${org}</option>`;
-        });
+        cWho.innerHTML = '<option value="">None</option>' + buildWhoOptionsHtml(appData.organisations);
     }
 
     function fetchDataAndRender() {
@@ -479,7 +503,7 @@
         if (viewName === 'streakStatsView') { document.getElementById('topTitle').innerText = 'Streaks'; renderStreakStats(); }
         if (viewName === 'statsView') { document.getElementById('topTitle').innerText = 'Detailed stats'; scrollStatsToRight(); }
         if (viewName === 'entryForm') { document.getElementById('topTitle').innerText = 'Add record'; }
-        if (viewName === 'manageListsView') { document.getElementById('topTitle').innerText = 'Manage lists'; renderManageLists(); }
+        if (viewName === 'manageListsView') { document.getElementById('topTitle').innerText = 'Manage lists'; loadManageLists(); }
         if (viewName === 'settingsView') { document.getElementById('topTitle').innerText = 'Settings'; }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
         if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
@@ -712,7 +736,7 @@
                     groups[c.id] = { id: c.id, name: c.name, type: c.type, total:0, complete:0, time:0, p: c.priority };
                 }
                 groups[c.id].total++;
-                if(c.status === 'Complete') groups[c.id].complete++;
+                if(isChallengeDone(c.status)) groups[c.id].complete++;
                 groups[c.id].time += c.timeSpent || 0;
             });
 
@@ -766,7 +790,7 @@
                 if(!groups[c.id]) {
                     groups[c.id] = { id: c.id, name: c.name, type: c.type, incomplete: 0 };
                 }
-                if(c.status !== 'Complete') groups[c.id].incomplete++;
+                if(!isChallengeDone(c.status)) groups[c.id].incomplete++;
             });
 
             Object.values(groups).forEach(g => {
@@ -796,7 +820,7 @@
             if(newName && newName !== editChallengeMeta.name) {
                 showInfoToast("Renaming...");
                 try {
-                    await API.challenges.update(editChallengeMeta.id, { name: newName });
+                    await API.challenges.updateGroup(editChallengeMeta.id, { name: newName });
                     showSuccessToast("Challenge renamed!");
                     editChallengeMeta.name = newName;
                     document.getElementById('ecName').innerText = newName;
@@ -808,13 +832,36 @@
         });
     }
 
+    // "Closed" is distinct from "Complete" so a challenge abandoned partway
+    // through doesn't read as finished, but both take it out of the active/
+    // incomplete pool everywhere else in the UI.
+    function isChallengeDone(status) {
+        return status === 'Complete' || status === 'Closed';
+    }
+
+    window.closeEntireChallenge = function() {
+        const items = allChallenges.filter(c => c.id == editChallengeMeta.id && !isChallengeDone(c.status));
+        if (!items.length) return showWarningToast('Nothing left to close on this challenge.');
+        showConfirmModal('Close challenge', `Mark the remaining ${items.length} task(s) as closed (not completed)?`, async () => {
+            showInfoToast('Closing...');
+            try {
+                await API.challenges.close(editChallengeMeta.id);
+                showSuccessToast('Challenge closed');
+                await loadChallenges();
+                renderEditChallengeItems();
+            } catch (error) {
+                showWarningToast('Error: ' + error.message);
+            }
+        }, false);
+    }
+
     window.deleteEntireChallenge = function() {
         const items = allChallenges.filter(c => c.id == editChallengeMeta.id);
         const count = items.length;
         showConfirmModal('Delete challenge', `Are you sure? This will remove the challenge and all ${count} tasks.`, async () => {
             showInfoToast("Deleting challenge...");
             try {
-                await API.challenges.delete(editChallengeMeta.id);
+                await API.challenges.deleteGroup(editChallengeMeta.id);
                 showSuccessToast("Challenge deleted");
                 await loadChallenges();
                 goBack();
@@ -845,7 +892,7 @@
             if(ecName) ecName.innerText = editChallengeMeta.name;
             if(ecWhoType) ecWhoType.innerText = `${editChallengeMeta.type} ${editChallengeMeta.who ? 'for ' + editChallengeMeta.who : ''}`;
 
-            let completeCount = items.filter(i => i.status === 'Complete').length;
+            let completeCount = items.filter(i => isChallengeDone(i.status)).length;
             let totalTime = items.reduce((sum, i) => sum + (i.timeSpent || 0), 0);
             if(ecStats) ecStats.innerText = `${completeCount} / ${items.length} tasks complete | ${formatMins(totalTime)} total time`;
 
@@ -853,13 +900,14 @@
             ecItemsList.innerHTML = '';
 
             items.forEach(item => {
-                if(!showCompleted && item.status === 'Complete') return;
+                if(!showCompleted && isChallengeDone(item.status)) return;
                 let refStr = item.ref || '';
                 if (item.barFrom || item.barTo) refStr += ` (Bars ${item.barFrom || '?'} - ${item.barTo || '?'})`;
                 let safePiece = String(item.piece).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                let borderColor = item.status === 'Complete' ? 'var(--success-color)' : (item.status === 'Closed' ? '#999' : 'var(--primary-action)');
 
                 ecItemsList.innerHTML += `
-                <div class="history-item draggable-item" draggable="true" data-id="${item.id}" style="align-items:center; border-left: 4px solid ${item.status === 'Complete' ? 'var(--success-color)' : 'var(--primary-action)'}; padding-left:5px;">
+                <div class="history-item draggable-item" draggable="true" data-id="${item.id}" style="align-items:center; border-left: 4px solid ${borderColor}; padding-left:5px;">
                     <span class="drag-handle" title="Drag to reorder">☰</span>
                     <div style="flex-grow:1;">
                         <div style="display:flex; justify-content:space-between; width:100%;">
@@ -868,8 +916,8 @@
                         </div>
                         <div style="font-size:0.85rem; color:#666; margin-bottom:10px;">${refStr} ${item.bpm ? '| '+item.bpm+' bpm' : ''}</div>
                         <div style="display:flex; gap:5px; width:100%;">
-                            <button class="btn-edit" style="flex:1" onclick="openItemDetailModal('${item.id}')">Edit</button>
-                            <button class="btn-delete" style="flex:1" onclick="deleteChallengeItem('${item.id}', '${safePiece}')">Delete</button>
+                            <button class="btn-edit" style="flex:1" onclick="openItemDetailModal('${item.row}')">Edit</button>
+                            <button class="btn-delete" style="flex:1" onclick="deleteChallengeItem('${item.row}', '${safePiece}')">Delete</button>
                         </div>
                     </div>
                 </div>`;
@@ -878,13 +926,13 @@
         } catch(err) { showWarningToast("Error loading challenge editor: " + err.message); }
     }
 
-    window.openItemDetailModal = function(id = null) {
+    window.openItemDetailModal = function(row = null) {
         const modal = document.getElementById('itemDetailModal');
         const title = document.getElementById('itemModalTitle');
-        document.getElementById('itemEditId').value = id || '';
-        if(id) {
+        document.getElementById('itemEditId').value = row || '';
+        if(row) {
             title.innerText = "Edit task";
-            const item = allChallenges.find(c => c.id == id);
+            const item = allChallenges.find(c => c.row == row);
             if (item) {
                 document.getElementById('iPiece').value = item.piece;
                 document.getElementById('iRef').value = item.ref || '';
@@ -903,7 +951,7 @@
     }
 
     document.getElementById('saveItemBtn')?.addEventListener('click', async () => {
-        const id = document.getElementById('itemEditId').value;
+        const row = document.getElementById('itemEditId').value;
         const piece = document.getElementById('iPiece')?.value;
         if(!piece) return showWarningToast("Task piece name is required!");
 
@@ -911,33 +959,17 @@
         const bf = document.getElementById('iBarFrom')?.value;
         const bt = document.getElementById('iBarTo')?.value;
         const bpm = document.getElementById('iBPM')?.value;
+        const details = { piece, ref: ref || '', barFrom: bf || '', barTo: bt || '', bpm: bpm || '' };
 
         const btn = document.getElementById('saveItemBtn');
         btn.innerText = "Saving...";
         btn.disabled = true;
 
         try {
-            if (id) {
-                await API.challenges.update(editChallengeMeta.id, {
-                    items: [{
-                        id,
-                        piece,
-                        ref: ref || '',
-                        barFrom: bf || '',
-                        barTo: bt || '',
-                        bpm: bpm || ''
-                    }]
-                });
+            if (row) {
+                await API.challenges.update(row, details);
             } else {
-                await API.challenges.update(editChallengeMeta.id, {
-                    items: [{
-                        piece,
-                        ref: ref || '',
-                        barFrom: bf || '',
-                        barTo: bt || '',
-                        bpm: bpm || ''
-                    }]
-                });
+                await API.challenges.addItem(editChallengeMeta.id, details);
             }
             btn.innerText = "Save task";
             btn.disabled = false;
@@ -951,11 +983,11 @@
         }
     });
 
-    window.deleteChallengeItem = function(id, pieceName) {
+    window.deleteChallengeItem = function(row, pieceName) {
         showConfirmModal('Delete task', `Delete "${pieceName}"?`, async () => {
             showInfoToast("Deleting...");
             try {
-                await API.challenges.update(editChallengeMeta.id, { deleteItem: id });
+                await API.challenges.delete(row);
                 showSuccessToast("Task deleted");
                 await loadChallenges();
             } catch (error) {
@@ -989,7 +1021,7 @@
                         try {
                             showInfoToast("Updating order...");
                             await Promise.all(allIds.map((id, idx) =>
-                                API.challenges.update(id, { priority: idx })
+                                API.challenges.updateGroup(id, { priority: idx })
                             ));
                             closeToast('toastInfo');
                             showSuccessToast("Order updated");
@@ -1005,7 +1037,7 @@
 
     async function startChallenge(id) {
         currentSessionChallengeId = id;
-        activeChallengeItems = allChallenges.filter(c => c.id == id && c.status !== 'Complete');
+        activeChallengeItems = allChallenges.filter(c => c.id == id && !isChallengeDone(c.status));
         currentPlayIndex = 0;
         currentSessionLog = { time: 0, items: [] };
 
@@ -1031,6 +1063,59 @@
         document.getElementById('customTimeGroup')?.classList.add('hidden-group');
     }
 
+    // Lets the player browse back and forth through the challenge's task
+    // order (set when the challenge was created) without having to save
+    // progress just to look at a neighbouring task.
+    window.goToChallengeItem = function(delta) {
+        const newIndex = currentPlayIndex + delta;
+        if (!Number.isInteger(newIndex) || newIndex < 0 || newIndex >= activeChallengeItems.length) return;
+        currentPlayIndex = newIndex;
+        animateChallengeCardTransition(delta, loadNextChallengeItem);
+    };
+
+    // Slides the task card out in the direction of the swipe, swaps its
+    // content once off-screen, then slides the new task in from the
+    // opposite side - without this a swipe just changed text in place with
+    // no visual sign anything had happened.
+    let challengeCardAnimating = false;
+    function animateChallengeCardTransition(direction, renderFn) {
+        const card = document.querySelector('#challengePlayView .play-card');
+        if (!card || challengeCardAnimating) { renderFn(); return; }
+
+        challengeCardAnimating = true;
+        const outClass = direction > 0 ? 'slide-out-left' : 'slide-out-right';
+        const inClass = direction > 0 ? 'slide-in-right' : 'slide-in-left';
+
+        card.classList.add(outClass);
+        card.addEventListener('transitionend', function onOut() {
+            card.classList.remove(outClass);
+            renderFn();
+            card.classList.add(inClass);
+            void card.offsetWidth; // force reflow so the "entry" position registers before animating away from it
+            requestAnimationFrame(() => {
+                card.classList.remove(inClass);
+                card.addEventListener('transitionend', () => { challengeCardAnimating = false; }, { once: true });
+            });
+        }, { once: true });
+    }
+
+    (function setupChallengePlaySwipe() {
+        const el = document.getElementById('challengePlayView');
+        if (!el) return;
+        let startX = 0, startY = 0;
+        el.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        }, { passive: true });
+        el.addEventListener('touchend', (e) => {
+            const dx = e.changedTouches[0].clientX - startX;
+            const dy = e.changedTouches[0].clientY - startY;
+            if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                goToChallengeItem(dx < 0 ? 1 : -1);
+            }
+        }, { passive: true });
+    })();
+
     async function processChallengeSave(proceedNext) {
         const item = activeChallengeItems[currentPlayIndex];
         const timeRadio = document.querySelector('input[name="playTime"]:checked')?.value;
@@ -1046,7 +1131,7 @@
         showInfoToast("Saving...");
 
         try {
-            await API.challenges.update(item.id, {
+            await API.challenges.update(item.row, {
                 status: newStatus,
                 timeSpent: (item.timeSpent || 0) + Number(addTime)
             });
@@ -1215,11 +1300,7 @@
                 document.getElementById('whoGroup').classList.add('hidden-group');
             } else {
                 document.getElementById('whoGroup').classList.remove('hidden-group');
-                let opts = (cat === 'Lesson') ? appData.teachers : appData.organisations;
-                opts.forEach(item => {
-                    let safeItem = String(item).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                    whoSelect.innerHTML += `<option value="${safeItem}">${item}</option>`;
-                });
+                whoSelect.innerHTML = buildWhoOptionsHtml(cat === 'Lesson' ? appData.teachers : appData.organisations);
             }
         }
     });
@@ -1571,24 +1652,48 @@
     }
 
     // --- MANAGE LISTS ---
-    function renderManageLists() {
-        const orgList = document.getElementById('orgList');
-        if(orgList) {
-            orgList.innerHTML = '';
-            appData.organisations.forEach(org => {
-                let safeOrg = String(org).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                orgList.innerHTML += `<div class="history-item"><span>${org}</span><div style="display:flex; gap:5px;"><button class="btn-edit" onclick="editListItem('organisations', '${safeOrg}')">Edit</button><button class="btn-delete" onclick="deleteListItem('organisations', '${safeOrg}')">Delete</button></div></div>`;
-            });
-        }
+    document.getElementById('showArchivedOrgs')?.addEventListener('change', renderManageLists);
+    document.getElementById('showArchivedTeachers')?.addEventListener('change', renderManageLists);
 
-        const teacherList = document.getElementById('teacherList');
-        if(teacherList) {
-            teacherList.innerHTML = '';
-            appData.teachers.forEach(t => {
-                let safeT = String(t).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                teacherList.innerHTML += `<div class="history-item"><span>${t}</span><div style="display:flex; gap:5px;"><button class="btn-edit" onclick="editListItem('teachers', '${safeT}')">Edit</button><button class="btn-delete" onclick="deleteListItem('teachers', '${safeT}')">Delete</button></div></div>`;
-            });
+    // The Manage Lists screen needs usedInHistory (which dropdown-options
+    // doesn't compute, to keep the common app-load path cheap) so the edit
+    // modal can label its action button correctly before the user opens it.
+    async function loadManageLists() {
+        try {
+            const data = await API.settings.getListsWithUsage();
+            appData.organisations = data.organisations;
+            appData.teachers = data.teachers;
+            renderManageLists();
+        } catch (error) {
+            showWarningToast('Error loading lists: ' + error.message);
         }
+    }
+
+    function renderManageLists() {
+        renderSettingsList('orgList', appData.organisations, 'organisations', 'showArchivedOrgs');
+        renderSettingsList('teacherList', appData.teachers, 'teachers', 'showArchivedTeachers');
+    }
+
+    function renderSettingsList(containerId, list, type, toggleId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const showArchived = document.getElementById(toggleId)?.checked;
+        container.innerHTML = '';
+
+        (list || []).forEach(item => {
+            if (item.archived && !showArchived) return;
+            const safe = String(item.name).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            const label = item.archived
+                ? `${item.name} <span class="text-muted" style="font-size:0.8rem;">(archived)</span>`
+                : item.name;
+
+            container.innerHTML += `<div class="history-item" style="${item.archived ? 'opacity:0.6;' : ''}">
+                <span>${label}</span>
+                <button class="btn-icon-edit" onclick="editListItem('${type}', '${safe}')" aria-label="Edit"><span class="material-symbols-outlined">edit</span></button>
+            </div>`;
+        });
+
+        if (!container.innerHTML) container.innerHTML = '<div class="text-muted">None added yet.</div>';
     }
 
     window.addListItem = async function(type) {
@@ -1603,9 +1708,8 @@
                 } else {
                     await API.settings.addOrganisation(name);
                 }
-                appData = await API.settings.get();
                 input.value = '';
-                renderManageLists();
+                await loadManageLists();
                 showSuccessToast('Added successfully');
             } catch (error) {
                 showWarningToast("Error adding item: " + error.message);
@@ -1613,46 +1717,87 @@
         }
     }
 
-    window.editListItem = function(type, oldName) {
-        showPromptModal(`Rename ${oldName}`, oldName, async (newName) => {
-            if (newName && newName !== oldName) {
-                showInfoToast('Updating...');
-                try {
-                    // Delete old and add new
-                    if (type === 'teachers') {
-                        await API.settings.deleteTeacher(oldName);
-                        await API.settings.addTeacher(newName);
-                    } else {
-                        await API.settings.deleteOrganisation(oldName);
-                        await API.settings.addOrganisation(newName);
-                    }
-                    appData = await API.settings.get();
-                    renderManageLists();
-                    fetchDataAndRender();
-                    showSuccessToast('Name updated');
-                } catch (error) {
-                    showWarningToast("Error updating name: " + error.message);
-                }
-            }
-        });
+    window.editListItem = function(type, name) {
+        const list = (type === 'teachers' ? appData.teachers : appData.organisations) || [];
+        const item = list.find(i => i.name === name);
+        if (!item) return;
+
+        document.getElementById('liType').value = type;
+        document.getElementById('liOriginalName').value = name;
+        document.getElementById('liName').value = name;
+        document.getElementById('listItemModalTitle').innerText = `Edit ${type === 'teachers' ? 'teacher' : 'organisation'}`;
+
+        const actionBtn = document.getElementById('liActionBtn');
+        if (item.archived) {
+            actionBtn.className = 'btn-nav no-margin';
+            actionBtn.style.cssText = 'margin-top:10px;';
+            actionBtn.innerHTML = 'Restore';
+            actionBtn.setAttribute('aria-label', 'Restore');
+        } else {
+            actionBtn.className = 'btn-icon-delete';
+            actionBtn.style.cssText = 'margin:10px auto 0 auto;';
+            actionBtn.innerHTML = '<span class="material-symbols-outlined">delete</span>';
+            actionBtn.setAttribute('aria-label', item.usedInHistory ? 'Archive' : 'Remove');
+        }
+        actionBtn.onclick = () => handleListItemAction(type, name, item);
+
+        document.getElementById('listItemModal').style.display = 'flex';
     }
 
-    window.deleteListItem = function(type, name) {
-        showConfirmModal('Delete item', `Are you sure you want to delete ${name}?`, async () => {
-            showInfoToast('Deleting...');
-            try {
-                if (type === 'teachers') {
-                    await API.settings.deleteTeacher(name);
-                } else {
-                    await API.settings.deleteOrganisation(name);
-                }
-                appData = await API.settings.get();
-                renderManageLists();
-                showSuccessToast('Deleted successfully');
-            } catch (error) {
-                showWarningToast("Error deleting item: " + error.message);
+    document.getElementById('liSaveBtn')?.addEventListener('click', async () => {
+        const type = document.getElementById('liType').value;
+        const oldName = document.getElementById('liOriginalName').value;
+        const newName = document.getElementById('liName')?.value.trim();
+        if (!newName || newName === oldName) {
+            document.getElementById('listItemModal').style.display = 'none';
+            return;
+        }
+
+        showInfoToast('Updating...');
+        try {
+            if (type === 'teachers') {
+                await API.settings.renameTeacher(oldName, newName);
+            } else {
+                await API.settings.renameOrganisation(oldName, newName);
             }
-        });
+            document.getElementById('listItemModal').style.display = 'none';
+            await loadManageLists();
+            fetchDataAndRender();
+            showSuccessToast('Name updated');
+        } catch (error) {
+            showWarningToast("Error updating name: " + error.message);
+        }
+    });
+
+    async function handleListItemAction(type, name, item) {
+        const runAction = async () => {
+            showInfoToast('Working...');
+            try {
+                if (item.archived) {
+                    await (type === 'teachers' ? API.settings.unarchiveTeacher(name) : API.settings.unarchiveOrganisation(name));
+                    showSuccessToast(`${name} restored`);
+                } else {
+                    const result = type === 'teachers'
+                        ? await API.settings.deleteTeacher(name)
+                        : await API.settings.deleteOrganisation(name);
+                    showSuccessToast(result.archived ? `${name} is still used in history, so it was archived instead of removed` : 'Removed successfully');
+                }
+                document.getElementById('listItemModal').style.display = 'none';
+                await loadManageLists();
+            } catch (error) {
+                showWarningToast("Error: " + error.message);
+            }
+        };
+
+        if (item.archived) {
+            runAction();
+            return;
+        }
+
+        const msg = item.usedInHistory
+            ? `${name} is still connected to your past sessions, so it will be archived rather than deleted.`
+            : `${name} isn't used anywhere, so it will be permanently deleted.`;
+        showConfirmModal(item.usedInHistory ? 'Archive item' : 'Remove item', msg, runAction, !item.usedInHistory);
     }
 
     document.getElementById('prevMonthBtn')?.addEventListener('click', () => {
@@ -1702,11 +1847,7 @@
             group.classList.add('hidden-group');
         } else {
             group.classList.remove('hidden-group');
-            let opts = (cat === 'Lesson') ? appData.teachers : appData.organisations;
-            opts.forEach(item => {
-                let safeItem = String(item).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                sel.innerHTML += `<option value="${safeItem}">${item}</option>`;
-            });
+            sel.innerHTML = buildWhoOptionsHtml(cat === 'Lesson' ? appData.teachers : appData.organisations, session.who);
             if(session.who) sel.value = session.who;
         }
 

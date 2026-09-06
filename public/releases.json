@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.2.0",
+    "date": "2026-09-06",
+    "changes": [
+      {
+        "key": "ML-19",
+        "type": "New",
+        "summary": "Archive teachers used in sessions "
+      },
+      {
+        "key": "ML-18",
+        "type": "New",
+        "summary": "Archive organisations used in sessions"
+      },
+      {
+        "key": "ML-17",
+        "type": "New",
+        "summary": "Close off a challenge even if it's not got all tasks complete"
+      },
+      {
+        "key": "ML-12",
+        "type": "New",
+        "summary": "Swipe into the next task within a challenge"
+      }
+    ]
+  },
+  {
     "version": "0.1.0",
     "date": "2026-09-06",
     "changes": [
