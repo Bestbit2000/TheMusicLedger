@@ -164,7 +164,7 @@
     .play-meta { font-size: var(--font-base); color: #666; display: flex; justify-content: center; gap: var(--space-4); margin-bottom: var(--space-3); }
     .play-stats { font-size: var(--font-sm); color: #888; background: var(--container-bg); padding: 5px var(--space-3); border-radius: var(--radius-sm); display: inline-block; }
 
-    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; }
+    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; }
     .modal-content { background: var(--container-bg); width: 90%; max-width: 400px; padding: var(--space-6); border-radius: var(--radius-xl); box-shadow: var(--shadow-xl); max-height: 90vh; overflow-y: auto;}
     .modal-content h2 { margin-top: 0; margin-bottom: var(--space-5); font-size: 1.4rem; font-weight: var(--font-weight-semibold); }
 
@@ -188,6 +188,110 @@
     .splash-title { color: #f5d78e; margin: 0 0 10px 0; font-size: var(--font-2xl); letter-spacing: 1px; }
     .splash-subtitle { color: #cfcfcf; font-size: var(--font-md); margin: 0 0 var(--space-6) 0; }
     .splash-login-btn { display: none; width: 100%; padding: var(--space-4) var(--space-5); font-size: var(--font-md); font-weight: bold; cursor: pointer; background: linear-gradient(135deg, #d4af37, #f5d78e); color: #1a1400; border: none; border-radius: var(--radius-sm); }
+
+    /* Slider - shared design-system component (see style guide). A draggable track + thumb + fill,
+       with an optional min/max scale caption underneath. Used for any single numeric value dragged
+       along a line: the metronome's target-speed and volume controls both use it as-is. */
+    .slider-wrap { margin-bottom: var(--space-5); }
+    .slider-wrap.no-margin { margin-bottom: 0; }
+    .slider-track { position: relative; height: 8px; border-radius: 4px; background: var(--input-border); margin: 20px var(--space-2) 6px var(--space-2); cursor: pointer; touch-action: none; }
+    .slider-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--primary-action); pointer-events: none; }
+    .slider-thumb { position: absolute; top: 50%; width: 26px; height: 26px; border-radius: var(--radius-circle); background: var(--primary-action); border: 3px solid var(--container-bg); box-shadow: var(--shadow-md); transform: translate(-50%, -50%); cursor: grab; touch-action: none; }
+    .slider-thumb:active { cursor: grabbing; }
+    .slider-scale { display: flex; justify-content: space-between; font-size: var(--font-sm); color: var(--label-color); padding: 0 var(--space-2); }
+
+    /* Metronome */
+    /* A bit more breathing room below every section title than the site-wide default, specifically
+       within this view - scoped here rather than widening .section-title itself everywhere else. */
+    #metronomeView .section-title { margin-bottom: var(--space-4); }
+    .metro-display { padding: var(--space-4) 0 var(--space-2) 0; }
+    /* Viewport clips to the visible width; content is either 100% (fits normally) or a fixed pixel
+       width wider than the viewport (too many beats to fit) - see metroTierGeometry in app.js. When
+       wider, JS drives a translateX on the content to keep the baton in view as it plays. */
+    /* Top padding keeps the accent dot's border, which is taller than its row and normally overflows
+       harmlessly into the baton track's own space above it, from being clipped by this element's own
+       overflow:hidden when the baton track is hidden (Conductor beats: Off) and the notes row becomes
+       the flush-top child. */
+    .metro-display-viewport { width: 100%; overflow: hidden; padding-top: var(--space-2); }
+    /* Needs its own transform transition so metroScrollFollow's JS-set transitionDuration actually
+       animates the scroll - without a transition-property declared here, setting transitionDuration
+       alone does nothing and the scroll teleports instantly to the next beat's centred position while
+       the baton (which does glide, via .metro-baton's own transition) is still travelling there,
+       making the baton appear to lag off-screen until its glide "catches up" to the camera. */
+    .metro-display-content { width: 100%; transition: transform linear; }
+    /* Baton track and every tier row share identical width + padding, and every dot/baton position is
+       derived from the same underlying base-click grid (see metroTierGeometry in app.js) rather than
+       each row spacing its own dots independently - this keeps every row's coordinate system in
+       lockstep so a given beat's dot always sits directly under the baton's landing spot. */
+    .metro-baton-track { position: relative; height: 22px; margin-bottom: var(--space-2); overflow: hidden; }
+    .metro-baton { position: absolute; top: 0; width: 4px; height: 100%; background: var(--primary-action); border-radius: 2px; transform: translateX(-50%); transition: left linear; z-index: 2; }
+    .metro-baton.accent-pulse { background: var(--danger-color); }
+    /* Static marks at every conductor beat's landing spot - always visible, never move, so you can see
+       the whole bar's beat pattern in advance instead of only the baton's next single stop. */
+    .metro-baton-mark { position: absolute; top: 25%; width: 2px; height: 50%; background: var(--label-color); opacity: 0.35; border-radius: 1px; transform: translateX(-50%); z-index: 1; }
+
+    .metro-tier { position: relative; height: 24px; margin-bottom: 4px; }
+    .metro-tier-subdivide { height: 16px; }
+
+    .metro-dot { position: absolute; top: 50%; border-radius: var(--radius-circle); transform: translate(-50%, -50%); transition: background 0.08s, border-color 0.08s, opacity 0.08s, transform 0.08s; }
+
+    /* The beats-per-bar row is the only note-level row now (no separate conductor row): every note
+       gets a dot, and the subset the conductor actually beats ("conduct") is simply styled bigger/
+       bolder within that same row, with the very first note ("accent", the tick) bolder still. */
+    .metro-dot-note { width: 15px; height: 15px; background: var(--input-bg); border: 2px solid var(--primary-action); opacity: 0.7; }
+    .metro-dot-note.conduct { width: 22px; height: 22px; opacity: 1; }
+    .metro-dot-note.conduct.accent { border-width: 3px; background: var(--primary-action); }
+    .metro-dot-note.conduct.lit { background: var(--danger-color); border-color: var(--danger-color); transform: translate(-50%, -50%) scale(1.15); }
+    /* A note the conductor doesn't beat still clicks (the quieter "bom"), so it lights up in the same
+       contrasting hue as the subdivision tier rather than the conductor's red. */
+    .metro-dot-note.bom-note.lit { background: var(--selection-color); border-color: var(--selection-color); opacity: 1; transform: translate(-50%, -50%) scale(1.25); }
+
+    /* Subdivision dots need to read clearly against the row above them, so they use a distinct hue
+       (not a faded version of the gold/red beat colours) rather than relying on opacity alone. */
+    .metro-dot-sub { width: 10px; height: 10px; background: var(--selection-color); border: 1px solid var(--selection-color); opacity: 0.65; }
+    .metro-dot-sub.lit { opacity: 1; transform: translate(-50%, -50%) scale(1.35); }
+
+    .metro-bpm-step { width: 44px; height: 44px; flex-shrink: 0; border-radius: var(--radius-circle); border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: 1.4rem; font-weight: bold; cursor: pointer; user-select: none; touch-action: manipulation; }
+    .metro-bpm-step:active { background: var(--radio-highlight); color: #fff; border-color: var(--radio-highlight); }
+
+    .metro-beats-3col { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); }
+    .metro-beats-col { flex: 1; text-align: center; }
+    .metro-col-label { font-size: var(--font-sm); font-weight: bold; color: var(--label-color); margin-bottom: var(--space-2); }
+    .metro-col-btn { width: 100%; padding: var(--space-3) var(--space-1); border: none; border-radius: var(--radius-md); background: var(--nav-action); color: var(--nav-action-text); font-weight: bold; font-size: var(--font-md); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; }
+    .metro-col-btn-icon { font-size: 18px; }
+
+    .metro-beats-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+    .metro-beats-option { padding: var(--space-3) 0; border: 2px solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font-weight: bold; cursor: pointer; }
+    .metro-beats-option.selected { background: var(--radio-highlight); border-color: var(--radio-highlight); color: #fff; }
+    .metro-beats-option.custom-option { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .metro-option-icon { font-size: 18px; }
+
+    .metro-picker-custom { display: flex; align-items: center; justify-content: center; gap: var(--space-5); margin: var(--space-4) 0 0 0; }
+    .metro-picker-custom-value { font-size: var(--font-2xl); font-weight: bold; min-width: 50px; text-align: center; font-variant-numeric: tabular-nums; }
+
+    .metro-advanced-readout { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); font-size: var(--font-base); color: var(--text-color); }
+
+    .metro-speed-row { display: flex; align-items: center; justify-content: center; gap: var(--space-5); margin: var(--space-3) 0 var(--space-2) 0; }
+    .metro-speed-btn { width: 44px; height: 44px; border-radius: var(--radius-circle); border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: 1.4rem; font-weight: bold; cursor: pointer; }
+    .metro-speed-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .metro-speed-readout { text-align: center; min-width: 90px; }
+    .metro-speed-readout > div:first-child { font-size: var(--font-lg); font-weight: bold; }
+    .metro-speed-sub { font-size: var(--font-sm); color: var(--label-color); }
+    .metro-speed-reset { display: block; margin: 0 auto var(--space-4) auto; background: none; border: none; color: var(--radio-highlight); font-weight: bold; font-size: var(--font-sm); cursor: pointer; padding: 4px 8px; }
+
+    .metro-volume-row { display: flex; align-items: center; gap: var(--space-4); margin: var(--space-5) 0; }
+    .metro-mute-btn { width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-circle); border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text-color); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .metro-volume-row .slider-wrap { flex: 1; }
+    /* The default slider-track margin leaves room for a min/max scale caption below it (as on the
+       target-speed slider) - the volume row has no such caption, so its track needs even top/bottom
+       margins instead, or it renders visibly lower than the mute button beside it. */
+    .metro-volume-row .slider-track { margin: 0 var(--space-2); }
+
+    .metro-transport-row { display: flex; align-items: center; justify-content: center; gap: var(--space-4); margin: var(--space-2) 0 var(--space-4) 0; }
+    .metro-transport-btn { width: 60px; height: 60px; border: none; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .metro-transport-btn .material-symbols-outlined { font-size: 26px; }
+    .metro-play-btn { background: var(--primary-action); color: var(--primary-action-text); }
+    .metro-stop-btn { background: var(--nav-action); color: var(--nav-action-text); }
 
     /* Layout utilities for the small set of repeated static inline-style patterns */
     .flex-row { display: flex; }

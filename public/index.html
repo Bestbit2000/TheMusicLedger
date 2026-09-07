@@ -41,6 +41,7 @@
         <button class="top-btn" id="navBurgerMenuBtn">☰</button>
         <div id="burgerDropdown" class="dropdown-menu">
             <div class="dropdown-item" onclick="switchView('mainView'); closeMenu();">Home</div>
+            <div class="dropdown-item" onclick="switchView('metronomeView'); closeMenu();">Metronome</div>
             <div class="dropdown-item" onclick="switchView('historyView'); closeMenu();">View session history</div>
             <div class="dropdown-item" onclick="switchView('statsView'); closeMenu();">View stats</div>
             <div class="dropdown-item" onclick="switchView('manageChallengesView'); closeMenu();">Manage challenges</div>
@@ -56,8 +57,9 @@
     
     <div id="mainView">
         <button class="btn-large" onclick="switchView('challengeSelectView')">Start a challenge</button>
-        <button class="btn-submit" onclick="switchView('entryForm')" style="margin-bottom: 25px;">Add session time</button>
-        
+        <button class="btn-submit" onclick="switchView('entryForm')">Add session time</button>
+        <button class="btn-nav" onclick="switchView('metronomeView')" style="margin-bottom: 25px;">Metronome</button>
+
         <div class="dashboard-grid">
             <div class="stat-card clickable" onclick="switchView('statsView')"><div class="label">Total time</div><div class="value" id="mainTotalTime">Loading...</div></div>
             <div class="stat-card clickable" onclick="switchView('historyView')"><div class="label">Total sessions</div><div class="value" id="mainTotalSessions">...</div></div>
@@ -268,6 +270,85 @@
         <div id="aboutReleaseHistory"></div>
     </div>
 
+    <div id="metronomeView" style="display:none;">
+        <div class="metro-display">
+            <div class="metro-display-viewport" id="metroDisplayViewport">
+                <div class="metro-display-content" id="metroDisplayContent">
+                    <div class="metro-baton-track" id="metroBatonTrack">
+                        <div class="metro-baton" id="metroBaton"></div>
+                    </div>
+                    <div class="metro-tier metro-tier-notes" id="metroNotesRow"></div>
+                    <div class="metro-tier metro-tier-subdivide" id="metroSubdivideRow"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metro-transport-row">
+            <button class="metro-transport-btn metro-play-btn" id="metroPlayBtn" aria-label="Play"><span class="material-symbols-outlined" id="metroPlayIcon">play_arrow</span></button>
+            <button class="metro-transport-btn metro-stop-btn" id="metroStopBtn" aria-label="Stop"><span class="material-symbols-outlined">stop</span></button>
+        </div>
+
+        <div class="section-title">Beats</div>
+        <div class="metro-beats-3col">
+            <div class="metro-beats-col">
+                <div class="metro-col-label">Beats per bar</div>
+                <button class="metro-col-btn" id="metroBeatsBtn"><strong id="metroBeatsPerBarLbl">4</strong></button>
+            </div>
+            <div class="metro-beats-col">
+                <div class="metro-col-label">Conductor beats</div>
+                <button class="metro-col-btn" id="metroConductInBtn"><span class="material-symbols-outlined metro-col-btn-icon" id="metroConductInLinkIcon">link</span><strong id="metroConductInLbl">4</strong></button>
+            </div>
+            <div class="metro-beats-col">
+                <div class="metro-col-label">Subdivide</div>
+                <button class="metro-col-btn" id="metroSubdivideBtn"><strong id="metroSubdivideLbl">Off</strong></button>
+            </div>
+        </div>
+
+        <div class="section-title">Target speed</div>
+        <div class="metro-speed-row">
+            <button class="metro-bpm-step" id="metroBpmMinus" aria-label="Decrease beats per minute">&minus;</button>
+            <div class="metro-speed-readout">
+                <div id="metroBpmValue">120</div>
+                <div class="metro-speed-sub">bpm</div>
+            </div>
+            <button class="metro-bpm-step" id="metroBpmPlus" aria-label="Increase beats per minute">+</button>
+        </div>
+
+        <div class="slider-wrap">
+            <div class="slider-track" id="metroSliderTrack">
+                <div class="slider-fill" id="metroSliderFill"></div>
+                <div class="slider-thumb" id="metroSliderThumb" tabindex="0" role="slider" aria-label="Beats per minute" aria-valuemin="15" aria-valuemax="500" aria-valuenow="120"></div>
+            </div>
+            <div class="slider-scale"><span>15</span><span id="metroSliderMaxLbl">200</span></div>
+        </div>
+
+        <div class="section-title">Playback speed</div>
+        <div class="metro-speed-row">
+            <button class="metro-speed-btn" id="metroSlowerBtn" aria-label="Slower">&minus;</button>
+            <div class="metro-speed-readout">
+                <div id="metroSpeedPct">100%</div>
+                <div class="metro-speed-sub" id="metroSpeedBpm">120 bpm</div>
+            </div>
+            <button class="metro-speed-btn" id="metroFasterBtn" aria-label="Faster">+</button>
+        </div>
+        <button class="metro-speed-reset" id="metroSpeedResetBtn">Reset to full speed</button>
+
+        <div class="section-title">Volume</div>
+        <div class="metro-volume-row">
+            <button class="metro-mute-btn" id="metroMuteBtn" aria-label="Mute" aria-pressed="false"><span class="material-symbols-outlined" id="metroMuteIcon">volume_up</span></button>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="metroVolumeTrack">
+                    <div class="slider-fill" id="metroVolumeFill"></div>
+                    <div class="slider-thumb" id="metroVolumeThumb" tabindex="0" role="slider" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="80"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">Advanced entry</div>
+        <div class="metro-advanced-readout hidden-group" id="metroAdvancedReadout"></div>
+        <button class="btn-nav" id="metroMusicBtn" style="margin-top:var(--space-2);">Set by score markings</button>
+    </div>
+
     <div id="entryForm" style="display:none;">
         <div class="form-group"><label>What did you do?</label>
             <div class="radio-group" id="categoryRadios">
@@ -409,6 +490,95 @@
 
 <div class="modal" id="promptModal">
     <div class="modal-content"><h2 id="promptTitle">Enter value</h2><input type="text" id="promptInput" style="margin-bottom: 25px;"><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" onclick="closePromptModal()">Cancel</button><button class="btn-submit no-margin" id="promptActionBtn">Save</button></div></div>
+</div>
+
+<div class="modal" id="metroBeatsModal">
+    <div class="modal-content">
+        <h2>Beats per bar</h2>
+        <div class="metro-beats-options" id="metroBeatsOptions"></div>
+        <div class="metro-picker-custom hidden-group" id="metroBeatsCustomEntry">
+            <button class="metro-bpm-step" data-step="-1" aria-label="Decrease">&minus;</button>
+            <div class="metro-picker-custom-value" id="metroBeatsCustomValue">4</div>
+            <button class="metro-bpm-step" data-step="1" aria-label="Increase">+</button>
+        </div>
+        <div class="flex-row gap-md" style="margin-top:15px;">
+            <button class="btn-cancel btn-nav no-margin" id="metroBeatsCancelBtn">Cancel</button>
+            <button class="btn-submit no-margin" id="metroBeatsSaveBtn">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="metroConductInModal">
+    <div class="modal-content">
+        <h2>Conductor beats</h2>
+        <div class="metro-beats-options" id="metroConductInOptions"></div>
+        <div class="metro-picker-custom hidden-group" id="metroConductInCustomEntry">
+            <button class="metro-bpm-step" data-step="-1" aria-label="Decrease">&minus;</button>
+            <div class="metro-picker-custom-value" id="metroConductInCustomValue">4</div>
+            <button class="metro-bpm-step" data-step="1" aria-label="Increase">+</button>
+        </div>
+        <div class="flex-row gap-md" style="margin-top:15px;">
+            <button class="btn-cancel btn-nav no-margin" id="metroConductInCancelBtn">Cancel</button>
+            <button class="btn-submit no-margin" id="metroConductInSaveBtn">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="metroSubdivideModal">
+    <div class="modal-content">
+        <h2>Subdivide</h2>
+        <div class="metro-beats-options" id="metroSubdivideOptions"></div>
+        <div class="metro-picker-custom hidden-group" id="metroSubdivideCustomEntry">
+            <button class="metro-bpm-step" data-step="-1" aria-label="Decrease">&minus;</button>
+            <div class="metro-picker-custom-value" id="metroSubdivideCustomValue">4</div>
+            <button class="metro-bpm-step" data-step="1" aria-label="Increase">+</button>
+        </div>
+        <div class="flex-row gap-md" style="margin-top:15px;">
+            <button class="btn-cancel btn-nav no-margin" id="metroSubdivideCancelBtn">Cancel</button>
+            <button class="btn-submit no-margin" id="metroSubdivideSaveBtn">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="metroMusicModal">
+    <div class="modal-content">
+        <h2>Set from music</h2>
+        <div class="form-group">
+            <label for="metroNoteType">Note value</label>
+            <select id="metroNoteType">
+                <option value="0.125">Quaver</option>
+                <option value="0.25" selected>Crotchet</option>
+                <option value="0.375">Dotted crotchet</option>
+                <option value="0.5">Minim</option>
+                <option value="1">Semibreve</option>
+            </select>
+        </div>
+        <div class="flex-row gap-md">
+            <div class="form-group flex-1"><label for="metroNoteBpm">Beats per minute</label><input type="number" id="metroNoteBpm" placeholder="e.g. 60" min="1"></div>
+            <div class="form-group flex-1">
+                <label for="metroTimeSig">Time signature</label>
+                <select id="metroTimeSig">
+                    <option value="2/4">2/4</option>
+                    <option value="3/4">3/4</option>
+                    <option value="4/4" selected>4/4</option>
+                    <option value="5/4">5/4</option>
+                    <option value="6/4">6/4</option>
+                    <option value="8/4">8/4</option>
+                    <option value="2/2">2/2</option>
+                    <option value="2/8">2/8</option>
+                    <option value="3/8">3/8</option>
+                    <option value="4/8">4/8</option>
+                    <option value="6/8">6/8</option>
+                    <option value="9/8">9/8</option>
+                    <option value="12/8">12/8</option>
+                </select>
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('metroMusicModal').style.display='none'">Cancel</button>
+            <button class="btn-submit no-margin" id="metroApplyMusicBtn">Apply</button>
+        </div>
+    </div>
 </div>
 
 <div class="modal" id="filterModal">

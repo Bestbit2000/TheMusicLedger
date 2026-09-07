@@ -468,14 +468,15 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'metronomeView'];
     let viewStack = ['mainView'];
 
     const viewAliasMap = {
         'main': 'mainView', 'history': 'historyView', 'stats': 'statsView', 'addForm': 'entryForm',
         'lists': 'manageListsView', 'settings': 'settingsView', 'challengesList': 'manageChallengesView',
         'challengeSelect': 'challengeSelectView', 'challengePlay': 'challengePlayView',
-        'challengeSummary': 'challengeSummaryView', 'editChallenge': 'editChallengeView'
+        'challengeSummary': 'challengeSummaryView', 'editChallenge': 'editChallengeView',
+        'metronome': 'metronomeView'
     };
 
     window.switchView = function(viewName, isBack = false) {
@@ -511,6 +512,16 @@
         if (viewName === 'challengePlayView') { document.getElementById('topTitle').innerText = 'Practise'; }
         if (viewName === 'challengeSummaryView') { document.getElementById('topTitle').innerText = 'Session complete'; topBackBtn.classList.add('hidden-btn'); }
         if (viewName === 'editChallengeView') { document.getElementById('topTitle').innerText = 'Edit challenge'; }
+        if (viewName === 'metronomeView') {
+            document.getElementById('topTitle').innerText = 'Metronome';
+            metroPlayer.prewarm();
+            // The initial paint runs while this view is still display:none (before the user has ever
+            // navigated here), so the display-width measurement reads a 0px viewport and wrongly
+            // decides the beats need the fixed-width/scrolling layout. Re-measure now that the view is
+            // actually visible and has real dimensions.
+            renderMetroTiers();
+        }
+        else { stopMetronome(); }
     }
 
     window.goBack = function() {
@@ -1954,6 +1965,927 @@
         if(t) t.style.display = 'none';
     }
     window.closeToast = closeToast;
+
+    // ========================================
+    // METRONOME
+    // ========================================
+    const METRO_MIN_BPM = 15;
+    const METRO_MAX_BPM = 500;
+    const METRO_SLIDER_TIERS = [200, 350, 500];
+    const METRO_SPEED_STEP = 10; // percentage points, applied against the ORIGINAL target bpm each step (not compounding)
+    // Plain numbers rather than musical terms (half/thirds/quarters) - "N per beat" reads the same
+    // whether it's a preset or a custom-entered value, no vocabulary to keep track of.
+    function metroSubdivideLabel(factor) { return factor <= 1 ? 'Off' : `${factor} per beat`; }
+
+    // Standalone audio engine - deliberately has no DOM/UI knowledge so it can be reused elsewhere later.
+    // Concept: three nested levels, each an independent multiplier -
+    //   conductor beats (the pulse a conductor's baton keeps, e.g. 2 for a bar of 6/8 conducted in 2)
+    //     -> notes per conductor beat (e.g. 3 for that same 6/8 bar - derived from "Set from music", 1 otherwise)
+    //       -> practice subdivision (the manual Off/Half/Thirds control, purely a practice aid on top)
+    // Regardless of how many levels are active there are still only 3 sounds: the first click of the bar
+    // is the accented "tick", the first click of every other conductor beat is "tock", and every other
+    // click (whether it's a compound-meter note or a practice subdivision) is a quieter "bom". E.g. 6/8
+    // conducted in 2 (notesPerBeat 3, subdivision off): tick, bom, bom, tock, bom, bom.
+    function createMetronomePlayer() {
+        let audioCtx = null;
+        let masterGain = null;
+        let playing = false;
+        let schedulerId = null;
+        let nextClickTime = 0;
+        let clickIndex = 0;
+
+        let conductorBpm = 120;
+        let conductorBeatsPerBar = 4;
+        let notesPerBeat = 1;
+        let subdivisionFactor = 1;
+        let speedPercent = 100;
+        let volume = 0.8;
+        let muted = false;
+
+        const LOOKAHEAD_MS = 25;
+        const SCHEDULE_AHEAD_S = 0.12;
+        const beatListeners = [];
+
+        // Returns a promise that resolves once the context is actually running. On a cold start,
+        // resume() is asynchronous - scheduling clicks against audioCtx.currentTime before it
+        // resolves reads a currentTime that hasn't started advancing at real speed yet, which is
+        // what caused the one-time lag around the second beat on the very first play.
+        function ensureAudio() {
+            if (!audioCtx) {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new Ctx();
+                masterGain = audioCtx.createGain();
+                masterGain.gain.value = muted ? 0 : volume;
+                masterGain.connect(audioCtx.destination);
+            }
+            return audioCtx.state === 'suspended' ? audioCtx.resume() : Promise.resolve();
+        }
+
+        function playClick(kind, time) {
+            const freq = kind === 'tick' ? 1600 : (kind === 'tock' ? 1000 : 650);
+            const peak = kind === 'bom' ? 0.55 : 1;
+            const dur = kind === 'bom' ? 0.045 : 0.035;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, time);
+            g.gain.setValueAtTime(0.0001, time);
+            g.gain.exponentialRampToValueAtTime(peak, time + 0.002);
+            g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+            osc.connect(g);
+            g.connect(masterGain);
+            osc.start(time);
+            osc.stop(time + dur + 0.01);
+        }
+
+        function effectiveConductorBpm() {
+            return conductorBpm * (speedPercent / 100);
+        }
+
+        function clicksPerConductorBeat() {
+            return Math.max(1, notesPerBeat) * Math.max(1, subdivisionFactor);
+        }
+
+        function secondsPerBaseClick() {
+            const baseClickBpm = effectiveConductorBpm() * clicksPerConductorBeat();
+            return 60 / baseClickBpm;
+        }
+
+        function scheduler() {
+            const zeroBar = conductorBeatsPerBar <= 0;
+            const groupSize = clicksPerConductorBeat();
+            const totalPerBar = zeroBar ? 1 : conductorBeatsPerBar * groupSize;
+            const secondsPerConductorBeat = secondsPerBaseClick() * groupSize;
+
+            while (nextClickTime < audioCtx.currentTime + SCHEDULE_AHEAD_S) {
+                const idxInBar = clickIndex % totalPerBar;
+                let kind, conductorBeatIndex, noteIndex, isConductorBeat, isNoteBoundary;
+                if (zeroBar) {
+                    kind = 'tock';
+                    conductorBeatIndex = 0;
+                    noteIndex = 0;
+                    isConductorBeat = true;
+                    isNoteBoundary = true;
+                } else {
+                    isConductorBeat = (idxInBar % groupSize) === 0;
+                    isNoteBoundary = (idxInBar % Math.max(1, subdivisionFactor)) === 0;
+                    kind = !isConductorBeat ? 'bom' : (idxInBar === 0 ? 'tick' : 'tock');
+                    noteIndex = Math.floor(idxInBar / Math.max(1, subdivisionFactor));
+                    conductorBeatIndex = Math.floor(idxInBar / groupSize);
+                }
+                playClick(kind, nextClickTime);
+
+                const fireTime = nextClickTime;
+                const delayMs = Math.max(0, (fireTime - audioCtx.currentTime) * 1000);
+                setTimeout(() => {
+                    // stop() only halts future scheduling - up to SCHEDULE_AHEAD_S worth of clicks may
+                    // already be queued here, so without this guard a straggler can fire its UI
+                    // notification just after stop() and leave the baton stranded mid-bar instead of
+                    // at the reset position.
+                    if (!playing) return;
+                    beatListeners.forEach(cb => cb({
+                        kind, clickIndexInBar: idxInBar, clicksPerBar: totalPerBar,
+                        isConductorBeat, isNoteBoundary,
+                        conductorBeatIndex, conductorBeatsPerBar: zeroBar ? 1 : conductorBeatsPerBar,
+                        noteIndex, notesPerBar: zeroBar ? 1 : conductorBeatsPerBar * Math.max(1, notesPerBeat),
+                        secondsPerConductorBeat
+                    }));
+                }, delayMs);
+
+                nextClickTime += secondsPerBaseClick();
+                clickIndex++;
+            }
+            schedulerId = setTimeout(scheduler, LOOKAHEAD_MS);
+        }
+
+        return {
+            // Creates and resumes the AudioContext ahead of time, without starting playback. The very
+            // first AudioContext resume on a page has a real (sometimes 500ms+) hardware/driver
+            // cold-start latency that awaiting it in play() can't remove, only schedule around - so
+            // call this as soon as the metronome view opens (itself a valid user gesture) to absorb
+            // that one-time cost while the user is still looking at the controls, well before they
+            // actually press Play.
+            prewarm() { ensureAudio(); },
+            // Resumes from wherever clickIndex currently is (0 the first time, or wherever pause() left
+            // it) - use stop() first if you want a fresh bar from the beginning.
+            play() {
+                if (playing) return;
+                playing = true;
+                ensureAudio().then(() => {
+                    if (!playing) return; // paused/stopped again before the context finished resuming
+                    nextClickTime = audioCtx.currentTime + 0.05;
+                    scheduler();
+                });
+            },
+            // Halts playback but leaves clickIndex where it is, so a subsequent play() continues
+            // from this exact point in the bar rather than restarting it.
+            pause() {
+                playing = false;
+                clearTimeout(schedulerId);
+            },
+            // Halts playback AND resets position back to the start of the bar.
+            stop() {
+                playing = false;
+                clearTimeout(schedulerId);
+                clickIndex = 0;
+            },
+            isPlaying() { return playing; },
+            setConductorBpm(v) { conductorBpm = v; },
+            setConductorBeatsPerBar(n) { conductorBeatsPerBar = n; },
+            setNotesPerBeat(n) { notesPerBeat = n; },
+            setSubdivisionFactor(n) { subdivisionFactor = n; },
+            setSpeedPercent(p) { speedPercent = p; },
+            setVolume(v) { volume = v; if (masterGain && !muted) masterGain.gain.value = v; },
+            setMuted(m) { muted = m; if (masterGain) masterGain.gain.value = m ? 0 : volume; },
+            getEffectiveConductorBpm: effectiveConductorBpm,
+            onBeat(cb) { beatListeners.push(cb); }
+        };
+    }
+
+    const metroPlayer = createMetronomePlayer();
+
+    // Three independent timing levels, per the actual mental model:
+    //   - notesBpm: tempo of the notes - the "beats per bar" row's click rate. The primary, slider-driven tempo.
+    //   - conductorBpm: tempo of the conductor's own beat - always kept in sync as notesBpm/notesPerBeat, but
+    //     also directly editable (editing it back-solves notesBpm instead, holding the note counts fixed).
+    //   - subdivisionFactor: a further Off/Half/Thirds split of each note, purely a practice aid.
+    // beatsPerBar (1-9,12) is how many notes are in the bar. conductIn (1..beatsPerBar, derived as
+    // beatsPerBar/notesPerBeat) is how many of those notes the conductor actually beats/accents.
+    const metroState = {
+        notesBpm: 120,
+        conductorBpm: 120, // internal only now - drives the engine/baton timing, no longer surfaced as its own field
+        beatsPerBar: 4,
+        notesPerBeat: 1, // = beatsPerBar / conductIn (rounded to a whole number)
+        subdivisionFactor: 1,
+        conductInLinked: true, // "Conductor beats" tracks "Beats per bar" live until an explicit conductor-beats choice breaks the link
+        speedLevel: 0, // -9..+5 (10%-150%), each step = METRO_SPEED_STEP% of the stored notesBpm (not compounding)
+        sliderMax: METRO_SLIDER_TIERS[0],
+        volume: 80,
+        muted: false
+    };
+
+    const METRO_SPEED_MIN_LEVEL = -9; // 10%
+    const METRO_SPEED_MAX_LEVEL = 5;  // 150%
+
+    function metroConductIn() { return metroState.beatsPerBar / metroState.notesPerBeat; }
+
+    // Whole-number divisors of n, ascending - the only conductor-beats counts that evenly group a bar
+    // of n notes. Offering (or landing on) a non-divisor is what let a picked value silently round
+    // back to n itself, which looked exactly like the beats-per-bar link had never actually broken.
+    function metroDivisorsOf(n) {
+        const divs = [];
+        for (let i = 1; i <= n; i++) if (n % i === 0) divs.push(i);
+        return divs;
+    }
+
+    // Nearest valid divisor of n to a target value, preferring the larger one on an exact tie.
+    function metroNearestDivisor(n, target) {
+        const divisors = metroDivisorsOf(n);
+        return divisors.reduce((best, d) => {
+            const dDist = Math.abs(d - target), bestDist = Math.abs(best - target);
+            return (dDist < bestDist || (dDist === bestDist && d > best)) ? d : best;
+        }, divisors[0]);
+    }
+    function metroSpeedPercent() { return 100 + metroState.speedLevel * METRO_SPEED_STEP; }
+    function metroEffectiveBpm() { return metroState.notesBpm * (metroSpeedPercent() / 100); }
+
+    // Disable slower/faster past the point where the resulting bpm would leave the engine's hard 15-500 range.
+    function metroSpeedLevelBounds() {
+        let minLevel = METRO_SPEED_MIN_LEVEL, maxLevel = METRO_SPEED_MAX_LEVEL;
+        while (minLevel < maxLevel && metroState.notesBpm * ((100 + minLevel * METRO_SPEED_STEP) / 100) < METRO_MIN_BPM) minLevel++;
+        while (maxLevel > minLevel && metroState.notesBpm * ((100 + maxLevel * METRO_SPEED_STEP) / 100) > METRO_MAX_BPM) maxLevel--;
+        return { minLevel, maxLevel };
+    }
+
+    function pushMetroSettingsToPlayer() {
+        metroPlayer.setConductorBpm(metroState.conductorBpm);
+        metroPlayer.setConductorBeatsPerBar(Math.round(metroConductIn()));
+        metroPlayer.setNotesPerBeat(metroState.notesPerBeat);
+        metroPlayer.setSubdivisionFactor(metroState.subdivisionFactor);
+        metroPlayer.setSpeedPercent(metroSpeedPercent());
+    }
+
+    // Smallest tier that comfortably fits a value - used for direct/programmatic bpm changes.
+    function metroBestFitTier(value) {
+        for (const t of METRO_SLIDER_TIERS) if (value <= t) return t;
+        return METRO_SLIDER_TIERS[METRO_SLIDER_TIERS.length - 1];
+    }
+
+    // One-tier-at-a-time expand/contract - used while actively dragging so the scale only
+    // jumps when the thumb actually reaches an edge, in either direction.
+    function metroStepTier(value) {
+        const idx = METRO_SLIDER_TIERS.indexOf(metroState.sliderMax);
+        if (idx < METRO_SLIDER_TIERS.length - 1 && value >= METRO_SLIDER_TIERS[idx]) {
+            metroState.sliderMax = METRO_SLIDER_TIERS[idx + 1];
+        } else if (idx > 0 && value < METRO_SLIDER_TIERS[idx - 1]) {
+            metroState.sliderMax = METRO_SLIDER_TIERS[idx - 1];
+        }
+    }
+
+    // Keeps conductorBpm in sync with notesBpm/notesPerBeat whenever either changes.
+    function metroSyncConductorBpm() {
+        metroState.conductorBpm = Math.round(Math.min(METRO_MAX_BPM, Math.max(1, metroState.notesBpm / metroState.notesPerBeat)));
+    }
+
+    function setMetroNotesBpm(bpm, opts = {}) {
+        bpm = Math.round(Math.min(METRO_MAX_BPM, Math.max(METRO_MIN_BPM, bpm)));
+        metroState.notesBpm = bpm;
+        metroSyncConductorBpm();
+        if (opts.resetSpeed) metroState.speedLevel = 0;
+        if (opts.dragging) metroStepTier(bpm); else metroState.sliderMax = metroBestFitTier(bpm);
+        pushMetroSettingsToPlayer();
+        renderMetroSlider();
+        renderMetroSpeedReadout();
+    }
+
+    // Beats per bar = notes per bar. notesBpm (the note grid's own tempo) stays fixed. When linked,
+    // "conduct in" is simply kept equal to the new beats-per-bar (every note is a conductor beat);
+    // otherwise the previous conduct-in count is kept if it still fits, or clamped down if not.
+    function setMetroBeatsPerBar(n) {
+        n = Math.min(METRO_CUSTOM_MAX, Math.max(1, Math.round(n)));
+        if (metroState.conductInLinked) {
+            metroState.beatsPerBar = n;
+            metroState.notesPerBeat = 1;
+        } else {
+            // Keep the previous conduct-in if it's still a valid (exact) grouping of the new bar
+            // length; otherwise snap to the nearest count that actually divides it evenly, rather than
+            // rounding notesPerBeat directly, which could land on an impossible in-between grouping.
+            const prevConductIn = Math.min(metroConductIn(), n);
+            const nearestValid = metroNearestDivisor(n, prevConductIn);
+            metroState.beatsPerBar = n;
+            metroState.notesPerBeat = Math.max(1, Math.round(n / nearestValid));
+        }
+        metroSyncConductorBpm();
+        document.getElementById('metroBeatsPerBarLbl').innerText = n;
+        pushMetroSettingsToPlayer();
+        renderMetroTiers();
+        renderMetroConductInLabel();
+    }
+
+    // Conduct in = how many of those notes the conductor actually beats/accents (<= beats per bar).
+    // An explicit pick here is a deliberate divergence from beats-per-bar, so it breaks the link.
+    function setMetroConductIn(conductIn) {
+        metroState.conductInLinked = false;
+        conductIn = Math.min(metroState.beatsPerBar, Math.max(1, conductIn));
+        metroState.notesPerBeat = Math.max(1, Math.round(metroState.beatsPerBar / conductIn));
+        metroSyncConductorBpm();
+        pushMetroSettingsToPlayer();
+        renderMetroTiers();
+        renderMetroConductInLabel();
+    }
+
+    // Turns the beats-per-bar <-> conductor-beats link on, syncing conduct-in to the current
+    // beats-per-bar immediately - a live connection from then on, until an explicit conductor-beats
+    // pick (setMetroConductIn above) breaks it again.
+    function setMetroConductInLinked(linked) {
+        metroState.conductInLinked = linked;
+        if (linked) {
+            metroState.notesPerBeat = 1;
+            metroSyncConductorBpm();
+            pushMetroSettingsToPlayer();
+            renderMetroTiers();
+            renderMetroConductInLabel();
+        }
+    }
+
+    function setMetroSubdivision(factor) {
+        factor = Math.min(METRO_CUSTOM_MAX, Math.max(1, Math.round(factor)));
+        metroState.subdivisionFactor = factor;
+        document.getElementById('metroSubdivideLbl').innerText = metroSubdivideLabel(factor);
+        pushMetroSettingsToPlayer();
+        renderMetroTiers();
+    }
+
+    // Sets every timing field at once from scratch (no preservation) - used by "Set from music" and
+    // the initial default state. Always breaks the beats-per-bar/conductor-beats link, since "Set
+    // from music" deliberately picks a specific (often divergent) conduct-in for compound metres.
+    function setMetroFreshGrid({ notesBpm, beatsPerBar, notesPerBeat, subdivisionFactor }) {
+        metroState.notesBpm = Math.round(Math.min(METRO_MAX_BPM, Math.max(METRO_MIN_BPM, notesBpm)));
+        metroState.beatsPerBar = beatsPerBar;
+        metroState.notesPerBeat = notesPerBeat;
+        metroState.subdivisionFactor = subdivisionFactor;
+        metroState.conductInLinked = false;
+        metroState.speedLevel = 0;
+        metroSyncConductorBpm();
+        metroState.sliderMax = metroBestFitTier(metroState.notesBpm);
+        document.getElementById('metroBeatsPerBarLbl').innerText = beatsPerBar;
+        document.getElementById('metroSubdivideLbl').innerText = metroSubdivideLabel(subdivisionFactor);
+        pushMetroSettingsToPlayer();
+        renderMetroSlider();
+        renderMetroSpeedReadout();
+        renderMetroTiers();
+        renderMetroConductInLabel();
+    }
+
+    function renderMetroConductInLabel() {
+        const lbl = document.getElementById('metroConductInLbl');
+        if (lbl) lbl.innerText = Math.round(metroConductIn());
+        const icon = document.getElementById('metroConductInLinkIcon');
+        // Material Symbols icons can't rely on the native hidden attribute: Google's font stylesheet
+        // declares .material-symbols-outlined { display: inline-block } which (being a real author
+        // declaration, not a UA default) overrides [hidden] outright. hidden-group's !important wins.
+        if (icon) icon.classList.toggle('hidden-group', !metroState.conductInLinked);
+    }
+
+    function renderMetroSlider() {
+        const track = document.getElementById('metroSliderTrack');
+        if (!track) return;
+        const fill = document.getElementById('metroSliderFill');
+        const thumb = document.getElementById('metroSliderThumb');
+        const pct = ((metroState.notesBpm - METRO_MIN_BPM) / (metroState.sliderMax - METRO_MIN_BPM)) * 100;
+        fill.style.width = `${pct}%`;
+        thumb.style.left = `${pct}%`;
+        thumb.setAttribute('aria-valuenow', metroState.notesBpm);
+        thumb.setAttribute('aria-valuemax', metroState.sliderMax);
+        document.getElementById('metroSliderMaxLbl').innerText = metroState.sliderMax;
+        document.getElementById('metroBpmValue').innerText = metroState.notesBpm;
+    }
+
+    function renderMetroSpeedReadout() {
+        document.getElementById('metroSpeedPct').innerText = `${metroSpeedPercent()}%`;
+        document.getElementById('metroSpeedBpm').innerText = `${Math.round(metroEffectiveBpm())} bpm`;
+        const { minLevel, maxLevel } = metroSpeedLevelBounds();
+        document.getElementById('metroSlowerBtn').disabled = metroState.speedLevel <= minLevel;
+        document.getElementById('metroFasterBtn').disabled = metroState.speedLevel >= maxLevel;
+    }
+
+    // Smallest dot (the subdivide tier, 10px) plus its breathing room - the per-click width used once
+    // there are too many clicks to comfortably fit the screen at all, and the display has to switch
+    // from "stretch to fit" to "fixed size, scroll to follow" instead.
+    const METRO_SLOT_PX = 16;
+
+    // Fixed pixel clearance reserved at each end of the click grid, so the largest dot (the accent/
+    // conduct note, ~16px radius including its border and lit-state scale) never gets clipped by
+    // metro-display-viewport's overflow:hidden at click index 0 or the last click. A pure percentage
+    // inset (half a "unit") isn't enough once totalBaseClicks is large, since a unit shrinks well
+    // below the dot's radius - see metroLeftStyle.
+    const METRO_EDGE_PAD_PX = 16;
+
+    // Sizes the scrollable content track: if beatsPerBar x subdivisionFactor clicks fit within the
+    // viewport at METRO_SLOT_PX each (plus the edge padding reserved on each side), it stays 100%
+    // (stretches to fit, today's behaviour, no scroll needed). Otherwise it's pinned to its true
+    // full-size pixel width, wider than the viewport, and flashMetroBeat's scroll-follow logic takes
+    // over to keep the baton in view as it plays.
+    function metroApplyDisplayWidth(totalBaseClicks) {
+        const viewport = document.getElementById('metroDisplayViewport');
+        const content = document.getElementById('metroDisplayContent');
+        if (!viewport || !content) return;
+        const viewportWidthPx = viewport.getBoundingClientRect().width;
+        const neededWidthPx = totalBaseClicks * METRO_SLOT_PX + METRO_EDGE_PAD_PX * 2;
+        content.style.width = neededWidthPx > viewportWidthPx ? `${neededWidthPx}px` : '100%';
+    }
+
+    // Converts a 0-100 logical position (from metroTierGeometry's leftPct) into a CSS left value that
+    // stays METRO_EDGE_PAD_PX clear of both ends of the row, regardless of the row's actual width -
+    // percentage offsets alone can't do this (position:absolute ignores the parent's own padding, and
+    // a percentage-only inset shrinks below the dot's radius once there are many clicks), so this
+    // mixes a fixed px offset with the remaining percentage span via calc().
+    function metroLeftStyle(pct) {
+        return `calc(${METRO_EDGE_PAD_PX}px + (100% - ${METRO_EDGE_PAD_PX * 2}px) * ${pct / 100})`;
+    }
+
+    // The beats-per-bar row and the subdivide row (and the baton) all position their dots against the
+    // SAME underlying base-click grid - beatsPerBar x subdivisionFactor slots, each of equal width -
+    // rather than each row spacing its own dots independently. That's what guarantees a conductor
+    // beat's dot always sits directly above the first subdivision dot of its group, instead of merely
+    // "some evenly spread dot" that happens to have the same count.
+    function metroTierGeometry() {
+        const beatsPerBar = metroState.beatsPerBar > 0 ? metroState.beatsPerBar : 1;
+        const notesPerBeat = metroState.beatsPerBar > 0 ? metroState.notesPerBeat : 1;
+        const subFactor = metroState.beatsPerBar > 0 ? metroState.subdivisionFactor : 1;
+        const totalBaseClicks = beatsPerBar * subFactor;
+        const unit = 100 / totalBaseClicks;
+        return {
+            beatsPerBar, notesPerBeat, subFactor, totalBaseClicks,
+            leftPct: (baseClickIndex) => baseClickIndex * unit + unit / 2
+        };
+    }
+
+    function renderMetroTierRow(rowId, count, dotClass, baseClickIndexFor, extraClassFor) {
+        const row = document.getElementById(rowId);
+        if (!row) return;
+        const { leftPct } = metroTierGeometry();
+        row.innerHTML = '';
+        for (let i = 0; i < count; i++) {
+            const dot = document.createElement('div');
+            dot.className = `metro-dot ${dotClass}` + (extraClassFor ? extraClassFor(i) : '');
+            dot.dataset.index = i;
+            dot.style.left = metroLeftStyle(leftPct(baseClickIndexFor(i)));
+            row.appendChild(dot);
+        }
+    }
+
+    function renderMetroTiers() {
+        const { beatsPerBar, notesPerBeat, subFactor, totalBaseClicks } = metroTierGeometry();
+        metroApplyDisplayWidth(totalBaseClicks);
+
+        // One row, one dot per note - the notes the conductor actually beats ("conduct", the subset
+        // spaced notesPerBeat apart) are just styled bigger within this same row, no separate row.
+        renderMetroTierRow('metroNotesRow', beatsPerBar, 'metro-dot-note', i => i * subFactor, i => {
+            const isConduct = (i % notesPerBeat) === 0;
+            return (isConduct ? ' conduct' : ' bom-note') + (i === 0 ? ' accent' : '');
+        });
+
+        const subRow = document.getElementById('metroSubdivideRow');
+        if (subFactor > 1) {
+            subRow.classList.remove('hidden-group');
+            renderMetroTierRow('metroSubdivideRow', beatsPerBar * subFactor, 'metro-dot-sub', k => k);
+        } else {
+            subRow.classList.add('hidden-group');
+            subRow.innerHTML = '';
+        }
+
+        renderMetroBatonMarks();
+        resetMetroBatonPosition();
+    }
+
+    // Static marks at every conductor beat's landing spot, always visible and never moving, so the
+    // whole bar's beat pattern is visible in advance rather than only revealing the next single stop.
+    function renderMetroBatonMarks() {
+        const track = document.getElementById('metroBatonTrack');
+        if (!track) return;
+        track.querySelectorAll('.metro-baton-mark').forEach(el => el.remove());
+        const { notesPerBeat, subFactor, leftPct } = metroTierGeometry();
+        const conductIn = Math.round(metroConductIn());
+        const groupSize = notesPerBeat * subFactor;
+        for (let i = 0; i < conductIn; i++) {
+            const mark = document.createElement('div');
+            mark.className = 'metro-baton-mark';
+            mark.style.left = metroLeftStyle(leftPct(i * groupSize));
+            track.appendChild(mark);
+        }
+    }
+
+    function resetMetroBatonPosition() {
+        const { leftPct } = metroTierGeometry();
+        const baton = document.getElementById('metroBaton');
+        if (baton) { baton.style.transitionDuration = '0s'; baton.style.left = metroLeftStyle(leftPct(0)); }
+        const content = document.getElementById('metroDisplayContent');
+        if (content) { content.style.transitionDuration = '0s'; content.style.transform = 'translateX(0px)'; }
+    }
+
+    // When there are too many clicks to fit, keeps the baton in view: the content track stays put
+    // (scroll offset 0) until the baton would pass the viewport's centre, then the SAME instant-snap-
+    // then-glide technique used for the baton itself is applied to the content's own translateX, so it
+    // scrolls in lockstep and the baton reads as pinned near the centre while the beats scroll past
+    // underneath it. Once the tail end of the content reaches the viewport's right edge, the clamp
+    // holds the scroll there and the baton resumes moving (rather than the camera trying to scroll
+    // past content that doesn't exist) - the classic side-scroller camera clamp.
+    function metroScrollFollow(arrivedPct, nextPct, durationSeconds) {
+        const content = document.getElementById('metroDisplayContent');
+        const viewport = document.getElementById('metroDisplayViewport');
+        if (!content || !viewport) return;
+        const contentWidthPx = content.getBoundingClientRect().width;
+        const viewportWidthPx = viewport.getBoundingClientRect().width;
+        const maxScrollPx = Math.max(0, contentWidthPx - viewportWidthPx);
+        if (maxScrollPx <= 0) return; // fits on screen - nothing to scroll, leave translateX at 0
+
+        const scrollForPct = (pct) => Math.min(maxScrollPx, Math.max(0, (pct / 100) * contentWidthPx - viewportWidthPx / 2));
+
+        content.style.transitionDuration = '0s';
+        content.style.transform = `translateX(${-scrollForPct(arrivedPct)}px)`;
+        void content.offsetWidth; // force the instant snap to commit before animating, see flashMetroBeat
+        content.style.transitionDuration = `${durationSeconds}s`;
+        content.style.transform = `translateX(${-scrollForPct(nextPct)}px)`;
+    }
+
+    function flashTierDot(rowId, index) {
+        const row = document.getElementById(rowId);
+        const dot = row && row.querySelector(`.metro-dot[data-index="${index}"]`);
+        if (dot) {
+            dot.classList.add('lit');
+            setTimeout(() => dot.classList.remove('lit'), 120);
+        }
+    }
+
+    function flashMetroBeat(beatInfo) {
+        if (beatInfo.isNoteBoundary) flashTierDot('metroNotesRow', beatInfo.noteIndex);
+        flashTierDot('metroSubdivideRow', beatInfo.clickIndexInBar);
+
+        // The baton only moves/lands on conductor beats - it glides smoothly over exactly one
+        // conductor beat's duration so it visibly arrives right as that beat sounds, then
+        // immediately starts gliding on toward the next one. It always travels rightward: when the
+        // next stop wraps back to beat 0, the target is pushed a further 100% along (off the right
+        // edge, clipped by the track's overflow:hidden) instead of sliding the "left" value back down
+        // - then the very next arrival snap (no transition) repositions it at the true, on-screen
+        // spot, so it reads as "exits right, reappears at the left" rather than a reverse sweep.
+        if (!beatInfo.isConductorBeat) return;
+        const { notesPerBeat, subFactor, leftPct } = metroTierGeometry();
+        const groupSize = notesPerBeat * subFactor;
+        const baton = document.getElementById('metroBaton');
+        const nextIndex = (beatInfo.conductorBeatIndex + 1) % beatInfo.conductorBeatsPerBar;
+        const wrapped = nextIndex <= beatInfo.conductorBeatIndex;
+        const arrivedPct = leftPct(beatInfo.conductorBeatIndex * groupSize);
+        const nextPct = leftPct(nextIndex * groupSize) + (wrapped ? 100 : 0);
+
+        if (baton) {
+            baton.style.transitionDuration = '0s';
+            baton.style.left = metroLeftStyle(arrivedPct);
+            if (beatInfo.kind === 'tick') {
+                baton.classList.add('accent-pulse');
+                setTimeout(() => baton.classList.remove('accent-pulse'), 120);
+            }
+            // Force a synchronous style flush so the instant snap above is actually committed before
+            // the transition-duration change below takes effect - requestAnimationFrame would do this
+            // too, but rAF is throttled/paused on a backgrounded tab, which would silently stall the
+            // glide for anyone who locks their phone or switches apps mid-practice.
+            void baton.offsetWidth;
+            baton.style.transitionDuration = `${beatInfo.secondsPerConductorBeat}s`;
+            baton.style.left = metroLeftStyle(nextPct);
+        }
+        metroScrollFollow(arrivedPct, nextPct, beatInfo.secondsPerConductorBeat);
+    }
+    metroPlayer.onBeat(flashMetroBeat);
+
+    function updateMetroPlayIcon() {
+        const icon = document.getElementById('metroPlayIcon');
+        const btn = document.getElementById('metroPlayBtn');
+        const playing = metroPlayer.isPlaying();
+        if (icon) icon.innerText = playing ? 'pause' : 'play_arrow';
+        if (btn) btn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    }
+
+    // Resumes from wherever it was left (position 0 the first time, or wherever pauseMetronome() left
+    // it) - use stopMetronome() first for a fresh bar from the beginning.
+    function playMetronome() {
+        pushMetroSettingsToPlayer();
+        metroPlayer.play();
+        updateMetroPlayIcon();
+    }
+
+    // Halts playback without resetting position - playMetronome() will pick back up from here.
+    function pauseMetronome() {
+        metroPlayer.pause();
+        updateMetroPlayIcon();
+    }
+
+    // Halts playback AND resets the baton/beat position back to the start of the bar.
+    function stopMetronome() {
+        metroPlayer.stop();
+        updateMetroPlayIcon();
+        resetMetroBatonPosition();
+    }
+
+    document.getElementById('metroPlayBtn')?.addEventListener('click', () => {
+        if (metroPlayer.isPlaying()) pauseMetronome(); else playMetronome();
+    });
+    document.getElementById('metroStopBtn')?.addEventListener('click', stopMetronome);
+
+    // --- BPM step buttons (tap = +-1, hold = repeats, accelerating to +-10 per step after 15 taps' worth) ---
+    function setupMetroBpmStepper(btnId, direction) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        const REPEAT_MS = 100;
+        const INITIAL_DELAY_MS = 400;
+        const ACCELERATE_AFTER = 15;
+        let repeatTimer = null;
+        let startTimer = null;
+        let unitStepsTaken = 0;
+
+        function step() {
+            const amount = (unitStepsTaken >= ACCELERATE_AFTER ? 10 : 1) * direction;
+            setMetroNotesBpm(metroState.notesBpm + amount, { resetSpeed: true });
+            if (unitStepsTaken < ACCELERATE_AFTER) unitStepsTaken++;
+        }
+
+        function begin(e) {
+            e.preventDefault();
+            step();
+            startTimer = setTimeout(() => {
+                repeatTimer = setInterval(step, REPEAT_MS);
+            }, INITIAL_DELAY_MS);
+        }
+        function end() {
+            clearTimeout(startTimer);
+            clearInterval(repeatTimer);
+            unitStepsTaken = 0;
+        }
+
+        btn.addEventListener('pointerdown', begin);
+        btn.addEventListener('pointerup', end);
+        btn.addEventListener('pointerleave', end);
+        btn.addEventListener('pointercancel', end);
+    }
+    setupMetroBpmStepper('metroBpmMinus', -1);
+    setupMetroBpmStepper('metroBpmPlus', 1);
+
+    // --- Slider (shared design-system component) drag + keyboard interaction ---
+    // Value-agnostic: reports a 0-1 ratio for drags/clicks along the track, and a +-1 step for arrow
+    // keys, leaving whatever the value actually means to the caller. Used by both the target-speed
+    // BPM slider (3-stage rescaling track) and the plain 0-100 volume slider.
+    function setupSliderInteraction(track, thumb, { onDragRatio, onArrowStep }) {
+        if (!track || !thumb) return;
+
+        function ratioFromClientX(clientX) {
+            const rect = track.getBoundingClientRect();
+            return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+        }
+
+        function onMove(e) { onDragRatio(ratioFromClientX(e.clientX)); }
+        function onUp() {
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+        }
+
+        thumb.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+        });
+
+        track.addEventListener('pointerdown', (e) => {
+            if (e.target === thumb) return;
+            onDragRatio(ratioFromClientX(e.clientX));
+        });
+
+        if (onArrowStep) {
+            thumb.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowRight' || e.key === 'ArrowUp') onArrowStep(1);
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') onArrowStep(-1);
+            });
+        }
+    }
+
+    setupSliderInteraction(document.getElementById('metroSliderTrack'), document.getElementById('metroSliderThumb'), {
+        onDragRatio: (ratio) => setMetroNotesBpm(METRO_MIN_BPM + ratio * (metroState.sliderMax - METRO_MIN_BPM), { resetSpeed: true, dragging: true }),
+        onArrowStep: (dir) => setMetroNotesBpm(metroState.notesBpm + dir, { resetSpeed: true, dragging: true })
+    });
+
+    const METRO_CUSTOM_MAX = 50;
+
+    // Opens a beats-per-bar / conductor-beats / subdivide picker popup. Nothing is applied as you tap
+    // around inside it - a tap just changes what's currently selected (including switching into the
+    // inline Custom stepper, no nested modal) - and only Save actually calls onSave and closes it;
+    // Cancel closes without applying anything.
+    //
+    // cfg: { modalId, optionsId, customEntryId, customValueId, cancelBtnId, saveBtnId,
+    //        values, currentValue, labelFor, customMin, customMax, onSave,
+    //        extraOption?: {label, icon, onPick}, startAsExtra? }
+    function openMetroPicker(cfg) {
+        const modalEl = document.getElementById(cfg.modalId);
+        const optsEl = document.getElementById(cfg.optionsId);
+        const customEl = document.getElementById(cfg.customEntryId);
+        const customValEl = document.getElementById(cfg.customValueId);
+        if (!modalEl || !optsEl) return;
+
+        let kind = cfg.startAsExtra ? 'extra' : 'preset'; // 'preset' | 'extra' | 'custom'
+        let value = cfg.currentValue;
+
+        function renderOptions() {
+            let html = '';
+            if (cfg.extraOption) {
+                html += `<button class="metro-beats-option custom-option${kind === 'extra' ? ' selected' : ''}" data-extra="1">` +
+                    (cfg.extraOption.icon ? `<span class="material-symbols-outlined metro-option-icon">${cfg.extraOption.icon}</span>` : '') +
+                    `${cfg.extraOption.label}</button>`;
+            }
+            html += cfg.values.map(v =>
+                `<button class="metro-beats-option${kind === 'preset' && v === value ? ' selected' : ''}" data-val="${v}">${cfg.labelFor ? cfg.labelFor(v) : v}</button>`
+            ).join('');
+            html += `<button class="metro-beats-option custom-option${kind === 'custom' ? ' selected' : ''}" data-custom="1">Custom&hellip;</button>`;
+            optsEl.innerHTML = html;
+        }
+
+        function renderCustomEntry() {
+            if (!customEl) return;
+            customEl.classList.toggle('hidden-group', kind !== 'custom');
+            if (kind === 'custom' && customValEl) customValEl.innerText = cfg.customLabelFor ? cfg.customLabelFor(value) : value;
+        }
+
+        optsEl.onclick = (e) => {
+            const btn = e.target.closest('.metro-beats-option');
+            if (!btn) return;
+            if (btn.dataset.extra) {
+                kind = 'extra';
+            } else if (btn.dataset.custom) {
+                kind = 'custom';
+                // Custom starts from a fixed sensible default if given (there's no point landing on a
+                // value that's already one of the presets); otherwise from what's presently set.
+                value = cfg.customDefault !== undefined ? cfg.customDefault : cfg.currentValue;
+            } else {
+                kind = 'preset';
+                value = parseInt(btn.dataset.val, 10);
+            }
+            renderOptions();
+            renderCustomEntry();
+        };
+
+        if (customEl) {
+            customEl.querySelectorAll('.metro-bpm-step').forEach(btn => {
+                btn.onclick = () => {
+                    const step = parseInt(btn.dataset.step, 10);
+                    // customStep (optional): custom navigation, e.g. stepping through only the values
+                    // that are actually valid (conductor beats must evenly divide beats per bar) rather
+                    // than a plain +-1 that could land on one that isn't.
+                    value = cfg.customStep ? cfg.customStep(value, step) : Math.min(cfg.customMax, Math.max(cfg.customMin, value + step));
+                    if (customValEl) customValEl.innerText = cfg.customLabelFor ? cfg.customLabelFor(value) : value;
+                };
+            });
+        }
+
+        document.getElementById(cfg.saveBtnId).onclick = () => {
+            if (kind === 'extra') cfg.extraOption.onPick();
+            else cfg.onSave(value);
+            modalEl.style.display = 'none';
+        };
+        document.getElementById(cfg.cancelBtnId).onclick = () => {
+            modalEl.style.display = 'none';
+        };
+
+        renderOptions();
+        renderCustomEntry();
+        modalEl.style.display = 'flex';
+    }
+
+    // --- Beats per bar popup ---
+    document.getElementById('metroBeatsBtn')?.addEventListener('click', () => {
+        openMetroPicker({
+            modalId: 'metroBeatsModal', optionsId: 'metroBeatsOptions',
+            customEntryId: 'metroBeatsCustomEntry', customValueId: 'metroBeatsCustomValue',
+            cancelBtnId: 'metroBeatsCancelBtn', saveBtnId: 'metroBeatsSaveBtn',
+            values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 12], currentValue: metroState.beatsPerBar,
+            customMin: 1, customMax: METRO_CUSTOM_MAX,
+            customDefault: 10, // not already one of the presets above, so Custom starts somewhere new
+            onSave: (v) => setMetroBeatsPerBar(v)
+        });
+    });
+
+    // Whole-number divisors of n, ascending - the only conductor-beats counts that evenly group a bar
+    // of n notes. Offering (or letting Custom land on) a non-divisor is what silently rounded back to
+    // n itself before, which looked exactly like the link had never actually broken.
+    // --- Conductor beats popup (Link to beats per bar / divisors of beatsPerBar / Custom) ---
+    document.getElementById('metroConductInBtn')?.addEventListener('click', () => {
+        const current = Math.round(metroConductIn());
+        const divisors = metroDivisorsOf(metroState.beatsPerBar);
+        openMetroPicker({
+            modalId: 'metroConductInModal', optionsId: 'metroConductInOptions',
+            customEntryId: 'metroConductInCustomEntry', customValueId: 'metroConductInCustomValue',
+            cancelBtnId: 'metroConductInCancelBtn', saveBtnId: 'metroConductInSaveBtn',
+            values: divisors, currentValue: current, labelFor: v => String(v),
+            customMin: divisors[0], customMax: divisors[divisors.length - 1],
+            customStep: (value, dir) => {
+                const idx = divisors.indexOf(value);
+                if (dir > 0) return divisors[Math.min(divisors.length - 1, (idx === -1 ? 0 : idx) + 1)];
+                return divisors[Math.max(0, (idx === -1 ? divisors.length - 1 : idx) - 1)];
+            },
+            onSave: (v) => setMetroConductIn(v),
+            startAsExtra: metroState.conductInLinked,
+            extraOption: { label: 'Link to beats per bar', icon: 'link', onPick: () => setMetroConductInLinked(true) }
+        });
+    });
+
+    // --- Subdivide popup (Off/2/3/4 plus Custom - "N per beat" throughout, presets and custom alike) ---
+    document.getElementById('metroSubdivideBtn')?.addEventListener('click', () => {
+        openMetroPicker({
+            modalId: 'metroSubdivideModal', optionsId: 'metroSubdivideOptions',
+            customEntryId: 'metroSubdivideCustomEntry', customValueId: 'metroSubdivideCustomValue',
+            cancelBtnId: 'metroSubdivideCancelBtn', saveBtnId: 'metroSubdivideSaveBtn',
+            values: [1, 2, 3, 4], currentValue: metroState.subdivisionFactor,
+            labelFor: v => metroSubdivideLabel(v),
+            customLabelFor: v => `${v} per beat`,
+            customMin: 1, customMax: METRO_CUSTOM_MAX,
+            customDefault: 5, // not already one of the presets above
+            onSave: (v) => setMetroSubdivision(v)
+        });
+    });
+
+    // --- Speed override (practice slower/faster than target, target itself untouched) ---
+    document.getElementById('metroSlowerBtn')?.addEventListener('click', () => {
+        const { minLevel } = metroSpeedLevelBounds();
+        if (metroState.speedLevel > minLevel) metroState.speedLevel--;
+        pushMetroSettingsToPlayer();
+        renderMetroSpeedReadout();
+    });
+    document.getElementById('metroFasterBtn')?.addEventListener('click', () => {
+        const { maxLevel } = metroSpeedLevelBounds();
+        if (metroState.speedLevel < maxLevel) metroState.speedLevel++;
+        pushMetroSettingsToPlayer();
+        renderMetroSpeedReadout();
+    });
+    document.getElementById('metroSpeedResetBtn')?.addEventListener('click', () => {
+        metroState.speedLevel = 0;
+        pushMetroSettingsToPlayer();
+        renderMetroSpeedReadout();
+    });
+
+    // --- Volume / mute (in-app gain only - a web page cannot control the device's hardware volume) ---
+    function renderMetroVolumeSlider() {
+        const fill = document.getElementById('metroVolumeFill');
+        const thumb = document.getElementById('metroVolumeThumb');
+        if (!fill || !thumb) return;
+        fill.style.width = `${metroState.volume}%`;
+        thumb.style.left = `${metroState.volume}%`;
+        thumb.setAttribute('aria-valuenow', metroState.volume);
+    }
+
+    function setMetroVolume(v) {
+        metroState.volume = Math.round(Math.min(100, Math.max(0, v)));
+        metroPlayer.setVolume(metroState.volume / 100);
+        renderMetroVolumeSlider();
+    }
+
+    setupSliderInteraction(document.getElementById('metroVolumeTrack'), document.getElementById('metroVolumeThumb'), {
+        onDragRatio: (ratio) => setMetroVolume(ratio * 100),
+        onArrowStep: (dir) => setMetroVolume(metroState.volume + dir * 5)
+    });
+    document.getElementById('metroMuteBtn')?.addEventListener('click', () => {
+        metroState.muted = !metroState.muted;
+        metroPlayer.setMuted(metroState.muted);
+        document.getElementById('metroMuteIcon').innerText = metroState.muted ? 'volume_off' : 'volume_up';
+        document.getElementById('metroMuteBtn').setAttribute('aria-pressed', String(metroState.muted));
+    });
+
+    // --- Set from music (note value + bpm + time signature -> notes bpm / beats per bar / conduct in) ---
+    document.getElementById('metroMusicBtn')?.addEventListener('click', () => {
+        document.getElementById('metroMusicModal').style.display = 'flex';
+    });
+    document.getElementById('metroApplyMusicBtn')?.addEventListener('click', () => {
+        const noteTypeSelect = document.getElementById('metroNoteType');
+        const noteFraction = parseFloat(noteTypeSelect.value);
+        const noteTypeLabel = noteTypeSelect.selectedOptions[0].text;
+        const enteredBpm = parseFloat(document.getElementById('metroNoteBpm').value);
+        const timeSig = document.getElementById('metroTimeSig').value;
+        const [numStr, denStr] = timeSig.split('/');
+        const numerator = parseInt(numStr, 10);
+        const denominator = parseInt(denStr, 10);
+
+        if (!enteredBpm || enteredBpm <= 0) { showWarningToast('Enter a valid beats per minute for the note value.'); return; }
+
+        const notesBpm = enteredBpm * noteFraction * denominator;
+        // Compound time signatures (6/8, 9/8, 12/8...) are conducted in groups of 3 notes per beat.
+        const isCompound = (numerator % 3 === 0) && numerator >= 6;
+        const notesPerBeat = isCompound ? 3 : 1;
+
+        if (notesBpm < METRO_MIN_BPM || notesBpm > METRO_MAX_BPM) {
+            showWarningToast(`That works out to ${Math.round(notesBpm)} notes per minute, which is outside the ${METRO_MIN_BPM}-${METRO_MAX_BPM} range.`);
+            return;
+        }
+
+        setMetroFreshGrid({ notesBpm, beatsPerBar: numerator, notesPerBeat, subdivisionFactor: 1 });
+        document.getElementById('metroMusicModal').style.display = 'none';
+        showSuccessToast(`Set to ${Math.round(notesBpm)} notes/min, ${numerator} beats per bar, conducted in ${Math.round(numerator / notesPerBeat)}.`);
+
+        const readout = document.getElementById('metroAdvancedReadout');
+        if (readout) {
+            readout.innerText = `${noteTypeLabel} = ${enteredBpm}, ${timeSig}`;
+            readout.classList.remove('hidden-group');
+        }
+    });
+
+    // Re-check whether the display needs to switch between "stretch to fit" and "fixed width, scroll
+    // to follow" if the viewport itself changes size (rotation, resizing the window).
+    window.addEventListener('resize', () => {
+        const view = document.getElementById('metronomeView');
+        if (view && view.style.display !== 'none') renderMetroTiers();
+    });
+
+    // Initial paint
+    setMetroFreshGrid({
+        notesBpm: metroState.notesBpm, beatsPerBar: metroState.beatsPerBar,
+        notesPerBeat: metroState.notesPerBeat, subdivisionFactor: metroState.subdivisionFactor
+    });
+    metroState.conductInLinked = true; // the default starting state is linked
+    renderMetroConductInLabel();
+    renderMetroVolumeSlider();
 
     // Dark mode toggle
     document.getElementById('darkModeToggle')?.addEventListener('change', (e) => {

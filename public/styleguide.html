@@ -33,7 +33,7 @@
     .sg-component-block { background: var(--secondary-color); border-radius: var(--radius-md); padding: var(--space-5); margin-bottom: var(--space-4); }
     .sg-component-block > * + * { margin-top: var(--space-3); }
     .sg-inline-demo { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center; }
-    .sg-modal-preview { position: static; background: rgba(0,0,0,0.6); display: flex; padding: var(--space-6); border-radius: var(--radius-md); }
+    .sg-modal-preview { position: static; background: rgba(0,0,0,0.85); display: flex; padding: var(--space-6); border-radius: var(--radius-md); }
 </style>
 </head>
 <body>
@@ -145,6 +145,24 @@
 
         <h3>Toggle switch</h3>
         <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+
+        <h3>Slider</h3>
+        <p class="sg-note">Draggable track + thumb + fill, with an optional min/max scale caption. Static preview here (drag it live on the Metronome's target-speed or volume controls).</p>
+        <div class="sg-component-block">
+            <div class="slider-wrap">
+                <div class="slider-track">
+                    <div class="slider-fill" style="width: 40%;"></div>
+                    <div class="slider-thumb" style="left: 40%;" tabindex="0" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="40"></div>
+                </div>
+                <div class="slider-scale"><span>0</span><span>100</span></div>
+            </div>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track">
+                    <div class="slider-fill" style="width: 75%;"></div>
+                    <div class="slider-thumb" style="left: 75%;" tabindex="0" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="75"></div>
+                </div>
+            </div>
+        </div>
 
         <h3>Filter item</h3>
         <div class="filter-list">
