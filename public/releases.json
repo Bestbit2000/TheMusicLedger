@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.3.0",
+    "date": "2026-09-07",
+    "changes": [
+      {
+        "key": "ML-2",
+        "type": "New",
+        "summary": "Add basic metronome to the app"
+      }
+    ]
+  },
+  {
     "version": "0.2.0",
     "date": "2026-09-06",
     "changes": [
