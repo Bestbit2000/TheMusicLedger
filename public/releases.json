@@ -1,8 +1,24 @@
 [
   {
+    "version": "0.4.0",
+    "date": "2026-09-07",
+    "changes": [
+      {
+        "key": "ML-36",
+        "type": "New",
+        "summary": "Add a tuner option"
+      }
+    ]
+  },
+  {
     "version": "0.3.0",
     "date": "2026-09-07",
     "changes": [
+      {
+        "key": "ML-24",
+        "type": "New",
+        "summary": "Be able to slow the metronome and add quavers or triplets, then increase back to target speed"
+      },
       {
         "key": "ML-2",
         "type": "New",

@@ -13,6 +13,7 @@
         --warning-color: #ffc107; /* Amber - warning toasts */
         --danger-color: #f44336; /* Red */
         --success-color: #4CAF50; /* Green */
+        --tuner-in-tune-green: #2ecc71; /* Brighter green used for the tuner's in-tune state */
         --label-color: #777;
 
         --cat-practise: #4CAF50; --cat-rehearsal: #2196F3;
@@ -164,6 +165,23 @@
     .play-meta { font-size: var(--font-base); color: #666; display: flex; justify-content: center; gap: var(--space-4); margin-bottom: var(--space-3); }
     .play-stats { font-size: var(--font-sm); color: #888; background: var(--container-bg); padding: 5px var(--space-3); border-radius: var(--radius-sm); display: inline-block; }
 
+    .tuner-card { background: var(--input-bg); padding: var(--space-6) var(--space-5); border-radius: var(--radius-lg); border: 2px solid var(--primary-action); margin-bottom: var(--space-6); transition: background 0.15s linear, border-color 0.15s linear; }
+    .tuner-card.in-tune { border-color: var(--tuner-in-tune-green); background: rgba(46, 204, 113, 0.28); }
+    .tuner-pitch-row { display: flex; }
+    .tuner-pitch-col { flex: 1; text-align: center; }
+    .tuner-pitch-label { font-size: var(--font-sm); font-weight: bold; color: var(--label-color); margin-bottom: var(--space-2); }
+    .tuner-note { font-size: 2.2rem; font-weight: bold; color: var(--primary-action); font-variant-numeric: tabular-nums; line-height: 1.1; }
+
+    .tuner-bar-wrap { margin-bottom: var(--space-5); }
+    .tuner-bar-track { position: relative; height: 28px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); overflow: hidden; }
+    .tuner-bar-zone { position: absolute; top: 0; bottom: 0; left: 35%; right: 35%; background: rgba(46, 204, 113, 0.45); }
+    .tuner-bar-center-mark { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--input-border); transform: translateX(-50%); }
+    .tuner-bar-needle { position: absolute; top: 2px; bottom: 2px; left: 50%; width: 4px; border-radius: 2px; background: var(--danger-color); transform: translateX(-50%); transition: left 0.1s linear, background 0.1s linear; }
+    .tuner-bar-needle.in-tune { background: var(--tuner-in-tune-green); }
+    .tuner-bar-scale { display: flex; justify-content: space-between; font-size: var(--font-xs); color: var(--label-color); margin-top: var(--space-1); }
+
+    .tuner-status { text-align: center; font-size: var(--font-base); color: var(--label-color); margin-bottom: var(--space-4); min-height: 1.2em; }
+
     .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; }
     .modal-content { background: var(--container-bg); width: 90%; max-width: 400px; padding: var(--space-6); border-radius: var(--radius-xl); box-shadow: var(--shadow-xl); max-height: 90vh; overflow-y: auto;}
     .modal-content h2 { margin-top: 0; margin-bottom: var(--space-5); font-size: 1.4rem; font-weight: var(--font-weight-semibold); }
@@ -278,6 +296,7 @@
     .metro-speed-readout > div:first-child { font-size: var(--font-lg); font-weight: bold; }
     .metro-speed-sub { font-size: var(--font-sm); color: var(--label-color); }
     .metro-speed-reset { display: block; margin: 0 auto var(--space-4) auto; background: none; border: none; color: var(--radio-highlight); font-weight: bold; font-size: var(--font-sm); cursor: pointer; padding: 4px 8px; }
+    .metro-help-text { font-size: var(--font-sm); color: var(--label-color); margin: 0 0 var(--space-3) 0; line-height: 1.4; }
 
     .metro-volume-row { display: flex; align-items: center; gap: var(--space-4); margin: var(--space-5) 0; }
     .metro-mute-btn { width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-circle); border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text-color); cursor: pointer; display: flex; align-items: center; justify-content: center; }

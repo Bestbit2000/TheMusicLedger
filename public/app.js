@@ -335,6 +335,8 @@
                 document.body.classList.add('dark-mode');
                 document.getElementById('darkModeToggle').checked = true;
             }
+            document.getElementById('tunerInstrumentSetting').value = localStorage.getItem(TUNER_INSTRUMENT_DEFAULT_KEY) || 'C';
+            document.getElementById('tunerUseFlatsToggle').checked = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
         } catch (error) {
             console.warn('Failed to initialize app:', error.message);
             displayLoginScreen();
@@ -468,7 +470,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'metronomeView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'metronomeView', 'tunerView'];
     let viewStack = ['mainView'];
 
     const viewAliasMap = {
@@ -476,7 +478,7 @@
         'lists': 'manageListsView', 'settings': 'settingsView', 'challengesList': 'manageChallengesView',
         'challengeSelect': 'challengeSelectView', 'challengePlay': 'challengePlayView',
         'challengeSummary': 'challengeSummaryView', 'editChallenge': 'editChallengeView',
-        'metronome': 'metronomeView'
+        'metronome': 'metronomeView', 'tuner': 'tunerView'
     };
 
     window.switchView = function(viewName, isBack = false) {
@@ -505,7 +507,12 @@
         if (viewName === 'statsView') { document.getElementById('topTitle').innerText = 'Detailed stats'; scrollStatsToRight(); }
         if (viewName === 'entryForm') { document.getElementById('topTitle').innerText = 'Add record'; }
         if (viewName === 'manageListsView') { document.getElementById('topTitle').innerText = 'Manage lists'; loadManageLists(); }
-        if (viewName === 'settingsView') { document.getElementById('topTitle').innerText = 'Settings'; }
+        if (viewName === 'settingsView') {
+            document.getElementById('topTitle').innerText = 'Settings';
+            // Re-sync from storage in case the instrument was last changed on the Tuner page itself.
+            document.getElementById('tunerInstrumentSetting').value = localStorage.getItem(TUNER_INSTRUMENT_DEFAULT_KEY) || 'C';
+            document.getElementById('tunerUseFlatsToggle').checked = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
+        }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
         if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
         if (viewName === 'challengeSelectView') { document.getElementById('topTitle').innerText = 'Select challenge'; renderChallengeSelect(); }
@@ -522,6 +529,12 @@
             renderMetroTiers();
         }
         else { stopMetronome(); }
+
+        if (viewName === 'tunerView') {
+            document.getElementById('topTitle').innerText = 'Tuner';
+            startTuner();
+        }
+        else { stopTuner(); }
     }
 
     window.goBack = function() {
@@ -2001,6 +2014,7 @@
         let speedPercent = 100;
         let volume = 0.8;
         let muted = false;
+        let visualLatencyMs = 0; // extra delay applied to the beat callback only, to match Bluetooth output lag
 
         const LOOKAHEAD_MS = 25;
         const SCHEDULE_AHEAD_S = 0.12;
@@ -2076,7 +2090,10 @@
                 playClick(kind, nextClickTime);
 
                 const fireTime = nextClickTime;
-                const delayMs = Math.max(0, (fireTime - audioCtx.currentTime) * 1000);
+                // The click itself always fires bang on schedule - visualLatencyMs only holds back the
+                // UI notification, so the baton/dots land in step with a click that's arriving late
+                // through Bluetooth (a fixed pipeline delay the page has no way to detect or avoid).
+                const delayMs = Math.max(0, (fireTime - audioCtx.currentTime) * 1000 + visualLatencyMs);
                 setTimeout(() => {
                     // stop() only halts future scheduling - up to SCHEDULE_AHEAD_S worth of clicks may
                     // already be queued here, so without this guard a straggler can fire its UI
@@ -2137,6 +2154,7 @@
             setSpeedPercent(p) { speedPercent = p; },
             setVolume(v) { volume = v; if (masterGain && !muted) masterGain.gain.value = v; },
             setMuted(m) { muted = m; if (masterGain) masterGain.gain.value = m ? 0 : volume; },
+            setVisualLatencyMs(ms) { visualLatencyMs = ms; },
             getEffectiveConductorBpm: effectiveConductorBpm,
             onBeat(cb) { beatListeners.push(cb); }
         };
@@ -2161,8 +2179,12 @@
         speedLevel: 0, // -9..+5 (10%-150%), each step = METRO_SPEED_STEP% of the stored notesBpm (not compounding)
         sliderMax: METRO_SLIDER_TIERS[0],
         volume: 80,
-        muted: false
+        muted: false,
+        latencyMs: 0 // extra delay applied to the visual beat/baton only, to compensate for Bluetooth output lag
     };
+    const METRO_LATENCY_KEY = 'metroLatencyMs';
+    const METRO_LATENCY_STEP = 10;
+    const METRO_LATENCY_MAX = 500;
 
     const METRO_SPEED_MIN_LEVEL = -9; // 10%
     const METRO_SPEED_MAX_LEVEL = 5;  // 150%
@@ -2834,6 +2856,20 @@
         document.getElementById('metroMuteBtn').setAttribute('aria-pressed', String(metroState.muted));
     });
 
+    // --- Headphone delay compensation ---
+    function renderMetroLatencyReadout() {
+        document.getElementById('metroLatencyMs').innerText = `${metroState.latencyMs} ms`;
+    }
+    function setMetroLatencyMs(ms) {
+        metroState.latencyMs = Math.min(METRO_LATENCY_MAX, Math.max(0, ms));
+        metroPlayer.setVisualLatencyMs(metroState.latencyMs);
+        localStorage.setItem(METRO_LATENCY_KEY, String(metroState.latencyMs));
+        renderMetroLatencyReadout();
+    }
+    document.getElementById('metroLatencyMinusBtn')?.addEventListener('click', () => setMetroLatencyMs(metroState.latencyMs - METRO_LATENCY_STEP));
+    document.getElementById('metroLatencyPlusBtn')?.addEventListener('click', () => setMetroLatencyMs(metroState.latencyMs + METRO_LATENCY_STEP));
+    document.getElementById('metroLatencyResetBtn')?.addEventListener('click', () => setMetroLatencyMs(0));
+
     // --- Set from music (note value + bpm + time signature -> notes bpm / beats per bar / conduct in) ---
     document.getElementById('metroMusicBtn')?.addEventListener('click', () => {
         document.getElementById('metroMusicModal').style.display = 'flex';
@@ -2886,6 +2922,209 @@
     metroState.conductInLinked = true; // the default starting state is linked
     renderMetroConductInLabel();
     renderMetroVolumeSlider();
+    setMetroLatencyMs(parseInt(localStorage.getItem(METRO_LATENCY_KEY), 10) || 0);
+
+    // ========================================
+    // TUNER
+    // ========================================
+    const NOTE_NAMES_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const NOTE_NAMES_FLAT = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];
+    const A4_FREQ = 440;
+    const A4_MIDI = 69;
+
+    // written = concert + offset semitones (mod 12) - the standard band transposition conventions
+    // (Bb: clarinet/trumpet/tenor sax..., Eb: alto/bari sax..., F: horn). Octave isn't tracked, only
+    // the pitch class, since that's all a tuner readout needs.
+    const TUNER_TRANSPOSITIONS = { C: 0, Bb: 2, Eb: 9, F: 7 };
+    const TUNER_ZONE_CENTS = 15; // "in tune" green-zone half-width
+    const TUNER_INSTRUMENT_DEFAULT_KEY = 'tunerInstrumentDefault';
+    const TUNER_USE_FLATS_KEY = 'tunerUseFlats';
+
+    function tunerFreqToMidi(freq) { return A4_MIDI + 12 * Math.log2(freq / A4_FREQ); }
+
+    // Just the note letter/accidental - no octave number, per the tuner's simplified readout.
+    function tunerMidiToName(midi) {
+        const rounded = Math.round(midi);
+        const useFlats = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
+        const names = useFlats ? NOTE_NAMES_FLAT : NOTE_NAMES_SHARP;
+        return names[((rounded % 12) + 12) % 12];
+    }
+
+    // Autocorrelation-based pitch detection (ACF2+ style): far more stable than zero-crossing for a
+    // single monophonic instrument close to the mic. Returns -1 when the signal is too quiet to trust.
+    function tunerAutoCorrelate(buf, sampleRate) {
+        const SIZE = buf.length;
+        let rms = 0;
+        for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+        rms = Math.sqrt(rms / SIZE);
+        if (rms < 0.01) return -1;
+
+        let r1 = 0, r2 = SIZE - 1;
+        const threshold = 0.2;
+        for (let i = 0; i < SIZE / 2; i++) { if (Math.abs(buf[i]) < threshold) { r1 = i; break; } }
+        for (let i = 1; i < SIZE / 2; i++) { if (Math.abs(buf[SIZE - i]) < threshold) { r2 = SIZE - i; break; } }
+
+        const trimmed = buf.slice(r1, r2);
+        const newSize = trimmed.length;
+        if (newSize < 2) return -1;
+        const c = new Array(newSize).fill(0);
+        for (let lag = 0; lag < newSize; lag++) {
+            for (let i = 0; i < newSize - lag; i++) c[lag] += trimmed[i] * trimmed[i + lag];
+        }
+
+        let d = 0;
+        while (d < newSize - 1 && c[d] > c[d + 1]) d++;
+        let maxVal = -1, maxPos = -1;
+        for (let i = d; i < newSize; i++) {
+            if (c[i] > maxVal) { maxVal = c[i]; maxPos = i; }
+        }
+        if (maxPos <= 0) return -1;
+
+        // Parabolic interpolation around the peak for sub-sample precision.
+        let T0 = maxPos;
+        const x1 = c[T0 - 1] || 0, x2 = c[T0], x3 = c[T0 + 1] || 0;
+        const a = (x1 + x3 - 2 * x2) / 2;
+        const b = (x3 - x1) / 2;
+        if (a) T0 = T0 - b / (2 * a);
+
+        return T0 > 0 ? sampleRate / T0 : -1;
+    }
+
+    // Standalone pitch-detection engine, structured the same way as the metronome player above
+    // (own audio graph, own lifecycle, exposes start/stop/onPitch) so it can be dropped into another
+    // view later as an add-in without rewriting the mic/analysis plumbing.
+    function createTunerEngine() {
+        let audioCtx = null;
+        let analyser = null;
+        let micStream = null;
+        let dataArray = null;
+        let rafId = null;
+        const listeners = [];
+
+        function tick() {
+            analyser.getFloatTimeDomainData(dataArray);
+            const freq = tunerAutoCorrelate(dataArray, audioCtx.sampleRate);
+            listeners.forEach(cb => cb(freq));
+            rafId = requestAnimationFrame(tick);
+        }
+
+        return {
+            async start() {
+                if (audioCtx) return true;
+                try {
+                    micStream = await navigator.mediaDevices.getUserMedia({
+                        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+                    });
+                } catch (err) {
+                    return false;
+                }
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new Ctx();
+                const source = audioCtx.createMediaStreamSource(micStream);
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 2048;
+                dataArray = new Float32Array(analyser.fftSize);
+                source.connect(analyser);
+                tick();
+                return true;
+            },
+            stop() {
+                if (rafId) cancelAnimationFrame(rafId);
+                rafId = null;
+                if (micStream) micStream.getTracks().forEach(t => t.stop());
+                micStream = null;
+                if (audioCtx) audioCtx.close();
+                audioCtx = null;
+                analyser = null;
+            },
+            isActive() { return !!audioCtx; },
+            onPitch(cb) { listeners.push(cb); }
+        };
+    }
+
+    const tunerEngine = createTunerEngine();
+
+    function updateTunerInstrumentLabel() {
+        const instrument = document.getElementById('tunerInstrumentSelect').value;
+        document.getElementById('tunerInstrumentLabel').innerText =
+            instrument === 'C' ? 'Concert pitch (C)' : `${instrument} instrument`;
+    }
+
+    function renderTunerIdle() {
+        document.getElementById('tunerNoteDisplay').innerText = '–';
+        document.getElementById('tunerConcertDisplay').innerText = '–';
+        document.getElementById('tunerNeedle').style.left = '50%';
+        document.getElementById('tunerNeedle').classList.remove('in-tune');
+        document.getElementById('tunerCard').classList.remove('in-tune');
+    }
+
+    function renderTunerPitch(freq) {
+        if (!tunerEngine.isActive()) return; // stray frame from just before stop()
+        if (!freq || freq < 0) {
+            // No signal right now (gap between notes, breath, etc). Deliberately leave the note
+            // display, needle and in-tune highlight showing whatever was last detected, rather than
+            // resetting to the idle state - that reset only happens once, when the tuner first opens.
+            document.getElementById('tunerStatus').innerText = 'Listening...';
+            return;
+        }
+        document.getElementById('tunerStatus').innerText = '';
+
+        const concertMidi = tunerFreqToMidi(freq);
+        const nearestConcertMidi = Math.round(concertMidi);
+        const centsOff = (concertMidi - nearestConcertMidi) * 100;
+
+        const instrument = document.getElementById('tunerInstrumentSelect').value;
+        const offset = TUNER_TRANSPOSITIONS[instrument] || 0;
+        const writtenMidi = nearestConcertMidi + offset;
+
+        document.getElementById('tunerNoteDisplay').innerText = tunerMidiToName(writtenMidi);
+        document.getElementById('tunerConcertDisplay').innerText = tunerMidiToName(nearestConcertMidi);
+
+        const clampedCents = Math.max(-50, Math.min(50, centsOff));
+        const inTune = Math.abs(centsOff) <= TUNER_ZONE_CENTS;
+        document.getElementById('tunerNeedle').style.left = `${50 + clampedCents}%`;
+        document.getElementById('tunerNeedle').classList.toggle('in-tune', inTune);
+        document.getElementById('tunerCard').classList.toggle('in-tune', inTune);
+    }
+
+    tunerEngine.onPitch(renderTunerPitch);
+
+    // Both instrument pickers (this one on the Tuner page, and the one in Settings) read/write the
+    // same stored value, so whichever you last touched is what comes back next time - it genuinely
+    // varies by instrument, so there's no separate "default" to fall back to.
+    document.getElementById('tunerInstrumentSelect')?.addEventListener('change', (e) => {
+        localStorage.setItem(TUNER_INSTRUMENT_DEFAULT_KEY, e.target.value);
+        updateTunerInstrumentLabel();
+    });
+    document.getElementById('tunerInstrumentSetting')?.addEventListener('change', (e) => {
+        localStorage.setItem(TUNER_INSTRUMENT_DEFAULT_KEY, e.target.value);
+    });
+    document.getElementById('tunerUseFlatsToggle')?.addEventListener('change', (e) => {
+        localStorage.setItem(TUNER_USE_FLATS_KEY, e.target.checked ? 'true' : 'false');
+    });
+    document.getElementById('tunerRetryBtn')?.addEventListener('click', startTuner);
+
+    async function startTuner() {
+        // Restore whichever instrument was last picked (here or in Settings) rather than a fixed default.
+        document.getElementById('tunerInstrumentSelect').value = localStorage.getItem(TUNER_INSTRUMENT_DEFAULT_KEY) || 'C';
+        updateTunerInstrumentLabel();
+        renderTunerIdle();
+
+        document.getElementById('tunerRetryBtn').classList.add('hidden-group');
+        document.getElementById('tunerStatus').innerText = 'Requesting microphone access...';
+
+        const ok = await tunerEngine.start();
+        if (!ok) {
+            document.getElementById('tunerStatus').innerText = 'Microphone access is needed for the tuner. Check your browser/site permissions and try again.';
+            document.getElementById('tunerRetryBtn').classList.remove('hidden-group');
+            return;
+        }
+        document.getElementById('tunerStatus').innerText = 'Listening...';
+    }
+
+    function stopTuner() {
+        tunerEngine.stop();
+    }
 
     // Dark mode toggle
     document.getElementById('darkModeToggle')?.addEventListener('change', (e) => {
