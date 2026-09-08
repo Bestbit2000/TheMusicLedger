@@ -30,3 +30,13 @@ any migration or touching `DATABASE_URL`**, since which branch that variable
 points at changes depending on what's checked out, and production should never
 be touched by accident. This doc exists in the repo (not just Jira `ML-21`)
 specifically so a Claude session without Jira access still has full context.
+
+## Releases
+
+**Before pushing to `main`**, read [`docs/release-process.md`](docs/release-process.md).
+Pushing to `main` deploys straight to production. A `pre-push` hook
+(`.husky/pre-push`) blocks the push unless `package.json`'s version changed and
+`public/releases.json` documents it — cut a release properly with
+`npm run cut-release -- <version> <ISSUE-1> [...]` then `npm run sync-releases`
+rather than trying to work around the hook. It exists because a push went out
+on 2026-09-08 with no version bump and no release notes at all.
