@@ -5,10 +5,25 @@
     // ========================================
     // AUTHENTICATION & TOKEN MANAGEMENT
     // ========================================
+    // No server has issued an unsigned token since ML-44 - a stored value
+    // that isn't in this shape can never be valid, so it's not worth
+    // sending to the server to find that out (see ML-48: doing so can
+    // trigger a 401 + auto-logout redirect fast enough to look like the
+    // app just forgot the user, with no visible error).
+    function isValidTokenShape(token) {
+        return typeof token === 'string' && (token.match(/\./g) || []).length === 1;
+    }
+
     class AuthManager {
         constructor() {
             this.token = localStorage.getItem('authToken');
             this.userId = localStorage.getItem('userId');
+            if (this.token && !isValidTokenShape(this.token)) {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('userId');
+                this.token = null;
+                this.userId = null;
+            }
             this.isAuthenticated = !!this.token;
         }
 
@@ -337,6 +352,13 @@
             displayLoginScreen();
             return;
         }
+
+        // Ask the browser not to evict this origin's storage under space
+        // pressure - some mobile browsers otherwise treat localStorage as
+        // reclaimable cache and can clear it (silently logging the user
+        // out) after the browser/app is fully closed. Best-effort: the
+        // browser may ignore this, and it never prompts the user.
+        navigator.storage?.persist?.().catch(() => {});
 
         // Pin the token now, once, and thread it explicitly through the
         // startup sequence below - see the comment in apiCall.
