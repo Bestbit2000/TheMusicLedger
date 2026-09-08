@@ -417,6 +417,7 @@
         ]).then(() => {
             displayMainApp();
         }).catch(err => {
+            alert('DIAG (will not redirect until dismissed): ' + err.message);
             showWarningToast('Error loading data: ' + err.message);
             if (err.status === 401) {
                 // A real auth failure (expired/invalid token) - the stored
