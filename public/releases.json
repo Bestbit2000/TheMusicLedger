@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.5.1",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "key": "ML-48",
+        "type": "Fixes",
+        "summary": "Login bounces back to login screen right after successful Google auth"
+      }
+    ]
+  },
+  {
     "version": "0.5.0",
     "date": "2026-09-08",
     "changes": [
