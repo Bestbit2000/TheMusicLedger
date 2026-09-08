@@ -2030,18 +2030,29 @@
                 audioCtx = new Ctx();
                 masterGain = audioCtx.createGain();
                 masterGain.gain.value = muted ? 0 : volume;
-                masterGain.connect(audioCtx.destination);
+                // A limiter, not a "sound" - it lets playClick push peaks well above 0dBFS for extra
+                // perceived loudness (short percussive blips read as quiet at digital full-scale, per
+                // normal loudness perception of very short transients) without the harsh hard-clipping
+                // digital audio would otherwise apply at the destination.
+                const limiter = audioCtx.createDynamicsCompressor();
+                limiter.threshold.value = -18;
+                limiter.knee.value = 6;
+                limiter.ratio.value = 12;
+                limiter.attack.value = 0.001;
+                limiter.release.value = 0.1;
+                masterGain.connect(limiter);
+                limiter.connect(audioCtx.destination);
             }
             return audioCtx.state === 'suspended' ? audioCtx.resume() : Promise.resolve();
         }
 
         function playClick(kind, time) {
             const freq = kind === 'tick' ? 1600 : (kind === 'tock' ? 1000 : 650);
-            const peak = kind === 'bom' ? 0.55 : 1;
+            const peak = kind === 'bom' ? 1.1 : 1.8; // pushed past 0dBFS - the limiter above tames it
             const dur = kind === 'bom' ? 0.045 : 0.035;
             const osc = audioCtx.createOscillator();
             const g = audioCtx.createGain();
-            osc.type = 'triangle';
+            osc.type = 'square'; // brighter/more harmonic-rich than triangle - reads as louder at the same peak, and cuts through a lossy Bluetooth link better
             osc.frequency.setValueAtTime(freq, time);
             g.gain.setValueAtTime(0.0001, time);
             g.gain.exponentialRampToValueAtTime(peak, time + 0.002);
