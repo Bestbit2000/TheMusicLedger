@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.5.0",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "key": "ML-46",
+        "type": "Fixes",
+        "summary": "Any data-load failure on startup silently shows the login screen, not the real error"
+      },
+      {
+        "key": "ML-45",
+        "type": "New",
+        "summary": "Sandbox/dev-only test-login endpoint for automated testing"
+      },
+      {
+        "key": "ML-44",
+        "type": "Fixes",
+        "summary": "requireAuth does not verify the token against Google - trivially forgeable"
+      },
+      {
+        "key": "ML-42",
+        "type": "New",
+        "summary": "Authentication vis passport.js"
+      }
+    ]
+  },
+  {
     "version": "0.4.1",
     "date": "2026-09-08",
     "changes": [
@@ -7,6 +33,11 @@
         "key": "ML-37",
         "type": "Fixes",
         "summary": "Metronome click is very quiet over Bluetooth headset"
+      },
+      {
+        "key": "ML-30",
+        "type": "Fixes",
+        "summary": "Console shows error for apple web capable"
       }
     ]
   },
