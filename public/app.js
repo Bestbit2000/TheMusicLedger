@@ -7,6 +7,15 @@
     // which code (if any, in this page) is responsible when it changes
     // unexpectedly between requests.
     window.__authTokenWrites = [];
+    window.__authTokenCheckpoints = [];
+    function diagFingerprint(label, token) {
+        window.__authTokenCheckpoints.push({
+            label,
+            time: new Date().toISOString(),
+            len: token ? token.length : null,
+            dots: token ? (String(token).match(/\./g) || []).length : null
+        });
+    }
     (function() {
         const origSetItem = localStorage.setItem.bind(localStorage);
         localStorage.setItem = function(key, value) {
@@ -55,6 +64,7 @@
             const params = new URLSearchParams(window.location.search);
             const token = params.get('authToken');
             const userId = params.get('userId');
+            diagFingerprint('handleCallback:urlParam', token);
 
             if (token && userId) {
                 localStorage.setItem('authToken', token);
@@ -62,6 +72,8 @@
                 this.token = token;
                 this.userId = userId;
                 this.isAuthenticated = true;
+                diagFingerprint('handleCallback:afterAssign this.token', this.token);
+                diagFingerprint('handleCallback:afterAssign localStorage', localStorage.getItem('authToken'));
                 window.history.replaceState({}, document.title, window.location.pathname);
                 return true;
             }
@@ -103,6 +115,8 @@
         // DIAG: capture exactly what auth.token/localStorage hold at dispatch time.
         const diagTokenAtDispatch = auth.token;
         const diagLsTokenAtDispatch = localStorage.getItem('authToken');
+        diagFingerprint(`apiCall:${endpoint} auth.token`, diagTokenAtDispatch);
+        diagFingerprint(`apiCall:${endpoint} localStorage`, diagLsTokenAtDispatch);
 
         const options = {
             method,
@@ -455,7 +469,12 @@
             const writesSummary = writes.length
                 ? writes.map((w, i) => `#${i}: ${w.time} -> ${w.valuePreview}\n${w.stack}`).join('\n---\n')
                 : '(no writes to authToken recorded on this page)';
+            const checkpoints = window.__authTokenCheckpoints || [];
+            const checkpointsSummary = checkpoints
+                .map((c, i) => `#${i} [${c.time}] ${c.label}: len=${c.len} dots=${c.dots}`)
+                .join('\n');
             alert('DIAG (will not redirect until dismissed): ' + err.message);
+            alert('DIAG token checkpoints (len/dots at each step):\n' + checkpointsSummary);
             alert('DIAG authToken write history:\n' + writesSummary);
             showWarningToast('Error loading data: ' + err.message);
             if (err.status === 401) {
