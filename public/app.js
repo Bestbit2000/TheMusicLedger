@@ -338,6 +338,23 @@
             return;
         }
 
+        // DIAG (ML-48 follow-up): a token that reaches this point but isn't
+        // in the current signed format (exactly one '.') would trigger a
+        // 401 on the first request, which auto-logs-out and redirects fast
+        // enough that the error toast is never seen - looking identical to
+        // "just forgot me". Surface that case explicitly, before any
+        // request is attempted, so it isn't silently indistinguishable.
+        {
+            const dots = (String(auth.token).match(/\./g) || []).length;
+            if (dots !== 1) {
+                alert(
+                    'DIAG: stored token is not in the expected signed format ' +
+                    `(len=${auth.token?.length}, dots=${dots}, start=${auth.token?.slice(0, 20)}). ` +
+                    'This is why the app is about to bounce you to the login screen.'
+                );
+            }
+        }
+
         // Ask the browser not to evict this origin's storage under space
         // pressure - some mobile browsers otherwise treat localStorage as
         // reclaimable cache and can clear it (silently logging the user
