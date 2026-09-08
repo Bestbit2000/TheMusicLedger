@@ -29,3 +29,7 @@ build/
 # Logs
 logs/
 *.log
+.neon
+
+.vercel
+.env*
