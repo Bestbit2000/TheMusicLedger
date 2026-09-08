@@ -1,6 +1,7 @@
 import express from 'express';
 import { requireAuth, getUserTokens } from '../middleware/auth.js';
 import { getSheetsClient, refreshAccessToken, SHEET_ID } from '../config/google.js';
+import { signToken } from '../utils/authToken.js';
 
 const router = express.Router();
 
@@ -49,7 +50,7 @@ async function getSheetsAuth(req, res) {
         refresh_token: tokens.refresh_token,
         expiry_date: newTokens.expiry_date
       };
-      res.set('X-Refreshed-Token', Buffer.from(JSON.stringify(refreshedPayload)).toString('base64'));
+      res.set('X-Refreshed-Token', signToken(refreshedPayload));
     }
 
     return { ...newTokens, refresh_token: tokens.refresh_token };

@@ -1,6 +1,7 @@
 import express from 'express';
 import { google } from 'googleapis';
 import { getAuthorizationUrl, getTokensFromCode } from '../config/google.js';
+import { signToken } from '../utils/authToken.js';
 
 const router = express.Router();
 
@@ -40,7 +41,7 @@ router.get('/callback', async (req, res) => {
       refresh_token: tokens.refresh_token,
       expiry_date: tokens.expiry_date
     };
-    const authToken = Buffer.from(JSON.stringify(tokenData)).toString('base64');
+    const authToken = signToken(tokenData);
 
     // Redirect to frontend with token. Always derive this from the incoming
     // request rather than an env var - a stale FRONTEND_URL (e.g. copied
@@ -52,6 +53,24 @@ router.get('/callback', async (req, res) => {
     console.error('OAuth callback error:', error);
     res.status(500).json({ error: 'Authentication failed', details: error.message });
   }
+});
+
+// Lets an automated tester (or a human) get a valid session without going
+// through Google's real consent screen - for sandbox/dev only. Fails closed
+// as a 404 (not 401/403) so a misconfigured NODE_ENV doesn't even reveal
+// this endpoint exists. Requires TEST_LOGIN_SECRET to be set server-side at
+// all, regardless of NODE_ENV, so an empty/unset secret can never match.
+router.post('/test-login', (req, res) => {
+  const secret = process.env.TEST_LOGIN_SECRET;
+  const provided = req.body?.secret;
+
+  if (!secret || process.env.NODE_ENV === 'production' || provided !== secret) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  const userId = req.body?.userId || 'claude-test@themusicledger.local';
+  const authToken = signToken({ userId, email: userId, isTestAccount: true });
+  res.json({ authToken, userId });
 });
 
 export default router;
