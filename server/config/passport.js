@@ -28,6 +28,10 @@ passport.use(new GoogleStrategy(
     done(null, {
       userId: email,
       email,
+      // Carried through so account creation (server/services/accounts.js)
+      // has a real name on first login rather than leaving it blank.
+      firstName: profile.name?.givenName || '',
+      surname: profile.name?.familyName || '',
       access_token: accessToken,
       refresh_token: refreshToken,
       expiry_date: Date.now() + expiresInMs

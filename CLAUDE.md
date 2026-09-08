@@ -8,8 +8,14 @@ backend (`server/`) and a static frontend (`public/`), deployed on Vercel.
 
 A full relational schema has been designed (accounts/bands/tutors, scores with
 sectioned multi-bar metronome data per Jira `ML-35`, practice lists, sessions,
-scales, technique exercises, challenges, and a monetization layer) but
-**no migration or implementation has started yet**.
+scales, technique exercises, challenges, and a monetization layer) and applied
+to the `sandbox`/`dev` Neon branches, but **`server/routes/api.js` is still
+100% Google Sheets-backed** — nothing in the running app reads/writes Postgres
+yet. The plan for that specific cutover (endpoint-by-endpoint mapping, open
+schema questions, status checklist) is
+[`docs/sheets-to-database-cutover.md`](docs/sheets-to-database-cutover.md) —
+**read this before touching `server/routes/api.js`, `server/config/google.js`,
+or account/tutor/organisation resolution.**
 
 Before working on data model, scores, sections, the metronome, practice lists,
 sessions, or billing/subscriptions: read
