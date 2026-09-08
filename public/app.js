@@ -1,3 +1,8 @@
+    window.__appJsExecutionCount = (window.__appJsExecutionCount || 0) + 1;
+    if (window.__appJsExecutionCount > 1) {
+        alert('DIAG: app.js has executed ' + window.__appJsExecutionCount + ' times on this page load!');
+    }
+
     const API_BASE_URL = window.location.hostname === 'localhost'
         ? 'http://localhost:3000'
         : `https://${window.location.hostname}`;
