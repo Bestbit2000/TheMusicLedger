@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.5.2",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "key": "ML-49",
+        "type": "Fixes",
+        "summary": "Android sometimes forgets login after fully closing the browser/app"
+      },
+      {
+        "key": "ML-30",
+        "type": "Fixes",
+        "summary": "Console shows error for apple web capable"
+      }
+    ]
+  },
+  {
     "version": "0.5.1",
     "date": "2026-09-08",
     "changes": [
@@ -44,11 +60,6 @@
         "key": "ML-37",
         "type": "Fixes",
         "summary": "Metronome click is very quiet over Bluetooth headset"
-      },
-      {
-        "key": "ML-30",
-        "type": "Fixes",
-        "summary": "Console shows error for apple web capable"
       }
     ]
   },
