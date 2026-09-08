@@ -1,6 +1,6 @@
 {
   "name": "the-music-ledger",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Music practice tracking app with Google Sheets",
   "main": "server/server.js",
   "type": "module",
@@ -9,7 +9,9 @@
     "dev": "cd server && npm run dev",
     "build": "npm install && cd server && npm install",
     "sync-releases": "node scripts/sync-releases.mjs",
-    "migrate": "node db/migrate.js"
+    "cut-release": "node scripts/cut-release.mjs",
+    "migrate": "node db/migrate.js",
+    "prepare": "husky"
   },
   "engines": {
     "node": "24.x"
@@ -25,5 +27,8 @@
     "express-session": "^1.17.3",
     "googleapis": "^118.0.0",
     "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
   }
 }

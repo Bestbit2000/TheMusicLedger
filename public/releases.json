@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.4.1",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "key": "ML-37",
+        "type": "Fixes",
+        "summary": "Metronome click is very quiet over Bluetooth headset"
+      }
+    ]
+  },
+  {
     "version": "0.4.0",
     "date": "2026-09-07",
     "changes": [
