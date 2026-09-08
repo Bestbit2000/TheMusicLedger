@@ -61,7 +61,9 @@
     async function apiCall(endpoint, method = 'GET', body = null) {
         if (!auth.isAuthenticated) {
             showWarningToast('Not authenticated. Please login.');
-            throw new Error('Not authenticated');
+            const err = new Error('Not authenticated');
+            err.status = 401;
+            throw err;
         }
 
         const options = {
@@ -85,7 +87,9 @@
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            throw new Error(error.error || `API error: ${response.status}`);
+            const err = new Error(error.error || `API error: ${response.status}`);
+            err.status = response.status;
+            throw err;
         }
 
         return await response.json();
@@ -406,7 +410,19 @@
             displayMainApp();
         }).catch(err => {
             showWarningToast('Error loading data: ' + err.message);
-            displayLoginScreen();
+            if (err.status === 401) {
+                // A real auth failure (expired/invalid token) - the stored
+                // token is no good, so actually log out rather than leave a
+                // dead token in place for next time.
+                auth.logout();
+                return;
+            }
+            // Any other failure (e.g. a Sheets-backed 500) isn't an auth
+            // problem - render with whatever data we have (rawData stays at
+            // its default []) and show the shell anyway, so features that
+            // don't need this data (Metronome, Tuner, Settings) stay reachable.
+            renderAllViews();
+            displayMainApp();
         });
     }
 
