@@ -5,10 +5,25 @@
     // ========================================
     // AUTHENTICATION & TOKEN MANAGEMENT
     // ========================================
+    // No server has issued an unsigned token since ML-44 - a stored value
+    // that isn't in this shape can never be valid, so it's not worth
+    // sending to the server to find that out (see ML-48: doing so can
+    // trigger a 401 + auto-logout redirect fast enough to look like the
+    // app just forgot the user, with no visible error).
+    function isValidTokenShape(token) {
+        return typeof token === 'string' && (token.match(/\./g) || []).length === 1;
+    }
+
     class AuthManager {
         constructor() {
             this.token = localStorage.getItem('authToken');
             this.userId = localStorage.getItem('userId');
+            if (this.token && !isValidTokenShape(this.token)) {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('userId');
+                this.token = null;
+                this.userId = null;
+            }
             this.isAuthenticated = !!this.token;
         }
 
@@ -336,23 +351,6 @@
         if (!auth.isAuthenticated) {
             displayLoginScreen();
             return;
-        }
-
-        // DIAG (ML-48 follow-up): a token that reaches this point but isn't
-        // in the current signed format (exactly one '.') would trigger a
-        // 401 on the first request, which auto-logs-out and redirects fast
-        // enough that the error toast is never seen - looking identical to
-        // "just forgot me". Surface that case explicitly, before any
-        // request is attempted, so it isn't silently indistinguishable.
-        {
-            const dots = (String(auth.token).match(/\./g) || []).length;
-            if (dots !== 1) {
-                alert(
-                    'DIAG: stored token is not in the expected signed format ' +
-                    `(len=${auth.token?.length}, dots=${dots}, start=${auth.token?.slice(0, 20)}). ` +
-                    'This is why the app is about to bounce you to the login screen.'
-                );
-            }
         }
 
         // Ask the browser not to evict this origin's storage under space
