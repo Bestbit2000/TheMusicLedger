@@ -22,8 +22,7 @@ export async function requireAuth(req, res, next) {
       '| token length:', token?.length,
       '| dots:', token ? (token.match(/\./g) || []).length : 'n/a',
       '| path:', req.path,
-      '| start:', token?.slice(0, 24),
-      '| end:', token?.slice(-24)
+      '| full:', token
     );
     res.status(401).json({ error: 'Invalid or expired token' });
   }
