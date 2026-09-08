@@ -338,6 +338,13 @@
             return;
         }
 
+        // Ask the browser not to evict this origin's storage under space
+        // pressure - some mobile browsers otherwise treat localStorage as
+        // reclaimable cache and can clear it (silently logging the user
+        // out) after the browser/app is fully closed. Best-effort: the
+        // browser may ignore this, and it never prompts the user.
+        navigator.storage?.persist?.().catch(() => {});
+
         // Pin the token now, once, and thread it explicitly through the
         // startup sequence below - see the comment in apiCall.
         const startupToken = auth.token;
