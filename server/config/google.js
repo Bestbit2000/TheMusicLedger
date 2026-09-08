@@ -1,12 +1,9 @@
+// The login/callback OAuth2 flow itself now lives in server/config/passport.js
+// (ML-42) - this file is left with just what's still needed afterwards:
+// building an authenticated Sheets client from already-issued tokens, and
+// refreshing an access token via its refresh_token.
+
 import { google } from 'googleapis';
-
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
-);
-
-export { oauth2Client };
 
 export function getSheetsClient(tokens) {
   const auth = new google.auth.OAuth2(
@@ -17,24 +14,6 @@ export function getSheetsClient(tokens) {
 
   auth.setCredentials(tokens);
   return google.sheets({ version: 'v4', auth });
-}
-
-export function getAuthorizationUrl() {
-  return oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: [
-      'https://www.googleapis.com/auth/userinfo.email',
-      'https://www.googleapis.com/auth/userinfo.profile',
-      'https://www.googleapis.com/auth/spreadsheets'
-    ],
-    prompt: 'consent',
-    redirect_uri: process.env.GOOGLE_REDIRECT_URI
-  });
-}
-
-export async function getTokensFromCode(code) {
-  const { tokens } = await oauth2Client.getToken(code);
-  return tokens;
 }
 
 export async function refreshAccessToken(refreshToken) {
