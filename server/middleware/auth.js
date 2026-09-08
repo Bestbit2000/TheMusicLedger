@@ -17,7 +17,14 @@ export async function requireAuth(req, res, next) {
     next();
   } catch (error) {
     const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.substring(7) : null;
-    console.error('Auth error:', error.message, '| token length:', token?.length, '| dots:', token ? (token.match(/\./g) || []).length : 'n/a', '| path:', req.path);
+    console.error(
+      'Auth error:', error.message,
+      '| token length:', token?.length,
+      '| dots:', token ? (token.match(/\./g) || []).length : 'n/a',
+      '| path:', req.path,
+      '| start:', token?.slice(0, 24),
+      '| end:', token?.slice(-24)
+    );
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
