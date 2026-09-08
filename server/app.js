@@ -1,9 +1,9 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
-import session from 'express-session';
 import cors from 'cors';
 import bodyParser from 'body-parser';
+import passport from './config/passport.js';
 import authRoutes from './routes/auth.js';
 import apiRoutes from './routes/api.js';
 
@@ -29,17 +29,12 @@ app.use(cors({
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Session configuration
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'dev-secret-key-change-in-production',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000
-  }
-}));
+// No express-session here, deliberately: its default MemoryStore isn't
+// reliable across separate Vercel serverless invocations, and nothing in
+// this app actually needs a server-held session - auth stays bearer-token
+// based (server/utils/authToken.js), and the login flow's CSRF/state
+// protection uses its own signed, session-less store (server/utils/stateStore.js).
+app.use(passport.initialize());
 
 // Routes FIRST (before static files)
 app.use('/auth', authRoutes);

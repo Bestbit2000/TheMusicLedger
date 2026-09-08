@@ -1,46 +1,27 @@
 import express from 'express';
-import { google } from 'googleapis';
-import { getAuthorizationUrl, getTokensFromCode } from '../config/google.js';
+import passport from '../config/passport.js';
 import { signToken } from '../utils/authToken.js';
 
 const router = express.Router();
 
-router.get('/login', (req, res) => {
-  const authUrl = getAuthorizationUrl();
-  res.redirect(authUrl);
-});
+// Route paths deliberately unchanged (/login, /callback, not the more
+// conventional /google, /google/callback) - these are already registered as
+// Google's authorized redirect URIs across every environment; renaming them
+// would mean re-registering all five.
+router.get('/login', passport.authenticate('google', {
+  scope: ['email', 'profile', 'https://www.googleapis.com/auth/spreadsheets'],
+  accessType: 'offline',
+  prompt: 'consent', // forces a refresh_token on every login, not just the first
+  session: false
+}));
 
-router.get('/callback', async (req, res) => {
-  try {
-    const { code } = req.query;
-
-    if (!code) {
-      return res.status(400).json({ error: 'No authorization code provided' });
+router.get('/callback', (req, res, next) => {
+  passport.authenticate('google', { session: false }, (err, tokenData) => {
+    if (err || !tokenData) {
+      console.error('OAuth callback error:', err || 'no user returned');
+      return res.status(500).json({ error: 'Authentication failed', details: err?.message });
     }
 
-    // Exchange code for tokens
-    const tokens = await getTokensFromCode(code);
-
-    // Get user info from Google
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
-    );
-    oauth2Client.setCredentials(tokens);
-
-    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
-    const userInfo = await oauth2.userinfo.get();
-    const userEmail = userInfo.data.email;
-
-    // Create token payload with user info and Google tokens
-    const tokenData = {
-      userId: userEmail,
-      email: userEmail,
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
-      expiry_date: tokens.expiry_date
-    };
     const authToken = signToken(tokenData);
 
     // Redirect to frontend with token. Always derive this from the incoming
@@ -48,11 +29,8 @@ router.get('/callback', async (req, res) => {
     // from a local .env into Vercel) would otherwise silently send every
     // deployment back to localhost after login.
     const frontendUrl = `${req.protocol}://${req.get('host')}`;
-    res.redirect(`${frontendUrl}?authToken=${authToken}&userId=${userEmail}`);
-  } catch (error) {
-    console.error('OAuth callback error:', error);
-    res.status(500).json({ error: 'Authentication failed', details: error.message });
-  }
+    res.redirect(`${frontendUrl}?authToken=${authToken}&userId=${tokenData.userId}`);
+  })(req, res, next);
 });
 
 // Lets an automated tester (or a human) get a valid session without going
