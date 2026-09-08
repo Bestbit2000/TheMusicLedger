@@ -16,17 +16,7 @@ export async function requireAuth(req, res, next) {
     req.googleExpiryDate = tokenData.expiry_date;
     next();
   } catch (error) {
-    const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.substring(7) : null;
-    console.error(
-      'Auth error:', error.message,
-      '| token length:', token?.length,
-      '| dots:', token ? (token.match(/\./g) || []).length : 'n/a',
-      '| path:', req.path,
-      '| full:', token
-    );
-    res.status(401).json({
-      error: `Invalid or expired token (DIAG len=${token?.length} dots=${token ? (token.match(/\./g) || []).length : 'n/a'} start=${token?.slice(0, 20)})`
-    });
+    res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 

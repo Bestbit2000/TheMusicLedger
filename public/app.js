@@ -1,46 +1,3 @@
-    window.__appJsExecutionCount = (window.__appJsExecutionCount || 0) + 1;
-    if (window.__appJsExecutionCount > 1) {
-        alert('DIAG: app.js has executed ' + window.__appJsExecutionCount + ' times on this page load!');
-    }
-
-    // DIAG: trace every write to the authToken key so we can see exactly
-    // which code (if any, in this page) is responsible when it changes
-    // unexpectedly between requests.
-    window.__authTokenWrites = [];
-    window.__authTokenCheckpoints = [];
-    function diagFingerprint(label, token) {
-        window.__authTokenCheckpoints.push({
-            label,
-            time: new Date().toISOString(),
-            len: token ? token.length : null,
-            dots: token ? (String(token).match(/\./g) || []).length : null
-        });
-    }
-    (function() {
-        const origSetItem = localStorage.setItem.bind(localStorage);
-        localStorage.setItem = function(key, value) {
-            if (key === 'authToken') {
-                window.__authTokenWrites.push({
-                    time: new Date().toISOString(),
-                    valuePreview: String(value).slice(0, 24),
-                    stack: new Error().stack
-                });
-            }
-            return origSetItem(key, value);
-        };
-        const origRemoveItem = localStorage.removeItem.bind(localStorage);
-        localStorage.removeItem = function(key) {
-            if (key === 'authToken') {
-                window.__authTokenWrites.push({
-                    time: new Date().toISOString(),
-                    valuePreview: '(removed)',
-                    stack: new Error().stack
-                });
-            }
-            return origRemoveItem(key);
-        };
-    })();
-
     const API_BASE_URL = window.location.hostname === 'localhost'
         ? 'http://localhost:3000'
         : `https://${window.location.hostname}`;
@@ -64,7 +21,6 @@
             const params = new URLSearchParams(window.location.search);
             const token = params.get('authToken');
             const userId = params.get('userId');
-            diagFingerprint('handleCallback:urlParam', token);
 
             if (token && userId) {
                 localStorage.setItem('authToken', token);
@@ -72,8 +28,6 @@
                 this.token = token;
                 this.userId = userId;
                 this.isAuthenticated = true;
-                diagFingerprint('handleCallback:afterAssign this.token', this.token);
-                diagFingerprint('handleCallback:afterAssign localStorage', localStorage.getItem('authToken'));
                 window.history.replaceState({}, document.title, window.location.pathname);
                 return true;
             }
@@ -112,19 +66,12 @@
             throw err;
         }
 
-        // Whatever is corrupting auth.token/localStorage between requests (still
-        // under investigation), a token pinned at login time and threaded
-        // explicitly through the startup sequence is immune to it - callers
-        // doing their own startup fetch should pass that pinned value here
-        // instead of relying on the live (mutable) auth.token.
+        // A token pinned at login time (see initializeApp) and threaded
+        // explicitly through the startup sequence is used in preference to
+        // the live auth.token, which has been observed to intermittently
+        // revert to a stale value on some browsers between the first and
+        // later requests of a page load - see ML-48.
         const effectiveToken = tokenOverride || auth.token;
-
-        // DIAG: capture exactly what auth.token/localStorage hold at dispatch time.
-        const diagTokenAtDispatch = auth.token;
-        const diagLsTokenAtDispatch = localStorage.getItem('authToken');
-        diagFingerprint(`apiCall:${endpoint} auth.token`, diagTokenAtDispatch);
-        diagFingerprint(`apiCall:${endpoint} localStorage`, diagLsTokenAtDispatch);
-        diagFingerprint(`apiCall:${endpoint} effectiveToken`, effectiveToken);
 
         const options = {
             method,
@@ -147,11 +94,7 @@
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            const diagMatch = diagTokenAtDispatch === diagLsTokenAtDispatch;
-            const err = new Error(
-                (error.error || `API error: ${response.status}`) +
-                ` [DIAG ${endpoint} auth.token=${diagTokenAtDispatch?.slice(0, 16)}... ls=${diagLsTokenAtDispatch?.slice(0, 16)}... match=${diagMatch}]`
-            );
+            const err = new Error(error.error || `API error: ${response.status}`);
             err.status = response.status;
             throw err;
         }
@@ -396,8 +339,7 @@
         }
 
         // Pin the token now, once, and thread it explicitly through the
-        // startup sequence below instead of letting each call re-read the
-        // live auth.token/localStorage - see the DIAG comment in apiCall.
+        // startup sequence below - see the comment in apiCall.
         const startupToken = auth.token;
 
         try {
@@ -478,17 +420,6 @@
         ]).then(() => {
             displayMainApp();
         }).catch(err => {
-            const writes = window.__authTokenWrites || [];
-            const writesSummary = writes.length
-                ? writes.map((w, i) => `#${i}: ${w.time} -> ${w.valuePreview}\n${w.stack}`).join('\n---\n')
-                : '(no writes to authToken recorded on this page)';
-            const checkpoints = window.__authTokenCheckpoints || [];
-            const checkpointsSummary = checkpoints
-                .map((c, i) => `#${i} [${c.time}] ${c.label}: len=${c.len} dots=${c.dots}`)
-                .join('\n');
-            alert('DIAG (will not redirect until dismissed): ' + err.message);
-            alert('DIAG token checkpoints (len/dots at each step):\n' + checkpointsSummary);
-            alert('DIAG authToken write history:\n' + writesSummary);
             showWarningToast('Error loading data: ' + err.message);
             if (err.status === 401) {
                 // A real auth failure (expired/invalid token) - the stored

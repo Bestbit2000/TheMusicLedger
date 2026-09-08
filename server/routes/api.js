@@ -33,10 +33,8 @@ const USAGE_WHO_COLUMNS = {
 
 async function getSheetsAuth(req, res) {
   let tokens = getUserTokens(req);
-  console.log('[DIAG getSheetsAuth] expiry_date:', tokens.expiry_date, 'now:', Date.now(), 'willRefresh:', !!(tokens.expiry_date && new Date(tokens.expiry_date) < new Date()));
   if (tokens.expiry_date && new Date(tokens.expiry_date) < new Date()) {
     const newTokens = await refreshAccessToken(tokens.refresh_token);
-    console.log('[DIAG getSheetsAuth] newTokens keys:', Object.keys(newTokens || {}), 'access_token present:', !!newTokens?.access_token, 'expiry_date:', newTokens?.expiry_date);
     req.googleAccessToken = newTokens.access_token;
 
     // The client holds its own bearer token in localStorage - if we don't
@@ -53,7 +51,6 @@ async function getSheetsAuth(req, res) {
         expiry_date: newTokens.expiry_date
       };
       const newSignedToken = signToken(refreshedPayload);
-      console.log('[DIAG getSheetsAuth] new signed token length:', newSignedToken.length, 'dots:', (newSignedToken.match(/\./g) || []).length);
       res.set('X-Refreshed-Token', newSignedToken);
     }
 
