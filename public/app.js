@@ -58,7 +58,7 @@
     // ========================================
     // API HELPER FUNCTIONS
     // ========================================
-    async function apiCall(endpoint, method = 'GET', body = null) {
+    async function apiCall(endpoint, method = 'GET', body = null, tokenOverride = null) {
         if (!auth.isAuthenticated) {
             showWarningToast('Not authenticated. Please login.');
             const err = new Error('Not authenticated');
@@ -66,11 +66,18 @@
             throw err;
         }
 
+        // A token pinned at login time (see initializeApp) and threaded
+        // explicitly through the startup sequence is used in preference to
+        // the live auth.token, which has been observed to intermittently
+        // revert to a stale value on some browsers between the first and
+        // later requests of a page load - see ML-48.
+        const effectiveToken = tokenOverride || auth.token;
+
         const options = {
             method,
             headers: {
                 'Content-Type': 'application/json',
-                ...auth.getAuthHeader()
+                ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {})
             }
         };
 
@@ -97,15 +104,15 @@
 
     // API endpoint wrappers
     const API = {
-        dropdownOptions: () => apiCall('/api/dropdown-options'),
+        dropdownOptions: (token) => apiCall('/api/dropdown-options', 'GET', null, token),
         sessions: {
-            get: () => apiCall('/api/sessions'),
+            get: (token) => apiCall('/api/sessions', 'GET', null, token),
             create: (data) => apiCall('/api/sessions', 'POST', data),
             update: (row, data) => apiCall(`/api/sessions/${row}`, 'PUT', data),
             delete: (row, category) => apiCall(`/api/sessions/${row}`, 'DELETE', { category })
         },
         challenges: {
-            get: () => apiCall('/api/challenges'),
+            get: (token) => apiCall('/api/challenges', 'GET', null, token),
             create: (data) => apiCall('/api/challenges', 'POST', data),
             update: (row, data) => apiCall(`/api/challenges/${row}`, 'PUT', data),
             delete: (row) => apiCall(`/api/challenges/${row}`, 'DELETE'),
@@ -331,9 +338,13 @@
             return;
         }
 
+        // Pin the token now, once, and thread it explicitly through the
+        // startup sequence below - see the comment in apiCall.
+        const startupToken = auth.token;
+
         try {
-            await loadAppData();
-            await fetchDataAndRender();
+            await loadAppData(startupToken);
+            await fetchDataAndRender(startupToken);
             document.getElementById('date').valueAsDate = new Date();
             if (localStorage.getItem('darkMode') === 'true') {
                 document.body.classList.add('dark-mode');
@@ -366,9 +377,9 @@
         showConfirmModal('Log out', 'Are you sure you want to log out of Google?', () => auth.logout(), false);
     }
 
-    async function loadAppData() {
+    async function loadAppData(token) {
         try {
-            appData = await API.dropdownOptions();
+            appData = await API.dropdownOptions(token);
             populateWhoDropdowns();
         } catch (error) {
             console.warn('Failed to load settings:', error);
@@ -402,10 +413,10 @@
         cWho.innerHTML = '<option value="">None</option>' + buildWhoOptionsHtml(appData.organisations);
     }
 
-    function fetchDataAndRender() {
+    function fetchDataAndRender(token) {
         return Promise.all([
-            API.sessions.get().then(data => { rawData = data; renderAllViews(); }),
-            loadChallenges()
+            API.sessions.get(token).then(data => { rawData = data; renderAllViews(); }),
+            loadChallenges(token)
         ]).then(() => {
             displayMainApp();
         }).catch(err => {
@@ -627,9 +638,9 @@
     // CHALLENGE LOGIC
     // ========================================
 
-    async function loadChallenges() {
+    async function loadChallenges(token) {
         try {
-            allChallenges = await API.challenges.get();
+            allChallenges = await API.challenges.get(token);
             if(document.getElementById('editChallengeView').style.display === 'block') renderEditChallengeItems();
             if(document.getElementById('manageChallengesView').style.display === 'block') renderChallengesList();
             if(document.getElementById('challengeSelectView').style.display === 'block') renderChallengeSelect();
