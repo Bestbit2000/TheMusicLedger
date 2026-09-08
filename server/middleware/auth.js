@@ -1,4 +1,5 @@
 import { verifyToken } from '../utils/authToken.js';
+import { getOrCreateAccount } from '../services/accounts.js';
 
 export async function requireAuth(req, res, next) {
   try {
@@ -11,6 +12,8 @@ export async function requireAuth(req, res, next) {
     const tokenData = verifyToken(token);
 
     req.userId = tokenData.userId;
+    req.firstName = tokenData.firstName || '';
+    req.surname = tokenData.surname || '';
     req.googleAccessToken = tokenData.access_token;
     req.googleRefreshToken = tokenData.refresh_token;
     req.googleExpiryDate = tokenData.expiry_date;
@@ -18,6 +21,21 @@ export async function requireAuth(req, res, next) {
   } catch (error) {
     console.error('Auth error:', error.message);
     res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+
+// Resolves the logged-in Google email to a real accounts.id, creating the
+// row on first sight. Separate from requireAuth (token validity) so the two
+// concerns - "is this token real" and "does a database row exist for it" -
+// stay independently testable. Routes that touch the database use both:
+// router.get(path, requireAuth, resolveAccount, handler).
+export async function resolveAccount(req, res, next) {
+  try {
+    req.accountId = await getOrCreateAccount(req.userId, req.firstName, req.surname);
+    next();
+  } catch (error) {
+    console.error('Account resolution error:', error.message);
+    res.status(500).json({ error: 'Failed to resolve account' });
   }
 }
 
