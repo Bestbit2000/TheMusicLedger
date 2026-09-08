@@ -66,6 +66,10 @@
             throw err;
         }
 
+        // DIAG: capture exactly what auth.token/localStorage hold at dispatch time.
+        const diagTokenAtDispatch = auth.token;
+        const diagLsTokenAtDispatch = localStorage.getItem('authToken');
+
         const options = {
             method,
             headers: {
@@ -87,7 +91,11 @@
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            const err = new Error(error.error || `API error: ${response.status}`);
+            const diagMatch = diagTokenAtDispatch === diagLsTokenAtDispatch;
+            const err = new Error(
+                (error.error || `API error: ${response.status}`) +
+                ` [DIAG ${endpoint} auth.token=${diagTokenAtDispatch?.slice(0, 16)}... ls=${diagLsTokenAtDispatch?.slice(0, 16)}... match=${diagMatch}]`
+            );
             err.status = response.status;
             throw err;
         }
