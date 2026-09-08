@@ -3,6 +3,35 @@
         alert('DIAG: app.js has executed ' + window.__appJsExecutionCount + ' times on this page load!');
     }
 
+    // DIAG: trace every write to the authToken key so we can see exactly
+    // which code (if any, in this page) is responsible when it changes
+    // unexpectedly between requests.
+    window.__authTokenWrites = [];
+    (function() {
+        const origSetItem = localStorage.setItem.bind(localStorage);
+        localStorage.setItem = function(key, value) {
+            if (key === 'authToken') {
+                window.__authTokenWrites.push({
+                    time: new Date().toISOString(),
+                    valuePreview: String(value).slice(0, 24),
+                    stack: new Error().stack
+                });
+            }
+            return origSetItem(key, value);
+        };
+        const origRemoveItem = localStorage.removeItem.bind(localStorage);
+        localStorage.removeItem = function(key) {
+            if (key === 'authToken') {
+                window.__authTokenWrites.push({
+                    time: new Date().toISOString(),
+                    valuePreview: '(removed)',
+                    stack: new Error().stack
+                });
+            }
+            return origRemoveItem(key);
+        };
+    })();
+
     const API_BASE_URL = window.location.hostname === 'localhost'
         ? 'http://localhost:3000'
         : `https://${window.location.hostname}`;
@@ -422,7 +451,12 @@
         ]).then(() => {
             displayMainApp();
         }).catch(err => {
+            const writes = window.__authTokenWrites || [];
+            const writesSummary = writes.length
+                ? writes.map((w, i) => `#${i}: ${w.time} -> ${w.valuePreview}\n${w.stack}`).join('\n---\n')
+                : '(no writes to authToken recorded on this page)';
             alert('DIAG (will not redirect until dismissed): ' + err.message);
+            alert('DIAG authToken write history:\n' + writesSummary);
             showWarningToast('Error loading data: ' + err.message);
             if (err.status === 401) {
                 // A real auth failure (expired/invalid token) - the stored
