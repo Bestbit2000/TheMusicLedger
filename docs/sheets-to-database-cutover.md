@@ -105,9 +105,41 @@ deleted - nothing imports it any more now that nothing talks to Sheets.
   identical; `row` values are real database IDs, explicitly typed to match
 - [ ] Push to production - **not done**, deliberately held on `main`
   pending a decision on when to cut this release
-- [ ] Leave `production` exactly as it is (still Sheets-backed) until the
-  separate, deliberate data-migration step happens - true today, since
-  nothing has been pushed past `sandbox`
+- [x] Leave `production` exactly as it is (still Sheets-backed) until the
+  separate, deliberate data-migration step happens - still true, all of the
+  below happened against `sandbox` only
+
+## Real data migration (2026-09-08) - sandbox only, not production
+
+Andrew's real historical data was imported into `sandbox`'s database, as a
+dry run ahead of the eventual production cutover - `production`'s database
+is still empty and untouched. Run via a one-off script (not committed to the
+repo - tied to this specific event, not reusable tooling; deleted after use),
+authenticated with a real Google login completed by Andrew in the Browser
+pane so the script had real Sheets read access without Claude ever handling
+his password.
+
+**Migrated:** 4 organisations, 1 teacher, 883 sessions (709 practice / 143
+rehearsal / 8 lesson / 23 performance), 5 challenge groups (87 items).
+
+**One thing worth knowing about challenge history:** the sheet only ever
+stored an aggregate total time + session count per task, never individual
+logged instances. Since the new schema replaced that with a real log table
+(`challenge_logs`, one row per instance - see "Behavioural change" above),
+there was nothing per-instance to migrate. The migration splits each item's
+old total evenly across `sessionsCount` synthetic log rows, so the
+**totals** the app displays (time spent, session count) match the sheet
+exactly - but those synthetic rows don't represent real individual practice
+instances, just a reconstruction that preserves the two numbers that were
+actually there.
+
+**Verified against the live sheet directly** (not just "the import ran
+without error"): rehearsal/lesson/performance session counts and duration
+sums matched exactly; challenge groups, items, and total logged time matched
+exactly. Practice sessions showed 710 in the database vs 709 on the sheet -
+not a discrepancy, that's the one manual test session Andrew logged while
+verifying the app earlier the same day, which was already in `sandbox`
+before this import ran.
 
 ## Deferred (not part of this cutover)
 
