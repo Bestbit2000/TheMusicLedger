@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.8.0",
+    "date": "2026-09-09",
+    "changes": [
+      {
+        "key": "ML-29",
+        "type": "New",
+        "summary": "Set up a back-test plan to go through a number of use cases on a sandbox environment to check all previous features work"
+      },
+      {
+        "key": "ML-28",
+        "type": "New",
+        "summary": "Move to version which can be fully tested end to end without logging in to Google so Claude can do it"
+      },
+      {
+        "key": "ML-26",
+        "type": "New",
+        "summary": "Administration access"
+      },
+      {
+        "key": "ML-7",
+        "type": "New",
+        "summary": "Timer! "
+      }
+    ]
+  },
+  {
     "version": "0.7.0",
     "date": "2026-09-09",
     "changes": [
