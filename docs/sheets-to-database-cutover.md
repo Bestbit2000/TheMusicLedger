@@ -1,8 +1,8 @@
 # Sheets → database cutover (app code, not data)
 
-Status: **implemented, verified on `sandbox` (API and real UI), not yet
-pushed to production.** `server/routes/api.js` is now 100% Postgres-backed -
-nothing in the running app talks to Google Sheets any more. This is the
+Status: **complete and live in production** (release 0.6.0, 2026-09-09).
+`server/routes/api.js` is 100% Postgres-backed - nothing in the running app
+talks to Google Sheets any more, on any environment. This is the
 living reference for this specific piece of work: swapping the running app's
 data layer from Google Sheets to Postgres. It is deliberately separate from
 the actual historical-data migration (moving Andrew's real practice history
@@ -103,16 +103,67 @@ deleted - nothing imports it any more now that nothing talks to Sheets.
 
 - [x] Confirmed the frontend needs no changes - response shapes stayed
   identical; `row` values are real database IDs, explicitly typed to match
-- [ ] Push to production - **not done**, deliberately held on `main`
-  pending a decision on when to cut this release
-- [ ] Leave `production` exactly as it is (still Sheets-backed) until the
-  separate, deliberate data-migration step happens - true today, since
-  nothing has been pushed past `sandbox`
+- [x] Push to production - done 2026-09-09, release 0.6.0
+- [x] Production's database: schema applied, real data migrated (see below),
+  code deployed, verified end-to-end with a real login against production
 
-## Deferred (not part of this cutover)
+## Real data migration - sandbox dry run (2026-09-08), then production (2026-09-09)
+
+Andrew's real historical data was first imported into `sandbox`'s database as
+a dry run (883 sessions at that point), verified against the live sheet, then
+re-extracted fresh and imported into `production` the next day once more
+sessions had been logged in the meantime - **883 was the sandbox snapshot,
+885 was the real production count**, not a discrepancy. Both runs used a
+one-off script (not committed to the repo - tied to each specific event, not
+reusable tooling; deleted after use each time), authenticated with a real
+Google login completed by Andrew in the Browser pane so the script had real
+Sheets read access without Claude ever handling his password. The production
+run also created the `accounts` row itself (via the same logic as
+`getOrCreateAccount`) since production wasn't yet running the DB-backed code
+at that point in the sequence (schema → env var → data → code deploy).
+
+**Migrated into production:** 5 organisations, 1 teacher, 885 sessions, 5
+challenge groups (87 items) - verified via direct DB query and against the
+live UI (dashboard totals, manage lists, manage challenges) immediately after
+deploy. The sandbox dry-run numbers below are kept for historical reference.
+
+**Sandbox dry run migrated:** 4 organisations, 1 teacher, 883 sessions (709
+practice / 143 rehearsal / 8 lesson / 23 performance), 5 challenge groups (87
+items).
+
+**One thing worth knowing about challenge history:** the sheet only ever
+stored an aggregate total time + session count per task, never individual
+logged instances. Since the new schema replaced that with a real log table
+(`challenge_logs`, one row per instance - see "Behavioural change" above),
+there was nothing per-instance to migrate. The migration splits each item's
+old total evenly across `sessionsCount` synthetic log rows, so the
+**totals** the app displays (time spent, session count) match the sheet
+exactly - but those synthetic rows don't represent real individual practice
+instances, just a reconstruction that preserves the two numbers that were
+actually there.
+
+**Verified against the live sheet directly** (not just "the import ran
+without error"): rehearsal/lesson/performance session counts and duration
+sums matched exactly; challenge groups, items, and total logged time matched
+exactly. Practice sessions showed 710 in the database vs 709 on the sheet -
+not a discrepancy, that's the one manual test session Andrew logged while
+verifying the app earlier the same day, which was already in `sandbox`
+before this import ran.
+
+## Still deferred
 
 - UI edit screen for a band's `website`/`contact_email`
-- Shrinking the Google OAuth scope (drop `spreadsheets`) once nothing reads/
-  writes the Sheet anymore
-- Real historical data migration
-- Production cutover
+- Wiring up the rest of the schema (scores, practice lists, scales, technique
+  exercises, monetization) - tables exist on all three Neon branches but no
+  endpoint reads/writes them yet
+
+## Done since
+
+- **2026-09-09:** Google OAuth scope shrunk to `email`/`profile` only
+  (`server/routes/auth.js`) - `spreadsheets` dropped since nothing reads or
+  writes the Sheet any more. The Sheet itself is being kept around unused
+  (not deleted) at Andrew's request, in case it's wanted later - dropping the
+  scope only means the app can no longer read/write it via the API; it
+  doesn't affect the document itself. Existing users keep working on their
+  current signed token; the reduced scope only applies to their *next* fresh
+  Google login.

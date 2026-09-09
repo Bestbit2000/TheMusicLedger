@@ -1,5 +1,80 @@
 [
   {
+    "version": "0.7.0",
+    "date": "2026-09-09",
+    "changes": [
+      {
+        "key": "ML-50",
+        "type": "New",
+        "summary": "Shrink Google OAuth scope now that Sheets isn't used"
+      }
+    ]
+  },
+  {
+    "version": "0.6.0",
+    "date": "2026-09-09",
+    "changes": [
+      {
+        "key": "ML-21",
+        "type": "New",
+        "summary": "Switch to database rather than sheets"
+      }
+    ]
+  },
+  {
+    "version": "0.5.2",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "key": "ML-49",
+        "type": "Fixes",
+        "summary": "Android sometimes forgets login after fully closing the browser/app"
+      },
+      {
+        "key": "ML-30",
+        "type": "Fixes",
+        "summary": "Console shows error for apple web capable"
+      }
+    ]
+  },
+  {
+    "version": "0.5.1",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "key": "ML-48",
+        "type": "Fixes",
+        "summary": "Login bounces back to login screen right after successful Google auth"
+      }
+    ]
+  },
+  {
+    "version": "0.5.0",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "key": "ML-46",
+        "type": "Fixes",
+        "summary": "Any data-load failure on startup silently shows the login screen, not the real error"
+      },
+      {
+        "key": "ML-45",
+        "type": "New",
+        "summary": "Sandbox/dev-only test-login endpoint for automated testing"
+      },
+      {
+        "key": "ML-44",
+        "type": "Fixes",
+        "summary": "requireAuth does not verify the token against Google - trivially forgeable"
+      },
+      {
+        "key": "ML-42",
+        "type": "New",
+        "summary": "Authentication vis passport.js"
+      }
+    ]
+  },
+  {
     "version": "0.4.1",
     "date": "2026-09-08",
     "changes": [
