@@ -9,7 +9,10 @@ const router = express.Router();
 // Google's authorized redirect URIs across every environment; renaming them
 // would mean re-registering all five.
 router.get('/login', passport.authenticate('google', {
-  scope: ['email', 'profile', 'https://www.googleapis.com/auth/spreadsheets'],
+  // 'spreadsheets' scope dropped 2026-09-09 - nothing has talked to Google
+  // Sheets since the Postgres cutover (ML-21). The sheet itself is kept
+  // around unused, not deleted, so no scope is needed to read/write it.
+  scope: ['email', 'profile'],
   accessType: 'offline',
   prompt: 'consent', // forces a refresh_token on every login, not just the first
   session: false

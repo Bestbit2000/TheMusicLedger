@@ -153,9 +153,17 @@ before this import ran.
 ## Still deferred
 
 - UI edit screen for a band's `website`/`contact_email`
-- Shrinking the Google OAuth scope (drop `spreadsheets`) now that nothing
-  reads/writes the Sheet anymore - the scope is still requested at login but
-  unused
 - Wiring up the rest of the schema (scores, practice lists, scales, technique
   exercises, monetization) - tables exist on all three Neon branches but no
   endpoint reads/writes them yet
+
+## Done since
+
+- **2026-09-09:** Google OAuth scope shrunk to `email`/`profile` only
+  (`server/routes/auth.js`) - `spreadsheets` dropped since nothing reads or
+  writes the Sheet any more. The Sheet itself is being kept around unused
+  (not deleted) at Andrew's request, in case it's wanted later - dropping the
+  scope only means the app can no longer read/write it via the API; it
+  doesn't affect the document itself. Existing users keep working on their
+  current signed token; the reduced scope only applies to their *next* fresh
+  Google login.
