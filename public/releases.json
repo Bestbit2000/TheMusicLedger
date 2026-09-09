@@ -1,5 +1,76 @@
 [
   {
+    "version": "0.9.0",
+    "date": "2026-09-09",
+    "changes": [
+      {
+        "key": "ML-74",
+        "type": "Fixes",
+        "summary": "Challenge task drag-reorder doesn't persist"
+      },
+      {
+        "key": "ML-73",
+        "type": "New",
+        "summary": "Remove stale, unreferenced root-level app.js"
+      },
+      {
+        "key": "ML-72",
+        "type": "New",
+        "summary": "On the streak graph, only show every 5 numbers starting at 5, so 5, 10, 15, etc rather than every number on the horizontal axis which is very crowded. Go up to the 5 before the end of the highest value"
+      },
+      {
+        "key": "ML-71",
+        "type": "New",
+        "summary": "Put the days of the week first letter on the right hand side of the heatmap graph"
+      },
+      {
+        "key": "ML-70",
+        "type": "New",
+        "summary": "Remove the conductor beat."
+      },
+      {
+        "key": "ML-68",
+        "type": "New",
+        "summary": "Store the practise time with the actual time, not just midday"
+      },
+      {
+        "key": "ML-66",
+        "type": "New",
+        "summary": "Same beat note sound on sub beats"
+      },
+      {
+        "key": "ML-64",
+        "type": "New",
+        "summary": "Persist metronome as box at top of screen"
+      },
+      {
+        "key": "ML-63",
+        "type": "New",
+        "summary": "Need a 0 equivalent beat"
+      },
+      {
+        "key": "ML-62",
+        "type": "Fixes",
+        "summary": "Different sound between first and subsequent beats more"
+      },
+      {
+        "key": "ML-61",
+        "type": "Fixes",
+        "summary": "Big beat for start  of bar appears on second circle after changing speed"
+      },
+      {
+        "key": "ML-59",
+        "type": "New",
+        "summary": "keep screen alive during use"
+      },
+      {
+        "key": "ML-55",
+        "type": "New",
+        "summary": "Create 3 tool square icons on front page instead of buttons"
+      }
+    ]
+  },
+  {
     "version": "0.8.0",
     "date": "2026-09-09",
     "changes": [
