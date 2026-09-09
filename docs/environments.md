@@ -1,8 +1,10 @@
 # Environment setup (Neon + local/sandbox/dev)
 
-Status: **Neon side is live and in use.** Vercel/sandbox deployment and the
-actual data migration from the Google Sheet are still outstanding — see
-"Outstanding" at the bottom. This is the "what's actually been done and how to
+Status: **Neon side is live and in use; production is fully cut over**
+(release 0.6.0, 2026-09-09) — schema applied and real data migrated on
+`production`, `sandbox`, and `dev`. See "Outstanding" at the bottom for what's
+still left (mainly sandbox's own Vercel/OAuth setup). This is the "what's
+actually been done and how to
 work with it" doc; [`docs/database-schema.md`](database-schema.md) is the "why"
 and [`docs/migrations.md`](migrations.md) is "how the schema itself gets
 applied". Written here (not just in Jira `ML-21`) specifically so a future
@@ -19,8 +21,8 @@ Claude session without access to Jira still has this context.
 
 | Branch | Parent | Purpose | Schema | Lifetime |
 |---|---|---|---|---|
-| `production` | — (root/default) | Live data, once the sheet migration happens | Not yet applied — intentionally, until the real migration runs | Permanent |
-| `sandbox` | `production` | Shared staging — verify features end-to-end before release | Applied (all 8 migration files) | Permanent |
+| `production` | — (root/default) | Live data | Applied (all 10 migration files) — schema + real data live since 2026-09-09 | Permanent |
+| `sandbox` | `production` | Shared staging — verify features end-to-end before release | Applied (all 10 migration files) | Permanent |
 | `dev` | `production` | Personal local development, disposable | Applied | **Auto-expires 7 days after creation** (see `neon.ts` policy below) |
 
 `sandbox` is deliberately never used for local iteration — it needs to stay a
@@ -81,14 +83,14 @@ in `.env` automatically.
   `sandbox` doesn't — `sandbox` already existed when the policy was written.
   `neon config plan` / `neon config apply` have been run and the policy is active.
 
-## Outstanding (from `ML-21`, not yet done)
+## Outstanding
 
 1. Vercel: add a `sandbox` git branch, confirm it deploys as a Preview
    environment, add sandbox-scoped env vars (DB connection string, OAuth
    redirect URIs) separate from production's.
-2. Register the Microsoft Entra ID app (`ML-42`) and add its Client ID/secret
+2. Register the Microsoft Entra ID app (`ML-43`) and add its Client ID/secret
    per environment.
 3. Add the sandbox URL to the Google OAuth app's authorised redirect URIs.
-4. Write and run the actual data migration script (Google Sheet → `sessions`/
-   `challenges` tables) against `sandbox`, verify it, then get sign-off to run
-   it against `production` and retire the sheet.
+
+~~4. Write and run the actual data migration script against `sandbox`, then
+`production`~~ — **done**, `ML-21`, release 0.6.0 (2026-09-09).

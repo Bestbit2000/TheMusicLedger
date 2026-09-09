@@ -1,21 +1,23 @@
 # TheMusicLedger
 
-Music practice tracking app. Currently backed by a single Google Sheet per user
-(`code.gs`, `server/config/google.js`, `server/routes/api.js`) with an Express
-backend (`server/`) and a static frontend (`public/`), deployed on Vercel.
+Music practice tracking app, backed by Postgres (Neon) via an Express backend
+(`server/`) and a static frontend (`public/`), deployed on Vercel. Google
+Sheets is no longer used anywhere in the running app — `server/routes/api.js`
+is 100% Postgres-backed (cut over to production 2026-09-09, release 0.6.0,
+`ML-21`). `code.gs`/`server/config/google.js` are historical/removed; Google
+OAuth is still used for login only (`server/config/passport.js`).
 
-## In progress: move off Google Sheets to Postgres
-
-A full relational schema has been designed (accounts/bands/tutors, scores with
-sectioned multi-bar metronome data per Jira `ML-35`, practice lists, sessions,
-scales, technique exercises, challenges, and a monetization layer) and applied
-to the `sandbox`/`dev` Neon branches, but **`server/routes/api.js` is still
-100% Google Sheets-backed** — nothing in the running app reads/writes Postgres
-yet. The plan for that specific cutover (endpoint-by-endpoint mapping, open
-schema questions, status checklist) is
-[`docs/sheets-to-database-cutover.md`](docs/sheets-to-database-cutover.md) —
-**read this before touching `server/routes/api.js`, `server/config/google.js`,
-or account/tutor/organisation resolution.**
+A full relational schema (accounts/bands/tutors, scores with sectioned
+multi-bar metronome data per Jira `ML-35`, practice lists, sessions, scales,
+technique exercises, challenges, and a monetization layer) is applied to all
+three Neon branches (`production`/`sandbox`/`dev`). Only the `sessions` and
+`challenges` areas actually have app code reading/writing them so far — the
+rest of the schema (scores, practice lists, scales, technique, monetization)
+is provisioned but not yet wired up to any endpoint. The full history of the
+Sheets→Postgres cutover (endpoint mapping, decisions, the real data migration)
+is in [`docs/sheets-to-database-cutover.md`](docs/sheets-to-database-cutover.md)
+— **read this before touching `server/routes/api.js` or account/tutor/
+organisation resolution.**
 
 Before working on data model, scores, sections, the metronome, practice lists,
 sessions, or billing/subscriptions: read
