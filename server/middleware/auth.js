@@ -19,7 +19,6 @@ export async function requireAuth(req, res, next) {
     req.googleExpiryDate = tokenData.expiry_date;
     next();
   } catch (error) {
-    console.error('Auth error:', error.message);
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
