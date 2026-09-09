@@ -154,7 +154,7 @@
     // APP STATE & INITIALIZATION
     // ========================================
     let rawData = [];
-    let appData = { organisations: [], teachers: [] };
+    let appData = { organisations: [], teachers: [], durations: [] };
     let currentHistDate = new Date();
     let activeFilters = { 'Practise': true, 'Rehearsal': true, 'Lesson': true, 'Performance': true };
     const colorMap = { 'Practise': 'var(--cat-practise)', 'Rehearsal': 'var(--cat-rehearsal)', 'Lesson': 'var(--cat-lesson)', 'Performance': 'var(--cat-performance)' };
@@ -403,9 +403,10 @@
         try {
             appData = await API.dropdownOptions(token);
             populateWhoDropdowns();
+            renderDurationRadios();
         } catch (error) {
             console.warn('Failed to load settings:', error);
-            appData = { organisations: [], teachers: [] };
+            appData = { organisations: [], teachers: [], durations: [] };
         }
     }
 
@@ -433,6 +434,26 @@
         const cWho = document.getElementById('cWho');
         if (!cWho) return;
         cWho.innerHTML = '<option value="">None</option>' + buildWhoOptionsHtml(appData.organisations);
+    }
+
+    // Duration presets come from the duration_options table (ML-7) rather
+    // than being hardcoded here, so they can be managed without a release
+    // and reused by both the save-session screen and the practice timer -
+    // each gets its own id/name prefix since both radio groups exist in the
+    // DOM at once (only one screen is visible, but ids must stay unique).
+    function renderDurationOptionsInto(containerId, idPrefix, radioName) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const optionsHtml = (appData.durations || []).map(mins =>
+            `<input type="radio" id="${idPrefix}-${mins}" name="${radioName}" value="${mins}"><label for="${idPrefix}-${mins}">${mins}</label>`
+        ).join('');
+        container.innerHTML = optionsHtml +
+            `<input type="radio" id="${idPrefix}-custom" name="${radioName}" value="custom"><label for="${idPrefix}-custom">Custom</label>`;
+    }
+
+    function renderDurationRadios() {
+        renderDurationOptionsInto('durationRadios', 'dur', 'durationOption');
+        renderDurationOptionsInto('timerDurationRadios', 'timerDur', 'timerDurationOption');
     }
 
     function fetchDataAndRender(token) {
@@ -519,7 +540,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'metronomeView', 'tunerView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'metronomeView', 'tunerView', 'timerView'];
     let viewStack = ['mainView'];
 
     const viewAliasMap = {
@@ -527,7 +548,7 @@
         'lists': 'manageListsView', 'settings': 'settingsView', 'challengesList': 'manageChallengesView',
         'challengeSelect': 'challengeSelectView', 'challengePlay': 'challengePlayView',
         'challengeSummary': 'challengeSummaryView', 'editChallenge': 'editChallengeView',
-        'metronome': 'metronomeView', 'tuner': 'tunerView'
+        'metronome': 'metronomeView', 'tuner': 'tunerView', 'timer': 'timerView'
     };
 
     window.switchView = function(viewName, isBack = false) {
@@ -584,6 +605,14 @@
             startTuner();
         }
         else { stopTuner(); }
+
+        if (viewName === 'timerView') {
+            document.getElementById('topTitle').innerText = 'Timer';
+            renderTimerScreen();
+        }
+        // The timer itself is NOT stopped when navigating away (ML-7: "shrink to a
+        // bar") - only the mini-bar's visibility changes.
+        updateTimerMiniBarVisibility(viewName);
     }
 
     window.goBack = function() {
@@ -3185,6 +3214,189 @@
     function stopTuner() {
         tunerEngine.stop();
     }
+
+    // ========================================
+    // TIMER (ML-7)
+    // ========================================
+    // Practice timer: pick a target duration (same duration_options list as the
+    // save-session screen, ML-7/ML-29), count down, and on finish offer to log it
+    // as a practice session via the existing save-session screen. Runs on a plain
+    // setInterval that's independent of which view is on screen - navigating away
+    // just shrinks it to the mini-bar (see updateTimerMiniBarVisibility) rather
+    // than stopping it. State lives in `timerState`: null when idle, otherwise
+    // { targetSeconds, remainingSeconds, elapsedSeconds, running }.
+    let timerState = null;
+    let timerIntervalId = null;
+
+    const TIMER_TODAY_SECONDS_KEY = 'timerTodaySeconds';
+    const TIMER_TODAY_DATE_KEY = 'timerTodayDate';
+
+    function timerTodayDateStr() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    // "Today" here is the timer tool's own live running total, separate from the
+    // app's real session-history stats - it resets at local midnight and only
+    // tracks time actually spent with the timer running.
+    function getTimerTodaySeconds() {
+        if (localStorage.getItem(TIMER_TODAY_DATE_KEY) !== timerTodayDateStr()) return 0;
+        return Number(localStorage.getItem(TIMER_TODAY_SECONDS_KEY)) || 0;
+    }
+
+    function addTimerTodaySeconds(n) {
+        const today = timerTodayDateStr();
+        const current = localStorage.getItem(TIMER_TODAY_DATE_KEY) === today ? getTimerTodaySeconds() : 0;
+        localStorage.setItem(TIMER_TODAY_DATE_KEY, today);
+        localStorage.setItem(TIMER_TODAY_SECONDS_KEY, String(current + n));
+    }
+
+    function formatClock(totalSeconds) {
+        const s = Math.max(0, Math.round(totalSeconds));
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
+        const mm = String(m).padStart(2, '0');
+        const ss = String(sec).padStart(2, '0');
+        return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+    }
+
+    function updateTimerMiniBarVisibility(viewName) {
+        const bar = document.getElementById('timerMiniBar');
+        if (!bar) return;
+        bar.classList.toggle('hidden-group', !timerState || viewName === 'timerView');
+    }
+
+    function updateTimerPlayIcons() {
+        const running = !!(timerState && timerState.running);
+        const label = running ? 'Pause' : 'Play';
+        const icon = running ? 'pause' : 'play_arrow';
+        const fullIcon = document.getElementById('timerPlayIcon');
+        const fullBtn = document.getElementById('timerPlayBtn');
+        if (fullIcon) fullIcon.innerText = icon;
+        if (fullBtn) fullBtn.setAttribute('aria-label', label);
+        const miniIcon = document.getElementById('timerMiniPlayIcon');
+        const miniBtn = document.getElementById('timerMiniPlayBtn');
+        if (miniIcon) miniIcon.innerText = icon;
+        if (miniBtn) miniBtn.setAttribute('aria-label', label);
+    }
+
+    function updateTimerDisplays() {
+        if (!timerState) return;
+        const remainingEl = document.getElementById('timerRemainingDisplay');
+        const elapsedEl = document.getElementById('timerElapsedDisplay');
+        const todayEl = document.getElementById('timerTodayDisplay');
+        if (remainingEl) remainingEl.innerText = formatClock(timerState.remainingSeconds);
+        if (elapsedEl) elapsedEl.innerText = formatClock(timerState.elapsedSeconds);
+        if (todayEl) todayEl.innerText = formatClock(getTimerTodaySeconds());
+
+        const miniTimeEl = document.getElementById('timerMiniSessionTime');
+        const miniRemainingEl = document.getElementById('timerMiniRemaining');
+        if (miniTimeEl) miniTimeEl.innerText = formatClock(timerState.elapsedSeconds);
+        if (miniRemainingEl) miniRemainingEl.innerText = formatClock(timerState.remainingSeconds);
+    }
+
+    // Syncs the full-screen Timer view to whatever timerState currently is -
+    // called on entering the view, so navigating back mid-session shows the
+    // running controls rather than resetting to the picker.
+    function renderTimerScreen() {
+        document.getElementById('timerSetupGroup')?.classList.toggle('hidden-group', !!timerState);
+        document.getElementById('timerRunningGroup')?.classList.toggle('hidden-group', !timerState);
+        if (timerState) {
+            updateTimerDisplays();
+            updateTimerPlayIcons();
+        }
+    }
+
+    function timerTick() {
+        if (!timerState || !timerState.running) return;
+        timerState.elapsedSeconds++;
+        timerState.remainingSeconds--;
+        addTimerTodaySeconds(1);
+        updateTimerDisplays();
+        if (timerState.remainingSeconds <= 0) finishTimerSession();
+    }
+
+    function startTimerSession(targetSeconds) {
+        timerState = { targetSeconds, remainingSeconds: targetSeconds, elapsedSeconds: 0, running: true };
+        clearInterval(timerIntervalId);
+        timerIntervalId = setInterval(timerTick, 1000);
+        renderTimerScreen();
+        updateTimerMiniBarVisibility('timerView');
+    }
+
+    function toggleTimerPlayPause() {
+        if (!timerState) return;
+        timerState.running = !timerState.running;
+        updateTimerPlayIcons();
+    }
+
+    // Ends the current timer (whether the countdown ran out, or Stop/Close was
+    // pressed early) and - if any real time was logged - offers to save it as a
+    // practice session via the existing save-session screen, pre-filled.
+    function finishTimerSession() {
+        if (!timerState) return;
+        clearInterval(timerIntervalId);
+        timerIntervalId = null;
+        const elapsedSeconds = timerState.elapsedSeconds;
+        timerState = null;
+        renderTimerScreen();
+        updateTimerMiniBarVisibility(viewStack[viewStack.length - 1]);
+
+        if (elapsedSeconds < 1) return;
+        const minutes = Math.max(1, Math.round(elapsedSeconds / 60));
+        showConfirmModal(
+            'Session finished!',
+            `Would you like to store this ${minutes} minute session as a practice session?`,
+            () => { prefillEntryFormForTimer(minutes); switchView('entryForm'); },
+            false
+        );
+    }
+
+    // Pre-selects Practise + the timer's actual duration on the save-session
+    // screen - falls back to the Custom entry if the timer's minutes don't match
+    // one of the duration_options presets (ML-7).
+    function prefillEntryFormForTimer(minutes) {
+        document.querySelectorAll('input[name="category"]').forEach(r => { r.checked = (r.value === 'Practise'); });
+        document.getElementById('whoGroup')?.classList.add('hidden-group');
+        document.querySelectorAll('input[name="durationOption"]').forEach(r => { r.checked = false; });
+        const customGroup = document.getElementById('customDurationGroup');
+        const matchingRadio = document.getElementById(`dur-${minutes}`);
+        if (matchingRadio) {
+            matchingRadio.checked = true;
+            customGroup?.classList.add('hidden-group');
+        } else {
+            const customRadio = document.getElementById('dur-custom');
+            if (customRadio) customRadio.checked = true;
+            customGroup?.classList.remove('hidden-group');
+            const customInput = document.getElementById('duration');
+            if (customInput) customInput.value = minutes;
+        }
+        document.getElementById('date').valueAsDate = new Date();
+    }
+
+    document.getElementById('timerDurationRadios')?.addEventListener('change', (e) => {
+        if (e.target.name !== 'timerDurationOption') return;
+        const customGroup = document.getElementById('timerCustomDurationGroup');
+        if (e.target.value === 'custom') {
+            customGroup.classList.remove('hidden-group');
+            document.getElementById('timerCustomDuration')?.focus();
+        } else {
+            customGroup.classList.add('hidden-group');
+        }
+    });
+
+    document.getElementById('timerStartBtn')?.addEventListener('click', () => {
+        const radio = document.querySelector('input[name="timerDurationOption"]:checked')?.value;
+        const mins = Number(radio === 'custom' ? document.getElementById('timerCustomDuration')?.value : radio);
+        if (!mins || isNaN(mins) || mins <= 0) { showWarningToast('Pick a duration first!'); return; }
+        startTimerSession(mins * 60);
+    });
+
+    document.getElementById('timerPlayBtn')?.addEventListener('click', toggleTimerPlayPause);
+    document.getElementById('timerMiniPlayBtn')?.addEventListener('click', toggleTimerPlayPause);
+    document.getElementById('timerStopBtn')?.addEventListener('click', finishTimerSession);
+    document.getElementById('timerMiniCloseBtn')?.addEventListener('click', finishTimerSession);
 
     // Dark mode toggle
     document.getElementById('darkModeToggle')?.addEventListener('change', (e) => {

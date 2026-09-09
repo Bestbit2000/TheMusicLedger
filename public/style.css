@@ -62,7 +62,8 @@
 
     body { font-family: var(--font-sans); background: var(--bg-color); color: var(--text-color); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
 
-    .top-bar { width: 100%; max-width: 500px; background: var(--container-bg); padding: 15px 20px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-md); position: sticky; top: 0; z-index: 50; }
+    .top-bar-sticky-group { width: 100%; display: flex; flex-direction: column; align-items: center; position: sticky; top: 0; z-index: 50; }
+    .top-bar { width: 100%; max-width: 500px; background: var(--container-bg); padding: 15px 20px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-md); }
     .top-bar-title { font-size: var(--font-md); font-weight: bold; flex-grow: 1; text-align: center; }
     .top-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-color); padding: 5px 10px; font-weight: bold; }
     .top-btn-back { background: transparent; border: none; color: var(--text-color); padding: 10px 20px 10px 5px; font-size: 1.6rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; }
@@ -70,7 +71,7 @@
 
     .dropdown-menu { display: none; position: absolute; top: 100%; right: 20px; background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-sm); box-shadow: var(--shadow-xl); z-index: 100; min-width: 200px; overflow: hidden; }
     .dropdown-menu.show { display: flex; flex-direction: column; }
-    .dropdown-item { padding: var(--space-3) var(--space-4); cursor: pointer; font-weight: bold; border-bottom: 1px solid var(--input-border); color: var(--text-color); }
+    .dropdown-item { display: block; padding: var(--space-3) var(--space-4); cursor: pointer; font-weight: bold; border-bottom: 1px solid var(--input-border); color: var(--text-color); text-decoration: none; }
     .dropdown-item:last-child { border-bottom: none; }
     .dropdown-item:hover { background: var(--input-bg); }
 
@@ -85,7 +86,8 @@
     .form-group { margin-bottom: var(--space-5); }
     .hidden-group { display: none !important; }
     label { display: block; margin-bottom: var(--space-2); font-weight: var(--font-weight-semibold); }
-    input, select { width: 100%; padding: var(--space-3) 14px; border: 2px solid var(--input-border); border-radius: var(--radius-lg); font-size: 1rem; font-family: inherit; box-sizing: border-box; outline: none; background: var(--input-bg); color: var(--text-color); }
+    input, select, textarea { width: 100%; padding: var(--space-3) 14px; border: 2px solid var(--input-border); border-radius: var(--radius-lg); font-size: 1rem; font-family: inherit; box-sizing: border-box; outline: none; background: var(--input-bg); color: var(--text-color); }
+    textarea { resize: vertical; }
 
     .toggle-switch { position: relative; display: inline-block; width: 50px; height: 28px; margin: 0; }
     .toggle-switch input { opacity: 0; width: 0; height: 0; margin: 0; }
@@ -311,6 +313,17 @@
     .metro-transport-btn .material-symbols-outlined { font-size: 26px; }
     .metro-play-btn { background: var(--primary-action); color: var(--primary-action-text); }
     .metro-stop-btn { background: var(--nav-action); color: var(--nav-action-text); }
+
+    /* Minimised timer bar (ML-7) - lives in .top-bar-sticky-group directly under
+       .top-bar, shown whenever a timer is running/paused and the Timer screen
+       itself isn't on-screen. */
+    .timer-mini-bar { width: 100%; max-width: 500px; box-sizing: border-box; background: var(--secondary-color); padding: var(--space-2) var(--space-5); display: flex; justify-content: space-between; align-items: center; font-variant-numeric: tabular-nums; }
+    .timer-mini-times { display: flex; align-items: baseline; gap: var(--space-1); font-size: var(--font-sm); font-weight: bold; color: var(--text-color); }
+    .timer-mini-label { font-weight: normal; color: var(--label-color); margin-right: var(--space-2); }
+    .timer-mini-sep { color: var(--label-color); }
+    .timer-mini-controls { display: flex; gap: var(--space-2); }
+    .timer-mini-btn { width: 32px; height: 32px; border: none; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; background: var(--nav-action); color: var(--nav-action-text); }
+    .timer-mini-btn .material-symbols-outlined { font-size: 18px; }
 
     /* Layout utilities for the small set of repeated static inline-style patterns */
     .flex-row { display: flex; }

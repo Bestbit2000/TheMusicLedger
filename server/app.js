@@ -6,6 +6,7 @@ import bodyParser from 'body-parser';
 import passport from './config/passport.js';
 import authRoutes from './routes/auth.js';
 import apiRoutes from './routes/api.js';
+import adminRoutes from './routes/admin.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -39,6 +40,7 @@ app.use(passport.initialize());
 // Routes FIRST (before static files)
 app.use('/auth', authRoutes);
 app.use('/api', apiRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

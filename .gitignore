@@ -33,3 +33,10 @@ logs/
 
 .vercel
 .env*
+
+# Back-test suite (ML-29) - specs are materialized from the test_cases table
+# in Neon (scripts/materialize-specs.mjs), never hand-written or committed.
+tests/generated/
+playwright-report.json
+test-results/
+playwright-report/

@@ -34,33 +34,60 @@
 <!-- MAIN APP CONTAINER -->
 <div id="mainContainer" style="display: none;">
 
-<div class="top-bar">
-    <button class="top-btn-back hidden-btn" id="topBackBtn" onclick="goBack()">&lt;</button>
-    <div class="top-bar-title" id="topTitle">The Music Ledger</div>
-    <div style="position: relative;">
-        <button class="top-btn" id="navBurgerMenuBtn">☰</button>
-        <div id="burgerDropdown" class="dropdown-menu">
-            <div class="dropdown-item" onclick="switchView('mainView'); closeMenu();">Home</div>
-            <div class="dropdown-item" onclick="switchView('metronomeView'); closeMenu();">Metronome</div>
-            <div class="dropdown-item" onclick="switchView('tunerView'); closeMenu();">Tuner</div>
-            <div class="dropdown-item" onclick="switchView('historyView'); closeMenu();">View session history</div>
-            <div class="dropdown-item" onclick="switchView('statsView'); closeMenu();">View stats</div>
-            <div class="dropdown-item" onclick="switchView('manageChallengesView'); closeMenu();">Manage challenges</div>
-            <div class="dropdown-item" onclick="switchView('manageListsView'); closeMenu();">Manage lists</div>
-            <div class="dropdown-item" onclick="switchView('settingsView'); closeMenu();">Settings</div>
-            <div class="dropdown-item" onclick="switchView('aboutView'); closeMenu();">About</div>
-            <div class="dropdown-item" onclick="closeMenu(); logoutUser();">Log out</div>
+<div class="top-bar-sticky-group">
+    <div class="top-bar">
+        <button class="top-btn-back hidden-btn" id="topBackBtn" onclick="goBack()">&lt;</button>
+        <div class="top-bar-title" id="topTitle">The Music Ledger</div>
+        <div style="position: relative;">
+            <button class="top-btn" id="navBurgerMenuBtn">☰</button>
+            <div id="burgerDropdown" class="dropdown-menu">
+                <div class="dropdown-item" onclick="switchView('mainView'); closeMenu();">Home</div>
+                <div class="dropdown-item" onclick="switchView('metronomeView'); closeMenu();">Metronome</div>
+                <div class="dropdown-item" onclick="switchView('tunerView'); closeMenu();">Tuner</div>
+                <div class="dropdown-item" onclick="switchView('timerView'); closeMenu();">Timer</div>
+                <div class="dropdown-item" onclick="switchView('historyView'); closeMenu();">View session history</div>
+                <div class="dropdown-item" onclick="switchView('statsView'); closeMenu();">View stats</div>
+                <div class="dropdown-item" onclick="switchView('manageChallengesView'); closeMenu();">Manage challenges</div>
+                <div class="dropdown-item" onclick="switchView('manageListsView'); closeMenu();">Manage lists</div>
+                <div class="dropdown-item" onclick="switchView('settingsView'); closeMenu();">Settings</div>
+                <!-- No is_admin/role check yet (ML-26) - visible to every logged-in
+                     account for now, deliberately, until real admin gating lands. -->
+                <a class="dropdown-item" href="/admin.html">Administration</a>
+                <div class="dropdown-item" onclick="switchView('aboutView'); closeMenu();">About</div>
+                <div class="dropdown-item" onclick="closeMenu(); logoutUser();">Log out</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Minimised timer (ML-7): shown whenever a timer is running/paused and the
+         Timer screen itself isn't the active view - the timer keeps running via
+         its own interval regardless of which view is on screen. Grouped into the
+         same sticky wrapper as .top-bar so it stays pinned directly under it
+         without needing to hardcode the top-bar's height (which varies by
+         breakpoint). -->
+    <div id="timerMiniBar" class="timer-mini-bar hidden-group">
+        <div class="timer-mini-times">
+            <span id="timerMiniSessionTime">00:00</span>
+            <span class="timer-mini-label">this session</span>
+            <span class="timer-mini-sep">&middot;</span>
+            <span id="timerMiniRemaining">00:00</span>
+            <span class="timer-mini-label">left</span>
+        </div>
+        <div class="timer-mini-controls">
+            <button class="timer-mini-btn" id="timerMiniPlayBtn" aria-label="Pause"><span class="material-symbols-outlined" id="timerMiniPlayIcon">pause</span></button>
+            <button class="timer-mini-btn" id="timerMiniCloseBtn" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
         </div>
     </div>
 </div>
 
 <div class="container">
-    
+
     <div id="mainView">
         <button class="btn-large" onclick="switchView('challengeSelectView')">Start a challenge</button>
         <button class="btn-submit" onclick="switchView('entryForm')">Add session time</button>
         <button class="btn-nav" onclick="switchView('metronomeView')">Metronome</button>
-        <button class="btn-nav" onclick="switchView('tunerView')" style="margin-bottom: 25px;">Tuner</button>
+        <button class="btn-nav" onclick="switchView('tunerView')">Tuner</button>
+        <button class="btn-nav" onclick="switchView('timerView')" style="margin-bottom: 25px;">Timer</button>
 
         <div class="dashboard-grid">
             <div class="stat-card clickable" onclick="switchView('statsView')"><div class="label">Total time</div><div class="value" id="mainTotalTime">Loading...</div></div>
@@ -411,6 +438,28 @@
         </select>
     </div>
 
+    <div id="timerView" style="display:none;">
+        <div id="timerSetupGroup">
+            <div class="form-group"><label>How long do you want to practise for (minutes)?</label>
+                <div class="radio-group compact" id="timerDurationRadios"><!-- populated from GET /api/dropdown-options (duration_options table, ML-7) --></div>
+            </div>
+            <div class="form-group hidden-group" id="timerCustomDurationGroup"><input type="number" id="timerCustomDuration" placeholder="Enter minutes" min="1"></div>
+            <button class="btn-large" id="timerStartBtn">Start</button>
+        </div>
+
+        <div id="timerRunningGroup" class="hidden-group">
+            <div class="stat-card" style="margin-bottom: var(--space-4);"><div class="label">Time left in session</div><div class="value" id="timerRemainingDisplay">00:00</div></div>
+            <div class="dashboard-grid">
+                <div class="stat-card"><div class="label">This session</div><div class="value" id="timerElapsedDisplay">00:00</div></div>
+                <div class="stat-card"><div class="label">Today</div><div class="value" id="timerTodayDisplay">00:00</div></div>
+            </div>
+            <div class="metro-transport-row">
+                <button class="metro-transport-btn metro-play-btn" id="timerPlayBtn" aria-label="Pause"><span class="material-symbols-outlined" id="timerPlayIcon">pause</span></button>
+                <button class="metro-transport-btn metro-stop-btn" id="timerStopBtn" aria-label="Stop"><span class="material-symbols-outlined">stop</span></button>
+            </div>
+        </div>
+    </div>
+
     <div id="entryForm" style="display:none;">
         <div class="form-group"><label>What did you do?</label>
             <div class="radio-group" id="categoryRadios">
@@ -422,19 +471,7 @@
         </div>
         <div class="form-group hidden-group" id="whoGroup"><label>Who with?</label><select id="who"></select></div>
         <div class="form-group"><label>How long did you spend on it (minutes)?</label>
-            <div class="radio-group compact" id="durationRadios">
-                <input type="radio" id="dur-10" name="durationOption" value="10"><label for="dur-10">10</label>
-                <input type="radio" id="dur-15" name="durationOption" value="15"><label for="dur-15">15</label>
-                <input type="radio" id="dur-20" name="durationOption" value="20"><label for="dur-20">20</label>
-                <input type="radio" id="dur-25" name="durationOption" value="25"><label for="dur-25">25</label>
-                <input type="radio" id="dur-30" name="durationOption" value="30"><label for="dur-30">30</label>
-                <input type="radio" id="dur-40" name="durationOption" value="40"><label for="dur-40">40</label>
-                <input type="radio" id="dur-45" name="durationOption" value="45"><label for="dur-45">45</label>
-                <input type="radio" id="dur-60" name="durationOption" value="60"><label for="dur-60">60</label>
-                <input type="radio" id="dur-105" name="durationOption" value="105"><label for="dur-105">105</label>
-                <input type="radio" id="dur-120" name="durationOption" value="120"><label for="dur-120">120</label>
-                <input type="radio" id="dur-custom" name="durationOption" value="custom"><label for="dur-custom">Custom</label>
-            </div>
+            <div class="radio-group compact" id="durationRadios"><!-- populated from GET /api/dropdown-options (duration_options table, ML-7) --></div>
         </div>
         <div class="form-group hidden-group" id="customDurationGroup"><input type="number" id="duration" placeholder="Enter minutes" min="1"></div>
         <div class="form-group"><label>When?</label><input type="date" id="date"></div>

@@ -1,8 +1,10 @@
-# Database schema design (pre-implementation)
+# Database schema design
 
-Status: **design only — no migration or code has been written yet.** This document
-captures the target relational schema agreed in conversation, so any future session
-(human or Claude) has the full context before touching implementation.
+Status: **implemented.** All migrations below are applied to `production`/`sandbox`/`dev`
+(see `docs/migrations.md` for the file list and `docs/environments.md` for the
+branches) - this stopped being pre-implementation design as of the Sheets→Postgres
+cutover (`ML-21`, release 0.6.0). Kept up to date as the schema grows, so any future
+session (human or Claude) still has full context and reasoning before touching it.
 
 ## Why this exists
 
@@ -128,6 +130,47 @@ Notes on fields that took a few passes to nail down:
 | `challenge_items` | One task, pointing at a real score/segment instead of free-text | id, challenge_id, score_id, metronome_segment_id, bar_from, bar_to, target_bpm, status, item_priority |
 | `challenge_logs` | Each practice instance logged against an item, replacing the sheet's aggregate counters | id, challenge_item_id, session_id, logged_at, duration_minutes, bpm_achieved |
 
+### Tool-level settings
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `duration_options` | Shared preset duration list (minutes) for the save-session screen and the practice timer (`ML-7`) | id, minutes, sort_order, active |
+
+Not per-account - a single tool-wide list, deliberately moved out of hardcoded
+frontend HTML so it can be changed without a release. No admin UI to manage it
+yet (still edited by direct SQL/Claude on request); that's the natural next
+step once the admin panel needs it.
+
+### Feature catalog & back-test registry (`ML-26`, `ML-29`)
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `features` | Canonical list of what the app actually does today - only things with real, wired-up code, not schema-only areas (scores/practice lists/scales/technique). Manually curated (add/edit/delete) from the admin panel's **Features** page, not just seeded by migrations | id, feature_key, name, description |
+| `test_cases` | One Playwright spec, authored by Claude on request (no automated/billed API call) - can cover more than one feature | id, jira_ticket_key, title, passes_if_criteria, script, is_active |
+| `test_case_features` | Join table - which feature(s) a test case covers. Deliberately many-to-many: a single flow (e.g. "log a session, then check stats") legitimately exercises more than one feature, so it's linked to each rather than forced to pick one | test_case_id, feature_id |
+| `test_runs` | One row per back-test suite execution | id, trigger_source (always `manual` - no CI trigger exists), total/passed/failed_tests, started_at, completed_at |
+| `test_run_results` | Per-test-case outcome of a run | id, test_run_id, test_case_id, verdict, error_message, notes (what Claude found/did about a failure), duration_ms |
+
+`features` started life (`012_test_registry.sql`) purely as something
+`test_cases` pointed at for the on-request back-test workflow
+(`.claude/skills/backtest`, no `ANTHROPIC_API_KEY`/GitHub Actions - see the
+ML-29 cost discussion for why). `014_features_catalog.sql` broadened it into
+the app-wide feature catalog behind the admin panel's **Features** list
+(`ML-26`) - the same table now doubles as both. This is deliberately the
+list `plan_feature_flags.feature_key` below is meant to resolve against once
+gating/billing is built; nothing wires that up yet.
+
+`test_cases.feature_id` (a single FK) was replaced by the `test_case_features`
+join table in `015_test_case_features.sql` for exactly this reuse reason. One
+side effect worth knowing: deleting a `features` row now only removes its
+`test_case_features` link rows (`ON DELETE CASCADE` on that join table) - it
+never deletes the test case itself or its run history, even if that was the
+test case's only linked feature (it just ends up with zero features linked,
+still visible in the admin panel's **Test cases** list).
+
+None of these five tables are read or written by the running app itself -
+they're purely admin/tooling.
+
 ### Monetization
 
 | Table | Purpose | Key columns |
@@ -138,6 +181,9 @@ Notes on fields that took a few passes to nail down:
 
 `external_payment_ref` deliberately just points at whatever payment processor gets
 picked later (e.g. Stripe) rather than storing billing detail directly.
+`feature_key` is meant to resolve against `features.feature_key` (see "Feature
+catalog" above) - not enforced with a real FK since this table predates that one
+and neither is wired to any endpoint yet.
 
 ## Open questions (not yet resolved)
 
@@ -149,6 +195,6 @@ picked later (e.g. Stripe) rather than storing billing detail directly.
 
 ## Explicitly out of scope for now
 
-- Actual SQL/Prisma/Drizzle schema and migrations — not started.
-- Choice between Neon vs. Supabase — leaning Neon for free branching, not locked in.
+- ORM adoption (Prisma/Drizzle) — migrations are plain SQL by deliberate choice, see `docs/migrations.md`.
+- Supabase — settled on Neon for free branching.
 - Auth provider/mechanism — decoupled from this schema by design.

@@ -9,6 +9,7 @@ import { requireAuth, resolveAccount } from '../middleware/auth.js';
 import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand } from '../services/bands.js';
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
+import { listDurationOptions } from '../services/durationOptions.js';
 
 const router = express.Router();
 
@@ -70,11 +71,12 @@ async function resolveWho(accountId, sessionType, who) {
 // ========================================
 router.get('/dropdown-options', requireAuth, resolveAccount, async (req, res) => {
   try {
-    const [organisations, teachers] = await Promise.all([
+    const [organisations, teachers, durations] = await Promise.all([
       listBands(req.accountId),
-      listTutors()
+      listTutors(),
+      listDurationOptions()
     ]);
-    res.json({ organisations, teachers });
+    res.json({ organisations, teachers, durations });
   } catch (error) {
     console.error('Dropdown options error:', error);
     res.status(500).json({ error: error.message });

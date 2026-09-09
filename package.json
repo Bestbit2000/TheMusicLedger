@@ -11,6 +11,7 @@
     "sync-releases": "node scripts/sync-releases.mjs",
     "cut-release": "node scripts/cut-release.mjs",
     "migrate": "node db/migrate.js",
+    "backtest": "node scripts/run-backtest.mjs",
     "prepare": "husky"
   },
   "engines": {
@@ -30,6 +31,7 @@
     "pg": "^8.11.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "husky": "^9.1.7"
   }
 }

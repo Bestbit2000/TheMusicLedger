@@ -8,7 +8,24 @@ const router = express.Router();
 // conventional /google, /google/callback) - these are already registered as
 // Google's authorized redirect URIs across every environment; renaming them
 // would mean re-registering all five.
-router.get('/login', passport.authenticate('google', {
+router.get('/login', (req, res, next) => {
+  // Google OAuth is skipped entirely when running locally, so local dev
+  // doesn't need real Google credentials or a browser consent screen.
+  // Gated on NODE_ENV=development (server/.env only) rather than a shared
+  // secret - Vercel always sets NODE_ENV=production for both Production and
+  // Preview (sandbox) deployments, so this can't fire there by default. See
+  // docs/environments.md for the local/sandbox/production split.
+  if (process.env.NODE_ENV === 'development') {
+    const authToken = signToken({
+      userId: 'local-dev@themusicledger.local',
+      firstName: 'Local',
+      surname: 'Dev'
+    });
+    const frontendUrl = `${req.protocol}://${req.get('host')}`;
+    return res.redirect(`${frontendUrl}?authToken=${authToken}&userId=local-dev@themusicledger.local`);
+  }
+  next();
+}, passport.authenticate('google', {
   // 'spreadsheets' scope dropped 2026-09-09 - nothing has talked to Google
   // Sheets since the Postgres cutover (ML-21). The sheet itself is kept
   // around unused, not deleted, so no scope is needed to read/write it.

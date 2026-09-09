@@ -48,6 +48,13 @@ later table exists. Each file has a comment marking where this happens.
 | `006_scales_and_technique.sql` | scale_definitions, scale_practice_logs, technique_exercise_sets, technique_exercise_logs |
 | `007_challenges.sql` | challenges, challenge_items, challenge_logs |
 | `008_monetization.sql` | subscription_plans, subscriptions, plan_feature_flags |
+| `009_bands_active_flag.sql` | bands.active (archive/unarchive, Sheets cutover) |
+| `010_challenge_items_free_text_bridge.sql` | challenge_items.piece_name, challenge_items.ref |
+| `011_duration_options.sql` | duration_options (ML-7 tool-level duration presets) |
+| `012_test_registry.sql` | features, test_cases, test_runs, test_run_results (ML-29 on-request back-test registry, not read/written by the running app) |
+| `013_test_run_results_notes.sql` | test_run_results.root_cause_analysis renamed to notes (ML-26 admin panel needs "action taken", broader than just RCA) |
+| `014_features_catalog.sql` | Broadens `features` from an ML-29 test-case pointer into the app-wide feature catalog behind the admin panel's Features list (ML-26); seeds it with everything currently live |
+| `015_test_case_features.sql` | Replaces `test_cases.feature_id` (single FK) with a `test_case_features` join table, so one test case can cover more than one feature |
 
 ## Decisions made translating the design doc into SQL
 
