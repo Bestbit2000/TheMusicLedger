@@ -37,22 +37,22 @@ function toIntOrNull(value) {
   return Number.isNaN(n) ? null : n;
 }
 
-// The sheet only ever stored a date, not a time of day. Stored at midday
-// GMT/UTC deliberately, not midnight - midnight UTC lands on the wrong
-// calendar date for UK users roughly half the time; noon sits far enough
-// from both UTC+0 and UTC+1 (BST) that the date never shifts either way.
-function sessionDateToTimestamp(dateStr) {
-  const d = new Date(dateStr);
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12, 0, 0));
-}
-
-function timestampToSessionDateStr(timestamp) {
-  const d = new Date(timestamp);
-  const year = d.getUTCFullYear();
-  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
+// The sheet only ever stored a date, not a time of day, and this app
+// originally followed suit by stamping every session at midday GMT/UTC
+// regardless of when it was actually logged (ML-68) - that made same-day
+// sessions impossible to order relative to each other and threw away any
+// chance of time-of-day stats. Real times are used now, computed in SQL
+// (Postgres's own tzdata handles the BST/GMT switch correctly, which a
+// fixed offset can't) rather than in JS:
+//   - a new session's time-of-day is "now", in Europe/London - this app's
+//     only audience so far (see docs/environments.md)
+//   - editing a session keeps its existing time-of-day and only swaps the
+//     calendar date, so fixing a typo'd duration doesn't erase real data
+// Both are expressed as `<date> + <time>) AT TIME ZONE 'Europe/London'`
+// directly in the query SQL below rather than as reusable snippets, since
+// the "what time" half differs (NOW() vs the existing row's own started_at)
+// while the "combine and convert" shape is identical either way.
+const LONDON_TZ = 'Europe/London';
 
 // Resolves a session's "who" to a band or tutor depending on category -
 // lessons reference a tutor, rehearsals/performances reference a band,
@@ -93,12 +93,11 @@ router.post('/sessions', requireAuth, resolveAccount, async (req, res) => {
     if (!sessionType) return res.status(400).json({ error: 'Invalid category' });
 
     const { bandId, tutorId } = await resolveWho(req.accountId, sessionType, who);
-    const startedAt = sessionDateToTimestamp(date);
 
     const { rows } = await pool.query(
       `INSERT INTO sessions (session_type, account_id, band_id, tutor_id, started_at, total_duration_minutes)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [sessionType, req.accountId, bandId, tutorId, startedAt, Number(duration)]
+       VALUES ($1, $2, $3, $4, ($5::date + (NOW() AT TIME ZONE $7)::time) AT TIME ZONE $7, $6) RETURNING id`,
+      [sessionType, req.accountId, bandId, tutorId, date, Number(duration), LONDON_TZ]
     );
 
     res.json({ message: `Saved ${duration} mins!`, category, row: Number(rows[0].id) });
@@ -111,20 +110,21 @@ router.post('/sessions', requireAuth, resolveAccount, async (req, res) => {
 router.get('/sessions', requireAuth, resolveAccount, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT s.id, s.session_type, s.started_at, s.total_duration_minutes,
-              b.name AS band_name, t.display_name AS tutor_name
+      `SELECT s.id, s.session_type,
+              to_char(s.started_at AT TIME ZONE $2, 'YYYY-MM-DD') AS date_str,
+              s.total_duration_minutes, b.name AS band_name, t.display_name AS tutor_name
        FROM sessions s
        LEFT JOIN bands b ON b.id = s.band_id
        LEFT JOIN tutors t ON t.id = s.tutor_id
        WHERE s.account_id = $1
        ORDER BY s.started_at DESC`,
-      [req.accountId]
+      [req.accountId, LONDON_TZ]
     );
 
     res.json(rows.map(r => ({
       row: Number(r.id),
       category: SESSION_TYPE_TO_CATEGORY[r.session_type],
-      dateStr: timestampToSessionDateStr(r.started_at),
+      dateStr: r.date_str,
       duration: r.total_duration_minutes,
       who: r.band_name || r.tutor_name || ''
     })));
@@ -142,12 +142,13 @@ router.put('/sessions/:row', requireAuth, resolveAccount, async (req, res) => {
     if (!sessionType) return res.status(400).json({ error: 'Invalid category' });
 
     const { bandId, tutorId } = await resolveWho(req.accountId, sessionType, who);
-    const startedAt = sessionDateToTimestamp(date);
 
     await pool.query(
-      `UPDATE sessions SET session_type = $1, band_id = $2, tutor_id = $3, started_at = $4, total_duration_minutes = $5
+      `UPDATE sessions SET session_type = $1, band_id = $2, tutor_id = $3,
+         started_at = ($4::date + (started_at AT TIME ZONE $8)::time) AT TIME ZONE $8,
+         total_duration_minutes = $5
        WHERE id = $6 AND account_id = $7`,
-      [sessionType, bandId, tutorId, startedAt, Number(duration), row, req.accountId]
+      [sessionType, bandId, tutorId, date, Number(duration), row, req.accountId, LONDON_TZ]
     );
 
     res.json({ message: 'Session updated', row });
@@ -369,17 +370,26 @@ router.post('/challenges', requireAuth, resolveAccount, async (req, res) => {
 router.put('/challenges/:row', requireAuth, resolveAccount, async (req, res) => {
   try {
     const { row } = req.params;
-    const { timeSpent, status, piece, ref, barFrom, barTo, bpm } = req.body;
+    const { timeSpent, status, piece, ref, barFrom, barTo, bpm, priority } = req.body;
 
-    // Editing a task's details (piece/ref/bars/bpm) and logging practise
-    // progress (timeSpent/status) are independent - only touch whichever
-    // half the caller actually sent.
+    // Editing a task's details (piece/ref/bars/bpm), logging practise progress
+    // (timeSpent/status), and reordering (priority, from dragging a task within
+    // a challenge) are independent - only touch whichever ones the caller
+    // actually sent.
     if ([piece, ref, barFrom, barTo, bpm].some(v => v !== undefined)) {
       await pool.query(
         `UPDATE challenge_items ci SET piece_name = $1, ref = $2, bar_from = $3, bar_to = $4, target_bpm = $5
          FROM challenges c
          WHERE ci.challenge_id = c.id AND ci.id = $6 AND c.account_id = $7`,
         [piece || null, ref || null, toIntOrNull(barFrom), toIntOrNull(barTo), toIntOrNull(bpm), row, req.accountId]
+      );
+    }
+
+    if (priority !== undefined) {
+      await pool.query(
+        `UPDATE challenge_items ci SET item_priority = $1 FROM challenges c
+         WHERE ci.challenge_id = c.id AND ci.id = $2 AND c.account_id = $3`,
+        [priority, row, req.accountId]
       );
     }
 

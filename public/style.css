@@ -81,6 +81,12 @@
     .btn-large { background: var(--primary-action); color: var(--primary-action-text); font-size: var(--font-lg); padding: 18px; }
     .btn-submit { background: var(--primary-action); color: var(--primary-action-text); }
     .btn-nav { background: var(--nav-action); color: var(--nav-action-text); }
+
+    .tools-title { margin-top: 0; }
+    .tool-icon-row { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); }
+    .tool-icon-btn { flex: 1 1 0; aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: var(--nav-action); color: var(--nav-action-text); border: none; border-radius: var(--radius-md); cursor: pointer; box-sizing: border-box; padding: var(--space-2); }
+    .tool-icon-btn .material-symbols-outlined { font-size: 32px; }
+    .tool-icon-btn .tool-icon-label { font-size: var(--font-sm); font-weight: bold; }
     .btn-filter { background: var(--selection-color); margin: var(--space-4) 0 var(--space-6) 0; padding: var(--space-3); font-size: var(--font-base); }
 
     .form-group { margin-bottom: var(--space-5); }
@@ -134,6 +140,8 @@
     .h-time-0 { background: var(--heat-time-0); } .h-time-1 { background: var(--heat-time-1); } .h-time-2 { background: var(--heat-time-2); } .h-time-3 { background: var(--heat-time-3); } .h-time-4 { background: var(--heat-time-4); }
     .h-sess-0 { background: var(--heat-sess-0); } .h-sess-1 { background: var(--heat-sess-1); } .h-sess-2 { background: var(--heat-sess-2); } .h-sess-3 { background: var(--heat-sess-3); } .h-sess-4 { background: var(--heat-sess-4); }
     .month-spacer { width: 6px; } .year-spacer { width: 20px; display: flex; align-items: center; justify-content: center; position: relative; } .year-spacer span { transform: rotate(-90deg); font-weight: bold; font-size: 0.8rem; color: var(--text-color); position: absolute; } .month-label { position: absolute; top: -18px; left: 0; font-size: 0.65rem; color: #888; font-weight: bold; white-space: nowrap; }
+    .heatmap-daylabels { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; margin-left: 4px; padding-top: 25px; padding-bottom: 8px; }
+    .heatmap-daylabels span { width: 12px; height: 10px; line-height: 10px; font-size: 0.6rem; font-weight: bold; color: #888; text-align: center; }
     .heatmap-legend { display: flex; justify-content: flex-end; align-items: center; gap: 5px; font-size: 0.75rem; color: #888; margin-bottom: 20px; } .heatmap-legend .heat-cell { width: 10px; height: 10px; pointer-events: none; }
 
     .chart-wrapper { display: flex; height: 190px; width: 100%; position: relative; overflow: hidden; background: transparent; margin-bottom: 10px; }
@@ -227,57 +235,45 @@
     .metro-display { padding: var(--space-4) 0 var(--space-2) 0; }
     /* Viewport clips to the visible width; content is either 100% (fits normally) or a fixed pixel
        width wider than the viewport (too many beats to fit) - see metroTierGeometry in app.js. When
-       wider, JS drives a translateX on the content to keep the baton in view as it plays. */
-    /* Top padding keeps the accent dot's border, which is taller than its row and normally overflows
-       harmlessly into the baton track's own space above it, from being clipped by this element's own
-       overflow:hidden when the baton track is hidden (Conductor beats: Off) and the notes row becomes
-       the flush-top child. */
+       wider, JS drives a translateX on the content to keep the current beat in view as it plays. */
+    /* Top padding keeps the accent dot's border, which is taller than its row, from being clipped by
+       this element's own overflow:hidden. */
     .metro-display-viewport { width: 100%; overflow: hidden; padding-top: var(--space-2); }
     /* Needs its own transform transition so metroScrollFollow's JS-set transitionDuration actually
        animates the scroll - without a transition-property declared here, setting transitionDuration
-       alone does nothing and the scroll teleports instantly to the next beat's centred position while
-       the baton (which does glide, via .metro-baton's own transition) is still travelling there,
-       making the baton appear to lag off-screen until its glide "catches up" to the camera. */
+       alone does nothing and the scroll teleports instantly to the next beat's centred position
+       instead of gliding smoothly along with the beat. */
     .metro-display-content { width: 100%; transition: transform linear; }
-    /* Baton track and every tier row share identical width + padding, and every dot/baton position is
-       derived from the same underlying base-click grid (see metroTierGeometry in app.js) rather than
-       each row spacing its own dots independently - this keeps every row's coordinate system in
-       lockstep so a given beat's dot always sits directly under the baton's landing spot. */
-    .metro-baton-track { position: relative; height: 22px; margin-bottom: var(--space-2); overflow: hidden; }
-    .metro-baton { position: absolute; top: 0; width: 4px; height: 100%; background: var(--primary-action); border-radius: 2px; transform: translateX(-50%); transition: left linear; z-index: 2; }
-    .metro-baton.accent-pulse { background: var(--danger-color); }
-    /* Static marks at every conductor beat's landing spot - always visible, never move, so you can see
-       the whole bar's beat pattern in advance instead of only the baton's next single stop. */
-    .metro-baton-mark { position: absolute; top: 25%; width: 2px; height: 50%; background: var(--label-color); opacity: 0.35; border-radius: 1px; transform: translateX(-50%); z-index: 1; }
 
     .metro-tier { position: relative; height: 24px; margin-bottom: 4px; }
-    .metro-tier-subdivide { height: 16px; }
 
     .metro-dot { position: absolute; top: 50%; border-radius: var(--radius-circle); transform: translate(-50%, -50%); transition: background 0.08s, border-color 0.08s, opacity 0.08s, transform 0.08s; }
 
-    /* The beats-per-bar row is the only note-level row now (no separate conductor row): every note
-       gets a dot, and the subset the conductor actually beats ("conduct") is simply styled bigger/
-       bolder within that same row, with the very first note ("accent", the tick) bolder still. */
+    /* Every base click (beat or subdivision) lives in one row now (ML-66): a note-boundary click gets
+       the larger "note" dot below, everything in between gets the smaller "sub" dot. Only the very
+       first note of the bar is visually accented - every other dot, note or sub, looks (and, per
+       ML-62, sounds) the same, so there's nothing left to tell them apart. */
     .metro-dot-note { width: 15px; height: 15px; background: var(--input-bg); border: 2px solid var(--primary-action); opacity: 0.7; }
-    .metro-dot-note.conduct { width: 22px; height: 22px; opacity: 1; }
-    .metro-dot-note.conduct.accent { border-width: 3px; background: var(--primary-action); }
-    .metro-dot-note.conduct.lit { background: var(--danger-color); border-color: var(--danger-color); transform: translate(-50%, -50%) scale(1.15); }
-    /* A note the conductor doesn't beat still clicks (the quieter "bom"), so it lights up in the same
-       contrasting hue as the subdivision tier rather than the conductor's red. */
-    .metro-dot-note.bom-note.lit { background: var(--selection-color); border-color: var(--selection-color); opacity: 1; transform: translate(-50%, -50%) scale(1.25); }
+    /* Same size as every other note dot now - filled solid gold instead of a bigger circle, so it
+       doesn't need extra layout room to avoid overlapping its neighbours (feedback: the larger first
+       circle only needs to be distinguished, not literally bigger). */
+    .metro-dot-note.accent { background: var(--primary-action); opacity: 1; }
+    .metro-dot-note.lit { background: var(--selection-color); border-color: var(--selection-color); opacity: 1; transform: translate(-50%, -50%) scale(1.25); }
+    .metro-dot-note.accent.lit { background: var(--danger-color); border-color: var(--danger-color); transform: translate(-50%, -50%) scale(1.15); }
 
-    /* Subdivision dots need to read clearly against the row above them, so they use a distinct hue
-       (not a faded version of the gold/red beat colours) rather than relying on opacity alone. */
+    /* Subdivision dots need to read clearly against the note dots around them, so they use a distinct
+       hue (not a faded version of the gold/red beat colours) rather than relying on opacity alone. */
     .metro-dot-sub { width: 10px; height: 10px; background: var(--selection-color); border: 1px solid var(--selection-color); opacity: 0.65; }
     .metro-dot-sub.lit { opacity: 1; transform: translate(-50%, -50%) scale(1.35); }
 
     .metro-bpm-step { width: 44px; height: 44px; flex-shrink: 0; border-radius: var(--radius-circle); border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: 1.4rem; font-weight: bold; cursor: pointer; user-select: none; touch-action: manipulation; }
     .metro-bpm-step:active { background: var(--radio-highlight); color: #fff; border-color: var(--radio-highlight); }
 
-    .metro-beats-3col { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); }
+    .metro-beats-2col { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); }
     .metro-beats-col { flex: 1; text-align: center; }
     .metro-col-label { font-size: var(--font-sm); font-weight: bold; color: var(--label-color); margin-bottom: var(--space-2); }
     .metro-col-btn { width: 100%; padding: var(--space-3) var(--space-1); border: none; border-radius: var(--radius-md); background: var(--nav-action); color: var(--nav-action-text); font-weight: bold; font-size: var(--font-md); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; }
+    .metro-col-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .metro-col-btn-icon { font-size: 18px; }
 
     .metro-beats-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
@@ -324,6 +320,22 @@
     .timer-mini-controls { display: flex; gap: var(--space-2); }
     .timer-mini-btn { width: 32px; height: 32px; border: none; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; background: var(--nav-action); color: var(--nav-action-text); }
     .timer-mini-btn .material-symbols-outlined { font-size: 18px; }
+
+    /* Minimised metronome bar (ML-64) - same sticky slot as the timer bar above, shown whenever the
+       metronome has been played/paused (not stopped) and the Metronome screen itself isn't on-screen.
+       Unlike the timer's flush full-width bar, this is its own contained "box" with rounded corners
+       and a small margin, per the design - two lines: the beat circles, then a row of quick controls. */
+    .metro-mini-bar { width: calc(100% - 30px); max-width: 470px; box-sizing: border-box; background: var(--secondary-color); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin: 0 0 var(--space-3) 0; }
+    /* Same viewport/scroll-content split as the full view's .metro-display-viewport/-content, so the
+       mini bar's row can pan too once there are too many beats to fit its (much narrower) box (ML-64
+       feedback: it needs to pan just like the full view, not just cram everything in). */
+    .metro-mini-viewport { width: 100%; overflow: hidden; padding-top: var(--space-2); margin-bottom: var(--space-1); }
+    .metro-mini-content { width: 100%; transition: transform linear; }
+    .metro-mini-dots { margin-bottom: 0; }
+    .metro-mini-controls { display: flex; align-items: center; gap: var(--space-2); }
+    .metro-mini-ctrl-btn { flex: 1 1 0; min-width: 0; background: var(--nav-action); color: var(--nav-action-text); border: none; border-radius: var(--radius-sm); padding: 6px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+    .metro-mini-ctrl-btn strong { font-size: var(--font-base); }
+    .metro-mini-ctrl-unit { font-size: 0.6rem; opacity: 0.8; white-space: nowrap; }
 
     /* Layout utilities for the small set of repeated static inline-style patterns */
     .flex-row { display: flex; }

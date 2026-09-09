@@ -78,6 +78,24 @@
             <button class="timer-mini-btn" id="timerMiniCloseBtn" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
         </div>
     </div>
+
+    <!-- Minimised metronome (ML-64): shown whenever the metronome has been played/paused (not
+         stopped) and the Metronome screen itself isn't the active view - mirrors the timer mini bar
+         above, but two lines: the beat circles, then a row of quick controls. -->
+    <div id="metroMiniBar" class="metro-mini-bar hidden-group">
+        <div class="metro-mini-viewport" id="metroMiniViewport">
+            <div class="metro-mini-content" id="metroMiniContent">
+                <div class="metro-tier metro-mini-dots" id="metroMiniDots"></div>
+            </div>
+        </div>
+        <div class="metro-mini-controls">
+            <button class="metro-mini-ctrl-btn" id="metroMiniBeatsBtn"><strong id="metroMiniBeatsLbl">4</strong><span class="metro-mini-ctrl-unit">/ bar</span></button>
+            <button class="metro-mini-ctrl-btn" id="metroMiniSubdivideBtn"><strong id="metroMiniSubdivideLbl">Off</strong><span class="metro-mini-ctrl-unit">/ beat</span></button>
+            <button class="metro-mini-ctrl-btn" id="metroMiniBpmBtn"><strong id="metroMiniBpmLbl">120</strong><span class="metro-mini-ctrl-unit">bpm</span></button>
+            <button class="metro-mini-ctrl-btn" id="metroMiniSpeedBtn"><strong id="metroMiniSpeedLbl">100</strong><span class="metro-mini-ctrl-unit">%</span></button>
+            <button class="timer-mini-btn" id="metroMiniPlayBtn" aria-label="Pause"><span class="material-symbols-outlined" id="metroMiniPlayIcon">pause</span></button>
+        </div>
+    </div>
 </div>
 
 <div class="container">
@@ -85,9 +103,22 @@
     <div id="mainView">
         <button class="btn-large" onclick="switchView('challengeSelectView')">Start a challenge</button>
         <button class="btn-submit" onclick="switchView('entryForm')">Add session time</button>
-        <button class="btn-nav" onclick="switchView('metronomeView')">Metronome</button>
-        <button class="btn-nav" onclick="switchView('tunerView')">Tuner</button>
-        <button class="btn-nav" onclick="switchView('timerView')" style="margin-bottom: 25px;">Timer</button>
+
+        <div class="section-title tools-title">Tools</div>
+        <div class="tool-icon-row">
+            <button class="tool-icon-btn" onclick="switchView('metronomeView')" aria-label="Metronome">
+                <span class="material-symbols-outlined">graphic_eq</span>
+                <span class="tool-icon-label">Metronome</span>
+            </button>
+            <button class="tool-icon-btn" onclick="switchView('tunerView')" aria-label="Tuner">
+                <span class="material-symbols-outlined">tune</span>
+                <span class="tool-icon-label">Tuner</span>
+            </button>
+            <button class="tool-icon-btn" onclick="switchView('timerView')" aria-label="Timer">
+                <span class="material-symbols-outlined">timer</span>
+                <span class="tool-icon-label">Timer</span>
+            </button>
+        </div>
 
         <div class="dashboard-grid">
             <div class="stat-card clickable" onclick="switchView('statsView')"><div class="label">Total time</div><div class="value" id="mainTotalTime">Loading...</div></div>
@@ -138,7 +169,7 @@
         <button class="btn-filter" id="filterStatsBtn" onclick="document.getElementById('filterModal').style.display='flex'">Filter stats (All)</button>
 
         <div class="section-title">Daily time</div>
-        <div class="scroll-wrapper heatmap-scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="heatmap-wrapper"><div class="heatmap-container" id="timeHeatmap"></div></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
+        <div class="scroll-wrapper heatmap-scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="heatmap-wrapper"><div class="heatmap-container" id="timeHeatmap"></div></div><div class="heatmap-daylabels"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
         <div class="heatmap-legend"><span>Less</span><div class="heat-cell h-time-0"></div><div class="heat-cell h-time-1"></div><div class="heat-cell h-time-2"></div><div class="heat-cell h-time-3"></div><div class="heat-cell h-time-4"></div><span>More</span></div>
 
         <div class="section-title">Total hours per month</div>
@@ -148,7 +179,7 @@
         <div class="scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="chart-wrapper" id="chartDays"></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
 
         <div class="section-title">Daily session count</div>
-        <div class="scroll-wrapper heatmap-scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="heatmap-wrapper"><div class="heatmap-container" id="sessHeatmap"></div></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
+        <div class="scroll-wrapper heatmap-scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="heatmap-wrapper"><div class="heatmap-container" id="sessHeatmap"></div></div><div class="heatmap-daylabels"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
         <div class="heatmap-legend"><span>Less</span><div class="heat-cell h-sess-0"></div><div class="heat-cell h-sess-1"></div><div class="heat-cell h-sess-2"></div><div class="heat-cell h-sess-3"></div><div class="heat-cell h-sess-4"></div><span>More</span></div>
 
         <div class="section-title">Monthly session count</div>
@@ -317,11 +348,7 @@
         <div class="metro-display">
             <div class="metro-display-viewport" id="metroDisplayViewport">
                 <div class="metro-display-content" id="metroDisplayContent">
-                    <div class="metro-baton-track" id="metroBatonTrack">
-                        <div class="metro-baton" id="metroBaton"></div>
-                    </div>
                     <div class="metro-tier metro-tier-notes" id="metroNotesRow"></div>
-                    <div class="metro-tier metro-tier-subdivide" id="metroSubdivideRow"></div>
                 </div>
             </div>
         </div>
@@ -332,14 +359,10 @@
         </div>
 
         <div class="section-title">Beats</div>
-        <div class="metro-beats-3col">
+        <div class="metro-beats-2col">
             <div class="metro-beats-col">
                 <div class="metro-col-label">Beats per bar</div>
                 <button class="metro-col-btn" id="metroBeatsBtn"><strong id="metroBeatsPerBarLbl">4</strong></button>
-            </div>
-            <div class="metro-beats-col">
-                <div class="metro-col-label">Conductor beats</div>
-                <button class="metro-col-btn" id="metroConductInBtn"><span class="material-symbols-outlined metro-col-btn-icon" id="metroConductInLinkIcon">link</span><strong id="metroConductInLbl">4</strong></button>
             </div>
             <div class="metro-beats-col">
                 <div class="metro-col-label">Subdivide</div>
@@ -607,21 +630,6 @@
     </div>
 </div>
 
-<div class="modal" id="metroConductInModal">
-    <div class="modal-content">
-        <h2>Conductor beats</h2>
-        <div class="metro-beats-options" id="metroConductInOptions"></div>
-        <div class="metro-picker-custom hidden-group" id="metroConductInCustomEntry">
-            <button class="metro-bpm-step" data-step="-1" aria-label="Decrease">&minus;</button>
-            <div class="metro-picker-custom-value" id="metroConductInCustomValue">4</div>
-            <button class="metro-bpm-step" data-step="1" aria-label="Increase">+</button>
-        </div>
-        <div class="flex-row gap-md" style="margin-top:15px;">
-            <button class="btn-cancel btn-nav no-margin" id="metroConductInCancelBtn">Cancel</button>
-            <button class="btn-submit no-margin" id="metroConductInSaveBtn">Save</button>
-        </div>
-    </div>
-</div>
 
 <div class="modal" id="metroSubdivideModal">
     <div class="modal-content">
@@ -677,6 +685,46 @@
             <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('metroMusicModal').style.display='none'">Cancel</button>
             <button class="btn-submit no-margin" id="metroApplyMusicBtn">Apply</button>
         </div>
+    </div>
+</div>
+
+<!-- Compact popups opened from the persistent mini metronome bar (ML-64) - the same target-speed
+     and playback-speed controls as the full Metronome view, just reachable without leaving whatever
+     view the mini bar is currently floating over. -->
+<div class="modal" id="metroMiniBpmModal">
+    <div class="modal-content">
+        <h2>Beats per minute</h2>
+        <div class="metro-speed-row">
+            <button class="metro-bpm-step" id="metroMiniBpmMinus" aria-label="Decrease beats per minute">&minus;</button>
+            <div class="metro-speed-readout">
+                <div id="metroMiniBpmModalValue">120</div>
+                <div class="metro-speed-sub">bpm</div>
+            </div>
+            <button class="metro-bpm-step" id="metroMiniBpmPlus" aria-label="Increase beats per minute">+</button>
+        </div>
+        <div class="slider-wrap">
+            <div class="slider-track" id="metroMiniBpmSliderTrack">
+                <div class="slider-fill" id="metroMiniBpmSliderFill"></div>
+                <div class="slider-thumb" id="metroMiniBpmSliderThumb" tabindex="0" role="slider" aria-label="Beats per minute" aria-valuemin="15" aria-valuemax="500" aria-valuenow="120"></div>
+            </div>
+            <div class="slider-scale"><span>15</span><span id="metroMiniBpmSliderMaxLbl">200</span></div>
+        </div>
+        <button class="btn-submit no-margin" onclick="document.getElementById('metroMiniBpmModal').style.display='none'">Done</button>
+    </div>
+</div>
+
+<div class="modal" id="metroMiniSpeedModal">
+    <div class="modal-content">
+        <h2>Playback speed</h2>
+        <div class="metro-speed-row">
+            <button class="metro-speed-btn" id="metroMiniSpeedMinus" aria-label="Slower">&minus;</button>
+            <div class="metro-speed-readout">
+                <div id="metroMiniSpeedModalPct">100%</div>
+                <div class="metro-speed-sub" id="metroMiniSpeedModalBpm">120 bpm</div>
+            </div>
+            <button class="metro-speed-btn" id="metroMiniSpeedPlus" aria-label="Faster">+</button>
+        </div>
+        <button class="btn-submit no-margin" onclick="document.getElementById('metroMiniSpeedModal').style.display='none'">Done</button>
     </div>
 </div>
 
