@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.7.0",
+    "date": "2026-09-09",
+    "changes": [
+      {
+        "key": "ML-50",
+        "type": "New",
+        "summary": "Shrink Google OAuth scope now that Sheets isn't used"
+      }
+    ]
+  },
+  {
     "version": "0.6.0",
     "date": "2026-09-09",
     "changes": [
