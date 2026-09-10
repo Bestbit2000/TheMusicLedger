@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.10.0",
+    "date": "2026-09-10",
+    "changes": [
+      {
+        "key": "ML-35",
+        "type": "New",
+        "summary": "Create multi-bar metronome"
+      }
+    ]
+  },
+  {
     "version": "0.9.0",
     "date": "2026-09-09",
     "changes": [
