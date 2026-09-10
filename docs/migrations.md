@@ -55,6 +55,11 @@ later table exists. Each file has a comment marking where this happens.
 | `013_test_run_results_notes.sql` | test_run_results.root_cause_analysis renamed to notes (ML-26 admin panel needs "action taken", broader than just RCA) |
 | `014_features_catalog.sql` | Broadens `features` from an ML-29 test-case pointer into the app-wide feature catalog behind the admin panel's Features list (ML-26); seeds it with everything currently live |
 | `015_test_case_features.sql` | Replaces `test_cases.feature_id` (single FK) with a `test_case_features` join table, so one test case can cover more than one feature |
+| `016_timer_feature_fix.sql` | Fixes a missing Timer row in `features` on fresh environments |
+| `017_multibar_metronome.sql` | Adds `time_signature_options` (system catalog) and `account_time_signatures` (private custom), points `metronome_segments` at exactly one via FK instead of a free-text `time_signature` column, adds `metronome_segments.is_lead_in` (ML-35, ad-hoc/standalone scope only) |
+| `018_metronome_setup_saved_at.sql` | Adds `adhoc_metronome_setups.saved_at` (nullable) - NULL means an unnamed scratch setup, not yet shown in the setups list; set means the user pressed "Save for later" |
+| `019_timesig_extras.sql` | Adds `3/2` to the public time signature catalog; adds `account_time_signatures.active` (a custom signature still referenced by existing blocks is archived rather than deleted) |
+| `020_more_time_signatures.sql` | Rounds out the public catalog with 5/8, 7/8, 4/2, 7/4, 10/8, 11/8, 1/4, 1/8, 3/16, 5/16, 7/16 - common asymmetric/irregular meters in concert/brass band repertoire |
 
 ## Decisions made translating the design doc into SQL
 
@@ -69,6 +74,16 @@ nothing has been run anywhere yet, so nothing is costly to revisit:
   each having two nullable owner columns) are enforced with a `CHECK` constraint
   that counts how many of the two are non-null, rather than relying on
   application code to get it right.
+- **A system catalog and its private/custom counterpart are separate tables, not
+  one table with a nullable owner column.** `time_signature_options` (system,
+  no owner, migration-seeded only) and `account_time_signatures` (private,
+  `account_id NOT NULL`) are the first case of this (`017_multibar_metronome.sql`);
+  the referencing table (`metronome_segments`) points at exactly one via the same
+  "exactly one" `CHECK` pattern as ownership. Chosen over mixing rows in one table
+  specifically so a migration can always safely add/edit catalog rows and release
+  to production without any chance of colliding with a user's private row. Follow
+  this pattern for any future meta table that might grow a private variant
+  (`features` doesn't have one today, so it isn't retrofitted here).
 - **Polymorphic tables have no real foreign key on the polymorphic column.**
   `metronome_run_logs.source_id` (score or adhoc setup) and
   `subscriptions.subscriber_id` (account or band) can't have a single FK

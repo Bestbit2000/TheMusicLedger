@@ -104,11 +104,15 @@
         <h2>Components</h2>
 
         <h3>Buttons</h3>
+        <p class="sg-note">Three levels, used consistently: <strong>1. Primary</strong> (<code>.btn-submit</code>/<code>.btn-large</code>) - filled, the one main action. <strong>2. Secondary/cancel</strong> (<code>.btn-cancel</code>, paired with <code>.btn-nav</code> for sizing) - hollow, same border colour as the primary action next to it, so "the other choice" reads consistently everywhere a Cancel sits beside a Save. <strong>3. Tertiary</strong> (<code>.btn-text</code> / <code>.btn-text-danger</code>) - text only, underlined, no fill or border. For a low-emphasis or destructive action kept deliberately away from a primary button it could be hit by mistake next to (e.g. a block editor's "Delete" moved into its own "Other actions" area below Cancel/Save).</p>
         <div class="sg-component-block">
             <button class="btn-large">.btn-large</button>
             <button class="btn-submit">.btn-submit</button>
             <button class="btn-nav">.btn-nav</button>
+            <button class="btn-cancel btn-nav">.btn-cancel (+ .btn-nav)</button>
             <button class="btn-filter">.btn-filter</button>
+            <button class="btn-text">.btn-text</button>
+            <button class="btn-text btn-text-danger">.btn-text.btn-text-danger</button>
             <div class="sg-inline-demo">
                 <button class="btn-edit">.btn-edit</button>
                 <button class="btn-delete">.btn-delete</button>
@@ -116,6 +120,7 @@
                 <button class="btn-icon-delete"><span class="material-symbols-outlined">delete</span></button>
             </div>
         </div>
+        <p class="sg-note">Touch targets: every interactive element (buttons, icon buttons, steppers, slider thumbs) is at least 48x48px, even where the visible glyph is smaller - a slider thumb's hit area extends past its visible circle via an invisible <code>::before</code> rather than being drawn larger.</p>
 
         <h3>Stat cards</h3>
         <div class="dashboard-grid">
@@ -147,7 +152,7 @@
         <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
 
         <h3>Slider</h3>
-        <p class="sg-note">Draggable track + thumb + fill, with an optional min/max scale caption. Static preview here (drag it live on the Metronome's target-speed or volume controls).</p>
+        <p class="sg-note">Draggable track + thumb + fill, with an optional min/max scale caption. Static preview here (drag it live on the Metronome's target-speed or volume controls). Standard pattern: pair every slider with a numeric readout that's <em>also</em> a tap target - clicking/tapping it swaps in a real number input so a value can be typed directly, not just dragged or stepped to. Wire this with <code>makeSliderReadoutEditable(displayElId, getValue, setValue, opts)</code> in app.js rather than reimplementing it per control.</p>
         <div class="sg-component-block">
             <div class="slider-wrap">
                 <div class="slider-track">

@@ -43,6 +43,7 @@
             <div id="burgerDropdown" class="dropdown-menu">
                 <div class="dropdown-item" onclick="switchView('mainView'); closeMenu();">Home</div>
                 <div class="dropdown-item" onclick="switchView('metronomeView'); closeMenu();">Metronome</div>
+                <div class="dropdown-item" onclick="switchView('metroBuilderView'); closeMenu();">Metronome Blocks</div>
                 <div class="dropdown-item" onclick="switchView('tunerView'); closeMenu();">Tuner</div>
                 <div class="dropdown-item" onclick="switchView('timerView'); closeMenu();">Timer</div>
                 <div class="dropdown-item" onclick="switchView('historyView'); closeMenu();">View session history</div>
@@ -96,6 +97,21 @@
             <button class="timer-mini-btn" id="metroMiniPlayBtn" aria-label="Pause"><span class="material-symbols-outlined" id="metroMiniPlayIcon">pause</span></button>
         </div>
     </div>
+
+    <!-- Minimised metronome blocks (ML-35): same "persist as a box" pattern as the single-bar
+         metronome's mini bar above, but for the block sequence - shows the current block's dots plus
+         a label for which block is playing, since state here isn't flat like the single-bar tool. -->
+    <div id="metroBlocksMiniBar" class="metro-mini-bar hidden-group">
+        <div class="metro-mini-viewport" id="metroBlkMiniViewport">
+            <div class="metro-mini-content" id="metroBlkMiniContent">
+                <div class="metro-tier metro-mini-dots" id="metroBlkMiniDots"></div>
+            </div>
+        </div>
+        <div class="metro-mini-controls">
+            <div class="metro-mini-ctrl-btn" style="flex:3;"><strong id="metroBlkMiniLabel">-</strong></div>
+            <button class="timer-mini-btn" id="metroBlkMiniPlayBtn" aria-label="Pause"><span class="material-symbols-outlined" id="metroBlkMiniPlayIcon">pause</span></button>
+        </div>
+    </div>
 </div>
 
 <div class="container">
@@ -109,6 +125,10 @@
             <button class="tool-icon-btn" onclick="switchView('metronomeView')" aria-label="Metronome">
                 <span class="material-symbols-outlined">graphic_eq</span>
                 <span class="tool-icon-label">Metronome</span>
+            </button>
+            <button class="tool-icon-btn" onclick="switchView('metroBuilderView')" aria-label="Metronome Blocks">
+                <span class="material-symbols-outlined">view_column</span>
+                <span class="tool-icon-label">Blocks</span>
             </button>
             <button class="tool-icon-btn" onclick="switchView('tunerView')" aria-label="Tuner">
                 <span class="material-symbols-outlined">tune</span>
@@ -426,6 +446,70 @@
         <button class="btn-nav" id="metroMusicBtn" style="margin-top:var(--space-2);">Set by score markings</button>
     </div>
 
+    <div id="metroBuilderView" style="display:none;">
+        <div class="metroBlk-rows" id="metroBlkRows">
+            <div class="metroBlk-row metroBlk-row-current">
+                <div class="metroBlk-row-head"><span class="metroBlk-row-mark" id="metroBlkRow0Mark"></span><span class="metroBlk-row-label" id="metroBlkRow0Label"></span></div>
+                <div class="metro-display-viewport" id="metroBlkRow0Viewport">
+                    <div class="metro-display-content" id="metroBlkRow0Content">
+                        <div class="metro-tier" id="metroBlkRow0Dots"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="metroBlk-row metroBlk-row-upcoming">
+                <div class="metroBlk-row-head"><span class="metroBlk-row-mark" id="metroBlkRow1Mark"></span><span class="metroBlk-row-label" id="metroBlkRow1Label"></span></div>
+                <div class="metro-display-viewport" id="metroBlkRow1Viewport">
+                    <div class="metro-display-content" id="metroBlkRow1Content">
+                        <div class="metro-tier" id="metroBlkRow1Dots"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metro-transport-row">
+            <button class="metro-transport-btn metro-play-btn" id="metroBlkPlayBtn" aria-label="Play"><span class="material-symbols-outlined" id="metroBlkPlayIcon">play_arrow</span></button>
+            <button class="metro-transport-btn metro-stop-btn" id="metroBlkResetBtn" aria-label="Reset to start"><span class="material-symbols-outlined">restart_alt</span></button>
+            <div class="metroBlk-speed-control">
+                <button class="metro-speed-btn" id="metroBlkSpeedMinus" aria-label="Slower">&minus;</button>
+                <div class="metroBlk-speed-readout" id="metroBlkSpeedPct">100%</div>
+                <button class="metro-speed-btn" id="metroBlkSpeedPlus" aria-label="Faster">+</button>
+            </div>
+            <button class="metro-mini-ctrl-btn metroBlk-subdivide-btn" id="metroBlkSubdivideBtn"><strong id="metroBlkSubdivideLbl">Off</strong><span class="metro-mini-ctrl-unit hidden-group" id="metroBlkSubdivideUnit">/ beat</span></button>
+        </div>
+
+        <div id="metroBlkMiniTuner" class="metroBlk-mini-tuner">
+            <button type="button" class="modal-close-x" id="metroBlkMiniTunerCloseBtn" aria-label="Close tuner"><span class="material-symbols-outlined">close</span></button>
+            <div class="metroBlk-mini-tuner-row1">
+                <span class="metroBlk-mini-tuner-reading">Concert: <strong id="metroBlkMiniTunerConcertNote">&ndash;</strong></span>
+                <span class="metroBlk-mini-tuner-reading" id="metroBlkMiniTunerInstrumentReading"><span id="metroBlkMiniTunerInstrumentLabel">Bb instrument</span>: <strong id="metroBlkMiniTunerInstrumentNote">&ndash;</strong></span>
+            </div>
+            <div class="metroBlk-mini-tuner-bar-wrap">
+                <div class="metroBlk-mini-tuner-bar-track">
+                    <div class="metroBlk-mini-tuner-bar-zone"></div>
+                    <div class="metroBlk-mini-tuner-bar-center"></div>
+                    <div class="metroBlk-mini-tuner-needle" id="metroBlkMiniTunerNeedle"></div>
+                </div>
+            </div>
+        </div>
+        <div class="metroBlk-setup-header">
+            <button type="button" class="metroBlk-setup-name-btn" id="metroBlkRenameBtn" aria-label="Rename setup">
+                <span class="metroBlk-setup-name" id="metroBlkSetupName">Block setup</span>
+                <span class="material-symbols-outlined metroBlk-setup-name-icon hidden-group" id="metroBlkRenameIcon">edit</span>
+            </button>
+            <div class="metroBlk-header-icons">
+                <button type="button" class="metroBlk-header-icon-btn hidden-group" id="metroBlkSaveBtn" aria-label="Save this setup"><span class="material-symbols-outlined">save</span></button>
+                <button type="button" class="metroBlk-header-icon-btn" id="metroBlkTunerToggleBtn" aria-label="Show tuner"><span class="material-symbols-outlined">tune</span></button>
+            </div>
+        </div>
+        <p class="metro-help-text">Tap a block to edit it, or drag to reorder.</p>
+        <div id="metroBlkLeadInSlot" class="metroBlk-leadin-slot"></div>
+        <div id="metroBlockTiles" class="metroBlk-tile-strip"></div>
+
+        <div class="section-title" style="margin-top:var(--space-6);"><span>Saved setups</span></div>
+        <button class="btn-nav" id="metroBlkAddSetBtn">+ Add new</button>
+        <div id="metroBlkSetupsList">Loading...</div>
+    </div>
+
     <div id="tunerView" style="display:none;">
         <div class="tuner-card" id="tunerCard">
             <div class="tuner-pitch-row">
@@ -588,6 +672,114 @@
         <div style="display:flex; gap:10px; margin-top:10px;">
             <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('itemDetailModal').style.display='none'">Cancel</button>
             <button class="btn-submit no-margin" id="saveItemBtn">Save task</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="metroSegmentModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegmentModal').style.display='none'" aria-label="Close without saving">&times;</button>
+        <h2 id="metroSegmentModalTitle">Edit block</h2>
+        <input type="hidden" id="metroSegEditId">
+        <div class="form-group hidden-group" id="metroSegLeadInKindGroup">
+            <label>Length</label>
+            <div class="radio-group compact">
+                <input type="radio" name="metroSegLeadInKind" id="metroSegLeadInWhole" value="whole" checked>
+                <label for="metroSegLeadInWhole">Whole bar(s)</label>
+                <input type="radio" name="metroSegLeadInKind" id="metroSegLeadInPartial" value="partial">
+                <label for="metroSegLeadInPartial">Partial beats</label>
+            </div>
+        </div>
+
+        <div class="form-group" id="metroSegTimeSigGroup">
+            <label>Time signature</label>
+            <button type="button" class="metro-col-btn" id="metroSegTimeSigBtn"><strong id="metroSegTimeSigBtnLabel">4/4</strong></button>
+        </div>
+
+        <div class="form-group" id="metroSegBpmGroup">
+            <label>Target BPM</label>
+            <div class="metroBlk-note-bpm-row">
+                <button type="button" class="metroBlk-note-select-btn" id="metroSegNoteSelectBtn" aria-label="Note value - tap to change"></button>
+                <span class="metroBlk-note-eq">=</span>
+                <div class="metroBlk-bpm-box">
+                    <div class="metro-speed-row no-margin">
+                        <button class="metro-bpm-step" id="metroSegBpmMinus" type="button" aria-label="Decrease beats per minute">&minus;</button>
+                        <div class="metro-speed-readout">
+                            <div id="metroSegBpmValue">120</div>
+                            <div class="metro-speed-sub">bpm</div>
+                        </div>
+                        <button class="metro-bpm-step" id="metroSegBpmPlus" type="button" aria-label="Increase beats per minute">+</button>
+                    </div>
+                    <div class="slider-wrap no-margin">
+                        <div class="slider-track" id="metroSegBpmSliderTrack">
+                            <div class="slider-fill" id="metroSegBpmSliderFill"></div>
+                            <div class="slider-thumb" id="metroSegBpmSliderThumb" tabindex="0" role="slider" aria-label="Beats per minute" aria-valuemin="15" aria-valuemax="200" aria-valuenow="120"></div>
+                        </div>
+                        <div class="slider-scale"><span>15</span><span id="metroSegBpmSliderMaxLbl">200</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group" id="metroSegBarCountGroup">
+            <label id="metroSegBarCountLabel">Number of bars</label>
+            <div class="metroBlk-bpm-box">
+                <div class="metro-speed-row no-margin">
+                    <button class="metro-bpm-step" id="metroSegBarsMinus" type="button" aria-label="Decrease number of bars">&minus;</button>
+                    <div class="metro-speed-readout">
+                        <div id="metroSegBarCount">1</div>
+                    </div>
+                    <button class="metro-bpm-step" id="metroSegBarsPlus" type="button" aria-label="Increase number of bars">+</button>
+                </div>
+                <div class="slider-wrap no-margin">
+                    <div class="slider-track" id="metroSegBarsSliderTrack">
+                        <div class="slider-fill" id="metroSegBarsSliderFill"></div>
+                        <div class="slider-thumb" id="metroSegBarsSliderThumb" tabindex="0" role="slider" aria-label="Number of bars" aria-valuemin="1" aria-valuemax="50" aria-valuenow="1"></div>
+                    </div>
+                    <div class="slider-scale"><span>1</span><span id="metroSegBarsSliderMaxLbl">50</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="form-group hidden-group" id="metroSegPickupBeatsGroup">
+            <label>Beats to play (of one bar)</label>
+            <input type="number" id="metroSegPickupBeats" min="1">
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('metroSegmentModal').style.display='none'">Cancel</button>
+            <button class="btn-submit no-margin" id="metroSegSaveBtn">Save</button>
+        </div>
+        <div class="hidden-group" id="metroSegOtherActionsSection" style="margin-top:var(--space-4);">
+            <div class="metro-help-text" style="font-weight:bold; margin-bottom:var(--space-1);">Other actions</div>
+            <button type="button" class="btn-text btn-text-danger" id="metroSegDeleteBtn">Delete block</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="metroSegNoteModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegNoteModal').style.display='none'" aria-label="Close">&times;</button>
+        <h2>Note value</h2>
+        <p class="metro-help-text">Which note the bpm below represents - e.g. "&#9834; = 120" as written on a score.</p>
+        <div class="metroBlk-note-picker" id="metroSegNotePicker"></div>
+    </div>
+</div>
+
+<div class="modal" id="metroSegTimeSigModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegTimeSigModal').style.display='none'" aria-label="Close">&times;</button>
+        <h2>Time signature</h2>
+        <div class="metroBlk-timesig-columns" id="metroSegTimeSigColumns"></div>
+        <button type="button" class="metroBlk-timesig-opt metroBlk-timesig-add-custom" id="metroSegTimeSigCustomToggle">Add custom</button>
+        <div class="flex-row gap-md hidden-group" id="metroSegCustomSigInputs" style="margin-top:10px; align-items:flex-end;">
+            <div class="form-group flex-1" style="margin-bottom:0;"><label>Beats</label><input type="number" id="metroSegCustomNumerator" min="1"></div>
+            <div class="form-group flex-1" style="margin-bottom:0;"><label>Beat value</label><input type="number" id="metroSegCustomDenominator" min="1"></div>
+            <button class="btn-nav no-margin" type="button" id="metroSegCustomSigAddBtn" style="width:auto; padding:10px 15px;">Save</button>
+        </div>
+
+        <div class="hidden-group" id="metroSegCustomSigManageSection">
+            <div class="section-title" style="margin-top:var(--space-6);"><span>Your custom time signatures</span></div>
+            <div id="metroSegCustomSigManageList"></div>
         </div>
     </div>
 </div>

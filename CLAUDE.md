@@ -10,10 +10,14 @@ OAuth is still used for login only (`server/config/passport.js`).
 A full relational schema (accounts/bands/tutors, scores with sectioned
 multi-bar metronome data per Jira `ML-35`, practice lists, sessions, scales,
 technique exercises, challenges, and a monetization layer) is applied to all
-three Neon branches (`production`/`sandbox`/`dev`). Only the `sessions` and
-`challenges` areas actually have app code reading/writing them so far — the
-rest of the schema (scores, practice lists, scales, technique, monetization)
-is provisioned but not yet wired up to any endpoint. The full history of the
+three Neon branches (`production`/`sandbox`/`dev`). Beyond `sessions` and
+`challenges`, the ad-hoc multi-bar metronome ("Metronome Blocks" tool,
+`ML-35`) is now wired up too — `adhoc_metronome_setups`/`metronome_segments`
+(ad-hoc only, `parent_score_id` always null) plus `time_signature_options`/
+`account_time_signatures`, behind `/api/metronome/*` and `/api/time-signatures*`
+in `server/routes/api.js`. Score-attached blocks and the rest of the schema
+(scores themselves, practice lists, scales, technique, monetization) are
+still provisioned but not wired up to any endpoint. The full history of the
 Sheets→Postgres cutover (endpoint mapping, decisions, the real data migration)
 is in [`docs/sheets-to-database-cutover.md`](docs/sheets-to-database-cutover.md)
 — **read this before touching `server/routes/api.js` or account/tutor/

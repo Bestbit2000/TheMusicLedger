@@ -47,7 +47,7 @@
         --bg-color: #121212; --container-bg: #1e1e1e;
         --text-color: #e0e0e0; --secondary-color: #2c2c2c;
         --input-bg: #333333; --input-border: #444444;
-        --label-color: #aaa;
+        --label-color: #bbb; /* #aaa read under AA contrast against --input-bg (a lighter grey than the page background secondary text usually sits on) - lightened */
         --warning-color: #ffca28; /* Amber - warning toasts */
         --heat-time-0: #2d333b; --heat-time-1: #0e4429; --heat-time-2: #006d32; --heat-time-3: #26a641; --heat-time-4: #39d353;
         --heat-sess-0: #2d333b; --heat-sess-1: #4a148c; --heat-sess-2: #6a1b9a; --heat-sess-3: #8e24aa; --heat-sess-4: #ab47bc;
@@ -81,6 +81,18 @@
     .btn-large { background: var(--primary-action); color: var(--primary-action-text); font-size: var(--font-lg); padding: 18px; }
     .btn-submit { background: var(--primary-action); color: var(--primary-action-text); }
     .btn-nav { background: var(--nav-action); color: var(--nav-action-text); }
+    /* Design system: three button levels.
+       1. Primary (.btn-submit/.btn-large) - filled, var(--primary-action).
+       2. Secondary/cancel (.btn-cancel, paired with .btn-nav for sizing) - hollow, same border
+          colour as the primary action, so "this is the other choice next to the primary one" reads
+          consistently everywhere a Cancel sits next to a Save/Submit.
+       3. Tertiary (.btn-text / .btn-text-danger) - text only, underlined, no fill or border at all.
+          For a low-emphasis or destructive action that shouldn't sit right next to a primary
+          button where it could be hit by mistake (e.g. Delete moved into its own "Other actions"
+          area below Cancel/Save, not beside them). */
+    .btn-cancel { background: transparent; border: 2px solid var(--primary-action); color: var(--primary-action); }
+    .btn-text { display: block; width: 100%; background: none; border: none; padding: var(--space-3); min-height: 48px; font-size: var(--font-base); font-weight: bold; text-decoration: underline; cursor: pointer; text-align: center; box-sizing: border-box; }
+    .btn-text-danger { color: var(--danger-color); }
 
     .tools-title { margin-top: 0; }
     .tool-icon-row { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); }
@@ -161,11 +173,16 @@
     button.history-item { color: var(--text-color); font: inherit; text-align: left; }
     .text-muted { color: var(--text-color); opacity: 0.6; }
     .history-details { font-size: var(--font-base); flex-grow:1;} .history-details strong { display: block; font-size: 1rem; margin-bottom: 4px; }
-    .btn-edit { background: var(--selection-color); color: #fff; border: none; padding: var(--space-2) var(--space-4); border-radius: var(--radius-xl); font-weight: bold; cursor: pointer; }
-    .btn-delete { background: var(--danger-color); color: #fff; border: none; padding: var(--space-2) var(--space-3); border-radius: var(--radius-xl); font-weight: bold; cursor: pointer; font-size: var(--font-base); }
+    .btn-edit { background: var(--selection-color); color: #fff; border: none; padding: var(--space-2) var(--space-4); min-height: 48px; border-radius: var(--radius-xl); font-weight: bold; cursor: pointer; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
+    .btn-delete { background: var(--danger-color); color: #fff; border: none; padding: var(--space-2) var(--space-3); min-height: 48px; border-radius: var(--radius-xl); font-weight: bold; cursor: pointer; font-size: var(--font-base); box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
     .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; font-size: 20px; line-height: 1; vertical-align: middle; }
-    .btn-icon-edit { background: transparent; color: #fff; border: 2px solid var(--selection-color); width: 36px; height: 36px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .btn-icon-delete { background: var(--danger-color); color: #fff; border: none; width: 36px; height: 36px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    /* 48x48 touch target minimum - was 36x36. */
+    .btn-icon-edit { background: transparent; color: #fff; border: 2px solid var(--selection-color); width: 48px; height: 48px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .btn-icon-delete { background: var(--danger-color); color: #fff; border: none; width: 48px; height: 48px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .btn-icon-copy { background: transparent; color: var(--text-color); border: 2px solid var(--input-border); width: 48px; height: 48px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    /* Deliberate gap so Copy and Delete (a destructive action right next to a harmless one) aren't
+       flush against each other. */
+    .metroBlk-setup-row-actions { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; }
 
     .play-card { background: var(--input-bg); padding: var(--space-6) var(--space-5); border-radius: var(--radius-lg); border: 2px solid var(--primary-action); text-align: center; margin-bottom: var(--space-6); transition: transform 0.22s ease, opacity 0.22s ease; }
     .play-card.slide-out-left, .play-card.slide-in-left { transform: translateX(-40px); opacity: 0; }
@@ -222,11 +239,24 @@
        along a line: the metronome's target-speed and volume controls both use it as-is. */
     .slider-wrap { margin-bottom: var(--space-5); }
     .slider-wrap.no-margin { margin-bottom: 0; }
-    .slider-track { position: relative; height: 8px; border-radius: 4px; background: var(--input-border); margin: 20px var(--space-2) 6px var(--space-2); cursor: pointer; touch-action: none; }
+    /* Bottom margin widened from 6px to 18px - the thumb (26px + 2*3px border, centred on the
+       track) extends ~12px below the track's own bottom edge, which was overlapping the scale
+       numbers directly beneath it at the old 6px gap. */
+    .slider-track { position: relative; height: 8px; border-radius: 4px; background: var(--input-border); margin: 20px var(--space-2) 18px var(--space-2); cursor: pointer; touch-action: none; }
     .slider-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--primary-action); pointer-events: none; }
+    /* Visual size stays 26px (a 48px dot here would look oversized against an 8px track), but the
+       ::before extends the actual clickable/draggable area to the 48x48 touch-target minimum -
+       a click anywhere in that invisible area still targets .slider-thumb itself (pseudo-elements
+       aren't separately addressable), so the existing pointerdown handler needs no changes. */
     .slider-thumb { position: absolute; top: 50%; width: 26px; height: 26px; border-radius: var(--radius-circle); background: var(--primary-action); border: 3px solid var(--container-bg); box-shadow: var(--shadow-md); transform: translate(-50%, -50%); cursor: grab; touch-action: none; }
+    .slider-thumb::before { content: ''; position: absolute; top: 50%; left: 50%; width: 48px; height: 48px; transform: translate(-50%, -50%); }
     .slider-thumb:active { cursor: grabbing; }
     .slider-scale { display: flex; justify-content: space-between; font-size: var(--font-sm); color: var(--label-color); padding: 0 var(--space-2); }
+    /* Design system: a slider's numeric readout is also a tap target - clicking/tapping it swaps
+       in this input so a value can be typed directly instead of only dragging or stepping (see
+       makeSliderReadoutEditable in app.js). Sized to inherit whatever the readout it's replacing
+       looked like, not a fixed style, since readouts appear at several different sizes. */
+    .slider-readout-input { width: 4.5em; text-align: center; font: inherit; font-weight: inherit; color: inherit; padding: 2px 4px; border: 2px solid var(--primary-action); border-radius: var(--radius-sm); background: var(--input-bg); box-sizing: border-box; }
 
     /* Metronome */
     /* A bit more breathing room below every section title than the site-wide default, specifically
@@ -266,7 +296,7 @@
     .metro-dot-sub { width: 10px; height: 10px; background: var(--selection-color); border: 1px solid var(--selection-color); opacity: 0.65; }
     .metro-dot-sub.lit { opacity: 1; transform: translate(-50%, -50%) scale(1.35); }
 
-    .metro-bpm-step { width: 44px; height: 44px; flex-shrink: 0; border-radius: var(--radius-circle); border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: 1.4rem; font-weight: bold; cursor: pointer; user-select: none; touch-action: manipulation; }
+    .metro-bpm-step { width: 48px; height: 48px; flex-shrink: 0; border-radius: var(--radius-circle); border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: 1.4rem; font-weight: bold; cursor: pointer; user-select: none; touch-action: manipulation; }
     .metro-bpm-step:active { background: var(--radio-highlight); color: #fff; border-color: var(--radio-highlight); }
 
     .metro-beats-2col { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); }
@@ -288,7 +318,7 @@
     .metro-advanced-readout { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); font-size: var(--font-base); color: var(--text-color); }
 
     .metro-speed-row { display: flex; align-items: center; justify-content: center; gap: var(--space-5); margin: var(--space-3) 0 var(--space-2) 0; }
-    .metro-speed-btn { width: 44px; height: 44px; border-radius: var(--radius-circle); border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: 1.4rem; font-weight: bold; cursor: pointer; }
+    .metro-speed-btn { width: 48px; height: 48px; border-radius: var(--radius-circle); border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: 1.4rem; font-weight: bold; cursor: pointer; }
     .metro-speed-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .metro-speed-readout { text-align: center; min-width: 90px; }
     .metro-speed-readout > div:first-child { font-size: var(--font-lg); font-weight: bold; }
@@ -318,7 +348,7 @@
     .timer-mini-label { font-weight: normal; color: var(--label-color); margin-right: var(--space-2); }
     .timer-mini-sep { color: var(--label-color); }
     .timer-mini-controls { display: flex; gap: var(--space-2); }
-    .timer-mini-btn { width: 32px; height: 32px; border: none; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; background: var(--nav-action); color: var(--nav-action-text); }
+    .timer-mini-btn { width: 48px; height: 48px; border: none; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; background: var(--nav-action); color: var(--nav-action-text); }
     .timer-mini-btn .material-symbols-outlined { font-size: 18px; }
 
     /* Minimised metronome bar (ML-64) - same sticky slot as the timer bar above, shown whenever the
@@ -333,9 +363,170 @@
     .metro-mini-content { width: 100%; transition: transform linear; }
     .metro-mini-dots { margin-bottom: 0; }
     .metro-mini-controls { display: flex; align-items: center; gap: var(--space-2); }
-    .metro-mini-ctrl-btn { flex: 1 1 0; min-width: 0; background: var(--nav-action); color: var(--nav-action-text); border: none; border-radius: var(--radius-sm); padding: 6px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+    .metro-mini-ctrl-btn { flex: 1 1 0; min-width: 0; min-height: 48px; background: var(--nav-action); color: var(--nav-action-text); border: none; border-radius: var(--radius-sm); padding: 6px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; box-sizing: border-box; }
     .metro-mini-ctrl-btn strong { font-size: var(--font-base); }
     .metro-mini-ctrl-unit { font-size: 0.6rem; opacity: 0.8; white-space: nowrap; }
+
+    /* Metronome Blocks (ML-35) - the multi-bar sequencer tool. Prefixed .metroBlk- throughout,
+       distinct from the single-bar tool's .metro- classes above, even where the shapes are similar,
+       so the two features' styles never get tangled reading either one. */
+    /* The current setup's name - "Block setup" as a placeholder until it's actually been named via
+       "+ Add new set" (the builder always has something loaded, named or not, per ML-35's revised
+       journey). The whole name+icon is one button rather than a separate edit control next to plain
+       text - the name IS the only thing there is to edit, so making it directly clickable removes a
+       redundant target. Disabled (pointer-events:none) while unsaved, since there's nothing to rename
+       yet - "+ Add new set" is what asks for a name in that case. */
+    .metroBlk-setup-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-3); min-height: 48px; }
+    .metroBlk-setup-name-btn { display: flex; align-items: center; gap: var(--space-2); min-height: 48px; background: none; border: none; padding: 0; cursor: pointer; font: inherit; color: inherit; }
+    .metroBlk-setup-name-btn.metroBlk-setup-name-btn-disabled { pointer-events: none; cursor: default; }
+    .metroBlk-setup-name { font-size: var(--font-lg); font-weight: bold; color: var(--text-color); }
+    .metroBlk-setup-name-icon { font-size: 1.2rem; color: var(--label-color); }
+    /* Groups the header's own icon buttons (Save while unsaved, the tuner toggle always) so their
+       spacing follows the design system's gap scale rather than one-off margins. */
+    .metroBlk-header-icons { display: flex; align-items: center; gap: var(--space-2); }
+    .metroBlk-header-icon-btn { width: 48px; height: 48px; min-width: 48px; border-radius: var(--radius-circle); background: var(--nav-action); color: var(--nav-action-text); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+    /* Tuner access from this screen (previously a fully separate, self-contained tool/view) - a
+       small icon toggles a compact 2-line readout that animates in ABOVE the setup-name header
+       rather than navigating away, so you can check tuning without losing your place in the block
+       builder. Shares the same tunerEngine singleton as the full Tuner view (see METRONOME BLOCKS
+       MINI TUNER in app.js), just with its own compact renderer.
+       Collapsed by default (max-height/opacity/padding/border all animate together) rather than
+       display:none, specifically so opening/closing it is a visible slide, not a hard cut - toggled
+       via .metroBlk-mini-tuner-open, not hidden-group. position:relative for .modal-close-x (reused
+       as-is - a generic top-right 48x48 close button, not actually modal-specific despite the name);
+       right padding reserves room for it so it never overlaps the readings. */
+    .metroBlk-mini-tuner { position: relative; box-sizing: border-box; background: var(--input-bg); border: 2px solid var(--primary-action); border-width: 0; border-radius: var(--radius-md); padding: 0 calc(var(--space-4) + 48px) 0 var(--space-4); margin-bottom: 0; max-height: 0; opacity: 0; overflow: hidden; pointer-events: none; transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease, margin-bottom 0.25s ease, border-width 0.25s ease, background 0.15s linear, border-color 0.15s linear; }
+    .metroBlk-mini-tuner.metroBlk-mini-tuner-open { border-width: 2px; padding: var(--space-3) calc(var(--space-4) + 48px) var(--space-3) var(--space-4); margin-bottom: var(--space-3); max-height: 220px; opacity: 1; pointer-events: auto; }
+    .metroBlk-mini-tuner.in-tune { border-color: var(--tuner-in-tune-green); background: rgba(46, 204, 113, 0.28); }
+    /* Centered - the note letters are the key output, matching the centered green in-tune zone below. */
+    .metroBlk-mini-tuner-row1 { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: var(--space-4); margin-bottom: var(--space-2); min-height: 1.6em; line-height: 1.3; }
+    .metroBlk-mini-tuner-reading { font-size: var(--font-md); color: var(--label-color); }
+    .metroBlk-mini-tuner-reading strong { font-size: 1.8rem; font-weight: bold; color: var(--primary-action); font-variant-numeric: tabular-nums; }
+    .metroBlk-mini-tuner-bar-track { position: relative; height: 16px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); overflow: hidden; }
+    .metroBlk-mini-tuner-bar-zone { position: absolute; top: 0; bottom: 0; left: 35%; right: 35%; background: rgba(46, 204, 113, 0.45); }
+    .metroBlk-mini-tuner-bar-center { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--input-border); transform: translateX(-50%); }
+    .metroBlk-mini-tuner-needle { position: absolute; top: 1px; bottom: 1px; left: 50%; width: 4px; border-radius: 2px; background: var(--danger-color); transform: translateX(-50%); transition: left 0.1s linear, background 0.1s linear; }
+    .metroBlk-mini-tuner-needle.in-tune { background: var(--tuner-in-tune-green); }
+    /* Reuses .metro-mini-ctrl-btn's pill look but fixed-width rather than flex:1 (that rule assumes
+       an evenly-filled row of several of these; here it's one button alongside fixed-size circular
+       transport buttons). */
+    .metroBlk-subdivide-btn { flex: 0 0 auto; min-width: 72px; }
+
+    /* A 4-across grid rather than a scrolling row - a setup can hold plenty of blocks, and a single
+       scrolling row would hide most of them off-screen. Grid (not flex-wrap) so the columns stay
+       even regardless of how many tiles end up in the last row. */
+    .metroBlk-tile-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); padding: var(--space-2) 0 var(--space-4) 0; }
+    .metroBlk-tile { min-height: 100px; min-width: 0; background: var(--input-bg); border: 2px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-2); cursor: pointer; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; text-align: center; }
+    .metroBlk-tile.dragging { opacity: 0.5; box-shadow: var(--shadow-lg); }
+    .metroBlk-tile.lead-in { border-color: var(--selection-color); background: rgba(255, 152, 0, 0.12); }
+    .metroBlk-tile-sig { font-size: var(--font-lg); font-weight: bold; }
+    .metroBlk-tile-bpm { font-size: var(--font-sm); color: var(--label-color); }
+    .metroBlk-tile-bars { font-size: var(--font-xs); color: var(--label-color); }
+    .metroBlk-tile-badge { font-size: var(--font-xs); font-weight: bold; color: var(--selection-color); text-transform: uppercase; }
+    .metroBlk-add-tile { min-height: 100px; min-width: 0; background: transparent; border: 2px dashed var(--input-border); border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--label-color); font-size: 2rem; box-sizing: border-box; }
+
+    /* The lead-in sits in its own fixed slot ABOVE the reorderable grid, not as a tile mixed in
+       with it - it's always "whatever plays first", so there's no ordering to get out of sync by
+       dragging things around, and nothing to divide from the rest with a separator line. Full
+       width but shallow (a bar, not a square card) - a narrow square card left the "+ Lead-in"
+       text wrapping onto two lines at the tile's own oversized 2rem font. */
+    .metroBlk-leadin-slot { margin-bottom: var(--space-2); }
+    .metroBlk-leadin-row { width: 100%; min-height: 48px; box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); cursor: pointer; }
+    .metroBlk-leadin-row-add { border: 2px dashed var(--input-border); background: transparent; color: var(--label-color); font-size: var(--font-md); font-weight: bold; }
+    .metroBlk-leadin-row-add .metroBlk-leadin-plus { font-size: 1.5rem; line-height: 1; }
+    .metroBlk-leadin-row-filled { border: 2px solid var(--selection-color); background: rgba(255, 152, 0, 0.12); color: var(--text-color); flex-wrap: wrap; }
+    .metroBlk-leadin-row-filled .metroBlk-tile-badge { flex-shrink: 0; }
+
+    /* Play panel: current block + up to 2 faded upcoming blocks, each boxed as its own card so a
+       run of circles reads as one connected unit rather than loose dots floating on the page. The
+       top box scrolls within itself exactly like the single-bar tool's .metro-display-viewport/
+       -content (reused as-is via the same JS helpers, just against these rows' own element ids). */
+    .metroBlk-row { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
+    .metroBlk-row-upcoming { opacity: 0.45; }
+    .metroBlk-row-head { display: flex; align-items: baseline; gap: var(--space-2); margin-bottom: var(--space-1); font-size: var(--font-sm); color: var(--label-color); font-weight: bold; }
+    /* Reserved for a future rehearsal-mark readout (ML-35) - empty for now, but the layout leaves it
+       room so that later addition doesn't reflow this row. */
+    .metroBlk-row-mark { min-width: 28px; }
+    /* Connects the first dot to the last - inserted as the first child of the dots row so later
+       dots (added after it in DOM order) paint on top without needing an explicit z-index. Its
+       left/right are set in JS from the dots' own already-computed positions (see
+       connectMetroBlkDotsWithTrack), not recalculated here, so it can never drift out of step with
+       where the dots actually are. */
+    .metroBlk-row-track { position: absolute; top: 50%; height: 2px; background: var(--input-border); transform: translateY(-50%); }
+    /* Marks where the line's extra one-slot extension (past the last dot) ends - the loop-back point
+       time still has to pass through before returning to beat 1, not a hard stop. */
+    .metroBlk-row-track-end { position: absolute; top: 50%; width: 2px; height: 14px; background: var(--input-border); transform: translate(-50%, -50%); }
+
+    /* Playback speed +/-, sat next to the transport buttons rather than in its own titled section
+       like the single-bar tool's - this is a quick nudge control, not a primary setting here. */
+    .metroBlk-speed-control { display: flex; align-items: center; gap: var(--space-2); }
+    .metroBlk-speed-readout { min-width: 46px; text-align: center; font-weight: bold; font-variant-numeric: tabular-nums; }
+
+    /* Note-value picker ("Set by note value" in the block editor) - real vector glyphs (drawn in JS,
+       see metroNoteIconSvg) rather than relying on unicode musical symbols, which render as missing-
+       glyph boxes on plenty of systems. `currentColor` on every shape means the button's own `color`
+       (themed already, light/dark alike) is what colours the glyph - no separate light/dark case
+       needed here. */
+    /* Icon-only now (no text label) - the picker modal has room to make the glyphs themselves
+       bigger instead, which reads faster than a row of small icon+text pairs. */
+    .metroBlk-note-picker { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
+    .metroBlk-note-btn { flex: 1; background: var(--input-bg); border: 2px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3) 4px; cursor: pointer; color: var(--text-color); display: flex; align-items: center; justify-content: center; }
+    .metroBlk-note-btn.selected { border-color: var(--primary-action); color: var(--primary-action); background: rgba(212, 175, 55, 0.12); }
+    .metroBlk-note-btn .metroBlk-note-svg { width: 26px; height: 44px; }
+
+    /* The compact "note = bpm" trigger sat directly in the BPM row (Target BPM), replicating the
+       sheet-music "note = 120" marking - tapping it opens .metroBlk-note-picker above in a small
+       modal rather than a native <select>, since a native select can't show the SVG glyph at all.
+       Styled as the same grey "opens a popup" button used elsewhere (.metro-col-btn) instead of
+       the plain input-field grey it had before, so it reads as clickable rather than a static icon. */
+    .metroBlk-note-select-btn { flex-shrink: 0; width: 48px; height: 48px; background: var(--nav-action); color: var(--nav-action-text); border: none; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .metroBlk-note-select-btn svg { width: 18px; height: 32px; }
+    .metroBlk-note-eq { font-size: 1.4rem; font-weight: bold; color: var(--label-color); flex-shrink: 0; }
+    /* note-btn, "=", then the whole stepper+slider grouped together as one boxed unit - reads as
+       "note = (that box)" rather than the note/equals bleeding into loose +/- buttons next to it.
+       center-aligned so the note button/"=" sit level with the middle of that box, not its top. */
+    .metroBlk-note-bpm-row { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 var(--space-2) 0; }
+    .metroBlk-bpm-box { flex: 1; min-width: 0; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3); }
+    /* .slider-thumb's border defaults to var(--container-bg) so it reads as a gap against the
+       page background it normally sits on - inside this box the surrounding surface is
+       var(--input-bg) instead (a shade lighter), so the ring needs to match that here specifically
+       rather than leaving a visible mismatched edge. */
+    .metroBlk-bpm-box .slider-thumb { border-color: var(--input-bg); }
+
+    /* Close [x] in a modal's top-right corner - the standard way to dismiss a pure picker modal
+       (no separate Cancel/Save pair makes sense for one, since picking an option already applies
+       it immediately and closes) without making any change. Most modals in this app still use a
+       Cancel/Save row instead; this is deliberately only for that picker shape. Applies its
+       relative positioning automatically to any modal-content that contains one, rather than
+       needing a new scoped rule added per modal. */
+    .modal-close-x { position: absolute; top: var(--space-3); right: var(--space-3); width: 48px; height: 48px; border-radius: var(--radius-circle); border: none; background: var(--input-bg); color: var(--text-color); font-size: 1.3rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .modal-content:has(.modal-close-x) { position: relative; }
+
+    /* Time signature picker - columns grouped by denominator, numerators increasing down each
+       column. Replaces a native <select> so the trigger can be the same grey "opens a popup"
+       button already used elsewhere (.metro-col-btn, e.g. the single-bar metronome's
+       beats-per-bar/subdivide pickers). Columns flex to fill the available width (fixed-width
+       buttons only when there are enough columns to need the horizontal scroll instead). */
+    .metroBlk-timesig-columns { display: flex; gap: var(--space-4); margin-bottom: var(--space-3); overflow-x: auto; padding-bottom: 2px; }
+    .metroBlk-timesig-col { display: flex; flex-direction: column; gap: var(--space-2); flex: 1 1 0; min-width: 56px; }
+    .metroBlk-timesig-col-head { font-weight: bold; text-align: center; color: var(--label-color); font-size: var(--font-base); margin-bottom: 2px; }
+    .metroBlk-timesig-opt { width: 100%; min-height: 48px; background: var(--input-bg); border: 2px solid var(--input-border); border-radius: var(--radius-sm); padding: var(--space-3) 4px; text-align: center; font-weight: bold; font-size: var(--font-md); cursor: pointer; color: var(--text-color); box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
+    .metroBlk-timesig-opt.selected { border-color: var(--primary-action); background: rgba(212, 175, 55, 0.12); color: var(--primary-action); }
+    .metroBlk-timesig-opt.custom { border-style: dashed; }
+    /* "Add custom" is just another option-shaped button (not the pill-style primary action it
+       used to look like) - it just happens to reveal a follow-up instead of applying directly. */
+    .metroBlk-timesig-add-custom { display: block; width: auto; margin: 0 0 var(--space-2) 0; padding: var(--space-2) var(--space-4); border-style: dashed; }
+
+    .metroBlk-mini-label-readout { font-size: var(--font-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* The unused leading beats of a partial lead-in's bar (see greyOutSkippedDots) - a plain grey
+       outline, not just a dimmed version of the normal dot. Full opacity and a background matching
+       the row card (not transparent) so the connecting track line never shows through it. */
+    /* .metro-dot-note prefixed for specificity - beat 1 of the bar is both "accent" (.metro-dot-note.accent)
+       and, whenever the pickup is shorter than the bar, one of the skipped leading beats, and needs to
+       render as skipped, not accented. */
+    .metro-dot-note.metroBlk-dot-skipped, .metro-dot-sub.metroBlk-dot-skipped { opacity: 1; background: var(--input-bg); border-color: var(--input-border); }
 
     /* Layout utilities for the small set of repeated static inline-style patterns */
     .flex-row { display: flex; }

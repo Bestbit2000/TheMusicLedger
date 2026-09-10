@@ -136,6 +136,30 @@
             deleteGroup: (id) => apiCall(`/api/challenges/group/${id}`, 'DELETE'),
             addItem: (groupId, data) => apiCall(`/api/challenges/group/${groupId}/items`, 'POST', data)
         },
+        metronomeBlocks: {
+            timeSignatures: {
+                list: () => apiCall('/api/time-signatures'),
+                createCustom: (numerator, denominator) => apiCall('/api/time-signatures/custom', 'POST', { numerator, denominator }),
+                listCustomWithUsage: () => apiCall('/api/time-signatures/custom'),
+                archiveCustom: (id) => apiCall(`/api/time-signatures/custom/${id}`, 'PUT', { active: false }),
+                deleteCustom: (id) => apiCall(`/api/time-signatures/custom/${id}`, 'DELETE')
+            },
+            setups: {
+                list: () => apiCall('/api/metronome/setups'),
+                get: (id) => apiCall(`/api/metronome/setups/${id}`),
+                getScratch: () => apiCall('/api/metronome/setups/scratch'),
+                createNamed: (name) => apiCall('/api/metronome/setups/named', 'POST', { name }),
+                duplicate: (id, name) => apiCall(`/api/metronome/setups/${id}/duplicate`, 'POST', { name }),
+                save: (id, name) => apiCall(`/api/metronome/setups/${id}/save`, 'POST', { name }),
+                rename: (id, name) => apiCall(`/api/metronome/setups/${id}`, 'PUT', { name }),
+                delete: (id) => apiCall(`/api/metronome/setups/${id}`, 'DELETE')
+            },
+            segments: {
+                create: (setupId, data) => apiCall(`/api/metronome/setups/${setupId}/segments`, 'POST', data),
+                update: (segId, data) => apiCall(`/api/metronome/segments/${segId}`, 'PUT', data),
+                delete: (segId) => apiCall(`/api/metronome/segments/${segId}`, 'DELETE')
+            }
+        },
         settings: {
             get: () => apiCall('/api/dropdown-options'),
             getListsWithUsage: () => apiCall('/api/settings/lists-with-usage'),
@@ -546,7 +570,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'metronomeView', 'tunerView', 'timerView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'metronomeView', 'metroBuilderView', 'tunerView', 'timerView'];
     let viewStack = ['mainView'];
 
     const viewAliasMap = {
@@ -608,11 +632,31 @@
         // top of the screen") - only the mini-bar's visibility changes, exactly like the timer above.
         updateMetroMiniBarVisibility(viewName);
 
+        if (viewName === 'metroBuilderView') {
+            document.getElementById('topTitle').innerText = 'Metronome Blocks';
+            metroBlkPlayer.prewarm();
+            loadMetroBlkTimeSignatures();
+            loadMetroBlkSetups();
+            if (metroBlkCurrentSetup) {
+                renderMetroBlkSetupHeader();
+                renderMetroBlockTiles(); // also refreshes the play queue/preview above if it's gone stale
+            } else {
+                loadMetroBlkDefaultSetup();
+            }
+        }
+        // Same persistence rule as the single-bar tool's mini bar (ML-64) - only visibility changes.
+        updateMetroBlocksMiniBarVisibility(viewName);
+        // The Metronome Blocks mini tuner is scoped to that one screen (unlike the metronome/timer
+        // mini-bars, it doesn't persist elsewhere) - leaving the builder always closes it.
+        updateMetroBlkMiniTunerVisibility(viewName);
+
         if (viewName === 'tunerView') {
             document.getElementById('topTitle').innerText = 'Tuner';
             startTuner();
         }
-        else { stopTuner(); }
+        // Don't kill the shared tuner engine's mic session just because the builder re-renders itself
+        // (e.g. switching between saved setups) while its own mini tuner is the thing using it.
+        else if (!(viewName === 'metroBuilderView' && metroBlkMiniTunerActive)) { stopTuner(); }
 
         if (viewName === 'timerView') {
             document.getElementById('topTitle').innerText = 'Timer';
@@ -2144,13 +2188,18 @@
             return audioCtx.state === 'suspended' ? audioCtx.resume() : Promise.resolve();
         }
 
+        // A whole octave down while lowPitch is set (Metronome Blocks' lead-in - see setLowPitch)
+        // so it's audibly not "real" beat 1 yet, distinguishable even before you've learned to
+        // listen for the count.
+        let lowPitch = false;
+
         // Only two sounds now (ML-62): a higher-pitched, more emphatic "tick" for the very first note
         // of the bar, and the lower "bom" for every other click, main beat or subdivision alike - a
         // third, in-between "tock" sound for non-first main beats made three near-identical clicks too
         // hard to tell apart. Zero-bar mode never uses "tick" at all (see scheduler below) since there
         // is no bar-start to accent, just an even, unaccented pulse.
         function playClick(kind, time) {
-            const freq = kind === 'tick' ? 1760 : 650;
+            const freq = (kind === 'tick' ? 1760 : 650) * (lowPitch ? 0.5 : 1);
             const peak = kind === 'tick' ? 2.0 : 1.1; // pushed past 0dBFS - the limiter above tames it
             const dur = kind === 'tick' ? 0.035 : 0.045;
             const osc = audioCtx.createOscillator();
@@ -2268,11 +2317,29 @@
                 clearTimeout(schedulerId);
                 clickIndex = 0;
             },
+            // Re-aligns to beat 1 without stopping - the scheduler already does this on its own
+            // whenever the bar "shape" (beatsPerBar*notesPerBeat*subdivisionFactor) changes, but a
+            // caller advancing through a sequence of externally-defined blocks (ML-35's multi-bar
+            // metronome) needs this to fire on every block boundary even when two consecutive blocks
+            // happen to share the same shape - e.g. a partial-bar lead-in followed by a full bar of
+            // the same beat count, where the grid position genuinely needs resetting despite no shape
+            // change being detected.
+            // Also clears lastTotalPerBar so the scheduler's own shape-change detection doesn't fire
+            // on its next tick and stomp this position back to 0 - without this, resuming into a bar
+            // shape that happens to differ from whatever was last scheduled (e.g. Reset jumping back
+            // to a lead-in after the loop's own bars have been playing) silently overrode setBeatIndex
+            // below, so a partial lead-in always audibly started from its own beat 1 regardless of
+            // which beats were actually meant to sound.
+            resetToBarStart() { clickIndex = 0; lastTotalPerBar = null; },
+            // Same idea as resetToBarStart, but to an arbitrary beat within the bar - used to start a
+            // partial lead-in on its actual first beat (the tail end of the bar, not index 0).
+            setBeatIndex(n) { clickIndex = n; lastTotalPerBar = null; },
             isPlaying() { return playing; },
             setConductorBpm(v) { conductorBpm = v; },
             setConductorBeatsPerBar(n) { conductorBeatsPerBar = n; },
             setNotesPerBeat(n) { notesPerBeat = n; },
             setSubdivisionFactor(n) { subdivisionFactor = n; },
+            setLowPitch(v) { lowPitch = v; },
             setSpeedPercent(p) { speedPercent = p; },
             setVolume(v) { volume = v; if (masterGain && !muted) masterGain.gain.value = v; },
             setMuted(m) { muted = m; if (masterGain) masterGain.gain.value = m ? 0 : volume; },
@@ -2819,6 +2886,49 @@
         }
     }
 
+    // Design system: any slider's numeric readout doubles as a tap target - clicking/tapping it
+    // swaps in a real number input (pre-filled, focused, selected) so a value can be typed directly
+    // instead of only dragging or stepping to it. Committing (blur or Enter) calls setValue and
+    // restores the original display element in place; Escape cancels without calling it. Swaps the
+    // SAME element back in (never destroyed, just detached while editing) so nothing else needs to
+    // know the DOM changed - existing render functions keep working via the same id once restored.
+    function makeSliderReadoutEditable(displayElId, getValue, setValue, opts = {}) {
+        const displayEl = document.getElementById(displayElId);
+        if (!displayEl) return;
+        displayEl.style.cursor = 'pointer';
+        displayEl.tabIndex = 0;
+        displayEl.setAttribute('role', 'button');
+        displayEl.setAttribute('aria-label', (opts.label || 'Value') + ', tap to type a number');
+
+        function startEdit() {
+            if (!displayEl.isConnected) return; // already mid-edit
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.className = 'slider-readout-input';
+            input.value = getValue();
+            if (opts.min !== undefined) input.min = opts.min;
+            if (opts.max !== undefined) input.max = opts.max;
+            displayEl.replaceWith(input);
+            input.focus();
+            input.select();
+
+            function restore() { if (input.isConnected) input.replaceWith(displayEl); }
+            input.addEventListener('blur', () => {
+                const val = Number(input.value);
+                restore();
+                if (input.value !== '' && !Number.isNaN(val)) setValue(val);
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+                if (e.key === 'Escape') { e.preventDefault(); input.value = ''; input.blur(); }
+            });
+        }
+        displayEl.addEventListener('click', startEdit);
+        displayEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(); }
+        });
+    }
+
     setupSliderInteraction(document.getElementById('metroSliderTrack'), document.getElementById('metroSliderThumb'), {
         onDragRatio: (ratio) => setMetroNotesBpm(METRO_MIN_BPM + ratio * (metroState.sliderMax - METRO_MIN_BPM), { resetSpeed: true, dragging: true }),
         onArrowStep: (dir) => setMetroNotesBpm(metroState.notesBpm + dir, { resetSpeed: true, dragging: true })
@@ -2828,6 +2938,8 @@
         onDragRatio: (ratio) => setMetroNotesBpm(METRO_MIN_BPM + ratio * (metroState.sliderMax - METRO_MIN_BPM), { resetSpeed: true, dragging: true }),
         onArrowStep: (dir) => setMetroNotesBpm(metroState.notesBpm + dir, { resetSpeed: true, dragging: true })
     });
+    makeSliderReadoutEditable('metroBpmValue', () => metroState.notesBpm, (v) => setMetroNotesBpm(v, { resetSpeed: true }), { label: 'Beats per minute', min: METRO_MIN_BPM, max: METRO_MAX_BPM });
+    makeSliderReadoutEditable('metroMiniBpmModalValue', () => metroState.notesBpm, (v) => setMetroNotesBpm(v, { resetSpeed: true }), { label: 'Beats per minute', min: METRO_MIN_BPM, max: METRO_MAX_BPM });
 
     document.getElementById('metroMiniBpmBtn')?.addEventListener('click', () => {
         renderMetroMiniBpmSlider();
@@ -3070,6 +3182,1244 @@
     setMetroLatencyMs(parseInt(localStorage.getItem(METRO_LATENCY_KEY), 10) || 0);
 
     // ========================================
+    // METRONOME BLOCKS (Jira ML-35) - the multi-bar sequencer tool. Ad-hoc/
+    // standalone only, see docs/database-schema.md "Scores & metronome
+    // segments (Jira ML-35)". A separate tool from the single-bar Metronome
+    // above (not a mode toggle) - reuses that tool's audio engine (a second,
+    // independent createMetronomePlayer() instance) and its generic dot/
+    // scroll helpers (buildMetroDotRow, metroApplyDisplayWidth, flashTierDot,
+    // metroScrollFollow, resetMetroScrollPosition - all already parametrised
+    // by element id, not tied to metroState) rather than rebuilding them.
+    // ========================================
+    function escapeHtml(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    let metroBlkSetups = [];
+    let metroBlkCurrentSetup = null; // { id, name, segments: [...] }, loaded when entering the builder
+    let metroBlkTimeSigCache = { public: [], custom: [] };
+
+    // Sequencing: lead-in segments always play first (metroBlkCurrentSetup.segments is kept in that
+    // order at all times - see normalizeMetroBlkOrder), then the rest loop from metroBlkLoopBackIndex.
+    let metroBlkPlayQueue = [];
+    let metroBlkLoopBackIndex = 0;
+    let metroBlkPlayIndex = 0;
+    let metroBlkBeatsPlayedInBlock = 0;
+    // Conductor beats only (for the "x of y" label) - metroBlkClicksPlayedInBlock below is every
+    // click, main beats and sub-beats alike, and is what actually decides when to advance.
+    let metroBlkClicksPlayedInBlock = 0;
+    // Whether the mini bar should be offered at all - true from the moment the sequence is first
+    // played until Stop is pressed (not just paused), mirroring the single-bar tool's metroMiniActive.
+    let metroBlkMiniActive = false;
+
+    const metroBlkPlayer = createMetronomePlayer();
+
+    // --- Setups list ---
+    async function loadMetroBlkSetups() {
+        const ui = document.getElementById('metroBlkSetupsList');
+        if (ui) ui.innerHTML = 'Loading...';
+        try {
+            metroBlkSetups = await API.metronomeBlocks.setups.list();
+            renderMetroBlkSetupsList();
+        } catch (error) {
+            showWarningToast('Error loading setups: ' + error.message);
+        }
+    }
+
+    // One pass through the sequence (lead-in once, then every loop block once) - not the length of
+    // an actual practice session, which loops indefinitely until stopped.
+    function formatMetroBlkDuration(totalSeconds) {
+        const s = Math.round(totalSeconds);
+        return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    }
+
+    function renderMetroBlkSetupsList() {
+        const ui = document.getElementById('metroBlkSetupsList');
+        if (!ui) return;
+        if (!metroBlkSetups.length) { ui.innerHTML = '<p>No saved setups yet - use "+ Add new" above to create one.</p>'; return; }
+        ui.innerHTML = metroBlkSetups.map(s => `
+            <div class="history-item" style="align-items:center;">
+                <div style="flex-grow:1; cursor:pointer;" onclick="openMetroBlkSetup(${s.id})">
+                    <strong>${escapeHtml(s.name)}</strong>
+                    <div style="font-size:0.85rem; color:#666;">${s.blockCount} block${s.blockCount === 1 ? '' : 's'}${s.hasLeadIn ? ' + lead-in' : ''} &middot; ${formatMetroBlkDuration(s.totalSeconds)}</div>
+                </div>
+                <div class="metroBlk-setup-row-actions">
+                    <button class="btn-icon-copy" aria-label="Copy" onclick="duplicateMetroBlkSetup(${s.id})"><span class="material-symbols-outlined">content_copy</span></button>
+                    <button class="btn-icon-delete" aria-label="Delete" onclick="deleteMetroBlkSetup(${s.id})"><span class="material-symbols-outlined">delete</span></button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // The builder always has something loaded - a real saved setup, or the account's one
+    // scratch (see server-side getOrCreateScratchSetup) seeded with a default 4/4 @ 60bpm
+    // block so the tool is immediately playable with zero naming friction. Every edit from
+    // here on autosaves straight through the existing segment PUT/POST/DELETE calls; the only
+    // "cancel a one-off change" point is the edit-block modal's own Cancel button, which never
+    // calls the API at all.
+    async function loadMetroBlkDefaultSetup() {
+        try {
+            const fresh = await API.metronomeBlocks.setups.getScratch();
+            fresh.segments = await normalizeMetroBlkOrder(fresh.segments);
+            metroBlkCurrentSetup = fresh;
+            renderMetroBlkSetupHeader();
+            renderMetroBlockTiles();
+        } catch (error) {
+            showWarningToast('Error loading setup: ' + error.message);
+        }
+    }
+
+    // "Block setup" placeholder until the setup actually has a name (saveAdhocSetup/
+    // createNamedAdhocSetup are the only things that set savedAt) - the rename button only
+    // makes sense once there's a real name to edit.
+    function renderMetroBlkSetupHeader() {
+        const nameEl = document.getElementById('metroBlkSetupName');
+        const nameBtn = document.getElementById('metroBlkRenameBtn');
+        const icon = document.getElementById('metroBlkRenameIcon');
+        const saveBtn = document.getElementById('metroBlkSaveBtn');
+        if (!nameEl || !metroBlkCurrentSetup) return;
+        const isSaved = !!metroBlkCurrentSetup.savedAt;
+        nameEl.innerText = isSaved ? metroBlkCurrentSetup.name : 'Block setup';
+        nameBtn?.classList.toggle('metroBlk-setup-name-btn-disabled', !isSaved);
+        icon?.classList.toggle('hidden-group', !isSaved);
+        // Save is the only way to keep a scratch's work - it's the mutually exclusive counterpart
+        // to the rename icon (which only makes sense once it's already named).
+        saveBtn?.classList.toggle('hidden-group', isSaved);
+    }
+
+    document.getElementById('metroBlkRenameBtn')?.addEventListener('click', () => {
+        if (metroBlkCurrentSetup) window.renameMetroBlkSetup(metroBlkCurrentSetup.id);
+    });
+
+    // Saves the CURRENT scratch's accumulated blocks under a name, in place - unlike "+ Add new" /
+    // Copy, this doesn't create a fresh setup or touch the blocks at all, it just names and keeps
+    // the one already sitting in the builder (the same saveAdhocSetup step "+ Add new" uses
+    // internally, just triggered directly on what's already here instead of on a brand-new setup).
+    document.getElementById('metroBlkSaveBtn')?.addEventListener('click', () => {
+        if (!metroBlkCurrentSetup) return;
+        showPromptModal('Save this setup', '', async (name) => {
+            if (!name || !name.trim()) return;
+            try {
+                await API.metronomeBlocks.setups.save(metroBlkCurrentSetup.id, name.trim());
+                metroBlkCurrentSetup.name = name.trim();
+                metroBlkCurrentSetup.savedAt = new Date().toISOString();
+                renderMetroBlkSetupHeader();
+                await loadMetroBlkSetups();
+                showSuccessToast('Saved');
+            } catch (error) {
+                showWarningToast('Error: ' + error.message);
+            }
+        });
+    });
+
+    // Asks for the name up front (unlike the old scratch-first flow) because this button's
+    // whole point is adding a setup straight to the saved list, not another invisible scratch.
+    document.getElementById('metroBlkAddSetBtn')?.addEventListener('click', () => {
+        showPromptModal('Name this setup', '', async (name) => {
+            if (!name || !name.trim()) return;
+            try {
+                const created = await API.metronomeBlocks.setups.createNamed(name.trim());
+                created.segments = await normalizeMetroBlkOrder(created.segments);
+                if (metroBlkPlayer.isPlaying()) metroBlkPlayer.pause();
+                metroBlkMiniActive = false;
+                metroBlkCurrentSetup = created;
+                await loadMetroBlkSetups();
+                switchView('metroBuilderView');
+            } catch (error) {
+                showWarningToast('Error: ' + error.message);
+            }
+        });
+    });
+
+    window.renameMetroBlkSetup = function(id) {
+        const setup = metroBlkSetups.find(s => s.id === id);
+        showPromptModal('Rename setup', setup ? setup.name : (metroBlkCurrentSetup?.name || ''), async (name) => {
+            if (!name) return;
+            try {
+                await API.metronomeBlocks.setups.rename(id, name);
+                showSuccessToast('Renamed');
+                await loadMetroBlkSetups();
+                if (metroBlkCurrentSetup && metroBlkCurrentSetup.id === id) {
+                    metroBlkCurrentSetup.name = name;
+                    renderMetroBlkSetupHeader();
+                }
+            } catch (error) {
+                showWarningToast('Error: ' + error.message);
+            }
+        });
+    }
+
+    // "Copy this setup" - a new setup seeded with all of this one's blocks, as a starting point for
+    // a variant. Loads straight into the builder afterwards, same as "+ Add new set".
+    window.duplicateMetroBlkSetup = function(id) {
+        const setup = metroBlkSetups.find(s => s.id === id);
+        showPromptModal('Name the copy', setup ? `${setup.name} copy` : '', async (name) => {
+            if (!name || !name.trim()) return;
+            try {
+                const created = await API.metronomeBlocks.setups.duplicate(id, name.trim());
+                created.segments = await normalizeMetroBlkOrder(created.segments);
+                if (metroBlkPlayer.isPlaying()) metroBlkPlayer.pause();
+                metroBlkMiniActive = false;
+                metroBlkCurrentSetup = created;
+                await loadMetroBlkSetups();
+                switchView('metroBuilderView');
+            } catch (error) {
+                showWarningToast('Error: ' + error.message);
+            }
+        });
+    }
+
+    window.deleteMetroBlkSetup = function(id) {
+        const setup = metroBlkSetups.find(s => s.id === id);
+        showConfirmModal('Delete setup', `Delete "${setup ? setup.name : 'this setup'}" and all its blocks?`, async () => {
+            try {
+                await API.metronomeBlocks.setups.delete(id);
+                showSuccessToast('Setup deleted');
+                await loadMetroBlkSetups();
+                // This was also the setup loaded in the builder above the list - drop it and fall
+                // straight back to the default scratch rather than leaving stale data on screen.
+                if (metroBlkCurrentSetup && metroBlkCurrentSetup.id === id) {
+                    if (metroBlkPlayer.isPlaying()) metroBlkPlayer.pause();
+                    metroBlkMiniActive = false;
+                    metroBlkCurrentSetup = null;
+                    await loadMetroBlkDefaultSetup();
+                }
+            } catch (error) {
+                showWarningToast('Error: ' + error.message);
+            }
+        });
+    }
+
+    window.openMetroBlkSetup = async function(id) {
+        try {
+            const fresh = await API.metronomeBlocks.setups.get(id);
+            fresh.segments = await normalizeMetroBlkOrder(fresh.segments);
+            // Opening a different setup than whatever the player is currently loaded with -
+            // pause it (there's no "stop" any more, see resetMetroBlk) and drop the old mini-bar
+            // state, since it no longer describes anything the user can see here.
+            if (!metroBlkCurrentSetup || metroBlkCurrentSetup.id !== id) {
+                if (metroBlkPlayer.isPlaying()) metroBlkPlayer.pause();
+                metroBlkMiniActive = false;
+            }
+            metroBlkCurrentSetup = fresh;
+            switchView('metroBuilderView');
+            // Selecting a setup from the list moves it to the top of the screen - not obviously a
+            // "load" action on its own, so this confirms it actually happened.
+            showSuccessToast(`Loaded "${fresh.name}"`);
+        } catch (error) {
+            showWarningToast('Error loading setup: ' + error.message);
+        }
+    }
+
+
+    // --- Ordering: lead-in segments always sort before loop segments, whatever the user did while
+    // dragging - this is what makes "lead-ins pinned to the front" true without needing to constrain
+    // the drag gesture itself. Persists any correction needed, then returns the corrected list. ---
+    async function normalizeMetroBlkOrder(segments) {
+        const leadIns = segments.filter(s => s.isLeadIn).sort((a, b) => a.orderIndex - b.orderIndex);
+        const loopBlocks = segments.filter(s => !s.isLeadIn).sort((a, b) => a.orderIndex - b.orderIndex);
+        const ordered = [...leadIns, ...loopBlocks];
+        const updates = ordered
+            .map((s, idx) => (s.orderIndex === idx ? null : API.metronomeBlocks.segments.update(s.id, { orderIndex: idx })))
+            .filter(Boolean);
+        if (updates.length) await Promise.all(updates);
+        return ordered.map((s, idx) => ({ ...s, orderIndex: idx }));
+    }
+
+    async function reloadMetroBlkSetup() {
+        if (!metroBlkCurrentSetup) return;
+        const fresh = await API.metronomeBlocks.setups.get(metroBlkCurrentSetup.id);
+        fresh.segments = await normalizeMetroBlkOrder(fresh.segments);
+        metroBlkCurrentSetup = fresh;
+        renderMetroBlockTiles();
+    }
+
+    // --- Build panel: block tiles ---
+    // `beatsPlayedInBlock` (metroBlkBeatsPlayedInBlock) is only meaningful for whichever block is
+    // actually current - pass it for that one row only, so a repeating block shows "x of y bars"
+    // (or "x of y beats" for a partial lead-in) as it plays; omit it for upcoming-row previews,
+    // which just show the plain total since they haven't started.
+    function metroBlkBlockLabel(block, beatsPlayedInBlock) {
+        const prefix = block.isLeadIn ? 'Lead-in · ' : '';
+        // A lead-in only ever plays once, so an "x of y beats" progress count is meaningless - only
+        // a repeating block's bar count needs that.
+        if (block.pickupBeats) {
+            return `${prefix}${block.timeSignatureLabel} · ${block.bpm} bpm`;
+        }
+        const total = block.barCount;
+        const countStr = beatsPlayedInBlock === undefined
+            ? `${total} bar${total === 1 ? '' : 's'}`
+            : `${Math.min(total, Math.floor(beatsPlayedInBlock / block.numerator) + 1)} of ${total} bar${total === 1 ? '' : 's'}`;
+        return `${prefix}${block.timeSignatureLabel} · ${block.bpm} bpm · ${countStr}`;
+    }
+
+    function metroBlkTileHtml(s) {
+        const countStr = s.pickupBeats
+            ? `${s.pickupBeats} beat${s.pickupBeats === 1 ? '' : 's'}`
+            : `${s.barCount} bar${s.barCount === 1 ? '' : 's'}`;
+        return `<div class="metroBlk-tile${s.isLeadIn ? ' lead-in' : ''}" draggable="true" data-id="${s.id}" onclick="openMetroSegmentModal(${s.id})">
+            ${s.isLeadIn ? '<div class="metroBlk-tile-badge">Lead-in</div>' : ''}
+            <div class="metroBlk-tile-sig">${escapeHtml(s.timeSignatureLabel)}</div>
+            <div class="metroBlk-tile-bpm">${s.bpm} bpm</div>
+            <div class="metroBlk-tile-bars">${countStr}</div>
+        </div>`;
+    }
+
+    // A lead-in no longer carries its own time signature/bpm (ML-35 follow-up - see the note on
+    // openMetroLeadInModal) - it always inherits them from whichever segment is currently the
+    // first regular (non-lead-in) block. Resolves that "effective" view for display/playback;
+    // everything else about the lead-in (isLeadIn, barCount/pickupBeats) is unchanged. `segments`
+    // is whichever array is authoritative for the caller's context - metroBlkCurrentSetup.segments
+    // for the builder, metroBlkPlayQueue during playback.
+    function metroBlkEffectiveBlock(block, segments) {
+        if (!block || !block.isLeadIn) return block;
+        const firstRegular = segments.find(s => !s.isLeadIn);
+        if (!firstRegular) return block;
+        return { ...block, bpm: firstRegular.bpm, numerator: firstRegular.numerator, denominator: firstRegular.denominator, timeSignatureLabel: firstRegular.timeSignatureLabel };
+    }
+
+    // The lead-in (at most one - see openMetroLeadInModal) lives in its own fixed slot, not mixed
+    // into the reorderable grid below - see the ML-35 follow-up note there for why. It shows the
+    // time signature/bpm it's actually inheriting from the first regular block (metroBlkEffectiveBlock),
+    // even though those fields aren't independently editable on it any more.
+    function metroBlkLeadInSlotHtml(leadIn) {
+        if (!leadIn) {
+            return `<button type="button" class="metroBlk-leadin-row metroBlk-leadin-row-add" aria-label="Add lead-in" onclick="openMetroLeadInModal()">
+                <span class="metroBlk-leadin-plus">+</span><span>Lead-in</span>
+            </button>`;
+        }
+        const eff = metroBlkEffectiveBlock(leadIn, metroBlkCurrentSetup.segments);
+        const countStr = leadIn.pickupBeats
+            ? `${leadIn.pickupBeats} beat${leadIn.pickupBeats === 1 ? '' : 's'}`
+            : `${leadIn.barCount} bar${leadIn.barCount === 1 ? '' : 's'}`;
+        return `<div class="metroBlk-leadin-row metroBlk-leadin-row-filled" onclick="openMetroLeadInModal(${leadIn.id})">
+            <span class="metroBlk-tile-badge">Lead-in</span>
+            <strong>${escapeHtml(eff.timeSignatureLabel)}</strong>
+            <span>${eff.bpm} bpm</span>
+            <span>${countStr}</span>
+        </div>`;
+    }
+
+    function renderMetroBlockTiles() {
+        const ui = document.getElementById('metroBlockTiles');
+        const leadInSlot = document.getElementById('metroBlkLeadInSlot');
+        if (!ui || !metroBlkCurrentSetup) return;
+        const segs = metroBlkCurrentSetup.segments;
+        const leadIn = segs.find(s => s.isLeadIn) || null;
+        const loopBlocks = segs.filter(s => !s.isLeadIn);
+
+        if (leadInSlot) leadInSlot.innerHTML = metroBlkLeadInSlotHtml(leadIn);
+        ui.innerHTML = loopBlocks.map(metroBlkTileHtml).join('') +
+            '<button class="metroBlk-add-tile" aria-label="Add block" onclick="openMetroSegmentModal()">+</button>';
+
+        setupMetroBlkDragAndDrop(ui);
+        // Keeps the play queue (and the "now + upcoming" preview above) in step with every edit,
+        // not just the next time Play is pressed - the whole point of putting the player above the
+        // builder is that it reflects the blocks below immediately.
+        refreshMetroBlkQueueIfStale();
+    }
+
+    // Only ever touches regular (non-lead-in) tiles now - the lead-in lives outside this
+    // container entirely, so there's no zone-mixing to reconcile any more.
+    function setupMetroBlkDragAndDrop(container) {
+        let draggedEl = null;
+        container.querySelectorAll('.metroBlk-tile').forEach(tile => {
+            tile.addEventListener('dragstart', (e) => {
+                draggedEl = tile;
+                tile.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            tile.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (tile !== draggedEl) container.insertBefore(draggedEl, tile);
+            });
+            tile.addEventListener('dragend', () => {
+                if (!draggedEl) return;
+                draggedEl.classList.remove('dragging');
+                draggedEl = null;
+                persistMetroBlkOrderFromDom(container);
+            });
+        });
+    }
+
+    async function persistMetroBlkOrderFromDom(container) {
+        const ids = Array.from(container.querySelectorAll('.metroBlk-tile')).map(el => Number(el.dataset.id));
+        const byId = new Map(metroBlkCurrentSetup.segments.map(s => [s.id, s]));
+        try {
+            await Promise.all(ids.map((id, idx) => {
+                const current = byId.get(id);
+                return current && current.orderIndex === idx ? null : API.metronomeBlocks.segments.update(id, { orderIndex: idx });
+            }).filter(Boolean));
+            await reloadMetroBlkSetup();
+        } catch (error) {
+            showWarningToast('Error updating order: ' + error.message);
+            renderMetroBlockTiles();
+        }
+    }
+
+    // --- Segment (block) edit modal ---
+    // Whether the modal is currently editing THE lead-in (opened via openMetroLeadInModal) rather
+    // than a regular block (openMetroSegmentModal) - controls which field groups show at all, see
+    // syncMetroSegFieldVisibility.
+    let metroSegEditingLeadIn = false;
+    // "public:<id>" / "custom:<id>" of whichever time signature is currently chosen - the source of
+    // truth now that the picker is a popup rather than a native <select> with its own .value.
+    let metroSegTimeSigValue = null;
+
+    function metroSegTimeSigLabelFor(value) {
+        if (!value) return '';
+        const [type, id] = value.split(':');
+        const list = type === 'public' ? metroBlkTimeSigCache.public : metroBlkTimeSigCache.custom;
+        const found = list.find(t => t.id === Number(id));
+        return found ? found.label : '';
+    }
+    function renderMetroSegTimeSigBtn() {
+        const el = document.getElementById('metroSegTimeSigBtnLabel');
+        if (el) el.innerText = metroSegTimeSigLabelFor(metroSegTimeSigValue) || 'Choose…';
+    }
+    // Columns grouped by denominator, numerators increasing down each column (whatever's actually
+    // in the catalog - not assumed to be a complete 1..N run). Custom signatures slot into the same
+    // column as any public one sharing their denominator, tagged with the dashed .custom style.
+    function renderMetroSegTimeSigPicker() {
+        const el = document.getElementById('metroSegTimeSigColumns');
+        if (!el) return;
+        const all = [
+            ...metroBlkTimeSigCache.public.map(t => ({ value: `public:${t.id}`, numerator: t.numerator, denominator: t.denominator, isCustom: false })),
+            ...metroBlkTimeSigCache.custom.map(t => ({ value: `custom:${t.id}`, numerator: t.numerator, denominator: t.denominator, isCustom: true }))
+        ];
+        const byDenom = {};
+        all.forEach(t => { (byDenom[t.denominator] = byDenom[t.denominator] || []).push(t); });
+        const denoms = Object.keys(byDenom).map(Number).sort((a, b) => a - b);
+        el.innerHTML = denoms.map(d => {
+            const opts = byDenom[d].sort((a, b) => a.numerator - b.numerator);
+            return `<div class="metroBlk-timesig-col">
+                <div class="metroBlk-timesig-col-head">/${d}</div>
+                ${opts.map(o => `<button type="button" class="metroBlk-timesig-opt${o.isCustom ? ' custom' : ''}${o.value === metroSegTimeSigValue ? ' selected' : ''}" data-value="${o.value}">${o.numerator}</button>`).join('')}
+            </div>`;
+        }).join('');
+        el.querySelectorAll('.metroBlk-timesig-opt').forEach(btn => {
+            btn.addEventListener('click', () => selectMetroSegTimeSig(btn.dataset.value));
+        });
+    }
+    // Picking a real signature applies immediately and closes, same as the note-value picker - no
+    // separate "apply" step. The [x] is the only way to close without changing anything.
+    function selectMetroSegTimeSig(value) {
+        metroSegTimeSigValue = value;
+        renderMetroSegTimeSigBtn();
+        refreshMetroSegBpmDisplay();
+        document.getElementById('metroSegTimeSigModal').style.display = 'none';
+    }
+    document.getElementById('metroSegTimeSigBtn')?.addEventListener('click', () => {
+        renderMetroSegTimeSigPicker();
+        document.getElementById('metroSegCustomSigInputs').classList.add('hidden-group');
+        renderMetroSegCustomSigManageList();
+        document.getElementById('metroSegTimeSigModal').style.display = 'flex';
+    });
+    document.getElementById('metroSegTimeSigCustomToggle')?.addEventListener('click', () => {
+        document.getElementById('metroSegCustomSigInputs').classList.toggle('hidden-group');
+    });
+
+    // "Your custom time signatures" - every one the account has, active or archived, with how many
+    // blocks (across every setup) actually use it. Zero usage -> can delete outright; still in use
+    // -> archive instead (stays valid for whatever already references it, just stops being offered
+    // for a new block). Only shown at all once there's at least one.
+    async function renderMetroSegCustomSigManageList() {
+        const section = document.getElementById('metroSegCustomSigManageSection');
+        const list = document.getElementById('metroSegCustomSigManageList');
+        if (!section || !list) return;
+        try {
+            const custom = await API.metronomeBlocks.timeSignatures.listCustomWithUsage();
+            section.classList.toggle('hidden-group', !custom.length);
+            list.innerHTML = custom.map(t => {
+                const usageText = t.usageCount === 0 ? 'Not used' : `Used in ${t.usageCount} block${t.usageCount === 1 ? '' : 's'}`;
+                const archivedTag = t.active ? '' : ' &middot; archived';
+                let actionHtml = '';
+                if (t.usageCount === 0) {
+                    actionHtml = `<button class="btn-icon-delete" aria-label="Delete ${escapeHtml(t.label)}" onclick="deleteMetroSegCustomTimeSig(${t.id})"><span class="material-symbols-outlined">delete</span></button>`;
+                } else if (t.active) {
+                    actionHtml = `<button class="btn-edit" style="width:auto; padding:6px 12px;" onclick="archiveMetroSegCustomTimeSig(${t.id})">Archive</button>`;
+                }
+                return `<div class="history-item" style="align-items:center;">
+                    <div style="flex-grow:1;"><strong>${escapeHtml(t.label)}</strong>${archivedTag}<div style="font-size:0.85rem; color:#888;">${usageText}</div></div>
+                    ${actionHtml}
+                </div>`;
+            }).join('');
+        } catch (error) {
+            showWarningToast('Error loading custom time signatures: ' + error.message);
+        }
+    }
+
+    async function refreshMetroSegTimeSigEverywhere() {
+        await loadMetroBlkTimeSignatures();
+        renderMetroSegTimeSigPicker();
+        renderMetroSegCustomSigManageList();
+    }
+
+    window.deleteMetroSegCustomTimeSig = function(id) {
+        showConfirmModal('Delete time signature', 'Delete this custom time signature?', async () => {
+            try {
+                await API.metronomeBlocks.timeSignatures.deleteCustom(id);
+                showSuccessToast('Deleted');
+                await refreshMetroSegTimeSigEverywhere();
+            } catch (error) {
+                showWarningToast('Error: ' + error.message);
+            }
+        });
+    }
+
+    window.archiveMetroSegCustomTimeSig = function(id) {
+        showConfirmModal('Archive time signature', 'Archive this time signature? It stays valid for blocks that already use it, but won’t be offered for new ones.', async () => {
+            try {
+                await API.metronomeBlocks.timeSignatures.archiveCustom(id);
+                showSuccessToast('Archived');
+                await refreshMetroSegTimeSigEverywhere();
+            } catch (error) {
+                showWarningToast('Error: ' + error.message);
+            }
+        }, false);
+    }
+
+    // Controls which field groups the shared modal shows - a regular block never sees the lead-in
+    // length toggle; the lead-in never sees time signature/bpm at all (it inherits both from the
+    // first regular block - see metroBlkEffectiveBlock).
+    function syncMetroSegFieldVisibility() {
+        const isPartial = metroSegEditingLeadIn && document.getElementById('metroSegLeadInPartial').checked;
+        document.getElementById('metroSegLeadInKindGroup').classList.toggle('hidden-group', !metroSegEditingLeadIn);
+        document.getElementById('metroSegTimeSigGroup').classList.toggle('hidden-group', metroSegEditingLeadIn);
+        document.getElementById('metroSegBpmGroup').classList.toggle('hidden-group', metroSegEditingLeadIn);
+        document.getElementById('metroSegBarCountGroup').classList.toggle('hidden-group', isPartial);
+        document.getElementById('metroSegPickupBeatsGroup').classList.toggle('hidden-group', !isPartial);
+    }
+    document.getElementById('metroSegLeadInWhole')?.addEventListener('change', syncMetroSegFieldVisibility);
+    document.getElementById('metroSegLeadInPartial')?.addEventListener('change', syncMetroSegFieldVisibility);
+
+    // --- Target BPM: stepper + slider (same pattern as the single-bar metronome's own target-speed
+    // control - METRO_MIN_BPM/METRO_MAX_BPM/METRO_SLIDER_TIERS/metroBestFitTier are all already
+    // generic, value-agnostic helpers from that tool, reused here rather than redefined). ---
+    let metroSegBpm = 120;
+    let metroSegBpmSliderMax = 200;
+
+    function metroSegBpmStepTier(value) {
+        const idx = METRO_SLIDER_TIERS.indexOf(metroSegBpmSliderMax);
+        if (idx < METRO_SLIDER_TIERS.length - 1 && value >= METRO_SLIDER_TIERS[idx]) {
+            metroSegBpmSliderMax = METRO_SLIDER_TIERS[idx + 1];
+        } else if (idx > 0 && value < METRO_SLIDER_TIERS[idx - 1]) {
+            metroSegBpmSliderMax = METRO_SLIDER_TIERS[idx - 1];
+        }
+    }
+    // The slider/stepper/readout all operate on the DISPLAYED "note = bpm" number (e.g. the
+    // crotchet-bpm), not the block's own raw beat-clicks-per-minute directly - see
+    // metroSegNoteFraction/metroSegSelectedDenominator below for the conversion. metroSegBpm itself
+    // stays the single source of truth for the actual tempo (and what gets saved).
+    function metroSegDisplayedBpm() {
+        return metroSegBpm / (metroSegNoteFraction() * metroSegSelectedDenominator());
+    }
+    function renderMetroSegBpmSlider() {
+        const track = document.getElementById('metroSegBpmSliderTrack');
+        if (!track) return;
+        const displayed = Math.round(metroSegDisplayedBpm());
+        const pct = ((displayed - METRO_MIN_BPM) / (metroSegBpmSliderMax - METRO_MIN_BPM)) * 100;
+        document.getElementById('metroSegBpmSliderFill').style.width = `${pct}%`;
+        const thumb = document.getElementById('metroSegBpmSliderThumb');
+        thumb.style.left = `${pct}%`;
+        thumb.setAttribute('aria-valuenow', displayed);
+        thumb.setAttribute('aria-valuemax', metroSegBpmSliderMax);
+        document.getElementById('metroSegBpmSliderMaxLbl').innerText = metroSegBpmSliderMax;
+        document.getElementById('metroSegBpmValue').innerText = displayed;
+    }
+    // Sets the raw block bpm directly (loading an existing block, or after a note-value conversion)
+    // and re-renders the display fresh against whatever note/time-signature is current.
+    function setMetroSegBpm(rawValue) {
+        metroSegBpm = Math.max(1, Math.round(rawValue));
+        refreshMetroSegBpmDisplay();
+    }
+    // Re-renders the "note = bpm" display from the current metroSegBpm - call after the note-type
+    // or time-signature selection changes, since either changes what the displayed number means
+    // without the underlying tempo itself changing.
+    function refreshMetroSegBpmDisplay() {
+        metroSegBpmSliderMax = metroBestFitTier(Math.round(metroSegDisplayedBpm()));
+        renderMetroSegBpmSlider();
+    }
+    // User-driven edits (stepper/slider) act on the DISPLAYED number and convert back to the raw
+    // block bpm that's actually saved/played.
+    function setMetroSegBpmFromDisplayed(displayedValue, opts = {}) {
+        const clamped = Math.round(Math.min(METRO_MAX_BPM, Math.max(METRO_MIN_BPM, displayedValue)));
+        if (opts.dragging) metroSegBpmStepTier(clamped); else metroSegBpmSliderMax = metroBestFitTier(clamped);
+        metroSegBpm = Math.round(clamped * metroSegNoteFraction() * metroSegSelectedDenominator());
+        renderMetroSegBpmSlider();
+    }
+
+    // --- Number of bars: same stepper+slider shape as BPM above, and the same tiered-expansion
+    // idea (50 to start, growing to 200 - a repeat count past 200 is vanishingly unlikely, but
+    // there's no hard ceiling beyond that either, just no bigger tier to expand into). ---
+    const METRO_SEG_BARS_MIN = 1;
+    const METRO_SEG_BARS_TIERS = [50, 200];
+    let metroSegBarCount = 1;
+    let metroSegBarsSliderMax = METRO_SEG_BARS_TIERS[0];
+
+    function metroSegBarsBestFitTier(value) {
+        for (const t of METRO_SEG_BARS_TIERS) if (value <= t) return t;
+        return METRO_SEG_BARS_TIERS[METRO_SEG_BARS_TIERS.length - 1];
+    }
+    function metroSegBarsStepTier(value) {
+        const idx = METRO_SEG_BARS_TIERS.indexOf(metroSegBarsSliderMax);
+        if (idx < METRO_SEG_BARS_TIERS.length - 1 && value >= METRO_SEG_BARS_TIERS[idx]) {
+            metroSegBarsSliderMax = METRO_SEG_BARS_TIERS[idx + 1];
+        } else if (idx > 0 && value < METRO_SEG_BARS_TIERS[idx - 1]) {
+            metroSegBarsSliderMax = METRO_SEG_BARS_TIERS[idx - 1];
+        }
+    }
+    function renderMetroSegBarsSlider() {
+        const track = document.getElementById('metroSegBarsSliderTrack');
+        if (!track) return;
+        const pct = ((metroSegBarCount - METRO_SEG_BARS_MIN) / (metroSegBarsSliderMax - METRO_SEG_BARS_MIN)) * 100;
+        document.getElementById('metroSegBarsSliderFill').style.width = `${pct}%`;
+        const thumb = document.getElementById('metroSegBarsSliderThumb');
+        thumb.style.left = `${pct}%`;
+        thumb.setAttribute('aria-valuenow', metroSegBarCount);
+        thumb.setAttribute('aria-valuemax', metroSegBarsSliderMax);
+        document.getElementById('metroSegBarsSliderMaxLbl').innerText = metroSegBarsSliderMax;
+        document.getElementById('metroSegBarCount').innerText = metroSegBarCount;
+    }
+    function setMetroSegBarCount(value, opts = {}) {
+        metroSegBarCount = Math.max(METRO_SEG_BARS_MIN, Math.round(value));
+        if (opts.dragging) metroSegBarsStepTier(metroSegBarCount); else metroSegBarsSliderMax = metroSegBarsBestFitTier(metroSegBarCount);
+        renderMetroSegBarsSlider();
+    }
+
+    // Tap = +-1, hold = repeats, accelerating to +-10 per step after 15 taps' worth - same feel as
+    // the single-bar metronome's own BPM stepper (setupMetroBpmStepper), generalised here to take
+    // any step-applying callback so both the BPM and bar-count controls above can share it.
+    function setupHoldStepper(btnId, direction, applyStep) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        const REPEAT_MS = 100;
+        const INITIAL_DELAY_MS = 400;
+        const ACCELERATE_AFTER = 15;
+        let repeatTimer = null;
+        let startTimer = null;
+        let unitStepsTaken = 0;
+
+        function step() {
+            applyStep((unitStepsTaken >= ACCELERATE_AFTER ? 10 : 1) * direction);
+            if (unitStepsTaken < ACCELERATE_AFTER) unitStepsTaken++;
+        }
+        function begin(e) {
+            e.preventDefault();
+            step();
+            startTimer = setTimeout(() => { repeatTimer = setInterval(step, REPEAT_MS); }, INITIAL_DELAY_MS);
+        }
+        function end() {
+            clearTimeout(startTimer);
+            clearInterval(repeatTimer);
+            unitStepsTaken = 0;
+        }
+        btn.addEventListener('pointerdown', begin);
+        btn.addEventListener('pointerup', end);
+        btn.addEventListener('pointerleave', end);
+        btn.addEventListener('pointercancel', end);
+    }
+    setupHoldStepper('metroSegBpmMinus', -1, (amount) => setMetroSegBpmFromDisplayed(Math.round(metroSegDisplayedBpm()) + amount));
+    setupHoldStepper('metroSegBpmPlus', 1, (amount) => setMetroSegBpmFromDisplayed(Math.round(metroSegDisplayedBpm()) + amount));
+    setupHoldStepper('metroSegBarsMinus', -1, (amount) => setMetroSegBarCount(metroSegBarCount + amount));
+    setupHoldStepper('metroSegBarsPlus', 1, (amount) => setMetroSegBarCount(metroSegBarCount + amount));
+
+    setupSliderInteraction(document.getElementById('metroSegBpmSliderTrack'), document.getElementById('metroSegBpmSliderThumb'), {
+        onDragRatio: (ratio) => setMetroSegBpmFromDisplayed(METRO_MIN_BPM + ratio * (metroSegBpmSliderMax - METRO_MIN_BPM), { dragging: true }),
+        onArrowStep: (dir) => setMetroSegBpmFromDisplayed(Math.round(metroSegDisplayedBpm()) + dir, { dragging: true })
+    });
+    setupSliderInteraction(document.getElementById('metroSegBarsSliderTrack'), document.getElementById('metroSegBarsSliderThumb'), {
+        onDragRatio: (ratio) => setMetroSegBarCount(METRO_SEG_BARS_MIN + ratio * (metroSegBarsSliderMax - METRO_SEG_BARS_MIN), { dragging: true }),
+        onArrowStep: (dir) => setMetroSegBarCount(metroSegBarCount + dir, { dragging: true })
+    });
+    makeSliderReadoutEditable('metroSegBpmValue', () => Math.round(metroSegDisplayedBpm()), (v) => setMetroSegBpmFromDisplayed(v), { label: 'Beats per minute', min: METRO_MIN_BPM, max: METRO_MAX_BPM });
+    makeSliderReadoutEditable('metroSegBarCount', () => metroSegBarCount, (v) => setMetroSegBarCount(v), { label: 'Number of bars', min: METRO_SEG_BARS_MIN });
+
+    // --- Note-value icons (real vector glyphs, not unicode musical symbols - see the CSS comment
+    // on .metroBlk-note-picker for why). Fractions match the single-bar metronome's own "Set from
+    // music" note-type list exactly (public/app.js's #metroNoteType options). ---
+    const METRO_NOTE_TYPES = [
+        { key: 'quaver', label: 'Quaver', fraction: 0.125 },
+        { key: 'crotchet', label: 'Crotchet', fraction: 0.25 },
+        { key: 'dotted-crotchet', label: 'Dotted crotchet', fraction: 0.375 },
+        { key: 'minim', label: 'Minim', fraction: 0.5 },
+        { key: 'semibreve', label: 'Semibreve', fraction: 1 }
+    ];
+    // One shared viewBox/layout across all five so they line up in a row regardless of whether a
+    // given note has a stem/flag/dot - notehead centre and stem position are fixed constants.
+    function metroNoteIconSvg(key) {
+        const head = '<ellipse cx="13" cy="44" rx="7.5" ry="5.2" transform="rotate(-20 13 44)"';
+        const stem = '<rect x="19" y="6" width="2.6" height="38" fill="currentColor"/>';
+        switch (key) {
+            case 'semibreve':
+                return '<svg viewBox="0 0 32 56" class="metroBlk-note-svg"><ellipse cx="16" cy="28" rx="10" ry="6" fill="none" stroke="currentColor" stroke-width="3"/></svg>';
+            case 'minim':
+                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="none" stroke="currentColor" stroke-width="2.6"/>${stem}</svg>`;
+            case 'dotted-crotchet':
+                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}<circle cx="27" cy="42" r="2.2" fill="currentColor"/></svg>`;
+            case 'quaver':
+                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}<path d="M21.6 6 C30 10 29 20 21 26" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>`;
+            default: // crotchet
+                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}</svg>`;
+        }
+    }
+
+    let metroSegNoteSelected = 'crotchet';
+    function metroSegNoteFraction() {
+        const t = METRO_NOTE_TYPES.find(x => x.key === metroSegNoteSelected);
+        return t ? t.fraction : 0.25;
+    }
+    // The note whose fraction matches this denominator exactly (e.g. quaver for x/8) - picking it as
+    // the default means the displayed "note = bpm" number equals the block's own raw bpm the first
+    // time a block is opened, with no surprise rescale, while still leaving it fully changeable.
+    function metroSegDefaultNoteForDenominator(denominator) {
+        if (denominator === 8) return 'quaver';
+        if (denominator === 2) return 'minim';
+        if (denominator === 1) return 'semibreve';
+        return 'crotchet';
+    }
+    function renderMetroSegNoteSelectBtn() {
+        const btn = document.getElementById('metroSegNoteSelectBtn');
+        if (!btn) return;
+        btn.innerHTML = metroNoteIconSvg(metroSegNoteSelected);
+        const label = METRO_NOTE_TYPES.find(t => t.key === metroSegNoteSelected)?.label || '';
+        btn.setAttribute('aria-label', `Note value: ${label}. Tap to change.`);
+    }
+    function renderMetroSegNotePicker() {
+        const el = document.getElementById('metroSegNotePicker');
+        if (!el) return;
+        el.innerHTML = METRO_NOTE_TYPES.map(t => `
+            <button type="button" class="metroBlk-note-btn${t.key === metroSegNoteSelected ? ' selected' : ''}" data-note="${t.key}" aria-label="${t.label}" aria-pressed="${t.key === metroSegNoteSelected}">
+                ${metroNoteIconSvg(t.key)}
+            </button>
+        `).join('');
+        el.querySelectorAll('.metroBlk-note-btn').forEach(btn => {
+            // Picking a note relabels the same tempo (refreshMetroSegBpmDisplay keeps metroSegBpm
+            // fixed) and closes straight away - no separate "apply" step needed.
+            btn.addEventListener('click', () => {
+                metroSegNoteSelected = btn.dataset.note;
+                refreshMetroSegBpmDisplay();
+                renderMetroSegNoteSelectBtn();
+                document.getElementById('metroSegNoteModal').style.display = 'none';
+            });
+        });
+    }
+
+    // Looks up the currently-chosen time signature's denominator from the cached picker data (not
+    // the DB) - this only ever runs while the segment modal is open, where that cache is already
+    // loaded.
+    function metroSegSelectedDenominator() {
+        if (!metroSegTimeSigValue) return 4;
+        const [sigType, sigId] = metroSegTimeSigValue.split(':');
+        const list = sigType === 'public' ? metroBlkTimeSigCache.public : metroBlkTimeSigCache.custom;
+        const found = list.find(t => t.id === Number(sigId));
+        return found ? found.denominator : 4;
+    }
+
+    document.getElementById('metroSegNoteSelectBtn')?.addEventListener('click', () => {
+        renderMetroSegNotePicker();
+        document.getElementById('metroSegNoteModal').style.display = 'flex';
+    });
+
+    window.openMetroSegmentModal = function(segId = null) {
+        const seg = segId ? metroBlkCurrentSetup.segments.find(s => s.id === Number(segId)) : null;
+        // A brand-new block defaults to whatever the last block - immediately before the "+" tile -
+        // is set to, rather than a fixed 4/4 @ 120bpm: a new block is usually a variation on the one
+        // right before it, not an unrelated fresh start.
+        const regularBlocks = metroBlkCurrentSetup.segments.filter(s => !s.isLeadIn);
+        const lastRegular = regularBlocks[regularBlocks.length - 1];
+        metroSegEditingLeadIn = false;
+
+        document.getElementById('metroSegEditId').value = segId || '';
+        document.getElementById('metroSegmentModalTitle').innerText = seg ? 'Edit block' : 'Add block';
+        document.getElementById('metroSegDeleteBtn').innerText = 'Delete block';
+        document.getElementById('metroSegOtherActionsSection').classList.toggle('hidden-group', !seg);
+        document.getElementById('metroSegLeadInWhole').checked = true;
+        document.getElementById('metroSegLeadInPartial').checked = false;
+        setMetroSegBarCount(seg ? seg.barCount : 1);
+        document.getElementById('metroSegPickupBeats').value = '';
+
+        // Falls back to the first catalog entry only when there's no last block to copy from (an
+        // empty setup) - the picker has no "unset" option of its own.
+        metroSegTimeSigValue = seg
+            ? (seg.timeSignatureId ? `public:${seg.timeSignatureId}` : `custom:${seg.accountTimeSignatureId}`)
+            : lastRegular
+                ? (lastRegular.timeSignatureId ? `public:${lastRegular.timeSignatureId}` : `custom:${lastRegular.accountTimeSignatureId}`)
+                : (metroBlkTimeSigCache.public[0] ? `public:${metroBlkTimeSigCache.public[0].id}` : null);
+        renderMetroSegTimeSigBtn();
+        document.getElementById('metroSegCustomSigInputs').classList.add('hidden-group');
+        document.getElementById('metroSegCustomNumerator').value = '';
+        document.getElementById('metroSegCustomDenominator').value = '';
+
+        metroSegNoteSelected = metroSegDefaultNoteForDenominator(metroSegSelectedDenominator());
+        renderMetroSegNoteSelectBtn();
+        setMetroSegBpm(seg ? seg.bpm : (lastRegular ? lastRegular.bpm : 120));
+
+        syncMetroSegFieldVisibility();
+        document.getElementById('metroSegmentModal').style.display = 'flex';
+    }
+
+    // The lead-in editor (ML-35 follow-up): a lead-in is now a single fixed slot that always plays
+    // first and inherits its time signature/bpm from the first regular block (metroBlkEffectiveBlock
+    // resolves that at display/playback time), rather than being an independently-timed segment you
+    // could reorder or chain multiple of. The only thing left to configure here is its own length.
+    // Originally ML-35 allowed chaining several independently-timed lead-in segments; that's been
+    // dropped in favour of this single, fixed-position slot - see the linked Jira comment.
+    window.openMetroLeadInModal = function(segId = null) {
+        const leadIn = segId ? metroBlkCurrentSetup.segments.find(s => s.id === Number(segId)) : null;
+        const firstRegular = metroBlkCurrentSetup.segments.find(s => !s.isLeadIn);
+        if (!firstRegular) return showWarningToast('Add a regular block first, so the lead-in has a time signature and tempo to match.');
+
+        metroSegEditingLeadIn = true;
+        document.getElementById('metroSegEditId').value = segId || '';
+        document.getElementById('metroSegmentModalTitle').innerText = 'Lead-in';
+        document.getElementById('metroSegDeleteBtn').innerText = 'Delete lead-in';
+        document.getElementById('metroSegOtherActionsSection').classList.toggle('hidden-group', !leadIn);
+        document.getElementById('metroSegLeadInWhole').checked = !leadIn || !leadIn.pickupBeats;
+        document.getElementById('metroSegLeadInPartial').checked = !!(leadIn && leadIn.pickupBeats);
+        setMetroSegBarCount(leadIn ? leadIn.barCount : 1);
+        document.getElementById('metroSegPickupBeats').value = leadIn && leadIn.pickupBeats ? leadIn.pickupBeats : '';
+
+        syncMetroSegFieldVisibility();
+        document.getElementById('metroSegmentModal').style.display = 'flex';
+    }
+
+    document.getElementById('metroSegCustomSigAddBtn')?.addEventListener('click', async () => {
+        const numerator = Number(document.getElementById('metroSegCustomNumerator').value);
+        const denominator = Number(document.getElementById('metroSegCustomDenominator').value);
+        if (!numerator || !denominator) return showWarningToast('Enter both numbers.');
+        try {
+            const created = await API.metronomeBlocks.timeSignatures.createCustom(numerator, denominator);
+            await loadMetroBlkTimeSignatures();
+            selectMetroSegTimeSig(`custom:${created.id}`);
+            document.getElementById('metroSegCustomNumerator').value = '';
+            document.getElementById('metroSegCustomDenominator').value = '';
+            showSuccessToast(`Added ${numerator}/${denominator}`);
+        } catch (error) {
+            showWarningToast('Error adding time signature: ' + error.message);
+        }
+    });
+
+    document.getElementById('metroSegSaveBtn')?.addEventListener('click', async () => {
+        const id = document.getElementById('metroSegEditId').value;
+        const isPartial = metroSegEditingLeadIn && document.getElementById('metroSegLeadInPartial').checked;
+
+        let data;
+        if (metroSegEditingLeadIn) {
+            const firstRegular = metroBlkCurrentSetup.segments.find(s => !s.isLeadIn);
+            if (!firstRegular) return showWarningToast('Add a regular block first.');
+            data = {
+                isLeadIn: true,
+                bpm: firstRegular.bpm,
+                timeSignatureId: firstRegular.timeSignatureId,
+                accountTimeSignatureId: firstRegular.accountTimeSignatureId
+            };
+        } else {
+            if (!metroSegTimeSigValue) return showWarningToast('Choose a time signature.');
+            const [sigType, sigId] = metroSegTimeSigValue.split(':');
+            data = {
+                isLeadIn: false,
+                bpm: metroSegBpm,
+                timeSignatureId: sigType === 'public' ? Number(sigId) : null,
+                accountTimeSignatureId: sigType === 'custom' ? Number(sigId) : null
+            };
+        }
+
+        if (isPartial) {
+            const pickupBeats = Number(document.getElementById('metroSegPickupBeats').value);
+            if (!pickupBeats || pickupBeats <= 0) return showWarningToast('Enter how many beats to play.');
+            data.pickupBeats = pickupBeats;
+            data.barCount = 1;
+        } else {
+            data.barCount = metroSegBarCount;
+            data.pickupBeats = null;
+        }
+
+        const btn = document.getElementById('metroSegSaveBtn');
+        btn.innerText = 'Saving...';
+        btn.disabled = true;
+        try {
+            if (id) await API.metronomeBlocks.segments.update(id, data);
+            else await API.metronomeBlocks.segments.create(metroBlkCurrentSetup.id, data);
+            document.getElementById('metroSegmentModal').style.display = 'none';
+            await reloadMetroBlkSetup();
+            showSuccessToast('Saved');
+        } catch (error) {
+            showWarningToast('Error: ' + error.message);
+        } finally {
+            btn.innerText = 'Save';
+            btn.disabled = false;
+        }
+    });
+
+    document.getElementById('metroSegDeleteBtn')?.addEventListener('click', () => {
+        const id = document.getElementById('metroSegEditId').value;
+        if (!id) return;
+        showConfirmModal('Delete block', 'Delete this block?', async () => {
+            try {
+                await API.metronomeBlocks.segments.delete(id);
+                document.getElementById('metroSegmentModal').style.display = 'none';
+                await reloadMetroBlkSetup();
+                showSuccessToast('Block deleted');
+            } catch (error) {
+                showWarningToast('Error: ' + error.message);
+            }
+        });
+    });
+
+    async function loadMetroBlkTimeSignatures() {
+        try {
+            metroBlkTimeSigCache = await API.metronomeBlocks.timeSignatures.list();
+        } catch (error) {
+            showWarningToast('Error loading time signatures: ' + error.message);
+        }
+    }
+
+    // --- Sequencing ---
+    // Tracks which `segments` array the play queue was last built from - `reloadMetroBlkSetup`
+    // always produces a brand-new array (even a same-order reload), so comparing by reference is
+    // enough to tell "the blocks changed since the queue was built" from "nothing changed, just
+    // re-rendering" without needing a separate dirty flag.
+    let metroBlkPlayQueueSourceSegments = null;
+
+    // Called whenever the builder might have moved on from what's currently loaded into the player -
+    // after every block edit/reorder, on entering the view, and as a last-resort check right before
+    // Play. Deliberately skipped while actually playing (edits made in the background while a
+    // sequence is sounding shouldn't yank the tempo/blocks out from under it); pausing or stopping
+    // both count as safe points to pick up the latest blocks.
+    function refreshMetroBlkQueueIfStale() {
+        if (!metroBlkCurrentSetup || metroBlkPlayer.isPlaying()) return;
+        if (metroBlkPlayQueueSourceSegments === metroBlkCurrentSetup.segments) return;
+        buildMetroBlkPlayQueue();
+        renderMetroBlkRows();
+    }
+    // Subdivide is a playback-only overlay (like speed%), not per-block data - one setting applies
+    // across the whole sequence rather than being stored per segment. The lead-in never subdivides
+    // regardless of that setting, though - it's too short for sub-beats to mean anything, and they'd
+    // just be noise leading into the actual first beat.
+    let metroBlkSubdivisionFactor = 1;
+
+    function metroBlkEffectiveSubFactor(block) {
+        return (block && block.isLeadIn) ? 1 : Math.max(1, metroBlkSubdivisionFactor);
+    }
+
+    function applyMetroBlkToPlayer(block) {
+        metroBlkPlayer.setConductorBpm(block.bpm);
+        metroBlkPlayer.setConductorBeatsPerBar(block.numerator); // denominator out of scope for ML-35
+        metroBlkPlayer.setNotesPerBeat(1);
+        metroBlkPlayer.setSubdivisionFactor(metroBlkEffectiveSubFactor(block));
+        // A distinct, lower-pitched click while the lead-in plays, so it's obviously not "real" beat
+        // 1 yet even before you've learned to listen for the count.
+        metroBlkPlayer.setLowPitch(!!block.isLeadIn);
+    }
+
+    // A partial lead-in starts on the tail end of the bar (see greyOutSkippedDots) - everywhere a
+    // block boundary would otherwise call resetToBarStart(), this picks the right starting beat
+    // instead so the click and the dots agree on where "beat 1 of the lead-in" actually is. Scaled
+    // by the subdivide factor since clickIndex counts sub-clicks, not conductor beats, once
+    // subdivision is more than 1 (never for the lead-in itself - see metroBlkEffectiveSubFactor).
+    function metroBlkRealignPlayer(block) {
+        if (block.pickupBeats) metroBlkPlayer.setBeatIndex((block.numerator - block.pickupBeats) * metroBlkEffectiveSubFactor(block));
+        else metroBlkPlayer.resetToBarStart();
+    }
+
+    function setMetroBlkSubdivision(v) {
+        metroBlkSubdivisionFactor = v;
+        document.getElementById('metroBlkSubdivideLbl').innerText = metroSubdivideLabel(v);
+        // "/ beat" only means anything once there's an actual number of sub-beats to qualify.
+        document.getElementById('metroBlkSubdivideUnit')?.classList.toggle('hidden-group', v <= 1);
+        // Re-derive rather than setting v directly - if the lead-in is what's currently playing, it
+        // stays un-subdivided regardless of what was just picked.
+        const currentBlock = metroBlkPlayQueue.length ? metroBlkEffectiveBlock(metroBlkPlayQueue[metroBlkPlayIndex], metroBlkPlayQueue) : null;
+        metroBlkPlayer.setSubdivisionFactor(currentBlock ? metroBlkEffectiveSubFactor(currentBlock) : v);
+        renderMetroBlkRows();
+    }
+
+    function openMetroBlkSubdividePicker() {
+        openMetroPicker({
+            modalId: 'metroSubdivideModal', optionsId: 'metroSubdivideOptions',
+            customEntryId: 'metroSubdivideCustomEntry', customValueId: 'metroSubdivideCustomValue',
+            cancelBtnId: 'metroSubdivideCancelBtn', saveBtnId: 'metroSubdivideSaveBtn',
+            values: [1, 2, 3, 4], currentValue: metroBlkSubdivisionFactor,
+            labelFor: v => metroSubdivideLabel(v),
+            customLabelFor: v => `${v} per beat`,
+            customMin: 1, customMax: METRO_CUSTOM_MAX,
+            customDefault: 5,
+            onSave: (v) => setMetroBlkSubdivision(v)
+        });
+    }
+    document.getElementById('metroBlkSubdivideBtn')?.addEventListener('click', openMetroBlkSubdividePicker);
+
+    function buildMetroBlkPlayQueue() {
+        metroBlkPlayQueue = metroBlkCurrentSetup.segments;
+        metroBlkPlayQueueSourceSegments = metroBlkCurrentSetup.segments;
+        metroBlkLoopBackIndex = metroBlkPlayQueue.filter(s => s.isLeadIn).length;
+        metroBlkPlayIndex = 0;
+        metroBlkBeatsPlayedInBlock = 0;
+        metroBlkClicksPlayedInBlock = 0;
+        if (metroBlkPlayQueue.length) {
+            const block = metroBlkEffectiveBlock(metroBlkPlayQueue[0], metroBlkPlayQueue);
+            applyMetroBlkToPlayer(block);
+            metroBlkRealignPlayer(block);
+        }
+    }
+
+    function advanceMetroBlk() {
+        metroBlkPlayIndex++;
+        if (metroBlkPlayIndex >= metroBlkPlayQueue.length) metroBlkPlayIndex = metroBlkLoopBackIndex;
+        metroBlkBeatsPlayedInBlock = 0;
+        metroBlkClicksPlayedInBlock = 0;
+        const block = metroBlkEffectiveBlock(metroBlkPlayQueue[metroBlkPlayIndex], metroBlkPlayQueue);
+        applyMetroBlkToPlayer(block);
+        metroBlkRealignPlayer(block);
+        // Deferred, not immediate: the final beat's flash (just triggered in onMetroBlkBeat, right
+        // before this runs) would otherwise never get a chance to paint - renderMetroBlkRows tears
+        // the dots down and rebuilds them synchronously in the same tick, before the browser draws
+        // a frame with 'lit' applied. Waiting past flashTierDot's own 120ms removal timeout means the
+        // flash has already been visible by the time the rebuild happens.
+        setTimeout(renderMetroBlkRows, 130);
+    }
+
+    function onMetroBlkBeat(beatInfo) {
+        // One dot per base click now (main beats AND sub-beats, mirroring the single-bar tool's
+        // metroNotesRow) - flash by the raw click-in-bar index, which lines up 1:1 with the dots
+        // buildMetroDotRow actually created.
+        flashTierDot('metroBlkRow0Dots', beatInfo.clickIndexInBar);
+        flashTierDot('metroBlkMiniDots', beatInfo.clickIndexInBar);
+
+        const block = metroBlkEffectiveBlock(metroBlkPlayQueue[metroBlkPlayIndex], metroBlkPlayQueue);
+        if (!block) return;
+        const subFactor = metroBlkEffectiveSubFactor(block);
+
+        // Advancing has to wait for every click of the target's last beat, sub-beats included, not
+        // just that beat's own main click - a 4/4 bar with subdivide on isn't actually finished the
+        // instant beat 4 sounds, there's still beat 4's trailing sub-beat(s) to play before the bar
+        // genuinely ends. Counting conductor beats alone (as before) advanced - and reconfigured the
+        // player for the next block - one sub-beat too early, silently dropping that final click.
+        metroBlkClicksPlayedInBlock++;
+        const targetBeats = block.pickupBeats || (block.barCount * block.numerator);
+        const targetClicks = targetBeats * subFactor;
+        const isFinalClickOfBlock = metroBlkClicksPlayedInBlock >= targetClicks;
+
+        if (beatInfo.isConductorBeat) {
+            const totalBaseClicks = beatInfo.conductorBeatsPerBar * subFactor;
+            const nextIndex = (beatInfo.conductorBeatIndex + 1) % beatInfo.conductorBeatsPerBar;
+            // The main row's dots are laid out over totalBaseClicks+1 slots (see renderMetroBlkRows) so
+            // the track's one-slot extension past the last dot doesn't throw the whole row off-centre -
+            // the scroll-follow math has to use that same basis or it drifts out of step with where the
+            // dots actually are. The mini row has no track/extension, so it keeps the plain N-slot basis.
+            const trackUnit = 100 / (totalBaseClicks + 1);
+            const trackLeftPct = (k) => k * trackUnit + trackUnit / 2;
+            const miniUnit = 100 / totalBaseClicks;
+            const miniLeftPct = (k) => k * miniUnit + miniUnit / 2;
+            metroScrollFollow('metroBlkRow0Viewport', 'metroBlkRow0Content', trackLeftPct(beatInfo.conductorBeatIndex * subFactor), trackLeftPct(nextIndex * subFactor), beatInfo.secondsPerConductorBeat);
+            metroScrollFollow('metroBlkMiniViewport', 'metroBlkMiniContent', miniLeftPct(beatInfo.conductorBeatIndex * subFactor), miniLeftPct(nextIndex * subFactor), beatInfo.secondsPerConductorBeat);
+
+            metroBlkBeatsPlayedInBlock++;
+            // Refreshes the "x of y" progress in place (label text only, no dot rebuild) - every beat
+            // for a partial lead-in (pickupBeats is usually small), only at each bar boundary for a
+            // repeating whole-bar block, so a long bar doesn't churn the label on every single beat.
+            const justCompletedABar = !block.pickupBeats && metroBlkBeatsPlayedInBlock % block.numerator === 0;
+            if (block.pickupBeats || justCompletedABar) {
+                const freshLabel = metroBlkBlockLabel(block, metroBlkBeatsPlayedInBlock);
+                const labelEl = document.getElementById('metroBlkRow0Label');
+                if (labelEl) labelEl.innerText = freshLabel;
+                const miniLabel = document.getElementById('metroBlkMiniLabel');
+                if (miniLabel) miniLabel.innerText = freshLabel;
+            }
+        }
+
+        if (isFinalClickOfBlock) advanceMetroBlk();
+    }
+    metroBlkPlayer.onBeat(onMetroBlkBeat);
+
+    // --- Multi-row "now + upcoming" display ---
+    // Takes the total dot count (beats * subdivide factor), not just the beat count - mirrors
+    // metroTierGeometry's leftPct on the single-bar tool, now that subdivide is real here too.
+    function metroBlkLeftPctFn(totalBaseClicks) {
+        const unit = 100 / totalBaseClicks;
+        return (k) => k * unit + unit / 2;
+    }
+
+    // Draws a line connecting the first dot to the last, reusing each dot's own already-computed
+    // `left` (a padding-aware calc() from metroLeftStyle) rather than re-deriving the geometry -
+    // keeps the track pinned exactly to the dots regardless of row width or edge padding.
+    // Extends one further slot past the last dot (endLeftStyle, the same per-click spacing as
+    // everywhere else in the row) with a small vertical tick, rather than stopping dead at the last
+    // dot - that "click" of time between the last beat and looping back to the first still happens,
+    // so the line shouldn't look like it just runs out.
+    function connectMetroBlkDotsWithTrack(rowId, endLeftStyle) {
+        const row = document.getElementById(rowId);
+        if (!row) return;
+        let track = row.querySelector('.metroBlk-row-track');
+        if (!track) {
+            track = document.createElement('div');
+            track.className = 'metroBlk-row-track';
+            row.insertBefore(track, row.firstChild);
+        }
+        let endTick = row.querySelector('.metroBlk-row-track-end');
+        if (!endTick) {
+            endTick = document.createElement('div');
+            endTick.className = 'metroBlk-row-track-end';
+            row.insertBefore(endTick, row.firstChild);
+        }
+        const dots = row.querySelectorAll('.metro-dot');
+        if (dots.length < 2) { track.style.display = 'none'; endTick.style.display = 'none'; return; }
+        track.style.display = 'block';
+        endTick.style.display = 'block';
+        track.style.left = dots[0].style.left;
+        track.style.right = `calc(100% - (${endLeftStyle}))`;
+        endTick.style.left = endLeftStyle;
+    }
+
+    // Wraps past the end of the queue into the loop zone only (never back into the lead-in(s)),
+    // matching playback's own loop-back behaviour, so the "upcoming" preview rows always show what
+    // will genuinely play next.
+    function wrapMetroBlkIndex(i) {
+        const n = metroBlkPlayQueue.length;
+        if (i < n) return i;
+        const loopLen = n - metroBlkLoopBackIndex;
+        if (loopLen <= 0) return n - 1;
+        return metroBlkLoopBackIndex + ((i - n) % loopLen);
+    }
+
+    // A partial lead-in plays the LAST pickupBeats beats of the bar, not the first - a pickup/
+    // anacrusis leads into the downbeat that follows, so on a 4-beat bar with a 1-beat pickup it's
+    // beat 4 that sounds, not beat 1. Those unused leading beats are never actually scheduled (see
+    // metroBlkLeadInStartIndex/onMetroBlkBeat), so this just makes that visually obvious upfront
+    // rather than the dot simply never happening to light up.
+    function greyOutSkippedDots(rowId, block, subFactor) {
+        if (!block || !block.pickupBeats) return;
+        const skippedCount = (block.numerator - block.pickupBeats) * subFactor;
+        document.querySelectorAll(`#${rowId} .metro-dot`).forEach((dot, idx) => {
+            dot.classList.toggle('metroBlk-dot-skipped', idx < skippedCount);
+        });
+    }
+
+    // Now + next only (no second "upcoming" row) - keeps the screen simpler without losing much,
+    // since the next block is already visible before the current one finishes.
+    function renderMetroBlkRows() {
+        if (!metroBlkPlayQueue.length) return;
+        for (let slot = 0; slot < 2; slot++) {
+            const idx = wrapMetroBlkIndex(metroBlkPlayIndex + slot);
+            const block = metroBlkEffectiveBlock(metroBlkPlayQueue[idx], metroBlkPlayQueue);
+            const subFactor = metroBlkEffectiveSubFactor(block);
+            const label = block ? metroBlkBlockLabel(block, slot === 0 ? metroBlkBeatsPlayedInBlock : undefined) : '';
+            const labelEl = document.getElementById(`metroBlkRow${slot}Label`);
+            if (labelEl) labelEl.innerText = label;
+
+            const numerator = block ? block.numerator : 4;
+            const totalBaseClicks = numerator * subFactor;
+            // The main row's line extends one slot past the last dot (connectMetroBlkDotsWithTrack) -
+            // laying the dots out over totalBaseClicks+1 slots, not totalBaseClicks, reserves room for
+            // that extension so the dots-plus-line group centers as a whole instead of the dots alone
+            // centering and the line poking out past the row's right edge. The mini row has no track/
+            // extension, so it keeps the plain N-slot basis and its own leftPct.
+            const trackLeftPct = metroBlkLeftPctFn(totalBaseClicks + 1);
+            const miniLeftPct = metroBlkLeftPctFn(totalBaseClicks);
+            const endLeftStyle = metroLeftStyle(trackLeftPct(totalBaseClicks));
+            buildMetroDotRow(`metroBlkRow${slot}Dots`, totalBaseClicks, subFactor, false, trackLeftPct);
+            metroApplyDisplayWidth(`metroBlkRow${slot}Viewport`, `metroBlkRow${slot}Content`, totalBaseClicks + 1);
+            connectMetroBlkDotsWithTrack(`metroBlkRow${slot}Dots`, endLeftStyle);
+            greyOutSkippedDots(`metroBlkRow${slot}Dots`, block, subFactor);
+            if (!metroBlkPlayer.isPlaying()) resetMetroScrollPosition(`metroBlkRow${slot}Content`);
+
+            if (slot === 0) {
+                buildMetroDotRow('metroBlkMiniDots', totalBaseClicks, subFactor, false, miniLeftPct);
+                metroApplyDisplayWidth('metroBlkMiniViewport', 'metroBlkMiniContent', totalBaseClicks);
+                greyOutSkippedDots('metroBlkMiniDots', block, subFactor);
+                if (!metroBlkPlayer.isPlaying()) resetMetroScrollPosition('metroBlkMiniContent');
+                const miniLabel = document.getElementById('metroBlkMiniLabel');
+                if (miniLabel) miniLabel.innerText = label || '-';
+            }
+        }
+    }
+
+    window.addEventListener('resize', () => {
+        const view = document.getElementById('metroBuilderView');
+        if (view && view.style.display !== 'none') renderMetroBlkRows();
+    });
+
+    // --- Transport ---
+    function updateMetroBlkPlayIcon() {
+        const playing = metroBlkPlayer.isPlaying();
+        const icon = document.getElementById('metroBlkPlayIcon');
+        if (icon) icon.innerText = playing ? 'pause' : 'play_arrow';
+        const miniIcon = document.getElementById('metroBlkMiniPlayIcon');
+        if (miniIcon) miniIcon.innerText = playing ? 'pause' : 'play_arrow';
+    }
+
+    function playMetroBlk() {
+        // Last-resort safety net - normally already fresh via renderMetroBlockTiles, but this
+        // catches it regardless of how playMetroBlk got called (e.g. from the mini bar on another
+        // screen, where the builder's own render never ran).
+        refreshMetroBlkQueueIfStale();
+        if (!metroBlkPlayQueue.length) return showWarningToast('Add at least one block first.');
+        metroBlkPlayer.play();
+        metroBlkMiniActive = true;
+        updateMetroBlkPlayIcon();
+    }
+
+    function pauseMetroBlk() {
+        metroBlkPlayer.pause();
+        refreshMetroBlkQueueIfStale();
+        updateMetroBlkPlayIcon();
+    }
+
+    // Jumps back to the first block WITHOUT stopping - if it's currently playing it just keeps
+    // playing from the top; if paused, it stays paused sitting at the top. Pause is what actually
+    // silences it now; this button is purely about position.
+    function resetMetroBlk() {
+        refreshMetroBlkQueueIfStale();
+        metroBlkPlayIndex = 0;
+        metroBlkBeatsPlayedInBlock = 0;
+        metroBlkClicksPlayedInBlock = 0;
+        if (metroBlkPlayQueue.length) {
+            const block = metroBlkEffectiveBlock(metroBlkPlayQueue[0], metroBlkPlayQueue);
+            applyMetroBlkToPlayer(block);
+            metroBlkRealignPlayer(block);
+        }
+        renderMetroBlkRows();
+    }
+
+    document.getElementById('metroBlkPlayBtn')?.addEventListener('click', () => {
+        if (metroBlkPlayer.isPlaying()) pauseMetroBlk(); else playMetroBlk();
+    });
+    document.getElementById('metroBlkResetBtn')?.addEventListener('click', resetMetroBlk);
+    document.getElementById('metroBlkMiniPlayBtn')?.addEventListener('click', () => {
+        if (metroBlkPlayer.isPlaying()) pauseMetroBlk(); else playMetroBlk();
+    });
+
+    // --- Playback speed (independent of any block's own bpm - the player already applies this
+    // percentage on top of whatever bpm is currently loaded, same mechanism as the single-bar tool). ---
+    const METRO_BLK_SPEED_STEP = 10;
+    const METRO_BLK_SPEED_MIN = 25;
+    const METRO_BLK_SPEED_MAX = 200;
+    let metroBlkSpeedPercent = 100;
+
+    function renderMetroBlkSpeedReadout() {
+        const el = document.getElementById('metroBlkSpeedPct');
+        if (el) el.innerText = `${metroBlkSpeedPercent}%`;
+    }
+    function setMetroBlkSpeedPercent(p) {
+        metroBlkSpeedPercent = Math.min(METRO_BLK_SPEED_MAX, Math.max(METRO_BLK_SPEED_MIN, p));
+        metroBlkPlayer.setSpeedPercent(metroBlkSpeedPercent);
+        renderMetroBlkSpeedReadout();
+    }
+    document.getElementById('metroBlkSpeedMinus')?.addEventListener('click', () => setMetroBlkSpeedPercent(metroBlkSpeedPercent - METRO_BLK_SPEED_STEP));
+    document.getElementById('metroBlkSpeedPlus')?.addEventListener('click', () => setMetroBlkSpeedPercent(metroBlkSpeedPercent + METRO_BLK_SPEED_STEP));
+    renderMetroBlkSpeedReadout();
+
+    // Shown whenever the sequence is active (playing or paused, not stopped) and the builder/play
+    // screen itself isn't on-screen - called from switchView exactly like the single-bar tool's
+    // updateMetroMiniBarVisibility.
+    function updateMetroBlocksMiniBarVisibility(viewName) {
+        const bar = document.getElementById('metroBlocksMiniBar');
+        if (bar) bar.classList.toggle('hidden-group', !metroBlkMiniActive || viewName === 'metroBuilderView');
+    }
+
+    // ========================================
     // TUNER
     // ========================================
     const NOTE_NAMES_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -3269,6 +4619,82 @@
 
     function stopTuner() {
         tunerEngine.stop();
+    }
+
+    // --- Metronome Blocks mini tuner ---
+    // Shares the tunerEngine singleton above rather than running a second mic session - only one of
+    // the full Tuner view / this mini widget is ever visible at a time, but they're independent
+    // renderers subscribed to the same onPitch feed. Scoped entirely to metroBuilderView: opening it
+    // elsewhere isn't possible, and navigating away from the builder always closes it (see
+    // updateMetroBlkMiniTunerVisibility), same lifecycle as the full Tuner view itself.
+    let metroBlkMiniTunerActive = false;
+
+    // Shows both the concert-pitch reading and the selected instrument's transposed reading at once
+    // (rather than switching between them) - useful for anyone who reads both treble and bass clef
+    // and wants concert pitch alongside whichever instrument they've set. The instrument line hides
+    // itself when the instrument IS concert pitch (C), since it'd just repeat the first line.
+    function renderMetroBlkMiniTunerIdle() {
+        document.getElementById('metroBlkMiniTunerConcertNote').innerText = '–';
+        document.getElementById('metroBlkMiniTunerInstrumentNote').innerText = '–';
+        document.getElementById('metroBlkMiniTunerNeedle').style.left = '50%';
+        document.getElementById('metroBlkMiniTunerNeedle').classList.remove('in-tune');
+        document.getElementById('metroBlkMiniTuner').classList.remove('in-tune');
+    }
+
+    function renderMetroBlkMiniTunerPitch(freq) {
+        if (!metroBlkMiniTunerActive || !freq || freq < 0) return;
+        const concertMidi = tunerFreqToMidi(freq);
+        const nearestConcertMidi = Math.round(concertMidi);
+        const centsOff = (concertMidi - nearestConcertMidi) * 100;
+        const instrument = localStorage.getItem(TUNER_INSTRUMENT_DEFAULT_KEY) || 'C';
+        const writtenMidi = nearestConcertMidi + (TUNER_TRANSPOSITIONS[instrument] || 0);
+
+        document.getElementById('metroBlkMiniTunerConcertNote').innerText = tunerMidiToName(nearestConcertMidi);
+        document.getElementById('metroBlkMiniTunerInstrumentNote').innerText = tunerMidiToName(writtenMidi);
+        const clampedCents = Math.max(-50, Math.min(50, centsOff));
+        const inTune = Math.abs(centsOff) <= TUNER_ZONE_CENTS;
+        const needle = document.getElementById('metroBlkMiniTunerNeedle');
+        needle.style.left = `${50 + clampedCents}%`;
+        needle.classList.toggle('in-tune', inTune);
+        document.getElementById('metroBlkMiniTuner').classList.toggle('in-tune', inTune);
+    }
+    tunerEngine.onPitch(renderMetroBlkMiniTunerPitch);
+
+    function openMetroBlkMiniTuner() {
+        const instrument = localStorage.getItem(TUNER_INSTRUMENT_DEFAULT_KEY) || 'C';
+        document.getElementById('metroBlkMiniTunerInstrumentLabel').innerText = `${instrument} instrument`;
+        document.getElementById('metroBlkMiniTunerInstrumentReading').classList.toggle('hidden-group', instrument === 'C');
+        renderMetroBlkMiniTunerIdle();
+        // .metroBlk-mini-tuner-open (not hidden-group) so opening/closing animates - see the CSS.
+        document.getElementById('metroBlkMiniTuner').classList.add('metroBlk-mini-tuner-open');
+        document.getElementById('metroBlkTunerToggleBtn').classList.add('hidden-group');
+    }
+
+    async function startMetroBlkMiniTuner() {
+        openMetroBlkMiniTuner();
+        metroBlkMiniTunerActive = true;
+        const ok = await tunerEngine.start();
+        if (!ok) {
+            showWarningToast('Microphone access is needed for the tuner.');
+            closeMetroBlkMiniTuner();
+        }
+    }
+
+    function closeMetroBlkMiniTuner() {
+        metroBlkMiniTunerActive = false;
+        document.getElementById('metroBlkMiniTuner').classList.remove('metroBlk-mini-tuner-open');
+        document.getElementById('metroBlkTunerToggleBtn').classList.remove('hidden-group');
+        stopTuner();
+    }
+
+    document.getElementById('metroBlkTunerToggleBtn')?.addEventListener('click', startMetroBlkMiniTuner);
+    document.getElementById('metroBlkMiniTunerCloseBtn')?.addEventListener('click', closeMetroBlkMiniTuner);
+
+    function updateMetroBlkMiniTunerVisibility(viewName) {
+        if (viewName === 'metroBuilderView') return; // the toggle button owns visibility on this screen
+        metroBlkMiniTunerActive = false;
+        document.getElementById('metroBlkMiniTuner')?.classList.remove('metroBlk-mini-tuner-open');
+        document.getElementById('metroBlkTunerToggleBtn')?.classList.remove('hidden-group');
     }
 
     // ========================================

@@ -71,13 +71,17 @@ can exist before a tutor has linked a login — it just resolves once
 | Table | Purpose | Key columns |
 |---|---|---|
 | `scores` | A piece, owned by a band or an account | id, title, owner_band_id, owner_account_id, forked_from_score_id, is_public, default_bpm, default_time_signature, default_conductor_beats_per_bar |
-| `adhoc_metronome_setups` | Standalone manual multi-section setup, individual-only | id, account_id, name, created_at |
-| `metronome_segments` | One row per section, on either a score or an ad-hoc setup (never both) | id, parent_score_id, parent_adhoc_setup_id, order_index, rehearsal_mark, bar_count, bpm, time_signature, conductor_beats_per_bar, is_repeat_start, is_repeat_end, pickup_beats, goto_coda, goto_start_dc, is_coda, intro_start_bar_offset, intro_start_beat_offset, intro_end_bar_offset, intro_end_beat_offset, is_first_time_bar, is_second_time_bar, ramp_start_bar_offset, ramp_start_beat_offset, notes |
+| `adhoc_metronome_setups` | Standalone manual multi-section setup, individual-only | id, account_id, name, created_at, saved_at |
+| `metronome_segments` | One row per section, on either a score or an ad-hoc setup (never both) | id, parent_score_id, parent_adhoc_setup_id, order_index, is_lead_in, rehearsal_mark, bar_count, bpm, time_signature_id, account_time_signature_id, conductor_beats_per_bar, is_repeat_start, is_repeat_end, pickup_beats, goto_coda, goto_start_dc, is_coda, intro_start_bar_offset, intro_start_beat_offset, intro_end_bar_offset, intro_end_beat_offset, is_first_time_bar, is_second_time_bar, ramp_start_bar_offset, ramp_start_beat_offset, notes |
 | `metronome_run_logs` | History of every playback, score-driven or ad-hoc | id, account_id, source_type, source_id, session_segment_id, run_at, completed |
+| `time_signature_options` | System catalog of time signatures (numerator/denominator), migration-seeded only | id, numerator, denominator, label, sort_order, active |
+| `account_time_signatures` | Private custom time signatures, per account | id, account_id, numerator, denominator, active |
 
 Notes on fields that took a few passes to nail down:
 - **No `subdivide` anywhere** — it's a live runtime override on the metronome player,
-  never saved against a score or segment.
+  never saved against a score or segment. ML-35 briefly considered persisting it per
+  block, but it may be derivable from the time signature, so it's deferred rather
+  than modeled.
 - **Intro handling** (carols use case): `intro_start_bar_offset`/`intro_start_beat_offset`
   mark the exact note the intro starts on; `intro_end_bar_offset`/`intro_end_beat_offset`
   mark where it ends. Played once, skipped on the repeat.
@@ -85,6 +89,41 @@ Notes on fields that took a few passes to nail down:
   `ramp_start_bar_offset`/`ramp_start_beat_offset` mark where acceleration begins within
   this segment; it ramps forward and lands on the *next* segment's own `bpm` at the
   segment boundary. No separate target-tempo field.
+- **`is_lead_in`** (ML-35, redesigned per the follow-up comment on that ticket): a
+  setup has **at most one** lead-in row now, played once at the very start and
+  excluded from the loop-back. The app enforces the one-per-setup rule in the
+  service layer (`metronomeSegments.js`); the schema itself doesn't. A lead-in
+  spanning a whole bar or two uses `bar_count` as normal; one that's only a
+  partial bar (e.g. 2 beats of a 4/4 bar) uses `pickup_beats` on a `bar_count = 1`
+  row instead — never combined on one row. Its own `time_signature_id`/
+  `account_time_signature_id`/`bpm` are populated (to satisfy the usual
+  constraints) but never actually read back — the app always resolves the
+  *current* first regular segment's time signature/bpm for display and
+  playback, so a stale copy on the lead-in row itself is harmless. Originally
+  this allowed multiple independently-timed, freely-orderable lead-in segments
+  chained together; that turned out to be confusing in practice (dragging
+  blocks around could disturb "the start of the piece") and was dropped.
+- **`adhoc_metronome_setups.saved_at`** (ML-35 follow-up): naming a setup
+  before you could even press play was too much friction, so creating one no
+  longer asks for a name up front - it starts as an unnamed scratch copy,
+  fully playable, with `saved_at` NULL. The setups list only shows rows where
+  `saved_at IS NOT NULL`; "Save for later" is what sets both `name` and
+  `saved_at` together. Abandoned scratch rows are never surfaced but aren't
+  automatically cleaned up either - acceptable for now, revisit if they pile up.
+- **Time signature split into two tables, not one with a nullable owner column**:
+  `time_signature_options` is a pure system catalog (no owner at all) so it's always
+  safe to seed/edit via migration and release straight to production with no risk of
+  touching a user's private row. `account_time_signatures` holds exactly the
+  private/custom case. `metronome_segments` points at exactly one of the two
+  (`time_signature_id` / `account_time_signature_id`), enforced by
+  `metronome_segments_exactly_one_time_signature`, same "exactly one" `CHECK` shape as
+  the owner columns above. Whether the public catalog is sufficient is answered by
+  querying how `account_time_signatures` gets used, surfaced directly in the block
+  editor's time-signature picker ("Your custom time signatures": each one's usage
+  count computed live via `COUNT(metronome_segments...)`, not a stored counter).
+  A custom signature with zero usage can be deleted outright; one still referenced
+  by existing blocks is archived instead (`active = false`) - kept for those blocks,
+  just no longer offered when picking a signature for a new one.
 
 ### Individual playing preferences
 

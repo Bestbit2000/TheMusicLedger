@@ -10,6 +10,9 @@ import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand } from '../services/bands.js';
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
 import { listDurationOptions } from '../services/durationOptions.js';
+import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSignaturesWithUsage, setCustomTimeSignatureActive, deleteCustomTimeSignature } from '../services/timeSignatures.js';
+import { listAdhocSetups, createAdhocSetup, renameAdhocSetup, saveAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, getOrCreateScratchSetup, createNamedAdhocSetup, duplicateAdhocSetup } from '../services/metronomeSetups.js';
+import { createSegment, updateSegment, deleteSegment } from '../services/metronomeSegments.js';
 
 const router = express.Router();
 
@@ -514,6 +517,176 @@ router.delete('/challenges/:row', requireAuth, resolveAccount, async (req, res) 
     res.json({ message: 'Challenge deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================
+// MULTI-BAR METRONOME (Jira ML-35) - ad-hoc/standalone only this release,
+// see docs/database-schema.md "Scores & metronome segments (Jira ML-35)".
+// Services throw errors with a `.status` (e.g. 404/400 for ownership/
+// validation failures) - respond with that instead of always 500.
+// ========================================
+router.get('/time-signatures', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await listTimeSignatureOptions(req.accountId));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.post('/time-signatures/custom', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { numerator, denominator } = req.body;
+    res.json(await createCustomTimeSignature(req.accountId, Number(numerator), Number(denominator)));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// The block editor's "Your custom time signatures" management list - every
+// custom signature the account has (active or archived) plus how many blocks
+// actually use each one.
+router.get('/time-signatures/custom', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await listCustomTimeSignaturesWithUsage(req.accountId));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/time-signatures/custom/:id', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await setCustomTimeSignatureActive(req.accountId, req.params.id, !!req.body.active);
+    res.json({ message: 'Updated' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.delete('/time-signatures/custom/:id', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await deleteCustomTimeSignature(req.accountId, req.params.id);
+    res.json({ message: 'Deleted' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.get('/metronome/setups', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await listAdhocSetups(req.accountId));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.post('/metronome/setups', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { name } = req.body;
+    res.json(await createAdhocSetup(req.accountId, name));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// The builder's landing state - reuses or creates the account's one scratch
+// setup, seeded with a default block. Registered before the ":id" route
+// below so "scratch" isn't swallowed as an id.
+router.get('/metronome/setups/scratch', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await getOrCreateScratchSetup(req.accountId));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// "+ Add new set" - names a fresh setup and seeds it with a default block,
+// both in the one step the popup triggers.
+router.post('/metronome/setups/named', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required.' });
+    res.json(await createNamedAdhocSetup(req.accountId, name.trim()));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.get('/metronome/setups/:id', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await getAdhocSetupWithSegments(req.accountId, req.params.id));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/metronome/setups/:id', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { name } = req.body;
+    await renameAdhocSetup(req.accountId, req.params.id, name);
+    res.json({ message: 'Setup updated' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.delete('/metronome/setups/:id', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await deleteAdhocSetup(req.accountId, req.params.id);
+    res.json({ message: 'Setup deleted' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// "Copy this setup" - clones a setup (all its blocks, lead-in included) under a
+// new name, as a starting point for a variant.
+router.post('/metronome/setups/:id/duplicate', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required.' });
+    res.json(await duplicateAdhocSetup(req.accountId, req.params.id, name.trim()));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// "Save for later" - names a scratch setup (saved_at still NULL) and moves
+// it into the account's saved list in one step. Distinct from the plain
+// rename PUT above, which only ever touches an already-saved setup's name.
+router.post('/metronome/setups/:id/save', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required to save.' });
+    await saveAdhocSetup(req.accountId, req.params.id, name.trim());
+    res.json({ message: 'Setup saved' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.post('/metronome/setups/:id/segments', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await createSegment(req.accountId, req.params.id, req.body));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/metronome/segments/:segId', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await updateSegment(req.accountId, req.params.segId, req.body));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.delete('/metronome/segments/:segId', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await deleteSegment(req.accountId, req.params.segId);
+    res.json({ message: 'Block deleted' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 
