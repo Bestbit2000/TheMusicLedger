@@ -321,7 +321,10 @@
     /* Subdivision dots need to read clearly against the note dots around them, so they use a distinct
        hue (not a faded version of the gold/red beat colours) rather than relying on opacity alone. */
     .metro-dot-sub { width: 10px; height: 10px; background: var(--selection-color); border: 1px solid var(--selection-color); opacity: 0.65; }
-    .metro-dot-sub.lit { opacity: 1; transform: translate(-50%, -50%) scale(1.35); }
+    /* Resting sub dots are already solid --selection-color, so a lit state that only bumped
+       opacity/scale (as before) barely read as a flash on a 10px circle - give it its own colour
+       change, same pattern as .metro-dot-note.lit, so the sub-beat flash is actually visible. */
+    .metro-dot-sub.lit { background: var(--danger-color); border-color: var(--danger-color); opacity: 1; transform: translate(-50%, -50%) scale(1.35); }
 
     .metro-bpm-step { width: 48px; height: 48px; flex-shrink: 0; border-radius: var(--radius-circle); border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: 1.4rem; font-weight: bold; cursor: pointer; user-select: none; touch-action: manipulation; }
     .metro-bpm-step:active { background: var(--radio-highlight); color: #fff; border-color: var(--radio-highlight); }

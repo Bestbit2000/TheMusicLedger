@@ -4862,10 +4862,14 @@
 
         // One dot per base click now (main beats AND sub-beats, mirroring the single-bar tool's
         // metroNotesRow) - flash by the raw click-in-bar index, which lines up 1:1 with the dots
-        // buildMetroDotRow actually created. ML-95 performance guardrail: once subdivided clicks are
-        // flying past faster than 200/min, skip the flash animation itself (audio keeps clicking
-        // normally) rather than trying to keep up with a lit-dot animation nobody can actually follow.
-        if (subFactor <= 1 || block.bpm * (metroBlkSpeedPercent / 100) * subFactor <= 200) {
+        // buildMetroDotRow actually created. ML-95 performance guardrail is Auto-only and only
+        // drops the MICRO-dot animation ("If subdivided BPM exceeds 200 BPM while in Auto, drop
+        // visual animation of micro-dots") - the macro/conductor beat's own flash always keeps
+        // going, and On mode is explicitly required to keep animating regardless of tempo
+        // (acceptance criterion: sub-beat dots "remain active even though tempo is fast").
+        const dropMicroDotAnimation = metroBlkSubBeatsMode === 'auto' && subFactor > 1 &&
+            block.bpm * (metroBlkSpeedPercent / 100) * subFactor > 200;
+        if (beatInfo.isConductorBeat || !dropMicroDotAnimation) {
             flashTierDot('metroBlkRow0Dots', beatInfo.clickIndexInBar);
             flashTierDot('metroBlkMiniDots', beatInfo.clickIndexInBar);
         }
