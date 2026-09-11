@@ -3509,8 +3509,13 @@
 
     // The lead-in (at most one - see openMetroLeadInModal) lives in its own fixed slot, not mixed
     // into the reorderable grid below - see the ML-35 follow-up note there for why. It shows the
-    // time signature/bpm it's actually inheriting from the first regular block (metroBlkEffectiveBlock),
-    // even though those fields aren't independently editable on it any more.
+    // time signature it's actually inheriting from the first regular block (metroBlkEffectiveBlock),
+    // even though that field isn't independently editable on it any more. The tempo isn't shown here
+    // (ML-91 follow-up) - it's the same inherited value, so repeating it next to the time signature
+    // was pure redundancy; the quiet-gap and repeat settings that ARE specific to the lead-in take
+    // that space instead. The repeat icon (looked like an independent clickable control rather than
+    // a description of the whole row) is now plain text, always present, so "plays once" is stated
+    // as clearly as "repeats" rather than being the unlabelled default.
     function metroBlkLeadInSlotHtml(leadIn) {
         if (!leadIn) {
             return `<button type="button" class="metroBlk-leadin-row metroBlk-leadin-row-add" aria-label="Add lead-in" onclick="openMetroLeadInModal()">
@@ -3521,12 +3526,13 @@
         const countStr = leadIn.pickupBeats
             ? `${leadIn.pickupBeats} beat${leadIn.pickupBeats === 1 ? '' : 's'}`
             : `${leadIn.barCount} bar${leadIn.barCount === 1 ? '' : 's'}`;
+        const quietSecs = leadIn.quietSecondsBeforeLeadIn || 0;
+        const afterStr = quietSecs > 0 ? `, after ${quietSecs} second${quietSecs === 1 ? '' : 's'}` : '';
+        const repeatStr = leadIn.repeatLeadIn ? ', repeating' : ', first time only';
         return `<div class="metroBlk-leadin-row metroBlk-leadin-row-filled" onclick="openMetroLeadInModal(${leadIn.id})">
             <span class="metroBlk-tile-badge">Lead-in</span>
             <strong>${escapeHtml(eff.timeSignatureLabel)}</strong>
-            <span>${eff.bpm} bpm</span>
-            <span>${countStr}</span>
-            ${leadIn.repeatLeadIn ? '<span class="material-symbols-outlined metroBlk-leadin-repeat-icon" aria-label="Repeats on every loop" title="Repeats on every loop">repeat</span>' : ''}
+            <span>${countStr}${afterStr}${repeatStr}</span>
         </div>`;
     }
 
@@ -4282,29 +4288,49 @@
     // beat". Now a dedicated slider popup, 1 to the same METRO_CUSTOM_MAX ceiling the old Custom entry
     // allowed, with just the number and "sub beats" underneath - both the collapsed button and this
     // popup share that same big-number-small-label format. A later follow-up restored +/- steppers
-    // next to the number, since the slider alone lost the old picker's quick, repeatable jumps.) ---
+    // next to the number, since the slider alone lost the old picker's quick, repeatable jumps, and
+    // gave the slider the same tiered-expansion "stretch" as the segment editor's own bpm/bar-count
+    // sliders (metroSegBpmSliderMax et al above) - starts at a tight 16 so everyday values are easy
+    // to land on, growing to the full METRO_CUSTOM_MAX ceiling only once actually dragged that far.) ---
     const METRO_BLK_SUBDIVIDE_MIN = 1;
-    const METRO_BLK_SUBDIVIDE_MAX = METRO_CUSTOM_MAX;
+    const METRO_BLK_SUBDIVIDE_TIERS = [16, METRO_CUSTOM_MAX];
     let metroBlkSubdividePopupValue = 1; // staged - only committed to metroBlkSubdivisionFactor on Save
+    let metroBlkSubdivideSliderMax = METRO_BLK_SUBDIVIDE_TIERS[0];
 
+    function metroBlkSubdivideBestFitTier(value) {
+        for (const t of METRO_BLK_SUBDIVIDE_TIERS) if (value <= t) return t;
+        return METRO_BLK_SUBDIVIDE_TIERS[METRO_BLK_SUBDIVIDE_TIERS.length - 1];
+    }
+    function metroBlkSubdivideStepTier(value) {
+        const idx = METRO_BLK_SUBDIVIDE_TIERS.indexOf(metroBlkSubdivideSliderMax);
+        if (idx < METRO_BLK_SUBDIVIDE_TIERS.length - 1 && value >= METRO_BLK_SUBDIVIDE_TIERS[idx]) {
+            metroBlkSubdivideSliderMax = METRO_BLK_SUBDIVIDE_TIERS[idx + 1];
+        } else if (idx > 0 && value < METRO_BLK_SUBDIVIDE_TIERS[idx - 1]) {
+            metroBlkSubdivideSliderMax = METRO_BLK_SUBDIVIDE_TIERS[idx - 1];
+        }
+    }
     function renderMetroBlkSubdividePopup() {
         document.getElementById('metroBlkSubdividePopupValue').innerText = metroBlkSubdivideDisplayValue(metroBlkSubdividePopupValue);
-        const pct = ((metroBlkSubdividePopupValue - METRO_BLK_SUBDIVIDE_MIN) / (METRO_BLK_SUBDIVIDE_MAX - METRO_BLK_SUBDIVIDE_MIN)) * 100;
+        const pct = ((metroBlkSubdividePopupValue - METRO_BLK_SUBDIVIDE_MIN) / (metroBlkSubdivideSliderMax - METRO_BLK_SUBDIVIDE_MIN)) * 100;
         document.getElementById('metroBlkSubdivideSliderFill').style.width = `${pct}%`;
         const thumb = document.getElementById('metroBlkSubdivideSliderThumb');
         thumb.style.left = `${pct}%`;
         thumb.setAttribute('aria-valuenow', metroBlkSubdividePopupValue);
+        thumb.setAttribute('aria-valuemax', metroBlkSubdivideSliderMax);
+        document.getElementById('metroBlkSubdivideSliderMaxLbl').innerText = metroBlkSubdivideSliderMax;
     }
-    function setMetroBlkSubdividePopupValue(v) {
-        metroBlkSubdividePopupValue = Math.min(METRO_BLK_SUBDIVIDE_MAX, Math.max(METRO_BLK_SUBDIVIDE_MIN, Math.round(v)));
+    function setMetroBlkSubdividePopupValue(v, opts = {}) {
+        metroBlkSubdividePopupValue = Math.min(METRO_CUSTOM_MAX, Math.max(METRO_BLK_SUBDIVIDE_MIN, Math.round(v)));
+        if (opts.dragging) metroBlkSubdivideStepTier(metroBlkSubdividePopupValue);
+        else metroBlkSubdivideSliderMax = metroBlkSubdivideBestFitTier(metroBlkSubdividePopupValue);
         renderMetroBlkSubdividePopup();
     }
     setupSliderInteraction(document.getElementById('metroBlkSubdivideSliderTrack'), document.getElementById('metroBlkSubdivideSliderThumb'), {
-        onDragRatio: (ratio) => setMetroBlkSubdividePopupValue(METRO_BLK_SUBDIVIDE_MIN + ratio * (METRO_BLK_SUBDIVIDE_MAX - METRO_BLK_SUBDIVIDE_MIN)),
-        onArrowStep: (dir) => setMetroBlkSubdividePopupValue(metroBlkSubdividePopupValue + dir)
+        onDragRatio: (ratio) => setMetroBlkSubdividePopupValue(METRO_BLK_SUBDIVIDE_MIN + ratio * (metroBlkSubdivideSliderMax - METRO_BLK_SUBDIVIDE_MIN), { dragging: true }),
+        onArrowStep: (dir) => setMetroBlkSubdividePopupValue(metroBlkSubdividePopupValue + dir, { dragging: true })
     });
     makeSliderReadoutEditable('metroBlkSubdividePopupValue', () => metroBlkSubdividePopupValue, (v) => setMetroBlkSubdividePopupValue(v),
-        { label: 'Sub beats', min: METRO_BLK_SUBDIVIDE_MIN, max: METRO_BLK_SUBDIVIDE_MAX });
+        { label: 'Sub beats', min: METRO_BLK_SUBDIVIDE_MIN, max: METRO_CUSTOM_MAX });
     setupHoldStepper('metroBlkSubdivideMinus', -1, (amount) => setMetroBlkSubdividePopupValue(metroBlkSubdividePopupValue + amount));
     setupHoldStepper('metroBlkSubdividePlus', 1, (amount) => setMetroBlkSubdividePopupValue(metroBlkSubdividePopupValue + amount));
 
@@ -4614,8 +4640,8 @@
     // same immediate-apply-and-close pattern as the time-signature/instrument pickers, independent of
     // any block's own bpm since the player applies this percentage on top of whatever bpm is loaded,
     // same mechanism as the single-bar tool). ---
-    const METRO_BLK_SPEED_MIN = 25;
-    const METRO_BLK_SPEED_MAX = 200;
+    const METRO_BLK_SPEED_MIN = 30;
+    const METRO_BLK_SPEED_MAX = 150;
     let metroBlkSpeedPercent = 100;
 
     function renderMetroBlkSpeedLabels() {

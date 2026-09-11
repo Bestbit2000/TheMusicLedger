@@ -448,22 +448,25 @@
        consistent set rather than a mix of shapes. Sub beats opens a popup built from the same
        stepper+slider box as the segment editor's own BPM/bar-count controls (.metroBlk-bpm-box);
        play speed opens a plain button grid instead (.metroBlk-speed-options) - see the JS/HTML
-       comments on each for why they ended up different shapes. */
-    .metroBlk-ctrl-value-btn { height: 60px; min-width: 74px; padding: 0 var(--space-3); border: none; border-radius: var(--radius-md); background: var(--nav-action); color: var(--nav-action-text); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; box-sizing: border-box; }
+       comments on each for why they ended up different shapes. Background matches the block tiles
+       below (.metroBlk-tile's --input-bg/--input-border) rather than the silver of Reset - these two
+       are secondary adjustments, not transport controls, and shouldn't visually compete with Play. */
+    .metroBlk-ctrl-value-btn { height: 60px; min-width: 74px; padding: 0 var(--space-3); border: 2px solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; box-sizing: border-box; }
     .metroBlk-ctrl-value-btn strong { font-size: var(--font-lg); font-weight: bold; font-variant-numeric: tabular-nums; }
     .metroBlk-ctrl-value-label { font-size: var(--font-xs); opacity: 0.85; white-space: nowrap; }
     /* Same idea, sized down to match the mini bar's own Play/Reset (44px) instead of the full view's
        60px - six buttons now share this one row (ML-94 follow-up: "replicate the whole button line"),
        so every button here is smaller than its full-view counterpart, not just these two. */
-    .metroBlk-mini-ctrl-value-btn { height: 44px; min-width: 52px; padding: 0 8px; border: none; border-radius: var(--radius-md); background: var(--nav-action); color: var(--nav-action-text); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; box-sizing: border-box; }
+    .metroBlk-mini-ctrl-value-btn { height: 44px; min-width: 52px; padding: 0 8px; border: 2px solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; box-sizing: border-box; }
     .metroBlk-mini-ctrl-value-btn strong { font-size: var(--font-base); font-weight: bold; font-variant-numeric: tabular-nums; }
     .metroBlk-mini-ctrl-value-label { font-size: 0.55rem; opacity: 0.85; white-space: nowrap; }
 
     /* Play speed's popup (ML-91 follow-up: the slider lost the old +/- steppers' quick, repeatable
-       jumps, and a typed exact value doesn't really matter when only round 25%-step numbers are ever
-       useful) - a 4-across grid so all 8 presets fit in two rows, applying immediately on tap like the
-       time-signature/instrument pickers rather than needing a separate Save. */
-    .metroBlk-speed-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+       jumps, and a typed exact value doesn't really matter when only round 10%-step numbers are ever
+       useful) - 13 presets from 30% to 150%, auto-filling as many columns as fit rather than a fixed
+       count so the last row doesn't end up with one lonely button, applying immediately on tap like
+       the time-signature/instrument pickers rather than needing a separate Save. */
+    .metroBlk-speed-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: var(--space-2); }
 
     /* A 4-across grid rather than a scrolling row - a setup can hold plenty of blocks, and a single
        scrolling row would hide most of them off-screen. Grid (not flex-wrap) so the columns stay
@@ -494,9 +497,6 @@
     .metroBlk-leadin-row-add .metroBlk-leadin-plus { font-size: 1.5rem; line-height: 1; }
     .metroBlk-leadin-row-filled { border: 2px solid var(--selection-color); background: rgba(255, 152, 0, 0.12); color: var(--text-color); flex-wrap: wrap; }
     .metroBlk-leadin-row-filled .metroBlk-tile-badge { flex-shrink: 0; }
-    /* Pushed to the far right - a quick visual cue (ML-85) that this lead-in plays again on every
-       loop, not just once at the start, without needing to reopen the editor to check. */
-    .metroBlk-leadin-repeat-icon { margin-left: auto; font-size: 20px; color: var(--selection-color); flex-shrink: 0; }
 
     /* Play panel: current block + up to 2 faded upcoming blocks, each boxed as its own card so a
        run of circles reads as one connected unit rather than loose dots floating on the page. The
