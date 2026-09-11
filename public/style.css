@@ -242,7 +242,11 @@
     .filter-actions { display: flex; gap: var(--space-2); margin-bottom: var(--space-4); }
     .filter-actions button { flex: 1; padding: var(--space-2); font-weight: bold; border-radius: var(--radius-sm); border: 1px solid var(--input-border); background: var(--secondary-color); color: var(--text-color); cursor: pointer; }
 
-    .toast { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); color: #fff; padding: var(--space-3) var(--space-5); border-radius: var(--radius-sm); display: flex; align-items: center; gap: var(--space-4); transition: bottom 0.3s; z-index: 1000; font-size: var(--font-base); }
+    /* white-space: pre-line so a message with an embedded \n (e.g. several validation problems
+       reported together - ML-97 follow-up) actually breaks onto its own line instead of running
+       into the next sentence with no separator; no effect on the plain single-line messages every
+       other toast already uses. */
+    .toast { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); color: #fff; padding: var(--space-3) var(--space-5); border-radius: var(--radius-sm); display: flex; align-items: center; gap: var(--space-4); transition: bottom 0.3s; z-index: 1000; font-size: var(--font-base); white-space: pre-line; }
     .toast.show { bottom: 30px; }
     .toast.success { background-color: #333; }
     .toast.warning { background-color: var(--warning-color); color: #000; font-weight: bold; }
@@ -403,21 +407,27 @@
     /* Metronome Blocks (ML-35) - the multi-bar sequencer tool. Prefixed .metroBlk- throughout,
        distinct from the single-bar tool's .metro- classes above, even where the shapes are similar,
        so the two features' styles never get tangled reading either one. */
-    /* The current setup's name - "New setup" as a placeholder until it's actually been named/saved
-       (the builder always has something loaded, named or not, per ML-35's revised journey). In Play
-       Mode (ML-97) this is the plain name + a small icon (unsaved: "save"; once saved: "edit") that
-       enters Edit Mode - it no longer opens a popup itself, Edit Mode's own inline input and bottom
-       bar (.metroBlk-edit-bar below) own naming and saving now. */
+    /* The current setup's name. An unsaved setup now lands straight in Edit Mode rather than Play
+       Mode (ML-97 follow-up - metroBlkEnterAppropriateMode), so Play Mode's header only ever shows a
+       real, already-saved name with a plain pencil next to it - no more save-vs-edit glyph switch.
+       The pencil enters Edit Mode - it no longer opens a popup itself, Edit Mode's own inline input
+       and bottom bar (.metroBlk-edit-bar below) own naming and saving now. */
     .metroBlk-setup-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-3); min-height: 48px; }
     .metroBlk-setup-name-btn { display: flex; align-items: center; gap: var(--space-2); min-height: 48px; background: none; border: none; padding: 0; cursor: pointer; font: inherit; color: inherit; }
     .metroBlk-setup-name { font-size: var(--font-lg); font-weight: bold; color: var(--text-color); }
     .metroBlk-setup-name-icon { font-size: 1.2rem; color: var(--label-color); }
     .metroBlk-setup-name-input { width: 100%; font-size: var(--font-lg); font-weight: bold; padding: var(--space-2) 14px; }
+    /* Flags a field Save found missing (empty name, no blocks) - every blocking field highlights
+       together, not one at a time as each is fixed (see metroBlkEditValidationProblems). The name
+       input already has a border to recolour; the tile strip has none, so it gets an outline
+       instead (doesn't take up layout space, so the grid doesn't shift). */
+    .metroBlk-field-invalid { border-color: var(--danger-color) !important; }
+    #metroBlockTiles.metroBlk-field-invalid { outline: 2px solid var(--danger-color); outline-offset: 6px; border-radius: var(--radius-md); }
 
     /* Edit Mode's own save/cancel (ML-97) - fixed to the bottom of the viewport rather than sitting
        inline, so it's reachable without scrolling back up however long the block list gets, and the
-       "editing set, don't forget to save" reminder stays in view the whole time. Matches .container's
-       own max-width/centering so it lines up with the page above it on wide viewports. */
+       reminder to save stays in view the whole time. Matches .container's own max-width/centering so
+       it lines up with the page above it on wide viewports. */
     .metroBlk-edit-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; width: 100%; max-width: 500px; margin: 0 auto; box-sizing: border-box; background: var(--container-bg); border-top: 2px solid var(--primary-action); box-shadow: var(--shadow-xl); padding: var(--space-3) var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
     .metroBlk-edit-bar-text { font-size: var(--font-sm); color: var(--label-color); text-align: center; }
     .metroBlk-edit-bar-actions { display: flex; gap: var(--space-3); }

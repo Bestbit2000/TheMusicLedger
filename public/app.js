@@ -645,10 +645,11 @@
             metroBlkPlayer.prewarm();
             loadMetroBlkTimeSignatures();
             loadMetroBlkSetups();
-            renderMetroBlkEditUI(); // resets the header/help-text/bottom-bar to Play Mode's look
             if (metroBlkCurrentSetup) {
                 renderMetroBlkSetupHeader();
-                renderMetroBlockTiles(); // also refreshes the play queue/preview above if it's gone stale
+                // Also refreshes the play queue/preview above if it's gone stale, and lands an
+                // unsaved setup straight into Edit Mode rather than Play Mode (ML-97 follow-up).
+                metroBlkEnterAppropriateMode();
             } else {
                 loadMetroBlkDefaultSetup();
             }
@@ -3312,39 +3313,51 @@
         `).join('');
     }
 
+    // An unsaved setup (a fresh scratch, or one navigated away from before saving) always lands in
+    // Edit Mode, not Play Mode (ML-97 follow-up) - there's nothing meaningful to "play" or jump
+    // around in until it's actually been named and has blocks worth performing, so landing on it
+    // goes straight to configuring instead. A saved setup lands in Play Mode as before.
+    // Renders tiles itself either way, so callers just need metroBlkCurrentSetup set first.
+    function metroBlkEnterAppropriateMode() {
+        if (metroBlkCurrentSetup && !metroBlkCurrentSetup.savedAt) {
+            enterMetroBlkEditMode(); // renders tiles itself too
+        } else {
+            metroBlkEditMode = false;
+            metroBlkEditSnapshot = null;
+            renderMetroBlkEditUI();
+            renderMetroBlockTiles();
+        }
+    }
+
     // The builder always has something loaded - a real saved setup, or the account's one
-    // scratch (see server-side getOrCreateScratchSetup) seeded with a default 4/4 @ 60bpm
-    // block so the tool is immediately playable with zero naming friction. Starts in Play Mode;
-    // nothing is edited/saved until enterMetroBlkEditMode/saveMetroBlkEdit run (ML-97).
+    // scratch (see server-side getOrCreateScratchSetup) seeded with a default 4/4 @ 120bpm
+    // block so the tool is immediately playable with zero naming friction. Nothing is actually
+    // written to the server until saveMetroBlkEdit runs (ML-97) - metroBlkEnterAppropriateMode
+    // just lands the (unsaved) scratch straight into Edit Mode to configure it.
     async function loadMetroBlkDefaultSetup() {
         try {
             const fresh = await API.metronomeBlocks.setups.getScratch();
             fresh.segments = await normalizeMetroBlkOrder(fresh.segments);
             metroBlkCurrentSetup = fresh;
-            metroBlkEditMode = false;
-            metroBlkEditSnapshot = null;
-            renderMetroBlkEditUI();
             renderMetroBlkSetupHeader();
-            renderMetroBlockTiles();
+            metroBlkEnterAppropriateMode();
         } catch (error) {
             showWarningToast('Error loading setup: ' + error.message);
         }
     }
 
-    // "New setup" placeholder until the setup actually has a name (saveAdhocSetup/
-    // createNamedAdhocSetup are the only things that set savedAt) - the header icon switches
-    // meaning depending on whether there's a real name yet or not (see enterMetroBlkEditMode).
-    // Play Mode only - Edit Mode swaps this whole area for the inline name input instead
-    // (see renderMetroBlkEditUI).
+    // Play Mode only - Edit Mode swaps this whole area for the inline name input instead (see
+    // renderMetroBlkEditUI). An unsaved setup never actually reaches Play Mode any more (it lands
+    // straight in Edit Mode instead - see metroBlkEnterAppropriateMode), so this is always a real,
+    // already-saved name with a plain pencil next to it - no more save-vs-edit glyph switch.
     function renderMetroBlkSetupHeader() {
         const nameEl = document.getElementById('metroBlkSetupName');
         const nameBtn = document.getElementById('metroBlkRenameBtn');
         const icon = document.getElementById('metroBlkRenameIcon');
         if (!nameEl || !metroBlkCurrentSetup) return;
-        const isSaved = !!metroBlkCurrentSetup.savedAt;
-        nameEl.innerText = isSaved ? metroBlkCurrentSetup.name : 'New setup';
-        if (icon) icon.innerText = isSaved ? 'edit' : 'save';
-        nameBtn?.setAttribute('aria-label', isSaved ? 'Rename setup' : 'Save this setup');
+        nameEl.innerText = metroBlkCurrentSetup.name || 'New timing';
+        if (icon) icon.innerText = 'edit';
+        nameBtn?.setAttribute('aria-label', 'Rename setup');
     }
 
     // --- Play Mode / Edit Mode lifecycle (ML-97) ---
@@ -3358,11 +3371,14 @@
         const input = document.getElementById('metroBlkSetupNameInput');
         if (input) {
             input.classList.toggle('hidden-group', !metroBlkEditMode);
-            // Unsaved scratch: starts empty, not prefilled with the server's internal placeholder
-            // name ("Untitled setup") - that string was never a real name the user chose. Already
-            // saved: prefilled with the actual name, ready to edit in place.
-            if (metroBlkEditMode) input.value = metroBlkCurrentSetup?.savedAt ? (metroBlkCurrentSetup.name || '') : '';
+            input.classList.remove('metroBlk-field-invalid');
+            // Unsaved scratch: prefilled with "New timing" - a real, immediately-saveable default -
+            // rather than the server's own internal placeholder ("Untitled setup"), which was never a
+            // name the user actually chose. Already saved: prefilled with the actual name, ready to
+            // edit in place.
+            if (metroBlkEditMode) input.value = metroBlkCurrentSetup?.savedAt ? (metroBlkCurrentSetup.name || '') : 'New timing';
         }
+        document.getElementById('metroBlockTiles')?.classList.remove('metroBlk-field-invalid');
         const helpText = document.getElementById('metroBlkHelpText');
         if (helpText) helpText.innerText = metroBlkEditMode ? 'Tap a block to edit it, or drag to reorder.' : 'Tap a block to jump to it.';
         document.getElementById('metroBlkEditBar')?.classList.toggle('hidden-group', !metroBlkEditMode);
@@ -3420,13 +3436,42 @@
     // rename), then segment deletions/creations/reindex-updates diffed against
     // metroBlkEditSnapshot. Leaves Edit Mode active on error so the draft isn't lost - the user can
     // retry Save or explicitly Cancel.
+    // Checks every blocking condition at once rather than stopping at the first one - the user
+    // gets one toast listing everything wrong and every field highlighted together, not a fresh
+    // complaint each time they fix one thing.
+    function metroBlkEditValidationProblems() {
+        const nameInput = document.getElementById('metroBlkSetupNameInput');
+        const name = (nameInput?.value || '').trim();
+        const tilesEl = document.getElementById('metroBlockTiles');
+        const hasBlock = metroBlkCurrentSetup.segments.some(s => !s.isLeadIn);
+
+        const problems = [];
+        if (!name) problems.push('Please enter a name to save this.');
+        if (!hasBlock) problems.push('Please add at least one block to save this.');
+        nameInput?.classList.toggle('metroBlk-field-invalid', !name);
+        tilesEl?.classList.toggle('metroBlk-field-invalid', !hasBlock);
+        return { problems, name, hasBlock };
+    }
+    // Clears a field's invalid highlight the moment the user starts fixing it, rather than making
+    // them re-submit before seeing it go away.
+    document.getElementById('metroBlkSetupNameInput')?.addEventListener('input', function() {
+        if (this.value.trim()) this.classList.remove('metroBlk-field-invalid');
+    });
+
     async function saveMetroBlkEdit() {
         if (!metroBlkCurrentSetup || !metroBlkEditSnapshot) return;
         const nameInput = document.getElementById('metroBlkSetupNameInput');
-        const name = (nameInput?.value || '').trim();
-        if (!name) return showWarningToast('Enter a name for this setup.');
+        const { problems, name } = metroBlkEditValidationProblems();
+        if (problems.length) {
+            showWarningToast(problems.join('\n'));
+            if (!name) nameInput?.focus();
+            else document.getElementById('metroBlockTiles')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
         const wasSaved = !!metroBlkCurrentSetup.savedAt;
         if (metroBlkNameIsTaken(name, wasSaved ? metroBlkCurrentSetup.id : undefined)) {
+            nameInput?.classList.add('metroBlk-field-invalid');
+            nameInput?.focus();
             return showWarningToast('This name is already taken');
         }
 

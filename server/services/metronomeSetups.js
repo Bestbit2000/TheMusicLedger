@@ -99,7 +99,7 @@ export async function saveAdhocSetup(accountId, id, name) {
 
 // Every fresh setup - whether the implicit scratch or a just-named "Add new
 // set" - starts with this one block, so the tool is immediately playable
-// with zero setup. 4/4 is guaranteed to exist in the system catalog
+// with zero setup. 4/4 @ 120bpm is guaranteed to exist in the system catalog
 // (017_multibar_metronome.sql).
 async function seedDefaultBlock(setupId) {
   const sig = await pool.query(
@@ -107,7 +107,7 @@ async function seedDefaultBlock(setupId) {
   );
   await pool.query(
     `INSERT INTO metronome_segments (parent_adhoc_setup_id, order_index, bar_count, bpm, is_lead_in, time_signature_id)
-     VALUES ($1, 0, 1, 60, false, $2)`,
+     VALUES ($1, 0, 1, 120, false, $2)`,
     [setupId, sig.rows[0].id]
   );
 }
