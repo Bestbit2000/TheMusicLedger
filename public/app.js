@@ -3244,6 +3244,53 @@
     let metroBlkCurrentSetup = null; // { id, name, segments: [...] }, loaded when entering the builder
     let metroBlkTimeSigCache = { public: [], custom: [] };
 
+    // --- Macro beats (ML-95): the big/accented playback circles follow the meter's own conductor
+    // pulse (macroBeatsPerBar), not the raw time-signature numerator - a 9/8 block shows/clicks 3
+    // large circles (one per dotted crotchet), not 9. subdivisionFactor is how many base clicks make
+    // up one macro beat once sub-beats are showing (3 quavers per dotted-crotchet pulse for a compound
+    // meter, 2 for a simple one); minMacroBpm is the Auto-mode threshold. Simple/compound meters only -
+    // irregular ones (5/8, 7/8, 10/8, 11/8, 5/4, 7/4, 5/16, 7/16) have unequal-length beats the
+    // scheduler can't express yet (every conductor beat assumes the same wall-clock duration) and keep
+    // today's behaviour via METRO_BLK_METER_FALLBACK - tracked as a follow-up, not built here.
+    const METRO_BLK_METER_TABLE = {
+        '2/2': { macroBeatsPerBar: 2, subdivisionFactor: 2, minMacroBpm: 45 },
+        '3/2': { macroBeatsPerBar: 3, subdivisionFactor: 2, minMacroBpm: 45 },
+        '4/2': { macroBeatsPerBar: 4, subdivisionFactor: 2, minMacroBpm: 45 },
+        '1/4': { macroBeatsPerBar: 1, subdivisionFactor: 2, minMacroBpm: 45 },
+        '2/4': { macroBeatsPerBar: 2, subdivisionFactor: 2, minMacroBpm: 45 },
+        '3/4': { macroBeatsPerBar: 3, subdivisionFactor: 2, minMacroBpm: 45 },
+        '4/4': { macroBeatsPerBar: 4, subdivisionFactor: 2, minMacroBpm: 45 },
+        '6/4': { macroBeatsPerBar: 2, subdivisionFactor: 3, minMacroBpm: 45 },
+        '8/4': { macroBeatsPerBar: 4, subdivisionFactor: 2, minMacroBpm: 45 },
+        '1/8': { macroBeatsPerBar: 1, subdivisionFactor: 2, minMacroBpm: 45 },
+        '2/8': { macroBeatsPerBar: 2, subdivisionFactor: 2, minMacroBpm: 45 },
+        '3/8': { macroBeatsPerBar: 3, subdivisionFactor: 2, minMacroBpm: 45 },
+        '4/8': { macroBeatsPerBar: 4, subdivisionFactor: 2, minMacroBpm: 45 },
+        '6/8': { macroBeatsPerBar: 2, subdivisionFactor: 3, minMacroBpm: 45 },
+        '9/8': { macroBeatsPerBar: 3, subdivisionFactor: 3, minMacroBpm: 45 },
+        '12/8': { macroBeatsPerBar: 4, subdivisionFactor: 3, minMacroBpm: 45 },
+        '3/16': { macroBeatsPerBar: 3, subdivisionFactor: 2, minMacroBpm: 45 }
+    };
+    // macroBeatsPerBar null here means "not in the table" - resolved to the block's own raw
+    // numerator below, i.e. exactly today's un-grouped behaviour.
+    const METRO_BLK_METER_FALLBACK = { macroBeatsPerBar: null, subdivisionFactor: 2, minMacroBpm: 45 };
+
+    // Resolves a regular block's own macro-beat info; null for a lead-in (it never gets macro
+    // grouping - see metroBlkBeatsPerBarFor/metroBlkSubFactorFor, both branch on isLeadIn instead of
+    // relying on this returning null to signal it).
+    function metroBlkMeterInfo(block) {
+        if (!block || block.isLeadIn) return null;
+        const row = METRO_BLK_METER_TABLE[`${block.numerator}/${block.denominator}`] || METRO_BLK_METER_FALLBACK;
+        return { macroBeatsPerBar: row.macroBeatsPerBar ?? block.numerator, subdivisionFactor: row.subdivisionFactor, minMacroBpm: row.minMacroBpm };
+    }
+
+    // "Beats per bar" for progress/bar-boundary purposes - macroBeatsPerBar for a regular block,
+    // the raw numerator for a lead-in (untouched by ML-95 - a lead-in is always a short fragment,
+    // never subdivided or macro-grouped, see metroBlkRealignPlayer).
+    function metroBlkBeatsPerBarFor(block) {
+        return block.isLeadIn ? block.numerator : metroBlkMeterInfo(block).macroBeatsPerBar;
+    }
+
     // Sequencing: lead-in segments always play first (metroBlkCurrentSetup.segments is kept in that
     // order at all times - see normalizeMetroBlkOrder), then the rest loop from metroBlkLoopBackIndex -
     // which is the lead-in's own index (0) instead of past it, when that lead-in is marked
@@ -3669,7 +3716,7 @@
         const total = block.barCount;
         const countStr = beatsPlayedInBlock === undefined
             ? `${total} bar${total === 1 ? '' : 's'}`
-            : `${Math.min(total, Math.floor(beatsPlayedInBlock / block.numerator) + 1)} of ${total} bar${total === 1 ? '' : 's'}`;
+            : `${Math.min(total, Math.floor(beatsPlayedInBlock / metroBlkBeatsPerBarFor(block)) + 1)} of ${total} bar${total === 1 ? '' : 's'}`;
         return `${prefix}${block.timeSignatureLabel} · ${block.bpm} bpm · ${countStr}`;
     }
 
@@ -4533,21 +4580,46 @@
         buildMetroBlkPlayQueue();
         renderMetroBlkRows();
     }
-    // Subdivide is a playback-only overlay (like speed%), not per-block data - one setting applies
-    // across the whole sequence rather than being stored per segment. The lead-in never subdivides
-    // regardless of that setting, though - it's too short for sub-beats to mean anything, and they'd
-    // just be noise leading into the actual first beat.
-    let metroBlkSubdivisionFactor = 1;
+    // Sub-beats mode is a playback-only overlay (like speed%), not per-block data - one setting
+    // applies across the whole sequence rather than being stored per segment. The lead-in never
+    // subdivides or macro-groups regardless of this setting, though - it's too short for sub-beats to
+    // mean anything, and they'd just be noise leading into the actual first beat.
+    // ML-95: Off/Auto/On, replacing the old plain Off/On - Auto reveals sub-beats automatically once
+    // the effective macro tempo drops below the meter's own threshold (metroBlkShouldSubdivide);
+    // metroBlkSubdivideOverride is only consulted in 'on' mode, where the user can still drag the
+    // slider to something other than the meter's own metric default (session-wide, like the old
+    // slider value was - not stored per block).
+    let metroBlkSubBeatsMode = 'off';
+    let metroBlkSubdivideOverride = null;
 
-    function metroBlkEffectiveSubFactor(block) {
-        return (block && block.isLeadIn) ? 1 : Math.max(1, metroBlkSubdivisionFactor);
+    function metroBlkShouldSubdivide(block) {
+        const info = metroBlkMeterInfo(block);
+        if (!info) return false; // lead-in
+        if (metroBlkSubBeatsMode === 'off') return false;
+        if (metroBlkSubBeatsMode === 'on') return true;
+        // Auto: Target BPM * Play Speed%, same effective-bpm formula the play-speed control itself
+        // already applies - only reveal sub-beats once the macro pulse itself has slowed enough that
+        // subdividing it is actually useful.
+        const effectiveMacroBpm = block.bpm * (metroBlkSpeedPercent / 100);
+        return effectiveMacroBpm < info.minMacroBpm;
+    }
+
+    // The actual multiplier fed to the engine/renderer - replaces the old metroBlkEffectiveSubFactor.
+    // 1 (no subdivision) for a lead-in or whenever metroBlkShouldSubdivide says no; otherwise the
+    // meter's own subdivisionFactor, or the user's manual override while in 'on' mode.
+    function metroBlkSubFactorFor(block) {
+        if (!block || block.isLeadIn || !metroBlkShouldSubdivide(block)) return 1;
+        if (metroBlkSubBeatsMode === 'on' && metroBlkSubdivideOverride) return metroBlkSubdivideOverride;
+        return metroBlkMeterInfo(block).subdivisionFactor;
     }
 
     function applyMetroBlkToPlayer(block) {
         metroBlkPlayer.setConductorBpm(block.bpm);
-        metroBlkPlayer.setConductorBeatsPerBar(block.numerator); // denominator out of scope for ML-35
-        metroBlkPlayer.setNotesPerBeat(1);
-        metroBlkPlayer.setSubdivisionFactor(metroBlkEffectiveSubFactor(block));
+        metroBlkPlayer.setConductorBeatsPerBar(metroBlkBeatsPerBarFor(block));
+        metroBlkPlayer.setNotesPerBeat(block.isLeadIn ? 1 : metroBlkSubFactorFor(block));
+        // The engine's own separate "practice subdivision" tier is retired for Blocks (ML-95) - there's
+        // only one subdivision concept now (the data-driven one above), not two stacked layers.
+        metroBlkPlayer.setSubdivisionFactor(1);
         // A distinct, lower-pitched click while the lead-in plays, so it's obviously not "real" beat
         // 1 yet even before you've learned to listen for the count.
         metroBlkPlayer.setLowPitch(!!block.isLeadIn);
@@ -4557,9 +4629,9 @@
     // block boundary would otherwise call resetToBarStart(), this picks the right starting beat
     // instead so the click and the dots agree on where "beat 1 of the lead-in" actually is. Scaled
     // by the subdivide factor since clickIndex counts sub-clicks, not conductor beats, once
-    // subdivision is more than 1 (never for the lead-in itself - see metroBlkEffectiveSubFactor).
+    // subdivision is more than 1 (never for the lead-in itself - see metroBlkSubFactorFor).
     function metroBlkRealignPlayer(block) {
-        if (block.pickupBeats) metroBlkPlayer.setBeatIndex((block.numerator - block.pickupBeats) * metroBlkEffectiveSubFactor(block));
+        if (block.pickupBeats) metroBlkPlayer.setBeatIndex((block.numerator - block.pickupBeats) * metroBlkSubFactorFor(block));
         else metroBlkPlayer.resetToBarStart();
 
         // Quiet space before the lead-in (re)starts (ML-92) - only meaningful when landing on the
@@ -4581,14 +4653,34 @@
     // both read as "0 sub beats" rather than a plain "1" that doesn't obviously mean off.
     function metroBlkSubdivideDisplayValue(v) { return v <= 1 ? '0' : String(v); }
 
-    function setMetroBlkSubdivision(v) {
-        metroBlkSubdivisionFactor = v;
-        document.getElementById('metroBlkSubdivideLbl').innerText = metroBlkSubdivideDisplayValue(v);
-        document.getElementById('metroBlkMiniSubdivideLbl').innerText = metroBlkSubdivideDisplayValue(v);
-        // Re-derive rather than setting v directly - if the lead-in is what's currently playing, it
-        // stays un-subdivided regardless of what was just picked.
-        const currentBlock = metroBlkPlayQueue.length ? metroBlkEffectiveBlock(metroBlkPlayQueue[metroBlkPlayIndex], metroBlkPlayQueue) : null;
-        metroBlkPlayer.setSubdivisionFactor(currentBlock ? metroBlkEffectiveSubFactor(currentBlock) : v);
+    // Whichever block the transport/popup should currently reflect - null if nothing's loaded yet.
+    function metroBlkSubdivideCurrentBlock() {
+        return metroBlkPlayQueue.length ? metroBlkEffectiveBlock(metroBlkPlayQueue[metroBlkPlayIndex], metroBlkPlayQueue) : null;
+    }
+
+    // The collapsed button always reflects metroBlkSubFactorFor's live decision for whichever block
+    // is current - 0 for Off (or a lead-in), the meter's own metric default for Auto-and-slow-enough,
+    // 0 for Auto-but-too-fast, the override-or-metric-default for On. Called from renderMetroBlkRows
+    // too so it live-updates as playback advances between blocks/speed changes, not just on Save.
+    function renderMetroBlkSubdivideLabels() {
+        const block = metroBlkSubdivideCurrentBlock();
+        const display = metroBlkSubdivideDisplayValue(block ? metroBlkSubFactorFor(block) : 1);
+        const lbl = document.getElementById('metroBlkSubdivideLbl');
+        if (lbl) lbl.innerText = display;
+        const miniLbl = document.getElementById('metroBlkMiniSubdivideLbl');
+        if (miniLbl) miniLbl.innerText = display;
+    }
+
+    // Commits the popup's mode (+ override, 'on' only) and re-pushes the live player state for
+    // whichever block is currently loaded - mirrors the old setMetroBlkSubdivision's "if the lead-in
+    // is what's playing, it stays un-subdivided regardless" via metroBlkSubFactorFor's own isLeadIn
+    // branch.
+    function setMetroBlkSubBeatsMode(mode, overrideValue) {
+        metroBlkSubBeatsMode = mode;
+        metroBlkSubdivideOverride = mode === 'on' ? overrideValue : null;
+        const block = metroBlkSubdivideCurrentBlock();
+        if (block) metroBlkPlayer.setNotesPerBeat(block.isLeadIn ? 1 : metroBlkSubFactorFor(block));
+        renderMetroBlkSubdivideLabels();
         renderMetroBlkRows();
     }
 
@@ -4601,17 +4693,17 @@
     // gave the slider the same tiered-expansion "stretch" as the segment editor's own bpm/bar-count
     // sliders (metroSegBpmSliderMax et al above) - starts at a tight 16 so everyday values are easy
     // to land on, growing to the full METRO_CUSTOM_MAX ceiling only once actually dragged that far.
-    // ML-99: the most common action here is just switching subdivision off/on, so an explicit Off/On
-    // radio toggle sits above the count - flipping to Off snaps straight to the "0/off" factor of 1
-    // and hides the count box entirely (nothing left to configure); flipping to On restores whatever
-    // count was last used (metroBlkSubdivideLastOnValue) rather than always resetting to some default,
-    // and the slider/stepper themselves now bottom out at 2, not 1 - reaching "off" is the radio's job,
-    // not something you drag down to any more.) ---
+    // ML-95: Off/On became Off/Auto/On - Auto shows this same box but locked read-only (see
+    // .metroBlk-subdivide-locked), always reflecting the current block's own metric default
+    // (metroBlkMeterInfo) rather than something the user sets directly; On keeps this slider fully
+    // editable, defaulting to the metric default but overridable (metroBlkSubdivideOverride,
+    // session-wide, same shape the old "last used value" was) - the slider/stepper mechanics below are
+    // otherwise unchanged from the ML-99 round. Still bottoms out at 2, not 1 - reaching "off" is the
+    // radio's job, not something you drag down to any more.) ---
     const METRO_BLK_SUBDIVIDE_MIN = 2;
     const METRO_BLK_SUBDIVIDE_TIERS = [16, METRO_CUSTOM_MAX];
-    let metroBlkSubdividePopupValue = 2; // staged - only committed to metroBlkSubdivisionFactor on Save
+    let metroBlkSubdividePopupValue = 2; // staged - only committed (as an override) on Save, and only in 'on' mode
     let metroBlkSubdivideSliderMax = METRO_BLK_SUBDIVIDE_TIERS[0];
-    let metroBlkSubdivideLastOnValue = 2; // remembered count while switched Off, restored when switched back On
 
     function metroBlkSubdivideBestFitTier(value) {
         for (const t of METRO_BLK_SUBDIVIDE_TIERS) if (value <= t) return t;
@@ -4650,36 +4742,46 @@
     setupHoldStepper('metroBlkSubdivideMinus', -1, (amount) => setMetroBlkSubdividePopupValue(metroBlkSubdividePopupValue + amount));
     setupHoldStepper('metroBlkSubdividePlus', 1, (amount) => setMetroBlkSubdividePopupValue(metroBlkSubdividePopupValue + amount));
 
-    // Shows/hides the count box to match the radio - Off has nothing left to configure, so it
-    // disappears entirely rather than sitting there disabled.
-    function renderMetroBlkSubdivideOnOffUI(isOn) {
-        document.getElementById('metroBlkSubdivideBpmBox')?.classList.toggle('hidden-group', !isOn);
+    // Shows/hides the count box to match the radio (Off has nothing left to configure, so it
+    // disappears entirely rather than sitting there disabled) and locks it read-only for Auto - the
+    // box is still shown there (so the metric default is visible), just not interactive.
+    function renderMetroBlkSubdivideOnOffUI(mode) {
+        const box = document.getElementById('metroBlkSubdivideBpmBox');
+        if (!box) return;
+        box.classList.toggle('hidden-group', mode === 'off');
+        box.classList.toggle('metroBlk-subdivide-locked', mode === 'auto');
+    }
+    // The metric default (this popup's fallback whenever there's no block-specific one to show -
+    // e.g. nothing loaded yet, or the current block is a lead-in) - a plausible generic value, never
+    // actually used to drive playback.
+    function metroBlkSubdivideMetricDefault() {
+        const block = metroBlkSubdivideCurrentBlock();
+        const info = block ? metroBlkMeterInfo(block) : null;
+        return info ? info.subdivisionFactor : METRO_BLK_SUBDIVIDE_MIN;
     }
     document.getElementById('metroBlkSubdivideOff')?.addEventListener('change', () => {
-        if (metroBlkSubdividePopupValue >= METRO_BLK_SUBDIVIDE_MIN) metroBlkSubdivideLastOnValue = metroBlkSubdividePopupValue;
-        metroBlkSubdividePopupValue = 1;
-        renderMetroBlkSubdivideOnOffUI(false);
-        renderMetroBlkSubdividePopup();
+        renderMetroBlkSubdivideOnOffUI('off');
+    });
+    document.getElementById('metroBlkSubdivideAuto')?.addEventListener('change', () => {
+        renderMetroBlkSubdivideOnOffUI('auto');
+        setMetroBlkSubdividePopupValue(metroBlkSubdivideMetricDefault());
     });
     document.getElementById('metroBlkSubdivideOn')?.addEventListener('change', () => {
-        renderMetroBlkSubdivideOnOffUI(true);
-        setMetroBlkSubdividePopupValue(metroBlkSubdivideLastOnValue);
+        renderMetroBlkSubdivideOnOffUI('on');
+        setMetroBlkSubdividePopupValue(metroBlkSubdivideOverride || metroBlkSubdivideMetricDefault());
     });
 
     // One popup, opened from either the full view's button or the mini bar's (ML-94 follow-up
-    // replication) - both just seed the same staged value from whatever's currently committed.
+    // replication) - both just seed the same staged state from whatever's currently committed, for
+    // whichever block is currently loaded (the metric default can differ block to block).
     function openMetroBlkSubdividePopup() {
-        const isOn = metroBlkSubdivisionFactor >= METRO_BLK_SUBDIVIDE_MIN;
-        document.getElementById('metroBlkSubdivideOn').checked = isOn;
-        document.getElementById('metroBlkSubdivideOff').checked = !isOn;
-        renderMetroBlkSubdivideOnOffUI(isOn);
-        if (isOn) {
-            metroBlkSubdivideLastOnValue = metroBlkSubdivisionFactor;
-            setMetroBlkSubdividePopupValue(metroBlkSubdivisionFactor);
-        } else {
-            metroBlkSubdividePopupValue = 1;
-            renderMetroBlkSubdividePopup();
-        }
+        const mode = metroBlkSubBeatsMode;
+        document.getElementById('metroBlkSubdivideOff').checked = mode === 'off';
+        document.getElementById('metroBlkSubdivideAuto').checked = mode === 'auto';
+        document.getElementById('metroBlkSubdivideOn').checked = mode === 'on';
+        renderMetroBlkSubdivideOnOffUI(mode);
+        if (mode === 'on') setMetroBlkSubdividePopupValue(metroBlkSubdivideOverride || metroBlkSubdivideMetricDefault());
+        else setMetroBlkSubdividePopupValue(metroBlkSubdivideMetricDefault());
         document.getElementById('metroBlkSubdivideModal').style.display = 'flex';
     }
     document.getElementById('metroBlkSubdivideBtn')?.addEventListener('click', openMetroBlkSubdividePopup);
@@ -4688,7 +4790,12 @@
         document.getElementById('metroBlkSubdivideModal').style.display = 'none';
     });
     document.getElementById('metroBlkSubdivideSaveBtn')?.addEventListener('click', () => {
-        setMetroBlkSubdivision(metroBlkSubdividePopupValue);
+        const mode = document.querySelector('input[name="metroBlkSubdivideOnOff"]:checked')?.value || 'off';
+        // Only a genuine override (the user actually moved it away from the metric default) is worth
+        // remembering - saving with the default still showing shouldn't lock in a redundant override.
+        const overrideValue = (mode === 'on' && metroBlkSubdividePopupValue !== metroBlkSubdivideMetricDefault())
+            ? metroBlkSubdividePopupValue : null;
+        setMetroBlkSubBeatsMode(mode, overrideValue);
         document.getElementById('metroBlkSubdivideModal').style.display = 'none';
     });
 
@@ -4749,23 +4856,29 @@
             renderMetroBlkRows();
         }
 
-        // One dot per base click now (main beats AND sub-beats, mirroring the single-bar tool's
-        // metroNotesRow) - flash by the raw click-in-bar index, which lines up 1:1 with the dots
-        // buildMetroDotRow actually created.
-        flashTierDot('metroBlkRow0Dots', beatInfo.clickIndexInBar);
-        flashTierDot('metroBlkMiniDots', beatInfo.clickIndexInBar);
-
         const block = metroBlkEffectiveBlock(metroBlkPlayQueue[metroBlkPlayIndex], metroBlkPlayQueue);
         if (!block) return;
-        const subFactor = metroBlkEffectiveSubFactor(block);
+        const subFactor = metroBlkSubFactorFor(block);
+
+        // One dot per base click now (main beats AND sub-beats, mirroring the single-bar tool's
+        // metroNotesRow) - flash by the raw click-in-bar index, which lines up 1:1 with the dots
+        // buildMetroDotRow actually created. ML-95 performance guardrail: once subdivided clicks are
+        // flying past faster than 200/min, skip the flash animation itself (audio keeps clicking
+        // normally) rather than trying to keep up with a lit-dot animation nobody can actually follow.
+        if (subFactor <= 1 || block.bpm * (metroBlkSpeedPercent / 100) * subFactor <= 200) {
+            flashTierDot('metroBlkRow0Dots', beatInfo.clickIndexInBar);
+            flashTierDot('metroBlkMiniDots', beatInfo.clickIndexInBar);
+        }
 
         // Advancing has to wait for every click of the target's last beat, sub-beats included, not
         // just that beat's own main click - a 4/4 bar with subdivide on isn't actually finished the
         // instant beat 4 sounds, there's still beat 4's trailing sub-beat(s) to play before the bar
         // genuinely ends. Counting conductor beats alone (as before) advanced - and reconfigured the
         // player for the next block - one sub-beat too early, silently dropping that final click.
+        // metroBlkBeatsPerBarFor: macro beats for a regular block (ML-95), still the raw numerator
+        // for a whole-bar lead-in (untouched) - pickupBeats itself is always raw-numerator regardless.
         metroBlkClicksPlayedInBlock++;
-        const targetBeats = block.pickupBeats || (block.barCount * block.numerator);
+        const targetBeats = block.pickupBeats || (block.barCount * metroBlkBeatsPerBarFor(block));
         const targetClicks = targetBeats * subFactor;
         const isFinalClickOfBlock = metroBlkClicksPlayedInBlock >= targetClicks;
 
@@ -4786,7 +4899,7 @@
             // Refreshes the "x of y" progress in place (label text only, no dot rebuild) - every beat
             // for a partial lead-in (pickupBeats is usually small), only at each bar boundary for a
             // repeating whole-bar block, so a long bar doesn't churn the label on every single beat.
-            const justCompletedABar = !block.pickupBeats && metroBlkBeatsPlayedInBlock % block.numerator === 0;
+            const justCompletedABar = !block.pickupBeats && metroBlkBeatsPlayedInBlock % metroBlkBeatsPerBarFor(block) === 0;
             if (block.pickupBeats || justCompletedABar) {
                 const freshLabel = metroBlkBlockLabel(block, metroBlkBeatsPlayedInBlock);
                 const labelEl = document.getElementById('metroBlkRow0Label');
@@ -4859,13 +4972,15 @@
     function renderMetroBlkRows() {
         if (!metroBlkPlayQueue.length) return;
         const block = metroBlkEffectiveBlock(metroBlkPlayQueue[metroBlkPlayIndex], metroBlkPlayQueue);
-        const subFactor = metroBlkEffectiveSubFactor(block);
+        const subFactor = metroBlkSubFactorFor(block);
         const label = block ? metroBlkBlockLabel(block, metroBlkBeatsPlayedInBlock) : '';
         const labelEl = document.getElementById('metroBlkRow0Label');
         if (labelEl) labelEl.innerText = label;
 
-        const numerator = block ? block.numerator : 4;
-        const totalBaseClicks = numerator * subFactor;
+        // ML-95: macro beats, not the raw time-signature numerator - a 9/8 block lays out 3 big-dot
+        // groups (each subFactor clicks wide when subdividing), not 9.
+        const beatsPerBar = block ? metroBlkBeatsPerBarFor(block) : 4;
+        const totalBaseClicks = beatsPerBar * subFactor;
         // The row's line extends one slot past the last dot (connectMetroBlkDotsWithTrack) -
         // laying the dots out over totalBaseClicks+1 slots, not totalBaseClicks, reserves room for
         // that extension so the dots-plus-line group centers as a whole instead of the dots alone
@@ -4895,6 +5010,10 @@
         if (miniLabel) miniLabel.innerText = label || '-';
 
         renderMetroBlkActiveTileHighlight();
+        // Keeps the collapsed sub-beats button live (ML-95) - Auto's decision depends on this
+        // specific block's own bpm/meter and the current play speed, both of which can change
+        // without the sub-beats popup itself ever being touched.
+        renderMetroBlkSubdivideLabels();
     }
 
     // Play Mode's visual replacement for the old "coming next" row (ML-98): whichever block is
@@ -5003,6 +5122,12 @@
         metroBlkSpeedPercent = Math.min(METRO_BLK_SPEED_MAX, Math.max(METRO_BLK_SPEED_MIN, p));
         metroBlkPlayer.setSpeedPercent(metroBlkSpeedPercent);
         renderMetroBlkSpeedLabels();
+        // ML-95 Auto mode depends on effective bpm (Target BPM * Play Speed%) - a speed change alone,
+        // even while paused, can cross the threshold and needs to re-derive/re-render immediately
+        // rather than waiting for the next click or an unrelated re-render to notice.
+        const block = metroBlkSubdivideCurrentBlock();
+        if (block) applyMetroBlkToPlayer(block);
+        renderMetroBlkRows();
     }
 
     function renderMetroBlkSpeedOptions() {

@@ -595,6 +595,11 @@
        center-aligned so the note button/"=" sit level with the middle of that box, not its top. */
     .metroBlk-note-bpm-row { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 var(--space-2) 0; }
     .metroBlk-bpm-box { flex: 1; min-width: 0; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3); }
+    /* Sub-beats' Auto mode (ML-95) - the box stays visible (so the meter's own metric default is
+       still shown) but isn't something the user sets directly, so it's locked read-only rather than
+       hidden: no interaction at all (not just a visual dim) and no separate JS guard needed in the
+       custom slider's own drag/click handlers. */
+    .metroBlk-subdivide-locked { opacity: 0.6; pointer-events: none; }
     /* .slider-thumb's border defaults to var(--container-bg) so it reads as a gap against the
        page background it normally sits on - inside this box the surrounding surface is
        var(--input-bg) instead (a shade lighter), so the ring needs to match that here specifically
