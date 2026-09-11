@@ -61,6 +61,7 @@ later table exists. Each file has a comment marking where this happens.
 | `019_timesig_extras.sql` | Adds `3/2` to the public time signature catalog; adds `account_time_signatures.active` (a custom signature still referenced by existing blocks is archived rather than deleted) |
 | `020_more_time_signatures.sql` | Rounds out the public catalog with 5/8, 7/8, 4/2, 7/4, 10/8, 11/8, 1/4, 1/8, 3/16, 5/16, 7/16 - common asymmetric/irregular meters in concert/brass band repertoire |
 | `021_lead_in_repeat.sql` | Adds `metronome_segments.repeat_lead_in` (ML-85) - whether the lead-in plays again on every loop, or only once at the start; meaningful only on the setup's one `is_lead_in` row |
+| `022_lead_in_quiet_seconds.sql` | Adds `metronome_segments.quiet_seconds_before_lead_in` (ML-92) - seconds of silence played immediately before the lead-in starts, every time it plays; meaningful only on the setup's one `is_lead_in` row |
 
 ## Decisions made translating the design doc into SQL
 

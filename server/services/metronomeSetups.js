@@ -150,10 +150,10 @@ export async function duplicateAdhocSetup(accountId, sourceId, name) {
   for (const seg of source.segments) {
     await pool.query(
       `INSERT INTO metronome_segments
-         (parent_adhoc_setup_id, order_index, bar_count, bpm, is_lead_in, repeat_lead_in, pickup_beats, time_signature_id, account_time_signature_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [created.id, seg.orderIndex, seg.barCount, seg.bpm, seg.isLeadIn, seg.repeatLeadIn, seg.pickupBeats,
-        seg.timeSignatureId, seg.accountTimeSignatureId]
+         (parent_adhoc_setup_id, order_index, bar_count, bpm, is_lead_in, repeat_lead_in, quiet_seconds_before_lead_in, pickup_beats, time_signature_id, account_time_signature_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [created.id, seg.orderIndex, seg.barCount, seg.bpm, seg.isLeadIn, seg.repeatLeadIn, seg.quietSecondsBeforeLeadIn,
+        seg.pickupBeats, seg.timeSignatureId, seg.accountTimeSignatureId]
     );
   }
   return getAdhocSetupWithSegments(accountId, created.id);
@@ -176,6 +176,7 @@ export function toSegmentDto(row) {
     bpm: row.bpm,
     isLeadIn: row.is_lead_in,
     repeatLeadIn: row.repeat_lead_in,
+    quietSecondsBeforeLeadIn: row.quiet_seconds_before_lead_in,
     pickupBeats: row.pickup_beats,
     timeSignatureId: row.time_signature_id === null ? null : Number(row.time_signature_id),
     accountTimeSignatureId: row.account_time_signature_id === null ? null : Number(row.account_time_signature_id),
@@ -193,7 +194,7 @@ export async function getAdhocSetupWithSegments(accountId, id) {
   if (!setupResult.rows.length) throw withStatus(404, 'Setup not found');
 
   const { rows } = await pool.query(
-    `SELECT ms.id, ms.order_index, ms.bar_count, ms.bpm, ms.is_lead_in, ms.repeat_lead_in, ms.pickup_beats,
+    `SELECT ms.id, ms.order_index, ms.bar_count, ms.bpm, ms.is_lead_in, ms.repeat_lead_in, ms.quiet_seconds_before_lead_in, ms.pickup_beats,
             ms.time_signature_id, ms.account_time_signature_id,
             COALESCE(tso.numerator, ats.numerator) AS numerator,
             COALESCE(tso.denominator, ats.denominator) AS denominator,

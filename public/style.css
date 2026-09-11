@@ -66,6 +66,12 @@
     .top-bar { width: 100%; max-width: 500px; background: var(--container-bg); padding: 15px 20px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-md); }
     .top-bar-title { font-size: var(--font-md); font-weight: bold; flex-grow: 1; text-align: center; }
     .top-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-color); padding: 5px 10px; font-weight: bold; }
+    /* On/off state shown as a filled circle (ML-91) rather than swapping icon glyphs - a diagonal-
+       line "off" variant isn't guaranteed to exist for every icon in the font, where a plain filled/
+       unfilled toggle always works and matches how Play and other active controls already read as
+       "on" elsewhere in the app. */
+    .top-tuner-toggle { width: 40px; height: 40px; min-width: 40px; border-radius: var(--radius-circle); display: flex; align-items: center; justify-content: center; padding: 0; }
+    .top-tuner-toggle.active { background: var(--primary-action); color: var(--primary-action-text); }
     .top-btn-back { background: transparent; border: none; color: var(--text-color); padding: 10px 20px 10px 5px; font-size: 1.6rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; }
     .hidden-btn { visibility: hidden; pointer-events: none; }
 
@@ -366,6 +372,13 @@
     .metro-mini-ctrl-btn { flex: 1 1 0; min-width: 0; min-height: 48px; background: var(--nav-action); color: var(--nav-action-text); border: none; border-radius: var(--radius-sm); padding: 6px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; box-sizing: border-box; }
     .metro-mini-ctrl-btn strong { font-size: var(--font-base); }
     .metro-mini-ctrl-unit { font-size: 0.6rem; opacity: 0.8; white-space: nowrap; }
+    /* Metronome Blocks' mini bar transport row (ML-94) - smaller versions of the builder's own
+       .metro-transport-btn (60px is too big for a box that's meant to stay out of the way on other
+       pages), reusing its .metro-play-btn/.metro-stop-btn colour classes so Play still reads gold and
+       Reset/Settings still read silver, same as the full view. */
+    .metroBlk-mini-transport-row { display: flex; align-items: center; justify-content: center; gap: var(--space-3); margin-top: var(--space-2); }
+    .metroBlk-mini-transport-btn { width: 44px; height: 44px; border: none; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .metroBlk-mini-transport-btn .material-symbols-outlined { font-size: 20px; }
 
     /* Metronome Blocks (ML-35) - the multi-bar sequencer tool. Prefixed .metroBlk- throughout,
        distinct from the single-bar tool's .metro- classes above, even where the shapes are similar,
@@ -381,31 +394,27 @@
     .metroBlk-setup-name-btn.metroBlk-setup-name-btn-disabled { pointer-events: none; cursor: default; }
     .metroBlk-setup-name { font-size: var(--font-lg); font-weight: bold; color: var(--text-color); }
     .metroBlk-setup-name-icon { font-size: 1.2rem; color: var(--label-color); }
-    /* Groups the header's own icon buttons (Save while unsaved, the tuner toggle always) so their
-       spacing follows the design system's gap scale rather than one-off margins. */
+    /* Groups the header's own icon buttons (just Save while unsaved, now the tuner toggle has moved
+       to the top bar - ML-91) so their spacing follows the design system's gap scale rather than
+       one-off margins. */
     .metroBlk-header-icons { display: flex; align-items: center; gap: var(--space-2); }
     .metroBlk-header-icon-btn { width: 48px; height: 48px; min-width: 48px; border-radius: var(--radius-circle); background: var(--nav-action); color: var(--nav-action-text); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 
-    /* Tuner access from this screen (previously a fully separate, self-contained tool/view) - a
-       small icon toggles a compact 2-line readout that animates in ABOVE the setup-name header
-       rather than navigating away, so you can check tuning without losing your place in the block
-       builder. Shares the same tunerEngine singleton as the full Tuner view (see METRONOME BLOCKS
-       MINI TUNER in app.js), just with its own compact renderer.
+    /* Tuner access from this screen (previously a fully separate, self-contained tool/view) - toggled
+       on/off from the top bar (ML-91, topTunerToggleBtn) rather than a close button of its own, and
+       sits first in the view rather than between the transport row and the setup header, so it's the
+       first thing on screen when it's on. Shares the same tunerEngine singleton as the full Tuner view
+       (see METRONOME BLOCKS MINI TUNER in app.js), just with its own compact renderer.
        Collapsed by default (max-height/opacity/padding/border all animate together) rather than
        display:none, specifically so opening/closing it is a visible slide, not a hard cut - toggled
-       via .metroBlk-mini-tuner-open, not hidden-group. position:relative for .modal-close-x (reused
-       as-is - a generic top-right 48x48 close button, not actually modal-specific despite the name);
-       right padding reserves room for it so it never overlaps the readings. */
-    /* Right padding reserves room for the close button PLUS a visible gap past it (ML-84 follow-up -
-       48px alone left the bar only ~3px from the close button, which read as touching once the green
-       in-tune background made the boundary between "bar" and "button" harder to see). */
-    .metroBlk-mini-tuner { position: relative; box-sizing: border-box; background: var(--input-bg); border: 2px solid var(--primary-action); border-width: 0; border-radius: var(--radius-md); padding: 0 calc(48px + var(--space-3) + var(--space-5)) 0 var(--space-4); margin-bottom: 0; max-height: 0; opacity: 0; overflow: hidden; pointer-events: none; transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease, margin-bottom 0.25s ease, border-width 0.25s ease, background 0.15s linear, border-color 0.15s linear; }
-    .metroBlk-mini-tuner.metroBlk-mini-tuner-open { border-width: 2px; padding: var(--space-3) calc(48px + var(--space-3) + var(--space-5)) var(--space-3) var(--space-4); margin-bottom: var(--space-3); max-height: 220px; opacity: 1; pointer-events: auto; }
+       via .metroBlk-mini-tuner-open, not hidden-group. */
+    .metroBlk-mini-tuner { box-sizing: border-box; background: var(--input-bg); border: 2px solid var(--primary-action); border-width: 0; border-radius: var(--radius-md); padding: 0 var(--space-4); margin-bottom: 0; max-height: 0; opacity: 0; overflow: hidden; pointer-events: none; transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease, margin-bottom 0.25s ease, border-width 0.25s ease, background 0.15s linear, border-color 0.15s linear; }
+    .metroBlk-mini-tuner.metroBlk-mini-tuner-open { border-width: 2px; padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); max-height: 220px; opacity: 1; pointer-events: auto; }
     .metroBlk-mini-tuner.in-tune { border-color: var(--tuner-in-tune-green); background: rgba(46, 204, 113, 0.28); }
     /* One big note on the left (not concert-and-instrument side by side any more - ML-84: showing both
        at once meant nothing to read the note against without already knowing which was which) at a
        fixed width, so the box no longer changes size as different note names come and go; the bar
-       track fills the rest of the row between it and the close button. */
+       track fills the rest of the row on the right. */
     .metroBlk-mini-tuner-body { display: flex; align-items: center; gap: var(--space-4); }
     .metroBlk-mini-tuner-note-col { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
     /* Both the note and the instrument label below it are buttons opening the same instrument picker

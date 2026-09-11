@@ -38,6 +38,11 @@
     <div class="top-bar">
         <button class="top-btn-back hidden-btn" id="topBackBtn" onclick="goBack()">&lt;</button>
         <div class="top-bar-title" id="topTitle">The Music Ledger</div>
+        <!-- Metronome Blocks only (ML-91) - toggles the tuner on/off from here instead of a button
+             half way down the page that scrolls out of view; shown/hidden by switchView. -->
+        <button type="button" class="top-btn top-tuner-toggle hidden-group" id="topTunerToggleBtn" aria-label="Show tuner" aria-pressed="false">
+            <span class="material-symbols-outlined" id="topTunerToggleIcon">tune</span>
+        </button>
         <div style="position: relative;">
             <button class="top-btn" id="navBurgerMenuBtn">☰</button>
             <div id="burgerDropdown" class="dropdown-menu">
@@ -98,18 +103,23 @@
         </div>
     </div>
 
-    <!-- Minimised metronome blocks (ML-35): same "persist as a box" pattern as the single-bar
-         metronome's mini bar above, but for the block sequence - shows the current block's dots plus
-         a label for which block is playing, since state here isn't flat like the single-bar tool. -->
+    <!-- Minimised metronome blocks (ML-35, reformatted ML-94): same "persist as a box" pattern as the
+         single-bar metronome's mini bar above, but matching the builder's own "now" row formatting
+         (label above dots, connecting track line - see renderMetroBlkRows) instead of a simplified
+         stand-in, so the two don't read as two different tools. Two rows: the now-bar, then a row of
+         transport buttons - Play/Pause and Reset mirror the builder's own, plus a settings button
+         that jumps back to the builder to adjust the block setup itself. -->
     <div id="metroBlocksMiniBar" class="metro-mini-bar hidden-group">
+        <div class="metroBlk-row-head"><span class="metroBlk-row-label" id="metroBlkMiniLabel">-</span></div>
         <div class="metro-mini-viewport" id="metroBlkMiniViewport">
             <div class="metro-mini-content" id="metroBlkMiniContent">
                 <div class="metro-tier metro-mini-dots" id="metroBlkMiniDots"></div>
             </div>
         </div>
-        <div class="metro-mini-controls">
-            <div class="metro-mini-ctrl-btn" style="flex:3;"><strong id="metroBlkMiniLabel">-</strong></div>
-            <button class="timer-mini-btn" id="metroBlkMiniPlayBtn" aria-label="Pause"><span class="material-symbols-outlined" id="metroBlkMiniPlayIcon">pause</span></button>
+        <div class="metroBlk-mini-transport-row">
+            <button class="metroBlk-mini-transport-btn metro-play-btn" id="metroBlkMiniPlayBtn" aria-label="Pause"><span class="material-symbols-outlined" id="metroBlkMiniPlayIcon">pause</span></button>
+            <button class="metroBlk-mini-transport-btn metro-stop-btn" id="metroBlkMiniResetBtn" aria-label="Reset to start"><span class="material-symbols-outlined">restart_alt</span></button>
+            <button class="metroBlk-mini-transport-btn metro-stop-btn" id="metroBlkMiniSettingsBtn" aria-label="Open Metronome Blocks setup"><span class="material-symbols-outlined">settings</span></button>
         </div>
     </div>
 </div>
@@ -447,6 +457,25 @@
     </div>
 
     <div id="metroBuilderView" style="display:none;">
+        <!-- Sits first in the view (ML-91: "appear at the top of the page if it's turned on") - shown/
+             hidden entirely via the top-bar toggle button now, so there's no close button of its own
+             here any more (see topTunerToggleBtn in the top bar). -->
+        <div id="metroBlkMiniTuner" class="metroBlk-mini-tuner">
+            <div class="metroBlk-mini-tuner-body">
+                <div class="metroBlk-mini-tuner-note-col">
+                    <button type="button" class="metroBlk-mini-tuner-note-big" id="metroBlkMiniTunerNoteBtn" aria-label="Change instrument (this session only)">&ndash;</button>
+                    <button type="button" class="metroBlk-mini-tuner-instrument-btn" id="metroBlkMiniTunerInstrumentBtn" aria-label="Change instrument (this session only)">Concert</button>
+                </div>
+                <div class="metroBlk-mini-tuner-bar-wrap">
+                    <div class="metroBlk-mini-tuner-bar-track">
+                        <div class="metroBlk-mini-tuner-bar-zone"></div>
+                        <div class="metroBlk-mini-tuner-bar-center"></div>
+                        <div class="metroBlk-mini-tuner-needle" id="metroBlkMiniTunerNeedle"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="metroBlk-rows" id="metroBlkRows">
             <div class="metroBlk-row metroBlk-row-current">
                 <div class="metroBlk-row-head"><span class="metroBlk-row-mark" id="metroBlkRow0Mark"></span><span class="metroBlk-row-label" id="metroBlkRow0Label"></span></div>
@@ -477,22 +506,6 @@
             <button class="metro-mini-ctrl-btn metroBlk-subdivide-btn" id="metroBlkSubdivideBtn"><strong id="metroBlkSubdivideLbl">Off</strong><span class="metro-mini-ctrl-unit hidden-group" id="metroBlkSubdivideUnit">/ beat</span></button>
         </div>
 
-        <div id="metroBlkMiniTuner" class="metroBlk-mini-tuner">
-            <button type="button" class="modal-close-x" id="metroBlkMiniTunerCloseBtn" aria-label="Close tuner"><span class="material-symbols-outlined">close</span></button>
-            <div class="metroBlk-mini-tuner-body">
-                <div class="metroBlk-mini-tuner-note-col">
-                    <button type="button" class="metroBlk-mini-tuner-note-big" id="metroBlkMiniTunerNoteBtn" aria-label="Change instrument (this session only)">&ndash;</button>
-                    <button type="button" class="metroBlk-mini-tuner-instrument-btn" id="metroBlkMiniTunerInstrumentBtn" aria-label="Change instrument (this session only)">Concert</button>
-                </div>
-                <div class="metroBlk-mini-tuner-bar-wrap">
-                    <div class="metroBlk-mini-tuner-bar-track">
-                        <div class="metroBlk-mini-tuner-bar-zone"></div>
-                        <div class="metroBlk-mini-tuner-bar-center"></div>
-                        <div class="metroBlk-mini-tuner-needle" id="metroBlkMiniTunerNeedle"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
         <div class="metroBlk-setup-header">
             <button type="button" class="metroBlk-setup-name-btn" id="metroBlkRenameBtn" aria-label="Rename setup">
                 <span class="metroBlk-setup-name" id="metroBlkSetupName">Block setup</span>
@@ -500,7 +513,6 @@
             </button>
             <div class="metroBlk-header-icons">
                 <button type="button" class="metroBlk-header-icon-btn hidden-group" id="metroBlkSaveBtn" aria-label="Save this setup"><span class="material-symbols-outlined">save</span></button>
-                <button type="button" class="metroBlk-header-icon-btn" id="metroBlkTunerToggleBtn" aria-label="Show tuner"><span class="material-symbols-outlined">tune</span></button>
             </div>
         </div>
         <p class="metro-help-text">Tap a block to edit it, or drag to reorder.</p>
@@ -702,6 +714,12 @@
                 <label for="metroSegRepeatLeadInYes">Yes</label>
             </div>
             <p class="metro-help-text">No plays the lead-in once at the start, then loops just the blocks below. Yes plays it again before every repeat - useful for a moment to reset before the music comes back around.</p>
+        </div>
+
+        <div class="form-group hidden-group" id="metroSegQuietSecondsGroup">
+            <label>Quiet space before the lead-in starts (seconds)</label>
+            <input type="number" id="metroSegQuietSeconds" min="0" value="0">
+            <p class="metro-help-text">A silent pause immediately before every time the lead-in plays, instead of going straight from the last click into the next. 0 means no pause.</p>
         </div>
 
         <div class="form-group" id="metroSegTimeSigGroup">
