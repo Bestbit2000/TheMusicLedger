@@ -3249,6 +3249,10 @@
     // Seconds of quiet space (ML-92) queued up by the most recent metroBlkRealignPlayer call, waiting
     // to be consumed by the next playMetroBlk() - see the comment there and on metroBlkRealignPlayer.
     let metroBlkPendingLeadInSilence = 0;
+    // True for the duration of that quiet space - nothing is actually sounding yet, so the row's dots
+    // show fully greyed out (see renderMetroBlkRows/.metroBlk-quiet-gap) rather than looking ready to
+    // play. Cleared the instant the lead-in's real first click arrives (onMetroBlkBeat).
+    let metroBlkQuietGapActive = false;
 
     const metroBlkPlayer = createMetronomePlayer();
 
@@ -4262,9 +4266,11 @@
         // realign, before playMetroBlk's own play() call exists) has no scheduled click to push back
         // yet, so the seconds are stashed and consumed by playMetroBlk's leadingSilenceSeconds instead.
         if (block.isLeadIn && block.quietSecondsBeforeLeadIn) {
+            metroBlkQuietGapActive = true;
             if (metroBlkPlayer.isPlaying()) metroBlkPlayer.delayNextClick(block.quietSecondsBeforeLeadIn);
             else metroBlkPendingLeadInSilence = block.quietSecondsBeforeLeadIn;
         } else {
+            metroBlkQuietGapActive = false;
             metroBlkPendingLeadInSilence = 0;
         }
     }
@@ -4331,6 +4337,15 @@
     }
 
     function onMetroBlkBeat(beatInfo) {
+        // The quiet gap (ML-92 follow-up) ends the instant a real click actually fires - this is
+        // always that first click, since nothing else calls onMetroBlkBeat while the gap is still
+        // running (the scheduler itself is what's been silently delayed). Re-render before flashing so
+        // the dots are back to their normal look for flashTierDot's 'lit' class to land on.
+        if (metroBlkQuietGapActive) {
+            metroBlkQuietGapActive = false;
+            renderMetroBlkRows();
+        }
+
         // One dot per base click now (main beats AND sub-beats, mirroring the single-bar tool's
         // metroNotesRow) - flash by the raw click-in-bar index, which lines up 1:1 with the dots
         // buildMetroDotRow actually created.
@@ -4472,6 +4487,13 @@
             connectMetroBlkDotsWithTrack(`metroBlkRow${slot}Dots`, endLeftStyle);
             greyOutSkippedDots(`metroBlkRow${slot}Dots`, block, subFactor);
             if (!metroBlkPlayer.isPlaying()) resetMetroScrollPosition(`metroBlkRow${slot}Content`);
+            // Only the CURRENT block (slot 0) can ever be mid-quiet-gap (ML-92 follow-up) - the upcoming
+            // preview (slot 1) never is, whatever it turns out to be. Also requires isPlaying(): sitting
+            // on a not-yet-started lead-in (paused, or never played this session) isn't "during the
+            // quiet space" in any meaningful sense yet, so it shouldn't pre-emptively grey out before
+            // there's actually a gap counting down.
+            const inQuietGap = slot === 0 && metroBlkQuietGapActive && metroBlkPlayer.isPlaying() && block && block.isLeadIn;
+            document.getElementById(`metroBlkRow${slot}Content`)?.classList.toggle('metroBlk-quiet-gap', inQuietGap);
 
             if (slot === 0) {
                 buildMetroDotRow('metroBlkMiniDots', totalBaseClicks, subFactor, false, trackLeftPct);
@@ -4479,6 +4501,7 @@
                 connectMetroBlkDotsWithTrack('metroBlkMiniDots', endLeftStyle);
                 greyOutSkippedDots('metroBlkMiniDots', block, subFactor);
                 if (!metroBlkPlayer.isPlaying()) resetMetroScrollPosition('metroBlkMiniContent');
+                document.getElementById('metroBlkMiniContent')?.classList.toggle('metroBlk-quiet-gap', inQuietGap);
                 const miniLabel = document.getElementById('metroBlkMiniLabel');
                 if (miniLabel) miniLabel.innerText = label || '-';
             }
@@ -4513,6 +4536,10 @@
         metroBlkMiniActive = true;
         updateMetroBlkPlayIcon();
         updateMetroBlocksMiniBarVisibility(viewStack[viewStack.length - 1]);
+        // isPlaying() is already true synchronously at this point (play() sets it before its own
+        // internal async audio setup resolves) - re-render now so a quiet gap (ML-92 follow-up) shows
+        // greyed out from the moment playback actually starts, not just once the first click lands.
+        renderMetroBlkRows();
     }
 
     function pauseMetroBlk() {

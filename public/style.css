@@ -561,6 +561,13 @@
        and, whenever the pickup is shorter than the bar, one of the skipped leading beats, and needs to
        render as skipped, not accented. */
     .metro-dot-note.metroBlk-dot-skipped, .metro-dot-sub.metroBlk-dot-skipped { opacity: 1; background: var(--input-bg); border-color: var(--input-border); }
+    /* The lead-in's quiet space (ML-92 follow-up): nothing is actually sounding yet, so every dot in
+       the row - accented, skipped, sub, whichever - shows uniformly greyed out rather than looking
+       "ready to play", then snaps straight back to normal (renderMetroBlkRows re-renders without this
+       class) the instant the lead-in's real first click fires. !important since it has to override
+       every other dot-state rule (.accent, .metroBlk-dot-skipped, .lit) uniformly, not just the
+       default. */
+    .metroBlk-quiet-gap .metro-dot { background: var(--input-border) !important; border-color: var(--input-border) !important; opacity: 0.35 !important; transform: translate(-50%, -50%) !important; }
 
     /* Layout utilities for the small set of repeated static inline-style patterns */
     .flex-row { display: flex; }
