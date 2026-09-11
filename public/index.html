@@ -804,16 +804,23 @@
 <div class="modal" id="metroBlkSubdivideModal">
     <div class="modal-content">
         <button type="button" class="modal-close-x" onclick="document.getElementById('metroBlkSubdivideModal').style.display='none'" aria-label="Close">&times;</button>
-        <div class="metroBlk-ctrl-popup-readout">
-            <div class="metroBlk-ctrl-popup-number" id="metroBlkSubdividePopupValue">1</div>
-            <div class="metroBlk-ctrl-popup-label">sub beats</div>
-        </div>
-        <div class="slider-wrap no-margin">
-            <div class="slider-track" id="metroBlkSubdivideSliderTrack">
-                <div class="slider-fill" id="metroBlkSubdivideSliderFill"></div>
-                <div class="slider-thumb" id="metroBlkSubdivideSliderThumb" tabindex="0" role="slider" aria-label="Sub beats" aria-valuemin="1" aria-valuemax="50" aria-valuenow="1"></div>
+        <h2>Sub beats</h2>
+        <div class="metroBlk-bpm-box">
+            <div class="metro-speed-row no-margin">
+                <button class="metro-bpm-step" id="metroBlkSubdivideMinus" type="button" aria-label="Decrease sub beats">&minus;</button>
+                <div class="metro-speed-readout">
+                    <div id="metroBlkSubdividePopupValue">0</div>
+                    <div class="metro-speed-sub">sub beats</div>
+                </div>
+                <button class="metro-bpm-step" id="metroBlkSubdividePlus" type="button" aria-label="Increase sub beats">+</button>
             </div>
-            <div class="slider-scale"><span>1</span><span>50</span></div>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="metroBlkSubdivideSliderTrack">
+                    <div class="slider-fill" id="metroBlkSubdivideSliderFill"></div>
+                    <div class="slider-thumb" id="metroBlkSubdivideSliderThumb" tabindex="0" role="slider" aria-label="Sub beats" aria-valuemin="1" aria-valuemax="50" aria-valuenow="1"></div>
+                </div>
+                <div class="slider-scale"><span>0</span><span>50</span></div>
+            </div>
         </div>
         <div style="display:flex; gap:10px; margin-top:var(--space-5);">
             <button class="btn-cancel btn-nav no-margin" id="metroBlkSubdivideCancelBtn">Cancel</button>
@@ -825,20 +832,17 @@
 <div class="modal" id="metroBlkSpeedModal">
     <div class="modal-content">
         <button type="button" class="modal-close-x" onclick="document.getElementById('metroBlkSpeedModal').style.display='none'" aria-label="Close">&times;</button>
-        <div class="metroBlk-ctrl-popup-readout">
-            <div class="metroBlk-ctrl-popup-number" id="metroBlkSpeedPopupValue">100%</div>
-            <div class="metroBlk-ctrl-popup-label">play speed</div>
-        </div>
-        <div class="slider-wrap no-margin">
-            <div class="slider-track" id="metroBlkSpeedSliderTrack">
-                <div class="slider-fill" id="metroBlkSpeedSliderFill"></div>
-                <div class="slider-thumb" id="metroBlkSpeedSliderThumb" tabindex="0" role="slider" aria-label="Play speed" aria-valuemin="25" aria-valuemax="200" aria-valuenow="100"></div>
-            </div>
-            <div class="slider-scale"><span>25%</span><span>200%</span></div>
-        </div>
-        <div style="display:flex; gap:10px; margin-top:var(--space-5);">
-            <button class="btn-cancel btn-nav no-margin" id="metroBlkSpeedCancelBtn">Cancel</button>
-            <button class="btn-submit no-margin" id="metroBlkSpeedSaveBtn">Save</button>
+        <h2>Play speed</h2>
+        <p class="metro-help-text">Tap a speed to apply it straight away.</p>
+        <div class="metroBlk-speed-options" id="metroBlkSpeedOptions">
+            <button type="button" class="metroBlk-timesig-opt" data-value="25">25%</button>
+            <button type="button" class="metroBlk-timesig-opt" data-value="50">50%</button>
+            <button type="button" class="metroBlk-timesig-opt" data-value="75">75%</button>
+            <button type="button" class="metroBlk-timesig-opt" data-value="100">100%</button>
+            <button type="button" class="metroBlk-timesig-opt" data-value="125">125%</button>
+            <button type="button" class="metroBlk-timesig-opt" data-value="150">150%</button>
+            <button type="button" class="metroBlk-timesig-opt" data-value="175">175%</button>
+            <button type="button" class="metroBlk-timesig-opt" data-value="200">200%</button>
         </div>
     </div>
 </div>

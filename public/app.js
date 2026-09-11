@@ -4262,10 +4262,14 @@
         }
     }
 
+    // A factor of 1 means "no subdivision" - shown as "0" (not "1") so the collapsed button and popup
+    // both read as "0 sub beats" rather than a plain "1" that doesn't obviously mean off.
+    function metroBlkSubdivideDisplayValue(v) { return v <= 1 ? '0' : String(v); }
+
     function setMetroBlkSubdivision(v) {
         metroBlkSubdivisionFactor = v;
-        document.getElementById('metroBlkSubdivideLbl').innerText = v;
-        document.getElementById('metroBlkMiniSubdivideLbl').innerText = v;
+        document.getElementById('metroBlkSubdivideLbl').innerText = metroBlkSubdivideDisplayValue(v);
+        document.getElementById('metroBlkMiniSubdivideLbl').innerText = metroBlkSubdivideDisplayValue(v);
         // Re-derive rather than setting v directly - if the lead-in is what's currently playing, it
         // stays un-subdivided regardless of what was just picked.
         const currentBlock = metroBlkPlayQueue.length ? metroBlkEffectiveBlock(metroBlkPlayQueue[metroBlkPlayIndex], metroBlkPlayQueue) : null;
@@ -4277,13 +4281,14 @@
     // own subdivide modal - "2 per beat" plus a redundant "/ beat" unit label read as "2 per beat per
     // beat". Now a dedicated slider popup, 1 to the same METRO_CUSTOM_MAX ceiling the old Custom entry
     // allowed, with just the number and "sub beats" underneath - both the collapsed button and this
-    // popup share that same big-number-small-label format.) ---
+    // popup share that same big-number-small-label format. A later follow-up restored +/- steppers
+    // next to the number, since the slider alone lost the old picker's quick, repeatable jumps.) ---
     const METRO_BLK_SUBDIVIDE_MIN = 1;
     const METRO_BLK_SUBDIVIDE_MAX = METRO_CUSTOM_MAX;
     let metroBlkSubdividePopupValue = 1; // staged - only committed to metroBlkSubdivisionFactor on Save
 
     function renderMetroBlkSubdividePopup() {
-        document.getElementById('metroBlkSubdividePopupValue').innerText = metroBlkSubdividePopupValue;
+        document.getElementById('metroBlkSubdividePopupValue').innerText = metroBlkSubdivideDisplayValue(metroBlkSubdividePopupValue);
         const pct = ((metroBlkSubdividePopupValue - METRO_BLK_SUBDIVIDE_MIN) / (METRO_BLK_SUBDIVIDE_MAX - METRO_BLK_SUBDIVIDE_MIN)) * 100;
         document.getElementById('metroBlkSubdivideSliderFill').style.width = `${pct}%`;
         const thumb = document.getElementById('metroBlkSubdivideSliderThumb');
@@ -4300,6 +4305,8 @@
     });
     makeSliderReadoutEditable('metroBlkSubdividePopupValue', () => metroBlkSubdividePopupValue, (v) => setMetroBlkSubdividePopupValue(v),
         { label: 'Sub beats', min: METRO_BLK_SUBDIVIDE_MIN, max: METRO_BLK_SUBDIVIDE_MAX });
+    setupHoldStepper('metroBlkSubdivideMinus', -1, (amount) => setMetroBlkSubdividePopupValue(metroBlkSubdividePopupValue + amount));
+    setupHoldStepper('metroBlkSubdividePlus', 1, (amount) => setMetroBlkSubdividePopupValue(metroBlkSubdividePopupValue + amount));
 
     // One popup, opened from either the full view's button or the mini bar's (ML-94 follow-up
     // replication) - both just seed the same staged value from whatever's currently committed.
@@ -4601,14 +4608,15 @@
     document.getElementById('metroBlkMiniSettingsBtn')?.addEventListener('click', () => switchView('metroBuilderView'));
     document.getElementById('metroBlkMiniCloseBtn')?.addEventListener('click', closeMetroBlkMiniBar);
 
-    // --- Playback speed popup (ML-91 follow-up: was -/+ steppers sat next to a bare "100%" readout,
-    // now a slider popup matching the sub-beats one above - independent of any block's own bpm, the
-    // player already applies this percentage on top of whatever bpm is currently loaded, same
-    // mechanism as the single-bar tool). ---
+    // --- Playback speed popup (ML-91 follow-up: was -/+ steppers sat next to a bare "100%" readout;
+    // a slider replacement lost that quick repeatable jump, and a typed exact value doesn't matter
+    // when only round preset percentages are ever useful in practice - now a button grid of presets,
+    // same immediate-apply-and-close pattern as the time-signature/instrument pickers, independent of
+    // any block's own bpm since the player applies this percentage on top of whatever bpm is loaded,
+    // same mechanism as the single-bar tool). ---
     const METRO_BLK_SPEED_MIN = 25;
     const METRO_BLK_SPEED_MAX = 200;
     let metroBlkSpeedPercent = 100;
-    let metroBlkSpeedPopupValue = 100; // staged - only committed to metroBlkSpeedPercent on Save
 
     function renderMetroBlkSpeedLabels() {
         document.getElementById('metroBlkSpeedLbl').innerText = `${metroBlkSpeedPercent}%`;
@@ -4620,36 +4628,21 @@
         renderMetroBlkSpeedLabels();
     }
 
-    function renderMetroBlkSpeedPopup() {
-        document.getElementById('metroBlkSpeedPopupValue').innerText = `${metroBlkSpeedPopupValue}%`;
-        const pct = ((metroBlkSpeedPopupValue - METRO_BLK_SPEED_MIN) / (METRO_BLK_SPEED_MAX - METRO_BLK_SPEED_MIN)) * 100;
-        document.getElementById('metroBlkSpeedSliderFill').style.width = `${pct}%`;
-        const thumb = document.getElementById('metroBlkSpeedSliderThumb');
-        thumb.style.left = `${pct}%`;
-        thumb.setAttribute('aria-valuenow', metroBlkSpeedPopupValue);
+    function renderMetroBlkSpeedOptions() {
+        document.querySelectorAll('#metroBlkSpeedOptions .metroBlk-timesig-opt').forEach(btn => {
+            btn.classList.toggle('selected', Number(btn.dataset.value) === metroBlkSpeedPercent);
+        });
     }
-    function setMetroBlkSpeedPopupValue(v) {
-        metroBlkSpeedPopupValue = Math.min(METRO_BLK_SPEED_MAX, Math.max(METRO_BLK_SPEED_MIN, Math.round(v)));
-        renderMetroBlkSpeedPopup();
-    }
-    setupSliderInteraction(document.getElementById('metroBlkSpeedSliderTrack'), document.getElementById('metroBlkSpeedSliderThumb'), {
-        onDragRatio: (ratio) => setMetroBlkSpeedPopupValue(METRO_BLK_SPEED_MIN + ratio * (METRO_BLK_SPEED_MAX - METRO_BLK_SPEED_MIN)),
-        onArrowStep: (dir) => setMetroBlkSpeedPopupValue(metroBlkSpeedPopupValue + dir)
-    });
-    makeSliderReadoutEditable('metroBlkSpeedPopupValue', () => metroBlkSpeedPopupValue, (v) => setMetroBlkSpeedPopupValue(v),
-        { label: 'Play speed', min: METRO_BLK_SPEED_MIN, max: METRO_BLK_SPEED_MAX });
-
     function openMetroBlkSpeedPopup() {
-        setMetroBlkSpeedPopupValue(metroBlkSpeedPercent);
+        renderMetroBlkSpeedOptions();
         document.getElementById('metroBlkSpeedModal').style.display = 'flex';
     }
     document.getElementById('metroBlkSpeedBtn')?.addEventListener('click', openMetroBlkSpeedPopup);
     document.getElementById('metroBlkMiniSpeedBtn')?.addEventListener('click', openMetroBlkSpeedPopup);
-    document.getElementById('metroBlkSpeedCancelBtn')?.addEventListener('click', () => {
-        document.getElementById('metroBlkSpeedModal').style.display = 'none';
-    });
-    document.getElementById('metroBlkSpeedSaveBtn')?.addEventListener('click', () => {
-        setMetroBlkSpeedPercent(metroBlkSpeedPopupValue);
+    document.getElementById('metroBlkSpeedOptions')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.metroBlk-timesig-opt');
+        if (!btn) return;
+        setMetroBlkSpeedPercent(Number(btn.dataset.value));
         document.getElementById('metroBlkSpeedModal').style.display = 'none';
     });
     renderMetroBlkSpeedLabels();

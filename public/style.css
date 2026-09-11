@@ -445,9 +445,10 @@
     /* Sub beats / play speed controls (ML-91 follow-up): collapsed buttons showing a big current
        value and a small label underneath - same "square, not round" language as Play/Reset
        (.metro-transport-btn) and the same row height, so the whole transport row reads as one
-       consistent set rather than a mix of shapes. Tapping either opens a popup with the same big-
-       number-plus-label format (see .metroBlk-ctrl-popup-*) driven by a slider instead of a button
-       grid. */
+       consistent set rather than a mix of shapes. Sub beats opens a popup built from the same
+       stepper+slider box as the segment editor's own BPM/bar-count controls (.metroBlk-bpm-box);
+       play speed opens a plain button grid instead (.metroBlk-speed-options) - see the JS/HTML
+       comments on each for why they ended up different shapes. */
     .metroBlk-ctrl-value-btn { height: 60px; min-width: 74px; padding: 0 var(--space-3); border: none; border-radius: var(--radius-md); background: var(--nav-action); color: var(--nav-action-text); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; box-sizing: border-box; }
     .metroBlk-ctrl-value-btn strong { font-size: var(--font-lg); font-weight: bold; font-variant-numeric: tabular-nums; }
     .metroBlk-ctrl-value-label { font-size: var(--font-xs); opacity: 0.85; white-space: nowrap; }
@@ -458,12 +459,11 @@
     .metroBlk-mini-ctrl-value-btn strong { font-size: var(--font-base); font-weight: bold; font-variant-numeric: tabular-nums; }
     .metroBlk-mini-ctrl-value-label { font-size: 0.55rem; opacity: 0.85; white-space: nowrap; }
 
-    /* The sub-beats/play-speed popups' own big-number readout (ML-91 follow-up) - a bigger, standalone
-       version of the same "large number, small label" language as the collapsed buttons above, since
-       here it's the popup's whole focal point rather than one piece of a compact row. */
-    .metroBlk-ctrl-popup-readout { text-align: center; margin-bottom: var(--space-4); }
-    .metroBlk-ctrl-popup-number { font-size: var(--font-2xl); font-weight: bold; color: var(--primary-action); font-variant-numeric: tabular-nums; line-height: 1; }
-    .metroBlk-ctrl-popup-label { margin-top: var(--space-1); font-size: var(--font-base); color: var(--label-color); }
+    /* Play speed's popup (ML-91 follow-up: the slider lost the old +/- steppers' quick, repeatable
+       jumps, and a typed exact value doesn't really matter when only round 25%-step numbers are ever
+       useful) - a 4-across grid so all 8 presets fit in two rows, applying immediately on tap like the
+       time-signature/instrument pickers rather than needing a separate Save. */
+    .metroBlk-speed-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
 
     /* A 4-across grid rather than a scrolling row - a setup can hold plenty of blocks, and a single
        scrolling row would hide most of them off-screen. Grid (not flex-wrap) so the columns stay
