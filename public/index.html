@@ -87,7 +87,9 @@
 
     <!-- Minimised metronome (ML-64): shown whenever the metronome has been played/paused (not
          stopped) and the Metronome screen itself isn't the active view - mirrors the timer mini bar
-         above, but two lines: the beat circles, then a row of quick controls. -->
+         above, but two lines: the beat circles, then a row of quick controls. Close (ML-87) fully
+         stops it (same as the full view's own Stop button) rather than just pausing - the only way to
+         dismiss the bar from another screen without navigating back. -->
     <div id="metroMiniBar" class="metro-mini-bar hidden-group">
         <div class="metro-mini-viewport" id="metroMiniViewport">
             <div class="metro-mini-content" id="metroMiniContent">
@@ -100,6 +102,7 @@
             <button class="metro-mini-ctrl-btn" id="metroMiniBpmBtn"><strong id="metroMiniBpmLbl">120</strong><span class="metro-mini-ctrl-unit">bpm</span></button>
             <button class="metro-mini-ctrl-btn" id="metroMiniSpeedBtn"><strong id="metroMiniSpeedLbl">100</strong><span class="metro-mini-ctrl-unit">%</span></button>
             <button class="timer-mini-btn" id="metroMiniPlayBtn" aria-label="Pause"><span class="material-symbols-outlined" id="metroMiniPlayIcon">pause</span></button>
+            <button class="timer-mini-btn" id="metroMiniCloseBtn" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
         </div>
     </div>
 
@@ -107,8 +110,9 @@
          single-bar metronome's mini bar above, but matching the builder's own "now" row formatting
          (label above dots, connecting track line - see renderMetroBlkRows) instead of a simplified
          stand-in, so the two don't read as two different tools. Two rows: the now-bar, then a row of
-         transport buttons - Play/Pause and Reset mirror the builder's own, plus a settings button
-         that jumps back to the builder to adjust the block setup itself. -->
+         transport buttons - Play/Pause and Reset mirror the builder's own, a settings button jumps
+         back to the builder to adjust the block setup itself, and Close (ML-87) dismisses the bar
+         from wherever it's showing without needing to navigate back first. -->
     <div id="metroBlocksMiniBar" class="metro-mini-bar hidden-group">
         <div class="metroBlk-row-head"><span class="metroBlk-row-label" id="metroBlkMiniLabel">-</span></div>
         <div class="metro-mini-viewport" id="metroBlkMiniViewport">
@@ -120,6 +124,7 @@
             <button class="metroBlk-mini-transport-btn metro-play-btn" id="metroBlkMiniPlayBtn" aria-label="Pause"><span class="material-symbols-outlined" id="metroBlkMiniPlayIcon">pause</span></button>
             <button class="metroBlk-mini-transport-btn metro-stop-btn" id="metroBlkMiniResetBtn" aria-label="Reset to start"><span class="material-symbols-outlined">restart_alt</span></button>
             <button class="metroBlk-mini-transport-btn metro-stop-btn" id="metroBlkMiniSettingsBtn" aria-label="Open Metronome Blocks setup"><span class="material-symbols-outlined">settings</span></button>
+            <button class="metroBlk-mini-transport-btn metro-stop-btn" id="metroBlkMiniCloseBtn" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
         </div>
     </div>
 </div>

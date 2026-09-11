@@ -2836,6 +2836,9 @@
     document.getElementById('metroMiniPlayBtn')?.addEventListener('click', () => {
         if (metroPlayer.isPlaying()) pauseMetronome(); else playMetronome();
     });
+    // Fully stops it (ML-87) - the only way to dismiss the mini bar from another screen without
+    // navigating back to the full Metronome view first.
+    document.getElementById('metroMiniCloseBtn')?.addEventListener('click', stopMetronome);
 
     // --- BPM step buttons (tap = +-1, hold = repeats, accelerating to +-10 per step after 15 taps' worth) ---
     function setupMetroBpmStepper(btnId, direction) {
@@ -4518,6 +4521,17 @@
         updateMetroBlkPlayIcon();
     }
 
+    // Close (ML-87): pauses if playing and drops the "active this session" flag, so the mini bar
+    // disappears - the only way to dismiss it from another screen without navigating back to the
+    // builder first. Position is left exactly where it was (same as a plain pause) rather than reset
+    // to the start - Reset already owns that, this is purely about visibility.
+    function closeMetroBlkMiniBar() {
+        if (metroBlkPlayer.isPlaying()) metroBlkPlayer.pause();
+        metroBlkMiniActive = false;
+        updateMetroBlkPlayIcon();
+        updateMetroBlocksMiniBarVisibility(viewStack[viewStack.length - 1]);
+    }
+
     // Jumps back to the first block WITHOUT stopping - if it's currently playing it just keeps
     // playing from the top; if paused, it stays paused sitting at the top. Pause is what actually
     // silences it now; this button is purely about position.
@@ -4545,6 +4559,7 @@
     // Jumps back to the full builder screen to adjust the block setup itself (ML-94) - the mini bar
     // only ever mirrors playback, it was never meant to be where blocks get edited.
     document.getElementById('metroBlkMiniSettingsBtn')?.addEventListener('click', () => switchView('metroBuilderView'));
+    document.getElementById('metroBlkMiniCloseBtn')?.addEventListener('click', closeMetroBlkMiniBar);
 
     // --- Playback speed (independent of any block's own bpm - the player already applies this
     // percentage on top of whatever bpm is currently loaded, same mechanism as the single-bar tool). ---
