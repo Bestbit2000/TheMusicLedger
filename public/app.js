@@ -3266,6 +3266,14 @@
         return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
     }
 
+    // Exact-match check against every name already shown in the "Saved setups" list (ML-91 follow-up,
+    // pending ML-96 for the manual test) - the backend doesn't enforce uniqueness, but two setups with
+    // the same name in that one short list is confusing enough to catch client-side before it happens.
+    // excludeId lets a rename pass when the name isn't actually changing.
+    function metroBlkNameIsTaken(name, excludeId) {
+        return metroBlkSetups.some(s => s.id !== excludeId && s.name === name);
+    }
+
     function renderMetroBlkSetupsList() {
         const ui = document.getElementById('metroBlkSetupsList');
         if (!ui) return;
@@ -3330,6 +3338,7 @@
         }
         showPromptModal('Save this setup', '', async (name) => {
             if (!name || !name.trim()) return;
+            if (metroBlkNameIsTaken(name.trim())) { showWarningToast('This name is already taken'); return; }
             try {
                 await API.metronomeBlocks.setups.save(metroBlkCurrentSetup.id, name.trim());
                 metroBlkCurrentSetup.name = name.trim();
@@ -3348,6 +3357,7 @@
     document.getElementById('metroBlkAddSetBtn')?.addEventListener('click', () => {
         showPromptModal('Name this setup', '', async (name) => {
             if (!name || !name.trim()) return;
+            if (metroBlkNameIsTaken(name.trim())) { showWarningToast('This name is already taken'); return; }
             try {
                 const created = await API.metronomeBlocks.setups.createNamed(name.trim());
                 created.segments = await normalizeMetroBlkOrder(created.segments);
@@ -3365,6 +3375,7 @@
         const setup = metroBlkSetups.find(s => s.id === id);
         showPromptModal('Rename setup', setup ? setup.name : (metroBlkCurrentSetup?.name || ''), async (name) => {
             if (!name) return;
+            if (metroBlkNameIsTaken(name, id)) { showWarningToast('This name is already taken'); return; }
             try {
                 await API.metronomeBlocks.setups.rename(id, name);
                 showSuccessToast('Renamed');
@@ -3385,6 +3396,7 @@
         const setup = metroBlkSetups.find(s => s.id === id);
         showPromptModal('Name the copy', setup ? `${setup.name} copy` : '', async (name) => {
             if (!name || !name.trim()) return;
+            if (metroBlkNameIsTaken(name.trim())) { showWarningToast('This name is already taken'); return; }
             try {
                 const created = await API.metronomeBlocks.setups.duplicate(id, name.trim());
                 created.segments = await normalizeMetroBlkOrder(created.segments);
