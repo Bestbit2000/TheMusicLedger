@@ -497,14 +497,6 @@
                     </div>
                 </div>
             </div>
-            <div class="metroBlk-row metroBlk-row-upcoming">
-                <div class="metroBlk-row-head"><span class="metroBlk-row-mark" id="metroBlkRow1Mark"></span><span class="metroBlk-row-label" id="metroBlkRow1Label"></span></div>
-                <div class="metro-display-viewport" id="metroBlkRow1Viewport">
-                    <div class="metro-display-content" id="metroBlkRow1Content">
-                        <div class="metro-tier" id="metroBlkRow1Dots"></div>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <div class="metro-transport-row">
@@ -525,14 +517,23 @@
                 <span class="metroBlk-setup-name" id="metroBlkSetupName">New setup</span>
                 <span class="material-symbols-outlined metroBlk-setup-name-icon" id="metroBlkRenameIcon">save</span>
             </button>
+            <input type="text" class="metroBlk-setup-name-input hidden-group" id="metroBlkSetupNameInput" aria-label="Setup name" placeholder="Name this setup" maxlength="100">
         </div>
-        <p class="metro-help-text">Tap a block to edit it, or drag to reorder.</p>
+        <p class="metro-help-text" id="metroBlkHelpText">Tap a block to jump to it.</p>
         <div id="metroBlkLeadInSlot" class="metroBlk-leadin-slot"></div>
         <div id="metroBlockTiles" class="metroBlk-tile-strip"></div>
 
         <div class="section-title" style="margin-top:var(--space-6);"><span>Saved setups</span></div>
         <button class="btn-nav" id="metroBlkAddSetBtn">+ Add new</button>
         <div id="metroBlkSetupsList">Loading...</div>
+
+        <div class="metroBlk-edit-bar hidden-group" id="metroBlkEditBar">
+            <span class="metroBlk-edit-bar-text">Editing set &middot; Tap Done when finished</span>
+            <div class="metroBlk-edit-bar-actions">
+                <button type="button" class="btn-cancel btn-nav no-margin" id="metroBlkEditCancelBtn">Cancel</button>
+                <button type="button" class="btn-submit no-margin" id="metroBlkEditSaveBtn">Save</button>
+            </div>
+        </div>
     </div>
 
     <div id="tunerView" style="display:none;">

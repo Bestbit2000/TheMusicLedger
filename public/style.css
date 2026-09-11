@@ -404,16 +404,25 @@
        distinct from the single-bar tool's .metro- classes above, even where the shapes are similar,
        so the two features' styles never get tangled reading either one. */
     /* The current setup's name - "New setup" as a placeholder until it's actually been named/saved
-       (the builder always has something loaded, named or not, per ML-35's revised journey). The whole
-       name+icon is one button, always clickable: unsaved, it names-and-saves the current scratch (icon
-       reads "save"); once saved, the same button renames it instead (icon reads "edit") - one control
-       and one position rather than swapping between a separate circled Save button and an inline
-       rename icon (ML-91 follow-up - that circle made a rarely-used action look more prominent than
-       it needed to). */
+       (the builder always has something loaded, named or not, per ML-35's revised journey). In Play
+       Mode (ML-97) this is the plain name + a small icon (unsaved: "save"; once saved: "edit") that
+       enters Edit Mode - it no longer opens a popup itself, Edit Mode's own inline input and bottom
+       bar (.metroBlk-edit-bar below) own naming and saving now. */
     .metroBlk-setup-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-3); min-height: 48px; }
     .metroBlk-setup-name-btn { display: flex; align-items: center; gap: var(--space-2); min-height: 48px; background: none; border: none; padding: 0; cursor: pointer; font: inherit; color: inherit; }
     .metroBlk-setup-name { font-size: var(--font-lg); font-weight: bold; color: var(--text-color); }
     .metroBlk-setup-name-icon { font-size: 1.2rem; color: var(--label-color); }
+    .metroBlk-setup-name-input { width: 100%; font-size: var(--font-lg); font-weight: bold; padding: var(--space-2) 14px; }
+
+    /* Edit Mode's own save/cancel (ML-97) - fixed to the bottom of the viewport rather than sitting
+       inline, so it's reachable without scrolling back up however long the block list gets, and the
+       "editing set, don't forget to save" reminder stays in view the whole time. Matches .container's
+       own max-width/centering so it lines up with the page above it on wide viewports. */
+    .metroBlk-edit-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; width: 100%; max-width: 500px; margin: 0 auto; box-sizing: border-box; background: var(--container-bg); border-top: 2px solid var(--primary-action); box-shadow: var(--shadow-xl); padding: var(--space-3) var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
+    .metroBlk-edit-bar-text { font-size: var(--font-sm); color: var(--label-color); text-align: center; }
+    .metroBlk-edit-bar-actions { display: flex; gap: var(--space-3); }
+    /* Keeps the last tile/setups-list row from ever sitting under the fixed bar above. */
+    #metroBuilderView.metroBlk-editing { padding-bottom: 110px; }
 
     /* Tuner access from this screen (previously a fully separate, self-contained tool/view) - toggled
        on/off from the top bar (ML-91, topTunerToggleBtn) rather than a close button of its own, and
@@ -491,7 +500,7 @@
        Pointer-Events-based reorder drag, AND stops the browser recognising a long-press as the start of
        its OWN native (touch-incapable, ghost-outline-only) HTML5 drag - without it the two drag
        implementations fight over the same gesture on a touchscreen. */
-    .metroBlk-tile { min-height: 100px; min-width: 0; background: var(--input-bg); border: 2px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-2); cursor: pointer; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; text-align: center; touch-action: none; }
+    .metroBlk-tile { position: relative; min-height: 100px; min-width: 0; background: var(--input-bg); border: 2px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-2); cursor: pointer; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; text-align: center; touch-action: none; }
     .metroBlk-tile.dragging { opacity: 0.5; box-shadow: var(--shadow-lg); }
     .metroBlk-tile.lead-in { border-color: var(--selection-color); background: rgba(255, 152, 0, 0.12); }
     .metroBlk-tile-sig { font-size: var(--font-lg); font-weight: bold; }
@@ -499,6 +508,15 @@
     .metroBlk-tile-bars { font-size: var(--font-xs); color: var(--label-color); }
     .metroBlk-tile-badge { font-size: var(--font-xs); font-weight: bold; color: var(--selection-color); text-transform: uppercase; }
     .metroBlk-add-tile { min-height: 100px; min-width: 0; background: transparent; border: 2px dashed var(--input-border); border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--label-color); font-size: 2rem; box-sizing: border-box; }
+    /* Play Mode's own visual (ML-97/98) - replaces the old "coming next" preview row: whichever
+       block is actually sounding right now gets a bold gold border/glow, both on a regular tile and
+       the lead-in's own row (shares this class - see renderMetroBlkActiveTileHighlight). */
+    .metroBlk-tile-active, .metroBlk-leadin-row-filled.metroBlk-tile-active { border-color: var(--primary-action); box-shadow: 0 0 0 2px var(--primary-action); }
+    /* Edit-Mode-only per-block "more actions" - currently a single Delete action, so this opens a
+       confirm dialog directly rather than a dropdown menu for one item. Absolute top-right so it
+       never competes with the tile's own tap-to-edit target underneath it. */
+    .metroBlk-tile-menu-btn { position: absolute; top: 2px; right: 2px; width: 32px; height: 32px; border: none; border-radius: var(--radius-circle); background: transparent; color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .metroBlk-tile-menu-btn .material-symbols-outlined { font-size: 18px; }
 
     /* The lead-in sits in its own fixed slot ABOVE the reorderable grid, not as a tile mixed in
        with it - it's always "whatever plays first", so there's no ordering to get out of sync by
@@ -517,7 +535,6 @@
        top box scrolls within itself exactly like the single-bar tool's .metro-display-viewport/
        -content (reused as-is via the same JS helpers, just against these rows' own element ids). */
     .metroBlk-row { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
-    .metroBlk-row-upcoming { opacity: 0.45; }
     .metroBlk-row-head { display: flex; align-items: baseline; gap: var(--space-2); margin-bottom: var(--space-1); font-size: var(--font-sm); color: var(--label-color); font-weight: bold; }
     /* Reserved for a future rehearsal-mark readout (ML-35) - empty for now, but the layout leaves it
        room so that later addition doesn't reflow this row. */

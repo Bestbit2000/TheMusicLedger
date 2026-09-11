@@ -584,6 +584,12 @@
     window.switchView = function(viewName, isBack = false) {
         if (viewAliasMap[viewName]) viewName = viewAliasMap[viewName];
 
+        // Leaving the Blocks builder mid-edit (ML-97) discards the draft rather than stranding it -
+        // there's no other hook for back-button/menu navigation away from the view.
+        if (viewStack[viewStack.length - 1] === 'metroBuilderView' && viewName !== 'metroBuilderView' && metroBlkEditMode) {
+            cancelMetroBlkEdit();
+        }
+
         if (!isBack && viewStack[viewStack.length - 1] !== viewName) viewStack.push(viewName);
 
         views.forEach(v => {
@@ -639,6 +645,7 @@
             metroBlkPlayer.prewarm();
             loadMetroBlkTimeSignatures();
             loadMetroBlkSetups();
+            renderMetroBlkEditUI(); // resets the header/help-text/bottom-bar to Play Mode's look
             if (metroBlkCurrentSetup) {
                 renderMetroBlkSetupHeader();
                 renderMetroBlockTiles(); // also refreshes the play queue/preview above if it's gone stale
@@ -3247,6 +3254,19 @@
 
     const metroBlkPlayer = createMetronomePlayer();
 
+    // --- Play Mode / Edit Mode (ML-97) ---
+    // Play Mode (default) is the performance state: tapping a block jumps playback to it, nothing is
+    // editable. Edit Mode (entered via the pencil/save icon next to the setup name) unlocks add/
+    // reorder/delete and stages every change locally rather than autosaving it - metroBlkEditSnapshot
+    // is a deep clone of { name, segments } taken the moment editing starts, restored verbatim by
+    // Cancel with no server calls at all. Save is the only thing that writes any of it to the server,
+    // in one batch (see saveMetroBlkEdit).
+    let metroBlkEditMode = false;
+    let metroBlkEditSnapshot = null;
+    // Segments created while editing don't exist on the server yet, so they get a string id
+    // (`typeof id === 'string'`) instead of a real numeric one until saveMetroBlkEdit creates them.
+    let metroBlkTempSegCounter = 0;
+
     // --- Setups list ---
     async function loadMetroBlkSetups() {
         const ui = document.getElementById('metroBlkSetupsList');
@@ -3294,15 +3314,16 @@
 
     // The builder always has something loaded - a real saved setup, or the account's one
     // scratch (see server-side getOrCreateScratchSetup) seeded with a default 4/4 @ 60bpm
-    // block so the tool is immediately playable with zero naming friction. Every edit from
-    // here on autosaves straight through the existing segment PUT/POST/DELETE calls; the only
-    // "cancel a one-off change" point is the edit-block modal's own Cancel button, which never
-    // calls the API at all.
+    // block so the tool is immediately playable with zero naming friction. Starts in Play Mode;
+    // nothing is edited/saved until enterMetroBlkEditMode/saveMetroBlkEdit run (ML-97).
     async function loadMetroBlkDefaultSetup() {
         try {
             const fresh = await API.metronomeBlocks.setups.getScratch();
             fresh.segments = await normalizeMetroBlkOrder(fresh.segments);
             metroBlkCurrentSetup = fresh;
+            metroBlkEditMode = false;
+            metroBlkEditSnapshot = null;
+            renderMetroBlkEditUI();
             renderMetroBlkSetupHeader();
             renderMetroBlockTiles();
         } catch (error) {
@@ -3311,9 +3332,10 @@
     }
 
     // "New setup" placeholder until the setup actually has a name (saveAdhocSetup/
-    // createNamedAdhocSetup are the only things that set savedAt) - the header button/icon
-    // switch meaning depending on whether there's a real name to edit yet or not (see the
-    // click handler below).
+    // createNamedAdhocSetup are the only things that set savedAt) - the header icon switches
+    // meaning depending on whether there's a real name yet or not (see enterMetroBlkEditMode).
+    // Play Mode only - Edit Mode swaps this whole area for the inline name input instead
+    // (see renderMetroBlkEditUI).
     function renderMetroBlkSetupHeader() {
         const nameEl = document.getElementById('metroBlkSetupName');
         const nameBtn = document.getElementById('metroBlkRenameBtn');
@@ -3325,31 +3347,136 @@
         nameBtn?.setAttribute('aria-label', isSaved ? 'Rename setup' : 'Save this setup');
     }
 
-    // Unsaved: names-and-saves the current scratch's accumulated blocks in place - unlike "+ Add
-    // new" / Copy, this doesn't create a fresh setup or touch the blocks at all, it just names and
-    // keeps the one already sitting in the builder (the same saveAdhocSetup step "+ Add new" uses
-    // internally, just triggered directly on what's already here). Saved: renames it instead - same
-    // button and position, just a different action once there's already a name to edit.
-    document.getElementById('metroBlkRenameBtn')?.addEventListener('click', () => {
-        if (!metroBlkCurrentSetup) return;
-        if (metroBlkCurrentSetup.savedAt) {
-            window.renameMetroBlkSetup(metroBlkCurrentSetup.id);
-            return;
+    // --- Play Mode / Edit Mode lifecycle (ML-97) ---
+    // Toggles every mode-dependent bit of UI in one place: the header (name text vs input, icon
+    // visibility), the help text, the bottom edit bar, and the view's own bottom padding (so the
+    // fixed bar never overlaps the last tile). renderMetroBlockTiles is a separate call, not
+    // folded in here, since entering/leaving edit mode is only one of several reasons tiles
+    // re-render.
+    function renderMetroBlkEditUI() {
+        document.getElementById('metroBlkRenameBtn')?.classList.toggle('hidden-group', metroBlkEditMode);
+        const input = document.getElementById('metroBlkSetupNameInput');
+        if (input) {
+            input.classList.toggle('hidden-group', !metroBlkEditMode);
+            // Unsaved scratch: starts empty, not prefilled with the server's internal placeholder
+            // name ("Untitled setup") - that string was never a real name the user chose. Already
+            // saved: prefilled with the actual name, ready to edit in place.
+            if (metroBlkEditMode) input.value = metroBlkCurrentSetup?.savedAt ? (metroBlkCurrentSetup.name || '') : '';
         }
-        showPromptModal('Save this setup', '', async (name) => {
-            if (!name || !name.trim()) return;
-            if (metroBlkNameIsTaken(name.trim())) { showWarningToast('This name is already taken'); return; }
-            try {
-                await API.metronomeBlocks.setups.save(metroBlkCurrentSetup.id, name.trim());
-                metroBlkCurrentSetup.name = name.trim();
+        const helpText = document.getElementById('metroBlkHelpText');
+        if (helpText) helpText.innerText = metroBlkEditMode ? 'Tap a block to edit it, or drag to reorder.' : 'Tap a block to jump to it.';
+        document.getElementById('metroBlkEditBar')?.classList.toggle('hidden-group', !metroBlkEditMode);
+        document.getElementById('metroBuilderView')?.classList.toggle('metroBlk-editing', metroBlkEditMode);
+    }
+
+    // Entry point for both an unsaved scratch (nothing to name yet) and an already-saved setup
+    // (renaming) - Edit Mode's inline input + bottom Save button handle naming either way now, so
+    // there's no separate popup-based "Save this setup"/"Rename setup" flow any more.
+    function enterMetroBlkEditMode() {
+        if (!metroBlkCurrentSetup) return;
+        if (metroBlkPlayer.isPlaying()) pauseMetroBlk();
+        metroBlkEditSnapshot = {
+            name: metroBlkCurrentSetup.name,
+            segments: metroBlkCurrentSetup.segments.map(s => ({ ...s }))
+        };
+        metroBlkEditMode = true;
+        renderMetroBlkEditUI();
+        renderMetroBlockTiles();
+        document.getElementById('metroBlkSetupNameInput')?.focus();
+    }
+    document.getElementById('metroBlkRenameBtn')?.addEventListener('click', enterMetroBlkEditMode);
+
+    // Throws away every local change made since enterMetroBlkEditMode and restores the exact
+    // pre-edit state - no server calls, since nothing was written while editing (see
+    // saveMetroBlkEdit for where writes actually happen).
+    function cancelMetroBlkEdit() {
+        if (!metroBlkEditSnapshot) { metroBlkEditMode = false; renderMetroBlkEditUI(); return; }
+        metroBlkCurrentSetup.name = metroBlkEditSnapshot.name;
+        metroBlkCurrentSetup.segments = metroBlkEditSnapshot.segments;
+        metroBlkEditSnapshot = null;
+        metroBlkEditMode = false;
+        renderMetroBlkEditUI();
+        renderMetroBlkSetupHeader();
+        renderMetroBlockTiles();
+    }
+    document.getElementById('metroBlkEditCancelBtn')?.addEventListener('click', cancelMetroBlkEdit);
+
+    // Picks exactly the fields the segment API accepts off a local (possibly draft) segment
+    // object - shared by the create and update calls saveMetroBlkEdit makes below.
+    function metroBlkSegPayload(seg) {
+        return {
+            isLeadIn: !!seg.isLeadIn,
+            bpm: seg.bpm,
+            timeSignatureId: seg.timeSignatureId,
+            accountTimeSignatureId: seg.accountTimeSignatureId,
+            barCount: seg.barCount,
+            pickupBeats: seg.pickupBeats,
+            repeatLeadIn: !!seg.repeatLeadIn,
+            quietSecondsBeforeLeadIn: seg.quietSecondsBeforeLeadIn || 0
+        };
+    }
+
+    // Commits everything staged since enterMetroBlkEditMode in one batch: the name (first save or
+    // rename), then segment deletions/creations/reindex-updates diffed against
+    // metroBlkEditSnapshot. Leaves Edit Mode active on error so the draft isn't lost - the user can
+    // retry Save or explicitly Cancel.
+    async function saveMetroBlkEdit() {
+        if (!metroBlkCurrentSetup || !metroBlkEditSnapshot) return;
+        const nameInput = document.getElementById('metroBlkSetupNameInput');
+        const name = (nameInput?.value || '').trim();
+        if (!name) return showWarningToast('Enter a name for this setup.');
+        const wasSaved = !!metroBlkCurrentSetup.savedAt;
+        if (metroBlkNameIsTaken(name, wasSaved ? metroBlkCurrentSetup.id : undefined)) {
+            return showWarningToast('This name is already taken');
+        }
+
+        const btn = document.getElementById('metroBlkEditSaveBtn');
+        if (btn) { btn.disabled = true; btn.innerText = 'Saving...'; }
+        try {
+            if (!wasSaved) {
+                await API.metronomeBlocks.setups.save(metroBlkCurrentSetup.id, name);
                 metroBlkCurrentSetup.savedAt = new Date().toISOString();
-                renderMetroBlkSetupHeader();
-                await loadMetroBlkSetups();
-                showSuccessToast('Saved');
-            } catch (error) {
-                showWarningToast('Error: ' + error.message);
+            } else if (name !== metroBlkEditSnapshot.name) {
+                await API.metronomeBlocks.setups.rename(metroBlkCurrentSetup.id, name);
             }
-        });
+            metroBlkCurrentSetup.name = name;
+
+            const snapshotIds = new Set(metroBlkEditSnapshot.segments.map(s => s.id));
+            const currentSegs = metroBlkCurrentSetup.segments;
+            const currentRealIds = new Set(currentSegs.filter(s => typeof s.id !== 'string').map(s => s.id));
+            const deletedIds = [...snapshotIds].filter(id => !currentRealIds.has(id));
+            if (deletedIds.length) await Promise.all(deletedIds.map(id => API.metronomeBlocks.segments.delete(id)));
+
+            // Sequential, not Promise.all - creation order has to match display order so the
+            // reindex pass right after gives each new segment the right orderIndex.
+            for (const seg of currentSegs) {
+                if (typeof seg.id === 'string') {
+                    const created = await API.metronomeBlocks.segments.create(metroBlkCurrentSetup.id, metroBlkSegPayload(seg));
+                    seg.id = created.id;
+                }
+            }
+
+            await Promise.all(currentSegs.map((seg, idx) =>
+                API.metronomeBlocks.segments.update(seg.id, { ...metroBlkSegPayload(seg), orderIndex: idx })
+            ));
+
+            metroBlkCurrentSetup.segments = [...currentSegs];
+            metroBlkEditSnapshot = null;
+            metroBlkEditMode = false;
+            renderMetroBlkEditUI();
+            renderMetroBlkSetupHeader();
+            renderMetroBlockTiles();
+            await loadMetroBlkSetups();
+            showSuccessToast('Saved');
+        } catch (error) {
+            showWarningToast('Error: ' + error.message);
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerText = 'Save'; }
+        }
+    }
+    document.getElementById('metroBlkEditSaveBtn')?.addEventListener('click', saveMetroBlkEdit);
+    document.getElementById('metroBlkSetupNameInput')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); saveMetroBlkEdit(); }
     });
 
     // Asks for the name up front (unlike the old scratch-first flow) because this button's
@@ -3362,6 +3489,8 @@
                 const created = await API.metronomeBlocks.setups.createNamed(name.trim());
                 created.segments = await normalizeMetroBlkOrder(created.segments);
                 if (metroBlkPlayer.isPlaying()) metroBlkPlayer.pause();
+                metroBlkEditMode = false; // see the matching comment in openMetroBlkSetup
+                metroBlkEditSnapshot = null;
                 metroBlkCurrentSetup = created;
                 await loadMetroBlkSetups();
                 switchView('metroBuilderView');
@@ -3370,25 +3499,6 @@
             }
         });
     });
-
-    window.renameMetroBlkSetup = function(id) {
-        const setup = metroBlkSetups.find(s => s.id === id);
-        showPromptModal('Rename setup', setup ? setup.name : (metroBlkCurrentSetup?.name || ''), async (name) => {
-            if (!name) return;
-            if (metroBlkNameIsTaken(name, id)) { showWarningToast('This name is already taken'); return; }
-            try {
-                await API.metronomeBlocks.setups.rename(id, name);
-                showSuccessToast('Renamed');
-                await loadMetroBlkSetups();
-                if (metroBlkCurrentSetup && metroBlkCurrentSetup.id === id) {
-                    metroBlkCurrentSetup.name = name;
-                    renderMetroBlkSetupHeader();
-                }
-            } catch (error) {
-                showWarningToast('Error: ' + error.message);
-            }
-        });
-    }
 
     // "Copy this setup" - a new setup seeded with all of this one's blocks, as a starting point for
     // a variant. Loads straight into the builder afterwards, same as "+ Add new set".
@@ -3401,6 +3511,8 @@
                 const created = await API.metronomeBlocks.setups.duplicate(id, name.trim());
                 created.segments = await normalizeMetroBlkOrder(created.segments);
                 if (metroBlkPlayer.isPlaying()) metroBlkPlayer.pause();
+                metroBlkEditMode = false; // see the matching comment in openMetroBlkSetup
+                metroBlkEditSnapshot = null;
                 metroBlkCurrentSetup = created;
                 await loadMetroBlkSetups();
                 switchView('metroBuilderView');
@@ -3440,6 +3552,12 @@
             if (!metroBlkCurrentSetup || metroBlkCurrentSetup.id !== id) {
                 if (metroBlkPlayer.isPlaying()) metroBlkPlayer.pause();
             }
+            // Loading a different setup while mid-edit on another one would otherwise leave
+            // metroBlkEditMode stuck true with a snapshot pointing at the setup just replaced -
+            // switchView's own leaving-the-view auto-cancel (ML-97) doesn't fire here since we're
+            // staying on metroBuilderView, just swapping which setup it shows.
+            metroBlkEditMode = false;
+            metroBlkEditSnapshot = null;
             metroBlkCurrentSetup = fresh;
             switchView('metroBuilderView');
             // Selecting a setup from the list moves it to the top of the screen - not obviously a
@@ -3465,14 +3583,6 @@
         return ordered.map((s, idx) => ({ ...s, orderIndex: idx }));
     }
 
-    async function reloadMetroBlkSetup() {
-        if (!metroBlkCurrentSetup) return;
-        const fresh = await API.metronomeBlocks.setups.get(metroBlkCurrentSetup.id);
-        fresh.segments = await normalizeMetroBlkOrder(fresh.segments);
-        metroBlkCurrentSetup = fresh;
-        renderMetroBlockTiles();
-    }
-
     // --- Build panel: block tiles ---
     // `beatsPlayedInBlock` (metroBlkBeatsPlayedInBlock) is only meaningful for whichever block is
     // actually current - pass it for that one row only, so a repeating block shows "x of y bars"
@@ -3492,11 +3602,30 @@
         return `${prefix}${block.timeSignatureLabel} · ${block.bpm} bpm · ${countStr}`;
     }
 
+    // Segment ids are either a real number (persisted) or a temp string like "tmp3" (staged, not
+    // yet created on the server - see metroBlkTempSegCounter) - this renders either as a literal
+    // safe to splice into an inline onclick="" attribute (single-quoted for strings, since temp
+    // ids never contain a quote themselves).
+    function metroBlkIdArg(id) {
+        return typeof id === 'string' ? `'${id}'` : id;
+    }
+
+    // Play Mode (default): tapping a tile jumps playback to it (jumpMetroBlkToPlayIndex),
+    // nothing is draggable, no per-tile menu. Edit Mode: tapping opens the segment editor as
+    // before, tiles are draggable, and a 3-dot menu offers Delete (ML-97). data-id is always
+    // present either way - Play Mode's active-block highlight (renderMetroBlkActiveTileHighlight)
+    // depends on it too.
     function metroBlkTileHtml(s) {
         const countStr = s.pickupBeats
             ? `${s.pickupBeats} beat${s.pickupBeats === 1 ? '' : 's'}`
             : `${s.barCount} bar${s.barCount === 1 ? '' : 's'}`;
-        return `<div class="metroBlk-tile${s.isLeadIn ? ' lead-in' : ''}" draggable="true" data-id="${s.id}" onclick="openMetroSegmentModal(${s.id})">
+        const idArg = metroBlkIdArg(s.id);
+        const onclick = metroBlkEditMode ? `openMetroSegmentModal(${idArg})` : `jumpMetroBlkToPlayIndex(${idArg})`;
+        const menuBtn = metroBlkEditMode
+            ? `<button type="button" class="metroBlk-tile-menu-btn" aria-label="Block options" onclick="event.stopPropagation(); confirmDeleteMetroBlkTile(${idArg})"><span class="material-symbols-outlined">more_vert</span></button>`
+            : '';
+        return `<div class="metroBlk-tile${s.isLeadIn ? ' lead-in' : ''}" draggable="${metroBlkEditMode}" data-id="${escapeHtml(String(s.id))}" onclick="${onclick}">
+            ${menuBtn}
             ${s.isLeadIn ? '<div class="metroBlk-tile-badge">Lead-in</div>' : ''}
             <div class="metroBlk-tile-sig">${escapeHtml(s.timeSignatureLabel)}</div>
             <div class="metroBlk-tile-bpm">${s.bpm} bpm</div>
@@ -3525,8 +3654,12 @@
     // ARE specific to the lead-in take that space instead. The repeat icon (looked like an independent
     // clickable control rather than a description of the whole row) is now plain text, always present,
     // so "plays once" is stated as clearly as "repeats" rather than being the unlabelled default.
+    // Edit Mode only for the empty "+ Lead-in" add-state (Play Mode has nothing to add) - a filled
+    // lead-in still shows in both, just gated the same way a regular tile is: tap opens the editor
+    // while editing, jumps playback to it otherwise (ML-97).
     function metroBlkLeadInSlotHtml(leadIn) {
         if (!leadIn) {
+            if (!metroBlkEditMode) return '';
             return `<button type="button" class="metroBlk-leadin-row metroBlk-leadin-row-add" aria-label="Add lead-in" onclick="openMetroLeadInModal()">
                 <span class="metroBlk-leadin-plus">+</span><span>Lead-in</span>
             </button>`;
@@ -3537,7 +3670,9 @@
         const quietSecs = leadIn.quietSecondsBeforeLeadIn || 0;
         const afterStr = quietSecs > 0 ? `, after ${quietSecs} second${quietSecs === 1 ? '' : 's'}` : '';
         const repeatStr = leadIn.repeatLeadIn ? ', repeating' : ', first time only';
-        return `<div class="metroBlk-leadin-row metroBlk-leadin-row-filled" onclick="openMetroLeadInModal(${leadIn.id})">
+        const idArg = metroBlkIdArg(leadIn.id);
+        const onclick = metroBlkEditMode ? `openMetroLeadInModal(${idArg})` : `jumpMetroBlkToPlayIndex(${idArg})`;
+        return `<div class="metroBlk-leadin-row metroBlk-leadin-row-filled" data-id="${escapeHtml(String(leadIn.id))}" onclick="${onclick}">
             <span class="metroBlk-tile-badge">Lead-in</span>
             <span>${countStr}${afterStr}${repeatStr}</span>
         </div>`;
@@ -3552,14 +3687,17 @@
         const loopBlocks = segs.filter(s => !s.isLeadIn);
 
         if (leadInSlot) leadInSlot.innerHTML = metroBlkLeadInSlotHtml(leadIn);
-        ui.innerHTML = loopBlocks.map(metroBlkTileHtml).join('') +
-            '<button class="metroBlk-add-tile" aria-label="Add block" onclick="openMetroSegmentModal()">+</button>';
+        // The "+" add-block tile only makes sense in Edit Mode (ML-97) - Play Mode has nothing to add.
+        const addTile = metroBlkEditMode ? '<button class="metroBlk-add-tile" aria-label="Add block" onclick="openMetroSegmentModal()">+</button>' : '';
+        ui.innerHTML = loopBlocks.map(metroBlkTileHtml).join('') + addTile;
 
-        setupMetroBlkDragAndDrop(ui);
-        // Keeps the play queue (and the "now + upcoming" preview above) in step with every edit,
-        // not just the next time Play is pressed - the whole point of putting the player above the
+        // Dragging to reorder is Edit-Mode-only now too - no listeners bound at all in Play Mode.
+        if (metroBlkEditMode) setupMetroBlkDragAndDrop(ui);
+        // Keeps the play queue (and the "now playing" preview above) in step with every edit, not
+        // just the next time Play is pressed - the whole point of putting the player above the
         // builder is that it reflects the blocks below immediately.
         refreshMetroBlkQueueIfStale();
+        renderMetroBlkActiveTileHighlight();
     }
 
     // Only ever touches regular (non-lead-in) tiles now - the lead-in lives outside this
@@ -3665,19 +3803,17 @@
         }
     }
 
-    async function persistMetroBlkOrderFromDom(container) {
-        const ids = Array.from(container.querySelectorAll('.metroBlk-tile')).map(el => Number(el.dataset.id));
-        const byId = new Map(metroBlkCurrentSetup.segments.map(s => [s.id, s]));
-        try {
-            await Promise.all(ids.map((id, idx) => {
-                const current = byId.get(id);
-                return current && current.orderIndex === idx ? null : API.metronomeBlocks.segments.update(id, { orderIndex: idx });
-            }).filter(Boolean));
-            await reloadMetroBlkSetup();
-        } catch (error) {
-            showWarningToast('Error updating order: ' + error.message);
-            renderMetroBlockTiles();
-        }
+    // Reordering is staged like every other edit (ML-97) - just rebuilds the local segments array to
+    // match the DOM's now-final tile order (already correct visually, the drag itself moved the
+    // elements) and leaves it there; orderIndex only gets (re)computed for real at saveMetroBlkEdit,
+    // not tracked locally in the meantime. No network call, no reload - matches el.dataset.id as a
+    // plain string so a staged/temp id (not yet a real number) reorders correctly too.
+    function persistMetroBlkOrderFromDom(container) {
+        const domIds = Array.from(container.querySelectorAll('.metroBlk-tile')).map(el => el.dataset.id);
+        const byStrId = new Map(metroBlkCurrentSetup.segments.map(s => [String(s.id), s]));
+        const reordered = domIds.map(id => byStrId.get(id)).filter(Boolean);
+        const leadIn = metroBlkCurrentSetup.segments.find(s => s.isLeadIn);
+        metroBlkCurrentSetup.segments = leadIn ? [leadIn, ...reordered] : reordered;
     }
 
     // --- Segment (block) edit modal ---
@@ -4055,7 +4191,9 @@
     });
 
     window.openMetroSegmentModal = function(segId = null) {
-        const seg = segId ? metroBlkCurrentSetup.segments.find(s => s.id === Number(segId)) : null;
+        // No Number() coercion - segId can be a real numeric id or a staged/temp string id
+        // (ML-97, e.g. "tmp3") depending on whether this block has been saved to the server yet.
+        const seg = segId !== null ? metroBlkCurrentSetup.segments.find(s => s.id === segId) : null;
         // A brand-new block defaults to whatever the last block - immediately before the "+" tile -
         // is set to, rather than a fixed 4/4 @ 120bpm: a new block is usually a variation on the one
         // right before it, not an unrelated fresh start.
@@ -4099,7 +4237,8 @@
     // Originally ML-35 allowed chaining several independently-timed lead-in segments; that's been
     // dropped in favour of this single, fixed-position slot - see the linked Jira comment.
     window.openMetroLeadInModal = function(segId = null) {
-        const leadIn = segId ? metroBlkCurrentSetup.segments.find(s => s.id === Number(segId)) : null;
+        // No Number() coercion here either - see the matching comment on openMetroSegmentModal.
+        const leadIn = segId !== null ? metroBlkCurrentSetup.segments.find(s => s.id === segId) : null;
         const firstRegular = metroBlkCurrentSetup.segments.find(s => !s.isLeadIn);
         if (!firstRegular) return showWarningToast('Add a regular block first, so the lead-in has a time signature and tempo to match.');
 
@@ -4136,8 +4275,26 @@
         }
     });
 
-    document.getElementById('metroSegSaveBtn')?.addEventListener('click', async () => {
-        const id = document.getElementById('metroSegEditId').value;
+    // Resolves the display fields (timeSignatureLabel/numerator/denominator) a local segment needs
+    // for rendering, off the raw fields the segment editor collects - mirrors what the server's own
+    // getSegmentDtoById does via SQL join, done client-side since Edit Mode (ML-97) stages segment
+    // edits locally instead of round-tripping to the server for every change. `existingId` keeps an
+    // edited segment's real/temp id; omitted, a fresh temp id is minted for a brand-new block.
+    function buildLocalSegmentDto(data, existingId) {
+        const list = data.timeSignatureId !== null ? metroBlkTimeSigCache.public : metroBlkTimeSigCache.custom;
+        const sigId = data.timeSignatureId !== null ? data.timeSignatureId : data.accountTimeSignatureId;
+        const sig = list.find(t => t.id === sigId);
+        return {
+            ...data,
+            id: existingId !== undefined ? existingId : `tmp${++metroBlkTempSegCounter}`,
+            timeSignatureLabel: sig ? sig.label : '',
+            numerator: sig ? sig.numerator : 4,
+            denominator: sig ? sig.denominator : 4
+        };
+    }
+
+    document.getElementById('metroSegSaveBtn')?.addEventListener('click', () => {
+        const id = document.getElementById('metroSegEditId').value || null;
         const isPartial = metroSegEditingLeadIn && document.getElementById('metroSegLeadInPartial').checked;
 
         let data;
@@ -4173,37 +4330,42 @@
             data.pickupBeats = null;
         }
 
-        const btn = document.getElementById('metroSegSaveBtn');
-        btn.innerText = 'Saving...';
-        btn.disabled = true;
-        try {
-            if (id) await API.metronomeBlocks.segments.update(id, data);
-            else await API.metronomeBlocks.segments.create(metroBlkCurrentSetup.id, data);
-            document.getElementById('metroSegmentModal').style.display = 'none';
-            await reloadMetroBlkSetup();
-            showSuccessToast('Saved');
-        } catch (error) {
-            showWarningToast('Error: ' + error.message);
-        } finally {
-            btn.innerText = 'Save';
-            btn.disabled = false;
+        // Staged locally (ML-97), matched against the hidden field's string id (real numeric id or
+        // a temp one, either way stringified) - nothing hits the server until saveMetroBlkEdit. A
+        // brand-new lead-in goes at the front of the array, not the end - buildMetroBlkPlayQueue
+        // assumes lead-in(s) sort first (same invariant persistMetroBlkOrderFromDom/
+        // normalizeMetroBlkOrder already maintain), and this is the one path that stages a new
+        // segment without going through either of those.
+        const existing = id ? metroBlkCurrentSetup.segments.find(s => String(s.id) === id) : null;
+        if (existing) {
+            metroBlkCurrentSetup.segments = metroBlkCurrentSetup.segments.map(s => s === existing ? buildLocalSegmentDto(data, existing.id) : s);
+        } else {
+            const dto = buildLocalSegmentDto(data);
+            metroBlkCurrentSetup.segments = dto.isLeadIn ? [dto, ...metroBlkCurrentSetup.segments] : [...metroBlkCurrentSetup.segments, dto];
         }
+        document.getElementById('metroSegmentModal').style.display = 'none';
+        renderMetroBlockTiles();
     });
 
     document.getElementById('metroSegDeleteBtn')?.addEventListener('click', () => {
         const id = document.getElementById('metroSegEditId').value;
         if (!id) return;
-        showConfirmModal('Delete block', 'Delete this block?', async () => {
-            try {
-                await API.metronomeBlocks.segments.delete(id);
-                document.getElementById('metroSegmentModal').style.display = 'none';
-                await reloadMetroBlkSetup();
-                showSuccessToast('Block deleted');
-            } catch (error) {
-                showWarningToast('Error: ' + error.message);
-            }
+        showConfirmModal('Delete block', 'Delete this block?', () => {
+            metroBlkCurrentSetup.segments = metroBlkCurrentSetup.segments.filter(s => String(s.id) !== id);
+            document.getElementById('metroSegmentModal').style.display = 'none';
+            renderMetroBlockTiles();
         });
     });
+
+    // The 3-dot per-tile menu (ML-97, Edit Mode only) - a single-item "Delete" menu is, in practice,
+    // just a confirm dialog, so this skips building any dropdown UI for the one entry.
+    window.confirmDeleteMetroBlkTile = function(id) {
+        const seg = metroBlkCurrentSetup.segments.find(s => s.id === id);
+        showConfirmModal(seg?.isLeadIn ? 'Delete lead-in' : 'Delete block', 'Delete this block?', () => {
+            metroBlkCurrentSetup.segments = metroBlkCurrentSetup.segments.filter(s => s.id !== id);
+            renderMetroBlockTiles();
+        });
+    };
 
     async function loadMetroBlkTimeSignatures() {
         try {
@@ -4214,10 +4376,11 @@
     }
 
     // --- Sequencing ---
-    // Tracks which `segments` array the play queue was last built from - `reloadMetroBlkSetup`
-    // always produces a brand-new array (even a same-order reload), so comparing by reference is
-    // enough to tell "the blocks changed since the queue was built" from "nothing changed, just
-    // re-rendering" without needing a separate dirty flag.
+    // Tracks which `segments` array the play queue was last built from - every local edit (Edit
+    // Mode's staged mutations included, ML-97) always produces a brand-new array rather than
+    // mutating in place, so comparing by reference is enough to tell "the blocks changed since the
+    // queue was built" from "nothing changed, just re-rendering" without needing a separate dirty
+    // flag.
     let metroBlkPlayQueueSourceSegments = null;
 
     // Called whenever the builder might have moved on from what's currently loaded into the player -
@@ -4390,6 +4553,20 @@
         document.getElementById('metroBlkSubdivideModal').style.display = 'none';
     });
 
+    // Repositions playback to a specific queue index without changing play/pause state - resets the
+    // per-block counters and pushes the resolved block's settings into the player. Shared by
+    // buildMetroBlkPlayQueue/resetMetroBlk (index 0) and jumpMetroBlkToPlayIndex (ML-97 tap-to-jump
+    // in Play Mode).
+    function jumpMetroBlkToIndex(index) {
+        metroBlkPlayIndex = index;
+        metroBlkBeatsPlayedInBlock = 0;
+        metroBlkClicksPlayedInBlock = 0;
+        if (!metroBlkPlayQueue.length) return;
+        const block = metroBlkEffectiveBlock(metroBlkPlayQueue[index], metroBlkPlayQueue);
+        applyMetroBlkToPlayer(block);
+        metroBlkRealignPlayer(block);
+    }
+
     function buildMetroBlkPlayQueue() {
         metroBlkPlayQueue = metroBlkCurrentSetup.segments;
         metroBlkPlayQueueSourceSegments = metroBlkCurrentSetup.segments;
@@ -4398,24 +4575,23 @@
         // IS the lead-in itself, so it plays again before every repeat rather than only once.
         const leadIn = metroBlkPlayQueue.find(s => s.isLeadIn);
         metroBlkLoopBackIndex = (leadIn && leadIn.repeatLeadIn) ? 0 : metroBlkPlayQueue.filter(s => s.isLeadIn).length;
-        metroBlkPlayIndex = 0;
-        metroBlkBeatsPlayedInBlock = 0;
-        metroBlkClicksPlayedInBlock = 0;
-        if (metroBlkPlayQueue.length) {
-            const block = metroBlkEffectiveBlock(metroBlkPlayQueue[0], metroBlkPlayQueue);
-            applyMetroBlkToPlayer(block);
-            metroBlkRealignPlayer(block);
-        }
+        jumpMetroBlkToIndex(0);
     }
 
+    // Play Mode's tap-to-jump (ML-97): repositions to the tapped block without starting or stopping
+    // playback - mirrors Reset's own "position only" behaviour rather than force-starting, since
+    // that's the one existing precedent for this kind of jump in this tool.
+    window.jumpMetroBlkToPlayIndex = function(id) {
+        const index = metroBlkPlayQueue.findIndex(s => s.id === id);
+        if (index === -1) return;
+        jumpMetroBlkToIndex(index);
+        renderMetroBlkRows();
+    };
+
     function advanceMetroBlk() {
-        metroBlkPlayIndex++;
-        if (metroBlkPlayIndex >= metroBlkPlayQueue.length) metroBlkPlayIndex = metroBlkLoopBackIndex;
-        metroBlkBeatsPlayedInBlock = 0;
-        metroBlkClicksPlayedInBlock = 0;
-        const block = metroBlkEffectiveBlock(metroBlkPlayQueue[metroBlkPlayIndex], metroBlkPlayQueue);
-        applyMetroBlkToPlayer(block);
-        metroBlkRealignPlayer(block);
+        let next = metroBlkPlayIndex + 1;
+        if (next >= metroBlkPlayQueue.length) next = metroBlkLoopBackIndex;
+        jumpMetroBlkToIndex(next);
         // Deferred, not immediate: the final beat's flash (just triggered in onMetroBlkBeat, right
         // before this runs) would otherwise never get a chance to paint - renderMetroBlkRows tears
         // the dots down and rebuilds them synchronously in the same tick, before the browser draws
@@ -4524,17 +4700,6 @@
         endTick.style.left = endLeftStyle;
     }
 
-    // Wraps past the end of the queue back to metroBlkLoopBackIndex, matching playback's own loop-back
-    // behaviour, so the "upcoming" preview rows always show what will genuinely play next - that's back
-    // into the lead-in itself when it's marked repeatLeadIn (ML-85), not just the loop zone after it.
-    function wrapMetroBlkIndex(i) {
-        const n = metroBlkPlayQueue.length;
-        if (i < n) return i;
-        const loopLen = n - metroBlkLoopBackIndex;
-        if (loopLen <= 0) return n - 1;
-        return metroBlkLoopBackIndex + ((i - n) % loopLen);
-    }
-
     // A partial lead-in plays the LAST pickupBeats beats of the bar, not the first - a pickup/
     // anacrusis leads into the downbeat that follows, so on a 4-beat bar with a 1-beat pickup it's
     // beat 4 that sounds, not beat 1. Those unused leading beats are never actually scheduled (see
@@ -4549,51 +4714,61 @@
     }
 
     // Now + next only (no second "upcoming" row) - keeps the screen simpler without losing much,
-    // since the next block is already visible before the current one finishes.
+    // Now-playing row only (ML-98) - the "coming next" preview row this used to also build is gone;
+    // Play Mode's active-tile highlight (renderMetroBlkActiveTileHighlight, called at the end here)
+    // shows where things are in the whole sequence instead.
     function renderMetroBlkRows() {
         if (!metroBlkPlayQueue.length) return;
-        for (let slot = 0; slot < 2; slot++) {
-            const idx = wrapMetroBlkIndex(metroBlkPlayIndex + slot);
-            const block = metroBlkEffectiveBlock(metroBlkPlayQueue[idx], metroBlkPlayQueue);
-            const subFactor = metroBlkEffectiveSubFactor(block);
-            const label = block ? metroBlkBlockLabel(block, slot === 0 ? metroBlkBeatsPlayedInBlock : undefined) : '';
-            const labelEl = document.getElementById(`metroBlkRow${slot}Label`);
-            if (labelEl) labelEl.innerText = label;
+        const block = metroBlkEffectiveBlock(metroBlkPlayQueue[metroBlkPlayIndex], metroBlkPlayQueue);
+        const subFactor = metroBlkEffectiveSubFactor(block);
+        const label = block ? metroBlkBlockLabel(block, metroBlkBeatsPlayedInBlock) : '';
+        const labelEl = document.getElementById('metroBlkRow0Label');
+        if (labelEl) labelEl.innerText = label;
 
-            const numerator = block ? block.numerator : 4;
-            const totalBaseClicks = numerator * subFactor;
-            // The row's line extends one slot past the last dot (connectMetroBlkDotsWithTrack) -
-            // laying the dots out over totalBaseClicks+1 slots, not totalBaseClicks, reserves room for
-            // that extension so the dots-plus-line group centers as a whole instead of the dots alone
-            // centering and the line poking out past the row's right edge. The mini row now uses this
-            // exact same "now" bar formatting (ML-94), not a simplified stand-in, so it shares the
-            // same basis rather than its own separate one.
-            const trackLeftPct = metroBlkLeftPctFn(totalBaseClicks + 1);
-            const endLeftStyle = metroLeftStyle(trackLeftPct(totalBaseClicks));
-            buildMetroDotRow(`metroBlkRow${slot}Dots`, totalBaseClicks, subFactor, false, trackLeftPct);
-            metroApplyDisplayWidth(`metroBlkRow${slot}Viewport`, `metroBlkRow${slot}Content`, totalBaseClicks + 1);
-            connectMetroBlkDotsWithTrack(`metroBlkRow${slot}Dots`, endLeftStyle);
-            greyOutSkippedDots(`metroBlkRow${slot}Dots`, block, subFactor);
-            if (!metroBlkPlayer.isPlaying()) resetMetroScrollPosition(`metroBlkRow${slot}Content`);
-            // Only the CURRENT block (slot 0) can ever be mid-quiet-gap (ML-92 follow-up) - the upcoming
-            // preview (slot 1) never is, whatever it turns out to be. Also requires isPlaying(): sitting
-            // on a not-yet-started lead-in (paused, or never played this session) isn't "during the
-            // quiet space" in any meaningful sense yet, so it shouldn't pre-emptively grey out before
-            // there's actually a gap counting down.
-            const inQuietGap = slot === 0 && metroBlkQuietGapActive && metroBlkPlayer.isPlaying() && block && block.isLeadIn;
-            document.getElementById(`metroBlkRow${slot}Content`)?.classList.toggle('metroBlk-quiet-gap', inQuietGap);
+        const numerator = block ? block.numerator : 4;
+        const totalBaseClicks = numerator * subFactor;
+        // The row's line extends one slot past the last dot (connectMetroBlkDotsWithTrack) -
+        // laying the dots out over totalBaseClicks+1 slots, not totalBaseClicks, reserves room for
+        // that extension so the dots-plus-line group centers as a whole instead of the dots alone
+        // centering and the line poking out past the row's right edge. The mini row now uses this
+        // exact same "now" bar formatting (ML-94), not a simplified stand-in, so it shares the
+        // same basis rather than its own separate one.
+        const trackLeftPct = metroBlkLeftPctFn(totalBaseClicks + 1);
+        const endLeftStyle = metroLeftStyle(trackLeftPct(totalBaseClicks));
+        buildMetroDotRow('metroBlkRow0Dots', totalBaseClicks, subFactor, false, trackLeftPct);
+        metroApplyDisplayWidth('metroBlkRow0Viewport', 'metroBlkRow0Content', totalBaseClicks + 1);
+        connectMetroBlkDotsWithTrack('metroBlkRow0Dots', endLeftStyle);
+        greyOutSkippedDots('metroBlkRow0Dots', block, subFactor);
+        if (!metroBlkPlayer.isPlaying()) resetMetroScrollPosition('metroBlkRow0Content');
+        // Requires isPlaying(): sitting on a not-yet-started lead-in (paused, or never played this
+        // session) isn't "during the quiet space" in any meaningful sense yet, so it shouldn't
+        // pre-emptively grey out before there's actually a gap counting down.
+        const inQuietGap = metroBlkQuietGapActive && metroBlkPlayer.isPlaying() && block && block.isLeadIn;
+        document.getElementById('metroBlkRow0Content')?.classList.toggle('metroBlk-quiet-gap', inQuietGap);
 
-            if (slot === 0) {
-                buildMetroDotRow('metroBlkMiniDots', totalBaseClicks, subFactor, false, trackLeftPct);
-                metroApplyDisplayWidth('metroBlkMiniViewport', 'metroBlkMiniContent', totalBaseClicks + 1);
-                connectMetroBlkDotsWithTrack('metroBlkMiniDots', endLeftStyle);
-                greyOutSkippedDots('metroBlkMiniDots', block, subFactor);
-                if (!metroBlkPlayer.isPlaying()) resetMetroScrollPosition('metroBlkMiniContent');
-                document.getElementById('metroBlkMiniContent')?.classList.toggle('metroBlk-quiet-gap', inQuietGap);
-                const miniLabel = document.getElementById('metroBlkMiniLabel');
-                if (miniLabel) miniLabel.innerText = label || '-';
-            }
-        }
+        buildMetroDotRow('metroBlkMiniDots', totalBaseClicks, subFactor, false, trackLeftPct);
+        metroApplyDisplayWidth('metroBlkMiniViewport', 'metroBlkMiniContent', totalBaseClicks + 1);
+        connectMetroBlkDotsWithTrack('metroBlkMiniDots', endLeftStyle);
+        greyOutSkippedDots('metroBlkMiniDots', block, subFactor);
+        if (!metroBlkPlayer.isPlaying()) resetMetroScrollPosition('metroBlkMiniContent');
+        document.getElementById('metroBlkMiniContent')?.classList.toggle('metroBlk-quiet-gap', inQuietGap);
+        const miniLabel = document.getElementById('metroBlkMiniLabel');
+        if (miniLabel) miniLabel.innerText = label || '-';
+
+        renderMetroBlkActiveTileHighlight();
+    }
+
+    // Play Mode's visual replacement for the old "coming next" row (ML-98): whichever block is
+    // actually sounding right now gets .metroBlk-tile-active (bold gold border). Cheap - no
+    // innerHTML rebuild, just toggles a class on whichever [data-id] already matches - so it can run
+    // on every beat/advance, not just on a full renderMetroBlockTiles. Skipped entirely while editing,
+    // since nothing is "playing" in any meaningful sense then.
+    function renderMetroBlkActiveTileHighlight() {
+        if (metroBlkEditMode) return;
+        const activeId = metroBlkPlayQueue[metroBlkPlayIndex]?.id;
+        document.querySelectorAll('#metroBlockTiles [data-id], #metroBlkLeadInSlot [data-id]').forEach(el => {
+            el.classList.toggle('metroBlk-tile-active', activeId !== undefined && el.dataset.id === String(activeId));
+        });
     }
 
     window.addEventListener('resize', () => {
@@ -4650,18 +4825,15 @@
     // silences it now; this button is purely about position.
     function resetMetroBlk() {
         refreshMetroBlkQueueIfStale();
-        metroBlkPlayIndex = 0;
-        metroBlkBeatsPlayedInBlock = 0;
-        metroBlkClicksPlayedInBlock = 0;
-        if (metroBlkPlayQueue.length) {
-            const block = metroBlkEffectiveBlock(metroBlkPlayQueue[0], metroBlkPlayQueue);
-            applyMetroBlkToPlayer(block);
-            metroBlkRealignPlayer(block);
-        }
+        jumpMetroBlkToIndex(0);
         renderMetroBlkRows();
     }
 
-    document.getElementById('metroBlkPlayBtn')?.addEventListener('click', () => {
+    document.getElementById('metroBlkPlayBtn')?.addEventListener('click', async () => {
+        // Edit Mode + Play together don't make sense (ML-97) - pressing Play while editing commits
+        // the draft first (same as the bottom bar's own Save), then plays as normal.
+        if (metroBlkEditMode) await saveMetroBlkEdit();
+        if (metroBlkEditMode) return; // saveMetroBlkEdit failed validation/API - stay put, don't play
         if (metroBlkPlayer.isPlaying()) pauseMetroBlk(); else playMetroBlk();
     });
     document.getElementById('metroBlkResetBtn')?.addEventListener('click', resetMetroBlk);
