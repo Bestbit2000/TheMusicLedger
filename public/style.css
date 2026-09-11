@@ -364,6 +364,9 @@
     .metro-transport-row { display: flex; align-items: center; justify-content: center; gap: var(--space-4); margin: var(--space-2) 0 var(--space-4) 0; }
     .metro-transport-btn { width: 60px; height: 60px; border: none; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .metro-transport-btn .material-symbols-outlined { font-size: 26px; }
+    /* Only the Blocks transport row ever actually sets `disabled` (Edit Mode, ML-97 follow-up) - the
+       single-bar tool's own Play/Reset never do, so this never affects it. */
+    .metro-transport-btn:disabled, .metroBlk-ctrl-value-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .metro-play-btn { background: var(--primary-action); color: var(--primary-action-text); }
     .metro-stop-btn { background: var(--nav-action); color: var(--nav-action-text); }
 

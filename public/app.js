@@ -3383,6 +3383,18 @@
         if (helpText) helpText.innerText = metroBlkEditMode ? 'Tap a block to edit it, or drag to reorder.' : 'Tap a block to jump to it.';
         document.getElementById('metroBlkEditBar')?.classList.toggle('hidden-group', !metroBlkEditMode);
         document.getElementById('metroBuilderView')?.classList.toggle('metroBlk-editing', metroBlkEditMode);
+        // Hidden entirely while editing (follow-up) - tapping into a different saved setup from the
+        // list would abandon whatever's being staged here with no warning, so it's out of the way
+        // rather than just disabled.
+        document.getElementById('metroBlkSavedSetupsSection')?.classList.toggle('hidden-group', metroBlkEditMode);
+        // Play/Reset/sub-beats/speed are fully disabled while editing too (follow-up, stricter than
+        // the original "Play auto-saves first" behaviour) - one unambiguous way out of Edit Mode
+        // (Cancel or Save on the bottom bar) rather than a second path that quietly saves as a side
+        // effect of pressing Play.
+        ['metroBlkPlayBtn', 'metroBlkResetBtn', 'metroBlkSubdivideBtn', 'metroBlkSpeedBtn'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.disabled = metroBlkEditMode;
+        });
     }
 
     // Entry point for both an unsaved scratch (nothing to name yet) and an already-saved setup
@@ -4887,11 +4899,11 @@
         renderMetroBlkRows();
     }
 
-    document.getElementById('metroBlkPlayBtn')?.addEventListener('click', async () => {
-        // Edit Mode + Play together don't make sense (ML-97) - pressing Play while editing commits
-        // the draft first (same as the bottom bar's own Save), then plays as normal.
-        if (metroBlkEditMode) await saveMetroBlkEdit();
-        if (metroBlkEditMode) return; // saveMetroBlkEdit failed validation/API - stay put, don't play
+    document.getElementById('metroBlkPlayBtn')?.addEventListener('click', () => {
+        // Belt-and-suspenders alongside the button's own `disabled` while editing (renderMetroBlkEditUI,
+        // ML-97 follow-up) - Play/Save conflict is avoided by not allowing Play at all during Edit
+        // Mode, rather than quietly saving as a side effect of pressing it.
+        if (metroBlkEditMode) return;
         if (metroBlkPlayer.isPlaying()) pauseMetroBlk(); else playMetroBlk();
     });
     document.getElementById('metroBlkResetBtn')?.addEventListener('click', resetMetroBlk);
