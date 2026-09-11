@@ -1,5 +1,91 @@
 [
   {
+    "version": "0.11.0",
+    "date": "2026-09-11",
+    "changes": [
+      {
+        "key": "ML-100",
+        "type": "New",
+        "summary": "Be able to copy blocks"
+      },
+      {
+        "key": "ML-99",
+        "type": "New",
+        "summary": "Sub beats has an off / on selection"
+      },
+      {
+        "key": "ML-98",
+        "type": "New",
+        "summary": "Hide the coming next row on metronome"
+      },
+      {
+        "key": "ML-97",
+        "type": "New",
+        "summary": "Change to edit / play modes in metronome"
+      },
+      {
+        "key": "ML-95",
+        "type": "New",
+        "summary": "Use note type to determine major beats"
+      },
+      {
+        "key": "ML-94",
+        "type": "Fixes",
+        "summary": "Persistent metronome formatting inconsistent"
+      },
+      {
+        "key": "ML-93",
+        "type": "New",
+        "summary": "Reduce scale on lead in bar slider"
+      },
+      {
+        "key": "ML-92",
+        "type": "New",
+        "summary": "Add quiet space to lead-in"
+      },
+      {
+        "key": "ML-91",
+        "type": "New",
+        "summary": "Tuner on / off on top menu"
+      },
+      {
+        "key": "ML-88",
+        "type": "Fixes",
+        "summary": "Left aligned metronome circle on first load"
+      },
+      {
+        "key": "ML-87",
+        "type": "New",
+        "summary": "Add a close button to the persistent version of hte metronome"
+      },
+      {
+        "key": "ML-86",
+        "type": "New",
+        "summary": "Only show the metronome on other pages if it's actually running"
+      },
+      {
+        "key": "ML-85",
+        "type": "New",
+        "summary": "Re-loop through the lead-in as well"
+      },
+      {
+        "key": "ML-84",
+        "type": "New",
+        "summary": "Change layout of tuner on metronome page"
+      },
+      {
+        "key": "ML-82",
+        "type": "Fixes",
+        "summary": "Getting first click on the first sub beat and not the first beat"
+      },
+      {
+        "key": "ML-81",
+        "type": "Fixes",
+        "summary": "Block order can't be changed on mobile"
+      }
+    ]
+  },
+  {
     "version": "0.10.0",
     "date": "2026-09-10",
     "changes": [
