@@ -399,10 +399,18 @@
     .metroBlk-mini-tuner { position: relative; box-sizing: border-box; background: var(--input-bg); border: 2px solid var(--primary-action); border-width: 0; border-radius: var(--radius-md); padding: 0 calc(var(--space-4) + 48px) 0 var(--space-4); margin-bottom: 0; max-height: 0; opacity: 0; overflow: hidden; pointer-events: none; transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease, margin-bottom 0.25s ease, border-width 0.25s ease, background 0.15s linear, border-color 0.15s linear; }
     .metroBlk-mini-tuner.metroBlk-mini-tuner-open { border-width: 2px; padding: var(--space-3) calc(var(--space-4) + 48px) var(--space-3) var(--space-4); margin-bottom: var(--space-3); max-height: 220px; opacity: 1; pointer-events: auto; }
     .metroBlk-mini-tuner.in-tune { border-color: var(--tuner-in-tune-green); background: rgba(46, 204, 113, 0.28); }
-    /* Centered - the note letters are the key output, matching the centered green in-tune zone below. */
-    .metroBlk-mini-tuner-row1 { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: var(--space-4); margin-bottom: var(--space-2); min-height: 1.6em; line-height: 1.3; }
-    .metroBlk-mini-tuner-reading { font-size: var(--font-md); color: var(--label-color); }
-    .metroBlk-mini-tuner-reading strong { font-size: 1.8rem; font-weight: bold; color: var(--primary-action); font-variant-numeric: tabular-nums; }
+    /* One big note on the left (not concert-and-instrument side by side any more - ML-84: showing both
+       at once meant nothing to read the note against without already knowing which was which) at a
+       fixed width, so the box no longer changes size as different note names come and go; the bar
+       track fills the rest of the row between it and the close button. */
+    .metroBlk-mini-tuner-body { display: flex; align-items: center; gap: var(--space-4); }
+    .metroBlk-mini-tuner-note-col { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+    .metroBlk-mini-tuner-note-big { min-width: 2.4ch; font-size: 2.4rem; font-weight: bold; line-height: 1; text-align: center; color: var(--primary-action); font-variant-numeric: tabular-nums; }
+    /* Looks like a small text link, not a form control - the native <select> is just what makes it
+       clickable/pickable with least code; the chosen instrument only lives in memory for this mini
+       tuner (ML-84's "for this session only"), never written back to the Settings default. */
+    .metroBlk-mini-tuner-instrument-select { appearance: none; -webkit-appearance: none; background: transparent; border: none; padding: 0; margin-top: 2px; font-size: var(--font-xs); color: var(--label-color); text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; text-align: center; }
+    .metroBlk-mini-tuner-bar-wrap { flex: 1; min-width: 0; }
     .metroBlk-mini-tuner-bar-track { position: relative; height: 16px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); overflow: hidden; }
     .metroBlk-mini-tuner-bar-zone { position: absolute; top: 0; bottom: 0; left: 35%; right: 35%; background: rgba(46, 204, 113, 0.45); }
     .metroBlk-mini-tuner-bar-center { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--input-border); transform: translateX(-50%); }
@@ -417,7 +425,10 @@
        scrolling row would hide most of them off-screen. Grid (not flex-wrap) so the columns stay
        even regardless of how many tiles end up in the last row. */
     .metroBlk-tile-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); padding: var(--space-2) 0 var(--space-4) 0; }
-    .metroBlk-tile { min-height: 100px; min-width: 0; background: var(--input-bg); border: 2px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-2); cursor: pointer; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; text-align: center; }
+    /* touch-action: none so a touch drag reorders the tile instead of scrolling the page underneath
+       it (ML-81) - native HTML5 drag-and-drop has no real touch equivalent, so reordering is done
+       with Pointer Events instead, and without this the browser's own touch-scroll gesture wins. */
+    .metroBlk-tile { min-height: 100px; min-width: 0; background: var(--input-bg); border: 2px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-2); cursor: pointer; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; text-align: center; touch-action: none; }
     .metroBlk-tile.dragging { opacity: 0.5; box-shadow: var(--shadow-lg); }
     .metroBlk-tile.lead-in { border-color: var(--selection-color); background: rgba(255, 152, 0, 0.12); }
     .metroBlk-tile-sig { font-size: var(--font-lg); font-weight: bold; }
@@ -437,6 +448,9 @@
     .metroBlk-leadin-row-add .metroBlk-leadin-plus { font-size: 1.5rem; line-height: 1; }
     .metroBlk-leadin-row-filled { border: 2px solid var(--selection-color); background: rgba(255, 152, 0, 0.12); color: var(--text-color); flex-wrap: wrap; }
     .metroBlk-leadin-row-filled .metroBlk-tile-badge { flex-shrink: 0; }
+    /* Pushed to the far right - a quick visual cue (ML-85) that this lead-in plays again on every
+       loop, not just once at the start, without needing to reopen the editor to check. */
+    .metroBlk-leadin-repeat-icon { margin-left: auto; font-size: 20px; color: var(--selection-color); flex-shrink: 0; }
 
     /* Play panel: current block + up to 2 faded upcoming blocks, each boxed as its own card so a
        run of circles reads as one connected unit rather than loose dots floating on the page. The

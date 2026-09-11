@@ -72,7 +72,7 @@ can exist before a tutor has linked a login — it just resolves once
 |---|---|---|
 | `scores` | A piece, owned by a band or an account | id, title, owner_band_id, owner_account_id, forked_from_score_id, is_public, default_bpm, default_time_signature, default_conductor_beats_per_bar |
 | `adhoc_metronome_setups` | Standalone manual multi-section setup, individual-only | id, account_id, name, created_at, saved_at |
-| `metronome_segments` | One row per section, on either a score or an ad-hoc setup (never both) | id, parent_score_id, parent_adhoc_setup_id, order_index, is_lead_in, rehearsal_mark, bar_count, bpm, time_signature_id, account_time_signature_id, conductor_beats_per_bar, is_repeat_start, is_repeat_end, pickup_beats, goto_coda, goto_start_dc, is_coda, intro_start_bar_offset, intro_start_beat_offset, intro_end_bar_offset, intro_end_beat_offset, is_first_time_bar, is_second_time_bar, ramp_start_bar_offset, ramp_start_beat_offset, notes |
+| `metronome_segments` | One row per section, on either a score or an ad-hoc setup (never both) | id, parent_score_id, parent_adhoc_setup_id, order_index, is_lead_in, repeat_lead_in, rehearsal_mark, bar_count, bpm, time_signature_id, account_time_signature_id, conductor_beats_per_bar, is_repeat_start, is_repeat_end, pickup_beats, goto_coda, goto_start_dc, is_coda, intro_start_bar_offset, intro_start_beat_offset, intro_end_bar_offset, intro_end_beat_offset, is_first_time_bar, is_second_time_bar, ramp_start_bar_offset, ramp_start_beat_offset, notes |
 | `metronome_run_logs` | History of every playback, score-driven or ad-hoc | id, account_id, source_type, source_id, session_segment_id, run_at, completed |
 | `time_signature_options` | System catalog of time signatures (numerator/denominator), migration-seeded only | id, numerator, denominator, label, sort_order, active |
 | `account_time_signatures` | Private custom time signatures, per account | id, account_id, numerator, denominator, active |
@@ -103,6 +103,12 @@ Notes on fields that took a few passes to nail down:
   this allowed multiple independently-timed, freely-orderable lead-in segments
   chained together; that turned out to be confusing in practice (dragging
   blocks around could disturb "the start of the piece") and was dropped.
+- **`repeat_lead_in`** (ML-85): defaults to `false` — loop-back skips the
+  lead-in and rejoins at the first regular block, same as the original ML-35
+  behaviour. Set `true` and the loop-back point becomes the lead-in itself, so
+  it plays again before every repeat, not just once at the very start. Only
+  meaningful on the one `is_lead_in` row a setup can have; ignored (but still
+  stored, same as a regular block's always-null `pickup_beats`) on any other row.
 - **`adhoc_metronome_setups.saved_at`** (ML-35 follow-up): naming a setup
   before you could even press play was too much friction, so creating one no
   longer asks for a name up front - it starts as an unnamed scratch copy,

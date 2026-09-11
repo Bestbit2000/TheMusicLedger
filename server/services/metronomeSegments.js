@@ -42,6 +42,7 @@ function validateSegmentPayload(data) {
     barCount,
     bpm,
     isLeadIn,
+    repeatLeadIn: !!data.repeatLeadIn,
     pickupBeats,
     timeSignatureId: hasPublicSig ? Number(data.timeSignatureId) : null,
     accountTimeSignatureId: hasCustomSig ? Number(data.accountTimeSignatureId) : null
@@ -73,10 +74,10 @@ export async function createSegment(accountId, setupId, data) {
 
   const inserted = await pool.query(
     `INSERT INTO metronome_segments
-       (parent_adhoc_setup_id, order_index, bar_count, bpm, is_lead_in, pickup_beats, time_signature_id, account_time_signature_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-    [setupId, orderIndex, normalized.barCount, normalized.bpm, normalized.isLeadIn, normalized.pickupBeats,
-      normalized.timeSignatureId, normalized.accountTimeSignatureId]
+       (parent_adhoc_setup_id, order_index, bar_count, bpm, is_lead_in, repeat_lead_in, pickup_beats, time_signature_id, account_time_signature_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+    [setupId, orderIndex, normalized.barCount, normalized.bpm, normalized.isLeadIn, normalized.repeatLeadIn,
+      normalized.pickupBeats, normalized.timeSignatureId, normalized.accountTimeSignatureId]
   );
 
   return getSegmentDtoById(inserted.rows[0].id);
@@ -87,7 +88,7 @@ export async function createSegment(accountId, setupId, data) {
 // rather than the bare FK id they just wrote.
 async function getSegmentDtoById(segmentId) {
   const { rows } = await pool.query(
-    `SELECT ms.id, ms.order_index, ms.bar_count, ms.bpm, ms.is_lead_in, ms.pickup_beats,
+    `SELECT ms.id, ms.order_index, ms.bar_count, ms.bpm, ms.is_lead_in, ms.repeat_lead_in, ms.pickup_beats,
             ms.time_signature_id, ms.account_time_signature_id,
             COALESCE(tso.numerator, ats.numerator) AS numerator,
             COALESCE(tso.denominator, ats.denominator) AS denominator,
@@ -103,7 +104,7 @@ async function getSegmentDtoById(segmentId) {
 
 async function getSegmentForAccount(accountId, segmentId) {
   const { rows } = await pool.query(
-    `SELECT ms.parent_adhoc_setup_id, ms.order_index, ms.bar_count, ms.bpm, ms.is_lead_in, ms.pickup_beats,
+    `SELECT ms.parent_adhoc_setup_id, ms.order_index, ms.bar_count, ms.bpm, ms.is_lead_in, ms.repeat_lead_in, ms.pickup_beats,
             ms.time_signature_id, ms.account_time_signature_id
      FROM metronome_segments ms
      JOIN adhoc_metronome_setups a ON a.id = ms.parent_adhoc_setup_id
@@ -118,6 +119,7 @@ async function getSegmentForAccount(accountId, segmentId) {
     barCount: row.bar_count,
     bpm: row.bpm,
     isLeadIn: row.is_lead_in,
+    repeatLeadIn: row.repeat_lead_in,
     pickupBeats: row.pickup_beats,
     timeSignatureId: row.time_signature_id === null ? null : Number(row.time_signature_id),
     accountTimeSignatureId: row.account_time_signature_id === null ? null : Number(row.account_time_signature_id)
@@ -134,6 +136,7 @@ export async function updateSegment(accountId, segmentId, data) {
     barCount: data.barCount !== undefined ? data.barCount : current.barCount,
     bpm: data.bpm !== undefined ? data.bpm : current.bpm,
     isLeadIn: data.isLeadIn !== undefined ? data.isLeadIn : current.isLeadIn,
+    repeatLeadIn: data.repeatLeadIn !== undefined ? data.repeatLeadIn : current.repeatLeadIn,
     pickupBeats: data.pickupBeats !== undefined ? data.pickupBeats : current.pickupBeats,
     timeSignatureId: data.timeSignatureId !== undefined ? data.timeSignatureId : current.timeSignatureId,
     accountTimeSignatureId: data.accountTimeSignatureId !== undefined ? data.accountTimeSignatureId : current.accountTimeSignatureId
@@ -150,11 +153,11 @@ export async function updateSegment(accountId, segmentId, data) {
 
   await pool.query(
     `UPDATE metronome_segments
-     SET order_index = $1, bar_count = $2, bpm = $3, is_lead_in = $4, pickup_beats = $5,
-         time_signature_id = $6, account_time_signature_id = $7
-     WHERE id = $8`,
-    [orderIndex, normalized.barCount, normalized.bpm, normalized.isLeadIn, normalized.pickupBeats,
-      normalized.timeSignatureId, normalized.accountTimeSignatureId, segmentId]
+     SET order_index = $1, bar_count = $2, bpm = $3, is_lead_in = $4, repeat_lead_in = $5, pickup_beats = $6,
+         time_signature_id = $7, account_time_signature_id = $8
+     WHERE id = $9`,
+    [orderIndex, normalized.barCount, normalized.bpm, normalized.isLeadIn, normalized.repeatLeadIn,
+      normalized.pickupBeats, normalized.timeSignatureId, normalized.accountTimeSignatureId, segmentId]
   );
 
   return getSegmentDtoById(segmentId);

@@ -479,15 +479,22 @@
 
         <div id="metroBlkMiniTuner" class="metroBlk-mini-tuner">
             <button type="button" class="modal-close-x" id="metroBlkMiniTunerCloseBtn" aria-label="Close tuner"><span class="material-symbols-outlined">close</span></button>
-            <div class="metroBlk-mini-tuner-row1">
-                <span class="metroBlk-mini-tuner-reading">Concert: <strong id="metroBlkMiniTunerConcertNote">&ndash;</strong></span>
-                <span class="metroBlk-mini-tuner-reading" id="metroBlkMiniTunerInstrumentReading"><span id="metroBlkMiniTunerInstrumentLabel">Bb instrument</span>: <strong id="metroBlkMiniTunerInstrumentNote">&ndash;</strong></span>
-            </div>
-            <div class="metroBlk-mini-tuner-bar-wrap">
-                <div class="metroBlk-mini-tuner-bar-track">
-                    <div class="metroBlk-mini-tuner-bar-zone"></div>
-                    <div class="metroBlk-mini-tuner-bar-center"></div>
-                    <div class="metroBlk-mini-tuner-needle" id="metroBlkMiniTunerNeedle"></div>
+            <div class="metroBlk-mini-tuner-body">
+                <div class="metroBlk-mini-tuner-note-col">
+                    <div class="metroBlk-mini-tuner-note-big" id="metroBlkMiniTunerNote">&ndash;</div>
+                    <select class="metroBlk-mini-tuner-instrument-select" id="metroBlkMiniTunerInstrumentSelect" aria-label="Instrument (this session only)">
+                        <option value="C">Concert</option>
+                        <option value="Bb">B&flat;</option>
+                        <option value="Eb">E&flat;</option>
+                        <option value="F">F</option>
+                    </select>
+                </div>
+                <div class="metroBlk-mini-tuner-bar-wrap">
+                    <div class="metroBlk-mini-tuner-bar-track">
+                        <div class="metroBlk-mini-tuner-bar-zone"></div>
+                        <div class="metroBlk-mini-tuner-bar-center"></div>
+                        <div class="metroBlk-mini-tuner-needle" id="metroBlkMiniTunerNeedle"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -689,6 +696,17 @@
                 <input type="radio" name="metroSegLeadInKind" id="metroSegLeadInPartial" value="partial">
                 <label for="metroSegLeadInPartial">Partial beats</label>
             </div>
+        </div>
+
+        <div class="form-group hidden-group" id="metroSegRepeatLeadInGroup">
+            <label>Repeat the lead-in on every loop?</label>
+            <div class="radio-group compact">
+                <input type="radio" name="metroSegRepeatLeadIn" id="metroSegRepeatLeadInNo" value="no" checked>
+                <label for="metroSegRepeatLeadInNo">No</label>
+                <input type="radio" name="metroSegRepeatLeadIn" id="metroSegRepeatLeadInYes" value="yes">
+                <label for="metroSegRepeatLeadInYes">Yes</label>
+            </div>
+            <p class="metro-help-text">No plays the lead-in once at the start, then loops just the blocks below. Yes plays it again before every repeat - useful for a moment to reset before the music comes back around.</p>
         </div>
 
         <div class="form-group" id="metroSegTimeSigGroup">

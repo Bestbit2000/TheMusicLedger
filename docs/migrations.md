@@ -60,6 +60,7 @@ later table exists. Each file has a comment marking where this happens.
 | `018_metronome_setup_saved_at.sql` | Adds `adhoc_metronome_setups.saved_at` (nullable) - NULL means an unnamed scratch setup, not yet shown in the setups list; set means the user pressed "Save for later" |
 | `019_timesig_extras.sql` | Adds `3/2` to the public time signature catalog; adds `account_time_signatures.active` (a custom signature still referenced by existing blocks is archived rather than deleted) |
 | `020_more_time_signatures.sql` | Rounds out the public catalog with 5/8, 7/8, 4/2, 7/4, 10/8, 11/8, 1/4, 1/8, 3/16, 5/16, 7/16 - common asymmetric/irregular meters in concert/brass band repertoire |
+| `021_lead_in_repeat.sql` | Adds `metronome_segments.repeat_lead_in` (ML-85) - whether the lead-in plays again on every loop, or only once at the start; meaningful only on the setup's one `is_lead_in` row |
 
 ## Decisions made translating the design doc into SQL
 
