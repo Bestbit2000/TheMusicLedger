@@ -3457,7 +3457,7 @@
         const countStr = s.pickupBeats
             ? `${s.pickupBeats} beat${s.pickupBeats === 1 ? '' : 's'}`
             : `${s.barCount} bar${s.barCount === 1 ? '' : 's'}`;
-        return `<div class="metroBlk-tile${s.isLeadIn ? ' lead-in' : ''}" data-id="${s.id}" onclick="openMetroSegmentModal(${s.id})">
+        return `<div class="metroBlk-tile${s.isLeadIn ? ' lead-in' : ''}" draggable="true" data-id="${s.id}" onclick="openMetroSegmentModal(${s.id})">
             ${s.isLeadIn ? '<div class="metroBlk-tile-badge">Lead-in</div>' : ''}
             <div class="metroBlk-tile-sig">${escapeHtml(s.timeSignatureLabel)}</div>
             <div class="metroBlk-tile-bpm">${s.bpm} bpm</div>
@@ -3523,13 +3523,38 @@
     // Only ever touches regular (non-lead-in) tiles now - the lead-in lives outside this
     // container entirely, so there's no zone-mixing to reconcile any more.
     //
-    // Built on Pointer Events rather than native HTML5 drag-and-drop (draggable="true"/dragstart/
-    // dragover/dragend) - that API has no real touch equivalent, so on a phone a long-press only ever
-    // produced a ghost outline that never actually reordered anything, while the same gesture worked
-    // fine with a mouse on desktop (ML-81). Pointer Events fire the same way for mouse, touch and pen,
-    // so one implementation covers both.
+    // Two parallel implementations, split by input type rather than by browser/UA (ML-81 follow-up:
+    // a first pass replaced native drag-and-drop with Pointer Events everywhere, which broke desktop
+    // mouse dragging - native HTML5 DnD is the well-tested, known-good path there and there was no
+    // real reason to move off it). Native draggable="true"/dragstart/dragover/dragend (restored below,
+    // unchanged from before ML-81) handles the mouse; it has no real touch equivalent though - on a
+    // phone a long-press only ever produced a ghost outline that never actually reordered anything -
+    // so a second, Pointer-Events-based path (only ever armed for pointerType 'touch'/'pen', explicitly
+    // skipping 'mouse' so the two never compete for the same gesture) covers that case instead.
     const METRO_BLK_DRAG_THRESHOLD_PX = 6;
     function setupMetroBlkDragAndDrop(container) {
+        // --- Mouse: native HTML5 drag-and-drop ---
+        let draggedEl = null;
+        container.querySelectorAll('.metroBlk-tile').forEach(tile => {
+            tile.addEventListener('dragstart', (e) => {
+                draggedEl = tile;
+                tile.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            tile.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (tile !== draggedEl) container.insertBefore(draggedEl, tile);
+            });
+            tile.addEventListener('dragend', () => {
+                if (!draggedEl) return;
+                draggedEl.classList.remove('dragging');
+                draggedEl = null;
+                persistMetroBlkOrderFromDom(container);
+            });
+        });
+
+        // --- Touch/pen: Pointer Events ---
         let dragEl = null;
         let dragging = false;
         let startX = 0, startY = 0;
@@ -3571,7 +3596,7 @@
 
         container.querySelectorAll('.metroBlk-tile').forEach(tile => {
             tile.addEventListener('pointerdown', (e) => {
-                if (e.pointerType === 'mouse' && e.button !== 0) return;
+                if (e.pointerType === 'mouse') return; // native dragstart/dragover/dragend own this gesture
                 dragEl = tile;
                 dragging = false;
                 startX = e.clientX;

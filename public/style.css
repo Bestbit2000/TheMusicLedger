@@ -425,9 +425,11 @@
        scrolling row would hide most of them off-screen. Grid (not flex-wrap) so the columns stay
        even regardless of how many tiles end up in the last row. */
     .metroBlk-tile-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); padding: var(--space-2) 0 var(--space-4) 0; }
-    /* touch-action: none so a touch drag reorders the tile instead of scrolling the page underneath
-       it (ML-81) - native HTML5 drag-and-drop has no real touch equivalent, so reordering is done
-       with Pointer Events instead, and without this the browser's own touch-scroll gesture wins. */
+    /* touch-action: none (ML-81) does two things for touch input, both needed since the tile stays
+       draggable="true" for mouse: stops the browser's own touch-scroll gesture from winning over the
+       Pointer-Events-based reorder drag, AND stops the browser recognising a long-press as the start of
+       its OWN native (touch-incapable, ghost-outline-only) HTML5 drag - without it the two drag
+       implementations fight over the same gesture on a touchscreen. */
     .metroBlk-tile { min-height: 100px; min-width: 0; background: var(--input-bg); border: 2px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-2); cursor: pointer; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; text-align: center; touch-action: none; }
     .metroBlk-tile.dragging { opacity: 0.5; box-shadow: var(--shadow-lg); }
     .metroBlk-tile.lead-in { border-color: var(--selection-color); background: rgba(255, 152, 0, 0.12); }
