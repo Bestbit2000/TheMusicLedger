@@ -150,10 +150,10 @@ export async function duplicateAdhocSetup(accountId, sourceId, name) {
   for (const seg of source.segments) {
     await pool.query(
       `INSERT INTO metronome_segments
-         (parent_adhoc_setup_id, order_index, bar_count, bpm, is_lead_in, repeat_lead_in, quiet_seconds_before_lead_in, pickup_beats, time_signature_id, account_time_signature_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+         (parent_adhoc_setup_id, order_index, bar_count, bpm, is_lead_in, repeat_lead_in, quiet_seconds_before_lead_in, pickup_beats, time_signature_id, account_time_signature_id, note_value)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [created.id, seg.orderIndex, seg.barCount, seg.bpm, seg.isLeadIn, seg.repeatLeadIn, seg.quietSecondsBeforeLeadIn,
-        seg.pickupBeats, seg.timeSignatureId, seg.accountTimeSignatureId]
+        seg.pickupBeats, seg.timeSignatureId, seg.accountTimeSignatureId, seg.noteValue]
     );
   }
   return getAdhocSetupWithSegments(accountId, created.id);
@@ -182,7 +182,8 @@ export function toSegmentDto(row) {
     accountTimeSignatureId: row.account_time_signature_id === null ? null : Number(row.account_time_signature_id),
     numerator: row.numerator,
     denominator: row.denominator,
-    timeSignatureLabel: row.public_label || `${row.numerator}/${row.denominator}`
+    timeSignatureLabel: row.public_label || `${row.numerator}/${row.denominator}`,
+    noteValue: row.note_value
   };
 }
 
@@ -195,7 +196,7 @@ export async function getAdhocSetupWithSegments(accountId, id) {
 
   const { rows } = await pool.query(
     `SELECT ms.id, ms.order_index, ms.bar_count, ms.bpm, ms.is_lead_in, ms.repeat_lead_in, ms.quiet_seconds_before_lead_in, ms.pickup_beats,
-            ms.time_signature_id, ms.account_time_signature_id,
+            ms.time_signature_id, ms.account_time_signature_id, ms.note_value,
             COALESCE(tso.numerator, ats.numerator) AS numerator,
             COALESCE(tso.denominator, ats.denominator) AS denominator,
             tso.label AS public_label

@@ -114,6 +114,15 @@ Notes on fields that took a few passes to nail down:
   time it's about to play - the very first time, and again on every loop-back
   when `repeat_lead_in` is true. Same "only meaningful on the `is_lead_in`
   row" scoping as the other lead-in-only columns above.
+- **`note_value`** (nullable, ML-35 follow-up bug fix): which note value
+  ("crotchet", "quaver", ...) a regular block's Target BPM display was last
+  set with - purely a display preference for the "note = bpm" label, it never
+  changes `bpm` itself. Previously not stored at all, so re-opening a saved
+  block to edit it always reset to a denominator-based default instead of
+  showing what was actually chosen last. NULL means no preference recorded
+  yet (an older row, or a lead-in, which has no independent display of its
+  own - the app always resolves the lead-in's display from the current first
+  regular block, same as its `bpm`/time signature).
 - **`adhoc_metronome_setups.saved_at`** (ML-35 follow-up): naming a setup
   before you could even press play was too much friction, so creating one no
   longer asks for a name up front - it starts as an unnamed scratch copy,

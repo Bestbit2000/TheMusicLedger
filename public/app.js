@@ -3428,7 +3428,11 @@
             barCount: seg.barCount,
             pickupBeats: seg.pickupBeats,
             repeatLeadIn: !!seg.repeatLeadIn,
-            quietSecondsBeforeLeadIn: seg.quietSecondsBeforeLeadIn || 0
+            quietSecondsBeforeLeadIn: seg.quietSecondsBeforeLeadIn || 0,
+            // Bug fix (ML-35 follow-up): which note value the Target BPM display was last set with -
+            // previously not persisted at all, so re-opening a saved block to edit it always reset to
+            // a denominator-based default instead of what was actually chosen (see openMetroSegmentModal).
+            noteValue: seg.noteValue || null
         };
     }
 
@@ -4267,7 +4271,10 @@
         document.getElementById('metroSegCustomNumerator').value = '';
         document.getElementById('metroSegCustomDenominator').value = '';
 
-        metroSegNoteSelected = metroSegDefaultNoteForDenominator(metroSegSelectedDenominator());
+        // Bug fix: an existing block's own last-chosen note value (persisted since ML-35 follow-up)
+        // takes priority over the denominator-based default - re-opening a saved block used to
+        // always reset to that default, silently discarding whatever was actually picked before.
+        metroSegNoteSelected = (seg && seg.noteValue) ? seg.noteValue : metroSegDefaultNoteForDenominator(metroSegSelectedDenominator());
         renderMetroSegNoteSelectBtn();
         setMetroSegBpm(seg ? seg.bpm : (lastRegular ? lastRegular.bpm : 120));
 
@@ -4352,7 +4359,8 @@
                 quietSecondsBeforeLeadIn: Math.max(0, Number(document.getElementById('metroSegQuietSeconds').value) || 0),
                 bpm: firstRegular.bpm,
                 timeSignatureId: firstRegular.timeSignatureId,
-                accountTimeSignatureId: firstRegular.accountTimeSignatureId
+                accountTimeSignatureId: firstRegular.accountTimeSignatureId,
+                noteValue: null // never independently meaningful on a lead-in - see metroBlkEffectiveBlock
             };
         } else {
             if (!metroSegTimeSigValue) return showWarningToast('Choose a time signature.');
@@ -4361,7 +4369,12 @@
                 isLeadIn: false,
                 bpm: metroSegBpm,
                 timeSignatureId: sigType === 'public' ? Number(sigId) : null,
-                accountTimeSignatureId: sigType === 'custom' ? Number(sigId) : null
+                accountTimeSignatureId: sigType === 'custom' ? Number(sigId) : null,
+                // Bug fix: this used to be discarded entirely - nothing captured which note value
+                // the Target BPM display was set with, so re-opening this block to edit it later
+                // always reset to a denominator-based default (metroSegDefaultNoteForDenominator)
+                // instead of remembering the actual choice.
+                noteValue: metroSegNoteSelected
             };
         }
 
