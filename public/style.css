@@ -189,6 +189,11 @@
     /* Deliberate gap so Copy and Delete (a destructive action right next to a harmless one) aren't
        flush against each other. */
     .metroBlk-setup-row-actions { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; }
+    /* Both actions here are rarely used, so neither should read as loudly as the base .btn-icon-copy/
+       -delete circles do elsewhere in the app - same 48x48 tap target, just no filled/outlined circle
+       behind it. Delete's icon stays red so it's still identifiable as the dangerous one at a glance. */
+    .metroBlk-setup-row-actions .btn-icon-copy { background: transparent; border: none; color: var(--label-color); }
+    .metroBlk-setup-row-actions .btn-icon-delete { background: transparent; color: var(--danger-color); }
 
     .play-card { background: var(--input-bg); padding: var(--space-6) var(--space-5); border-radius: var(--radius-lg); border: 2px solid var(--primary-action); text-align: center; margin-bottom: var(--space-6); transition: transform 0.22s ease, opacity 0.22s ease; }
     .play-card.slide-out-left, .play-card.slide-in-left { transform: translateX(-40px); opacity: 0; }
@@ -386,22 +391,17 @@
     /* Metronome Blocks (ML-35) - the multi-bar sequencer tool. Prefixed .metroBlk- throughout,
        distinct from the single-bar tool's .metro- classes above, even where the shapes are similar,
        so the two features' styles never get tangled reading either one. */
-    /* The current setup's name - "Block setup" as a placeholder until it's actually been named via
-       "+ Add new set" (the builder always has something loaded, named or not, per ML-35's revised
-       journey). The whole name+icon is one button rather than a separate edit control next to plain
-       text - the name IS the only thing there is to edit, so making it directly clickable removes a
-       redundant target. Disabled (pointer-events:none) while unsaved, since there's nothing to rename
-       yet - "+ Add new set" is what asks for a name in that case. */
+    /* The current setup's name - "New setup" as a placeholder until it's actually been named/saved
+       (the builder always has something loaded, named or not, per ML-35's revised journey). The whole
+       name+icon is one button, always clickable: unsaved, it names-and-saves the current scratch (icon
+       reads "save"); once saved, the same button renames it instead (icon reads "edit") - one control
+       and one position rather than swapping between a separate circled Save button and an inline
+       rename icon (ML-91 follow-up - that circle made a rarely-used action look more prominent than
+       it needed to). */
     .metroBlk-setup-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-3); min-height: 48px; }
     .metroBlk-setup-name-btn { display: flex; align-items: center; gap: var(--space-2); min-height: 48px; background: none; border: none; padding: 0; cursor: pointer; font: inherit; color: inherit; }
-    .metroBlk-setup-name-btn.metroBlk-setup-name-btn-disabled { pointer-events: none; cursor: default; }
     .metroBlk-setup-name { font-size: var(--font-lg); font-weight: bold; color: var(--text-color); }
     .metroBlk-setup-name-icon { font-size: 1.2rem; color: var(--label-color); }
-    /* Groups the header's own icon buttons (just Save while unsaved, now the tuner toggle has moved
-       to the top bar - ML-91) so their spacing follows the design system's gap scale rather than
-       one-off margins. */
-    .metroBlk-header-icons { display: flex; align-items: center; gap: var(--space-2); }
-    .metroBlk-header-icon-btn { width: 48px; height: 48px; min-width: 48px; border-radius: var(--radius-circle); background: var(--nav-action); color: var(--nav-action-text); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 
     /* Tuner access from this screen (previously a fully separate, self-contained tool/view) - toggled
        on/off from the top bar (ML-91, topTunerToggleBtn) rather than a close button of its own, and
@@ -423,7 +423,9 @@
     .metroBlk-mini-tuner-body { display: flex; align-items: center; gap: var(--space-3); }
     .metroBlk-mini-tuner-note-big { min-width: 2.4ch; flex-shrink: 0; font-size: 2.4rem; font-weight: bold; line-height: 1; text-align: center; color: var(--primary-action); font-variant-numeric: tabular-nums; }
     .metroBlk-mini-tuner-bar-wrap { flex: 1; min-width: 0; }
-    .metroBlk-mini-tuner-settings-btn { flex-shrink: 0; width: 36px; height: 36px; min-width: 36px; border-radius: var(--radius-circle); background: var(--nav-action); color: var(--nav-action-text); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    /* No filled circle (ML-91 follow-up) - picking an instrument is rare enough that it shouldn't
+       compete visually with the note/bar it sits next to; same 36px tap target either way. */
+    .metroBlk-mini-tuner-settings-btn { flex-shrink: 0; width: 36px; height: 36px; min-width: 36px; border-radius: var(--radius-circle); background: transparent; color: var(--label-color); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .metroBlk-mini-tuner-settings-btn .material-symbols-outlined { font-size: 18px; }
     /* Centered under the whole row (in practice, under the bar - the note and cog are comparatively
        narrow) rather than under just the note, which used to read as "two notes" stacked (ML-91

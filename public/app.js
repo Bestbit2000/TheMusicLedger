@@ -3278,7 +3278,7 @@
                 </div>
                 <div class="metroBlk-setup-row-actions">
                     <button class="btn-icon-copy" aria-label="Copy" onclick="duplicateMetroBlkSetup(${s.id})"><span class="material-symbols-outlined">content_copy</span></button>
-                    <button class="btn-icon-delete" aria-label="Delete" onclick="deleteMetroBlkSetup(${s.id})"><span class="material-symbols-outlined">delete</span></button>
+                    <button class="btn-icon-delete" aria-label="Delete setup" onclick="deleteMetroBlkSetup(${s.id})"><span class="material-symbols-outlined">delete</span></button>
                 </div>
             </div>
         `).join('');
@@ -3302,34 +3302,32 @@
         }
     }
 
-    // "Block setup" placeholder until the setup actually has a name (saveAdhocSetup/
-    // createNamedAdhocSetup are the only things that set savedAt) - the rename button only
-    // makes sense once there's a real name to edit.
+    // "New setup" placeholder until the setup actually has a name (saveAdhocSetup/
+    // createNamedAdhocSetup are the only things that set savedAt) - the header button/icon
+    // switch meaning depending on whether there's a real name to edit yet or not (see the
+    // click handler below).
     function renderMetroBlkSetupHeader() {
         const nameEl = document.getElementById('metroBlkSetupName');
         const nameBtn = document.getElementById('metroBlkRenameBtn');
         const icon = document.getElementById('metroBlkRenameIcon');
-        const saveBtn = document.getElementById('metroBlkSaveBtn');
         if (!nameEl || !metroBlkCurrentSetup) return;
         const isSaved = !!metroBlkCurrentSetup.savedAt;
-        nameEl.innerText = isSaved ? metroBlkCurrentSetup.name : 'Block setup';
-        nameBtn?.classList.toggle('metroBlk-setup-name-btn-disabled', !isSaved);
-        icon?.classList.toggle('hidden-group', !isSaved);
-        // Save is the only way to keep a scratch's work - it's the mutually exclusive counterpart
-        // to the rename icon (which only makes sense once it's already named).
-        saveBtn?.classList.toggle('hidden-group', isSaved);
+        nameEl.innerText = isSaved ? metroBlkCurrentSetup.name : 'New setup';
+        if (icon) icon.innerText = isSaved ? 'edit' : 'save';
+        nameBtn?.setAttribute('aria-label', isSaved ? 'Rename setup' : 'Save this setup');
     }
 
+    // Unsaved: names-and-saves the current scratch's accumulated blocks in place - unlike "+ Add
+    // new" / Copy, this doesn't create a fresh setup or touch the blocks at all, it just names and
+    // keeps the one already sitting in the builder (the same saveAdhocSetup step "+ Add new" uses
+    // internally, just triggered directly on what's already here). Saved: renames it instead - same
+    // button and position, just a different action once there's already a name to edit.
     document.getElementById('metroBlkRenameBtn')?.addEventListener('click', () => {
-        if (metroBlkCurrentSetup) window.renameMetroBlkSetup(metroBlkCurrentSetup.id);
-    });
-
-    // Saves the CURRENT scratch's accumulated blocks under a name, in place - unlike "+ Add new" /
-    // Copy, this doesn't create a fresh setup or touch the blocks at all, it just names and keeps
-    // the one already sitting in the builder (the same saveAdhocSetup step "+ Add new" uses
-    // internally, just triggered directly on what's already here instead of on a brand-new setup).
-    document.getElementById('metroBlkSaveBtn')?.addEventListener('click', () => {
         if (!metroBlkCurrentSetup) return;
+        if (metroBlkCurrentSetup.savedAt) {
+            window.renameMetroBlkSetup(metroBlkCurrentSetup.id);
+            return;
+        }
         showPromptModal('Save this setup', '', async (name) => {
             if (!name || !name.trim()) return;
             try {
@@ -3508,21 +3506,19 @@
     }
 
     // The lead-in (at most one - see openMetroLeadInModal) lives in its own fixed slot, not mixed
-    // into the reorderable grid below - see the ML-35 follow-up note there for why. It shows the
-    // time signature it's actually inheriting from the first regular block (metroBlkEffectiveBlock),
-    // even though that field isn't independently editable on it any more. The tempo isn't shown here
-    // (ML-91 follow-up) - it's the same inherited value, so repeating it next to the time signature
-    // was pure redundancy; the quiet-gap and repeat settings that ARE specific to the lead-in take
-    // that space instead. The repeat icon (looked like an independent clickable control rather than
-    // a description of the whole row) is now plain text, always present, so "plays once" is stated
-    // as clearly as "repeats" rather than being the unlabelled default.
+    // into the reorderable grid below - see the ML-35 follow-up note there for why. Neither the time
+    // signature nor the tempo is shown here (ML-91 follow-up) - both are just inherited from the
+    // first regular block (metroBlkEffectiveBlock) and aren't independently editable on the lead-in,
+    // so repeating them was pure redundancy; the bar/beat count, quiet-gap and repeat settings that
+    // ARE specific to the lead-in take that space instead. The repeat icon (looked like an independent
+    // clickable control rather than a description of the whole row) is now plain text, always present,
+    // so "plays once" is stated as clearly as "repeats" rather than being the unlabelled default.
     function metroBlkLeadInSlotHtml(leadIn) {
         if (!leadIn) {
             return `<button type="button" class="metroBlk-leadin-row metroBlk-leadin-row-add" aria-label="Add lead-in" onclick="openMetroLeadInModal()">
                 <span class="metroBlk-leadin-plus">+</span><span>Lead-in</span>
             </button>`;
         }
-        const eff = metroBlkEffectiveBlock(leadIn, metroBlkCurrentSetup.segments);
         const countStr = leadIn.pickupBeats
             ? `${leadIn.pickupBeats} beat${leadIn.pickupBeats === 1 ? '' : 's'}`
             : `${leadIn.barCount} bar${leadIn.barCount === 1 ? '' : 's'}`;
@@ -3531,7 +3527,6 @@
         const repeatStr = leadIn.repeatLeadIn ? ', repeating' : ', first time only';
         return `<div class="metroBlk-leadin-row metroBlk-leadin-row-filled" onclick="openMetroLeadInModal(${leadIn.id})">
             <span class="metroBlk-tile-badge">Lead-in</span>
-            <strong>${escapeHtml(eff.timeSignatureLabel)}</strong>
             <span>${countStr}${afterStr}${repeatStr}</span>
         </div>`;
     }
