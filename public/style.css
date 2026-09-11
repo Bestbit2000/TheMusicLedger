@@ -396,8 +396,11 @@
        via .metroBlk-mini-tuner-open, not hidden-group. position:relative for .modal-close-x (reused
        as-is - a generic top-right 48x48 close button, not actually modal-specific despite the name);
        right padding reserves room for it so it never overlaps the readings. */
-    .metroBlk-mini-tuner { position: relative; box-sizing: border-box; background: var(--input-bg); border: 2px solid var(--primary-action); border-width: 0; border-radius: var(--radius-md); padding: 0 calc(var(--space-4) + 48px) 0 var(--space-4); margin-bottom: 0; max-height: 0; opacity: 0; overflow: hidden; pointer-events: none; transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease, margin-bottom 0.25s ease, border-width 0.25s ease, background 0.15s linear, border-color 0.15s linear; }
-    .metroBlk-mini-tuner.metroBlk-mini-tuner-open { border-width: 2px; padding: var(--space-3) calc(var(--space-4) + 48px) var(--space-3) var(--space-4); margin-bottom: var(--space-3); max-height: 220px; opacity: 1; pointer-events: auto; }
+    /* Right padding reserves room for the close button PLUS a visible gap past it (ML-84 follow-up -
+       48px alone left the bar only ~3px from the close button, which read as touching once the green
+       in-tune background made the boundary between "bar" and "button" harder to see). */
+    .metroBlk-mini-tuner { position: relative; box-sizing: border-box; background: var(--input-bg); border: 2px solid var(--primary-action); border-width: 0; border-radius: var(--radius-md); padding: 0 calc(48px + var(--space-3) + var(--space-5)) 0 var(--space-4); margin-bottom: 0; max-height: 0; opacity: 0; overflow: hidden; pointer-events: none; transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease, margin-bottom 0.25s ease, border-width 0.25s ease, background 0.15s linear, border-color 0.15s linear; }
+    .metroBlk-mini-tuner.metroBlk-mini-tuner-open { border-width: 2px; padding: var(--space-3) calc(48px + var(--space-3) + var(--space-5)) var(--space-3) var(--space-4); margin-bottom: var(--space-3); max-height: 220px; opacity: 1; pointer-events: auto; }
     .metroBlk-mini-tuner.in-tune { border-color: var(--tuner-in-tune-green); background: rgba(46, 204, 113, 0.28); }
     /* One big note on the left (not concert-and-instrument side by side any more - ML-84: showing both
        at once meant nothing to read the note against without already knowing which was which) at a
@@ -405,12 +408,18 @@
        track fills the rest of the row between it and the close button. */
     .metroBlk-mini-tuner-body { display: flex; align-items: center; gap: var(--space-4); }
     .metroBlk-mini-tuner-note-col { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
-    .metroBlk-mini-tuner-note-big { min-width: 2.4ch; font-size: 2.4rem; font-weight: bold; line-height: 1; text-align: center; color: var(--primary-action); font-variant-numeric: tabular-nums; }
-    /* Looks like a small text link, not a form control - the native <select> is just what makes it
-       clickable/pickable with least code; the chosen instrument only lives in memory for this mini
-       tuner (ML-84's "for this session only"), never written back to the Settings default. */
-    .metroBlk-mini-tuner-instrument-select { appearance: none; -webkit-appearance: none; background: transparent; border: none; padding: 0; margin-top: 2px; font-size: var(--font-xs); color: var(--label-color); text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; text-align: center; }
+    /* Both the note and the instrument label below it are buttons opening the same instrument picker
+       (ML-84 follow-up: needed for accessibility - one small text target was too easy to miss, so the
+       much bigger note itself is now an equally valid, larger tap target for the same action). Reset to
+       look like plain text/a link, not form controls. */
+    .metroBlk-mini-tuner-note-big { min-width: 2.4ch; background: none; border: none; padding: 0; font-size: 2.4rem; font-weight: bold; line-height: 1; text-align: center; color: var(--primary-action); font-variant-numeric: tabular-nums; cursor: pointer; }
+    .metroBlk-mini-tuner-instrument-btn { background: none; border: none; padding: 0; margin-top: 2px; font-size: var(--font-xs); color: var(--label-color); text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; text-align: center; }
     .metroBlk-mini-tuner-bar-wrap { flex: 1; min-width: 0; }
+    /* The instrument-picker popup's buttons - one per instrument, applies immediately on click (ML-84
+       follow-up: replaces the native <select>, which wasn't the "pop up with a set of buttons" asked
+       for). Reuses .metroBlk-timesig-opt's look (same "pick one of a small fixed set" pattern already
+       used for time signatures) rather than inventing a new button style. */
+    .metroBlk-instrument-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); }
     .metroBlk-mini-tuner-bar-track { position: relative; height: 16px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); overflow: hidden; }
     .metroBlk-mini-tuner-bar-zone { position: absolute; top: 0; bottom: 0; left: 35%; right: 35%; background: rgba(46, 204, 113, 0.45); }
     .metroBlk-mini-tuner-bar-center { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--input-border); transform: translateX(-50%); }

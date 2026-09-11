@@ -4729,7 +4729,7 @@
     // knowing which column was which, and the two-column box kept changing width as note names came
     // and go. The instrument picker underneath shows "Concert" for C, or the instrument's own name.
     function renderMetroBlkMiniTunerIdle() {
-        document.getElementById('metroBlkMiniTunerNote').innerText = '–';
+        document.getElementById('metroBlkMiniTunerNoteBtn').innerText = '–';
         document.getElementById('metroBlkMiniTunerNeedle').style.left = '50%';
         document.getElementById('metroBlkMiniTunerNeedle').classList.remove('in-tune');
         document.getElementById('metroBlkMiniTuner').classList.remove('in-tune');
@@ -4742,7 +4742,7 @@
         const centsOff = (concertMidi - nearestConcertMidi) * 100;
         const writtenMidi = nearestConcertMidi + (TUNER_TRANSPOSITIONS[metroBlkMiniTunerInstrument] || 0);
 
-        document.getElementById('metroBlkMiniTunerNote').innerText = tunerMidiToName(writtenMidi);
+        document.getElementById('metroBlkMiniTunerNoteBtn').innerText = tunerMidiToName(writtenMidi);
         const clampedCents = Math.max(-50, Math.min(50, centsOff));
         const inTune = Math.abs(centsOff) <= TUNER_ZONE_CENTS;
         const needle = document.getElementById('metroBlkMiniTunerNeedle');
@@ -4752,13 +4752,38 @@
     }
     tunerEngine.onPitch(renderMetroBlkMiniTunerPitch);
 
-    document.getElementById('metroBlkMiniTunerInstrumentSelect')?.addEventListener('change', (e) => {
-        metroBlkMiniTunerInstrument = e.target.value;
+    const METRO_BLK_MINI_TUNER_INSTRUMENT_LABELS = { C: 'Concert', Bb: 'B♭', Eb: 'E♭', F: 'F' };
+
+    // Keeps the small label under the note, and the popup's own "currently selected" highlight, in
+    // sync with metroBlkMiniTunerInstrument - called on open and on every pick.
+    function renderMetroBlkMiniTunerInstrumentBtn() {
+        const label = METRO_BLK_MINI_TUNER_INSTRUMENT_LABELS[metroBlkMiniTunerInstrument] || metroBlkMiniTunerInstrument;
+        document.getElementById('metroBlkMiniTunerInstrumentBtn').innerText = label;
+        document.querySelectorAll('#metroBlkMiniTunerInstrumentOptions .metroBlk-timesig-opt').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.value === metroBlkMiniTunerInstrument);
+        });
+    }
+
+    // Both the note itself and the small label under it open this same popup (ML-84 follow-up: the
+    // note is a much bigger, easier-to-hit target than the label text alone) - one set of instrument
+    // buttons, applying immediately on click, same interaction as the time-signature picker.
+    function openMetroBlkMiniTunerInstrumentPicker() {
+        renderMetroBlkMiniTunerInstrumentBtn();
+        document.getElementById('metroBlkMiniTunerInstrumentModal').style.display = 'flex';
+    }
+    document.getElementById('metroBlkMiniTunerNoteBtn')?.addEventListener('click', openMetroBlkMiniTunerInstrumentPicker);
+    document.getElementById('metroBlkMiniTunerInstrumentBtn')?.addEventListener('click', openMetroBlkMiniTunerInstrumentPicker);
+    document.getElementById('metroBlkMiniTunerInstrumentOptions')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.metroBlk-timesig-opt');
+        if (!btn) return;
+        metroBlkMiniTunerInstrument = btn.dataset.value;
+        renderMetroBlkMiniTunerInstrumentBtn();
+        document.getElementById('metroBlkMiniTunerInstrumentModal').style.display = 'none';
     });
 
     function openMetroBlkMiniTuner() {
         metroBlkMiniTunerInstrument = localStorage.getItem(TUNER_INSTRUMENT_DEFAULT_KEY) || 'C';
-        document.getElementById('metroBlkMiniTunerInstrumentSelect').value = metroBlkMiniTunerInstrument;
+        renderMetroBlkMiniTunerInstrumentBtn();
         renderMetroBlkMiniTunerIdle();
         // .metroBlk-mini-tuner-open (not hidden-group) so opening/closing animates - see the CSS.
         document.getElementById('metroBlkMiniTuner').classList.add('metroBlk-mini-tuner-open');

@@ -481,13 +481,8 @@
             <button type="button" class="modal-close-x" id="metroBlkMiniTunerCloseBtn" aria-label="Close tuner"><span class="material-symbols-outlined">close</span></button>
             <div class="metroBlk-mini-tuner-body">
                 <div class="metroBlk-mini-tuner-note-col">
-                    <div class="metroBlk-mini-tuner-note-big" id="metroBlkMiniTunerNote">&ndash;</div>
-                    <select class="metroBlk-mini-tuner-instrument-select" id="metroBlkMiniTunerInstrumentSelect" aria-label="Instrument (this session only)">
-                        <option value="C">Concert</option>
-                        <option value="Bb">B&flat;</option>
-                        <option value="Eb">E&flat;</option>
-                        <option value="F">F</option>
-                    </select>
+                    <button type="button" class="metroBlk-mini-tuner-note-big" id="metroBlkMiniTunerNoteBtn" aria-label="Change instrument (this session only)">&ndash;</button>
+                    <button type="button" class="metroBlk-mini-tuner-instrument-btn" id="metroBlkMiniTunerInstrumentBtn" aria-label="Change instrument (this session only)">Concert</button>
                 </div>
                 <div class="metroBlk-mini-tuner-bar-wrap">
                     <div class="metroBlk-mini-tuner-bar-track">
@@ -770,6 +765,20 @@
         <div class="hidden-group" id="metroSegOtherActionsSection" style="margin-top:var(--space-4);">
             <div class="metro-help-text" style="font-weight:bold; margin-bottom:var(--space-1);">Other actions</div>
             <button type="button" class="btn-text btn-text-danger" id="metroSegDeleteBtn">Delete block</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="metroBlkMiniTunerInstrumentModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('metroBlkMiniTunerInstrumentModal').style.display='none'" aria-label="Close">&times;</button>
+        <h2>Instrument</h2>
+        <p class="metro-help-text">Changes the reading for this session only - your Settings default is unchanged.</p>
+        <div class="metroBlk-instrument-options" id="metroBlkMiniTunerInstrumentOptions">
+            <button type="button" class="metroBlk-timesig-opt" data-value="C">Concert</button>
+            <button type="button" class="metroBlk-timesig-opt" data-value="Bb">B&flat;</button>
+            <button type="button" class="metroBlk-timesig-opt" data-value="Eb">E&flat;</button>
+            <button type="button" class="metroBlk-timesig-opt" data-value="F">F</button>
         </div>
     </div>
 </div>
