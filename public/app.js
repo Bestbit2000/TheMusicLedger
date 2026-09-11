@@ -2785,19 +2785,17 @@
         syncWakeLock();
     }
 
-    // Whether the mini bar should be offered at all - true from the moment the metronome is first
-    // played until it's explicitly Stopped, NOT just paused (ML-86 originally tied this to
-    // isPlaying() directly, which also hid it on pause - reverted per direct feedback: a paused
-    // session is still one you'd want to get back to from another page, not a dead one worth losing
-    // track of).
-    let metroMiniActive = false;
-
-    // Shown whenever the metronome is active (playing or paused, not stopped) and the full Metronome
-    // view itself isn't on-screen - called on every view change.
+    // Shown only when actually playing at the moment a view change happens - not a "session active"
+    // flag remembered across navigations. Only ever called from switchView and from actions that end
+    // playback outright (stopMetronome/Close): pausing deliberately does NOT call this, so a bar
+    // that's already showing (because you navigated away while it WAS playing) stays put when you
+    // pause it from another screen - but the next navigation re-checks isPlaying() fresh, so leaving
+    // the metronome page while paused/stopped never shows it elsewhere in the first place, and
+    // navigating on again while still paused drops it if it was showing.
     function updateMetroMiniBarVisibility(viewName) {
         const bar = document.getElementById('metroMiniBar');
         if (!bar) return;
-        bar.classList.toggle('hidden-group', !metroMiniActive || viewName === 'metronomeView');
+        bar.classList.toggle('hidden-group', !metroPlayer.isPlaying() || viewName === 'metronomeView');
     }
 
     // Resumes from wherever it was left (position 0 the first time, or wherever pauseMetronome() left
@@ -2805,24 +2803,22 @@
     function playMetronome() {
         pushMetroSettingsToPlayer();
         metroPlayer.play();
-        metroMiniActive = true;
         updateMetroPlayIcon();
         updateMetroMiniBarVisibility(viewStack[viewStack.length - 1]);
     }
 
-    // Halts playback without resetting position - playMetronome() will pick back up from here. Does
-    // NOT touch the mini bar's visibility - see metroMiniActive above.
+    // Halts playback without resetting position - playMetronome() will pick back up from here.
+    // Deliberately does not touch the mini bar's visibility - see updateMetroMiniBarVisibility above.
     function pauseMetronome() {
         metroPlayer.pause();
         updateMetroPlayIcon();
     }
 
-    // Halts playback AND resets the beat position back to the start of the bar, and dismisses the
-    // mini bar - the one deliberate action that ends the "active this session" state, since there's
-    // no separate close button on the mini bar itself.
+    // Halts playback AND resets the beat position back to the start of the bar. Also the one way to
+    // dismiss the mini bar immediately (rather than waiting for the next navigation to notice it's no
+    // longer playing) - the X on the mini bar itself calls this.
     function stopMetronome() {
         metroPlayer.stop();
-        metroMiniActive = false;
         updateMetroPlayIcon();
         resetMetroScrollPosition('metroDisplayContent');
         resetMetroScrollPosition('metroMiniContent');
@@ -3241,11 +3237,6 @@
     // Conductor beats only (for the "x of y" label) - metroBlkClicksPlayedInBlock below is every
     // click, main beats and sub-beats alike, and is what actually decides when to advance.
     let metroBlkClicksPlayedInBlock = 0;
-    // Whether the mini bar should be offered at all - true from the moment the sequence is first
-    // played, cleared only when switching to a different setup (there's no separate "stop" here, see
-    // resetMetroBlk) - NOT on pause, which is still an in-progress session worth getting back to from
-    // another page, not a dead one (reverted from an ML-86 change that hid it on pause too).
-    let metroBlkMiniActive = false;
     // Seconds of quiet space (ML-92) queued up by the most recent metroBlkRealignPlayer call, waiting
     // to be consumed by the next playMetroBlk() - see the comment there and on metroBlkRealignPlayer.
     let metroBlkPendingLeadInSilence = 0;
@@ -3363,7 +3354,6 @@
                 const created = await API.metronomeBlocks.setups.createNamed(name.trim());
                 created.segments = await normalizeMetroBlkOrder(created.segments);
                 if (metroBlkPlayer.isPlaying()) metroBlkPlayer.pause();
-                metroBlkMiniActive = false;
                 metroBlkCurrentSetup = created;
                 await loadMetroBlkSetups();
                 switchView('metroBuilderView');
@@ -3401,7 +3391,6 @@
                 const created = await API.metronomeBlocks.setups.duplicate(id, name.trim());
                 created.segments = await normalizeMetroBlkOrder(created.segments);
                 if (metroBlkPlayer.isPlaying()) metroBlkPlayer.pause();
-                metroBlkMiniActive = false;
                 metroBlkCurrentSetup = created;
                 await loadMetroBlkSetups();
                 switchView('metroBuilderView');
@@ -3422,7 +3411,6 @@
                 // straight back to the default scratch rather than leaving stale data on screen.
                 if (metroBlkCurrentSetup && metroBlkCurrentSetup.id === id) {
                     if (metroBlkPlayer.isPlaying()) metroBlkPlayer.pause();
-                    metroBlkMiniActive = false;
                     metroBlkCurrentSetup = null;
                     await loadMetroBlkDefaultSetup();
                 }
@@ -3441,7 +3429,6 @@
             // drops away too, since it no longer describes anything the user can see here.
             if (!metroBlkCurrentSetup || metroBlkCurrentSetup.id !== id) {
                 if (metroBlkPlayer.isPlaying()) metroBlkPlayer.pause();
-                metroBlkMiniActive = false;
             }
             metroBlkCurrentSetup = fresh;
             switchView('metroBuilderView');
@@ -4277,9 +4264,8 @@
 
     function setMetroBlkSubdivision(v) {
         metroBlkSubdivisionFactor = v;
-        document.getElementById('metroBlkSubdivideLbl').innerText = metroSubdivideLabel(v);
-        // "/ beat" only means anything once there's an actual number of sub-beats to qualify.
-        document.getElementById('metroBlkSubdivideUnit')?.classList.toggle('hidden-group', v <= 1);
+        document.getElementById('metroBlkSubdivideLbl').innerText = v;
+        document.getElementById('metroBlkMiniSubdivideLbl').innerText = v;
         // Re-derive rather than setting v directly - if the lead-in is what's currently playing, it
         // stays un-subdivided regardless of what was just picked.
         const currentBlock = metroBlkPlayQueue.length ? metroBlkEffectiveBlock(metroBlkPlayQueue[metroBlkPlayIndex], metroBlkPlayQueue) : null;
@@ -4287,20 +4273,49 @@
         renderMetroBlkRows();
     }
 
-    function openMetroBlkSubdividePicker() {
-        openMetroPicker({
-            modalId: 'metroSubdivideModal', optionsId: 'metroSubdivideOptions',
-            customEntryId: 'metroSubdivideCustomEntry', customValueId: 'metroSubdivideCustomValue',
-            cancelBtnId: 'metroSubdivideCancelBtn', saveBtnId: 'metroSubdivideSaveBtn',
-            values: [1, 2, 3, 4], currentValue: metroBlkSubdivisionFactor,
-            labelFor: v => metroSubdivideLabel(v),
-            customLabelFor: v => `${v} per beat`,
-            customMin: 1, customMax: METRO_CUSTOM_MAX,
-            customDefault: 5,
-            onSave: (v) => setMetroBlkSubdivision(v)
-        });
+    // --- Sub beats popup (ML-91 follow-up: was a button-grid picker shared with the single-bar tool's
+    // own subdivide modal - "2 per beat" plus a redundant "/ beat" unit label read as "2 per beat per
+    // beat". Now a dedicated slider popup, 1 to the same METRO_CUSTOM_MAX ceiling the old Custom entry
+    // allowed, with just the number and "sub beats" underneath - both the collapsed button and this
+    // popup share that same big-number-small-label format.) ---
+    const METRO_BLK_SUBDIVIDE_MIN = 1;
+    const METRO_BLK_SUBDIVIDE_MAX = METRO_CUSTOM_MAX;
+    let metroBlkSubdividePopupValue = 1; // staged - only committed to metroBlkSubdivisionFactor on Save
+
+    function renderMetroBlkSubdividePopup() {
+        document.getElementById('metroBlkSubdividePopupValue').innerText = metroBlkSubdividePopupValue;
+        const pct = ((metroBlkSubdividePopupValue - METRO_BLK_SUBDIVIDE_MIN) / (METRO_BLK_SUBDIVIDE_MAX - METRO_BLK_SUBDIVIDE_MIN)) * 100;
+        document.getElementById('metroBlkSubdivideSliderFill').style.width = `${pct}%`;
+        const thumb = document.getElementById('metroBlkSubdivideSliderThumb');
+        thumb.style.left = `${pct}%`;
+        thumb.setAttribute('aria-valuenow', metroBlkSubdividePopupValue);
     }
-    document.getElementById('metroBlkSubdivideBtn')?.addEventListener('click', openMetroBlkSubdividePicker);
+    function setMetroBlkSubdividePopupValue(v) {
+        metroBlkSubdividePopupValue = Math.min(METRO_BLK_SUBDIVIDE_MAX, Math.max(METRO_BLK_SUBDIVIDE_MIN, Math.round(v)));
+        renderMetroBlkSubdividePopup();
+    }
+    setupSliderInteraction(document.getElementById('metroBlkSubdivideSliderTrack'), document.getElementById('metroBlkSubdivideSliderThumb'), {
+        onDragRatio: (ratio) => setMetroBlkSubdividePopupValue(METRO_BLK_SUBDIVIDE_MIN + ratio * (METRO_BLK_SUBDIVIDE_MAX - METRO_BLK_SUBDIVIDE_MIN)),
+        onArrowStep: (dir) => setMetroBlkSubdividePopupValue(metroBlkSubdividePopupValue + dir)
+    });
+    makeSliderReadoutEditable('metroBlkSubdividePopupValue', () => metroBlkSubdividePopupValue, (v) => setMetroBlkSubdividePopupValue(v),
+        { label: 'Sub beats', min: METRO_BLK_SUBDIVIDE_MIN, max: METRO_BLK_SUBDIVIDE_MAX });
+
+    // One popup, opened from either the full view's button or the mini bar's (ML-94 follow-up
+    // replication) - both just seed the same staged value from whatever's currently committed.
+    function openMetroBlkSubdividePopup() {
+        setMetroBlkSubdividePopupValue(metroBlkSubdivisionFactor);
+        document.getElementById('metroBlkSubdivideModal').style.display = 'flex';
+    }
+    document.getElementById('metroBlkSubdivideBtn')?.addEventListener('click', openMetroBlkSubdividePopup);
+    document.getElementById('metroBlkMiniSubdivideBtn')?.addEventListener('click', openMetroBlkSubdividePopup);
+    document.getElementById('metroBlkSubdivideCancelBtn')?.addEventListener('click', () => {
+        document.getElementById('metroBlkSubdivideModal').style.display = 'none';
+    });
+    document.getElementById('metroBlkSubdivideSaveBtn')?.addEventListener('click', () => {
+        setMetroBlkSubdivision(metroBlkSubdividePopupValue);
+        document.getElementById('metroBlkSubdivideModal').style.display = 'none';
+    });
 
     function buildMetroBlkPlayQueue() {
         metroBlkPlayQueue = metroBlkCurrentSetup.segments;
@@ -4533,7 +4548,6 @@
         // an in-progress lead-in count.
         metroBlkPlayer.play(metroBlkPendingLeadInSilence);
         metroBlkPendingLeadInSilence = 0;
-        metroBlkMiniActive = true;
         updateMetroBlkPlayIcon();
         updateMetroBlocksMiniBarVisibility(viewStack[viewStack.length - 1]);
         // isPlaying() is already true synchronously at this point (play() sets it before its own
@@ -4548,13 +4562,12 @@
         updateMetroBlkPlayIcon();
     }
 
-    // Close (ML-87): pauses if playing and drops the "active this session" flag, so the mini bar
-    // disappears - the only way to dismiss it from another screen without navigating back to the
-    // builder first. Position is left exactly where it was (same as a plain pause) rather than reset
-    // to the start - Reset already owns that, this is purely about visibility.
+    // Close (ML-87): pauses if playing (which by itself drops the mini bar the moment isPlaying()
+    // is next checked) - the only way to dismiss it from another screen immediately, rather than
+    // waiting for the next navigation to notice it's no longer playing. Position is left exactly
+    // where it was (same as a plain pause) rather than reset to the start - Reset already owns that.
     function closeMetroBlkMiniBar() {
         if (metroBlkPlayer.isPlaying()) metroBlkPlayer.pause();
-        metroBlkMiniActive = false;
         updateMetroBlkPlayIcon();
         updateMetroBlocksMiniBarVisibility(viewStack[viewStack.length - 1]);
     }
@@ -4588,32 +4601,64 @@
     document.getElementById('metroBlkMiniSettingsBtn')?.addEventListener('click', () => switchView('metroBuilderView'));
     document.getElementById('metroBlkMiniCloseBtn')?.addEventListener('click', closeMetroBlkMiniBar);
 
-    // --- Playback speed (independent of any block's own bpm - the player already applies this
-    // percentage on top of whatever bpm is currently loaded, same mechanism as the single-bar tool). ---
-    const METRO_BLK_SPEED_STEP = 10;
+    // --- Playback speed popup (ML-91 follow-up: was -/+ steppers sat next to a bare "100%" readout,
+    // now a slider popup matching the sub-beats one above - independent of any block's own bpm, the
+    // player already applies this percentage on top of whatever bpm is currently loaded, same
+    // mechanism as the single-bar tool). ---
     const METRO_BLK_SPEED_MIN = 25;
     const METRO_BLK_SPEED_MAX = 200;
     let metroBlkSpeedPercent = 100;
+    let metroBlkSpeedPopupValue = 100; // staged - only committed to metroBlkSpeedPercent on Save
 
-    function renderMetroBlkSpeedReadout() {
-        const el = document.getElementById('metroBlkSpeedPct');
-        if (el) el.innerText = `${metroBlkSpeedPercent}%`;
+    function renderMetroBlkSpeedLabels() {
+        document.getElementById('metroBlkSpeedLbl').innerText = `${metroBlkSpeedPercent}%`;
+        document.getElementById('metroBlkMiniSpeedLbl').innerText = `${metroBlkSpeedPercent}%`;
     }
     function setMetroBlkSpeedPercent(p) {
         metroBlkSpeedPercent = Math.min(METRO_BLK_SPEED_MAX, Math.max(METRO_BLK_SPEED_MIN, p));
         metroBlkPlayer.setSpeedPercent(metroBlkSpeedPercent);
-        renderMetroBlkSpeedReadout();
+        renderMetroBlkSpeedLabels();
     }
-    document.getElementById('metroBlkSpeedMinus')?.addEventListener('click', () => setMetroBlkSpeedPercent(metroBlkSpeedPercent - METRO_BLK_SPEED_STEP));
-    document.getElementById('metroBlkSpeedPlus')?.addEventListener('click', () => setMetroBlkSpeedPercent(metroBlkSpeedPercent + METRO_BLK_SPEED_STEP));
-    renderMetroBlkSpeedReadout();
 
-    // Shown whenever the sequence is active (playing or paused, not stopped) and the builder/play
-    // screen itself isn't on-screen - called from switchView exactly like the single-bar tool's
-    // updateMetroMiniBarVisibility.
+    function renderMetroBlkSpeedPopup() {
+        document.getElementById('metroBlkSpeedPopupValue').innerText = `${metroBlkSpeedPopupValue}%`;
+        const pct = ((metroBlkSpeedPopupValue - METRO_BLK_SPEED_MIN) / (METRO_BLK_SPEED_MAX - METRO_BLK_SPEED_MIN)) * 100;
+        document.getElementById('metroBlkSpeedSliderFill').style.width = `${pct}%`;
+        const thumb = document.getElementById('metroBlkSpeedSliderThumb');
+        thumb.style.left = `${pct}%`;
+        thumb.setAttribute('aria-valuenow', metroBlkSpeedPopupValue);
+    }
+    function setMetroBlkSpeedPopupValue(v) {
+        metroBlkSpeedPopupValue = Math.min(METRO_BLK_SPEED_MAX, Math.max(METRO_BLK_SPEED_MIN, Math.round(v)));
+        renderMetroBlkSpeedPopup();
+    }
+    setupSliderInteraction(document.getElementById('metroBlkSpeedSliderTrack'), document.getElementById('metroBlkSpeedSliderThumb'), {
+        onDragRatio: (ratio) => setMetroBlkSpeedPopupValue(METRO_BLK_SPEED_MIN + ratio * (METRO_BLK_SPEED_MAX - METRO_BLK_SPEED_MIN)),
+        onArrowStep: (dir) => setMetroBlkSpeedPopupValue(metroBlkSpeedPopupValue + dir)
+    });
+    makeSliderReadoutEditable('metroBlkSpeedPopupValue', () => metroBlkSpeedPopupValue, (v) => setMetroBlkSpeedPopupValue(v),
+        { label: 'Play speed', min: METRO_BLK_SPEED_MIN, max: METRO_BLK_SPEED_MAX });
+
+    function openMetroBlkSpeedPopup() {
+        setMetroBlkSpeedPopupValue(metroBlkSpeedPercent);
+        document.getElementById('metroBlkSpeedModal').style.display = 'flex';
+    }
+    document.getElementById('metroBlkSpeedBtn')?.addEventListener('click', openMetroBlkSpeedPopup);
+    document.getElementById('metroBlkMiniSpeedBtn')?.addEventListener('click', openMetroBlkSpeedPopup);
+    document.getElementById('metroBlkSpeedCancelBtn')?.addEventListener('click', () => {
+        document.getElementById('metroBlkSpeedModal').style.display = 'none';
+    });
+    document.getElementById('metroBlkSpeedSaveBtn')?.addEventListener('click', () => {
+        setMetroBlkSpeedPercent(metroBlkSpeedPopupValue);
+        document.getElementById('metroBlkSpeedModal').style.display = 'none';
+    });
+    renderMetroBlkSpeedLabels();
+
+    // Shown only when actually playing at the moment a view change happens - see the single-bar
+    // tool's updateMetroMiniBarVisibility for the full reasoning (same rule, same reason).
     function updateMetroBlocksMiniBarVisibility(viewName) {
         const bar = document.getElementById('metroBlocksMiniBar');
-        if (bar) bar.classList.toggle('hidden-group', !metroBlkMiniActive || viewName === 'metroBuilderView');
+        if (bar) bar.classList.toggle('hidden-group', !metroBlkPlayer.isPlaying() || viewName === 'metroBuilderView');
     }
 
     // ========================================
@@ -4833,9 +4878,9 @@
     // One big note only, for whichever instrument is currently selected (ML-84) - showing concert AND
     // instrument readings side by side left nothing to actually read the note against without already
     // knowing which column was which, and the two-column box kept changing width as note names came
-    // and go. The instrument picker underneath shows "Concert" for C, or the instrument's own name.
+    // and go.
     function renderMetroBlkMiniTunerIdle() {
-        document.getElementById('metroBlkMiniTunerNoteBtn').innerText = '–';
+        document.getElementById('metroBlkMiniTunerNote').innerText = '–';
         document.getElementById('metroBlkMiniTunerNeedle').style.left = '50%';
         document.getElementById('metroBlkMiniTunerNeedle').classList.remove('in-tune');
         document.getElementById('metroBlkMiniTuner').classList.remove('in-tune');
@@ -4848,7 +4893,7 @@
         const centsOff = (concertMidi - nearestConcertMidi) * 100;
         const writtenMidi = nearestConcertMidi + (TUNER_TRANSPOSITIONS[metroBlkMiniTunerInstrument] || 0);
 
-        document.getElementById('metroBlkMiniTunerNoteBtn').innerText = tunerMidiToName(writtenMidi);
+        document.getElementById('metroBlkMiniTunerNote').innerText = tunerMidiToName(writtenMidi);
         const clampedCents = Math.max(-50, Math.min(50, centsOff));
         const inTune = Math.abs(centsOff) <= TUNER_ZONE_CENTS;
         const needle = document.getElementById('metroBlkMiniTunerNeedle');
@@ -4858,27 +4903,28 @@
     }
     tunerEngine.onPitch(renderMetroBlkMiniTunerPitch);
 
-    const METRO_BLK_MINI_TUNER_INSTRUMENT_LABELS = { C: 'Concert', Bb: 'B♭', Eb: 'E♭', F: 'F' };
+    // Full names (ML-91 follow-up: "Bb" alone read as ambiguous shorthand once it moved out from
+    // directly under the note - full names removed that ambiguity).
+    const METRO_BLK_MINI_TUNER_INSTRUMENT_LABELS = { C: 'Concert', Bb: 'B♭ instrument', Eb: 'E♭ instrument', F: 'F instrument' };
 
-    // Keeps the small label under the note, and the popup's own "currently selected" highlight, in
-    // sync with metroBlkMiniTunerInstrument - called on open and on every pick.
+    // Keeps the label under the bar, and the popup's own "currently selected" highlight, in sync with
+    // metroBlkMiniTunerInstrument - called on open and on every pick.
     function renderMetroBlkMiniTunerInstrumentBtn() {
         const label = METRO_BLK_MINI_TUNER_INSTRUMENT_LABELS[metroBlkMiniTunerInstrument] || metroBlkMiniTunerInstrument;
-        document.getElementById('metroBlkMiniTunerInstrumentBtn').innerText = label;
+        document.getElementById('metroBlkMiniTunerInstrumentLabel').innerText = label;
         document.querySelectorAll('#metroBlkMiniTunerInstrumentOptions .metroBlk-timesig-opt').forEach(btn => {
             btn.classList.toggle('selected', btn.dataset.value === metroBlkMiniTunerInstrument);
         });
     }
 
-    // Both the note itself and the small label under it open this same popup (ML-84 follow-up: the
-    // note is a much bigger, easier-to-hit target than the label text alone) - one set of instrument
-    // buttons, applying immediately on click, same interaction as the time-signature picker.
+    // A dedicated cog icon opens this popup now (ML-91 follow-up) - the note and the label under the
+    // bar are no longer click targets themselves, since having the label directly under the note read
+    // as "two notes" stacked on top of each other.
     function openMetroBlkMiniTunerInstrumentPicker() {
         renderMetroBlkMiniTunerInstrumentBtn();
         document.getElementById('metroBlkMiniTunerInstrumentModal').style.display = 'flex';
     }
-    document.getElementById('metroBlkMiniTunerNoteBtn')?.addEventListener('click', openMetroBlkMiniTunerInstrumentPicker);
-    document.getElementById('metroBlkMiniTunerInstrumentBtn')?.addEventListener('click', openMetroBlkMiniTunerInstrumentPicker);
+    document.getElementById('metroBlkMiniTunerSettingsBtn')?.addEventListener('click', openMetroBlkMiniTunerInstrumentPicker);
     document.getElementById('metroBlkMiniTunerInstrumentOptions')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.metroBlk-timesig-opt');
         if (!btn) return;

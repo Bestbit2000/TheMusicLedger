@@ -376,8 +376,11 @@
        .metro-transport-btn (60px is too big for a box that's meant to stay out of the way on other
        pages), reusing its .metro-play-btn/.metro-stop-btn colour classes so Play still reads gold and
        Reset/Settings still read silver, same as the full view. */
-    .metroBlk-mini-transport-row { display: flex; align-items: center; justify-content: center; gap: var(--space-3); margin-top: var(--space-2); }
-    .metroBlk-mini-transport-btn { width: 44px; height: 44px; border: none; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    /* Six buttons now (Play, Reset, sub beats, play speed, settings, close - ML-91 follow-up
+       replicates the full view's whole control row here), so a tighter gap than the full view's own
+       row keeps them from crowding the mini bar's narrower width. */
+    .metroBlk-mini-transport-row { display: flex; align-items: center; justify-content: center; gap: var(--space-2); margin-top: var(--space-2); flex-wrap: wrap; }
+    .metroBlk-mini-transport-btn { width: 44px; height: 44px; border: none; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .metroBlk-mini-transport-btn .material-symbols-outlined { font-size: 20px; }
 
     /* Metronome Blocks (ML-35) - the multi-bar sequencer tool. Prefixed .metroBlk- throughout,
@@ -414,16 +417,18 @@
     /* One big note on the left (not concert-and-instrument side by side any more - ML-84: showing both
        at once meant nothing to read the note against without already knowing which was which) at a
        fixed width, so the box no longer changes size as different note names come and go; the bar
-       track fills the rest of the row on the right. */
-    .metroBlk-mini-tuner-body { display: flex; align-items: center; gap: var(--space-4); }
-    .metroBlk-mini-tuner-note-col { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
-    /* Both the note and the instrument label below it are buttons opening the same instrument picker
-       (ML-84 follow-up: needed for accessibility - one small text target was too easy to miss, so the
-       much bigger note itself is now an equally valid, larger tap target for the same action). Reset to
-       look like plain text/a link, not form controls. */
-    .metroBlk-mini-tuner-note-big { min-width: 2.4ch; background: none; border: none; padding: 0; font-size: 2.4rem; font-weight: bold; line-height: 1; text-align: center; color: var(--primary-action); font-variant-numeric: tabular-nums; cursor: pointer; }
-    .metroBlk-mini-tuner-instrument-btn { background: none; border: none; padding: 0; margin-top: 2px; font-size: var(--font-xs); color: var(--label-color); text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; text-align: center; }
+       track fills the middle, and a cog on the right opens the instrument picker (ML-91 follow-up -
+       the note and label used to be the click targets themselves, but with the label moved out from
+       under the note that link affordance was no longer obvious, so a dedicated icon replaces it). */
+    .metroBlk-mini-tuner-body { display: flex; align-items: center; gap: var(--space-3); }
+    .metroBlk-mini-tuner-note-big { min-width: 2.4ch; flex-shrink: 0; font-size: 2.4rem; font-weight: bold; line-height: 1; text-align: center; color: var(--primary-action); font-variant-numeric: tabular-nums; }
     .metroBlk-mini-tuner-bar-wrap { flex: 1; min-width: 0; }
+    .metroBlk-mini-tuner-settings-btn { flex-shrink: 0; width: 36px; height: 36px; min-width: 36px; border-radius: var(--radius-circle); background: var(--nav-action); color: var(--nav-action-text); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .metroBlk-mini-tuner-settings-btn .material-symbols-outlined { font-size: 18px; }
+    /* Centered under the whole row (in practice, under the bar - the note and cog are comparatively
+       narrow) rather than under just the note, which used to read as "two notes" stacked (ML-91
+       follow-up). Full instrument names now that it's not squeezed into a small column any more. */
+    .metroBlk-mini-tuner-instrument-label { margin-top: var(--space-2); font-size: var(--font-xs); color: var(--label-color); text-align: center; }
     /* The instrument-picker popup's buttons - one per instrument, applies immediately on click (ML-84
        follow-up: replaces the native <select>, which wasn't the "pop up with a set of buttons" asked
        for). Reuses .metroBlk-timesig-opt's look (same "pick one of a small fixed set" pattern already
@@ -434,10 +439,29 @@
     .metroBlk-mini-tuner-bar-center { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--input-border); transform: translateX(-50%); }
     .metroBlk-mini-tuner-needle { position: absolute; top: 1px; bottom: 1px; left: 50%; width: 4px; border-radius: 2px; background: var(--danger-color); transform: translateX(-50%); transition: left 0.1s linear, background 0.1s linear; }
     .metroBlk-mini-tuner-needle.in-tune { background: var(--tuner-in-tune-green); }
-    /* Reuses .metro-mini-ctrl-btn's pill look but fixed-width rather than flex:1 (that rule assumes
-       an evenly-filled row of several of these; here it's one button alongside fixed-size circular
-       transport buttons). */
-    .metroBlk-subdivide-btn { flex: 0 0 auto; min-width: 72px; }
+
+    /* Sub beats / play speed controls (ML-91 follow-up): collapsed buttons showing a big current
+       value and a small label underneath - same "square, not round" language as Play/Reset
+       (.metro-transport-btn) and the same row height, so the whole transport row reads as one
+       consistent set rather than a mix of shapes. Tapping either opens a popup with the same big-
+       number-plus-label format (see .metroBlk-ctrl-popup-*) driven by a slider instead of a button
+       grid. */
+    .metroBlk-ctrl-value-btn { height: 60px; min-width: 74px; padding: 0 var(--space-3); border: none; border-radius: var(--radius-md); background: var(--nav-action); color: var(--nav-action-text); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; box-sizing: border-box; }
+    .metroBlk-ctrl-value-btn strong { font-size: var(--font-lg); font-weight: bold; font-variant-numeric: tabular-nums; }
+    .metroBlk-ctrl-value-label { font-size: var(--font-xs); opacity: 0.85; white-space: nowrap; }
+    /* Same idea, sized down to match the mini bar's own Play/Reset (44px) instead of the full view's
+       60px - six buttons now share this one row (ML-94 follow-up: "replicate the whole button line"),
+       so every button here is smaller than its full-view counterpart, not just these two. */
+    .metroBlk-mini-ctrl-value-btn { height: 44px; min-width: 52px; padding: 0 8px; border: none; border-radius: var(--radius-md); background: var(--nav-action); color: var(--nav-action-text); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; box-sizing: border-box; }
+    .metroBlk-mini-ctrl-value-btn strong { font-size: var(--font-base); font-weight: bold; font-variant-numeric: tabular-nums; }
+    .metroBlk-mini-ctrl-value-label { font-size: 0.55rem; opacity: 0.85; white-space: nowrap; }
+
+    /* The sub-beats/play-speed popups' own big-number readout (ML-91 follow-up) - a bigger, standalone
+       version of the same "large number, small label" language as the collapsed buttons above, since
+       here it's the popup's whole focal point rather than one piece of a compact row. */
+    .metroBlk-ctrl-popup-readout { text-align: center; margin-bottom: var(--space-4); }
+    .metroBlk-ctrl-popup-number { font-size: var(--font-2xl); font-weight: bold; color: var(--primary-action); font-variant-numeric: tabular-nums; line-height: 1; }
+    .metroBlk-ctrl-popup-label { margin-top: var(--space-1); font-size: var(--font-base); color: var(--label-color); }
 
     /* A 4-across grid rather than a scrolling row - a setup can hold plenty of blocks, and a single
        scrolling row would hide most of them off-screen. Grid (not flex-wrap) so the columns stay
@@ -491,11 +515,6 @@
     /* Marks where the line's extra one-slot extension (past the last dot) ends - the loop-back point
        time still has to pass through before returning to beat 1, not a hard stop. */
     .metroBlk-row-track-end { position: absolute; top: 50%; width: 2px; height: 14px; background: var(--input-border); transform: translate(-50%, -50%); }
-
-    /* Playback speed +/-, sat next to the transport buttons rather than in its own titled section
-       like the single-bar tool's - this is a quick nudge control, not a primary setting here. */
-    .metroBlk-speed-control { display: flex; align-items: center; gap: var(--space-2); }
-    .metroBlk-speed-readout { min-width: 46px; text-align: center; font-weight: bold; font-variant-numeric: tabular-nums; }
 
     /* Note-value picker ("Set by note value" in the block editor) - real vector glyphs (drawn in JS,
        see metroNoteIconSvg) rather than relying on unicode musical symbols, which render as missing-
