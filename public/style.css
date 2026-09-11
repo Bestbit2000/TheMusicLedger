@@ -562,12 +562,15 @@
        render as skipped, not accented. */
     .metro-dot-note.metroBlk-dot-skipped, .metro-dot-sub.metroBlk-dot-skipped { opacity: 1; background: var(--input-bg); border-color: var(--input-border); }
     /* The lead-in's quiet space (ML-92 follow-up): nothing is actually sounding yet, so every dot in
-       the row - accented, skipped, sub, whichever - shows uniformly greyed out rather than looking
-       "ready to play", then snaps straight back to normal (renderMetroBlkRows re-renders without this
-       class) the instant the lead-in's real first click fires. !important since it has to override
-       every other dot-state rule (.accent, .metroBlk-dot-skipped, .lit) uniformly, not just the
-       default. */
-    .metroBlk-quiet-gap .metro-dot { background: var(--input-border) !important; border-color: var(--input-border) !important; opacity: 0.35 !important; transform: translate(-50%, -50%) !important; }
+       the row - accented, skipped, sub, whichever - disappears entirely rather than showing greyed
+       out (tried first - too easy to miss, barely distinguishable from the row's own already-dim
+       "upcoming" state at a glance), then snaps straight back the instant the lead-in's real first
+       click fires (renderMetroBlkRows re-renders without this class). opacity, not display:none/
+       visibility:hidden, so it rides .metro-dot's own existing opacity transition (0.08s) for a quick
+       fade rather than an abrupt cut - and the track line stays, so the row doesn't look empty, just
+       quiet. !important since it has to override every other dot-state rule (.accent,
+       .metroBlk-dot-skipped, .lit) uniformly, not just the default. */
+    .metroBlk-quiet-gap .metro-dot { opacity: 0 !important; }
 
     /* Layout utilities for the small set of repeated static inline-style patterns */
     .flex-row { display: flex; }
