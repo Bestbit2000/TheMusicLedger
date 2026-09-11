@@ -2533,8 +2533,9 @@
     // No more manual "Conductor beats" button to keep a label/link-icon in sync for (removed per
     // feedback - the visual "conduct" grouping it used to control disappeared in ML-66's unified dot
     // row anyway, leaving nothing for a manual picker to usefully show). The underlying conduct-in
-    // grouping itself is untouched - "Set from music" still sets it for compound time signatures, it's
-    // just no longer manually editable - so this now only keeps the zero-bar disabled state in sync.
+    // grouping itself is untouched - "Set from music" still derives it from whatever note type was
+    // actually chosen (ML-95), it's just no longer manually editable - so this now only keeps the
+    // zero-bar disabled state in sync.
     function renderMetroConductInLabel() {
         updateMetroZeroBarUI();
     }
@@ -3179,9 +3180,18 @@
         if (!enteredBpm || enteredBpm <= 0) { showWarningToast('Enter a valid beats per minute for the note value.'); return; }
 
         const notesBpm = enteredBpm * noteFraction * denominator;
-        // Compound time signatures (6/8, 9/8, 12/8...) are conducted in groups of 3 notes per beat.
-        const isCompound = (numerator % 3 === 0) && numerator >= 6;
-        const notesPerBeat = isCompound ? 3 : 1;
+        // ML-95: which notes are "major" (conductor-beat) circles follows the note TYPE actually
+        // chosen, not a hardcoded "numerator is a multiple of 3" guess - a dotted crotchet spans 3
+        // denominator-based notes in 6/8, 9/8 or 12/8 (0.375 * 8 = 3), a crotchet spans exactly 1 in
+        // 4/4 (0.25 * 4 = 1), a minim spans 2 in 2/4 (0.5 * 4 = 2), and so on for any note/signature
+        // pairing - not just the compound-time special case the old heuristic covered. Snapped to the
+        // nearest whole-number divisor of the bar (metroNearestDivisor) since conductIn only ever
+        // means anything as a clean, even grouping of the bar - same rule the manual "Conductor beats"
+        // control already enforces.
+        const rawNotesPerGroup = noteFraction * denominator;
+        const targetConductIn = Math.max(1, Math.round(numerator / rawNotesPerGroup));
+        const conductIn = metroNearestDivisor(numerator, targetConductIn);
+        const notesPerBeat = numerator / conductIn;
 
         if (notesBpm < METRO_MIN_BPM || notesBpm > METRO_MAX_BPM) {
             showWarningToast(`That works out to ${Math.round(notesBpm)} notes per minute, which is outside the ${METRO_MIN_BPM}-${METRO_MAX_BPM} range.`);
