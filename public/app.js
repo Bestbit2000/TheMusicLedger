@@ -4292,17 +4292,24 @@
 
     // --- Sub beats popup (ML-91 follow-up: was a button-grid picker shared with the single-bar tool's
     // own subdivide modal - "2 per beat" plus a redundant "/ beat" unit label read as "2 per beat per
-    // beat". Now a dedicated slider popup, 1 to the same METRO_CUSTOM_MAX ceiling the old Custom entry
+    // beat". Now a dedicated slider popup, 2 to the same METRO_CUSTOM_MAX ceiling the old Custom entry
     // allowed, with just the number and "sub beats" underneath - both the collapsed button and this
     // popup share that same big-number-small-label format. A later follow-up restored +/- steppers
     // next to the number, since the slider alone lost the old picker's quick, repeatable jumps, and
     // gave the slider the same tiered-expansion "stretch" as the segment editor's own bpm/bar-count
     // sliders (metroSegBpmSliderMax et al above) - starts at a tight 16 so everyday values are easy
-    // to land on, growing to the full METRO_CUSTOM_MAX ceiling only once actually dragged that far.) ---
-    const METRO_BLK_SUBDIVIDE_MIN = 1;
+    // to land on, growing to the full METRO_CUSTOM_MAX ceiling only once actually dragged that far.
+    // ML-99: the most common action here is just switching subdivision off/on, so an explicit Off/On
+    // radio toggle sits above the count - flipping to Off snaps straight to the "0/off" factor of 1
+    // and hides the count box entirely (nothing left to configure); flipping to On restores whatever
+    // count was last used (metroBlkSubdivideLastOnValue) rather than always resetting to some default,
+    // and the slider/stepper themselves now bottom out at 2, not 1 - reaching "off" is the radio's job,
+    // not something you drag down to any more.) ---
+    const METRO_BLK_SUBDIVIDE_MIN = 2;
     const METRO_BLK_SUBDIVIDE_TIERS = [16, METRO_CUSTOM_MAX];
-    let metroBlkSubdividePopupValue = 1; // staged - only committed to metroBlkSubdivisionFactor on Save
+    let metroBlkSubdividePopupValue = 2; // staged - only committed to metroBlkSubdivisionFactor on Save
     let metroBlkSubdivideSliderMax = METRO_BLK_SUBDIVIDE_TIERS[0];
+    let metroBlkSubdivideLastOnValue = 2; // remembered count while switched Off, restored when switched back On
 
     function metroBlkSubdivideBestFitTier(value) {
         for (const t of METRO_BLK_SUBDIVIDE_TIERS) if (value <= t) return t;
@@ -4341,10 +4348,36 @@
     setupHoldStepper('metroBlkSubdivideMinus', -1, (amount) => setMetroBlkSubdividePopupValue(metroBlkSubdividePopupValue + amount));
     setupHoldStepper('metroBlkSubdividePlus', 1, (amount) => setMetroBlkSubdividePopupValue(metroBlkSubdividePopupValue + amount));
 
+    // Shows/hides the count box to match the radio - Off has nothing left to configure, so it
+    // disappears entirely rather than sitting there disabled.
+    function renderMetroBlkSubdivideOnOffUI(isOn) {
+        document.getElementById('metroBlkSubdivideBpmBox')?.classList.toggle('hidden-group', !isOn);
+    }
+    document.getElementById('metroBlkSubdivideOff')?.addEventListener('change', () => {
+        if (metroBlkSubdividePopupValue >= METRO_BLK_SUBDIVIDE_MIN) metroBlkSubdivideLastOnValue = metroBlkSubdividePopupValue;
+        metroBlkSubdividePopupValue = 1;
+        renderMetroBlkSubdivideOnOffUI(false);
+        renderMetroBlkSubdividePopup();
+    });
+    document.getElementById('metroBlkSubdivideOn')?.addEventListener('change', () => {
+        renderMetroBlkSubdivideOnOffUI(true);
+        setMetroBlkSubdividePopupValue(metroBlkSubdivideLastOnValue);
+    });
+
     // One popup, opened from either the full view's button or the mini bar's (ML-94 follow-up
     // replication) - both just seed the same staged value from whatever's currently committed.
     function openMetroBlkSubdividePopup() {
-        setMetroBlkSubdividePopupValue(metroBlkSubdivisionFactor);
+        const isOn = metroBlkSubdivisionFactor >= METRO_BLK_SUBDIVIDE_MIN;
+        document.getElementById('metroBlkSubdivideOn').checked = isOn;
+        document.getElementById('metroBlkSubdivideOff').checked = !isOn;
+        renderMetroBlkSubdivideOnOffUI(isOn);
+        if (isOn) {
+            metroBlkSubdivideLastOnValue = metroBlkSubdivisionFactor;
+            setMetroBlkSubdividePopupValue(metroBlkSubdivisionFactor);
+        } else {
+            metroBlkSubdividePopupValue = 1;
+            renderMetroBlkSubdividePopup();
+        }
         document.getElementById('metroBlkSubdivideModal').style.display = 'flex';
     }
     document.getElementById('metroBlkSubdivideBtn')?.addEventListener('click', openMetroBlkSubdividePopup);

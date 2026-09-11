@@ -802,7 +802,16 @@
     <div class="modal-content">
         <button type="button" class="modal-close-x" onclick="document.getElementById('metroBlkSubdivideModal').style.display='none'" aria-label="Close">&times;</button>
         <h2>Sub beats</h2>
-        <div class="metroBlk-bpm-box">
+        <div class="form-group no-margin">
+            <label>Use sub beats</label>
+            <div class="radio-group compact">
+                <input type="radio" name="metroBlkSubdivideOnOff" id="metroBlkSubdivideOff" value="off" checked>
+                <label for="metroBlkSubdivideOff">Off</label>
+                <input type="radio" name="metroBlkSubdivideOnOff" id="metroBlkSubdivideOn" value="on">
+                <label for="metroBlkSubdivideOn">On</label>
+            </div>
+        </div>
+        <div class="metroBlk-bpm-box hidden-group" id="metroBlkSubdivideBpmBox" style="margin-top:var(--space-4);">
             <div class="metro-speed-row no-margin">
                 <button class="metro-bpm-step" id="metroBlkSubdivideMinus" type="button" aria-label="Decrease sub beats">&minus;</button>
                 <div class="metro-speed-readout">
@@ -814,9 +823,9 @@
             <div class="slider-wrap no-margin">
                 <div class="slider-track" id="metroBlkSubdivideSliderTrack">
                     <div class="slider-fill" id="metroBlkSubdivideSliderFill"></div>
-                    <div class="slider-thumb" id="metroBlkSubdivideSliderThumb" tabindex="0" role="slider" aria-label="Sub beats" aria-valuemin="1" aria-valuemax="16" aria-valuenow="1"></div>
+                    <div class="slider-thumb" id="metroBlkSubdivideSliderThumb" tabindex="0" role="slider" aria-label="Sub beats" aria-valuemin="2" aria-valuemax="16" aria-valuenow="2"></div>
                 </div>
-                <div class="slider-scale"><span>0</span><span id="metroBlkSubdivideSliderMaxLbl">16</span></div>
+                <div class="slider-scale"><span>2</span><span id="metroBlkSubdivideSliderMaxLbl">16</span></div>
             </div>
         </div>
         <div style="display:flex; gap:10px; margin-top:var(--space-5);">
