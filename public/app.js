@@ -3673,9 +3673,9 @@
 
     // Play Mode (default): tapping a tile jumps playback to it (jumpMetroBlkToPlayIndex),
     // nothing is draggable, no per-tile menu. Edit Mode: tapping opens the segment editor as
-    // before, tiles are draggable, and a 3-dot menu offers Delete (ML-97). data-id is always
-    // present either way - Play Mode's active-block highlight (renderMetroBlkActiveTileHighlight)
-    // depends on it too.
+    // before, tiles are draggable, and a 3-dot menu offers Copy to end / Copy here / Delete
+    // (ML-97, ML-100). data-id is always present either way - Play Mode's active-block highlight
+    // (renderMetroBlkActiveTileHighlight) depends on it too.
     function metroBlkTileHtml(s) {
         const countStr = s.pickupBeats
             ? `${s.pickupBeats} beat${s.pickupBeats === 1 ? '' : 's'}`
@@ -3683,7 +3683,7 @@
         const idArg = metroBlkIdArg(s.id);
         const onclick = metroBlkEditMode ? `openMetroSegmentModal(${idArg})` : `jumpMetroBlkToPlayIndex(${idArg})`;
         const menuBtn = metroBlkEditMode
-            ? `<button type="button" class="metroBlk-tile-menu-btn" aria-label="Block options" onclick="event.stopPropagation(); confirmDeleteMetroBlkTile(${idArg})"><span class="material-symbols-outlined">more_vert</span></button>`
+            ? `<button type="button" class="metroBlk-tile-menu-btn" aria-label="Block options" onclick="event.stopPropagation(); openMetroBlkTileMenu(event, ${idArg})"><span class="material-symbols-outlined">more_vert</span></button>`
             : '';
         return `<div class="metroBlk-tile${s.isLeadIn ? ' lead-in' : ''}" draggable="${metroBlkEditMode}" data-id="${escapeHtml(String(s.id))}" onclick="${onclick}">
             ${menuBtn}
@@ -4427,15 +4427,74 @@
         });
     });
 
-    // The 3-dot per-tile menu (ML-97, Edit Mode only) - a single-item "Delete" menu is, in practice,
-    // just a confirm dialog, so this skips building any dropdown UI for the one entry.
-    window.confirmDeleteMetroBlkTile = function(id) {
+    // The 3-dot per-tile menu (ML-97/ML-100, Edit Mode only): Copy to end, Copy here, and Delete -
+    // one shared floating menu element rather than one per tile (tiles re-render on every edit, so
+    // a single reusable menu repositioned against whichever button was tapped avoids rebuilding menu
+    // DOM/listeners on every render). metroBlkTileMenuTargetId is which segment it's currently for.
+    let metroBlkTileMenuTargetId = null;
+    // Bug fix: right-anchoring the menu to the button's right edge (no clamping) pushed it mostly
+    // off-screen to the left whenever the button itself sat near the viewport's left edge - which is
+    // most tiles, any time the viewport is only about as wide as .container itself (~500px, common in
+    // an embedded/constrained preview pane rather than a truly wide window). Measures the menu's real
+    // size first (shown off-screen momentarily, same tick - no visible flicker) then clamps both axes
+    // so it always lands fully inside the viewport regardless of which tile/column it was opened from.
+    window.openMetroBlkTileMenu = function(e, id) {
+        const menu = document.getElementById('metroBlkTileMenu');
+        if (!menu) return;
+        metroBlkTileMenuTargetId = id;
+        const btnRect = e.currentTarget.getBoundingClientRect();
+        menu.style.right = 'auto';
+        menu.classList.add('show');
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+        let left = btnRect.right - menuWidth;
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+        let top = btnRect.bottom + 4;
+        top = Math.min(top, window.innerHeight - menuHeight - 8);
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    };
+    function closeMetroBlkTileMenu() {
+        document.getElementById('metroBlkTileMenu')?.classList.remove('show');
+    }
+    // Closes on any click outside the menu - matches the burger menu's own pattern (closeMenu above).
+    // The menu's own item clicks stopPropagation so they don't immediately re-close themselves via
+    // this same listener before their own handler runs.
+    document.addEventListener('click', closeMetroBlkTileMenu);
+
+    // Duplicates the target segment with a fresh temp id (ML-100) - 'end' appends after every other
+    // loop block (the lead-in, if any, is always pinned first already - see buildMetroBlkPlayQueue -
+    // so pushing to the array's end can never land the copy before it); 'here' inserts immediately
+    // after the source block instead, between it and whatever was next.
+    window.copyMetroBlkTile = function(mode) {
+        const id = metroBlkTileMenuTargetId;
+        closeMetroBlkTileMenu();
+        const segs = metroBlkCurrentSetup.segments;
+        const source = segs.find(s => s.id === id);
+        if (!source) return;
+        const copy = { ...source, id: `tmp${++metroBlkTempSegCounter}` };
+        if (mode === 'end') {
+            metroBlkCurrentSetup.segments = [...segs, copy];
+        } else {
+            const idx = segs.findIndex(s => s.id === id);
+            const newSegs = [...segs];
+            newSegs.splice(idx + 1, 0, copy);
+            metroBlkCurrentSetup.segments = newSegs;
+        }
+        renderMetroBlockTiles();
+    };
+    document.getElementById('metroBlkTileMenuCopyEnd')?.addEventListener('click', (e) => { e.stopPropagation(); copyMetroBlkTile('end'); });
+    document.getElementById('metroBlkTileMenuCopyHere')?.addEventListener('click', (e) => { e.stopPropagation(); copyMetroBlkTile('here'); });
+    document.getElementById('metroBlkTileMenuDelete')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = metroBlkTileMenuTargetId;
+        closeMetroBlkTileMenu();
         const seg = metroBlkCurrentSetup.segments.find(s => s.id === id);
         showConfirmModal(seg?.isLeadIn ? 'Delete lead-in' : 'Delete block', 'Delete this block?', () => {
             metroBlkCurrentSetup.segments = metroBlkCurrentSetup.segments.filter(s => s.id !== id);
             renderMetroBlockTiles();
         });
-    };
+    });
 
     async function loadMetroBlkTimeSignatures() {
         try {

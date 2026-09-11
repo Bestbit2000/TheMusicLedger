@@ -525,11 +525,19 @@
        block is actually sounding right now gets a bold gold border/glow, both on a regular tile and
        the lead-in's own row (shares this class - see renderMetroBlkActiveTileHighlight). */
     .metroBlk-tile-active, .metroBlk-leadin-row-filled.metroBlk-tile-active { border-color: var(--primary-action); box-shadow: 0 0 0 2px var(--primary-action); }
-    /* Edit-Mode-only per-block "more actions" - currently a single Delete action, so this opens a
-       confirm dialog directly rather than a dropdown menu for one item. Absolute top-right so it
-       never competes with the tile's own tap-to-edit target underneath it. */
+    /* Edit-Mode-only per-block "more actions" (ML-97/ML-100: Copy to end, Copy here, Delete).
+       Absolute top-right so it never competes with the tile's own tap-to-edit target underneath it. */
     .metroBlk-tile-menu-btn { position: absolute; top: 2px; right: 2px; width: 32px; height: 32px; border: none; border-radius: var(--radius-circle); background: transparent; color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .metroBlk-tile-menu-btn .material-symbols-outlined { font-size: 18px; }
+    /* One shared menu (not one per tile) repositioned against whichever 3-dot button was tapped -
+       position: fixed (not .dropdown-menu's own absolute) since it isn't nested inside the tile it's
+       acting on, just placed near it via JS-computed top/left, clamped to the viewport on both axes
+       (openMetroBlkTileMenu). */
+    .metroBlk-tile-menu { position: fixed; top: auto; right: auto; left: auto; min-width: 160px; }
+    /* Set apart from Copy to end/here (already separated from each other by .dropdown-item's own
+       border-bottom) with extra space plus its own line above, so the destructive option isn't
+       sitting flush against the harmless ones and easy to tap by mistake (ML-100). */
+    .metroBlk-tile-menu-delete { color: var(--danger-color); margin-top: var(--space-2); border-top: 1px solid var(--input-border); }
 
     /* The lead-in sits in its own fixed slot ABOVE the reorderable grid, not as a tile mixed in
        with it - it's always "whatever plays first", so there's no ordering to get out of sync by
