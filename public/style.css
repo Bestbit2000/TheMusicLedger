@@ -434,7 +434,9 @@
        for). Reuses .metroBlk-timesig-opt's look (same "pick one of a small fixed set" pattern already
        used for time signatures) rather than inventing a new button style. */
     .metroBlk-instrument-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); }
-    .metroBlk-mini-tuner-bar-track { position: relative; height: 16px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); overflow: hidden; }
+    /* Same height as the cog icon next to it (36px) rather than a thin strip - the two read as one
+       row of matched controls instead of a slim bar dwarfed by a much taller button beside it. */
+    .metroBlk-mini-tuner-bar-track { position: relative; height: 36px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); overflow: hidden; }
     .metroBlk-mini-tuner-bar-zone { position: absolute; top: 0; bottom: 0; left: 35%; right: 35%; background: rgba(46, 204, 113, 0.45); }
     .metroBlk-mini-tuner-bar-center { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--input-border); transform: translateX(-50%); }
     .metroBlk-mini-tuner-needle { position: absolute; top: 1px; bottom: 1px; left: 50%; width: 4px; border-radius: 2px; background: var(--danger-color); transform: translateX(-50%); transition: left 0.1s linear, background 0.1s linear; }
