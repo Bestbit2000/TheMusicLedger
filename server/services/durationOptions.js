@@ -11,6 +11,23 @@ export async function listDurationOptions() {
   return rows.map(r => r.minutes);
 }
 
+// Admin panel "Usage" stats (ML-109 follow-up) - sessions.total_duration_minutes isn't a real
+// reference to duration_options (a session just stores whatever number of minutes was entered,
+// custom or preset), so this counts by VALUE match, not a join on a foreign key. A session's minutes
+// happening to equal a preset by coincidence rather than the preset actually being picked is possible
+// but considered unlikely enough not to matter. Every duration (active or not) is included, for a
+// complete historical picture rather than just what's currently offered.
+export async function listDurationUsageStats() {
+  const { rows } = await pool.query(
+    `SELECT dopt.minutes, COUNT(s.id) AS usage_count
+     FROM duration_options dopt
+     LEFT JOIN sessions s ON s.total_duration_minutes = dopt.minutes
+     GROUP BY dopt.id, dopt.minutes
+     ORDER BY dopt.sort_order`
+  );
+  return rows.map(r => ({ minutes: r.minutes, usageCount: Number(r.usage_count) }));
+}
+
 // ---- Admin panel (ML-109) - no usage-check on delete: a duration is a value typed into a session/
 // timer at the moment it's used, never stored by reference, so removing a preset can't orphan
 // anything already saved. sort_order is set to one past the current max, then editable directly -

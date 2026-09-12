@@ -36,7 +36,7 @@
         <button class="admin-nav-item" data-section="accounts" type="button">Accounts</button>
         <button class="admin-nav-item" data-section="bands" type="button">Bands</button>
         <button class="admin-nav-item" data-section="metadata" type="button">Metadata lists</button>
-        <button class="admin-nav-item" disabled title="Coming soon" type="button">Usage</button>
+        <button class="admin-nav-item" data-section="usage" type="button">Usage</button>
     </nav>
     <main class="admin-content">
         <section id="features-section" class="admin-section">
@@ -74,7 +74,6 @@
             <div class="admin-subtabs">
                 <button class="admin-subtab-item active" data-subtab="durations" type="button">Durations</button>
                 <button class="admin-subtab-item" data-subtab="timesigs" type="button">Time signatures</button>
-                <button class="admin-subtab-item" data-subtab="notevalues" type="button">Note values</button>
                 <button class="admin-subtab-item" data-subtab="speeds" type="button">Playback speeds</button>
             </div>
             <div id="durations-subtab" class="admin-subtab-panel">
@@ -87,14 +86,26 @@
                 <button class="btn-submit no-margin admin-add-btn" id="addTimeSigBtn" type="button">+ Add time signature</button>
                 <div id="timeSigsList" class="admin-feature-list">Loading&hellip;</div>
             </div>
-            <div id="notevalues-subtab" class="admin-subtab-panel hidden-group">
-                <p class="admin-intro">Read-only - these five values are fixed by musical notation itself, not app data, so there's nothing to add/edit/delete here, just how many saved blocks currently use each.</p>
-                <div id="noteValuesList" class="admin-feature-list">Loading&hellip;</div>
-            </div>
             <div id="speeds-subtab" class="admin-subtab-panel hidden-group">
                 <p class="admin-intro">Metronome Blocks' play-speed presets - a live playback setting, never stored against a saved block, so there's nothing to check usage against before deleting one.</p>
                 <button class="btn-submit no-margin admin-add-btn" id="addSpeedBtn" type="button">+ Add playback speed</button>
                 <div id="speedsList" class="admin-feature-list">Loading&hellip;</div>
+            </div>
+        </section>
+        <section id="usage-section" class="admin-section hidden-group">
+            <h1>Usage</h1>
+            <p class="admin-intro">Stats-only views, not management - see Metadata lists for adding/editing/deleting the lists themselves.</p>
+            <div class="admin-subtabs">
+                <button class="admin-subtab-item active" data-subtab="usage-durations" type="button">Durations</button>
+                <button class="admin-subtab-item" data-subtab="usage-notevalues" type="button">Note values</button>
+            </div>
+            <div id="usage-durations-subtab" class="admin-subtab-panel">
+                <p class="admin-intro">Matched by value against <code>sessions.total_duration_minutes</code>, not a real reference (a session just stores whatever number of minutes was entered) - so this counts sessions whose duration happens to equal a preset, which is almost always because that preset was actually picked rather than typed by coincidence.</p>
+                <div id="usageDurationsList" class="admin-feature-list">Loading&hellip;</div>
+            </div>
+            <div id="usage-notevalues-subtab" class="admin-subtab-panel hidden-group">
+                <p class="admin-intro">Read-only - these five values are fixed by musical notation itself, not app data, so there's nothing to add/edit/delete here, just how many saved blocks currently use each. A block only counts once it's actually been opened and saved since this was added - see ML-109 for the historic-data caveat.</p>
+                <div id="noteValuesList" class="admin-feature-list">Loading&hellip;</div>
             </div>
         </section>
     </main>

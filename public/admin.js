@@ -507,11 +507,16 @@
     // Metadata lists (ML-109) - Durations, Time signatures, Note values (read-only),
     // Playback speeds. One inner sub-tab row inside the Metadata lists section.
     // ========================================
-    function initMetadataSubtabs() {
+    // Scoped to the clicked button's own .admin-section - Metadata lists and Usage each have their
+    // own independent row of sub-tabs, and without scoping, switching one section's sub-tab would
+    // also deactivate/hide the other section's (both live in the DOM at once, only their top-level
+    // .admin-section is toggled) - leaving it with nothing active/visible on next visit.
+    function initAdminSubtabs() {
         document.querySelectorAll('.admin-subtab-item[data-subtab]').forEach((btn) => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.admin-subtab-item[data-subtab]').forEach((b) => b.classList.remove('active'));
-                document.querySelectorAll('.admin-subtab-panel').forEach((p) => p.classList.add('hidden-group'));
+                const scope = btn.closest('.admin-section') || document;
+                scope.querySelectorAll('.admin-subtab-item[data-subtab]').forEach((b) => b.classList.remove('active'));
+                scope.querySelectorAll('.admin-subtab-panel').forEach((p) => p.classList.add('hidden-group'));
                 btn.classList.add('active');
                 document.getElementById(`${btn.dataset.subtab}-subtab`).classList.remove('hidden-group');
             });
@@ -689,7 +694,7 @@
         document.getElementById('timeSigFormSaveBtn')?.addEventListener('click', saveTimeSigForm);
     }
 
-    // ---- Note values (read-only) ----
+    // ---- Usage (ML-109 follow-up) - stats-only, no add/edit/delete on either of these. ----
     function renderNoteValuesList(noteValues) {
         const el = document.getElementById('noteValuesList');
         el.innerHTML = noteValues.map(n => `
@@ -704,8 +709,26 @@
         `).join('');
     }
     async function reloadNoteValues() {
-        const { noteValues } = await apiCall('/api/admin/note-values');
+        const { noteValues } = await apiCall('/api/admin/usage/note-values');
         renderNoteValuesList(noteValues);
+    }
+
+    function renderDurationUsageList(durationUsage) {
+        const el = document.getElementById('usageDurationsList');
+        el.innerHTML = durationUsage.map(d => `
+            <div class="admin-feature">
+                <div class="admin-feature-header">
+                    <div class="admin-feature-header-text">
+                        <h2>${d.minutes} minutes</h2>
+                        <p class="admin-test-case-meta">${d.usageCount} session${d.usageCount === 1 ? '' : 's'}</p>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    async function reloadDurationUsage() {
+        const { durationUsage } = await apiCall('/api/admin/usage/durations');
+        renderDurationUsageList(durationUsage);
     }
 
     // ---- Playback speeds ----
@@ -795,7 +818,7 @@
         initFeatureForm();
         initConfirmModal();
         initBandForm();
-        initMetadataSubtabs();
+        initAdminSubtabs();
         initDurationForm();
         initTimeSigForm();
         initSpeedForm();
@@ -808,7 +831,7 @@
             renderSummary(backtest);
             renderFeatures(backtest);
             renderFeaturesCatalog(featuresRes.features);
-            await Promise.all([reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds()]);
+            await Promise.all([reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage()]);
         } catch (error) {
             document.getElementById('featuresCatalog').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`;
             document.getElementById('featureList').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`;

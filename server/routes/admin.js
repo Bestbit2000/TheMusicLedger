@@ -13,7 +13,7 @@ import { requireAuth, resolveAccount, requireSuperAdmin } from '../middleware/au
 import pool from '../config/db.js';
 import { listAccountsForAdmin, setAccountLevel } from '../services/accounts.js';
 import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin } from '../services/bands.js';
-import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption, deleteDurationOption } from '../services/durationOptions.js';
+import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption, deleteDurationOption, listDurationUsageStats } from '../services/durationOptions.js';
 import { listTimeSignatureOptionsForAdmin, createTimeSignatureOption, updateTimeSignatureOption, deleteOrArchiveTimeSignatureOption, listNoteValueUsage } from '../services/timeSignatures.js';
 import { listPlaybackSpeedsForAdmin, createPlaybackSpeedOption, updatePlaybackSpeedOption, deletePlaybackSpeedOption } from '../services/playbackSpeeds.js';
 
@@ -392,10 +392,25 @@ router.delete('/time-signatures/:id', requireAuth, resolveAccount, requireSuperA
   }
 });
 
+// ========================================
+// USAGE (ML-109 follow-up) - stats-only views, not management; the list-management routes for these
+// same underlying tables live above (durations, time signatures, playback speeds).
+// ========================================
+
 // Read-only - note_value is a fixed CHECK constraint, not a manageable table (see listNoteValueUsage).
-router.get('/note-values', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/usage/note-values', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     res.json({ noteValues: await listNoteValueUsage() });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Matched by value against sessions.total_duration_minutes, not a real reference - see
+// listDurationUsageStats.
+router.get('/usage/durations', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ durationUsage: await listDurationUsageStats() });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
