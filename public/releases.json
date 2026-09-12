@@ -1,5 +1,51 @@
 [
   {
+    "version": "0.12.0",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "key": "ML-111",
+        "type": "Fixes",
+        "summary": "Metronome line behind circles"
+      },
+      {
+        "key": "ML-110",
+        "type": "New",
+        "summary": "Be able to go back from admin panel to the main app"
+      },
+      {
+        "key": "ML-109",
+        "type": "New",
+        "summary": "Create admin panel for teh meta data lists"
+      },
+      {
+        "key": "ML-106",
+        "type": "New",
+        "summary": "Auto sub beats should apply at all times"
+      },
+      {
+        "key": "ML-102",
+        "type": "New",
+        "summary": "Add volume back to the block metronome"
+      },
+      {
+        "key": "ML-89",
+        "type": "New",
+        "summary": "Manage the band list"
+      },
+      {
+        "key": "ML-77",
+        "type": "New",
+        "summary": "See account details"
+      },
+      {
+        "key": "ML-75",
+        "type": "Fixes",
+        "summary": "Pop up info on graphs on the detailed stats is missing"
+      }
+    ]
+  },
+  {
     "version": "0.11.0",
     "date": "2026-09-11",
     "changes": [
