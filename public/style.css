@@ -85,6 +85,11 @@
     .dropdown-item { display: block; padding: var(--space-3) var(--space-4); cursor: pointer; font-weight: bold; border-bottom: 1px solid var(--input-border); color: var(--text-color); text-decoration: none; }
     .dropdown-item:last-child { border-bottom: none; }
     .dropdown-item:hover { background: var(--input-bg); }
+    /* One shared floating menu, repositioned via JS against whichever row's own "more" button opened
+       it (same pattern as .metroBlk-tile-menu) - overrides .dropdown-menu's own absolute/top:100%/
+       right:20px (built for the single fixed-position burger menu) so JS can freely set left/top. */
+    .account-band-menu { position: fixed; top: auto; right: auto; left: auto; min-width: 160px; }
+    .account-band-menu-delete { color: var(--danger-color); border-top: 1px solid var(--input-border); }
 
     .container { width: 100%; max-width: 500px; background: var(--container-bg); padding: var(--space-5); box-sizing: border-box; min-height: calc(100vh - 60px); }
 
@@ -109,7 +114,11 @@
        "several fully rounded, the rest slightly rounded" inconsistency was never a deliberate two-tier
        design, just drift. */
     .btn-cancel { background: transparent; border: 2px solid var(--primary-action); color: var(--primary-action); }
-    .btn-text { display: block; width: 100%; background: none; border: none; padding: var(--space-3); min-height: 48px; font-size: var(--font-base); font-weight: bold; text-decoration: underline; cursor: pointer; text-align: center; box-sizing: border-box; }
+    /* No explicit color previously - a plain <button> falls back to the browser's own default text
+       color (near-black) rather than inheriting anything, which reads fine in light mode but is very
+       low-contrast in dark mode. .btn-text-danger already overrode this for its own case; every other
+       plain .btn-text use was silently affected. */
+    .btn-text { display: block; width: 100%; background: none; border: none; padding: var(--space-3); min-height: 48px; font-size: var(--font-base); font-weight: bold; text-decoration: underline; cursor: pointer; text-align: center; box-sizing: border-box; color: var(--primary-action); }
     .btn-text-danger { color: var(--danger-color); }
 
     .tools-title { margin-top: 0; }
@@ -246,12 +255,25 @@
        reported together - ML-97 follow-up) actually breaks onto its own line instead of running
        into the next sentence with no separator; no effect on the plain single-line messages every
        other toast already uses. */
-    .toast { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); color: #fff; padding: var(--space-3) var(--space-5); border-radius: var(--radius-sm); display: flex; align-items: center; gap: var(--space-4); transition: bottom 0.3s; z-index: 1000; font-size: var(--font-base); white-space: pre-line; }
-    .toast.show { bottom: 30px; }
+    /* Shown/hidden purely via style.display (see showSuccessToast/showWarningToast/showInfoToast/
+       closeToast, same on/off-by-default pattern as .modal above) - bottom is the toast's one resting
+       position, not an animated-in state. (A .toast.show variant with bottom:-100px used to exist here
+       for a slide-up transition, but no code ever toggled that class, so every toast rendered 100px
+       below the viewport - entirely invisible - regardless of display. Fixing the position alone still
+       left display:flex as this rule's own default, with nothing to hide a toast until the first time
+       it's explicitly closed - exposed as all three toasts sitting on screen from page load. display:
+       none is the real default; showXToast is what reveals one.) */
+    .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); color: #fff; padding: var(--space-3) var(--space-5); border-radius: var(--radius-sm); display: none; align-items: center; gap: var(--space-4); z-index: 1000; font-size: var(--font-base); white-space: pre-line; }
     .toast.success { background-color: #333; }
     .toast.warning { background-color: var(--warning-color); color: #000; font-weight: bold; }
     .toast.info { background-color: var(--info-color); color: #fff; font-weight: bold; box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4); }
     .toast button { background: rgba(255,255,255,0.3); border: none; color: inherit; border-radius: 4px; cursor: pointer; font-weight: bold; padding: 6px 12px; }
+
+    /* ML-75: small popup anchored right next to whatever bar/heatmap square was just clicked, instead
+       of a toast at the bottom of the screen - position:fixed and placed via getBoundingClientRect()
+       (see showAnchoredPopup) so it's immune to whichever scrollable container the anchor happens to
+       sit inside. */
+    .anchored-popup { position: fixed; z-index: 1000; background: var(--container-bg); color: var(--text-color); border: 1px solid var(--input-border); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); box-shadow: var(--shadow-xl); font-size: var(--font-sm); font-weight: bold; white-space: nowrap; pointer-events: none; }
 
     /* Splash / login screen */
     .splash-screen { display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #0a0a0a; align-items: center; justify-content: center; z-index: 9999; padding: var(--space-5); box-sizing: border-box; }
@@ -309,22 +331,27 @@
     /* Every base click (beat or subdivision) lives in one row now (ML-66): a note-boundary click gets
        the larger "note" dot below, everything in between gets the smaller "sub" dot. Only the very
        first note of the bar is visually accented - every other dot, note or sub, looks (and, per
-       ML-62, sounds) the same, so there's nothing left to tell them apart. */
-    .metro-dot-note { width: 15px; height: 15px; background: var(--input-bg); border: 2px solid var(--primary-action); opacity: 0.7; }
+       ML-62, sounds) the same, so there's nothing left to tell them apart.
+       ML-111: every dot is fully opaque at every state now - a resting dot at opacity<1 let the grey
+       connecting track line (drawn behind the row, connectMetroBlkDotsWithTrack) show through it,
+       which read as the line running straight through the circles instead of being hidden behind them.
+       Resting vs active is conveyed by fill/border colour alone, not transparency. */
+    .metro-dot-note { width: 15px; height: 15px; background: var(--input-bg); border: 2px solid var(--primary-action); }
     /* Same size as every other note dot now - filled solid gold instead of a bigger circle, so it
        doesn't need extra layout room to avoid overlapping its neighbours (feedback: the larger first
        circle only needs to be distinguished, not literally bigger). */
-    .metro-dot-note.accent { background: var(--primary-action); opacity: 1; }
-    .metro-dot-note.lit { background: var(--selection-color); border-color: var(--selection-color); opacity: 1; transform: translate(-50%, -50%) scale(1.25); }
+    .metro-dot-note.accent { background: var(--primary-action); }
+    .metro-dot-note.lit { background: var(--selection-color); border-color: var(--selection-color); transform: translate(-50%, -50%) scale(1.25); }
     .metro-dot-note.accent.lit { background: var(--danger-color); border-color: var(--danger-color); transform: translate(-50%, -50%) scale(1.15); }
 
-    /* Subdivision dots need to read clearly against the note dots around them, so they use a distinct
-       hue (not a faded version of the gold/red beat colours) rather than relying on opacity alone. */
-    .metro-dot-sub { width: 10px; height: 10px; background: var(--selection-color); border: 1px solid var(--selection-color); opacity: 0.65; }
-    /* Resting sub dots are already solid --selection-color, so a lit state that only bumped
-       opacity/scale (as before) barely read as a flash on a 10px circle - give it its own colour
-       change, same pattern as .metro-dot-note.lit, so the sub-beat flash is actually visible. */
-    .metro-dot-sub.lit { background: var(--danger-color); border-color: var(--danger-color); opacity: 1; transform: translate(-50%, -50%) scale(1.35); }
+    /* ML-111: same gold as the main beat dots now, not a separate hue - was --selection-color (a blue/
+       grey distinct from the beat colours), which read as an unrelated colour rather than "this is the
+       same metronome, just a finer subdivision". */
+    .metro-dot-sub { width: 10px; height: 10px; background: var(--primary-action); border: 1px solid var(--primary-action); }
+    /* Resting sub dots are already solid gold, so a lit state that only bumped scale (as before) barely
+       read as a flash on a 10px circle - give it its own colour change, same pattern as
+       .metro-dot-note.lit, so the sub-beat flash is actually visible. */
+    .metro-dot-sub.lit { background: var(--danger-color); border-color: var(--danger-color); transform: translate(-50%, -50%) scale(1.35); }
 
     .metro-bpm-step { width: 48px; height: 48px; flex-shrink: 0; border-radius: var(--radius-circle); border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: 1.4rem; font-weight: bold; cursor: pointer; user-select: none; touch-action: manipulation; }
     .metro-bpm-step:active { background: var(--radio-highlight); color: #fff; border-color: var(--radio-highlight); }
@@ -598,11 +625,6 @@
        center-aligned so the note button/"=" sit level with the middle of that box, not its top. */
     .metroBlk-note-bpm-row { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 var(--space-2) 0; }
     .metroBlk-bpm-box { flex: 1; min-width: 0; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3); }
-    /* Sub-beats' Auto mode (ML-95) - the box stays visible (so the meter's own metric default is
-       still shown) but isn't something the user sets directly, so it's locked read-only rather than
-       hidden: no interaction at all (not just a visual dim) and no separate JS guard needed in the
-       custom slider's own drag/click handlers. */
-    .metroBlk-subdivide-locked { opacity: 0.6; pointer-events: none; }
     /* .slider-thumb's border defaults to var(--container-bg) so it reads as a gap against the
        page background it normally sits on - inside this box the surrounding surface is
        var(--input-bg) instead (a shade lighter), so the ring needs to match that here specifically

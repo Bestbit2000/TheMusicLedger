@@ -7,7 +7,8 @@
 import express from 'express';
 import { requireAuth, resolveAccount } from '../middleware/auth.js';
 import pool from '../config/db.js';
-import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand } from '../services/bands.js';
+import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, joinBand, leaveBand, createSharedBand, deleteBandIfSoleMember } from '../services/bands.js';
+import { getAccountProfile, updateAccountProfile } from '../services/accounts.js';
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
 import { listDurationOptions } from '../services/durationOptions.js';
 import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSignaturesWithUsage, setCustomTimeSignatureActive, deleteCustomTimeSignature } from '../services/timeSignatures.js';
@@ -276,6 +277,84 @@ router.post('/settings/teachers/:name/unarchive', requireAuth, resolveAccount, a
     res.json({ message: 'Teacher unarchived' });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================
+// ACCOUNT (ML-77) - the logged-in user's own profile + shared band
+// membership. Distinct from /settings/organisations above, which is the
+// private per-account "who was this session for" label list and is
+// untouched by any of this.
+// ========================================
+router.get('/account', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await getAccountProfile(req.accountId));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/account', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { firstName, surname } = req.body;
+    await updateAccountProfile(req.accountId, { firstName, surname });
+    res.json({ message: 'Account updated' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// The shared band directory (ML-89) alongside which of those the account
+// already belongs to, for the account page's band picker.
+router.get('/account/bands', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const [allBands, myBands] = await Promise.all([listAllBands(), getAccountBands(req.accountId)]);
+    res.json({ allBands, myBands });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Adds a brand new band to the shared directory and joins the creator to it
+// in one step (ML-89: "if the band isn't in the list, you can add one - you
+// don't have to be an admin"). Same createSharedBand the admin panel's Bands
+// tab uses (server/routes/admin.js), just a different caller/permission gate.
+router.post('/account/bands', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { name, website } = req.body;
+    res.json({ band: await createSharedBand(req.accountId, name, website) });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.post('/account/bands/:id/join', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await joinBand(req.accountId, req.params.id);
+    res.json({ message: 'Joined band' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/account/bands/:id', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await leaveBand(req.accountId, req.params.id);
+    res.json({ message: 'Left band' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Distinct from the plain leave above (ML-89 follow-up) - only permitted when this account is the
+// band's sole member and it has no session history; re-checked server-side regardless of what the
+// client's own canDelete flag last said (see deleteBandIfSoleMember).
+router.delete('/account/bands/:id/full', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await deleteBandIfSoleMember(req.accountId, req.params.id);
+    res.json({ message: 'Band deleted' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 

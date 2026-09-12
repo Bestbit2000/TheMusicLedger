@@ -1,23 +1,25 @@
 // Admin panel (ML-26). Deliberately its own router/prefix, separate from
 // routes/api.js, since this is expected to grow into several unrelated
-// sections (Release tests today; Usage, Accounts later per the ML-26 chat).
+// sections (Release tests, Features, Accounts, Bands today; Usage later).
 //
-// Auth note: these routes currently only require being logged in
-// (requireAuth/resolveAccount), same as the rest of the app - there is no
-// is_admin/role concept yet. That's fine for local-only use today, but real
-// admin-role gating needs to land before this is ever reachable from
-// sandbox/production - see ML-26.
+// Auth note (ML-77): every route in this file requires requireSuperAdmin, on
+// top of the usual requireAuth/resolveAccount - see that middleware for what
+// "super admin" means. This used to only require being logged in at all,
+// same as any other route (no admin-role gating existed anywhere in the
+// app) - closed as part of shipping account levels rather than left open.
 
 import express from 'express';
-import { requireAuth, resolveAccount } from '../middleware/auth.js';
+import { requireAuth, resolveAccount, requireSuperAdmin } from '../middleware/auth.js';
 import pool from '../config/db.js';
+import { listAccountsForAdmin, setAccountLevel } from '../services/accounts.js';
+import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin } from '../services/bands.js';
 
 const router = express.Router();
 
 // ========================================
 // RELEASE TESTS (ML-29 back-test registry)
 // ========================================
-router.get('/backtest', requireAuth, resolveAccount, async (req, res) => {
+router.get('/backtest', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     const [features, testCases, links, runs, results] = await Promise.all([
       pool.query('SELECT id, feature_key, name, description FROM features ORDER BY name'),
@@ -107,7 +109,7 @@ router.get('/backtest', requireAuth, resolveAccount, async (req, res) => {
 // Flat list of every test case with the feature(s) it covers - ML-26's
 // "link under Release tests to see the list of test cases and the features
 // they're designed to test".
-router.get('/test-cases', requireAuth, resolveAccount, async (req, res) => {
+router.get('/test-cases', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     const [testCases, links, features, results] = await Promise.all([
       pool.query(
@@ -173,7 +175,7 @@ function toFeature(row) {
   };
 }
 
-router.get('/features', requireAuth, resolveAccount, async (req, res) => {
+router.get('/features', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT id, feature_key, name, description, created_at FROM features ORDER BY name'
@@ -185,7 +187,7 @@ router.get('/features', requireAuth, resolveAccount, async (req, res) => {
   }
 });
 
-router.post('/features', requireAuth, resolveAccount, async (req, res) => {
+router.post('/features', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     const { featureKey, name, description } = req.body;
     if (!featureKey || !name) {
@@ -206,7 +208,7 @@ router.post('/features', requireAuth, resolveAccount, async (req, res) => {
   }
 });
 
-router.put('/features/:id', requireAuth, resolveAccount, async (req, res) => {
+router.put('/features/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     const { featureKey, name, description } = req.body;
     if (!featureKey || !name) {
@@ -231,13 +233,80 @@ router.put('/features/:id', requireAuth, resolveAccount, async (req, res) => {
 // Deleting a feature only removes its rows in the test_case_features join
 // table (ON DELETE CASCADE there) - a test case can cover several features,
 // so removing one never deletes the test case itself or its run history.
-router.delete('/features/:id', requireAuth, resolveAccount, async (req, res) => {
+router.delete('/features/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query('DELETE FROM features WHERE id = $1 RETURNING id', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Feature not found' });
     res.json({ message: 'Feature deleted' });
   } catch (error) {
     console.error('Admin feature delete error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================
+// ACCOUNTS (ML-77) - view/manage every account's site-wide level.
+// ========================================
+router.get('/accounts', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ accounts: await listAccountsForAdmin() });
+  } catch (error) {
+    console.error('Admin accounts fetch error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/accounts/:id/level', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await setAccountLevel(req.params.id, req.body.accountLevel);
+    res.json({ message: 'Account level updated' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// ========================================
+// BANDS (ML-89) - manage the shared band directory. createSharedBand is the
+// same function the account page's self-service "add a band" flow uses
+// (server/routes/api.js's POST /account/bands) - same reachability/duplicate
+// checks either way, just a different caller/permission gate.
+// ========================================
+router.get('/bands', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ bands: await listBandsForAdmin() });
+  } catch (error) {
+    console.error('Admin bands fetch error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/bands', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const { name, website } = req.body;
+    res.json({ band: await createSharedBand(req.accountId, name, website) });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/bands/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const { name, website, contactEmail } = req.body;
+    await updateBandAdmin(req.params.id, { name, website, contactEmail });
+    res.json({ message: 'Band updated' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// Archived rather than deleted outright if still in use (real members or
+// session history) - see deleteOrArchiveBandAdmin.
+router.delete('/bands/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const archived = await deleteOrArchiveBandAdmin(req.params.id);
+    res.json({ message: archived ? 'Band archived (still in use)' : 'Band deleted', archived });
+  } catch (error) {
+    console.error('Admin band delete error:', error);
     res.status(500).json({ error: error.message });
   }
 });

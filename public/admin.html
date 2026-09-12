@@ -14,13 +14,16 @@
 </head>
 <body class="admin-body">
 
-<!-- No is_admin/role concept exists yet (ML-26) - this only checks that
-     you're logged in to the main app (shares its localStorage authToken),
-     same as any other page on this origin. Linked from the main app's burger
-     menu deliberately, as-is, for now - real admin gating is a separate,
-     later piece of ML-26. -->
+<!-- Reads the same localStorage authToken the main app uses (shares its
+     login), then checks the account is actually a Super admin (ML-77) before
+     showing anything below - see admin.js's checkAccessAndLoad. -->
 <div id="loggedOutNotice" class="admin-logged-out hidden-group">
     <p>You need to be logged in to the main app first.</p>
+    <a class="btn-submit" href="/">Go to TheMusicLedger</a>
+</div>
+
+<div id="notAuthorizedNotice" class="admin-logged-out hidden-group">
+    <p>This admin panel is only available to Super admins.</p>
     <a class="btn-submit" href="/">Go to TheMusicLedger</a>
 </div>
 
@@ -29,8 +32,9 @@
         <div class="admin-sidebar-title">Admin</div>
         <button class="admin-nav-item active" data-section="features" type="button">Features</button>
         <button class="admin-nav-item" data-section="release-tests" type="button">Release tests</button>
+        <button class="admin-nav-item" data-section="accounts" type="button">Accounts</button>
+        <button class="admin-nav-item" data-section="bands" type="button">Bands</button>
         <button class="admin-nav-item" disabled title="Coming soon" type="button">Usage</button>
-        <button class="admin-nav-item" disabled title="Coming soon" type="button">Accounts</button>
     </nav>
     <main class="admin-content">
         <section id="features-section" class="admin-section">
@@ -50,6 +54,17 @@
             <h1>Test cases</h1>
             <a href="#" id="backToReleaseTestsLink" class="admin-link">&larr; Back to Release tests</a>
             <div id="testCasesList" class="admin-feature-list">Loading&hellip;</div>
+        </section>
+        <section id="accounts-section" class="admin-section hidden-group">
+            <h1>Accounts</h1>
+            <p class="admin-intro">Every account and its site-wide level (ML-77). Only Super admins can change levels.</p>
+            <div id="accountsList" class="admin-feature-list">Loading&hellip;</div>
+        </section>
+        <section id="bands-section" class="admin-section hidden-group">
+            <h1>Bands</h1>
+            <p class="admin-intro">The shared band directory (ML-89) - accounts join these from their own Account page.</p>
+            <button class="btn-submit no-margin admin-add-btn" id="addBandBtn" type="button">+ Add band</button>
+            <div id="bandsList" class="admin-feature-list">Loading&hellip;</div>
         </section>
     </main>
 </div>
@@ -76,6 +91,19 @@
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="featureFormCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="featureFormSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="bandFormModal">
+    <div class="modal-content">
+        <h2 id="bandFormTitle">Add band</h2>
+        <div class="form-group"><label for="bandNameInput">Name</label><input type="text" id="bandNameInput" placeholder="e.g. Bourne Concert Band"></div>
+        <div class="form-group"><label for="bandWebsiteInput">Website</label><input type="text" id="bandWebsiteInput" placeholder="https://..."></div>
+        <div class="form-group"><label for="bandContactEmailInput">Contact email</label><input type="text" id="bandContactEmailInput" placeholder="optional"></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="bandFormCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="bandFormSaveBtn" type="button">Save</button>
         </div>
     </div>
 </div>

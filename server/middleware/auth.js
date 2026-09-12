@@ -1,5 +1,5 @@
 import { verifyToken } from '../utils/authToken.js';
-import { getOrCreateAccount } from '../services/accounts.js';
+import { getOrCreateAccount, isSuperAdmin } from '../services/accounts.js';
 
 export async function requireAuth(req, res, next) {
   try {
@@ -35,6 +35,23 @@ export async function resolveAccount(req, res, next) {
   } catch (error) {
     console.error('Account resolution error:', error.message);
     res.status(500).json({ error: 'Failed to resolve account' });
+  }
+}
+
+// ML-77: gates the whole admin panel (server/routes/admin.js) to super_admin
+// accounts - closes the gap flagged in that file's own header comment, where
+// every admin route previously only required being logged in at all, same as
+// any other route. Chained after resolveAccount, same as requireAuth/
+// resolveAccount themselves: router.get(path, requireAuth, resolveAccount,
+// requireSuperAdmin, handler).
+export async function requireSuperAdmin(req, res, next) {
+  try {
+    if (!(await isSuperAdmin(req.accountId))) {
+      return res.status(403).json({ error: 'Super admin access required' });
+    }
+    next();
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to verify admin access' });
   }
 }
 

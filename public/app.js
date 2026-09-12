@@ -160,6 +160,15 @@
                 delete: (segId) => apiCall(`/api/metronome/segments/${segId}`, 'DELETE')
             }
         },
+        account: {
+            get: () => apiCall('/api/account'),
+            update: (data) => apiCall('/api/account', 'PUT', data),
+            getBands: () => apiCall('/api/account/bands'),
+            addBand: (name, website) => apiCall('/api/account/bands', 'POST', { name, website }),
+            joinBand: (id) => apiCall(`/api/account/bands/${id}/join`, 'POST'),
+            leaveBand: (id) => apiCall(`/api/account/bands/${id}`, 'DELETE'),
+            deleteBandFull: (id) => apiCall(`/api/account/bands/${id}/full`, 'DELETE')
+        },
         settings: {
             get: () => apiCall('/api/dropdown-options'),
             getListsWithUsage: () => apiCall('/api/settings/lists-with-usage'),
@@ -345,8 +354,12 @@
             let pct = (val / chartMax) * 100;
             let barCont = document.createElement('div');
             barCont.className = 'chart-bar-container';
+            // Anchored to the bar itself, not barCont (which spans the container's full height
+            // regardless of the bar's actual height) - otherwise the popup lands up at the top of the
+            // chart instead of next to the bar that was actually clicked. `bar` is only assigned below,
+            // but the closure reads it live and this only ever runs later, on click.
             barCont.addEventListener('click', () => {
-                showInfoToast(`${dayLabel(len)} streak: ${val} time${val === 1 ? '' : 's'}`);
+                showAnchoredPopup(bar, `${dayLabel(len)} streak: ${val} time${val === 1 ? '' : 's'}`);
             });
 
             let bar = document.createElement('div');
@@ -404,6 +417,7 @@
             }
             document.getElementById('tunerInstrumentSetting').value = localStorage.getItem(TUNER_INSTRUMENT_DEFAULT_KEY) || 'C';
             document.getElementById('tunerUseFlatsToggle').checked = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
+            syncAdminLinkVisibility();
         } catch (error) {
             console.warn('Failed to initialize app:', error.message);
             displayLoginScreen();
@@ -530,12 +544,15 @@
     // CUSTOM MODALS LOGIC
     // ========================================
     let confirmCallback = null;
-    function showConfirmModal(title, msg, callback, isDanger=true) {
+    // actionLabel overrides the default Delete/Confirm text - e.g. "Leave" for leaving a band, which
+    // isn't a delete at all (the band itself isn't removed, just this account's own membership) and
+    // shouldn't read as one.
+    function showConfirmModal(title, msg, callback, isDanger=true, actionLabel=null) {
         document.getElementById('confirmTitle').innerText = title;
         document.getElementById('confirmMessage').innerText = msg;
         const btn = document.getElementById('confirmActionBtn');
         btn.style.background = isDanger ? 'var(--danger-color)' : 'var(--primary-action)';
-        btn.innerText = isDanger ? 'Delete' : 'Confirm';
+        btn.innerText = actionLabel || (isDanger ? 'Delete' : 'Confirm');
         confirmCallback = callback;
         document.getElementById('confirmModal').style.display = 'flex';
     }
@@ -570,7 +587,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'metronomeView', 'metroBuilderView', 'tunerView', 'timerView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'accountView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'metronomeView', 'metroBuilderView', 'tunerView', 'timerView'];
     let viewStack = ['mainView'];
 
     const viewAliasMap = {
@@ -613,6 +630,7 @@
         if (viewName === 'statsView') { document.getElementById('topTitle').innerText = 'Detailed stats'; scrollStatsToRight(); }
         if (viewName === 'entryForm') { document.getElementById('topTitle').innerText = 'Add record'; }
         if (viewName === 'manageListsView') { document.getElementById('topTitle').innerText = 'Manage lists'; loadManageLists(); }
+        if (viewName === 'accountView') { document.getElementById('topTitle').innerText = 'My account'; loadAccountView(); }
         if (viewName === 'settingsView') {
             document.getElementById('topTitle').innerText = 'Settings';
             // Re-sync from storage in case the instrument was last changed on the Tuner page itself.
@@ -1635,7 +1653,7 @@
                 let mNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                 let fDate = parseInt(d, 10) + ' ' + mNames[parseInt(m, 10)-1] + ' ' + y;
                 cell.addEventListener('click', function() {
-                    showInfoToast(`${fDate}: ${type==='time' ? Math.round(val)+' mins' : Math.round(val)+' sess'}`);
+                    showAnchoredPopup(this, `${fDate}: ${type==='time' ? Math.round(val)+' mins' : Math.round(val)+' sess'}`);
                 });
                 col.appendChild(cell);
                 current.setDate(current.getDate() + 1);
@@ -1735,10 +1753,13 @@
             let barCont = document.createElement('div');
             barCont.className = 'chart-bar-container';
             let vStr = type === 'hours' ? val.toFixed(1) + ' hours' : Math.round(val) + (type === 'days' ? ' active days' : ' sessions');
+            // Anchored to the bar itself (assigned below, read lazily on click), not barCont - barCont
+            // spans the container's full height regardless of the bar's actual height, which otherwise
+            // lands the popup at the top of the chart instead of next to the bar that was clicked.
             barCont.addEventListener('click', function() {
                 let [y, m] = k.split('-');
                 let mNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                showInfoToast(`${mNames[parseInt(m, 10)-1]} ${y}: ${vStr}`);
+                showAnchoredPopup(bar, `${mNames[parseInt(m, 10)-1]} ${y}: ${vStr}`);
             });
 
             let bar = document.createElement('div');
@@ -1977,6 +1998,188 @@
         showConfirmModal(item.usedInHistory ? 'Archive item' : 'Remove item', msg, runAction, !item.usedInHistory);
     }
 
+    // ========================================
+    // ACCOUNT (ML-77) - name/email/level/signup date + real band membership
+    // (server/services/bands.js's shared directory, distinct from the private
+    // per-account "Manage lists" above).
+    // ========================================
+    const ACCOUNT_LEVEL_LABELS = {
+        super_admin: 'Super admin', band_admin: 'Band admin', premium_member: 'Premium member',
+        standard_member: 'Standard member', beta_tester: 'Beta tester'
+    };
+    let accountBandsData = { allBands: [], myBands: [] };
+
+    // Also used at startup (see initializeApp) to show/hide the burger menu's
+    // Administration link - admin.html itself gates to Super admin too, this
+    // just avoids dangling the link in front of an account that would only
+    // bounce off its "not authorized" notice.
+    async function syncAdminLinkVisibility() {
+        try {
+            const profile = await API.account.get();
+            document.getElementById('adminNavLink')?.classList.toggle('hidden-group', profile.accountLevel !== 'super_admin');
+        } catch { /* not fatal - link just stays hidden */ }
+    }
+
+    function renderAccountBandsList() {
+        const container = document.getElementById('accountBandsList');
+        if (!container) return;
+        if (!accountBandsData.myBands.length) {
+            container.innerHTML = '<div class="text-muted">You haven\'t joined any bands yet.</div>';
+        } else {
+            container.innerHTML = accountBandsData.myBands.map(b => `
+                <div class="history-item">
+                    <span>${b.displayName}</span>
+                    <button class="btn-icon-edit" data-band-menu-id="${b.id}" aria-label="Options for ${b.displayName}"><span class="material-symbols-outlined">more_vert</span></button>
+                </div>
+            `).join('');
+            container.querySelectorAll('[data-band-menu-id]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openAccountBandMenu(e, btn.dataset.bandMenuId);
+                });
+            });
+        }
+
+        const picker = document.getElementById('accountBandPicker');
+        if (picker) {
+            const myBandIds = new Set(accountBandsData.myBands.map(b => b.id));
+            const joinable = accountBandsData.allBands.filter(b => !myBandIds.has(b.id));
+            picker.innerHTML = '<option value="">Choose a band to join&hellip;</option>' +
+                joinable.map(b => `<option value="${b.id}">${b.displayName}</option>`).join('');
+        }
+    }
+
+    // One shared floating menu for every band row (ML-89 follow-up), repositioned against whichever
+    // row's own button opened it - same pattern as Metronome Blocks' per-tile menu
+    // (openMetroBlkTileMenu). Leaving only removes this account's own membership - the band itself, and
+    // everyone else's membership in it, is untouched, so it's never framed as a delete. Delete itself
+    // is only offered (canDelete, from getAccountBands) when this account is the band's sole member
+    // with no session history anywhere - otherwise deleting it would pull it out from under someone/
+    // something else.
+    let accountBandMenuTargetId = null;
+    function openAccountBandMenu(e, bandId) {
+        const menu = document.getElementById('accountBandMenu');
+        if (!menu) return;
+        accountBandMenuTargetId = bandId;
+        const band = accountBandsData.myBands.find(b => String(b.id) === String(bandId));
+        document.getElementById('accountBandMenuDelete')?.classList.toggle('hidden-group', !band?.canDelete);
+
+        const btnRect = e.currentTarget.getBoundingClientRect();
+        menu.classList.add('show');
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+        let left = btnRect.right - menuWidth;
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+        let top = btnRect.bottom + 4;
+        top = Math.min(top, window.innerHeight - menuHeight - 8);
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    }
+    function closeAccountBandMenu() {
+        document.getElementById('accountBandMenu')?.classList.remove('show');
+    }
+    document.addEventListener('click', closeAccountBandMenu);
+    document.getElementById('accountBandMenuLeave')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const bandId = accountBandMenuTargetId;
+        closeAccountBandMenu();
+        const band = accountBandsData.myBands.find(b => String(b.id) === String(bandId));
+        showConfirmModal('Leave band', `Leave "${band?.displayName || 'this band'}"? Anyone else in it will keep their own membership.`, async () => {
+            try {
+                await API.account.leaveBand(bandId);
+                await loadAccountBands();
+                showSuccessToast('Left band');
+            } catch (error) {
+                showWarningToast('Error leaving band: ' + error.message);
+            }
+        }, false, 'Leave');
+    });
+    document.getElementById('accountBandMenuDelete')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const bandId = accountBandMenuTargetId;
+        closeAccountBandMenu();
+        const band = accountBandsData.myBands.find(b => String(b.id) === String(bandId));
+        showConfirmModal('Delete band', `Delete "${band?.displayName || 'this band'}" completely? You're the only member and it has no history, so this removes it from the shared directory entirely - not just your own membership.`, async () => {
+            try {
+                await API.account.deleteBandFull(bandId);
+                await loadAccountBands();
+                showSuccessToast('Band deleted');
+            } catch (error) {
+                showWarningToast('Error deleting band: ' + error.message);
+            }
+        }, true);
+    });
+
+    async function loadAccountBands() {
+        try {
+            accountBandsData = await API.account.getBands();
+            renderAccountBandsList();
+        } catch (error) {
+            showWarningToast('Error loading bands: ' + error.message);
+        }
+    }
+
+    async function loadAccountView() {
+        try {
+            const profile = await API.account.get();
+            document.getElementById('accountFirstNameInput').value = profile.firstName || '';
+            document.getElementById('accountSurnameInput').value = profile.surname || '';
+            document.getElementById('accountEmailReadout').innerText = profile.email;
+            document.getElementById('accountLevelReadout').innerText = ACCOUNT_LEVEL_LABELS[profile.accountLevel] || profile.accountLevel;
+            document.getElementById('accountJoinedReadout').innerText = profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : '-';
+        } catch (error) {
+            showWarningToast('Error loading account: ' + error.message);
+        }
+        await loadAccountBands();
+    }
+
+    document.getElementById('accountSaveNameBtn')?.addEventListener('click', async () => {
+        const firstName = document.getElementById('accountFirstNameInput').value.trim();
+        const surname = document.getElementById('accountSurnameInput').value.trim();
+        try {
+            await API.account.update({ firstName, surname });
+            showSuccessToast('Account updated');
+        } catch (error) {
+            showWarningToast('Error updating account: ' + error.message);
+        }
+    });
+
+    document.getElementById('accountJoinBandBtn')?.addEventListener('click', async () => {
+        const picker = document.getElementById('accountBandPicker');
+        const bandId = picker?.value;
+        if (!bandId) { showWarningToast('Choose a band first.'); return; }
+        try {
+            await API.account.joinBand(bandId);
+            await loadAccountBands();
+            showSuccessToast('Joined band');
+        } catch (error) {
+            showWarningToast('Error joining band: ' + error.message);
+        }
+    });
+
+    document.getElementById('accountAddBandToggleBtn')?.addEventListener('click', () => {
+        document.getElementById('accountAddBandSection')?.classList.toggle('hidden-group');
+    });
+
+    document.getElementById('accountAddBandBtn')?.addEventListener('click', async () => {
+        const nameInput = document.getElementById('accountNewBandNameInput');
+        const websiteInput = document.getElementById('accountNewBandWebsiteInput');
+        const name = nameInput.value.trim();
+        const website = websiteInput.value.trim();
+        if (!name || !website) { showWarningToast('Band name and website are both required.'); return; }
+        showInfoToast('Checking website...');
+        try {
+            await API.account.addBand(name, website);
+            nameInput.value = '';
+            websiteInput.value = '';
+            document.getElementById('accountAddBandSection')?.classList.add('hidden-group');
+            await loadAccountBands();
+            showSuccessToast('Band added - you\'ve been joined to it');
+        } catch (error) {
+            showWarningToast('Error adding band: ' + error.message);
+        }
+    });
+
     document.getElementById('prevMonthBtn')?.addEventListener('click', () => {
         currentHistDate.setMonth(currentHistDate.getMonth() - 1);
         renderHistoryList(rawData.filter(d=>activeFilters[d.category]));
@@ -2131,6 +2334,48 @@
         if(t) t.style.display = 'none';
     }
     window.closeToast = closeToast;
+
+    // ML-75: a small popup anchored right next to the bar/heatmap square that was just clicked,
+    // showing that one square's/bar's own value in context - replaces the old showInfoToast (bottom
+    // of the screen, no anchoring) at those click sites specifically. position:fixed + getBoundingClientRect
+    // so it's placed correctly regardless of whichever scrollable container (chart-scroll-area,
+    // heatmap-wrapper) the anchor sits inside.
+    let anchoredPopupEl = null;
+    // Also clears any dismiss listener left over from a previous popup - without this, opening a
+    // second popup (which calls this first) leaves the earlier popup's own "next click" listener still
+    // pending, and since that listener is what THIS click's own bubble phase then triggers, the new
+    // popup got destroyed the instant it was created (visible as "the popup only ever shows once").
+    function hideAnchoredPopup() {
+        if (anchoredPopupEl) { anchoredPopupEl.remove(); anchoredPopupEl = null; }
+        document.removeEventListener('click', hideAnchoredPopup);
+        window.removeEventListener('scroll', hideAnchoredPopup, true);
+    }
+    function showAnchoredPopup(anchorEl, text) {
+        hideAnchoredPopup();
+        const popup = document.createElement('div');
+        popup.className = 'anchored-popup';
+        popup.innerText = text;
+        document.body.appendChild(popup);
+
+        const anchorRect = anchorEl.getBoundingClientRect();
+        const popupRect = popup.getBoundingClientRect();
+        let left = anchorRect.left + anchorRect.width / 2 - popupRect.width / 2;
+        left = Math.max(4, Math.min(left, window.innerWidth - popupRect.width - 4));
+        let top = anchorRect.top - popupRect.height - 8;
+        if (top < 4) top = anchorRect.bottom + 8; // not enough room above - show it below instead
+        top = Math.max(4, Math.min(top, window.innerHeight - popupRect.height - 4));
+        popup.style.left = `${left}px`;
+        popup.style.top = `${top}px`;
+        anchoredPopupEl = popup;
+
+        // Dismissed by the next click anywhere, or a scroll of the page/chart underneath it - the
+        // listeners are registered a tick later so the very click that opened the popup doesn't also
+        // close it immediately.
+        setTimeout(() => {
+            document.addEventListener('click', hideAnchoredPopup, { once: true });
+            window.addEventListener('scroll', hideAnchoredPopup, { once: true, capture: true });
+        }, 0);
+    }
 
     // ========================================
     // METRONOME
@@ -2399,6 +2644,13 @@
     const METRO_LATENCY_KEY = 'metroLatencyMs';
     const METRO_LATENCY_STEP = 10;
     const METRO_LATENCY_MAX = 500;
+    // ML-102: headphone delay is about the physical output device, not any one tool, so Metronome
+    // Blocks' player and its headphone-calibration test loop share this same latency value rather than
+    // keeping their own - these start null and get filled in once those players exist further down
+    // (createMetronomePlayer calls that happen after this point in the module), letting
+    // setMetroLatencyMs push to them too without caring which tool is currently open.
+    let metroBlkPlayerRef = null;
+    let metroBlkCalibPlayerRef = null;
 
     const METRO_SPEED_MIN_LEVEL = -9; // 10%
     const METRO_SPEED_MAX_LEVEL = 5;  // 150%
@@ -3149,13 +3401,18 @@
         document.getElementById('metroMuteBtn').setAttribute('aria-pressed', String(metroState.muted));
     });
 
-    // --- Headphone delay compensation ---
+    // --- Headphone delay compensation (ML-102: shared with Metronome Blocks + its calibration loop,
+    // see metroBlkPlayerRef/metroBlkCalibPlayerRef above) ---
     function renderMetroLatencyReadout() {
         document.getElementById('metroLatencyMs').innerText = `${metroState.latencyMs} ms`;
+        const blkReadout = document.getElementById('metroBlkCalibLatencyMs');
+        if (blkReadout) blkReadout.innerText = `${metroState.latencyMs} ms`;
     }
     function setMetroLatencyMs(ms) {
         metroState.latencyMs = Math.min(METRO_LATENCY_MAX, Math.max(0, ms));
         metroPlayer.setVisualLatencyMs(metroState.latencyMs);
+        metroBlkPlayerRef?.setVisualLatencyMs(metroState.latencyMs);
+        metroBlkCalibPlayerRef?.setVisualLatencyMs(metroState.latencyMs);
         localStorage.setItem(METRO_LATENCY_KEY, String(metroState.latencyMs));
         renderMetroLatencyReadout();
     }
@@ -3248,32 +3505,32 @@
     // pulse (macroBeatsPerBar), not the raw time-signature numerator - a 9/8 block shows/clicks 3
     // large circles (one per dotted crotchet), not 9. subdivisionFactor is how many base clicks make
     // up one macro beat once sub-beats are showing (3 quavers per dotted-crotchet pulse for a compound
-    // meter, 2 for a simple one); minMacroBpm is the Auto-mode threshold. Simple/compound meters only -
+    // meter, 2 for a simple one). Simple/compound meters only -
     // irregular ones (5/8, 7/8, 10/8, 11/8, 5/4, 7/4, 5/16, 7/16) have unequal-length beats the
     // scheduler can't express yet (every conductor beat assumes the same wall-clock duration) and keep
     // today's behaviour via METRO_BLK_METER_FALLBACK - tracked as a follow-up, not built here.
     const METRO_BLK_METER_TABLE = {
-        '2/2': { macroBeatsPerBar: 2, subdivisionFactor: 2, minMacroBpm: 45 },
-        '3/2': { macroBeatsPerBar: 3, subdivisionFactor: 2, minMacroBpm: 45 },
-        '4/2': { macroBeatsPerBar: 4, subdivisionFactor: 2, minMacroBpm: 45 },
-        '1/4': { macroBeatsPerBar: 1, subdivisionFactor: 2, minMacroBpm: 45 },
-        '2/4': { macroBeatsPerBar: 2, subdivisionFactor: 2, minMacroBpm: 45 },
-        '3/4': { macroBeatsPerBar: 3, subdivisionFactor: 2, minMacroBpm: 45 },
-        '4/4': { macroBeatsPerBar: 4, subdivisionFactor: 2, minMacroBpm: 45 },
-        '6/4': { macroBeatsPerBar: 2, subdivisionFactor: 3, minMacroBpm: 45 },
-        '8/4': { macroBeatsPerBar: 4, subdivisionFactor: 2, minMacroBpm: 45 },
-        '1/8': { macroBeatsPerBar: 1, subdivisionFactor: 2, minMacroBpm: 45 },
-        '2/8': { macroBeatsPerBar: 2, subdivisionFactor: 2, minMacroBpm: 45 },
-        '3/8': { macroBeatsPerBar: 3, subdivisionFactor: 2, minMacroBpm: 45 },
-        '4/8': { macroBeatsPerBar: 4, subdivisionFactor: 2, minMacroBpm: 45 },
-        '6/8': { macroBeatsPerBar: 2, subdivisionFactor: 3, minMacroBpm: 45 },
-        '9/8': { macroBeatsPerBar: 3, subdivisionFactor: 3, minMacroBpm: 45 },
-        '12/8': { macroBeatsPerBar: 4, subdivisionFactor: 3, minMacroBpm: 45 },
-        '3/16': { macroBeatsPerBar: 3, subdivisionFactor: 2, minMacroBpm: 45 }
+        '2/2': { macroBeatsPerBar: 2, subdivisionFactor: 2 },
+        '3/2': { macroBeatsPerBar: 3, subdivisionFactor: 2 },
+        '4/2': { macroBeatsPerBar: 4, subdivisionFactor: 2 },
+        '1/4': { macroBeatsPerBar: 1, subdivisionFactor: 2 },
+        '2/4': { macroBeatsPerBar: 2, subdivisionFactor: 2 },
+        '3/4': { macroBeatsPerBar: 3, subdivisionFactor: 2 },
+        '4/4': { macroBeatsPerBar: 4, subdivisionFactor: 2 },
+        '6/4': { macroBeatsPerBar: 2, subdivisionFactor: 3 },
+        '8/4': { macroBeatsPerBar: 4, subdivisionFactor: 2 },
+        '1/8': { macroBeatsPerBar: 1, subdivisionFactor: 2 },
+        '2/8': { macroBeatsPerBar: 2, subdivisionFactor: 2 },
+        '3/8': { macroBeatsPerBar: 3, subdivisionFactor: 2 },
+        '4/8': { macroBeatsPerBar: 4, subdivisionFactor: 2 },
+        '6/8': { macroBeatsPerBar: 2, subdivisionFactor: 3 },
+        '9/8': { macroBeatsPerBar: 3, subdivisionFactor: 3 },
+        '12/8': { macroBeatsPerBar: 4, subdivisionFactor: 3 },
+        '3/16': { macroBeatsPerBar: 3, subdivisionFactor: 2 }
     };
     // macroBeatsPerBar null here means "not in the table" - resolved to the block's own raw
     // numerator below, i.e. exactly today's un-grouped behaviour.
-    const METRO_BLK_METER_FALLBACK = { macroBeatsPerBar: null, subdivisionFactor: 2, minMacroBpm: 45 };
+    const METRO_BLK_METER_FALLBACK = { macroBeatsPerBar: null, subdivisionFactor: 2 };
 
     // Resolves a regular block's own macro-beat info; null for a lead-in (it never gets macro
     // grouping - see metroBlkBeatsPerBarFor/metroBlkSubFactorFor, both branch on isLeadIn instead of
@@ -3281,7 +3538,7 @@
     function metroBlkMeterInfo(block) {
         if (!block || block.isLeadIn) return null;
         const row = METRO_BLK_METER_TABLE[`${block.numerator}/${block.denominator}`] || METRO_BLK_METER_FALLBACK;
-        return { macroBeatsPerBar: row.macroBeatsPerBar ?? block.numerator, subdivisionFactor: row.subdivisionFactor, minMacroBpm: row.minMacroBpm };
+        return { macroBeatsPerBar: row.macroBeatsPerBar ?? block.numerator, subdivisionFactor: row.subdivisionFactor };
     }
 
     // "Beats per bar" for progress/bar-boundary purposes - macroBeatsPerBar for a regular block,
@@ -3311,6 +3568,8 @@
     let metroBlkQuietGapActive = false;
 
     const metroBlkPlayer = createMetronomePlayer();
+    metroBlkPlayerRef = metroBlkPlayer;
+    metroBlkPlayer.setVisualLatencyMs(metroState.latencyMs);
 
     // --- Play Mode / Edit Mode (ML-97) ---
     // Play Mode (default) is the performance state: tapping a block jumps playback to it, nothing is
@@ -4584,9 +4843,10 @@
     // applies across the whole sequence rather than being stored per segment. The lead-in never
     // subdivides or macro-groups regardless of this setting, though - it's too short for sub-beats to
     // mean anything, and they'd just be noise leading into the actual first beat.
-    // ML-95: Off/Auto/On, replacing the old plain Off/On - Auto reveals sub-beats automatically once
-    // the effective macro tempo drops below the meter's own threshold (metroBlkShouldSubdivide);
-    // metroBlkSubdivideOverride is only consulted in 'on' mode, where the user can still drag the
+    // ML-95: Off/Auto/Fixed, replacing the old plain Off/On - ML-106: Auto always shows sub-beats,
+    // using whichever count the meter itself calls for (metroBlkMeterInfo) - it no longer waits for
+    // the tempo to drop below a threshold first, only the count adapts, not whether they show at all.
+    // metroBlkSubdivideOverride is only consulted in 'fixed' mode, where the user can still drag the
     // slider to something other than the meter's own metric default (session-wide, like the old
     // slider value was - not stored per block).
     let metroBlkSubBeatsMode = 'off';
@@ -4595,21 +4855,15 @@
     function metroBlkShouldSubdivide(block) {
         const info = metroBlkMeterInfo(block);
         if (!info) return false; // lead-in
-        if (metroBlkSubBeatsMode === 'off') return false;
-        if (metroBlkSubBeatsMode === 'on') return true;
-        // Auto: Target BPM * Play Speed%, same effective-bpm formula the play-speed control itself
-        // already applies - only reveal sub-beats once the macro pulse itself has slowed enough that
-        // subdividing it is actually useful.
-        const effectiveMacroBpm = block.bpm * (metroBlkSpeedPercent / 100);
-        return effectiveMacroBpm < info.minMacroBpm;
+        return metroBlkSubBeatsMode !== 'off';
     }
 
     // The actual multiplier fed to the engine/renderer - replaces the old metroBlkEffectiveSubFactor.
     // 1 (no subdivision) for a lead-in or whenever metroBlkShouldSubdivide says no; otherwise the
-    // meter's own subdivisionFactor, or the user's manual override while in 'on' mode.
+    // meter's own subdivisionFactor, or the user's manual override while in 'fixed' mode.
     function metroBlkSubFactorFor(block) {
         if (!block || block.isLeadIn || !metroBlkShouldSubdivide(block)) return 1;
-        if (metroBlkSubBeatsMode === 'on' && metroBlkSubdivideOverride) return metroBlkSubdivideOverride;
+        if (metroBlkSubBeatsMode === 'fixed' && metroBlkSubdivideOverride) return metroBlkSubdivideOverride;
         return metroBlkMeterInfo(block).subdivisionFactor;
     }
 
@@ -4671,13 +4925,13 @@
         if (miniLbl) miniLbl.innerText = display;
     }
 
-    // Commits the popup's mode (+ override, 'on' only) and re-pushes the live player state for
+    // Commits the popup's mode (+ override, 'fixed' only) and re-pushes the live player state for
     // whichever block is currently loaded - mirrors the old setMetroBlkSubdivision's "if the lead-in
     // is what's playing, it stays un-subdivided regardless" via metroBlkSubFactorFor's own isLeadIn
     // branch.
     function setMetroBlkSubBeatsMode(mode, overrideValue) {
         metroBlkSubBeatsMode = mode;
-        metroBlkSubdivideOverride = mode === 'on' ? overrideValue : null;
+        metroBlkSubdivideOverride = mode === 'fixed' ? overrideValue : null;
         const block = metroBlkSubdivideCurrentBlock();
         if (block) metroBlkPlayer.setNotesPerBeat(block.isLeadIn ? 1 : metroBlkSubFactorFor(block));
         renderMetroBlkSubdivideLabels();
@@ -4693,16 +4947,16 @@
     // gave the slider the same tiered-expansion "stretch" as the segment editor's own bpm/bar-count
     // sliders (metroSegBpmSliderMax et al above) - starts at a tight 16 so everyday values are easy
     // to land on, growing to the full METRO_CUSTOM_MAX ceiling only once actually dragged that far.
-    // ML-95: Off/On became Off/Auto/On - Auto shows this same box but locked read-only (see
-    // .metroBlk-subdivide-locked), always reflecting the current block's own metric default
-    // (metroBlkMeterInfo) rather than something the user sets directly; On keeps this slider fully
-    // editable, defaulting to the metric default but overridable (metroBlkSubdivideOverride,
-    // session-wide, same shape the old "last used value" was) - the slider/stepper mechanics below are
-    // otherwise unchanged from the ML-99 round. Still bottoms out at 2, not 1 - reaching "off" is the
-    // radio's job, not something you drag down to any more.) ---
+    // ML-95: Off/On became Off/Auto/On - Auto's count is entirely metric-driven (metroBlkMeterInfo),
+    // never something the user sets directly, so this box is only ever shown for Fixed (renamed from
+    // "On" per ML-106, since Auto is no longer conditional either) - fully editable there, defaulting
+    // to the metric default but overridable (metroBlkSubdivideOverride, session-wide, same shape the
+    // old "last used value" was) - the slider/stepper mechanics below are otherwise unchanged from the
+    // ML-99 round. Still bottoms out at 2, not 1 - reaching "off" is the radio's job, not something you
+    // drag down to any more.) ---
     const METRO_BLK_SUBDIVIDE_MIN = 2;
     const METRO_BLK_SUBDIVIDE_TIERS = [16, METRO_CUSTOM_MAX];
-    let metroBlkSubdividePopupValue = 2; // staged - only committed (as an override) on Save, and only in 'on' mode
+    let metroBlkSubdividePopupValue = 2; // staged - only committed (as an override) on Save, and only in 'fixed' mode
     let metroBlkSubdivideSliderMax = METRO_BLK_SUBDIVIDE_TIERS[0];
 
     function metroBlkSubdivideBestFitTier(value) {
@@ -4742,14 +4996,13 @@
     setupHoldStepper('metroBlkSubdivideMinus', -1, (amount) => setMetroBlkSubdividePopupValue(metroBlkSubdividePopupValue + amount));
     setupHoldStepper('metroBlkSubdividePlus', 1, (amount) => setMetroBlkSubdividePopupValue(metroBlkSubdividePopupValue + amount));
 
-    // Shows/hides the count box to match the radio (Off has nothing left to configure, so it
-    // disappears entirely rather than sitting there disabled) and locks it read-only for Auto - the
-    // box is still shown there (so the metric default is visible), just not interactive.
+    // Shows the count box only for Fixed - Off has nothing to configure, and Auto's count is entirely
+    // metric-driven (not user-set), so showing a locked/greyed-out box for it was never actually
+    // relevant to anything the user could do (feedback: remove it there too, not just for Off).
     function renderMetroBlkSubdivideOnOffUI(mode) {
         const box = document.getElementById('metroBlkSubdivideBpmBox');
         if (!box) return;
-        box.classList.toggle('hidden-group', mode === 'off');
-        box.classList.toggle('metroBlk-subdivide-locked', mode === 'auto');
+        box.classList.toggle('hidden-group', mode !== 'fixed');
     }
     // The metric default (this popup's fallback whenever there's no block-specific one to show -
     // e.g. nothing loaded yet, or the current block is a lead-in) - a plausible generic value, never
@@ -4766,8 +5019,8 @@
         renderMetroBlkSubdivideOnOffUI('auto');
         setMetroBlkSubdividePopupValue(metroBlkSubdivideMetricDefault());
     });
-    document.getElementById('metroBlkSubdivideOn')?.addEventListener('change', () => {
-        renderMetroBlkSubdivideOnOffUI('on');
+    document.getElementById('metroBlkSubdivideFixed')?.addEventListener('change', () => {
+        renderMetroBlkSubdivideOnOffUI('fixed');
         setMetroBlkSubdividePopupValue(metroBlkSubdivideOverride || metroBlkSubdivideMetricDefault());
     });
 
@@ -4778,9 +5031,9 @@
         const mode = metroBlkSubBeatsMode;
         document.getElementById('metroBlkSubdivideOff').checked = mode === 'off';
         document.getElementById('metroBlkSubdivideAuto').checked = mode === 'auto';
-        document.getElementById('metroBlkSubdivideOn').checked = mode === 'on';
+        document.getElementById('metroBlkSubdivideFixed').checked = mode === 'fixed';
         renderMetroBlkSubdivideOnOffUI(mode);
-        if (mode === 'on') setMetroBlkSubdividePopupValue(metroBlkSubdivideOverride || metroBlkSubdivideMetricDefault());
+        if (mode === 'fixed') setMetroBlkSubdividePopupValue(metroBlkSubdivideOverride || metroBlkSubdivideMetricDefault());
         else setMetroBlkSubdividePopupValue(metroBlkSubdivideMetricDefault());
         document.getElementById('metroBlkSubdivideModal').style.display = 'flex';
     }
@@ -4793,7 +5046,7 @@
         const mode = document.querySelector('input[name="metroBlkSubdivideOnOff"]:checked')?.value || 'off';
         // Only a genuine override (the user actually moved it away from the metric default) is worth
         // remembering - saving with the default still showing shouldn't lock in a redundant override.
-        const overrideValue = (mode === 'on' && metroBlkSubdividePopupValue !== metroBlkSubdivideMetricDefault())
+        const overrideValue = (mode === 'fixed' && metroBlkSubdividePopupValue !== metroBlkSubdivideMetricDefault())
             ? metroBlkSubdividePopupValue : null;
         setMetroBlkSubBeatsMode(mode, overrideValue);
         document.getElementById('metroBlkSubdivideModal').style.display = 'none';
@@ -4862,17 +5115,15 @@
 
         // One dot per base click now (main beats AND sub-beats, mirroring the single-bar tool's
         // metroNotesRow) - flash by the raw click-in-bar index, which lines up 1:1 with the dots
-        // buildMetroDotRow actually created. ML-95 performance guardrail is Auto-only and only
-        // drops the MICRO-dot animation ("If subdivided BPM exceeds 200 BPM while in Auto, drop
-        // visual animation of micro-dots") - the macro/conductor beat's own flash always keeps
-        // going, and On mode is explicitly required to keep animating regardless of tempo
-        // (acceptance criterion: sub-beat dots "remain active even though tempo is fast").
-        const dropMicroDotAnimation = metroBlkSubBeatsMode === 'auto' && subFactor > 1 &&
-            block.bpm * (metroBlkSpeedPercent / 100) * subFactor > 200;
-        if (beatInfo.isConductorBeat || !dropMicroDotAnimation) {
-            flashTierDot('metroBlkRow0Dots', beatInfo.clickIndexInBar);
-            flashTierDot('metroBlkMiniDots', beatInfo.clickIndexInBar);
-        }
+        // buildMetroDotRow actually created. ML-95 used to drop this flash for Auto-mode sub-beats
+        // above 200 subdivided BPM as a performance guardrail - written back when Auto only ever
+        // subdivided at slow tempos in the first place, so it was a rare edge case. ML-106 made Auto
+        // subdivide unconditionally, which meant this same threshold now silently dropped the flash at
+        // completely ordinary tempos (120 bpm x 2 = 240, already over it) - the click sound still
+        // played, just with no visible dot, reported as "auto sub-beats aren't showing as highlighted"
+        // (ML-111). Removed - Auto now animates every click exactly like Fixed mode already did.
+        flashTierDot('metroBlkRow0Dots', beatInfo.clickIndexInBar);
+        flashTierDot('metroBlkMiniDots', beatInfo.clickIndexInBar);
 
         // Advancing has to wait for every click of the target's last beat, sub-beats included, not
         // just that beat's own main click - a 4/4 bar with subdivide on isn't actually finished the
@@ -5152,6 +5403,84 @@
         document.getElementById('metroBlkSpeedModal').style.display = 'none';
     });
     renderMetroBlkSpeedLabels();
+
+    // --- Volume (ML-102) - mirrors the single-bar tool's own volume slider (renderMetroVolumeSlider/
+    // setMetroVolume, above) but scoped to metroBlkPlayer. Own in-memory-only state, not persisted -
+    // same as the single-bar tool's volume/mute (only headphone delay persists to localStorage). ---
+    let metroBlkVolume = 80;
+    let metroBlkMuted = false;
+
+    function renderMetroBlkVolumeSlider() {
+        const fill = document.getElementById('metroBlkVolumeFill');
+        const thumb = document.getElementById('metroBlkVolumeThumb');
+        if (!fill || !thumb) return;
+        fill.style.width = `${metroBlkVolume}%`;
+        thumb.style.left = `${metroBlkVolume}%`;
+        thumb.setAttribute('aria-valuenow', metroBlkVolume);
+    }
+    function setMetroBlkVolume(v) {
+        metroBlkVolume = Math.round(Math.min(100, Math.max(0, v)));
+        metroBlkPlayer.setVolume(metroBlkVolume / 100);
+        renderMetroBlkVolumeSlider();
+    }
+    setupSliderInteraction(document.getElementById('metroBlkVolumeTrack'), document.getElementById('metroBlkVolumeThumb'), {
+        onDragRatio: (ratio) => setMetroBlkVolume(ratio * 100),
+        onArrowStep: (dir) => setMetroBlkVolume(metroBlkVolume + dir * 5)
+    });
+    document.getElementById('metroBlkMuteBtn')?.addEventListener('click', () => {
+        metroBlkMuted = !metroBlkMuted;
+        metroBlkPlayer.setMuted(metroBlkMuted);
+        document.getElementById('metroBlkMuteIcon').innerText = metroBlkMuted ? 'volume_off' : 'volume_up';
+        document.getElementById('metroBlkMuteBtn').setAttribute('aria-pressed', String(metroBlkMuted));
+    });
+    renderMetroBlkVolumeSlider();
+
+    // --- Headphone calibration (ML-102) - a fixed 4-beat, 100 bpm, no-subdivide test loop on its own
+    // dedicated player (metroBlkCalibPlayerRef, set up above near metroBlkPlayerRef) rather than
+    // borrowing metroBlkPlayer, so testing the delay never disturbs whatever setup is actually loaded.
+    // Shares the same latency value as everything else via setMetroLatencyMs, so dragging +/- while
+    // this loop plays lets you hear/see the effect immediately.
+    const metroBlkCalibPlayer = createMetronomePlayer();
+    metroBlkCalibPlayerRef = metroBlkCalibPlayer;
+    metroBlkCalibPlayer.setConductorBpm(100);
+    metroBlkCalibPlayer.setConductorBeatsPerBar(4);
+    metroBlkCalibPlayer.setNotesPerBeat(1);
+    metroBlkCalibPlayer.setSubdivisionFactor(1);
+    metroBlkCalibPlayer.setVisualLatencyMs(metroState.latencyMs);
+    buildMetroDotRow('metroBlkCalibDots', 4, 1, false, (k) => (k / 4) * 100);
+    metroBlkCalibPlayer.onBeat((beatInfo) => flashTierDot('metroBlkCalibDots', beatInfo.clickIndexInBar));
+
+    function setMetroBlkCalibPlaying(playing) {
+        const icon = document.getElementById('metroBlkCalibPlayIcon');
+        if (playing) { metroBlkCalibPlayer.play(); if (icon) icon.innerText = 'pause'; }
+        else { metroBlkCalibPlayer.pause(); if (icon) icon.innerText = 'play_arrow'; }
+    }
+    document.getElementById('metroBlkCalibPlayBtn')?.addEventListener('click', () => {
+        setMetroBlkCalibPlaying(!metroBlkCalibPlayer.isPlaying());
+    });
+    // "Show/Hide headphone calibration" (ML-102) - collapsing it also stops the test loop, so it never
+    // keeps clicking away unnoticed behind the collapsed section.
+    document.getElementById('metroBlkCalibToggleBtn')?.addEventListener('click', (e) => {
+        const section = document.getElementById('metroBlkCalibSection');
+        if (!section) return;
+        const nowHidden = section.classList.toggle('hidden-group');
+        e.currentTarget.innerText = nowHidden ? 'Show headphone calibration' : 'Hide headphone calibration';
+        if (nowHidden) setMetroBlkCalibPlaying(false);
+    });
+    document.getElementById('metroBlkCalibLatencyMinusBtn')?.addEventListener('click', () => setMetroLatencyMs(metroState.latencyMs - METRO_LATENCY_STEP));
+    document.getElementById('metroBlkCalibLatencyPlusBtn')?.addEventListener('click', () => setMetroLatencyMs(metroState.latencyMs + METRO_LATENCY_STEP));
+    document.getElementById('metroBlkCalibLatencyResetBtn')?.addEventListener('click', () => setMetroLatencyMs(0));
+
+    function openMetroBlkVolumePopup() {
+        renderMetroBlkVolumeSlider();
+        document.getElementById('metroBlkVolumeModal').style.display = 'flex';
+    }
+    function closeMetroBlkVolumePopup() {
+        setMetroBlkCalibPlaying(false);
+        document.getElementById('metroBlkVolumeModal').style.display = 'none';
+    }
+    document.getElementById('metroBlkVolumeBtn')?.addEventListener('click', openMetroBlkVolumePopup);
+    document.getElementById('metroBlkVolumeCloseBtn')?.addEventListener('click', closeMetroBlkVolumePopup);
 
     // Shown only when actually playing at the moment a view change happens - see the single-bar
     // tool's updateMetroMiniBarVisibility for the full reasoning (same rule, same reason).

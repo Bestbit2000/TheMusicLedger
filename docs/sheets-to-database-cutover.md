@@ -33,6 +33,13 @@ from the old organisation name) and `created_by_account_id` set to the one
 account in the system today; filling in the rest happens later through a
 proper edit screen, not as part of this cutover.
 
+**Update (`ML-77`/`ML-89`):** that edit screen exists now, but only for a second,
+unrelated use of the same `bands` table added later - a real, shared,
+cross-account band directory (see `docs/database-schema.md`'s "Identity, bands &
+tutors" section). The private, per-account list described in this document (the
+session "who" tagging above, and the "Manage lists" screen) is completely
+untouched and still works exactly as decided here.
+
 ## Mapping: what exists today → what it becomes
 
 | Today (Google Sheet) | Becomes | Notes |

@@ -37,6 +37,8 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-feature-actions .btn-icon-delete { width: 30px; height: 30px; }
 .admin-feature-actions .material-symbols-outlined { font-size: 16px; }
 
+.admin-level-select { flex-shrink: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: var(--font-sm); }
+
 .admin-test-case { padding: var(--space-4); border-top: 1px solid var(--input-border); }
 .admin-test-case-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; gap: var(--space-3); }
 .admin-test-case-title { font-weight: 600; color: var(--text-color); }

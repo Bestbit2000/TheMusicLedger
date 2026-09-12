@@ -55,8 +55,8 @@ self-serve tier includes session recording/heatmaps).
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `accounts` | A person with a login | id, first_name, surname, email |
-| `bands` | An ensemble | id, name, website, contact_email, created_by_account_id |
+| `accounts` | A person with a login | id, first_name, surname, email, account_level |
+| `bands` | An ensemble | id, name, website, contact_email, created_by_account_id, active |
 | `band_members` | Standing membership | band_id, account_id, role |
 | `tutors` | Soft lookup, no login required | id, display_name, first_name, surname, email, active |
 | `tutor_account_links` | Connects a tutor lookup row to a real account, if the tutor has one | tutor_id, account_id, linked_at |
@@ -65,6 +65,28 @@ self-serve tier includes session recording/heatmaps).
 `progress_view_grants` points at `tutor_id`, not directly at an account, so a grant
 can exist before a tutor has linked a login — it just resolves once
 `tutor_account_links` connects them.
+
+**`accounts.account_level`** (`024_account_levels.sql`, `ML-77`): a site-wide tier —
+`super_admin`/`band_admin`/`premium_member`/`standard_member`/`beta_tester`, plain
+`TEXT` + inline `CHECK`, same pattern as `band_members.role` below. Defaults to
+`standard_member`; the migration bootstraps one real account to `super_admin` so
+there's always someone able to promote others from the admin panel
+(`server/routes/admin.js`'s `requireSuperAdmin`, which now gates that entire
+router — see `server/middleware/auth.js`). A different axis from
+`band_members.role`, which is scoped to one band, not the whole app.
+
+**`bands`/`band_members` as a shared directory** (`ML-77`/`ML-89`): the `bands`
+table already served a private, per-account purpose (the old Sheets "who was this
+session for" label list, scoped by `created_by_account_id` — still exactly as-is,
+see `docs/sheets-to-database-cutover.md`). `server/services/bands.js` now also
+exposes a second, unrelated use of the same table: a real, shared, cross-account
+directory (no `created_by_account_id` scoping) with actual membership via
+`band_members` (previously unused), behind `/api/account/bands` (self-service —
+anyone can add a band, duplicate-checked by website domain, reachability-checked
+only, no attempt to judge "is this band-like") and `/api/admin/bands` (Super-admin
+CRUD with a per-band member count). A band still linked to a real member or
+session history is archived (`active = false`) rather than deleted, mirroring
+`archiveOrDeleteBand`'s existing session-history-only check.
 
 ### Scores & metronome segments (Jira `ML-35`)
 

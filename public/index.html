@@ -55,10 +55,12 @@
                 <div class="dropdown-item" onclick="switchView('statsView'); closeMenu();">View stats</div>
                 <div class="dropdown-item" onclick="switchView('manageChallengesView'); closeMenu();">Manage challenges</div>
                 <div class="dropdown-item" onclick="switchView('manageListsView'); closeMenu();">Manage lists</div>
+                <div class="dropdown-item" onclick="switchView('accountView'); closeMenu();">My account</div>
                 <div class="dropdown-item" onclick="switchView('settingsView'); closeMenu();">Settings</div>
-                <!-- No is_admin/role check yet (ML-26) - visible to every logged-in
-                     account for now, deliberately, until real admin gating lands. -->
-                <a class="dropdown-item" href="/admin.html">Administration</a>
+                <!-- ML-77: admin.html itself gates to Super admin accounts - this link is
+                     hidden for everyone else (see syncAdminLinkVisibility) so it isn't
+                     dangled in front of accounts that would just bounce off a notice. -->
+                <a class="dropdown-item hidden-group" id="adminNavLink" href="/admin.html">Administration</a>
                 <div class="dropdown-item" onclick="switchView('aboutView'); closeMenu();">About</div>
                 <div class="dropdown-item" onclick="closeMenu(); logoutUser();">Log out</div>
             </div>
@@ -381,6 +383,60 @@
         </div>
     </div>
 
+    <!-- ML-77: name/email/level/signup date + real band membership. Distinct from
+         "Manage lists" above, which is the private per-account "who was this
+         session for" label list and is untouched by this. -->
+    <div id="accountView" style="display:none;">
+        <div class="section-title">Your details</div>
+        <div class="form-group">
+            <label for="accountFirstNameInput">First name</label>
+            <input type="text" id="accountFirstNameInput" placeholder="First name">
+        </div>
+        <div class="form-group">
+            <label for="accountSurnameInput">Last name</label>
+            <input type="text" id="accountSurnameInput" placeholder="Last name">
+        </div>
+        <button class="btn-submit" style="width:auto; padding:10px 20px;" id="accountSaveNameBtn">Save</button>
+
+        <div class="section-title" style="margin-top:var(--space-6);">Account</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 12px 15px; background: var(--input-bg); border-radius: 12px; border: 1px solid var(--input-border);">
+            <span>Email</span><strong id="accountEmailReadout"></strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 12px 15px; background: var(--input-bg); border-radius: 12px; border: 1px solid var(--input-border);">
+            <span>Account level</span><strong id="accountLevelReadout"></strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 12px 15px; background: var(--input-bg); border-radius: 12px; border: 1px solid var(--input-border);">
+            <span>Member since</span><strong id="accountJoinedReadout"></strong>
+        </div>
+
+        <div class="section-title" style="margin-top:var(--space-6);">Your bands</div>
+        <div id="accountBandsList"></div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <select id="accountBandPicker" style="flex:1;"><option value="">Choose a band to join&hellip;</option></select>
+            <button class="btn-submit" style="width:auto; padding:10px 20px;" id="accountJoinBandBtn">Join</button>
+        </div>
+        <button type="button" class="btn-text" id="accountAddBandToggleBtn">Can't find your band? Add it</button>
+        <div class="hidden-group" id="accountAddBandSection">
+            <div class="form-group">
+                <label for="accountNewBandNameInput">Band name</label>
+                <input type="text" id="accountNewBandNameInput" placeholder="e.g. Bourne Concert Band">
+            </div>
+            <div class="form-group">
+                <label for="accountNewBandWebsiteInput">Website</label>
+                <input type="text" id="accountNewBandWebsiteInput" placeholder="https://...">
+            </div>
+            <button class="btn-submit" style="width:auto; padding:10px 20px;" id="accountAddBandBtn">Add &amp; join</button>
+        </div>
+    </div>
+
+    <!-- One shared floating menu for every band row (ML-89 follow-up), repositioned against whichever
+         row's "more" button was tapped - mirrors Metronome Blocks' own per-tile menu pattern. Delete is
+         only shown when the currently-targeted band's canDelete says so (see openAccountBandMenu). -->
+    <div class="dropdown-menu account-band-menu" id="accountBandMenu">
+        <div class="dropdown-item" id="accountBandMenuLeave">Leave band</div>
+        <div class="dropdown-item account-band-menu-delete hidden-group" id="accountBandMenuDelete">Delete band</div>
+    </div>
+
     <div id="aboutView" style="display:none;">
         <div id="aboutCurrentRelease"></div>
         <div class="section-title">Release history</div>
@@ -509,6 +565,10 @@
             <button type="button" class="metroBlk-ctrl-value-btn" id="metroBlkSpeedBtn" aria-label="Play speed - tap to change">
                 <strong id="metroBlkSpeedLbl">100%</strong>
                 <span class="metroBlk-ctrl-value-label">play speed</span>
+            </button>
+            <button type="button" class="metroBlk-ctrl-value-btn" id="metroBlkVolumeBtn" aria-label="Volume - tap to change">
+                <span class="material-symbols-outlined" id="metroBlkVolumeIcon">volume_up</span>
+                <span class="metroBlk-ctrl-value-label">volume</span>
             </button>
         </div>
 
@@ -817,10 +877,10 @@
                 <label for="metroBlkSubdivideOff">Off</label>
                 <input type="radio" name="metroBlkSubdivideOnOff" id="metroBlkSubdivideAuto" value="auto">
                 <label for="metroBlkSubdivideAuto">Auto</label>
-                <input type="radio" name="metroBlkSubdivideOnOff" id="metroBlkSubdivideOn" value="on">
-                <label for="metroBlkSubdivideOn">On</label>
+                <input type="radio" name="metroBlkSubdivideOnOff" id="metroBlkSubdivideFixed" value="fixed">
+                <label for="metroBlkSubdivideFixed">Fixed</label>
             </div>
-            <p class="metro-help-text">Auto reveals sub-beats on their own once the tempo drops low enough to need them.</p>
+            <p class="metro-help-text">Auto always shows sub-beats, using the number that fits the time signature. Fixed lets you set your own number.</p>
         </div>
         <div class="metroBlk-bpm-box hidden-group" id="metroBlkSubdivideBpmBox" style="margin-top:var(--space-4);">
             <div class="metro-speed-row no-margin">
@@ -865,6 +925,39 @@
             <button type="button" class="metroBlk-timesig-opt" data-value="130">130%</button>
             <button type="button" class="metroBlk-timesig-opt" data-value="140">140%</button>
             <button type="button" class="metroBlk-timesig-opt" data-value="150">150%</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="metroBlkVolumeModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" id="metroBlkVolumeCloseBtn" aria-label="Close">&times;</button>
+        <h2>Volume</h2>
+        <div class="metro-volume-row">
+            <button class="metro-mute-btn" id="metroBlkMuteBtn" aria-label="Mute" aria-pressed="false"><span class="material-symbols-outlined" id="metroBlkMuteIcon">volume_up</span></button>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="metroBlkVolumeTrack">
+                    <div class="slider-fill" id="metroBlkVolumeFill"></div>
+                    <div class="slider-thumb" id="metroBlkVolumeThumb" tabindex="0" role="slider" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="80"></div>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="btn-text" id="metroBlkCalibToggleBtn">Show headphone calibration</button>
+        <div class="hidden-group" id="metroBlkCalibSection">
+            <p class="metro-help-text">Bluetooth headphones/speakers add their own audio delay that the app can't detect - play the test beats and nudge the delay until the circle you see lines up with the click you hear.</p>
+            <div class="metro-transport-row">
+                <button class="metro-transport-btn metro-play-btn" id="metroBlkCalibPlayBtn" aria-label="Play test beats"><span class="material-symbols-outlined" id="metroBlkCalibPlayIcon">play_arrow</span></button>
+            </div>
+            <div class="metro-tier" id="metroBlkCalibDots"></div>
+            <div class="metro-speed-row">
+                <button class="metro-speed-btn" id="metroBlkCalibLatencyMinusBtn" aria-label="Less delay">&minus;</button>
+                <div class="metro-speed-readout">
+                    <div id="metroBlkCalibLatencyMs">0 ms</div>
+                </div>
+                <button class="metro-speed-btn" id="metroBlkCalibLatencyPlusBtn" aria-label="More delay">+</button>
+            </div>
+            <button class="metro-speed-reset" id="metroBlkCalibLatencyResetBtn">Reset to 0ms</button>
         </div>
     </div>
 </div>
