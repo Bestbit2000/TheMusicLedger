@@ -16,6 +16,7 @@
         return;
     }
 
+
     async function apiCall(endpoint, method = 'GET', body = null) {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
             method,
@@ -309,9 +310,9 @@
         document.getElementById(`${sectionName}-section`).classList.remove('hidden-group');
     }
 
-    // Section switching - "Features", "Release tests", "Accounts" and "Bands"
-    // are wired up to the sidebar; "Usage" stays a disabled placeholder until
-    // built. "Test cases" is a sub-view reached via a link, not the sidebar.
+    // Section switching - all sidebar items ("Features", "Release tests",
+    // "Accounts", "Bands", "Metadata lists", "Usage") toggle a section by
+    // data-section. "Test cases" is a sub-view reached via a link, not the sidebar.
     function initNav() {
         document.querySelectorAll('.admin-nav-item[data-section]').forEach((btn) => {
             btn.addEventListener('click', () => showSection(btn.dataset.section));
@@ -731,6 +732,56 @@
         renderDurationUsageList(durationUsage);
     }
 
+    // ---- App config (ML-47) - small admin-editable settings, e.g. the PostHog dashboard link,
+    // stored in the app_config table so they can change without a release. Generic by key so a
+    // second dashboard/link later reuses the same modal, not a one-off. ----
+    let editingConfigKey = null;
+
+    function openConfigForm(key, title, currentValue) {
+        editingConfigKey = key;
+        document.getElementById('configFormTitle').textContent = title;
+        document.getElementById('configValueInput').value = currentValue || '';
+        document.getElementById('configFormModal').style.display = 'flex';
+        document.getElementById('configValueInput').focus();
+    }
+
+    function closeConfigForm() {
+        document.getElementById('configFormModal').style.display = 'none';
+        editingConfigKey = null;
+    }
+
+    async function saveConfigForm() {
+        const value = document.getElementById('configValueInput').value.trim();
+        const saveBtn = document.getElementById('configFormSaveBtn');
+        saveBtn.disabled = true;
+        try {
+            await apiCall(`/api/admin/config/${editingConfigKey}`, 'PUT', { value });
+            closeConfigForm();
+            await reloadPosthogLink();
+        } catch (error) {
+            showToast(error.message);
+        } finally {
+            saveBtn.disabled = false;
+        }
+    }
+
+    function initConfigForm() {
+        document.getElementById('editPosthogLinkBtn')?.addEventListener('click', () =>
+            openConfigForm('posthog_dashboard_url', 'Edit PostHog dashboard link', lastPosthogLinkValue));
+        document.getElementById('configFormCancelBtn')?.addEventListener('click', closeConfigForm);
+        document.getElementById('configFormSaveBtn')?.addEventListener('click', saveConfigForm);
+    }
+
+    let lastPosthogLinkValue = '';
+    async function reloadPosthogLink() {
+        const { value } = await apiCall('/api/admin/config/posthog_dashboard_url');
+        lastPosthogLinkValue = value || '';
+        const el = document.getElementById('posthogLinkText');
+        el.innerHTML = lastPosthogLinkValue
+            ? `<a href="${escapeHtml(lastPosthogLinkValue)}" target="_blank" rel="noopener">${escapeHtml(lastPosthogLinkValue)}</a>`
+            : 'Not set.';
+    }
+
     // ---- Playback speeds ----
     let speedsById = new Map();
     function renderSpeedsList(speeds) {
@@ -822,6 +873,7 @@
         initDurationForm();
         initTimeSigForm();
         initSpeedForm();
+        initConfigForm();
         document.getElementById('adminShell').classList.remove('hidden-group');
         try {
             const [backtest, featuresRes] = await Promise.all([
@@ -831,7 +883,7 @@
             renderSummary(backtest);
             renderFeatures(backtest);
             renderFeaturesCatalog(featuresRes.features);
-            await Promise.all([reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage()]);
+            await Promise.all([reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadPosthogLink()]);
         } catch (error) {
             document.getElementById('featuresCatalog').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`;
             document.getElementById('featureList').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`;

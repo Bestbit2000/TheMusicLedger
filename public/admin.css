@@ -5,7 +5,7 @@
 
 body.admin-body { display: block; background: var(--bg-color); }
 
-.admin-logged-out { max-width: 500px; margin: 80px auto; text-align: center; padding: 0 var(--space-5); }
+.admin-logged-out { max-width: var(--app-max-width); margin: 80px auto; text-align: center; padding: 0 var(--space-5); }
 
 .admin-shell { display: flex; min-height: 100vh; }
 

@@ -16,6 +16,7 @@ import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBa
 import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption, deleteDurationOption, listDurationUsageStats } from '../services/durationOptions.js';
 import { listTimeSignatureOptionsForAdmin, createTimeSignatureOption, updateTimeSignatureOption, deleteOrArchiveTimeSignatureOption, listNoteValueUsage } from '../services/timeSignatures.js';
 import { listPlaybackSpeedsForAdmin, createPlaybackSpeedOption, updatePlaybackSpeedOption, deletePlaybackSpeedOption } from '../services/playbackSpeeds.js';
+import { getConfigValue, setConfigValue } from '../services/appConfig.js';
 
 const router = express.Router();
 
@@ -446,6 +447,27 @@ router.delete('/playback-speeds/:id', requireAuth, resolveAccount, requireSuperA
   try {
     await deletePlaybackSpeedOption(req.params.id);
     res.json({ message: 'Playback speed deleted' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// ========================================
+// APP CONFIG (ML-47) - small admin-editable settings, e.g. the PostHog
+// dashboard link, that shouldn't need a release to change. Only known keys
+// (seeded by migration) can be read/written - see services/appConfig.js.
+// ========================================
+router.get('/config/:key', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ key: req.params.key, value: await getConfigValue(req.params.key) });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/config/:key', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ key: req.params.key, value: await setConfigValue(req.params.key, req.body.value) });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }

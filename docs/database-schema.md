@@ -26,7 +26,9 @@ from the database — whatever auth system is used just needs to resolve to an
 `accounts.id`.
 
 Heatmap/usage analytics: **PostHog** (separate concern from the database, free
-self-serve tier includes session recording/heatmaps).
+self-serve tier includes session recording/heatmaps) — wired up client-side
+via autocapture per `ML-47`, see [`docs/third-party-providers.md`](third-party-providers.md)
+and `public/analytics.js`.
 
 ## Guiding principles
 
@@ -225,6 +227,16 @@ the (also admin-managed) `time_signature_options` catalog above and a
 read-only usage view over `metronome_segments.note_value`'s fixed 5-value
 CHECK constraint - the note-value set itself isn't a table, since musical
 notation fixes it, not app data.
+
+### App config (`ML-47`)
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `app_config` | Generic key/value store for small admin-editable settings that shouldn't need a release to change - currently just `posthog_dashboard_url` (the admin panel's Usage-section link to the PostHog project) | key (PK), value, updated_at |
+
+Not for secrets (readable by any super admin via `/api/admin/config`, same
+trust boundary as the rest of that router) and not a replacement for env vars
+or the `features` table above - just small display-only values.
 
 ### Feature catalog & back-test registry (`ML-26`, `ML-29`)
 

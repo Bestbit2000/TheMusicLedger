@@ -95,6 +95,17 @@
         <section id="usage-section" class="admin-section hidden-group">
             <h1>Usage</h1>
             <p class="admin-intro">Stats-only views, not management - see Metadata lists for adding/editing/deleting the lists themselves.</p>
+            <div class="admin-feature">
+                <div class="admin-feature-header">
+                    <div class="admin-feature-header-text">
+                        <h2>Feature-click analytics</h2>
+                        <p id="posthogLinkText">Loading&hellip;</p>
+                    </div>
+                    <div class="admin-feature-actions">
+                        <button class="btn-icon-edit" id="editPosthogLinkBtn" aria-label="Edit PostHog dashboard link" type="button"><span class="material-symbols-outlined">edit</span></button>
+                    </div>
+                </div>
+            </div>
             <div class="admin-subtabs">
                 <button class="admin-subtab-item active" data-subtab="usage-durations" type="button">Durations</button>
                 <button class="admin-subtab-item" data-subtab="usage-notevalues" type="button">Note values</button>
@@ -193,6 +204,17 @@
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="speedFormCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="speedFormSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="configFormModal">
+    <div class="modal-content">
+        <h2 id="configFormTitle">Edit link</h2>
+        <div class="form-group"><label for="configValueInput">URL</label><input type="text" id="configValueInput" placeholder="https://..."></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="configFormCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="configFormSaveBtn" type="button">Save</button>
         </div>
     </div>
 </div>

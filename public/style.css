@@ -32,6 +32,11 @@
         --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 15px;
         --space-5: 20px; --space-6: 25px; --space-7: 30px; --space-8: 40px;
 
+        /* App layout width. Single source of truth for the app's centered-column width (ML-53) -
+           every top-bar/container/mini-bar/edit-bar below derives from this instead of repeating
+           the literal px value, so they can't drift out of sync with each other. */
+        --app-max-width: 500px;
+
         /* Radius scale. --radius-md is the standard for every rectangular button/tile in the app -
            see the button design-system comment below. The others are for non-button surfaces (cards,
            modals, inputs); --radius-pill stays reserved for badges/chips (.admin-badge etc in
@@ -67,8 +72,17 @@
 
     body { font-family: var(--font-sans); background: var(--bg-color); color: var(--text-color); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
 
+    /* #mainContainer is body's other flex child alongside .top-bar-sticky-group (ML-53) - it needs
+       the exact same explicit width:100%/max-width pairing that group already has, or its cross-axis
+       size under body's align-items:center falls back to shrink-to-fit over whichever single view is
+       currently display:block (every other view is display:none, so it isn't part of the calculation).
+       That made the whole app's width silently vary page to page on desktop - narrower on views whose
+       content doesn't need the full 500px (e.g. mainView), full 500px on wider ones (e.g. timerView) -
+       invisible on mobile only because the sub-768px breakpoint already strips max-width everywhere. */
+    #mainContainer { width: 100%; max-width: var(--app-max-width); }
+
     .top-bar-sticky-group { width: 100%; display: flex; flex-direction: column; align-items: center; position: sticky; top: 0; z-index: 50; }
-    .top-bar { width: 100%; max-width: 500px; background: var(--container-bg); padding: 15px 20px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-md); }
+    .top-bar { width: 100%; max-width: var(--app-max-width); background: var(--container-bg); padding: 15px 20px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-md); }
     .top-bar-title { font-size: var(--font-md); font-weight: bold; flex-grow: 1; text-align: center; }
     .top-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-color); padding: 5px 10px; font-weight: bold; }
     /* On/off state shown as a filled circle (ML-91) rather than swapping icon glyphs - a diagonal-
@@ -91,7 +105,7 @@
     .account-band-menu { position: fixed; top: auto; right: auto; left: auto; min-width: 160px; }
     .account-band-menu-delete { color: var(--danger-color); border-top: 1px solid var(--input-border); }
 
-    .container { width: 100%; max-width: 500px; background: var(--container-bg); padding: var(--space-5); box-sizing: border-box; min-height: calc(100vh - 60px); }
+    .container { width: 100%; max-width: var(--app-max-width); background: var(--container-bg); padding: var(--space-5); box-sizing: border-box; min-height: calc(100vh - 60px); }
 
     .btn-large, .btn-submit, .btn-nav, .btn-filter { display: block; width: 100%; color: white; border: none; padding: var(--space-4); font-size: var(--font-md); font-weight: bold; border-radius: var(--radius-md); cursor: pointer; margin-bottom: var(--space-4); box-sizing: border-box; text-align: center; }
     .btn-large { background: var(--primary-action); color: var(--primary-action-text); font-size: var(--font-lg); padding: 18px; }
@@ -410,7 +424,7 @@
     /* Minimised timer bar (ML-7) - lives in .top-bar-sticky-group directly under
        .top-bar, shown whenever a timer is running/paused and the Timer screen
        itself isn't on-screen. */
-    .timer-mini-bar { width: 100%; max-width: 500px; box-sizing: border-box; background: var(--secondary-color); padding: var(--space-2) var(--space-5); display: flex; justify-content: space-between; align-items: center; font-variant-numeric: tabular-nums; }
+    .timer-mini-bar { width: 100%; max-width: var(--app-max-width); box-sizing: border-box; background: var(--secondary-color); padding: var(--space-2) var(--space-5); display: flex; justify-content: space-between; align-items: center; font-variant-numeric: tabular-nums; }
     .timer-mini-times { display: flex; align-items: baseline; gap: var(--space-1); font-size: var(--font-sm); font-weight: bold; color: var(--text-color); }
     .timer-mini-label { font-weight: normal; color: var(--label-color); margin-right: var(--space-2); }
     .timer-mini-sep { color: var(--label-color); }
@@ -422,7 +436,7 @@
        metronome has been played/paused (not stopped) and the Metronome screen itself isn't on-screen.
        Unlike the timer's flush full-width bar, this is its own contained "box" with rounded corners
        and a small margin, per the design - two lines: the beat circles, then a row of quick controls. */
-    .metro-mini-bar { width: calc(100% - 30px); max-width: 470px; box-sizing: border-box; background: var(--secondary-color); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin: 0 0 var(--space-3) 0; }
+    .metro-mini-bar { width: calc(100% - 30px); max-width: calc(var(--app-max-width) - 30px); box-sizing: border-box; background: var(--secondary-color); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin: 0 0 var(--space-3) 0; }
     /* Same viewport/scroll-content split as the full view's .metro-display-viewport/-content, so the
        mini bar's row can pan too once there are too many beats to fit its (much narrower) box (ML-64
        feedback: it needs to pan just like the full view, not just cram everything in). */
@@ -468,7 +482,7 @@
        inline, so it's reachable without scrolling back up however long the block list gets, and the
        reminder to save stays in view the whole time. Matches .container's own max-width/centering so
        it lines up with the page above it on wide viewports. */
-    .metroBlk-edit-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; width: 100%; max-width: 500px; margin: 0 auto; box-sizing: border-box; background: var(--container-bg); border-top: 2px solid var(--primary-action); box-shadow: var(--shadow-xl); padding: var(--space-3) var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
+    .metroBlk-edit-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; width: 100%; max-width: var(--app-max-width); margin: 0 auto; box-sizing: border-box; background: var(--container-bg); border-top: 2px solid var(--primary-action); box-shadow: var(--shadow-xl); padding: var(--space-3) var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
     .metroBlk-edit-bar-text { font-size: var(--font-sm); color: var(--label-color); text-align: center; }
     .metroBlk-edit-bar-actions { display: flex; gap: var(--space-3); }
     /* Keeps the last tile/setups-list row from ever sitting under the fixed bar above. */
