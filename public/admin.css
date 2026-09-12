@@ -14,6 +14,11 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-nav-item { display: block; width: 100%; text-align: left; background: none; border: none; border-left: 3px solid transparent; padding: var(--space-3) var(--space-5); font-size: var(--font-base); font-weight: 600; font-family: var(--font-sans); color: var(--text-color); cursor: pointer; }
 .admin-nav-item:disabled { color: var(--label-color); cursor: default; }
 .admin-nav-item.active { background: var(--secondary-color); border-left-color: var(--primary-action); }
+/* ML-110: the sidebar's own <a> (not <button>) needs its default link colour/underline reset to
+   match the plain nav buttons above/below it, plus a separator so it doesn't read as just another
+   section tab. */
+.admin-back-link { text-decoration: none; color: var(--label-color); border-bottom: 1px solid var(--input-border); margin-bottom: var(--space-2); padding-bottom: var(--space-4); }
+.admin-back-link:hover { color: var(--text-color); }
 
 .admin-content { flex: 1; padding: var(--space-6) var(--space-7); box-sizing: border-box; max-width: 900px; }
 .admin-content h1 { margin-top: 0; color: var(--text-color); }
@@ -27,17 +32,32 @@ body.admin-body { display: block; background: var(--bg-color); }
 
 .admin-add-btn { max-width: 220px; margin-bottom: var(--space-5); }
 
+/* ML-109: the Metadata lists section's own inner tab row (Durations/Time signatures/Note values/
+   Playback speeds) - a horizontal counterpart to .admin-nav-item's vertical sidebar tabs, since these
+   four live inside one section rather than as separate top-level sidebar entries. */
+.admin-subtabs { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-5); border-bottom: 1px solid var(--input-border); }
+.admin-subtab-item { background: none; border: none; border-bottom: 3px solid transparent; padding: var(--space-3) var(--space-4); margin-bottom: -1px; font-size: var(--font-base); font-weight: 600; font-family: var(--font-sans); color: var(--label-color); cursor: pointer; }
+.admin-subtab-item.active { color: var(--text-color); border-bottom-color: var(--primary-action); }
+
 .admin-feature { border: 1px solid var(--input-border); border-radius: var(--radius-md); margin-bottom: var(--space-5); overflow: hidden; }
-.admin-feature-header { background: var(--input-bg); padding: var(--space-4); display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); }
+/* flex-wrap (plus the text side's own min-width:0 below) lets a wide sibling - the level <select>,
+   or actions - drop to its own line under the text on a narrow viewport instead of overlapping it:
+   the admin sidebar (.admin-sidebar, 220px fixed) leaves very little width for content on a phone-
+   width screen, and a plain no-wrap flex row has nowhere else to put a sibling that doesn't fit. */
+.admin-feature-header { background: var(--input-bg); padding: var(--space-4); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: var(--space-3); }
 .admin-feature-header-text { flex: 1; min-width: 0; }
 .admin-feature-header h2 { margin: 0 0 4px 0; font-size: var(--font-md); color: var(--text-color); }
 .admin-feature-header p { margin: 0; color: var(--label-color); font-size: var(--font-sm); }
+/* Bare <a> tags (band website links) otherwise fall back to the browser's default link blue/purple,
+   which is very low-contrast against a dark background - every other in-app link already sets an
+   explicit colour (e.g. .admin-test-case-meta a below), this one just hadn't yet. */
+.admin-feature-header p a { color: var(--info-color); }
 .admin-feature-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
 .admin-feature-actions .btn-icon-edit,
 .admin-feature-actions .btn-icon-delete { width: 30px; height: 30px; }
 .admin-feature-actions .material-symbols-outlined { font-size: 16px; }
 
-.admin-level-select { flex-shrink: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: var(--font-sm); }
+.admin-level-select { flex-shrink: 0; max-width: 100%; box-sizing: border-box; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: var(--font-sm); }
 
 .admin-test-case { padding: var(--space-4); border-top: 1px solid var(--input-border); }
 .admin-test-case-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; gap: var(--space-3); }

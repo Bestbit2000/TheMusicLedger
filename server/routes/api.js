@@ -14,6 +14,7 @@ import { listDurationOptions } from '../services/durationOptions.js';
 import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSignaturesWithUsage, setCustomTimeSignatureActive, deleteCustomTimeSignature } from '../services/timeSignatures.js';
 import { listAdhocSetups, createAdhocSetup, renameAdhocSetup, saveAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, getOrCreateScratchSetup, createNamedAdhocSetup, duplicateAdhocSetup } from '../services/metronomeSetups.js';
 import { createSegment, updateSegment, deleteSegment } from '../services/metronomeSegments.js';
+import { listActivePlaybackSpeeds } from '../services/playbackSpeeds.js';
 
 const router = express.Router();
 
@@ -610,6 +611,16 @@ router.get('/time-signatures', requireAuth, resolveAccount, async (req, res) => 
     res.json(await listTimeSignatureOptions(req.accountId));
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// ML-109: Metronome Blocks' play-speed presets, previously hardcoded in index.html - now admin-
+// managed (server/routes/admin.js), same shape as duration_options.
+router.get('/metronome/playback-speeds', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await listActivePlaybackSpeeds());
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

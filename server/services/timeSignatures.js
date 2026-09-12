@@ -96,3 +96,95 @@ export async function deleteCustomTimeSignature(accountId, id) {
   const result = await pool.query('DELETE FROM account_time_signatures WHERE id = $1 AND account_id = $2', [id, accountId]);
   if (result.rowCount === 0) throw withStatus(404, 'Time signature not found');
 }
+
+// ---- Admin panel (ML-109) - the public catalog (time_signature_options), usage counted across
+// every account's blocks, not just one account's own (unlike listCustomTimeSignaturesWithUsage
+// above, which is deliberately scoped to the account making the request). ----
+
+export async function listTimeSignatureOptionsForAdmin() {
+  const { rows } = await pool.query(
+    `SELECT tso.id, tso.numerator, tso.denominator, tso.label, tso.sort_order, tso.active,
+            COUNT(ms.id) AS usage_count
+     FROM time_signature_options tso
+     LEFT JOIN metronome_segments ms ON ms.time_signature_id = tso.id
+     GROUP BY tso.id
+     ORDER BY tso.sort_order`
+  );
+  return rows.map(r => ({
+    id: Number(r.id), numerator: r.numerator, denominator: r.denominator, label: r.label,
+    sortOrder: r.sort_order, active: r.active, usageCount: Number(r.usage_count)
+  }));
+}
+
+export async function createTimeSignatureOption(numerator, denominator, label) {
+  const n = Number(numerator), d = Number(denominator);
+  if (!Number.isInteger(n) || n <= 0 || !Number.isInteger(d) || d <= 0) {
+    throw withStatus(400, 'Numerator and denominator must both be whole numbers greater than 0.');
+  }
+  try {
+    const maxOrder = await pool.query('SELECT COALESCE(MAX(sort_order), 0) AS max FROM time_signature_options');
+    const { rows } = await pool.query(
+      `INSERT INTO time_signature_options (numerator, denominator, label, sort_order)
+       VALUES ($1, $2, $3, $4) RETURNING id`,
+      [n, d, label || `${n}/${d}`, Number(maxOrder.rows[0].max) + 1]
+    );
+    return { id: Number(rows[0].id) };
+  } catch (error) {
+    if (error.code === '23505') throw withStatus(409, `${n}/${d} is already in the list.`);
+    throw error;
+  }
+}
+
+export async function updateTimeSignatureOption(id, { numerator, denominator, label, sortOrder, active }) {
+  const n = Number(numerator), d = Number(denominator);
+  if (!Number.isInteger(n) || n <= 0 || !Number.isInteger(d) || d <= 0) {
+    throw withStatus(400, 'Numerator and denominator must both be whole numbers greater than 0.');
+  }
+  try {
+    const { rows } = await pool.query(
+      `UPDATE time_signature_options SET numerator = $1, denominator = $2, label = $3, sort_order = $4, active = $5
+       WHERE id = $6 RETURNING id`,
+      [n, d, label || `${n}/${d}`, Number(sortOrder) || 0, !!active, id]
+    );
+    if (!rows.length) throw withStatus(404, 'Time signature not found');
+  } catch (error) {
+    if (error.code === '23505') throw withStatus(409, `${n}/${d} is already in the list.`);
+    throw error;
+  }
+}
+
+// Archived rather than deleted outright if any block anywhere still references it - same
+// archive-if-used pattern as the rest of the app (archiveOrDeleteBand, deleteOrArchiveBandAdmin).
+export async function deleteOrArchiveTimeSignatureOption(id) {
+  const usage = await pool.query('SELECT COUNT(*) AS c FROM metronome_segments WHERE time_signature_id = $1', [id]);
+  const inUse = Number(usage.rows[0].c) > 0;
+  if (inUse) {
+    await pool.query('UPDATE time_signature_options SET active = false WHERE id = $1', [id]);
+  } else {
+    const result = await pool.query('DELETE FROM time_signature_options WHERE id = $1', [id]);
+    if (result.rowCount === 0) throw withStatus(404, 'Time signature not found');
+  }
+  return inUse;
+}
+
+// ---- Note values (ML-109) - read-only: metronome_segments.note_value is a fixed 5-value CHECK
+// constraint (db/migrations/023_segment_note_value.sql), not a separate table, so there's nothing to
+// add/edit/delete here - just the ticket's own "identify usage" ask, one row per known value
+// (including ones with zero current usage) rather than only values that happen to appear already. ----
+
+const NOTE_VALUE_LABELS = [
+  ['quaver', 'Quaver'],
+  ['crotchet', 'Crotchet'],
+  ['dotted-crotchet', 'Dotted crotchet'],
+  ['minim', 'Minim'],
+  ['semibreve', 'Semibreve']
+];
+
+export async function listNoteValueUsage() {
+  const { rows } = await pool.query(
+    `SELECT note_value, COUNT(*) AS usage_count FROM metronome_segments
+     WHERE note_value IS NOT NULL GROUP BY note_value`
+  );
+  const counts = new Map(rows.map(r => [r.note_value, Number(r.usage_count)]));
+  return NOTE_VALUE_LABELS.map(([value, label]) => ({ value, label, usageCount: counts.get(value) || 0 }));
+}

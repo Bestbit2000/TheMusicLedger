@@ -503,11 +503,302 @@
         document.getElementById('bandFormSaveBtn')?.addEventListener('click', saveBandForm);
     }
 
+    // ========================================
+    // Metadata lists (ML-109) - Durations, Time signatures, Note values (read-only),
+    // Playback speeds. One inner sub-tab row inside the Metadata lists section.
+    // ========================================
+    function initMetadataSubtabs() {
+        document.querySelectorAll('.admin-subtab-item[data-subtab]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.admin-subtab-item[data-subtab]').forEach((b) => b.classList.remove('active'));
+                document.querySelectorAll('.admin-subtab-panel').forEach((p) => p.classList.add('hidden-group'));
+                btn.classList.add('active');
+                document.getElementById(`${btn.dataset.subtab}-subtab`).classList.remove('hidden-group');
+            });
+        });
+    }
+
+    // ---- Durations ----
+    let durationsById = new Map();
+    function renderDurationsList(durations) {
+        durationsById = new Map(durations.map(d => [d.id, d]));
+        const el = document.getElementById('durationsList');
+        if (!durations.length) { el.innerHTML = '<p>No durations yet - use "+ Add duration" above.</p>'; return; }
+        el.innerHTML = durations.map(d => `
+            <div class="admin-feature">
+                <div class="admin-feature-header">
+                    <div class="admin-feature-header-text">
+                        <h2>${d.minutes} minutes${d.active ? '' : ' (inactive)'}</h2>
+                    </div>
+                    <div class="admin-feature-actions">
+                        <button class="btn-icon-edit" data-edit-id="${d.id}" aria-label="Edit ${d.minutes} minutes" type="button"><span class="material-symbols-outlined">edit</span></button>
+                        <button class="btn-icon-delete" data-delete-id="${d.id}" aria-label="Delete ${d.minutes} minutes" type="button"><span class="material-symbols-outlined">delete</span></button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        el.querySelectorAll('[data-edit-id]').forEach((btn) => {
+            btn.addEventListener('click', () => openDurationForm(durationsById.get(Number(btn.dataset.editId))));
+        });
+        el.querySelectorAll('[data-delete-id]').forEach((btn) => {
+            btn.addEventListener('click', () => deleteDuration(Number(btn.dataset.deleteId)));
+        });
+    }
+    async function reloadDurations() {
+        const { durations } = await apiCall('/api/admin/durations');
+        renderDurationsList(durations);
+    }
+    let editingDurationId = null;
+    function openDurationForm(duration) {
+        editingDurationId = duration ? duration.id : null;
+        document.getElementById('durationFormTitle').textContent = duration ? 'Edit duration' : 'Add duration';
+        document.getElementById('durationMinutesInput').value = duration ? duration.minutes : '';
+        document.getElementById('durationActiveInput').checked = duration ? duration.active : true;
+        document.getElementById('durationActiveRow').classList.toggle('hidden-group', !duration);
+        document.getElementById('durationFormModal').style.display = 'flex';
+        document.getElementById('durationMinutesInput').focus();
+    }
+    function closeDurationForm() {
+        document.getElementById('durationFormModal').style.display = 'none';
+        editingDurationId = null;
+    }
+    async function saveDurationForm() {
+        const minutes = document.getElementById('durationMinutesInput').value;
+        const active = document.getElementById('durationActiveInput').checked;
+        const saveBtn = document.getElementById('durationFormSaveBtn');
+        saveBtn.disabled = true;
+        try {
+            if (editingDurationId) {
+                const d = durationsById.get(editingDurationId);
+                await apiCall(`/api/admin/durations/${editingDurationId}`, 'PUT', { minutes, sortOrder: d.sortOrder, active });
+            } else {
+                await apiCall('/api/admin/durations', 'POST', { minutes });
+            }
+            closeDurationForm();
+            await reloadDurations();
+            showToast('Duration saved.', 'success');
+        } catch (error) {
+            showToast(error.message);
+        } finally {
+            saveBtn.disabled = false;
+        }
+    }
+    function deleteDuration(id) {
+        const d = durationsById.get(id);
+        showConfirmModal('Delete duration', `Delete "${d?.minutes} minutes"?`, async () => {
+            try {
+                await apiCall(`/api/admin/durations/${id}`, 'DELETE');
+                await reloadDurations();
+                showToast('Duration deleted.', 'success');
+            } catch (error) {
+                showToast(error.message);
+            }
+        }, true);
+    }
+    function initDurationForm() {
+        document.getElementById('addDurationBtn')?.addEventListener('click', () => openDurationForm(null));
+        document.getElementById('durationFormCancelBtn')?.addEventListener('click', closeDurationForm);
+        document.getElementById('durationFormSaveBtn')?.addEventListener('click', saveDurationForm);
+    }
+
+    // ---- Time signatures ----
+    let timeSigsById = new Map();
+    function renderTimeSigsList(timeSigs) {
+        timeSigsById = new Map(timeSigs.map(t => [t.id, t]));
+        const el = document.getElementById('timeSigsList');
+        if (!timeSigs.length) { el.innerHTML = '<p>No time signatures yet - use "+ Add time signature" above.</p>'; return; }
+        el.innerHTML = timeSigs.map(t => `
+            <div class="admin-feature">
+                <div class="admin-feature-header">
+                    <div class="admin-feature-header-text">
+                        <h2>${escapeHtml(t.label)}${t.active ? '' : ' (archived)'}</h2>
+                        <p class="admin-test-case-meta">${t.usageCount} block${t.usageCount === 1 ? '' : 's'} using it</p>
+                    </div>
+                    <div class="admin-feature-actions">
+                        <button class="btn-icon-edit" data-edit-id="${t.id}" aria-label="Edit ${escapeHtml(t.label)}" type="button"><span class="material-symbols-outlined">edit</span></button>
+                        <button class="btn-icon-delete" data-delete-id="${t.id}" aria-label="Delete ${escapeHtml(t.label)}" type="button"><span class="material-symbols-outlined">delete</span></button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        el.querySelectorAll('[data-edit-id]').forEach((btn) => {
+            btn.addEventListener('click', () => openTimeSigForm(timeSigsById.get(Number(btn.dataset.editId))));
+        });
+        el.querySelectorAll('[data-delete-id]').forEach((btn) => {
+            btn.addEventListener('click', () => deleteTimeSig(Number(btn.dataset.deleteId)));
+        });
+    }
+    async function reloadTimeSigs() {
+        const { timeSignatures } = await apiCall('/api/admin/time-signatures');
+        renderTimeSigsList(timeSignatures);
+    }
+    let editingTimeSigId = null;
+    function openTimeSigForm(timeSig) {
+        editingTimeSigId = timeSig ? timeSig.id : null;
+        document.getElementById('timeSigFormTitle').textContent = timeSig ? 'Edit time signature' : 'Add time signature';
+        document.getElementById('timeSigNumeratorInput').value = timeSig ? timeSig.numerator : '';
+        document.getElementById('timeSigDenominatorInput').value = timeSig ? timeSig.denominator : '';
+        document.getElementById('timeSigLabelInput').value = timeSig ? timeSig.label : '';
+        document.getElementById('timeSigActiveInput').checked = timeSig ? timeSig.active : true;
+        document.getElementById('timeSigActiveRow').classList.toggle('hidden-group', !timeSig);
+        document.getElementById('timeSigFormModal').style.display = 'flex';
+        document.getElementById('timeSigNumeratorInput').focus();
+    }
+    function closeTimeSigForm() {
+        document.getElementById('timeSigFormModal').style.display = 'none';
+        editingTimeSigId = null;
+    }
+    async function saveTimeSigForm() {
+        const numerator = document.getElementById('timeSigNumeratorInput').value;
+        const denominator = document.getElementById('timeSigDenominatorInput').value;
+        const label = document.getElementById('timeSigLabelInput').value.trim() || `${numerator}/${denominator}`;
+        const active = document.getElementById('timeSigActiveInput').checked;
+        const saveBtn = document.getElementById('timeSigFormSaveBtn');
+        saveBtn.disabled = true;
+        try {
+            if (editingTimeSigId) {
+                const t = timeSigsById.get(editingTimeSigId);
+                await apiCall(`/api/admin/time-signatures/${editingTimeSigId}`, 'PUT', { numerator, denominator, label, sortOrder: t.sortOrder, active });
+            } else {
+                await apiCall('/api/admin/time-signatures', 'POST', { numerator, denominator, label });
+            }
+            closeTimeSigForm();
+            await reloadTimeSigs();
+            showToast('Time signature saved.', 'success');
+        } catch (error) {
+            showToast(error.message);
+        } finally {
+            saveBtn.disabled = false;
+        }
+    }
+    function deleteTimeSig(id) {
+        const t = timeSigsById.get(id);
+        showConfirmModal('Delete time signature', `Delete "${t?.label}"? A signature still in use is archived instead of removed.`, async () => {
+            try {
+                const result = await apiCall(`/api/admin/time-signatures/${id}`, 'DELETE');
+                await reloadTimeSigs();
+                showToast(result.message, 'success');
+            } catch (error) {
+                showToast(error.message);
+            }
+        }, true);
+    }
+    function initTimeSigForm() {
+        document.getElementById('addTimeSigBtn')?.addEventListener('click', () => openTimeSigForm(null));
+        document.getElementById('timeSigFormCancelBtn')?.addEventListener('click', closeTimeSigForm);
+        document.getElementById('timeSigFormSaveBtn')?.addEventListener('click', saveTimeSigForm);
+    }
+
+    // ---- Note values (read-only) ----
+    function renderNoteValuesList(noteValues) {
+        const el = document.getElementById('noteValuesList');
+        el.innerHTML = noteValues.map(n => `
+            <div class="admin-feature">
+                <div class="admin-feature-header">
+                    <div class="admin-feature-header-text">
+                        <h2>${escapeHtml(n.label)}</h2>
+                        <p class="admin-test-case-meta">${n.usageCount} block${n.usageCount === 1 ? '' : 's'} using it</p>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    async function reloadNoteValues() {
+        const { noteValues } = await apiCall('/api/admin/note-values');
+        renderNoteValuesList(noteValues);
+    }
+
+    // ---- Playback speeds ----
+    let speedsById = new Map();
+    function renderSpeedsList(speeds) {
+        speedsById = new Map(speeds.map(s => [s.id, s]));
+        const el = document.getElementById('speedsList');
+        if (!speeds.length) { el.innerHTML = '<p>No playback speeds yet - use "+ Add playback speed" above.</p>'; return; }
+        el.innerHTML = speeds.map(s => `
+            <div class="admin-feature">
+                <div class="admin-feature-header">
+                    <div class="admin-feature-header-text">
+                        <h2>${s.percent}%${s.active ? '' : ' (inactive)'}</h2>
+                    </div>
+                    <div class="admin-feature-actions">
+                        <button class="btn-icon-edit" data-edit-id="${s.id}" aria-label="Edit ${s.percent}%" type="button"><span class="material-symbols-outlined">edit</span></button>
+                        <button class="btn-icon-delete" data-delete-id="${s.id}" aria-label="Delete ${s.percent}%" type="button"><span class="material-symbols-outlined">delete</span></button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        el.querySelectorAll('[data-edit-id]').forEach((btn) => {
+            btn.addEventListener('click', () => openSpeedForm(speedsById.get(Number(btn.dataset.editId))));
+        });
+        el.querySelectorAll('[data-delete-id]').forEach((btn) => {
+            btn.addEventListener('click', () => deleteSpeed(Number(btn.dataset.deleteId)));
+        });
+    }
+    async function reloadSpeeds() {
+        const { playbackSpeeds } = await apiCall('/api/admin/playback-speeds');
+        renderSpeedsList(playbackSpeeds);
+    }
+    let editingSpeedId = null;
+    function openSpeedForm(speed) {
+        editingSpeedId = speed ? speed.id : null;
+        document.getElementById('speedFormTitle').textContent = speed ? 'Edit playback speed' : 'Add playback speed';
+        document.getElementById('speedPercentInput').value = speed ? speed.percent : '';
+        document.getElementById('speedActiveInput').checked = speed ? speed.active : true;
+        document.getElementById('speedActiveRow').classList.toggle('hidden-group', !speed);
+        document.getElementById('speedFormModal').style.display = 'flex';
+        document.getElementById('speedPercentInput').focus();
+    }
+    function closeSpeedForm() {
+        document.getElementById('speedFormModal').style.display = 'none';
+        editingSpeedId = null;
+    }
+    async function saveSpeedForm() {
+        const percent = document.getElementById('speedPercentInput').value;
+        const active = document.getElementById('speedActiveInput').checked;
+        const saveBtn = document.getElementById('speedFormSaveBtn');
+        saveBtn.disabled = true;
+        try {
+            if (editingSpeedId) {
+                await apiCall(`/api/admin/playback-speeds/${editingSpeedId}`, 'PUT', { percent, active });
+            } else {
+                await apiCall('/api/admin/playback-speeds', 'POST', { percent });
+            }
+            closeSpeedForm();
+            await reloadSpeeds();
+            showToast('Playback speed saved.', 'success');
+        } catch (error) {
+            showToast(error.message);
+        } finally {
+            saveBtn.disabled = false;
+        }
+    }
+    function deleteSpeed(id) {
+        const s = speedsById.get(id);
+        showConfirmModal('Delete playback speed', `Delete "${s?.percent}%"?`, async () => {
+            try {
+                await apiCall(`/api/admin/playback-speeds/${id}`, 'DELETE');
+                await reloadSpeeds();
+                showToast('Playback speed deleted.', 'success');
+            } catch (error) {
+                showToast(error.message);
+            }
+        }, true);
+    }
+    function initSpeedForm() {
+        document.getElementById('addSpeedBtn')?.addEventListener('click', () => openSpeedForm(null));
+        document.getElementById('speedFormCancelBtn')?.addEventListener('click', closeSpeedForm);
+        document.getElementById('speedFormSaveBtn')?.addEventListener('click', saveSpeedForm);
+    }
+
     async function load() {
         initNav();
         initFeatureForm();
         initConfirmModal();
         initBandForm();
+        initMetadataSubtabs();
+        initDurationForm();
+        initTimeSigForm();
+        initSpeedForm();
         document.getElementById('adminShell').classList.remove('hidden-group');
         try {
             const [backtest, featuresRes] = await Promise.all([
@@ -517,7 +808,7 @@
             renderSummary(backtest);
             renderFeatures(backtest);
             renderFeaturesCatalog(featuresRes.features);
-            await Promise.all([reloadAccounts(), reloadBands()]);
+            await Promise.all([reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds()]);
         } catch (error) {
             document.getElementById('featuresCatalog').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`;
             document.getElementById('featureList').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`;

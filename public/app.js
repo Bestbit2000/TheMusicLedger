@@ -144,6 +144,9 @@
                 archiveCustom: (id) => apiCall(`/api/time-signatures/custom/${id}`, 'PUT', { active: false }),
                 deleteCustom: (id) => apiCall(`/api/time-signatures/custom/${id}`, 'DELETE')
             },
+            playbackSpeeds: {
+                list: () => apiCall('/api/metronome/playback-speeds')
+            },
             setups: {
                 list: () => apiCall('/api/metronome/setups'),
                 get: (id) => apiCall(`/api/metronome/setups/${id}`),
@@ -662,6 +665,7 @@
             document.getElementById('topTitle').innerText = '';
             metroBlkPlayer.prewarm();
             loadMetroBlkTimeSignatures();
+            loadMetroBlkPlaybackSpeeds();
             loadMetroBlkSetups();
             if (metroBlkCurrentSetup) {
                 renderMetroBlkSetupHeader();
@@ -5364,9 +5368,9 @@
     // when only round preset percentages are ever useful in practice - now a button grid of presets,
     // same immediate-apply-and-close pattern as the time-signature/instrument pickers, independent of
     // any block's own bpm since the player applies this percentage on top of whatever bpm is loaded,
-    // same mechanism as the single-bar tool). ---
-    const METRO_BLK_SPEED_MIN = 30;
-    const METRO_BLK_SPEED_MAX = 150;
+    // same mechanism as the single-bar tool. ML-109: the preset list itself is admin-managed
+    // (loadMetroBlkPlaybackSpeeds) rather than a fixed 30-150 hardcoded set, so the only remaining
+    // clamp here is a basic sanity bound, not a business-logic range. ---
     let metroBlkSpeedPercent = 100;
 
     function renderMetroBlkSpeedLabels() {
@@ -5374,7 +5378,7 @@
         document.getElementById('metroBlkMiniSpeedLbl').innerText = `${metroBlkSpeedPercent}%`;
     }
     function setMetroBlkSpeedPercent(p) {
-        metroBlkSpeedPercent = Math.min(METRO_BLK_SPEED_MAX, Math.max(METRO_BLK_SPEED_MIN, p));
+        metroBlkSpeedPercent = Math.min(1000, Math.max(1, p));
         metroBlkPlayer.setSpeedPercent(metroBlkSpeedPercent);
         renderMetroBlkSpeedLabels();
         // ML-95 Auto mode depends on effective bpm (Target BPM * Play Speed%) - a speed change alone,
@@ -5383,6 +5387,22 @@
         const block = metroBlkSubdivideCurrentBlock();
         if (block) applyMetroBlkToPlayer(block);
         renderMetroBlkRows();
+    }
+
+    // Populates the popup's button grid from the admin-managed list (ML-109) - called whenever the
+    // Blocks builder view opens, same as loadMetroBlkTimeSignatures, so the buttons are already there
+    // by the time the user actually taps the Play speed control.
+    async function loadMetroBlkPlaybackSpeeds() {
+        try {
+            const speeds = await API.metronomeBlocks.playbackSpeeds.list();
+            const container = document.getElementById('metroBlkSpeedOptions');
+            if (container) {
+                container.innerHTML = speeds.map(p => `<button type="button" class="metroBlk-timesig-opt" data-value="${p}">${p}%</button>`).join('');
+            }
+            renderMetroBlkSpeedOptions();
+        } catch (error) {
+            showWarningToast('Error loading playback speeds: ' + error.message);
+        }
     }
 
     function renderMetroBlkSpeedOptions() {

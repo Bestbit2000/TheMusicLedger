@@ -64,6 +64,7 @@ later table exists. Each file has a comment marking where this happens.
 | `022_lead_in_quiet_seconds.sql` | Adds `metronome_segments.quiet_seconds_before_lead_in` (ML-92) - seconds of silence played immediately before the lead-in starts, every time it plays; meaningful only on the setup's one `is_lead_in` row |
 | `023_segment_note_value.sql` | Adds `metronome_segments.note_value` (nullable, CHECK-constrained to the five known note-type keys) - which note value ("crotchet", "quaver", etc.) a regular block's Target BPM display was last set with; bug fix, this was previously not persisted at all so re-editing a saved block always reset to a denominator-based default instead of what was actually chosen. Never meaningful on a lead-in row. |
 | `024_account_levels.sql` | Adds `accounts.account_level` (ML-77) - a site-wide 5-tier level (super_admin/band_admin/premium_member/standard_member/beta_tester), a different axis from the existing per-band `band_members.role`. Defaults new/existing accounts to `standard_member`; bootstraps the known real account to `super_admin` so there's always one account able to promote others from the admin panel. |
+| `025_playback_speed_options.sql` | Adds `playback_speed_options` (ML-109) - Metronome Blocks' play-speed presets, previously hardcoded as 13 buttons in `index.html`; seeded from that exact list. Same shape/reasoning as `duration_options`, now both admin-managed from the panel's new **Metadata lists** section. |
 
 ## Decisions made translating the design doc into SQL
 

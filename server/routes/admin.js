@@ -13,6 +13,9 @@ import { requireAuth, resolveAccount, requireSuperAdmin } from '../middleware/au
 import pool from '../config/db.js';
 import { listAccountsForAdmin, setAccountLevel } from '../services/accounts.js';
 import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin } from '../services/bands.js';
+import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption, deleteDurationOption } from '../services/durationOptions.js';
+import { listTimeSignatureOptionsForAdmin, createTimeSignatureOption, updateTimeSignatureOption, deleteOrArchiveTimeSignatureOption, listNoteValueUsage } from '../services/timeSignatures.js';
+import { listPlaybackSpeedsForAdmin, createPlaybackSpeedOption, updatePlaybackSpeedOption, deletePlaybackSpeedOption } from '../services/playbackSpeeds.js';
 
 const router = express.Router();
 
@@ -308,6 +311,128 @@ router.delete('/bands/:id', requireAuth, resolveAccount, requireSuperAdmin, asyn
   } catch (error) {
     console.error('Admin band delete error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================
+// METADATA LISTS (ML-109) - the system-wide reference lists the app itself
+// depends on: session/timer durations, the time signature catalog, note
+// values (read-only usage view - see listNoteValueUsage), and Metronome
+// Blocks' play-speed presets.
+// ========================================
+router.get('/durations', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ durations: await listDurationOptionsForAdmin() });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/durations', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ duration: await createDurationOption(req.body.minutes) });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/durations/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const { minutes, sortOrder, active } = req.body;
+    await updateDurationOption(req.params.id, { minutes, sortOrder, active });
+    res.json({ message: 'Duration updated' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.delete('/durations/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await deleteDurationOption(req.params.id);
+    res.json({ message: 'Duration deleted' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.get('/time-signatures', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ timeSignatures: await listTimeSignatureOptionsForAdmin() });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/time-signatures', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const { numerator, denominator, label } = req.body;
+    res.json({ timeSignature: await createTimeSignatureOption(numerator, denominator, label) });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/time-signatures/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const { numerator, denominator, label, sortOrder, active } = req.body;
+    await updateTimeSignatureOption(req.params.id, { numerator, denominator, label, sortOrder, active });
+    res.json({ message: 'Time signature updated' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// Archived rather than deleted outright if any block anywhere still references it.
+router.delete('/time-signatures/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const archived = await deleteOrArchiveTimeSignatureOption(req.params.id);
+    res.json({ message: archived ? 'Time signature archived (still in use)' : 'Time signature deleted', archived });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// Read-only - note_value is a fixed CHECK constraint, not a manageable table (see listNoteValueUsage).
+router.get('/note-values', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ noteValues: await listNoteValueUsage() });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/playback-speeds', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ playbackSpeeds: await listPlaybackSpeedsForAdmin() });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/playback-speeds', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ playbackSpeed: await createPlaybackSpeedOption(req.body.percent) });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/playback-speeds/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const { percent, active } = req.body;
+    await updatePlaybackSpeedOption(req.params.id, { percent, active });
+    res.json({ message: 'Playback speed updated' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.delete('/playback-speeds/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await deletePlaybackSpeedOption(req.params.id);
+    res.json({ message: 'Playback speed deleted' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 

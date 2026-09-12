@@ -204,7 +204,14 @@
     .btn-delete { background: var(--danger-color); color: #fff; border: none; padding: var(--space-2) var(--space-3); min-height: 48px; border-radius: var(--radius-md); font-weight: bold; cursor: pointer; font-size: var(--font-base); box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
     .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; font-size: 20px; line-height: 1; vertical-align: middle; }
     /* 48x48 touch target minimum - was 36x36. */
-    .btn-icon-edit { background: transparent; color: #fff; border: 2px solid var(--selection-color); width: 48px; height: 48px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    /* Icon colour matches its own border (not the hardcoded white every other button on this page
+       uses) because this is the one button style with a transparent fill - every other white icon/text
+       (.btn-edit, .toast, .toggle-slider) sits on a solid colour background, so white always
+       contrasts. Here, "background" is whatever's actually behind the button (the page/card), which is
+       white in light mode - a white pencil on that is invisible. Affects every list that uses this
+       shared class (admin Features/Accounts/Bands, Manage lists, the band menu's "more" button,
+       session history). */
+    .btn-icon-edit { background: transparent; color: var(--selection-color); border: 2px solid var(--selection-color); width: 48px; height: 48px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .btn-icon-delete { background: var(--danger-color); color: #fff; border: none; width: 48px; height: 48px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .btn-icon-copy { background: transparent; color: var(--text-color); border: 2px solid var(--input-border); width: 48px; height: 48px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     /* Deliberate gap so Copy and Delete (a destructive action right next to a harmless one) aren't

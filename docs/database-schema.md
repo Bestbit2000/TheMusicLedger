@@ -216,11 +216,15 @@ Notes on fields that took a few passes to nail down:
 | Table | Purpose | Key columns |
 |---|---|---|
 | `duration_options` | Shared preset duration list (minutes) for the save-session screen and the practice timer (`ML-7`) | id, minutes, sort_order, active |
+| `playback_speed_options` | Metronome Blocks' play-speed presets (`ML-109`) | id, percent, active |
 
-Not per-account - a single tool-wide list, deliberately moved out of hardcoded
-frontend HTML so it can be changed without a release. No admin UI to manage it
-yet (still edited by direct SQL/Claude on request); that's the natural next
-step once the admin panel needs it.
+Neither is per-account - each is a single tool-wide list, deliberately moved out
+of hardcoded frontend HTML so it can be changed without a release. Both are
+managed from the admin panel's **Metadata lists** section (`ML-109`), alongside
+the (also admin-managed) `time_signature_options` catalog above and a
+read-only usage view over `metronome_segments.note_value`'s fixed 5-value
+CHECK constraint - the note-value set itself isn't a table, since musical
+notation fixes it, not app data.
 
 ### Feature catalog & back-test registry (`ML-26`, `ML-29`)
 

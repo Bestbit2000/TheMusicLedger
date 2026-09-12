@@ -30,10 +30,12 @@
 <div id="adminShell" class="admin-shell hidden-group">
     <nav class="admin-sidebar">
         <div class="admin-sidebar-title">Admin</div>
+        <a class="admin-nav-item admin-back-link" href="/">&larr; Back to app</a>
         <button class="admin-nav-item active" data-section="features" type="button">Features</button>
         <button class="admin-nav-item" data-section="release-tests" type="button">Release tests</button>
         <button class="admin-nav-item" data-section="accounts" type="button">Accounts</button>
         <button class="admin-nav-item" data-section="bands" type="button">Bands</button>
+        <button class="admin-nav-item" data-section="metadata" type="button">Metadata lists</button>
         <button class="admin-nav-item" disabled title="Coming soon" type="button">Usage</button>
     </nav>
     <main class="admin-content">
@@ -65,6 +67,35 @@
             <p class="admin-intro">The shared band directory (ML-89) - accounts join these from their own Account page.</p>
             <button class="btn-submit no-margin admin-add-btn" id="addBandBtn" type="button">+ Add band</button>
             <div id="bandsList" class="admin-feature-list">Loading&hellip;</div>
+        </section>
+        <section id="metadata-section" class="admin-section hidden-group">
+            <h1>Metadata lists</h1>
+            <p class="admin-intro">System-wide reference lists the app itself depends on (ML-109).</p>
+            <div class="admin-subtabs">
+                <button class="admin-subtab-item active" data-subtab="durations" type="button">Durations</button>
+                <button class="admin-subtab-item" data-subtab="timesigs" type="button">Time signatures</button>
+                <button class="admin-subtab-item" data-subtab="notevalues" type="button">Note values</button>
+                <button class="admin-subtab-item" data-subtab="speeds" type="button">Playback speeds</button>
+            </div>
+            <div id="durations-subtab" class="admin-subtab-panel">
+                <p class="admin-intro">Session/timer duration presets - a value typed at the moment it's used, never stored by reference, so there's nothing to check usage against before deleting one.</p>
+                <button class="btn-submit no-margin admin-add-btn" id="addDurationBtn" type="button">+ Add duration</button>
+                <div id="durationsList" class="admin-feature-list">Loading&hellip;</div>
+            </div>
+            <div id="timesigs-subtab" class="admin-subtab-panel hidden-group">
+                <p class="admin-intro">The public time signature catalog - a signature still used by any saved block is archived rather than deleted.</p>
+                <button class="btn-submit no-margin admin-add-btn" id="addTimeSigBtn" type="button">+ Add time signature</button>
+                <div id="timeSigsList" class="admin-feature-list">Loading&hellip;</div>
+            </div>
+            <div id="notevalues-subtab" class="admin-subtab-panel hidden-group">
+                <p class="admin-intro">Read-only - these five values are fixed by musical notation itself, not app data, so there's nothing to add/edit/delete here, just how many saved blocks currently use each.</p>
+                <div id="noteValuesList" class="admin-feature-list">Loading&hellip;</div>
+            </div>
+            <div id="speeds-subtab" class="admin-subtab-panel hidden-group">
+                <p class="admin-intro">Metronome Blocks' play-speed presets - a live playback setting, never stored against a saved block, so there's nothing to check usage against before deleting one.</p>
+                <button class="btn-submit no-margin admin-add-btn" id="addSpeedBtn" type="button">+ Add playback speed</button>
+                <div id="speedsList" class="admin-feature-list">Loading&hellip;</div>
+            </div>
         </section>
     </main>
 </div>
@@ -104,6 +135,53 @@
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="bandFormCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="bandFormSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="durationFormModal">
+    <div class="modal-content">
+        <h2 id="durationFormTitle">Add duration</h2>
+        <div class="form-group"><label for="durationMinutesInput">Minutes</label><input type="number" id="durationMinutesInput" min="1" step="1"></div>
+        <div class="flex-row gap-md hidden-group" id="durationActiveRow" style="align-items:center; margin-bottom:var(--space-5);">
+            <label class="toggle-switch"><input type="checkbox" id="durationActiveInput" checked><span class="toggle-slider"></span></label>
+            <span>Active (offered as a preset)</span>
+        </div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="durationFormCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="durationFormSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="timeSigFormModal">
+    <div class="modal-content">
+        <h2 id="timeSigFormTitle">Add time signature</h2>
+        <div class="form-group"><label for="timeSigNumeratorInput">Numerator</label><input type="number" id="timeSigNumeratorInput" min="1" step="1"></div>
+        <div class="form-group"><label for="timeSigDenominatorInput">Denominator</label><input type="number" id="timeSigDenominatorInput" min="1" step="1"></div>
+        <div class="form-group"><label for="timeSigLabelInput">Label</label><input type="text" id="timeSigLabelInput" placeholder="e.g. 4/4"></div>
+        <div class="flex-row gap-md hidden-group" id="timeSigActiveRow" style="align-items:center; margin-bottom:var(--space-5);">
+            <label class="toggle-switch"><input type="checkbox" id="timeSigActiveInput" checked><span class="toggle-slider"></span></label>
+            <span>Active (offered when picking a signature)</span>
+        </div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="timeSigFormCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="timeSigFormSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="speedFormModal">
+    <div class="modal-content">
+        <h2 id="speedFormTitle">Add playback speed</h2>
+        <div class="form-group"><label for="speedPercentInput">Percent</label><input type="number" id="speedPercentInput" min="1" step="1"></div>
+        <div class="flex-row gap-md hidden-group" id="speedActiveRow" style="align-items:center; margin-bottom:var(--space-5);">
+            <label class="toggle-switch"><input type="checkbox" id="speedActiveInput" checked><span class="toggle-slider"></span></label>
+            <span>Active (offered as a preset)</span>
+        </div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="speedFormCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="speedFormSaveBtn" type="button">Save</button>
         </div>
     </div>
 </div>
