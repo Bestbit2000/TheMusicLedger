@@ -12,7 +12,7 @@ import { getAccountProfile, updateAccountProfile } from '../services/accounts.js
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
 import { listDurationOptions } from '../services/durationOptions.js';
 import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSignaturesWithUsage, setCustomTimeSignatureActive, deleteCustomTimeSignature } from '../services/timeSignatures.js';
-import { listAdhocSetups, createAdhocSetup, renameAdhocSetup, saveAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, getOrCreateScratchSetup, createNamedAdhocSetup, duplicateAdhocSetup } from '../services/metronomeSetups.js';
+import { listAdhocSetups, createAdhocSetup, renameAdhocSetup, saveAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, getOrCreateScratchSetup, createNamedAdhocSetup, duplicateAdhocSetup, createQuickPlaySetup } from '../services/metronomeSetups.js';
 import { createSegment, updateSegment, deleteSegment } from '../services/metronomeSegments.js';
 import { listActivePlaybackSpeeds } from '../services/playbackSpeeds.js';
 
@@ -750,6 +750,22 @@ router.post('/metronome/setups/:id/save', requireAuth, resolveAccount, async (re
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required to save.' });
     await saveAdhocSetup(req.accountId, req.params.id, name.trim());
     res.json({ message: 'Setup saved' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// Quick Play (front page): writes the whole set of blocks in as one history
+// row per Play press - see createQuickPlaySetup. One request rather than a
+// setup-create + N segment-create round trip since nothing needs to exist
+// server-side while the user is still composing blocks.
+router.post('/metronome/quick-play', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { name, blocks } = req.body;
+    if (!name || !Array.isArray(blocks) || !blocks.length) {
+      return res.status(400).json({ error: 'Name and at least one block are required.' });
+    }
+    res.json(await createQuickPlaySetup(req.accountId, name, blocks));
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }

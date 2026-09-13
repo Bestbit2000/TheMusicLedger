@@ -95,7 +95,7 @@ session history is archived (`active = false`) rather than deleted, mirroring
 | Table | Purpose | Key columns |
 |---|---|---|
 | `scores` | A piece, owned by a band or an account | id, title, owner_band_id, owner_account_id, forked_from_score_id, is_public, default_bpm, default_time_signature, default_conductor_beats_per_bar |
-| `adhoc_metronome_setups` | Standalone manual multi-section setup, individual-only | id, account_id, name, created_at, saved_at |
+| `adhoc_metronome_setups` | Standalone manual multi-section setup, individual-only | id, account_id, name, created_at, saved_at, is_quick_play |
 | `metronome_segments` | One row per section, on either a score or an ad-hoc setup (never both) | id, parent_score_id, parent_adhoc_setup_id, order_index, is_lead_in, repeat_lead_in, quiet_seconds_before_lead_in, rehearsal_mark, bar_count, bpm, time_signature_id, account_time_signature_id, conductor_beats_per_bar, is_repeat_start, is_repeat_end, pickup_beats, goto_coda, goto_start_dc, is_coda, intro_start_bar_offset, intro_start_beat_offset, intro_end_bar_offset, intro_end_beat_offset, is_first_time_bar, is_second_time_bar, ramp_start_bar_offset, ramp_start_beat_offset, notes |
 | `metronome_run_logs` | History of every playback, score-driven or ad-hoc | id, account_id, source_type, source_id, session_segment_id, run_at, completed |
 | `time_signature_options` | System catalog of time signatures (numerator/denominator), migration-seeded only | id, numerator, denominator, label, sort_order, active |
@@ -154,6 +154,15 @@ Notes on fields that took a few passes to nail down:
   `saved_at IS NOT NULL`; "Save for later" is what sets both `name` and
   `saved_at` together. Abandoned scratch rows are never surfaced but aren't
   automatically cleaned up either - acceptable for now, revisit if they pile up.
+- **`adhoc_metronome_setups.is_quick_play`**: Quick Play (the front-page tool
+  that replaced the old single-bar Metronome page) writes one row per Play
+  press straight in as history - `name` is a client-supplied local timestamp
+  rather than something the user typed, and `saved_at` is set immediately
+  (there's no separate "keep" step, unlike a real setup's scratch-then-save
+  flow above). `is_quick_play = true` is what keeps these out of
+  `listAdhocSetups`' "Saved setups" list - they're intended for a future
+  history view and usage stats instead, not to clutter the library of
+  setups someone actually chose to keep.
 - **Time signature split into two tables, not one with a nullable owner column**:
   `time_signature_options` is a pure system catalog (no owner at all) so it's always
   safe to seed/edit via migration and release straight to production with no risk of

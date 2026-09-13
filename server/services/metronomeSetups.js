@@ -49,7 +49,7 @@ export async function listAdhocSetups(accountId) {
        WHERE fr.parent_adhoc_setup_id = s.id AND fr.is_lead_in = false
        ORDER BY fr.order_index LIMIT 1
      ) fr ON true
-     WHERE s.account_id = $1 AND s.saved_at IS NOT NULL
+     WHERE s.account_id = $1 AND s.saved_at IS NOT NULL AND s.is_quick_play = false
      GROUP BY s.id
      ORDER BY s.saved_at DESC`,
     [accountId]
@@ -157,6 +157,32 @@ export async function duplicateAdhocSetup(accountId, sourceId, name) {
     );
   }
   return getAdhocSetupWithSegments(accountId, created.id);
+}
+
+// Quick Play (front page, replaces the old single-bar Metronome tool): every
+// press of Play writes the current blocks straight in as history - named
+// with a client-supplied local timestamp instead of a chosen name, flagged
+// is_quick_play so it never shows up in listAdhocSetups' "Saved setups"
+// above. saved_at is set immediately (there's no separate "keep" step, the
+// whole point is it's already history the moment it's created). No lead-in
+// support - Quick Play has no lead-in concept, so every block is a plain
+// (is_lead_in = false) segment, same insert shape as duplicateAdhocSetup.
+export async function createQuickPlaySetup(accountId, name, blocks) {
+  const inserted = await pool.query(
+    'INSERT INTO adhoc_metronome_setups (account_id, name, saved_at, is_quick_play) VALUES ($1, $2, now(), true) RETURNING id',
+    [accountId, name]
+  );
+  const setupId = inserted.rows[0].id;
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    await pool.query(
+      `INSERT INTO metronome_segments
+         (parent_adhoc_setup_id, order_index, bar_count, bpm, is_lead_in, time_signature_id, account_time_signature_id, note_value)
+       VALUES ($1, $2, $3, $4, false, $5, $6, $7)`,
+      [setupId, i, b.barCount, b.bpm, b.timeSignatureId || null, b.accountTimeSignatureId || null, b.noteValue || null]
+    );
+  }
+  return getAdhocSetupWithSegments(accountId, setupId);
 }
 
 export async function deleteAdhocSetup(accountId, id) {

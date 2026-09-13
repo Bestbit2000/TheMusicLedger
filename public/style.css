@@ -85,12 +85,11 @@
     .top-bar { width: 100%; max-width: var(--app-max-width); background: var(--container-bg); padding: 15px 20px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-md); }
     .top-bar-title { font-size: var(--font-md); font-weight: bold; flex-grow: 1; text-align: center; }
     .top-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-color); padding: 5px 10px; font-weight: bold; }
-    /* On/off state shown as a filled circle (ML-91) rather than swapping icon glyphs - a diagonal-
-       line "off" variant isn't guaranteed to exist for every icon in the font, where a plain filled/
-       unfilled toggle always works and matches how Play and other active controls already read as
-       "on" elsewhere in the app. */
+    /* Plain icon button, same visual weight as the burger menu next to it (no filled-circle "active"
+       treatment) - it only ever offers to open the tuner (it disappears entirely once open, see
+       renderTopTunerToggleState), so there's no on/off state left to show here either. */
     .top-tuner-toggle { width: 40px; height: 40px; min-width: 40px; border-radius: var(--radius-circle); display: flex; align-items: center; justify-content: center; padding: 0; }
-    .top-tuner-toggle.active { background: var(--primary-action); color: var(--primary-action-text); }
+    .top-tuner-toggle-icon { height: 20px; width: auto; }
     .top-btn-back { background: transparent; border: none; color: var(--text-color); padding: 10px 20px 10px 5px; font-size: 1.6rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; }
     .hidden-btn { visibility: hidden; pointer-events: none; }
 
@@ -140,6 +139,11 @@
     .tool-icon-btn { flex: 1 1 0; aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: var(--nav-action); color: var(--nav-action-text); border: none; border-radius: var(--radius-md); cursor: pointer; box-sizing: border-box; padding: var(--space-2); }
     .tool-icon-btn .material-symbols-outlined { font-size: 32px; }
     .tool-icon-btn .tool-icon-label { font-size: var(--font-sm); font-weight: bold; }
+    /* Custom front-page tool glyphs (Quick play, Flow) - inlined SVGs (not <img>, so `fill:
+       currentColor` can pick up the button's own themed text color like the material icons already
+       do) with a JS-added viewBox and preserveAspectRatio so any source aspect ratio scales to fit
+       this same 32px box the material icons use, rather than stretching or overflowing the button. */
+    .tool-icon-svg { width: 32px; height: 32px; fill: currentColor; }
     .btn-filter { background: var(--selection-color); margin: var(--space-4) 0 var(--space-6) 0; padding: var(--space-3); font-size: var(--font-base); }
 
     .form-group { margin-bottom: var(--space-5); }
@@ -284,11 +288,18 @@
        left display:flex as this rule's own default, with nothing to hide a toast until the first time
        it's explicitly closed - exposed as all three toasts sitting on screen from page load. display:
        none is the real default; showXToast is what reveals one.) */
-    .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); color: #fff; padding: var(--space-3) var(--space-5); border-radius: var(--radius-sm); display: none; align-items: center; gap: var(--space-4); z-index: 1000; font-size: var(--font-base); white-space: pre-line; }
+    .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); color: #fff; padding: var(--space-3) var(--space-5); border-radius: var(--radius-sm); display: none; align-items: center; gap: var(--space-4); z-index: 1000; font-size: var(--font-base); white-space: pre-line; overflow: hidden; }
     .toast.success { background-color: #333; }
     .toast.warning { background-color: var(--warning-color); color: #000; font-weight: bold; }
     .toast.info { background-color: var(--info-color); color: #fff; font-weight: bold; box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4); }
+    .toast.undo { background-color: #333; }
     .toast button { background: rgba(255,255,255,0.3); border: none; color: inherit; border-radius: 4px; cursor: pointer; font-weight: bold; padding: 6px 12px; }
+    /* Visual auto-dismiss countdown (startToastCountdownBar) - a thin bar along the toast's own
+       bottom edge that shrinks from full width to nothing over the toast's configured lifetime
+       (TOAST_DURATIONS_MS), rather than a ticking number: the shrink itself reads as "time left"
+       without needing to be read, and works identically for every toast type since it's just an
+       inline width transition driven by one shared helper. */
+    .toast-countdown-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: currentColor; opacity: 0.35; }
 
     /* ML-75: small popup anchored right next to whatever bar/heatmap square was just clicked, instead
        of a toast at the bottom of the screen - position:fixed and placed via getBoundingClientRect()
@@ -417,9 +428,29 @@
     .metro-transport-btn .material-symbols-outlined { font-size: 26px; }
     /* Only the Blocks transport row ever actually sets `disabled` (Edit Mode, ML-97 follow-up) - the
        single-bar tool's own Play/Reset never do, so this never affects it. */
-    .metro-transport-btn:disabled, .metroBlk-ctrl-value-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .metro-transport-btn:disabled, .metroBlk-ctrl-value-btn:disabled, .metro-play-grid-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .metro-play-btn { background: var(--primary-action); color: var(--primary-action-text); }
     .metro-stop-btn { background: var(--nav-action); color: var(--nav-action-text); }
+
+    /* Shared metronome-family transport row (Quick Play and Blocks/Flow both use this - one shared
+       class rather than one per tool, so the layout only needs updating in one place): an equal-
+       width, full-bleed grid instead of metro-transport-row's centered flex row - 4 columns for now
+       (Play, sub beats, play speed, volume), but the point of using grid rather than that fixed-
+       column-count flex row is other rows can later drop in at 1, 2 or 4 cells wide and still line up
+       with this one and with the front page's own tool-icon-row, which uses the same equal-width-
+       cells idea. */
+    .metro-transport-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin: var(--space-2) 0 var(--space-4) 0; }
+    .metro-transport-grid .metroBlk-ctrl-value-btn { width: 100%; min-width: 0; }
+    /* Play/pause reshaped to match the other three cells (icon + small label) instead of the plain
+       round .metro-play-btn - there's no separate Reset button any more, press-and-hold on this one
+       does it instead (the shared setupPlayButtonHoldReset), so the label spells that out in words
+       rather than a second icon crammed in next to the play/pause one - a Material Symbol shrunk
+       small enough to sit inline with that text read as an illegible blob instead of a recognisable
+       reset glyph. Icon deliberately has no font-size override here - it inherits the same global
+       20px .material-symbols-outlined default the volume icon next to it does, so the two stay the
+       same size and vertically aligned by construction rather than two magic numbers kept in sync
+       by hand. */
+    .metro-play-grid-btn { width: 100%; height: 60px; border: none; border-radius: var(--radius-md); cursor: pointer; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: var(--primary-action); color: var(--primary-action-text); }
 
     /* Minimised timer bar (ML-7) - lives in .top-bar-sticky-group directly under
        .top-bar, shown whenever a timer is running/paused and the Timer screen
@@ -496,7 +527,7 @@
        Collapsed by default (max-height/opacity/padding/border all animate together) rather than
        display:none, specifically so opening/closing it is a visible slide, not a hard cut - toggled
        via .metroBlk-mini-tuner-open, not hidden-group. */
-    .metroBlk-mini-tuner { box-sizing: border-box; background: var(--input-bg); border: 2px solid var(--primary-action); border-width: 0; border-radius: var(--radius-md); padding: 0 var(--space-4); margin-bottom: 0; max-height: 0; opacity: 0; overflow: hidden; pointer-events: none; transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease, margin-bottom 0.25s ease, border-width 0.25s ease, background 0.15s linear, border-color 0.15s linear; }
+    .metroBlk-mini-tuner { box-sizing: border-box; background: var(--input-bg); border: 2px solid var(--input-border); border-width: 0; border-radius: var(--radius-md); padding: 0 var(--space-4); margin-bottom: 0; max-height: 0; opacity: 0; overflow: hidden; pointer-events: none; transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease, margin-bottom 0.25s ease, border-width 0.25s ease, background 0.15s linear, border-color 0.15s linear; }
     .metroBlk-mini-tuner.metroBlk-mini-tuner-open { border-width: 2px; padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); max-height: 220px; opacity: 1; pointer-events: auto; }
     .metroBlk-mini-tuner.in-tune { border-color: var(--tuner-in-tune-green); background: rgba(46, 204, 113, 0.28); }
     /* One big note on the left (not concert-and-instrument side by side any more - ML-84: showing both
@@ -509,7 +540,15 @@
     .metroBlk-mini-tuner-note-big { min-width: 2.4ch; flex-shrink: 0; font-size: 2.4rem; font-weight: bold; line-height: 1; text-align: center; color: var(--primary-action); font-variant-numeric: tabular-nums; }
     .metroBlk-mini-tuner-bar-wrap { flex: 1; min-width: 0; }
     /* No filled circle (ML-91 follow-up) - picking an instrument is rare enough that it shouldn't
-       compete visually with the note/bar it sits next to; same 36px tap target either way. */
+       compete visually with the note/bar it sits next to; same 36px tap target either way. Now a
+       3-dot menu (Settings/Close) rather than a single settings action directly - Close used to live
+       on the top-bar toggle, which now disappears entirely while the tuner is open. */
+    .metroBlk-mini-tuner-menu-wrap { position: relative; flex-shrink: 0; }
+    /* position: fixed (not .dropdown-menu's own absolute/top:100%) - the tuner box itself is
+       overflow:hidden (for its own open/close slide animation), which would otherwise clip this menu
+       before "Close" ever became visible/clickable. Same pattern as .metroBlk-tile-menu/
+       .account-band-menu: JS computes left/top against the 3-dot button's own position instead. */
+    .metroBlk-mini-tuner-menu { position: fixed; top: auto; right: auto; left: auto; min-width: 140px; }
     .metroBlk-mini-tuner-settings-btn { flex-shrink: 0; width: 36px; height: 36px; min-width: 36px; border-radius: var(--radius-circle); background: transparent; color: var(--label-color); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .metroBlk-mini-tuner-settings-btn .material-symbols-outlined { font-size: 18px; }
     /* Centered under the whole row (in practice, under the bar - the note and cog are comparatively
@@ -677,6 +716,53 @@
     .metroBlk-timesig-add-custom { display: block; width: auto; margin: 0 0 var(--space-2) 0; padding: var(--space-2) var(--space-4); border-style: dashed; }
 
     .metroBlk-mini-label-readout { font-size: var(--font-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Quick Play (front page, replaces the old single-bar Metronome): every bar's full detail entry
+       is always visible and stacked, rather than a tile you tap to open a modal - so each one gets
+       its own bordered card ("Bar N") to read as a distinct bar. Always exactly 1 bar/no repeat per
+       block (that's a Flow-only concept) - just time signature, note length and target BPM. */
+    /* touch-action: none (whole box, not just the title): swipe-to-act (wireQpBarSwipe) grabs anywhere
+       in the box that isn't a button/slider/input, so the box itself must stop the page's own scroll
+       from fighting a swipe that starts on it - same reasoning as Blocks' own draggable tiles
+       (.metroBlk-tile). The excluded controls (buttons, .slider-track/.slider-thumb) each set their
+       own touch-action already, so this doesn't affect their own tap/drag behaviour. */
+    .qp-block-box { position: relative; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-3); touch-action: none; }
+    /* Whichever bar is actually sounding right now, while playing only (renderQpActiveBoxHighlight) -
+       same bold-gold-border language as Blocks' own .metroBlk-tile-active. */
+    .qp-block-box.qp-block-playing { border-color: var(--primary-action); box-shadow: 0 0 0 2px var(--primary-action); }
+    .qp-block-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
+    .qp-block-title { font-weight: bold; font-size: var(--font-md); }
+    /* Same corner-menu language as the Blocks tile's own per-tile menu button (.metroBlk-tile-menu-btn)
+       - always shown, even with only one bar (opening it then only offers Duplicate, see
+       openQpBarMenu), rather than the old dustbin icon that hid entirely on the one bar that couldn't
+       be deleted. */
+    .qp-bar-menu-btn { width: 36px; height: 36px; border: none; border-radius: var(--radius-circle); background: transparent; color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+    .qp-bar-menu-btn .material-symbols-outlined { font-size: 20px; }
+    /* Time signature stacked above note length in column 1 (each takes half its combined height,
+       via the 2-row grid + stretch below) - target BPM fills the remaining 3 columns at that same
+       combined height, rather than a plain quarter/quarter/half row of equal-height cells. */
+    .qp-bar-fields-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); gap: var(--space-2); }
+    /* .metroBlk-ctrl-value-btn's own fixed height (60px, right for the single-row transport buttons
+       above) would stop these two stretching to fill half the taller combined row height - auto lets
+       the grid's default stretch take over instead. */
+    .qp-timesig-cell, .qp-notelen-cell { height: auto; }
+    .qp-timesig-cell { grid-column: 1; grid-row: 1; }
+    .qp-notelen-cell { grid-column: 1; grid-row: 2; }
+    .qp-bpm-cell { grid-column: 2 / span 3; grid-row: 1 / span 2; }
+    .qp-note-btn-icon { display: flex; align-items: center; justify-content: center; }
+    .qp-note-btn-icon svg { width: 14px; height: 24px; }
+    /* Pulled in tight around the number rather than metro-speed-row's normal wide gap (meant for a
+       standalone, narrower bpm box) - this one now spans 3 of 4 columns, wide enough that the default
+       gap would push -/+ out past where the slider below actually starts/ends. */
+    .qp-bpm-speed-row { gap: var(--space-2); }
+    /* Same footprint as one bar box above (title row + field grid + card padding) so the list reads
+       as equal-sized slots, not a full card followed by a thin afterthought row. */
+    .qp-add-bar-btn { display: flex; align-items: center; justify-content: center; gap: var(--space-2); width: 100%; min-height: 215px; box-sizing: border-box; background: transparent; border: 2px dashed var(--input-border); border-radius: var(--radius-md); color: var(--label-color); font-size: var(--font-md); font-weight: bold; cursor: pointer; margin-bottom: var(--space-4); }
+    /* Add/move/duplicate/delete feedback (qpAnimateBlocksChange/qpAnimateDeleteThenRerender) - applied
+       just for the moment of the animation itself (added/removed by JS once it finishes) rather than
+       permanently, so a bar's own layout-affecting style changes (e.g. resizing while editing a field)
+       never unintentionally animate through this. */
+    .qp-block-animating { transition: transform 0.25s ease, opacity 0.25s ease; }
 
     /* The unused leading beats of a partial lead-in's bar (see greyOutSkippedDots) - a plain grey
        outline, not just a dimmed version of the normal dot. Full opacity and a background matching

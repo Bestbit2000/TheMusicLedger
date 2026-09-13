@@ -164,6 +164,9 @@
                 create: (setupId, data) => apiCall(`/api/metronome/setups/${setupId}/segments`, 'POST', data),
                 update: (segId, data) => apiCall(`/api/metronome/segments/${segId}`, 'PUT', data),
                 delete: (segId) => apiCall(`/api/metronome/segments/${segId}`, 'DELETE')
+            },
+            quickPlay: {
+                save: (name, blocks) => apiCall('/api/metronome/quick-play', 'POST', { name, blocks })
             }
         },
         account: {
@@ -593,7 +596,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'accountView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'metronomeView', 'metroBuilderView', 'tunerView', 'timerView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'accountView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'tunerView', 'timerView'];
     let viewStack = ['mainView'];
 
     const viewAliasMap = {
@@ -601,7 +604,7 @@
         'lists': 'manageListsView', 'settings': 'settingsView', 'challengesList': 'manageChallengesView',
         'challengeSelect': 'challengeSelectView', 'challengePlay': 'challengePlayView',
         'challengeSummary': 'challengeSummaryView', 'editChallenge': 'editChallengeView',
-        'metronome': 'metronomeView', 'tuner': 'tunerView', 'timer': 'timerView'
+        'quickPlay': 'quickPlayView', 'tuner': 'tunerView', 'timer': 'timerView'
     };
 
     window.switchView = function(viewName, isBack = false) {
@@ -611,6 +614,14 @@
         // there's no other hook for back-button/menu navigation away from the view.
         if (viewStack[viewStack.length - 1] === 'metroBuilderView' && viewName !== 'metroBuilderView' && metroBlkEditMode) {
             cancelMetroBlkEdit();
+        }
+
+        // Quick Play has no mini bar (unlike the single-bar tool it replaced/Metronome Blocks) - it's
+        // always fully editable, so there's nothing sensible to keep "playing in the background"
+        // without a visible transport. Leaving the view just pauses it in place.
+        if (viewStack[viewStack.length - 1] === 'quickPlayView' && viewName !== 'quickPlayView' && qpPlayer.isPlaying()) {
+            qpPlayer.pause();
+            updateQPPlayIcon();
         }
 
         if (!isBack && viewStack[viewStack.length - 1] !== viewName) viewStack.push(viewName);
@@ -649,18 +660,25 @@
         if (viewName === 'challengePlayView') { document.getElementById('topTitle').innerText = 'Practise'; }
         if (viewName === 'challengeSummaryView') { document.getElementById('topTitle').innerText = 'Session complete'; topBackBtn.classList.add('hidden-btn'); }
         if (viewName === 'editChallengeView') { document.getElementById('topTitle').innerText = 'Edit challenge'; }
-        if (viewName === 'metronomeView') {
+        if (viewName === 'quickPlayView') {
             document.getElementById('topTitle').innerText = 'Metronome';
-            metroPlayer.prewarm();
-            // The initial paint runs while this view is still display:none (before the user has ever
-            // navigated here), so the display-width measurement reads a 0px viewport and wrongly
-            // decides the beats need the fixed-width/scrolling layout. Re-measure now that the view is
-            // actually visible and has real dimensions.
-            renderMetroTiers();
+            qpPlayer.prewarm();
+            loadQuickPlayPlaybackSpeeds();
+            if (qpBlocks.length) {
+                // Already seeded from an earlier visit this session - no need to wait on the time
+                // signature catalog again before rendering.
+                renderQuickPlayRows();
+            } else {
+                // First visit this session: the default block's time signature comes from this catalog
+                // (unlike Blocks' own scratch setup, which gets it from the server), so it has to be
+                // loaded before seeding, or the first block would show "Choose..." until some unrelated
+                // re-render happened to run afterwards.
+                loadMetroBlkTimeSignatures().then(() => {
+                    initQuickPlayBlocksIfNeeded();
+                    renderQuickPlayRows();
+                });
+            }
         }
-        // The metronome itself is NOT stopped when navigating away (ML-64: "persist as a box at the
-        // top of the screen") - only the mini-bar's visibility changes, exactly like the timer above.
-        updateMetroMiniBarVisibility(viewName);
 
         if (viewName === 'metroBuilderView') {
             // No title text here any more (ML-91) - the tuner toggle takes that spot in the top bar
@@ -681,11 +699,20 @@
         }
         // Same persistence rule as the single-bar tool's mini bar (ML-64) - only visibility changes.
         updateMetroBlocksMiniBarVisibility(viewName);
-        // The Metronome Blocks mini tuner is scoped to that one screen (unlike the metronome/timer
-        // mini-bars, it doesn't persist elsewhere) - leaving the builder always closes it.
+        // The mini tuner widget is a single shared element (one mic session, one renderer - see
+        // "Metronome Blocks mini tuner" below) physically relocated into whichever of Flow/Metronome
+        // is the active view, rather than a copy living in each - moved before either view's own
+        // dispatch above runs, so it's already in place if that view's setup code expects it there.
+        if (viewName === 'metroBuilderView' || viewName === 'quickPlayView') {
+            const hostView = document.getElementById(viewName);
+            const tuner = document.getElementById('metroBlkMiniTuner');
+            if (hostView && tuner && tuner.parentElement !== hostView) hostView.insertBefore(tuner, hostView.firstChild);
+        }
+        // Scoped to Flow/Metronome (unlike the timer/metronome mini-bars, it doesn't persist
+        // elsewhere) - leaving both always closes it.
         updateMetroBlkMiniTunerVisibility(viewName);
-        // The toggle that owns the tuner's on/off state (ML-91) only exists on this one screen.
-        document.getElementById('topTunerToggleBtn')?.classList.toggle('hidden-group', viewName !== 'metroBuilderView');
+        // The toggle that owns the tuner's on/off state (ML-91) only exists on these two screens.
+        document.getElementById('topTunerToggleBtn')?.classList.toggle('hidden-group', viewName !== 'metroBuilderView' && viewName !== 'quickPlayView');
 
         if (viewName === 'tunerView') {
             document.getElementById('topTitle').innerText = 'Tuner';
@@ -2282,7 +2309,31 @@
     });
 
     // --- TOASTS ---
-    let tInt, tInfoTimeout;
+    // How long each toast type stays up before auto-dismissing - the one place to change a toast's
+    // lifetime, since the countdown bar's own animation and the actual dismiss timer both read from
+    // here rather than a duration hardcoded into each show*Toast call.
+    const TOAST_DURATIONS_MS = { success: 4000, warning: 5000, info: 4000, undo: 2000 };
+
+    // Per-toast-id pending dismiss timer, so opening the same toast again (or closing it early)
+    // cancels whatever auto-dismiss was already scheduled instead of stacking another one.
+    const toastDismissTimers = {};
+
+    // Drives the visual auto-dismiss bar (see .toast-countdown-bar): snaps it back to full width with
+    // no transition, forces that to actually paint (the rAF), then transitions it to 0 width over
+    // durationMs - the shrink itself IS the countdown, no ticking number to keep in sync separately.
+    // Returns the matching dismiss timer so callers can track/clear it alongside the bar.
+    function startToastCountdownBar(barId, durationMs, onComplete) {
+        const bar = document.getElementById(barId);
+        if (bar) {
+            bar.style.transition = 'none';
+            bar.style.width = '100%';
+            void bar.offsetWidth; // force the 100% state to actually commit before animating away from it
+            bar.style.transition = `width ${durationMs}ms linear`;
+            bar.style.width = '0%';
+        }
+        return setTimeout(onComplete, durationMs);
+    }
+
     function showSuccessToast(msg, cat, sessionId) {
         closeToast('toastWarning');
         closeToast('toastInfo');
@@ -2290,30 +2341,33 @@
         if(!t) return;
         const msgEl = document.getElementById('toastMsg');
         if(msgEl) msgEl.innerText = msg;
-        clearInterval(tInt);
-        clearTimeout(tInfoTimeout);
+        clearTimeout(toastDismissTimers.toastSuccess);
+        const undoBtn = document.getElementById('toastUndoBtn');
         if (cat && sessionId) {
-            let tl = 3;
-            const countdown = document.getElementById('toastCountdown');
-            if(countdown) countdown.innerText = tl;
-            tInt = setInterval(() => { tl--; if(countdown) countdown.innerText = tl; if(tl <= 0) { clearInterval(tInt); closeToast('toastSuccess'); } }, 1000);
-            const undoBtn = document.getElementById('toastUndoBtn');
-            if(undoBtn) undoBtn.onclick = async () => {
-                closeToast('toastSuccess');
-                showInfoToast("Undoing...");
-                try {
-                    await API.sessions.delete(sessionId);
-                    closeToast('toastInfo');
-                    showSuccessToast("Undo successful");
-                    fetchDataAndRender();
-                } catch (error) {
-                    showWarningToast("Error undoing: " + error.message);
-                }
-            };
-        } else {
-            tInfoTimeout = setTimeout(() => closeToast('toastSuccess'), 4000);
+            if (undoBtn) {
+                undoBtn.style.display = '';
+                undoBtn.onclick = async () => {
+                    closeToast('toastSuccess');
+                    showInfoToast("Undoing...");
+                    try {
+                        await API.sessions.delete(sessionId);
+                        closeToast('toastInfo');
+                        showSuccessToast("Undo successful");
+                        fetchDataAndRender();
+                    } catch (error) {
+                        showWarningToast("Error undoing: " + error.message);
+                    }
+                };
+            }
+        } else if (undoBtn) {
+            undoBtn.style.display = 'none';
         }
+        // display has to flip to visible BEFORE the bar's width dance starts, not after - a transition
+        // begun while the toast is still display:none never actually animates (there's nothing
+        // rendered yet for the browser to animate from), it just snaps straight to the end state the
+        // instant display:flex reveals it.
         t.style.display = 'flex';
+        toastDismissTimers.toastSuccess = startToastCountdownBar('toastSuccessBar', TOAST_DURATIONS_MS.success, () => closeToast('toastSuccess'));
     }
 
     function showWarningToast(msg) {
@@ -2323,9 +2377,9 @@
         if(!t) return;
         const msgEl = document.getElementById('toastWarningMsg');
         if(msgEl) msgEl.innerText = msg;
-        clearTimeout(tInfoTimeout);
-        tInfoTimeout = setTimeout(() => closeToast('toastWarning'), 5000);
+        clearTimeout(toastDismissTimers.toastWarning);
         t.style.display = 'flex';
+        toastDismissTimers.toastWarning = startToastCountdownBar('toastWarningBar', TOAST_DURATIONS_MS.warning, () => closeToast('toastWarning'));
     }
 
     function showInfoToast(msg) {
@@ -2333,12 +2387,38 @@
         if(!t) return;
         const msgEl = document.getElementById('toastInfoMsg');
         if(msgEl) msgEl.innerText = msg;
+        clearTimeout(toastDismissTimers.toastInfo);
         t.style.display = 'flex';
+        toastDismissTimers.toastInfo = startToastCountdownBar('toastInfoBar', TOAST_DURATIONS_MS.info, () => closeToast('toastInfo'));
+    }
+
+    // Generic "X happened [Undo]" toast (e.g. Quick Play's bar delete/move) - separate from
+    // toastSuccess's own session-delete-undo special case above, since the undo action there is
+    // hardcoded to API.sessions.delete. onUndo is whatever the caller needs to reverse; closing the
+    // toast (by timeout or the X) without pressing Undo just lets the action stand.
+    function showUndoToast(msg, onUndo) {
+        closeToast('toastSuccess');
+        closeToast('toastWarning');
+        closeToast('toastInfo');
+        const t = document.getElementById('toastUndo');
+        if (!t) return;
+        const msgEl = document.getElementById('toastUndoMsg');
+        if (msgEl) msgEl.innerText = msg;
+        clearTimeout(toastDismissTimers.toastUndo);
+        const btn = document.getElementById('toastUndoActionBtn');
+        if (btn) btn.onclick = () => {
+            clearTimeout(toastDismissTimers.toastUndo);
+            closeToast('toastUndo');
+            onUndo();
+        };
+        t.style.display = 'flex';
+        toastDismissTimers.toastUndo = startToastCountdownBar('toastUndoBar', TOAST_DURATIONS_MS.undo, () => closeToast('toastUndo'));
     }
 
     function closeToast(id) {
         const t = document.getElementById(id);
         if(t) t.style.display = 'none';
+        clearTimeout(toastDismissTimers[id]);
     }
     window.closeToast = closeToast;
 
@@ -2385,15 +2465,19 @@
     }
 
     // ========================================
-    // METRONOME
+    // METRONOME ENGINE + SHARED HELPERS
+    // Generic, value-agnostic pieces reused by every metronome-family tool below (Quick Play,
+    // Metronome Blocks/Flow, and Blocks' own headphone-calibration loop) - the audio engine itself
+    // (createMetronomePlayer), tempo-slider tier math (METRO_MIN_BPM/MAX_BPM/SLIDER_TIERS,
+    // metroBestFitTier), dot-row rendering/scrolling (buildMetroDotRow, flashTierDot,
+    // metroApplyDisplayWidth, metroLeftStyle, metroScrollFollow, resetMetroScrollPosition), and the
+    // slider/stepper-readout interaction helpers just below. The single-bar Metronome tool that
+    // originally lived here has been replaced by Quick Play (see that section further down) - nothing
+    // tool-specific remains in this section any more, only what's actually shared.
     // ========================================
     const METRO_MIN_BPM = 15;
     const METRO_MAX_BPM = 500;
     const METRO_SLIDER_TIERS = [200, 350, 500];
-    const METRO_SPEED_STEP = 10; // percentage points, applied against the ORIGINAL target bpm each step (not compounding)
-    // Plain numbers rather than musical terms (half/thirds/quarters) - "N per beat" reads the same
-    // whether it's a preset or a custom-entered value, no vocabulary to keep track of.
-    function metroSubdivideLabel(factor) { return factor <= 1 ? 'Off' : `${factor} per beat`; }
 
     // Standalone audio engine - deliberately has no DOM/UI knowledge so it can be reused elsewhere later.
     // Concept: three nested levels, each an independent multiplier -
@@ -2626,26 +2710,13 @@
         };
     }
 
-    const metroPlayer = createMetronomePlayer();
-
-    // Three independent timing levels, per the actual mental model:
-    //   - notesBpm: tempo of the notes - the "beats per bar" row's click rate. The primary, slider-driven tempo.
-    //   - conductorBpm: tempo of the conductor's own beat - always kept in sync as notesBpm/notesPerBeat, but
-    //     also directly editable (editing it back-solves notesBpm instead, holding the note counts fixed).
-    //   - subdivisionFactor: a further Off/Half/Thirds split of each note, purely a practice aid.
-    // beatsPerBar (1-9,12) is how many notes are in the bar. conductIn (1..beatsPerBar, derived as
-    // beatsPerBar/notesPerBeat) is how many of those notes the conductor actually beats/accents.
+    // Headphone-delay compensation is the one setting genuinely shared across every metronome-family
+    // tool (Quick Play, Metronome Blocks, and its calibration loop) since it's about the physical
+    // output device, not any one tool's own timing model - see
+    // setMetroLatencyMs/metroBlkPlayerRef/metroBlkCalibPlayerRef below. qpPlayerRef is filled in the
+    // same way once Quick Play's own player exists further down. Every other
+    // per-tool setting (bpm, volume, sub-beats, play speed) lives in that tool's own state instead.
     const metroState = {
-        notesBpm: 120,
-        conductorBpm: 120, // internal only now - drives the engine/baton timing, no longer surfaced as its own field
-        beatsPerBar: 4,
-        notesPerBeat: 1, // = beatsPerBar / conductIn (rounded to a whole number)
-        subdivisionFactor: 1,
-        conductInLinked: true, // "Conductor beats" tracks "Beats per bar" live until an explicit conductor-beats choice breaks the link
-        speedLevel: 0, // -9..+5 (10%-150%), each step = METRO_SPEED_STEP% of the stored notesBpm (not compounding)
-        sliderMax: METRO_SLIDER_TIERS[0],
-        volume: 80,
-        muted: false,
         latencyMs: 0 // extra delay applied to the visual beat/baton only, to compensate for Bluetooth output lag
     };
     const METRO_LATENCY_KEY = 'metroLatencyMs';
@@ -2658,211 +2729,12 @@
     // setMetroLatencyMs push to them too without caring which tool is currently open.
     let metroBlkPlayerRef = null;
     let metroBlkCalibPlayerRef = null;
-
-    const METRO_SPEED_MIN_LEVEL = -9; // 10%
-    const METRO_SPEED_MAX_LEVEL = 5;  // 150%
-
-    function metroConductIn() { return metroState.beatsPerBar / metroState.notesPerBeat; }
-
-    // Whole-number divisors of n, ascending - the only conductor-beats counts that evenly group a bar
-    // of n notes. Offering (or landing on) a non-divisor is what let a picked value silently round
-    // back to n itself, which looked exactly like the beats-per-bar link had never actually broken.
-    function metroDivisorsOf(n) {
-        const divs = [];
-        for (let i = 1; i <= n; i++) if (n % i === 0) divs.push(i);
-        return divs;
-    }
-
-    // Nearest valid divisor of n to a target value, preferring the larger one on an exact tie.
-    function metroNearestDivisor(n, target) {
-        const divisors = metroDivisorsOf(n);
-        return divisors.reduce((best, d) => {
-            const dDist = Math.abs(d - target), bestDist = Math.abs(best - target);
-            return (dDist < bestDist || (dDist === bestDist && d > best)) ? d : best;
-        }, divisors[0]);
-    }
-    function metroSpeedPercent() { return 100 + metroState.speedLevel * METRO_SPEED_STEP; }
-    function metroEffectiveBpm() { return metroState.notesBpm * (metroSpeedPercent() / 100); }
-
-    // Disable slower/faster past the point where the resulting bpm would leave the engine's hard 15-500 range.
-    function metroSpeedLevelBounds() {
-        let minLevel = METRO_SPEED_MIN_LEVEL, maxLevel = METRO_SPEED_MAX_LEVEL;
-        while (minLevel < maxLevel && metroState.notesBpm * ((100 + minLevel * METRO_SPEED_STEP) / 100) < METRO_MIN_BPM) minLevel++;
-        while (maxLevel > minLevel && metroState.notesBpm * ((100 + maxLevel * METRO_SPEED_STEP) / 100) > METRO_MAX_BPM) maxLevel--;
-        return { minLevel, maxLevel };
-    }
-
-    function pushMetroSettingsToPlayer() {
-        metroPlayer.setConductorBpm(metroState.conductorBpm);
-        metroPlayer.setConductorBeatsPerBar(Math.round(metroConductIn()));
-        metroPlayer.setNotesPerBeat(metroState.notesPerBeat);
-        metroPlayer.setSubdivisionFactor(metroState.subdivisionFactor);
-        metroPlayer.setSpeedPercent(metroSpeedPercent());
-    }
+    let qpPlayerRef = null;
 
     // Smallest tier that comfortably fits a value - used for direct/programmatic bpm changes.
     function metroBestFitTier(value) {
         for (const t of METRO_SLIDER_TIERS) if (value <= t) return t;
         return METRO_SLIDER_TIERS[METRO_SLIDER_TIERS.length - 1];
-    }
-
-    // One-tier-at-a-time expand/contract - used while actively dragging so the scale only
-    // jumps when the thumb actually reaches an edge, in either direction.
-    function metroStepTier(value) {
-        const idx = METRO_SLIDER_TIERS.indexOf(metroState.sliderMax);
-        if (idx < METRO_SLIDER_TIERS.length - 1 && value >= METRO_SLIDER_TIERS[idx]) {
-            metroState.sliderMax = METRO_SLIDER_TIERS[idx + 1];
-        } else if (idx > 0 && value < METRO_SLIDER_TIERS[idx - 1]) {
-            metroState.sliderMax = METRO_SLIDER_TIERS[idx - 1];
-        }
-    }
-
-    // Keeps conductorBpm in sync with notesBpm/notesPerBeat whenever either changes.
-    function metroSyncConductorBpm() {
-        metroState.conductorBpm = Math.round(Math.min(METRO_MAX_BPM, Math.max(1, metroState.notesBpm / metroState.notesPerBeat)));
-    }
-
-    function setMetroNotesBpm(bpm, opts = {}) {
-        bpm = Math.round(Math.min(METRO_MAX_BPM, Math.max(METRO_MIN_BPM, bpm)));
-        metroState.notesBpm = bpm;
-        metroSyncConductorBpm();
-        if (opts.resetSpeed) metroState.speedLevel = 0;
-        if (opts.dragging) metroStepTier(bpm); else metroState.sliderMax = metroBestFitTier(bpm);
-        pushMetroSettingsToPlayer();
-        renderMetroSlider();
-        renderMetroSpeedReadout();
-    }
-
-    // Beats per bar = notes per bar. notesBpm (the note grid's own tempo) stays fixed. When linked,
-    // "conduct in" is simply kept equal to the new beats-per-bar (every note is a conductor beat);
-    // otherwise the previous conduct-in count is kept if it still fits, or clamped down if not.
-    function setMetroBeatsPerBar(n) {
-        n = Math.min(METRO_CUSTOM_MAX, Math.max(0, Math.round(n)));
-        // 0 (ML-63) is a hard-coded single unaccented beat, not an adjustable grid - conduct-in/
-        // subdivide have nothing to group, so notesPerBeat is just forced back to 1 rather than run
-        // through metroNearestDivisor, which has no divisors to offer for a bar of length 0.
-        if (n === 0 || metroState.conductInLinked) {
-            metroState.beatsPerBar = n;
-            metroState.notesPerBeat = 1;
-        } else {
-            // Keep the previous conduct-in if it's still a valid (exact) grouping of the new bar
-            // length; otherwise snap to the nearest count that actually divides it evenly, rather than
-            // rounding notesPerBeat directly, which could land on an impossible in-between grouping.
-            const prevConductIn = Math.min(metroConductIn(), n);
-            const nearestValid = metroNearestDivisor(n, prevConductIn);
-            metroState.beatsPerBar = n;
-            metroState.notesPerBeat = Math.max(1, Math.round(n / nearestValid));
-        }
-        metroSyncConductorBpm();
-        document.getElementById('metroBeatsPerBarLbl').innerText = n;
-        pushMetroSettingsToPlayer();
-        renderMetroTiers();
-        renderMetroConductInLabel();
-    }
-
-    function setMetroSubdivision(factor) {
-        factor = Math.min(METRO_CUSTOM_MAX, Math.max(1, Math.round(factor)));
-        metroState.subdivisionFactor = factor;
-        document.getElementById('metroSubdivideLbl').innerText = metroSubdivideLabel(factor);
-        pushMetroSettingsToPlayer();
-        renderMetroTiers();
-    }
-
-    // Sets every timing field at once from scratch (no preservation) - used by "Set from music" and
-    // the initial default state. Always breaks the beats-per-bar/conductor-beats link, since "Set
-    // from music" deliberately picks a specific (often divergent) conduct-in for compound metres.
-    function setMetroFreshGrid({ notesBpm, beatsPerBar, notesPerBeat, subdivisionFactor }) {
-        metroState.notesBpm = Math.round(Math.min(METRO_MAX_BPM, Math.max(METRO_MIN_BPM, notesBpm)));
-        metroState.beatsPerBar = beatsPerBar;
-        metroState.notesPerBeat = notesPerBeat;
-        metroState.subdivisionFactor = subdivisionFactor;
-        metroState.conductInLinked = false;
-        metroState.speedLevel = 0;
-        metroSyncConductorBpm();
-        metroState.sliderMax = metroBestFitTier(metroState.notesBpm);
-        document.getElementById('metroBeatsPerBarLbl').innerText = beatsPerBar;
-        document.getElementById('metroSubdivideLbl').innerText = metroSubdivideLabel(subdivisionFactor);
-        pushMetroSettingsToPlayer();
-        renderMetroSlider();
-        renderMetroSpeedReadout();
-        renderMetroTiers();
-        renderMetroConductInLabel();
-    }
-
-    // No more manual "Conductor beats" button to keep a label/link-icon in sync for (removed per
-    // feedback - the visual "conduct" grouping it used to control disappeared in ML-66's unified dot
-    // row anyway, leaving nothing for a manual picker to usefully show). The underlying conduct-in
-    // grouping itself is untouched - "Set from music" still derives it from whatever note type was
-    // actually chosen (ML-95), it's just no longer manually editable - so this now only keeps the
-    // zero-bar disabled state in sync.
-    function renderMetroConductInLabel() {
-        updateMetroZeroBarUI();
-    }
-
-    // 0 beats per bar (ML-63) is a hard-coded single beat, not an adjustable grid - subdivide has no
-    // bar to group, so its picker is disabled while it's selected.
-    function updateMetroZeroBarUI() {
-        const zeroBar = metroState.beatsPerBar <= 0;
-        const subdivideBtn = document.getElementById('metroSubdivideBtn');
-        if (subdivideBtn) subdivideBtn.disabled = zeroBar;
-    }
-
-    function renderMetroSlider() {
-        const track = document.getElementById('metroSliderTrack');
-        if (!track) return;
-        const fill = document.getElementById('metroSliderFill');
-        const thumb = document.getElementById('metroSliderThumb');
-        const pct = ((metroState.notesBpm - METRO_MIN_BPM) / (metroState.sliderMax - METRO_MIN_BPM)) * 100;
-        fill.style.width = `${pct}%`;
-        thumb.style.left = `${pct}%`;
-        thumb.setAttribute('aria-valuenow', metroState.notesBpm);
-        thumb.setAttribute('aria-valuemax', metroState.sliderMax);
-        document.getElementById('metroSliderMaxLbl').innerText = metroState.sliderMax;
-        document.getElementById('metroBpmValue').innerText = metroState.notesBpm;
-        renderMetroMiniBpmSlider();
-        syncMetroMiniLabels();
-    }
-
-    // Mirrors renderMetroSlider above, but for the compact BPM popup opened from the mini bar (ML-64) -
-    // a separate slider element, same math, so it can be open (or not) independently of the full view.
-    function renderMetroMiniBpmSlider() {
-        const track = document.getElementById('metroMiniBpmSliderTrack');
-        if (!track) return;
-        const fill = document.getElementById('metroMiniBpmSliderFill');
-        const thumb = document.getElementById('metroMiniBpmSliderThumb');
-        const pct = ((metroState.notesBpm - METRO_MIN_BPM) / (metroState.sliderMax - METRO_MIN_BPM)) * 100;
-        fill.style.width = `${pct}%`;
-        thumb.style.left = `${pct}%`;
-        thumb.setAttribute('aria-valuenow', metroState.notesBpm);
-        thumb.setAttribute('aria-valuemax', metroState.sliderMax);
-        document.getElementById('metroMiniBpmSliderMaxLbl').innerText = metroState.sliderMax;
-        document.getElementById('metroMiniBpmModalValue').innerText = metroState.notesBpm;
-    }
-
-    function renderMetroSpeedReadout() {
-        document.getElementById('metroSpeedPct').innerText = `${metroSpeedPercent()}%`;
-        document.getElementById('metroSpeedBpm').innerText = `${Math.round(metroEffectiveBpm())} bpm`;
-        const { minLevel, maxLevel } = metroSpeedLevelBounds();
-        document.getElementById('metroSlowerBtn').disabled = metroState.speedLevel <= minLevel;
-        document.getElementById('metroFasterBtn').disabled = metroState.speedLevel >= maxLevel;
-        document.getElementById('metroMiniSpeedModalPct').innerText = `${metroSpeedPercent()}%`;
-        document.getElementById('metroMiniSpeedModalBpm').innerText = `${Math.round(metroEffectiveBpm())} bpm`;
-        document.getElementById('metroMiniSpeedMinus').disabled = metroState.speedLevel <= minLevel;
-        document.getElementById('metroMiniSpeedPlus').disabled = metroState.speedLevel >= maxLevel;
-        syncMetroMiniLabels();
-    }
-
-    // Keeps the mini bar's four quick-control labels (ML-64) in step with the full view's own -
-    // called from every place that already re-renders the full view's equivalent labels.
-    function syncMetroMiniLabels() {
-        const beatsLbl = document.getElementById('metroMiniBeatsLbl');
-        if (beatsLbl) beatsLbl.innerText = metroState.beatsPerBar;
-        const subLbl = document.getElementById('metroMiniSubdivideLbl');
-        if (subLbl) subLbl.innerText = metroSubdivideLabel(metroState.subdivisionFactor);
-        const bpmLbl = document.getElementById('metroMiniBpmLbl');
-        if (bpmLbl) bpmLbl.innerText = metroState.notesBpm;
-        const speedLbl = document.getElementById('metroMiniSpeedLbl');
-        if (speedLbl) speedLbl.innerText = metroSpeedPercent();
     }
 
     // The largest dot (the note tier, 15px, now the same size whether accented or not - see
@@ -2912,23 +2784,6 @@
         return `calc(${METRO_EDGE_PAD_PX}px + (100% - ${METRO_EDGE_PAD_PX * 2}px) * ${pct / 100})`;
     }
 
-    // The beats-per-bar row and the subdivide row (and the baton) all position their dots against the
-    // SAME underlying base-click grid - beatsPerBar x subdivisionFactor slots, each of equal width -
-    // rather than each row spacing its own dots independently. That's what guarantees a conductor
-    // beat's dot always sits directly above the first subdivision dot of its group, instead of merely
-    // "some evenly spread dot" that happens to have the same count.
-    function metroTierGeometry() {
-        const beatsPerBar = metroState.beatsPerBar > 0 ? metroState.beatsPerBar : 1;
-        const notesPerBeat = metroState.beatsPerBar > 0 ? metroState.notesPerBeat : 1;
-        const subFactor = metroState.beatsPerBar > 0 ? metroState.subdivisionFactor : 1;
-        const totalBaseClicks = beatsPerBar * subFactor;
-        const unit = 100 / totalBaseClicks;
-        return {
-            beatsPerBar, notesPerBeat, subFactor, totalBaseClicks,
-            leftPct: (baseClickIndex) => baseClickIndex * unit + unit / 2
-        };
-    }
-
     // Every base click (beat or subdivision) gets one dot in a single row, positioned at its real
     // timeline slot, rather than beats and subdivisions living on two separate rows (ML-66). A
     // note-boundary click (every subFactor-th one) gets the larger "note" dot; everything in between
@@ -2953,25 +2808,6 @@
             dot.style.left = metroLeftStyle(leftPct(k));
             row.appendChild(dot);
         }
-    }
-
-    function renderMetroTiers() {
-        const { leftPct, subFactor, totalBaseClicks } = metroTierGeometry();
-        metroApplyDisplayWidth('metroDisplayViewport', 'metroDisplayContent', totalBaseClicks);
-        metroApplyDisplayWidth('metroMiniViewport', 'metroMiniContent', totalBaseClicks);
-        const zeroBar = metroState.beatsPerBar <= 0;
-
-        buildMetroDotRow('metroNotesRow', totalBaseClicks, subFactor, zeroBar, leftPct);
-        buildMetroDotRow('metroMiniDots', totalBaseClicks, subFactor, zeroBar, leftPct);
-
-        // Don't yank the scroll position back to bar-start while it's still playing in the background
-        // (ML-64 lets it keep running off-screen) - only reset on a genuine stop, or the very first
-        // render before anything has ever played.
-        if (!metroPlayer.isPlaying()) {
-            resetMetroScrollPosition('metroDisplayContent');
-            resetMetroScrollPosition('metroMiniContent');
-        }
-        syncMetroMiniLabels();
     }
 
     function resetMetroScrollPosition(contentId) {
@@ -3013,136 +2849,6 @@
             setTimeout(() => dot.classList.remove('lit'), 120);
         }
     }
-
-    function flashMetroBeat(beatInfo) {
-        // Every dot lives in one row now, keyed by its base-click index within the bar (ML-66) - no
-        // more separate note/subdivide index spaces to look up. The mini bar's row mirrors it 1:1
-        // (ML-64), whether or not it's actually visible right now.
-        flashTierDot('metroNotesRow', beatInfo.clickIndexInBar);
-        flashTierDot('metroMiniDots', beatInfo.clickIndexInBar);
-
-        // No more moving baton/line to draw (ML-70) - but the auto-scroll that keeps the current
-        // conductor beat in view still runs exactly as before, off the same conductor-beat timing -
-        // for both the full view and the mini bar (ML-64).
-        if (!beatInfo.isConductorBeat) return;
-        const { notesPerBeat, subFactor, leftPct } = metroTierGeometry();
-        const groupSize = notesPerBeat * subFactor;
-        const nextIndex = (beatInfo.conductorBeatIndex + 1) % beatInfo.conductorBeatsPerBar;
-        const arrivedPct = leftPct(beatInfo.conductorBeatIndex * groupSize);
-        // Genuinely wraps back to nextIndex's true (small) position rather than continuing past 100% -
-        // that "keep incrementing" trick only ever made sense for a baton that needed to visibly exit
-        // right and reappear left (ML-70 removed it); applied to the scroll itself it just clamped the
-        // camera at the far-right edge forever, so the bar's first beat looked like it landed on the
-        // LAST circle instead of the first (reported after the ML-70 changes).
-        const nextPct = leftPct(nextIndex * groupSize);
-        metroScrollFollow('metroDisplayViewport', 'metroDisplayContent', arrivedPct, nextPct, beatInfo.secondsPerConductorBeat);
-        metroScrollFollow('metroMiniViewport', 'metroMiniContent', arrivedPct, nextPct, beatInfo.secondsPerConductorBeat);
-    }
-    metroPlayer.onBeat(flashMetroBeat);
-
-    function updateMetroPlayIcon() {
-        const playing = metroPlayer.isPlaying();
-        const icon = document.getElementById('metroPlayIcon');
-        const btn = document.getElementById('metroPlayBtn');
-        if (icon) icon.innerText = playing ? 'pause' : 'play_arrow';
-        if (btn) btn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
-        const miniIcon = document.getElementById('metroMiniPlayIcon');
-        const miniBtn = document.getElementById('metroMiniPlayBtn');
-        if (miniIcon) miniIcon.innerText = playing ? 'pause' : 'play_arrow';
-        if (miniBtn) miniBtn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
-        syncWakeLock();
-    }
-
-    // Shown only when actually playing at the moment a view change happens - not a "session active"
-    // flag remembered across navigations. Only ever called from switchView and from actions that end
-    // playback outright (stopMetronome/Close): pausing deliberately does NOT call this, so a bar
-    // that's already showing (because you navigated away while it WAS playing) stays put when you
-    // pause it from another screen - but the next navigation re-checks isPlaying() fresh, so leaving
-    // the metronome page while paused/stopped never shows it elsewhere in the first place, and
-    // navigating on again while still paused drops it if it was showing.
-    function updateMetroMiniBarVisibility(viewName) {
-        const bar = document.getElementById('metroMiniBar');
-        if (!bar) return;
-        bar.classList.toggle('hidden-group', !metroPlayer.isPlaying() || viewName === 'metronomeView');
-    }
-
-    // Resumes from wherever it was left (position 0 the first time, or wherever pauseMetronome() left
-    // it) - use stopMetronome() first for a fresh bar from the beginning.
-    function playMetronome() {
-        pushMetroSettingsToPlayer();
-        metroPlayer.play();
-        updateMetroPlayIcon();
-        updateMetroMiniBarVisibility(viewStack[viewStack.length - 1]);
-    }
-
-    // Halts playback without resetting position - playMetronome() will pick back up from here.
-    // Deliberately does not touch the mini bar's visibility - see updateMetroMiniBarVisibility above.
-    function pauseMetronome() {
-        metroPlayer.pause();
-        updateMetroPlayIcon();
-    }
-
-    // Halts playback AND resets the beat position back to the start of the bar. Also the one way to
-    // dismiss the mini bar immediately (rather than waiting for the next navigation to notice it's no
-    // longer playing) - the X on the mini bar itself calls this.
-    function stopMetronome() {
-        metroPlayer.stop();
-        updateMetroPlayIcon();
-        resetMetroScrollPosition('metroDisplayContent');
-        resetMetroScrollPosition('metroMiniContent');
-        updateMetroMiniBarVisibility(viewStack[viewStack.length - 1]);
-    }
-
-    document.getElementById('metroPlayBtn')?.addEventListener('click', () => {
-        if (metroPlayer.isPlaying()) pauseMetronome(); else playMetronome();
-    });
-    document.getElementById('metroStopBtn')?.addEventListener('click', stopMetronome);
-    document.getElementById('metroMiniPlayBtn')?.addEventListener('click', () => {
-        if (metroPlayer.isPlaying()) pauseMetronome(); else playMetronome();
-    });
-    // Fully stops it (ML-87) - the only way to dismiss the mini bar from another screen without
-    // navigating back to the full Metronome view first.
-    document.getElementById('metroMiniCloseBtn')?.addEventListener('click', stopMetronome);
-
-    // --- BPM step buttons (tap = +-1, hold = repeats, accelerating to +-10 per step after 15 taps' worth) ---
-    function setupMetroBpmStepper(btnId, direction) {
-        const btn = document.getElementById(btnId);
-        if (!btn) return;
-        const REPEAT_MS = 100;
-        const INITIAL_DELAY_MS = 400;
-        const ACCELERATE_AFTER = 15;
-        let repeatTimer = null;
-        let startTimer = null;
-        let unitStepsTaken = 0;
-
-        function step() {
-            const amount = (unitStepsTaken >= ACCELERATE_AFTER ? 10 : 1) * direction;
-            setMetroNotesBpm(metroState.notesBpm + amount, { resetSpeed: true });
-            if (unitStepsTaken < ACCELERATE_AFTER) unitStepsTaken++;
-        }
-
-        function begin(e) {
-            e.preventDefault();
-            step();
-            startTimer = setTimeout(() => {
-                repeatTimer = setInterval(step, REPEAT_MS);
-            }, INITIAL_DELAY_MS);
-        }
-        function end() {
-            clearTimeout(startTimer);
-            clearInterval(repeatTimer);
-            unitStepsTaken = 0;
-        }
-
-        btn.addEventListener('pointerdown', begin);
-        btn.addEventListener('pointerup', end);
-        btn.addEventListener('pointerleave', end);
-        btn.addEventListener('pointercancel', end);
-    }
-    setupMetroBpmStepper('metroBpmMinus', -1);
-    setupMetroBpmStepper('metroBpmPlus', 1);
-    setupMetroBpmStepper('metroMiniBpmMinus', -1);
-    setupMetroBpmStepper('metroMiniBpmPlus', 1);
 
     // --- Slider (shared design-system component) drag + keyboard interaction ---
     // Value-agnostic: reports a 0-1 ratio for drags/clicks along the track, and a +-1 step for arrow
@@ -3187,8 +2893,8 @@
     // restores the original display element in place; Escape cancels without calling it. Swaps the
     // SAME element back in (never destroyed, just detached while editing) so nothing else needs to
     // know the DOM changed - existing render functions keep working via the same id once restored.
-    function makeSliderReadoutEditable(displayElId, getValue, setValue, opts = {}) {
-        const displayEl = document.getElementById(displayElId);
+    function makeSliderReadoutEditable(displayElOrId, getValue, setValue, opts = {}) {
+        const displayEl = typeof displayElOrId === 'string' ? document.getElementById(displayElOrId) : displayElOrId;
         if (!displayEl) return;
         displayEl.style.cursor = 'pointer';
         displayEl.tabIndex = 0;
@@ -3224,281 +2930,34 @@
         });
     }
 
-    setupSliderInteraction(document.getElementById('metroSliderTrack'), document.getElementById('metroSliderThumb'), {
-        onDragRatio: (ratio) => setMetroNotesBpm(METRO_MIN_BPM + ratio * (metroState.sliderMax - METRO_MIN_BPM), { resetSpeed: true, dragging: true }),
-        onArrowStep: (dir) => setMetroNotesBpm(metroState.notesBpm + dir, { resetSpeed: true, dragging: true })
-    });
-    // Mini bar's BPM popup (ML-64) - same slider behaviour, separate DOM element.
-    setupSliderInteraction(document.getElementById('metroMiniBpmSliderTrack'), document.getElementById('metroMiniBpmSliderThumb'), {
-        onDragRatio: (ratio) => setMetroNotesBpm(METRO_MIN_BPM + ratio * (metroState.sliderMax - METRO_MIN_BPM), { resetSpeed: true, dragging: true }),
-        onArrowStep: (dir) => setMetroNotesBpm(metroState.notesBpm + dir, { resetSpeed: true, dragging: true })
-    });
-    makeSliderReadoutEditable('metroBpmValue', () => metroState.notesBpm, (v) => setMetroNotesBpm(v, { resetSpeed: true }), { label: 'Beats per minute', min: METRO_MIN_BPM, max: METRO_MAX_BPM });
-    makeSliderReadoutEditable('metroMiniBpmModalValue', () => metroState.notesBpm, (v) => setMetroNotesBpm(v, { resetSpeed: true }), { label: 'Beats per minute', min: METRO_MIN_BPM, max: METRO_MAX_BPM });
-
-    document.getElementById('metroMiniBpmBtn')?.addEventListener('click', () => {
-        renderMetroMiniBpmSlider();
-        document.getElementById('metroMiniBpmModal').style.display = 'flex';
-    });
-    document.getElementById('metroMiniSpeedBtn')?.addEventListener('click', () => {
-        document.getElementById('metroMiniSpeedModal').style.display = 'flex';
-    });
-
     const METRO_CUSTOM_MAX = 50;
 
-    // Opens a beats-per-bar / conductor-beats / subdivide picker popup. Nothing is applied as you tap
-    // around inside it - a tap just changes what's currently selected (including switching into the
-    // inline Custom stepper, no nested modal) - and only Save actually calls onSave and closes it;
-    // Cancel closes without applying anything.
-    //
-    // cfg: { modalId, optionsId, customEntryId, customValueId, cancelBtnId, saveBtnId,
-    //        values, currentValue, labelFor, customMin, customMax, onSave,
-    //        extraOption?: {label, icon, onPick}, startAsExtra? }
-    function openMetroPicker(cfg) {
-        const modalEl = document.getElementById(cfg.modalId);
-        const optsEl = document.getElementById(cfg.optionsId);
-        const customEl = document.getElementById(cfg.customEntryId);
-        const customValEl = document.getElementById(cfg.customValueId);
-        if (!modalEl || !optsEl) return;
-
-        let kind = cfg.startAsExtra ? 'extra' : 'preset'; // 'preset' | 'extra' | 'custom'
-        let value = cfg.currentValue;
-
-        function renderOptions() {
-            let html = '';
-            if (cfg.extraOption) {
-                html += `<button class="metro-beats-option custom-option${kind === 'extra' ? ' selected' : ''}" data-extra="1">` +
-                    (cfg.extraOption.icon ? `<span class="material-symbols-outlined metro-option-icon">${cfg.extraOption.icon}</span>` : '') +
-                    `${cfg.extraOption.label}</button>`;
-            }
-            html += cfg.values.map(v =>
-                `<button class="metro-beats-option${kind === 'preset' && v === value ? ' selected' : ''}" data-val="${v}">${cfg.labelFor ? cfg.labelFor(v) : v}</button>`
-            ).join('');
-            html += `<button class="metro-beats-option custom-option${kind === 'custom' ? ' selected' : ''}" data-custom="1">Custom&hellip;</button>`;
-            optsEl.innerHTML = html;
-        }
-
-        function renderCustomEntry() {
-            if (!customEl) return;
-            customEl.classList.toggle('hidden-group', kind !== 'custom');
-            if (kind === 'custom' && customValEl) customValEl.innerText = cfg.customLabelFor ? cfg.customLabelFor(value) : value;
-        }
-
-        optsEl.onclick = (e) => {
-            const btn = e.target.closest('.metro-beats-option');
-            if (!btn) return;
-            if (btn.dataset.extra) {
-                kind = 'extra';
-            } else if (btn.dataset.custom) {
-                kind = 'custom';
-                // Custom starts from a fixed sensible default if given (there's no point landing on a
-                // value that's already one of the presets); otherwise from what's presently set.
-                value = cfg.customDefault !== undefined ? cfg.customDefault : cfg.currentValue;
-            } else {
-                kind = 'preset';
-                value = parseInt(btn.dataset.val, 10);
-            }
-            renderOptions();
-            renderCustomEntry();
-        };
-
-        if (customEl) {
-            customEl.querySelectorAll('.metro-bpm-step').forEach(btn => {
-                btn.onclick = () => {
-                    const step = parseInt(btn.dataset.step, 10);
-                    // customStep (optional): custom navigation, e.g. stepping through only the values
-                    // that are actually valid (conductor beats must evenly divide beats per bar) rather
-                    // than a plain +-1 that could land on one that isn't.
-                    value = cfg.customStep ? cfg.customStep(value, step) : Math.min(cfg.customMax, Math.max(cfg.customMin, value + step));
-                    if (customValEl) customValEl.innerText = cfg.customLabelFor ? cfg.customLabelFor(value) : value;
-                };
-            });
-        }
-
-        document.getElementById(cfg.saveBtnId).onclick = () => {
-            if (kind === 'extra') cfg.extraOption.onPick();
-            else cfg.onSave(value);
-            modalEl.style.display = 'none';
-        };
-        document.getElementById(cfg.cancelBtnId).onclick = () => {
-            modalEl.style.display = 'none';
-        };
-
-        renderOptions();
-        renderCustomEntry();
-        modalEl.style.display = 'flex';
-    }
-
-    // --- Beats per bar popup - opened from either the full view's button or the mini bar's (ML-64) ---
-    function openMetroBeatsPicker() {
-        openMetroPicker({
-            modalId: 'metroBeatsModal', optionsId: 'metroBeatsOptions',
-            customEntryId: 'metroBeatsCustomEntry', customValueId: 'metroBeatsCustomValue',
-            cancelBtnId: 'metroBeatsCancelBtn', saveBtnId: 'metroBeatsSaveBtn',
-            // 0 (ML-63): a single unaccented beat for pieces that can't use a variable-bar-length
-            // version - one circle, no bar structure, just beat it out.
-            values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12], currentValue: metroState.beatsPerBar,
-            customMin: 1, customMax: METRO_CUSTOM_MAX,
-            customDefault: 10, // not already one of the presets above, so Custom starts somewhere new
-            onSave: (v) => setMetroBeatsPerBar(v)
-        });
-    }
-    document.getElementById('metroBeatsBtn')?.addEventListener('click', openMetroBeatsPicker);
-    document.getElementById('metroMiniBeatsBtn')?.addEventListener('click', openMetroBeatsPicker);
-
-    // --- Subdivide popup (Off/2/3/4 plus Custom - "N per beat" throughout, presets and custom alike) ---
-    function openMetroSubdividePicker() {
-        openMetroPicker({
-            modalId: 'metroSubdivideModal', optionsId: 'metroSubdivideOptions',
-            customEntryId: 'metroSubdivideCustomEntry', customValueId: 'metroSubdivideCustomValue',
-            cancelBtnId: 'metroSubdivideCancelBtn', saveBtnId: 'metroSubdivideSaveBtn',
-            values: [1, 2, 3, 4], currentValue: metroState.subdivisionFactor,
-            labelFor: v => metroSubdivideLabel(v),
-            customLabelFor: v => `${v} per beat`,
-            customMin: 1, customMax: METRO_CUSTOM_MAX,
-            customDefault: 5, // not already one of the presets above
-            onSave: (v) => setMetroSubdivision(v)
-        });
-    }
-    document.getElementById('metroSubdivideBtn')?.addEventListener('click', openMetroSubdividePicker);
-    document.getElementById('metroMiniSubdivideBtn')?.addEventListener('click', openMetroSubdividePicker);
-
-    // --- Speed override (practice slower/faster than target, target itself untouched) - shared by
-    // both the full view's buttons and the mini bar's popup (ML-64) ---
-    function stepMetroSpeedLevel(delta) {
-        const { minLevel, maxLevel } = metroSpeedLevelBounds();
-        metroState.speedLevel = Math.min(maxLevel, Math.max(minLevel, metroState.speedLevel + delta));
-        pushMetroSettingsToPlayer();
-        renderMetroSpeedReadout();
-    }
-    document.getElementById('metroSlowerBtn')?.addEventListener('click', () => stepMetroSpeedLevel(-1));
-    document.getElementById('metroFasterBtn')?.addEventListener('click', () => stepMetroSpeedLevel(1));
-    document.getElementById('metroMiniSpeedMinus')?.addEventListener('click', () => stepMetroSpeedLevel(-1));
-    document.getElementById('metroMiniSpeedPlus')?.addEventListener('click', () => stepMetroSpeedLevel(1));
-    document.getElementById('metroSpeedResetBtn')?.addEventListener('click', () => {
-        metroState.speedLevel = 0;
-        pushMetroSettingsToPlayer();
-        renderMetroSpeedReadout();
-    });
-
-    // --- Volume / mute (in-app gain only - a web page cannot control the device's hardware volume) ---
-    function renderMetroVolumeSlider() {
-        const fill = document.getElementById('metroVolumeFill');
-        const thumb = document.getElementById('metroVolumeThumb');
-        if (!fill || !thumb) return;
-        fill.style.width = `${metroState.volume}%`;
-        thumb.style.left = `${metroState.volume}%`;
-        thumb.setAttribute('aria-valuenow', metroState.volume);
-    }
-
-    function setMetroVolume(v) {
-        metroState.volume = Math.round(Math.min(100, Math.max(0, v)));
-        metroPlayer.setVolume(metroState.volume / 100);
-        renderMetroVolumeSlider();
-    }
-
-    setupSliderInteraction(document.getElementById('metroVolumeTrack'), document.getElementById('metroVolumeThumb'), {
-        onDragRatio: (ratio) => setMetroVolume(ratio * 100),
-        onArrowStep: (dir) => setMetroVolume(metroState.volume + dir * 5)
-    });
-    document.getElementById('metroMuteBtn')?.addEventListener('click', () => {
-        metroState.muted = !metroState.muted;
-        metroPlayer.setMuted(metroState.muted);
-        document.getElementById('metroMuteIcon').innerText = metroState.muted ? 'volume_off' : 'volume_up';
-        document.getElementById('metroMuteBtn').setAttribute('aria-pressed', String(metroState.muted));
-    });
-
-    // --- Headphone delay compensation (ML-102: shared with Metronome Blocks + its calibration loop,
-    // see metroBlkPlayerRef/metroBlkCalibPlayerRef above) ---
+    // --- Headphone delay compensation (ML-102: shared across every metronome-family tool - it's
+    // about the physical output device, not any one tool's own timing model - see
+    // metroBlkPlayerRef/metroBlkCalibPlayerRef above) ---
     function renderMetroLatencyReadout() {
-        document.getElementById('metroLatencyMs').innerText = `${metroState.latencyMs} ms`;
         const blkReadout = document.getElementById('metroBlkCalibLatencyMs');
         if (blkReadout) blkReadout.innerText = `${metroState.latencyMs} ms`;
     }
     function setMetroLatencyMs(ms) {
         metroState.latencyMs = Math.min(METRO_LATENCY_MAX, Math.max(0, ms));
-        metroPlayer.setVisualLatencyMs(metroState.latencyMs);
         metroBlkPlayerRef?.setVisualLatencyMs(metroState.latencyMs);
         metroBlkCalibPlayerRef?.setVisualLatencyMs(metroState.latencyMs);
+        qpPlayerRef?.setVisualLatencyMs(metroState.latencyMs);
         localStorage.setItem(METRO_LATENCY_KEY, String(metroState.latencyMs));
         renderMetroLatencyReadout();
     }
-    document.getElementById('metroLatencyMinusBtn')?.addEventListener('click', () => setMetroLatencyMs(metroState.latencyMs - METRO_LATENCY_STEP));
-    document.getElementById('metroLatencyPlusBtn')?.addEventListener('click', () => setMetroLatencyMs(metroState.latencyMs + METRO_LATENCY_STEP));
-    document.getElementById('metroLatencyResetBtn')?.addEventListener('click', () => setMetroLatencyMs(0));
-
-    // --- Set from music (note value + bpm + time signature -> notes bpm / beats per bar / conduct in) ---
-    document.getElementById('metroMusicBtn')?.addEventListener('click', () => {
-        document.getElementById('metroMusicModal').style.display = 'flex';
-    });
-    document.getElementById('metroApplyMusicBtn')?.addEventListener('click', () => {
-        const noteTypeSelect = document.getElementById('metroNoteType');
-        const noteFraction = parseFloat(noteTypeSelect.value);
-        const noteTypeLabel = noteTypeSelect.selectedOptions[0].text;
-        const enteredBpm = parseFloat(document.getElementById('metroNoteBpm').value);
-        const timeSig = document.getElementById('metroTimeSig').value;
-        const [numStr, denStr] = timeSig.split('/');
-        const numerator = parseInt(numStr, 10);
-        const denominator = parseInt(denStr, 10);
-
-        if (!enteredBpm || enteredBpm <= 0) { showWarningToast('Enter a valid beats per minute for the note value.'); return; }
-
-        const notesBpm = enteredBpm * noteFraction * denominator;
-        // ML-95: which notes are "major" (conductor-beat) circles follows the note TYPE actually
-        // chosen, not a hardcoded "numerator is a multiple of 3" guess - a dotted crotchet spans 3
-        // denominator-based notes in 6/8, 9/8 or 12/8 (0.375 * 8 = 3), a crotchet spans exactly 1 in
-        // 4/4 (0.25 * 4 = 1), a minim spans 2 in 2/4 (0.5 * 4 = 2), and so on for any note/signature
-        // pairing - not just the compound-time special case the old heuristic covered. Snapped to the
-        // nearest whole-number divisor of the bar (metroNearestDivisor) since conductIn only ever
-        // means anything as a clean, even grouping of the bar - same rule the manual "Conductor beats"
-        // control already enforces.
-        const rawNotesPerGroup = noteFraction * denominator;
-        const targetConductIn = Math.max(1, Math.round(numerator / rawNotesPerGroup));
-        const conductIn = metroNearestDivisor(numerator, targetConductIn);
-        const notesPerBeat = numerator / conductIn;
-
-        if (notesBpm < METRO_MIN_BPM || notesBpm > METRO_MAX_BPM) {
-            showWarningToast(`That works out to ${Math.round(notesBpm)} notes per minute, which is outside the ${METRO_MIN_BPM}-${METRO_MAX_BPM} range.`);
-            return;
-        }
-
-        setMetroFreshGrid({ notesBpm, beatsPerBar: numerator, notesPerBeat, subdivisionFactor: 1 });
-        document.getElementById('metroMusicModal').style.display = 'none';
-        showSuccessToast(`Set to ${Math.round(notesBpm)} notes/min, ${numerator} beats per bar, conducted in ${Math.round(numerator / notesPerBeat)}.`);
-
-        const readout = document.getElementById('metroAdvancedReadout');
-        if (readout) {
-            readout.innerText = `${noteTypeLabel} = ${enteredBpm}, ${timeSig}`;
-            readout.classList.remove('hidden-group');
-        }
-    });
-
-    // Re-check whether the display needs to switch between "stretch to fit" and "fixed width, scroll
-    // to follow" if the viewport itself changes size (rotation, resizing the window).
-    window.addEventListener('resize', () => {
-        const view = document.getElementById('metronomeView');
-        if (view && view.style.display !== 'none') renderMetroTiers();
-    });
-
     // Initial paint
-    setMetroFreshGrid({
-        notesBpm: metroState.notesBpm, beatsPerBar: metroState.beatsPerBar,
-        notesPerBeat: metroState.notesPerBeat, subdivisionFactor: metroState.subdivisionFactor
-    });
-    metroState.conductInLinked = true; // the default starting state is linked
-    renderMetroConductInLabel();
-    renderMetroVolumeSlider();
     setMetroLatencyMs(parseInt(localStorage.getItem(METRO_LATENCY_KEY), 10) || 0);
 
     // ========================================
-    // METRONOME BLOCKS (Jira ML-35) - the multi-bar sequencer tool. Ad-hoc/
+    // METRONOME BLOCKS (Jira ML-35) - the multi-bar sequencer tool, front-page name "Flow". Ad-hoc/
     // standalone only, see docs/database-schema.md "Scores & metronome
-    // segments (Jira ML-35)". A separate tool from the single-bar Metronome
-    // above (not a mode toggle) - reuses that tool's audio engine (a second,
-    // independent createMetronomePlayer() instance) and its generic dot/
-    // scroll helpers (buildMetroDotRow, metroApplyDisplayWidth, flashTierDot,
+    // segments (Jira ML-35)". A separate tool with its own player instance (a second,
+    // independent createMetronomePlayer() instance) - reuses the generic dot/
+    // scroll helpers above (buildMetroDotRow, metroApplyDisplayWidth, flashTierDot,
     // metroScrollFollow, resetMetroScrollPosition - all already parametrised
-    // by element id, not tied to metroState) rather than rebuilding them.
+    // by element id) rather than rebuilding them.
     // ========================================
     function escapeHtml(str) {
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -3710,11 +3169,11 @@
         // list would abandon whatever's being staged here with no warning, so it's out of the way
         // rather than just disabled.
         document.getElementById('metroBlkSavedSetupsSection')?.classList.toggle('hidden-group', metroBlkEditMode);
-        // Play/Reset/sub-beats/speed are fully disabled while editing too (follow-up, stricter than
-        // the original "Play auto-saves first" behaviour) - one unambiguous way out of Edit Mode
-        // (Cancel or Save on the bottom bar) rather than a second path that quietly saves as a side
-        // effect of pressing Play.
-        ['metroBlkPlayBtn', 'metroBlkResetBtn', 'metroBlkSubdivideBtn', 'metroBlkSpeedBtn'].forEach(id => {
+        // Play (which also holds the old Reset button's job now)/sub-beats/speed are fully disabled
+        // while editing too (follow-up, stricter than the original "Play auto-saves first" behaviour)
+        // - one unambiguous way out of Edit Mode (Cancel or Save on the bottom bar) rather than a
+        // second path that quietly saves as a side effect of pressing Play.
+        ['metroBlkPlayBtn', 'metroBlkSubdivideBtn', 'metroBlkSpeedBtn'].forEach(id => {
             const btn = document.getElementById(id);
             if (btn) btn.disabled = metroBlkEditMode;
         });
@@ -4206,8 +3665,15 @@
     // syncMetroSegFieldVisibility.
     let metroSegEditingLeadIn = false;
     // "public:<id>" / "custom:<id>" of whichever time signature is currently chosen - the source of
-    // truth now that the picker is a popup rather than a native <select> with its own .value.
+    // truth now that the picker is a popup rather than a native <select> with its own .value. Shared
+    // by both Blocks' own segment editor and Quick Play's per-block editors (only one picker can ever
+    // be open at once) - whoever opens the modal sets this to their own current value first so
+    // renderMetroSegTimeSigPicker highlights the right option.
     let metroSegTimeSigValue = null;
+    // Which caller currently owns the picker - set right before the modal opens, so one shared modal
+    // can serve both Blocks (updates its own segment fields) and Quick Play (updates one block's own
+    // state) without this file hardcoding either caller's update logic.
+    let metroSegTimeSigOnSelect = null;
 
     function metroSegTimeSigLabelFor(value) {
         if (!value) return '';
@@ -4248,11 +3714,14 @@
     // separate "apply" step. The [x] is the only way to close without changing anything.
     function selectMetroSegTimeSig(value) {
         metroSegTimeSigValue = value;
-        renderMetroSegTimeSigBtn();
-        refreshMetroSegBpmDisplay();
+        metroSegTimeSigOnSelect?.(value);
         document.getElementById('metroSegTimeSigModal').style.display = 'none';
     }
     document.getElementById('metroSegTimeSigBtn')?.addEventListener('click', () => {
+        metroSegTimeSigOnSelect = () => {
+            renderMetroSegTimeSigBtn();
+            refreshMetroSegBpmDisplay();
+        };
         renderMetroSegTimeSigPicker();
         document.getElementById('metroSegCustomSigInputs').classList.add('hidden-group');
         renderMetroSegCustomSigManageList();
@@ -4443,8 +3912,8 @@
     // Tap = +-1, hold = repeats, accelerating to +-10 per step after 15 taps' worth - same feel as
     // the single-bar metronome's own BPM stepper (setupMetroBpmStepper), generalised here to take
     // any step-applying callback so both the BPM and bar-count controls above can share it.
-    function setupHoldStepper(btnId, direction, applyStep) {
-        const btn = document.getElementById(btnId);
+    function setupHoldStepper(btnOrId, direction, applyStep) {
+        const btn = typeof btnOrId === 'string' ? document.getElementById(btnOrId) : btnOrId;
         if (!btn) return;
         const REPEAT_MS = 100;
         const INITIAL_DELAY_MS = 400;
@@ -4472,6 +3941,40 @@
         btn.addEventListener('pointerleave', end);
         btn.addEventListener('pointercancel', end);
     }
+
+    // Generic press-and-hold-to-reset behaviour for a Play/Pause button: a normal tap calls
+    // onToggle(), a press held past holdMs calls onReset() instead and suppresses the click that
+    // follows on release (so lifting off doesn't also toggle play/pause). Shared by every metronome-
+    // family tool's own Play button (Quick Play, Blocks/Flow) rather than each tool wiring this up
+    // itself - the one place this interaction's timing/behaviour lives, so it only needs changing
+    // here to change it everywhere it's used.
+    function setupPlayButtonHoldReset(btnOrId, onToggle, onReset, holdMs = 600) {
+        const btn = typeof btnOrId === 'string' ? document.getElementById(btnOrId) : btnOrId;
+        if (!btn) return;
+        let holdTimer = null;
+        let didHold = false;
+
+        function begin(e) {
+            e.preventDefault();
+            didHold = false;
+            holdTimer = setTimeout(() => {
+                didHold = true;
+                onReset();
+            }, holdMs);
+        }
+        function cancelHold() {
+            clearTimeout(holdTimer);
+        }
+        btn.addEventListener('pointerdown', begin);
+        btn.addEventListener('pointerup', cancelHold);
+        btn.addEventListener('pointerleave', cancelHold);
+        btn.addEventListener('pointercancel', cancelHold);
+        btn.addEventListener('click', () => {
+            if (didHold) { didHold = false; return; }
+            onToggle();
+        });
+    }
+
     setupHoldStepper('metroSegBpmMinus', -1, (amount) => setMetroSegBpmFromDisplayed(Math.round(metroSegDisplayedBpm()) + amount));
     setupHoldStepper('metroSegBpmPlus', 1, (amount) => setMetroSegBpmFromDisplayed(Math.round(metroSegDisplayedBpm()) + amount));
     setupHoldStepper('metroSegBarsMinus', -1, (amount) => setMetroSegBarCount(metroSegBarCount + amount));
@@ -4489,8 +3992,8 @@
     makeSliderReadoutEditable('metroSegBarCount', () => metroSegBarCount, (v) => setMetroSegBarCount(v), { label: 'Number of bars', min: METRO_SEG_BARS_MIN });
 
     // --- Note-value icons (real vector glyphs, not unicode musical symbols - see the CSS comment
-    // on .metroBlk-note-picker for why). Fractions match the single-bar metronome's own "Set from
-    // music" note-type list exactly (public/app.js's #metroNoteType options). ---
+    // on .metroBlk-note-picker for why). Shared with Quick Play's own per-block note picker
+    // (qpOpenNotePicker) - same five note values throughout the app. ---
     const METRO_NOTE_TYPES = [
         { key: 'quaver', label: 'Quaver', fraction: 0.125 },
         { key: 'crotchet', label: 'Crotchet', fraction: 0.25 },
@@ -5120,9 +4623,9 @@
         if (!block) return;
         const subFactor = metroBlkSubFactorFor(block);
 
-        // One dot per base click now (main beats AND sub-beats, mirroring the single-bar tool's
-        // metroNotesRow) - flash by the raw click-in-bar index, which lines up 1:1 with the dots
-        // buildMetroDotRow actually created. ML-95 used to drop this flash for Auto-mode sub-beats
+        // One dot per base click now (main beats AND sub-beats) - flash by the raw click-in-bar
+        // index, which lines up 1:1 with the dots buildMetroDotRow actually created. ML-95 used to
+        // drop this flash for Auto-mode sub-beats
         // above 200 subdivided BPM as a performance guardrail - written back when Auto only ever
         // subdivided at slow tempos in the first place, so it was a rare edge case. ML-106 made Auto
         // subdivide unconditionally, which meant this same threshold now silently dropped the flash at
@@ -5349,14 +4852,14 @@
         renderMetroBlkRows();
     }
 
-    document.getElementById('metroBlkPlayBtn')?.addEventListener('click', () => {
-        // Belt-and-suspenders alongside the button's own `disabled` while editing (renderMetroBlkEditUI,
-        // ML-97 follow-up) - Play/Save conflict is avoided by not allowing Play at all during Edit
-        // Mode, rather than quietly saving as a side effect of pressing it.
-        if (metroBlkEditMode) return;
-        if (metroBlkPlayer.isPlaying()) pauseMetroBlk(); else playMetroBlk();
-    });
-    document.getElementById('metroBlkResetBtn')?.addEventListener('click', resetMetroBlk);
+    // No separate Reset button any more (its job moved to press-and-hold on Play, see
+    // setupPlayButtonHoldReset) - the button's own `disabled` while editing (renderMetroBlkEditUI,
+    // ML-97 follow-up) already blocks both tap and hold during Edit Mode, so neither callback needs
+    // its own edit-mode guard.
+    setupPlayButtonHoldReset('metroBlkPlayBtn',
+        () => { if (metroBlkPlayer.isPlaying()) pauseMetroBlk(); else playMetroBlk(); },
+        resetMetroBlk
+    );
     document.getElementById('metroBlkMiniPlayBtn')?.addEventListener('click', () => {
         if (metroBlkPlayer.isPlaying()) pauseMetroBlk(); else playMetroBlk();
     });
@@ -5505,12 +5008,831 @@
     document.getElementById('metroBlkVolumeBtn')?.addEventListener('click', openMetroBlkVolumePopup);
     document.getElementById('metroBlkVolumeCloseBtn')?.addEventListener('click', closeMetroBlkVolumePopup);
 
-    // Shown only when actually playing at the moment a view change happens - see the single-bar
-    // tool's updateMetroMiniBarVisibility for the full reasoning (same rule, same reason).
+    // Shown only when actually playing at the moment a view change happens - not a "session active"
+    // flag remembered across navigations, just isPlaying() re-checked fresh on every switchView.
     function updateMetroBlocksMiniBarVisibility(viewName) {
         const bar = document.getElementById('metroBlocksMiniBar');
         if (bar) bar.classList.toggle('hidden-group', !metroBlkPlayer.isPlaying() || viewName === 'metroBuilderView');
     }
+
+    // ========================================
+    // QUICK PLAY - front page tool, replaces the old single-bar Metronome page. A simplified,
+    // always-editable variant of Metronome Blocks/Flow above: no name, no lead-in, no saved-setups
+    // library - every block's full detail entry is shown inline and stacked (createQuickPlayBlockEditor)
+    // rather than a tile you tap to open an edit modal. Own player instance (qpPlayer) and own
+    // sub-beats/play-speed/volume state, same reasoning as Blocks having its own rather than sharing
+    // the old single-bar tool's - see the METRONOME ENGINE section up top for what IS shared (the
+    // audio engine factory, dot/scroll helpers, slider/stepper interaction helpers). Every Play press
+    // (from a stopped/reset state, not a pause resume) writes the current blocks in as one history row
+    // via POST /api/metronome/quick-play - see saveQuickPlayHistory.
+    // ========================================
+    const qpPlayer = createMetronomePlayer();
+    qpPlayerRef = qpPlayer;
+    qpPlayer.setVisualLatencyMs(metroState.latencyMs);
+
+    // One block: { timeSigValue, bpm, noteSelected, barCount }, same shape/meaning as a Blocks segment
+    // minus everything lead-in-only (isLeadIn/pickupBeats/repeatLeadIn/quietSecondsBeforeLeadIn don't
+    // exist here - Quick Play has no lead-in concept at all).
+    let qpBlocks = [];
+    // Resets to false on any edit (add/remove/change a block) or Reset - Play only writes history the
+    // moment it actually (re)starts playback from a stopped state, not on every pause/resume toggle.
+    let qpSavedThisRun = false;
+
+    // Specifically 4/4 (the metronome's own stated default), not just whichever public signature
+    // happens to sort first in the catalog - falls back to that only if 4/4 is somehow missing.
+    function qpDefaultTimeSigValue() {
+        const list = metroBlkTimeSigCache?.public || [];
+        const fourFour = list.find(t => t.numerator === 4 && t.denominator === 4);
+        const fallback = fourFour || list[0];
+        return fallback ? `public:${fallback.id}` : null;
+    }
+
+    // Every block gets a stable id of its own, separate from its position in qpBlocks - add/move/
+    // duplicate/delete all rebuild the DOM from scratch (renderQuickPlayBlocks), so the only way to
+    // tell "this is the same bar, just somewhere else now" from "a different bar is now at this
+    // index" for the FLIP animations below is to match on this rather than array index.
+    let qpUidCounter = 0;
+    function qpNewBlock(overrides = {}) {
+        return { _uid: ++qpUidCounter, timeSigValue: qpDefaultTimeSigValue(), bpm: 100, noteSelected: 'crotchet', barCount: 1, ...overrides };
+    }
+
+    // The builder's landing state - seeded once per page load (not per visit), same spirit as Blocks'
+    // scratch setup always having at least one block so the tool is immediately playable. Unlike
+    // Blocks, nothing is persisted server-side until Play is actually pressed, so there's no server
+    // round-trip needed just to open the page.
+    function initQuickPlayBlocksIfNeeded() {
+        if (qpBlocks.length) return;
+        qpBlocks = [qpNewBlock()];
+        renderQuickPlayBlocks();
+        jumpQpToIndex(0);
+    }
+
+    function qpMarkUnsaved() {
+        qpSavedThisRun = false;
+    }
+
+    // --- Per-block inline editor (time signature / note+BPM stepper+slider / bar-count stepper+slider) ---
+    // Reuses the exact field markup the Blocks segment-edit modal uses (public/index.html's
+    // #metroSegTimeSigGroup/#metroSegBpmGroup/#metroSegBarCountGroup) but inline instead of behind a
+    // modal, and built fresh per block instance rather than sharing that modal's own singleton DOM/
+    // state (metroSegBpm etc.) - several of these are visible on screen at once, which that modal was
+    // never designed for. Reuses the genuinely value-agnostic pieces directly: METRO_SLIDER_TIERS/
+    // metroBestFitTier/METRO_MIN_BPM/METRO_MAX_BPM, setupSliderInteraction (already takes elements, not
+    // ids), setupHoldStepper/makeSliderReadoutEditable (generalised below to take an element OR an id),
+    // metroNoteIconSvg/METRO_NOTE_TYPES/metroSegDefaultNoteForDenominator, and metroBlkTimeSigCache for
+    // the shared time-signature modal.
+    function qpBlockNoteFraction(noteKey) {
+        const t = METRO_NOTE_TYPES.find(x => x.key === noteKey);
+        return t ? t.fraction : 0.25;
+    }
+    // Resolves a block's own numerator/denominator from whichever catalog its timeSigValue points
+    // into - same lookup shape as metroSegSelectedDenominator/metroSegTimeSigLabelFor, just against
+    // this block's own stored value instead of the segment modal's single in-flight one.
+    function qpBlockTimeSig(block) {
+        if (!block.timeSigValue) return { numerator: 4, denominator: 4 };
+        const [sigType, sigId] = block.timeSigValue.split(':');
+        const list = sigType === 'public' ? metroBlkTimeSigCache.public : metroBlkTimeSigCache.custom;
+        const found = list.find(t => t.id === Number(sigId));
+        return found ? { numerator: found.numerator, denominator: found.denominator } : { numerator: 4, denominator: 4 };
+    }
+    function qpBlockDenominator(block) { return qpBlockTimeSig(block).denominator; }
+    function qpBlockTimeSigLabel(block) { return metroSegTimeSigLabelFor(block.timeSigValue) || 'Choose…'; }
+
+    // Always exactly 1 bar per block, no repeat - that's a Flow-only concept (its own bar-count
+    // stepper/slider). Title is computed from position ("Bar N"), not stored, so move/duplicate/
+    // delete never need to renumber anything - the next render just reads it off the new index.
+    function qpBlockBoxHtml(block, index) {
+        return `<div class="qp-block-box" data-qp-block-index="${index}" data-qp-uid="${block._uid}">
+            <div class="qp-block-header">
+                <span class="qp-block-title">Bar ${index + 1}</span>
+                <button type="button" class="qp-bar-menu-btn" data-qp-menu-btn aria-label="Bar ${index + 1} options"><span class="material-symbols-outlined">more_vert</span></button>
+            </div>
+            <div class="qp-bar-fields-grid">
+                <button type="button" class="metroBlk-ctrl-value-btn qp-timesig-cell" data-qp-timesig-btn aria-label="Time signature - tap to change">
+                    <strong>${escapeHtml(qpBlockTimeSigLabel(block))}</strong>
+                    <span class="metroBlk-ctrl-value-label">time</span>
+                </button>
+                <button type="button" class="metroBlk-ctrl-value-btn qp-notelen-cell" data-qp-note-btn aria-label="Beat unit - tap to change">
+                    <span class="qp-note-btn-icon">${metroNoteIconSvg(block.noteSelected)}</span>
+                    <span class="metroBlk-ctrl-value-label">beat unit</span>
+                </button>
+                <div class="metroBlk-bpm-box qp-bpm-cell">
+                    <div class="metro-speed-row no-margin qp-bpm-speed-row">
+                        <button class="metro-bpm-step" type="button" data-qp-bpm-minus aria-label="Decrease beats per minute">&minus;</button>
+                        <div class="metro-speed-readout">
+                            <div data-qp-bpm-value>120</div>
+                            <div class="metro-speed-sub">bpm</div>
+                        </div>
+                        <button class="metro-bpm-step" type="button" data-qp-bpm-plus aria-label="Increase beats per minute">+</button>
+                    </div>
+                    <div class="slider-wrap no-margin">
+                        <div class="slider-track" data-qp-bpm-slider-track>
+                            <div class="slider-fill" data-qp-bpm-slider-fill></div>
+                            <div class="slider-thumb" data-qp-bpm-slider-thumb tabindex="0" role="slider" aria-label="Beats per minute" aria-valuemin="${METRO_MIN_BPM}" aria-valuenow="120"></div>
+                        </div>
+                        <div class="slider-scale"><span>${METRO_MIN_BPM}</span><span data-qp-bpm-slider-max-lbl>200</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // Wires one block box's interactive controls, reading/writing straight into qpBlocks[index] -
+    // called once per box right after it's inserted into the DOM (renderQuickPlayBlocks).
+    function wireQpBlockBox(boxEl, index) {
+        const block = qpBlocks[index];
+        let bpmSliderMax = metroBestFitTier(Math.round(block.bpm / (qpBlockNoteFraction(block.noteSelected) * qpBlockDenominator(block))));
+
+        const bpmValueEl = boxEl.querySelector('[data-qp-bpm-value]');
+        const bpmTrack = boxEl.querySelector('[data-qp-bpm-slider-track]');
+        const bpmFill = boxEl.querySelector('[data-qp-bpm-slider-fill]');
+        const bpmThumb = boxEl.querySelector('[data-qp-bpm-slider-thumb]');
+        const bpmMaxLbl = boxEl.querySelector('[data-qp-bpm-slider-max-lbl]');
+
+        function displayedBpm() {
+            return qpBlocks[index].bpm / (qpBlockNoteFraction(qpBlocks[index].noteSelected) * qpBlockDenominator(qpBlocks[index]));
+        }
+        function renderBpmSlider() {
+            const displayed = Math.round(displayedBpm());
+            const pct = ((displayed - METRO_MIN_BPM) / (bpmSliderMax - METRO_MIN_BPM)) * 100;
+            bpmFill.style.width = `${pct}%`;
+            bpmThumb.style.left = `${pct}%`;
+            bpmThumb.setAttribute('aria-valuenow', displayed);
+            bpmThumb.setAttribute('aria-valuemax', bpmSliderMax);
+            bpmMaxLbl.innerText = bpmSliderMax;
+            bpmValueEl.innerText = displayed;
+        }
+        function refreshBpmDisplay() {
+            bpmSliderMax = metroBestFitTier(Math.round(displayedBpm()));
+            renderBpmSlider();
+        }
+        // Holding the thumb at the track's edge keeps re-evaluating this on every pointermove even
+        // without the pointer actually moving further - ratio stays ~1 (or ~0) but bpmSliderMax has
+        // just grown (or shrunk), so the very next event re-hits the same edge-of-tier check against
+        // the new tier and expands again, cascading straight through every tier in one continuous
+        // hold instead of needing a further drag per tier. A short cooldown after each tier change
+        // forces a beat between expansions so 350 is actually reachable/visible before 500 can happen.
+        let bpmTierChangeCooldownUntil = 0;
+        function bpmStepTier(value) {
+            const now = Date.now();
+            if (now < bpmTierChangeCooldownUntil) return;
+            const idx = METRO_SLIDER_TIERS.indexOf(bpmSliderMax);
+            if (idx < METRO_SLIDER_TIERS.length - 1 && value >= METRO_SLIDER_TIERS[idx]) {
+                bpmSliderMax = METRO_SLIDER_TIERS[idx + 1];
+                bpmTierChangeCooldownUntil = now + 350;
+            } else if (idx > 0 && value < METRO_SLIDER_TIERS[idx - 1]) {
+                bpmSliderMax = METRO_SLIDER_TIERS[idx - 1];
+                bpmTierChangeCooldownUntil = now + 350;
+            }
+        }
+        function setBpmFromDisplayed(displayedValue, opts = {}) {
+            const clamped = Math.round(Math.min(METRO_MAX_BPM, Math.max(METRO_MIN_BPM, displayedValue)));
+            if (opts.dragging) bpmStepTier(clamped); else bpmSliderMax = metroBestFitTier(clamped);
+            qpBlocks[index].bpm = Math.round(clamped * qpBlockNoteFraction(qpBlocks[index].noteSelected) * qpBlockDenominator(qpBlocks[index]));
+            renderBpmSlider();
+            qpMarkUnsaved();
+            renderQuickPlayRows();
+        }
+
+        setupHoldStepper(boxEl.querySelector('[data-qp-bpm-minus]'), -1, (amount) => setBpmFromDisplayed(Math.round(displayedBpm()) + amount));
+        setupHoldStepper(boxEl.querySelector('[data-qp-bpm-plus]'), 1, (amount) => setBpmFromDisplayed(Math.round(displayedBpm()) + amount));
+        setupSliderInteraction(bpmTrack, bpmThumb, {
+            onDragRatio: (ratio) => setBpmFromDisplayed(METRO_MIN_BPM + ratio * (bpmSliderMax - METRO_MIN_BPM), { dragging: true }),
+            onArrowStep: (dir) => setBpmFromDisplayed(Math.round(displayedBpm()) + dir, { dragging: true })
+        });
+        makeSliderReadoutEditable(bpmValueEl, () => Math.round(displayedBpm()), (v) => setBpmFromDisplayed(v), { label: 'Beats per minute', min: METRO_MIN_BPM, max: METRO_MAX_BPM });
+
+        // The note button's icon lives in its own inner span (not the button's whole innerHTML) so
+        // qpOpenNotePicker's anchor swap only replaces the glyph, leaving the "note length" label
+        // below it untouched.
+        boxEl.querySelector('[data-qp-note-btn]')?.addEventListener('click', (e) => {
+            const iconEl = e.currentTarget.querySelector('.qp-note-btn-icon');
+            qpOpenNotePicker(iconEl, index, () => { refreshBpmDisplay(); renderBpmSlider(); renderQuickPlayRows(); });
+        });
+        boxEl.querySelector('[data-qp-timesig-btn]')?.addEventListener('click', () => {
+            qpOpenTimeSigPicker(index, () => {
+                boxEl.querySelector('[data-qp-timesig-btn] strong').innerText = qpBlockTimeSigLabel(qpBlocks[index]);
+                refreshBpmDisplay();
+                renderBpmSlider();
+                renderQuickPlayRows();
+            });
+        });
+        boxEl.querySelector('[data-qp-menu-btn]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openQpBarMenu(e.currentTarget, index);
+        });
+        wireQpBarSwipe(boxEl, index);
+
+        renderBpmSlider();
+    }
+
+    // Shared note-value picker modal (#metroSegNoteModal) - same reasoning as the time-signature modal
+    // below: one popup, only ever open for one block at a time, so it's fine to reuse directly rather
+    // than duplicate. onPicked runs after qpBlocks[index].noteSelected is updated, so the caller can
+    // refresh its own displayed "note = bpm" readout.
+    function qpOpenNotePicker(anchorBtn, index, onPicked) {
+        const el = document.getElementById('metroSegNotePicker');
+        if (!el) return;
+        el.innerHTML = METRO_NOTE_TYPES.map(t => `
+            <button type="button" class="metroBlk-note-btn${t.key === qpBlocks[index].noteSelected ? ' selected' : ''}" data-note="${t.key}" aria-label="${t.label}" aria-pressed="${t.key === qpBlocks[index].noteSelected}">
+                ${metroNoteIconSvg(t.key)}
+            </button>
+        `).join('');
+        el.querySelectorAll('.metroBlk-note-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                qpBlocks[index].noteSelected = btn.dataset.note;
+                anchorBtn.innerHTML = metroNoteIconSvg(btn.dataset.note);
+                document.getElementById('metroSegNoteModal').style.display = 'none';
+                qpMarkUnsaved();
+                onPicked();
+            }, { once: true });
+        });
+        document.getElementById('metroSegNoteModal').style.display = 'flex';
+    }
+
+    // Shared time-signature modal (#metroSegTimeSigModal) - see metroSegTimeSigOnSelect above for how
+    // one modal serves both Blocks' segment editor and this.
+    function qpOpenTimeSigPicker(index, onPicked) {
+        metroSegTimeSigValue = qpBlocks[index].timeSigValue;
+        metroSegTimeSigOnSelect = (value) => {
+            qpBlocks[index].timeSigValue = value;
+            qpMarkUnsaved();
+            onPicked();
+        };
+        renderMetroSegTimeSigPicker();
+        document.getElementById('metroSegCustomSigInputs').classList.add('hidden-group');
+        renderMetroSegCustomSigManageList();
+        document.getElementById('metroSegTimeSigModal').style.display = 'flex';
+    }
+
+    function renderQuickPlayBlocks() {
+        const container = document.getElementById('qpBlocks');
+        if (!container) return;
+        container.innerHTML = qpBlocks.map((b, i) => qpBlockBoxHtml(b, i)).join('');
+        container.querySelectorAll('[data-qp-block-index]').forEach(boxEl => {
+            wireQpBlockBox(boxEl, Number(boxEl.dataset.qpBlockIndex));
+        });
+    }
+
+    // FLIP (First-Last-Invert-Play): measures every bar's current on-screen position before a
+    // structural change, lets renderQuickPlayBlocks rebuild the DOM as normal (bar titles are
+    // position-derived off the array, so a full rebuild is the simplest way to keep them correct),
+    // then animates each surviving bar from its old position to its new one. Matched by _uid, not
+    // DOM node identity or array index - the rebuild throws every node away, and index alone can't
+    // tell "this bar moved" from "a different bar is now sitting at this index". A bar with no
+    // "before" entry is brand new (add/duplicate) and fades in instead of sliding, since there's no
+    // old position for it to slide from. raiseUid optionally lifts one bar's z-index for the
+    // duration, so on a move it visibly passes over the bar it's swapping with rather than both just
+    // sliding past each other flat.
+    function qpAnimateBlocksChange(mutate, { raiseUid } = {}) {
+        const container = document.getElementById('qpBlocks');
+        const before = new Map();
+        if (container) {
+            container.querySelectorAll('[data-qp-uid]').forEach(el => {
+                before.set(el.dataset.qpUid, el.getBoundingClientRect());
+            });
+        }
+        mutate();
+        renderQuickPlayBlocks();
+        if (!container) return;
+        const afterEls = [...container.querySelectorAll('[data-qp-uid]')];
+        afterEls.forEach(el => {
+            const uid = el.dataset.qpUid;
+            const prev = before.get(uid);
+            if (raiseUid !== undefined && String(raiseUid) === uid) el.style.zIndex = '2';
+            if (prev) {
+                const now = el.getBoundingClientRect();
+                const dx = prev.left - now.left;
+                const dy = prev.top - now.top;
+                if (dx || dy) el.style.transform = `translate(${dx}px, ${dy}px)`;
+            } else {
+                el.style.opacity = '0';
+            }
+        });
+        // Two nested rAFs, not one - a single frame can still coalesce with the "before" styles just
+        // written above on some browsers and jump straight to the end state with no visible motion.
+        // The first rAF waits for that initial (inverted) frame to actually paint; only the second
+        // one swaps in the transition + real values.
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                afterEls.forEach(el => {
+                    el.classList.add('qp-block-animating');
+                    el.style.transform = '';
+                    el.style.opacity = '';
+                    el.addEventListener('transitionend', () => {
+                        el.classList.remove('qp-block-animating');
+                        el.style.zIndex = '';
+                    }, { once: true });
+                });
+            });
+        });
+    }
+
+    // Raw position swap (no toast, no bounds checking) - the one place the actual array mutation for
+    // a move happens, so qpMoveBarUp/Down (which add the undo toast) and their own undo callbacks
+    // (which must NOT show a second toast) can both go through the same animated swap.
+    function qpSwapBarPositions(i, j) {
+        const movedUid = qpBlocks[i]._uid;
+        qpAnimateBlocksChange(() => {
+            [qpBlocks[i], qpBlocks[j]] = [qpBlocks[j], qpBlocks[i]];
+        }, { raiseUid: movedUid });
+        qpMarkUnsaved();
+        qpSyncAfterBlocksChanged();
+    }
+
+    // Menu and swipe (wireQpBarSwipe) both call these directly, so there's exactly one place each
+    // action's behaviour (and its undo toast) is implemented.
+    function qpMoveBarUp(index) {
+        if (index <= 0) return;
+        qpSwapBarPositions(index, index - 1);
+        showUndoToast(`Bar ${index + 1} moved up`, () => qpSwapBarPositions(index - 1, index));
+    }
+    function qpMoveBarDown(index) {
+        if (index >= qpBlocks.length - 1) return;
+        qpSwapBarPositions(index, index + 1);
+        showUndoToast(`Bar ${index + 1} moved down`, () => qpSwapBarPositions(index + 1, index));
+    }
+
+    // Exit animation (fly off to the left, the standard swipe-to-delete direction) before the actual
+    // removal - qpAnimateBlocksChange then handles the remaining bars sliding up to close the gap,
+    // same as any other structural change. Offers an undo toast that re-inserts the exact removed
+    // block back at its original index.
+    function qpDeleteBar(index) {
+        if (qpBlocks.length <= 1) return;
+        const container = document.getElementById('qpBlocks');
+        const el = container?.querySelector(`[data-qp-block-index="${index}"]`);
+        const removedBlock = qpBlocks[index];
+        const barNumber = index + 1;
+        const finish = () => {
+            qpMarkUnsaved();
+            qpAnimateBlocksChange(() => { qpBlocks.splice(index, 1); });
+            qpSyncAfterBlocksChanged();
+            showUndoToast(`Bar ${barNumber} deleted`, () => {
+                qpMarkUnsaved();
+                qpAnimateBlocksChange(() => { qpBlocks.splice(index, 0, removedBlock); });
+                qpSyncAfterBlocksChanged();
+            });
+        };
+        if (!el) { finish(); return; }
+        el.classList.add('qp-block-animating');
+        el.style.transform = 'translateX(-100%)';
+        el.style.opacity = '0';
+        el.addEventListener('transitionend', finish, { once: true });
+    }
+
+    // Swipe-to-act anywhere on the bar box that isn't itself an interactive control - left to delete
+    // (matching qpDeleteBar's own exit direction), up/down to reorder. Excludes buttons/inputs/sliders/
+    // the editable BPM readout (role="button") via the pointerdown target check below, rather than
+    // scoping to one small handle, so there's a large, easy area to grab. Pointer events (not touch
+    // events) mean this is also just a click-hold-and-drag with a mouse on desktop - no separate
+    // desktop affordance needed. touch-action: none on the box (see .qp-block-box) stops the page's
+    // own scroll from fighting a swipe gesture that starts here on a touchscreen.
+    const QP_SWIPE_THRESHOLD_PX = 40;
+    const QP_SWIPE_EXCLUDE_SELECTOR = 'button, input, [role="slider"], [role="button"], .slider-track, .slider-thumb';
+    function wireQpBarSwipe(boxEl, index) {
+        let startX = 0, startY = 0, dragging = false;
+
+        function onMove(e) {
+            if (!dragging) return;
+            boxEl.style.transform = `translate(${e.clientX - startX}px, ${e.clientY - startY}px)`;
+        }
+        function onUp(e) {
+            if (!dragging) return;
+            dragging = false;
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            boxEl.style.transition = '';
+            boxEl.style.transform = '';
+            const absX = Math.abs(dx), absY = Math.abs(dy);
+            if (absX > absY && absX > QP_SWIPE_THRESHOLD_PX && dx < 0) {
+                qpDeleteBar(index);
+            } else if (absY > absX && absY > QP_SWIPE_THRESHOLD_PX) {
+                if (dy < 0) qpMoveBarUp(index); else qpMoveBarDown(index);
+            }
+        }
+        boxEl.addEventListener('pointerdown', (e) => {
+            if (e.target.closest(QP_SWIPE_EXCLUDE_SELECTOR)) return;
+            e.preventDefault();
+            startX = e.clientX;
+            startY = e.clientY;
+            dragging = true;
+            boxEl.style.transition = 'none';
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+        });
+    }
+
+    document.getElementById('qpAddBlockBtn')?.addEventListener('click', () => {
+        const last = qpBlocks[qpBlocks.length - 1];
+        qpAnimateBlocksChange(() => {
+            qpBlocks.push(last ? { ...last, _uid: ++qpUidCounter } : qpNewBlock());
+        });
+        qpMarkUnsaved();
+        qpSyncAfterBlocksChanged();
+    });
+
+    // --- Per-bar options menu (Move up/down, Duplicate, Delete) - one shared floating menu
+    // repositioned against whichever bar's 3-dot button was tapped, same pattern as Blocks' own
+    // openMetroBlkTileMenu. Move up/down/Delete are hidden (not just disabled) when they don't apply -
+    // with only one bar, index 0 is simultaneously "first" and "last" and the list "can't shrink
+    // further", so all three hide on their own and only Duplicate is left, matching the request
+    // exactly without a separate one-bar special case. ---
+    let qpBarMenuTargetIndex = null;
+
+    window.openQpBarMenu = function(btnEl, index) {
+        const menu = document.getElementById('qpBarMenu');
+        if (!menu) return;
+        qpBarMenuTargetIndex = index;
+        const total = qpBlocks.length;
+        document.getElementById('qpBarMenuMoveUp')?.classList.toggle('hidden-group', index === 0);
+        document.getElementById('qpBarMenuMoveDown')?.classList.toggle('hidden-group', index === total - 1);
+        document.getElementById('qpBarMenuDelete')?.classList.toggle('hidden-group', total <= 1);
+
+        const btnRect = btnEl.getBoundingClientRect();
+        menu.style.right = 'auto';
+        menu.classList.add('show');
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+        let left = btnRect.right - menuWidth;
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+        let top = btnRect.bottom + 4;
+        top = Math.min(top, window.innerHeight - menuHeight - 8);
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    };
+    function closeQpBarMenu() {
+        document.getElementById('qpBarMenu')?.classList.remove('show');
+    }
+    document.addEventListener('click', closeQpBarMenu);
+
+    document.getElementById('qpBarMenuMoveUp')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const i = qpBarMenuTargetIndex;
+        closeQpBarMenu();
+        if (i !== null) qpMoveBarUp(i);
+    });
+    document.getElementById('qpBarMenuMoveDown')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const i = qpBarMenuTargetIndex;
+        closeQpBarMenu();
+        if (i !== null) qpMoveBarDown(i);
+    });
+    // Puts an exact copy at the END of the list, not right after the source (per the request) -
+    // regardless of where the source bar sits.
+    document.getElementById('qpBarMenuDuplicate')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const i = qpBarMenuTargetIndex;
+        closeQpBarMenu();
+        const source = i === null ? null : qpBlocks[i];
+        if (!source) return;
+        qpAnimateBlocksChange(() => {
+            qpBlocks.push({ ...source, _uid: ++qpUidCounter });
+        });
+        qpMarkUnsaved();
+        qpSyncAfterBlocksChanged();
+    });
+    document.getElementById('qpBarMenuDelete')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const i = qpBarMenuTargetIndex;
+        closeQpBarMenu();
+        if (i !== null) qpDeleteBar(i);
+    });
+
+    // --- Playback (mirrors Blocks' jumpMetroBlkToIndex/advanceMetroBlk - simpler here since there's
+    // no lead-in to special-case, and no separate play-queue array either: qpBlocks IS the queue,
+    // read live, so an edit to a block's fields (bpm/time signature/bar count) is reflected
+    // immediately without any separate "rebuild the queue" step - see qpSyncAfterBlocksChanged for
+    // the one thing that DOES need explicit handling: keeping qpPlayIndex in range after an add/
+    // delete changes how many blocks there are.) ---
+    let qpPlayIndex = 0;
+    let qpClicksPlayedInBlock = 0;
+
+    // Reuses Blocks' own meter table (metroBlkMeterInfo/METRO_BLK_METER_TABLE) rather than
+    // reinventing it - it's already generic over any { numerator, denominator }, not tied to
+    // metroBlkCurrentSetup's own segment shape.
+    function qpMeterInfo(block) {
+        return metroBlkMeterInfo({ ...qpBlockTimeSig(block), isLeadIn: false });
+    }
+    function qpBeatsPerBarFor(block) {
+        return qpMeterInfo(block).macroBeatsPerBar;
+    }
+    // Sub-beats mode is a playback-only overlay, same idea as Blocks' own metroBlkSubBeatsMode/
+    // metroBlkSubdivideOverride - one setting applies across the whole sequence, not stored per block.
+    let qpSubBeatsMode = 'off';
+    let qpSubdivideOverride = null;
+    function qpSubFactorFor(block) {
+        if (!block || qpSubBeatsMode === 'off') return 1;
+        if (qpSubBeatsMode === 'fixed' && qpSubdivideOverride) return qpSubdivideOverride;
+        return qpMeterInfo(block).subdivisionFactor;
+    }
+
+    // "Bar X of Y" here means which bar in the whole list is current (qpPlayIndex/qpBlocks.length) -
+    // not a within-block repeat count like Blocks' own "x of y bars" (every Quick Play bar is always
+    // exactly 1 bar, no repeat, so that reading was always trivially "1 of 1" and never actually told
+    // you anything). Word-first ("Bar 1 of 4") rather than number-first ("1 of 4 bar") to match the
+    // block boxes' own "Bar N" heading - if Flow ever wants an equivalent for its own setups, "Block X
+    // of Y" would sit alongside this same way.
+    function qpBlockLabel(block) {
+        return `${qpBlockTimeSigLabel(block)} · ${block.bpm} bpm · Bar ${qpPlayIndex + 1} of ${qpBlocks.length}`;
+    }
+
+    function applyQpBlockToPlayer(block) {
+        qpPlayer.setConductorBpm(block.bpm);
+        qpPlayer.setConductorBeatsPerBar(qpBeatsPerBarFor(block));
+        qpPlayer.setNotesPerBeat(qpSubFactorFor(block));
+        qpPlayer.setSubdivisionFactor(1);
+        qpPlayer.setLowPitch(false);
+    }
+
+    function jumpQpToIndex(index) {
+        qpPlayIndex = index;
+        qpClicksPlayedInBlock = 0;
+        if (!qpBlocks.length) return;
+        const block = qpBlocks[index];
+        applyQpBlockToPlayer(block);
+        qpPlayer.resetToBarStart();
+    }
+
+    // The only thing an add/delete needs beyond re-rendering: qpPlayIndex has to stay a valid index
+    // into the (now different-length) qpBlocks array. Skipped entirely while playing, same reasoning
+    // as Blocks' refreshMetroBlkQueueIfStale - an edit made in the background while a sequence is
+    // sounding shouldn't yank the current block out from under it.
+    function qpSyncAfterBlocksChanged() {
+        qpPlayIndex = Math.min(qpPlayIndex, qpBlocks.length - 1);
+        if (!qpPlayer.isPlaying()) jumpQpToIndex(qpPlayIndex);
+        renderQuickPlayRows();
+    }
+
+    function advanceQp() {
+        let next = qpPlayIndex + 1;
+        if (next >= qpBlocks.length) next = 0;
+        jumpQpToIndex(next);
+        setTimeout(renderQuickPlayRows, 130);
+    }
+
+    // No mid-block label refresh needed any more - "Bar X of Y" only ever changes at a block
+    // boundary (qpPlayIndex advancing), which advanceQp's own renderQuickPlayRows call already
+    // covers. Every Quick Play block is exactly 1 bar, so there's no in-between "2 of 4 bars" state
+    // to track within a single block the way Blocks' own repeat count needs.
+    function onQpBeat(beatInfo) {
+        const block = qpBlocks[qpPlayIndex];
+        if (!block) return;
+        const subFactor = qpSubFactorFor(block);
+        flashTierDot('qpRow0Dots', beatInfo.clickIndexInBar);
+
+        qpClicksPlayedInBlock++;
+        const targetClicks = block.barCount * qpBeatsPerBarFor(block) * subFactor;
+        const isFinalClickOfBlock = qpClicksPlayedInBlock >= targetClicks;
+        if (isFinalClickOfBlock) advanceQp();
+    }
+    qpPlayer.onBeat(onQpBeat);
+
+    function renderQuickPlayRows() {
+        if (!qpBlocks.length) return;
+        const block = qpBlocks[qpPlayIndex];
+        const subFactor = qpSubFactorFor(block);
+        const label = block ? qpBlockLabel(block) : '';
+        const labelEl = document.getElementById('qpRow0Label');
+        if (labelEl) labelEl.innerText = label;
+
+        const beatsPerBar = block ? qpBeatsPerBarFor(block) : 4;
+        const totalBaseClicks = beatsPerBar * subFactor;
+        // Laid out over totalBaseClicks+1 slots, not totalBaseClicks - reserves room for the
+        // connecting line's own one-slot extension past the last dot (connectMetroBlkDotsWithTrack),
+        // same reasoning as Blocks' own renderMetroBlkRows.
+        const trackLeftPct = (k) => k * (100 / (totalBaseClicks + 1)) + (100 / (totalBaseClicks + 1)) / 2;
+        const endLeftStyle = metroLeftStyle(trackLeftPct(totalBaseClicks));
+        buildMetroDotRow('qpRow0Dots', totalBaseClicks, subFactor, false, trackLeftPct);
+        metroApplyDisplayWidth('qpRow0Viewport', 'qpRow0Content', totalBaseClicks + 1);
+        connectMetroBlkDotsWithTrack('qpRow0Dots', endLeftStyle);
+        if (!qpPlayer.isPlaying()) resetMetroScrollPosition('qpRow0Content');
+
+        renderQpSubdivideLabel();
+        renderQpActiveBoxHighlight();
+    }
+
+    // Highlights whichever bar box is actually sounding right now, only while playing (not on a
+    // plain pause/stop) - cheap, no rebuild, just toggles a class on whichever box already matches
+    // qpPlayIndex, same idea as Blocks' own renderMetroBlkActiveTileHighlight.
+    function renderQpActiveBoxHighlight() {
+        const playing = qpPlayer.isPlaying();
+        document.querySelectorAll('#qpBlocks [data-qp-block-index]').forEach(el => {
+            el.classList.toggle('qp-block-playing', playing && Number(el.dataset.qpBlockIndex) === qpPlayIndex);
+        });
+    }
+
+    window.addEventListener('resize', () => {
+        const view = document.getElementById('quickPlayView');
+        if (view && view.style.display !== 'none') renderQuickPlayRows();
+    });
+
+    // --- Transport ---
+    function updateQPPlayIcon() {
+        const icon = document.getElementById('qpPlayIcon');
+        if (icon) icon.innerText = qpPlayer.isPlaying() ? 'pause' : 'play_arrow';
+    }
+
+    // Builds a local "YYYY-MM-DD HH:MM:SS" timestamp (wall-clock local time, not UTC) - used as the
+    // history row's name in place of a chosen one, per the request ("date and time, local, including
+    // seconds").
+    function qpLocalTimestamp() {
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+
+    // Writes the current blocks in as one history row - fire-and-forget (a failed write must never
+    // block playback actually starting). Runs once per "fresh" play (see qpSavedThisRun), not on every
+    // pause/resume toggle.
+    async function saveQuickPlayHistory() {
+        try {
+            await API.metronomeBlocks.quickPlay.save(qpLocalTimestamp(), qpBlocks.map(b => ({
+                barCount: b.barCount,
+                bpm: b.bpm,
+                noteValue: b.noteSelected,
+                timeSignatureId: b.timeSigValue?.startsWith('public:') ? Number(b.timeSigValue.split(':')[1]) : null,
+                accountTimeSignatureId: b.timeSigValue?.startsWith('custom:') ? Number(b.timeSigValue.split(':')[1]) : null
+            })));
+        } catch (error) {
+            showWarningToast('Error saving play history: ' + error.message);
+        }
+    }
+
+    function playQuickPlay() {
+        if (!qpBlocks.length) return showWarningToast('Add at least one time block first.');
+        // Pushes whatever's currently in qpBlocks[qpPlayIndex] into the engine fresh - covers the case
+        // where that block's own bpm/time-signature was edited while paused/stopped (fields are read
+        // live everywhere else, but the engine's own internal tempo/beatsPerBar only updates when
+        // explicitly told to). Doesn't touch position, so this is always safe to call, resume included.
+        applyQpBlockToPlayer(qpBlocks[qpPlayIndex]);
+        if (!qpSavedThisRun) {
+            qpSavedThisRun = true;
+            saveQuickPlayHistory();
+        }
+        qpPlayer.play();
+        updateQPPlayIcon();
+        syncWakeLock();
+        renderQuickPlayRows();
+    }
+
+    function pauseQuickPlay() {
+        qpPlayer.pause();
+        updateQPPlayIcon();
+        syncWakeLock();
+        renderQpActiveBoxHighlight();
+    }
+
+    function resetQuickPlay() {
+        jumpQpToIndex(0);
+        qpMarkUnsaved();
+        renderQuickPlayRows();
+    }
+
+    // No separate Reset button - press-and-hold on Play does it instead, via the same shared
+    // setupPlayButtonHoldReset Blocks' own Play button uses (see the METRONOME ENGINE section).
+    setupPlayButtonHoldReset('qpPlayBtn',
+        () => { if (qpPlayer.isPlaying()) pauseQuickPlay(); else playQuickPlay(); },
+        resetQuickPlay
+    );
+
+    // --- Sub-beats popup (ported from Blocks' own metroBlkSubdivideModal - own state, own modal, same
+    // reasoning as qpPlayer being its own player instance) ---
+    // Fixed 2-16 range, no tiered expansion (unlike the BPM slider above) - sub beats past 16 has no
+    // real musical meaning here, so the slider just hard-caps rather than growing into a wider range.
+    const QP_SUBDIVIDE_MIN = 2;
+    const QP_SUBDIVIDE_MAX = 16;
+    let qpSubdividePopupValue = QP_SUBDIVIDE_MIN;
+
+    function renderQpSubdivideLabel() {
+        const block = qpBlocks[qpPlayIndex];
+        const display = block ? (qpSubFactorFor(block) <= 1 ? '0' : String(qpSubFactorFor(block))) : '0';
+        const lbl = document.getElementById('qpSubdivideLbl');
+        if (lbl) lbl.innerText = display;
+    }
+
+    function renderQpSubdividePopupSlider() {
+        const pct = ((qpSubdividePopupValue - QP_SUBDIVIDE_MIN) / (QP_SUBDIVIDE_MAX - QP_SUBDIVIDE_MIN)) * 100;
+        document.getElementById('qpSubdivideSliderFill').style.width = `${pct}%`;
+        const thumb = document.getElementById('qpSubdivideSliderThumb');
+        thumb.style.left = `${pct}%`;
+        thumb.setAttribute('aria-valuenow', qpSubdividePopupValue);
+        thumb.setAttribute('aria-valuemax', QP_SUBDIVIDE_MAX);
+        document.getElementById('qpSubdivideSliderMaxLbl').innerText = QP_SUBDIVIDE_MAX;
+        document.getElementById('qpSubdividePopupValue').innerText = qpSubdividePopupValue;
+    }
+    function setQpSubdividePopupValue(v) {
+        qpSubdividePopupValue = Math.min(QP_SUBDIVIDE_MAX, Math.max(QP_SUBDIVIDE_MIN, Math.round(v)));
+        renderQpSubdividePopupSlider();
+    }
+    setupHoldStepper(document.getElementById('qpSubdivideMinus'), -1, (amount) => setQpSubdividePopupValue(qpSubdividePopupValue + amount));
+    setupHoldStepper(document.getElementById('qpSubdividePlus'), 1, (amount) => setQpSubdividePopupValue(qpSubdividePopupValue + amount));
+    setupSliderInteraction(document.getElementById('qpSubdivideSliderTrack'), document.getElementById('qpSubdivideSliderThumb'), {
+        onDragRatio: (ratio) => setQpSubdividePopupValue(QP_SUBDIVIDE_MIN + ratio * (QP_SUBDIVIDE_MAX - QP_SUBDIVIDE_MIN)),
+        onArrowStep: (dir) => setQpSubdividePopupValue(qpSubdividePopupValue + dir)
+    });
+    makeSliderReadoutEditable('qpSubdividePopupValue', () => qpSubdividePopupValue, (v) => setQpSubdividePopupValue(v), { label: 'Sub beats', min: QP_SUBDIVIDE_MIN, max: QP_SUBDIVIDE_MAX });
+
+    document.getElementById('qpSubdivideBtn')?.addEventListener('click', () => {
+        document.getElementById('qpSubdivideOff').checked = qpSubBeatsMode === 'off';
+        document.getElementById('qpSubdivideAuto').checked = qpSubBeatsMode === 'auto';
+        document.getElementById('qpSubdivideFixed').checked = qpSubBeatsMode === 'fixed';
+        document.getElementById('qpSubdivideBpmBox').classList.toggle('hidden-group', qpSubBeatsMode !== 'fixed');
+        setQpSubdividePopupValue(qpSubdivideOverride || QP_SUBDIVIDE_MIN);
+        document.getElementById('qpSubdivideModal').style.display = 'flex';
+    });
+    document.querySelectorAll('input[name="qpSubdivideOnOff"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            document.getElementById('qpSubdivideBpmBox').classList.toggle('hidden-group', radio.value !== 'fixed');
+        });
+    });
+    document.getElementById('qpSubdivideCancelBtn')?.addEventListener('click', () => {
+        document.getElementById('qpSubdivideModal').style.display = 'none';
+    });
+    document.getElementById('qpSubdivideSaveBtn')?.addEventListener('click', () => {
+        qpSubBeatsMode = document.querySelector('input[name="qpSubdivideOnOff"]:checked')?.value || 'off';
+        qpSubdivideOverride = qpSubBeatsMode === 'fixed' ? qpSubdividePopupValue : null;
+        document.getElementById('qpSubdivideModal').style.display = 'none';
+        const block = qpBlocks[qpPlayIndex];
+        if (block) applyQpBlockToPlayer(block);
+        renderQuickPlayRows();
+    });
+
+    // --- Play speed popup (ported from Blocks' - own state, own modal, admin-managed preset list) ---
+    let qpSpeedPercent = 100;
+    function renderQpSpeedLabel() {
+        document.getElementById('qpSpeedLbl').innerText = `${qpSpeedPercent}%`;
+    }
+    function setQpSpeedPercent(p) {
+        qpSpeedPercent = Math.min(1000, Math.max(1, p));
+        qpPlayer.setSpeedPercent(qpSpeedPercent);
+        renderQpSpeedLabel();
+        const block = qpBlocks[qpPlayIndex];
+        if (block) applyQpBlockToPlayer(block);
+        renderQuickPlayRows();
+    }
+    async function loadQuickPlayPlaybackSpeeds() {
+        try {
+            const speeds = await API.metronomeBlocks.playbackSpeeds.list();
+            const container = document.getElementById('qpSpeedOptions');
+            if (container) container.innerHTML = speeds.map(p => `<button type="button" class="metroBlk-timesig-opt" data-value="${p}">${p}%</button>`).join('');
+            document.querySelectorAll('#qpSpeedOptions .metroBlk-timesig-opt').forEach(btn => {
+                btn.classList.toggle('selected', Number(btn.dataset.value) === qpSpeedPercent);
+            });
+        } catch (error) {
+            showWarningToast('Error loading playback speeds: ' + error.message);
+        }
+    }
+    document.getElementById('qpSpeedBtn')?.addEventListener('click', () => {
+        document.querySelectorAll('#qpSpeedOptions .metroBlk-timesig-opt').forEach(btn => {
+            btn.classList.toggle('selected', Number(btn.dataset.value) === qpSpeedPercent);
+        });
+        document.getElementById('qpSpeedModal').style.display = 'flex';
+    });
+    document.getElementById('qpSpeedOptions')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.metroBlk-timesig-opt');
+        if (!btn) return;
+        setQpSpeedPercent(Number(btn.dataset.value));
+        document.getElementById('qpSpeedModal').style.display = 'none';
+    });
+    renderQpSpeedLabel();
+
+    // --- Volume (ported from Blocks' - own state, no calibration section, headphone delay is the one
+    // shared setting via metroState.latencyMs/qpPlayerRef) ---
+    let qpVolume = 80;
+    let qpMuted = false;
+    function renderQpVolumeSlider() {
+        const fill = document.getElementById('qpVolumeFill');
+        const thumb = document.getElementById('qpVolumeThumb');
+        if (!fill || !thumb) return;
+        fill.style.width = `${qpVolume}%`;
+        thumb.style.left = `${qpVolume}%`;
+        thumb.setAttribute('aria-valuenow', qpVolume);
+    }
+    function setQpVolume(v) {
+        qpVolume = Math.round(Math.min(100, Math.max(0, v)));
+        qpPlayer.setVolume(qpVolume / 100);
+        renderQpVolumeSlider();
+    }
+    setupSliderInteraction(document.getElementById('qpVolumeTrack'), document.getElementById('qpVolumeThumb'), {
+        onDragRatio: (ratio) => setQpVolume(ratio * 100),
+        onArrowStep: (dir) => setQpVolume(qpVolume + dir * 5)
+    });
+    document.getElementById('qpMuteBtn')?.addEventListener('click', () => {
+        qpMuted = !qpMuted;
+        qpPlayer.setMuted(qpMuted);
+        document.getElementById('qpMuteIcon').innerText = qpMuted ? 'volume_off' : 'volume_up';
+        document.getElementById('qpMuteBtn').setAttribute('aria-pressed', String(qpMuted));
+    });
+    document.getElementById('qpVolumeBtn')?.addEventListener('click', () => {
+        renderQpVolumeSlider();
+        document.getElementById('qpVolumeModal').style.display = 'flex';
+    });
+    document.getElementById('qpVolumeCloseBtn')?.addEventListener('click', () => {
+        document.getElementById('qpVolumeModal').style.display = 'none';
+    });
+    renderQpVolumeSlider();
 
     // ========================================
     // TUNER
@@ -5714,12 +6036,14 @@
         tunerEngine.stop();
     }
 
-    // --- Metronome Blocks mini tuner ---
+    // --- Flow/Metronome mini tuner ---
     // Shares the tunerEngine singleton above rather than running a second mic session - only one of
     // the full Tuner view / this mini widget is ever visible at a time, but they're independent
-    // renderers subscribed to the same onPitch feed. Scoped entirely to metroBuilderView: opening it
-    // elsewhere isn't possible, and navigating away from the builder always closes it (see
-    // updateMetroBlkMiniTunerVisibility), same lifecycle as the full Tuner view itself.
+    // renderers subscribed to the same onPitch feed. One shared widget element, physically moved
+    // into whichever of Flow (metroBuilderView) or Metronome (quickPlayView) is the active view (see
+    // switchView) rather than a copy per screen - opening it elsewhere isn't possible, and navigating
+    // away from both always closes it (see updateMetroBlkMiniTunerVisibility), same lifecycle as the
+    // full Tuner view itself.
     let metroBlkMiniTunerActive = false;
     // Which instrument the mini tuner is currently reading as - seeded from the persisted Settings
     // default each time it opens, but changing it here (ML-84) only ever updates this in-memory copy,
@@ -5775,7 +6099,6 @@
         renderMetroBlkMiniTunerInstrumentBtn();
         document.getElementById('metroBlkMiniTunerInstrumentModal').style.display = 'flex';
     }
-    document.getElementById('metroBlkMiniTunerSettingsBtn')?.addEventListener('click', openMetroBlkMiniTunerInstrumentPicker);
     document.getElementById('metroBlkMiniTunerInstrumentOptions')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.metroBlk-timesig-opt');
         if (!btn) return;
@@ -5784,14 +6107,54 @@
         document.getElementById('metroBlkMiniTunerInstrumentModal').style.display = 'none';
     });
 
-    // Reflects the tuner's on/off state on the top-bar toggle (ML-91) - a filled circle rather than a
-    // swapped icon glyph (see the CSS comment on .top-tuner-toggle for why).
+    // The tuner widget's own 3-dot menu (Settings/Close) - replaces the old direct settings-cog
+    // button now that Close has moved here too (the top-bar toggle disappears entirely while the
+    // tuner's open, see renderTopTunerToggleState, so it's no longer a second way to close it).
+    function closeMetroBlkMiniTunerMenu() {
+        document.getElementById('metroBlkMiniTunerMenu')?.classList.remove('show');
+    }
+    document.addEventListener('click', closeMetroBlkMiniTunerMenu);
+    // Fixed-position, JS-placed against the 3-dot button (same as openMetroBlkTileMenu) - the tuner
+    // box itself clips (overflow:hidden, for its own open/close slide), so the old CSS-anchored
+    // absolute dropdown left "Close" clipped off and unreachable.
+    document.getElementById('metroBlkMiniTunerMenuBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const menu = document.getElementById('metroBlkMiniTunerMenu');
+        if (!menu) return;
+        if (menu.classList.contains('show')) { closeMetroBlkMiniTunerMenu(); return; }
+        const btnRect = e.currentTarget.getBoundingClientRect();
+        menu.classList.add('show');
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+        let left = btnRect.right - menuWidth;
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+        let top = btnRect.bottom + 4;
+        top = Math.min(top, window.innerHeight - menuHeight - 8);
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    });
+    document.getElementById('metroBlkMiniTunerMenuSettings')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeMetroBlkMiniTunerMenu();
+        openMetroBlkMiniTunerInstrumentPicker();
+    });
+    document.getElementById('metroBlkMiniTunerMenuClose')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeMetroBlkMiniTunerMenu();
+        closeMetroBlkMiniTuner();
+    });
+
+    // Shows/hides the top-bar toggle - visible only on a tuner-capable view (Flow/Metronome) AND only
+    // while the tuner is currently closed (it disappears once open; Settings/Close live in the
+    // widget's own 3-dot menu instead, so there's no second way to close it via this button). Reads
+    // the current view fresh off viewStack rather than taking a parameter, so every caller (switchView,
+    // starting/closing the tuner) can just call this one function instead of duplicating the check.
     function renderTopTunerToggleState() {
         const btn = document.getElementById('topTunerToggleBtn');
         if (!btn) return;
-        btn.classList.toggle('active', metroBlkMiniTunerActive);
-        btn.setAttribute('aria-pressed', metroBlkMiniTunerActive ? 'true' : 'false');
-        btn.setAttribute('aria-label', metroBlkMiniTunerActive ? 'Hide tuner' : 'Show tuner');
+        const currentView = viewStack[viewStack.length - 1];
+        const onTunerCapableView = currentView === 'metroBuilderView' || currentView === 'quickPlayView';
+        btn.classList.toggle('hidden-group', !onTunerCapableView || metroBlkMiniTunerActive);
     }
 
     function openMetroBlkMiniTuner() {
@@ -5820,17 +6183,16 @@
         stopTuner();
     }
 
-    // One button toggling both directions (ML-91) - replaces the old separate show-button-in-the-
-    // setup-header/close-X-on-the-tuner pair.
-    document.getElementById('topTunerToggleBtn')?.addEventListener('click', () => {
-        if (metroBlkMiniTunerActive) closeMetroBlkMiniTuner(); else startMetroBlkMiniTuner();
-    });
+    // Only ever opens it now - closing happens via the tuner widget's own 3-dot menu instead (this
+    // button is hidden the whole time the tuner's open, so it was never reachable to close it anyway).
+    document.getElementById('topTunerToggleBtn')?.addEventListener('click', startMetroBlkMiniTuner);
 
     function updateMetroBlkMiniTunerVisibility(viewName) {
-        if (viewName === 'metroBuilderView') return; // the toggle button owns visibility on this screen
-        metroBlkMiniTunerActive = false;
+        if (viewName !== 'metroBuilderView' && viewName !== 'quickPlayView') {
+            metroBlkMiniTunerActive = false;
+            document.getElementById('metroBlkMiniTuner')?.classList.remove('metroBlk-mini-tuner-open');
+        }
         renderTopTunerToggleState();
-        document.getElementById('metroBlkMiniTuner')?.classList.remove('metroBlk-mini-tuner-open');
     }
 
     // ========================================
@@ -5862,7 +6224,7 @@
     }
 
     function isWakeLockNeeded() {
-        return !!(timerState && timerState.running) || (typeof metroPlayer !== 'undefined' && metroPlayer.isPlaying());
+        return !!(timerState && timerState.running) || (typeof qpPlayer !== 'undefined' && qpPlayer.isPlaying());
     }
 
     function syncWakeLock() {

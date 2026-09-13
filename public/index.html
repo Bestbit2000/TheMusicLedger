@@ -40,15 +40,18 @@
         <div class="top-bar-title" id="topTitle">The Music Ledger</div>
         <!-- Metronome Blocks only (ML-91) - toggles the tuner on/off from here instead of a button
              half way down the page that scrolls out of view; shown/hidden by switchView. -->
-        <button type="button" class="top-btn top-tuner-toggle hidden-group" id="topTunerToggleBtn" aria-label="Show tuner" aria-pressed="false">
-            <span class="material-symbols-outlined" id="topTunerToggleIcon">tune</span>
+        <!-- Disappears entirely while the tuner is open (renderTopTunerToggleState) - Settings/Close
+             then live in the tuner widget's own 3-dot menu instead, so this only ever offers to open
+             it, never to close it, and only ever shows the one (no-slash) icon. -->
+        <button type="button" class="top-btn top-tuner-toggle hidden-group" id="topTunerToggleBtn" aria-label="Show tuner">
+            <svg class="top-tuner-toggle-icon" id="topTunerToggleIconOn" viewBox="0 0 521 902" aria-hidden="true" fill="currentColor"><defs><clipPath id="clipTopbarTunerOn"><rect x="1753" y="271" width="521" height="902"/></clipPath></defs><g clip-path="url(#clipTopbarTunerOn)" transform="translate(-1753 -271)"><rect x="0" y="0" width="101" height="278" transform="matrix(1 0 0 -1 1963 1123)"/><path d="M0 50C-6.42931e-15 22.3858 22.6096-6.36567e-15 50.4999-1.27313e-14 78.3902-2.54627e-14 101 22.3858 101 50 101 77.6143 78.3902 100 50.4999 100 22.6096 100-3.21465e-14 77.6143 0 50Z" fill-rule="evenodd" transform="matrix(1 0 0 -1 1963 1173)"/><path d="M1753 594 1853.77 594C1853.77 682.384 1925.29 754.034 2013.5 754.034 2101.71 754.034 2173.23 682.384 2173.23 594L2274 594C2274 738.146 2157.37 855 2013.5 855 1869.63 855 1753 738.146 1753 594Z" fill-rule="evenodd"/><rect x="1753" y="321" width="100" height="278"/><path d="M1753 321C1753 293.386 1775.39 271 1803 271 1830.61 271 1853 293.386 1853 321 1853 348.614 1830.61 371 1803 371 1775.39 371 1753 348.614 1753 321Z" fill-rule="evenodd"/><rect x="2174" y="321" width="100" height="278"/><path d="M2174 321C2174 293.386 2196.39 271 2224 271 2251.61 271 2274 293.386 2274 321 2274 348.614 2251.61 371 2224 371 2196.39 371 2174 348.614 2174 321Z" fill-rule="evenodd"/></g></svg>
         </button>
         <div style="position: relative;">
             <button class="top-btn" id="navBurgerMenuBtn">☰</button>
             <div id="burgerDropdown" class="dropdown-menu">
                 <div class="dropdown-item" onclick="switchView('mainView'); closeMenu();">Home</div>
-                <div class="dropdown-item" onclick="switchView('metronomeView'); closeMenu();">Metronome</div>
-                <div class="dropdown-item" onclick="switchView('metroBuilderView'); closeMenu();">Metronome Blocks</div>
+                <div class="dropdown-item" onclick="switchView('quickPlayView'); closeMenu();">Metronome</div>
+                <div class="dropdown-item" onclick="switchView('metroBuilderView'); closeMenu();">Flow</div>
                 <div class="dropdown-item" onclick="switchView('tunerView'); closeMenu();">Tuner</div>
                 <div class="dropdown-item" onclick="switchView('timerView'); closeMenu();">Timer</div>
                 <div class="dropdown-item" onclick="switchView('historyView'); closeMenu();">View session history</div>
@@ -84,27 +87,6 @@
         <div class="timer-mini-controls">
             <button class="timer-mini-btn" id="timerMiniPlayBtn" aria-label="Pause"><span class="material-symbols-outlined" id="timerMiniPlayIcon">pause</span></button>
             <button class="timer-mini-btn" id="timerMiniCloseBtn" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
-        </div>
-    </div>
-
-    <!-- Minimised metronome (ML-64): shown whenever the metronome has been played/paused (not
-         stopped) and the Metronome screen itself isn't the active view - mirrors the timer mini bar
-         above, but two lines: the beat circles, then a row of quick controls. Close (ML-87) fully
-         stops it (same as the full view's own Stop button) rather than just pausing - the only way to
-         dismiss the bar from another screen without navigating back. -->
-    <div id="metroMiniBar" class="metro-mini-bar hidden-group">
-        <div class="metro-mini-viewport" id="metroMiniViewport">
-            <div class="metro-mini-content" id="metroMiniContent">
-                <div class="metro-tier metro-mini-dots" id="metroMiniDots"></div>
-            </div>
-        </div>
-        <div class="metro-mini-controls">
-            <button class="metro-mini-ctrl-btn" id="metroMiniBeatsBtn"><strong id="metroMiniBeatsLbl">4</strong><span class="metro-mini-ctrl-unit">/ bar</span></button>
-            <button class="metro-mini-ctrl-btn" id="metroMiniSubdivideBtn"><strong id="metroMiniSubdivideLbl">Off</strong><span class="metro-mini-ctrl-unit">/ beat</span></button>
-            <button class="metro-mini-ctrl-btn" id="metroMiniBpmBtn"><strong id="metroMiniBpmLbl">120</strong><span class="metro-mini-ctrl-unit">bpm</span></button>
-            <button class="metro-mini-ctrl-btn" id="metroMiniSpeedBtn"><strong id="metroMiniSpeedLbl">100</strong><span class="metro-mini-ctrl-unit">%</span></button>
-            <button class="timer-mini-btn" id="metroMiniPlayBtn" aria-label="Pause"><span class="material-symbols-outlined" id="metroMiniPlayIcon">pause</span></button>
-            <button class="timer-mini-btn" id="metroMiniCloseBtn" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
         </div>
     </div>
 
@@ -147,16 +129,16 @@
 
         <div class="section-title tools-title">Tools</div>
         <div class="tool-icon-row">
-            <button class="tool-icon-btn" onclick="switchView('metronomeView')" aria-label="Metronome">
-                <span class="material-symbols-outlined">graphic_eq</span>
+            <button class="tool-icon-btn" onclick="switchView('quickPlayView')" aria-label="Metronome">
+                <svg class="tool-icon-svg" viewBox="0 0 883 1025" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><g transform="translate(-2956 -1363)"><path d="M3299.02 1831.86 3528.57 1965.12 3299.02 2098.38ZM3329.89 1454.01 3064.12 2264.42 3731.24 2264.42 3465.47 1454.01ZM3297.05 1363 3499.94 1363C3518.77 1363 3534.93 1374.46 3541.83 1390.79L3544.05 1401.79 3839 2301.17 3837.74 2301.58 3839 2309.93C3839 2328.77 3827.55 2344.95 3811.23 2351.86L3795.05 2355.12 3795.05 2355.43 3793.53 2355.43 3793.53 2355.43 3793.53 2355.43 3702.53 2355.43 3701.57 2360.21C3694.67 2376.54 3678.51 2388 3659.68 2388 3640.84 2388 3624.68 2376.54 3617.78 2360.21L3616.82 2355.43 3186.33 2355.43 3185.37 2360.21C3178.47 2376.54 3162.31 2388 3143.47 2388 3124.64 2388 3108.48 2376.54 3101.58 2360.21L3100.62 2355.43 3008.1 2355.43 3008.1 2354.09 3001.47 2355.43C2976.36 2355.43 2956 2335.06 2956 2309.93L2957.68 2301.6 2956.37 2301.17 3254.77 1391.26 3255.04 1391.35 3255.16 1390.79C3262.06 1374.46 3278.22 1363 3297.05 1363Z" fill-rule="evenodd"/></g></svg>
                 <span class="tool-icon-label">Metronome</span>
             </button>
-            <button class="tool-icon-btn" onclick="switchView('metroBuilderView')" aria-label="Metronome Blocks">
-                <span class="material-symbols-outlined">view_column</span>
-                <span class="tool-icon-label">Blocks</span>
+            <button class="tool-icon-btn" onclick="switchView('metroBuilderView')" aria-label="Flow">
+                <svg class="tool-icon-svg" viewBox="0 0 1247 1246" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><defs><clipPath id="clipFrontpageFlow"><rect x="2535" y="380" width="1247" height="1246"/></clipPath></defs><g clip-path="url(#clipFrontpageFlow)" transform="translate(-2535 -380)"><rect x="3006" y="1338" width="351" height="82.0001"/><rect x="2782" y="962" width="788" height="81.9998"/><rect x="2742" y="1001" width="81.9998" height="187"/><rect x="3525" y="834" width="81.9998" height="167"/><path d="M2742 1003C2742 980.356 2760.36 962 2783 962 2805.64 962 2824 980.356 2824 1003 2824 1025.64 2805.64 1044 2783 1044 2760.36 1044 2742 1025.64 2742 1003Z" fill-rule="evenodd"/><path d="M3524 1002.5C3524 979.58 3542.58 961 3565.5 961 3588.42 961 3607 979.58 3607 1002.5 3607 1025.42 3588.42 1044 3565.5 1044 3542.58 1044 3524 1025.42 3524 1002.5Z" fill-rule="evenodd"/><path d="M3363.38 1208.22 3363.38 1547.78 3703.62 1547.78 3703.62 1208.22ZM3324.21 1130 3742.79 1130C3764.44 1130 3782 1147.52 3782 1169.13L3782 1586.87C3782 1608.48 3764.44 1626 3742.79 1626L3324.21 1626C3302.56 1626 3285 1608.48 3285 1586.87L3285 1169.13C3285 1147.52 3302.56 1130 3324.21 1130Z" fill-rule="evenodd"/><rect x="3006" y="588" width="351" height="80.9998"/><path d="M3363.38 458.378 3363.38 798.622 3703.62 798.622 3703.62 458.378ZM3324.21 380 3742.79 380C3764.44 380 3782 397.556 3782 419.213L3782 837.787C3782 859.443 3764.44 877 3742.79 877L3324.21 877C3302.56 877 3285 859.443 3285 837.787L3285 419.213C3285 397.556 3302.56 380 3324.21 380Z" fill-rule="evenodd"/><path d="M2613.22 458.378 2613.22 798.622 2952.78 798.622 2952.78 458.378ZM2574.13 380 2991.87 380C3013.48 380 3031 397.556 3031 419.213L3031 837.787C3031 859.443 3013.48 877 2991.87 877L2574.13 877C2552.52 877 2535 859.443 2535 837.787L2535 419.213C2535 397.556 2552.52 380 2574.13 380Z" fill-rule="evenodd"/><path d="M2613.22 1208.22 2613.22 1547.78 2952.78 1547.78 2952.78 1208.22ZM2574.13 1130 2991.87 1130C3013.48 1130 3031 1147.52 3031 1169.13L3031 1586.87C3031 1608.48 3013.48 1626 2991.87 1626L2574.13 1626C2552.52 1626 2535 1608.48 2535 1586.87L2535 1169.13C2535 1147.52 2552.52 1130 2574.13 1130Z" fill-rule="evenodd"/></g></svg>
+                <span class="tool-icon-label">Flow</span>
             </button>
             <button class="tool-icon-btn" onclick="switchView('tunerView')" aria-label="Tuner">
-                <span class="material-symbols-outlined">tune</span>
+                <svg class="tool-icon-svg" viewBox="0 0 521 902" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><defs><clipPath id="clipFrontpageTuner"><rect x="1753" y="271" width="521" height="902"/></clipPath></defs><g clip-path="url(#clipFrontpageTuner)" transform="translate(-1753 -271)"><rect x="0" y="0" width="101" height="278" transform="matrix(1 0 0 -1 1963 1123)"/><path d="M0 50C-6.42931e-15 22.3858 22.6096-6.36567e-15 50.4999-1.27313e-14 78.3902-2.54627e-14 101 22.3858 101 50 101 77.6143 78.3902 100 50.4999 100 22.6096 100-3.21465e-14 77.6143 0 50Z" fill-rule="evenodd" transform="matrix(1 0 0 -1 1963 1173)"/><path d="M1753 594 1853.77 594C1853.77 682.384 1925.29 754.034 2013.5 754.034 2101.71 754.034 2173.23 682.384 2173.23 594L2274 594C2274 738.146 2157.37 855 2013.5 855 1869.63 855 1753 738.146 1753 594Z" fill-rule="evenodd"/><rect x="1753" y="321" width="100" height="278"/><path d="M1753 321C1753 293.386 1775.39 271 1803 271 1830.61 271 1853 293.386 1853 321 1853 348.614 1830.61 371 1803 371 1775.39 371 1753 348.614 1753 321Z" fill-rule="evenodd"/><rect x="2174" y="321" width="100" height="278"/><path d="M2174 321C2174 293.386 2196.39 271 2224 271 2251.61 271 2274 293.386 2274 321 2274 348.614 2251.61 371 2224 371 2196.39 371 2174 348.614 2174 321Z" fill-rule="evenodd"/></g></svg>
                 <span class="tool-icon-label">Tuner</span>
             </button>
             <button class="tool-icon-btn" onclick="switchView('timerView')" aria-label="Timer">
@@ -443,86 +425,59 @@
         <div id="aboutReleaseHistory"></div>
     </div>
 
-    <div id="metronomeView" style="display:none;">
-        <div class="metro-display">
-            <div class="metro-display-viewport" id="metroDisplayViewport">
-                <div class="metro-display-content" id="metroDisplayContent">
-                    <div class="metro-tier metro-tier-notes" id="metroNotesRow"></div>
+    <!-- Quick Play (front page): a simplified, always-editable variant of the Blocks/Flow builder
+         below - no name, no lead-in, no saved-setups library, and every block's full detail entry is
+         shown inline and stacked (see createQuickPlayBlockEditor) rather than a tile you tap to open
+         an edit modal. Transport/now-playing row markup mirrors metroBuilderView's own exactly (own
+         ids, own player instance - qpPlayer - same reasoning as Blocks having its own player rather
+         than sharing the old single-bar tool's). Every Play press writes the current blocks in as a
+         timestamped history row (see saveQuickPlayHistory) - not a saved setup. -->
+    <div id="quickPlayView" style="display:none;">
+        <div class="metroBlk-rows">
+            <div class="metroBlk-row metroBlk-row-current">
+                <div class="metroBlk-row-head"><span class="metroBlk-row-mark" id="qpRow0Mark"></span><span class="metroBlk-row-label" id="qpRow0Label"></span></div>
+                <div class="metro-display-viewport" id="qpRow0Viewport">
+                    <div class="metro-display-content" id="qpRow0Content">
+                        <div class="metro-tier" id="qpRow0Dots"></div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="metro-transport-row">
-            <button class="metro-transport-btn metro-play-btn" id="metroPlayBtn" aria-label="Play"><span class="material-symbols-outlined" id="metroPlayIcon">play_arrow</span></button>
-            <button class="metro-transport-btn metro-stop-btn" id="metroStopBtn" aria-label="Stop"><span class="material-symbols-outlined">stop</span></button>
+        <div class="metro-transport-grid">
+            <button class="metro-play-grid-btn" id="qpPlayBtn" aria-label="Play - press and hold to reset to the start">
+                <span class="material-symbols-outlined" id="qpPlayIcon">play_arrow</span>
+                <span class="metroBlk-ctrl-value-label">(hold to reset)</span>
+            </button>
+            <button type="button" class="metroBlk-ctrl-value-btn" id="qpSubdivideBtn" aria-label="Sub beats - tap to change">
+                <strong id="qpSubdivideLbl">1</strong>
+                <span class="metroBlk-ctrl-value-label">sub beats</span>
+            </button>
+            <button type="button" class="metroBlk-ctrl-value-btn" id="qpSpeedBtn" aria-label="Play speed - tap to change">
+                <strong id="qpSpeedLbl">100%</strong>
+                <span class="metroBlk-ctrl-value-label">play speed</span>
+            </button>
+            <button type="button" class="metroBlk-ctrl-value-btn" id="qpVolumeBtn" aria-label="Volume - tap to change">
+                <span class="material-symbols-outlined" id="qpVolumeIcon">volume_up</span>
+                <span class="metroBlk-ctrl-value-label">volume</span>
+            </button>
         </div>
 
-        <div class="section-title">Beats</div>
-        <div class="metro-beats-2col">
-            <div class="metro-beats-col">
-                <div class="metro-col-label">Beats per bar</div>
-                <button class="metro-col-btn" id="metroBeatsBtn"><strong id="metroBeatsPerBarLbl">4</strong></button>
-            </div>
-            <div class="metro-beats-col">
-                <div class="metro-col-label">Subdivide</div>
-                <button class="metro-col-btn" id="metroSubdivideBtn"><strong id="metroSubdivideLbl">Off</strong></button>
-            </div>
-        </div>
+        <div id="qpBlocks"></div>
+        <button type="button" class="qp-add-bar-btn" id="qpAddBlockBtn" aria-label="Add bar">
+            <span class="metroBlk-leadin-plus">+</span><span>bar</span>
+        </button>
 
-        <div class="section-title">Target speed</div>
-        <div class="metro-speed-row">
-            <button class="metro-bpm-step" id="metroBpmMinus" aria-label="Decrease beats per minute">&minus;</button>
-            <div class="metro-speed-readout">
-                <div id="metroBpmValue">120</div>
-                <div class="metro-speed-sub">bpm</div>
-            </div>
-            <button class="metro-bpm-step" id="metroBpmPlus" aria-label="Increase beats per minute">+</button>
+        <!-- Per-bar options (Move up/down, Duplicate, Delete) - one shared floating menu repositioned
+             against whichever bar's 3-dot button was tapped, same pattern as Blocks' own
+             #metroBlkTileMenu. Move up/down/Delete are hidden rather than disabled when they don't
+             apply (first/last bar, or only one bar in the list) - see openQpBarMenu. -->
+        <div class="dropdown-menu metroBlk-tile-menu" id="qpBarMenu">
+            <div class="dropdown-item" id="qpBarMenuMoveUp">Move up</div>
+            <div class="dropdown-item" id="qpBarMenuMoveDown">Move down</div>
+            <div class="dropdown-item" id="qpBarMenuDuplicate">Duplicate</div>
+            <div class="dropdown-item metroBlk-tile-menu-delete" id="qpBarMenuDelete">Delete</div>
         </div>
-
-        <div class="slider-wrap">
-            <div class="slider-track" id="metroSliderTrack">
-                <div class="slider-fill" id="metroSliderFill"></div>
-                <div class="slider-thumb" id="metroSliderThumb" tabindex="0" role="slider" aria-label="Beats per minute" aria-valuemin="15" aria-valuemax="500" aria-valuenow="120"></div>
-            </div>
-            <div class="slider-scale"><span>15</span><span id="metroSliderMaxLbl">200</span></div>
-        </div>
-
-        <div class="section-title">Playback speed</div>
-        <div class="metro-speed-row">
-            <button class="metro-speed-btn" id="metroSlowerBtn" aria-label="Slower">&minus;</button>
-            <div class="metro-speed-readout">
-                <div id="metroSpeedPct">100%</div>
-                <div class="metro-speed-sub" id="metroSpeedBpm">120 bpm</div>
-            </div>
-            <button class="metro-speed-btn" id="metroFasterBtn" aria-label="Faster">+</button>
-        </div>
-        <button class="metro-speed-reset" id="metroSpeedResetBtn">Reset to full speed</button>
-
-        <div class="section-title">Volume</div>
-        <div class="metro-volume-row">
-            <button class="metro-mute-btn" id="metroMuteBtn" aria-label="Mute" aria-pressed="false"><span class="material-symbols-outlined" id="metroMuteIcon">volume_up</span></button>
-            <div class="slider-wrap no-margin">
-                <div class="slider-track" id="metroVolumeTrack">
-                    <div class="slider-fill" id="metroVolumeFill"></div>
-                    <div class="slider-thumb" id="metroVolumeThumb" tabindex="0" role="slider" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="80"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="section-title">Headphone delay</div>
-        <p class="metro-help-text">Bluetooth headphones/speakers add their own audio delay that the app can't detect - nudge this until the click lines up with the beat you feel.</p>
-        <div class="metro-speed-row">
-            <button class="metro-speed-btn" id="metroLatencyMinusBtn" aria-label="Less delay">&minus;</button>
-            <div class="metro-speed-readout">
-                <div id="metroLatencyMs">0 ms</div>
-            </div>
-            <button class="metro-speed-btn" id="metroLatencyPlusBtn" aria-label="More delay">+</button>
-        </div>
-        <button class="metro-speed-reset" id="metroLatencyResetBtn">Reset to 0ms</button>
-
-        <div class="section-title">Advanced entry</div>
-        <div class="metro-advanced-readout hidden-group" id="metroAdvancedReadout"></div>
-        <button class="btn-nav" id="metroMusicBtn" style="margin-top:var(--space-2);">Set by score markings</button>
     </div>
 
     <div id="metroBuilderView" style="display:none;">
@@ -539,7 +494,13 @@
                         <div class="metroBlk-mini-tuner-needle" id="metroBlkMiniTunerNeedle"></div>
                     </div>
                 </div>
-                <button type="button" class="metroBlk-mini-tuner-settings-btn" id="metroBlkMiniTunerSettingsBtn" aria-label="Change instrument (this session only)"><span class="material-symbols-outlined">settings</span></button>
+                <div class="metroBlk-mini-tuner-menu-wrap">
+                    <button type="button" class="metroBlk-mini-tuner-settings-btn" id="metroBlkMiniTunerMenuBtn" aria-label="Tuner options"><span class="material-symbols-outlined">more_vert</span></button>
+                    <div class="dropdown-menu metroBlk-mini-tuner-menu" id="metroBlkMiniTunerMenu">
+                        <div class="dropdown-item" id="metroBlkMiniTunerMenuSettings">Settings</div>
+                        <div class="dropdown-item" id="metroBlkMiniTunerMenuClose">Close</div>
+                    </div>
+                </div>
             </div>
             <div class="metroBlk-mini-tuner-instrument-label" id="metroBlkMiniTunerInstrumentLabel">Concert</div>
         </div>
@@ -555,9 +516,11 @@
             </div>
         </div>
 
-        <div class="metro-transport-row">
-            <button class="metro-transport-btn metro-play-btn" id="metroBlkPlayBtn" aria-label="Play"><span class="material-symbols-outlined" id="metroBlkPlayIcon">play_arrow</span></button>
-            <button class="metro-transport-btn metro-stop-btn" id="metroBlkResetBtn" aria-label="Reset to start"><span class="material-symbols-outlined">restart_alt</span></button>
+        <div class="metro-transport-grid">
+            <button class="metro-play-grid-btn" id="metroBlkPlayBtn" aria-label="Play - press and hold to reset to the start">
+                <span class="material-symbols-outlined" id="metroBlkPlayIcon">play_arrow</span>
+                <span class="metroBlk-ctrl-value-label">(hold to reset)</span>
+            </button>
             <button type="button" class="metroBlk-ctrl-value-btn" id="metroBlkSubdivideBtn" aria-label="Sub beats - tap to change">
                 <strong id="metroBlkSubdivideLbl">1</strong>
                 <span class="metroBlk-ctrl-value-label">sub beats</span>
@@ -950,6 +913,76 @@
     </div>
 </div>
 
+<!-- Quick Play's own subdivide/speed/volume modals - ported from Metronome Blocks' equivalents
+     above rather than shared, same reasoning as qpPlayer being its own player instance: Quick Play
+     needs to apply changes live to its own player while playing, not whichever one Blocks last
+     touched. No calibration section here (unlike metroBlkVolumeModal) - headphone delay is a single
+     shared value (metroState.latencyMs) already adjustable from Flow, no need to duplicate that UI. -->
+<div class="modal" id="qpSubdivideModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('qpSubdivideModal').style.display='none'" aria-label="Close">&times;</button>
+        <h2>Sub beats</h2>
+        <div class="form-group no-margin">
+            <label>Use sub beats</label>
+            <div class="radio-group compact">
+                <input type="radio" name="qpSubdivideOnOff" id="qpSubdivideOff" value="off" checked>
+                <label for="qpSubdivideOff">Off</label>
+                <input type="radio" name="qpSubdivideOnOff" id="qpSubdivideAuto" value="auto">
+                <label for="qpSubdivideAuto">Auto</label>
+                <input type="radio" name="qpSubdivideOnOff" id="qpSubdivideFixed" value="fixed">
+                <label for="qpSubdivideFixed">Fixed</label>
+            </div>
+            <p class="metro-help-text">Auto always shows sub-beats, using the number that fits the time signature. Fixed lets you set your own number.</p>
+        </div>
+        <div class="metroBlk-bpm-box hidden-group" id="qpSubdivideBpmBox" style="margin-top:var(--space-4);">
+            <div class="metro-speed-row no-margin">
+                <button class="metro-bpm-step" id="qpSubdivideMinus" type="button" aria-label="Decrease sub beats">&minus;</button>
+                <div class="metro-speed-readout">
+                    <div id="qpSubdividePopupValue">0</div>
+                    <div class="metro-speed-sub">sub beats</div>
+                </div>
+                <button class="metro-bpm-step" id="qpSubdividePlus" type="button" aria-label="Increase sub beats">+</button>
+            </div>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="qpSubdivideSliderTrack">
+                    <div class="slider-fill" id="qpSubdivideSliderFill"></div>
+                    <div class="slider-thumb" id="qpSubdivideSliderThumb" tabindex="0" role="slider" aria-label="Sub beats" aria-valuemin="2" aria-valuemax="16" aria-valuenow="2"></div>
+                </div>
+                <div class="slider-scale"><span>2</span><span id="qpSubdivideSliderMaxLbl">16</span></div>
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:var(--space-5);">
+            <button class="btn-cancel btn-nav no-margin" id="qpSubdivideCancelBtn">Cancel</button>
+            <button class="btn-submit no-margin" id="qpSubdivideSaveBtn">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="qpSpeedModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('qpSpeedModal').style.display='none'" aria-label="Close">&times;</button>
+        <h2>Play speed</h2>
+        <p class="metro-help-text">Tap a speed to apply it straight away.</p>
+        <div class="metroBlk-speed-options" id="qpSpeedOptions"></div>
+    </div>
+</div>
+
+<div class="modal" id="qpVolumeModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" id="qpVolumeCloseBtn" aria-label="Close">&times;</button>
+        <h2>Volume</h2>
+        <div class="metro-volume-row">
+            <button class="metro-mute-btn" id="qpMuteBtn" aria-label="Mute" aria-pressed="false"><span class="material-symbols-outlined" id="qpMuteIcon">volume_up</span></button>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="qpVolumeTrack">
+                    <div class="slider-fill" id="qpVolumeFill"></div>
+                    <div class="slider-thumb" id="qpVolumeThumb" tabindex="0" role="slider" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="80"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal" id="metroBlkMiniTunerInstrumentModal">
     <div class="modal-content">
         <button type="button" class="modal-close-x" onclick="document.getElementById('metroBlkMiniTunerInstrumentModal').style.display='none'" aria-label="Close">&times;</button>
@@ -967,8 +1000,8 @@
 <div class="modal" id="metroSegNoteModal">
     <div class="modal-content">
         <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegNoteModal').style.display='none'" aria-label="Close">&times;</button>
-        <h2>Note value</h2>
-        <p class="metro-help-text">Which note the bpm below represents - e.g. "&#9834; = 120" as written on a score.</p>
+        <h2>Beat unit</h2>
+        <p class="metro-help-text">Which note gets the beat for the beats per minute (bpm) (e.g. "&#9834; = 120").</p>
         <div class="metroBlk-note-picker" id="metroSegNotePicker"></div>
     </div>
 </div>
@@ -1014,120 +1047,6 @@
     <div class="modal-content"><h2 id="promptTitle">Enter value</h2><input type="text" id="promptInput" style="margin-bottom: 25px;"><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" onclick="closePromptModal()">Cancel</button><button class="btn-submit no-margin" id="promptActionBtn">Save</button></div></div>
 </div>
 
-<div class="modal" id="metroBeatsModal">
-    <div class="modal-content">
-        <h2>Beats per bar</h2>
-        <div class="metro-beats-options" id="metroBeatsOptions"></div>
-        <div class="metro-picker-custom hidden-group" id="metroBeatsCustomEntry">
-            <button class="metro-bpm-step" data-step="-1" aria-label="Decrease">&minus;</button>
-            <div class="metro-picker-custom-value" id="metroBeatsCustomValue">4</div>
-            <button class="metro-bpm-step" data-step="1" aria-label="Increase">+</button>
-        </div>
-        <div class="flex-row gap-md" style="margin-top:15px;">
-            <button class="btn-cancel btn-nav no-margin" id="metroBeatsCancelBtn">Cancel</button>
-            <button class="btn-submit no-margin" id="metroBeatsSaveBtn">Save</button>
-        </div>
-    </div>
-</div>
-
-
-<div class="modal" id="metroSubdivideModal">
-    <div class="modal-content">
-        <h2>Subdivide</h2>
-        <div class="metro-beats-options" id="metroSubdivideOptions"></div>
-        <div class="metro-picker-custom hidden-group" id="metroSubdivideCustomEntry">
-            <button class="metro-bpm-step" data-step="-1" aria-label="Decrease">&minus;</button>
-            <div class="metro-picker-custom-value" id="metroSubdivideCustomValue">4</div>
-            <button class="metro-bpm-step" data-step="1" aria-label="Increase">+</button>
-        </div>
-        <div class="flex-row gap-md" style="margin-top:15px;">
-            <button class="btn-cancel btn-nav no-margin" id="metroSubdivideCancelBtn">Cancel</button>
-            <button class="btn-submit no-margin" id="metroSubdivideSaveBtn">Save</button>
-        </div>
-    </div>
-</div>
-
-<div class="modal" id="metroMusicModal">
-    <div class="modal-content">
-        <h2>Set from music</h2>
-        <div class="form-group">
-            <label for="metroNoteType">Note value</label>
-            <select id="metroNoteType">
-                <option value="0.125">Quaver</option>
-                <option value="0.25" selected>Crotchet</option>
-                <option value="0.375">Dotted crotchet</option>
-                <option value="0.5">Minim</option>
-                <option value="1">Semibreve</option>
-            </select>
-        </div>
-        <div class="flex-row gap-md">
-            <div class="form-group flex-1"><label for="metroNoteBpm">Beats per minute</label><input type="number" id="metroNoteBpm" placeholder="e.g. 60" min="1"></div>
-            <div class="form-group flex-1">
-                <label for="metroTimeSig">Time signature</label>
-                <select id="metroTimeSig">
-                    <option value="2/4">2/4</option>
-                    <option value="3/4">3/4</option>
-                    <option value="4/4" selected>4/4</option>
-                    <option value="5/4">5/4</option>
-                    <option value="6/4">6/4</option>
-                    <option value="8/4">8/4</option>
-                    <option value="2/2">2/2</option>
-                    <option value="2/8">2/8</option>
-                    <option value="3/8">3/8</option>
-                    <option value="4/8">4/8</option>
-                    <option value="6/8">6/8</option>
-                    <option value="9/8">9/8</option>
-                    <option value="12/8">12/8</option>
-                </select>
-            </div>
-        </div>
-        <div style="display:flex; gap:10px; margin-top:10px;">
-            <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('metroMusicModal').style.display='none'">Cancel</button>
-            <button class="btn-submit no-margin" id="metroApplyMusicBtn">Apply</button>
-        </div>
-    </div>
-</div>
-
-<!-- Compact popups opened from the persistent mini metronome bar (ML-64) - the same target-speed
-     and playback-speed controls as the full Metronome view, just reachable without leaving whatever
-     view the mini bar is currently floating over. -->
-<div class="modal" id="metroMiniBpmModal">
-    <div class="modal-content">
-        <h2>Beats per minute</h2>
-        <div class="metro-speed-row">
-            <button class="metro-bpm-step" id="metroMiniBpmMinus" aria-label="Decrease beats per minute">&minus;</button>
-            <div class="metro-speed-readout">
-                <div id="metroMiniBpmModalValue">120</div>
-                <div class="metro-speed-sub">bpm</div>
-            </div>
-            <button class="metro-bpm-step" id="metroMiniBpmPlus" aria-label="Increase beats per minute">+</button>
-        </div>
-        <div class="slider-wrap">
-            <div class="slider-track" id="metroMiniBpmSliderTrack">
-                <div class="slider-fill" id="metroMiniBpmSliderFill"></div>
-                <div class="slider-thumb" id="metroMiniBpmSliderThumb" tabindex="0" role="slider" aria-label="Beats per minute" aria-valuemin="15" aria-valuemax="500" aria-valuenow="120"></div>
-            </div>
-            <div class="slider-scale"><span>15</span><span id="metroMiniBpmSliderMaxLbl">200</span></div>
-        </div>
-        <button class="btn-submit no-margin" onclick="document.getElementById('metroMiniBpmModal').style.display='none'">Done</button>
-    </div>
-</div>
-
-<div class="modal" id="metroMiniSpeedModal">
-    <div class="modal-content">
-        <h2>Playback speed</h2>
-        <div class="metro-speed-row">
-            <button class="metro-speed-btn" id="metroMiniSpeedMinus" aria-label="Slower">&minus;</button>
-            <div class="metro-speed-readout">
-                <div id="metroMiniSpeedModalPct">100%</div>
-                <div class="metro-speed-sub" id="metroMiniSpeedModalBpm">120 bpm</div>
-            </div>
-            <button class="metro-speed-btn" id="metroMiniSpeedPlus" aria-label="Faster">+</button>
-        </div>
-        <button class="btn-submit no-margin" onclick="document.getElementById('metroMiniSpeedModal').style.display='none'">Done</button>
-    </div>
-</div>
-
 <div class="modal" id="filterModal">
     <div class="modal-content"><h2>Filter categories</h2><div class="filter-list"><label class="filter-item"><input type="checkbox" class="cat-filter" value="Practise" checked> <span>Practise</span></label><label class="filter-item"><input type="checkbox" class="cat-filter" value="Rehearsal" checked> <span>Rehearsal</span></label><label class="filter-item"><input type="checkbox" class="cat-filter" value="Lesson" checked> <span>Lesson</span></label><label class="filter-item"><input type="checkbox" class="cat-filter" value="Performance" checked> <span>Performance</span></label></div><div class="filter-actions"><button id="filterAllOn">All on</button><button id="filterAllOff">All off</button></div><button class="btn-submit" id="applyFilterBtn">Apply filters</button></div>
 </div>
@@ -1147,9 +1066,13 @@
     </div>
 </div>
 
-<div id="toastSuccess" class="toast success"><span id="toastMsg">Saved!</span><button id="toastUndoBtn" style="display:none;">Undo (<span id="toastCountdown">3</span>)</button><button onclick="closeToast('toastSuccess')">X</button></div>
-<div id="toastWarning" class="toast warning"><span><span id="toastWarningMsg">Error</span></span><button onclick="closeToast('toastWarning')">X</button></div>
-<div id="toastInfo" class="toast info"><span id="toastInfoMsg"></span><button onclick="closeToast('toastInfo')" style="background:rgba(0,0,0,0.2);">X</button></div>
+<div id="toastSuccess" class="toast success"><span id="toastMsg">Saved!</span><button id="toastUndoBtn" style="display:none;">Undo</button><button onclick="closeToast('toastSuccess')">X</button><div class="toast-countdown-bar" id="toastSuccessBar"></div></div>
+<div id="toastWarning" class="toast warning"><span><span id="toastWarningMsg">Error</span></span><button onclick="closeToast('toastWarning')">X</button><div class="toast-countdown-bar" id="toastWarningBar"></div></div>
+<div id="toastInfo" class="toast info"><span id="toastInfoMsg"></span><button onclick="closeToast('toastInfo')" style="background:rgba(0,0,0,0.2);">X</button><div class="toast-countdown-bar" id="toastInfoBar"></div></div>
+<!-- Generic "action + undo" toast (ML-... Quick Play bar delete/move) - reusable for anything that
+     needs a "X happened [Undo]" moment rather than the session-history-specific undo already wired
+     into #toastSuccess above. -->
+<div id="toastUndo" class="toast undo"><span id="toastUndoMsg"></span><button id="toastUndoActionBtn">Undo</button><button onclick="closeToast('toastUndo')">X</button><div class="toast-countdown-bar" id="toastUndoBar"></div></div>
 
 </div><!-- Close mainContainer -->
 
