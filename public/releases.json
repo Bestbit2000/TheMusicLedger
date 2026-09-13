@@ -1,5 +1,86 @@
 [
   {
+    "version": "0.14.0",
+    "date": "2026-09-13",
+    "changes": [
+      {
+        "key": "ML-128",
+        "type": "Fixes",
+        "summary": "Fix tuner widget's 3-dot menu being clipped so Close can't be reached"
+      },
+      {
+        "key": "ML-127",
+        "type": "New",
+        "summary": "Rework tuner toggle icon and widget menu (ML-91 follow-up)"
+      },
+      {
+        "key": "ML-126",
+        "type": "New",
+        "summary": "Default the Metronome to 4/4, crotchet beat, 100 bpm"
+      },
+      {
+        "key": "ML-125",
+        "type": "New",
+        "summary": "Add tuner show/hide toggle to the Metronome page (ML-91 follow-up)"
+      },
+      {
+        "key": "ML-124",
+        "type": "New",
+        "summary": "Highlight the currently playing metronome bar"
+      },
+      {
+        "key": "ML-123",
+        "type": "New",
+        "summary": "Add undo toast with countdown bar for bar delete/move"
+      },
+      {
+        "key": "ML-122",
+        "type": "New",
+        "summary": "Add swipe/drag gestures to delete and reorder metronome bars"
+      },
+      {
+        "key": "ML-121",
+        "type": "New",
+        "summary": "Animate add, delete and reorder of metronome bars"
+      },
+      {
+        "key": "ML-120",
+        "type": "Fixes",
+        "summary": "Fix BPM slider skipping tiers when held at the track's edge"
+      },
+      {
+        "key": "ML-119",
+        "type": "New",
+        "summary": "Compact each metronome bar to a single-line editor"
+      },
+      {
+        "key": "ML-118",
+        "type": "Fixes",
+        "summary": "Fix missing connecting line and end-tick on metronome playback dots"
+      },
+      {
+        "key": "ML-117",
+        "type": "New",
+        "summary": "Redesign metronome transport controls (shared between Metronome and Flow)"
+      },
+      {
+        "key": "ML-116",
+        "type": "New",
+        "summary": "Add Quick Play (Metronome) page with per-bar editing and history save"
+      },
+      {
+        "key": "ML-105",
+        "type": "New",
+        "summary": "Update icon for tuner"
+      },
+      {
+        "key": "ML-104",
+        "type": "New",
+        "summary": "Update icon for metronome"
+      }
+    ]
+  },
+  {
     "version": "0.13.0",
     "date": "2026-09-12",
     "changes": [
