@@ -96,7 +96,9 @@ session history is archived (`active = false`) rather than deleted, mirroring
 |---|---|---|
 | `scores` | A piece, owned by a band or an account | id, title, owner_band_id, owner_account_id, forked_from_score_id, is_public, default_bpm, default_time_signature, default_conductor_beats_per_bar |
 | `adhoc_metronome_setups` | Standalone manual multi-section setup, individual-only | id, account_id, name, created_at, saved_at, is_quick_play |
-| `metronome_segments` | One row per section, on either a score or an ad-hoc setup (never both) | id, parent_score_id, parent_adhoc_setup_id, order_index, is_lead_in, repeat_lead_in, quiet_seconds_before_lead_in, rehearsal_mark, bar_count, bpm, time_signature_id, account_time_signature_id, conductor_beats_per_bar, is_repeat_start, is_repeat_end, pickup_beats, goto_coda, goto_start_dc, is_coda, intro_start_bar_offset, intro_start_beat_offset, intro_end_bar_offset, intro_end_beat_offset, is_first_time_bar, is_second_time_bar, ramp_start_bar_offset, ramp_start_beat_offset, notes |
+| `metronome_segments` | One row per section, on either a score or an ad-hoc setup (never both) | id, parent_score_id, parent_adhoc_setup_id, order_index, is_lead_in, repeat_lead_in, quiet_seconds_before_lead_in, rehearsal_mark, bar_count, bpm, time_signature_id, account_time_signature_id, conductor_beats_per_bar, is_repeat_start, is_repeat_end, repeat_play_count, pickup_beats, goto_coda, goto_start_dc, is_coda, is_segno, goto_segno, goto_segno_then_coda, is_section_boundary, intro_start_bar_offset, intro_start_beat_offset, intro_end_bar_offset, intro_end_beat_offset, is_first_time_bar, is_second_time_bar, ramp_start_bar_offset, ramp_start_beat_offset, ramp_duration_bars, notes |
+| `metronome_segment_fermatas` | Zero or more sustained-hold fermatas within a block (ad-hoc only today) | id, segment_id, bar_offset, beat_offset, hold_beats, playback_mode |
+| `metronome_segment_rehearsal_marks` | Zero or more rehearsal marks within a block | id, segment_id, mark, bar_offset |
 | `metronome_run_logs` | History of every playback, score-driven or ad-hoc | id, account_id, source_type, source_id, session_segment_id, run_at, completed |
 | `time_signature_options` | System catalog of time signatures (numerator/denominator), migration-seeded only | id, numerator, denominator, label, sort_order, active |
 | `account_time_signatures` | Private custom time signatures, per account | id, account_id, numerator, denominator, active |
@@ -108,11 +110,57 @@ Notes on fields that took a few passes to nail down:
   than modeled.
 - **Intro handling** (carols use case): `intro_start_bar_offset`/`intro_start_beat_offset`
   mark the exact note the intro starts on; `intro_end_bar_offset`/`intro_end_beat_offset`
-  mark where it ends. Played once, skipped on the repeat.
+  mark where it ends. Played once, skipped on the repeat. **Start and end are independent pairs**
+  (ML-103 follow-up), not an all-or-nothing group of four - an intro can span more than one block,
+  so one block might carry just the start, another just the end, another both (a self-contained
+  intro), or neither.
 - **Tempo ramp**: anchored at its *start*, not its landing point —
   `ramp_start_bar_offset`/`ramp_start_beat_offset` mark where acceleration begins within
   this segment; it ramps forward and lands on the *next* segment's own `bpm` at the
-  segment boundary. No separate target-tempo field.
+  segment boundary. No separate target-tempo field. **`ramp_duration_bars`** (ML-103,
+  nullable): how many bars after the start offset it takes to actually reach that
+  target - may land before the segment itself ends. NULL alongside a set ramp start
+  keeps the original behaviour above (runs to the end of the segment); only meaningful
+  when a ramp start is set.
+- **Journey/repeat wiring** (ML-103): `is_repeat_start`/`is_repeat_end`, `is_coda`,
+  `goto_coda`, `goto_start_dc`, `is_first_time_bar`/`is_second_time_bar` and
+  `rehearsal_mark` were all added in the original ML-35 migration but sat dormant
+  (never read or written anywhere) until ML-103 wired them into the block editor.
+  None of them carry a bar offset of their own - each anchors implicitly to the
+  segment's first bar (`is_repeat_start`, `rehearsal_mark`) or last bar (`is_repeat_end`,
+  `is_coda`, `goto_coda`, `goto_start_dc`), which is where real notation puts them
+  anyway; a marking that needs to sit mid-block is a sign the block should be split
+  in two, not a reason to add offsets here. `is_first_time_bar`/`is_second_time_bar`
+  describe the block as a whole (a volta ending is typically its own short block) -
+  **both may be true together** ("1. 2." combined bracket, before a 3rd ending), so
+  this is deliberately not a `CHECK`-enforced exclusive choice.
+- **`is_section_boundary`** (ML-103 follow-up): a plain double barline marking a
+  phrase/section boundary - visually and musically distinct from `is_repeat_start`
+  (no repeat dots, no repeat implication). Same first-bar anchoring as the other
+  journey flags above.
+- **Segno** (ML-103 follow-up), alongside the existing coda fields: `is_segno` marks
+  this block as the segno target; `goto_segno` is "D.S." (jump back to the sign);
+  `goto_segno_then_coda` is "D.S. al Coda" (back to the sign, then on to the coda
+  next time through) - a distinct instruction from `goto_segno` + `goto_coda` both
+  set, so it gets its own column rather than being inferred from the other two.
+- **`repeat_play_count`** (ML-103, nullable): total times the repeated passage plays
+  (e.g. `2` for "2x"), written on the `is_repeat_end` row - same place real notation
+  prints it, at the end-repeat barline. Meaningless (and left NULL) when
+  `is_repeat_end` is false.
+- **`metronome_segment_fermatas`** (ML-103): a block can hold more than one fermata
+  (a sustained hold on a specific beat), so this is a proper child table rather than
+  a fixed field pair on `metronome_segments` - `bar_offset` (0-based within the
+  block) + `beat_offset` (1-based within that bar) locate it, `hold_beats` (1-4) is
+  how many beat-lengths the metronome keeps a continuous tone instead of a click.
+  `playback_mode` (ML-103 follow-up; `tone`/`silent`/`count`, default `tone`) is how
+  it actually sounds during the hold. Deleted/replaced wholesale alongside the parent
+  segment save (no independent add/remove endpoint) - the same "stage everything,
+  batch-write on Save" flow the block editor already uses for segments themselves.
+- **`metronome_segment_rehearsal_marks`** (ML-103 follow-up): a block can carry more
+  than one rehearsal mark, so - same reasoning and same "replace wholesale on save"
+  handling as the fermatas table above - this supersedes `metronome_segments.
+  rehearsal_mark` (a single nullable column, ML-35), which is left in place unused
+  rather than dropped, per this doc's usual "superseded, not removed" precedent.
 - **`is_lead_in`** (ML-35, redesigned per the follow-up comment on that ticket): a
   setup has **at most one** lead-in row now, played once at the very start and
   excluded from the loop-back. The app enforces the one-per-setup rule in the

@@ -143,6 +143,11 @@ export async function createNamedAdhocSetup(accountId, name) {
 // source's blocks (lead-in included) rather than the usual single default block,
 // so it's a genuine starting point rather than a blank one. Saved immediately,
 // same as createNamedAdhocSetup.
+// Note (ML-103): the copy carries over the Standard fields (time signature,
+// bpm, bar count, lead-in) only, same INSERT shape as before - navigation/
+// articulation markup (repeats, endings, coda, fermatas, speed changes)
+// intentionally isn't copied, kept simple rather than cloning a whole
+// journey along with it.
 export async function duplicateAdhocSetup(accountId, sourceId, name) {
   const source = await getAdhocSetupWithSegments(accountId, sourceId);
   const created = await createAdhocSetup(accountId, name);
@@ -194,7 +199,10 @@ export async function deleteAdhocSetup(accountId, id) {
   if (result.rowCount === 0) throw withStatus(404, 'Setup not found');
 }
 
-export function toSegmentDto(row) {
+// fermatas/rehearsalMarks default to [] so every other caller (duplicate/quick-play, which never
+// insert into metronome_segment_fermatas/metronome_segment_rehearsal_marks - see the ML-103 note
+// on duplicateAdhocSetup/createQuickPlaySetup below) doesn't need to pass one.
+export function toSegmentDto(row, fermatas = [], rehearsalMarks = []) {
   return {
     id: Number(row.id),
     orderIndex: row.order_index,
@@ -209,7 +217,29 @@ export function toSegmentDto(row) {
     numerator: row.numerator,
     denominator: row.denominator,
     timeSignatureLabel: row.public_label || `${row.numerator}/${row.denominator}`,
-    noteValue: row.note_value
+    noteValue: row.note_value,
+    rehearsalMark: row.rehearsal_mark,
+    isRepeatStart: row.is_repeat_start,
+    isRepeatEnd: row.is_repeat_end,
+    isSectionBoundary: row.is_section_boundary,
+    repeatPlayCount: row.repeat_play_count,
+    gotoCoda: row.goto_coda,
+    gotoStartDc: row.goto_start_dc,
+    isCoda: row.is_coda,
+    isSegno: row.is_segno,
+    gotoSegno: row.goto_segno,
+    gotoSegnoThenCoda: row.goto_segno_then_coda,
+    isFirstTimeBar: row.is_first_time_bar,
+    isSecondTimeBar: row.is_second_time_bar,
+    introStartBarOffset: row.intro_start_bar_offset,
+    introStartBeatOffset: row.intro_start_beat_offset,
+    introEndBarOffset: row.intro_end_bar_offset,
+    introEndBeatOffset: row.intro_end_beat_offset,
+    rampStartBarOffset: row.ramp_start_bar_offset,
+    rampStartBeatOffset: row.ramp_start_beat_offset,
+    rampDurationBars: row.ramp_duration_bars,
+    fermatas,
+    rehearsalMarks
   };
 }
 
@@ -223,6 +253,11 @@ export async function getAdhocSetupWithSegments(accountId, id) {
   const { rows } = await pool.query(
     `SELECT ms.id, ms.order_index, ms.bar_count, ms.bpm, ms.is_lead_in, ms.repeat_lead_in, ms.quiet_seconds_before_lead_in, ms.pickup_beats,
             ms.time_signature_id, ms.account_time_signature_id, ms.note_value,
+            ms.rehearsal_mark, ms.is_repeat_start, ms.is_repeat_end, ms.is_section_boundary, ms.repeat_play_count,
+            ms.goto_coda, ms.goto_start_dc, ms.is_coda, ms.is_segno, ms.goto_segno, ms.goto_segno_then_coda,
+            ms.is_first_time_bar, ms.is_second_time_bar,
+            ms.intro_start_bar_offset, ms.intro_start_beat_offset, ms.intro_end_bar_offset, ms.intro_end_beat_offset,
+            ms.ramp_start_bar_offset, ms.ramp_start_beat_offset, ms.ramp_duration_bars,
             COALESCE(tso.numerator, ats.numerator) AS numerator,
             COALESCE(tso.denominator, ats.denominator) AS denominator,
             tso.label AS public_label
@@ -234,12 +269,42 @@ export async function getAdhocSetupWithSegments(accountId, id) {
     [id]
   );
 
+  const fermatasBySegment = rows.length
+    ? await pool.query(
+        'SELECT segment_id, bar_offset, beat_offset, hold_beats, playback_mode FROM metronome_segment_fermatas WHERE segment_id = ANY($1) ORDER BY bar_offset, beat_offset',
+        [rows.map(r => r.id)]
+      ).then(({ rows: fRows }) => {
+        const map = {};
+        for (const f of fRows) {
+          const key = String(f.segment_id);
+          if (!map[key]) map[key] = [];
+          map[key].push({ barOffset: f.bar_offset, beatOffset: f.beat_offset, holdBeats: f.hold_beats, playbackMode: f.playback_mode });
+        }
+        return map;
+      })
+    : {};
+
+  const rehearsalMarksBySegment = rows.length
+    ? await pool.query(
+        'SELECT segment_id, mark, bar_offset FROM metronome_segment_rehearsal_marks WHERE segment_id = ANY($1) ORDER BY bar_offset',
+        [rows.map(r => r.id)]
+      ).then(({ rows: mRows }) => {
+        const map = {};
+        for (const m of mRows) {
+          const key = String(m.segment_id);
+          if (!map[key]) map[key] = [];
+          map[key].push({ mark: m.mark, barOffset: m.bar_offset });
+        }
+        return map;
+      })
+    : {};
+
   const setup = setupResult.rows[0];
   return {
     id: Number(setup.id),
     name: setup.name,
     createdAt: setup.created_at,
     savedAt: setup.saved_at,
-    segments: rows.map(toSegmentDto)
+    segments: rows.map(r => toSegmentDto(r, fermatasBySegment[String(r.id)] || [], rehearsalMarksBySegment[String(r.id)] || []))
   };
 }

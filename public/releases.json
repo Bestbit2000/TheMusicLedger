@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.15.0",
+    "date": "2026-09-13",
+    "changes": [
+      {
+        "key": "ML-137",
+        "type": "New",
+        "summary": "Block editor redesign + create/load entry screen (ML-103 slice)"
+      }
+    ]
+  },
+  {
     "version": "0.14.0",
     "date": "2026-09-13",
     "changes": [

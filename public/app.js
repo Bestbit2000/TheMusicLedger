@@ -426,6 +426,7 @@
             }
             document.getElementById('tunerInstrumentSetting').value = localStorage.getItem(TUNER_INSTRUMENT_DEFAULT_KEY) || 'C';
             document.getElementById('tunerUseFlatsToggle').checked = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
+            document.getElementById('fermataPlaybackModeSetting').value = localStorage.getItem(FERMATA_PLAYBACK_MODE_KEY) || 'tone';
             syncAdminLinkVisibility();
         } catch (error) {
             console.warn('Failed to initialize app:', error.message);
@@ -653,6 +654,7 @@
             // Re-sync from storage in case the instrument was last changed on the Tuner page itself.
             document.getElementById('tunerInstrumentSetting').value = localStorage.getItem(TUNER_INSTRUMENT_DEFAULT_KEY) || 'C';
             document.getElementById('tunerUseFlatsToggle').checked = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
+            document.getElementById('fermataPlaybackModeSetting').value = localStorage.getItem(FERMATA_PLAYBACK_MODE_KEY) || 'tone';
         }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
         if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
@@ -688,13 +690,18 @@
             loadMetroBlkTimeSignatures();
             loadMetroBlkPlaybackSpeeds();
             loadMetroBlkSetups();
+            // ML-103: only resume straight into the editor when a setup is already active this
+            // session (created/opened via the entry screen, or navigated back to without using
+            // "Change flow" to back out) - otherwise show the entry screen instead of silently
+            // auto-loading a scratch, so "new or open?" is always an explicit choice.
             if (metroBlkCurrentSetup) {
                 renderMetroBlkSetupHeader();
                 // Also refreshes the play queue/preview above if it's gone stale, and lands an
                 // unsaved setup straight into Edit Mode rather than Play Mode (ML-97 follow-up).
                 metroBlkEnterAppropriateMode();
+                metroBlkShowEditorScreen();
             } else {
-                loadMetroBlkDefaultSetup();
+                metroBlkShowEntryScreen();
             }
         }
         // Same persistence rule as the single-bar tool's mini bar (ML-64) - only visibility changes.
@@ -2312,7 +2319,7 @@
     // How long each toast type stays up before auto-dismissing - the one place to change a toast's
     // lifetime, since the countdown bar's own animation and the actual dismiss timer both read from
     // here rather than a duration hardcoded into each show*Toast call.
-    const TOAST_DURATIONS_MS = { success: 4000, warning: 5000, info: 4000, undo: 2000 };
+    const TOAST_DURATIONS_MS = { success: 4000, warning: 5000, info: 4000, undo: 3000 };
 
     // Per-toast-id pending dismiss timer, so opening the same toast again (or closing it early)
     // cancels whatever auto-dismiss was already scheduled instead of stacking another one.
@@ -3080,7 +3087,7 @@
     function renderMetroBlkSetupsList() {
         const ui = document.getElementById('metroBlkSetupsList');
         if (!ui) return;
-        if (!metroBlkSetups.length) { ui.innerHTML = '<p>No saved setups yet - use "+ Add new" above to create one.</p>'; return; }
+        if (!metroBlkSetups.length) { ui.innerHTML = '<p>No saved setups yet - go back and choose "Create your own" to make one.</p>'; return; }
         ui.innerHTML = metroBlkSetups.map(s => `
             <div class="history-item" style="align-items:center;">
                 <div style="flex-grow:1; cursor:pointer;" onclick="openMetroBlkSetup(${s.id})">
@@ -3123,10 +3130,46 @@
             metroBlkCurrentSetup = fresh;
             renderMetroBlkSetupHeader();
             metroBlkEnterAppropriateMode();
+            metroBlkShowEditorScreen();
         } catch (error) {
             showWarningToast('Error loading setup: ' + error.message);
         }
     }
+
+    // ML-103: Flow's entry screen (create vs load) replaces the old silent auto-resolve into an
+    // editor - see the switchView('metroBuilderView') branch above for when each is shown.
+    function metroBlkShowEntryScreen() {
+        document.getElementById('metroBlkEntryScreen')?.classList.remove('hidden-group');
+        document.getElementById('metroBlkEditorScreen')?.classList.add('hidden-group');
+        // Always reset back to the two-choice state, rather than leaving the library list expanded
+        // from a previous visit.
+        document.getElementById('metroBlkEntryLibrary')?.classList.add('hidden-group');
+        document.querySelector('.metroBlk-entry-choices')?.classList.remove('hidden-group');
+    }
+    function metroBlkShowEditorScreen() {
+        document.getElementById('metroBlkEntryScreen')?.classList.add('hidden-group');
+        document.getElementById('metroBlkEditorScreen')?.classList.remove('hidden-group');
+    }
+    document.getElementById('metroBlkEntryCreateBtn')?.addEventListener('click', () => {
+        loadMetroBlkDefaultSetup();
+    });
+    document.getElementById('metroBlkEntryLoadBtn')?.addEventListener('click', () => {
+        document.querySelector('.metroBlk-entry-choices')?.classList.add('hidden-group');
+        document.getElementById('metroBlkEntryLibrary')?.classList.remove('hidden-group');
+    });
+    document.getElementById('metroBlkEntryLibraryBackBtn')?.addEventListener('click', () => {
+        document.getElementById('metroBlkEntryLibrary')?.classList.add('hidden-group');
+        document.querySelector('.metroBlk-entry-choices')?.classList.remove('hidden-group');
+    });
+    // "Change flow": backs out to the entry screen from either Play or Edit Mode. In Edit Mode this
+    // discards with no confirmation dialog, same as the existing Cancel button (cancelMetroBlkEdit) -
+    // not a new UX pattern. Clears metroBlkCurrentSetup so a later plain nav-to-Flow asks again
+    // instead of silently resuming (see the switchView branch above).
+    document.getElementById('metroBlkChangeFlowBtn')?.addEventListener('click', () => {
+        if (metroBlkEditMode) cancelMetroBlkEdit();
+        metroBlkCurrentSetup = null;
+        metroBlkShowEntryScreen();
+    });
 
     // Play Mode only - Edit Mode swaps this whole area for the inline name input instead (see
     // renderMetroBlkEditUI). An unsaved setup never actually reaches Play Mode any more (it lands
@@ -3165,10 +3208,6 @@
         if (helpText) helpText.innerText = metroBlkEditMode ? 'Tap a block to edit it, or drag to reorder.' : 'Tap a block to jump to it.';
         document.getElementById('metroBlkEditBar')?.classList.toggle('hidden-group', !metroBlkEditMode);
         document.getElementById('metroBuilderView')?.classList.toggle('metroBlk-editing', metroBlkEditMode);
-        // Hidden entirely while editing (follow-up) - tapping into a different saved setup from the
-        // list would abandon whatever's being staged here with no warning, so it's out of the way
-        // rather than just disabled.
-        document.getElementById('metroBlkSavedSetupsSection')?.classList.toggle('hidden-group', metroBlkEditMode);
         // Play (which also holds the old Reset button's job now)/sub-beats/speed are fully disabled
         // while editing too (follow-up, stricter than the original "Play auto-saves first" behaviour)
         // - one unambiguous way out of Edit Mode (Cancel or Save on the bottom bar) rather than a
@@ -3226,7 +3265,31 @@
             // Bug fix (ML-35 follow-up): which note value the Target BPM display was last set with -
             // previously not persisted at all, so re-opening a saved block to edit it always reset to
             // a denominator-based default instead of what was actually chosen (see openMetroSegmentModal).
-            noteValue: seg.noteValue || null
+            noteValue: seg.noteValue || null,
+            // ML-103: navigation/articulation markup - never set on a lead-in (openMetroSegmentModal's
+            // Save handler never populates these fields there), so this just carries over whatever
+            // buildLocalSegmentDto left on the object either way.
+            isRepeatStart: !!seg.isRepeatStart,
+            isRepeatEnd: !!seg.isRepeatEnd,
+            repeatPlayCount: seg.repeatPlayCount || null,
+            isSectionBoundary: !!seg.isSectionBoundary,
+            rehearsalMarks: Array.isArray(seg.rehearsalMarks) ? seg.rehearsalMarks : [],
+            isCoda: !!seg.isCoda,
+            isSegno: !!seg.isSegno,
+            gotoCoda: !!seg.gotoCoda,
+            gotoSegno: !!seg.gotoSegno,
+            gotoSegnoThenCoda: !!seg.gotoSegnoThenCoda,
+            gotoStartDc: !!seg.gotoStartDc,
+            isFirstTimeBar: !!seg.isFirstTimeBar,
+            isSecondTimeBar: !!seg.isSecondTimeBar,
+            introStartBarOffset: seg.introStartBarOffset === undefined ? null : seg.introStartBarOffset,
+            introStartBeatOffset: seg.introStartBeatOffset === undefined ? null : seg.introStartBeatOffset,
+            introEndBarOffset: seg.introEndBarOffset === undefined ? null : seg.introEndBarOffset,
+            introEndBeatOffset: seg.introEndBeatOffset === undefined ? null : seg.introEndBeatOffset,
+            rampStartBarOffset: seg.rampStartBarOffset === undefined ? null : seg.rampStartBarOffset,
+            rampStartBeatOffset: seg.rampStartBeatOffset === undefined ? null : seg.rampStartBeatOffset,
+            rampDurationBars: seg.rampDurationBars === undefined ? null : seg.rampDurationBars,
+            fermatas: Array.isArray(seg.fermatas) ? seg.fermatas : []
         };
     }
 
@@ -3322,26 +3385,11 @@
         if (e.key === 'Enter') { e.preventDefault(); saveMetroBlkEdit(); }
     });
 
-    // Asks for the name up front (unlike the old scratch-first flow) because this button's
-    // whole point is adding a setup straight to the saved list, not another invisible scratch.
-    document.getElementById('metroBlkAddSetBtn')?.addEventListener('click', () => {
-        showPromptModal('Name this setup', '', async (name) => {
-            if (!name || !name.trim()) return;
-            if (metroBlkNameIsTaken(name.trim())) { showWarningToast('This name is already taken'); return; }
-            try {
-                const created = await API.metronomeBlocks.setups.createNamed(name.trim());
-                created.segments = await normalizeMetroBlkOrder(created.segments);
-                if (metroBlkPlayer.isPlaying()) metroBlkPlayer.pause();
-                metroBlkEditMode = false; // see the matching comment in openMetroBlkSetup
-                metroBlkEditSnapshot = null;
-                metroBlkCurrentSetup = created;
-                await loadMetroBlkSetups();
-                switchView('metroBuilderView');
-            } catch (error) {
-                showWarningToast('Error: ' + error.message);
-            }
-        });
-    });
+    // ML-103: the old "+ Add new" button (a second, name-prompt-first "new setup" path alongside
+    // the implicit scratch-on-visit) is retired - "Create your own" on the entry screen is now the
+    // one, single way to start a new setup (metroBlkEntryCreateBtn above). createNamedAdhocSetup
+    // stays in the backend/API client unused rather than deleted, in case a genuinely separate
+    // "start a second new one without touching my in-progress scratch" need comes up later.
 
     // "Copy this setup" - a new setup seeded with all of this one's blocks, as a starting point for
     // a variant. Loads straight into the builder afterwards, same as "+ Add new set".
@@ -3799,10 +3847,25 @@
         document.getElementById('metroSegLeadInKindGroup').classList.toggle('hidden-group', !metroSegEditingLeadIn);
         document.getElementById('metroSegRepeatLeadInGroup').classList.toggle('hidden-group', !metroSegEditingLeadIn);
         document.getElementById('metroSegQuietSecondsGroup').classList.toggle('hidden-group', !metroSegEditingLeadIn);
-        document.getElementById('metroSegTimeSigGroup').classList.toggle('hidden-group', metroSegEditingLeadIn);
-        document.getElementById('metroSegBpmGroup').classList.toggle('hidden-group', metroSegEditingLeadIn);
-        document.getElementById('metroSegBarCountGroup').classList.toggle('hidden-group', isPartial);
+        // ML-103: time signature/beat unit/BPM now share one qp-style card (metroSegStandardBox) -
+        // bar count/pickup beats deliberately stayed outside it, see the HTML comment there.
+        document.getElementById('metroSegStandardBox').classList.toggle('hidden-group', metroSegEditingLeadIn);
+
+        // ML-103 follow-up: "Multiple bars" is a regular-block-only toggleable card (see
+        // metroSegApplyBarsSection); the lead-in still needs a bar-count stepper (its own Length
+        // radios above already cover the 1-bar/partial-beat choice, not an on/off), so it reuses the
+        // same card forced always-expanded with no toggle interaction, retitled, and hidden entirely
+        // instead when editing a partial-beat lead-in (pickupBeats applies there instead).
+        document.getElementById('metroSegBarsCard').classList.toggle('hidden-group', isPartial);
+        document.querySelector('#metroSegBarsHeader .toggle-switch').classList.toggle('hidden-group', metroSegEditingLeadIn);
+        document.getElementById('metroSegBarsHeader').style.pointerEvents = metroSegEditingLeadIn ? 'none' : '';
+        document.querySelector('#metroSegBarsCard .metroSeg-card-title').innerText = metroSegEditingLeadIn ? 'Number of bars' : 'Multiple bars';
+        if (metroSegEditingLeadIn) document.getElementById('metroSegBarsExpand').classList.add('is-expanded');
+
         document.getElementById('metroSegPickupBeatsGroup').classList.toggle('hidden-group', !isPartial);
+        // ML-103: navigation/articulation markup is never meaningful on the lead-in (see
+        // openMetroLeadInModal/metroBlkSegPayload).
+        document.getElementById('metroSegNavigationSections').classList.toggle('hidden-group', metroSegEditingLeadIn);
     }
     document.getElementById('metroSegLeadInWhole')?.addEventListener('change', syncMetroSegFieldVisibility);
     document.getElementById('metroSegLeadInPartial')?.addEventListener('change', syncMetroSegFieldVisibility);
@@ -3869,7 +3932,12 @@
     // its own, much smaller starting tier (ML-93) - it's realistically 1-3 bars, so a max-50 scale
     // made those first few bars hard to land on precisely; still extends to 10 then all the way to 50
     // for the rare case that needs it, same shape as the regular-block tiers just starting smaller. ---
-    const METRO_SEG_BARS_MIN = 1;
+    // ML-103 follow-up: a regular block's bar count only has a visible stepper at all once "Multiple
+    // bars" is switched on (metroSegApplyBarsSection), and a "multiple bars" block that's actually
+    // just 1 bar is a contradiction - so the floor is 2 there, same as the attached reference. The
+    // lead-in has no such toggle (its own length radios cover the 1-bar case) and keeps the original
+    // floor of 1.
+    function metroSegBarsMin() { return metroSegEditingLeadIn ? 1 : 2; }
     const METRO_SEG_BARS_TIERS = [50, 200];
     const METRO_SEG_LEADIN_BARS_TIERS = [5, 10, 50];
     function metroSegBarsTiers() { return metroSegEditingLeadIn ? METRO_SEG_LEADIN_BARS_TIERS : METRO_SEG_BARS_TIERS; }
@@ -3894,17 +3962,21 @@
     function renderMetroSegBarsSlider() {
         const track = document.getElementById('metroSegBarsSliderTrack');
         if (!track) return;
-        const pct = ((metroSegBarCount - METRO_SEG_BARS_MIN) / (metroSegBarsSliderMax - METRO_SEG_BARS_MIN)) * 100;
+        const min = metroSegBarsMin();
+        const pct = ((metroSegBarCount - min) / (metroSegBarsSliderMax - min)) * 100;
         document.getElementById('metroSegBarsSliderFill').style.width = `${pct}%`;
         const thumb = document.getElementById('metroSegBarsSliderThumb');
         thumb.style.left = `${pct}%`;
+        thumb.setAttribute('aria-valuemin', min);
         thumb.setAttribute('aria-valuenow', metroSegBarCount);
         thumb.setAttribute('aria-valuemax', metroSegBarsSliderMax);
+        const minLbl = document.getElementById('metroSegBarsSliderMinLbl');
+        if (minLbl) minLbl.innerText = min;
         document.getElementById('metroSegBarsSliderMaxLbl').innerText = metroSegBarsSliderMax;
         document.getElementById('metroSegBarCount').innerText = metroSegBarCount;
     }
     function setMetroSegBarCount(value, opts = {}) {
-        metroSegBarCount = Math.max(METRO_SEG_BARS_MIN, Math.round(value));
+        metroSegBarCount = Math.max(metroSegBarsMin(), Math.round(value));
         if (opts.dragging) metroSegBarsStepTier(metroSegBarCount); else metroSegBarsSliderMax = metroSegBarsBestFitTier(metroSegBarCount);
         renderMetroSegBarsSlider();
     }
@@ -3985,11 +4057,11 @@
         onArrowStep: (dir) => setMetroSegBpmFromDisplayed(Math.round(metroSegDisplayedBpm()) + dir, { dragging: true })
     });
     setupSliderInteraction(document.getElementById('metroSegBarsSliderTrack'), document.getElementById('metroSegBarsSliderThumb'), {
-        onDragRatio: (ratio) => setMetroSegBarCount(METRO_SEG_BARS_MIN + ratio * (metroSegBarsSliderMax - METRO_SEG_BARS_MIN), { dragging: true }),
+        onDragRatio: (ratio) => setMetroSegBarCount(metroSegBarsMin() + ratio * (metroSegBarsSliderMax - metroSegBarsMin()), { dragging: true }),
         onArrowStep: (dir) => setMetroSegBarCount(metroSegBarCount + dir, { dragging: true })
     });
     makeSliderReadoutEditable('metroSegBpmValue', () => Math.round(metroSegDisplayedBpm()), (v) => setMetroSegBpmFromDisplayed(v), { label: 'Beats per minute', min: METRO_MIN_BPM, max: METRO_MAX_BPM });
-    makeSliderReadoutEditable('metroSegBarCount', () => metroSegBarCount, (v) => setMetroSegBarCount(v), { label: 'Number of bars', min: METRO_SEG_BARS_MIN });
+    makeSliderReadoutEditable('metroSegBarCount', () => metroSegBarCount, (v) => setMetroSegBarCount(v), { label: 'Number of bars', min: metroSegBarsMin() });
 
     // --- Note-value icons (real vector glyphs, not unicode musical symbols - see the CSS comment
     // on .metroBlk-note-picker for why). Shared with Quick Play's own per-block note picker
@@ -4036,10 +4108,13 @@
     }
     function renderMetroSegNoteSelectBtn() {
         const btn = document.getElementById('metroSegNoteSelectBtn');
-        if (!btn) return;
-        btn.innerHTML = metroNoteIconSvg(metroSegNoteSelected);
+        const icon = document.getElementById('metroSegNoteBtnIcon');
+        if (!btn || !icon) return;
+        // ML-103: the button now also carries a static "beat unit" caption (qp-style card, see
+        // index.html) - only the icon span's own content gets replaced, not the whole button.
+        icon.innerHTML = metroNoteIconSvg(metroSegNoteSelected);
         const label = METRO_NOTE_TYPES.find(t => t.key === metroSegNoteSelected)?.label || '';
-        btn.setAttribute('aria-label', `Note value: ${label}. Tap to change.`);
+        btn.setAttribute('aria-label', `Beat unit: ${label}. Tap to change.`);
     }
     function renderMetroSegNotePicker() {
         const el = document.getElementById('metroSegNotePicker');
@@ -4071,10 +4146,440 @@
         const found = list.find(t => t.id === Number(sigId));
         return found ? found.denominator : 4;
     }
+    // ML-103 follow-up: the Speed change/Introduction/Fermata pickers cycle/list "beat N of the
+    // bar" - driven by the block's own numerator rather than the attached reference's hardcoded
+    // "of 4", since a block's time signature isn't always 4 beats to the bar.
+    function metroSegSelectedNumerator() {
+        if (!metroSegTimeSigValue) return 4;
+        const [sigType, sigId] = metroSegTimeSigValue.split(':');
+        const list = sigType === 'public' ? metroBlkTimeSigCache.public : metroBlkTimeSigCache.custom;
+        const found = list.find(t => t.id === Number(sigId));
+        return found ? found.numerator : 4;
+    }
 
     document.getElementById('metroSegNoteSelectBtn')?.addEventListener('click', () => {
         renderMetroSegNotePicker();
         document.getElementById('metroSegNoteModal').style.display = 'flex';
+    });
+
+    // --- ML-103 follow-up: block editor reworked into expandable cards (Standard/Multiple bars/
+    // Repeats/Landmarks/Speed change/Introduction/Jumps/Articulation), per the attached reference
+    // (expandable_metronome_sections.html). One flat variable per field still, same convention as
+    // metroSegBpm/metroSegTimeSigValue above - openMetroSegmentModal populates all of them, each
+    // popup/tile edits its own, the Save handler reads them all back. Never populated/read for the
+    // lead-in (see syncMetroSegFieldVisibility/metroBlkSegPayload) - none of this applies there.
+    //
+    // Every card past Standard has a master on/off (.toggle-switch) that both gates whether that
+    // topic applies to the block AND expands/collapses the card - switching one off clears its own
+    // fields back to "not used" (see the metroSeg*SectionApply functions below), switching it back
+    // on starts fresh rather than restoring what was cleared, so state stays simple and predictable.
+    let metroSegBarsOn = false;
+    let metroSegRepeatsOn = false;
+    let metroSegLandmarksOn = false;
+    let metroSegSpeedOn = false;
+    let metroSegIntroOn = false;
+    let metroSegJumpsOn = false;
+    let metroSegArticulationOn = false;
+
+    let metroSegIsRepeatStart = false;
+    let metroSegIsRepeatEnd = false;
+    let metroSegRepeatPlayCount = null;
+    let metroSegEnding = 'none'; // 'none' | 'first' | 'second' | 'combined'
+
+    let metroSegIsSectionBoundary = false;
+    let metroSegRehearsalMarks = []; // [{mark, barOffset}]
+    let metroSegRehearsalEditIndex = -1; // -1 = adding a new one, else index into metroSegRehearsalMarks
+
+    let metroSegRampStartBeatOffset = 1; // bar offset is always 0 (bar 1 of the block) - see the intro note below
+    let metroSegRampDurationBars = 1;
+
+    // Start and end are independent (an intro can span more than one block - a block might carry
+    // just the start, just the end, both, or neither), each with its own on/off + beat. The card's
+    // own metroSegIntroOn above is just expand/collapse + "off clears both" - see
+    // metroSegApplyIntroSection.
+    let metroSegIntroStartOn = false;
+    let metroSegIntroStartBeatOffset = 1;
+    let metroSegIntroEndOn = false;
+    let metroSegIntroEndBeatOffset = 1;
+    let metroSegIntroModalTarget = 'start'; // 'start' | 'end'
+
+    let metroSegIsCoda = false;
+    let metroSegIsSegno = false;
+    let metroSegGotoCoda = false;
+    let metroSegGotoSegno = false;
+    let metroSegGotoSegnoThenCoda = false;
+    let metroSegGotoStartDc = false;
+
+    let metroSegFermatas = []; // [{barOffset, beatOffset, holdBeats, playbackMode}]
+    let metroSegFermataEditIndex = -1;
+
+    // Real notation, not a generic icon-font glyph (per the original ML-103 ask) - the coda/segno
+    // marks are hand-built SVG (Unicode musical symbols have unreliable font support and risk
+    // showing as tofu boxes); the repeat/double-barline marks use styled text ("‖:"/":‖") matching
+    // the attached reference's own rendering, which is simpler and still literal notation rather
+    // than a generic icon. currentColor so each picks up its container's colour, .selected included.
+    const METRO_SEG_ICON_CODA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="12" rx="7" ry="5.5"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/></svg>';
+    const METRO_SEG_ICON_SEGNO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="6" y1="18" x2="18" y2="6"/><circle cx="9" cy="8" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="16" r="1.3" fill="currentColor" stroke="none"/><path d="M15.5 6.5C14.5 5 12.8 4.5 11 5C8.8 5.6 8.5 7.8 10 9C12 10.6 15 11.2 15 14C15 17 12 18.5 9.5 18C7.5 17.5 6.8 16 6.5 15" fill="none"/></svg>';
+
+    // --- Card expand/collapse + master on/off (metroSeg*SectionApply): each wires a .toggle-switch
+    // + its card header to a getter/setter for that section's own "on" variable, an onOff callback
+    // that resets the section's fields, and returns an `apply(on)` function openMetroSegmentModal
+    // calls directly to set initial state (no synthetic click needed). ---
+    // `apply(on, isInitialLoad)` - isInitialLoad (set by openMetroSegmentModal, populating state from
+    // an already-saved block) skips onApply's reset-to-default/clear-fields side effect, since that
+    // would otherwise stomp the real loaded values with a fresh-toggle default the moment the modal
+    // opens; a genuine user click on the switch/header always passes it interactively (undefined).
+    function metroSegWireSection(toggleId, headerId, expandId, isOnFn, setOnFn, onApply) {
+        const checkbox = document.getElementById(toggleId);
+        const header = document.getElementById(headerId);
+        const expand = document.getElementById(expandId);
+        function apply(on, isInitialLoad) {
+            setOnFn(on);
+            checkbox.checked = on;
+            expand.classList.toggle('is-expanded', on);
+            if (!isInitialLoad) onApply(on);
+            renderMetroSegNavigationSummary();
+        }
+        checkbox.addEventListener('click', (e) => { e.stopPropagation(); apply(checkbox.checked); });
+        header.addEventListener('click', () => apply(!isOnFn()));
+        return apply;
+    }
+
+    const metroSegApplyBarsSection = metroSegWireSection('metroSegBarsToggle', 'metroSegBarsHeader', 'metroSegBarsExpand',
+        () => metroSegBarsOn, (v) => { metroSegBarsOn = v; },
+        (on) => { setMetroSegBarCount(on ? 2 : 1); });
+
+    const metroSegApplyRepeatsSection = metroSegWireSection('metroSegRepeatsToggle', 'metroSegRepeatsHeader', 'metroSegRepeatsExpand',
+        () => metroSegRepeatsOn, (v) => { metroSegRepeatsOn = v; },
+        (on) => { if (!on) { metroSegIsRepeatStart = false; metroSegIsRepeatEnd = false; metroSegRepeatPlayCount = null; metroSegEnding = 'none'; } });
+
+    const metroSegApplyLandmarksSection = metroSegWireSection('metroSegLandmarksToggle', 'metroSegLandmarksHeader', 'metroSegLandmarksExpand',
+        () => metroSegLandmarksOn, (v) => { metroSegLandmarksOn = v; },
+        (on) => { if (!on) { metroSegIsSectionBoundary = false; metroSegRehearsalMarks = []; renderMetroSegRehearsalList(); } });
+
+    const metroSegApplySpeedSection = metroSegWireSection('metroSegSpeedToggle', 'metroSegSpeedHeader', 'metroSegSpeedExpand',
+        () => metroSegSpeedOn, (v) => { metroSegSpeedOn = v; },
+        (on) => { metroSegRampStartBeatOffset = 1; metroSegRampDurationBars = 1; renderMetroSegSpeedCard(); });
+
+    const metroSegApplyIntroSection = metroSegWireSection('metroSegIntroToggle', 'metroSegIntroHeader', 'metroSegIntroExpand',
+        () => metroSegIntroOn, (v) => { metroSegIntroOn = v; },
+        (on) => { if (!on) { metroSegIntroStartOn = false; metroSegIntroEndOn = false; } });
+
+    const metroSegApplyJumpsSection = metroSegWireSection('metroSegJumpsToggle', 'metroSegJumpsHeader', 'metroSegJumpsExpand',
+        () => metroSegJumpsOn, (v) => { metroSegJumpsOn = v; },
+        (on) => { if (!on) { metroSegIsCoda = false; metroSegIsSegno = false; metroSegGotoCoda = false; metroSegGotoSegno = false; metroSegGotoSegnoThenCoda = false; metroSegGotoStartDc = false; } });
+
+    const metroSegApplyArticulationSection = metroSegWireSection('metroSegArticulationToggle', 'metroSegArticulationHeader', 'metroSegArticulationExpand',
+        () => metroSegArticulationOn, (v) => { metroSegArticulationOn = v; },
+        (on) => { if (!on) { metroSegFermatas = []; renderMetroSegFermataList(); } });
+
+    // Reflects every metroSeg* navigation variable into its card/tile - called once when the modal
+    // opens and again after every popup/tile interaction.
+    function renderMetroSegNavigationSummary() {
+        document.getElementById('metroSegStartRepeatBtn').classList.toggle('selected', metroSegIsRepeatStart);
+        document.getElementById('metroSegEndRepeatBtn').classList.toggle('selected', metroSegIsRepeatEnd);
+        document.getElementById('metroSegEndRepeatLabel').innerText = metroSegIsRepeatEnd
+            ? `End repeat (${metroSegRepeatPlayCount || 2}x)` : 'End repeat (off)';
+
+        const endingLabels = { none: 'None', first: '1.', second: '2.', combined: '1. 2.' };
+        document.getElementById('metroSegEndingValue').innerText = endingLabels[metroSegEnding];
+        document.getElementById('metroSegEndingBtn').classList.toggle('selected', metroSegEnding !== 'none');
+
+        document.getElementById('metroSegBoundaryBtn').classList.toggle('selected', metroSegIsSectionBoundary);
+        document.getElementById('metroSegRehearsalCountBadge').innerText = `${metroSegRehearsalMarks.length} ${metroSegRehearsalMarks.length === 1 ? 'mark' : 'marks'}`;
+
+        renderMetroSegSpeedCard();
+
+        document.getElementById('metroSegSegnoIcon').innerHTML = METRO_SEG_ICON_SEGNO;
+        document.getElementById('metroSegSegnoBtn').classList.toggle('selected', metroSegIsSegno);
+        document.getElementById('metroSegCodaIcon').innerHTML = METRO_SEG_ICON_CODA;
+        document.getElementById('metroSegCodaBtn').classList.toggle('selected', metroSegIsCoda);
+        document.getElementById('metroSegGotoSegnoBtn').classList.toggle('selected', metroSegGotoSegno);
+        document.getElementById('metroSegGotoSegnoThenCodaBtn').classList.toggle('selected', metroSegGotoSegnoThenCoda);
+        document.getElementById('metroSegGotoCodaIcon').innerHTML = METRO_SEG_ICON_CODA;
+        document.getElementById('metroSegGotoCodaBtn').classList.toggle('selected', metroSegGotoCoda);
+        document.getElementById('metroSegGotoStartBtn').classList.toggle('selected', metroSegGotoStartDc);
+
+        const numerator = metroSegSelectedNumerator();
+        document.getElementById('metroSegStartIntroBadge').innerText = metroSegIntroStartOn ? `${metroSegIntroStartBeatOffset}/${numerator}` : 'None';
+        document.getElementById('metroSegStartIntroSub').innerText = !metroSegIntroStartOn ? 'Not used in this block'
+            : metroSegIntroStartBeatOffset === 1 ? `Downbeat (1 of ${numerator})` : `Pickup beat ${metroSegIntroStartBeatOffset} of ${numerator}`;
+        document.getElementById('metroSegStartIntroBtn').classList.toggle('selected', metroSegIntroStartOn);
+        document.getElementById('metroSegEndIntroBadge').innerText = metroSegIntroEndOn ? 'Bar 1' : 'None';
+        document.getElementById('metroSegEndIntroSub').innerText = metroSegIntroEndOn
+            ? `Finishes beat ${metroSegIntroEndBeatOffset} of ${numerator}` : 'Not used in this block';
+        document.getElementById('metroSegEndIntroBtn').classList.toggle('selected', metroSegIntroEndOn);
+
+        renderMetroSegFermataList();
+    }
+
+    // --- Repeats: Start repeat is a plain direct toggle; End repeat opens the quick-pick count
+    // modal (turning it on always needs a count); 1st/2nd time opens the volta modal. ---
+    document.getElementById('metroSegStartRepeatBtn')?.addEventListener('click', () => {
+        metroSegIsRepeatStart = !metroSegIsRepeatStart;
+        renderMetroSegNavigationSummary();
+    });
+    document.getElementById('metroSegEndRepeatBtn')?.addEventListener('click', () => {
+        // Highlights 2x as the suggested default on a block with no end repeat set yet, rather than
+        // "None" - nothing is actually applied until a quick-pick option is tapped, this just points
+        // at the common case (per the "repeat count defaults to 2" instruction).
+        document.querySelectorAll('#metroSegRepeatCountOptions .metroSeg-quickpick-opt').forEach(btn => {
+            const val = Number(btn.dataset.value);
+            btn.classList.toggle('selected', metroSegIsRepeatEnd ? val === (metroSegRepeatPlayCount || 2) : val === 2);
+        });
+        document.getElementById('metroSegRepeatCountModal').style.display = 'flex';
+    });
+    document.getElementById('metroSegRepeatCountOptions')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.metroSeg-quickpick-opt');
+        if (!btn) return;
+        const val = Number(btn.dataset.value);
+        metroSegIsRepeatEnd = val > 0;
+        metroSegRepeatPlayCount = val > 0 ? val : null;
+        document.getElementById('metroSegRepeatCountModal').style.display = 'none';
+        renderMetroSegNavigationSummary();
+    });
+
+    document.getElementById('metroSegEndingBtn')?.addEventListener('click', () => {
+        document.querySelectorAll('#metroSegEndingOptions .metroSeg-option-row').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.value === metroSegEnding);
+        });
+        document.getElementById('metroSegEndingModal').style.display = 'flex';
+    });
+    document.getElementById('metroSegEndingOptions')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.metroSeg-option-row');
+        if (!btn) return;
+        metroSegEnding = btn.dataset.value;
+        document.getElementById('metroSegEndingModal').style.display = 'none';
+        renderMetroSegNavigationSummary();
+    });
+
+    // --- Landmarks: Double barline is a plain direct toggle; rehearsal marks are a small add/edit/
+    // remove list, each with its own bar position (dynamic, up to metroSegBarCount). ---
+    document.getElementById('metroSegBoundaryBtn')?.addEventListener('click', () => {
+        metroSegIsSectionBoundary = !metroSegIsSectionBoundary;
+        renderMetroSegNavigationSummary();
+    });
+
+    function metroSegPopulateBarSelect(selectEl, selectedOffset) {
+        selectEl.innerHTML = '';
+        for (let i = 0; i < metroSegBarCount; i++) {
+            const opt = document.createElement('option');
+            opt.value = String(i);
+            opt.textContent = i === 0 ? 'At start (bar 1)' : `After ${i} bar${i === 1 ? '' : 's'} (bar ${i + 1})`;
+            if (i === selectedOffset) opt.selected = true;
+            selectEl.appendChild(opt);
+        }
+    }
+
+    // One pencil-only edit affordance per row (no separate delete icon here - same "simplify the
+    // list, put delete behind the edit popup instead" ask as the fermata list below) - reuses
+    // .metroSeg-icon-btn, the same "plain icon, no circle behind it" recipe .qp-bar-menu-btn's
+    // corner menu button already uses elsewhere in the app.
+    function renderMetroSegRehearsalList() {
+        const ui = document.getElementById('metroSegRehearsalList');
+        if (!ui) return;
+        if (!metroSegRehearsalMarks.length) { ui.innerHTML = '<p class="metro-help-text">No rehearsal marks yet.</p>'; return; }
+        ui.innerHTML = metroSegRehearsalMarks.map((m, i) => `
+            <div class="history-item metroSeg-list-row">
+                <span class="metroSeg-list-row-badge">${escapeHtml(m.mark)}</span>
+                <div style="flex-grow:1;">
+                    <strong>${m.barOffset === 0 ? 'At start (bar 1)' : `After ${m.barOffset} bar${m.barOffset === 1 ? '' : 's'} (bar ${m.barOffset + 1})`}</strong>
+                </div>
+                <button type="button" class="metroSeg-icon-btn" aria-label="Edit rehearsal mark" onclick="openMetroSegRehearsalModal(${i})"><span class="material-symbols-outlined">edit</span></button>
+            </div>
+        `).join('');
+    }
+    window.removeMetroSegRehearsalMark = function(index) {
+        metroSegRehearsalMarks = metroSegRehearsalMarks.filter((_, i) => i !== index);
+        renderMetroSegRehearsalList();
+        renderMetroSegNavigationSummary();
+    };
+    window.openMetroSegRehearsalModal = function(index) {
+        metroSegRehearsalEditIndex = index;
+        const existing = index >= 0 ? metroSegRehearsalMarks[index] : null;
+        document.getElementById('metroSegRehearsalModalTitle').innerText = existing ? 'Edit rehearsal mark' : 'Add rehearsal mark';
+        document.getElementById('metroSegRehearsalMarkInput').value = existing ? existing.mark : String.fromCharCode(65 + metroSegRehearsalMarks.length % 26);
+        metroSegPopulateBarSelect(document.getElementById('metroSegRehearsalBarSelect'), existing ? existing.barOffset : 0);
+        document.getElementById('metroSegRehearsalDeleteSection').classList.toggle('hidden-group', index < 0);
+        document.getElementById('metroSegRehearsalModal').style.display = 'flex';
+    };
+    document.getElementById('metroSegRehearsalAddBtn')?.addEventListener('click', () => openMetroSegRehearsalModal(-1));
+    document.getElementById('metroSegRehearsalSaveBtn')?.addEventListener('click', () => {
+        const mark = document.getElementById('metroSegRehearsalMarkInput').value.trim().toUpperCase();
+        if (!mark) return showWarningToast('Enter a rehearsal mark.');
+        const barOffset = Number(document.getElementById('metroSegRehearsalBarSelect').value) || 0;
+        const entry = { mark, barOffset };
+        if (metroSegRehearsalEditIndex >= 0) {
+            metroSegRehearsalMarks = metroSegRehearsalMarks.map((m, i) => i === metroSegRehearsalEditIndex ? entry : m);
+        } else {
+            metroSegRehearsalMarks = [...metroSegRehearsalMarks, entry];
+        }
+        metroSegRehearsalMarks.sort((a, b) => a.barOffset - b.barOffset);
+        document.getElementById('metroSegRehearsalModal').style.display = 'none';
+        renderMetroSegRehearsalList();
+        renderMetroSegNavigationSummary();
+    });
+    document.getElementById('metroSegRehearsalDeleteBtn')?.addEventListener('click', () => {
+        if (metroSegRehearsalEditIndex >= 0) removeMetroSegRehearsalMark(metroSegRehearsalEditIndex);
+        document.getElementById('metroSegRehearsalModal').style.display = 'none';
+    });
+
+    // --- Speed change: no popup - "Change at beat"/"Over duration" cycle inline on the card itself,
+    // matching the attached reference. Beat cycles 1..numerator, duration cycles 1..8 (a UI cap -
+    // the backend itself doesn't cap rampDurationBars, matching repeat count's same UI-cap reasoning
+    // below). ---
+    function renderMetroSegSpeedCard() {
+        const numerator = metroSegSelectedNumerator();
+        document.getElementById('metroSegSpeedBeatVal').innerText = `Beat ${metroSegRampStartBeatOffset} of ${numerator}`;
+        document.getElementById('metroSegSpeedBarsVal').innerText = `${metroSegRampDurationBars} bar${metroSegRampDurationBars === 1 ? '' : 's'}`;
+    }
+    document.getElementById('metroSegSpeedBeatNextBtn')?.addEventListener('click', () => {
+        const numerator = metroSegSelectedNumerator();
+        metroSegRampStartBeatOffset = metroSegRampStartBeatOffset >= numerator ? 1 : metroSegRampStartBeatOffset + 1;
+        renderMetroSegSpeedCard();
+    });
+    document.getElementById('metroSegSpeedBarsNextBtn')?.addEventListener('click', () => {
+        metroSegRampDurationBars = metroSegRampDurationBars >= 8 ? 1 : metroSegRampDurationBars + 1;
+        renderMetroSegSpeedCard();
+    });
+
+    // --- Introduction: Start/End tiles share one popup (metroSegIntroModalTarget), each
+    // independently either "None" or a beat (always bar 1 of the block, no bar picker - matching
+    // the attached reference) - an intro can span more than one block, so a block might be just the
+    // start, just the end, both, or neither. Tapping an option applies and closes immediately, same
+    // as the other quick-pick popups (Ending, Repeat count). ---
+    function metroSegBeatTilesHtml(count, selected, cls) {
+        let html = '';
+        for (let b = 1; b <= count; b++) {
+            html += `<button type="button" class="${cls}${b === selected ? ' selected' : ''}" data-value="${b}">Beat ${b}</button>`;
+        }
+        return html;
+    }
+    function metroSegIntroTilesHtml(numerator, on, beat) {
+        let html = `<button type="button" class="metroSeg-tap-btn${!on ? ' selected' : ''}" data-value="none"><strong>None</strong></button>`;
+        for (let b = 1; b <= numerator; b++) {
+            html += `<button type="button" class="metroSeg-tap-btn${on && b === beat ? ' selected' : ''}" data-value="${b}">Beat ${b}</button>`;
+        }
+        return html;
+    }
+    window.openMetroSegIntroModal = function(target) {
+        metroSegIntroModalTarget = target;
+        const numerator = metroSegSelectedNumerator();
+        const on = target === 'start' ? metroSegIntroStartOn : metroSegIntroEndOn;
+        const beat = target === 'start' ? metroSegIntroStartBeatOffset : metroSegIntroEndBeatOffset;
+        document.getElementById('metroSegIntroModalTitle').innerText = target === 'start' ? 'Start intro (pickup)' : 'End intro boundary';
+        document.getElementById('metroSegIntroModalHelp').innerText = !on ? 'Not used in this block'
+            : target === 'start' ? `Pickup starts on beat ${beat} of ${numerator}` : `Intro ends on beat ${beat} of ${numerator}`;
+        document.getElementById('metroSegIntroBeatOptions').innerHTML = metroSegIntroTilesHtml(numerator, on, beat);
+        document.getElementById('metroSegIntroModal').style.display = 'flex';
+    };
+    document.getElementById('metroSegStartIntroBtn')?.addEventListener('click', () => openMetroSegIntroModal('start'));
+    document.getElementById('metroSegEndIntroBtn')?.addEventListener('click', () => openMetroSegIntroModal('end'));
+    document.getElementById('metroSegIntroBeatOptions')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.metroSeg-tap-btn');
+        if (!btn) return;
+        const val = btn.dataset.value;
+        if (metroSegIntroModalTarget === 'start') {
+            metroSegIntroStartOn = val !== 'none';
+            if (metroSegIntroStartOn) metroSegIntroStartBeatOffset = Number(val);
+        } else {
+            metroSegIntroEndOn = val !== 'none';
+            if (metroSegIntroEndOn) metroSegIntroEndBeatOffset = Number(val);
+        }
+        document.getElementById('metroSegIntroModal').style.display = 'none';
+        renderMetroSegNavigationSummary();
+    });
+
+    // --- Jumps: every tile is a plain direct toggle (target signs + jump instructions). ---
+    function metroSegWireBoolTile(btnId, getFn, setFn) {
+        document.getElementById(btnId)?.addEventListener('click', () => {
+            setFn(!getFn());
+            renderMetroSegNavigationSummary();
+        });
+    }
+    metroSegWireBoolTile('metroSegSegnoBtn', () => metroSegIsSegno, (v) => { metroSegIsSegno = v; });
+    metroSegWireBoolTile('metroSegCodaBtn', () => metroSegIsCoda, (v) => { metroSegIsCoda = v; });
+    metroSegWireBoolTile('metroSegGotoSegnoBtn', () => metroSegGotoSegno, (v) => { metroSegGotoSegno = v; });
+    metroSegWireBoolTile('metroSegGotoSegnoThenCodaBtn', () => metroSegGotoSegnoThenCoda, (v) => { metroSegGotoSegnoThenCoda = v; });
+    metroSegWireBoolTile('metroSegGotoCodaBtn', () => metroSegGotoCoda, (v) => { metroSegGotoCoda = v; });
+    metroSegWireBoolTile('metroSegGotoStartBtn', () => metroSegGotoStartDc, (v) => { metroSegGotoStartDc = v; });
+
+    // --- Articulation: fermata add/edit/remove list, each with beat and hold length (1-4). Bar
+    // picker only shown when the block spans more than one bar, same as before. Playback mode
+    // (tone/silent/count) used to live per-fermata here, but it's a user playback preference, not
+    // something that varies block to block - moved to Settings (fermataPlaybackModeSetting)
+    // instead, so it no longer appears on this list or its edit popup. One pencil-only edit
+    // affordance per row (no separate delete icon - delete moved into the edit popup). ---
+    function renderMetroSegFermataList() {
+        const ui = document.getElementById('metroSegFermataList');
+        const badge = document.getElementById('metroSegFermataCountBadge');
+        if (badge) badge.innerText = `${metroSegFermatas.length} ${metroSegFermatas.length === 1 ? 'hold' : 'holds'}`;
+        if (!ui) return;
+        if (!metroSegFermatas.length) { ui.innerHTML = '<p class="metro-help-text">No fermatas yet.</p>'; return; }
+        ui.innerHTML = metroSegFermatas.map((f, i) => `
+            <div class="history-item metroSeg-list-row">
+                <span class="metroSeg-list-row-badge">&#119136;</span>
+                <div style="flex-grow:1;">
+                    <strong>${metroSegBarCount > 1 ? `Bar ${f.barOffset + 1}, beat` : 'On beat'} ${f.beatOffset}</strong>
+                    <span style="font-size:0.75rem; margin-left:6px; color:var(--primary-action);">Hold ${f.holdBeats} beat${f.holdBeats === 1 ? '' : 's'}</span>
+                </div>
+                <button type="button" class="metroSeg-icon-btn" aria-label="Edit fermata" onclick="openMetroSegFermataModal(${i})"><span class="material-symbols-outlined">edit</span></button>
+            </div>
+        `).join('');
+    }
+    window.removeMetroSegFermata = function(index) {
+        metroSegFermatas = metroSegFermatas.filter((_, i) => i !== index);
+        renderMetroSegFermataList();
+        renderMetroSegNavigationSummary();
+    };
+    window.openMetroSegFermataModal = function(index) {
+        metroSegFermataEditIndex = index;
+        const existing = index >= 0 ? metroSegFermatas[index] : null;
+        document.getElementById('metroSegFermataModalTitle').innerText = existing ? 'Edit fermata hold' : 'Add another fermata';
+        const barGroup = document.getElementById('metroSegFermataBarGroup');
+        barGroup.classList.toggle('hidden-group', metroSegBarCount <= 1);
+        if (metroSegBarCount > 1) metroSegPopulateBarSelect(document.getElementById('metroSegFermataBarSelect'), existing ? existing.barOffset : 0);
+        const beat = existing ? existing.beatOffset : 1;
+        document.getElementById('metroSegFermataBeatOptions').innerHTML = metroSegBeatTilesHtml(metroSegSelectedNumerator(), beat, 'metroSeg-tap-btn');
+        const hold = existing ? existing.holdBeats : 2;
+        document.querySelectorAll('#metroSegFermataHoldOptions .metroSeg-tap-btn').forEach(b => b.classList.toggle('selected', Number(b.dataset.value) === hold));
+        document.getElementById('metroSegFermataDeleteSection').classList.toggle('hidden-group', index < 0);
+        document.getElementById('metroSegFermataModal').style.display = 'flex';
+    };
+    document.getElementById('metroSegFermataAddOpenBtn')?.addEventListener('click', () => openMetroSegFermataModal(-1));
+    document.getElementById('metroSegFermataBeatOptions')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.metroSeg-tap-btn');
+        if (!btn) return;
+        document.querySelectorAll('#metroSegFermataBeatOptions .metroSeg-tap-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+    });
+    document.getElementById('metroSegFermataHoldOptions')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.metroSeg-tap-btn');
+        if (!btn) return;
+        document.querySelectorAll('#metroSegFermataHoldOptions .metroSeg-tap-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+    });
+    document.getElementById('metroSegFermataSaveBtn')?.addEventListener('click', () => {
+        const barSelect = document.getElementById('metroSegFermataBarSelect');
+        const barOffset = metroSegBarCount > 1 ? Number(barSelect.value) || 0 : 0;
+        const beatBtn = document.querySelector('#metroSegFermataBeatOptions .metroSeg-tap-btn.selected');
+        const beatOffset = beatBtn ? Number(beatBtn.dataset.value) : 1;
+        const holdBtn = document.querySelector('#metroSegFermataHoldOptions .metroSeg-tap-btn.selected');
+        const holdBeats = holdBtn ? Number(holdBtn.dataset.value) : 2;
+        const entry = { barOffset, beatOffset, holdBeats };
+        if (metroSegFermataEditIndex >= 0) {
+            metroSegFermatas = metroSegFermatas.map((f, i) => i === metroSegFermataEditIndex ? entry : f);
+        } else {
+            metroSegFermatas = [...metroSegFermatas, entry];
+        }
+        metroSegFermatas.sort((a, b) => a.barOffset - b.barOffset || a.beatOffset - b.beatOffset);
+        document.getElementById('metroSegFermataModal').style.display = 'none';
+        renderMetroSegFermataList();
+        renderMetroSegNavigationSummary();
+    });
+    document.getElementById('metroSegFermataDeleteBtn')?.addEventListener('click', () => {
+        if (metroSegFermataEditIndex >= 0) removeMetroSegFermata(metroSegFermataEditIndex);
+        document.getElementById('metroSegFermataModal').style.display = 'none';
     });
 
     window.openMetroSegmentModal = function(segId = null) {
@@ -4089,7 +4594,11 @@
         metroSegEditingLeadIn = false;
 
         document.getElementById('metroSegEditId').value = segId || '';
-        document.getElementById('metroSegmentModalTitle').innerText = seg ? 'Edit block' : 'Add block';
+        // "Block N" (ML-103) rather than "Edit/Add block" - a new block takes the next free number,
+        // same position it'll actually land in once saved (metroBlkCurrentSetup.segments is appended
+        // to, never reordered, by the Save handler below).
+        const blockNumber = seg ? regularBlocks.indexOf(seg) + 1 : regularBlocks.length + 1;
+        document.getElementById('metroSegmentModalTitle').innerText = `Block ${blockNumber}`;
         document.getElementById('metroSegDeleteBtn').innerText = 'Delete block';
         document.getElementById('metroSegOtherActionsSection').classList.toggle('hidden-group', !seg);
         document.getElementById('metroSegLeadInWhole').checked = true;
@@ -4115,6 +4624,47 @@
         metroSegNoteSelected = (seg && seg.noteValue) ? seg.noteValue : metroSegDefaultNoteForDenominator(metroSegSelectedDenominator());
         renderMetroSegNoteSelectBtn();
         setMetroSegBpm(seg ? seg.bpm : (lastRegular ? lastRegular.bpm : 120));
+
+        // ML-103: navigation/articulation markup - never carried over from lastRegular the way
+        // time signature/bpm are above, since a new block starting a fresh repeat/coda/etc is the
+        // much more common case than copying one block's journey markup onto the next.
+        metroSegIsRepeatStart = seg ? !!seg.isRepeatStart : false;
+        metroSegIsRepeatEnd = seg ? !!seg.isRepeatEnd : false;
+        metroSegRepeatPlayCount = seg ? (seg.repeatPlayCount || null) : null;
+        metroSegEnding = seg && seg.isFirstTimeBar && seg.isSecondTimeBar ? 'combined'
+            : seg && seg.isFirstTimeBar ? 'first' : (seg && seg.isSecondTimeBar ? 'second' : 'none');
+
+        metroSegIsSectionBoundary = seg ? !!seg.isSectionBoundary : false;
+        metroSegRehearsalMarks = seg && Array.isArray(seg.rehearsalMarks) ? seg.rehearsalMarks.map(m => ({ ...m })) : [];
+
+        metroSegRampStartBeatOffset = seg && seg.rampStartBeatOffset ? seg.rampStartBeatOffset : 1;
+        metroSegRampDurationBars = seg && seg.rampDurationBars ? seg.rampDurationBars : 1;
+
+        metroSegIntroStartOn = !!(seg && seg.introStartBeatOffset !== null && seg.introStartBeatOffset !== undefined);
+        metroSegIntroStartBeatOffset = seg && seg.introStartBeatOffset ? seg.introStartBeatOffset : 1;
+        metroSegIntroEndOn = !!(seg && seg.introEndBeatOffset !== null && seg.introEndBeatOffset !== undefined);
+        metroSegIntroEndBeatOffset = seg && seg.introEndBeatOffset ? seg.introEndBeatOffset : metroSegSelectedNumerator();
+
+        metroSegIsCoda = seg ? !!seg.isCoda : false;
+        metroSegIsSegno = seg ? !!seg.isSegno : false;
+        metroSegGotoCoda = seg ? !!seg.gotoCoda : false;
+        metroSegGotoSegno = seg ? !!seg.gotoSegno : false;
+        metroSegGotoSegnoThenCoda = seg ? !!seg.gotoSegnoThenCoda : false;
+        metroSegGotoStartDc = seg ? !!seg.gotoStartDc : false;
+
+        metroSegFermatas = seg && Array.isArray(seg.fermatas) ? seg.fermatas.map(f => ({ ...f })) : [];
+
+        // Master on/off per card - isInitialLoad (true) so this only syncs the switch/expand UI to
+        // what was actually saved, without also running each section's reset-to-default side effect.
+        metroSegApplyBarsSection(seg ? seg.barCount > 1 : false, true);
+        metroSegApplyRepeatsSection(!!(seg && (seg.isRepeatStart || seg.isRepeatEnd || seg.isFirstTimeBar || seg.isSecondTimeBar)), true);
+        metroSegApplyLandmarksSection(!!(seg && (seg.isSectionBoundary || (seg.rehearsalMarks && seg.rehearsalMarks.length))), true);
+        metroSegApplySpeedSection(!!(seg && seg.rampStartBeatOffset), true);
+        metroSegApplyIntroSection(!!(seg && (seg.introStartBeatOffset || seg.introEndBeatOffset)), true);
+        metroSegApplyJumpsSection(!!(seg && (seg.isCoda || seg.isSegno || seg.gotoCoda || seg.gotoSegno || seg.gotoSegnoThenCoda || seg.gotoStartDc)), true);
+        metroSegApplyArticulationSection(!!(seg && seg.fermatas && seg.fermatas.length), true);
+        renderMetroSegRehearsalList();
+        renderMetroSegNavigationSummary();
 
         syncMetroSegFieldVisibility();
         document.getElementById('metroSegmentModal').style.display = 'flex';
@@ -4224,6 +4774,44 @@
         } else {
             data.barCount = metroSegBarCount;
             data.pickupBeats = null;
+        }
+
+        // ML-103: navigation/articulation markup - never meaningful on the lead-in, so `data` simply
+        // never gets these fields there (metroBlkSegPayload/buildLocalSegmentDto then carry them as
+        // undefined, same as noteValue already does for a lead-in above). Each card's own master
+        // toggle (metroSegRepeatsOn etc.) gates whether its fields are actually sent "on" - even if
+        // the underlying variables still hold a stale value from before the card was switched off.
+        if (!metroSegEditingLeadIn) {
+            data.isRepeatStart = metroSegRepeatsOn && metroSegIsRepeatStart;
+            data.isRepeatEnd = metroSegRepeatsOn && metroSegIsRepeatEnd;
+            data.repeatPlayCount = (metroSegRepeatsOn && metroSegIsRepeatEnd) ? metroSegRepeatPlayCount : null;
+            const ending = metroSegRepeatsOn ? metroSegEnding : 'none';
+            data.isFirstTimeBar = ending === 'first' || ending === 'combined';
+            data.isSecondTimeBar = ending === 'second' || ending === 'combined';
+
+            data.isSectionBoundary = metroSegLandmarksOn && metroSegIsSectionBoundary;
+            data.rehearsalMarks = metroSegLandmarksOn ? metroSegRehearsalMarks : [];
+
+            data.isCoda = metroSegJumpsOn && metroSegIsCoda;
+            data.isSegno = metroSegJumpsOn && metroSegIsSegno;
+            data.gotoCoda = metroSegJumpsOn && metroSegGotoCoda;
+            data.gotoSegno = metroSegJumpsOn && metroSegGotoSegno;
+            data.gotoSegnoThenCoda = metroSegJumpsOn && metroSegGotoSegnoThenCoda;
+            data.gotoStartDc = metroSegJumpsOn && metroSegGotoStartDc;
+
+            // Start and end are independent (see the Introduction card's own comment) - each only
+            // sent when its own tile is actually set, not gated by one shared flag any more.
+            data.introStartBarOffset = metroSegIntroStartOn ? 0 : null;
+            data.introStartBeatOffset = metroSegIntroStartOn ? metroSegIntroStartBeatOffset : null;
+            data.introEndBarOffset = metroSegIntroEndOn ? 0 : null;
+            data.introEndBeatOffset = metroSegIntroEndOn ? metroSegIntroEndBeatOffset : null;
+
+            const speedSet = metroSegSpeedOn;
+            data.rampStartBarOffset = speedSet ? 0 : null;
+            data.rampStartBeatOffset = speedSet ? metroSegRampStartBeatOffset : null;
+            data.rampDurationBars = speedSet ? metroSegRampDurationBars : null;
+
+            data.fermatas = metroSegArticulationOn ? metroSegFermatas : [];
         }
 
         // Staged locally (ML-97), matched against the hidden field's string id (real numeric id or
@@ -5072,11 +5660,13 @@
     }
 
     // --- Per-block inline editor (time signature / note+BPM stepper+slider / bar-count stepper+slider) ---
-    // Reuses the exact field markup the Blocks segment-edit modal uses (public/index.html's
-    // #metroSegTimeSigGroup/#metroSegBpmGroup/#metroSegBarCountGroup) but inline instead of behind a
-    // modal, and built fresh per block instance rather than sharing that modal's own singleton DOM/
-    // state (metroSegBpm etc.) - several of these are visible on screen at once, which that modal was
-    // never designed for. Reuses the genuinely value-agnostic pieces directly: METRO_SLIDER_TIERS/
+    // Originally reused the Blocks segment-edit modal's own field markup; ML-103 later went the other
+    // way and restyled that modal's own Standard fields (public/index.html's #metroSegStandardBox) to
+    // match THIS card's qp-bar-fields-grid/qp-timesig-cell/qp-notelen-cell/qp-bpm-cell layout instead,
+    // since it reads more cleanly - the two still don't share DOM/state (see below), just the same
+    // classes now. Built fresh per block instance rather than a singleton modal's own DOM/state
+    // (metroSegBpm etc.) - several of these are visible on screen at once, which that modal was never
+    // designed for. Reuses the genuinely value-agnostic pieces directly: METRO_SLIDER_TIERS/
     // metroBestFitTier/METRO_MIN_BPM/METRO_MAX_BPM, setupSliderInteraction (already takes elements, not
     // ids), setupHoldStepper/makeSliderReadoutEditable (generalised below to take an element OR an id),
     // metroNoteIconSvg/METRO_NOTE_TYPES/metroSegDefaultNoteForDenominator, and metroBlkTimeSigCache for
@@ -5849,6 +6439,12 @@
     const TUNER_ZONE_CENTS = 15; // "in tune" green-zone half-width
     const TUNER_INSTRUMENT_DEFAULT_KEY = 'tunerInstrumentDefault';
     const TUNER_USE_FLATS_KEY = 'tunerUseFlats';
+    // ML-103 follow-up: how a fermata sustained hold sounds (tone/silent/count) - a playback
+    // preference, not per-block, so it lives here rather than in the block editor. Same
+    // localStorage-only pattern as the tuner defaults above (device-local, no account sync) -
+    // nothing in the metronome player reads this yet (fermata playback itself isn't wired into the
+    // audio engine), this is just where a future playback engine should look.
+    const FERMATA_PLAYBACK_MODE_KEY = 'fermataPlaybackMode';
 
     function tunerFreqToMidi(freq) { return A4_MIDI + 12 * Math.log2(freq / A4_FREQ); }
 
@@ -6011,6 +6607,9 @@
     });
     document.getElementById('tunerUseFlatsToggle')?.addEventListener('change', (e) => {
         localStorage.setItem(TUNER_USE_FLATS_KEY, e.target.checked ? 'true' : 'false');
+    });
+    document.getElementById('fermataPlaybackModeSetting')?.addEventListener('change', (e) => {
+        localStorage.setItem(FERMATA_PLAYBACK_MODE_KEY, e.target.value);
     });
     document.getElementById('tunerRetryBtn')?.addEventListener('click', startTuner);
 

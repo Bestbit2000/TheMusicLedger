@@ -363,6 +363,20 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 1.1rem; padding: 15px; background: var(--input-bg); border-radius: 12px; border: 1px solid var(--input-border);">
             <span>Show flats instead of sharps</span><label class="toggle-switch"><input type="checkbox" id="tunerUseFlatsToggle"><span class="toggle-slider"></span></label>
         </div>
+
+        <!-- ML-103 follow-up: how a fermata sustained hold sounds is a playback preference, not a
+             per-block/per-fermata setting (it doesn't vary block to block) - moved out of the block
+             editor's Articulation card into here instead, same "one place, applies everywhere"
+             reasoning as the tuner defaults above. -->
+        <div class="section-title">Fermata</div>
+        <div class="form-group">
+            <label for="fermataPlaybackModeSetting">Playback mode</label>
+            <select id="fermataPlaybackModeSetting">
+                <option value="tone">Tone + cue (sustained beep)</option>
+                <option value="silent">Silent hold + cue</option>
+                <option value="count">Count through</option>
+            </select>
+        </div>
     </div>
 
     <!-- ML-77: name/email/level/signup date + real band membership. Distinct from
@@ -505,6 +519,32 @@
             <div class="metroBlk-mini-tuner-instrument-label" id="metroBlkMiniTunerInstrumentLabel">Concert</div>
         </div>
 
+        <!-- ML-103: the tool used to always silently resolve straight into an editor (whatever was
+             already in memory, the account's scratch, or the last-loaded saved setup) with no
+             explicit "new or open?" moment. This entry screen replaces that auto-resolve - see
+             switchView's metroBuilderView branch, metroBlkShowEntryScreen/metroBlkShowEditorScreen. -->
+        <div id="metroBlkEntryScreen">
+            <div class="section-title"><span>flow</span></div>
+            <p class="metro-help-text">Set up a custom practice run, or open one you've already made.</p>
+            <div class="metroBlk-entry-choices">
+                <button type="button" class="metroBlk-entry-choice" id="metroBlkEntryCreateBtn" aria-label="Create your own - build a new practice flow from scratch">
+                    <span class="material-symbols-outlined" aria-hidden="true">add_circle</span>
+                    <strong>Create your own</strong>
+                    <span class="metro-help-text">Build a new practice flow from scratch</span>
+                </button>
+                <button type="button" class="metroBlk-entry-choice" id="metroBlkEntryLoadBtn" aria-label="Load from library - open one of your saved flows">
+                    <span class="material-symbols-outlined" aria-hidden="true">folder_open</span>
+                    <strong>Load from library</strong>
+                    <span class="metro-help-text">Open one of your saved flows</span>
+                </button>
+            </div>
+            <div class="hidden-group" id="metroBlkEntryLibrary">
+                <button type="button" class="btn-text" id="metroBlkEntryLibraryBackBtn">&larr; Back</button>
+                <div id="metroBlkSetupsList">Loading...</div>
+            </div>
+        </div>
+
+        <div id="metroBlkEditorScreen" class="hidden-group">
         <div class="metroBlk-rows" id="metroBlkRows">
             <div class="metroBlk-row metroBlk-row-current">
                 <div class="metroBlk-row-head"><span class="metroBlk-row-mark" id="metroBlkRow0Mark"></span><span class="metroBlk-row-label" id="metroBlkRow0Label"></span></div>
@@ -535,6 +575,7 @@
             </button>
         </div>
 
+        <button type="button" class="btn-text" id="metroBlkChangeFlowBtn" aria-label="Back to Flow home">&larr; Change flow</button>
         <div class="metroBlk-setup-header">
             <button type="button" class="metroBlk-setup-name-btn" id="metroBlkRenameBtn" aria-label="Save this setup">
                 <span class="metroBlk-setup-name" id="metroBlkSetupName">New setup</span>
@@ -551,18 +592,13 @@
             <div class="dropdown-item metroBlk-tile-menu-delete" id="metroBlkTileMenuDelete">Delete</div>
         </div>
 
-        <div id="metroBlkSavedSetupsSection">
-            <div class="section-title" style="margin-top:var(--space-6);"><span>Saved setups</span></div>
-            <button class="btn-nav" id="metroBlkAddSetBtn">+ Add new</button>
-            <div id="metroBlkSetupsList">Loading...</div>
-        </div>
-
         <div class="metroBlk-edit-bar hidden-group" id="metroBlkEditBar">
             <span class="metroBlk-edit-bar-text">Tap save when you're ready to play</span>
             <div class="metroBlk-edit-bar-actions">
                 <button type="button" class="btn-cancel btn-nav no-margin" id="metroBlkEditCancelBtn">Cancel</button>
                 <button type="button" class="btn-submit no-margin" id="metroBlkEditSaveBtn">Save</button>
             </div>
+        </div>
         </div>
     </div>
 
@@ -733,9 +769,12 @@
 </div>
 
 <div class="modal" id="metroSegmentModal">
-    <div class="modal-content">
+    <div class="modal-content modal-content-sticky-footer">
         <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegmentModal').style.display='none'" aria-label="Close without saving">&times;</button>
-        <h2 id="metroSegmentModalTitle">Edit block</h2>
+        <div class="metroSeg-scroll-area">
+        <div class="metroSeg-modal-heading">
+            <h2 id="metroSegmentModalTitle">Edit block</h2>
+        </div>
         <input type="hidden" id="metroSegEditId">
         <div class="form-group hidden-group" id="metroSegLeadInKindGroup">
             <label>Length</label>
@@ -764,18 +803,28 @@
             <p class="metro-help-text">A silent pause immediately before every time the lead-in plays, instead of going straight from the last click into the next. 0 means no pause.</p>
         </div>
 
-        <div class="form-group" id="metroSegTimeSigGroup">
-            <label>Time signature</label>
-            <button type="button" class="metro-col-btn" id="metroSegTimeSigBtn"><strong id="metroSegTimeSigBtnLabel">4/4</strong></button>
-        </div>
-
-        <div class="form-group" id="metroSegBpmGroup">
-            <label>Target BPM</label>
-            <div class="metroBlk-note-bpm-row">
-                <button type="button" class="metroBlk-note-select-btn" id="metroSegNoteSelectBtn" aria-label="Note value - tap to change"></button>
-                <span class="metroBlk-note-eq">=</span>
-                <div class="metroBlk-bpm-box">
-                    <div class="metro-speed-row no-margin">
+        <!-- ML-103 follow-up: reworked into the "expandable card" layout from the attached reference
+             (expandable_metronome_sections.html) - a bordered card per topic, most with a master
+             on/off (.toggle-switch, the same pill component Settings' own Dark mode/Show flats
+             toggles already use) that both gates whether that topic applies to this block AND
+             expands/collapses the card (metroSegToggleSection). Standard/Multiple bars stay outside
+             #metroSegNavigationSections (still relevant on the lead-in, or at least Standard's bar
+             count is - see syncMetroSegFieldVisibility); everything else is regular-block-only. -->
+        <div class="metro-section-box" id="metroSegStandardBox">
+            <div class="metroSeg-card-header">
+                <h3 class="metroSeg-card-title">Standard</h3>
+            </div>
+            <div class="qp-bar-fields-grid">
+                <button type="button" class="metroBlk-ctrl-value-btn qp-timesig-cell" id="metroSegTimeSigBtn" aria-label="Time signature - tap to change">
+                    <strong id="metroSegTimeSigBtnLabel">4/4</strong>
+                    <span class="metroBlk-ctrl-value-label">time</span>
+                </button>
+                <button type="button" class="metroBlk-ctrl-value-btn qp-notelen-cell" id="metroSegNoteSelectBtn" aria-label="Beat unit - tap to change">
+                    <span class="qp-note-btn-icon" id="metroSegNoteBtnIcon"></span>
+                    <span class="metroBlk-ctrl-value-label">beat unit</span>
+                </button>
+                <div class="metroBlk-bpm-box qp-bpm-cell">
+                    <div class="metro-speed-row no-margin qp-bpm-speed-row">
                         <button class="metro-bpm-step" id="metroSegBpmMinus" type="button" aria-label="Decrease beats per minute">&minus;</button>
                         <div class="metro-speed-readout">
                             <div id="metroSegBpmValue">120</div>
@@ -794,22 +843,35 @@
             </div>
         </div>
 
-        <div class="form-group" id="metroSegBarCountGroup">
-            <label id="metroSegBarCountLabel">Number of bars</label>
-            <div class="metroBlk-bpm-box">
-                <div class="metro-speed-row no-margin">
-                    <button class="metro-bpm-step" id="metroSegBarsMinus" type="button" aria-label="Decrease number of bars">&minus;</button>
-                    <div class="metro-speed-readout">
-                        <div id="metroSegBarCount">1</div>
+        <!-- Multiple bars: off = a single-bar block (barCount forced to 1); on = the stepper below,
+             minimum 2 (a "multiple bars" block that's actually just 1 bar is a contradiction) -
+             defaults to 2 the moment it's switched on. Pickup beats (lead-in only) stays outside this
+             card, gated by isPartial as before. -->
+        <div class="metro-section-box" id="metroSegBarsCard">
+            <button type="button" class="metroSeg-card-header" id="metroSegBarsHeader">
+                <h3 class="metroSeg-card-title">Multiple bars</h3>
+                <label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" id="metroSegBarsToggle"><span class="toggle-slider"></span></label>
+            </button>
+            <div class="metroSeg-expandable" id="metroSegBarsExpand">
+                <div class="metroSeg-expandable-inner">
+                    <div class="metroSeg-card-body" id="metroSegBarCountGroup">
+                        <div class="metroBlk-bpm-box">
+                            <div class="metro-speed-row no-margin">
+                                <button class="metro-bpm-step" id="metroSegBarsMinus" type="button" aria-label="Decrease number of bars">&minus;</button>
+                                <div class="metro-speed-readout">
+                                    <div id="metroSegBarCount">2</div>
+                                </div>
+                                <button class="metro-bpm-step" id="metroSegBarsPlus" type="button" aria-label="Increase number of bars">+</button>
+                            </div>
+                            <div class="slider-wrap no-margin">
+                                <div class="slider-track" id="metroSegBarsSliderTrack">
+                                    <div class="slider-fill" id="metroSegBarsSliderFill"></div>
+                                    <div class="slider-thumb" id="metroSegBarsSliderThumb" tabindex="0" role="slider" aria-label="Number of bars" aria-valuemin="2" aria-valuemax="50" aria-valuenow="2"></div>
+                                </div>
+                                <div class="slider-scale"><span id="metroSegBarsSliderMinLbl">2</span><span id="metroSegBarsSliderMaxLbl">50</span></div>
+                            </div>
+                        </div>
                     </div>
-                    <button class="metro-bpm-step" id="metroSegBarsPlus" type="button" aria-label="Increase number of bars">+</button>
-                </div>
-                <div class="slider-wrap no-margin">
-                    <div class="slider-track" id="metroSegBarsSliderTrack">
-                        <div class="slider-fill" id="metroSegBarsSliderFill"></div>
-                        <div class="slider-thumb" id="metroSegBarsSliderThumb" tabindex="0" role="slider" aria-label="Number of bars" aria-valuemin="1" aria-valuemax="50" aria-valuenow="1"></div>
-                    </div>
-                    <div class="slider-scale"><span>1</span><span id="metroSegBarsSliderMaxLbl">50</span></div>
                 </div>
             </div>
         </div>
@@ -818,13 +880,201 @@
             <input type="number" id="metroSegPickupBeats" min="1">
         </div>
 
-        <div style="display:flex; gap:10px; margin-top:10px;">
-            <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('metroSegmentModal').style.display='none'">Cancel</button>
-            <button class="btn-submit no-margin" id="metroSegSaveBtn">Save</button>
+        <!-- ML-103: navigation/articulation markup - hidden entirely while editing the lead-in
+             (syncMetroSegFieldVisibility), since none of it is meaningful there. -->
+        <div id="metroSegNavigationSections">
+
+            <div class="metro-section-box" id="metroSegRepeatsCard">
+                <button type="button" class="metroSeg-card-header" id="metroSegRepeatsHeader">
+                    <h3 class="metroSeg-card-title">Repeats</h3>
+                    <label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" id="metroSegRepeatsToggle"><span class="toggle-slider"></span></label>
+                </button>
+                <div class="metroSeg-expandable" id="metroSegRepeatsExpand">
+                    <div class="metroSeg-expandable-inner">
+                        <div class="metroSeg-card-body">
+                            <div class="metroSeg-tile-grid metroSeg-tile-grid-3">
+                                <button type="button" class="metroSeg-tap-btn" id="metroSegStartRepeatBtn">
+                                    <span class="metroSeg-repeat-glyph">&#8214;:</span>
+                                    <span class="metroSeg-tap-label">Start repeat</span>
+                                </button>
+                                <button type="button" class="metroSeg-tap-btn" id="metroSegEndRepeatBtn">
+                                    <span class="metroSeg-repeat-glyph" id="metroSegEndRepeatGlyph">:&#8214;</span>
+                                    <span class="metroSeg-tap-label" id="metroSegEndRepeatLabel">End repeat (off)</span>
+                                </button>
+                                <button type="button" class="metroSeg-tap-btn" id="metroSegEndingBtn">
+                                    <strong id="metroSegEndingValue">None</strong>
+                                    <span class="metroSeg-tap-label">1st / 2nd time</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metro-section-box" id="metroSegLandmarksCard">
+                <button type="button" class="metroSeg-card-header" id="metroSegLandmarksHeader">
+                    <h3 class="metroSeg-card-title">Landmarks</h3>
+                    <label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" id="metroSegLandmarksToggle"><span class="toggle-slider"></span></label>
+                </button>
+                <div class="metroSeg-expandable" id="metroSegLandmarksExpand">
+                    <div class="metroSeg-expandable-inner">
+                        <div class="metroSeg-card-body">
+                            <div class="metroSeg-micro-label">Section boundary</div>
+                            <button type="button" class="metroSeg-row-tile" id="metroSegBoundaryBtn">
+                                <div class="metroSeg-row-tile-glyph">&#8214;</div>
+                                <div class="metroSeg-row-tile-text">
+                                    <strong>Double barline at start</strong>
+                                    <span>Draws &#8214; before beat 1 (phrase or key boundary)</span>
+                                </div>
+                            </button>
+
+                            <div class="metroSeg-micro-label metroSeg-micro-label-row" style="margin-top:var(--space-4);">
+                                <span>Rehearsal letters / numbers</span>
+                                <span class="metroSeg-count-badge" id="metroSegRehearsalCountBadge">0 marks</span>
+                            </div>
+                            <div id="metroSegRehearsalList"></div>
+                            <button type="button" class="metroSeg-add-btn" id="metroSegRehearsalAddBtn">+ Add rehearsal mark at bar&hellip;</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metro-section-box" id="metroSegSpeedCard">
+                <button type="button" class="metroSeg-card-header" id="metroSegSpeedHeader">
+                    <h3 class="metroSeg-card-title">Speed change</h3>
+                    <label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" id="metroSegSpeedToggle"><span class="toggle-slider"></span></label>
+                </button>
+                <div class="metroSeg-expandable" id="metroSegSpeedExpand">
+                    <div class="metroSeg-expandable-inner">
+                        <div class="metroSeg-card-body">
+                            <div class="metroSeg-inset-box">
+                                <p class="metro-help-text no-margin">Gradually transitions tempo to the next block's tempo. The app automatically calculates whether this is an accelerando or ritardando.</p>
+                                <div class="metroSeg-tile-grid metroSeg-tile-grid-2" style="margin-top:var(--space-3);">
+                                    <div class="metroSeg-cycle-tile">
+                                        <span class="metroSeg-micro-label">Change at beat</span>
+                                        <div class="metroSeg-cycle-row">
+                                            <strong id="metroSegSpeedBeatVal">Beat 1 of 4</strong>
+                                            <button type="button" class="metroSeg-cycle-btn" id="metroSegSpeedBeatNextBtn">Next</button>
+                                        </div>
+                                    </div>
+                                    <div class="metroSeg-cycle-tile">
+                                        <span class="metroSeg-micro-label">Over duration</span>
+                                        <div class="metroSeg-cycle-row">
+                                            <strong id="metroSegSpeedBarsVal">1 bar</strong>
+                                            <button type="button" class="metroSeg-cycle-btn" id="metroSegSpeedBarsNextBtn">Next</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metro-section-box" id="metroSegIntroCard">
+                <button type="button" class="metroSeg-card-header" id="metroSegIntroHeader">
+                    <h3 class="metroSeg-card-title">Introduction</h3>
+                    <label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" id="metroSegIntroToggle"><span class="toggle-slider"></span></label>
+                </button>
+                <div class="metroSeg-expandable" id="metroSegIntroExpand">
+                    <div class="metroSeg-expandable-inner">
+                        <div class="metroSeg-card-body">
+                            <div class="metroSeg-tile-grid metroSeg-tile-grid-2">
+                                <button type="button" class="metroSeg-info-tile" id="metroSegStartIntroBtn">
+                                    <div class="metroSeg-info-tile-top">
+                                        <span>Start intro</span>
+                                        <span class="metroSeg-count-badge metroSeg-count-badge-accent" id="metroSegStartIntroBadge">1/4</span>
+                                    </div>
+                                    <div class="metroSeg-info-tile-sub" id="metroSegStartIntroSub">Pickup beat 1 of 4</div>
+                                    <div class="metroSeg-info-tile-hint">Tap to edit</div>
+                                </button>
+                                <button type="button" class="metroSeg-info-tile" id="metroSegEndIntroBtn">
+                                    <div class="metroSeg-info-tile-top">
+                                        <span>End intro</span>
+                                        <span class="metroSeg-count-badge" id="metroSegEndIntroBadge">Bar 1</span>
+                                    </div>
+                                    <div class="metroSeg-info-tile-sub" id="metroSegEndIntroSub">Finishes beat 4 of 4</div>
+                                    <div class="metroSeg-info-tile-hint">Tap to edit</div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metro-section-box" id="metroSegJumpsCard">
+                <button type="button" class="metroSeg-card-header" id="metroSegJumpsHeader">
+                    <h3 class="metroSeg-card-title">Jumps</h3>
+                    <label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" id="metroSegJumpsToggle"><span class="toggle-slider"></span></label>
+                </button>
+                <div class="metroSeg-expandable" id="metroSegJumpsExpand">
+                    <div class="metroSeg-expandable-inner">
+                        <div class="metroSeg-card-body">
+                            <div class="metroSeg-micro-label">Target signs (landmarks in this bar)</div>
+                            <div class="metroSeg-tile-grid metroSeg-tile-grid-2">
+                                <button type="button" class="metroSeg-row-tile" id="metroSegSegnoBtn">
+                                    <div class="metroSeg-row-tile-glyph" id="metroSegSegnoIcon"></div>
+                                    <div class="metroSeg-row-tile-text"><strong>Segno sign</strong><span>Jump target</span></div>
+                                </button>
+                                <button type="button" class="metroSeg-row-tile" id="metroSegCodaBtn">
+                                    <div class="metroSeg-row-tile-glyph" id="metroSegCodaIcon"></div>
+                                    <div class="metroSeg-row-tile-text"><strong>Coda sign</strong><span>Coda head</span></div>
+                                </button>
+                            </div>
+
+                            <div class="metroSeg-micro-label" style="margin-top:var(--space-4);">Jump instructions (triggered at end of bar)</div>
+                            <div class="metroSeg-tile-grid metroSeg-tile-grid-4">
+                                <button type="button" class="metroSeg-tap-btn" id="metroSegGotoSegnoBtn" title="Dal Segno - go to sign">
+                                    <strong>D.S.</strong>
+                                    <span class="metroSeg-tap-label">To sign</span>
+                                </button>
+                                <button type="button" class="metroSeg-tap-btn" id="metroSegGotoSegnoThenCodaBtn" title="Dal Segno al Coda">
+                                    <strong>D.S. al coda</strong>
+                                    <span class="metroSeg-tap-label">Sign to coda</span>
+                                </button>
+                                <button type="button" class="metroSeg-tap-btn" id="metroSegGotoCodaBtn" title="To Coda jump mark">
+                                    <span class="metroSeg-row-tile-glyph" id="metroSegGotoCodaIcon" style="width:20px; height:20px; margin:0 auto;"></span>
+                                    <span class="metroSeg-tap-label">To coda</span>
+                                </button>
+                                <button type="button" class="metroSeg-tap-btn" id="metroSegGotoStartBtn" title="Da Capo - go to start">
+                                    <strong>D.C.</strong>
+                                    <span class="metroSeg-tap-label">To start</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metro-section-box" id="metroSegArticulationCard">
+                <button type="button" class="metroSeg-card-header" id="metroSegArticulationHeader">
+                    <h3 class="metroSeg-card-title">Articulation</h3>
+                    <label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" id="metroSegArticulationToggle"><span class="toggle-slider"></span></label>
+                </button>
+                <div class="metroSeg-expandable" id="metroSegArticulationExpand">
+                    <div class="metroSeg-expandable-inner">
+                        <div class="metroSeg-card-body">
+                            <div class="metroSeg-micro-label metroSeg-micro-label-row">
+                                <span>Fermatas in bar (sustained pauses)</span>
+                                <span class="metroSeg-count-badge" id="metroSegFermataCountBadge">0 holds</span>
+                            </div>
+                            <div id="metroSegFermataList"></div>
+                            <button type="button" class="metroSeg-add-btn" id="metroSegFermataAddOpenBtn">+ Add another fermata in this bar&hellip;</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
-        <div class="hidden-group" id="metroSegOtherActionsSection" style="margin-top:var(--space-4);">
+
+        <div class="hidden-group" id="metroSegOtherActionsSection" style="margin-top:var(--space-6);">
             <div class="metro-help-text" style="font-weight:bold; margin-bottom:var(--space-1);">Other actions</div>
             <button type="button" class="btn-text btn-text-danger" id="metroSegDeleteBtn">Delete block</button>
+        </div>
+        </div>
+        <div class="metroSeg-sticky-footer">
+            <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('metroSegmentModal').style.display='none'">Cancel</button>
+            <button class="btn-submit no-margin" id="metroSegSaveBtn">Save</button>
         </div>
     </div>
 </div>
@@ -993,6 +1243,130 @@
             <button type="button" class="metroBlk-timesig-opt" data-value="Bb">B&flat;</button>
             <button type="button" class="metroBlk-timesig-opt" data-value="Eb">E&flat;</button>
             <button type="button" class="metroBlk-timesig-opt" data-value="F">F</button>
+        </div>
+    </div>
+</div>
+
+<!-- ML-103 follow-up: End repeat + count, combined into one popup (tapping "End repeat" opens this
+     rather than toggling directly, since it needs the count too) - quick-pick buttons rather than a
+     stepper, defaulting to 2x, matching the attached reference. -->
+<div class="modal" id="metroSegRepeatCountModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegRepeatCountModal').style.display='none'" aria-label="Close">&times;</button>
+        <h2>End repeat &amp; count</h2>
+        <p class="metro-help-text">Select how many times to repeat this section.</p>
+        <div class="metroSeg-quickpick-grid" id="metroSegRepeatCountOptions">
+            <button type="button" class="metroSeg-quickpick-opt" data-value="0"><strong>None (off)</strong><span>No end repeat</span></button>
+            <button type="button" class="metroSeg-quickpick-opt" data-value="2"><strong>2&times;</strong><span>Standard</span></button>
+            <button type="button" class="metroSeg-quickpick-opt" data-value="3"><strong>3&times;</strong><span>Repeats 3 times</span></button>
+            <button type="button" class="metroSeg-quickpick-opt" data-value="4"><strong>4&times;</strong><span>Repeats 4 times</span></button>
+            <button type="button" class="metroSeg-quickpick-opt" data-value="5"><strong>5&times;</strong><span>Repeats 5 times</span></button>
+            <button type="button" class="metroSeg-quickpick-opt" data-value="6"><strong>6&times;</strong><span>Repeats 6 times</span></button>
+            <button type="button" class="metroSeg-quickpick-opt" data-value="7"><strong>7&times;</strong><span>Repeats 7 times</span></button>
+            <button type="button" class="metroSeg-quickpick-opt" data-value="8"><strong>8&times;</strong><span>Repeats 8 times</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- 1st/2nd time (volta) - "Combined" sets both flags together (a "1. 2." bracket before a 3rd
+     ending), not just picking one. -->
+<div class="modal" id="metroSegEndingModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegEndingModal').style.display='none'" aria-label="Close">&times;</button>
+        <h2>1st / 2nd time bar</h2>
+        <p class="metro-help-text">Set repeat brackets (voltas).</p>
+        <div class="metroSeg-option-list" id="metroSegEndingOptions">
+            <button type="button" class="metroSeg-option-row" data-value="none">
+                <div><strong>None</strong><span>Regular bar without volta bracket</span></div>
+                <span class="metroSeg-option-row-mark">Default</span>
+            </button>
+            <button type="button" class="metroSeg-option-row" data-value="first">
+                <div><strong>1. (1st time bar)</strong><span>Played on the first pass only</span></div>
+                <span class="metroSeg-option-row-mark">1.</span>
+            </button>
+            <button type="button" class="metroSeg-option-row" data-value="second">
+                <div><strong>2. (2nd time bar)</strong><span>Played after returning from repeat</span></div>
+                <span class="metroSeg-option-row-mark">2.</span>
+            </button>
+            <button type="button" class="metroSeg-option-row" data-value="combined">
+                <div><strong>1. 2. (combined)</strong><span>Multi-repeat bracket before 3rd ending</span></div>
+                <span class="metroSeg-option-row-mark">1. 2.</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Rehearsal mark add/edit (Landmarks) - a block can carry several, each with its own bar
+     position, so this popup serves both "add a new one" (metroSegRehearsalEditIndex = -1) and
+     "edit an existing one" (index into metroSegRehearsalMarks). -->
+<div class="modal" id="metroSegRehearsalModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegRehearsalModal').style.display='none'" aria-label="Close">&times;</button>
+        <h2 id="metroSegRehearsalModalTitle">Add rehearsal mark</h2>
+        <p class="metro-help-text">Specify letter/number and bar location.</p>
+        <div class="form-group">
+            <label>Rehearsal mark</label>
+            <input type="text" id="metroSegRehearsalMarkInput" maxlength="8" placeholder="e.g. A">
+        </div>
+        <div class="form-group">
+            <label>Bar position in block</label>
+            <select id="metroSegRehearsalBarSelect"></select>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button class="btn-cancel btn-nav no-margin" type="button" onclick="document.getElementById('metroSegRehearsalModal').style.display='none'">Cancel</button>
+            <button class="btn-submit no-margin" type="button" id="metroSegRehearsalSaveBtn">Save mark</button>
+        </div>
+        <div class="hidden-group" id="metroSegRehearsalDeleteSection" style="margin-top:var(--space-4);">
+            <button type="button" class="btn-text btn-text-danger no-margin" id="metroSegRehearsalDeleteBtn">Delete mark</button>
+        </div>
+    </div>
+</div>
+
+<!-- Introduction start or end - independent of each other (metroSegIntroModalTarget is 'start'/
+     'end'): an intro can span more than one block, so one block might be just the start, just the
+     end, both, or neither. Always bar 1 of the block (no bar picker) once turned on. Tapping an
+     option (including None) applies and closes immediately, same as the other quick-pick popups. -->
+<div class="modal" id="metroSegIntroModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegIntroModal').style.display='none'" aria-label="Close">&times;</button>
+        <h2 id="metroSegIntroModalTitle">Start intro (pickup)</h2>
+        <p class="metro-help-text" id="metroSegIntroModalHelp">Starts on beat 1 (standard downbeat)</p>
+        <div class="metroSeg-tile-grid metroSeg-tile-grid-4" id="metroSegIntroBeatOptions"></div>
+    </div>
+</div>
+
+<!-- Fermata add/edit (Articulation) - beat + hold length; a block can hold several
+     (metroSegFermataEditIndex = -1 for "add another", else an index into metroSegFermatas).
+     Audio feedback mode used to live here per-fermata, but it's actually a per-user playback
+     preference, not something that varies block to block - moved to Settings instead. -->
+<div class="modal" id="metroSegFermataModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegFermataModal').style.display='none'" aria-label="Close">&times;</button>
+        <h2 id="metroSegFermataModalTitle">Add another fermata</h2>
+        <p class="metro-help-text">Multiple pauses can be placed in this measure.</p>
+        <div class="form-group hidden-group" id="metroSegFermataBarGroup">
+            <label>Bar</label>
+            <select id="metroSegFermataBarSelect"></select>
+        </div>
+        <div class="form-group">
+            <label>Occurs on beat</label>
+            <div class="metroSeg-tile-grid metroSeg-tile-grid-4" id="metroSegFermataBeatOptions"></div>
+        </div>
+        <div class="form-group">
+            <label>Hold duration (beat lengths)</label>
+            <div class="metroSeg-tile-grid metroSeg-tile-grid-4" id="metroSegFermataHoldOptions">
+                <button type="button" class="metroSeg-tap-btn" data-value="1"><strong>1</strong><span class="metroSeg-tap-label">beat</span></button>
+                <button type="button" class="metroSeg-tap-btn selected" data-value="2"><strong>2</strong><span class="metroSeg-tap-label">beats</span></button>
+                <button type="button" class="metroSeg-tap-btn" data-value="3"><strong>3</strong><span class="metroSeg-tap-label">beats</span></button>
+                <button type="button" class="metroSeg-tap-btn" data-value="4"><strong>4</strong><span class="metroSeg-tap-label">beats</span></button>
+            </div>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button class="btn-cancel btn-nav no-margin" type="button" onclick="document.getElementById('metroSegFermataModal').style.display='none'">Cancel</button>
+            <button class="btn-submit no-margin" type="button" id="metroSegFermataSaveBtn">Save fermata</button>
+        </div>
+        <div class="hidden-group" id="metroSegFermataDeleteSection" style="margin-top:var(--space-4);">
+            <button type="button" class="btn-text btn-text-danger no-margin" id="metroSegFermataDeleteBtn">Delete fermata</button>
         </div>
     </div>
 </div>
