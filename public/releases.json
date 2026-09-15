@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.16.0",
+    "date": "2026-09-15",
+    "changes": [
+      {
+        "key": "ML-140",
+        "type": "Fixes",
+        "summary": "Production version isn't connecting to the historic stats data on desktop"
+      },
+      {
+        "key": "ML-139",
+        "type": "Fixes",
+        "summary": "Introduction should start first when there is one and we're at the beginning."
+      },
+      {
+        "key": "ML-138",
+        "type": "Fixes",
+        "summary": "Repeats not working"
+      },
+      {
+        "key": "ML-135",
+        "type": "New",
+        "summary": "Create sub menus for tools, stats and change manage"
+      },
+      {
+        "key": "ML-134",
+        "type": "Fixes",
+        "summary": "the second line of stats boxes on the front page needs to be the same height as the first"
+      }
+    ]
+  },
+  {
     "version": "0.15.0",
     "date": "2026-09-13",
     "changes": [
