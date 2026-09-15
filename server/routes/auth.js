@@ -11,11 +11,18 @@ const router = express.Router();
 router.get('/login', (req, res, next) => {
   // Google OAuth is skipped entirely when running locally, so local dev
   // doesn't need real Google credentials or a browser consent screen.
-  // Gated on NODE_ENV=development (server/.env only) rather than a shared
-  // secret - Vercel always sets NODE_ENV=production for both Production and
-  // Preview (sandbox) deployments, so this can't fire there by default. See
-  // docs/environments.md for the local/sandbox/production split.
-  if (process.env.NODE_ENV === 'development') {
+  // Two independent gates, not one (ML-140) - this used to check only
+  // NODE_ENV === 'development', on the assumption that Vercel always sets
+  // NODE_ENV=production for both Production and Preview. That assumption
+  // turned out to be wrong for this deployment: NODE_ENV=development ended
+  // up set on the real production environment, and this bypass silently
+  // handed every visitor the same seeded local-dev account instead of ever
+  // running real Google auth - nobody could reach their own account.
+  // ALLOW_LOCAL_DEV_LOGIN has no legitimate reason to ever be set in Vercel
+  // (unlike NODE_ENV, which plenty of tooling sets by convention), so it
+  // acts as a second lock a single misconfigured env var can't open alone.
+  // Both must be set in server/.env for local dev - see server/README.md.
+  if (process.env.NODE_ENV === 'development' && process.env.ALLOW_LOCAL_DEV_LOGIN === 'true') {
     const authToken = signToken({
       userId: 'local-dev@themusicledger.local',
       firstName: 'Local',

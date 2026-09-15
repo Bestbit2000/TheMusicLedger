@@ -21,6 +21,7 @@ GOOGLE_REDIRECT_URI=http://localhost:3000/auth/callback
 SESSION_SECRET=your-random-secret-key-min-32-chars
 PORT=3000
 NODE_ENV=development
+ALLOW_LOCAL_DEV_LOGIN=true
 FRONTEND_URL=http://localhost:3000
 ```
 
