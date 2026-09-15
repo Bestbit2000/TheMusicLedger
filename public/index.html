@@ -48,24 +48,37 @@
         </button>
         <div style="position: relative;">
             <button class="top-btn" id="navBurgerMenuBtn">☰</button>
+            <!-- ML-135: Tools and Progress are staged sub-screens of the same dropdown rather than a
+                 hover flyout - this is a touch app first, and hover has no mobile equivalent. Only one
+                 of #burgerMenuMain/-Tools/-Progress is ever shown at once (see openBurgerSubmenu/
+                 closeBurgerSubmenu); the menu always reopens at the main level (resetBurgerMenu). -->
             <div id="burgerDropdown" class="dropdown-menu">
-                <div class="dropdown-item" onclick="switchView('mainView'); closeMenu();">Home</div>
-                <div class="dropdown-item" onclick="switchView('quickPlayView'); closeMenu();">Metronome</div>
-                <div class="dropdown-item" onclick="switchView('metroBuilderView'); closeMenu();">Flow</div>
-                <div class="dropdown-item" onclick="switchView('tunerView'); closeMenu();">Tuner</div>
-                <div class="dropdown-item" onclick="switchView('timerView'); closeMenu();">Timer</div>
-                <div class="dropdown-item" onclick="switchView('historyView'); closeMenu();">View session history</div>
-                <div class="dropdown-item" onclick="switchView('statsView'); closeMenu();">View stats</div>
-                <div class="dropdown-item" onclick="switchView('manageChallengesView'); closeMenu();">Manage challenges</div>
-                <div class="dropdown-item" onclick="switchView('manageListsView'); closeMenu();">Manage lists</div>
-                <div class="dropdown-item" onclick="switchView('accountView'); closeMenu();">My account</div>
-                <div class="dropdown-item" onclick="switchView('settingsView'); closeMenu();">Settings</div>
-                <!-- ML-77: admin.html itself gates to Super admin accounts - this link is
-                     hidden for everyone else (see syncAdminLinkVisibility) so it isn't
-                     dangled in front of accounts that would just bounce off a notice. -->
-                <a class="dropdown-item hidden-group" id="adminNavLink" href="/admin.html">Administration</a>
-                <div class="dropdown-item" onclick="switchView('aboutView'); closeMenu();">About</div>
-                <div class="dropdown-item" onclick="closeMenu(); logoutUser();">Log out</div>
+                <div id="burgerMenuMain">
+                    <div class="dropdown-item" onclick="switchView('mainView'); closeMenu();">Home</div>
+                    <div class="dropdown-item" onclick="openBurgerSubmenu('burgerMenuTools', event)">Tools&hellip;</div>
+                    <div class="dropdown-item" onclick="openBurgerSubmenu('burgerMenuProgress', event)">Progress&hellip;</div>
+                    <div class="dropdown-item" onclick="switchView('manageChallengesView'); closeMenu();">Manage challenges</div>
+                    <div class="dropdown-item" onclick="switchView('accountView'); closeMenu();">My account</div>
+                    <div class="dropdown-item" onclick="switchView('settingsView'); closeMenu();">Settings</div>
+                    <!-- ML-77: admin.html itself gates to Super admin accounts - this link is
+                         hidden for everyone else (see syncAdminLinkVisibility) so it isn't
+                         dangled in front of accounts that would just bounce off a notice. -->
+                    <a class="dropdown-item hidden-group" id="adminNavLink" href="/admin.html">Administration</a>
+                    <div class="dropdown-item" onclick="switchView('aboutView'); closeMenu();">About</div>
+                    <div class="dropdown-item" onclick="closeMenu(); logoutUser();">Log out</div>
+                </div>
+                <div id="burgerMenuTools" class="hidden-group">
+                    <div class="dropdown-item burger-submenu-back" onclick="closeBurgerSubmenu(event)">&larr; Back</div>
+                    <div class="dropdown-item" onclick="switchView('quickPlayView'); closeMenu();">Metronome</div>
+                    <div class="dropdown-item" onclick="switchView('metroBuilderView'); closeMenu();">Flow</div>
+                    <div class="dropdown-item" onclick="switchView('tunerView'); closeMenu();">Tuner</div>
+                    <div class="dropdown-item" onclick="switchView('timerView'); closeMenu();">Timer</div>
+                </div>
+                <div id="burgerMenuProgress" class="hidden-group">
+                    <div class="dropdown-item burger-submenu-back" onclick="closeBurgerSubmenu(event)">&larr; Back</div>
+                    <div class="dropdown-item" onclick="switchView('historyView'); closeMenu();">View session history</div>
+                    <div class="dropdown-item" onclick="switchView('statsView'); closeMenu();">View stats</div>
+                </div>
             </div>
         </div>
     </div>
@@ -147,6 +160,7 @@
             </button>
         </div>
 
+        <div class="section-title progress-title">Progress</div>
         <div class="dashboard-grid">
             <div class="stat-card clickable" onclick="switchView('statsView')"><div class="label">Total time</div><div class="value" id="mainTotalTime">Loading...</div></div>
             <div class="stat-card clickable" onclick="switchView('historyView')"><div class="label">Total sessions</div><div class="value" id="mainTotalSessions">...</div></div>
@@ -325,25 +339,6 @@
         <div id="ecItemsList"></div>
     </div>
 
-    <div id="manageListsView" style="display:none;">
-        <div class="section-title">
-            <span>Organisations</span>
-            <label style="font-size:0.8rem; font-weight:normal; display:flex; align-items:center; gap:5px; margin:0;">
-                <input type="checkbox" id="showArchivedOrgs" style="width:16px; height:16px;"> Show archived
-            </label>
-        </div>
-        <div id="orgList"></div>
-        <div style="display:flex; gap:10px; margin-top:10px; margin-bottom: 25px;"><input type="text" id="newOrgInput" placeholder="New organisation"><button class="btn-submit" style="width:auto; padding:10px 20px;" onclick="addListItem('organisations')">Add</button></div>
-        <div class="section-title">
-            <span>Teachers</span>
-            <label style="font-size:0.8rem; font-weight:normal; display:flex; align-items:center; gap:5px; margin:0;">
-                <input type="checkbox" id="showArchivedTeachers" style="width:16px; height:16px;"> Show archived
-            </label>
-        </div>
-        <div id="teacherList"></div>
-        <div style="display:flex; gap:10px; margin-top:10px;"><input type="text" id="newTeacherInput" placeholder="New teacher"><button class="btn-submit" style="width:auto; padding:10px 20px;" onclick="addListItem('teachers')">Add</button></div>
-    </div>
-
     <div id="settingsView" style="display:none;">
         <div class="section-title">App settings</div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 1.1rem; padding: 15px; background: var(--input-bg); border-radius: 12px; border: 1px solid var(--input-border);">
@@ -379,9 +374,9 @@
         </div>
     </div>
 
-    <!-- ML-77: name/email/level/signup date + real band membership. Distinct from
-         "Manage lists" above, which is the private per-account "who was this
-         session for" label list and is untouched by this. -->
+    <!-- ML-77: name/email/level/signup date + real band membership. Also carries the Teachers list
+         (ML-135) - the private per-account "who was this session for" label list, distinct from the
+         real band membership above it despite living in the same view now. -->
     <div id="accountView" style="display:none;">
         <div class="section-title">Your details</div>
         <div class="form-group">
@@ -423,6 +418,18 @@
             </div>
             <button class="btn-submit" style="width:auto; padding:10px 20px;" id="accountAddBandBtn">Add &amp; join</button>
         </div>
+
+        <!-- ML-135: relocated from the retired "Manage lists" page - the private per-account "who was
+             this session for" label list used by the Lesson category's "who" dropdown, distinct from
+             the real band membership above. -->
+        <div class="section-title" style="margin-top:var(--space-6);">
+            <span>Teachers</span>
+            <label style="font-size:0.8rem; font-weight:normal; display:flex; align-items:center; gap:5px; margin:0;">
+                <input type="checkbox" id="showArchivedTeachers" style="width:16px; height:16px;"> Show archived
+            </label>
+        </div>
+        <div id="teacherList"></div>
+        <div style="display:flex; gap:10px; margin-top:10px;"><input type="text" id="newTeacherInput" placeholder="New teacher"><button class="btn-submit" style="width:auto; padding:10px 20px;" onclick="addListItem('teachers')">Add</button></div>
     </div>
 
     <!-- One shared floating menu for every band row (ML-89 follow-up), repositioned against whichever
@@ -556,10 +563,14 @@
             </div>
         </div>
 
-        <div class="metro-transport-grid">
+        <div class="metro-transport-grid metro-transport-grid-5">
             <button class="metro-play-grid-btn" id="metroBlkPlayBtn" aria-label="Play - press and hold to reset to the start">
                 <span class="material-symbols-outlined" id="metroBlkPlayIcon">play_arrow</span>
-                <span class="metroBlk-ctrl-value-label">(hold to reset)</span>
+                <span class="metroBlk-ctrl-value-label">play</span>
+            </button>
+            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="metroBlkResetBtn" aria-label="Reset to start">
+                <span class="material-symbols-outlined">restart_alt</span>
+                <span class="metroBlk-ctrl-value-label">reset</span>
             </button>
             <button type="button" class="metroBlk-ctrl-value-btn" id="metroBlkSubdivideBtn" aria-label="Sub beats - tap to change">
                 <strong id="metroBlkSubdivideLbl">1</strong>
@@ -569,10 +580,13 @@
                 <strong id="metroBlkSpeedLbl">100%</strong>
                 <span class="metroBlk-ctrl-value-label">play speed</span>
             </button>
-            <button type="button" class="metroBlk-ctrl-value-btn" id="metroBlkVolumeBtn" aria-label="Volume - tap to change">
-                <span class="material-symbols-outlined" id="metroBlkVolumeIcon">volume_up</span>
-                <span class="metroBlk-ctrl-value-label">volume</span>
+            <button type="button" class="metroBlk-ctrl-value-btn" id="metroBlkMoreBtn" aria-label="More options">
+                <span class="material-symbols-outlined">more_vert</span>
+                <span class="metroBlk-ctrl-value-label">more</span>
             </button>
+        </div>
+        <div class="dropdown-menu metroBlk-transport-menu" id="metroBlkTransportMenu">
+            <div class="dropdown-item" id="metroBlkTransportMenuVolume">Volume</div>
         </div>
 
         <button type="button" class="btn-text" id="metroBlkChangeFlowBtn" aria-label="Back to Flow home">&larr; Change flow</button>

@@ -537,9 +537,33 @@
     // ========================================
     // BURGER MENU LOGIC
     // ========================================
+    // ML-135: Tools/Progress are staged sub-screens of the same dropdown (see the HTML comment above
+    // #burgerDropdown) rather than a hover flyout - resetBurgerMenu always puts it back at the main
+    // level before it opens, so leaving it mid-submenu one time doesn't strand it there next time.
+    function resetBurgerMenu() {
+        document.getElementById('burgerMenuTools')?.classList.add('hidden-group');
+        document.getElementById('burgerMenuProgress')?.classList.add('hidden-group');
+        document.getElementById('burgerMenuMain')?.classList.remove('hidden-group');
+    }
+    window.openBurgerSubmenu = function(id, e) {
+        // Without this, the click bubbles up to the document-level listener just below (which closes
+        // the whole dropdown on any outside click) and undoes the submenu switch in the same tick.
+        e?.stopPropagation();
+        document.getElementById('burgerMenuMain')?.classList.add('hidden-group');
+        document.getElementById('burgerMenuTools')?.classList.add('hidden-group');
+        document.getElementById('burgerMenuProgress')?.classList.add('hidden-group');
+        document.getElementById(id)?.classList.remove('hidden-group');
+    }
+    window.closeBurgerSubmenu = function(e) {
+        e?.stopPropagation();
+        resetBurgerMenu();
+    }
     document.getElementById('navBurgerMenuBtn')?.addEventListener('click', (e) => {
         e.stopPropagation();
-        document.getElementById('burgerDropdown').classList.toggle('show');
+        const dropdown = document.getElementById('burgerDropdown');
+        const opening = !dropdown.classList.contains('show');
+        dropdown.classList.toggle('show');
+        if (opening) resetBurgerMenu();
     });
     document.addEventListener('click', () => {
         const dropdown = document.getElementById('burgerDropdown');
@@ -597,12 +621,12 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'manageListsView', 'accountView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'tunerView', 'timerView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'tunerView', 'timerView'];
     let viewStack = ['mainView'];
 
     const viewAliasMap = {
         'main': 'mainView', 'history': 'historyView', 'stats': 'statsView', 'addForm': 'entryForm',
-        'lists': 'manageListsView', 'settings': 'settingsView', 'challengesList': 'manageChallengesView',
+        'settings': 'settingsView', 'challengesList': 'manageChallengesView',
         'challengeSelect': 'challengeSelectView', 'challengePlay': 'challengePlayView',
         'challengeSummary': 'challengeSummaryView', 'editChallenge': 'editChallengeView',
         'quickPlay': 'quickPlayView', 'tuner': 'tunerView', 'timer': 'timerView'
@@ -647,7 +671,6 @@
         if (viewName === 'streakStatsView') { document.getElementById('topTitle').innerText = 'Streaks'; renderStreakStats(); }
         if (viewName === 'statsView') { document.getElementById('topTitle').innerText = 'Detailed stats'; scrollStatsToRight(); }
         if (viewName === 'entryForm') { document.getElementById('topTitle').innerText = 'Add record'; }
-        if (viewName === 'manageListsView') { document.getElementById('topTitle').innerText = 'Manage lists'; loadManageLists(); }
         if (viewName === 'accountView') { document.getElementById('topTitle').innerText = 'My account'; loadAccountView(); }
         if (viewName === 'settingsView') {
             document.getElementById('topTitle').innerText = 'Settings';
@@ -1890,26 +1913,27 @@
         }
     }
 
-    // --- MANAGE LISTS ---
-    document.getElementById('showArchivedOrgs')?.addEventListener('change', renderManageLists);
-    document.getElementById('showArchivedTeachers')?.addEventListener('change', renderManageLists);
+    // --- TEACHERS (ML-135: relocated into My Account from the retired Manage Lists page - the
+    // "Organisations" list that used to sit alongside it here is gone entirely, per that ticket;
+    // appData.organisations still loads at startup (loadAppData) for the Lesson category's own "who"
+    // dropdown, it just has no management UI of its own any more.) ---
+    document.getElementById('showArchivedTeachers')?.addEventListener('change', renderTeacherList);
 
-    // The Manage Lists screen needs usedInHistory (which dropdown-options
-    // doesn't compute, to keep the common app-load path cheap) so the edit
-    // modal can label its action button correctly before the user opens it.
-    async function loadManageLists() {
+    // The Teachers list needs usedInHistory (which dropdown-options doesn't compute, to keep the
+    // common app-load path cheap) so the edit modal can label its action button correctly before the
+    // user opens it.
+    async function loadTeacherList() {
         try {
             const data = await API.settings.getListsWithUsage();
             appData.organisations = data.organisations;
             appData.teachers = data.teachers;
-            renderManageLists();
+            renderTeacherList();
         } catch (error) {
-            showWarningToast('Error loading lists: ' + error.message);
+            showWarningToast('Error loading teachers: ' + error.message);
         }
     }
 
-    function renderManageLists() {
-        renderSettingsList('orgList', appData.organisations, 'organisations', 'showArchivedOrgs');
+    function renderTeacherList() {
         renderSettingsList('teacherList', appData.teachers, 'teachers', 'showArchivedTeachers');
     }
 
@@ -1948,7 +1972,7 @@
                     await API.settings.addOrganisation(name);
                 }
                 input.value = '';
-                await loadManageLists();
+                await loadTeacherList();
                 showSuccessToast('Added successfully');
             } catch (error) {
                 showWarningToast("Error adding item: " + error.message);
@@ -2000,7 +2024,7 @@
                 await API.settings.renameOrganisation(oldName, newName);
             }
             document.getElementById('listItemModal').style.display = 'none';
-            await loadManageLists();
+            await loadTeacherList();
             fetchDataAndRender();
             showSuccessToast('Name updated');
         } catch (error) {
@@ -2022,7 +2046,7 @@
                     showSuccessToast(result.archived ? `${name} is still used in history, so it was archived instead of removed` : 'Removed successfully');
                 }
                 document.getElementById('listItemModal').style.display = 'none';
-                await loadManageLists();
+                await loadTeacherList();
             } catch (error) {
                 showWarningToast("Error: " + error.message);
             }
@@ -2042,7 +2066,7 @@
     // ========================================
     // ACCOUNT (ML-77) - name/email/level/signup date + real band membership
     // (server/services/bands.js's shared directory, distinct from the private
-    // per-account "Manage lists" above).
+    // per-account Teachers list above - see loadTeacherList).
     // ========================================
     const ACCOUNT_LEVEL_LABELS = {
         super_admin: 'Super admin', band_admin: 'Band admin', premium_member: 'Premium member',
@@ -2171,7 +2195,7 @@
         } catch (error) {
             showWarningToast('Error loading account: ' + error.message);
         }
-        await loadAccountBands();
+        await Promise.all([loadAccountBands(), loadTeacherList()]);
     }
 
     document.getElementById('accountSaveNameBtn')?.addEventListener('click', async () => {
@@ -3039,6 +3063,17 @@
     // show fully greyed out (see renderMetroBlkRows/.metroBlk-quiet-gap) rather than looking ready to
     // play. Cleared the instant the lead-in's real first click arrives (onMetroBlkBeat).
     let metroBlkQuietGapActive = false;
+    // ML-138: how many times each isRepeatEnd block has already sent playback back to its repeat
+    // start, keyed by segment id - independent repeat regions each track their own count, so more
+    // than one repeated section can exist in the same sequence. Cleared on every fresh start (Reset/
+    // buildMetroBlkPlayQueue) and whenever the whole sequence wraps back around (advanceMetroBlk), so
+    // each fresh pass through the piece can repeat its sections again.
+    let metroBlkRepeatCounts = {};
+    // ML-139: an intro's pickup-style start offset is a one-time effect - only the jump made right
+    // after Reset (or the very first load) is allowed to apply it (see jumpMetroBlkToStart). Every
+    // other jump (normal advance, a repeat jump-back, a manual tap) sets this true so the intro's own
+    // block plays out in full like any other bar once the intro chance has passed for this session.
+    let metroBlkIntroConsumed = true;
 
     const metroBlkPlayer = createMetronomePlayer();
     metroBlkPlayerRef = metroBlkPlayer;
@@ -3208,11 +3243,11 @@
         if (helpText) helpText.innerText = metroBlkEditMode ? 'Tap a block to edit it, or drag to reorder.' : 'Tap a block to jump to it.';
         document.getElementById('metroBlkEditBar')?.classList.toggle('hidden-group', !metroBlkEditMode);
         document.getElementById('metroBuilderView')?.classList.toggle('metroBlk-editing', metroBlkEditMode);
-        // Play (which also holds the old Reset button's job now)/sub-beats/speed are fully disabled
-        // while editing too (follow-up, stricter than the original "Play auto-saves first" behaviour)
-        // - one unambiguous way out of Edit Mode (Cancel or Save on the bottom bar) rather than a
-        // second path that quietly saves as a side effect of pressing Play.
-        ['metroBlkPlayBtn', 'metroBlkSubdivideBtn', 'metroBlkSpeedBtn'].forEach(id => {
+        // Play/Reset/sub-beats/speed/more are fully disabled while editing too (follow-up, stricter
+        // than the original "Play auto-saves first" behaviour) - one unambiguous way out of Edit Mode
+        // (Cancel or Save on the bottom bar) rather than a second path that quietly saves as a side
+        // effect of pressing Play.
+        ['metroBlkPlayBtn', 'metroBlkResetBtn', 'metroBlkSubdivideBtn', 'metroBlkSpeedBtn', 'metroBlkMoreBtn'].forEach(id => {
             const btn = document.getElementById(id);
             if (btn) btn.disabled = metroBlkEditMode;
         });
@@ -4982,8 +5017,9 @@
     // instead so the click and the dots agree on where "beat 1 of the lead-in" actually is. Scaled
     // by the subdivide factor since clickIndex counts sub-clicks, not conductor beats, once
     // subdivision is more than 1 (never for the lead-in itself - see metroBlkSubFactorFor).
-    function metroBlkRealignPlayer(block) {
+    function metroBlkRealignPlayer(block, useIntroStart) {
         if (block.pickupBeats) metroBlkPlayer.setBeatIndex((block.numerator - block.pickupBeats) * metroBlkSubFactorFor(block));
+        else if (useIntroStart) metroBlkPlayer.setBeatIndex((block.introStartBeatOffset - 1) * metroBlkSubFactorFor(block));
         else metroBlkPlayer.resetToBarStart();
 
         // Quiet space before the lead-in (re)starts (ML-92) - only meaningful when landing on the
@@ -5150,18 +5186,60 @@
         document.getElementById('metroBlkSubdivideModal').style.display = 'none';
     });
 
+    // First non-lead-in segment's index - the default "start of the actual piece" position, used as
+    // both the plain loop-back target and the fallback repeat-start point (ML-138) when a closing
+    // repeat has no earlier opening repeat of its own to go back to.
+    function metroBlkFirstRegularIndex() {
+        const idx = metroBlkPlayQueue.findIndex(s => !s.isLeadIn);
+        return idx === -1 ? 0 : idx;
+    }
+
+    // The segment (if any) carrying an intro pickup start (ML-139) - never a lead-in, see the
+    // Introduction card's own comment above openMetroSegIntroModal.
+    function metroBlkIntroStartIndex() {
+        return metroBlkPlayQueue.findIndex(s => !s.isLeadIn && s.introStartBeatOffset != null);
+    }
+
+    // Where a fresh play-through actually begins: the lead-in if there is one (it always comes
+    // first regardless of an intro), else the intro-start block if one is configured, else the
+    // plain first regular block.
+    function metroBlkStartIndex() {
+        if (metroBlkPlayQueue.length && metroBlkPlayQueue[0].isLeadIn) return 0;
+        const introIdx = metroBlkIntroStartIndex();
+        return introIdx !== -1 ? introIdx : metroBlkFirstRegularIndex();
+    }
+
     // Repositions playback to a specific queue index without changing play/pause state - resets the
     // per-block counters and pushes the resolved block's settings into the player. Shared by
-    // buildMetroBlkPlayQueue/resetMetroBlk (index 0) and jumpMetroBlkToPlayIndex (ML-97 tap-to-jump
-    // in Play Mode).
+    // buildMetroBlkPlayQueue/resetMetroBlk (via jumpMetroBlkToStart), advanceMetroBlk's own
+    // step/repeat-jump-back, and jumpMetroBlkToPlayIndex (ML-97 tap-to-jump in Play Mode).
     function jumpMetroBlkToIndex(index) {
         metroBlkPlayIndex = index;
         metroBlkBeatsPlayedInBlock = 0;
         metroBlkClicksPlayedInBlock = 0;
         if (!metroBlkPlayQueue.length) return;
         const block = metroBlkEffectiveBlock(metroBlkPlayQueue[index], metroBlkPlayQueue);
+        // ML-139: the intro's pickup start offset only ever applies once, on the specific jump
+        // jumpMetroBlkToStart just armed by clearing metroBlkIntroConsumed - every other jump (this
+        // call included, right after using it) leaves it consumed so the block plays out in full on
+        // any later pass through the sequence.
+        const useIntroStart = !metroBlkIntroConsumed && !block.pickupBeats && block.introStartBeatOffset > 1;
         applyMetroBlkToPlayer(block);
-        metroBlkRealignPlayer(block);
+        metroBlkRealignPlayer(block, useIntroStart);
+        if (useIntroStart) {
+            const skippedBeats = block.introStartBeatOffset - 1;
+            metroBlkBeatsPlayedInBlock = skippedBeats;
+            metroBlkClicksPlayedInBlock = skippedBeats * metroBlkSubFactorFor(block);
+        }
+        metroBlkIntroConsumed = true;
+    }
+
+    // Repositions to the very start of a fresh play-through (ML-139) - the one place that re-arms the
+    // intro's pickup start offset, consumed by the jumpMetroBlkToIndex call this makes. Shared by
+    // buildMetroBlkPlayQueue (a fresh queue/first load) and resetMetroBlk (the explicit Reset).
+    function jumpMetroBlkToStart() {
+        metroBlkIntroConsumed = false;
+        jumpMetroBlkToIndex(metroBlkStartIndex());
     }
 
     function buildMetroBlkPlayQueue() {
@@ -5171,8 +5249,9 @@
         // very start) - unless it's been marked repeatLeadIn (ML-85), in which case the loop-back point
         // IS the lead-in itself, so it plays again before every repeat rather than only once.
         const leadIn = metroBlkPlayQueue.find(s => s.isLeadIn);
-        metroBlkLoopBackIndex = (leadIn && leadIn.repeatLeadIn) ? 0 : metroBlkPlayQueue.filter(s => s.isLeadIn).length;
-        jumpMetroBlkToIndex(0);
+        metroBlkLoopBackIndex = (leadIn && leadIn.repeatLeadIn) ? 0 : metroBlkFirstRegularIndex();
+        metroBlkRepeatCounts = {};
+        jumpMetroBlkToStart();
     }
 
     // Play Mode's tap-to-jump (ML-97): repositions to the tapped block without starting or stopping
@@ -5185,9 +5264,41 @@
         renderMetroBlkRows();
     };
 
+    // The repeat-start index a closing repeat at `endIndex` should jump back to (ML-138): the nearest
+    // earlier block explicitly marked isRepeatStart, or - "the very first bar of the playing counts
+    // as an opening repeat" per the ticket - the plain first regular block if there isn't one.
+    function metroBlkRepeatStartIndexFor(endIndex) {
+        const firstIdx = metroBlkFirstRegularIndex();
+        for (let i = endIndex - 1; i >= firstIdx; i--) {
+            if (metroBlkPlayQueue[i].isRepeatStart) return i;
+        }
+        return firstIdx;
+    }
+
     function advanceMetroBlk() {
-        let next = metroBlkPlayIndex + 1;
-        if (next >= metroBlkPlayQueue.length) next = metroBlkLoopBackIndex;
+        const finishedIndex = metroBlkPlayIndex;
+        const finishedBlock = metroBlkPlayQueue[finishedIndex];
+        // ML-138: a closing repeat sends playback back rather than advancing, until it's played
+        // repeatPlayCount times in total (default 2, matching the segment editor's own quick-pick
+        // default) - independent repeat regions each track their own count (metroBlkRepeatCounts),
+        // so more than one repeated section can exist in the same sequence.
+        if (finishedBlock && finishedBlock.isRepeatEnd) {
+            const timesSoFar = metroBlkRepeatCounts[finishedBlock.id] || 0;
+            const totalPlays = finishedBlock.repeatPlayCount || 2;
+            if (timesSoFar < totalPlays - 1) {
+                metroBlkRepeatCounts[finishedBlock.id] = timesSoFar + 1;
+                jumpMetroBlkToIndex(metroBlkRepeatStartIndexFor(finishedIndex));
+                setTimeout(renderMetroBlkRows, 130);
+                return;
+            }
+            delete metroBlkRepeatCounts[finishedBlock.id];
+        }
+        let next = finishedIndex + 1;
+        if (next >= metroBlkPlayQueue.length) {
+            // A fresh pass through the whole sequence - every repeat region gets to fire again.
+            metroBlkRepeatCounts = {};
+            next = metroBlkLoopBackIndex;
+        }
         jumpMetroBlkToIndex(next);
         // Deferred, not immediate: the final beat's flash (just triggered in onMetroBlkBeat, right
         // before this runs) would otherwise never get a chance to paint - renderMetroBlkRows tears
@@ -5436,18 +5547,22 @@
     // silences it now; this button is purely about position.
     function resetMetroBlk() {
         refreshMetroBlkQueueIfStale();
-        jumpMetroBlkToIndex(0);
+        metroBlkRepeatCounts = {};
+        jumpMetroBlkToStart();
         renderMetroBlkRows();
     }
 
-    // No separate Reset button any more (its job moved to press-and-hold on Play, see
-    // setupPlayButtonHoldReset) - the button's own `disabled` while editing (renderMetroBlkEditUI,
-    // ML-97 follow-up) already blocks both tap and hold during Edit Mode, so neither callback needs
-    // its own edit-mode guard.
+    // ML-139: press-and-hold on Play still works as a shortcut (setupPlayButtonHoldReset - its own
+    // e.preventDefault() on pointerdown plus the button's user-select:none, see style.css, is what
+    // actually stops the hold from just selecting the label text), but it's no longer the only way to
+    // reset - a plain, always-visible Reset button sits to its right in the grid now too. The button's
+    // own `disabled` while editing (renderMetroBlkEditUI, ML-97 follow-up) already blocks both during
+    // Edit Mode, so neither callback needs its own edit-mode guard.
     setupPlayButtonHoldReset('metroBlkPlayBtn',
         () => { if (metroBlkPlayer.isPlaying()) pauseMetroBlk(); else playMetroBlk(); },
         resetMetroBlk
     );
+    document.getElementById('metroBlkResetBtn')?.addEventListener('click', resetMetroBlk);
     document.getElementById('metroBlkMiniPlayBtn')?.addEventListener('click', () => {
         if (metroBlkPlayer.isPlaying()) pauseMetroBlk(); else playMetroBlk();
     });
@@ -5456,6 +5571,35 @@
     // only ever mirrors playback, it was never meant to be where blocks get edited.
     document.getElementById('metroBlkMiniSettingsBtn')?.addEventListener('click', () => switchView('metroBuilderView'));
     document.getElementById('metroBlkMiniCloseBtn')?.addEventListener('click', closeMetroBlkMiniBar);
+
+    // ML-139: Volume moved off its own direct grid cell into this 3-dot menu (only item for now) -
+    // same fixed-position-placed-against-the-button pattern as the tuner's own 3-dot menu
+    // (metroBlkMiniTunerMenuBtn) and the block tiles' per-tile menu.
+    function closeMetroBlkTransportMenu() {
+        document.getElementById('metroBlkTransportMenu')?.classList.remove('show');
+    }
+    document.addEventListener('click', closeMetroBlkTransportMenu);
+    document.getElementById('metroBlkMoreBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const menu = document.getElementById('metroBlkTransportMenu');
+        if (!menu) return;
+        if (menu.classList.contains('show')) { closeMetroBlkTransportMenu(); return; }
+        const btnRect = e.currentTarget.getBoundingClientRect();
+        menu.classList.add('show');
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+        let left = btnRect.right - menuWidth;
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+        let top = btnRect.bottom + 4;
+        top = Math.min(top, window.innerHeight - menuHeight - 8);
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    });
+    document.getElementById('metroBlkTransportMenuVolume')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeMetroBlkTransportMenu();
+        openMetroBlkVolumePopup();
+    });
 
     // --- Playback speed popup (ML-91 follow-up: was -/+ steppers sat next to a bare "100%" readout;
     // a slider replacement lost that quick repeatable jump, and a typed exact value doesn't matter
@@ -5593,7 +5737,6 @@
         setMetroBlkCalibPlaying(false);
         document.getElementById('metroBlkVolumeModal').style.display = 'none';
     }
-    document.getElementById('metroBlkVolumeBtn')?.addEventListener('click', openMetroBlkVolumePopup);
     document.getElementById('metroBlkVolumeCloseBtn')?.addEventListener('click', closeMetroBlkVolumePopup);
 
     // Shown only when actually playing at the moment a view change happens - not a "session active"

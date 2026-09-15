@@ -98,6 +98,9 @@
     .dropdown-item { display: block; padding: var(--space-3) var(--space-4); cursor: pointer; font-weight: bold; border-bottom: 1px solid var(--input-border); color: var(--text-color); text-decoration: none; }
     .dropdown-item:last-child { border-bottom: none; }
     .dropdown-item:hover { background: var(--input-bg); }
+    /* ML-135: Tools/Progress sub-screens' own "Back" row - lighter weight than a real destination
+       item so it doesn't compete with the actual menu choices below it. */
+    .burger-submenu-back { font-weight: normal; color: var(--label-color); }
     /* One shared floating menu, repositioned via JS against whichever row's own "more" button opened
        it (same pattern as .metroBlk-tile-menu) - overrides .dropdown-menu's own absolute/top:100%/
        right:20px (built for the single fixed-position burger menu) so JS can freely set left/top. */
@@ -169,7 +172,12 @@
     .stat-card { background: var(--input-bg); padding: var(--space-2) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--input-border); text-align: center; }
     .stat-card.clickable { cursor: pointer; transition: transform 0.1s ease; }
     .stat-card.clickable:active { transform: scale(0.98); }
-    .stat-card .label { font-size: var(--font-sm); color: var(--label-color); margin-bottom: 5px; font-weight: bold; text-transform: lowercase; }
+    /* ML-134: fixed to fit two lines regardless of how long a given card's label is - without
+       this, a row of short one-line labels (e.g. "Total time") renders shorter than a row of
+       longer labels that wrap (e.g. "Current practise streak"), so the two dashboard-grid rows on
+       the front page didn't line up height-to-height. flex centering keeps a short one-line label
+       vertically centered in that same reserved space rather than sitting flush at the top. */
+    .stat-card .label { font-size: var(--font-sm); color: var(--label-color); margin-bottom: 5px; font-weight: bold; text-transform: lowercase; min-height: 2.4em; display: flex; align-items: center; justify-content: center; }
     .stat-card .label::first-letter { text-transform: uppercase; }
     .stat-card .value { font-size: 1.2rem; font-weight: bold; color: var(--text-color); display: flex; justify-content: center; align-items: baseline; gap: 4px; font-variant-numeric: tabular-nums; }
     .stat-card .sess-count { font-size: var(--font-sm); color: #888; font-weight: normal; }
@@ -440,17 +448,30 @@
        with this one and with the front page's own tool-icon-row, which uses the same equal-width-
        cells idea. */
     .metro-transport-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin: var(--space-2) 0 var(--space-4) 0; }
+    /* ML-139: Blocks' own transport row grew a 5th cell (Play, Reset, sub beats, play speed, more) -
+       a separate modifier rather than changing the shared 4-column rule above, since Quick Play still
+       uses exactly that with only 4 cells of its own. */
+    .metro-transport-grid-5 { grid-template-columns: repeat(5, 1fr); }
     .metro-transport-grid .metroBlk-ctrl-value-btn { width: 100%; min-width: 0; }
-    /* Play/pause reshaped to match the other three cells (icon + small label) instead of the plain
-       round .metro-play-btn - there's no separate Reset button any more, press-and-hold on this one
-       does it instead (the shared setupPlayButtonHoldReset), so the label spells that out in words
-       rather than a second icon crammed in next to the play/pause one - a Material Symbol shrunk
-       small enough to sit inline with that text read as an illegible blob instead of a recognisable
-       reset glyph. Icon deliberately has no font-size override here - it inherits the same global
-       20px .material-symbols-outlined default the volume icon next to it does, so the two stay the
-       same size and vertically aligned by construction rather than two magic numbers kept in sync
-       by hand. */
-    .metro-play-grid-btn { width: 100%; height: 60px; border: none; border-radius: var(--radius-md); cursor: pointer; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: var(--primary-action); color: var(--primary-action-text); }
+    /* Play/pause reshaped to match the other cells (icon + small label) instead of the plain round
+       .metro-play-btn. Press-and-hold still resets too (the shared setupPlayButtonHoldReset), but
+       ML-139 restored a plain Reset button alongside it (.metro-play-grid-btn-reset below) since the
+       hold gesture alone wasn't discoverable/reliable enough on its own. user-select:none and
+       touch-action:manipulation stop a held press from turning into a text-selection instead of
+       triggering the hold (ML-139 - without these the browser's own press-and-hold-to-select-text
+       behaviour was winning the race against the JS timer on this button's label). Icon deliberately
+       has no font-size override here - it inherits the same global 20px .material-symbols-outlined
+       default the other cells use, so they all stay the same size and vertically aligned by
+       construction rather than magic numbers kept in sync by hand. */
+    .metro-play-grid-btn { width: 100%; height: 60px; border: none; border-radius: var(--radius-md); cursor: pointer; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: var(--primary-action); color: var(--primary-action-text); user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+    /* Grey/neutral (same --nav-action language as the mini bar's own Reset - .metro-stop-btn) so it
+       reads as the secondary action next to gold Play. */
+    .metro-play-grid-btn-reset { background: var(--nav-action); color: var(--nav-action-text); }
+    /* Fixed-position, JS-placed against the 3-dot button (same pattern as .metroBlk-tile-menu/
+       .metroBlk-mini-tuner-menu) - the transport grid sits in normal flow, not a clipping box, but
+       this keeps every one of these floating menus consistent rather than one being CSS-anchored and
+       the rest JS-positioned. */
+    .metroBlk-transport-menu { position: fixed; top: auto; right: auto; left: auto; min-width: 160px; }
 
     /* Minimised timer bar (ML-7) - lives in .top-bar-sticky-group directly under
        .top-bar, shown whenever a timer is running/paused and the Timer screen
