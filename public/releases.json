@@ -1,5 +1,51 @@
 [
   {
+    "version": "0.17.0",
+    "date": "2026-09-16",
+    "changes": [
+      {
+        "key": "ML-153",
+        "type": "New",
+        "summary": "Improve time signature selection"
+      },
+      {
+        "key": "ML-152",
+        "type": "Fixes",
+        "summary": "Dropdown menus show a stray extra line under the last visible item"
+      },
+      {
+        "key": "ML-151",
+        "type": "Fixes",
+        "summary": "Popup/modal boxes have almost no margin from the screen edge on mobile"
+      },
+      {
+        "key": "ML-150",
+        "type": "Fixes",
+        "summary": "Volume icon on the metronome's main box is the same icon as the popup's mute toggle"
+      },
+      {
+        "key": "ML-149",
+        "type": "Fixes",
+        "summary": "Muted volume slider thumb shows the track line bleeding through it"
+      },
+      {
+        "key": "ML-148",
+        "type": "New",
+        "summary": "Update to volume for UX improvements"
+      },
+      {
+        "key": "ML-146",
+        "type": "New",
+        "summary": "Move volume on metronome"
+      },
+      {
+        "key": "ML-145",
+        "type": "New",
+        "summary": "Change move up / down and delete for blocks"
+      }
+    ]
+  },
+  {
     "version": "0.16.0",
     "date": "2026-09-15",
     "changes": [
