@@ -456,7 +456,10 @@
     <div id="quickPlayView" style="display:none;">
         <div class="metroBlk-rows">
             <div class="metroBlk-row metroBlk-row-current">
-                <div class="metroBlk-row-head"><span class="metroBlk-row-mark" id="qpRow0Mark"></span><span class="metroBlk-row-label" id="qpRow0Label"></span></div>
+                <div class="metroBlk-row-head">
+                    <span class="metroBlk-row-mark" id="qpRow0Mark"></span><span class="metroBlk-row-label" id="qpRow0Label"></span>
+                    <button type="button" class="metroBlk-row-volume-btn" id="qpVolumeBtn" aria-label="Volume - tap to change"><span class="material-symbols-outlined">volume_mute</span></button>
+                </div>
                 <div class="metro-display-viewport" id="qpRow0Viewport">
                     <div class="metro-display-content" id="qpRow0Content">
                         <div class="metro-tier" id="qpRow0Dots"></div>
@@ -468,7 +471,11 @@
         <div class="metro-transport-grid">
             <button class="metro-play-grid-btn" id="qpPlayBtn" aria-label="Play - press and hold to reset to the start">
                 <span class="material-symbols-outlined" id="qpPlayIcon">play_arrow</span>
-                <span class="metroBlk-ctrl-value-label">(hold to reset)</span>
+                <span class="metroBlk-ctrl-value-label">play</span>
+            </button>
+            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="qpResetBtn" aria-label="Reset to start">
+                <span class="material-symbols-outlined">restart_alt</span>
+                <span class="metroBlk-ctrl-value-label">reset</span>
             </button>
             <button type="button" class="metroBlk-ctrl-value-btn" id="qpSubdivideBtn" aria-label="Sub beats - tap to change">
                 <strong id="qpSubdivideLbl">1</strong>
@@ -478,16 +485,10 @@
                 <strong id="qpSpeedLbl">100%</strong>
                 <span class="metroBlk-ctrl-value-label">play speed</span>
             </button>
-            <button type="button" class="metroBlk-ctrl-value-btn" id="qpVolumeBtn" aria-label="Volume - tap to change">
-                <span class="material-symbols-outlined" id="qpVolumeIcon">volume_up</span>
-                <span class="metroBlk-ctrl-value-label">volume</span>
-            </button>
         </div>
 
         <div id="qpBlocks"></div>
-        <button type="button" class="qp-add-bar-btn" id="qpAddBlockBtn" aria-label="Add bar">
-            <span class="metroBlk-leadin-plus">+</span><span>bar</span>
-        </button>
+        <button type="button" class="btn-cancel btn-nav" id="qpAddBlockBtn">Add bar</button>
 
         <!-- Per-bar options (Move up/down, Duplicate, Delete) - one shared floating menu repositioned
              against whichever bar's 3-dot button was tapped, same pattern as Blocks' own
@@ -554,7 +555,10 @@
         <div id="metroBlkEditorScreen" class="hidden-group">
         <div class="metroBlk-rows" id="metroBlkRows">
             <div class="metroBlk-row metroBlk-row-current">
-                <div class="metroBlk-row-head"><span class="metroBlk-row-mark" id="metroBlkRow0Mark"></span><span class="metroBlk-row-label" id="metroBlkRow0Label"></span></div>
+                <div class="metroBlk-row-head">
+                    <span class="metroBlk-row-mark" id="metroBlkRow0Mark"></span><span class="metroBlk-row-label" id="metroBlkRow0Label"></span>
+                    <button type="button" class="metroBlk-row-volume-btn" id="metroBlkVolumeBtn" aria-label="Volume - tap to change"><span class="material-symbols-outlined">volume_mute</span></button>
+                </div>
                 <div class="metro-display-viewport" id="metroBlkRow0Viewport">
                     <div class="metro-display-content" id="metroBlkRow0Content">
                         <div class="metro-tier" id="metroBlkRow0Dots"></div>
@@ -563,7 +567,7 @@
             </div>
         </div>
 
-        <div class="metro-transport-grid metro-transport-grid-5">
+        <div class="metro-transport-grid">
             <button class="metro-play-grid-btn" id="metroBlkPlayBtn" aria-label="Play - press and hold to reset to the start">
                 <span class="material-symbols-outlined" id="metroBlkPlayIcon">play_arrow</span>
                 <span class="metroBlk-ctrl-value-label">play</span>
@@ -580,13 +584,6 @@
                 <strong id="metroBlkSpeedLbl">100%</strong>
                 <span class="metroBlk-ctrl-value-label">play speed</span>
             </button>
-            <button type="button" class="metroBlk-ctrl-value-btn" id="metroBlkMoreBtn" aria-label="More options">
-                <span class="material-symbols-outlined">more_vert</span>
-                <span class="metroBlk-ctrl-value-label">more</span>
-            </button>
-        </div>
-        <div class="dropdown-menu metroBlk-transport-menu" id="metroBlkTransportMenu">
-            <div class="dropdown-item" id="metroBlkTransportMenuVolume">Volume</div>
         </div>
 
         <button type="button" class="btn-text" id="metroBlkChangeFlowBtn" aria-label="Back to Flow home">&larr; Change flow</button>
@@ -1148,7 +1145,15 @@
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="metroBlkVolumeCloseBtn" aria-label="Close">&times;</button>
         <h2>Volume</h2>
-        <div class="metro-volume-row">
+        <div class="metro-speed-row no-margin">
+            <button class="metro-bpm-step" id="metroBlkVolumeMinus" type="button" aria-label="Decrease volume">&minus;</button>
+            <div class="metro-speed-readout">
+                <div id="metroBlkVolumeValue">80%</div>
+                <div class="metro-speed-sub">volume</div>
+            </div>
+            <button class="metro-bpm-step" id="metroBlkVolumePlus" type="button" aria-label="Increase volume">+</button>
+        </div>
+        <div class="metro-volume-row" id="metroBlkVolumeRow">
             <button class="metro-mute-btn" id="metroBlkMuteBtn" aria-label="Mute" aria-pressed="false"><span class="material-symbols-outlined" id="metroBlkMuteIcon">volume_up</span></button>
             <div class="slider-wrap no-margin">
                 <div class="slider-track" id="metroBlkVolumeTrack">
@@ -1235,7 +1240,15 @@
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="qpVolumeCloseBtn" aria-label="Close">&times;</button>
         <h2>Volume</h2>
-        <div class="metro-volume-row">
+        <div class="metro-speed-row no-margin">
+            <button class="metro-bpm-step" id="qpVolumeMinus" type="button" aria-label="Decrease volume">&minus;</button>
+            <div class="metro-speed-readout">
+                <div id="qpVolumeValue">80%</div>
+                <div class="metro-speed-sub">volume</div>
+            </div>
+            <button class="metro-bpm-step" id="qpVolumePlus" type="button" aria-label="Increase volume">+</button>
+        </div>
+        <div class="metro-volume-row" id="qpVolumeRow">
             <button class="metro-mute-btn" id="qpMuteBtn" aria-label="Mute" aria-pressed="false"><span class="material-symbols-outlined" id="qpMuteIcon">volume_up</span></button>
             <div class="slider-wrap no-margin">
                 <div class="slider-track" id="qpVolumeTrack">
@@ -1394,21 +1407,52 @@
     </div>
 </div>
 
+<!-- ML-153: replaces the old tall "one column per denominator" matrix with three fixed preset grids
+     (Simple/Compound/Asymmetric, grouped by time_signature_options.family - see
+     db/migrations/030_time_signature_family.sql) plus an inline custom-meter builder, designed to
+     fit above the fold on a phone without scrolling. modal-content-sticky-footer/metroSeg-scroll-area
+     is the same "padded scrollable body + flush footer bar" split metroSegmentModal already uses. -->
 <div class="modal" id="metroSegTimeSigModal">
-    <div class="modal-content">
+    <div class="modal-content modal-content-sticky-footer">
         <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegTimeSigModal').style.display='none'" aria-label="Close">&times;</button>
+        <div class="metroSeg-scroll-area">
         <h2>Time signature</h2>
-        <div class="metroBlk-timesig-columns" id="metroSegTimeSigColumns"></div>
-        <button type="button" class="metroBlk-timesig-opt metroBlk-timesig-add-custom" id="metroSegTimeSigCustomToggle">Add custom</button>
-        <div class="flex-row gap-md hidden-group" id="metroSegCustomSigInputs" style="margin-top:10px; align-items:flex-end;">
-            <div class="form-group flex-1" style="margin-bottom:0;"><label>Beats</label><input type="number" id="metroSegCustomNumerator" min="1"></div>
-            <div class="form-group flex-1" style="margin-bottom:0;"><label>Beat value</label><input type="number" id="metroSegCustomDenominator" min="1"></div>
-            <button class="btn-nav no-margin" type="button" id="metroSegCustomSigAddBtn" style="width:auto; padding:10px 15px;">Save</button>
-        </div>
 
-        <div class="hidden-group" id="metroSegCustomSigManageSection">
-            <div class="section-title" style="margin-top:var(--space-6);"><span>Your custom time signatures</span></div>
-            <div id="metroSegCustomSigManageList"></div>
+        <div id="metroSegTimeSigFamilies"></div>
+
+        <div class="metroSeg-timesig-divider"></div>
+
+        <div class="metroSeg-timesig-family-label">Custom time signature</div>
+        <div class="metroSeg-timesig-custom-row">
+            <div class="metroSeg-timesig-custom-field">
+                <label for="metroSegCustomNumerator">Beats</label>
+                <input type="number" id="metroSegCustomNumerator" class="metroSeg-timesig-custom-input" min="1" max="32" value="4">
+            </div>
+            <div class="metroSeg-timesig-custom-divider">/</div>
+            <div class="metroSeg-timesig-custom-field">
+                <label for="metroSegCustomDenominator">Beat value</label>
+                <!-- Strictly the real musical note values (a beat value has to be a power of 2) -
+                     a select, not a free-form number input, so /13 or /15 simply can't be typed. -->
+                <select id="metroSegCustomDenominator" class="metroSeg-timesig-custom-input">
+                    <option value="2">2</option>
+                    <option value="4" selected>4</option>
+                    <option value="8">8</option>
+                    <option value="16">16</option>
+                </select>
+            </div>
+            <button type="button" class="metroSeg-timesig-set-btn" id="metroSegCustomSigAddBtn">Set</button>
+        </div>
+        <!-- Tapping a chip selects & closes immediately, same as a preset (renderMetroSegTimeSigChips) -
+             this compact popup is select-only, per the design; archiving/deleting a custom signature
+             that's no longer wanted is a separate concern this modal doesn't attempt to solve. -->
+        <div class="metroSeg-timesig-chips-row hidden-group" id="metroSegTimeSigChipsRow">
+            <span class="metroSeg-timesig-chips-label">Saved:</span>
+            <div class="metroSeg-timesig-chips" id="metroSegTimeSigChips"></div>
+        </div>
+        </div>
+        <div class="metroSeg-sticky-footer metroSeg-timesig-footer">
+            <span class="metro-help-text no-margin">Tap any preset to select &amp; close</span>
+            <button type="button" class="btn-text no-margin" onclick="document.getElementById('metroSegTimeSigModal').style.display='none'">Done</button>
         </div>
     </div>
 </div>

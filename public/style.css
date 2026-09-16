@@ -95,8 +95,15 @@
 
     .dropdown-menu { display: none; position: absolute; top: 100%; right: 20px; background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-sm); box-shadow: var(--shadow-xl); z-index: 100; min-width: 200px; overflow: hidden; }
     .dropdown-menu.show { display: flex; flex-direction: column; }
-    .dropdown-item { display: block; padding: var(--space-3) var(--space-4); cursor: pointer; font-weight: bold; border-bottom: 1px solid var(--input-border); color: var(--text-color); text-decoration: none; }
-    .dropdown-item:last-child { border-bottom: none; }
+    .dropdown-item { display: block; padding: var(--space-3) var(--space-4); cursor: pointer; font-weight: bold; color: var(--text-color); text-decoration: none; }
+    /* A separator belongs only between two rows that are both actually showing - :last-child alone
+       isn't enough once some items are conditionally hidden via .hidden-group (e.g. qpBarMenu's Move
+       up/down/Delete, hidden rather than disabled when they don't apply): the true DOM last-child can
+       still be a hidden row, which left the last VISIBLE row (wrongly) keeping its own border-bottom,
+       reading as a stray extra line under a menu that only has one item showing. This instead adds the
+       border only when a later sibling is also visible, so whichever row is last on screen never gets
+       one, regardless of how many hidden rows follow it in the DOM. */
+    .dropdown-item:not(.hidden-group):has(~ .dropdown-item:not(.hidden-group)) { border-bottom: 1px solid var(--input-border); }
     .dropdown-item:hover { background: var(--input-bg); }
     /* ML-135: Tools/Progress sub-screens' own "Back" row - lighter weight than a real destination
        item so it doesn't compete with the actual menu choices below it. */
@@ -177,8 +184,11 @@
        longer labels that wrap (e.g. "Current practise streak"), so the two dashboard-grid rows on
        the front page didn't line up height-to-height. flex centering keeps a short one-line label
        vertically centered in that same reserved space rather than sitting flush at the top. */
-    .stat-card .label { font-size: var(--font-sm); color: var(--label-color); margin-bottom: 5px; font-weight: bold; text-transform: lowercase; min-height: 2.4em; display: flex; align-items: center; justify-content: center; }
-    .stat-card .label::first-letter { text-transform: uppercase; }
+    /* Sentence case (just the first letter capitalised) is written directly into each label's HTML,
+       not enforced here - a text-transform: lowercase + ::first-letter: uppercase pair used to do this
+       instead, but ::first-letter never applies inside a flex container (this is one, for the vertical
+       centering above), so every label silently rendered fully lowercase. */
+    .stat-card .label { font-size: var(--font-sm); color: var(--label-color); margin-bottom: 5px; font-weight: bold; min-height: 2.4em; display: flex; align-items: center; justify-content: center; }
     .stat-card .value { font-size: 1.2rem; font-weight: bold; color: var(--text-color); display: flex; justify-content: center; align-items: baseline; gap: 4px; font-variant-numeric: tabular-nums; }
     .stat-card .sess-count { font-size: var(--font-sm); color: #888; font-weight: normal; }
 
@@ -274,8 +284,13 @@
 
     .tuner-status { text-align: center; font-size: var(--font-base); color: var(--label-color); margin-bottom: var(--space-4); min-height: 1.2em; }
 
-    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; }
-    .modal-content { background: var(--container-bg); width: 90%; max-width: 400px; padding: var(--space-6); border-radius: var(--radius-xl); box-shadow: var(--shadow-xl); max-height: 90vh; overflow-y: auto;}
+    /* padding (not modal-content's own width) is what guarantees the gap either side of the card -
+       a fixed design-system space rather than a percentage, so it stays a real, constant gap on a
+       narrow phone instead of shrinking proportionally with the viewport (previously 90%/95% width,
+       which read as nearly edge-to-edge on a typical phone screen). box-sizing so the padding doesn't
+       itself widen the fixed inset:0 box past the viewport. */
+    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; padding: 0 var(--space-5); box-sizing: border-box; }
+    .modal-content { background: var(--container-bg); width: 100%; max-width: 400px; padding: var(--space-6); border-radius: var(--radius-xl); box-shadow: var(--shadow-xl); max-height: 90vh; overflow-y: auto;}
     .modal-content h2 { margin-top: 0; margin-bottom: var(--space-5); font-size: 1.4rem; font-weight: var(--font-weight-semibold); }
 
     .filter-list { display: flex; flex-direction: column; margin-bottom: var(--space-5); border: 1px solid var(--input-border); border-radius: var(--radius-md); overflow: hidden; }
@@ -442,16 +457,13 @@
 
     /* Shared metronome-family transport row (Quick Play and Blocks/Flow both use this - one shared
        class rather than one per tool, so the layout only needs updating in one place): an equal-
-       width, full-bleed grid instead of metro-transport-row's centered flex row - 4 columns for now
-       (Play, sub beats, play speed, volume), but the point of using grid rather than that fixed-
-       column-count flex row is other rows can later drop in at 1, 2 or 4 cells wide and still line up
-       with this one and with the front page's own tool-icon-row, which uses the same equal-width-
-       cells idea. */
+       width, full-bleed grid instead of metro-transport-row's centered flex row - 4 columns (Play,
+       Reset, sub beats, play speed; ML-146 - Volume moved out into the "now playing" box's own header,
+       see .metroBlk-row-volume-btn below, freeing this row back down to 4 evenly-spread cells after
+       ML-139 briefly grew it to 5), but the point of using grid rather than that fixed-column-count
+       flex row is other rows can later drop in at 1, 2 or 4 cells wide and still line up with this one
+       and with the front page's own tool-icon-row, which uses the same equal-width-cells idea. */
     .metro-transport-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin: var(--space-2) 0 var(--space-4) 0; }
-    /* ML-139: Blocks' own transport row grew a 5th cell (Play, Reset, sub beats, play speed, more) -
-       a separate modifier rather than changing the shared 4-column rule above, since Quick Play still
-       uses exactly that with only 4 cells of its own. */
-    .metro-transport-grid-5 { grid-template-columns: repeat(5, 1fr); }
     .metro-transport-grid .metroBlk-ctrl-value-btn { width: 100%; min-width: 0; }
     /* Play/pause reshaped to match the other cells (icon + small label) instead of the plain round
        .metro-play-btn. Press-and-hold still resets too (the shared setupPlayButtonHoldReset), but
@@ -467,11 +479,20 @@
     /* Grey/neutral (same --nav-action language as the mini bar's own Reset - .metro-stop-btn) so it
        reads as the secondary action next to gold Play. */
     .metro-play-grid-btn-reset { background: var(--nav-action); color: var(--nav-action-text); }
-    /* Fixed-position, JS-placed against the 3-dot button (same pattern as .metroBlk-tile-menu/
-       .metroBlk-mini-tuner-menu) - the transport grid sits in normal flow, not a clipping box, but
-       this keeps every one of these floating menus consistent rather than one being CSS-anchored and
-       the rest JS-positioned. */
-    .metroBlk-transport-menu { position: fixed; top: auto; right: auto; left: auto; min-width: 160px; }
+    /* ML-146: a plain icon, deliberately with no circle/box behind it ("more in the background" per
+       the ticket) - margin-left:auto pushes it to the far right of .metroBlk-row-head's flex row
+       while the mark/label stay left-aligned together, so it reads as sitting in the box's own corner
+       rather than as a peer of the mark/label. Shares the same 20px .material-symbols-outlined default
+       as the transport row's own icons rather than a size override, for the same reason. min-width/
+       height (ML-148) give it a 44x44 tap target without enlarging the icon itself - the visible glyph
+       stays small/"background", the invisible hit area around it doesn't. */
+    .metroBlk-row-volume-btn { margin-left: auto; align-self: center; background: none; border: none; padding: 0; cursor: pointer; color: var(--label-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 44px; min-height: 44px; }
+    /* ML-148: mute is just volume 0 now (see setMetroBlkVolume/setQpVolume) - this fades the gold
+       fill/thumb to grey so 0% via the mute button visually reads the same as 0% via dragging, rather
+       than the mute button's own icon-swap being the only cue. A solid muted color rather than opacity
+       - opacity let the track's own grey line bleed through the middle of the (semi-transparent)
+       thumb, which read as a visible seam rather than a uniformly faded circle. */
+    .metro-volume-row.is-muted .slider-fill, .metro-volume-row.is-muted .slider-thumb { background: var(--label-color); }
 
     /* Minimised timer bar (ML-7) - lives in .top-bar-sticky-group directly under
        .top-bar, shown whenever a timer is running/paused and the Timer screen
@@ -667,7 +688,12 @@
        top box scrolls within itself exactly like the single-bar tool's .metro-display-viewport/
        -content (reused as-is via the same JS helpers, just against these rows' own element ids). */
     .metroBlk-row { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
-    .metroBlk-row-head { display: flex; align-items: baseline; gap: var(--space-2); margin-bottom: var(--space-1); font-size: var(--font-sm); color: var(--label-color); font-weight: bold; }
+    /* ML-146 added the volume button as a third child of this row (align-self:center there, see
+       .metroBlk-row-volume-btn) - align-items:center here (not the old baseline) keeps the mark/label
+       text vertically centered against it too, rather than baseline-aligning the text while the
+       button centers independently, which read as the text sitting near the top of the row once the
+       button's own 44px tap target (ML-148) made the row noticeably taller than the text alone. */
+    .metroBlk-row-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); font-size: var(--font-sm); color: var(--label-color); font-weight: bold; }
     /* Reserved for a future rehearsal-mark readout (ML-35) - empty for now, but the layout leaves it
        room so that later addition doesn't reflow this row. */
     .metroBlk-row-mark { min-width: 28px; }
@@ -721,20 +747,37 @@
     .modal-content-sticky-footer .metroSeg-scroll-area { overflow-y: auto; padding: var(--space-6); flex: 1 1 auto; min-height: 0; }
     .metroSeg-sticky-footer { flex-shrink: 0; display: flex; gap: 10px; padding: var(--space-4) var(--space-6); border-top: 1px solid var(--input-border); background: var(--container-bg); border-radius: 0 0 var(--radius-xl) var(--radius-xl); }
 
-    /* Time signature picker - columns grouped by denominator, numerators increasing down each
-       column. Replaces a native <select> so the trigger can be the same grey "opens a popup"
-       button already used elsewhere (.metroBlk-ctrl-value-btn/.qp-timesig-cell, e.g. the Standard
-       card's own time signature button). Columns flex to fill the available width (fixed-width
-       buttons only when there are enough columns to need the horizontal scroll instead). */
-    .metroBlk-timesig-columns { display: flex; gap: var(--space-4); margin-bottom: var(--space-3); overflow-x: auto; padding-bottom: 2px; }
-    .metroBlk-timesig-col { display: flex; flex-direction: column; gap: var(--space-2); flex: 1 1 0; min-width: 56px; }
-    .metroBlk-timesig-col-head { font-weight: bold; text-align: center; color: var(--label-color); font-size: var(--font-base); margin-bottom: 2px; }
+    /* Time signature picker (ML-153): the underlying "grey tap-target, gold when selected" button
+       look is still .metroBlk-timesig-opt (shared with the tuner instrument picker - Concert/Bb/Eb/F -
+       so its own rule stays put), just laid out as three fixed 4-column family grids
+       (renderMetroSegTimeSigPicker groups the catalog by time_signature_options.family) instead of
+       one column per denominator. Replaces a native <select> so the trigger can be the same grey
+       "opens a popup" button already used elsewhere (.metroBlk-ctrl-value-btn/.qp-timesig-cell). */
     .metroBlk-timesig-opt { width: 100%; min-height: 48px; background: var(--input-bg); border: 2px solid var(--input-border); border-radius: var(--radius-sm); padding: var(--space-3) 4px; text-align: center; font-weight: bold; font-size: var(--font-md); cursor: pointer; color: var(--text-color); box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
-    .metroBlk-timesig-opt.selected { border-color: var(--primary-action); background: rgba(212, 175, 55, 0.12); color: var(--primary-action); }
-    .metroBlk-timesig-opt.custom { border-style: dashed; }
-    /* "Add custom" is just another option-shaped button (not the pill-style primary action it
-       used to look like) - it just happens to reveal a follow-up instead of applying directly. */
-    .metroBlk-timesig-add-custom { display: block; width: auto; margin: 0 0 var(--space-2) 0; padding: var(--space-2) var(--space-4); border-style: dashed; }
+    .metroBlk-timesig-opt.selected { border-color: var(--primary-action); background: rgba(212, 175, 55, 0.12); color: var(--primary-action); box-shadow: 0 0 14px rgba(212, 175, 55, 0.25); }
+    .metroSeg-timesig-family { margin-bottom: var(--space-4); }
+    .metroSeg-timesig-family-label { font-size: var(--font-sm); font-weight: bold; color: var(--label-color); text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: var(--space-2); }
+    .metroSeg-timesig-family-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+    .metroSeg-timesig-divider { border-top: 1px solid var(--input-border); margin: var(--space-2) 0 var(--space-4) 0; }
+    .metroSeg-timesig-custom-row { display: flex; align-items: flex-end; gap: var(--space-2); }
+    .metroSeg-timesig-custom-field { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+    .metroSeg-timesig-custom-field label { font-size: var(--font-sm); color: var(--label-color); }
+    .metroSeg-timesig-custom-input { width: 100%; height: 44px; box-sizing: border-box; text-align: center; font-weight: bold; font-size: var(--font-md); background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-sm); color: var(--text-color); }
+    .metroSeg-timesig-custom-divider { padding-bottom: 10px; font-size: var(--font-lg); font-weight: bold; color: var(--label-color); }
+    .metroSeg-timesig-set-btn { height: 44px; padding: 0 var(--space-4); border: none; border-radius: var(--radius-sm); background: var(--primary-action); color: var(--primary-action-text); font-weight: bold; cursor: pointer; flex-shrink: 0; }
+    .metroSeg-timesig-chips-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+    .metroSeg-timesig-chips-label { font-size: var(--font-sm); color: var(--label-color); }
+    .metroSeg-timesig-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    /* Wrapper around a select button (the pill look, tap to apply) and a small trailing × (archives
+       the signature instead of selecting it - see renderMetroSegTimeSigChips in app.js, ML-153). */
+    .metroSeg-timesig-chip { display: flex; align-items: stretch; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-circle); overflow: hidden; }
+    .metroSeg-timesig-chip-select { background: none; border: none; padding: 6px 4px 6px 14px; font-weight: bold; font-size: var(--font-sm); color: var(--text-color); cursor: pointer; }
+    .metroSeg-timesig-chip-select:hover { background: var(--input-border); }
+    .metroSeg-timesig-chip-remove { background: none; border: none; padding: 6px 12px 6px 6px; font-size: var(--font-md); line-height: 1; color: var(--label-color); cursor: pointer; }
+    .metroSeg-timesig-chip-remove:hover { color: var(--danger-color); }
+    /* Overrides the base .metroSeg-sticky-footer's plain gap-of-buttons layout (metroSegmentModal's
+       Cancel/Save) to spread status text left / Done right instead. */
+    .metroSeg-timesig-footer { justify-content: space-between; align-items: center; }
 
     /* ML-103 follow-up: block editor reworked into the "expandable card" layout from the attached
        reference (expandable_metronome_sections.html) - a bordered box per topic (Standard/Multiple
@@ -860,17 +903,43 @@
        is always visible and stacked, rather than a tile you tap to open a modal - so each one gets
        its own bordered card ("Bar N") to read as a distinct bar. Always exactly 1 bar/no repeat per
        block (that's a Flow-only concept) - just time signature, note length and target BPM. */
-    /* touch-action: none (whole box, not just the title): swipe-to-act (wireQpBarSwipe) grabs anywhere
-       in the box that isn't a button/slider/input, so the box itself must stop the page's own scroll
-       from fighting a swipe that starts on it - same reasoning as Blocks' own draggable tiles
-       (.metroBlk-tile). The excluded controls (buttons, .slider-track/.slider-thumb) each set their
-       own touch-action already, so this doesn't affect their own tap/drag behaviour. */
-    .qp-block-box { position: relative; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-3); touch-action: none; }
+    /* ML-145: the box is now just a clipping wrapper (overflow:hidden) around two layers - the red
+       delete underlay (.qp-block-delete-underlay, revealed by swiping) sits behind, and the visible
+       card itself (.qp-block-surface) sits in front and slides. touch-action: pan-y (not none) lets
+       native vertical page scroll work when a touch starts on the card body - only a deliberate
+       horizontal swipe (locked in by wireQpBarSwipe, >30px horizontal/<15px vertical before it takes
+       over) intercepts the gesture at all, which is the whole point of this ticket (the old
+       touch-action:none on the full box, grabbing horizontal AND vertical movement anywhere on it,
+       is what was fighting page scroll). Vertical reordering moved entirely to the dedicated grab
+       handle below, which keeps its own touch-action:none since IT is meant to capture vertical drag. */
+    .qp-block-box { position: relative; border-radius: var(--radius-md); margin-bottom: var(--space-3); overflow: hidden; touch-action: pan-y; }
+    .qp-block-surface { position: relative; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-4); }
     /* Whichever bar is actually sounding right now, while playing only (renderQpActiveBoxHighlight) -
-       same bold-gold-border language as Blocks' own .metroBlk-tile-active. */
-    .qp-block-box.qp-block-playing { border-color: var(--primary-action); box-shadow: 0 0 0 2px var(--primary-action); }
-    .qp-block-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
+       same bold-gold-border language as Blocks' own .metroBlk-tile-active. Targets the surface (the
+       visible card), not the outer clipping box, which has no border/background of its own any more. */
+    .qp-block-box.qp-block-playing .qp-block-surface { border-color: var(--primary-action); box-shadow: 0 0 0 2px var(--primary-action); }
+    /* Revealed behind .qp-block-surface as it slides left - width matches QP_SWIPE_OPEN_PX in app.js,
+       the two must stay in sync. */
+    .qp-block-delete-underlay { position: absolute; top: 0; right: 0; bottom: 0; width: 96px; background: var(--danger-color); color: #fff; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; font-weight: bold; font-size: var(--font-sm); }
+    .qp-block-delete-underlay .material-symbols-outlined { font-size: 22px; }
+    /* min-height matches .qp-bar-grab-handle's own 44px (not just its icon's natural line-height) so
+       a 1-bar card (no handle - see qpBlockBoxHtml) reserves exactly the same header height a
+       multi-bar card's handle would occupy, rather than shrinking to fit the title text alone - without
+       this the card's overall height visibly differed depending on whether the handle was present. */
+    .qp-block-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); min-height: 44px; }
+    .qp-block-header-left { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
     .qp-block-title { font-weight: bold; font-size: var(--font-md); }
+    /* 44x44 touch target (ML-145) with a small, subtle glyph inside it - grey by default, gold on
+       hover/active to match the drag affordance, same primary-action token the rest of the app uses
+       rather than a one-off colour. touch-action:none isolates vertical drag-and-drop strictly to this
+       handle (wireQpBarGrabHandle) - the card body around it deliberately does NOT set this, see
+       .qp-block-box above. Only rendered at all when there's more than one bar to reorder (qpBlockBoxHtml). */
+    /* justify-content:flex-start (not center) so the glyph itself sits flush with the card's left
+       edge, lining up with .qp-bar-fields-grid below it - the 44px width is purely an invisible tap
+       target beyond that, not something the icon should visually center within. */
+    .qp-bar-grab-handle { width: 44px; height: 44px; flex-shrink: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--label-color); display: flex; align-items: center; justify-content: flex-start; cursor: grab; touch-action: none; }
+    .qp-bar-grab-handle:hover, .qp-bar-grab-handle:active { color: var(--primary-action); }
+    .qp-bar-grab-handle:active { cursor: grabbing; }
     /* Same corner-menu language as the Blocks tile's own per-tile menu button (.metroBlk-tile-menu-btn)
        - always shown, even with only one bar (opening it then only offers Duplicate, see
        openQpBarMenu), rather than the old dustbin icon that hid entirely on the one bar that couldn't
@@ -894,9 +963,6 @@
        standalone, narrower bpm box) - this one now spans 3 of 4 columns, wide enough that the default
        gap would push -/+ out past where the slider below actually starts/ends. */
     .qp-bpm-speed-row { gap: var(--space-2); }
-    /* Same footprint as one bar box above (title row + field grid + card padding) so the list reads
-       as equal-sized slots, not a full card followed by a thin afterthought row. */
-    .qp-add-bar-btn { display: flex; align-items: center; justify-content: center; gap: var(--space-2); width: 100%; min-height: 215px; box-sizing: border-box; background: transparent; border: 2px dashed var(--input-border); border-radius: var(--radius-md); color: var(--label-color); font-size: var(--font-md); font-weight: bold; cursor: pointer; margin-bottom: var(--space-4); }
     /* Add/move/duplicate/delete feedback (qpAnimateBlocksChange/qpAnimateDeleteThenRerender) - applied
        just for the moment of the animation itself (added/removed by JS once it finishes) rather than
        permanently, so a bar's own layout-affecting style changes (e.g. resizing while editing a field)
@@ -951,7 +1017,7 @@
         .chart-bar-container { min-width: 12px; margin-right: 1px; }
         .history-item { padding: 10px; margin-bottom: 8px; }
         .play-card { padding: 20px 15px; margin-bottom: 20px; }
-        .modal-content { width: 95%; max-width: none; padding: 20px; }
+        .modal-content { padding: 20px; }
         .scroll-btn { width: 28px; height: 28px; font-size: 0.9rem; }
         .scroll-btn.left { left: 40px; }
     }

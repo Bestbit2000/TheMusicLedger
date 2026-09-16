@@ -2726,6 +2726,12 @@
                 if (!seconds || !audioCtx) return;
                 nextClickTime = Math.max(nextClickTime, audioCtx.currentTime) + seconds;
             },
+            // A single, unscheduled click at the current volume - ML-148's live audio feedback while
+            // adjusting volume with the metronome stopped, where there'd otherwise be no sound at all
+            // to judge the level by. Deliberately bypasses the scheduler/clickIndex entirely (fires
+            // immediately, doesn't touch playing state or bar position) since it's just a level check,
+            // not a real beat.
+            playTestClick() { ensureAudio().then(() => playClick('tick', audioCtx.currentTime)); },
             isPlaying() { return playing; },
             setConductorBpm(v) { conductorBpm = v; },
             setConductorBeatsPerBar(n) { conductorBeatsPerBar = n; },
@@ -2885,7 +2891,12 @@
     // Value-agnostic: reports a 0-1 ratio for drags/clicks along the track, and a +-1 step for arrow
     // keys, leaving whatever the value actually means to the caller. Used by both the target-speed
     // BPM slider (3-stage rescaling track) and the plain 0-100 volume slider.
-    function setupSliderInteraction(track, thumb, { onDragRatio, onArrowStep }) {
+    // onRelease (ML-148) fires once whenever a single value has just been "settled" on - letting go
+    // of the thumb after a drag, a direct tap/click on the track, or an arrow-key step - as opposed
+    // to onDragRatio, which fires continuously while actually dragging. Volume's own live audio
+    // feedback uses this to guarantee a confirmation click on release even if the drag itself was
+    // rate-limited; every other slider simply doesn't pass it and behaves exactly as before.
+    function setupSliderInteraction(track, thumb, { onDragRatio, onArrowStep, onRelease }) {
         if (!track || !thumb) return;
 
         function ratioFromClientX(clientX) {
@@ -2897,6 +2908,7 @@
         function onUp() {
             document.removeEventListener('pointermove', onMove);
             document.removeEventListener('pointerup', onUp);
+            onRelease?.();
         }
 
         thumb.addEventListener('pointerdown', (e) => {
@@ -2908,12 +2920,13 @@
         track.addEventListener('pointerdown', (e) => {
             if (e.target === thumb) return;
             onDragRatio(ratioFromClientX(e.clientX));
+            onRelease?.();
         });
 
         if (onArrowStep) {
             thumb.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowRight' || e.key === 'ArrowUp') onArrowStep(1);
-                if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') onArrowStep(-1);
+                if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { onArrowStep(1); onRelease?.(); }
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { onArrowStep(-1); onRelease?.(); }
             });
         }
     }
@@ -2959,6 +2972,22 @@
         displayEl.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(); }
         });
+    }
+
+    // ML-148: shared by every volume slider (Quick Play, Blocks) - a single click of audible feedback
+    // at whatever volume was just set, so dragging with the metronome stopped isn't silent. Throttled
+    // to at most once every 130ms while continuously dragging (per the ticket's 120-150ms range) so a
+    // fast drag doesn't fire an overlapping flood of clicks; `force` bypasses that throttle for the
+    // moments that must always produce a click regardless of recent throttle state - letting go of the
+    // thumb, a +/- tap, committing a typed number, and the mute toggle.
+    let lastVolumeTestClickAt = 0;
+    const VOLUME_TEST_CLICK_THROTTLE_MS = 130;
+    function playVolumeTestClick(player, force = false) {
+        if (!player || player.isPlaying()) return; // already audible live, no test click needed
+        const now = performance.now();
+        if (!force && now - lastVolumeTestClickAt < VOLUME_TEST_CLICK_THROTTLE_MS) return;
+        lastVolumeTestClickAt = now;
+        player.playTestClick();
     }
 
     const METRO_CUSTOM_MAX = 50;
@@ -3243,11 +3272,12 @@
         if (helpText) helpText.innerText = metroBlkEditMode ? 'Tap a block to edit it, or drag to reorder.' : 'Tap a block to jump to it.';
         document.getElementById('metroBlkEditBar')?.classList.toggle('hidden-group', !metroBlkEditMode);
         document.getElementById('metroBuilderView')?.classList.toggle('metroBlk-editing', metroBlkEditMode);
-        // Play/Reset/sub-beats/speed/more are fully disabled while editing too (follow-up, stricter
-        // than the original "Play auto-saves first" behaviour) - one unambiguous way out of Edit Mode
+        // Play/Reset/sub-beats/speed are fully disabled while editing too (follow-up, stricter than
+        // the original "Play auto-saves first" behaviour) - one unambiguous way out of Edit Mode
         // (Cancel or Save on the bottom bar) rather than a second path that quietly saves as a side
-        // effect of pressing Play.
-        ['metroBlkPlayBtn', 'metroBlkResetBtn', 'metroBlkSubdivideBtn', 'metroBlkSpeedBtn', 'metroBlkMoreBtn'].forEach(id => {
+        // effect of pressing Play. Volume (metroBlkVolumeBtn) is deliberately left enabled - it
+        // doesn't touch playback or the draft, so there's no reason to block it.
+        ['metroBlkPlayBtn', 'metroBlkResetBtn', 'metroBlkSubdivideBtn', 'metroBlkSpeedBtn'].forEach(id => {
             const btn = document.getElementById(id);
             if (btn) btn.disabled = metroBlkEditMode;
         });
@@ -3769,32 +3799,75 @@
         const el = document.getElementById('metroSegTimeSigBtnLabel');
         if (el) el.innerText = metroSegTimeSigLabelFor(metroSegTimeSigValue) || 'Choose…';
     }
-    // Columns grouped by denominator, numerators increasing down each column (whatever's actually
-    // in the catalog - not assumed to be a complete 1..N run). Custom signatures slot into the same
-    // column as any public one sharing their denominator, tagged with the dashed .custom style.
+    // ML-153: three fixed preset grids (Simple/Compound/Asymmetric) instead of one column per
+    // denominator - grouped by time_signature_options.family (db/migrations/030_time_signature_
+    // family.sql), which is NULL for every catalog entry that isn't one of these 12 presets (those
+    // stay reachable only via the custom builder below, same as before). The order within each
+    // family is fixed to match the design exactly - family alone doesn't imply an order, and the
+    // catalog's own sort_order (oldest-added-first) doesn't happen to match it. A family with zero
+    // members (shouldn't happen given the migration, but if the catalog is ever edited down to
+    // nothing) just renders no grid rather than an empty heading.
+    const METRO_SEG_TIMESIG_FAMILY_LABELS = { simple: 'Simple', compound: 'Compound', asymmetric: 'Asymmetric' };
+    const METRO_SEG_TIMESIG_FAMILY_ORDER = {
+        simple: ['2/4', '3/4', '4/4', '2/2'],
+        compound: ['6/8', '9/8', '12/8', '3/8'],
+        asymmetric: ['5/4', '7/4', '5/8', '7/8']
+    };
     function renderMetroSegTimeSigPicker() {
-        const el = document.getElementById('metroSegTimeSigColumns');
+        const el = document.getElementById('metroSegTimeSigFamilies');
         if (!el) return;
-        const all = [
-            ...metroBlkTimeSigCache.public.map(t => ({ value: `public:${t.id}`, numerator: t.numerator, denominator: t.denominator, isCustom: false })),
-            ...metroBlkTimeSigCache.custom.map(t => ({ value: `custom:${t.id}`, numerator: t.numerator, denominator: t.denominator, isCustom: true }))
-        ];
-        const byDenom = {};
-        all.forEach(t => { (byDenom[t.denominator] = byDenom[t.denominator] || []).push(t); });
-        const denoms = Object.keys(byDenom).map(Number).sort((a, b) => a - b);
-        el.innerHTML = denoms.map(d => {
-            const opts = byDenom[d].sort((a, b) => a.numerator - b.numerator);
-            return `<div class="metroBlk-timesig-col">
-                <div class="metroBlk-timesig-col-head">/${d}</div>
-                ${opts.map(o => `<button type="button" class="metroBlk-timesig-opt${o.isCustom ? ' custom' : ''}${o.value === metroSegTimeSigValue ? ' selected' : ''}" data-value="${o.value}">${o.numerator}</button>`).join('')}
+        el.innerHTML = Object.keys(METRO_SEG_TIMESIG_FAMILY_LABELS).map(family => {
+            const order = METRO_SEG_TIMESIG_FAMILY_ORDER[family];
+            const members = metroBlkTimeSigCache.public
+                .filter(t => t.family === family)
+                .sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
+            if (!members.length) return '';
+            return `<div class="metroSeg-timesig-family">
+                <div class="metroSeg-timesig-family-label">${METRO_SEG_TIMESIG_FAMILY_LABELS[family]}</div>
+                <div class="metroSeg-timesig-family-grid">
+                    ${members.map(t => {
+                        const value = `public:${t.id}`;
+                        return `<button type="button" class="metroBlk-timesig-opt${value === metroSegTimeSigValue ? ' selected' : ''}" data-value="${value}">${escapeHtml(t.label)}</button>`;
+                    }).join('')}
+                </div>
             </div>`;
         }).join('');
         el.querySelectorAll('.metroBlk-timesig-opt').forEach(btn => {
             btn.addEventListener('click', () => selectMetroSegTimeSig(btn.dataset.value));
         });
+        renderMetroSegTimeSigChips();
+    }
+    // Saved custom quick chips - tapping the label selects & closes immediately, same as a preset.
+    // Only shown once there's at least one (metroSegTimeSigChipsRow starts hidden-group in the HTML).
+    // The small × (stopPropagation'd so it never also triggers select) is this compact popup's only
+    // way to get an unwanted signature out of the way now that the old "Your custom time signatures"
+    // full management list (with separate Delete/Archive actions) is gone. It archives rather than
+    // hard-deletes, so the row stays in account_time_signatures (still valid for any block already
+    // using it) - just hidden from the chip row instead of destroyed. A true delete is still possible
+    // via window.deleteMetroSegCustomTimeSig if ever needed, just not exposed from this compact UI.
+    function renderMetroSegTimeSigChips() {
+        const row = document.getElementById('metroSegTimeSigChipsRow');
+        const chips = document.getElementById('metroSegTimeSigChips');
+        if (!row || !chips) return;
+        const custom = metroBlkTimeSigCache.custom;
+        row.classList.toggle('hidden-group', !custom.length);
+        chips.innerHTML = custom.map(t => `
+            <span class="metroSeg-timesig-chip">
+                <button type="button" class="metroSeg-timesig-chip-select" data-value="custom:${t.id}">${escapeHtml(t.label)}</button>
+                <button type="button" class="metroSeg-timesig-chip-remove" data-remove-id="${t.id}" aria-label="Archive ${escapeHtml(t.label)}">&times;</button>
+            </span>`).join('');
+        chips.querySelectorAll('.metroSeg-timesig-chip-select').forEach(btn => {
+            btn.addEventListener('click', () => selectMetroSegTimeSig(btn.dataset.value));
+        });
+        chips.querySelectorAll('.metroSeg-timesig-chip-remove').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                archiveMetroSegCustomTimeSig(Number(btn.dataset.removeId));
+            });
+        });
     }
     // Picking a real signature applies immediately and closes, same as the note-value picker - no
-    // separate "apply" step. The [x] is the only way to close without changing anything.
+    // separate "apply" step. The [x]/Done are the only ways to close without changing anything.
     function selectMetroSegTimeSig(value) {
         metroSegTimeSigValue = value;
         metroSegTimeSigOnSelect?.(value);
@@ -3806,12 +3879,12 @@
             refreshMetroSegBpmDisplay();
         };
         renderMetroSegTimeSigPicker();
-        document.getElementById('metroSegCustomSigInputs').classList.add('hidden-group');
-        renderMetroSegCustomSigManageList();
         document.getElementById('metroSegTimeSigModal').style.display = 'flex';
     });
-    document.getElementById('metroSegTimeSigCustomToggle')?.addEventListener('click', () => {
-        document.getElementById('metroSegCustomSigInputs').classList.toggle('hidden-group');
+    // ML-148-style scrim dismissal - tapping the dark backdrop outside the card closes it, same as
+    // Done/[x] (every change already applies live, there's no separate "save" step to lose).
+    document.getElementById('metroSegTimeSigModal')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
     });
 
     // "Your custom time signatures" - every one the account has, active or archived, with how many
@@ -4649,9 +4722,8 @@
                 ? (lastRegular.timeSignatureId ? `public:${lastRegular.timeSignatureId}` : `custom:${lastRegular.accountTimeSignatureId}`)
                 : (metroBlkTimeSigCache.public[0] ? `public:${metroBlkTimeSigCache.public[0].id}` : null);
         renderMetroSegTimeSigBtn();
-        document.getElementById('metroSegCustomSigInputs').classList.add('hidden-group');
-        document.getElementById('metroSegCustomNumerator').value = '';
-        document.getElementById('metroSegCustomDenominator').value = '';
+        document.getElementById('metroSegCustomNumerator').value = '4';
+        document.getElementById('metroSegCustomDenominator').value = '4';
 
         // Bug fix: an existing block's own last-chosen note value (persisted since ML-35 follow-up)
         // takes priority over the denominator-based default - re-opening a saved block used to
@@ -4736,14 +4808,16 @@
 
     document.getElementById('metroSegCustomSigAddBtn')?.addEventListener('click', async () => {
         const numerator = Number(document.getElementById('metroSegCustomNumerator').value);
+        // Denominator is a <select> locked to 2/4/8/16 (ML-153 - a beat value has to actually be a
+        // musical note power of two), so it can't itself be out of range - only beats needs checking.
         const denominator = Number(document.getElementById('metroSegCustomDenominator').value);
-        if (!numerator || !denominator) return showWarningToast('Enter both numbers.');
+        if (!numerator || numerator < 1 || numerator > 32) return showWarningToast('Beats must be between 1 and 32.');
         try {
             const created = await API.metronomeBlocks.timeSignatures.createCustom(numerator, denominator);
             await loadMetroBlkTimeSignatures();
             selectMetroSegTimeSig(`custom:${created.id}`);
-            document.getElementById('metroSegCustomNumerator').value = '';
-            document.getElementById('metroSegCustomDenominator').value = '';
+            document.getElementById('metroSegCustomNumerator').value = '4';
+            document.getElementById('metroSegCustomDenominator').value = '4';
             showSuccessToast(`Added ${numerator}/${denominator}`);
         } catch (error) {
             showWarningToast('Error adding time signature: ' + error.message);
@@ -5572,34 +5646,9 @@
     document.getElementById('metroBlkMiniSettingsBtn')?.addEventListener('click', () => switchView('metroBuilderView'));
     document.getElementById('metroBlkMiniCloseBtn')?.addEventListener('click', closeMetroBlkMiniBar);
 
-    // ML-139: Volume moved off its own direct grid cell into this 3-dot menu (only item for now) -
-    // same fixed-position-placed-against-the-button pattern as the tuner's own 3-dot menu
-    // (metroBlkMiniTunerMenuBtn) and the block tiles' per-tile menu.
-    function closeMetroBlkTransportMenu() {
-        document.getElementById('metroBlkTransportMenu')?.classList.remove('show');
-    }
-    document.addEventListener('click', closeMetroBlkTransportMenu);
-    document.getElementById('metroBlkMoreBtn')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const menu = document.getElementById('metroBlkTransportMenu');
-        if (!menu) return;
-        if (menu.classList.contains('show')) { closeMetroBlkTransportMenu(); return; }
-        const btnRect = e.currentTarget.getBoundingClientRect();
-        menu.classList.add('show');
-        const menuWidth = menu.offsetWidth;
-        const menuHeight = menu.offsetHeight;
-        let left = btnRect.right - menuWidth;
-        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
-        let top = btnRect.bottom + 4;
-        top = Math.min(top, window.innerHeight - menuHeight - 8);
-        menu.style.left = `${left}px`;
-        menu.style.top = `${top}px`;
-    });
-    document.getElementById('metroBlkTransportMenuVolume')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeMetroBlkTransportMenu();
-        openMetroBlkVolumePopup();
-    });
+    // ML-146: Volume lives as a plain icon in the "now playing" box's own header now (superseding
+    // ML-139's 3-dot menu approach) - same spot/shape as Quick Play's own qpVolumeBtn.
+    document.getElementById('metroBlkVolumeBtn')?.addEventListener('click', openMetroBlkVolumePopup);
 
     // --- Playback speed popup (ML-91 follow-up: was -/+ steppers sat next to a bare "100%" readout;
     // a slider replacement lost that quick repeatable jump, and a typed exact value doesn't matter
@@ -5662,11 +5711,13 @@
     });
     renderMetroBlkSpeedLabels();
 
-    // --- Volume (ML-102) - mirrors the single-bar tool's own volume slider (renderMetroVolumeSlider/
-    // setMetroVolume, above) but scoped to metroBlkPlayer. Own in-memory-only state, not persisted -
-    // same as the single-bar tool's volume/mute (only headphone delay persists to localStorage). ---
+    // --- Volume (ML-102, reworked ML-148) - mirrors Quick Play's own qpVolume/setQpVolume below, own
+    // in-memory-only state, not persisted (only headphone delay persists to localStorage). Mute isn't
+    // a separate engine-level flag any more (ML-148) - it's just volume 0, with
+    // metroBlkVolumeBeforeMute remembering the last non-zero value so unmuting (or dragging back up)
+    // restores exactly where it was. ---
     let metroBlkVolume = 80;
-    let metroBlkMuted = false;
+    let metroBlkVolumeBeforeMute = 80;
 
     function renderMetroBlkVolumeSlider() {
         const fill = document.getElementById('metroBlkVolumeFill');
@@ -5675,21 +5726,33 @@
         fill.style.width = `${metroBlkVolume}%`;
         thumb.style.left = `${metroBlkVolume}%`;
         thumb.setAttribute('aria-valuenow', metroBlkVolume);
+        const valueEl = document.getElementById('metroBlkVolumeValue');
+        if (valueEl) valueEl.innerText = `${metroBlkVolume}%`;
+        const muted = metroBlkVolume === 0;
+        document.getElementById('metroBlkMuteIcon').innerText = muted ? 'volume_off' : 'volume_up';
+        document.getElementById('metroBlkMuteBtn')?.setAttribute('aria-pressed', String(muted));
+        document.getElementById('metroBlkVolumeRow')?.classList.toggle('is-muted', muted);
     }
-    function setMetroBlkVolume(v) {
+    // `force` (ML-148) bypasses the test-click throttle - see playVolumeTestClick - for the specific
+    // gestures that must always produce a confirmation click (release, +/- tap, typed-number commit,
+    // mute toggle), as opposed to the continuous stream of calls a live drag makes.
+    function setMetroBlkVolume(v, force = false) {
         metroBlkVolume = Math.round(Math.min(100, Math.max(0, v)));
+        if (metroBlkVolume > 0) metroBlkVolumeBeforeMute = metroBlkVolume;
         metroBlkPlayer.setVolume(metroBlkVolume / 100);
         renderMetroBlkVolumeSlider();
+        playVolumeTestClick(metroBlkPlayer, force);
     }
     setupSliderInteraction(document.getElementById('metroBlkVolumeTrack'), document.getElementById('metroBlkVolumeThumb'), {
         onDragRatio: (ratio) => setMetroBlkVolume(ratio * 100),
-        onArrowStep: (dir) => setMetroBlkVolume(metroBlkVolume + dir * 5)
+        onArrowStep: (dir) => setMetroBlkVolume(metroBlkVolume + dir * 5),
+        onRelease: () => playVolumeTestClick(metroBlkPlayer, true)
     });
+    setupHoldStepper('metroBlkVolumeMinus', -1, (amount) => setMetroBlkVolume(metroBlkVolume + amount, true));
+    setupHoldStepper('metroBlkVolumePlus', 1, (amount) => setMetroBlkVolume(metroBlkVolume + amount, true));
+    makeSliderReadoutEditable('metroBlkVolumeValue', () => metroBlkVolume, (v) => setMetroBlkVolume(v, true), { label: 'Volume', min: 0, max: 100 });
     document.getElementById('metroBlkMuteBtn')?.addEventListener('click', () => {
-        metroBlkMuted = !metroBlkMuted;
-        metroBlkPlayer.setMuted(metroBlkMuted);
-        document.getElementById('metroBlkMuteIcon').innerText = metroBlkMuted ? 'volume_off' : 'volume_up';
-        document.getElementById('metroBlkMuteBtn').setAttribute('aria-pressed', String(metroBlkMuted));
+        setMetroBlkVolume(metroBlkVolume > 0 ? 0 : (metroBlkVolumeBeforeMute || 80), true);
     });
     renderMetroBlkVolumeSlider();
 
@@ -5738,6 +5801,13 @@
         document.getElementById('metroBlkVolumeModal').style.display = 'none';
     }
     document.getElementById('metroBlkVolumeCloseBtn')?.addEventListener('click', closeMetroBlkVolumePopup);
+    // ML-148: tapping the dark scrim outside the card dismisses it too - every change already
+    // applies live (there's no separate "save" step), so this is purely a faster way to close.
+    // e.target === e.currentTarget excludes clicks that started inside .modal-content and merely
+    // bubbled up to the scrim.
+    document.getElementById('metroBlkVolumeModal')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeMetroBlkVolumePopup();
+    });
 
     // Shown only when actually playing at the moment a view change happens - not a "session active"
     // flag remembered across navigations, just isPlaying() re-checked fresh on every switchView.
@@ -5834,36 +5904,52 @@
     // Always exactly 1 bar per block, no repeat - that's a Flow-only concept (its own bar-count
     // stepper/slider). Title is computed from position ("Bar N"), not stored, so move/duplicate/
     // delete never need to renumber anything - the next render just reads it off the new index.
+    // ML-145: the outer .qp-block-box is just a clipping wrapper now (see the matching style.css
+    // comment) - the delete underlay sits behind, the actual card content lives in .qp-block-surface,
+    // which is what wireQpBarSwipe slides. The grab handle only renders once there's more than one bar
+    // to reorder (matches the 3-dot menu's own Move up/down, which hide for the same reason).
     function qpBlockBoxHtml(block, index) {
+        const grabHandle = qpBlocks.length > 1
+            ? `<button type="button" class="qp-bar-grab-handle" data-qp-grab-handle aria-label="Drag to reorder Bar ${index + 1}"><span class="material-symbols-outlined">drag_indicator</span></button>`
+            : '';
         return `<div class="qp-block-box" data-qp-block-index="${index}" data-qp-uid="${block._uid}">
-            <div class="qp-block-header">
-                <span class="qp-block-title">Bar ${index + 1}</span>
-                <button type="button" class="qp-bar-menu-btn" data-qp-menu-btn aria-label="Bar ${index + 1} options"><span class="material-symbols-outlined">more_vert</span></button>
+            <div class="qp-block-delete-underlay" data-qp-delete-btn aria-label="Delete Bar ${index + 1}">
+                <span class="material-symbols-outlined">delete</span>
+                <span>Delete</span>
             </div>
-            <div class="qp-bar-fields-grid">
-                <button type="button" class="metroBlk-ctrl-value-btn qp-timesig-cell" data-qp-timesig-btn aria-label="Time signature - tap to change">
-                    <strong>${escapeHtml(qpBlockTimeSigLabel(block))}</strong>
-                    <span class="metroBlk-ctrl-value-label">time</span>
-                </button>
-                <button type="button" class="metroBlk-ctrl-value-btn qp-notelen-cell" data-qp-note-btn aria-label="Beat unit - tap to change">
-                    <span class="qp-note-btn-icon">${metroNoteIconSvg(block.noteSelected)}</span>
-                    <span class="metroBlk-ctrl-value-label">beat unit</span>
-                </button>
-                <div class="metroBlk-bpm-box qp-bpm-cell">
-                    <div class="metro-speed-row no-margin qp-bpm-speed-row">
-                        <button class="metro-bpm-step" type="button" data-qp-bpm-minus aria-label="Decrease beats per minute">&minus;</button>
-                        <div class="metro-speed-readout">
-                            <div data-qp-bpm-value>120</div>
-                            <div class="metro-speed-sub">bpm</div>
-                        </div>
-                        <button class="metro-bpm-step" type="button" data-qp-bpm-plus aria-label="Increase beats per minute">+</button>
+            <div class="qp-block-surface">
+                <div class="qp-block-header">
+                    <div class="qp-block-header-left">
+                        ${grabHandle}
+                        <span class="qp-block-title">Bar ${index + 1}</span>
                     </div>
-                    <div class="slider-wrap no-margin">
-                        <div class="slider-track" data-qp-bpm-slider-track>
-                            <div class="slider-fill" data-qp-bpm-slider-fill></div>
-                            <div class="slider-thumb" data-qp-bpm-slider-thumb tabindex="0" role="slider" aria-label="Beats per minute" aria-valuemin="${METRO_MIN_BPM}" aria-valuenow="120"></div>
+                    <button type="button" class="qp-bar-menu-btn" data-qp-menu-btn aria-label="Bar ${index + 1} options"><span class="material-symbols-outlined">more_vert</span></button>
+                </div>
+                <div class="qp-bar-fields-grid">
+                    <button type="button" class="metroBlk-ctrl-value-btn qp-timesig-cell" data-qp-timesig-btn aria-label="Time signature - tap to change">
+                        <strong>${escapeHtml(qpBlockTimeSigLabel(block))}</strong>
+                        <span class="metroBlk-ctrl-value-label">time</span>
+                    </button>
+                    <button type="button" class="metroBlk-ctrl-value-btn qp-notelen-cell" data-qp-note-btn aria-label="Beat unit - tap to change">
+                        <span class="qp-note-btn-icon">${metroNoteIconSvg(block.noteSelected)}</span>
+                        <span class="metroBlk-ctrl-value-label">beat unit</span>
+                    </button>
+                    <div class="metroBlk-bpm-box qp-bpm-cell">
+                        <div class="metro-speed-row no-margin qp-bpm-speed-row">
+                            <button class="metro-bpm-step" type="button" data-qp-bpm-minus aria-label="Decrease beats per minute">&minus;</button>
+                            <div class="metro-speed-readout">
+                                <div data-qp-bpm-value>120</div>
+                                <div class="metro-speed-sub">bpm</div>
+                            </div>
+                            <button class="metro-bpm-step" type="button" data-qp-bpm-plus aria-label="Increase beats per minute">+</button>
                         </div>
-                        <div class="slider-scale"><span>${METRO_MIN_BPM}</span><span data-qp-bpm-slider-max-lbl>200</span></div>
+                        <div class="slider-wrap no-margin">
+                            <div class="slider-track" data-qp-bpm-slider-track>
+                                <div class="slider-fill" data-qp-bpm-slider-fill></div>
+                                <div class="slider-thumb" data-qp-bpm-slider-thumb tabindex="0" role="slider" aria-label="Beats per minute" aria-valuemin="${METRO_MIN_BPM}" aria-valuenow="120"></div>
+                            </div>
+                            <div class="slider-scale"><span>${METRO_MIN_BPM}</span><span data-qp-bpm-slider-max-lbl>200</span></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -5954,6 +6040,7 @@
             e.stopPropagation();
             openQpBarMenu(e.currentTarget, index);
         });
+        wireQpBarGrabHandle(boxEl.querySelector('[data-qp-grab-handle]'), boxEl, index);
         wireQpBarSwipe(boxEl, index);
 
         renderBpmSlider();
@@ -5993,14 +6080,13 @@
             onPicked();
         };
         renderMetroSegTimeSigPicker();
-        document.getElementById('metroSegCustomSigInputs').classList.add('hidden-group');
-        renderMetroSegCustomSigManageList();
         document.getElementById('metroSegTimeSigModal').style.display = 'flex';
     }
 
     function renderQuickPlayBlocks() {
         const container = document.getElementById('qpBlocks');
         if (!container) return;
+        qpOpenSwipeIndex = null; // a full rebuild throws every node away - any open swipe is stale
         container.innerHTML = qpBlocks.map((b, i) => qpBlockBoxHtml(b, i)).join('');
         container.querySelectorAll('[data-qp-block-index]').forEach(boxEl => {
             wireQpBlockBox(boxEl, Number(boxEl.dataset.qpBlockIndex));
@@ -6113,47 +6199,146 @@
         el.addEventListener('transitionend', finish, { once: true });
     }
 
-    // Swipe-to-act anywhere on the bar box that isn't itself an interactive control - left to delete
-    // (matching qpDeleteBar's own exit direction), up/down to reorder. Excludes buttons/inputs/sliders/
-    // the editable BPM readout (role="button") via the pointerdown target check below, rather than
-    // scoping to one small handle, so there's a large, easy area to grab. Pointer events (not touch
-    // events) mean this is also just a click-hold-and-drag with a mouse on desktop - no separate
-    // desktop affordance needed. touch-action: none on the box (see .qp-block-box) stops the page's
-    // own scroll from fighting a swipe gesture that starts here on a touchscreen.
-    const QP_SWIPE_THRESHOLD_PX = 40;
+    // ML-145: replaces the old free 2-axis drag-anywhere-on-the-box gesture, which called
+    // e.preventDefault() on every pointerdown regardless of direction and so blocked native page
+    // scroll from ever starting on a bar card at all. Two independent, purpose-built gestures now:
+    // wireQpBarGrabHandle owns vertical reordering, scoped strictly to the small handle
+    // (touch-action:none there only, see style.css); wireQpBarSwipe owns horizontal swipe-to-reveal
+    // delete, and only intercepts the gesture at all once it's confirmed horizontal (see the lock
+    // check below) - anything more vertical than that is left untouched so touch-action:pan-y on
+    // .qp-block-box lets the browser's own scroll handle it.
+    const QP_REORDER_THRESHOLD_PX = 40;
+    const QP_SWIPE_LOCK_X_PX = 30;
+    const QP_SWIPE_LOCK_Y_MAX_PX = 15;
+    const QP_SWIPE_OPEN_PX = 96; // keep in sync with .qp-block-delete-underlay's width in style.css
+    const QP_SWIPE_SNAP_THRESHOLD_PX = 48;
     const QP_SWIPE_EXCLUDE_SELECTOR = 'button, input, [role="slider"], [role="button"], .slider-track, .slider-thumb';
-    function wireQpBarSwipe(boxEl, index) {
-        let startX = 0, startY = 0, dragging = false;
+
+    // Which bar (if any) is currently swiped open, revealing its delete underlay - at most one at a
+    // time, matching the ticket's "tapping outside an open card... snaps it back". Tracked by index
+    // rather than a DOM reference since a re-render (renderQuickPlayBlocks) throws every node away;
+    // that same re-render resets this to null (stale DOM either way).
+    let qpOpenSwipeIndex = null;
+    function qpSwipeSurfaceFor(index) {
+        return document.querySelector(`#qpBlocks [data-qp-block-index="${index}"] .qp-block-surface`);
+    }
+    function qpSetSwipeOffset(index, offset, animate) {
+        const surface = qpSwipeSurfaceFor(index);
+        if (!surface) return;
+        surface.style.transition = animate ? 'transform 0.2s ease' : 'none';
+        surface.style.transform = offset ? `translateX(${offset}px)` : '';
+    }
+    function qpCloseOpenSwipe(animate = true) {
+        if (qpOpenSwipeIndex === null) return;
+        qpSetSwipeOffset(qpOpenSwipeIndex, 0, animate);
+        qpOpenSwipeIndex = null;
+    }
+    // "Tapping anywhere outside an open card... snaps the card back" - a document-level listener
+    // rather than a per-card blur/outside-click check, same pattern as closeQpBarMenu below.
+    document.addEventListener('pointerdown', (e) => {
+        if (qpOpenSwipeIndex === null) return;
+        const openBoxEl = document.querySelector(`#qpBlocks [data-qp-block-index="${qpOpenSwipeIndex}"]`);
+        if (openBoxEl && !openBoxEl.contains(e.target)) qpCloseOpenSwipe();
+    });
+
+    // Vertical reordering, scoped strictly to the grab handle (only rendered once there are 2+ bars -
+    // see qpBlockBoxHtml). Single-step swap (qpMoveBarUp/Down), same as the menu's own Move up/down -
+    // this refactor is about where the gesture is allowed to start, not building a full drag-to-
+    // arbitrary-position sortable list.
+    function wireQpBarGrabHandle(handleEl, boxEl, index) {
+        if (!handleEl) return;
+        let startY = 0, dragging = false;
 
         function onMove(e) {
             if (!dragging) return;
-            boxEl.style.transform = `translate(${e.clientX - startX}px, ${e.clientY - startY}px)`;
+            boxEl.style.transform = `translateY(${e.clientY - startY}px)`;
         }
         function onUp(e) {
             if (!dragging) return;
             dragging = false;
             document.removeEventListener('pointermove', onMove);
             document.removeEventListener('pointerup', onUp);
-            const dx = e.clientX - startX;
             const dy = e.clientY - startY;
             boxEl.style.transition = '';
             boxEl.style.transform = '';
-            const absX = Math.abs(dx), absY = Math.abs(dy);
-            if (absX > absY && absX > QP_SWIPE_THRESHOLD_PX && dx < 0) {
-                qpDeleteBar(index);
-            } else if (absY > absX && absY > QP_SWIPE_THRESHOLD_PX) {
+            if (Math.abs(dy) > QP_REORDER_THRESHOLD_PX) {
                 if (dy < 0) qpMoveBarUp(index); else qpMoveBarDown(index);
             }
         }
-        boxEl.addEventListener('pointerdown', (e) => {
-            if (e.target.closest(QP_SWIPE_EXCLUDE_SELECTOR)) return;
+        handleEl.addEventListener('pointerdown', (e) => {
             e.preventDefault();
-            startX = e.clientX;
+            e.stopPropagation();
             startY = e.clientY;
             dragging = true;
             boxEl.style.transition = 'none';
             document.addEventListener('pointermove', onMove);
             document.addEventListener('pointerup', onUp);
+        });
+    }
+
+    // Horizontal swipe-to-reveal delete. Doesn't touch anything (no transform, no preventDefault)
+    // until the gesture actually locks into "this is a horizontal swipe" (>30px horizontal travel
+    // while vertical travel is still <15px) - a clearly-vertical drag before that point is treated as
+    // a scroll attempt and left alone entirely, letting touch-action:pan-y do its job.
+    function wireQpBarSwipe(boxEl, index) {
+        const surfaceEl = boxEl.querySelector('.qp-block-surface');
+        let startX = 0, startY = 0, tracking = false, locked = false, abandoned = false;
+
+        function currentBaseOffset() { return qpOpenSwipeIndex === index ? -QP_SWIPE_OPEN_PX : 0; }
+
+        function onMove(e) {
+            if (!tracking || abandoned) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (!locked) {
+                if (Math.abs(dx) > QP_SWIPE_LOCK_X_PX && Math.abs(dy) < QP_SWIPE_LOCK_Y_MAX_PX) {
+                    locked = true;
+                    // Only one card open at a time - starting a fresh swipe elsewhere closes any other.
+                    if (qpOpenSwipeIndex !== null && qpOpenSwipeIndex !== index) qpCloseOpenSwipe(false);
+                } else if (Math.abs(dy) >= QP_SWIPE_LOCK_Y_MAX_PX) {
+                    abandoned = true; // a scroll, not a swipe - stop tracking, never transform
+                    return;
+                } else {
+                    return; // not enough travel yet either way
+                }
+            }
+            e.preventDefault();
+            const offset = Math.min(0, Math.max(-QP_SWIPE_OPEN_PX, currentBaseOffset() + dx));
+            surfaceEl.style.transition = 'none';
+            surfaceEl.style.transform = `translateX(${offset}px)`;
+        }
+        function onUp(e) {
+            if (!tracking) return;
+            tracking = false;
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            if (!locked) return;
+            const dx = e.clientX - startX;
+            const finalOffset = Math.min(0, Math.max(-QP_SWIPE_OPEN_PX, currentBaseOffset() + dx));
+            if (Math.abs(finalOffset) > QP_SWIPE_SNAP_THRESHOLD_PX) {
+                qpSetSwipeOffset(index, -QP_SWIPE_OPEN_PX, true);
+                qpOpenSwipeIndex = index;
+            } else {
+                qpSetSwipeOffset(index, 0, true);
+                if (qpOpenSwipeIndex === index) qpOpenSwipeIndex = null;
+            }
+        }
+        boxEl.addEventListener('pointerdown', (e) => {
+            if (e.target.closest(QP_SWIPE_EXCLUDE_SELECTOR)) return;
+            startX = e.clientX;
+            startY = e.clientY;
+            tracking = true;
+            locked = false;
+            abandoned = false;
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+        });
+        // Tapping the revealed delete button deletes - swiping left never deletes on its own on
+        // release, only opens the reveal (per the ticket: "Swiping left must not delete immediately").
+        boxEl.querySelector('[data-qp-delete-btn]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            qpOpenSwipeIndex = null;
+            qpDeleteBar(index);
         });
     }
 
@@ -6423,12 +6608,14 @@
         renderQuickPlayRows();
     }
 
-    // No separate Reset button - press-and-hold on Play does it instead, via the same shared
-    // setupPlayButtonHoldReset Blocks' own Play button uses (see the METRONOME ENGINE section).
+    // ML-146: a plain Reset button sits next to Play now (matching Blocks' own transport row) -
+    // press-and-hold on Play still works too, via the same shared setupPlayButtonHoldReset Blocks'
+    // own Play button uses (see the METRONOME ENGINE section).
     setupPlayButtonHoldReset('qpPlayBtn',
         () => { if (qpPlayer.isPlaying()) pauseQuickPlay(); else playQuickPlay(); },
         resetQuickPlay
     );
+    document.getElementById('qpResetBtn')?.addEventListener('click', resetQuickPlay);
 
     // --- Sub-beats popup (ported from Blocks' own metroBlkSubdivideModal - own state, own modal, same
     // reasoning as qpPlayer being its own player instance) ---
@@ -6532,9 +6719,10 @@
     renderQpSpeedLabel();
 
     // --- Volume (ported from Blocks' - own state, no calibration section, headphone delay is the one
-    // shared setting via metroState.latencyMs/qpPlayerRef) ---
+    // shared setting via metroState.latencyMs/qpPlayerRef). Mute is just volume 0 (ML-148) -
+    // qpVolumeBeforeMute remembers the last non-zero value so unmuting restores it. ---
     let qpVolume = 80;
-    let qpMuted = false;
+    let qpVolumeBeforeMute = 80;
     function renderQpVolumeSlider() {
         const fill = document.getElementById('qpVolumeFill');
         const thumb = document.getElementById('qpVolumeThumb');
@@ -6542,28 +6730,44 @@
         fill.style.width = `${qpVolume}%`;
         thumb.style.left = `${qpVolume}%`;
         thumb.setAttribute('aria-valuenow', qpVolume);
+        const valueEl = document.getElementById('qpVolumeValue');
+        if (valueEl) valueEl.innerText = `${qpVolume}%`;
+        const muted = qpVolume === 0;
+        document.getElementById('qpMuteIcon').innerText = muted ? 'volume_off' : 'volume_up';
+        document.getElementById('qpMuteBtn')?.setAttribute('aria-pressed', String(muted));
+        document.getElementById('qpVolumeRow')?.classList.toggle('is-muted', muted);
     }
-    function setQpVolume(v) {
+    // `force` (ML-148) bypasses the test-click throttle - see playVolumeTestClick.
+    function setQpVolume(v, force = false) {
         qpVolume = Math.round(Math.min(100, Math.max(0, v)));
+        if (qpVolume > 0) qpVolumeBeforeMute = qpVolume;
         qpPlayer.setVolume(qpVolume / 100);
         renderQpVolumeSlider();
+        playVolumeTestClick(qpPlayer, force);
     }
     setupSliderInteraction(document.getElementById('qpVolumeTrack'), document.getElementById('qpVolumeThumb'), {
         onDragRatio: (ratio) => setQpVolume(ratio * 100),
-        onArrowStep: (dir) => setQpVolume(qpVolume + dir * 5)
+        onArrowStep: (dir) => setQpVolume(qpVolume + dir * 5),
+        onRelease: () => playVolumeTestClick(qpPlayer, true)
     });
+    setupHoldStepper('qpVolumeMinus', -1, (amount) => setQpVolume(qpVolume + amount, true));
+    setupHoldStepper('qpVolumePlus', 1, (amount) => setQpVolume(qpVolume + amount, true));
+    makeSliderReadoutEditable('qpVolumeValue', () => qpVolume, (v) => setQpVolume(v, true), { label: 'Volume', min: 0, max: 100 });
     document.getElementById('qpMuteBtn')?.addEventListener('click', () => {
-        qpMuted = !qpMuted;
-        qpPlayer.setMuted(qpMuted);
-        document.getElementById('qpMuteIcon').innerText = qpMuted ? 'volume_off' : 'volume_up';
-        document.getElementById('qpMuteBtn').setAttribute('aria-pressed', String(qpMuted));
+        setQpVolume(qpVolume > 0 ? 0 : (qpVolumeBeforeMute || 80), true);
     });
     document.getElementById('qpVolumeBtn')?.addEventListener('click', () => {
         renderQpVolumeSlider();
         document.getElementById('qpVolumeModal').style.display = 'flex';
     });
-    document.getElementById('qpVolumeCloseBtn')?.addEventListener('click', () => {
+    function closeQpVolumePopup() {
         document.getElementById('qpVolumeModal').style.display = 'none';
+    }
+    document.getElementById('qpVolumeCloseBtn')?.addEventListener('click', closeQpVolumePopup);
+    // ML-148: tapping the dark scrim outside the card dismisses it too - see the matching Blocks
+    // comment on metroBlkVolumeModal.
+    document.getElementById('qpVolumeModal')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeQpVolumePopup();
     });
     renderQpVolumeSlider();
 

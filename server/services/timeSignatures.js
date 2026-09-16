@@ -16,7 +16,7 @@ import { withStatus } from './metronomeSetups.js';
 export async function listTimeSignatureOptions(accountId) {
   const [publicResult, customResult] = await Promise.all([
     pool.query(
-      'SELECT id, numerator, denominator, label FROM time_signature_options WHERE active = true ORDER BY sort_order'
+      'SELECT id, numerator, denominator, label, family FROM time_signature_options WHERE active = true ORDER BY sort_order'
     ),
     pool.query(
       'SELECT id, numerator, denominator FROM account_time_signatures WHERE account_id = $1 AND active = true ORDER BY numerator, denominator',
@@ -25,7 +25,9 @@ export async function listTimeSignatureOptions(accountId) {
   ]);
 
   return {
-    public: publicResult.rows.map(r => ({ id: Number(r.id), numerator: r.numerator, denominator: r.denominator, label: r.label })),
+    // family (ML-153, nullable - simple/compound/asymmetric) drives the picker's three preset
+    // grids; anything NULL (every non-preset catalog entry) just isn't offered as a preset.
+    public: publicResult.rows.map(r => ({ id: Number(r.id), numerator: r.numerator, denominator: r.denominator, label: r.label, family: r.family })),
     custom: customResult.rows.map(r => ({ id: Number(r.id), numerator: r.numerator, denominator: r.denominator, label: `${r.numerator}/${r.denominator}` }))
   };
 }
@@ -103,7 +105,7 @@ export async function deleteCustomTimeSignature(accountId, id) {
 
 export async function listTimeSignatureOptionsForAdmin() {
   const { rows } = await pool.query(
-    `SELECT tso.id, tso.numerator, tso.denominator, tso.label, tso.sort_order, tso.active,
+    `SELECT tso.id, tso.numerator, tso.denominator, tso.label, tso.sort_order, tso.active, tso.family,
             COUNT(ms.id) AS usage_count
      FROM time_signature_options tso
      LEFT JOIN metronome_segments ms ON ms.time_signature_id = tso.id
@@ -112,7 +114,7 @@ export async function listTimeSignatureOptionsForAdmin() {
   );
   return rows.map(r => ({
     id: Number(r.id), numerator: r.numerator, denominator: r.denominator, label: r.label,
-    sortOrder: r.sort_order, active: r.active, usageCount: Number(r.usage_count)
+    sortOrder: r.sort_order, active: r.active, family: r.family, usageCount: Number(r.usage_count)
   }));
 }
 
