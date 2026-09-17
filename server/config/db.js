@@ -3,11 +3,12 @@
 // (see docs/sheets-to-database-cutover.md).
 
 import pg from 'pg';
+import { withVerifyFullSsl } from '../../db/sslMode.js';
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL is not set - see docs/environments.md for which Neon branch each environment should point at.');
 }
 
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new pg.Pool({ connectionString: withVerifyFullSsl(process.env.DATABASE_URL) });
 
 export default pool;

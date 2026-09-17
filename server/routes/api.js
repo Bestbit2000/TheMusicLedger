@@ -12,7 +12,7 @@ import { getAccountProfile, updateAccountProfile } from '../services/accounts.js
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
 import { listDurationOptions } from '../services/durationOptions.js';
 import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSignaturesWithUsage, setCustomTimeSignatureActive, deleteCustomTimeSignature } from '../services/timeSignatures.js';
-import { listAdhocSetups, createAdhocSetup, renameAdhocSetup, saveAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, getOrCreateScratchSetup, createNamedAdhocSetup, duplicateAdhocSetup, createQuickPlaySetup } from '../services/metronomeSetups.js';
+import { listAdhocSetups, createAdhocSetup, renameAdhocSetup, saveAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, getOrCreateScratchSetup, createNamedAdhocSetup, duplicateAdhocSetup, createQuickPlaySetup, listQuickPlayHistory, setAdhocSetupFavorite, overwriteQuickPlayHistorySegments, duplicateQuickPlayHistory } from '../services/metronomeSetups.js';
 import { createSegment, updateSegment, deleteSegment } from '../services/metronomeSegments.js';
 import { listActivePlaybackSpeeds } from '../services/playbackSpeeds.js';
 
@@ -670,6 +670,16 @@ router.get('/metronome/setups', requireAuth, resolveAccount, async (req, res) =>
   }
 });
 
+// ML-34: Quick Play's "Show history" list - registered before the "/metronome/setups/:id"
+// route below for the same reason "scratch" is (a literal path segment, not an id).
+router.get('/metronome/history', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await listQuickPlayHistory(req.accountId));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
 router.post('/metronome/setups', requireAuth, resolveAccount, async (req, res) => {
   try {
     const { name } = req.body;
@@ -714,6 +724,17 @@ router.put('/metronome/setups/:id', requireAuth, resolveAccount, async (req, res
   try {
     const { name } = req.body;
     await renameAdhocSetup(req.accountId, req.params.id, name);
+    res.json({ message: 'Setup updated' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// ML-34: star/unstar a history entry - "Set as favourite" / "Remove from favourites".
+router.put('/metronome/setups/:id/favorite', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { isFavorite } = req.body;
+    await setAdhocSetupFavorite(req.accountId, req.params.id, isFavorite);
     res.json({ message: 'Setup updated' });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
@@ -766,6 +787,30 @@ router.post('/metronome/quick-play', requireAuth, resolveAccount, async (req, re
       return res.status(400).json({ error: 'Name and at least one block are required.' });
     }
     res.json(await createQuickPlaySetup(req.accountId, name, blocks));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// ML-34 follow-up: once a history entry has been loaded back into Quick Play, Play overwrites that
+// same row's bars instead of writing a fresh history entry every time.
+router.put('/metronome/history/:id', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { blocks } = req.body;
+    if (!Array.isArray(blocks) || !blocks.length) {
+      return res.status(400).json({ error: 'At least one block is required.' });
+    }
+    res.json(await overwriteQuickPlayHistorySegments(req.accountId, req.params.id, blocks));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.post('/metronome/history/:id/duplicate', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required.' });
+    res.json(await duplicateQuickPlayHistory(req.accountId, req.params.id, name.trim()));
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }

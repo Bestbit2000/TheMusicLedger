@@ -172,12 +172,10 @@ export async function duplicateAdhocSetup(accountId, sourceId, name) {
 // whole point is it's already history the moment it's created). No lead-in
 // support - Quick Play has no lead-in concept, so every block is a plain
 // (is_lead_in = false) segment, same insert shape as duplicateAdhocSetup.
-export async function createQuickPlaySetup(accountId, name, blocks) {
-  const inserted = await pool.query(
-    'INSERT INTO adhoc_metronome_setups (account_id, name, saved_at, is_quick_play) VALUES ($1, $2, now(), true) RETURNING id',
-    [accountId, name]
-  );
-  const setupId = inserted.rows[0].id;
+// Shared by createQuickPlaySetup/duplicateQuickPlayHistory/overwriteQuickPlayHistorySegments -
+// every Quick Play block is a plain (is_lead_in = false) segment, same insert shape as
+// duplicateAdhocSetup's own loop above.
+async function insertQuickPlaySegments(setupId, blocks) {
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
     await pool.query(
@@ -187,7 +185,77 @@ export async function createQuickPlaySetup(accountId, name, blocks) {
       [setupId, i, b.barCount, b.bpm, b.timeSignatureId || null, b.accountTimeSignatureId || null, b.noteValue || null]
     );
   }
+}
+
+export async function createQuickPlaySetup(accountId, name, blocks) {
+  const inserted = await pool.query(
+    'INSERT INTO adhoc_metronome_setups (account_id, name, saved_at, is_quick_play) VALUES ($1, $2, now(), true) RETURNING id',
+    [accountId, name]
+  );
+  const setupId = inserted.rows[0].id;
+  await insertQuickPlaySegments(setupId, blocks);
   return getAdhocSetupWithSegments(accountId, setupId);
+}
+
+// ML-34 follow-up: Play, once a history row is already "loaded" into Quick Play, overwrites that
+// same row's bars instead of writing a brand new history entry every time - name/is_favorite/
+// created_at are all left untouched, only the segments themselves are replaced wholesale (delete +
+// re-insert, same pattern the block editor already uses for a segment's own child tables).
+export async function overwriteQuickPlayHistorySegments(accountId, id, blocks) {
+  await assertSetupOwnership(accountId, id);
+  await pool.query('DELETE FROM metronome_segments WHERE parent_adhoc_setup_id = $1', [id]);
+  await insertQuickPlaySegments(id, blocks);
+  return getAdhocSetupWithSegments(accountId, id);
+}
+
+// ML-34 follow-up: "Duplicate" on a history entry - most useful for a favourite you want to keep
+// pristine while iterating on a variant. Default name is computed client-side (qpNextDuplicateName,
+// against the already-loaded history list) and just passed straight through here.
+export async function duplicateQuickPlayHistory(accountId, sourceId, name) {
+  const source = await getAdhocSetupWithSegments(accountId, sourceId);
+  const inserted = await pool.query(
+    'INSERT INTO adhoc_metronome_setups (account_id, name, saved_at, is_quick_play) VALUES ($1, $2, now(), true) RETURNING id',
+    [accountId, name]
+  );
+  const setupId = inserted.rows[0].id;
+  await insertQuickPlaySegments(setupId, source.segments.map(s => ({
+    barCount: s.barCount, bpm: s.bpm, timeSignatureId: s.timeSignatureId, accountTimeSignatureId: s.accountTimeSignatureId, noteValue: s.noteValue
+  })));
+  return getAdhocSetupWithSegments(accountId, setupId);
+}
+
+// ML-34: the "Show history" list - every Quick Play row (is_quick_play, see
+// createQuickPlaySetup above), favourites first (alphabetically), then
+// everyone else by when they were played (most recent first). The CASE
+// expression is NULL for every non-favourite row, so ORDER BY ties on it and
+// falls through to created_at for that whole group - only favourites actually
+// sort by name.
+export async function listQuickPlayHistory(accountId) {
+  const { rows } = await pool.query(
+    `SELECT s.id, s.name, s.created_at, s.is_favorite,
+            COUNT(ms.id) AS block_count
+     FROM adhoc_metronome_setups s
+     LEFT JOIN metronome_segments ms ON ms.parent_adhoc_setup_id = s.id
+     WHERE s.account_id = $1 AND s.is_quick_play = true
+     GROUP BY s.id
+     ORDER BY s.is_favorite DESC, CASE WHEN s.is_favorite THEN s.name END ASC, s.created_at DESC`,
+    [accountId]
+  );
+  return rows.map(r => ({
+    id: Number(r.id),
+    name: r.name,
+    createdAt: r.created_at,
+    isFavorite: r.is_favorite,
+    blockCount: Number(r.block_count)
+  }));
+}
+
+export async function setAdhocSetupFavorite(accountId, id, isFavorite) {
+  const result = await pool.query(
+    'UPDATE adhoc_metronome_setups SET is_favorite = $1 WHERE id = $2 AND account_id = $3',
+    [!!isFavorite, id, accountId]
+  );
+  if (result.rowCount === 0) throw withStatus(404, 'Setup not found');
 }
 
 export async function deleteAdhocSetup(accountId, id) {

@@ -366,6 +366,9 @@
     /* A bit more breathing room below every section title than the site-wide default, specifically
        within this view - scoped here rather than widening .section-title itself everywhere else. */
     #metronomeView .section-title { margin-bottom: var(--space-4); }
+    /* Same idea for Quick Play's "Bars" title specifically - the site-wide default (5px text-to-
+       divider, 8px divider-to-content) read as too tight right above the first Bar card. */
+    #quickPlayView .section-title { padding-bottom: var(--space-2); margin-bottom: var(--space-4); }
     .metro-display { padding: var(--space-4) 0 var(--space-2) 0; }
     /* Viewport clips to the visible width; content is either 100% (fits normally) or a fixed pixel
        width wider than the viewport (too many beats to fit) - see metroTierGeometry in app.js. When
@@ -486,7 +489,9 @@
        as the transport row's own icons rather than a size override, for the same reason. min-width/
        height (ML-148) give it a 44x44 tap target without enlarging the icon itself - the visible glyph
        stays small/"background", the invisible hit area around it doesn't. */
-    .metroBlk-row-volume-btn { margin-left: auto; align-self: center; background: none; border: none; padding: 0; cursor: pointer; color: var(--label-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 44px; min-height: 44px; }
+    /* ML-164: now a filled 40x40 circle in the same clickable-area colour as every other control
+       (was a bare icon with no circle at all - see the superseded ML-146 rationale above). */
+    .metroBlk-row-volume-btn { margin-left: auto; align-self: center; width: 40px; height: 40px; min-width: 40px; min-height: 40px; flex-shrink: 0; border-radius: var(--radius-circle); background: var(--input-bg); border: none; padding: 0; cursor: pointer; color: var(--label-color); display: flex; align-items: center; justify-content: center; }
     /* ML-148: mute is just volume 0 now (see setMetroBlkVolume/setQpVolume) - this fades the gold
        fill/thumb to grey so 0% via the mute button visually reads the same as 0% via dragging, rather
        than the mute button's own icon-swap being the only cue. A solid muted color rather than opacity
@@ -494,16 +499,41 @@
        thumb, which read as a visible seam rather than a uniformly faded circle. */
     .metro-volume-row.is-muted .slider-fill, .metro-volume-row.is-muted .slider-thumb { background: var(--label-color); }
 
-    /* Minimised timer bar (ML-7) - lives in .top-bar-sticky-group directly under
-       .top-bar, shown whenever a timer is running/paused and the Timer screen
-       itself isn't on-screen. */
-    .timer-mini-bar { width: 100%; max-width: var(--app-max-width); box-sizing: border-box; background: var(--secondary-color); padding: var(--space-2) var(--space-5); display: flex; justify-content: space-between; align-items: center; font-variant-numeric: tabular-nums; }
-    .timer-mini-times { display: flex; align-items: baseline; gap: var(--space-1); font-size: var(--font-sm); font-weight: bold; color: var(--text-color); }
-    .timer-mini-label { font-weight: normal; color: var(--label-color); margin-right: var(--space-2); }
-    .timer-mini-sep { color: var(--label-color); }
-    .timer-mini-controls { display: flex; gap: var(--space-2); }
-    .timer-mini-btn { width: 48px; height: 48px; border: none; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; background: var(--nav-action); color: var(--nav-action-text); }
-    .timer-mini-btn .material-symbols-outlined { font-size: 18px; }
+    /* ML-129: the timer's minimised state lives in the top bar itself, replacing the old full-width
+       bar that used to sit under .top-bar - superseded, not left dormant here, since nothing in the
+       HTML references .timer-mini-* any more.
+       ML-129 follow-up: sized to its own content now (not flex-grown/centred - that's .top-bar-title's
+       job again), right-aligned next to the tuner toggle with the same bordered-square-with-a-corner-
+       arrow look as .metroBlk-ctrl-value-btn (e.g. the sub-beats button) rather than a filled pill, and
+       a dropdown arrow on the right since tapping it opens a choice (the popup), not an instant
+       action - see the ::after rule below, copied from .metroBlk-ctrl-value-btn's own. */
+    .top-bar-timer-pill { position: relative; display: flex; align-items: center; gap: 4px; margin-left: var(--space-2); background: transparent; border: 2px solid var(--input-border); border-radius: var(--radius-pill); padding: 6px 22px 6px 10px; font-variant-numeric: tabular-nums; color: var(--text-color); cursor: pointer; }
+    .top-bar-timer-pill::after { content: ''; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid var(--label-color); opacity: 0.7; }
+    .top-bar-timer-pill-icon { font-size: 16px; }
+    .top-bar-timer-pill-time { font-size: var(--font-sm); font-weight: bold; }
+    .top-bar-timer-pill-left { font-size: var(--font-sm); }
+    /* Actively running (not paused) - a soft amber glow instead of the neutral border/background, so
+       time visibly accumulating is obvious at a glance with no extra banner. Border left alone
+       (still var(--input-border)) - only the fill and text call out "running". */
+    .top-bar-timer-pill.top-bar-timer-pill-running { background: rgba(223, 168, 54, 0.15); color: #dfa836; }
+
+    /* ML-129 follow-up: opened by tapping either the running pill or the idle icon next to the tuner
+       toggle - a true modal now (grey backdrop, same .modal/.modal-content everything else in the app
+       uses) rather than an in-flow box, so it can't clash with whatever primary button (e.g. the
+       metronome's own Play) happens to sit on the screen behind it. Tapping the backdrop closes it,
+       same as the X - either way this never stops the timer, it just hides the popup (see
+       closeTimerInlineBox); it keeps counting down regardless of which screen is on top or whether
+       this is open. Same 4-equal-column shape as the metronome transport row (.metro-transport-grid). */
+    .timer-inline-cell1 { min-width: 0; }
+    .timer-inline-cell1 .metroBlk-ctrl-value-btn { width: 100%; }
+    /* Plain read-out (not a button) for while it's actually running - same size/shape as the
+       picker button beside it in every other state, just nothing to tap since there's no picker
+       (or arrow) once it's already going. */
+    .timer-inline-time-plain { height: 60px; min-width: 0; width: 100%; border: 2px solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; box-sizing: border-box; }
+    .timer-inline-time-plain strong { font-size: var(--font-lg); font-weight: bold; font-variant-numeric: tabular-nums; }
+    /* "Like the tuner" per the request - same X-in-a-circle language as .modal-close-x, just flowing
+       in its own grid cell (centred) instead of pinned to a modal's corner. */
+    .timer-inline-close-btn { width: 48px; height: 48px; justify-self: center; border-radius: var(--radius-circle); border: none; background: var(--input-bg); color: var(--text-color); font-size: 1.3rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
     /* Minimised metronome bar (ML-64) - same sticky slot as the timer bar above, shown whenever the
        metronome has been played/paused (not stopped) and the Metronome screen itself isn't on-screen.
@@ -569,34 +599,34 @@
        Collapsed by default (max-height/opacity/padding/border all animate together) rather than
        display:none, specifically so opening/closing it is a visible slide, not a hard cut - toggled
        via .metroBlk-mini-tuner-open, not hidden-group. */
-    .metroBlk-mini-tuner { box-sizing: border-box; background: var(--input-bg); border: 2px solid var(--input-border); border-width: 0; border-radius: var(--radius-md); padding: 0 var(--space-4); margin-bottom: 0; max-height: 0; opacity: 0; overflow: hidden; pointer-events: none; transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease, margin-bottom 0.25s ease, border-width 0.25s ease, background 0.15s linear, border-color 0.15s linear; }
+    /* ML-164: standard page background when shown, not the clickable input-bg - the tuner is a
+       display/readout, not a control, so it shouldn't read as tappable the way the buttons around it do.
+       ML-164 follow-up: pulled up with a negative top margin so the gap to the top bar above it is a
+       plain 4px rather than .container's full var(--space-5) top padding (used for every view, not
+       just this one, so it can't just be shrunk generally) - only matters while open, but set
+       unconditionally since it's harmless while collapsed too. */
+    .metroBlk-mini-tuner { box-sizing: border-box; margin-top: -12px; background: var(--container-bg); border: 2px solid var(--input-border); border-width: 0; border-radius: var(--radius-md); padding: 0 var(--space-4); margin-bottom: 0; max-height: 0; opacity: 0; overflow: hidden; pointer-events: none; transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease, margin-bottom 0.25s ease, border-width 0.25s ease, background 0.15s linear, border-color 0.15s linear; }
     .metroBlk-mini-tuner.metroBlk-mini-tuner-open { border-width: 2px; padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); max-height: 220px; opacity: 1; pointer-events: auto; }
     .metroBlk-mini-tuner.in-tune { border-color: var(--tuner-in-tune-green); background: rgba(46, 204, 113, 0.28); }
     /* One big note on the left (not concert-and-instrument side by side any more - ML-84: showing both
        at once meant nothing to read the note against without already knowing which was which) at a
        fixed width, so the box no longer changes size as different note names come and go; the bar
-       track fills the middle, and a cog on the right opens the instrument picker (ML-91 follow-up -
-       the note and label used to be the click targets themselves, but with the label moved out from
-       under the note that link affordance was no longer obvious, so a dedicated icon replaces it). */
+       track fills the middle (flex:1 - narrows on its own as the instrument/close buttons beside it
+       take more room, no separate width rule needed) and the instrument button + close icon sit on the
+       right (ML-164 follow-up - replaces the old 3-dot Settings/Close menu; the instrument label row
+       that used to sit underneath is gone too, for a shorter box overall). */
     .metroBlk-mini-tuner-body { display: flex; align-items: center; gap: var(--space-3); }
     .metroBlk-mini-tuner-note-big { min-width: 2.4ch; flex-shrink: 0; font-size: 2.4rem; font-weight: bold; line-height: 1; text-align: center; color: var(--primary-action); font-variant-numeric: tabular-nums; }
     .metroBlk-mini-tuner-bar-wrap { flex: 1; min-width: 0; }
-    /* No filled circle (ML-91 follow-up) - picking an instrument is rare enough that it shouldn't
-       compete visually with the note/bar it sits next to; same 36px tap target either way. Now a
-       3-dot menu (Settings/Close) rather than a single settings action directly - Close used to live
-       on the top-bar toggle, which now disappears entirely while the tuner is open. */
-    .metroBlk-mini-tuner-menu-wrap { position: relative; flex-shrink: 0; }
-    /* position: fixed (not .dropdown-menu's own absolute/top:100%) - the tuner box itself is
-       overflow:hidden (for its own open/close slide animation), which would otherwise clip this menu
-       before "Close" ever became visible/clickable. Same pattern as .metroBlk-tile-menu/
-       .account-band-menu: JS computes left/top against the 3-dot button's own position instead. */
-    .metroBlk-mini-tuner-menu { position: fixed; top: auto; right: auto; left: auto; min-width: 140px; }
-    .metroBlk-mini-tuner-settings-btn { flex-shrink: 0; width: 36px; height: 36px; min-width: 36px; border-radius: var(--radius-circle); background: transparent; color: var(--label-color); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-    .metroBlk-mini-tuner-settings-btn .material-symbols-outlined { font-size: 18px; }
-    /* Centered under the whole row (in practice, under the bar - the note and cog are comparatively
-       narrow) rather than under just the note, which used to read as "two notes" stacked (ML-91
-       follow-up). Full instrument names now that it's not squeezed into a small column any more. */
-    .metroBlk-mini-tuner-instrument-label { margin-top: var(--space-2); font-size: var(--font-xs); color: var(--label-color); text-align: center; }
+    /* Opens the instrument picker directly - short code (C/B♭/E♭/F) rather than the old full-name row,
+       with the same corner dropdown-arrow affordance as every other "opens a choice" control
+       (.metroBlk-ctrl-value-btn's own ::after, copied here since a pill shape needs its own metrics). */
+    .metroBlk-mini-tuner-instrument-btn { position: relative; flex-shrink: 0; height: 40px; padding: 0 20px 0 12px; border: 2px solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font-size: var(--font-md); font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .metroBlk-mini-tuner-instrument-btn::after { content: ''; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid var(--label-color); opacity: 0.7; }
+    /* Same 40x40 filled clickable-colour circle language as the row's own volume/menu buttons
+       elsewhere on this page (ML-164) rather than a bare transparent icon. */
+    .metroBlk-mini-tuner-close-btn { flex-shrink: 0; width: 40px; height: 40px; min-width: 40px; border-radius: var(--radius-circle); background: var(--input-bg); color: var(--label-color); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .metroBlk-mini-tuner-close-btn .material-symbols-outlined { font-size: 18px; }
     /* The instrument-picker popup's buttons - one per instrument, applies immediately on click (ML-84
        follow-up: replaces the native <select>, which wasn't the "pop up with a set of buttons" asked
        for). Reuses .metroBlk-timesig-opt's look (same "pick one of a small fixed set" pattern already
@@ -619,9 +649,13 @@
        comments on each for why they ended up different shapes. Background matches the block tiles
        below (.metroBlk-tile's --input-bg/--input-border) rather than the silver of Reset - these two
        are secondary adjustments, not transport controls, and shouldn't visually compete with Play. */
-    .metroBlk-ctrl-value-btn { height: 60px; min-width: 74px; padding: 0 var(--space-3); border: 2px solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; box-sizing: border-box; }
+    .metroBlk-ctrl-value-btn { position: relative; height: 60px; min-width: 74px; padding: 0 var(--space-3); border: 2px solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; box-sizing: border-box; }
     .metroBlk-ctrl-value-btn strong { font-size: var(--font-lg); font-weight: bold; font-variant-numeric: tabular-nums; }
     .metroBlk-ctrl-value-label { font-size: var(--font-xs); opacity: 0.85; white-space: nowrap; }
+    /* ML-164: this button opens a picker rather than performing an action directly (time signature,
+       beat unit, sub beats, play speed all use this one class) - a small down-caret marks it as a
+       selection/dropdown trigger, same as every other "opens a set of choices" control would show. */
+    .metroBlk-ctrl-value-btn::after { content: ''; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid var(--label-color); opacity: 0.7; }
     /* Same idea, sized down to match the mini bar's own Play/Reset (44px) instead of the full view's
        60px - six buttons now share this one row (ML-94 follow-up: "replicate the whole button line"),
        so every button here is smaller than its full-view counterpart, not just these two. */
@@ -687,7 +721,10 @@
        run of circles reads as one connected unit rather than loose dots floating on the page. The
        top box scrolls within itself exactly like the single-bar tool's .metro-display-viewport/
        -content (reused as-is via the same JS helpers, just against these rows' own element ids). */
-    .metroBlk-row { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
+    /* ML-164: same background as the page itself, not the "clickable" input-bg - this row is a plain
+       display surface (mark/label/dots), not a control, so it shouldn't visually compete with the
+       actual buttons (volume, transport row) that ARE clickable. */
+    .metroBlk-row { background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
     /* ML-146 added the volume button as a third child of this row (align-self:center there, see
        .metroBlk-row-volume-btn) - align-items:center here (not the old baseline) keeps the mark/label
        text vertically centered against it too, rather than baseline-aligning the text while the
@@ -913,7 +950,10 @@
        is what was fighting page scroll). Vertical reordering moved entirely to the dedicated grab
        handle below, which keeps its own touch-action:none since IT is meant to capture vertical drag. */
     .qp-block-box { position: relative; border-radius: var(--radius-md); margin-bottom: var(--space-3); overflow: hidden; touch-action: pan-y; }
-    .qp-block-surface { position: relative; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-4); }
+    /* ML-164: page background, not the clickable input-bg - the card itself isn't a control, only the
+       time-signature/beat-unit/BPM-stepper buttons inside it (which keep their own explicit input-bg
+       background regardless of what this parent sets) are. */
+    .qp-block-surface { position: relative; background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-4); }
     /* Whichever bar is actually sounding right now, while playing only (renderQpActiveBoxHighlight) -
        same bold-gold-border language as Blocks' own .metroBlk-tile-active. Targets the surface (the
        visible card), not the outer clipping box, which has no border/background of its own any more. */
@@ -944,7 +984,9 @@
        - always shown, even with only one bar (opening it then only offers Duplicate, see
        openQpBarMenu), rather than the old dustbin icon that hid entirely on the one bar that couldn't
        be deleted. */
-    .qp-bar-menu-btn { width: 36px; height: 36px; border: none; border-radius: var(--radius-circle); background: transparent; color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+    /* ML-164: 40x40 filled clickable-colour circle, same treatment as the row's own volume button,
+       instead of a bare transparent icon. */
+    .qp-bar-menu-btn { width: 40px; height: 40px; border: none; border-radius: var(--radius-circle); background: var(--input-bg); color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
     .qp-bar-menu-btn .material-symbols-outlined { font-size: 20px; }
     /* Time signature stacked above note length in column 1 (each takes half its combined height,
        via the 2-row grid + stretch below) - target BPM fills the remaining 3 columns at that same
@@ -956,7 +998,12 @@
     .qp-timesig-cell, .qp-notelen-cell { height: auto; }
     .qp-timesig-cell { grid-column: 1; grid-row: 1; }
     .qp-notelen-cell { grid-column: 1; grid-row: 2; }
-    .qp-bpm-cell { grid-column: 2 / span 3; grid-row: 1 / span 2; }
+    /* ML-164: page background here too (not .metroBlk-bpm-box's own default input-bg, still used as-is
+       by the segment editor modal) - only the +/-1 steppers inside (.metro-bpm-step) are clickable and
+       keep their own explicit input-bg regardless of what this parent sets. Border stays the normal
+       light var(--input-border) (not hidden against the background) so this box still reads as one
+       grouped unit, same as the time/beat-unit boxes beside it. */
+    .qp-bpm-cell { grid-column: 2 / span 3; grid-row: 1 / span 2; background: var(--container-bg); border-color: var(--input-border); }
     .qp-note-btn-icon { display: flex; align-items: center; justify-content: center; }
     .qp-note-btn-icon svg { width: 14px; height: 24px; }
     /* Pulled in tight around the number rather than metro-speed-row's normal wide gap (meant for a
@@ -968,6 +1015,64 @@
        permanently, so a bar's own layout-affecting style changes (e.g. resizing while editing a field)
        never unintentionally animate through this. */
     .qp-block-animating { transition: transform 0.25s ease, opacity 0.25s ease; }
+    /* "Bars" section-title's own right-side slot (placeholder - Show history/Create flow aren't wired
+       up to anything yet) - low-emphasis text links, not buttons, so they read as secondary next to
+       the bold title beside them; a small gap keeps the two from reading as one run-on phrase. */
+    .qp-bars-title-links { display: flex; gap: var(--space-4); }
+    .qp-bars-title-link { font-size: var(--font-sm); font-weight: normal; color: var(--label-color); text-decoration: underline; cursor: pointer; }
+
+    /* ML-34 follow-up: the currently-loaded history entry's name, under the "Bars" title. No negative
+       margin here any more - that pulled this row up into .section-title's own border-bottom line
+       above it, overlapping the two. */
+    .qp-loaded-history-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin: var(--space-2) 0 var(--space-3) 0; font-size: var(--font-sm); color: var(--label-color); }
+    .qp-loaded-history-info { display: flex; align-items: center; gap: var(--space-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Decorative only (aria-hidden, no click handler) - just marks this line as "loaded from history"
+       at a glance, same muted colour as the rest of the row. */
+    .qp-loaded-history-icon { font-size: 16px; flex-shrink: 0; }
+    .qp-loaded-history-edited-tag { flex-shrink: 0; }
+    /* 32px (up from an earlier 22px pass) - still compact for a lightweight info row, but a
+       meaningfully bigger tap target than before. */
+    .qp-loaded-history-clear-btn { width: 32px; height: 32px; flex-shrink: 0; border-radius: var(--radius-circle); border: 1px solid var(--input-border); background: var(--input-bg); color: var(--label-color); font-size: 16px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+    .qp-loaded-history-undo-btn { flex-shrink: 0; width: 28px; height: 28px; border-radius: var(--radius-circle); border: none; background: transparent; color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+    .qp-loaded-history-undo-btn .material-symbols-outlined { font-size: 18px; }
+
+    /* ML-34: "Show history" list rows - .history-item's own flex row plus a clickable body (selects
+       the row) and a trailing 3-dot menu button. */
+    .qp-history-item-body { flex-grow: 1; cursor: pointer; display: flex; align-items: center; gap: var(--space-3); }
+    .qp-history-item-selected { border-left-color: var(--primary-action); background: rgba(212, 175, 55, 0.12); }
+    .qp-history-star { color: var(--primary-action); font-variation-settings: 'FILL' 1; font-size: 20px; }
+    /* Same grey-outline-plus-lighter-fill language as the main Quick Play page's own icon buttons
+       (.qp-bar-menu-btn/.metroBlk-row-volume-btn) rather than .btn-icon-edit's bold, coloured-border
+       look, which read as too heavy/large for a menu trigger sitting inside a compact list row. */
+    .qp-history-item-menu-btn { width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-circle); border: 1px solid var(--input-border); background: var(--input-bg); color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    /* No :disabled styling existed on .btn-submit anywhere else in the app (nothing else disables
+       one) - without this the Load button looked fully enabled (solid gold, pointer cursor) even
+       while genuinely disabled, same dimmed-0.4 language every other disableable button already uses. */
+    #qpHistoryLoadBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+    /* ML-164: same clickable colour as every other control on this page instead of .btn-cancel's
+       hollow gold-outline treatment, which read as part of the plain background rather than as a
+       tappable button. */
+    /* scroll-margin-bottom (not a JS scroll offset) - scrollIntoView({block:'end'}) then naturally
+       leaves this much breathing room below the button instead of pinning it flush to the viewport's
+       bottom edge, with no extra timing/animation juggling needed around the smooth scroll itself. */
+    #qpAddBlockBtn { background: var(--input-bg); border: 2px solid var(--input-border); color: var(--text-color); scroll-margin-bottom: 8px; }
+
+    /* ML-164: the sub-beats Off/Auto/Fixed choice and the play-speed presets both use gold (matching
+       the beat-unit picker's .metroBlk-note-btn.selected) for the selected option rather than the
+       generic .radio-group's blue - scoped to just these two modals since every OTHER radio-group in
+       the app still uses that shared blue treatment deliberately. Unselected reads at normal weight so
+       only the actual selection stands out as bold. */
+    #metroBlkSubdivideModal .radio-group.compact label,
+    #qpSubdivideModal .radio-group.compact label { font-weight: normal; }
+    #metroBlkSubdivideModal .radio-group.compact input[type="radio"]:checked + label,
+    #qpSubdivideModal .radio-group.compact input[type="radio"]:checked + label {
+        background: rgba(212, 175, 55, 0.12); color: var(--primary-action); border-color: var(--primary-action); font-weight: bold;
+    }
+    /* Same "only the selection is bold" principle for the play-speed preset grid - .metroBlk-timesig-opt
+       is bold unconditionally everywhere else it's used (time signature, instrument picker), so this is
+       scoped to just the speed-options grid rather than changing that shared base rule. */
+    .metroBlk-speed-options .metroBlk-timesig-opt { font-weight: normal; }
+    .metroBlk-speed-options .metroBlk-timesig-opt.selected { font-weight: bold; }
 
     /* The unused leading beats of a partial lead-in's bar (see greyOutSkippedDots) - a plain grey
        outline, not just a dimmed version of the normal dot. Full opacity and a background matching

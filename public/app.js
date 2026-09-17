@@ -158,7 +158,8 @@
                 duplicate: (id, name) => apiCall(`/api/metronome/setups/${id}/duplicate`, 'POST', { name }),
                 save: (id, name) => apiCall(`/api/metronome/setups/${id}/save`, 'POST', { name }),
                 rename: (id, name) => apiCall(`/api/metronome/setups/${id}`, 'PUT', { name }),
-                delete: (id) => apiCall(`/api/metronome/setups/${id}`, 'DELETE')
+                delete: (id) => apiCall(`/api/metronome/setups/${id}`, 'DELETE'),
+                setFavorite: (id, isFavorite) => apiCall(`/api/metronome/setups/${id}/favorite`, 'PUT', { isFavorite })
             },
             segments: {
                 create: (setupId, data) => apiCall(`/api/metronome/setups/${setupId}/segments`, 'POST', data),
@@ -166,7 +167,10 @@
                 delete: (segId) => apiCall(`/api/metronome/segments/${segId}`, 'DELETE')
             },
             quickPlay: {
-                save: (name, blocks) => apiCall('/api/metronome/quick-play', 'POST', { name, blocks })
+                save: (name, blocks) => apiCall('/api/metronome/quick-play', 'POST', { name, blocks }),
+                history: () => apiCall('/api/metronome/history'),
+                overwriteHistory: (id, blocks) => apiCall(`/api/metronome/history/${id}`, 'PUT', { blocks }),
+                duplicateHistory: (id, name) => apiCall(`/api/metronome/history/${id}/duplicate`, 'POST', { name })
             }
         },
         account: {
@@ -246,8 +250,10 @@
         return streak;
     }
 
-    // Every historical streak length (runs of consecutive days present in dateSet)
-    function calculateAllStreaks(dateSet) {
+    // Every historical streak run of consecutive days present in dateSet - length plus the date it
+    // ended (ML-160 needs the end date; the histogram below only ever needed the lengths, so this
+    // replaces calculateAllStreaks entirely rather than duplicating the same walk twice).
+    function calculateAllStreaksWithEnd(dateSet) {
         const sorted = Array.from(dateSet).sort();
         const streaks = [];
         let current = 0;
@@ -256,13 +262,24 @@
             if (prevDateStr && dateStrAddDays(prevDateStr, 1) === dStr) {
                 current++;
             } else {
-                if (current > 0) streaks.push(current);
+                if (current > 0) streaks.push({ length: current, endDateStr: prevDateStr });
                 current = 1;
             }
             prevDateStr = dStr;
         });
-        if (current > 0) streaks.push(current);
+        if (current > 0) streaks.push({ length: current, endDateStr: prevDateStr });
         return streaks;
+    }
+
+    // Longest run on record - on a tie, the most recent one (streaksWithEnd is already date-ordered,
+    // so ">=" while walking forward keeps overwriting with the later tie) reads as more relevant than
+    // an old one from way back.
+    function longestStreak(streaksWithEnd) {
+        let best = null;
+        for (const s of streaksWithEnd) {
+            if (!best || s.length >= best.length) best = s;
+        }
+        return best;
     }
 
     function getStreakData() {
@@ -272,15 +289,26 @@
             playingDates.add(d.dateStr);
             if (d.category === 'Practise') practiseDates.add(d.dateStr);
         });
+        const practiseStreaksWithEnd = calculateAllStreaksWithEnd(practiseDates);
+        const playingStreaksWithEnd = calculateAllStreaksWithEnd(playingDates);
         return {
             currentPractise: calculateCurrentStreak(practiseDates),
             currentPlaying: calculateCurrentStreak(playingDates),
-            practiseStreaks: calculateAllStreaks(practiseDates),
-            playingStreaks: calculateAllStreaks(playingDates)
+            practiseStreaks: practiseStreaksWithEnd.map(s => s.length),
+            playingStreaks: playingStreaksWithEnd.map(s => s.length),
+            longestPractise: longestStreak(practiseStreaksWithEnd),
+            longestPlaying: longestStreak(playingStreaksWithEnd)
         };
     }
 
     function dayLabel(n) { return `${n} day${n === 1 ? '' : 's'}`; }
+
+    // Same "d Mon yyyy" shape as formatReleaseDate above, just against a streak's own endDateStr.
+    function formatStreakEndDate(dateStr) {
+        const mNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const d = parseDateSafely(dateStr);
+        return `${d.getDate()} ${mNames[d.getMonth()]} ${d.getFullYear()}`;
+    }
 
     function updateStreakBoxes() {
         const data = getStreakData();
@@ -303,6 +331,17 @@
             if (elCurPl) elCurPl.innerText = dayLabel(data.currentPlaying);
             if (elAvgP) elAvgP.innerText = `${avg(data.practiseStreaks).toFixed(1)} days`;
             if (elAvgPl) elAvgPl.innerText = `${avg(data.playingStreaks).toFixed(1)} days`;
+
+            // ML-160: longest streak on record, plus the date it ended - null (no streak data at all
+            // yet) leaves both fields at "0 days"/blank rather than throwing on a missing endDateStr.
+            const elLongP = document.getElementById('streakLongestPractise');
+            const elLongPl = document.getElementById('streakLongestPlaying');
+            const elLongPDate = document.getElementById('streakLongestPractiseDate');
+            const elLongPlDate = document.getElementById('streakLongestPlayingDate');
+            if (elLongP) elLongP.innerText = dayLabel(data.longestPractise?.length || 0);
+            if (elLongPl) elLongPl.innerText = dayLabel(data.longestPlaying?.length || 0);
+            if (elLongPDate) elLongPDate.innerText = data.longestPractise ? `ended ${formatStreakEndDate(data.longestPractise.endDateStr)}` : '';
+            if (elLongPlDate) elLongPlDate.innerText = data.longestPlaying ? `ended ${formatStreakEndDate(data.longestPlaying.endDateStr)}` : '';
 
             renderStreakHistogram('streakChartPractise', data.practiseStreaks, '#4CAF50');
             renderStreakHistogram('streakChartPlaying', data.playingStreaks, 'var(--primary-action)');
@@ -508,6 +547,7 @@
     function renderDurationRadios() {
         renderDurationOptionsInto('durationRadios', 'dur', 'durationOption');
         renderDurationOptionsInto('timerDurationRadios', 'timerDur', 'timerDurationOption');
+        renderDurationOptionsInto('timerPickerDurationRadios', 'timerPickerDur', 'timerPickerDurationOption');
     }
 
     function fetchDataAndRender(token) {
@@ -558,12 +598,28 @@
         e?.stopPropagation();
         resetBurgerMenu();
     }
+    // ML-162: every popup menu on the metronome pages (this burger menu, Blocks' per-tile 3-dot menu,
+    // Quick Play's per-bar 3-dot menu, the mini tuner's 3-dot menu) stops propagation on its own
+    // opening click so the document-level "click outside closes it" listener below doesn't instantly
+    // re-close what it just opened. That stopPropagation also stops the click reaching every OTHER
+    // menu's own document-level listener, so opening one left any other menu that was already open
+    // stuck on screen instead of being replaced. Each open handler now closes all of these explicitly
+    // first, rather than relying on document-level bubbling to do it.
+    function closeAllMetroPopupMenus() {
+        document.getElementById('burgerDropdown')?.classList.remove('show');
+        document.getElementById('metroBlkTileMenu')?.classList.remove('show');
+        document.getElementById('qpBarMenu')?.classList.remove('show');
+        document.getElementById('qpHistoryItemMenu')?.classList.remove('show');
+    }
     document.getElementById('navBurgerMenuBtn')?.addEventListener('click', (e) => {
         e.stopPropagation();
         const dropdown = document.getElementById('burgerDropdown');
         const opening = !dropdown.classList.contains('show');
-        dropdown.classList.toggle('show');
-        if (opening) resetBurgerMenu();
+        closeAllMetroPopupMenus();
+        if (opening) {
+            dropdown.classList.add('show');
+            resetBurgerMenu();
+        }
     });
     document.addEventListener('click', () => {
         const dropdown = document.getElementById('burgerDropdown');
@@ -581,12 +637,13 @@
     // actionLabel overrides the default Delete/Confirm text - e.g. "Leave" for leaving a band, which
     // isn't a delete at all (the band itself isn't removed, just this account's own membership) and
     // shouldn't read as one.
-    function showConfirmModal(title, msg, callback, isDanger=true, actionLabel=null) {
+    function showConfirmModal(title, msg, callback, isDanger=true, actionLabel=null, cancelLabel='Cancel') {
         document.getElementById('confirmTitle').innerText = title;
         document.getElementById('confirmMessage').innerText = msg;
         const btn = document.getElementById('confirmActionBtn');
         btn.style.background = isDanger ? 'var(--danger-color)' : 'var(--primary-action)';
         btn.innerText = actionLabel || (isDanger ? 'Delete' : 'Confirm');
+        document.getElementById('confirmCancelBtn').innerText = cancelLabel;
         confirmCallback = callback;
         document.getElementById('confirmModal').style.display = 'flex';
     }
@@ -755,10 +812,12 @@
         if (viewName === 'timerView') {
             document.getElementById('topTitle').innerText = 'Timer';
             renderTimerScreen();
+            // The full page already shows everything the inline box does - avoid duplicating it.
+            closeTimerInlineBox();
         }
         // The timer itself is NOT stopped when navigating away (ML-7: "shrink to a
-        // bar") - only the mini-bar's visibility changes.
-        updateTimerMiniBarVisibility(viewName);
+        // bar") - only the top-bar indicator's visibility changes.
+        updateTopTimerIndicator(viewName);
     }
 
     window.goBack = function() {
@@ -3544,10 +3603,14 @@
     // actually current - pass it for that one row only, so a repeating block shows "x of y bars"
     // (or "x of y beats" for a partial lead-in) as it plays; omit it for upcoming-row previews,
     // which just show the plain total since they haven't started.
+    // ML-172: bar identification leads now (which block/lead-in this is matters more at a glance than
+    // the time signature/tempo that follow it), then time signature, then bpm - same reorder as
+    // qpBlockLabel's own.
     function metroBlkBlockLabel(block, beatsPlayedInBlock) {
         const prefix = block.isLeadIn ? 'Lead-in · ' : '';
         // A lead-in only ever plays once, so an "x of y beats" progress count is meaningless - only
-        // a repeating block's bar count needs that.
+        // a repeating block's bar count needs that. (Already identification-first as-is here - a
+        // partial-bar lead-in has no count to reorder around.)
         if (block.pickupBeats) {
             return `${prefix}${block.timeSignatureLabel} · ${block.bpm} bpm`;
         }
@@ -3555,7 +3618,7 @@
         const countStr = beatsPlayedInBlock === undefined
             ? `${total} bar${total === 1 ? '' : 's'}`
             : `${Math.min(total, Math.floor(beatsPlayedInBlock / metroBlkBeatsPerBarFor(block)) + 1)} of ${total} bar${total === 1 ? '' : 's'}`;
-        return `${prefix}${block.timeSignatureLabel} · ${block.bpm} bpm · ${countStr}`;
+        return `${prefix}${countStr} · ${block.timeSignatureLabel} · ${block.bpm} bpm`;
     }
 
     // Segment ids are either a real number (persisted) or a temp string like "tmp3" (staged, not
@@ -4964,6 +5027,7 @@
     window.openMetroBlkTileMenu = function(e, id) {
         const menu = document.getElementById('metroBlkTileMenu');
         if (!menu) return;
+        closeAllMetroPopupMenus();
         metroBlkTileMenuTargetId = id;
         const btnRect = e.currentTarget.getBoundingClientRect();
         menu.style.right = 'auto';
@@ -5131,6 +5195,14 @@
         if (lbl) lbl.innerText = display;
         const miniLbl = document.getElementById('metroBlkMiniSubdivideLbl');
         if (miniLbl) miniLbl.innerText = display;
+        // ML-165: Off and Fixed both just say "sub beats" - only Auto (whose count comes from the
+        // time signature, not something the user set) gets called out, so it's clear at a glance
+        // which one is actually driving the number shown.
+        const unitText = metroBlkSubBeatsMode === 'auto' ? 'auto sub beats' : 'sub beats';
+        const unitLbl = document.getElementById('metroBlkSubdivideUnitLbl');
+        if (unitLbl) unitLbl.innerText = unitText;
+        const miniUnitLbl = document.getElementById('metroBlkMiniSubdivideUnitLbl');
+        if (miniUnitLbl) miniUnitLbl.innerText = unitText;
     }
 
     // Commits the popup's mode (+ override, 'fixed' only) and re-pushes the live player state for
@@ -5870,6 +5942,14 @@
 
     function qpMarkUnsaved() {
         qpSavedThisRun = false;
+        // ML-34 follow-up: every edit call site already routes through here, so this is the one place
+        // that needs to know "something changed since Load" - flips on the "- edited" tag/undo icon
+        // next to the loaded name. Guarded so it doesn't needlessly re-render on every single edit
+        // once it's already showing.
+        if (qpLoadedHistoryId !== null && !qpLoadedHistoryEdited) {
+            qpLoadedHistoryEdited = true;
+            renderQpLoadedHistoryLabel();
+        }
     }
 
     // --- Per-block inline editor (time signature / note+BPM stepper+slider / bar-count stepper+slider) ---
@@ -5912,11 +5992,22 @@
         const grabHandle = qpBlocks.length > 1
             ? `<button type="button" class="qp-bar-grab-handle" data-qp-grab-handle aria-label="Drag to reorder Bar ${index + 1}"><span class="material-symbols-outlined">drag_indicator</span></button>`
             : '';
-        return `<div class="qp-block-box" data-qp-block-index="${index}" data-qp-uid="${block._uid}">
-            <div class="qp-block-delete-underlay" data-qp-delete-btn aria-label="Delete Bar ${index + 1}">
+        // ML-80: Bar 1 is the only bar that can never actually be deleted on its own (qpDeleteBar
+        // no-ops once qpBlocks.length <= 1) - swiping it used to reveal a Delete button that did
+        // nothing when tapped. In that exact state, the underlay becomes "Reset" (qpResetAllBars)
+        // instead, so the gesture has a real effect; with more than one bar, Bar 1 deletes normally.
+        const isDeadEndDelete = index === 0 && qpBlocks.length <= 1;
+        const deleteUnderlay = isDeadEndDelete
+            ? `<div class="qp-block-delete-underlay" data-qp-reset-all-btn aria-label="Delete all and reset">
+                <span class="material-symbols-outlined">restart_alt</span>
+                <span>Reset</span>
+            </div>`
+            : `<div class="qp-block-delete-underlay" data-qp-delete-btn aria-label="Delete Bar ${index + 1}">
                 <span class="material-symbols-outlined">delete</span>
                 <span>Delete</span>
-            </div>
+            </div>`;
+        return `<div class="qp-block-box" data-qp-block-index="${index}" data-qp-uid="${block._uid}">
+            ${deleteUnderlay}
             <div class="qp-block-surface">
                 <div class="qp-block-header">
                     <div class="qp-block-header-left">
@@ -6199,6 +6290,24 @@
         el.addEventListener('transitionend', finish, { once: true });
     }
 
+    // ML-80: "back to where you were if you first landed" - clears every bar and reduces the setup
+    // back to the one default 4/4 block, same as initQuickPlayBlocksIfNeeded's own starting state.
+    // Reachable from Bar 1's own 3-dot menu (always) and Bar 1's swipe-left underlay (only when it's
+    // the sole remaining bar - see qpBlockBoxHtml).
+    function qpResetAllBars() {
+        showConfirmModal('Delete all and reset', 'Delete every bar and start again with a single default bar (4/4, 100bpm)?', () => {
+            qpOpenSwipeIndex = null;
+            qpLoadedHistoryId = null;
+            qpLoadedHistoryName = null;
+            qpLoadedHistoryEdited = false;
+            qpLoadedHistorySnapshot = null;
+            renderQpLoadedHistoryLabel();
+            qpAnimateBlocksChange(() => { qpBlocks = [qpNewBlock()]; });
+            qpMarkUnsaved();
+            qpSyncAfterBlocksChanged();
+        });
+    }
+
     // ML-145: replaces the old free 2-axis drag-anywhere-on-the-box gesture, which called
     // e.preventDefault() on every pointerdown regardless of direction and so blocked native page
     // scroll from ever starting on a bar card at all. Two independent, purpose-built gestures now:
@@ -6340,6 +6449,13 @@
             qpOpenSwipeIndex = null;
             qpDeleteBar(index);
         });
+        // ML-80: the dead-end-delete swap above (qpBlockBoxHtml) renders this instead of the normal
+        // delete button when Bar 1 is the only bar.
+        boxEl.querySelector('[data-qp-reset-all-btn]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            qpOpenSwipeIndex = null;
+            qpResetAllBars();
+        });
     }
 
     document.getElementById('qpAddBlockBtn')?.addEventListener('click', () => {
@@ -6347,6 +6463,10 @@
         qpAnimateBlocksChange(() => {
             qpBlocks.push(last ? { ...last, _uid: ++qpUidCounter } : qpNewBlock());
         });
+        // ML-154 follow-up: scrolls to the "+ Add bar" button itself, not just the new bar box above
+        // it - scrolling only the box left the button that landed it there just out of view below the
+        // fold, defeating the point if you wanted to add another straight after.
+        document.getElementById('qpAddBlockBtn')?.scrollIntoView({ behavior: 'smooth', block: 'end' });
         qpMarkUnsaved();
         qpSyncAfterBlocksChanged();
     });
@@ -6362,11 +6482,14 @@
     window.openQpBarMenu = function(btnEl, index) {
         const menu = document.getElementById('qpBarMenu');
         if (!menu) return;
+        closeAllMetroPopupMenus();
         qpBarMenuTargetIndex = index;
         const total = qpBlocks.length;
         document.getElementById('qpBarMenuMoveUp')?.classList.toggle('hidden-group', index === 0);
         document.getElementById('qpBarMenuMoveDown')?.classList.toggle('hidden-group', index === total - 1);
         document.getElementById('qpBarMenuDelete')?.classList.toggle('hidden-group', total <= 1);
+        // ML-80: only ever offered from Bar 1's own menu, regardless of how many bars exist.
+        document.getElementById('qpBarMenuResetAll')?.classList.toggle('hidden-group', index !== 0);
 
         const btnRect = btnEl.getBoundingClientRect();
         menu.style.right = 'auto';
@@ -6417,6 +6540,11 @@
         closeQpBarMenu();
         if (i !== null) qpDeleteBar(i);
     });
+    document.getElementById('qpBarMenuResetAll')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeQpBarMenu();
+        qpResetAllBars();
+    });
 
     // --- Playback (mirrors Blocks' jumpMetroBlkToIndex/advanceMetroBlk - simpler here since there's
     // no lead-in to special-case, and no separate play-queue array either: qpBlocks IS the queue,
@@ -6452,8 +6580,10 @@
     // you anything). Word-first ("Bar 1 of 4") rather than number-first ("1 of 4 bar") to match the
     // block boxes' own "Bar N" heading - if Flow ever wants an equivalent for its own setups, "Block X
     // of Y" would sit alongside this same way.
+    // ML-172: bar identification leads now - knowing "which bar am I on" matters more at a glance
+    // than the time signature/tempo that follow it.
     function qpBlockLabel(block) {
-        return `${qpBlockTimeSigLabel(block)} · ${block.bpm} bpm · Bar ${qpPlayIndex + 1} of ${qpBlocks.length}`;
+        return `Bar ${qpPlayIndex + 1} of ${qpBlocks.length} · ${qpBlockTimeSigLabel(block)} · ${block.bpm} bpm`;
     }
 
     function applyQpBlockToPlayer(block) {
@@ -6499,6 +6629,19 @@
         if (!block) return;
         const subFactor = qpSubFactorFor(block);
         flashTierDot('qpRow0Dots', beatInfo.clickIndexInBar);
+
+        // ML-155: pan the row to keep the current beat in view once there are too many circles to fit
+        // (same "camera clamp" metroScrollFollow does for Blocks' own row, onMetroBlkBeat above) - this
+        // was wired up for Blocks but never ported to Quick Play, so the lit dot just marched off the
+        // right edge with nothing bringing it back into view. Same totalBaseClicks+1 basis renderQuickPlayRows
+        // lays the dots out on, so the math can't drift out of step with where they actually are.
+        if (beatInfo.isConductorBeat) {
+            const totalBaseClicks = beatInfo.conductorBeatsPerBar * subFactor;
+            const nextIndex = (beatInfo.conductorBeatIndex + 1) % beatInfo.conductorBeatsPerBar;
+            const trackUnit = 100 / (totalBaseClicks + 1);
+            const trackLeftPct = (k) => k * trackUnit + trackUnit / 2;
+            metroScrollFollow('qpRow0Viewport', 'qpRow0Content', trackLeftPct(beatInfo.conductorBeatIndex * subFactor), trackLeftPct(nextIndex * subFactor), beatInfo.secondsPerConductorBeat);
+        }
 
         qpClicksPlayedInBlock++;
         const targetClicks = block.barCount * qpBeatsPerBarFor(block) * subFactor;
@@ -6561,23 +6704,327 @@
         return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
     }
 
+    // Which history row (if any) is currently loaded into Quick Play - null means "nothing loaded,
+    // a fresh Play writes a brand new history entry" (the original behaviour). Set by the Load button
+    // below, cleared by qpClearLoadedHistory (the X next to the loaded name) and qpResetAllBars.
+    let qpLoadedHistoryId = null;
+    let qpLoadedHistoryName = null;
+    // Whether qpBlocks has changed since it was loaded (qpMarkUnsaved flips this on) - drives the
+    // "- edited" tag and its undo icon.
+    let qpLoadedHistoryEdited = false;
+    // A plain-data snapshot of the blocks exactly as loaded (no _uid - qpRevertToLoadedHistory
+    // assigns fresh ones) - kept around for the whole time something's loaded, regardless of any
+    // auto-save/overwrite that happens in between, so "revert" always means "back to what was
+    // actually loaded", not "back to whatever's currently on the server".
+    let qpLoadedHistorySnapshot = null;
+
+    // Shows the loaded entry's name under the "Bars" title, with the "- edited"/undo pair and the X
+    // that clears it - hidden entirely whenever nothing is loaded.
+    function renderQpLoadedHistoryLabel() {
+        const row = document.getElementById('qpLoadedHistoryRow');
+        if (!row) return;
+        row.classList.toggle('hidden-group', qpLoadedHistoryId === null);
+        const nameEl = document.getElementById('qpLoadedHistoryName');
+        if (nameEl && qpLoadedHistoryName !== null) nameEl.innerText = qpFormatHistoryLabel(qpLoadedHistoryName);
+        document.getElementById('qpLoadedHistoryEditedTag')?.classList.toggle('hidden-group', !qpLoadedHistoryEdited);
+        document.getElementById('qpLoadedHistoryUndoBtn')?.classList.toggle('hidden-group', !qpLoadedHistoryEdited);
+    }
+
+    // Reverts to exactly what was loaded (qpLoadedHistorySnapshot), even if an auto-save already
+    // overwrote the history row itself with edited bars in the meantime - the next Play re-saves this
+    // reverted state back over that (qpSavedThisRun reset, same as any other change).
+    function qpRevertToLoadedHistory() {
+        if (!qpLoadedHistorySnapshot) return;
+        qpAnimateBlocksChange(() => {
+            qpBlocks = qpLoadedHistorySnapshot.map(b => ({ ...b, _uid: ++qpUidCounter }));
+        });
+        qpLoadedHistoryEdited = false;
+        qpSavedThisRun = false;
+        renderQpLoadedHistoryLabel();
+        qpSyncAfterBlocksChanged();
+    }
+    document.getElementById('qpLoadedHistoryUndoBtn')?.addEventListener('click', qpRevertToLoadedHistory);
+
+    function qpBlocksPayload() {
+        return qpBlocks.map(b => ({
+            barCount: b.barCount,
+            bpm: b.bpm,
+            noteValue: b.noteSelected,
+            timeSignatureId: b.timeSigValue?.startsWith('public:') ? Number(b.timeSigValue.split(':')[1]) : null,
+            accountTimeSignatureId: b.timeSigValue?.startsWith('custom:') ? Number(b.timeSigValue.split(':')[1]) : null
+        }));
+    }
+
     // Writes the current blocks in as one history row - fire-and-forget (a failed write must never
     // block playback actually starting). Runs once per "fresh" play (see qpSavedThisRun), not on every
-    // pause/resume toggle.
+    // pause/resume toggle. Once a history row is loaded (qpLoadedHistoryId), this overwrites that same
+    // row's bars instead of creating a new entry every time - "override the saved version", per the
+    // request - until it's cleared (qpClearLoadedHistory) or the bars are reset (qpResetAllBars).
     async function saveQuickPlayHistory() {
         try {
-            await API.metronomeBlocks.quickPlay.save(qpLocalTimestamp(), qpBlocks.map(b => ({
-                barCount: b.barCount,
-                bpm: b.bpm,
-                noteValue: b.noteSelected,
-                timeSignatureId: b.timeSigValue?.startsWith('public:') ? Number(b.timeSigValue.split(':')[1]) : null,
-                accountTimeSignatureId: b.timeSigValue?.startsWith('custom:') ? Number(b.timeSigValue.split(':')[1]) : null
-            })));
+            if (qpLoadedHistoryId !== null) {
+                await API.metronomeBlocks.quickPlay.overwriteHistory(qpLoadedHistoryId, qpBlocksPayload());
+            } else {
+                await API.metronomeBlocks.quickPlay.save(qpLocalTimestamp(), qpBlocksPayload());
+            }
         } catch (error) {
             showWarningToast('Error saving play history: ' + error.message);
         }
     }
 
+    // --- ML-34: "Show history" - browse/rename/favourite/delete past history rows and load one
+    // back into qpBlocks. qpLocalTimestamp's stored format ("YYYY-MM-DD HH:MM:SS") is kept as-is
+    // (an earlier, deliberate choice - see its own comment above) - this only reformats it for
+    // display, so a still-default-named row reads as "17 Sep 2026 14:32" here without touching what's
+    // actually stored or renamed rows (which show exactly what the user typed).
+    function qpFormatHistoryLabel(name) {
+        const d = new Date(String(name).replace(' ', 'T'));
+        if (isNaN(d.getTime())) return name;
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    // ML-34 follow-up: "Duplicate" names itself "<name> (copy)", or "<name> (copy 2)"/"(copy 3)"/...
+    // if that's already taken - e.g. duplicating a favourite more than once. Always computed off the
+    // original's own base name (stripping any existing "(copy...)" suffix first), not the source
+    // being duplicated, so duplicating a copy chains "(copy)", "(copy 2)", "(copy 3)" rather than
+    // compounding into "(copy) (copy)".
+    function qpBaseHistoryName(name) {
+        return String(name).replace(/\s*\(copy(?:\s+\d+)?\)\s*$/i, '');
+    }
+    function qpNextDuplicateName(name) {
+        const base = qpBaseHistoryName(name);
+        const existing = new Set(qpHistoryData.map(r => r.name));
+        if (!existing.has(`${base} (copy)`)) return `${base} (copy)`;
+        let n = 2;
+        while (existing.has(`${base} (copy ${n})`)) n++;
+        return `${base} (copy ${n})`;
+    }
+
+    let qpHistoryData = [];
+    let qpHistoryFilter = 'all';
+    let qpHistorySelectedId = null;
+    let qpHistoryMenuTargetId = null;
+
+    async function loadQpHistory() {
+        const list = document.getElementById('qpHistoryList');
+        if (list) list.innerHTML = 'Loading…';
+        try {
+            qpHistoryData = await API.metronomeBlocks.quickPlay.history();
+            renderQpHistoryList();
+        } catch (error) {
+            showWarningToast('Error loading history: ' + error.message);
+        }
+    }
+
+    function renderQpHistoryList() {
+        const list = document.getElementById('qpHistoryList');
+        if (!list) return;
+        const rows = qpHistoryFilter === 'favorites' ? qpHistoryData.filter(r => r.isFavorite) : qpHistoryData;
+        if (!rows.length) {
+            list.innerHTML = `<p class="text-muted">${qpHistoryFilter === 'favorites' ? 'No favourites yet.' : 'No history yet - play something for a couple of seconds and it\'ll show up here.'}</p>`;
+        } else {
+            list.innerHTML = rows.map(r => `
+                <div class="history-item qp-history-item${r.id === qpHistorySelectedId ? ' qp-history-item-selected' : ''}" data-qp-history-id="${r.id}">
+                    <div class="qp-history-item-body" data-qp-history-select>
+                        ${r.isFavorite ? '<span class="material-symbols-outlined qp-history-star" aria-hidden="true">star</span>' : ''}
+                        <div>
+                            <strong>${escapeHtml(qpFormatHistoryLabel(r.name))}</strong>
+                            <div style="font-size:0.85rem; color:#666;">${r.blockCount} bar${r.blockCount === 1 ? '' : 's'}</div>
+                        </div>
+                    </div>
+                    <button type="button" class="qp-history-item-menu-btn" data-qp-history-menu-btn aria-label="Options for ${escapeHtml(qpFormatHistoryLabel(r.name))}"><span class="material-symbols-outlined">more_vert</span></button>
+                </div>
+            `).join('');
+        }
+        list.querySelectorAll('[data-qp-history-select]').forEach(el => {
+            el.addEventListener('click', () => {
+                const id = Number(el.closest('.qp-history-item').dataset.qpHistoryId);
+                qpHistorySelectedId = qpHistorySelectedId === id ? null : id;
+                renderQpHistoryList();
+            });
+        });
+        list.querySelectorAll('[data-qp-history-menu-btn]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = Number(btn.closest('.qp-history-item').dataset.qpHistoryId);
+                openQpHistoryItemMenu(e.currentTarget, id);
+            });
+        });
+        const loadBtn = document.getElementById('qpHistoryLoadBtn');
+        if (loadBtn) loadBtn.disabled = qpHistorySelectedId === null || !rows.some(r => r.id === qpHistorySelectedId);
+    }
+
+    function openQpHistoryItemMenu(btnEl, id) {
+        const menu = document.getElementById('qpHistoryItemMenu');
+        if (!menu) return;
+        closeAllMetroPopupMenus();
+        qpHistoryMenuTargetId = id;
+        const entry = qpHistoryData.find(r => r.id === id);
+        const favBtn = document.getElementById('qpHistoryItemFavoriteToggle');
+        if (favBtn) favBtn.innerText = entry?.isFavorite ? 'Remove from favourites' : 'Set as favourite';
+
+        const btnRect = btnEl.getBoundingClientRect();
+        menu.style.right = 'auto';
+        menu.classList.add('show');
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+        let left = btnRect.right - menuWidth;
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+        let top = btnRect.bottom + 4;
+        top = Math.min(top, window.innerHeight - menuHeight - 8);
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    }
+    function closeQpHistoryItemMenu() {
+        document.getElementById('qpHistoryItemMenu')?.classList.remove('show');
+    }
+    document.addEventListener('click', closeQpHistoryItemMenu);
+
+    document.getElementById('qpHistoryItemRename')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = qpHistoryMenuTargetId;
+        closeQpHistoryItemMenu();
+        const entry = qpHistoryData.find(r => r.id === id);
+        if (!entry) return;
+        showPromptModal('Rename', qpFormatHistoryLabel(entry.name), async (newName) => {
+            if (!newName) return;
+            try {
+                await API.metronomeBlocks.setups.rename(id, newName);
+                await loadQpHistory();
+            } catch (error) {
+                showWarningToast('Error renaming: ' + error.message);
+            }
+        });
+    });
+    document.getElementById('qpHistoryItemFavoriteToggle')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = qpHistoryMenuTargetId;
+        closeQpHistoryItemMenu();
+        const entry = qpHistoryData.find(r => r.id === id);
+        if (!entry) return;
+        try {
+            await API.metronomeBlocks.setups.setFavorite(id, !entry.isFavorite);
+            await loadQpHistory();
+        } catch (error) {
+            showWarningToast('Error updating favourite: ' + error.message);
+        }
+    });
+    document.getElementById('qpHistoryItemDelete')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = qpHistoryMenuTargetId;
+        closeQpHistoryItemMenu();
+        const entry = qpHistoryData.find(r => r.id === id);
+        if (!entry) return;
+        showConfirmModal('Delete history entry', `Delete "${qpFormatHistoryLabel(entry.name)}" from history?`, async () => {
+            try {
+                await API.metronomeBlocks.setups.delete(id);
+                if (qpHistorySelectedId === id) qpHistorySelectedId = null;
+                await loadQpHistory();
+            } catch (error) {
+                showWarningToast('Error deleting: ' + error.message);
+            }
+        });
+    });
+    // ML-34 follow-up: most useful on a favourite - keeps it pristine while you iterate on a variant.
+    document.getElementById('qpHistoryItemDuplicate')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = qpHistoryMenuTargetId;
+        closeQpHistoryItemMenu();
+        const entry = qpHistoryData.find(r => r.id === id);
+        if (!entry) return;
+        try {
+            const created = await API.metronomeBlocks.quickPlay.duplicateHistory(id, qpNextDuplicateName(entry.name));
+            qpHistorySelectedId = created.id;
+            await loadQpHistory();
+            showSuccessToast('Duplicated');
+        } catch (error) {
+            showWarningToast('Error duplicating: ' + error.message);
+        }
+    });
+
+    document.querySelectorAll('#qpHistoryFilterRadios input[type="radio"]').forEach(r => {
+        r.addEventListener('change', (e) => {
+            qpHistoryFilter = e.target.value;
+            renderQpHistoryList();
+        });
+    });
+
+    function openQpHistoryModal() {
+        qpHistorySelectedId = null;
+        qpHistoryFilter = 'all';
+        document.getElementById('qpHistoryFilterAll').checked = true;
+        document.getElementById('qpHistoryModal').style.display = 'flex';
+        loadQpHistory();
+    }
+    document.getElementById('qpShowHistoryBtn')?.addEventListener('click', openQpHistoryModal);
+    document.getElementById('qpHistoryCloseBtn')?.addEventListener('click', () => {
+        document.getElementById('qpHistoryModal').style.display = 'none';
+    });
+
+    // Maps a saved setup's full segment DTOs (server shape - see toSegmentDto) back into qpBlocks'
+    // own flatter { timeSigValue, bpm, noteSelected, barCount } shape (qpNewBlock). Quick Play has no
+    // lead-in concept, but a history row never has one anyway (createQuickPlaySetup always inserts
+    // is_lead_in = false) - the filter is just defensive.
+    function qpBlocksFromSegments(segments) {
+        return segments.filter(s => !s.isLeadIn).map(s => ({
+            _uid: ++qpUidCounter,
+            timeSigValue: s.timeSignatureId ? `public:${s.timeSignatureId}` : (s.accountTimeSignatureId ? `custom:${s.accountTimeSignatureId}` : qpDefaultTimeSigValue()),
+            bpm: s.bpm,
+            noteSelected: s.noteValue || 'crotchet',
+            barCount: s.barCount || 1
+        }));
+    }
+
+    document.getElementById('qpHistoryLoadBtn')?.addEventListener('click', async () => {
+        const id = qpHistorySelectedId;
+        if (id === null) return;
+        try {
+            const setup = await API.metronomeBlocks.setups.get(id);
+            const blocks = qpBlocksFromSegments(setup.segments);
+            if (!blocks.length) return showWarningToast('That history entry has no bars to load.');
+            qpBlocks = blocks;
+            qpLoadedHistoryId = setup.id;
+            qpLoadedHistoryName = setup.name;
+            qpLoadedHistoryEdited = false;
+            qpLoadedHistorySnapshot = blocks.map(b => ({ timeSigValue: b.timeSigValue, bpm: b.bpm, noteSelected: b.noteSelected, barCount: b.barCount }));
+            renderQpLoadedHistoryLabel();
+            // Not qpMarkUnsaved() - loading isn't itself an edit, it just needs the same "next Play
+            // writes fresh" reset qpMarkUnsaved would otherwise also give it.
+            qpSavedThisRun = false;
+            qpSyncAfterBlocksChanged();
+            renderQuickPlayBlocks();
+            document.getElementById('qpHistoryModal').style.display = 'none';
+            showSuccessToast('Loaded from history');
+        } catch (error) {
+            showWarningToast('Error loading history entry: ' + error.message);
+        }
+    });
+
+    // The X next to the loaded name (ML-34 follow-up) - unlinks from that history row and resets to
+    // the same single-default-bar starting point as qpResetAllBars, but with no confirmation: nothing
+    // is destroyed (the loaded entry is untouched in history, and the in-progress bars weren't
+    // themselves ever saved anywhere), it's just clearing what's currently loaded. qpMarkUnsaved
+    // already means the usual 2-second-played gate applies again before anything new is written.
+    function qpClearLoadedHistory() {
+        qpLoadedHistoryId = null;
+        qpLoadedHistoryName = null;
+        qpLoadedHistoryEdited = false;
+        qpLoadedHistorySnapshot = null;
+        renderQpLoadedHistoryLabel();
+        qpAnimateBlocksChange(() => { qpBlocks = [qpNewBlock()]; });
+        qpMarkUnsaved();
+        qpSyncAfterBlocksChanged();
+    }
+    document.getElementById('qpLoadedHistoryClearBtn')?.addEventListener('click', qpClearLoadedHistory);
+
+    // ML-34: only actually written to history once played continuously for a couple of seconds - a
+    // Play immediately followed by Stop/Pause shouldn't leave a "nothing really happened" row behind.
+    // Not cleared on pause: if it fires while paused, the isPlaying() check below just skips (no
+    // save, no reschedule) and the next fresh Play press starts a new one (qpHistorySaveTimer is null
+    // again by then) - simpler than tracking accumulated play time across pauses.
+    let qpHistorySaveTimer = null;
     function playQuickPlay() {
         if (!qpBlocks.length) return showWarningToast('Add at least one time block first.');
         // Pushes whatever's currently in qpBlocks[qpPlayIndex] into the engine fresh - covers the case
@@ -6585,9 +7032,14 @@
         // live everywhere else, but the engine's own internal tempo/beatsPerBar only updates when
         // explicitly told to). Doesn't touch position, so this is always safe to call, resume included.
         applyQpBlockToPlayer(qpBlocks[qpPlayIndex]);
-        if (!qpSavedThisRun) {
-            qpSavedThisRun = true;
-            saveQuickPlayHistory();
+        if (!qpSavedThisRun && !qpHistorySaveTimer) {
+            qpHistorySaveTimer = setTimeout(() => {
+                qpHistorySaveTimer = null;
+                if (qpPlayer.isPlaying() && !qpSavedThisRun) {
+                    qpSavedThisRun = true;
+                    saveQuickPlayHistory();
+                }
+            }, 2000);
         }
         qpPlayer.play();
         updateQPPlayIcon();
@@ -6630,6 +7082,9 @@
         const display = block ? (qpSubFactorFor(block) <= 1 ? '0' : String(qpSubFactorFor(block))) : '0';
         const lbl = document.getElementById('qpSubdivideLbl');
         if (lbl) lbl.innerText = display;
+        // ML-165: same "call out Auto specifically" treatment as Blocks' own renderMetroBlkSubdivideLabels.
+        const unitLbl = document.getElementById('qpSubdivideUnitLbl');
+        if (unitLbl) unitLbl.innerText = qpSubBeatsMode === 'auto' ? 'auto sub beats' : 'sub beats';
     }
 
     function renderQpSubdividePopupSlider() {
@@ -7024,27 +7479,28 @@
     }
     tunerEngine.onPitch(renderMetroBlkMiniTunerPitch);
 
-    // Full names (ML-91 follow-up: "Bb" alone read as ambiguous shorthand once it moved out from
-    // directly under the note - full names removed that ambiguity).
-    const METRO_BLK_MINI_TUNER_INSTRUMENT_LABELS = { C: 'Concert', Bb: 'B♭ instrument', Eb: 'E♭ instrument', F: 'F instrument' };
+    // Short codes now, matching the picker's own button style elsewhere (B♭/E♭/F instruments,
+    // C for concert pitch) - the full-name text row underneath the bar is gone (removed for height),
+    // so this button is the only place the current instrument shows at all.
+    const METRO_BLK_MINI_TUNER_INSTRUMENT_LABELS = { C: 'C', Bb: 'B♭', Eb: 'E♭', F: 'F' };
 
-    // Keeps the label under the bar, and the popup's own "currently selected" highlight, in sync with
-    // metroBlkMiniTunerInstrument - called on open and on every pick.
+    // Keeps the instrument button's own text, and the popup's own "currently selected" highlight, in
+    // sync with metroBlkMiniTunerInstrument - called on open and on every pick.
     function renderMetroBlkMiniTunerInstrumentBtn() {
         const label = METRO_BLK_MINI_TUNER_INSTRUMENT_LABELS[metroBlkMiniTunerInstrument] || metroBlkMiniTunerInstrument;
-        document.getElementById('metroBlkMiniTunerInstrumentLabel').innerText = label;
+        document.getElementById('metroBlkMiniTunerInstrumentBtnLbl').innerText = label;
         document.querySelectorAll('#metroBlkMiniTunerInstrumentOptions .metroBlk-timesig-opt').forEach(btn => {
             btn.classList.toggle('selected', btn.dataset.value === metroBlkMiniTunerInstrument);
         });
     }
 
-    // A dedicated cog icon opens this popup now (ML-91 follow-up) - the note and the label under the
-    // bar are no longer click targets themselves, since having the label directly under the note read
-    // as "two notes" stacked on top of each other.
+    // The instrument button opens this popup directly now (no more 3-dot menu in between - Close is
+    // its own dedicated icon button beside it instead, see metroBlkMiniTunerCloseBtn below).
     function openMetroBlkMiniTunerInstrumentPicker() {
         renderMetroBlkMiniTunerInstrumentBtn();
         document.getElementById('metroBlkMiniTunerInstrumentModal').style.display = 'flex';
     }
+    document.getElementById('metroBlkMiniTunerInstrumentBtn')?.addEventListener('click', openMetroBlkMiniTunerInstrumentPicker);
     document.getElementById('metroBlkMiniTunerInstrumentOptions')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.metroBlk-timesig-opt');
         if (!btn) return;
@@ -7052,43 +7508,7 @@
         renderMetroBlkMiniTunerInstrumentBtn();
         document.getElementById('metroBlkMiniTunerInstrumentModal').style.display = 'none';
     });
-
-    // The tuner widget's own 3-dot menu (Settings/Close) - replaces the old direct settings-cog
-    // button now that Close has moved here too (the top-bar toggle disappears entirely while the
-    // tuner's open, see renderTopTunerToggleState, so it's no longer a second way to close it).
-    function closeMetroBlkMiniTunerMenu() {
-        document.getElementById('metroBlkMiniTunerMenu')?.classList.remove('show');
-    }
-    document.addEventListener('click', closeMetroBlkMiniTunerMenu);
-    // Fixed-position, JS-placed against the 3-dot button (same as openMetroBlkTileMenu) - the tuner
-    // box itself clips (overflow:hidden, for its own open/close slide), so the old CSS-anchored
-    // absolute dropdown left "Close" clipped off and unreachable.
-    document.getElementById('metroBlkMiniTunerMenuBtn')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const menu = document.getElementById('metroBlkMiniTunerMenu');
-        if (!menu) return;
-        if (menu.classList.contains('show')) { closeMetroBlkMiniTunerMenu(); return; }
-        const btnRect = e.currentTarget.getBoundingClientRect();
-        menu.classList.add('show');
-        const menuWidth = menu.offsetWidth;
-        const menuHeight = menu.offsetHeight;
-        let left = btnRect.right - menuWidth;
-        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
-        let top = btnRect.bottom + 4;
-        top = Math.min(top, window.innerHeight - menuHeight - 8);
-        menu.style.left = `${left}px`;
-        menu.style.top = `${top}px`;
-    });
-    document.getElementById('metroBlkMiniTunerMenuSettings')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeMetroBlkMiniTunerMenu();
-        openMetroBlkMiniTunerInstrumentPicker();
-    });
-    document.getElementById('metroBlkMiniTunerMenuClose')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeMetroBlkMiniTunerMenu();
-        closeMetroBlkMiniTuner();
-    });
+    document.getElementById('metroBlkMiniTunerCloseBtn')?.addEventListener('click', closeMetroBlkMiniTuner);
 
     // Shows/hides the top-bar toggle - visible only on a tuner-capable view (Flow/Metronome) AND only
     // while the tuner is currently closed (it disappears once open; Settings/Close live in the
@@ -7188,7 +7608,7 @@
     // save-session screen, ML-7/ML-29), count down, and on finish offer to log it
     // as a practice session via the existing save-session screen. Runs on a plain
     // setInterval that's independent of which view is on screen - navigating away
-    // just shrinks it to the mini-bar (see updateTimerMiniBarVisibility) rather
+    // just shrinks it to the top-bar indicator (see updateTopTimerIndicator) rather
     // than stopping it. State lives in `timerState`: null when idle, otherwise
     // { targetSeconds, remainingSeconds, elapsedSeconds, running }.
     let timerState = null;
@@ -7227,10 +7647,18 @@
         return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
     }
 
-    function updateTimerMiniBarVisibility(viewName) {
-        const bar = document.getElementById('timerMiniBar');
-        if (!bar) return;
-        bar.classList.toggle('hidden-group', !timerState || viewName === 'timerView');
+    // ML-129 follow-up: the timer's collapsed top-bar state is exactly one of three things - nothing,
+    // the idle icon (next to the tuner toggle, no timer running/paused yet), or the running pill
+    // (also next to the tuner toggle, sized to its own content - it no longer replaces the title) -
+    // and never any of them while the inline popup itself is open, or the Timer screen itself is the
+    // active view (that page already shows everything).
+    let timerInlineBoxOpen = false;
+    function updateTopTimerIndicator(viewName) {
+        const onTimerView = viewName === 'timerView';
+        const showPill = !!timerState && !timerInlineBoxOpen && !onTimerView;
+        const showIcon = !timerState && !timerInlineBoxOpen && !onTimerView;
+        document.getElementById('topTimerPill')?.classList.toggle('hidden-group', !showPill);
+        document.getElementById('topTimerIconBtn')?.classList.toggle('hidden-group', !showIcon);
     }
 
     function updateTimerPlayIcons() {
@@ -7241,10 +7669,16 @@
         const fullBtn = document.getElementById('timerPlayBtn');
         if (fullIcon) fullIcon.innerText = icon;
         if (fullBtn) fullBtn.setAttribute('aria-label', label);
-        const miniIcon = document.getElementById('timerMiniPlayIcon');
-        const miniBtn = document.getElementById('timerMiniPlayBtn');
-        if (miniIcon) miniIcon.innerText = icon;
-        if (miniBtn) miniBtn.setAttribute('aria-label', label);
+        // The inline box's Play cell doubles as "Start" until a session actually exists.
+        const inlineIcon = document.getElementById('timerInlinePlayIcon');
+        const inlineLbl = document.getElementById('timerInlinePlayLbl');
+        const inlineBtn = document.getElementById('timerInlinePlayBtn');
+        if (inlineIcon) inlineIcon.innerText = timerState ? icon : 'play_arrow';
+        if (inlineLbl) inlineLbl.innerText = timerState ? (running ? 'pause' : 'play') : 'start';
+        if (inlineBtn) inlineBtn.setAttribute('aria-label', timerState ? label : 'Start');
+        // Soft amber glow while actually running (not paused) - visually confirms time is
+        // accumulating without an extra banner.
+        document.getElementById('topTimerPill')?.classList.toggle('top-bar-timer-pill-running', running);
     }
 
     function updateTimerDisplays() {
@@ -7256,11 +7690,112 @@
         if (elapsedEl) elapsedEl.innerText = formatClock(timerState.elapsedSeconds);
         if (todayEl) todayEl.innerText = formatClock(getTimerTodaySeconds());
 
-        const miniTimeEl = document.getElementById('timerMiniSessionTime');
-        const miniRemainingEl = document.getElementById('timerMiniRemaining');
-        if (miniTimeEl) miniTimeEl.innerText = formatClock(timerState.elapsedSeconds);
-        if (miniRemainingEl) miniRemainingEl.innerText = formatClock(timerState.remainingSeconds);
+        // The pill only has room for one figure, per the request ("has the time remaining") -
+        // elapsed/"today" stay full-screen-only (timerElapsedDisplay/timerTodayDisplay above).
+        const pillRemainingEl = document.getElementById('topTimerPillRemaining');
+        if (pillRemainingEl) pillRemainingEl.innerText = formatClock(timerState.remainingSeconds);
+        const inlineRemainingEl = document.getElementById('timerInlineRemainingLbl');
+        if (inlineRemainingEl) inlineRemainingEl.innerText = formatClock(timerState.remainingSeconds);
     }
+
+    // --- Inline box (ML-129 follow-up) - opened by tapping either the running pill or the idle
+    // icon, stays open across navigation (it lives in .top-bar-sticky-group, same as the metronome
+    // mini-bars), and keeps the timer counting down regardless of whether it's open or closed. ---
+
+    // Staged duration, only meaningful while idle - Start reads this, the picker modal sets it.
+    let timerPickedMinutes = null;
+
+    function renderTimerInlineBox() {
+        const running = !!timerState;
+        document.getElementById('timerInlinePickBtn')?.classList.toggle('hidden-group', running);
+        document.getElementById('timerInlineTimeDisplay')?.classList.toggle('hidden-group', !running);
+        // Just the number now (no "min" suffix) - "XX min." was overflowing the fixed-width cell,
+        // same reason the label underneath now says "minutes" instead of "duration".
+        const pickLbl = document.getElementById('timerInlinePickLbl');
+        if (pickLbl) pickLbl.innerText = timerPickedMinutes ? String(timerPickedMinutes) : 'Pick';
+        const stopBtn = document.getElementById('timerInlineStopBtn');
+        if (stopBtn) stopBtn.disabled = !running;
+        updateTimerPlayIcons();
+        if (running) updateTimerDisplays();
+    }
+
+    function openTimerInlineBox() {
+        timerInlineBoxOpen = true;
+        document.getElementById('timerInlineBox').style.display = 'flex';
+        updateTopTimerIndicator(viewStack[viewStack.length - 1]);
+        renderTimerInlineBox();
+    }
+    // Never stops the timer itself - just hides the popup again, same as the request ("This can be
+    // kept open, and the timer will keep going... you can continue to use the screen as normal").
+    function closeTimerInlineBox() {
+        timerInlineBoxOpen = false;
+        document.getElementById('timerInlineBox').style.display = 'none';
+        updateTopTimerIndicator(viewStack[viewStack.length - 1]);
+    }
+    document.getElementById('topTimerPill')?.addEventListener('click', openTimerInlineBox);
+    document.getElementById('topTimerIconBtn')?.addEventListener('click', openTimerInlineBox);
+    document.getElementById('timerInlineCloseBtn')?.addEventListener('click', closeTimerInlineBox);
+    // Tapping the backdrop (not the popup card itself) closes it too, per the request - the countdown
+    // keeps going in the top pill either way.
+    document.getElementById('timerInlineBox')?.addEventListener('click', (e) => {
+        if (e.target.id === 'timerInlineBox') closeTimerInlineBox();
+    });
+
+    document.getElementById('timerInlinePlayBtn')?.addEventListener('click', () => {
+        if (!timerState) {
+            if (!timerPickedMinutes) { showWarningToast('Pick a duration first!'); return; }
+            startTimerSession(timerPickedMinutes * 60);
+        } else {
+            toggleTimerPlayPause();
+        }
+        renderTimerInlineBox();
+    });
+    document.getElementById('timerInlineStopBtn')?.addEventListener('click', finishTimerSession);
+
+    // --- Duration picker modal (ML-129 follow-up) - only reachable from the inline box's "pick
+    // duration" cell while idle. Its own copy of the duration radios (timerPickerDur* ids, populated
+    // by renderDurationRadios above) rather than sharing timerDurationRadios' DOM nodes with the full
+    // Timer page, so each stays independently usable regardless of which one is on screen. ---
+    document.getElementById('timerInlinePickBtn')?.addEventListener('click', () => {
+        document.querySelectorAll('input[name="timerPickerDurationOption"]').forEach(r => { r.checked = false; });
+        document.getElementById('timerPickerCustomDurationGroup')?.classList.add('hidden-group');
+        if (timerPickedMinutes) {
+            const matching = document.getElementById(`timerPickerDur-${timerPickedMinutes}`);
+            if (matching) {
+                matching.checked = true;
+            } else {
+                const customRadio = document.getElementById('timerPickerDur-custom');
+                if (customRadio) customRadio.checked = true;
+                document.getElementById('timerPickerCustomDurationGroup')?.classList.remove('hidden-group');
+                const customInput = document.getElementById('timerPickerCustomDuration');
+                if (customInput) customInput.value = timerPickedMinutes;
+            }
+        }
+        document.getElementById('timerDurationPickerModal').style.display = 'flex';
+    });
+    document.getElementById('timerPickerDurationRadios')?.addEventListener('change', (e) => {
+        if (e.target.name !== 'timerPickerDurationOption') return;
+        const customGroup = document.getElementById('timerPickerCustomDurationGroup');
+        if (e.target.value === 'custom') {
+            customGroup.classList.remove('hidden-group');
+            document.getElementById('timerPickerCustomDuration')?.focus();
+        } else {
+            customGroup.classList.add('hidden-group');
+        }
+    });
+    function closeTimerDurationPickerModal() {
+        document.getElementById('timerDurationPickerModal').style.display = 'none';
+    }
+    document.getElementById('timerDurationPickerXBtn')?.addEventListener('click', closeTimerDurationPickerModal);
+    document.getElementById('timerDurationPickerCancelBtn')?.addEventListener('click', closeTimerDurationPickerModal);
+    document.getElementById('timerDurationPickerSaveBtn')?.addEventListener('click', () => {
+        const radio = document.querySelector('input[name="timerPickerDurationOption"]:checked')?.value;
+        const mins = Number(radio === 'custom' ? document.getElementById('timerPickerCustomDuration')?.value : radio);
+        if (!mins || isNaN(mins) || mins <= 0) { showWarningToast('Pick a duration first!'); return; }
+        timerPickedMinutes = mins;
+        closeTimerDurationPickerModal();
+        renderTimerInlineBox();
+    });
 
     // Syncs the full-screen Timer view to whatever timerState currently is -
     // called on entering the view, so navigating back mid-session shows the
@@ -7288,7 +7823,10 @@
         clearInterval(timerIntervalId);
         timerIntervalId = setInterval(timerTick, 1000);
         renderTimerScreen();
-        updateTimerMiniBarVisibility('timerView');
+        // Not hardcoded to 'timerView' any more - this can now also be reached from the inline box
+        // while on some other screen entirely, so the indicator has to reflect whichever view is
+        // actually active (it stays hidden regardless while the box itself is open).
+        updateTopTimerIndicator(viewStack[viewStack.length - 1]);
         syncWakeLock();
     }
 
@@ -7309,7 +7847,9 @@
         const elapsedSeconds = timerState.elapsedSeconds;
         timerState = null;
         renderTimerScreen();
-        updateTimerMiniBarVisibility(viewStack[viewStack.length - 1]);
+        // Also closes the inline box if it was open - nothing left for it to control once the
+        // session has actually ended (recomputes the top-bar indicator either way).
+        closeTimerInlineBox();
         syncWakeLock();
 
         if (elapsedSeconds < 1) return;
@@ -7318,7 +7858,7 @@
             'Session finished!',
             `Would you like to store this ${minutes} minute session as a practice session?`,
             () => { prefillEntryFormForTimer(minutes); switchView('entryForm'); },
-            false
+            false, 'Yes', 'No'
         );
     }
 
@@ -7363,9 +7903,7 @@
     });
 
     document.getElementById('timerPlayBtn')?.addEventListener('click', toggleTimerPlayPause);
-    document.getElementById('timerMiniPlayBtn')?.addEventListener('click', toggleTimerPlayPause);
     document.getElementById('timerStopBtn')?.addEventListener('click', finishTimerSession);
-    document.getElementById('timerMiniCloseBtn')?.addEventListener('click', finishTimerSession);
 
     // Dark mode toggle
     document.getElementById('darkModeToggle')?.addEventListener('change', (e) => {

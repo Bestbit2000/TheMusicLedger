@@ -9,6 +9,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import { withVerifyFullSsl } from './sslMode.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.join(__dirname, 'migrations');
@@ -21,7 +22,7 @@ async function run() {
     );
   }
 
-  const client = new pg.Client({ connectionString });
+  const client = new pg.Client({ connectionString: withVerifyFullSsl(connectionString) });
   await client.connect();
 
   try {

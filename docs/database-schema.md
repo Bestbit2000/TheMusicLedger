@@ -95,7 +95,7 @@ session history is archived (`active = false`) rather than deleted, mirroring
 | Table | Purpose | Key columns |
 |---|---|---|
 | `scores` | A piece, owned by a band or an account | id, title, owner_band_id, owner_account_id, forked_from_score_id, is_public, default_bpm, default_time_signature, default_conductor_beats_per_bar |
-| `adhoc_metronome_setups` | Standalone manual multi-section setup, individual-only | id, account_id, name, created_at, saved_at, is_quick_play |
+| `adhoc_metronome_setups` | Standalone manual multi-section setup, individual-only | id, account_id, name, created_at, saved_at, is_quick_play, is_favorite |
 | `metronome_segments` | One row per section, on either a score or an ad-hoc setup (never both) | id, parent_score_id, parent_adhoc_setup_id, order_index, is_lead_in, repeat_lead_in, quiet_seconds_before_lead_in, rehearsal_mark, bar_count, bpm, time_signature_id, account_time_signature_id, conductor_beats_per_bar, is_repeat_start, is_repeat_end, repeat_play_count, pickup_beats, goto_coda, goto_start_dc, is_coda, is_segno, goto_segno, goto_segno_then_coda, is_section_boundary, intro_start_bar_offset, intro_start_beat_offset, intro_end_bar_offset, intro_end_beat_offset, is_first_time_bar, is_second_time_bar, ramp_start_bar_offset, ramp_start_beat_offset, ramp_duration_bars, notes |
 | `metronome_segment_fermatas` | Zero or more sustained-hold fermatas within a block (ad-hoc only today) | id, segment_id, bar_offset, beat_offset, hold_beats, playback_mode |
 | `metronome_segment_rehearsal_marks` | Zero or more rehearsal marks within a block | id, segment_id, mark, bar_offset |
@@ -211,6 +211,11 @@ Notes on fields that took a few passes to nail down:
   `listAdhocSetups`' "Saved setups" list - they're intended for a future
   history view and usage stats instead, not to clutter the library of
   setups someone actually chose to keep.
+- **`adhoc_metronome_setups.is_favorite`** (`031_quick_play_history_favorite.sql`,
+  ML-34): stars a row in Quick Play's "Show history" list. `listQuickPlayHistory`
+  sorts favourites first, alphabetically, then everyone else by `created_at`
+  descending - not restricted to `is_quick_play` rows at the column level, just
+  in practice only ever set from that list today.
 - **Time signature split into two tables, not one with a nullable owner column**:
   `time_signature_options` is a pure system catalog (no owner at all) so it's always
   safe to seed/edit via migration and release straight to production with no risk of
