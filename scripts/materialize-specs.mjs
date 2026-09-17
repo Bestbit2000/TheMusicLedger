@@ -10,6 +10,7 @@ import { readFileSync, existsSync, rmSync, mkdirSync, writeFileSync } from 'node
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import { withVerifyFullSsl } from '../db/sslMode.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -19,7 +20,7 @@ async function run() {
     throw new Error('DATABASE_URL is not set - point it at the dev branch (see docs/environments.md).');
   }
 
-  const client = new pg.Client({ connectionString });
+  const client = new pg.Client({ connectionString: withVerifyFullSsl(connectionString) });
   await client.connect();
 
   try {

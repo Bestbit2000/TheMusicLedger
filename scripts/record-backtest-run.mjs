@@ -9,6 +9,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import { withVerifyFullSsl } from '../db/sslMode.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
@@ -52,7 +53,7 @@ async function run() {
   const report = JSON.parse(readFileSync(reportPath, 'utf8'));
   const leafSuites = collectLeafSuites(report.suites);
 
-  const client = new pg.Client({ connectionString });
+  const client = new pg.Client({ connectionString: withVerifyFullSsl(connectionString) });
   await client.connect();
 
   try {
