@@ -1,8 +1,74 @@
 [
   {
+    "version": "0.18.0",
+    "date": "2026-09-17",
+    "changes": [
+      {
+        "key": "ML-172",
+        "type": "New",
+        "summary": "Change order on metronome of info"
+      },
+      {
+        "key": "ML-165",
+        "type": "New",
+        "summary": "Change text for Auto sub beats"
+      },
+      {
+        "key": "ML-164",
+        "type": "New",
+        "summary": "Formatting on metronome page"
+      },
+      {
+        "key": "ML-162",
+        "type": "Fixes",
+        "summary": "Tuner menu doesn't close if you click another menu item"
+      },
+      {
+        "key": "ML-160",
+        "type": "New",
+        "summary": "Longest streak stat "
+      },
+      {
+        "key": "ML-155",
+        "type": "Fixes",
+        "summary": "Panning of metronome not working"
+      },
+      {
+        "key": "ML-154",
+        "type": "New",
+        "summary": "Focus on new bar when added"
+      },
+      {
+        "key": "ML-147",
+        "type": "New",
+        "summary": "Check server warning about verify-full"
+      },
+      {
+        "key": "ML-129",
+        "type": "New",
+        "summary": "Move timer to top bar"
+      },
+      {
+        "key": "ML-80",
+        "type": "New",
+        "summary": "Metronome - need a clear and start again option"
+      },
+      {
+        "key": "ML-34",
+        "type": "New",
+        "summary": "Include metronome history"
+      }
+    ]
+  },
+  {
     "version": "0.17.0",
     "date": "2026-09-16",
     "changes": [
+      {
+        "key": "ML-157",
+        "type": "New",
+        "summary": "Background colour of boxes"
+      },
       {
         "key": "ML-153",
         "type": "New",
@@ -42,6 +108,16 @@
         "key": "ML-145",
         "type": "New",
         "summary": "Change move up / down and delete for blocks"
+      },
+      {
+        "key": "ML-142",
+        "type": "New",
+        "summary": "Swipe right should then stop and need you to click a delete button "
+      },
+      {
+        "key": "ML-141",
+        "type": "New",
+        "summary": "Change vertical move to top bar only,  with an icon"
       }
     ]
   },
