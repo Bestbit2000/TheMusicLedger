@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.19.0",
+    "date": "2026-09-18",
+    "changes": [
+      {
+        "key": "ML-182",
+        "type": "New",
+        "summary": "Blocks Studio: replace \"Block N\" title with rehearsal mark + bar range"
+      }
+    ]
+  },
+  {
     "version": "0.18.0",
     "date": "2026-09-17",
     "changes": [
