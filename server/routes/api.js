@@ -5,7 +5,7 @@
 // left in this file that needs a Google token at all.
 
 import express from 'express';
-import { requireAuth, resolveAccount } from '../middleware/auth.js';
+import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader } from '../middleware/auth.js';
 import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, joinBand, leaveBand, createSharedBand, deleteBandIfSoleMember } from '../services/bands.js';
 import { getAccountProfile, updateAccountProfile } from '../services/accounts.js';
@@ -15,6 +15,9 @@ import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSign
 import { listAdhocSetups, createAdhocSetup, renameAdhocSetup, saveAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, getOrCreateScratchSetup, createNamedAdhocSetup, duplicateAdhocSetup, createQuickPlaySetup, listQuickPlayHistory, setAdhocSetupFavorite, overwriteQuickPlayHistorySegments, duplicateQuickPlayHistory } from '../services/metronomeSetups.js';
 import { createSegment, updateSegment, deleteSegment } from '../services/metronomeSegments.js';
 import { listActivePlaybackSpeeds } from '../services/playbackSpeeds.js';
+import { handleUpload } from '@vercel/blob/client';
+import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, addUploadedRecording, addYouTubeRecording, deleteRecording, addDocument, deleteDocument, getFlowDefaultBlockSettings } from '../services/flows.js';
+import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks } from '../services/flowBlocks.js';
 
 const router = express.Router();
 
@@ -836,6 +839,250 @@ router.delete('/metronome/segments/:segId', requireAuth, resolveAccount, async (
   try {
     await deleteSegment(req.accountId, req.params.segId);
     res.json({ message: 'Block deleted' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// ========================================
+// FLOWS (Jira ML-179) - score-backed practice flows. See docs/database-schema.md's
+// "Flow" vs "Score" naming note: the table is `scores`, but the concept/every
+// route here is "Flow". Recordings/documents live in Vercel Blob, not Postgres -
+// see server/services/flows.js.
+// ========================================
+router.get('/flows', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await listFlows(req.accountId));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// A flow always starts with exactly one block now (ML-179 follow-up), same as Quick Play's own
+// single default bar - never a truly empty flow with nothing to play.
+router.post('/flows', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const flow = await createFlow(req.accountId, req.body || {});
+    const defaults = await getFlowDefaultBlockSettings();
+    await createFlowBlock(req.accountId, flow.id, defaults);
+    res.json(await getFlowDetail(req.accountId, flow.id));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.get('/flows/:id', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await getFlowDetail(req.accountId, req.params.id));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/flows/:id', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await updateFlowMetadata(req.accountId, req.params.id, req.body || {}));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/flows/:id/move-to-band', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await moveFlowToBand(req.accountId, req.params.id, req.body?.bandId));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/flows/:id/remove-from-band', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await removeFlowFromBand(req.accountId, req.params.id));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/flows/:id/publish', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await publishFlow(req.accountId, req.params.id));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/flows/:id/unpublish', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await unpublishFlow(req.accountId, req.params.id));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.delete('/flows/:id', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await deleteFlow(req.accountId, req.params.id);
+    res.json({ message: 'Flow deleted' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// Personal-flows-only for now (duplicateFlow enforces this) - the library list's own Duplicate row
+// action.
+router.post('/flows/:id/duplicate', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const newId = await duplicateFlow(req.accountId, req.params.id);
+    await copyAllFlowBlocks(req.params.id, newId);
+    res.json(await getFlowDetail(req.accountId, newId));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// Client-upload token for mp3/mp4 recordings (@vercel/blob/client's upload()
+// calls this) - the file goes straight from the browser to Blob storage, never
+// through this function (Vercel's ~4.5MB request body cap rules out proxying
+// anything but the smallest clips through it). onUploadCompleted is a
+// deliberate no-op: that webhook is only reachable on a real deployed URL,
+// never in local dev, so the actual DB row is written by POST
+// /flows/:id/recordings below instead, called by the client right after its
+// own upload() resolves.
+router.post('/flows/:id/recordings/upload-token', requireAuthFromQueryOrHeader, resolveAccount, async (req, res) => {
+  try {
+    const result = await handleUpload({
+      body: req.body,
+      request: req,
+      onBeforeGenerateToken: async () => {
+        await assertFlowAccess(req.accountId, req.params.id);
+        return {
+          allowedContentTypes: ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav', 'video/mp4'],
+          addRandomSuffix: true
+        };
+      },
+      onUploadCompleted: async () => {}
+    });
+    res.json(result);
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.post('/flows/:id/recordings', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await addUploadedRecording(req.accountId, req.params.id, req.body || {}));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.post('/flows/:id/recordings/youtube', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await addYouTubeRecording(req.accountId, req.params.id, req.body || {}));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.delete('/flows/:id/recordings/:recordingId', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await deleteRecording(req.accountId, req.params.id, req.params.recordingId));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// Same client-upload shape as recordings, for PDF/MusicXML/Sibelius/MuseScore
+// score files - allowedContentTypes deliberately includes application/octet-stream
+// since browsers rarely report a specific MIME type for the proprietary
+// .sib/.musx formats (the file picker's own accept=".pdf,.musicxml,.mxl,.sib,.musx"
+// already narrows what's offered before this even runs).
+router.post('/flows/:id/documents/upload-token', requireAuthFromQueryOrHeader, resolveAccount, async (req, res) => {
+  try {
+    const result = await handleUpload({
+      body: req.body,
+      request: req,
+      onBeforeGenerateToken: async () => {
+        await assertFlowAccess(req.accountId, req.params.id);
+        return {
+          allowedContentTypes: ['application/pdf', 'application/vnd.recordare.musicxml+xml', 'application/vnd.recordare.musicxml', 'application/xml', 'text/xml', 'application/octet-stream'],
+          addRandomSuffix: true
+        };
+      },
+      onUploadCompleted: async () => {}
+    });
+    res.json(result);
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.post('/flows/:id/documents', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await addDocument(req.accountId, req.params.id, req.body || {}));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.delete('/flows/:id/documents/:documentId', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await deleteDocument(req.accountId, req.params.id, req.params.documentId));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+// ========================================
+// FLOW BLOCKS (Jira ML-179 Phase 2) - score-backed metronome_segments (parent_score_id).
+// Mirrors /metronome/setups/:id/segments and /metronome/segments/:segId's own shape - see
+// server/services/flowBlocks.js for how the CRUD itself reuses metronomeSegments.js's shared
+// validation/column helpers.
+// ========================================
+router.get('/flows/:id/blocks', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await listFlowBlocks(req.accountId, req.params.id));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.post('/flows/:id/blocks', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await createFlowBlock(req.accountId, req.params.id, req.body));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/flows/:id/blocks/reorder', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await reorderFlowBlocks(req.accountId, req.params.id, req.body?.orderedIds || []));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.put('/flows/blocks/:blockId', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await updateFlowBlock(req.accountId, req.params.blockId, req.body));
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.delete('/flows/blocks/:blockId', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await deleteFlowBlock(req.accountId, req.params.blockId);
+    res.json({ message: 'Block deleted' });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+router.post('/flows/blocks/:blockId/duplicate', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await duplicateFlowBlock(req.accountId, req.params.blockId));
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }

@@ -733,13 +733,19 @@
     }
 
     // ---- App config (ML-47) - small admin-editable settings, e.g. the PostHog dashboard link,
-    // stored in the app_config table so they can change without a release. Generic by key so a
-    // second dashboard/link later reuses the same modal, not a one-off. ----
+    // stored in the app_config table so they can change without a release. Generic by key so
+    // every other config value (the Flow defaults below included) reuses this one modal rather
+    // than each getting its own. `label` sets the input's own field label (not just the modal
+    // title) - "URL" was hardcoded here before this was still a one-off. `reloadFn` is called
+    // after a successful save so each field's own display text refreshes itself. ----
     let editingConfigKey = null;
+    let editingConfigReload = null;
 
-    function openConfigForm(key, title, currentValue) {
+    function openConfigForm(key, title, currentValue, label, reloadFn) {
         editingConfigKey = key;
+        editingConfigReload = reloadFn;
         document.getElementById('configFormTitle').textContent = title;
+        document.getElementById('configValueLabel').textContent = label;
         document.getElementById('configValueInput').value = currentValue || '';
         document.getElementById('configFormModal').style.display = 'flex';
         document.getElementById('configValueInput').focus();
@@ -748,6 +754,7 @@
     function closeConfigForm() {
         document.getElementById('configFormModal').style.display = 'none';
         editingConfigKey = null;
+        editingConfigReload = null;
     }
 
     async function saveConfigForm() {
@@ -756,8 +763,9 @@
         saveBtn.disabled = true;
         try {
             await apiCall(`/api/admin/config/${editingConfigKey}`, 'PUT', { value });
+            const reloadFn = editingConfigReload;
             closeConfigForm();
-            await reloadPosthogLink();
+            if (reloadFn) await reloadFn();
         } catch (error) {
             showToast(error.message);
         } finally {
@@ -767,7 +775,15 @@
 
     function initConfigForm() {
         document.getElementById('editPosthogLinkBtn')?.addEventListener('click', () =>
-            openConfigForm('posthog_dashboard_url', 'Edit PostHog dashboard link', lastPosthogLinkValue));
+            openConfigForm('posthog_dashboard_url', 'Edit PostHog dashboard link', lastPosthogLinkValue, 'URL', reloadPosthogLink));
+        document.getElementById('editFlowDefaultTimeSigBtn')?.addEventListener('click', () =>
+            openConfigForm('flow_default_time_signature', 'Edit default time signature', lastFlowDefaultTimeSig, 'Time signature label (e.g. 4/4)', reloadFlowDefaultTimeSig));
+        document.getElementById('editFlowDefaultBpmBtn')?.addEventListener('click', () =>
+            openConfigForm('flow_default_bpm', 'Edit default bpm', lastFlowDefaultBpm, 'BPM', reloadFlowDefaultBpm));
+        document.getElementById('editFlowDefaultBarCountBtn')?.addEventListener('click', () =>
+            openConfigForm('flow_default_bar_count', 'Edit default bar count', lastFlowDefaultBarCount, 'Bar count', reloadFlowDefaultBarCount));
+        document.getElementById('editFlowDefaultNoteValueBtn')?.addEventListener('click', () =>
+            openConfigForm('flow_default_note_value', 'Edit default note value', lastFlowDefaultNoteValue, 'Note value', reloadFlowDefaultNoteValue));
         document.getElementById('configFormCancelBtn')?.addEventListener('click', closeConfigForm);
         document.getElementById('configFormSaveBtn')?.addEventListener('click', saveConfigForm);
     }
@@ -780,6 +796,34 @@
         el.innerHTML = lastPosthogLinkValue
             ? `<a href="${escapeHtml(lastPosthogLinkValue)}" target="_blank" rel="noopener">${escapeHtml(lastPosthogLinkValue)}</a>`
             : 'Not set.';
+    }
+
+    // ---- Flow defaults (ML-179 follow-up) - a brand new flow's first block, see
+    // getFlowDefaultBlockSettings on the server for the fallback values used if any of these are
+    // missing or don't resolve (e.g. a time signature label that no longer matches the catalog). ----
+    let lastFlowDefaultTimeSig = '';
+    let lastFlowDefaultBpm = '';
+    let lastFlowDefaultBarCount = '';
+    let lastFlowDefaultNoteValue = '';
+    async function reloadFlowDefaultTimeSig() {
+        const { value } = await apiCall('/api/admin/config/flow_default_time_signature');
+        lastFlowDefaultTimeSig = value || '';
+        document.getElementById('flowDefaultTimeSigText').textContent = lastFlowDefaultTimeSig || 'Not set.';
+    }
+    async function reloadFlowDefaultBpm() {
+        const { value } = await apiCall('/api/admin/config/flow_default_bpm');
+        lastFlowDefaultBpm = value || '';
+        document.getElementById('flowDefaultBpmText').textContent = lastFlowDefaultBpm || 'Not set.';
+    }
+    async function reloadFlowDefaultBarCount() {
+        const { value } = await apiCall('/api/admin/config/flow_default_bar_count');
+        lastFlowDefaultBarCount = value || '';
+        document.getElementById('flowDefaultBarCountText').textContent = lastFlowDefaultBarCount || 'Not set.';
+    }
+    async function reloadFlowDefaultNoteValue() {
+        const { value } = await apiCall('/api/admin/config/flow_default_note_value');
+        lastFlowDefaultNoteValue = value || '';
+        document.getElementById('flowDefaultNoteValueText').textContent = lastFlowDefaultNoteValue || 'Not set.';
     }
 
     // ---- Playback speeds ----
@@ -883,7 +927,10 @@
             renderSummary(backtest);
             renderFeatures(backtest);
             renderFeaturesCatalog(featuresRes.features);
-            await Promise.all([reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadPosthogLink()]);
+            await Promise.all([
+                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadPosthogLink(),
+                reloadFlowDefaultTimeSig(), reloadFlowDefaultBpm(), reloadFlowDefaultBarCount(), reloadFlowDefaultNoteValue()
+            ]);
         } catch (error) {
             document.getElementById('featuresCatalog').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`;
             document.getElementById('featureList').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`;
