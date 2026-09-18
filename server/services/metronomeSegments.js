@@ -89,7 +89,7 @@ function validateSegmentPayload(data) {
   let repeatPlayCount = data.repeatPlayCount === null || data.repeatPlayCount === undefined ? null : Number(data.repeatPlayCount);
   if (repeatPlayCount !== null) {
     if (!isRepeatEnd) throw withStatus(400, 'repeatPlayCount only applies to a repeat-end block.');
-    if (!Number.isInteger(repeatPlayCount) || repeatPlayCount < 2) throw withStatus(400, 'repeatPlayCount must be an integer of 2 or more.');
+    if (!Number.isInteger(repeatPlayCount) || repeatPlayCount < 2 || repeatPlayCount > 10) throw withStatus(400, 'repeatPlayCount must be an integer between 2 and 10.');
   }
 
   const isCoda = !!data.isCoda;
@@ -103,6 +103,18 @@ function validateSegmentPayload(data) {
   // combined "1. 2." bracket before a 3rd ending (see docs/database-schema.md).
   const isFirstTimeBar = !!data.isFirstTimeBar;
   const isSecondTimeBar = !!data.isSecondTimeBar;
+
+  // Which repeat-pass numbers (1-10) this bar plays on (ML-179 follow-up, db/migrations/
+  // 034_repeat_ending_numbers.sql) - a superset of the old binary 1st/2nd-ending pair above (some
+  // pieces use a section on passes 1, 3, 5 and a different one on 2, 4). Null/empty means "not a
+  // volta", same as both booleans being false. Sorted + deduped so the stored value is always
+  // canonical regardless of what order the client sent them in.
+  const repeatEndingNumbers = Array.isArray(data.repeatEndingNumbers) && data.repeatEndingNumbers.length
+    ? [...new Set(data.repeatEndingNumbers.map(Number))].sort((a, b) => a - b)
+    : null;
+  if (repeatEndingNumbers && repeatEndingNumbers.some(n => !Number.isInteger(n) || n < 1 || n > 10)) {
+    throw withStatus(400, 'repeatEndingNumbers must be whole numbers between 1 and 10.');
+  }
 
   // Start and end are independent, each its own all-or-nothing bar/beat pair - a block can be just
   // the start of an intro that finishes in a later block, just the end of one that started earlier,
@@ -187,6 +199,7 @@ function validateSegmentPayload(data) {
     gotoSegnoThenCoda,
     isFirstTimeBar,
     isSecondTimeBar,
+    repeatEndingNumbers,
     introStartBarOffset: intro.introStartBarOffset,
     introStartBeatOffset: intro.introStartBeatOffset,
     introEndBarOffset: intro.introEndBarOffset,
@@ -206,7 +219,7 @@ const SEGMENT_COLUMNS = [
   'time_signature_id', 'account_time_signature_id', 'note_value',
   'rehearsal_mark', 'is_repeat_start', 'is_repeat_end', 'is_section_boundary', 'repeat_play_count',
   'goto_coda', 'goto_start_dc', 'is_coda', 'is_segno', 'goto_segno', 'goto_segno_then_coda',
-  'is_first_time_bar', 'is_second_time_bar',
+  'is_first_time_bar', 'is_second_time_bar', 'repeat_ending_numbers',
   'intro_start_bar_offset', 'intro_start_beat_offset', 'intro_end_bar_offset', 'intro_end_beat_offset',
   'ramp_start_bar_offset', 'ramp_start_beat_offset', 'ramp_duration_bars'
 ];
@@ -217,7 +230,7 @@ function segmentColumnValues(normalized) {
     normalized.pickupBeats, normalized.timeSignatureId, normalized.accountTimeSignatureId, normalized.noteValue,
     normalized.rehearsalMark, normalized.isRepeatStart, normalized.isRepeatEnd, normalized.isSectionBoundary, normalized.repeatPlayCount,
     normalized.gotoCoda, normalized.gotoStartDc, normalized.isCoda, normalized.isSegno, normalized.gotoSegno, normalized.gotoSegnoThenCoda,
-    normalized.isFirstTimeBar, normalized.isSecondTimeBar,
+    normalized.isFirstTimeBar, normalized.isSecondTimeBar, normalized.repeatEndingNumbers,
     normalized.introStartBarOffset, normalized.introStartBeatOffset, normalized.introEndBarOffset, normalized.introEndBeatOffset,
     normalized.rampStartBarOffset, normalized.rampStartBeatOffset, normalized.rampDurationBars
   ];
@@ -420,7 +433,7 @@ export async function updateSegment(accountId, segmentId, data) {
     'timeSignatureId', 'accountTimeSignatureId', 'noteValue',
     'rehearsalMark', 'isRepeatStart', 'isRepeatEnd', 'isSectionBoundary', 'repeatPlayCount',
     'gotoCoda', 'gotoStartDc', 'isCoda', 'isSegno', 'gotoSegno', 'gotoSegnoThenCoda',
-    'isFirstTimeBar', 'isSecondTimeBar',
+    'isFirstTimeBar', 'isSecondTimeBar', 'repeatEndingNumbers',
     'introStartBarOffset', 'introStartBeatOffset', 'introEndBarOffset', 'introEndBeatOffset',
     'rampStartBarOffset', 'rampStartBeatOffset', 'rampDurationBars'
   ];
@@ -465,4 +478,12 @@ export async function deleteSegment(accountId, segmentId) {
   if (result.rowCount === 0) throw withStatus(404, 'Segment not found');
 }
 
-export { getFermatasForSegmentIds, getRehearsalMarksForSegmentIds };
+// ML-179 Phase 2: also exported so server/services/flowBlocks.js (score-backed blocks) can reuse
+// the same validation/column/child-table logic rather than duplicating it - these were already
+// parent-agnostic, only the ownership check and which parent-id column gets written differ.
+export {
+  getFermatasForSegmentIds, getRehearsalMarksForSegmentIds,
+  SEGMENT_COLUMNS, segmentColumnValues, validateSegmentPayload,
+  replaceFermatas, replaceRehearsalMarks, withTransaction,
+  NOTE_VALUES
+};

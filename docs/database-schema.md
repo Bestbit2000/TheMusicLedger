@@ -92,9 +92,20 @@ session history is archived (`active = false`) rather than deleted, mirroring
 
 ### Scores & metronome segments (Jira `ML-35`)
 
+**"Flow" vs "Score" (ML-179)**: the product concept built on this table from
+ML-179 onward is called a **Flow** everywhere outside this table itself —
+service file (`server/services/flows.js`), functions (`createFlow`/`listFlows`/
+etc.), endpoints (`/api/flows/*`), and all user-facing UI text. The table stays
+named `scores` deliberately: a Flow is rhythm/structure only (no notes), and
+"Score" is reserved for a future feature where real notation gets attached to
+the same piece (via a music reader or an uploaded file) — this table is the
+natural home for that later, so it isn't renamed out from under it now.
+
 | Table | Purpose | Key columns |
 |---|---|---|
-| `scores` | A piece, owned by a band or an account | id, title, owner_band_id, owner_account_id, forked_from_score_id, is_public, default_bpm, default_time_signature, default_conductor_beats_per_bar |
+| `scores` | A piece ("Flow" - see naming note above), owned by a band or an account | id, title, composer, arranger, publisher, description, owner_band_id, owner_account_id, forked_from_score_id, is_public, default_bpm, default_time_signature, default_conductor_beats_per_bar, created_at |
+| `score_recordings` | Mp3/mp4 upload (via Vercel Blob) or a YouTube link, never both, attached to a Flow | id, score_id, type, title, blob_url, blob_pathname, file_size_bytes, mime_type, youtube_video_id, youtube_thumbnail_url, order_index |
+| `score_documents` | PDF/MusicXML/Sibelius/MuseScore file uploads (via Vercel Blob) attached to a Flow | id, score_id, file_name, blob_url, blob_pathname, file_size_bytes, mime_type |
 | `adhoc_metronome_setups` | Standalone manual multi-section setup, individual-only | id, account_id, name, created_at, saved_at, is_quick_play, is_favorite |
 | `metronome_segments` | One row per section, on either a score or an ad-hoc setup (never both) | id, parent_score_id, parent_adhoc_setup_id, order_index, is_lead_in, repeat_lead_in, quiet_seconds_before_lead_in, rehearsal_mark, bar_count, bpm, time_signature_id, account_time_signature_id, conductor_beats_per_bar, is_repeat_start, is_repeat_end, repeat_play_count, pickup_beats, goto_coda, goto_start_dc, is_coda, is_segno, goto_segno, goto_segno_then_coda, is_section_boundary, intro_start_bar_offset, intro_start_beat_offset, intro_end_bar_offset, intro_end_beat_offset, is_first_time_bar, is_second_time_bar, ramp_start_bar_offset, ramp_start_beat_offset, ramp_duration_bars, notes |
 | `metronome_segment_fermatas` | Zero or more sustained-hold fermatas within a block (ad-hoc only today) | id, segment_id, bar_offset, beat_offset, hold_beats, playback_mode |
@@ -102,6 +113,18 @@ session history is archived (`active = false`) rather than deleted, mirroring
 | `metronome_run_logs` | History of every playback, score-driven or ad-hoc | id, account_id, source_type, source_id, session_segment_id, run_at, completed |
 | `time_signature_options` | System catalog of time signatures (numerator/denominator), migration-seeded only | id, numerator, denominator, label, sort_order, active |
 | `account_time_signatures` | Private custom time signatures, per account | id, account_id, numerator, denominator, active |
+
+**Flow ownership (ML-179)**: three shapes, all fitting the existing
+`scores_exactly_one_owner` CHECK with no schema change - **personal**
+(`owner_account_id` = the creator, `is_public = false`), **band-owned**
+(`owner_band_id`, persists across that band's own membership churn), and
+**admin/public** (`owner_account_id` = a super admin, `is_public = true`,
+manageable by *any* super admin, not just whoever published it). A Flow moves
+between these via explicit, fully-reversible actions in `flows.js` -
+`moveFlowToBand`/`removeFlowFromBand` and `publishFlow`/`unpublishFlow` - never
+by editing ownership columns directly. Unpublishing (or removing from a band)
+always lands on personal, owned by whoever performed the action; there's no
+stored "previous owner" to revert to instead.
 
 Notes on fields that took a few passes to nail down:
 - **No `subdivide` anywhere** — it's a live runtime override on the metronome player,
@@ -230,6 +253,21 @@ Notes on fields that took a few passes to nail down:
   A custom signature with zero usage can be deleted outright; one still referenced
   by existing blocks is archived instead (`active = false`) - kept for those blocks,
   just no longer offered when picking a signature for a new one.
+- **`score_recordings`/`score_documents`** (`032_flow_metadata_and_media.sql`,
+  ML-179): file storage is Vercel Blob, not the database - these tables hold
+  only the resulting URL/pathname plus display metadata. Uploads go straight
+  from the browser to Blob via `@vercel/blob/client`'s token-authorized
+  client-upload (a server route only issues the upload token and records the
+  row on completion), not through the Express function - Vercel's serverless
+  request body cap (~4.5MB) rules out proxying an mp3/mp4 through it.
+  `score_recordings.type` is `'upload'` or `'youtube'`, never both
+  (`score_recordings_type_shape` CHECK) - a YouTube entry never touches Blob at
+  all, just stores the parsed 11-character video ID (re-parsed and validated
+  server-side, never trusted from the client) and a thumbnail URL derived from
+  it with no API key needed (`img.youtube.com/vi/{id}/...`). Deleting either
+  row's Blob object is an explicit `del()` call in `flows.js` before the DB
+  delete - `ON DELETE CASCADE` from `scores` cleans up the rows but has no way
+  to reach into Blob storage itself.
 
 ### Individual playing preferences
 

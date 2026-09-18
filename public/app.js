@@ -141,7 +141,11 @@
         },
         metronomeBlocks: {
             timeSignatures: {
-                list: () => apiCall('/api/time-signatures'),
+                // Optional token param (ML-161), same reason as dropdownOptions/sessions.get above -
+                // this is now also fired from initializeApp's own startup sequence (prefetched
+                // alongside those), which needs the pinned startupToken threaded through rather than
+                // relying on live auth.token (see the ML-48 comment in apiCall).
+                list: (token) => apiCall('/api/time-signatures', 'GET', null, token),
                 createCustom: (numerator, denominator) => apiCall('/api/time-signatures/custom', 'POST', { numerator, denominator }),
                 listCustomWithUsage: () => apiCall('/api/time-signatures/custom'),
                 archiveCustom: (id) => apiCall(`/api/time-signatures/custom/${id}`, 'PUT', { active: false }),
@@ -171,6 +175,42 @@
                 history: () => apiCall('/api/metronome/history'),
                 overwriteHistory: (id, blocks) => apiCall(`/api/metronome/history/${id}`, 'PUT', { blocks }),
                 duplicateHistory: (id, name) => apiCall(`/api/metronome/history/${id}/duplicate`, 'POST', { name })
+            }
+        },
+        // ML-179: score-backed "Flows" - see docs/database-schema.md's "Flow" vs "Score" naming
+        // note. Recordings/documents live in Vercel Blob, not Postgres - the upload-token/*
+        // endpoints authorize a direct browser-to-Blob upload (window.vercelBlobUpload, loaded via
+        // the module script in index.html), and the plain recordings/documents endpoints just
+        // record the resulting URL once that upload has actually finished.
+        flows: {
+            list: () => apiCall('/api/flows'),
+            create: (data) => apiCall('/api/flows', 'POST', data),
+            get: (id) => apiCall(`/api/flows/${id}`),
+            update: (id, data) => apiCall(`/api/flows/${id}`, 'PUT', data),
+            moveToBand: (id, bandId) => apiCall(`/api/flows/${id}/move-to-band`, 'PUT', { bandId }),
+            removeFromBand: (id) => apiCall(`/api/flows/${id}/remove-from-band`, 'PUT'),
+            publish: (id) => apiCall(`/api/flows/${id}/publish`, 'PUT'),
+            unpublish: (id) => apiCall(`/api/flows/${id}/unpublish`, 'PUT'),
+            delete: (id) => apiCall(`/api/flows/${id}`, 'DELETE'),
+            duplicate: (id) => apiCall(`/api/flows/${id}/duplicate`, 'POST'),
+            recordings: {
+                addUploaded: (flowId, data) => apiCall(`/api/flows/${flowId}/recordings`, 'POST', data),
+                addYouTube: (flowId, data) => apiCall(`/api/flows/${flowId}/recordings/youtube`, 'POST', data),
+                delete: (flowId, recordingId) => apiCall(`/api/flows/${flowId}/recordings/${recordingId}`, 'DELETE')
+            },
+            documents: {
+                add: (flowId, data) => apiCall(`/api/flows/${flowId}/documents`, 'POST', data),
+                delete: (flowId, documentId) => apiCall(`/api/flows/${flowId}/documents/${documentId}`, 'DELETE')
+            },
+            // ML-179 Phase 2 - score-backed blocks (parent_score_id), same shape as
+            // metronomeBlocks.segments above.
+            blocks: {
+                list: (flowId) => apiCall(`/api/flows/${flowId}/blocks`),
+                create: (flowId, data) => apiCall(`/api/flows/${flowId}/blocks`, 'POST', data),
+                update: (blockId, data) => apiCall(`/api/flows/blocks/${blockId}`, 'PUT', data),
+                delete: (blockId) => apiCall(`/api/flows/blocks/${blockId}`, 'DELETE'),
+                duplicate: (blockId) => apiCall(`/api/flows/blocks/${blockId}/duplicate`, 'POST'),
+                reorder: (flowId, orderedIds) => apiCall(`/api/flows/${flowId}/blocks/reorder`, 'PUT', { orderedIds })
             }
         },
         account: {
@@ -455,6 +495,14 @@
         // startup sequence below - see the comment in apiCall.
         const startupToken = auth.token;
 
+        // ML-161: fire this now, unawaited, so it runs in the background alongside the startup
+        // fetches below - by the time the user actually navigates to the Metronome page, this has
+        // almost always already resolved, so its first render no longer has to wait on it (see the
+        // quickPlayView switch and metroBlkTimeSigReadyPromise's own comment above). Threads
+        // startupToken through same as loadAppData/fetchDataAndRender just below - this fires in the
+        // same early-startup window their own pinned-token comment (see apiCall, ML-48) warns about.
+        metroBlkTimeSigReadyPromise = loadMetroBlkTimeSignatures(startupToken);
+
         try {
             await loadAppData(startupToken);
             await fetchDataAndRender(startupToken);
@@ -671,14 +719,21 @@
     }
     document.getElementById('promptActionBtn')?.addEventListener('click', () => {
         const val = document.getElementById('promptInput').value.trim();
-        if(promptCallback) promptCallback(val);
-        closePromptModal();
+        const cb = promptCallback;
+        if (cb) cb(val);
+        // A callback that itself calls showPromptModal again (chaining a second prompt, e.g. the
+        // fermata "which bar" -> "which beat" -> "hold for how many beats" sequence) reassigns
+        // promptCallback to the new step before returning here - closing unconditionally would
+        // have immediately torn that new prompt back down again. Only close if the callback left
+        // it pointing at the same place (a validation failure re-shows the same prompt without
+        // reassigning, which also correctly stays open here).
+        if (promptCallback === cb) closePromptModal();
     });
 
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'tunerView', 'timerView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'blocksStudioView', 'flowPlayView', 'tunerView', 'timerView'];
     let viewStack = ['mainView'];
 
     const viewAliasMap = {
@@ -706,6 +761,13 @@
             updateQPPlayIcon();
         }
 
+        // Same reasoning as Quick Play above - Play Flow has no mini bar either, so leaving it just
+        // pauses in place rather than continuing in the background.
+        if (viewStack[viewStack.length - 1] === 'flowPlayView' && viewName !== 'flowPlayView' && flowPlayer.isPlaying()) {
+            flowPlayer.pause();
+            updateFlowPlayIcon();
+        }
+
         if (!isBack && viewStack[viewStack.length - 1] !== viewName) viewStack.push(viewName);
 
         views.forEach(v => {
@@ -724,7 +786,7 @@
             topBackBtn.classList.remove('hidden-btn');
         }
 
-        if (viewName === 'historyView') { document.getElementById('topTitle').innerText = 'Session history'; renderHistoryList(rawData.filter(d => activeFilters[d.category])); }
+        if (viewName === 'historyView') { document.getElementById('topTitle').innerText = 'Session history'; renderHistoryList(rawData); }
         if (viewName === 'streakStatsView') { document.getElementById('topTitle').innerText = 'Streaks'; renderStreakStats(); }
         if (viewName === 'statsView') { document.getElementById('topTitle').innerText = 'Detailed stats'; scrollStatsToRight(); }
         if (viewName === 'entryForm') { document.getElementById('topTitle').innerText = 'Add record'; }
@@ -754,8 +816,9 @@
                 // First visit this session: the default block's time signature comes from this catalog
                 // (unlike Blocks' own scratch setup, which gets it from the server), so it has to be
                 // loaded before seeding, or the first block would show "Choose..." until some unrelated
-                // re-render happened to run afterwards.
-                loadMetroBlkTimeSignatures().then(() => {
+                // re-render happened to run afterwards. Chains onto the startup prefetch (ML-161)
+                // instead of firing a second request, so this is normally already resolved by now.
+                (metroBlkTimeSigReadyPromise || loadMetroBlkTimeSignatures()).then(() => {
                     initQuickPlayBlocksIfNeeded();
                     renderQuickPlayRows();
                 });
@@ -769,7 +832,10 @@
             metroBlkPlayer.prewarm();
             loadMetroBlkTimeSignatures();
             loadMetroBlkPlaybackSpeeds();
-            loadMetroBlkSetups();
+            // ML-179: this entry screen's "Load from library" list is Flows now, not ad-hoc setups -
+            // loadMetroBlkSetups/renderMetroBlkSetupsList/openMetroBlkSetup are left in place, unused,
+            // same "superseded, not removed" precedent as elsewhere in this codebase.
+            loadFlowsList();
             // ML-103: only resume straight into the editor when a setup is already active this
             // session (created/opened via the entry screen, or navigated back to without using
             // "Change flow" to back out) - otherwise show the entry screen instead of silently
@@ -783,6 +849,29 @@
             } else {
                 metroBlkShowEntryScreen();
             }
+        }
+
+        // ML-179: currentFlowDetail is already fetched by openFlow/createAndOpenFlow before this
+        // view is ever switched to - no fetch happens here, just rendering from what's already loaded
+        // (same "load first, switch second" order as metroBuilderView's own setup loading above).
+        if (viewName === 'flowDetailsHubView') {
+            document.getElementById('topTitle').innerText = 'Edit flow';
+            loadAndRenderFlowDetailsHub();
+        }
+        if (viewName === 'blocksStudioView') {
+            document.getElementById('topTitle').innerText = 'Blocks studio';
+            renderFlowBlocksStudio();
+        }
+        if (viewName === 'flowPlayView') {
+            document.getElementById('topTitle').innerText = 'Play flow';
+            document.getElementById('flowPlayTitleLabel').innerText = currentFlowDetail?.title || 'Flow';
+            flowPlayer.prewarm();
+            loadFlowPlaybackSpeeds();
+            // currentFlowBlocks/flowLeadInBlock were just re-fetched by flowPlayFlowBtn's own click
+            // handler (or by returning here after editing in Blocks Studio) - rebuild the queue fresh
+            // every entry, same "don't trust it's still current" caution as refreshMetroBlkQueueIfStale.
+            buildFlowPlayQueue();
+            renderFlowPlaybackRow();
         }
         // Same persistence rule as the single-bar tool's mini bar (ML-64) - only visibility changes.
         updateMetroBlocksMiniBarVisibility(viewName);
@@ -1588,25 +1677,109 @@
         if(statReh) statReh.innerHTML = `${formatMins(catStats['Rehearsal'].m)} <span class="sess-count">(${catStats['Rehearsal'].s})</span>`;
         if(statPerf) statPerf.innerHTML = `${formatMins(catStats['Performance'].m)} <span class="sess-count">(${catStats['Performance'].s})</span>`;
         if(statLess) statLess.innerHTML = `${formatMins(catStats['Lesson'].m)} <span class="sess-count">(${catStats['Lesson'].s})</span>`;
+
+        // ML-176: the Detailed stats screen's own inline filter strip - counts are session counts
+        // for this same timeframe, same as the stat cards above, so they never shift just because a
+        // pill got toggled off.
+        renderFilterStrip('statsFilterPills', 'statsFilterBadge', {
+            Practise: catStats['Practise'].s, Rehearsal: catStats['Rehearsal'].s,
+            Lesson: catStats['Lesson'].s, Performance: catStats['Performance'].s
+        }, totalSess, onFilterStripToggle);
     }
 
-    function updateFilterButtonText() {
-        let active = Object.keys(activeFilters).filter(k => activeFilters[k]);
-        let text = active.length === 4 ? 'All' : (active.length === 0 ? 'None' : active.join(', '));
-        const filterStatsBtn = document.getElementById('filterStatsBtn');
-        const filterHistoryBtn = document.getElementById('filterHistoryBtn');
-        if(filterStatsBtn) filterStatsBtn.innerText = 'Filter stats (' + text + ')';
-        if(filterHistoryBtn) filterHistoryBtn.innerText = 'Filter history (' + text + ')';
+    // ML-176: replaces the old "Filter history/stats (All)" button + blocking checkbox modal on
+    // both screens with an inline, 1-tap chip track - see docs on renderFilterStrip below. Order
+    // matches the ticket's own wireframe (All, then Practise/Rehearsal/Lesson/Performance).
+    const FILTER_CATEGORIES = ['Practise', 'Rehearsal', 'Lesson', 'Performance'];
+
+    // Shared design-system renderer (see styleguide.html) for any screen's inline filter strip: the
+    // leading icon's active-count badge plus the All/category pill track. counts/totalCount are
+    // whatever the caller has already scoped (current month for History, current timeframe for
+    // Stats) - toggling a pill never changes those counts, only which rows/totals elsewhere on the
+    // page are currently shown, via onToggle. Re-run on every relevant re-render (not just once)
+    // since it also has to reflect activeFilters changing.
+    function renderFilterStrip(pillsId, badgeId, counts, totalCount, onToggle) {
+        const pillsEl = document.getElementById(pillsId);
+        if (!pillsEl) return;
+        const activeCount = FILTER_CATEGORIES.filter(c => activeFilters[c]).length;
+
+        const badgeEl = document.getElementById(badgeId);
+        if (badgeEl) {
+            badgeEl.innerText = activeCount;
+            badgeEl.classList.toggle('hidden-group', activeCount === FILTER_CATEGORIES.length);
+        }
+
+        const allActive = activeCount === FILTER_CATEGORIES.length;
+        pillsEl.innerHTML = `
+            <button type="button" class="filter-pill${allActive ? ' active' : ''}" data-filter-all>All <span class="filter-pill-count">${totalCount}</span></button>
+            ${FILTER_CATEGORIES.map(cat => `
+                <button type="button" class="filter-pill${activeFilters[cat] ? ' active' : ''}" data-filter-cat="${cat}" style="${activeFilters[cat] ? `--filter-pill-accent:${colorMap[cat]}` : ''}">${cat} <span class="filter-pill-count">${counts[cat] || 0}</span></button>
+            `).join('')}
+        `;
+        pillsEl.querySelector('[data-filter-all]').addEventListener('click', () => {
+            FILTER_CATEGORIES.forEach(c => activeFilters[c] = true);
+            onToggle();
+        });
+        pillsEl.querySelectorAll('[data-filter-cat]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                activeFilters[btn.dataset.filterCat] = !activeFilters[btn.dataset.filterCat];
+                onToggle();
+            });
+        });
     }
 
-    document.getElementById('filterAllOn')?.addEventListener('click', () => document.querySelectorAll('.cat-filter').forEach(cb => cb.checked = true));
-    document.getElementById('filterAllOff')?.addEventListener('click', () => document.querySelectorAll('.cat-filter').forEach(cb => cb.checked = false));
-    document.getElementById('applyFilterBtn')?.addEventListener('click', () => {
-        document.querySelectorAll('.cat-filter').forEach(cb => activeFilters[cb.value] = cb.checked);
-        document.getElementById('filterModal').style.display = 'none';
-        updateFilterButtonText();
+    // activeFilters is shared across both screens (as it already was pre-ML-176), so a toggle on
+    // either one re-renders both - otherwise the screen you're not looking at would show a stale
+    // pill highlight/badge next time you open it.
+    function onFilterStripToggle() {
+        renderStatsBoxes();
         renderFilteredVisuals();
-    });
+    }
+
+    function renderHistoryFilterStrip(monthDataAll) {
+        const counts = { Practise: 0, Rehearsal: 0, Lesson: 0, Performance: 0 };
+        monthDataAll.forEach(d => { if (counts[d.category] !== undefined) counts[d.category]++; });
+        renderFilterStrip('historyFilterPills', 'historyFilterBadge', counts, monthDataAll.length, onFilterStripToggle);
+    }
+
+    // A mouse has no touch-swipe/trackpad-scroll equivalent for reaching an overflowing pill, so
+    // desktop users otherwise have no way to see anything past the visible edge (the scrollbar is
+    // deliberately hidden - see .filter-strip-pills in style.css). Wired once, directly on the
+    // container itself (not the pills, which get torn down and rebuilt on every renderFilterStrip
+    // call) - only actual drags (past a small pixel threshold) swallow the following click, so a
+    // plain tap still toggles the pill exactly as before.
+    function enableDragScroll(el) {
+        let isDown = false, dragged = false, startX = 0, startScrollLeft = 0;
+        el.addEventListener('mousedown', (e) => {
+            isDown = true;
+            dragged = false;
+            startX = e.clientX;
+            startScrollLeft = el.scrollLeft;
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (!isDown) return;
+            const dx = e.clientX - startX;
+            if (Math.abs(dx) > 5) {
+                dragged = true;
+                el.classList.add('dragging');
+            }
+            el.scrollLeft = startScrollLeft - dx;
+        });
+        window.addEventListener('mouseup', () => {
+            isDown = false;
+            el.classList.remove('dragging');
+        });
+        // Capture phase so this runs before the pill buttons' own (bubble-phase) click listeners -
+        // stopping it here means a dragged-past pill never also registers as tapped.
+        el.addEventListener('click', (e) => {
+            if (dragged) {
+                e.preventDefault();
+                e.stopPropagation();
+                dragged = false;
+            }
+        }, true);
+    }
+    document.querySelectorAll('.filter-strip-pills').forEach(enableDragScroll);
 
     document.getElementById('categoryRadios')?.addEventListener('change', function(e) {
         if(e.target.name === 'category') {
@@ -1685,7 +1858,6 @@
             if(mainTotalTime) mainTotalTime.innerText = formatMins(tMins);
             if(mainTotalSessions) mainTotalSessions.innerText = tSess;
             updateStreakBoxes();
-            updateFilterButtonText();
             renderStatsBoxes();
             renderFilteredVisuals();
         } catch(err) { showWarningToast("Render Error: " + err.message); }
@@ -1703,7 +1875,7 @@
             buildHeatmap('timeHeatmap', dailyMins, 'time');
             buildHeatmap('sessHeatmap', dailySess, 'sess');
             buildCharts(filtered);
-            renderHistoryList(filtered);
+            renderHistoryList(rawData);
         } catch(err) { showWarningToast("Visuals Error: " + err.message); }
     }
 
@@ -1917,7 +2089,11 @@
         cont.appendChild(scroll);
     }
 
-    function renderHistoryList(filtered) {
+    // ML-176: takes the full, unfiltered rawData (every call site used to pre-filter by
+    // activeFilters before calling this - moved in here instead, since the filter strip's own
+    // per-category pill counts need this month's full category breakdown, not just whichever
+    // categories happen to still be active).
+    function renderHistoryList(allData) {
         try {
             const y = currentHistDate.getFullYear();
             const m = currentHistDate.getMonth();
@@ -1929,10 +2105,12 @@
             if(!list) return;
             list.innerHTML = '';
 
-            const monthData = filtered.filter(d => {
+            const monthDataAll = allData.filter(d => {
                 let dObj = parseDateSafely(d.dateStr);
                 return dObj.getFullYear()===y && dObj.getMonth()===m;
             });
+            renderHistoryFilterStrip(monthDataAll);
+            const monthData = monthDataAll.filter(d => activeFilters[d.category]);
 
             if(monthData.length === 0) {
                 list.innerHTML = '<div style="text-align:center; padding: 20px;">No entries.</div>';
@@ -1947,9 +2125,10 @@
                 const div = document.createElement('div');
                 div.className = 'history-item';
                 div.style.borderLeftColor = colorMap[item.category];
+                div.dataset.historyRow = item.row;
+                div.dataset.historyCat = item.category;
 
                 let dObj = parseDateSafely(item.dateStr);
-                let safeWho = String(item.who || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                 let mNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
                 div.innerHTML = `
@@ -1957,11 +2136,17 @@
                         <strong style="color: ${colorMap[item.category]}">${item.category} ${item.who ? '('+item.who+')' : ''}</strong>
                         ${dObj.getDate() || '?'} ${mNames[dObj.getMonth()] || '?'} ${dObj.getFullYear() || '?'} | ${Math.round(item.duration)} mins
                     </div>
-                    <div style="display:flex; gap: 5px;">
-                        <button class="btn-icon-edit" onclick="openEdit(${item.row}, '${item.category}')" aria-label="Edit"><span class="material-symbols-outlined">edit</span></button>
-                    </div>
+                    <button type="button" class="list-item-menu-btn" data-session-history-menu-btn aria-label="Options for ${item.category} entry"><span class="material-symbols-outlined">more_vert</span></button>
                 `;
                 list.appendChild(div);
+            });
+            list.querySelectorAll('[data-session-history-menu-btn]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const row = btn.closest('.history-item').dataset.historyRow;
+                    const cat = btn.closest('.history-item').dataset.historyCat;
+                    openSessionHistoryItemMenu(e.currentTarget, row, cat);
+                });
             });
             const historySummary = document.getElementById('historySummary');
             if(historySummary) historySummary.innerText = `${formatMins(totalMins)} (${monthData.length})`;
@@ -2137,10 +2322,15 @@
     // Administration link - admin.html itself gates to Super admin too, this
     // just avoids dangling the link in front of an account that would only
     // bounce off its "not authorized" notice.
+    // ML-179: cached here (this already fetches the account level at startup)
+    // rather than a second fetch just for the Flow Hub's own super-admin-only
+    // menu items (renderFlowHubMenu) to check against.
+    let currentAccountIsSuperAdmin = false;
     async function syncAdminLinkVisibility() {
         try {
             const profile = await API.account.get();
-            document.getElementById('adminNavLink')?.classList.toggle('hidden-group', profile.accountLevel !== 'super_admin');
+            currentAccountIsSuperAdmin = profile.accountLevel === 'super_admin';
+            document.getElementById('adminNavLink')?.classList.toggle('hidden-group', !currentAccountIsSuperAdmin);
         } catch { /* not fatal - link just stays hidden */ }
     }
 
@@ -2306,11 +2496,11 @@
 
     document.getElementById('prevMonthBtn')?.addEventListener('click', () => {
         currentHistDate.setMonth(currentHistDate.getMonth() - 1);
-        renderHistoryList(rawData.filter(d=>activeFilters[d.category]));
+        renderHistoryList(rawData);
     });
     document.getElementById('nextMonthBtn')?.addEventListener('click', () => {
         currentHistDate.setMonth(currentHistDate.getMonth() + 1);
-        renderHistoryList(rawData.filter(d=>activeFilters[d.category]));
+        renderHistoryList(rawData);
     });
 
     window.deleteHistory = function(row, cat, dur, who, dateStr) {
@@ -2355,16 +2545,49 @@
             if(session.who) sel.value = session.who;
         }
 
-        const deleteBtn = document.getElementById('deleteEditBtn');
-        if (deleteBtn) {
-            deleteBtn.onclick = () => {
-                document.getElementById('editModal').style.display = 'none';
-                deleteHistory(row, cat, session.duration, session.who || '', session.dateStr);
-            };
-        }
-
         document.getElementById('editModal').style.display = 'flex';
     }
+
+    // ML-175: one shared floating menu for every session history row (Edit/Delete), same
+    // pattern/markup as Quick Play's own history menu (openQpHistoryItemMenu) - a single reusable
+    // menu repositioned against whichever row's button was tapped, rather than one per row.
+    let sessionHistoryMenuTarget = null;
+    function openSessionHistoryItemMenu(btnEl, row, cat) {
+        const menu = document.getElementById('sessionHistoryItemMenu');
+        if (!menu) return;
+        sessionHistoryMenuTarget = { row, cat };
+
+        const btnRect = btnEl.getBoundingClientRect();
+        menu.classList.add('show');
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+        let left = btnRect.right - menuWidth;
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+        let top = btnRect.bottom + 4;
+        top = Math.min(top, window.innerHeight - menuHeight - 8);
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    }
+    function closeSessionHistoryItemMenu() {
+        document.getElementById('sessionHistoryItemMenu')?.classList.remove('show');
+    }
+    document.addEventListener('click', closeSessionHistoryItemMenu);
+    document.getElementById('sessionHistoryItemEdit')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const target = sessionHistoryMenuTarget;
+        closeSessionHistoryItemMenu();
+        if (!target) return;
+        openEdit(Number(target.row), target.cat);
+    });
+    document.getElementById('sessionHistoryItemDelete')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const target = sessionHistoryMenuTarget;
+        closeSessionHistoryItemMenu();
+        if (!target) return;
+        const session = rawData.find(s => s.row === Number(target.row));
+        if (!session) return showWarningToast('Session not found');
+        deleteHistory(Number(target.row), target.cat, session.duration, session.who || '', session.dateStr);
+    });
 
     document.getElementById('saveEditBtn')?.addEventListener('click', async () => {
         const row = document.getElementById('editRow').value;
@@ -2826,6 +3049,7 @@
     let metroBlkPlayerRef = null;
     let metroBlkCalibPlayerRef = null;
     let qpPlayerRef = null;
+    let flowPlayerRef = null;
 
     // Smallest tier that comfortably fits a value - used for direct/programmatic bpm changes.
     function metroBestFitTier(value) {
@@ -3063,6 +3287,7 @@
         metroBlkPlayerRef?.setVisualLatencyMs(metroState.latencyMs);
         metroBlkCalibPlayerRef?.setVisualLatencyMs(metroState.latencyMs);
         qpPlayerRef?.setVisualLatencyMs(metroState.latencyMs);
+        flowPlayerRef?.setVisualLatencyMs(metroState.latencyMs);
         localStorage.setItem(METRO_LATENCY_KEY, String(metroState.latencyMs));
         renderMetroLatencyReadout();
     }
@@ -3085,6 +3310,13 @@
     let metroBlkSetups = [];
     let metroBlkCurrentSetup = null; // { id, name, segments: [...] }, loaded when entering the builder
     let metroBlkTimeSigCache = { public: [], custom: [] };
+    // ML-161: the promise from the one-off prefetch fired at startup (see initializeApp) - Quick
+    // Play's first-ever render this session chains onto this instead of firing its own request, so
+    // the DB round trip happens quietly during the app's initial load screen rather than as a visible
+    // delay in the bar circles/bar 1 details when the Metronome page is opened. Every other caller
+    // (creating a custom time signature, the Blocks builder, etc.) still calls loadMetroBlkTimeSignatures()
+    // directly for a real refetch - this is only consulted at that one first-render gate.
+    let metroBlkTimeSigReadyPromise = null;
 
     // --- Macro beats (ML-95): the big/accented playback circles follow the meter's own conductor
     // pulse (macroBeatsPerBar), not the raw time-signature numerator - a 9/8 block shows/clicks 3
@@ -3268,22 +3500,29 @@
         // from a previous visit.
         document.getElementById('metroBlkEntryLibrary')?.classList.add('hidden-group');
         document.querySelector('.metroBlk-entry-choices')?.classList.remove('hidden-group');
+        document.getElementById('metroBlkEntryTitle').innerText = 'Flow';
+    }
+
+    // Shared by metroBlkEntryLoadBtn's own click and every other "jump straight to the library"
+    // entry point (Play Flow's 3-dot menu) - reveals the list and swaps the section-title to say
+    // so, rather than the generic "Flow" the two-choice screen shows.
+    function showFlowLibraryList() {
+        document.querySelector('.metroBlk-entry-choices')?.classList.add('hidden-group');
+        document.getElementById('metroBlkEntryLibrary')?.classList.remove('hidden-group');
+        document.getElementById('metroBlkEntryTitle').innerText = 'Flow library';
     }
     function metroBlkShowEditorScreen() {
         document.getElementById('metroBlkEntryScreen')?.classList.add('hidden-group');
         document.getElementById('metroBlkEditorScreen')?.classList.remove('hidden-group');
     }
+    // ML-179: "Create your own" now creates a score-backed Flow (Flow Details Hub) instead of
+    // jumping straight into the ad-hoc scratch builder - loadMetroBlkDefaultSetup is unreachable
+    // from here now (its only other caller, deleteMetroBlkSetup, is itself unreachable the same
+    // way - see the loadFlowsList comment above). Left in place per this file's usual precedent.
     document.getElementById('metroBlkEntryCreateBtn')?.addEventListener('click', () => {
-        loadMetroBlkDefaultSetup();
+        createAndOpenFlow();
     });
-    document.getElementById('metroBlkEntryLoadBtn')?.addEventListener('click', () => {
-        document.querySelector('.metroBlk-entry-choices')?.classList.add('hidden-group');
-        document.getElementById('metroBlkEntryLibrary')?.classList.remove('hidden-group');
-    });
-    document.getElementById('metroBlkEntryLibraryBackBtn')?.addEventListener('click', () => {
-        document.getElementById('metroBlkEntryLibrary')?.classList.add('hidden-group');
-        document.querySelector('.metroBlk-entry-choices')?.classList.remove('hidden-group');
-    });
+    document.getElementById('metroBlkEntryLoadBtn')?.addEventListener('click', showFlowLibraryList);
     // "Change flow": backs out to the entry screen from either Play or Edit Mode. In Edit Mode this
     // discards with no confirmation dialog, same as the existing Cancel button (cancelMetroBlkEdit) -
     // not a new UX pattern. Clears metroBlkCurrentSetup so a later plain nav-to-Flow asks again
@@ -3292,6 +3531,1922 @@
         if (metroBlkEditMode) cancelMetroBlkEdit();
         metroBlkCurrentSetup = null;
         metroBlkShowEntryScreen();
+    });
+
+    // ========================================
+    // FLOWS (Jira ML-179 Phase 1) - Flow Details Hub. See docs/database-schema.md's
+    // "Flow" vs "Score" naming note (the table is `scores`, everything here says
+    // "Flow") and the entry-screen rewiring above (loadFlowsList/createAndOpenFlow
+    // now what "Create your own"/"Load from library" actually do).
+    // ========================================
+    let currentFlowId = null;
+    let currentFlowDetail = null;
+    let flowsListCache = [];
+
+    async function loadFlowsList() {
+        const ui = document.getElementById('metroBlkSetupsList');
+        if (ui) ui.innerHTML = 'Loading...';
+        try {
+            flowsListCache = await API.flows.list();
+            renderFlowsList();
+        } catch (error) {
+            showWarningToast('Error loading flows: ' + error.message);
+        }
+    }
+
+    function flowOwnershipLabel(flow) {
+        if (flow.isPublic) return 'Public';
+        if (flow.ownerBandId) return 'Band';
+        return 'Personal';
+    }
+
+    // Reuses the exact list container/row shape the old ad-hoc "Load from library" screen used
+    // (#metroBlkSetupsList, .history-item) - just populated with Flows and opening openFlow instead
+    // of openMetroBlkSetup. Duplicate/Delete are personal-flows-only for now (band/public sharing
+    // makes "delete" a much bigger question - who's allowed to - that's a deliberate follow-up, not
+    // an oversight), same "list-item-menu-btn + one shared floating menu" pattern as session history.
+    function renderFlowsList() {
+        const ui = document.getElementById('metroBlkSetupsList');
+        if (!ui) return;
+        if (!flowsListCache.length) { ui.innerHTML = '<p>No flows yet - go back and choose "Create your own" to make one.</p>'; return; }
+        ui.innerHTML = flowsListCache.map(f => `
+            <div class="history-item" data-flow-library-id="${f.id}">
+                <div style="flex-grow:1; cursor:pointer;" onclick="openFlow(${f.id})">
+                    <strong>${escapeHtml(f.title)}</strong>
+                    <div style="font-size:0.85rem; color:#666;">${f.blockCount} block${f.blockCount === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}</div>
+                </div>
+                ${flowOwnershipLabel(f) === 'Personal' ? `<button type="button" class="list-item-menu-btn" data-flow-library-menu-btn aria-label="Options for ${escapeHtml(f.title)}"><span class="material-symbols-outlined">more_vert</span></button>` : ''}
+            </div>
+        `).join('');
+        ui.querySelectorAll('[data-flow-library-menu-btn]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = Number(btn.closest('[data-flow-library-id]').dataset.flowLibraryId);
+                openFlowLibraryItemMenu(e.currentTarget, id);
+            });
+        });
+    }
+
+    let flowLibraryMenuTargetId = null;
+    function openFlowLibraryItemMenu(btnEl, id) {
+        flowLibraryMenuTargetId = id;
+        const menu = document.getElementById('flowLibraryItemMenu');
+        if (!menu) return;
+        menu.classList.add('show');
+        const btnRect = btnEl.getBoundingClientRect();
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+        let left = btnRect.right - menuWidth;
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+        let top = btnRect.bottom + 4;
+        top = Math.min(top, window.innerHeight - menuHeight - 8);
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    }
+    function closeFlowLibraryItemMenu() {
+        document.getElementById('flowLibraryItemMenu')?.classList.remove('show');
+    }
+    document.addEventListener('click', closeFlowLibraryItemMenu);
+
+    document.getElementById('flowLibraryItemMenuDuplicate')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = flowLibraryMenuTargetId;
+        closeFlowLibraryItemMenu();
+        try {
+            await API.flows.duplicate(id);
+            await loadFlowsList();
+            showSuccessToast('Flow duplicated');
+        } catch (error) {
+            showWarningToast('Error duplicating flow: ' + error.message);
+        }
+    });
+    document.getElementById('flowLibraryItemMenuDelete')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = flowLibraryMenuTargetId;
+        closeFlowLibraryItemMenu();
+        showConfirmModal('Delete flow', "Delete this flow and all its blocks, recordings, and documents? This can't be undone.", async () => {
+            try {
+                await API.flows.delete(id);
+                await loadFlowsList();
+                showSuccessToast('Flow deleted');
+            } catch (error) {
+                showWarningToast('Error deleting flow: ' + error.message);
+            }
+        }, true);
+    });
+
+    // Fetches the flow's metadata + full block list together and lands on Play Flow - shared by
+    // "Load from library" (below) and the Hub's own "Play flow" button/3-dot menu. currentFlowDetail
+    // is refetched here rather than trusted from wherever it was last loaded, same "don't trust it's
+    // still current" caution as loadAndRenderFlowDetailsHub's own fetch.
+    async function goToFlowPlayView(id) {
+        try {
+            const [detail, blocks] = await Promise.all([API.flows.get(id), API.flows.blocks.list(id)]);
+            currentFlowDetail = detail;
+            flowLeadInBlock = blocks.find(b => b.isLeadIn) || null;
+            currentFlowBlocks = blocks.filter(b => !b.isLeadIn);
+            switchView('flowPlayView');
+        } catch (error) {
+            showWarningToast('Error loading flow: ' + error.message);
+        }
+    }
+
+    // Fetches the flow's block list and lands on Blocks Studio - shared by the Hub's own "Open
+    // blocks studio" button and Play Flow's 3-dot "Edit flow" menu item.
+    async function goToBlocksStudio(id) {
+        try {
+            const blocks = await API.flows.blocks.list(id);
+            flowLeadInBlock = blocks.find(b => b.isLeadIn) || null;
+            currentFlowBlocks = blocks.filter(b => !b.isLeadIn);
+            switchView('blocksStudioView');
+        } catch (error) {
+            showWarningToast('Error loading blocks: ' + error.message);
+        }
+    }
+
+    // Only sets which flow is open before deciding where to land - switchView's own flowDetailsHubView/
+    // flowPlayView cases are what actually fetch and render, so returning here via the back button
+    // (goBack -> switchView(..., true), never through openFlow/createAndOpenFlow again) still picks up
+    // whatever changed there instead of showing a stale snapshot.
+    // Selecting an existing flow from the library lands straight on Play Flow - the whole point of
+    // loading one is to play already-built content. Only a flow with nothing to play yet
+    // (blockCount === 0) falls back to the Hub, the same destination "Create your own" always uses
+    // for a brand new flow (see createAndOpenFlow below).
+    window.openFlow = function(id) {
+        currentFlowId = id;
+        const listEntry = flowsListCache.find(f => f.id === id);
+        if (listEntry && listEntry.blockCount > 0) {
+            goToFlowPlayView(id);
+        } else {
+            switchView('flowDetailsHubView');
+        }
+    };
+
+    // No name required up front - personal-by-default, same no-friction feel as the old
+    // loadMetroBlkDefaultSetup's scratch setup.
+    async function createAndOpenFlow() {
+        try {
+            const created = await API.flows.create({});
+            currentFlowId = created.id;
+            switchView('flowDetailsHubView');
+        } catch (error) {
+            showWarningToast('Error creating flow: ' + error.message);
+        }
+    }
+
+    function formatFlowDate(dateStr) {
+        if (!dateStr) return '–';
+        const d = new Date(dateStr);
+        const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+
+    // The single entry point into the Hub - see openFlow's own comment for why fetching lives here
+    // rather than at each caller.
+    async function loadAndRenderFlowDetailsHub() {
+        if (!currentFlowId) return;
+        try {
+            currentFlowDetail = await API.flows.get(currentFlowId);
+            renderFlowDetailsHub();
+        } catch (error) {
+            showWarningToast('Error loading flow: ' + error.message);
+        }
+    }
+
+    function renderFlowDetailsHub() {
+        const f = currentFlowDetail;
+        if (!f) return;
+        document.getElementById('flowNameInput').value = f.title || '';
+        document.getElementById('flowComposerInput').value = f.composer || '';
+        document.getElementById('flowArrangerInput').value = f.arranger || '';
+        document.getElementById('flowPublisherInput').value = f.publisher || '';
+        document.getElementById('flowDescriptionInput').value = f.description || '';
+        document.getElementById('flowUploadedPill').innerText = `Uploaded: ${formatFlowDate(f.createdAt)}`;
+
+        renderFlowRecordingsList();
+        renderFlowDocumentsList();
+
+        // Blocks are required, not an optional extra - a flow with zero blocks has nothing to
+        // play. "Step 2 of 2" in the card header (index.html) makes that a two-part journey
+        // rather than a bonus card; this empty-state copy/button spell out the "you do" part
+        // explicitly rather than just quietly offering "edit 0 blocks".
+        const summary = f.blocksSummary || { count: 0, totalBars: 0, totalSeconds: 0 };
+        document.getElementById('flowBlocksSummaryValue').innerText = String(summary.count);
+        const summaryMins = Math.floor((summary.totalSeconds || 0) / 60);
+        const summarySecs = Math.round((summary.totalSeconds || 0) % 60);
+        document.getElementById('flowBlocksSummaryTime').innerText = `${summary.totalBars} bar${summary.totalBars === 1 ? '' : 's'} • ~${summaryMins}m ${summarySecs}s total`;
+        document.getElementById('flowPlayFlowBtn')?.classList.toggle('hidden-group', summary.count === 0);
+        if (summary.count === 0) {
+            document.getElementById('flowBlocksSublabel').innerText = "A flow isn't playable until it has at least one block - add rehearsal marks, tempo, and repeats for each section next.";
+            document.getElementById('flowOpenStudioBtn').innerText = 'Add blocks →';
+        } else {
+            document.getElementById('flowBlocksSublabel').innerText = 'Configure tempo roadmaps, rehearsal marks, fermatas, voltas, and speed transitions across dedicated full-screen blocks.';
+            document.getElementById('flowOpenStudioBtn').innerText = `Open blocks studio (edit ${summary.count} block${summary.count === 1 ? '' : 's'}) →`;
+        }
+
+        renderFlowHubMenuOptions();
+    }
+
+    // On-blur save (no separate Save button for this card - see the plan's own note on why) -
+    // skips the request entirely when the value hasn't actually changed.
+    function wireFlowMetadataField(inputId, field, required) {
+        const el = document.getElementById(inputId);
+        if (!el) return;
+        el.addEventListener('blur', async () => {
+            if (!currentFlowId) return;
+            const value = el.value;
+            if (required && !value.trim()) {
+                showWarningToast('Flow name is required.');
+                el.value = currentFlowDetail?.[field] || '';
+                return;
+            }
+            if (currentFlowDetail && currentFlowDetail[field] === value) return;
+            try {
+                currentFlowDetail = await API.flows.update(currentFlowId, { [field]: value });
+            } catch (error) {
+                showWarningToast('Error saving flow: ' + error.message);
+            }
+        });
+    }
+    wireFlowMetadataField('flowNameInput', 'title', true);
+    wireFlowMetadataField('flowComposerInput', 'composer');
+    wireFlowMetadataField('flowArrangerInput', 'arranger');
+    wireFlowMetadataField('flowPublisherInput', 'publisher');
+    wireFlowMetadataField('flowDescriptionInput', 'description');
+
+    // --- Flow Hub options menu (Move to a band / Remove from band, Publish/Unpublish for super
+    // admins, Delete flow) - bare .dropdown-menu (same as the burger menu), not the
+    // .metroBlk-tile-menu/JS-clamped variant, since there's only ever one instance on screen. ---
+    function renderFlowHubMenuOptions() {
+        const f = currentFlowDetail;
+        if (!f) return;
+        const isPersonal = !f.isPublic && !f.ownerBandId;
+        const isBandOwned = !f.isPublic && !!f.ownerBandId;
+        document.getElementById('flowHubMenuMoveToBand')?.classList.toggle('hidden-group', !isPersonal);
+        document.getElementById('flowHubMenuRemoveFromBand')?.classList.toggle('hidden-group', !isBandOwned);
+        document.getElementById('flowHubMenuPublish')?.classList.toggle('hidden-group', !(currentAccountIsSuperAdmin && !f.isPublic));
+        document.getElementById('flowHubMenuUnpublish')?.classList.toggle('hidden-group', !(currentAccountIsSuperAdmin && f.isPublic));
+    }
+    function closeFlowHubMenu() {
+        document.getElementById('flowHubMenu')?.classList.remove('show');
+    }
+    document.addEventListener('click', closeFlowHubMenu);
+    document.getElementById('flowHubMenuBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('flowHubMenu')?.classList.toggle('show');
+    });
+
+    document.getElementById('flowHubMenuMoveToBand')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        closeFlowHubMenu();
+        try {
+            const bands = await API.account.getBands();
+            if (!bands.myBands.length) { showWarningToast('Join a band first from My account.'); return; }
+            document.getElementById('flowBandPickerSelect').innerHTML = bands.myBands.map(b => `<option value="${b.id}">${escapeHtml(b.displayName)}</option>`).join('');
+            document.getElementById('flowBandPickerModal').style.display = 'flex';
+        } catch (error) {
+            showWarningToast('Error loading your bands: ' + error.message);
+        }
+    });
+    document.getElementById('flowBandPickerConfirmBtn')?.addEventListener('click', async () => {
+        const bandId = document.getElementById('flowBandPickerSelect').value;
+        if (!bandId || !currentFlowId) return;
+        try {
+            currentFlowDetail = await API.flows.moveToBand(currentFlowId, Number(bandId));
+            document.getElementById('flowBandPickerModal').style.display = 'none';
+            renderFlowHubMenuOptions();
+            showSuccessToast('Flow moved to band');
+        } catch (error) {
+            showWarningToast('Error moving flow: ' + error.message);
+        }
+    });
+
+    document.getElementById('flowHubMenuRemoveFromBand')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeFlowHubMenu();
+        if (!currentFlowId) return;
+        showConfirmModal('Remove from band', 'Make this flow personal again? It will only be owned by you.', async () => {
+            try {
+                currentFlowDetail = await API.flows.removeFromBand(currentFlowId);
+                renderFlowHubMenuOptions();
+                showSuccessToast('Flow is now personal');
+            } catch (error) {
+                showWarningToast('Error removing from band: ' + error.message);
+            }
+        }, false, 'Remove');
+    });
+
+    document.getElementById('flowHubMenuPublish')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeFlowHubMenu();
+        if (!currentFlowId) return;
+        showConfirmModal('Publish flow', 'Make this flow public? Any super admin will then be able to manage it.', async () => {
+            try {
+                currentFlowDetail = await API.flows.publish(currentFlowId);
+                renderFlowHubMenuOptions();
+                showSuccessToast('Flow published');
+            } catch (error) {
+                showWarningToast('Error publishing flow: ' + error.message);
+            }
+        }, false, 'Publish');
+    });
+
+    document.getElementById('flowHubMenuUnpublish')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeFlowHubMenu();
+        if (!currentFlowId) return;
+        showConfirmModal('Unpublish flow', 'Make this flow private again? It will become personal, owned by you.', async () => {
+            try {
+                currentFlowDetail = await API.flows.unpublish(currentFlowId);
+                renderFlowHubMenuOptions();
+                showSuccessToast('Flow unpublished');
+            } catch (error) {
+                showWarningToast('Error unpublishing flow: ' + error.message);
+            }
+        }, false, 'Unpublish');
+    });
+
+    document.getElementById('flowHubMenuDelete')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeFlowHubMenu();
+        if (!currentFlowId) return;
+        showConfirmModal('Delete flow', `Delete "${currentFlowDetail?.title || 'this flow'}" and all its blocks, recordings, and documents? This can't be undone.`, async () => {
+            try {
+                await API.flows.delete(currentFlowId);
+                currentFlowId = null;
+                currentFlowDetail = null;
+                showSuccessToast('Flow deleted');
+                goBack();
+            } catch (error) {
+                showWarningToast('Error deleting flow: ' + error.message);
+            }
+        }, true);
+    });
+
+    // --- Recordings & media card ---
+    function renderFlowRecordingsList() {
+        const list = document.getElementById('flowRecordingsList');
+        const countPill = document.getElementById('flowRecordingsCountPill');
+        if (!list) return;
+        const recordings = currentFlowDetail?.recordings || [];
+        if (countPill) countPill.innerText = `${recordings.length} linked`;
+        if (!recordings.length) {
+            list.innerHTML = '<p class="text-muted">No media uploaded yet.</p>';
+            return;
+        }
+        // Inline player per row (native <audio>/<video> controls for an upload, an embedded
+        // YouTube iframe for a link) rather than an "open in a new tab" button - the point of
+        // Recordings & media is quick playback while looking at the rest of the flow, not a
+        // detour to another tab/app for a "small set of controls" you'd get there anyway.
+        list.innerHTML = recordings.map(r => {
+            const isYoutube = r.type === 'youtube';
+            const isVideo = !isYoutube && (r.mimeType || '').startsWith('video/');
+            const icon = isYoutube ? 'smart_display' : (isVideo ? 'movie' : 'music_note');
+            const meta = isYoutube ? 'YouTube video' : (r.mimeType || 'Audio/video file');
+            let playerHtml;
+            if (isYoutube) {
+                playerHtml = `<div class="flow-media-player-video"><iframe src="https://www.youtube.com/embed/${encodeURIComponent(r.youtubeVideoId)}" title="${escapeHtml(r.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+            } else if (isVideo) {
+                playerHtml = `<div class="flow-media-player-video"><video controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></video></div>`;
+            } else {
+                playerHtml = `<audio class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></audio>`;
+            }
+            return `
+                <div class="history-item flow-media-item">
+                    <div class="flow-media-item-top">
+                        <div class="history-details">
+                            <span class="flow-media-icon ${isYoutube ? 'type-youtube' : 'type-audio'}"><span class="material-symbols-outlined" style="font-size:18px;">${icon}</span></span>
+                            <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(meta)}</span></div>
+                        </div>
+                        <button type="button" class="flow-delete-btn" onclick="deleteFlowRecording(${r.id})" aria-label="Delete ${escapeHtml(r.title)}"><span class="material-symbols-outlined">delete</span></button>
+                    </div>
+                    ${playerHtml}
+                </div>
+            `;
+        }).join('');
+    }
+
+    window.deleteFlowRecording = function(recordingId) {
+        if (!currentFlowId) return;
+        showConfirmModal('Delete recording', 'Remove this recording from the flow?', async () => {
+            try {
+                currentFlowDetail = await API.flows.recordings.delete(currentFlowId, recordingId);
+                renderFlowRecordingsList();
+            } catch (error) {
+                showWarningToast('Error deleting recording: ' + error.message);
+            }
+        }, true);
+    };
+
+    document.getElementById('flowUploadRecordingBtn')?.addEventListener('click', () => {
+        document.getElementById('flowRecordingFileInput')?.click();
+    });
+    document.getElementById('flowRecordingFileInput')?.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (!file || !currentFlowId) return;
+        const progressBox = document.getElementById('flowRecordingUploadProgress');
+        const nameEl = document.getElementById('flowRecordingUploadName');
+        const percentEl = document.getElementById('flowRecordingUploadPercent');
+        const fillEl = document.getElementById('flowRecordingUploadFill');
+        nameEl.innerText = file.name;
+        percentEl.innerText = '0%';
+        fillEl.style.width = '0%';
+        progressBox.classList.remove('hidden-group');
+        try {
+            // Goes straight from this browser to Blob storage (window.vercelBlobUpload, loaded via
+            // the module script in index.html) - never through our own server, which is why the
+            // separate confirm call below exists (see the upload-token route's own comment for why
+            // it can't just rely on Blob's onUploadCompleted webhook).
+            const blob = await window.vercelBlobUpload(`flows/${currentFlowId}/recordings/${file.name}`, file, {
+                access: 'public',
+                // Token travels as a query param, not the usual Authorization header - upload()
+                // makes its own internal fetch() with a hardcoded header set (see
+                // requireAuthFromQueryOrHeader's own comment in server/middleware/auth.js).
+                handleUploadUrl: `${API_BASE_URL}/api/flows/${currentFlowId}/recordings/upload-token?token=${encodeURIComponent(auth.token)}`,
+                onUploadProgress: (progress) => {
+                    const pct = Math.round(progress.percentage);
+                    percentEl.innerText = `${pct}%`;
+                    fillEl.style.width = `${pct}%`;
+                }
+            });
+            currentFlowDetail = await API.flows.recordings.addUploaded(currentFlowId, {
+                blobUrl: blob.url, blobPathname: blob.pathname, fileName: file.name, fileSizeBytes: file.size, mimeType: blob.contentType || file.type
+            });
+            renderFlowRecordingsList();
+            showSuccessToast('Recording uploaded');
+        } catch (error) {
+            showWarningToast('Error uploading recording: ' + error.message);
+        } finally {
+            progressBox.classList.add('hidden-group');
+        }
+    });
+
+    document.getElementById('flowAddYouTubeBtn')?.addEventListener('click', () => {
+        document.getElementById('flowYouTubeUrlInput').value = '';
+        document.getElementById('flowYouTubeTitleInput').value = '';
+        document.getElementById('flowYouTubeModal').style.display = 'flex';
+    });
+    document.getElementById('flowYouTubeSaveBtn')?.addEventListener('click', async () => {
+        const url = document.getElementById('flowYouTubeUrlInput').value.trim();
+        const title = document.getElementById('flowYouTubeTitleInput').value.trim();
+        if (!url) return showWarningToast('YouTube link required.');
+        if (!currentFlowId) return;
+        try {
+            currentFlowDetail = await API.flows.recordings.addYouTube(currentFlowId, { url, title });
+            document.getElementById('flowYouTubeModal').style.display = 'none';
+            renderFlowRecordingsList();
+            showSuccessToast('YouTube video added');
+        } catch (error) {
+            showWarningToast('Error adding YouTube video: ' + error.message);
+        }
+    });
+
+    // --- Documents & scores card ---
+    function renderFlowDocumentsList() {
+        const list = document.getElementById('flowDocumentsList');
+        const countPill = document.getElementById('flowDocumentsCountPill');
+        if (!list) return;
+        const documents = currentFlowDetail?.documents || [];
+        if (countPill) countPill.innerText = `${documents.length} file${documents.length === 1 ? '' : 's'}`;
+        if (!documents.length) {
+            list.innerHTML = '<p class="text-muted">No documents uploaded yet.</p>';
+            return;
+        }
+        list.innerHTML = documents.map(d => {
+            const ext = (d.fileName.split('.').pop() || '?').toUpperCase();
+            const sizeText = d.fileSizeBytes ? `${(d.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB` : '';
+            return `
+                <div class="history-item flow-doc-item">
+                    <div class="history-details">
+                        <span class="flow-doc-icon">${escapeHtml(ext.slice(0, 4))}</span>
+                        <div><strong>${escapeHtml(d.fileName)}</strong><span>${sizeText}</span></div>
+                    </div>
+                    <div class="flow-doc-item-actions">
+                        <button type="button" class="list-item-menu-btn" onclick="window.open('${d.blobUrl}', '_blank')" aria-label="View ${escapeHtml(d.fileName)}"><span class="material-symbols-outlined">visibility</span></button>
+                        <button type="button" class="flow-delete-btn" onclick="deleteFlowDocument(${d.id})" aria-label="Delete ${escapeHtml(d.fileName)}"><span class="material-symbols-outlined">delete</span></button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    window.deleteFlowDocument = function(documentId) {
+        if (!currentFlowId) return;
+        showConfirmModal('Delete document', 'Remove this document from the flow?', async () => {
+            try {
+                currentFlowDetail = await API.flows.documents.delete(currentFlowId, documentId);
+                renderFlowDocumentsList();
+            } catch (error) {
+                showWarningToast('Error deleting document: ' + error.message);
+            }
+        }, true);
+    };
+
+    document.getElementById('flowUploadDocumentBtn')?.addEventListener('click', () => {
+        document.getElementById('flowDocumentFileInput')?.click();
+    });
+    document.getElementById('flowDocumentFileInput')?.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (!file || !currentFlowId) return;
+        const progressBox = document.getElementById('flowDocumentUploadProgress');
+        const nameEl = document.getElementById('flowDocumentUploadName');
+        const percentEl = document.getElementById('flowDocumentUploadPercent');
+        const fillEl = document.getElementById('flowDocumentUploadFill');
+        nameEl.innerText = file.name;
+        percentEl.innerText = '0%';
+        fillEl.style.width = '0%';
+        progressBox.classList.remove('hidden-group');
+        try {
+            const blob = await window.vercelBlobUpload(`flows/${currentFlowId}/documents/${file.name}`, file, {
+                access: 'public',
+                // See the recordings upload handler above for why the token is a query param here.
+                handleUploadUrl: `${API_BASE_URL}/api/flows/${currentFlowId}/documents/upload-token?token=${encodeURIComponent(auth.token)}`,
+                onUploadProgress: (progress) => {
+                    const pct = Math.round(progress.percentage);
+                    percentEl.innerText = `${pct}%`;
+                    fillEl.style.width = `${pct}%`;
+                }
+            });
+            currentFlowDetail = await API.flows.documents.add(currentFlowId, {
+                blobUrl: blob.url, blobPathname: blob.pathname, fileName: file.name, fileSizeBytes: file.size, mimeType: blob.contentType || file.type
+            });
+            renderFlowDocumentsList();
+            showSuccessToast('Document uploaded');
+        } catch (error) {
+            showWarningToast('Error uploading document: ' + error.message);
+        } finally {
+            progressBox.classList.add('hidden-group');
+        }
+    });
+
+    // --- Blocks summary card ---
+    document.getElementById('flowOpenStudioBtn')?.addEventListener('click', () => {
+        if (currentFlowId) goToBlocksStudio(currentFlowId);
+    });
+
+    // ========================================
+    // BLOCKS STUDIO (Jira ML-179 Phase 2) - Full density view for score-backed Flow blocks
+    // (parent_score_id on metronome_segments). The 2-col/4-col compact density views, and a
+    // separate tap-to-open Block Inspector Modal for them, are a deferred follow-up - Full
+    // already shows every one of the 12 parameters directly editable inline on each block's own
+    // card (per the ticket's own Full-view spec), so there's nothing a modal would add here.
+    // Every tile edit applies immediately (updateFlowBlock already merges partial changes safely
+    // and re-validates the whole row) rather than needing a separate Save step.
+    // ========================================
+    let currentFlowBlocks = [];
+    let flowLeadInBlock = null;
+    let flowBlockMenuTargetId = null;
+    let flowDragBlockIndex = null;
+    let flowFermataTargetBlockId = null;
+
+    const FLOW_NOTE_VALUES = [
+        { value: 'semibreve', label: 'Semibreve' },
+        { value: 'minim', label: 'Minim' },
+        { value: 'crotchet', label: 'Crotchet' },
+        { value: 'dotted-crotchet', label: 'Dotted crotchet' },
+        { value: 'quaver', label: 'Quaver' }
+    ];
+    const FLOW_NOTE_ABBREV = { semibreve: 'o', minim: 'h', crotchet: 'q', 'dotted-crotchet': 'q.', quaver: 'e' };
+
+    function flowFindBlockById(id) {
+        if (flowLeadInBlock && flowLeadInBlock.id === id) return flowLeadInBlock;
+        return currentFlowBlocks.find(b => b.id === id);
+    }
+
+    // Approximate - a real value would need to account for tempo ramps mid-block; fine for a
+    // rough "~Xm Ys total" estimate, same spirit as the ad-hoc side's own formatMetroBlkDuration.
+    function flowTotalRuntimeSeconds(blocks) {
+        return blocks.reduce((total, b) => total + (b.bpm && b.numerator ? (b.barCount * b.numerator * 60) / b.bpm : 0), 0);
+    }
+
+    // "Block 1"/"Block 2" never actually identified anything - the written bar range does. Lead-in
+    // is excluded from the count (it isn't numbered), same convention as Play Flow's own tile
+    // headline (flowStartingBarNumber's logic, inlined here since a card needs the range's end too,
+    // not just its start). Recomputed on every render, so a drag reorder updates it for free.
+    function flowBlockBarRange(index) {
+        let start = 1;
+        for (let i = 0; i < index; i++) start += currentFlowBlocks[i].barCount || 0;
+        const barCount = currentFlowBlocks[index] ? (currentFlowBlocks[index].barCount || 1) : 1;
+        return { start, end: start + barCount - 1 };
+    }
+    function flowBarRangeLabel(index) {
+        const { start, end } = flowBlockBarRange(index);
+        return start === end ? `Bar ${start}` : `Bars ${start} to ${end}`;
+    }
+
+    function renderFlowBlocksStudio() {
+        const all = flowLeadInBlock ? [flowLeadInBlock, ...currentFlowBlocks] : currentFlowBlocks;
+        const totalBars = all.reduce((sum, b) => sum + (b.barCount || 0), 0);
+        const totalSeconds = flowTotalRuntimeSeconds(all);
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = Math.round(totalSeconds % 60);
+        document.getElementById('flowStudioSummaryText').innerText = `${totalBars} bar${totalBars === 1 ? '' : 's'} • ~${mins}m ${secs}s total`;
+        // Same "nothing to play yet" gate as the Hub's own flowPlayFlowBtn (currentFlowBlocks alone -
+        // a lead-in by itself still isn't playable).
+        document.getElementById('flowStudioPlayFlowBtn')?.classList.toggle('hidden-group', currentFlowBlocks.length === 0);
+        renderFlowLeadIn();
+        renderFlowBlocksList();
+    }
+
+    async function flowUpdateBlock(blockId, data) {
+        try {
+            const updated = await API.flows.blocks.update(blockId, data);
+            if (flowLeadInBlock && flowLeadInBlock.id === blockId) {
+                flowLeadInBlock = updated;
+            } else {
+                currentFlowBlocks = currentFlowBlocks.map(b => b.id === blockId ? updated : b);
+            }
+            renderFlowBlocksStudio();
+        } catch (error) {
+            showWarningToast('Error updating block: ' + error.message);
+        }
+    }
+
+    // --- Lead-in: pinned, no drag handle, 3-tile row (bars/loop repeat/seconds rest). ---
+    function renderFlowLeadIn() {
+        const card = document.getElementById('flowLeadInCard');
+        const addBtn = document.getElementById('flowAddLeadInBtn');
+        if (!card || !addBtn) return;
+        if (!flowLeadInBlock) {
+            card.classList.add('hidden-group');
+            addBtn.classList.remove('hidden-group');
+            return;
+        }
+        card.classList.remove('hidden-group');
+        addBtn.classList.add('hidden-group');
+        const b = flowLeadInBlock;
+        const tiles = document.getElementById('flowLeadInTiles');
+        tiles.innerHTML = `
+            <button type="button" class="flow-tile" data-lead-tile="bars"><span class="flow-tile-value">${b.barCount}</span><span class="flow-tile-label">bars</span></button>
+            <button type="button" class="flow-tile" data-lead-tile="loopRepeat"><span class="flow-tile-value">${b.repeatLeadIn ? 'On' : 'Off'}</span><span class="flow-tile-label">loop repeat</span></button>
+            <button type="button" class="flow-tile" data-lead-tile="secondsRest"><span class="flow-tile-value">${b.quietSecondsBeforeLeadIn}</span><span class="flow-tile-label">seconds rest</span></button>
+        `;
+        tiles.querySelectorAll('[data-lead-tile]').forEach(btn => {
+            btn.addEventListener('click', () => handleFlowLeadInTileClick(btn.dataset.leadTile));
+        });
+    }
+
+    function handleFlowLeadInTileClick(tileKey) {
+        const b = flowLeadInBlock;
+        if (!b) return;
+        if (tileKey === 'bars') {
+            showPromptModal('Lead-in bars', String(b.barCount), (val) => {
+                const n = Number(val);
+                if (!Number.isInteger(n) || n < 1) return showWarningToast('Enter a whole number of 1 or more.');
+                flowUpdateBlock(b.id, { barCount: n });
+            });
+        } else if (tileKey === 'loopRepeat') {
+            flowUpdateBlock(b.id, { repeatLeadIn: !b.repeatLeadIn });
+        } else if (tileKey === 'secondsRest') {
+            showPromptModal('Seconds of rest before the lead-in', String(b.quietSecondsBeforeLeadIn), (val) => {
+                const n = Number(val);
+                if (!Number.isInteger(n) || n < 0) return showWarningToast('Enter a non-negative whole number.');
+                flowUpdateBlock(b.id, { quietSecondsBeforeLeadIn: n });
+            });
+        }
+    }
+
+    document.getElementById('flowLeadInMenuBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('flowLeadInMenu')?.classList.toggle('show');
+    });
+    function closeFlowLeadInMenu() {
+        document.getElementById('flowLeadInMenu')?.classList.remove('show');
+    }
+    document.addEventListener('click', closeFlowLeadInMenu);
+    document.getElementById('flowLeadInMenuDelete')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeFlowLeadInMenu();
+        if (!flowLeadInBlock) return;
+        showConfirmModal('Delete lead-in', 'Remove the lead-in block?', async () => {
+            try {
+                await API.flows.blocks.delete(flowLeadInBlock.id);
+                flowLeadInBlock = null;
+                renderFlowBlocksStudio();
+            } catch (error) {
+                showWarningToast('Error deleting lead-in: ' + error.message);
+            }
+        }, true);
+    });
+
+    document.getElementById('flowAddLeadInBtn')?.addEventListener('click', async () => {
+        if (!currentFlowId) return;
+        const firstBlock = currentFlowBlocks[0];
+        try {
+            flowLeadInBlock = await API.flows.blocks.create(currentFlowId, {
+                barCount: 2,
+                bpm: firstBlock ? firstBlock.bpm : 120,
+                timeSignatureId: firstBlock ? firstBlock.timeSignatureId : (metroBlkTimeSigCache.public[0] ? metroBlkTimeSigCache.public[0].id : null),
+                accountTimeSignatureId: firstBlock ? firstBlock.accountTimeSignatureId : null,
+                isLeadIn: true
+            });
+            renderFlowBlocksStudio();
+        } catch (error) {
+            showWarningToast('Error adding lead-in: ' + error.message);
+        }
+    });
+
+    // --- Musical symbol glyphs (segno/coda) - hand-drawn SVG, same currentColor-fill approach as
+    // metroNoteIconSvg, so the gold "this has content" tile styling (.flow-tile-filled/.selected)
+    // colors these automatically with no extra JS. `inline` sizes it to sit inline with text (the
+    // jump tile's "D.<segno>"/"al <coda>" labels); otherwise it's the picker's own button-sized icon. ---
+    function flowSignIconSvg(kind, inline) {
+        const cls = inline ? 'flow-sign-svg-inline' : 'flow-sign-svg';
+        if (kind === 'segno') {
+            return `<svg viewBox="0 0 40 40" class="${cls}"><path d="M28 10 C 34 10 34 18 26 20 C 18 22 18 28 26 30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><line x1="8" y1="32" x2="32" y2="8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><circle cx="28" cy="28" r="2.2" fill="currentColor"/></svg>`;
+        }
+        if (kind === 'coda') {
+            return `<svg viewBox="0 0 40 40" class="${cls}"><circle cx="20" cy="20" r="12" fill="none" stroke="currentColor" stroke-width="2.6"/><line x1="20" y1="2" x2="20" y2="38" stroke="currentColor" stroke-width="2.6"/><line x1="2" y1="20" x2="38" y2="20" stroke="currentColor" stroke-width="2.6"/></svg>`;
+        }
+        return '';
+    }
+
+    // --- Reorderable blocks: label helpers (each mirrors a small slice of the schema - see
+    // docs/database-schema.md's "Journey/repeat wiring" note for what each column means). Each has
+    // a matching *Filled companion - whichever of these read "None"/the plain default gets the
+    // neutral tile styling, everything else gets .flow-tile-filled (gold border + value). ---
+    function flowStartLabel(b) { return b.isRepeatStart ? '|:' : '|'; }
+    function flowStartFilled(b) { return !!b.isRepeatStart; }
+    function flowEndLabel(b) {
+        if (b.isRepeatEnd) return ':|' + (b.repeatPlayCount ? ` ${b.repeatPlayCount}x` : '');
+        if (b.isSectionBoundary) return '||';
+        return '|';
+    }
+    function flowEndFilled(b) { return !!b.isRepeatEnd || !!b.isSectionBoundary; }
+    // Repeat-ending numbers (ML-179 follow-up, db/migrations/034_repeat_ending_numbers.sql) - a
+    // superset of the old binary 1st/2nd pair, e.g. [1,3,5] for "plays on passes 1, 3 and 5 only".
+    function flowRepeatBarLabel(b) {
+        const nums = b.repeatEndingNumbers || [];
+        return nums.length ? nums.join(', ') : 'None';
+    }
+    function flowRepeatBarFilled(b) { return (b.repeatEndingNumbers || []).length > 0; }
+    function flowIntroLabel(b) {
+        const hasStart = b.introStartBarOffset !== null;
+        const hasEnd = b.introEndBarOffset !== null;
+        if (hasStart && hasEnd) return 'Both';
+        if (hasStart) return 'Starts';
+        if (hasEnd) return 'Ends';
+        return 'None';
+    }
+    function flowIntroFilled(b) { return b.introStartBarOffset !== null || b.introEndBarOffset !== null; }
+    // Direction (rit/accel) isn't stored - it's derived by comparing to the next block's own bpm
+    // (see docs/database-schema.md's "Tempo ramp" note: "no separate target-tempo field").
+    function flowChangeLabel(b, nextBlock) {
+        if (b.rampStartBarOffset === null) return 'None';
+        if (nextBlock && Number(nextBlock.bpm) > Number(b.bpm)) return 'accel';
+        if (nextBlock && Number(nextBlock.bpm) < Number(b.bpm)) return 'rit';
+        return 'ramp';
+    }
+    function flowChangeFilled(b) { return b.rampStartBarOffset !== null; }
+    function flowSignLabel(b) {
+        if (b.isSegno) return flowSignIconSvg('segno');
+        if (b.isCoda) return flowSignIconSvg('coda');
+        return 'None';
+    }
+    function flowSignFilled(b) { return !!b.isSegno || !!b.isCoda; }
+    // "D.<segno>"/"To <coda>"/"D.<segno> al <coda>" - the actual symbol at the same size as the
+    // surrounding text (flowSignIconSvg's inline variant), not the word spelled out.
+    function flowJumpLabel(b) {
+        if (b.gotoSegnoThenCoda) return `D.${flowSignIconSvg('segno', true)} al ${flowSignIconSvg('coda', true)}`;
+        if (b.gotoSegno) return `D.${flowSignIconSvg('segno', true)}`;
+        if (b.gotoCoda) return `To ${flowSignIconSvg('coda', true)}`;
+        if (b.gotoStartDc) return 'D.C.';
+        return 'None';
+    }
+    function flowJumpFilled(b) { return !!b.gotoSegno || !!b.gotoSegnoThenCoda || !!b.gotoCoda || !!b.gotoStartDc; }
+    function flowPauseLabel(b) {
+        const n = (b.fermatas || []).length;
+        return n === 0 ? 'None' : `${n} fermata${n === 1 ? '' : 's'}`;
+    }
+    function flowPauseFilled(b) { return (b.fermatas || []).length > 0; }
+
+    function flowBlockCardHtml(b, idx, nextBlock) {
+        const timeSig = b.timeSignatureLabel || `${b.numerator}/${b.denominator}`;
+        const markBox = b.rehearsalMark
+            ? `<button type="button" class="flow-block-mark-box" data-block-tile="rehearsalMark">${escapeHtml(b.rehearsalMark)}</button>`
+            : `<button type="button" class="flow-block-mark-empty" data-block-tile="rehearsalMark" aria-label="Add rehearsal mark">+</button>`;
+        return `
+            <div class="flow-block-card" draggable="true" data-block-id="${b.id}">
+                <div class="flow-block-card-header">
+                    <div class="flow-block-card-title">
+                        <span class="flow-block-grab-handle material-symbols-outlined">drag_indicator</span>
+                        ${markBox}
+                        <span class="flow-block-name">${flowBarRangeLabel(idx)}</span>
+                    </div>
+                    <button type="button" class="list-item-menu-btn" data-block-menu-btn aria-label="${flowBarRangeLabel(idx)} options"><span class="material-symbols-outlined">more_vert</span></button>
+                </div>
+                <div class="flow-tile-section">
+                    <span class="flow-tile-section-label">Core</span>
+                    <div class="flow-tile-grid flow-tile-grid-4">
+                        <button type="button" class="flow-tile" data-block-tile="time"><span class="flow-tile-value">${escapeHtml(timeSig)}</span><span class="flow-tile-label">time</span></button>
+                        <button type="button" class="flow-tile" data-block-tile="beatUnit"><span class="flow-tile-value">${metroNoteIconSvg(b.noteValue || 'crotchet')}</span><span class="flow-tile-label">beat unit</span></button>
+                        <button type="button" class="flow-tile" data-block-tile="bpm"><span class="flow-tile-value">${b.bpm}</span><span class="flow-tile-label">bpm</span></button>
+                        <button type="button" class="flow-tile" data-block-tile="bars"><span class="flow-tile-value">${b.barCount}</span><span class="flow-tile-label">bars</span></button>
+                    </div>
+                </div>
+                <div class="flow-tile-section">
+                    <span class="flow-tile-section-label">Repeats and intro</span>
+                    <div class="flow-tile-grid flow-tile-grid-4">
+                        <button type="button" class="flow-tile${flowStartFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="start"><span class="flow-tile-value">${flowStartLabel(b)}</span><span class="flow-tile-label">start</span></button>
+                        <button type="button" class="flow-tile${flowEndFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="end"><span class="flow-tile-value">${flowEndLabel(b)}</span><span class="flow-tile-label">end</span></button>
+                        <button type="button" class="flow-tile${flowRepeatBarFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="repeatBar"><span class="flow-tile-value">${flowRepeatBarLabel(b)}</span><span class="flow-tile-label">repeat bar</span></button>
+                        <button type="button" class="flow-tile${flowIntroFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="intro"><span class="flow-tile-value">${flowIntroLabel(b)}</span><span class="flow-tile-label">intro</span></button>
+                    </div>
+                </div>
+                <div class="flow-tile-section">
+                    <span class="flow-tile-section-label">Changes and jumps</span>
+                    <div class="flow-tile-grid flow-tile-grid-4">
+                        <button type="button" class="flow-tile${flowChangeFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="change"><span class="flow-tile-value">${flowChangeLabel(b, nextBlock)}</span><span class="flow-tile-label">change</span></button>
+                        <button type="button" class="flow-tile${flowSignFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="sign"><span class="flow-tile-value">${flowSignLabel(b)}</span><span class="flow-tile-label">sign</span></button>
+                        <button type="button" class="flow-tile${flowPauseFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="pause"><span class="flow-tile-value">${flowPauseLabel(b)}</span><span class="flow-tile-label">pause</span></button>
+                        <button type="button" class="flow-tile${flowJumpFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="jump"><span class="flow-tile-value">${flowJumpLabel(b)}</span><span class="flow-tile-label">jump</span></button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderFlowBlocksList() {
+        const container = document.getElementById('flowBlocksList');
+        if (!container) return;
+        if (!currentFlowBlocks.length) {
+            container.innerHTML = '<p class="text-muted" style="text-align:center; padding: 20px;">No blocks yet - add your first one below.</p>';
+            return;
+        }
+        container.innerHTML = currentFlowBlocks.map((b, idx) => flowBlockCardHtml(b, idx, currentFlowBlocks[idx + 1])).join('');
+
+        // Mouse-only HTML5 drag-and-drop for now (matches this pass's Full-view-only scope) - a
+        // proper touch-friendly implementation would mirror setupMetroBlkDragAndDrop's dual
+        // mouse/Pointer-Events approach; noted as a follow-up alongside the density switcher.
+        container.querySelectorAll('.flow-block-card').forEach((el) => {
+            el.addEventListener('dragstart', () => {
+                flowDragBlockIndex = currentFlowBlocks.findIndex(b => b.id === Number(el.dataset.blockId));
+                el.classList.add('dragging');
+            });
+            el.addEventListener('dragover', (e) => e.preventDefault());
+            el.addEventListener('dragend', () => el.classList.remove('dragging'));
+            el.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const targetIdx = currentFlowBlocks.findIndex(b => b.id === Number(el.dataset.blockId));
+                if (flowDragBlockIndex === null || flowDragBlockIndex === targetIdx) return;
+                const moved = currentFlowBlocks.splice(flowDragBlockIndex, 1)[0];
+                currentFlowBlocks.splice(targetIdx, 0, moved);
+                flowDragBlockIndex = null;
+                renderFlowBlocksList();
+                API.flows.blocks.reorder(currentFlowId, currentFlowBlocks.map(b => b.id))
+                    .catch(error => showWarningToast('Error saving order: ' + error.message));
+            });
+        });
+
+        container.querySelectorAll('[data-block-tile]').forEach(btn => {
+            const blockId = Number(btn.closest('.flow-block-card').dataset.blockId);
+            btn.addEventListener('click', () => handleFlowBlockTileClick(blockId, btn.dataset.blockTile));
+        });
+        container.querySelectorAll('[data-block-menu-btn]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openFlowBlockMenu(e.currentTarget, Number(btn.closest('.flow-block-card').dataset.blockId));
+            });
+        });
+    }
+
+    // --- Generic choice-list modal - every discrete-option tile shares this one modal rather
+    // than each getting its own bespoke picker. An option can pass `html` instead of `label` for
+    // cases that need more than plain escaped text (the sign picker's icons); `opts.horizontal`
+    // switches to a row of equal-width buttons instead of a vertical list (also the sign picker).
+    // `opts.onSelectKeepsOpen` skips the auto-close, for tiles (end-of-bar repeat) that need to
+    // show more inline UI after a choice rather than closing immediately. ---
+    function openFlowChoiceModal(title, options, onSelect, opts = {}) {
+        document.getElementById('flowChoiceTitle').innerText = title;
+        // Always starts clean - a previous tile (end-of-bar's repeat-count slider, say) may have
+        // left this populated and visible, and it should never bleed into an unrelated tile's own
+        // choice list. Callers that DO want it (flowShowRepeatCountSlider) re-show it afterwards.
+        const inlineExtra = document.getElementById('flowChoiceInlineExtra');
+        inlineExtra.classList.add('hidden-group');
+        inlineExtra.innerHTML = '';
+        const container = document.getElementById('flowChoiceOptions');
+        container.classList.toggle('flow-choice-options-horizontal', !!opts.horizontal);
+        container.innerHTML = options.map((opt, i) => `
+            <div class="flow-choice-option${opt.selected ? ' selected' : ''}" data-choice-idx="${i}">
+                ${opt.html ? opt.html : `<span>${escapeHtml(opt.label)}</span>`}
+                ${opt.selected && !opt.html ? '<span class="material-symbols-outlined">check</span>' : ''}
+            </div>
+        `).join('');
+        container.querySelectorAll('[data-choice-idx]').forEach(el => {
+            el.addEventListener('click', () => {
+                if (!opts.onSelectKeepsOpen) document.getElementById('flowChoiceModal').style.display = 'none';
+                onSelect(options[Number(el.dataset.choiceIdx)]);
+            });
+        });
+        document.getElementById('flowChoiceModal').style.display = 'flex';
+    }
+    function closeFlowChoiceModal() {
+        document.getElementById('flowChoiceModal').style.display = 'none';
+    }
+
+    // --- End-of-bar repeat count - an inline slider shown inside flowChoiceModal's own extra area
+    // once "Repeat end" is picked, not a second popup stacked on the first. Own explicit Save
+    // button (not the modal's shared Cancel) so dragging the slider around never writes anything
+    // until you actually commit - Cancel still just discards, same as it always has. Max 10. ---
+    const FLOW_REPEAT_COUNT_MIN = 2;
+    const FLOW_REPEAT_COUNT_MAX = 10;
+    function flowShowRepeatCountSlider(blockId, initial) {
+        let value = Math.min(FLOW_REPEAT_COUNT_MAX, Math.max(FLOW_REPEAT_COUNT_MIN, initial));
+        const extra = document.getElementById('flowChoiceInlineExtra');
+        extra.innerHTML = `
+            <div class="metro-speed-row no-margin">
+                <button class="metro-bpm-step" id="flowRepeatCountMinus" type="button" aria-label="Decrease repeat count">&minus;</button>
+                <div class="metro-speed-readout">
+                    <div id="flowRepeatCountValue">${value}</div>
+                    <div class="metro-speed-sub">times</div>
+                </div>
+                <button class="metro-bpm-step" id="flowRepeatCountPlus" type="button" aria-label="Increase repeat count">+</button>
+            </div>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="flowRepeatCountSliderTrack">
+                    <div class="slider-fill" id="flowRepeatCountSliderFill"></div>
+                    <div class="slider-thumb" id="flowRepeatCountSliderThumb" tabindex="0" role="slider" aria-label="Repeat count" aria-valuemin="${FLOW_REPEAT_COUNT_MIN}" aria-valuemax="${FLOW_REPEAT_COUNT_MAX}" aria-valuenow="${value}"></div>
+                </div>
+                <div class="slider-scale"><span>${FLOW_REPEAT_COUNT_MIN}</span><span>${FLOW_REPEAT_COUNT_MAX}</span></div>
+            </div>
+            <button type="button" class="btn-submit no-margin" id="flowRepeatCountSaveBtn" style="margin-top:var(--space-3);">Save</button>
+        `;
+        extra.classList.remove('hidden-group');
+        function render() {
+            const pct = ((value - FLOW_REPEAT_COUNT_MIN) / (FLOW_REPEAT_COUNT_MAX - FLOW_REPEAT_COUNT_MIN)) * 100;
+            document.getElementById('flowRepeatCountSliderFill').style.width = `${pct}%`;
+            const thumb = document.getElementById('flowRepeatCountSliderThumb');
+            thumb.style.left = `${pct}%`;
+            thumb.setAttribute('aria-valuenow', value);
+            document.getElementById('flowRepeatCountValue').innerText = value;
+        }
+        function setValue(v) {
+            value = Math.round(Math.min(FLOW_REPEAT_COUNT_MAX, Math.max(FLOW_REPEAT_COUNT_MIN, v)));
+            render();
+        }
+        setupHoldStepper(document.getElementById('flowRepeatCountMinus'), -1, (amount) => setValue(value + amount));
+        setupHoldStepper(document.getElementById('flowRepeatCountPlus'), 1, (amount) => setValue(value + amount));
+        setupSliderInteraction(document.getElementById('flowRepeatCountSliderTrack'), document.getElementById('flowRepeatCountSliderThumb'), {
+            onDragRatio: (ratio) => setValue(FLOW_REPEAT_COUNT_MIN + ratio * (FLOW_REPEAT_COUNT_MAX - FLOW_REPEAT_COUNT_MIN)),
+            onArrowStep: (dir) => setValue(value + dir)
+        });
+        makeSliderReadoutEditable('flowRepeatCountValue', () => value, (v) => setValue(v), { label: 'Repeat count', min: FLOW_REPEAT_COUNT_MIN, max: FLOW_REPEAT_COUNT_MAX });
+        document.getElementById('flowRepeatCountSaveBtn').addEventListener('click', () => {
+            closeFlowChoiceModal();
+            flowUpdateBlock(blockId, { isRepeatEnd: true, isSectionBoundary: false, repeatPlayCount: value });
+        });
+    }
+
+    // --- Repeat bar / volta - which repeat pass(es) (1-10) this bar plays on, multi-select rather
+    // than the old binary 1st/2nd pair (some pieces use a section on passes 1, 3, 5 and a different
+    // one on 2, 4 - see db/migrations/034_repeat_ending_numbers.sql). Own Save button, same
+    // "never write until committed" reasoning as the repeat-count slider above. ---
+    function openFlowRepeatBarPicker(blockId) {
+        const b = flowFindBlockById(blockId);
+        if (!b) return;
+        const selected = new Set(b.repeatEndingNumbers || []);
+        document.getElementById('flowChoiceTitle').innerText = 'Repeat bar / volta';
+        const optionsContainer = document.getElementById('flowChoiceOptions');
+        optionsContainer.classList.remove('flow-choice-options-horizontal');
+        optionsContainer.innerHTML = '<p class="metro-help-text">Which repeat pass(es) does this bar play on? Leave none selected for a plain bar.</p>';
+        const extra = document.getElementById('flowChoiceInlineExtra');
+        function renderGrid() {
+            extra.innerHTML = `
+                <div class="flow-multiselect-grid">
+                    ${Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<button type="button" class="flow-multiselect-num${selected.has(n) ? ' selected' : ''}" data-num="${n}">${n}</button>`).join('')}
+                </div>
+                <button type="button" class="btn-submit no-margin" id="flowRepeatBarSaveBtn">Save</button>
+            `;
+            extra.querySelectorAll('[data-num]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const n = Number(btn.dataset.num);
+                    if (selected.has(n)) selected.delete(n); else selected.add(n);
+                    renderGrid();
+                });
+            });
+            document.getElementById('flowRepeatBarSaveBtn').addEventListener('click', () => {
+                closeFlowChoiceModal();
+                flowUpdateBlock(blockId, { repeatEndingNumbers: Array.from(selected), isFirstTimeBar: false, isSecondTimeBar: false });
+            });
+        }
+        extra.classList.remove('hidden-group');
+        renderGrid();
+        document.getElementById('flowChoiceModal').style.display = 'flex';
+    }
+
+    // --- Time signature / beat unit pickers - literally the same shared modals Quick Play's own
+    // per-block pickers reuse (qpOpenTimeSigPicker/qpOpenNotePicker), not a Flow-only copy - per the
+    // request, the same popup/images/functionality, just wired to update a Flow block instead of a
+    // qpBlocks entry. Flow's own timeSignatureId/accountTimeSignatureId split is translated to/from
+    // the shared modal's "public:<id>"/"custom:<id>" string shape (same parse qpBlockTimeSig uses). ---
+    function flowTimeSigValueFor(b) {
+        if (b.timeSignatureId) return `public:${b.timeSignatureId}`;
+        if (b.accountTimeSignatureId) return `custom:${b.accountTimeSignatureId}`;
+        return null;
+    }
+    function flowOpenTimeSigPicker(blockId) {
+        const b = flowFindBlockById(blockId);
+        if (!b) return;
+        metroSegTimeSigValue = flowTimeSigValueFor(b);
+        metroSegTimeSigOnSelect = (value) => {
+            const [type, id] = value.split(':');
+            flowUpdateBlock(blockId, type === 'public'
+                ? { timeSignatureId: Number(id), accountTimeSignatureId: null }
+                : { timeSignatureId: null, accountTimeSignatureId: Number(id) });
+        };
+        renderMetroSegTimeSigPicker();
+        document.getElementById('metroSegTimeSigModal').style.display = 'flex';
+    }
+    function flowOpenNotePicker(blockId) {
+        const b = flowFindBlockById(blockId);
+        if (!b) return;
+        const el = document.getElementById('metroSegNotePicker');
+        if (!el) return;
+        el.innerHTML = METRO_NOTE_TYPES.map(t => `
+            <button type="button" class="metroBlk-note-btn${t.key === b.noteValue ? ' selected' : ''}" data-note="${t.key}" aria-label="${t.label}" aria-pressed="${t.key === b.noteValue}">
+                ${metroNoteIconSvg(t.key)}
+            </button>
+        `).join('');
+        el.querySelectorAll('.metroBlk-note-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                flowUpdateBlock(blockId, { noteValue: btn.dataset.note });
+                document.getElementById('metroSegNoteModal').style.display = 'none';
+            }, { once: true });
+        });
+        document.getElementById('metroSegNoteModal').style.display = 'flex';
+    }
+
+    // --- BPM popup - same tiered-slider mechanic as the ad-hoc/Quick Play BPM controls
+    // (METRO_MIN_BPM/METRO_MAX_BPM/METRO_SLIDER_TIERS, metroBestFitTier, setupSliderInteraction/
+    // makeSliderReadoutEditable - all already value-agnostic), own copy of the small stepping state
+    // machine per this file's usual "own copy per feature" precedent, just presented as its own
+    // single-field popup rather than embedded inline on a card. ---
+    let flowBpmModalTargetId = null;
+    let flowBpmSliderMax = METRO_SLIDER_TIERS[0];
+    let flowBpmTierChangeCooldownUntil = 0;
+    // The value the block actually had when this popup opened - only committed to the server (and
+    // re-rendered onto the card behind the modal) once on close, not on every slider tick. Dragging
+    // around and landing back here, or just opening and closing without touching anything, writes
+    // nothing at all.
+    let flowBpmOriginalValue = null;
+    function flowBpmStepTier(value) {
+        const now = Date.now();
+        if (now < flowBpmTierChangeCooldownUntil) return;
+        const idx = METRO_SLIDER_TIERS.indexOf(flowBpmSliderMax);
+        if (idx < METRO_SLIDER_TIERS.length - 1 && value >= METRO_SLIDER_TIERS[idx]) {
+            flowBpmSliderMax = METRO_SLIDER_TIERS[idx + 1];
+            flowBpmTierChangeCooldownUntil = now + 350;
+        } else if (idx > 0 && value < METRO_SLIDER_TIERS[idx - 1]) {
+            flowBpmSliderMax = METRO_SLIDER_TIERS[idx - 1];
+            flowBpmTierChangeCooldownUntil = now + 350;
+        }
+    }
+    function renderFlowBpmSlider(value) {
+        const pct = ((value - METRO_MIN_BPM) / (flowBpmSliderMax - METRO_MIN_BPM)) * 100;
+        document.getElementById('flowBpmSliderFill').style.width = `${pct}%`;
+        const thumb = document.getElementById('flowBpmSliderThumb');
+        thumb.style.left = `${pct}%`;
+        thumb.setAttribute('aria-valuenow', value);
+        thumb.setAttribute('aria-valuemax', flowBpmSliderMax);
+        document.getElementById('flowBpmSliderMaxLbl').innerText = flowBpmSliderMax;
+        document.getElementById('flowBpmPopupValue').innerText = value;
+    }
+    function setFlowBpmFromDisplayed(value, opts = {}) {
+        const clamped = Math.round(Math.min(METRO_MAX_BPM, Math.max(METRO_MIN_BPM, value)));
+        if (opts.dragging) flowBpmStepTier(clamped); else flowBpmSliderMax = metroBestFitTier(clamped);
+        renderFlowBpmSlider(clamped);
+    }
+    function flowOpenBpmModal(blockId) {
+        const b = flowFindBlockById(blockId);
+        if (!b) return;
+        flowBpmModalTargetId = blockId;
+        flowBpmOriginalValue = b.bpm;
+        flowBpmSliderMax = metroBestFitTier(b.bpm);
+        renderFlowBpmSlider(b.bpm);
+        document.getElementById('flowBpmModal').style.display = 'flex';
+    }
+    setupHoldStepper(document.getElementById('flowBpmMinus'), -1, (amount) => setFlowBpmFromDisplayed(Number(document.getElementById('flowBpmPopupValue').innerText) + amount, { dragging: true }));
+    setupHoldStepper(document.getElementById('flowBpmPlus'), 1, (amount) => setFlowBpmFromDisplayed(Number(document.getElementById('flowBpmPopupValue').innerText) + amount, { dragging: true }));
+    setupSliderInteraction(document.getElementById('flowBpmSliderTrack'), document.getElementById('flowBpmSliderThumb'), {
+        onDragRatio: (ratio) => setFlowBpmFromDisplayed(METRO_MIN_BPM + ratio * (flowBpmSliderMax - METRO_MIN_BPM), { dragging: true }),
+        onArrowStep: (dir) => setFlowBpmFromDisplayed(Number(document.getElementById('flowBpmPopupValue').innerText) + dir, { dragging: true })
+    });
+    makeSliderReadoutEditable('flowBpmPopupValue', () => Number(document.getElementById('flowBpmPopupValue').innerText), (v) => setFlowBpmFromDisplayed(v), { label: 'Tempo', min: METRO_MIN_BPM, max: METRO_MAX_BPM });
+    // Commits once here, on close, whatever the popup ended up showing - not on every drag tick.
+    // If it's unchanged from what the block already had (opened and closed without touching it,
+    // or dragged back to the start), there's nothing to write.
+    function closeFlowBpmModal() {
+        document.getElementById('flowBpmModal').style.display = 'none';
+        const finalValue = Number(document.getElementById('flowBpmPopupValue').innerText);
+        if (flowBpmModalTargetId && finalValue !== flowBpmOriginalValue) flowUpdateBlock(flowBpmModalTargetId, { bpm: finalValue });
+    }
+    document.getElementById('flowBpmCloseBtn')?.addEventListener('click', closeFlowBpmModal);
+    document.getElementById('flowBpmModal')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeFlowBpmModal(); });
+
+    // --- Bar count popup - same tiered-slider mechanic as BPM's own above, its own tier list
+    // (50/250/500) per the request rather than reusing METRO_SLIDER_TIERS. ---
+    const FLOW_BARS_MIN = 1;
+    const FLOW_BARS_MAX = 500;
+    const FLOW_BARS_TIERS = [50, 250, 500];
+    let flowBarsModalTargetId = null;
+    let flowBarsSliderMax = FLOW_BARS_TIERS[0];
+    let flowBarsTierChangeCooldownUntil = 0;
+    let flowBarsOriginalValue = null;
+    function flowBarsStepTier(value) {
+        const now = Date.now();
+        if (now < flowBarsTierChangeCooldownUntil) return;
+        const idx = FLOW_BARS_TIERS.indexOf(flowBarsSliderMax);
+        if (idx < FLOW_BARS_TIERS.length - 1 && value >= FLOW_BARS_TIERS[idx]) {
+            flowBarsSliderMax = FLOW_BARS_TIERS[idx + 1];
+            flowBarsTierChangeCooldownUntil = now + 350;
+        } else if (idx > 0 && value < FLOW_BARS_TIERS[idx - 1]) {
+            flowBarsSliderMax = FLOW_BARS_TIERS[idx - 1];
+            flowBarsTierChangeCooldownUntil = now + 350;
+        }
+    }
+    function flowBarsBestFitTier(value) {
+        return FLOW_BARS_TIERS.find(t => value <= t) || FLOW_BARS_TIERS[FLOW_BARS_TIERS.length - 1];
+    }
+    function renderFlowBarsSlider(value) {
+        const pct = ((value - FLOW_BARS_MIN) / (flowBarsSliderMax - FLOW_BARS_MIN)) * 100;
+        document.getElementById('flowBarsSliderFill').style.width = `${pct}%`;
+        const thumb = document.getElementById('flowBarsSliderThumb');
+        thumb.style.left = `${pct}%`;
+        thumb.setAttribute('aria-valuenow', value);
+        thumb.setAttribute('aria-valuemax', flowBarsSliderMax);
+        document.getElementById('flowBarsSliderMaxLbl').innerText = flowBarsSliderMax;
+        document.getElementById('flowBarsPopupValue').innerText = value;
+    }
+    function setFlowBarsFromDisplayed(value, opts = {}) {
+        const clamped = Math.round(Math.min(FLOW_BARS_MAX, Math.max(FLOW_BARS_MIN, value)));
+        if (opts.dragging) flowBarsStepTier(clamped); else flowBarsSliderMax = flowBarsBestFitTier(clamped);
+        renderFlowBarsSlider(clamped);
+    }
+    function flowOpenBarsModal(blockId) {
+        const b = flowFindBlockById(blockId);
+        if (!b) return;
+        flowBarsModalTargetId = blockId;
+        flowBarsOriginalValue = b.barCount;
+        flowBarsSliderMax = flowBarsBestFitTier(b.barCount);
+        renderFlowBarsSlider(b.barCount);
+        document.getElementById('flowBarsModal').style.display = 'flex';
+    }
+    setupHoldStepper(document.getElementById('flowBarsMinus'), -1, (amount) => setFlowBarsFromDisplayed(Number(document.getElementById('flowBarsPopupValue').innerText) + amount, { dragging: true }));
+    setupHoldStepper(document.getElementById('flowBarsPlus'), 1, (amount) => setFlowBarsFromDisplayed(Number(document.getElementById('flowBarsPopupValue').innerText) + amount, { dragging: true }));
+    setupSliderInteraction(document.getElementById('flowBarsSliderTrack'), document.getElementById('flowBarsSliderThumb'), {
+        onDragRatio: (ratio) => setFlowBarsFromDisplayed(FLOW_BARS_MIN + ratio * (flowBarsSliderMax - FLOW_BARS_MIN), { dragging: true }),
+        onArrowStep: (dir) => setFlowBarsFromDisplayed(Number(document.getElementById('flowBarsPopupValue').innerText) + dir, { dragging: true })
+    });
+    makeSliderReadoutEditable('flowBarsPopupValue', () => Number(document.getElementById('flowBarsPopupValue').innerText), (v) => setFlowBarsFromDisplayed(v), { label: 'Number of bars', min: FLOW_BARS_MIN, max: FLOW_BARS_MAX });
+    function closeFlowBarsModal() {
+        document.getElementById('flowBarsModal').style.display = 'none';
+        const finalValue = Number(document.getElementById('flowBarsPopupValue').innerText);
+        if (flowBarsModalTargetId && finalValue !== flowBarsOriginalValue) flowUpdateBlock(flowBarsModalTargetId, { barCount: finalValue });
+    }
+    document.getElementById('flowBarsCloseBtn')?.addEventListener('click', closeFlowBarsModal);
+    document.getElementById('flowBarsModal')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeFlowBarsModal(); });
+
+    // --- Tile tap dispatch - one branch per Block Inspector tile (see flowBlockCardHtml above). ---
+    function handleFlowBlockTileClick(blockId, tileKey) {
+        const b = flowFindBlockById(blockId);
+        if (!b) return;
+
+        if (tileKey === 'rehearsalMark') {
+            showPromptModal('Rehearsal mark', b.rehearsalMark || '', (val) => {
+                flowUpdateBlock(blockId, { rehearsalMark: val.trim() || null });
+            });
+            return;
+        }
+
+        if (tileKey === 'time') {
+            flowOpenTimeSigPicker(blockId);
+            return;
+        }
+
+        if (tileKey === 'beatUnit') {
+            flowOpenNotePicker(blockId);
+            return;
+        }
+
+        if (tileKey === 'bpm') {
+            flowOpenBpmModal(blockId);
+            return;
+        }
+
+        if (tileKey === 'bars') {
+            flowOpenBarsModal(blockId);
+            return;
+        }
+
+        if (tileKey === 'start') {
+            const options = [
+                { label: 'Plain (|)', selected: !b.isRepeatStart, apply: { isRepeatStart: false } },
+                { label: 'Repeat start (|:)', selected: b.isRepeatStart, apply: { isRepeatStart: true } }
+            ];
+            openFlowChoiceModal('Start of bar', options, (opt) => flowUpdateBlock(blockId, opt.apply));
+            return;
+        }
+
+        if (tileKey === 'end') {
+            const options = [
+                { label: 'Plain (|)', selected: !b.isRepeatEnd && !b.isSectionBoundary, apply: { isRepeatEnd: false, isSectionBoundary: false, repeatPlayCount: null } },
+                { label: 'Double barline (||)', selected: b.isSectionBoundary, apply: { isRepeatEnd: false, isSectionBoundary: true, repeatPlayCount: null } },
+                { label: 'Repeat end (:|)', selected: b.isRepeatEnd, apply: 'repeatEnd' }
+            ];
+            openFlowChoiceModal('End of bar', options, (opt) => {
+                if (opt.apply === 'repeatEnd') { flowShowRepeatCountSlider(blockId, b.repeatPlayCount || 2); return; }
+                closeFlowChoiceModal();
+                flowUpdateBlock(blockId, opt.apply);
+            }, { onSelectKeepsOpen: true });
+            // Already a repeat-end block - show the count slider immediately rather than making
+            // you re-tap "Repeat end" just to see/change the number that's already set.
+            if (b.isRepeatEnd) flowShowRepeatCountSlider(blockId, b.repeatPlayCount || 2);
+            return;
+        }
+
+        if (tileKey === 'repeatBar') {
+            openFlowRepeatBarPicker(blockId);
+            return;
+        }
+
+        if (tileKey === 'intro') {
+            const hasStart = b.introStartBarOffset !== null;
+            const hasEnd = b.introEndBarOffset !== null;
+            const options = [
+                { label: 'None', selected: !hasStart && !hasEnd, apply: { introStartBarOffset: null, introStartBeatOffset: null, introEndBarOffset: null, introEndBeatOffset: null } },
+                { label: 'Introduction starts here', selected: hasStart && !hasEnd, apply: { introStartBarOffset: 0, introStartBeatOffset: 1, introEndBarOffset: null, introEndBeatOffset: null } },
+                { label: 'Introduction ends here', selected: !hasStart && hasEnd, apply: { introStartBarOffset: null, introStartBeatOffset: null, introEndBarOffset: 0, introEndBeatOffset: 1 } },
+                { label: 'Starts and ends here', selected: hasStart && hasEnd, apply: { introStartBarOffset: 0, introStartBeatOffset: 1, introEndBarOffset: 0, introEndBeatOffset: 1 } }
+            ];
+            openFlowChoiceModal('Introduction', options, (opt) => flowUpdateBlock(blockId, opt.apply));
+            return;
+        }
+
+        if (tileKey === 'change') {
+            const options = [
+                { label: 'None', selected: b.rampStartBarOffset === null, apply: null },
+                { label: 'Starts here (set duration next)', selected: b.rampStartBarOffset !== null, apply: 'set' }
+            ];
+            openFlowChoiceModal('Tempo change', options, (opt) => {
+                if (opt.apply === null) return flowUpdateBlock(blockId, { rampStartBarOffset: null, rampStartBeatOffset: null, rampDurationBars: null });
+                showPromptModal('Ramps over how many bars?', String(b.rampDurationBars || b.barCount), (val) => {
+                    const n = Number(val);
+                    if (!Number.isInteger(n) || n < 1) return showWarningToast('Enter a whole number of 1 or more.');
+                    flowUpdateBlock(blockId, { rampStartBarOffset: 0, rampStartBeatOffset: 1, rampDurationBars: n });
+                });
+            });
+            return;
+        }
+
+        if (tileKey === 'sign') {
+            const options = [
+                { label: 'None', selected: !b.isSegno && !b.isCoda, apply: { isSegno: false, isCoda: false } },
+                { html: flowSignIconSvg('segno'), selected: b.isSegno, apply: { isSegno: true, isCoda: false } },
+                { html: flowSignIconSvg('coda'), selected: b.isCoda, apply: { isSegno: false, isCoda: true } }
+            ];
+            openFlowChoiceModal('Musical sign', options, (opt) => flowUpdateBlock(blockId, opt.apply), { horizontal: true });
+            return;
+        }
+
+        if (tileKey === 'jump') {
+            const options = [
+                { label: 'None', selected: !b.gotoSegno && !b.gotoSegnoThenCoda && !b.gotoCoda && !b.gotoStartDc, apply: { gotoSegno: false, gotoSegnoThenCoda: false, gotoCoda: false, gotoStartDc: false } },
+                { html: `<span>D.${flowSignIconSvg('segno', true)}</span>`, selected: b.gotoSegno && !b.gotoSegnoThenCoda, apply: { gotoSegno: true, gotoSegnoThenCoda: false, gotoCoda: false, gotoStartDc: false } },
+                { html: `<span>D.${flowSignIconSvg('segno', true)} al ${flowSignIconSvg('coda', true)}</span>`, selected: b.gotoSegnoThenCoda, apply: { gotoSegno: false, gotoSegnoThenCoda: true, gotoCoda: false, gotoStartDc: false } },
+                { html: `<span>To ${flowSignIconSvg('coda', true)}</span>`, selected: b.gotoCoda, apply: { gotoSegno: false, gotoSegnoThenCoda: false, gotoCoda: true, gotoStartDc: false } },
+                { label: 'D.C.', selected: b.gotoStartDc, apply: { gotoSegno: false, gotoSegnoThenCoda: false, gotoCoda: false, gotoStartDc: true } }
+            ];
+            openFlowChoiceModal('Score jump', options, (opt) => flowUpdateBlock(blockId, opt.apply));
+            return;
+        }
+
+        if (tileKey === 'pause') {
+            openFlowFermataModal(blockId);
+        }
+    }
+
+    // --- Pause/fermata mini list - the one tile that's a list, not a single value, so it gets
+    // its own small modal rather than fitting the generic choice-list shape. ---
+    function renderFlowFermataList() {
+        const b = flowFindBlockById(flowFermataTargetBlockId);
+        const list = document.getElementById('flowFermataList');
+        if (!b || !list) return;
+        const fermatas = b.fermatas || [];
+        if (!fermatas.length) {
+            list.innerHTML = '<p class="text-muted">No fermatas on this block yet.</p>';
+            return;
+        }
+        list.innerHTML = fermatas.map((f, i) => `
+            <div class="flow-fermata-row">
+                <span>Bar ${(f.barOffset || 0) + 1}, beat ${f.beatOffset}, hold ${f.holdBeats} beat${f.holdBeats === 1 ? '' : 's'}</span>
+                <button type="button" class="flow-delete-btn" data-fermata-idx="${i}" aria-label="Remove fermata"><span class="material-symbols-outlined">delete</span></button>
+            </div>
+        `).join('');
+        list.querySelectorAll('[data-fermata-idx]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const idx = Number(btn.dataset.fermataIdx);
+                await flowUpdateBlock(b.id, { fermatas: fermatas.filter((_, i) => i !== idx) });
+                renderFlowFermataList();
+            });
+        });
+    }
+    function openFlowFermataModal(blockId) {
+        flowFermataTargetBlockId = blockId;
+        renderFlowFermataList();
+        document.getElementById('flowFermataModal').style.display = 'flex';
+    }
+    document.getElementById('flowFermataAddBtn')?.addEventListener('click', () => {
+        const b = flowFindBlockById(flowFermataTargetBlockId);
+        if (!b) return;
+        // Multi-add list (renderFlowFermataList already appends rather than replacing) - a block
+        // spanning several bars needs to say which one, not just which beat within it, since
+        // barOffset used to always be hardcoded to 0 regardless of the block's own bar count.
+        function askBeatAndHold(barOffset) {
+            showPromptModal('Which beat does the fermata land on?', '1', (beatVal) => {
+                const beat = Number(beatVal);
+                if (!Number.isInteger(beat) || beat < 1) return showWarningToast('Enter a whole number of 1 or more.');
+                showPromptModal('Hold for how many beats? (1-4)', '2', async (holdVal) => {
+                    const hold = Number(holdVal);
+                    if (!Number.isInteger(hold) || hold < 1 || hold > 4) return showWarningToast('Enter a whole number between 1 and 4.');
+                    await flowUpdateBlock(b.id, { fermatas: [...(b.fermatas || []), { barOffset, beatOffset: beat, holdBeats: hold, playbackMode: 'tone' }] });
+                    renderFlowFermataList();
+                });
+            });
+        }
+        if (b.barCount > 1) {
+            showPromptModal(`Which bar? (1-${b.barCount})`, '1', (barVal) => {
+                const bar = Number(barVal);
+                if (!Number.isInteger(bar) || bar < 1 || bar > b.barCount) return showWarningToast(`Enter a whole number between 1 and ${b.barCount}.`);
+                askBeatAndHold(bar - 1);
+            });
+        } else {
+            askBeatAndHold(0);
+        }
+    });
+
+    // --- Per-block options menu (Duplicate/Move up/Move down/Delete) - same shared floating
+    // dropdown-menu + measure-then-clamp positioning as openMetroBlkTileMenu/openQpBarMenu. ---
+    function openFlowBlockMenu(btnEl, blockId) {
+        flowBlockMenuTargetId = blockId;
+        const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
+        document.getElementById('flowBlockMenuMoveUp')?.classList.toggle('hidden-group', idx <= 0);
+        document.getElementById('flowBlockMenuMoveDown')?.classList.toggle('hidden-group', idx < 0 || idx >= currentFlowBlocks.length - 1);
+        // A flow always has to keep at least one block (matches "Create your own" always seeding
+        // one) - same "hide, don't just no-op" precedent as Quick Play's own qpBarMenuDelete.
+        document.getElementById('flowBlockMenuDelete')?.classList.toggle('hidden-group', currentFlowBlocks.length <= 1);
+        const menu = document.getElementById('flowBlockMenu');
+        menu.classList.add('show');
+        const btnRect = btnEl.getBoundingClientRect();
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+        let left = btnRect.right - menuWidth;
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+        let top = btnRect.bottom + 4;
+        top = Math.min(top, window.innerHeight - menuHeight - 8);
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    }
+    function closeFlowBlockMenu() {
+        document.getElementById('flowBlockMenu')?.classList.remove('show');
+    }
+    document.addEventListener('click', closeFlowBlockMenu);
+
+    document.getElementById('flowBlockMenuDuplicate')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const blockId = flowBlockMenuTargetId;
+        closeFlowBlockMenu();
+        try {
+            const dup = await API.flows.blocks.duplicate(blockId);
+            const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
+            currentFlowBlocks.splice(idx + 1, 0, dup);
+            renderFlowBlocksStudio(); // not just renderFlowBlocksList - the total bars/runtime summary needs refreshing too
+        } catch (error) {
+            showWarningToast('Error duplicating block: ' + error.message);
+        }
+    });
+
+    async function flowPersistBlockOrder() {
+        try {
+            await API.flows.blocks.reorder(currentFlowId, currentFlowBlocks.map(b => b.id));
+        } catch (error) {
+            showWarningToast('Error saving order: ' + error.message);
+        }
+    }
+
+    document.getElementById('flowBlockMenuMoveUp')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const blockId = flowBlockMenuTargetId;
+        closeFlowBlockMenu();
+        const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
+        if (idx <= 0) return;
+        const moved = currentFlowBlocks.splice(idx, 1)[0];
+        currentFlowBlocks.splice(idx - 1, 0, moved);
+        renderFlowBlocksList();
+        flowPersistBlockOrder();
+    });
+
+    document.getElementById('flowBlockMenuMoveDown')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const blockId = flowBlockMenuTargetId;
+        closeFlowBlockMenu();
+        const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
+        if (idx < 0 || idx >= currentFlowBlocks.length - 1) return;
+        const moved = currentFlowBlocks.splice(idx, 1)[0];
+        currentFlowBlocks.splice(idx + 1, 0, moved);
+        renderFlowBlocksList();
+        flowPersistBlockOrder();
+    });
+
+    document.getElementById('flowBlockMenuDelete')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const blockId = flowBlockMenuTargetId;
+        closeFlowBlockMenu();
+        showConfirmModal('Delete block', "Delete this block? This can't be undone.", async () => {
+            try {
+                await API.flows.blocks.delete(blockId);
+                currentFlowBlocks = currentFlowBlocks.filter(b => b.id !== blockId);
+                renderFlowBlocksStudio(); // not just renderFlowBlocksList - the total bars/runtime summary needs refreshing too
+            } catch (error) {
+                showWarningToast('Error deleting block: ' + error.message);
+            }
+        }, true);
+    });
+
+    document.getElementById('flowAddBlockBtn')?.addEventListener('click', async () => {
+        if (!currentFlowId) return;
+        const lastBlock = currentFlowBlocks[currentFlowBlocks.length - 1];
+        try {
+            const newBlock = await API.flows.blocks.create(currentFlowId, {
+                barCount: lastBlock ? lastBlock.barCount : 4,
+                bpm: lastBlock ? lastBlock.bpm : 120,
+                timeSignatureId: lastBlock && lastBlock.timeSignatureId ? lastBlock.timeSignatureId : (metroBlkTimeSigCache.public[0] ? metroBlkTimeSigCache.public[0].id : null),
+                accountTimeSignatureId: lastBlock ? lastBlock.accountTimeSignatureId : null
+            });
+            currentFlowBlocks.push(newBlock);
+            renderFlowBlocksStudio(); // not just renderFlowBlocksList - the total bars/runtime summary needs refreshing too
+        } catch (error) {
+            showWarningToast('Error adding block: ' + error.message);
+        }
+    });
+
+    // currentFlowBlocks/flowLeadInBlock are already current (this is the screen editing them
+    // directly) - no need to go through goToFlowPlayView's own refetch, just switch straight over
+    // (its switchView case rebuilds the play queue from them itself).
+    document.getElementById('flowStudioPlayFlowBtn')?.addEventListener('click', () => {
+        if (currentFlowId) switchView('flowPlayView');
+    });
+
+    // ========================================
+    // PLAY FLOW (Jira ML-179 follow-up) - the actual playback screen, requested separately from
+    // Blocks Studio (which is edit-only). Reuses the exact same now-playing dot-display/transport
+    // mechanism as Quick Play/Metronome Blocks (own player instance, own element ids - same
+    // reasoning as those two already having their own rather than sharing one), now including
+    // sub-beats/speed%/volume (own state/modals, "ported" from Quick Play's own - see the index.html
+    // comment above flowSubdivideModal). Still deliberately simplified vs. the Metronome Blocks engine
+    // it's modeled on: no intro-pickup-start-offset handling on the very first jump - flagged as a
+    // follow-up if wanted, not silently dropped. Repeats (isRepeatStart/isRepeatEnd/repeatPlayCount)
+    // are NOT simplified away, though - see advanceFlow/flowRepeatStartIndexFor below - this screen
+    // just has no control to create one, same as it never gets a control to create a lead-in.
+    // ========================================
+    const flowPlayer = createMetronomePlayer();
+    flowPlayerRef = flowPlayer;
+    flowPlayer.setVisualLatencyMs(metroState.latencyMs);
+    let flowPlayQueue = [];
+    let flowPlayIndex = 0;
+    let flowLoopBackIndex = 0;
+    let flowBeatsPlayedInBlock = 0;
+    let flowClicksPlayedInBlock = 0;
+    let flowPendingLeadInSilence = 0;
+    let flowQuietGapActive = false;
+    let flowRepeatCounts = {};
+
+    function flowFirstRegularIndex() {
+        const idx = flowPlayQueue.findIndex(s => !s.isLeadIn);
+        return idx === -1 ? 0 : idx;
+    }
+
+    // Sub-beats mode is a playback-only overlay, same idea as Quick Play's own qpSubBeatsMode/
+    // qpSubdivideOverride - one setting applies across the whole sequence, not stored per block. The
+    // lead-in never subdivides, same as Metronome Blocks' own metroBlkSubFactorFor.
+    let flowSubBeatsMode = 'off';
+    let flowSubdivideOverride = null;
+    function flowShouldSubdivide(block) {
+        const info = metroBlkMeterInfo(block);
+        if (!info) return false; // lead-in
+        return flowSubBeatsMode !== 'off';
+    }
+    function flowSubFactorFor(block) {
+        if (!block || block.isLeadIn || !flowShouldSubdivide(block)) return 1;
+        if (flowSubBeatsMode === 'fixed' && flowSubdivideOverride) return flowSubdivideOverride;
+        return metroBlkMeterInfo(block).subdivisionFactor;
+    }
+
+    function flowApplyToPlayer(block) {
+        flowPlayer.setConductorBpm(block.bpm);
+        flowPlayer.setConductorBeatsPerBar(metroBlkBeatsPerBarFor(block));
+        flowPlayer.setNotesPerBeat(block.isLeadIn ? 1 : flowSubFactorFor(block));
+        flowPlayer.setSubdivisionFactor(1);
+        flowPlayer.setLowPitch(!!block.isLeadIn);
+    }
+
+    // Mirrors metroBlkRealignPlayer (app.js, Metronome Blocks) minus the intro-pickup-start-offset
+    // branch - lead-in quiet-gap and partial-bar pickup handling are both still faithfully copied.
+    // The pickup beat index is scaled by the sub-beat factor (clickIndex counts sub-clicks, not
+    // conductor beats, once subdivision is more than 1) - same reasoning as metroBlkRealignPlayer's.
+    function flowRealignPlayer(block) {
+        if (block.pickupBeats) flowPlayer.setBeatIndex((block.numerator - block.pickupBeats) * flowSubFactorFor(block));
+        else flowPlayer.resetToBarStart();
+
+        if (block.isLeadIn && block.quietSecondsBeforeLeadIn) {
+            flowQuietGapActive = true;
+            if (flowPlayer.isPlaying()) flowPlayer.delayNextClick(block.quietSecondsBeforeLeadIn);
+            else flowPendingLeadInSilence = block.quietSecondsBeforeLeadIn;
+        } else {
+            flowQuietGapActive = false;
+            flowPendingLeadInSilence = 0;
+        }
+    }
+
+    function jumpFlowToIndex(index) {
+        flowPlayIndex = index;
+        flowBeatsPlayedInBlock = 0;
+        flowClicksPlayedInBlock = 0;
+        if (!flowPlayQueue.length) return;
+        const block = metroBlkEffectiveBlock(flowPlayQueue[index], flowPlayQueue);
+        flowApplyToPlayer(block);
+        flowRealignPlayer(block);
+    }
+
+    function flowStartIndex() {
+        return (flowPlayQueue.length && flowPlayQueue[0].isLeadIn) ? 0 : flowFirstRegularIndex();
+    }
+
+    function jumpFlowToStart() {
+        jumpFlowToIndex(flowStartIndex());
+    }
+
+    // currentFlowBlocks/flowLeadInBlock are the same arrays Blocks Studio edits directly - rebuilt
+    // fresh every time this view is entered (see the switchView case) rather than cached, so an
+    // edit made there is never stale here.
+    function buildFlowPlayQueue() {
+        flowPlayQueue = flowLeadInBlock ? [flowLeadInBlock, ...currentFlowBlocks] : currentFlowBlocks.slice();
+        flowLoopBackIndex = (flowLeadInBlock && flowLeadInBlock.repeatLeadIn) ? 0 : flowFirstRegularIndex();
+        flowRepeatCounts = {};
+        jumpFlowToStart();
+    }
+
+    window.jumpFlowToPlayIndex = function(id) {
+        const index = flowPlayQueue.findIndex(s => s.id === id);
+        if (index === -1) return;
+        jumpFlowToIndex(index);
+        renderFlowPlaybackRow();
+    };
+
+    function flowRepeatStartIndexFor(endIndex) {
+        const firstIdx = flowFirstRegularIndex();
+        for (let i = endIndex - 1; i >= firstIdx; i--) {
+            if (flowPlayQueue[i].isRepeatStart) return i;
+        }
+        return firstIdx;
+    }
+
+    function advanceFlow() {
+        const finishedIndex = flowPlayIndex;
+        const finishedBlock = flowPlayQueue[finishedIndex];
+        if (finishedBlock && finishedBlock.isRepeatEnd) {
+            const timesSoFar = flowRepeatCounts[finishedBlock.id] || 0;
+            const totalPlays = finishedBlock.repeatPlayCount || 2;
+            if (timesSoFar < totalPlays - 1) {
+                flowRepeatCounts[finishedBlock.id] = timesSoFar + 1;
+                jumpFlowToIndex(flowRepeatStartIndexFor(finishedIndex));
+                setTimeout(renderFlowPlaybackRow, 130);
+                return;
+            }
+            delete flowRepeatCounts[finishedBlock.id];
+        }
+        let next = finishedIndex + 1;
+        if (next >= flowPlayQueue.length) {
+            flowRepeatCounts = {};
+            next = flowLoopBackIndex;
+        }
+        jumpFlowToIndex(next);
+        // Deferred, same reason as advanceMetroBlk's own comment - lets the final beat's flash
+        // actually paint before the dot row is torn down and rebuilt.
+        setTimeout(renderFlowPlaybackRow, 130);
+    }
+
+    function onFlowBeat(beatInfo) {
+        if (flowQuietGapActive) {
+            flowQuietGapActive = false;
+            renderFlowPlaybackRow();
+        }
+        const block = metroBlkEffectiveBlock(flowPlayQueue[flowPlayIndex], flowPlayQueue);
+        if (!block) return;
+
+        const subFactor = flowSubFactorFor(block);
+        flashTierDot('flowPlayRowDots', beatInfo.clickIndexInBar);
+
+        // Advancing has to wait for every click of the target's last beat, sub-beats included, not
+        // just that beat's own main click - same reasoning as onMetroBlkBeat's own targetClicks.
+        flowClicksPlayedInBlock++;
+        const targetBeats = block.pickupBeats || (block.barCount * metroBlkBeatsPerBarFor(block));
+        const targetClicks = targetBeats * subFactor;
+        const isFinalClickOfBlock = flowClicksPlayedInBlock >= targetClicks;
+
+        if (beatInfo.isConductorBeat) {
+            const totalBaseClicks = beatInfo.conductorBeatsPerBar * subFactor;
+            const nextIndex = (beatInfo.conductorBeatIndex + 1) % beatInfo.conductorBeatsPerBar;
+            const trackUnit = 100 / (totalBaseClicks + 1);
+            const trackLeftPct = (k) => k * trackUnit + trackUnit / 2;
+            metroScrollFollow('flowPlayRowViewport', 'flowPlayRowContent', trackLeftPct(beatInfo.conductorBeatIndex * subFactor), trackLeftPct(nextIndex * subFactor), beatInfo.secondsPerConductorBeat);
+
+            flowBeatsPlayedInBlock++;
+            const justCompletedABar = !block.pickupBeats && flowBeatsPlayedInBlock % metroBlkBeatsPerBarFor(block) === 0;
+            if (block.pickupBeats || justCompletedABar) {
+                const labelEl = document.getElementById('flowPlayRowLabel');
+                if (labelEl) labelEl.innerText = metroBlkBlockLabel(block, flowBeatsPlayedInBlock);
+            }
+        }
+
+        if (isFinalClickOfBlock) advanceFlow();
+    }
+    flowPlayer.onBeat(onFlowBeat);
+
+    function renderFlowPlaybackTiles() {
+        const leadInSlot = document.getElementById('flowPlayLeadInSlot');
+        const tilesUi = document.getElementById('flowPlayTiles');
+        const currentId = flowPlayQueue[flowPlayIndex] ? flowPlayQueue[flowPlayIndex].id : null;
+        if (leadInSlot) {
+            if (flowLeadInBlock) {
+                const b = flowLeadInBlock;
+                const countStr = `${b.barCount} bar${b.barCount === 1 ? '' : 's'}`;
+                const repeatStr = b.repeatLeadIn ? ', repeating' : ', first time only';
+                leadInSlot.innerHTML = `<div class="metroBlk-leadin-row metroBlk-leadin-row-filled${b.id === currentId ? ' metroBlk-tile-active' : ''}" onclick="jumpFlowToPlayIndex(${b.id})">
+                    <span class="metroBlk-tile-badge">Lead-in</span><span>${countStr}${repeatStr}</span>
+                </div>`;
+            } else {
+                leadInSlot.innerHTML = '';
+            }
+        }
+        if (tilesUi) {
+            // Time signature/tempo alone didn't identify a block at a glance - every block now leads
+            // with whichever of the two actually distinguishes it: its rehearsal mark in a square box,
+            // or (when there isn't one) its starting bar number within the flow, plain, no box. bpm and
+            // bar count drop down to supporting lines below, smallest last, same as before.
+            let startBar = 1;
+            tilesUi.innerHTML = currentFlowBlocks.map(s => {
+                const headline = s.rehearsalMark
+                    ? `<div class="metroBlk-tile-mark-box">${escapeHtml(s.rehearsalMark)}</div>`
+                    : `<div class="metroBlk-tile-sig">${startBar}</div>`;
+                startBar += s.barCount || 0;
+                return `<div class="metroBlk-tile${s.id === currentId ? ' metroBlk-tile-active' : ''}" onclick="jumpFlowToPlayIndex(${s.id})">
+                    ${headline}
+                    <div class="metroBlk-tile-bpm">${s.bpm} bpm</div>
+                    <div class="metroBlk-tile-bars">${s.barCount} bar${s.barCount === 1 ? '' : 's'}</div>
+                </div>`;
+            }).join('');
+        }
+    }
+
+    function renderFlowPlaybackRow() {
+        if (!flowPlayQueue.length) {
+            renderFlowPlaybackTiles();
+            return;
+        }
+        const block = metroBlkEffectiveBlock(flowPlayQueue[flowPlayIndex], flowPlayQueue);
+        const subFactor = flowSubFactorFor(block);
+        const labelEl = document.getElementById('flowPlayRowLabel');
+        if (labelEl) labelEl.innerText = block ? metroBlkBlockLabel(block, flowBeatsPlayedInBlock) : '';
+
+        const beatsPerBar = block ? metroBlkBeatsPerBarFor(block) : 4;
+        const totalBaseClicks = beatsPerBar * subFactor;
+        const trackLeftPct = metroBlkLeftPctFn(totalBaseClicks + 1);
+        const endLeftStyle = metroLeftStyle(trackLeftPct(totalBaseClicks));
+        buildMetroDotRow('flowPlayRowDots', totalBaseClicks, subFactor, false, trackLeftPct);
+        metroApplyDisplayWidth('flowPlayRowViewport', 'flowPlayRowContent', totalBaseClicks + 1);
+        connectMetroBlkDotsWithTrack('flowPlayRowDots', endLeftStyle);
+        greyOutSkippedDots('flowPlayRowDots', block, subFactor);
+        if (!flowPlayer.isPlaying()) resetMetroScrollPosition('flowPlayRowContent');
+        const inQuietGap = flowQuietGapActive && flowPlayer.isPlaying() && block && block.isLeadIn;
+        document.getElementById('flowPlayRowContent')?.classList.toggle('metroBlk-quiet-gap', inQuietGap);
+
+        renderFlowSubdivideLabel();
+        renderFlowPlaybackTiles();
+    }
+
+    function updateFlowPlayIcon() {
+        const el = document.getElementById('flowPlayIcon');
+        if (el) el.innerText = flowPlayer.isPlaying() ? 'pause' : 'play_arrow';
+    }
+
+    function playFlow() {
+        if (!flowPlayQueue.length) return;
+        flowPlayer.play(flowPendingLeadInSilence);
+        flowPendingLeadInSilence = 0;
+        updateFlowPlayIcon();
+        renderFlowPlaybackRow();
+    }
+    function pauseFlow() {
+        flowPlayer.pause();
+        updateFlowPlayIcon();
+    }
+    function resetFlow() {
+        jumpFlowToStart();
+        renderFlowPlaybackRow();
+    }
+    setupPlayButtonHoldReset('flowPlayBtn', () => { if (flowPlayer.isPlaying()) pauseFlow(); else playFlow(); }, resetFlow);
+    document.getElementById('flowResetBtn')?.addEventListener('click', resetFlow);
+
+    // --- Sub-beats popup ("ported" from Quick Play's own qpSubdivideModal - own state, own modal,
+    // same reasoning as flowPlayer being its own player instance) ---
+    const FLOW_SUBDIVIDE_MIN = 2;
+    const FLOW_SUBDIVIDE_MAX = 16;
+    let flowSubdividePopupValue = FLOW_SUBDIVIDE_MIN;
+
+    function flowSubdivideCurrentBlock() {
+        return flowPlayQueue.length ? metroBlkEffectiveBlock(flowPlayQueue[flowPlayIndex], flowPlayQueue) : null;
+    }
+    function renderFlowSubdivideLabel() {
+        const block = flowSubdivideCurrentBlock();
+        const lbl = document.getElementById('flowSubdivideLbl');
+        if (lbl) lbl.innerText = metroBlkSubdivideDisplayValue(block ? flowSubFactorFor(block) : 1);
+        const unitLbl = document.getElementById('flowSubdivideUnitLbl');
+        if (unitLbl) unitLbl.innerText = flowSubBeatsMode === 'auto' ? 'auto sub beats' : 'sub beats';
+    }
+    function renderFlowSubdividePopupSlider() {
+        const pct = ((flowSubdividePopupValue - FLOW_SUBDIVIDE_MIN) / (FLOW_SUBDIVIDE_MAX - FLOW_SUBDIVIDE_MIN)) * 100;
+        document.getElementById('flowSubdivideSliderFill').style.width = `${pct}%`;
+        const thumb = document.getElementById('flowSubdivideSliderThumb');
+        thumb.style.left = `${pct}%`;
+        thumb.setAttribute('aria-valuenow', flowSubdividePopupValue);
+        thumb.setAttribute('aria-valuemax', FLOW_SUBDIVIDE_MAX);
+        document.getElementById('flowSubdivideSliderMaxLbl').innerText = FLOW_SUBDIVIDE_MAX;
+        document.getElementById('flowSubdividePopupValue').innerText = flowSubdividePopupValue;
+    }
+    function setFlowSubdividePopupValue(v) {
+        flowSubdividePopupValue = Math.min(FLOW_SUBDIVIDE_MAX, Math.max(FLOW_SUBDIVIDE_MIN, Math.round(v)));
+        renderFlowSubdividePopupSlider();
+    }
+    setupHoldStepper(document.getElementById('flowSubdivideMinus'), -1, (amount) => setFlowSubdividePopupValue(flowSubdividePopupValue + amount));
+    setupHoldStepper(document.getElementById('flowSubdividePlus'), 1, (amount) => setFlowSubdividePopupValue(flowSubdividePopupValue + amount));
+    setupSliderInteraction(document.getElementById('flowSubdivideSliderTrack'), document.getElementById('flowSubdivideSliderThumb'), {
+        onDragRatio: (ratio) => setFlowSubdividePopupValue(FLOW_SUBDIVIDE_MIN + ratio * (FLOW_SUBDIVIDE_MAX - FLOW_SUBDIVIDE_MIN)),
+        onArrowStep: (dir) => setFlowSubdividePopupValue(flowSubdividePopupValue + dir)
+    });
+    makeSliderReadoutEditable('flowSubdividePopupValue', () => flowSubdividePopupValue, (v) => setFlowSubdividePopupValue(v), { label: 'Sub beats', min: FLOW_SUBDIVIDE_MIN, max: FLOW_SUBDIVIDE_MAX });
+
+    document.getElementById('flowSubdivideBtn')?.addEventListener('click', () => {
+        document.getElementById('flowSubdivideOff').checked = flowSubBeatsMode === 'off';
+        document.getElementById('flowSubdivideAuto').checked = flowSubBeatsMode === 'auto';
+        document.getElementById('flowSubdivideFixed').checked = flowSubBeatsMode === 'fixed';
+        document.getElementById('flowSubdivideBpmBox').classList.toggle('hidden-group', flowSubBeatsMode !== 'fixed');
+        setFlowSubdividePopupValue(flowSubdivideOverride || FLOW_SUBDIVIDE_MIN);
+        document.getElementById('flowSubdivideModal').style.display = 'flex';
+    });
+    document.querySelectorAll('input[name="flowSubdivideOnOff"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            document.getElementById('flowSubdivideBpmBox').classList.toggle('hidden-group', radio.value !== 'fixed');
+        });
+    });
+    document.getElementById('flowSubdivideCancelBtn')?.addEventListener('click', () => {
+        document.getElementById('flowSubdivideModal').style.display = 'none';
+    });
+    document.getElementById('flowSubdivideSaveBtn')?.addEventListener('click', () => {
+        flowSubBeatsMode = document.querySelector('input[name="flowSubdivideOnOff"]:checked')?.value || 'off';
+        flowSubdivideOverride = flowSubBeatsMode === 'fixed' ? flowSubdividePopupValue : null;
+        document.getElementById('flowSubdivideModal').style.display = 'none';
+        const block = flowSubdivideCurrentBlock();
+        if (block) flowApplyToPlayer(block);
+        renderFlowPlaybackRow();
+    });
+
+    // --- Play speed popup ("ported" from Quick Play's own - own state, admin-managed preset list) ---
+    let flowSpeedPercent = 100;
+    function renderFlowSpeedLabel() {
+        document.getElementById('flowSpeedLbl').innerText = `${flowSpeedPercent}%`;
+    }
+    function setFlowSpeedPercent(p) {
+        flowSpeedPercent = Math.min(1000, Math.max(1, p));
+        flowPlayer.setSpeedPercent(flowSpeedPercent);
+        renderFlowSpeedLabel();
+        const block = flowSubdivideCurrentBlock();
+        if (block) flowApplyToPlayer(block);
+        renderFlowPlaybackRow();
+    }
+    async function loadFlowPlaybackSpeeds() {
+        try {
+            const speeds = await API.metronomeBlocks.playbackSpeeds.list();
+            const container = document.getElementById('flowSpeedOptions');
+            if (container) container.innerHTML = speeds.map(p => `<button type="button" class="metroBlk-timesig-opt" data-value="${p}">${p}%</button>`).join('');
+            document.querySelectorAll('#flowSpeedOptions .metroBlk-timesig-opt').forEach(btn => {
+                btn.classList.toggle('selected', Number(btn.dataset.value) === flowSpeedPercent);
+            });
+        } catch (error) {
+            showWarningToast('Error loading playback speeds: ' + error.message);
+        }
+    }
+    document.getElementById('flowSpeedBtn')?.addEventListener('click', () => {
+        document.querySelectorAll('#flowSpeedOptions .metroBlk-timesig-opt').forEach(btn => {
+            btn.classList.toggle('selected', Number(btn.dataset.value) === flowSpeedPercent);
+        });
+        document.getElementById('flowSpeedModal').style.display = 'flex';
+    });
+    document.getElementById('flowSpeedOptions')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.metroBlk-timesig-opt');
+        if (!btn) return;
+        setFlowSpeedPercent(Number(btn.dataset.value));
+        document.getElementById('flowSpeedModal').style.display = 'none';
+    });
+    renderFlowSpeedLabel();
+
+    // --- Volume ("ported" from Quick Play's own - own state, no calibration section, headphone
+    // delay is the one shared setting via metroState.latencyMs/flowPlayerRef). Mute is just volume 0,
+    // flowVolumeBeforeMute remembers the last non-zero value so unmuting restores it. ---
+    let flowVolume = 80;
+    let flowVolumeBeforeMute = 80;
+    function renderFlowVolumeSlider() {
+        const fill = document.getElementById('flowVolumeFill');
+        const thumb = document.getElementById('flowVolumeThumb');
+        if (!fill || !thumb) return;
+        fill.style.width = `${flowVolume}%`;
+        thumb.style.left = `${flowVolume}%`;
+        thumb.setAttribute('aria-valuenow', flowVolume);
+        const valueEl = document.getElementById('flowVolumeValue');
+        if (valueEl) valueEl.innerText = `${flowVolume}%`;
+        const muted = flowVolume === 0;
+        document.getElementById('flowMuteIcon').innerText = muted ? 'volume_off' : 'volume_up';
+        document.getElementById('flowMuteBtn')?.setAttribute('aria-pressed', String(muted));
+        document.getElementById('flowVolumeRow')?.classList.toggle('is-muted', muted);
+    }
+    function setFlowVolume(v, force = false) {
+        flowVolume = Math.round(Math.min(100, Math.max(0, v)));
+        if (flowVolume > 0) flowVolumeBeforeMute = flowVolume;
+        flowPlayer.setVolume(flowVolume / 100);
+        renderFlowVolumeSlider();
+        playVolumeTestClick(flowPlayer, force);
+    }
+    setupSliderInteraction(document.getElementById('flowVolumeTrack'), document.getElementById('flowVolumeThumb'), {
+        onDragRatio: (ratio) => setFlowVolume(ratio * 100),
+        onArrowStep: (dir) => setFlowVolume(flowVolume + dir * 5),
+        onRelease: () => playVolumeTestClick(flowPlayer, true)
+    });
+    setupHoldStepper('flowVolumeMinus', -1, (amount) => setFlowVolume(flowVolume + amount, true));
+    setupHoldStepper('flowVolumePlus', 1, (amount) => setFlowVolume(flowVolume + amount, true));
+    makeSliderReadoutEditable('flowVolumeValue', () => flowVolume, (v) => setFlowVolume(v, true), { label: 'Volume', min: 0, max: 100 });
+    document.getElementById('flowMuteBtn')?.addEventListener('click', () => {
+        setFlowVolume(flowVolume > 0 ? 0 : (flowVolumeBeforeMute || 80), true);
+    });
+    document.getElementById('flowVolumeBtn')?.addEventListener('click', () => {
+        renderFlowVolumeSlider();
+        document.getElementById('flowVolumeModal').style.display = 'flex';
+    });
+    function closeFlowVolumePopup() {
+        document.getElementById('flowVolumeModal').style.display = 'none';
+    }
+    document.getElementById('flowVolumeCloseBtn')?.addEventListener('click', closeFlowVolumePopup);
+    document.getElementById('flowVolumeModal')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeFlowVolumePopup();
+    });
+    renderFlowVolumeSlider();
+
+    document.getElementById('flowPlayFlowBtn')?.addEventListener('click', () => {
+        if (currentFlowId) goToFlowPlayView(currentFlowId);
+    });
+
+    // --- Play Flow's own 3-dot menu (Edit details / Edit flow) - replaces Quick Play's static
+    // "Bars" title's Show history/Create flow links. Bare .dropdown-menu, same "only ever one
+    // instance on screen" precedent as flowHubMenu. ---
+    function closeFlowPlayMenu() {
+        document.getElementById('flowPlayMenu')?.classList.remove('show');
+    }
+    document.addEventListener('click', closeFlowPlayMenu);
+    document.getElementById('flowPlayMenuBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('flowPlayMenu')?.classList.toggle('show');
+    });
+    document.getElementById('flowPlayMenuEditDetails')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeFlowPlayMenu();
+        if (currentFlowId) switchView('flowDetailsHubView');
+    });
+    document.getElementById('flowPlayMenuEditFlow')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeFlowPlayMenu();
+        if (currentFlowId) goToBlocksStudio(currentFlowId);
+    });
+    // Lands straight on the library list, not the create/load choice screen.
+    document.getElementById('flowPlayMenuLoadLibrary')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeFlowPlayMenu();
+        switchView('metroBuilderView');
+        showFlowLibraryList();
+    });
+    document.getElementById('flowPlayMenuCreateNew')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeFlowPlayMenu();
+        createAndOpenFlow();
     });
 
     // Play Mode only - Edit Mode swaps this whole area for the inline name input instead (see
@@ -5083,9 +7238,9 @@
         });
     });
 
-    async function loadMetroBlkTimeSignatures() {
+    async function loadMetroBlkTimeSignatures(token) {
         try {
-            metroBlkTimeSigCache = await API.metronomeBlocks.timeSignatures.list();
+            metroBlkTimeSigCache = await API.metronomeBlocks.timeSignatures.list(token);
         } catch (error) {
             showWarningToast('Error loading time signatures: ' + error.message);
         }
@@ -6834,7 +8989,7 @@
                             <div style="font-size:0.85rem; color:#666;">${r.blockCount} bar${r.blockCount === 1 ? '' : 's'}</div>
                         </div>
                     </div>
-                    <button type="button" class="qp-history-item-menu-btn" data-qp-history-menu-btn aria-label="Options for ${escapeHtml(qpFormatHistoryLabel(r.name))}"><span class="material-symbols-outlined">more_vert</span></button>
+                    <button type="button" class="list-item-menu-btn" data-qp-history-menu-btn aria-label="Options for ${escapeHtml(qpFormatHistoryLabel(r.name))}"><span class="material-symbols-outlined">more_vert</span></button>
                 </div>
             `).join('');
         }

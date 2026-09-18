@@ -110,7 +110,6 @@
             <button class="btn-submit">.btn-submit</button>
             <button class="btn-nav">.btn-nav</button>
             <button class="btn-cancel btn-nav">.btn-cancel (+ .btn-nav)</button>
-            <button class="btn-filter">.btn-filter</button>
             <button class="btn-text">.btn-text</button>
             <button class="btn-text btn-text-danger">.btn-text.btn-text-danger</button>
             <div class="sg-inline-demo">
@@ -118,9 +117,21 @@
                 <button class="btn-delete">.btn-delete</button>
                 <button class="btn-icon-edit"><span class="material-symbols-outlined">edit</span></button>
                 <button class="btn-icon-delete"><span class="material-symbols-outlined">delete</span></button>
+                <button class="list-item-menu-btn"><span class="material-symbols-outlined">more_vert</span></button>
             </div>
         </div>
         <p class="sg-note">Touch targets: every interactive element (buttons, icon buttons, steppers, slider thumbs) is at least 48x48px, even where the visible glyph is smaller - a slider thumb's hit area extends past its visible circle via an invisible <code>::before</code> rather than being drawn larger.</p>
+        <p class="sg-note"><strong>.list-item-menu-btn</strong> - the 3-dot trigger for a list row's own options menu (ML-175): lighter grey-outline treatment than <code>.btn-icon-edit</code>'s bold coloured border, sized for a compact row. Pair it with <code>.dropdown-menu.metroBlk-tile-menu</code> below for the menu itself - one shared floating menu per list (not one per row), repositioned via JS against whichever row's button was tapped.</p>
+        <div class="sg-component-block" style="position: relative;">
+            <div class="history-item">
+                <div class="history-details"><strong>Practise</strong>30 minutes — 5 Sep 2026</div>
+                <button class="list-item-menu-btn"><span class="material-symbols-outlined">more_vert</span></button>
+            </div>
+            <div class="dropdown-menu metroBlk-tile-menu show" style="position: static; margin-top: var(--space-2); min-width: 160px;">
+                <div class="dropdown-item">Edit</div>
+                <div class="dropdown-item metroBlk-tile-menu-delete">Delete</div>
+            </div>
+        </div>
 
         <h3>Stat cards</h3>
         <div class="dashboard-grid">
@@ -169,10 +180,40 @@
             </div>
         </div>
 
-        <h3>Filter item</h3>
-        <div class="filter-list">
-            <label class="filter-item"><input type="checkbox" checked> <span>Practise</span></label>
-            <label class="filter-item"><input type="checkbox"> <span>Rehearsal</span></label>
+        <h3>Filter strip</h3>
+        <p class="sg-note"><strong>.filter-strip</strong> - inline, 1-tap category filter (ML-176): a leading icon (decorative - "All" already covers "clear filters") with an active-count badge shown only when a subset is selected, plus a horizontal <strong>.filter-pill</strong> track. Each pill shows a live count and tints with that category's own colour when active (via the <code>--filter-pill-accent</code> custom property) rather than one flat colour for every pill, so the strip doubles as an at-a-glance legend. Used on the Detailed stats and Session history screens; reuse it for any future screen that needs a category filter.</p>
+        <div class="filter-strip">
+            <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span><span class="filter-strip-badge">3</span></span>
+            <div class="filter-strip-pills">
+                <button type="button" class="filter-pill">All <span class="filter-pill-count">12</span></button>
+                <button type="button" class="filter-pill active" style="--filter-pill-accent: var(--cat-practise);">Practise <span class="filter-pill-count">7</span></button>
+                <button type="button" class="filter-pill active" style="--filter-pill-accent: var(--cat-rehearsal);">Rehearsal <span class="filter-pill-count">3</span></button>
+                <button type="button" class="filter-pill">Lesson <span class="filter-pill-count">1</span></button>
+                <button type="button" class="filter-pill active" style="--filter-pill-accent: var(--cat-performance);">Performance <span class="filter-pill-count">1</span></button>
+            </div>
+        </div>
+
+        <h3>Flow card</h3>
+        <p class="sg-note"><strong>.flow-card</strong> - one bordered/rounded section for the Flow Details Hub (ML-179): a <strong>.flow-card-label</strong> + <strong>.flow-pill</strong> header, and neutral <strong>.flow-action-btn</strong> actions for "add another item" rather than a filled primary button. Recording rows embed a native <strong>&lt;audio&gt;</strong> control (or a YouTube iframe for a link) directly in the row rather than an "open in a new tab" button - play immediately without leaving the page. Delete uses <strong>.flow-delete-btn</strong> - a clickable circle like <strong>.list-item-menu-btn</strong>, just tinted red, rather than <strong>.btn-icon-delete</strong>'s heavier solid-red-fill look (that stays reserved for deleting the whole flow).</p>
+        <div class="flow-card">
+            <div class="flow-card-header">
+                <span class="flow-card-label">Recordings &amp; media</span>
+                <span class="flow-pill">1 linked</span>
+            </div>
+            <div class="history-item flow-media-item">
+                <div class="flow-media-item-top">
+                    <div class="history-details">
+                        <span class="flow-media-icon type-audio"><span class="material-symbols-outlined" style="font-size:18px;">music_note</span></span>
+                        <div><strong>Rehearsal_Take3.mp3</strong><span>audio/mpeg</span></div>
+                    </div>
+                    <button type="button" class="flow-delete-btn"><span class="material-symbols-outlined">delete</span></button>
+                </div>
+                <audio class="flow-media-player-audio" controls></audio>
+            </div>
+            <div class="flow-action-row">
+                <button type="button" class="flow-action-btn"><span class="material-symbols-outlined">upload</span> Upload mp3/mp4</button>
+                <button type="button" class="flow-action-btn"><span class="material-symbols-outlined">smart_display</span> Add YouTube</button>
+            </div>
         </div>
 
         <h3>Toasts</h3>

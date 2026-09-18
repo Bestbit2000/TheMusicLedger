@@ -23,6 +23,35 @@ export async function requireAuth(req, res, next) {
   }
 }
 
+// ML-179: same check as requireAuth, but also accepts ?token=... as a fallback when the
+// Authorization header is missing. Needed only for the Blob upload-token routes -
+// @vercel/blob/client's upload() makes its own internal fetch() to handleUploadUrl with a
+// hardcoded header set (just content-type), with no option to attach a custom Authorization
+// header, so the token has to travel via the URL app.js builds instead. Deliberately a separate
+// function, not a change to requireAuth itself, so no other route gains a query-string auth path.
+export async function requireAuthFromQueryOrHeader(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+    const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    const token = headerToken || req.query.token;
+    if (!token) {
+      return res.status(401).json({ error: 'Missing authorization token' });
+    }
+
+    const tokenData = verifyToken(token);
+
+    req.userId = tokenData.userId;
+    req.firstName = tokenData.firstName || '';
+    req.surname = tokenData.surname || '';
+    req.googleAccessToken = tokenData.access_token;
+    req.googleRefreshToken = tokenData.refresh_token;
+    req.googleExpiryDate = tokenData.expiry_date;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+
 // Resolves the logged-in Google email to a real accounts.id, creating the
 // row on first sight. Separate from requireAuth (token validity) so the two
 // concerns - "is this token real" and "does a database row exist for it" -

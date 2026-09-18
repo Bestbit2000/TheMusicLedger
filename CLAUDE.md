@@ -15,9 +15,21 @@ three Neon branches (`production`/`sandbox`/`dev`). Beyond `sessions` and
 `ML-35`) is now wired up too — `adhoc_metronome_setups`/`metronome_segments`
 (ad-hoc only, `parent_score_id` always null) plus `time_signature_options`/
 `account_time_signatures`, behind `/api/metronome/*` and `/api/time-signatures*`
-in `server/routes/api.js`. Score-attached blocks and the rest of the schema
-(scores themselves, practice lists, scales, technique, monetization) are
-still provisioned but not wired up to any endpoint. The full history of the
+in `server/routes/api.js`. `scores` itself is now wired up too, as a **Flow**
+(`ML-179` Phase 1 — see `docs/database-schema.md`'s "Flow" vs "Score" naming
+note: the table stays `scores`, but the product concept/service file
+(`server/services/flows.js`)/endpoints (`/api/flows/*`)/UI are "Flow"
+throughout, since a Flow is rhythm/structure only — "Score" is reserved for a
+future feature that attaches real notation to the same piece). That covers
+Flow metadata, recordings (`score_recordings`, mp3/mp4 via Vercel Blob or a
+YouTube link), documents (`score_documents`, PDF/MusicXML/Sibelius/MuseScore
+via Vercel Blob), and the three-way personal/band/admin-public ownership model
+with fully-reversible transfer actions. **Score-attached metronome blocks
+(`parent_score_id` on `metronome_segments`) are still not wired up** — that's
+the separate Blocks Studio + Block Inspector Modal work (ML-179 Phase 2, not
+started). The rest of the schema (practice lists, scales, technique,
+monetization) remains provisioned but not wired up to any endpoint. The full
+history of the
 Sheets→Postgres cutover (endpoint mapping, decisions, the real data migration)
 is in [`docs/sheets-to-database-cutover.md`](docs/sheets-to-database-cutover.md)
 — **read this before touching `server/routes/api.js` or account/tutor/

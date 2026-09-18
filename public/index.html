@@ -243,7 +243,13 @@
             <div class="stat-card" style="border-left: 4px solid var(--cat-lesson);"><div class="label">Lessons</div><div class="value" id="statLess">-</div></div>
         </div>
 
-        <button class="btn-filter" id="filterStatsBtn" onclick="document.getElementById('filterModal').style.display='flex'">Filter stats (All)</button>
+        <!-- ML-176: inline filter strip (design system component, see styleguide.html) - replaces
+             the old "Filter stats (All)" button + blocking checkbox modal. Counts/highlight state are
+             filled in by renderFilterStrip (app.js), scoped to this screen's own timeframe. -->
+        <div class="filter-strip" id="statsFilterStrip">
+            <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span><span class="filter-strip-badge hidden-group" id="statsFilterBadge"></span></span>
+            <div class="filter-strip-pills" id="statsFilterPills"></div>
+        </div>
 
         <div class="section-title">Daily time</div>
         <div class="scroll-wrapper heatmap-scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="heatmap-wrapper"><div class="heatmap-container" id="timeHeatmap"></div></div><div class="heatmap-daylabels"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
@@ -266,8 +272,14 @@
 
     <div id="historyView" style="display:none;">
         <button class="btn-submit" onclick="switchView('entryForm')" style="margin-bottom: 15px;">Add session time</button>
-        <button class="btn-filter" id="filterHistoryBtn" onclick="document.getElementById('filterModal').style.display='flex'">Filter history (All)</button>
         <div class="month-nav"><button id="prevMonthBtn">&lt;</button><span id="currentMonthDisplay" style="font-weight:bold;">Loading...</span><button id="nextMonthBtn">&gt;</button></div>
+        <!-- ML-176: inline filter strip (design system component, see styleguide.html) - replaces
+             the old "Filter history (All)" button + blocking checkbox modal, moved below the month
+             selector and above the summary/log area per the ticket's own layout. -->
+        <div class="filter-strip" id="historyFilterStrip">
+            <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span><span class="filter-strip-badge hidden-group" id="historyFilterBadge"></span></span>
+            <div class="filter-strip-pills" id="historyFilterPills"></div>
+        </div>
         <div id="historySummary" style="text-align:center; margin-bottom:15px; font-weight:bold;"></div>
         <div id="historyList"><div style="text-align:center; color:#888;">Loading entries...</div></div>
     </div>
@@ -605,7 +617,7 @@
              explicit "new or open?" moment. This entry screen replaces that auto-resolve - see
              switchView's metroBuilderView branch, metroBlkShowEntryScreen/metroBlkShowEditorScreen. -->
         <div id="metroBlkEntryScreen">
-            <div class="section-title"><span>flow</span></div>
+            <div class="section-title"><span id="metroBlkEntryTitle">Flow</span></div>
             <p class="metro-help-text">Set up a custom practice run, or open one you've already made.</p>
             <div class="metroBlk-entry-choices">
                 <button type="button" class="metroBlk-entry-choice" id="metroBlkEntryCreateBtn" aria-label="Create your own - build a new practice flow from scratch">
@@ -619,10 +631,18 @@
                     <span class="metro-help-text">Open one of your saved flows</span>
                 </button>
             </div>
+            <!-- No in-panel "Back" any more - the top header's own "<" already does that (leaving and
+                 re-entering the tool lands back on the two-choice screen anyway, see
+                 metroBlkShowEntryScreen). -->
             <div class="hidden-group" id="metroBlkEntryLibrary">
-                <button type="button" class="btn-text" id="metroBlkEntryLibraryBackBtn">&larr; Back</button>
                 <div id="metroBlkSetupsList">Loading...</div>
             </div>
+        </div>
+        <!-- One shared floating menu for every flow-library row (only shown for a personal flow, for
+             now) - same pattern as flowBlockMenu/sessionHistoryItemMenu. -->
+        <div class="dropdown-menu metroBlk-tile-menu" id="flowLibraryItemMenu">
+            <div class="dropdown-item" id="flowLibraryItemMenuDuplicate">Duplicate</div>
+            <div class="dropdown-item metroBlk-tile-menu-delete" id="flowLibraryItemMenuDelete">Delete flow</div>
         </div>
 
         <div id="metroBlkEditorScreen" class="hidden-group">
@@ -683,6 +703,323 @@
                 <button type="button" class="btn-submit no-margin" id="metroBlkEditSaveBtn">Save</button>
             </div>
         </div>
+        </div>
+    </div>
+
+    <!-- ML-179 Phase 1: Flow Details Hub - replaces the old ad-hoc "Create your
+         own"/"Load from library" destination above (metroBlkEntryCreateBtn/
+         metroBlkEntryLoadBtn now create/load a score-backed Flow and land here
+         instead of metroBuilderView's own editor screen). -->
+    <div id="flowDetailsHubView" style="display:none;">
+        <div class="flow-hub-topline" style="position:relative;">
+            <button type="button" class="list-item-menu-btn" id="flowHubMenuBtn" aria-label="Flow options"><span class="material-symbols-outlined">more_vert</span></button>
+            <!-- Bare .dropdown-menu (position:absolute, same as the burger menu) rather than the
+                 .metroBlk-tile-menu/JS-clamped variant - there's only ever one of these on screen at
+                 once (not a per-row menu), so it doesn't need that pattern's positioning math. -->
+            <div class="dropdown-menu" id="flowHubMenu" style="right:0;">
+                <div class="dropdown-item hidden-group" id="flowHubMenuMoveToBand">Move to a band</div>
+                <div class="dropdown-item hidden-group" id="flowHubMenuRemoveFromBand">Remove from band</div>
+                <div class="dropdown-item hidden-group" id="flowHubMenuPublish">Publish (make public)</div>
+                <div class="dropdown-item hidden-group" id="flowHubMenuUnpublish">Unpublish (make private)</div>
+                <div class="dropdown-item metroBlk-tile-menu-delete" id="flowHubMenuDelete">Delete flow</div>
+            </div>
+        </div>
+
+        <section class="flow-card">
+            <div class="flow-card-header">
+                <span class="flow-card-label">Flow details</span>
+                <span class="flow-pill" id="flowUploadedPill">Uploaded: &ndash;</span>
+            </div>
+            <div class="form-group">
+                <label>Flow name <span class="flow-required">*</span></label>
+                <input type="text" id="flowNameInput" placeholder="e.g. Symphony No. 5">
+            </div>
+            <div class="form-group">
+                <label>Composer</label>
+                <input type="text" id="flowComposerInput" placeholder="e.g. Ralph Vaughan Williams">
+            </div>
+            <div class="form-group">
+                <label>Arranger</label>
+                <input type="text" id="flowArrangerInput" placeholder="e.g. Gordon Langford">
+            </div>
+            <div class="form-group">
+                <label>Publisher</label>
+                <input type="text" id="flowPublisherInput" placeholder="e.g. Studio Music Co.">
+            </div>
+            <div class="form-group no-margin">
+                <label>Description &amp; notes</label>
+                <textarea id="flowDescriptionInput" rows="3" placeholder="Rehearsal notes, tempo conventions, solo cues..."></textarea>
+            </div>
+        </section>
+
+        <section class="flow-card">
+            <div class="flow-card-header">
+                <div>
+                    <span class="flow-card-label">Recordings &amp; media</span>
+                    <p class="flow-card-sublabel">Upload mp3/mp4 tracks or attach YouTube links</p>
+                </div>
+                <span class="flow-pill" id="flowRecordingsCountPill">0 linked</span>
+            </div>
+            <div id="flowRecordingsList"></div>
+            <div class="flow-action-row">
+                <button type="button" class="flow-action-btn" id="flowUploadRecordingBtn"><span class="material-symbols-outlined">upload</span> Upload mp3/mp4</button>
+                <button type="button" class="flow-action-btn" id="flowAddYouTubeBtn"><span class="material-symbols-outlined">smart_display</span> Add YouTube</button>
+            </div>
+            <input type="file" id="flowRecordingFileInput" class="hidden-group" accept="audio/*,video/mp4">
+            <div class="flow-upload-progress hidden-group" id="flowRecordingUploadProgress">
+                <div class="flow-upload-progress-text"><span id="flowRecordingUploadName">Uploading&hellip;</span><span id="flowRecordingUploadPercent">0%</span></div>
+                <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="flowRecordingUploadFill" style="width:0%;"></div></div>
+            </div>
+        </section>
+
+        <section class="flow-card">
+            <div class="flow-card-header">
+                <div>
+                    <span class="flow-card-label">Documents &amp; scores</span>
+                    <p class="flow-card-sublabel">PDF scans, MusicXML or score files</p>
+                </div>
+                <span class="flow-pill" id="flowDocumentsCountPill">0 files</span>
+            </div>
+            <div id="flowDocumentsList"></div>
+            <button type="button" class="flow-action-btn flow-action-btn-wide" id="flowUploadDocumentBtn"><span class="material-symbols-outlined">upload_file</span> Upload PDF or MusicXML score</button>
+            <input type="file" id="flowDocumentFileInput" class="hidden-group" accept=".pdf,.musicxml,.mxl,.sib,.musx,application/pdf">
+            <div class="flow-upload-progress hidden-group" id="flowDocumentUploadProgress">
+                <div class="flow-upload-progress-text"><span id="flowDocumentUploadName">Uploading&hellip;</span><span id="flowDocumentUploadPercent">0%</span></div>
+                <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="flowDocumentUploadFill" style="width:0%;"></div></div>
+            </div>
+        </section>
+
+        <section class="flow-card flow-blocks-card">
+            <div class="flow-card-header">
+                <span class="flow-card-label">Step 2 of 2 &bull; Blocks sequence</span>
+            </div>
+            <!-- Same .stat-card shape as the main page's own stats (mainTotalTime/mainTotalSessions) -
+                 block count is the headline value, not a small pill, since it's the thing that tells
+                 you whether this flow is actually ready to play yet. -->
+            <div class="stat-card" style="margin-bottom: var(--space-3);">
+                <div class="label">Blocks</div>
+                <div class="value" id="flowBlocksSummaryValue">0</div>
+                <div class="flow-card-sublabel" id="flowBlocksSummaryTime">0 bars &bull; ~0m 0s total</div>
+            </div>
+            <p class="flow-card-sublabel" id="flowBlocksSublabel">Configure tempo roadmaps, rehearsal marks, fermatas, voltas, and speed transitions across dedicated full-screen blocks.</p>
+            <!-- Play only ever shows once there's something to play - a 0-block flow has nowhere to
+                 send you yet (see renderFlowDetailsHub's own hidden-group toggle). -->
+            <button type="button" class="btn-submit no-margin hidden-group" id="flowPlayFlowBtn">&#9654; Play flow</button>
+            <button type="button" class="btn-submit no-margin" id="flowOpenStudioBtn">Open blocks studio &rarr;</button>
+        </section>
+    </div>
+
+    <!-- ML-179 Phase 2: Blocks Studio - Full density view only for now (density switcher itself,
+         plus 2-col/4-col compact views, are a follow-up - see the plan doc). Editing reuses one
+         generic choice-list modal (#flowChoiceModal) for every discrete-option tile rather than a
+         bespoke picker per parameter. -->
+    <div id="blocksStudioView" style="display:none;">
+        <div class="flow-studio-summary">
+            <span id="flowStudioSummaryText">0 bars &bull; ~0m total</span>
+        </div>
+
+        <!-- Lead-in: pinned, no drag handle, always sorts first regardless of order_index. -->
+        <div class="flow-card flow-lead-in-card hidden-group" id="flowLeadInCard">
+            <div class="flow-card-header">
+                <span class="flow-card-label">Lead in</span>
+                <button type="button" class="list-item-menu-btn" id="flowLeadInMenuBtn" aria-label="Lead-in options"><span class="material-symbols-outlined">more_vert</span></button>
+            </div>
+            <div class="flow-tile-grid flow-tile-grid-3" id="flowLeadInTiles"></div>
+        </div>
+        <button type="button" class="flow-action-btn flow-action-btn-wide" id="flowAddLeadInBtn">+ Add lead-in block</button>
+
+        <div id="flowBlocksList"></div>
+
+        <button type="button" class="flow-action-btn flow-action-btn-wide" id="flowAddBlockBtn">+ Add block</button>
+
+        <!-- Bottom-of-screen for now, same hidden-until-there's-something-to-play rule as the Hub's
+             own flowPlayFlowBtn - likely becomes the primary action here once Blocks Studio has a
+             proper sticky bottom bar, but that's a separate layout pass, not this one. -->
+        <button type="button" class="btn-submit no-margin hidden-group" id="flowStudioPlayFlowBtn" style="margin-top:var(--space-4);">&#9654; Play flow</button>
+    </div>
+
+    <!-- ML-179 follow-up: "Play flow" - now full parity with Quick Play/Metronome Blocks' own
+         now-playing widget (own player instance, own element ids - same reasoning as those two
+         having their own rather than sharing): volume button in the row head, all 4 transport
+         buttons (play/reset/sub beats/play speed), sub-beats and speed and volume popups are
+         "ported" copies of Quick Play's own (own state, own modal - same precedent as qpSubdivideModal
+         vs metroBlkSubdivideModal), not a literally shared control. Below the transport: a
+         section-title row with the flow's own name (replacing Quick Play's static "Bars" label) and
+         a 3-dot menu (replacing Show history/Create flow) linking to the two edit surfaces - Edit
+         details (Flow Details Hub) and Edit flow (Blocks Studio). Blocks (not Quick Play's flat
+         Bars) are read-only here, tap to jump - editing lives in Blocks Studio, not here. Repeats
+         (isRepeatStart/isRepeatEnd/repeatPlayCount) are fully live in the playback engine below
+         (advanceFlow/flowRepeatStartIndexFor) even though this UI has no control to set them - they're
+         edited in Blocks Studio, same "engine supports it, this screen just doesn't expose creating
+         it" relationship sub-beats/speed/volume no longer have now that this follow-up adds them. -->
+    <div id="flowPlayView" style="display:none;">
+        <div class="metroBlk-rows">
+            <div class="metroBlk-row metroBlk-row-current">
+                <div class="metroBlk-row-head">
+                    <span class="metroBlk-row-label" id="flowPlayRowLabel"></span>
+                    <button type="button" class="metroBlk-row-volume-btn" id="flowVolumeBtn" aria-label="Volume - tap to change"><span class="material-symbols-outlined">volume_mute</span></button>
+                </div>
+                <div class="metro-display-viewport" id="flowPlayRowViewport">
+                    <div class="metro-display-content" id="flowPlayRowContent">
+                        <div class="metro-tier" id="flowPlayRowDots"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metro-transport-grid">
+            <button class="metro-play-grid-btn" id="flowPlayBtn" aria-label="Play - press and hold to reset to the start">
+                <span class="material-symbols-outlined" id="flowPlayIcon">play_arrow</span>
+                <span class="metroBlk-ctrl-value-label">play</span>
+            </button>
+            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="flowResetBtn" aria-label="Reset to start">
+                <span class="material-symbols-outlined">restart_alt</span>
+                <span class="metroBlk-ctrl-value-label">reset</span>
+            </button>
+            <button type="button" class="metroBlk-ctrl-value-btn" id="flowSubdivideBtn" aria-label="Sub beats - tap to change">
+                <strong id="flowSubdivideLbl">1</strong>
+                <span class="metroBlk-ctrl-value-label" id="flowSubdivideUnitLbl">sub beats</span>
+            </button>
+            <button type="button" class="metroBlk-ctrl-value-btn" id="flowSpeedBtn" aria-label="Play speed - tap to change">
+                <strong id="flowSpeedLbl">100%</strong>
+                <span class="metroBlk-ctrl-value-label">play speed</span>
+            </button>
+        </div>
+
+        <div class="section-title">
+            <span id="flowPlayTitleLabel">Flow</span>
+            <!-- position:relative wrapper anchors the dropdown under the button - same "flow-hub-topline"
+                 pattern as flowHubMenuBtn/flowHubMenu, needed because .section-title itself isn't
+                 positioned and .dropdown-menu's top:100%/right:0 resolve against the nearest
+                 positioned ancestor. -->
+            <div style="position:relative;">
+                <button type="button" class="list-item-menu-btn" id="flowPlayMenuBtn" aria-label="Flow options"><span class="material-symbols-outlined">more_vert</span></button>
+                <div class="dropdown-menu" id="flowPlayMenu" style="right:0;">
+                    <div class="dropdown-item" id="flowPlayMenuEditDetails">Edit details</div>
+                    <div class="dropdown-item" id="flowPlayMenuEditFlow">Edit flow</div>
+                    <div class="dropdown-item" id="flowPlayMenuLoadLibrary">Load from library</div>
+                    <div class="dropdown-item" id="flowPlayMenuCreateNew">Create new</div>
+                </div>
+            </div>
+        </div>
+        <div id="flowPlayLeadInSlot"></div>
+        <div id="flowPlayTiles" class="metroBlk-tile-strip"></div>
+    </div>
+
+    <!-- One shared floating menu, repositioned via JS - same pattern as metroBlkTileMenu/qpBarMenu. -->
+    <div class="dropdown-menu metroBlk-tile-menu" id="flowBlockMenu">
+        <div class="dropdown-item" id="flowBlockMenuDuplicate">Duplicate</div>
+        <div class="dropdown-item" id="flowBlockMenuMoveUp">Move up</div>
+        <div class="dropdown-item" id="flowBlockMenuMoveDown">Move down</div>
+        <div class="dropdown-item metroBlk-tile-menu-delete" id="flowBlockMenuDelete">Delete block</div>
+    </div>
+    <div class="dropdown-menu metroBlk-tile-menu" id="flowLeadInMenu">
+        <div class="dropdown-item metroBlk-tile-menu-delete" id="flowLeadInMenuDelete">Delete lead-in</div>
+    </div>
+
+    <!-- BPM popup (ML-179 follow-up) - exactly the same tiered slider mechanic as the ad-hoc/Quick
+         Play BPM controls (METRO_MIN_BPM/MAX_BPM/SLIDER_TIERS, metroBestFitTier, setupSliderInteraction),
+         just its own single-field popup rather than embedded inline on a card. -->
+    <div class="modal" id="flowBpmModal">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" id="flowBpmCloseBtn" aria-label="Close">&times;</button>
+            <h2>Tempo (bpm)</h2>
+            <div class="metro-speed-row no-margin">
+                <button class="metro-bpm-step" id="flowBpmMinus" type="button" aria-label="Decrease bpm">&minus;</button>
+                <div class="metro-speed-readout">
+                    <div id="flowBpmPopupValue">100</div>
+                    <div class="metro-speed-sub">bpm</div>
+                </div>
+                <button class="metro-bpm-step" id="flowBpmPlus" type="button" aria-label="Increase bpm">+</button>
+            </div>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="flowBpmSliderTrack">
+                    <div class="slider-fill" id="flowBpmSliderFill"></div>
+                    <div class="slider-thumb" id="flowBpmSliderThumb" tabindex="0" role="slider" aria-label="Tempo" aria-valuemin="15" aria-valuemax="500" aria-valuenow="100"></div>
+                </div>
+                <div class="slider-scale"><span>15</span><span id="flowBpmSliderMaxLbl">200</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bar count popup (ML-179 follow-up) - same tiered-slider mechanic as the BPM popup above,
+         its own tier list (50/250/500) per the request rather than reusing METRO_SLIDER_TIERS. -->
+    <div class="modal" id="flowBarsModal">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" id="flowBarsCloseBtn" aria-label="Close">&times;</button>
+            <h2>Number of bars</h2>
+            <div class="metro-speed-row no-margin">
+                <button class="metro-bpm-step" id="flowBarsMinus" type="button" aria-label="Decrease bars">&minus;</button>
+                <div class="metro-speed-readout">
+                    <div id="flowBarsPopupValue">4</div>
+                    <div class="metro-speed-sub">bars</div>
+                </div>
+                <button class="metro-bpm-step" id="flowBarsPlus" type="button" aria-label="Increase bars">+</button>
+            </div>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="flowBarsSliderTrack">
+                    <div class="slider-fill" id="flowBarsSliderFill"></div>
+                    <div class="slider-thumb" id="flowBarsSliderThumb" tabindex="0" role="slider" aria-label="Bars" aria-valuemin="1" aria-valuemax="500" aria-valuenow="4"></div>
+                </div>
+                <div class="slider-scale"><span>1</span><span id="flowBarsSliderMaxLbl">50</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic reusable choice-list modal (ML-179) - every discrete-option Block Inspector tile
+         still using it (start/end/repeat bar/change/sign/jump - time/beat unit moved to the shared
+         metroSeg time-signature/note-value pickers, and bpm/bars to their own sliders above) shares
+         this one modal rather than each getting its own bespoke picker; flowChoiceOptions is
+         populated per-tile in JS. -->
+    <div class="modal" id="flowChoiceModal">
+        <div class="modal-content">
+            <h2 id="flowChoiceTitle">Choose an option</h2>
+            <div id="flowChoiceOptions"></div>
+            <!-- Extra inline UI shown below the choice list itself once a choice needs more detail
+                 (the "end of bar" repeat count slider) - never a second popup stacked on top. -->
+            <div id="flowChoiceInlineExtra" class="flow-choice-inline-extra hidden-group"></div>
+            <button class="btn-cancel btn-nav" onclick="document.getElementById('flowChoiceModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Fermata ("pause") mini list - the one Block Inspector tile that's a list, not a single
+         value, so it gets its own small modal rather than fitting the generic choice-list shape. -->
+    <div class="modal" id="flowFermataModal">
+        <div class="modal-content">
+            <h2>Pause (fermata)</h2>
+            <div id="flowFermataList"></div>
+            <button class="flow-action-btn flow-action-btn-wide" id="flowFermataAddBtn">+ Add fermata</button>
+            <button class="btn-cancel btn-nav" onclick="document.getElementById('flowFermataModal').style.display='none'">Close</button>
+        </div>
+    </div>
+
+    <div class="modal" id="flowBandPickerModal">
+        <div class="modal-content">
+            <h2>Move to a band</h2>
+            <div class="form-group no-margin">
+                <label>Band</label>
+                <select id="flowBandPickerSelect"></select>
+            </div>
+            <button class="btn-submit" id="flowBandPickerConfirmBtn">Move</button>
+            <button class="btn-cancel btn-nav" onclick="document.getElementById('flowBandPickerModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+
+    <!-- ML-179: Add YouTube link - mirrors the mp3/mp4 upload card's other action. -->
+    <div class="modal" id="flowYouTubeModal">
+        <div class="modal-content">
+            <h2>Add YouTube reference</h2>
+            <div class="form-group">
+                <label>YouTube link <span class="flow-required">*</span></label>
+                <input type="text" id="flowYouTubeUrlInput" placeholder="e.g. https://youtu.be/dQw4w9WgXcQ">
+                <span class="flow-help-text">Supports youtube.com/watch?v= or youtu.be short links</span>
+            </div>
+            <div class="form-group">
+                <label>Track title or ensemble name</label>
+                <input type="text" id="flowYouTubeTitleInput" placeholder="e.g. National finals performance">
+            </div>
+            <button class="btn-submit" id="flowYouTubeSaveBtn">Add video to flow</button>
+            <button class="btn-cancel btn-nav" onclick="document.getElementById('flowYouTubeModal').style.display='none'">Cancel</button>
         </div>
     </div>
 
@@ -1355,6 +1692,82 @@
     </div>
 </div>
 
+<!-- ML-179 follow-up: Play flow's own sub-beats/speed/volume popups - "ported" copies of Quick
+     Play's own (qpSubdivideModal/qpSpeedModal/qpVolumeModal above), own state, own modal, same
+     precedent as Quick Play's own copy of Blocks' originals. -->
+<div class="modal" id="flowSubdivideModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('flowSubdivideModal').style.display='none'" aria-label="Close">&times;</button>
+        <h2>Sub beats</h2>
+        <div class="form-group no-margin">
+            <label>Use sub beats</label>
+            <div class="radio-group compact">
+                <input type="radio" name="flowSubdivideOnOff" id="flowSubdivideOff" value="off" checked>
+                <label for="flowSubdivideOff">Off</label>
+                <input type="radio" name="flowSubdivideOnOff" id="flowSubdivideAuto" value="auto">
+                <label for="flowSubdivideAuto">Auto</label>
+                <input type="radio" name="flowSubdivideOnOff" id="flowSubdivideFixed" value="fixed">
+                <label for="flowSubdivideFixed">Fixed</label>
+            </div>
+            <p class="metro-help-text">Auto always shows sub-beats, using the number that fits the time signature. Fixed lets you set your own number.</p>
+        </div>
+        <div class="metroBlk-bpm-box hidden-group" id="flowSubdivideBpmBox" style="margin-top:var(--space-4);">
+            <div class="metro-speed-row no-margin">
+                <button class="metro-bpm-step" id="flowSubdivideMinus" type="button" aria-label="Decrease sub beats">&minus;</button>
+                <div class="metro-speed-readout">
+                    <div id="flowSubdividePopupValue">0</div>
+                    <div class="metro-speed-sub">sub beats</div>
+                </div>
+                <button class="metro-bpm-step" id="flowSubdividePlus" type="button" aria-label="Increase sub beats">+</button>
+            </div>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="flowSubdivideSliderTrack">
+                    <div class="slider-fill" id="flowSubdivideSliderFill"></div>
+                    <div class="slider-thumb" id="flowSubdivideSliderThumb" tabindex="0" role="slider" aria-label="Sub beats" aria-valuemin="2" aria-valuemax="16" aria-valuenow="2"></div>
+                </div>
+                <div class="slider-scale"><span>2</span><span id="flowSubdivideSliderMaxLbl">16</span></div>
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:var(--space-5);">
+            <button class="btn-cancel btn-nav no-margin" id="flowSubdivideCancelBtn">Cancel</button>
+            <button class="btn-submit no-margin" id="flowSubdivideSaveBtn">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="flowSpeedModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('flowSpeedModal').style.display='none'" aria-label="Close">&times;</button>
+        <h2>Play speed</h2>
+        <p class="metro-help-text">Tap a speed to apply it straight away.</p>
+        <div class="metroBlk-speed-options" id="flowSpeedOptions"></div>
+    </div>
+</div>
+
+<div class="modal" id="flowVolumeModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" id="flowVolumeCloseBtn" aria-label="Close">&times;</button>
+        <h2>Volume</h2>
+        <div class="metro-speed-row no-margin">
+            <button class="metro-bpm-step" id="flowVolumeMinus" type="button" aria-label="Decrease volume">&minus;</button>
+            <div class="metro-speed-readout">
+                <div id="flowVolumeValue">80%</div>
+                <div class="metro-speed-sub">volume</div>
+            </div>
+            <button class="metro-bpm-step" id="flowVolumePlus" type="button" aria-label="Increase volume">+</button>
+        </div>
+        <div class="metro-volume-row" id="flowVolumeRow">
+            <button class="metro-mute-btn" id="flowMuteBtn" aria-label="Mute" aria-pressed="false"><span class="material-symbols-outlined" id="flowMuteIcon">volume_up</span></button>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="flowVolumeTrack">
+                    <div class="slider-fill" id="flowVolumeFill"></div>
+                    <div class="slider-thumb" id="flowVolumeThumb" tabindex="0" role="slider" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="80"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ML-34: "Show history" - every Quick Play row saved by saveQuickPlayHistory, most recent first,
      favourites pulled to the top (alphabetically). modal-content-sticky-footer keeps Close/Load
      reachable at the bottom regardless of how long the list gets, same pattern as the Blocks
@@ -1606,16 +2019,18 @@
     <div class="modal-content"><h2 id="promptTitle">Enter value</h2><input type="text" id="promptInput" style="margin-bottom: 25px;"><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" onclick="closePromptModal()">Cancel</button><button class="btn-submit no-margin" id="promptActionBtn">Save</button></div></div>
 </div>
 
-<div class="modal" id="filterModal">
-    <div class="modal-content"><h2>Filter categories</h2><div class="filter-list"><label class="filter-item"><input type="checkbox" class="cat-filter" value="Practise" checked> <span>Practise</span></label><label class="filter-item"><input type="checkbox" class="cat-filter" value="Rehearsal" checked> <span>Rehearsal</span></label><label class="filter-item"><input type="checkbox" class="cat-filter" value="Lesson" checked> <span>Lesson</span></label><label class="filter-item"><input type="checkbox" class="cat-filter" value="Performance" checked> <span>Performance</span></label></div><div class="filter-actions"><button id="filterAllOn">All on</button><button id="filterAllOff">All off</button></div><button class="btn-submit" id="applyFilterBtn">Apply filters</button></div>
+<!-- ML-175: one shared floating menu for every session history row (same pattern as
+     qpHistoryItemMenu/accountBandMenu), repositioned against whichever row's own 3-dot button was
+     tapped - see openSessionHistoryItemMenu. Delete lives here now instead of inside editModal, so
+     it no longer needs its own delete button there. -->
+<div class="dropdown-menu metroBlk-tile-menu" id="sessionHistoryItemMenu">
+    <div class="dropdown-item" id="sessionHistoryItemEdit">Edit</div>
+    <div class="dropdown-item metroBlk-tile-menu-delete" id="sessionHistoryItemDelete">Delete</div>
 </div>
 
 <div class="modal" id="editModal">
     <div class="modal-content">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h2 class="no-margin">Edit record</h2>
-            <button class="btn-icon-delete" id="deleteEditBtn" type="button" aria-label="Delete entry"><span class="material-symbols-outlined">delete</span></button>
-        </div>
+        <h2 class="no-margin" style="margin-bottom:20px;">Edit record</h2>
         <input type="hidden" id="editRow"><input type="hidden" id="editCat">
         <div class="form-group"><label>Duration (mins)</label><input type="number" id="editDuration"></div>
         <div class="form-group hidden-group" id="editWhoGroup"><label>Who with?</label><select id="editWho"></select></div>
@@ -1636,6 +2051,14 @@
 </div><!-- Close mainContainer -->
 
 <script src="analytics.js"></script>
+<!-- ML-179: @vercel/blob/client's upload() runs entirely in the browser (file goes
+     straight to Blob storage, never through our own server) - app.js is a plain
+     classic script with no bundler, so this tiny module script is the only piece
+     that needs `import`, exposing just the one function app.js actually calls. -->
+<script type="module">
+    import { upload } from 'https://cdn.jsdelivr.net/npm/@vercel/blob@0.27.3/client/+esm';
+    window.vercelBlobUpload = upload;
+</script>
 <script src="app.js"></script>
 
 </body>

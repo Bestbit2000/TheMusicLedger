@@ -75,6 +75,7 @@
                 <button class="admin-subtab-item active" data-subtab="durations" type="button">Durations</button>
                 <button class="admin-subtab-item" data-subtab="timesigs" type="button">Time signatures</button>
                 <button class="admin-subtab-item" data-subtab="speeds" type="button">Playback speeds</button>
+                <button class="admin-subtab-item" data-subtab="flowdefaults" type="button">Flow defaults</button>
             </div>
             <div id="durations-subtab" class="admin-subtab-panel">
                 <p class="admin-intro">Session/timer duration presets - a value typed at the moment it's used, never stored by reference, so there's nothing to check usage against before deleting one.</p>
@@ -90,6 +91,53 @@
                 <p class="admin-intro">Metronome Blocks' play-speed presets - a live playback setting, never stored against a saved block, so there's nothing to check usage against before deleting one.</p>
                 <button class="btn-submit no-margin admin-add-btn" id="addSpeedBtn" type="button">+ Add playback speed</button>
                 <div id="speedsList" class="admin-feature-list">Loading&hellip;</div>
+            </div>
+            <div id="flowdefaults-subtab" class="admin-subtab-panel hidden-group">
+                <p class="admin-intro">What a brand new Flow's very first block starts out as (ML-179 follow-up) - every "Create your own" always gets exactly one block, seeded with these values, same idea as Quick Play's own single default bar. Time signature must match a label in the Time signatures list above; note value must be one of quaver, crotchet, dotted-crotchet, minim, semibreve. An invalid or missing value here falls back to 4/4, 100bpm, 1 bar, crotchet rather than breaking flow creation.</p>
+                <div class="admin-feature">
+                    <div class="admin-feature-header">
+                        <div class="admin-feature-header-text">
+                            <h2>Time signature</h2>
+                            <p id="flowDefaultTimeSigText">Loading&hellip;</p>
+                        </div>
+                        <div class="admin-feature-actions">
+                            <button class="btn-icon-edit" id="editFlowDefaultTimeSigBtn" aria-label="Edit default time signature" type="button"><span class="material-symbols-outlined">edit</span></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-feature">
+                    <div class="admin-feature-header">
+                        <div class="admin-feature-header-text">
+                            <h2>BPM</h2>
+                            <p id="flowDefaultBpmText">Loading&hellip;</p>
+                        </div>
+                        <div class="admin-feature-actions">
+                            <button class="btn-icon-edit" id="editFlowDefaultBpmBtn" aria-label="Edit default bpm" type="button"><span class="material-symbols-outlined">edit</span></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-feature">
+                    <div class="admin-feature-header">
+                        <div class="admin-feature-header-text">
+                            <h2>Bar count</h2>
+                            <p id="flowDefaultBarCountText">Loading&hellip;</p>
+                        </div>
+                        <div class="admin-feature-actions">
+                            <button class="btn-icon-edit" id="editFlowDefaultBarCountBtn" aria-label="Edit default bar count" type="button"><span class="material-symbols-outlined">edit</span></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-feature">
+                    <div class="admin-feature-header">
+                        <div class="admin-feature-header-text">
+                            <h2>Note value (beat unit)</h2>
+                            <p id="flowDefaultNoteValueText">Loading&hellip;</p>
+                        </div>
+                        <div class="admin-feature-actions">
+                            <button class="btn-icon-edit" id="editFlowDefaultNoteValueBtn" aria-label="Edit default note value" type="button"><span class="material-symbols-outlined">edit</span></button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
         <section id="usage-section" class="admin-section hidden-group">
@@ -211,7 +259,7 @@
 <div class="modal" id="configFormModal">
     <div class="modal-content">
         <h2 id="configFormTitle">Edit link</h2>
-        <div class="form-group"><label for="configValueInput">URL</label><input type="text" id="configValueInput" placeholder="https://..."></div>
+        <div class="form-group"><label id="configValueLabel" for="configValueInput">URL</label><input type="text" id="configValueInput" placeholder="https://..."></div>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="configFormCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="configFormSaveBtn" type="button">Save</button>

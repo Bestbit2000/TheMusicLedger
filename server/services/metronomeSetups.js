@@ -299,6 +299,7 @@ export function toSegmentDto(row, fermatas = [], rehearsalMarks = []) {
     gotoSegnoThenCoda: row.goto_segno_then_coda,
     isFirstTimeBar: row.is_first_time_bar,
     isSecondTimeBar: row.is_second_time_bar,
+    repeatEndingNumbers: row.repeat_ending_numbers || [],
     introStartBarOffset: row.intro_start_bar_offset,
     introStartBeatOffset: row.intro_start_beat_offset,
     introEndBarOffset: row.intro_end_bar_offset,

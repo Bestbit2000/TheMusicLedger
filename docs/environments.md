@@ -88,6 +88,10 @@ in `.env` automatically.
 1. Vercel: add a `sandbox` git branch, confirm it deploys as a Preview
    environment, add sandbox-scoped env vars (DB connection string, OAuth
    redirect URIs) separate from production's.
+1a. **ML-179**: attach a Vercel Blob store to the project (Vercel dashboard),
+    which auto-provisions `BLOB_READ_WRITE_TOKEN` for production/preview -
+    then copy that same token into local `.env` (see `.env.example`) for
+    local Flow recordings/documents upload testing.
 2. Register the Microsoft Entra ID app (`ML-43`) and add its Client ID/secret
    per environment.
 3. Add the sandbox URL to the Google OAuth app's authorised redirect URIs.

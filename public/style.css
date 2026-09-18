@@ -116,7 +116,7 @@
 
     .container { width: 100%; max-width: var(--app-max-width); background: var(--container-bg); padding: var(--space-5); box-sizing: border-box; min-height: calc(100vh - 60px); }
 
-    .btn-large, .btn-submit, .btn-nav, .btn-filter { display: block; width: 100%; color: white; border: none; padding: var(--space-4); font-size: var(--font-md); font-weight: bold; border-radius: var(--radius-md); cursor: pointer; margin-bottom: var(--space-4); box-sizing: border-box; text-align: center; }
+    .btn-large, .btn-submit, .btn-nav { display: block; width: 100%; color: white; border: none; padding: var(--space-4); font-size: var(--font-md); font-weight: bold; border-radius: var(--radius-md); cursor: pointer; margin-bottom: var(--space-4); box-sizing: border-box; text-align: center; }
     .btn-large { background: var(--primary-action); color: var(--primary-action-text); font-size: var(--font-lg); padding: 18px; }
     .btn-submit { background: var(--primary-action); color: var(--primary-action-text); }
     .btn-nav { background: var(--nav-action); color: var(--nav-action-text); }
@@ -154,7 +154,34 @@
        do) with a JS-added viewBox and preserveAspectRatio so any source aspect ratio scales to fit
        this same 32px box the material icons use, rather than stretching or overflowing the button. */
     .tool-icon-svg { width: 32px; height: 32px; fill: currentColor; }
-    .btn-filter { background: var(--selection-color); margin: var(--space-4) 0 var(--space-6) 0; padding: var(--space-3); font-size: var(--font-base); }
+
+    /* ML-176: inline filter strip (design system component - see styleguide.html "Filter strip"),
+       replacing the old full-width .btn-filter button + blocking checkbox modal on both the Detailed
+       stats and Session history screens. Leading icon (decorative - "All" already covers "clear
+       filters", see the History/Stats renderHistoryFilterStrip/renderStatsBoxes comments in app.js)
+       plus a horizontal, always-scrollable-if-needed pill track - one shared row per screen that
+       needs a category filter in the future too. */
+    .filter-strip { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-4) 0 var(--space-5) 0; }
+    .filter-strip-icon { position: relative; flex-shrink: 0; width: 40px; height: 40px; border-radius: var(--radius-circle); border: 1px solid var(--input-border); background: var(--input-bg); color: var(--label-color); display: flex; align-items: center; justify-content: center; }
+    /* Active-count badge - only shown once a subset (not all 4) of categories is selected, same
+       hidden-group toggle every other conditional badge/section in the app already uses. */
+    .filter-strip-badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--radius-pill); background: var(--primary-action); color: var(--primary-action-text); font-size: 0.65rem; font-weight: bold; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+    .filter-strip-pills { display: flex; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; cursor: grab; }
+    .filter-strip-pills::-webkit-scrollbar { display: none; }
+    /* Click-and-drag panning (enableDragScroll in app.js) - a mouse has no swipe/two-finger-scroll
+       equivalent, and the scrollbar above is hidden, so without this a desktop user had no way to
+       reach an overflowing pill at all. user-select:none while actually dragging stops the browser's
+       own text-selection drag from fighting it (a plain click still works normally - see that
+       function's own comment). */
+    .filter-strip-pills.dragging { cursor: grabbing; user-select: none; }
+    /* Unselected: plain hollow outline, same language as every other unselected chip/toggle in the
+       app. Selected: tinted with that category's own colour (colorMap in app.js, via the
+       --filter-pill-accent custom property set inline per pill) rather than one flat colour for
+       every category, so the strip doubles as a quick-glance legend - "All" has no category colour
+       of its own, so it falls back to the primary action gold instead. */
+    .filter-pill { flex-shrink: 0; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); border-radius: var(--radius-pill); border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: var(--font-sm); font-weight: bold; cursor: pointer; white-space: nowrap; }
+    .filter-pill.active { border-color: var(--filter-pill-accent, var(--primary-action)); background: color-mix(in srgb, var(--filter-pill-accent, var(--primary-action)) 15%, var(--input-bg)); color: var(--filter-pill-accent, var(--primary-action)); }
+    .filter-pill-count { font-weight: normal; opacity: 0.75; }
 
     .form-group { margin-bottom: var(--space-5); }
     .hidden-group { display: none !important; }
@@ -293,11 +320,6 @@
     .modal-content { background: var(--container-bg); width: 100%; max-width: 400px; padding: var(--space-6); border-radius: var(--radius-xl); box-shadow: var(--shadow-xl); max-height: 90vh; overflow-y: auto;}
     .modal-content h2 { margin-top: 0; margin-bottom: var(--space-5); font-size: 1.4rem; font-weight: var(--font-weight-semibold); }
 
-    .filter-list { display: flex; flex-direction: column; margin-bottom: var(--space-5); border: 1px solid var(--input-border); border-radius: var(--radius-md); overflow: hidden; }
-    .filter-item { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-4); border-bottom: 1px solid var(--input-border); cursor: pointer; background: var(--input-bg); font-weight: bold; margin: 0; color: var(--text-color); }
-    .filter-item input { width: 22px; height: 22px; margin: 0; cursor: pointer; accent-color: var(--selection-color); }
-    .filter-actions { display: flex; gap: var(--space-2); margin-bottom: var(--space-4); }
-    .filter-actions button { flex: 1; padding: var(--space-2); font-weight: bold; border-radius: var(--radius-sm); border: 1px solid var(--input-border); background: var(--secondary-color); color: var(--text-color); cursor: pointer; }
 
     /* white-space: pre-line so a message with an embedded \n (e.g. several validation problems
        reported together - ML-97 follow-up) actually breaks onto its own line instead of running
@@ -686,6 +708,10 @@
     .metroBlk-tile-bpm { font-size: var(--font-sm); color: var(--label-color); }
     .metroBlk-tile-bars { font-size: var(--font-xs); color: var(--label-color); }
     .metroBlk-tile-badge { font-size: var(--font-xs); font-weight: bold; color: var(--selection-color); text-transform: uppercase; }
+    /* Play Flow's own tile headline (ML-179 follow-up) - a rehearsal mark, boxed so it reads as a
+       named section rather than a plain number; .metroBlk-tile-sig itself (same size/weight, no box)
+       is reused for the plain starting-bar-number case. */
+    .metroBlk-tile-mark-box { font-size: var(--font-lg); font-weight: bold; border: 2px solid var(--text-color); border-radius: var(--radius-sm); padding: 0 var(--space-2); line-height: 1.4; }
     .metroBlk-add-tile { min-height: 100px; min-width: 0; background: transparent; border: 2px dashed var(--input-border); border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--label-color); font-size: 2rem; box-sizing: border-box; }
     /* Play Mode's own visual (ML-97/98) - replaces the old "coming next" preview row: whichever
        block is actually sounding right now gets a bold gold border/glow, both on a regular tile and
@@ -1041,10 +1067,14 @@
     .qp-history-item-body { flex-grow: 1; cursor: pointer; display: flex; align-items: center; gap: var(--space-3); }
     .qp-history-item-selected { border-left-color: var(--primary-action); background: rgba(212, 175, 55, 0.12); }
     .qp-history-star { color: var(--primary-action); font-variation-settings: 'FILL' 1; font-size: 20px; }
-    /* Same grey-outline-plus-lighter-fill language as the main Quick Play page's own icon buttons
-       (.qp-bar-menu-btn/.metroBlk-row-volume-btn) rather than .btn-icon-edit's bold, coloured-border
-       look, which read as too heavy/large for a menu trigger sitting inside a compact list row. */
-    .qp-history-item-menu-btn { width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-circle); border: 1px solid var(--input-border); background: var(--input-bg); color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    /* ML-175: generic 3-dot menu trigger for any list row (first used by Quick Play history, now
+       also the session history list) - same grey-outline-plus-lighter-fill language as the main
+       Quick Play page's own icon buttons (.qp-bar-menu-btn/.metroBlk-row-volume-btn) rather than
+       .btn-icon-edit's bold, coloured-border look, which read as too heavy/large for a menu trigger
+       sitting inside a compact list row. Pair with .dropdown-menu.metroBlk-tile-menu (+ .dropdown-item/
+       .metroBlk-tile-menu-delete) for the menu itself - see openQpHistoryItemMenu/openSessionHistoryItemMenu
+       for the shared positioning pattern. */
+    .list-item-menu-btn { width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-circle); border: 1px solid var(--input-border); background: var(--input-bg); color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; }
     /* No :disabled styling existed on .btn-submit anywhere else in the app (nothing else disables
        one) - without this the Load button looked fully enabled (solid gold, pointer cursor) even
        while genuinely disabled, same dimmed-0.4 language every other disableable button already uses. */
@@ -1101,13 +1131,156 @@
     .text-center { text-align: center; }
     .no-margin { margin: 0; }
 
+    /* ML-179 Phase 1: Flow Details Hub. One bordered/rounded "card" shape per
+       section (details/recordings/documents/blocks), same design-system tokens
+       as everywhere else in the app rather than a one-off palette (see the
+       naming/theme note in that ticket's plan) - --container-bg/--input-border/
+       --radius-xl instead of hardcoding either the mockup's light Tailwind
+       colours or the ticket text's separate dark hex spec. */
+    .flow-hub-topline { display: flex; justify-content: flex-end; margin-bottom: var(--space-3); }
+    .flow-card { background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-xl); padding: var(--space-5); margin-bottom: var(--space-4); }
+    .flow-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-4); }
+    .flow-card-label { display: block; font-size: var(--font-xs); font-weight: bold; text-transform: uppercase; letter-spacing: 0.03em; color: var(--label-color); }
+    .flow-card-sublabel { margin: 2px 0 0; font-size: var(--font-sm); color: var(--label-color); }
+    .flow-pill { flex-shrink: 0; font-size: var(--font-xs); font-weight: bold; color: var(--label-color); background: var(--input-bg); border: 1px solid var(--input-border); padding: 3px var(--space-3); border-radius: var(--radius-pill); white-space: nowrap; }
+    .flow-pill-accent { color: var(--primary-action); border-color: var(--primary-action); background: rgba(212, 175, 55, 0.12); }
+    .flow-required { color: var(--danger-color); }
+    .flow-help-text { display: block; font-size: var(--font-xs); color: var(--label-color); margin-top: 4px; }
+
+    .flow-action-row { display: flex; gap: var(--space-3); margin-top: var(--space-3); }
+    .flow-action-row .flow-action-btn { flex: 1; }
+    /* Same neutral/hollow language as Quick Play's own #qpAddBlockBtn rather
+       than a filled primary button - these are secondary "add another item"
+       actions, not the one main action on the card. */
+    .flow-action-btn { display: flex; align-items: center; justify-content: center; gap: var(--space-2); background: var(--input-bg); border: 2px solid var(--input-border); color: var(--text-color); font-size: var(--font-sm); font-weight: bold; padding: var(--space-3); border-radius: var(--radius-lg); cursor: pointer; }
+    .flow-action-btn .material-symbols-outlined { font-size: 18px; }
+    .flow-action-btn-wide { width: 100%; margin-top: var(--space-3); box-sizing: border-box; }
+    /* Extra breathing room below specifically - it was sitting right on top of the first block
+       card below it with only the button's own margin-top for separation. */
+    #flowAddLeadInBtn { margin-bottom: var(--space-4); }
+
+    .flow-upload-progress { margin-top: var(--space-3); padding: var(--space-3); background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); }
+    .flow-upload-progress-text { display: flex; justify-content: space-between; font-size: var(--font-sm); font-weight: bold; margin-bottom: var(--space-2); }
+    .flow-upload-progress-text span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; }
+    .flow-upload-progress-track { background: var(--input-border); height: 8px; border-radius: var(--radius-pill); overflow: hidden; }
+    .flow-upload-progress-fill { background: var(--primary-action); height: 100%; border-radius: var(--radius-pill); transition: width 0.15s; }
+
+    /* Recording/document rows reuse .history-item's own row shape (icon + text +
+       action), just with a type glyph instead of a category colour. Recording rows
+       are stacked (top line + inline player below) rather than .history-item's usual
+       single row, so the player has full row width to sit in - see .flow-media-item
+       below and renderFlowRecordingsList's own comment on why it's an inline player
+       now, not an "open in a new tab" button. */
+    .flow-media-item { flex-direction: column; align-items: stretch; gap: var(--space-3); margin-bottom: var(--space-3); }
+    .flow-doc-item { margin-bottom: var(--space-2); }
+    .flow-media-item-top { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+    .flow-media-icon, .flow-doc-icon { width: 32px; height: 32px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-right: var(--space-3); font-size: 18px; }
+    .flow-media-icon.type-audio { background: rgba(212, 175, 55, 0.18); color: var(--primary-action); }
+    .flow-media-icon.type-youtube { background: rgba(244, 67, 54, 0.15); color: var(--danger-color); }
+    .flow-doc-icon { background: rgba(33, 150, 243, 0.15); color: var(--info-color); font-size: 11px; font-weight: bold; }
+    .flow-media-item .history-details, .flow-doc-item .history-details { display: flex; align-items: center; }
+    .flow-media-item .history-details strong, .flow-doc-item .history-details strong { display: block; font-size: var(--font-sm); }
+    .flow-media-item .history-details span, .flow-doc-item .history-details span { display: block; font-size: var(--font-xs); color: var(--label-color); }
+    .flow-doc-item-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
+    /* Same grey-outline "clickable circle" shape as .list-item-menu-btn, tinted red for delete
+       rather than .btn-icon-delete's solid red fill - Recordings/Documents rows delete far more
+       casually than a whole flow (see flowHubMenuDelete), so it shouldn't read as loudly. */
+    .flow-delete-btn { width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-circle); border: 1px solid var(--input-border); background: var(--input-bg); color: var(--danger-color); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    /* Native <audio> controls, full row width - no extra chrome needed for a compact,
+       "just play it" control. */
+    .flow-media-player-audio { width: 100%; height: 40px; }
+    /* YouTube iframe / <video> both need a real box to sit in, unlike <audio> - fixed
+       16:9 aspect ratio so the row's height is predictable regardless of source. */
+    .flow-media-player-video { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--radius-md); overflow: hidden; background: #000; }
+    .flow-media-player-video iframe, .flow-media-player-video video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+    .flow-blocks-card { border: 2px solid rgba(212, 175, 55, 0.4); }
+    /* .no-margin on this button (avoids unwanted space below it, inside the card, since it's the
+       last element) strips its bottom margin but leaves no gap above it either - add that back
+       without reintroducing the bottom one. */
+    .flow-blocks-card .btn-submit { margin-top: var(--space-4); }
+
+    /* ML-179 Phase 2: Blocks Studio (Full density view). */
+    .flow-studio-summary { text-align: center; font-weight: bold; color: var(--label-color); margin-bottom: var(--space-4); }
+    .flow-lead-in-card { border: 2px solid var(--primary-action); margin-bottom: var(--space-3); }
+    .flow-lead-in-card .flow-card-header { margin-bottom: var(--space-3); }
+    /* Reorderable block cards - same rounded-card language as .flow-card, plus a drag handle and
+       rehearsal-mark badge in the header (mirrors Quick Play's own qp-bar-grab-handle rather than
+       Blocks' handle-less whole-tile drag, since these cards are busier/denser). */
+    .flow-block-card { background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-xl); padding: var(--space-4); margin-bottom: var(--space-3); touch-action: none; }
+    .flow-block-card.dragging { opacity: 0.5; }
+    .flow-block-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
+    .flow-block-card-title { display: flex; align-items: center; gap: var(--space-2); }
+    .flow-block-grab-handle { width: 32px; height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--label-color); cursor: grab; }
+    .flow-block-grab-handle:active { cursor: grabbing; }
+    .flow-block-name { font-weight: bold; font-size: var(--font-md); }
+    /* A <button> now (tappable to edit), not just a display badge - reset the native button
+       chrome so it still reads as the same small pill it always was. */
+    /* Mark box - same slot whether filled or empty (ML-179 follow-up) so the layout never shifts
+       between the two states: a plain "+" in the same neutral-tile language as .flow-tile when
+       there's no mark yet, gold border/text (matching every other "this has content" tile below)
+       once one's set. Both share a fixed square footprint. */
+    .flow-block-mark-box, .flow-block-mark-empty { font: inherit; font-size: var(--font-md); font-weight: bold; border-radius: var(--radius-sm); cursor: pointer; width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0; box-sizing: border-box; }
+    .flow-block-mark-empty { color: var(--label-color); background: var(--input-bg); border: 1px solid var(--input-border); }
+    .flow-block-mark-box { color: var(--primary-action); background: transparent; border: 2px solid var(--primary-action); }
+
+    /* Generic tile grid - the Block Inspector's own 4x3 shape, and the lead-in's 3-tile row,
+       share this same primitive rather than each having bespoke grid CSS. */
+    .flow-tile-grid { display: grid; gap: var(--space-2); }
+    .flow-tile-grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .flow-tile-grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .flow-tile-section { margin-bottom: var(--space-4); }
+    .flow-tile-section:last-of-type { margin-bottom: 0; }
+    .flow-tile-section-label { display: block; font-size: var(--font-xs); font-weight: bold; color: var(--label-color); margin-bottom: var(--space-2); }
+    /* Same "tap opens a picker" tile shape used both inside the Block Inspector Modal and inline
+       for the lead-in's own 3 tiles - light hollow card, no heavy border, gold on select-state
+       controls elsewhere already covers "this is active", so plain neutral here is enough for
+       "tap to change". */
+    .flow-tile { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; min-height: 56px; }
+    .flow-tile-value { font-size: var(--font-md); font-weight: bold; color: var(--text-color); line-height: 1; }
+    .flow-tile-label { font-size: var(--font-xs); color: var(--label-color); }
+    /* metroNoteIconSvg's paths all use fill/stroke="currentColor" - sizing/coloring the icon is
+       just sizing/coloring this wrapper. */
+    .flow-tile-value svg { height: 1.6em; width: auto; color: inherit; }
+    /* "This has something set" (ML-179 follow-up) - gold border + gold value text/icon, applied to
+       whichever of the optional Repeats/intro/Changes/jumps tiles currently holds a real value
+       instead of "None"/the plain default. Core row (time/beat unit/bpm/bars) never uses this -
+       those are always a concrete value, there's no meaningful "empty" state for them. */
+    .flow-tile-filled { border-color: var(--primary-action); }
+    .flow-tile-filled .flow-tile-value { color: var(--primary-action); }
+
+    /* Reused inside #flowChoiceModal for every discrete-option tile. */
+    .flow-choice-option { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border: 2px solid var(--input-border); border-radius: var(--radius-lg); margin-bottom: var(--space-2); cursor: pointer; font-weight: bold; }
+    .flow-choice-option.selected { border-color: var(--primary-action); background: rgba(212, 175, 55, 0.12); color: var(--primary-action); }
+    .flow-choice-option .material-symbols-outlined { color: var(--primary-action); }
+    /* Sign picker (segno/coda) - horizontal row of icon buttons instead of the generic vertical
+       list, same .selected gold language (its color propagates to the icon's own currentColor). */
+    .flow-choice-options-horizontal { display: flex; gap: var(--space-2); }
+    .flow-choice-options-horizontal .flow-choice-option { flex: 1; flex-direction: column; justify-content: center; gap: var(--space-2); margin-bottom: 0; }
+    .flow-sign-svg { width: 32px; height: 32px; }
+    /* Sized to sit inline with surrounding text (jump tile labels like "D.<segno>") - matches the
+       text's own line-height rather than a fixed pixel size. */
+    .flow-sign-svg-inline { width: 1em; height: 1em; vertical-align: -0.15em; }
+
+    /* Inline extra control shown below the choice list itself (ML-179 follow-up) - e.g. the
+       repeat-count slider once "Repeat end" is picked - rather than stacking a second popup on
+       top of the first. */
+    .flow-choice-inline-extra { margin-top: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--input-border); }
+
+    /* Repeat-ending multi-select (1-10) - each number toggles independently, gold when selected. */
+    .flow-multiselect-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-2); margin: var(--space-3) 0; }
+    .flow-multiselect-num { display: flex; align-items: center; justify-content: center; height: 44px; border-radius: var(--radius-md); border: 2px solid var(--input-border); font-weight: bold; cursor: pointer; background: var(--input-bg); color: var(--text-color); }
+    .flow-multiselect-num.selected { border-color: var(--primary-action); background: rgba(212, 175, 55, 0.12); color: var(--primary-action); }
+
+    .flow-fermata-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-3); background: var(--input-bg); border-radius: var(--radius-md); margin-bottom: var(--space-2); }
+
     /* Mobile responsive - remove max-width and adjust spacing */
     @media (max-width: 768px) {
         body { align-items: stretch; }
         .top-bar { max-width: 100%; padding: 12px 15px; }
         .top-bar-title { font-size: 1.1rem; }
         .container { max-width: 100%; padding: 15px; min-height: calc(100vh - 55px); }
-        .btn-large, .btn-submit, .btn-nav, .btn-filter { padding: 14px; font-size: 1rem; }
+        .btn-large, .btn-submit, .btn-nav { padding: 14px; font-size: 1rem; }
         .form-group { margin-bottom: 15px; }
         label { margin-bottom: 6px; font-size: 0.95rem; }
         input, select { padding: 10px 12px; font-size: 16px; }
@@ -1132,7 +1305,7 @@
         .top-bar { padding: 10px 12px; }
         .top-bar-title { font-size: 1rem; }
         .container { padding: 12px; }
-        .btn-large, .btn-submit, .btn-nav, .btn-filter { padding: 12px; font-size: 0.95rem; margin-bottom: 12px; }
+        .btn-large, .btn-submit, .btn-nav { padding: 12px; font-size: 0.95rem; margin-bottom: 12px; }
         input, select { font-size: 16px; padding: 10px; }
         .dashboard-grid { gap: 6px; }
         .stat-card { padding: 10px; }
