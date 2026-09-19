@@ -6,6 +6,7 @@
 
 import express from 'express';
 import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader } from '../middleware/auth.js';
+import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, joinBand, leaveBand, createSharedBand, deleteBandIfSoleMember } from '../services/bands.js';
 import { getAccountProfile, updateAccountProfile } from '../services/accounts.js';
@@ -87,7 +88,7 @@ router.get('/dropdown-options', requireAuth, resolveAccount, async (req, res) =>
     res.json({ organisations, teachers, durations });
   } catch (error) {
     console.error('Dropdown options error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -111,7 +112,7 @@ router.post('/sessions', requireAuth, resolveAccount, async (req, res) => {
     res.json({ message: `Saved ${duration} mins!`, category, row: Number(rows[0].id) });
   } catch (error) {
     console.error('Session save error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -138,7 +139,7 @@ router.get('/sessions', requireAuth, resolveAccount, async (req, res) => {
     })));
   } catch (error) {
     console.error('Sessions fetch error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -162,7 +163,7 @@ router.put('/sessions/:row', requireAuth, resolveAccount, async (req, res) => {
     res.json({ message: 'Session updated', row });
   } catch (error) {
     console.error('Session update error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -173,7 +174,7 @@ router.delete('/sessions/:row', requireAuth, resolveAccount, async (req, res) =>
     res.json({ message: 'Session deleted' });
   } catch (error) {
     console.error('Session delete error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -186,7 +187,7 @@ router.post('/settings/organisations', requireAuth, resolveAccount, async (req, 
     const [organisations, teachers] = await Promise.all([listBands(req.accountId), listTutors()]);
     res.json({ organisations, teachers });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -196,7 +197,7 @@ router.post('/settings/teachers', requireAuth, resolveAccount, async (req, res) 
     const [organisations, teachers] = await Promise.all([listBands(req.accountId), listTutors()]);
     res.json({ organisations, teachers });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -206,7 +207,7 @@ router.put('/settings/organisations', requireAuth, resolveAccount, async (req, r
     await renameBand(req.accountId, oldName, newName);
     res.json({ message: 'Organisation renamed' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -216,7 +217,7 @@ router.put('/settings/teachers', requireAuth, resolveAccount, async (req, res) =
     await renameTutor(oldName, newName);
     res.json({ message: 'Teacher renamed' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -236,7 +237,7 @@ router.get('/settings/lists-with-usage', requireAuth, resolveAccount, async (req
 
     res.json({ organisations: organisationsWithUsage, teachers: teachersWithUsage });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -249,7 +250,7 @@ router.delete('/settings/organisations/:name', requireAuth, resolveAccount, asyn
       archived
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -262,7 +263,7 @@ router.delete('/settings/teachers/:name', requireAuth, resolveAccount, async (re
       archived
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -271,7 +272,7 @@ router.post('/settings/organisations/:name/unarchive', requireAuth, resolveAccou
     await unarchiveBand(req.accountId, decodeURIComponent(req.params.name));
     res.json({ message: 'Organisation unarchived' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -280,7 +281,7 @@ router.post('/settings/teachers/:name/unarchive', requireAuth, resolveAccount, a
     await unarchiveTutor(decodeURIComponent(req.params.name));
     res.json({ message: 'Teacher unarchived' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -294,7 +295,7 @@ router.get('/account', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await getAccountProfile(req.accountId));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -304,7 +305,7 @@ router.put('/account', requireAuth, resolveAccount, async (req, res) => {
     await updateAccountProfile(req.accountId, { firstName, surname });
     res.json({ message: 'Account updated' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -315,7 +316,7 @@ router.get('/account/bands', requireAuth, resolveAccount, async (req, res) => {
     const [allBands, myBands] = await Promise.all([listAllBands(), getAccountBands(req.accountId)]);
     res.json({ allBands, myBands });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -328,7 +329,7 @@ router.post('/account/bands', requireAuth, resolveAccount, async (req, res) => {
     const { name, website } = req.body;
     res.json({ band: await createSharedBand(req.accountId, name, website) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -337,7 +338,7 @@ router.post('/account/bands/:id/join', requireAuth, resolveAccount, async (req, 
     await joinBand(req.accountId, req.params.id);
     res.json({ message: 'Joined band' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -346,7 +347,7 @@ router.delete('/account/bands/:id', requireAuth, resolveAccount, async (req, res
     await leaveBand(req.accountId, req.params.id);
     res.json({ message: 'Left band' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -358,7 +359,7 @@ router.delete('/account/bands/:id/full', requireAuth, resolveAccount, async (req
     await deleteBandIfSoleMember(req.accountId, req.params.id);
     res.json({ message: 'Band deleted' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -401,7 +402,7 @@ router.get('/challenges', requireAuth, resolveAccount, async (req, res) => {
     })));
   } catch (error) {
     console.error('Challenges fetch error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -447,7 +448,7 @@ router.post('/challenges', requireAuth, resolveAccount, async (req, res) => {
     res.json({ newId: String(challengeId) });
   } catch (error) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   } finally {
     client.release();
   }
@@ -500,7 +501,7 @@ router.put('/challenges/:row', requireAuth, resolveAccount, async (req, res) => 
 
     res.json({ message: 'Challenge updated' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -528,7 +529,7 @@ router.post('/challenges/group/:id/items', requireAuth, resolveAccount, async (r
 
     res.json({ message: 'Task added' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -557,7 +558,7 @@ router.put('/challenges/group/:id', requireAuth, resolveAccount, async (req, res
 
     res.json({ message: 'Challenge updated', updated });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -568,7 +569,7 @@ router.delete('/challenges/group/:id', requireAuth, resolveAccount, async (req, 
     await pool.query('DELETE FROM challenges WHERE id = $1 AND account_id = $2', [id, req.accountId]);
     res.json({ message: 'Challenge deleted', deleted: Number(itemCount.rows[0].count) });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -585,7 +586,7 @@ router.put('/challenges/:id/close', requireAuth, resolveAccount, async (req, res
     );
     res.json({ message: 'Challenge closed', updated: result.rowCount });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -599,7 +600,7 @@ router.delete('/challenges/:row', requireAuth, resolveAccount, async (req, res) 
     );
     res.json({ message: 'Challenge deleted' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -613,7 +614,7 @@ router.get('/time-signatures', requireAuth, resolveAccount, async (req, res) => 
   try {
     res.json(await listTimeSignatureOptions(req.accountId));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -623,7 +624,7 @@ router.get('/metronome/playback-speeds', requireAuth, resolveAccount, async (req
   try {
     res.json(await listActivePlaybackSpeeds());
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -632,7 +633,7 @@ router.post('/time-signatures/custom', requireAuth, resolveAccount, async (req, 
     const { numerator, denominator } = req.body;
     res.json(await createCustomTimeSignature(req.accountId, Number(numerator), Number(denominator)));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -643,7 +644,7 @@ router.get('/time-signatures/custom', requireAuth, resolveAccount, async (req, r
   try {
     res.json(await listCustomTimeSignaturesWithUsage(req.accountId));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -652,7 +653,7 @@ router.put('/time-signatures/custom/:id', requireAuth, resolveAccount, async (re
     await setCustomTimeSignatureActive(req.accountId, req.params.id, !!req.body.active);
     res.json({ message: 'Updated' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -661,7 +662,7 @@ router.delete('/time-signatures/custom/:id', requireAuth, resolveAccount, async 
     await deleteCustomTimeSignature(req.accountId, req.params.id);
     res.json({ message: 'Deleted' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -669,7 +670,7 @@ router.get('/metronome/setups', requireAuth, resolveAccount, async (req, res) =>
   try {
     res.json(await listAdhocSetups(req.accountId));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -679,7 +680,7 @@ router.get('/metronome/history', requireAuth, resolveAccount, async (req, res) =
   try {
     res.json(await listQuickPlayHistory(req.accountId));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -688,7 +689,7 @@ router.post('/metronome/setups', requireAuth, resolveAccount, async (req, res) =
     const { name } = req.body;
     res.json(await createAdhocSetup(req.accountId, name));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -699,7 +700,7 @@ router.get('/metronome/setups/scratch', requireAuth, resolveAccount, async (req,
   try {
     res.json(await getOrCreateScratchSetup(req.accountId));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -711,7 +712,7 @@ router.post('/metronome/setups/named', requireAuth, resolveAccount, async (req, 
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required.' });
     res.json(await createNamedAdhocSetup(req.accountId, name.trim()));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -719,7 +720,7 @@ router.get('/metronome/setups/:id', requireAuth, resolveAccount, async (req, res
   try {
     res.json(await getAdhocSetupWithSegments(req.accountId, req.params.id));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -729,7 +730,7 @@ router.put('/metronome/setups/:id', requireAuth, resolveAccount, async (req, res
     await renameAdhocSetup(req.accountId, req.params.id, name);
     res.json({ message: 'Setup updated' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -740,7 +741,7 @@ router.put('/metronome/setups/:id/favorite', requireAuth, resolveAccount, async 
     await setAdhocSetupFavorite(req.accountId, req.params.id, isFavorite);
     res.json({ message: 'Setup updated' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -749,7 +750,7 @@ router.delete('/metronome/setups/:id', requireAuth, resolveAccount, async (req, 
     await deleteAdhocSetup(req.accountId, req.params.id);
     res.json({ message: 'Setup deleted' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -761,7 +762,7 @@ router.post('/metronome/setups/:id/duplicate', requireAuth, resolveAccount, asyn
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required.' });
     res.json(await duplicateAdhocSetup(req.accountId, req.params.id, name.trim()));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -775,7 +776,7 @@ router.post('/metronome/setups/:id/save', requireAuth, resolveAccount, async (re
     await saveAdhocSetup(req.accountId, req.params.id, name.trim());
     res.json({ message: 'Setup saved' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -791,7 +792,7 @@ router.post('/metronome/quick-play', requireAuth, resolveAccount, async (req, re
     }
     res.json(await createQuickPlaySetup(req.accountId, name, blocks));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -805,7 +806,7 @@ router.put('/metronome/history/:id', requireAuth, resolveAccount, async (req, re
     }
     res.json(await overwriteQuickPlayHistorySegments(req.accountId, req.params.id, blocks));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -815,7 +816,7 @@ router.post('/metronome/history/:id/duplicate', requireAuth, resolveAccount, asy
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required.' });
     res.json(await duplicateQuickPlayHistory(req.accountId, req.params.id, name.trim()));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -823,7 +824,7 @@ router.post('/metronome/setups/:id/segments', requireAuth, resolveAccount, async
   try {
     res.json(await createSegment(req.accountId, req.params.id, req.body));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -831,7 +832,7 @@ router.put('/metronome/segments/:segId', requireAuth, resolveAccount, async (req
   try {
     res.json(await updateSegment(req.accountId, req.params.segId, req.body));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -840,7 +841,7 @@ router.delete('/metronome/segments/:segId', requireAuth, resolveAccount, async (
     await deleteSegment(req.accountId, req.params.segId);
     res.json({ message: 'Block deleted' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -854,7 +855,7 @@ router.get('/flows', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await listFlows(req.accountId));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -867,7 +868,7 @@ router.post('/flows', requireAuth, resolveAccount, async (req, res) => {
     await createFlowBlock(req.accountId, flow.id, defaults);
     res.json(await getFlowDetail(req.accountId, flow.id));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -875,7 +876,7 @@ router.get('/flows/:id', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await getFlowDetail(req.accountId, req.params.id));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -883,7 +884,7 @@ router.put('/flows/:id', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await updateFlowMetadata(req.accountId, req.params.id, req.body || {}));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -891,7 +892,7 @@ router.put('/flows/:id/move-to-band', requireAuth, resolveAccount, async (req, r
   try {
     res.json(await moveFlowToBand(req.accountId, req.params.id, req.body?.bandId));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -899,7 +900,7 @@ router.put('/flows/:id/remove-from-band', requireAuth, resolveAccount, async (re
   try {
     res.json(await removeFlowFromBand(req.accountId, req.params.id));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -907,7 +908,7 @@ router.put('/flows/:id/publish', requireAuth, resolveAccount, async (req, res) =
   try {
     res.json(await publishFlow(req.accountId, req.params.id));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -915,7 +916,7 @@ router.put('/flows/:id/unpublish', requireAuth, resolveAccount, async (req, res)
   try {
     res.json(await unpublishFlow(req.accountId, req.params.id));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -924,7 +925,7 @@ router.delete('/flows/:id', requireAuth, resolveAccount, async (req, res) => {
     await deleteFlow(req.accountId, req.params.id);
     res.json({ message: 'Flow deleted' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -936,7 +937,7 @@ router.post('/flows/:id/duplicate', requireAuth, resolveAccount, async (req, res
     await copyAllFlowBlocks(req.params.id, newId);
     res.json(await getFlowDetail(req.accountId, newId));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -964,7 +965,7 @@ router.post('/flows/:id/recordings/upload-token', requireAuthFromQueryOrHeader, 
     });
     res.json(result);
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -972,7 +973,7 @@ router.post('/flows/:id/recordings', requireAuth, resolveAccount, async (req, re
   try {
     res.json(await addUploadedRecording(req.accountId, req.params.id, req.body || {}));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -980,7 +981,7 @@ router.post('/flows/:id/recordings/youtube', requireAuth, resolveAccount, async 
   try {
     res.json(await addYouTubeRecording(req.accountId, req.params.id, req.body || {}));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -988,7 +989,7 @@ router.delete('/flows/:id/recordings/:recordingId', requireAuth, resolveAccount,
   try {
     res.json(await deleteRecording(req.accountId, req.params.id, req.params.recordingId));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -1013,7 +1014,7 @@ router.post('/flows/:id/documents/upload-token', requireAuthFromQueryOrHeader, r
     });
     res.json(result);
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -1021,7 +1022,7 @@ router.post('/flows/:id/documents', requireAuth, resolveAccount, async (req, res
   try {
     res.json(await addDocument(req.accountId, req.params.id, req.body || {}));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -1029,7 +1030,7 @@ router.delete('/flows/:id/documents/:documentId', requireAuth, resolveAccount, a
   try {
     res.json(await deleteDocument(req.accountId, req.params.id, req.params.documentId));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -1043,7 +1044,7 @@ router.get('/flows/:id/blocks', requireAuth, resolveAccount, async (req, res) =>
   try {
     res.json(await listFlowBlocks(req.accountId, req.params.id));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -1051,7 +1052,7 @@ router.post('/flows/:id/blocks', requireAuth, resolveAccount, async (req, res) =
   try {
     res.json(await createFlowBlock(req.accountId, req.params.id, req.body));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -1059,7 +1060,7 @@ router.put('/flows/:id/blocks/reorder', requireAuth, resolveAccount, async (req,
   try {
     res.json(await reorderFlowBlocks(req.accountId, req.params.id, req.body?.orderedIds || []));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -1067,7 +1068,7 @@ router.put('/flows/blocks/:blockId', requireAuth, resolveAccount, async (req, re
   try {
     res.json(await updateFlowBlock(req.accountId, req.params.blockId, req.body));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -1076,7 +1077,7 @@ router.delete('/flows/blocks/:blockId', requireAuth, resolveAccount, async (req,
     await deleteFlowBlock(req.accountId, req.params.blockId);
     res.json({ message: 'Block deleted' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -1084,7 +1085,7 @@ router.post('/flows/blocks/:blockId/duplicate', requireAuth, resolveAccount, asy
   try {
     res.json(await duplicateFlowBlock(req.accountId, req.params.blockId));
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 

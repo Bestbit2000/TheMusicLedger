@@ -7,6 +7,7 @@ import passport from './config/passport.js';
 import authRoutes from './routes/auth.js';
 import apiRoutes from './routes/api.js';
 import adminRoutes from './routes/admin.js';
+import { sendError } from './utils/httpErrors.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -56,10 +57,11 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(publicPath, 'index.html'));
 });
 
-// Error handling
+// Error handling - same sendError helper every route's own try/catch uses (server/utils/
+// httpErrors.js), for anything that somehow escapes those instead (e.g. a synchronous throw
+// outside a route handler).
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  sendError(res, err);
 });
 
 export default app;

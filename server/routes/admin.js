@@ -10,6 +10,7 @@
 
 import express from 'express';
 import { requireAuth, resolveAccount, requireSuperAdmin } from '../middleware/auth.js';
+import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listAccountsForAdmin, setAccountLevel } from '../services/accounts.js';
 import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin } from '../services/bands.js';
@@ -106,7 +107,7 @@ router.get('/backtest', requireAuth, resolveAccount, requireSuperAdmin, async (r
     });
   } catch (error) {
     console.error('Admin backtest fetch error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -161,7 +162,7 @@ router.get('/test-cases', requireAuth, resolveAccount, requireSuperAdmin, async 
     });
   } catch (error) {
     console.error('Admin test-cases fetch error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -187,7 +188,7 @@ router.get('/features', requireAuth, resolveAccount, requireSuperAdmin, async (r
     res.json({ features: rows.map(toFeature) });
   } catch (error) {
     console.error('Admin features fetch error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -208,7 +209,7 @@ router.post('/features', requireAuth, resolveAccount, requireSuperAdmin, async (
       return res.status(409).json({ error: `A feature with key "${req.body.featureKey}" already exists` });
     }
     console.error('Admin feature create error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -230,7 +231,7 @@ router.put('/features/:id', requireAuth, resolveAccount, requireSuperAdmin, asyn
       return res.status(409).json({ error: `A feature with key "${req.body.featureKey}" already exists` });
     }
     console.error('Admin feature update error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -244,7 +245,7 @@ router.delete('/features/:id', requireAuth, resolveAccount, requireSuperAdmin, a
     res.json({ message: 'Feature deleted' });
   } catch (error) {
     console.error('Admin feature delete error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -256,7 +257,7 @@ router.get('/accounts', requireAuth, resolveAccount, requireSuperAdmin, async (r
     res.json({ accounts: await listAccountsForAdmin() });
   } catch (error) {
     console.error('Admin accounts fetch error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -265,7 +266,7 @@ router.put('/accounts/:id/level', requireAuth, resolveAccount, requireSuperAdmin
     await setAccountLevel(req.params.id, req.body.accountLevel);
     res.json({ message: 'Account level updated' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -280,7 +281,7 @@ router.get('/bands', requireAuth, resolveAccount, requireSuperAdmin, async (req,
     res.json({ bands: await listBandsForAdmin() });
   } catch (error) {
     console.error('Admin bands fetch error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -289,7 +290,7 @@ router.post('/bands', requireAuth, resolveAccount, requireSuperAdmin, async (req
     const { name, website } = req.body;
     res.json({ band: await createSharedBand(req.accountId, name, website) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -299,7 +300,7 @@ router.put('/bands/:id', requireAuth, resolveAccount, requireSuperAdmin, async (
     await updateBandAdmin(req.params.id, { name, website, contactEmail });
     res.json({ message: 'Band updated' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -311,7 +312,7 @@ router.delete('/bands/:id', requireAuth, resolveAccount, requireSuperAdmin, asyn
     res.json({ message: archived ? 'Band archived (still in use)' : 'Band deleted', archived });
   } catch (error) {
     console.error('Admin band delete error:', error);
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -325,7 +326,7 @@ router.get('/durations', requireAuth, resolveAccount, requireSuperAdmin, async (
   try {
     res.json({ durations: await listDurationOptionsForAdmin() });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -333,7 +334,7 @@ router.post('/durations', requireAuth, resolveAccount, requireSuperAdmin, async 
   try {
     res.json({ duration: await createDurationOption(req.body.minutes) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -343,7 +344,7 @@ router.put('/durations/:id', requireAuth, resolveAccount, requireSuperAdmin, asy
     await updateDurationOption(req.params.id, { minutes, sortOrder, active });
     res.json({ message: 'Duration updated' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -352,7 +353,7 @@ router.delete('/durations/:id', requireAuth, resolveAccount, requireSuperAdmin, 
     await deleteDurationOption(req.params.id);
     res.json({ message: 'Duration deleted' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -360,7 +361,7 @@ router.get('/time-signatures', requireAuth, resolveAccount, requireSuperAdmin, a
   try {
     res.json({ timeSignatures: await listTimeSignatureOptionsForAdmin() });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -369,7 +370,7 @@ router.post('/time-signatures', requireAuth, resolveAccount, requireSuperAdmin, 
     const { numerator, denominator, label } = req.body;
     res.json({ timeSignature: await createTimeSignatureOption(numerator, denominator, label) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -379,7 +380,7 @@ router.put('/time-signatures/:id', requireAuth, resolveAccount, requireSuperAdmi
     await updateTimeSignatureOption(req.params.id, { numerator, denominator, label, sortOrder, active });
     res.json({ message: 'Time signature updated' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -389,7 +390,7 @@ router.delete('/time-signatures/:id', requireAuth, resolveAccount, requireSuperA
     const archived = await deleteOrArchiveTimeSignatureOption(req.params.id);
     res.json({ message: archived ? 'Time signature archived (still in use)' : 'Time signature deleted', archived });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -403,7 +404,7 @@ router.get('/usage/note-values', requireAuth, resolveAccount, requireSuperAdmin,
   try {
     res.json({ noteValues: await listNoteValueUsage() });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -413,7 +414,7 @@ router.get('/usage/durations', requireAuth, resolveAccount, requireSuperAdmin, a
   try {
     res.json({ durationUsage: await listDurationUsageStats() });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -421,7 +422,7 @@ router.get('/playback-speeds', requireAuth, resolveAccount, requireSuperAdmin, a
   try {
     res.json({ playbackSpeeds: await listPlaybackSpeedsForAdmin() });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -429,7 +430,7 @@ router.post('/playback-speeds', requireAuth, resolveAccount, requireSuperAdmin, 
   try {
     res.json({ playbackSpeed: await createPlaybackSpeedOption(req.body.percent) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -439,7 +440,7 @@ router.put('/playback-speeds/:id', requireAuth, resolveAccount, requireSuperAdmi
     await updatePlaybackSpeedOption(req.params.id, { percent, active });
     res.json({ message: 'Playback speed updated' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -448,7 +449,7 @@ router.delete('/playback-speeds/:id', requireAuth, resolveAccount, requireSuperA
     await deletePlaybackSpeedOption(req.params.id);
     res.json({ message: 'Playback speed deleted' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -461,7 +462,7 @@ router.get('/config/:key', requireAuth, resolveAccount, requireSuperAdmin, async
   try {
     res.json({ key: req.params.key, value: await getConfigValue(req.params.key) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
@@ -469,7 +470,7 @@ router.put('/config/:key', requireAuth, resolveAccount, requireSuperAdmin, async
   try {
     res.json({ key: req.params.key, value: await setConfigValue(req.params.key, req.body.value) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    sendError(res, error);
   }
 });
 
