@@ -137,14 +137,26 @@ Notes on fields that took a few passes to nail down:
   (ML-103 follow-up), not an all-or-nothing group of four - an intro can span more than one block,
   so one block might carry just the start, another just the end, another both (a self-contained
   intro), or neither.
-- **Tempo ramp**: anchored at its *start*, not its landing point —
-  `ramp_start_bar_offset`/`ramp_start_beat_offset` mark where acceleration begins within
-  this segment; it ramps forward and lands on the *next* segment's own `bpm` at the
-  segment boundary. No separate target-tempo field. **`ramp_duration_bars`** (ML-103,
-  nullable): how many bars after the start offset it takes to actually reach that
-  target - may land before the segment itself ends. NULL alongside a set ramp start
-  keeps the original behaviour above (runs to the end of the segment); only meaningful
-  when a ramp start is set.
+- **Tempo ramp** (single, legacy): `ramp_start_bar_offset`/`ramp_start_beat_offset` mark
+  where acceleration begins within this segment; it ramps forward and lands on the *next*
+  segment's own `bpm` at the segment boundary. **`ramp_duration_bars`** (ML-103, nullable):
+  how many bars after the start offset it takes to actually reach that target - may land
+  before the segment itself ends. NULL alongside a set ramp start keeps the original
+  behaviour above (runs to the end of the segment); only meaningful when a ramp start is
+  set. Only ever supported one ramp per segment - still read/written by the ad-hoc
+  Metronome Blocks tool's own "Speed change" card, left in place unused for Flow blocks.
+- **Tempo ramps (list, current)**: `metronome_segment_ramps` (ML-179 follow-up) - a block
+  can hold multiple ramps, so it's a child table (`segment_id` FK, same shape as
+  `metronome_segment_fermatas`) rather than fixed columns, same "superseded, not removed"
+  precedent as `rehearsal_mark`/`metronome_segment_rehearsal_marks` above. Each row has its
+  own `start_bar_offset`/`start_beat_offset`; an end point that's either `end_mode =
+  'block_end'` (runs to the end of the block, no `end_bar_offset`/`end_beat_offset`) or
+  `end_mode = 'specific'` (a mid-block landing point, both offsets set); and a target speed
+  that's either `target_mode = 'next_block'` (defers to whatever bpm the following block
+  ends up with - only meaningful alongside `end_mode = 'block_end'`, since a specific
+  mid-block end can't defer to a value that isn't decided until the block boundary) or
+  `target_mode = 'custom'` (a fixed `target_bpm`). This is Flow's own picker
+  (`#flowRampModal`) - the ad-hoc tool keeps using the single legacy columns above.
 - **Journey/repeat wiring** (ML-103): `is_repeat_start`/`is_repeat_end`, `is_coda`,
   `goto_coda`, `goto_start_dc`, `is_first_time_bar`/`is_second_time_bar` and
   `rehearsal_mark` were all added in the original ML-35 migration but sat dormant

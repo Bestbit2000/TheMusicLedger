@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport-fit=cover is required for env(safe-area-inset-*) to resolve to a real value on iOS
+         (Edit Flow's sticky bottom bar uses it for the home indicator) - without it every safe-area
+         inset is just 0, silently. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>The Music Ledger</title>
 
     <link rel="manifest" href="manifest.json">
@@ -16,7 +19,11 @@
     <meta name="apple-mobile-web-app-title" content="Music Ledger">
 
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <!-- Noto Music covers the real Segno (U+1D10B)/Coda (U+1D10C) glyphs from Unicode's Musical
+         Symbols block - loaded as a proper web font (not left to whatever's on the system) so the
+         Jump sign picker/tile can use the actual notation characters instead of a hand-drawn
+         approximation - see flowSignIconSvg (app.js). -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&family=Noto+Music" />
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -630,6 +637,14 @@
                     <strong>Load from library</strong>
                     <span class="metro-help-text">Open one of your saved flows</span>
                 </button>
+                <!-- Not wired up yet - importing a PDF/score needs an extra step (picking the file,
+                     presumably some parsing/review flow) that's still to be designed, so this is a
+                     plain unclickable div for now, not a button. -->
+                <div class="metroBlk-entry-choice metroBlk-entry-choice-disabled" aria-disabled="true">
+                    <span class="material-symbols-outlined" aria-hidden="true">upload_file</span>
+                    <strong>Create from file</strong>
+                    <span class="metro-help-text">Import from a PDF or music score (coming soon)</span>
+                </div>
             </div>
             <!-- No in-panel "Back" any more - the top header's own "<" already does that (leaving and
                  re-entering the tool lands back on the two-choice screen anyway, see
@@ -641,6 +656,7 @@
         <!-- One shared floating menu for every flow-library row (only shown for a personal flow, for
              now) - same pattern as flowBlockMenu/sessionHistoryItemMenu. -->
         <div class="dropdown-menu metroBlk-tile-menu" id="flowLibraryItemMenu">
+            <div class="dropdown-item" id="flowLibraryItemMenuEdit">Edit</div>
             <div class="dropdown-item" id="flowLibraryItemMenuDuplicate">Duplicate</div>
             <div class="dropdown-item metroBlk-tile-menu-delete" id="flowLibraryItemMenuDelete">Delete flow</div>
         </div>
@@ -706,136 +722,182 @@
         </div>
     </div>
 
-    <!-- ML-179 Phase 1: Flow Details Hub - replaces the old ad-hoc "Create your
-         own"/"Load from library" destination above (metroBlkEntryCreateBtn/
-         metroBlkEntryLoadBtn now create/load a score-backed Flow and land here
-         instead of metroBuilderView's own editor screen). -->
+    <!-- ML-179 Phase 1 (+ Jira tab restructure): Edit Flow - a single screen with 3 top tabs
+         (Details/Media/Blocks) rather than the old separate Hub/Blocks Studio views. Replaces the
+         old ad-hoc "Create your own"/"Load from library" destination above (metroBlkEntryCreateBtn/
+         metroBlkEntryLoadBtn now create/load a score-backed Flow and land here instead of
+         metroBuilderView's own editor screen). Tabs are just show/hide panels within this one view
+         (setFlowEditTab) - the view itself stays 'flowDetailsHubView' in the nav stack/switchView so
+         the back button and every existing entry point (openFlow/createAndOpenFlow/the Play Flow
+         3-dot menu) keep working unchanged; only which panel is visible on arrival differs
+         (flowEditRequestedTab). -->
     <div id="flowDetailsHubView" style="display:none;">
-        <div class="flow-hub-topline" style="position:relative;">
-            <button type="button" class="list-item-menu-btn" id="flowHubMenuBtn" aria-label="Flow options"><span class="material-symbols-outlined">more_vert</span></button>
-            <!-- Bare .dropdown-menu (position:absolute, same as the burger menu) rather than the
-                 .metroBlk-tile-menu/JS-clamped variant - there's only ever one of these on screen at
-                 once (not a per-row menu), so it doesn't need that pattern's positioning math. -->
-            <div class="dropdown-menu" id="flowHubMenu" style="right:0;">
-                <div class="dropdown-item hidden-group" id="flowHubMenuMoveToBand">Move to a band</div>
-                <div class="dropdown-item hidden-group" id="flowHubMenuRemoveFromBand">Remove from band</div>
-                <div class="dropdown-item hidden-group" id="flowHubMenuPublish">Publish (make public)</div>
-                <div class="dropdown-item hidden-group" id="flowHubMenuUnpublish">Unpublish (make private)</div>
-                <div class="dropdown-item metroBlk-tile-menu-delete" id="flowHubMenuDelete">Delete flow</div>
-            </div>
+        <!-- No more 3-dot "Flow options" menu here - Move to a band/Publish (Visibility card, Details
+             tab, below) and Delete (sticky bar text link, Edit mode only) now live inline instead of
+             behind a popup. -->
+        <!-- Details, Bars, Media - "Bars" is the flowEditTabBlocksBtn/flowEditBlocksTab pair
+             underneath (id/internal naming untouched); users think in bars, not the underlying
+             "block" segments each bar-range tile represents, so only the visible label changes. -->
+        <div class="flow-edit-tabs" role="tablist">
+            <button type="button" class="flow-edit-tab active" id="flowEditTabDetailsBtn" data-tab="details" role="tab" aria-selected="true">Details</button>
+            <button type="button" class="flow-edit-tab" id="flowEditTabBlocksBtn" data-tab="blocks" role="tab" aria-selected="false">Bars <span class="flow-edit-tab-count" id="flowEditTabBlocksCount"></span></button>
+            <button type="button" class="flow-edit-tab" id="flowEditTabMediaBtn" data-tab="media" role="tab" aria-selected="false">Media <span class="flow-edit-tab-count" id="flowEditTabMediaCount"></span></button>
         </div>
 
-        <section class="flow-card">
-            <div class="flow-card-header">
-                <span class="flow-card-label">Flow details</span>
-                <span class="flow-pill" id="flowUploadedPill">Uploaded: &ndash;</span>
-            </div>
-            <div class="form-group">
-                <label>Flow name <span class="flow-required">*</span></label>
-                <input type="text" id="flowNameInput" placeholder="e.g. Symphony No. 5">
-            </div>
-            <div class="form-group">
-                <label>Composer</label>
-                <input type="text" id="flowComposerInput" placeholder="e.g. Ralph Vaughan Williams">
-            </div>
-            <div class="form-group">
-                <label>Arranger</label>
-                <input type="text" id="flowArrangerInput" placeholder="e.g. Gordon Langford">
-            </div>
-            <div class="form-group">
-                <label>Publisher</label>
-                <input type="text" id="flowPublisherInput" placeholder="e.g. Studio Music Co.">
-            </div>
-            <div class="form-group no-margin">
-                <label>Description &amp; notes</label>
-                <textarea id="flowDescriptionInput" rows="3" placeholder="Rehearsal notes, tempo conventions, solo cues..."></textarea>
-            </div>
-        </section>
-
-        <section class="flow-card">
-            <div class="flow-card-header">
-                <div>
-                    <span class="flow-card-label">Recordings &amp; media</span>
-                    <p class="flow-card-sublabel">Upload mp3/mp4 tracks or attach YouTube links</p>
+        <!-- DETAILS tab -->
+        <div id="flowEditDetailsTab" class="flow-edit-tab-panel">
+            <section class="flow-card">
+                <div class="flow-card-header">
+                    <span class="flow-card-label">About</span>
+                    <span class="flow-pill" id="flowUploadedPill">Created: &ndash;</span>
                 </div>
-                <span class="flow-pill" id="flowRecordingsCountPill">0 linked</span>
-            </div>
-            <div id="flowRecordingsList"></div>
-            <div class="flow-action-row">
-                <button type="button" class="flow-action-btn" id="flowUploadRecordingBtn"><span class="material-symbols-outlined">upload</span> Upload mp3/mp4</button>
-                <button type="button" class="flow-action-btn" id="flowAddYouTubeBtn"><span class="material-symbols-outlined">smart_display</span> Add YouTube</button>
-            </div>
-            <input type="file" id="flowRecordingFileInput" class="hidden-group" accept="audio/*,video/mp4">
-            <div class="flow-upload-progress hidden-group" id="flowRecordingUploadProgress">
-                <div class="flow-upload-progress-text"><span id="flowRecordingUploadName">Uploading&hellip;</span><span id="flowRecordingUploadPercent">0%</span></div>
-                <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="flowRecordingUploadFill" style="width:0%;"></div></div>
-            </div>
-        </section>
-
-        <section class="flow-card">
-            <div class="flow-card-header">
-                <div>
-                    <span class="flow-card-label">Documents &amp; scores</span>
-                    <p class="flow-card-sublabel">PDF scans, MusicXML or score files</p>
+                <div class="form-group">
+                    <label>Flow name <span class="flow-required">(required)</span></label>
+                    <!-- id/no name attr avoids the literal word "name" - some password managers'
+                         identity-autofill heuristics were matching this as a person's name field
+                         otherwise. autocomplete="off" for the same reason. -->
+                    <input type="text" id="flowTitleInput" autocomplete="off" placeholder="e.g. Symphony No. 5">
                 </div>
-                <span class="flow-pill" id="flowDocumentsCountPill">0 files</span>
-            </div>
-            <div id="flowDocumentsList"></div>
-            <button type="button" class="flow-action-btn flow-action-btn-wide" id="flowUploadDocumentBtn"><span class="material-symbols-outlined">upload_file</span> Upload PDF or MusicXML score</button>
-            <input type="file" id="flowDocumentFileInput" class="hidden-group" accept=".pdf,.musicxml,.mxl,.sib,.musx,application/pdf">
-            <div class="flow-upload-progress hidden-group" id="flowDocumentUploadProgress">
-                <div class="flow-upload-progress-text"><span id="flowDocumentUploadName">Uploading&hellip;</span><span id="flowDocumentUploadPercent">0%</span></div>
-                <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="flowDocumentUploadFill" style="width:0%;"></div></div>
-            </div>
-        </section>
+                <div class="form-group no-margin">
+                    <label>Notes</label>
+                    <textarea id="flowDescriptionInput" rows="3" placeholder="Rehearsal notes, tempo conventions, solo cues..."></textarea>
+                </div>
+            </section>
 
-        <section class="flow-card flow-blocks-card">
-            <div class="flow-card-header">
-                <span class="flow-card-label">Step 2 of 2 &bull; Blocks sequence</span>
-            </div>
-            <!-- Same .stat-card shape as the main page's own stats (mainTotalTime/mainTotalSessions) -
-                 block count is the headline value, not a small pill, since it's the thing that tells
-                 you whether this flow is actually ready to play yet. -->
-            <div class="stat-card" style="margin-bottom: var(--space-3);">
-                <div class="label">Blocks</div>
-                <div class="value" id="flowBlocksSummaryValue">0</div>
-                <div class="flow-card-sublabel" id="flowBlocksSummaryTime">0 bars &bull; ~0m 0s total</div>
-            </div>
-            <p class="flow-card-sublabel" id="flowBlocksSublabel">Configure tempo roadmaps, rehearsal marks, fermatas, voltas, and speed transitions across dedicated full-screen blocks.</p>
-            <!-- Play only ever shows once there's something to play - a 0-block flow has nowhere to
-                 send you yet (see renderFlowDetailsHub's own hidden-group toggle). -->
-            <button type="button" class="btn-submit no-margin hidden-group" id="flowPlayFlowBtn">&#9654; Play flow</button>
-            <button type="button" class="btn-submit no-margin" id="flowOpenStudioBtn">Open blocks studio &rarr;</button>
-        </section>
-    </div>
+            <section class="flow-card">
+                <div class="flow-card-header">
+                    <span class="flow-card-label">Credits</span>
+                </div>
+                <div class="form-group">
+                    <label>Composer</label>
+                    <input type="text" id="flowComposerInput" placeholder="e.g. Ralph Vaughan Williams">
+                </div>
+                <div class="form-group">
+                    <label>Arranger</label>
+                    <input type="text" id="flowArrangerInput" placeholder="e.g. Gordon Langford">
+                </div>
+                <div class="form-group no-margin">
+                    <label>Publisher</label>
+                    <input type="text" id="flowPublisherInput" placeholder="e.g. Studio Music Co.">
+                </div>
+            </section>
 
-    <!-- ML-179 Phase 2: Blocks Studio - Full density view only for now (density switcher itself,
-         plus 2-col/4-col compact views, are a follow-up - see the plan doc). Editing reuses one
-         generic choice-list modal (#flowChoiceModal) for every discrete-option tile rather than a
-         bespoke picker per parameter. -->
-    <div id="blocksStudioView" style="display:none;">
-        <div class="flow-studio-summary">
-            <span id="flowStudioSummaryText">0 bars &bull; ~0m total</span>
+            <!-- Placeholder text for now - Move to a band/Publish (make public) aren't wired up to
+                 this card yet (that's the follow-up that replaces the old flowHubMenu popup), so it
+                 always reads the default personal-flow state regardless of the flow's actual one. -->
+            <section class="flow-card">
+                <div class="flow-card-header">
+                    <span class="flow-card-label">Visibility</span>
+                </div>
+                <p class="flow-visibility-value" id="flowVisibilityText">Private - just me</p>
+            </section>
         </div>
 
-        <!-- Lead-in: pinned, no drag handle, always sorts first regardless of order_index. -->
-        <div class="flow-card flow-lead-in-card hidden-group" id="flowLeadInCard">
-            <div class="flow-card-header">
-                <span class="flow-card-label">Lead in</span>
-                <button type="button" class="list-item-menu-btn" id="flowLeadInMenuBtn" aria-label="Lead-in options"><span class="material-symbols-outlined">more_vert</span></button>
-            </div>
-            <div class="flow-tile-grid flow-tile-grid-3" id="flowLeadInTiles"></div>
+        <!-- MEDIA tab -->
+        <div id="flowEditMediaTab" class="flow-edit-tab-panel" style="display:none;">
+            <section class="flow-card">
+                <div class="flow-card-header">
+                    <div>
+                        <span class="flow-card-label">Audio tracks</span>
+                        <p class="flow-card-sublabel">Backing tracks and click references</p>
+                    </div>
+                    <span class="flow-pill" id="flowAudioTracksCountPill">0 files</span>
+                </div>
+                <div id="flowAudioTracksList"></div>
+                <button type="button" class="flow-action-btn flow-action-btn-wide" id="flowUploadRecordingBtn"><span class="material-symbols-outlined">upload</span> Upload mp3 / mp4 audio</button>
+                <input type="file" id="flowRecordingFileInput" class="hidden-group" accept="audio/*,video/mp4">
+                <div class="flow-upload-progress hidden-group" id="flowRecordingUploadProgress">
+                    <div class="flow-upload-progress-text"><span id="flowRecordingUploadName">Uploading&hellip;</span><span id="flowRecordingUploadPercent">0%</span></div>
+                    <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="flowRecordingUploadFill" style="width:0%;"></div></div>
+                </div>
+            </section>
+
+            <section class="flow-card">
+                <div class="flow-card-header">
+                    <div>
+                        <span class="flow-card-label">Video links</span>
+                        <p class="flow-card-sublabel">Rehearsal recordings or YouTube guides</p>
+                    </div>
+                    <span class="flow-pill" id="flowVideoLinksCountPill">0 linked</span>
+                </div>
+                <div id="flowVideoLinksList"></div>
+                <button type="button" class="flow-action-btn flow-action-btn-wide" id="flowAddYouTubeBtn"><span class="material-symbols-outlined">smart_display</span> Add YouTube link</button>
+            </section>
+
+            <section class="flow-card">
+                <div class="flow-card-header">
+                    <div>
+                        <span class="flow-card-label">Documents &amp; scores</span>
+                        <p class="flow-card-sublabel">PDF scans, MusicXML or Sibelius parts</p>
+                    </div>
+                    <span class="flow-pill" id="flowDocumentsCountPill">0 files</span>
+                </div>
+                <div id="flowDocumentsList"></div>
+                <button type="button" class="flow-action-btn flow-action-btn-wide" id="flowUploadDocumentBtn"><span class="material-symbols-outlined">upload_file</span> Upload PDF or MusicXML score</button>
+                <input type="file" id="flowDocumentFileInput" class="hidden-group" accept=".pdf,.musicxml,.mxl,.sib,.musx,application/pdf">
+                <div class="flow-upload-progress hidden-group" id="flowDocumentUploadProgress">
+                    <div class="flow-upload-progress-text"><span id="flowDocumentUploadName">Uploading&hellip;</span><span id="flowDocumentUploadPercent">0%</span></div>
+                    <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="flowDocumentUploadFill" style="width:0%;"></div></div>
+                </div>
+            </section>
+
         </div>
-        <button type="button" class="flow-action-btn flow-action-btn-wide" id="flowAddLeadInBtn">+ Add lead-in block</button>
 
-        <div id="flowBlocksList"></div>
+        <!-- BLOCKS tab (ML-179 Phase 2 Blocks Studio content, unchanged - Full density view only for
+             now, density switcher/2-col/4-col compact views are a follow-up - see the plan doc).
+             Editing reuses one generic choice-list modal (#flowChoiceModal) for every discrete-option
+             tile rather than a bespoke picker per parameter. -->
+        <div id="flowEditBlocksTab" class="flow-edit-tab-panel" style="display:none;">
+            <div class="flow-studio-summary">
+                <span id="flowStudioSummaryText">0 bars &bull; ~0m total</span>
+            </div>
 
-        <button type="button" class="flow-action-btn flow-action-btn-wide" id="flowAddBlockBtn">+ Add block</button>
+            <!-- Lead-in: pinned, no drag handle, always sorts first regardless of order_index. -->
+            <div class="flow-card flow-lead-in-card hidden-group" id="flowLeadInCard">
+                <div class="flow-card-header">
+                    <span class="flow-card-label">Lead in</span>
+                    <button type="button" class="list-item-menu-btn" id="flowLeadInMenuBtn" aria-label="Lead-in options"><span class="material-symbols-outlined">more_vert</span></button>
+                </div>
+                <div class="flow-tile-grid flow-tile-grid-3" id="flowLeadInTiles"></div>
+            </div>
+            <button type="button" class="flow-action-btn flow-action-btn-wide" id="flowAddLeadInBtn">+ Add lead-in</button>
 
-        <!-- Bottom-of-screen for now, same hidden-until-there's-something-to-play rule as the Hub's
-             own flowPlayFlowBtn - likely becomes the primary action here once Blocks Studio has a
-             proper sticky bottom bar, but that's a separate layout pass, not this one. -->
-        <button type="button" class="btn-submit no-margin hidden-group" id="flowStudioPlayFlowBtn" style="margin-top:var(--space-4);">&#9654; Play flow</button>
+            <div id="flowBlocksList"></div>
+
+            <button type="button" class="flow-action-btn flow-action-btn-wide" id="flowAddBlockBtn">+ Add bar</button>
+
+        </div>
+
+        <!-- Pinned sticky bottom action bar (position:fixed), shared by all 3 tabs - contents swap by
+             mode (updateFlowEditStickyBar), not just by tab. Outer wrap spans the full viewport width
+             so it centers the same way .top-bar-sticky-group does up top; pointer-events:none on it
+             (with :auto restored on the bar itself) lets clicks either side of the centered column
+             pass through to whatever's behind, same reasoning as that wrap needing it. -->
+        <div class="flow-edit-sticky-bar-wrap">
+            <div class="flow-edit-sticky-bar">
+                <!-- Create mode: guided Details -> Bars -> Media chain. One primary button, shared
+                     across all 3 tabs, whose label/action swaps with the active tab
+                     (updateFlowEditStickyBar); the secondary "Add media" only shows on the Bars tab,
+                     where it sits alongside the primary "Open player" as a second, optional path.
+                     Both live in the same flex row as Edit mode's Cancel/Save below (reused, not a
+                     new layout) - the secondary being hidden-group elsewhere just leaves the primary
+                     to fill the row on its own. -->
+                <div class="flow-edit-sticky-bar-actions" id="flowEditCreateBarActions">
+                    <button type="button" class="btn-cancel btn-nav no-margin hidden-group" id="flowEditStickySecondaryBtn">Add media</button>
+                    <button type="button" class="btn-submit no-margin" id="flowEditStickyActionBtn">Add bars <span class="btn-nav-arrow">&gt;</span></button>
+                </div>
+                <!-- Edit mode: free tab navigation instead, so this row (and Delete below) show the
+                     same regardless of which tab is active. -->
+                <div class="flow-edit-sticky-bar-actions hidden-group" id="flowEditSaveBarActions">
+                    <button type="button" class="btn-cancel btn-nav no-margin" id="flowEditCancelBtn">Cancel</button>
+                    <button type="button" class="btn-submit no-margin" id="flowEditSaveBtn">Save</button>
+                </div>
+                <!-- Edit mode only - nothing worth deleting on a flow you've never saved-and-reopened,
+                     which is the only time Create mode is ever showing. Low priority on purpose (plain
+                     text link, not a button) - this is a rare, destructive action, not a primary one. -->
+                <button type="button" class="btn-text btn-text-danger no-margin hidden-group" id="flowDeleteLink" style="margin-top:var(--space-2);">Delete flow</button>
+            </div>
+        </div>
     </div>
 
     <!-- ML-179 follow-up: "Play flow" - now full parity with Quick Play/Metronome Blocks' own
@@ -853,45 +915,57 @@
          edited in Blocks Studio, same "engine supports it, this screen just doesn't expose creating
          it" relationship sub-beats/speed/volume no longer have now that this follow-up adds them. -->
     <div id="flowPlayView" style="display:none;">
-        <div class="metroBlk-rows">
-            <div class="metroBlk-row metroBlk-row-current">
-                <div class="metroBlk-row-head">
-                    <span class="metroBlk-row-label" id="flowPlayRowLabel"></span>
-                    <button type="button" class="metroBlk-row-volume-btn" id="flowVolumeBtn" aria-label="Volume - tap to change"><span class="material-symbols-outlined">volume_mute</span></button>
-                </div>
-                <div class="metro-display-viewport" id="flowPlayRowViewport">
-                    <div class="metro-display-content" id="flowPlayRowContent">
-                        <div class="metro-tier" id="flowPlayRowDots"></div>
+        <!-- ML-166: swipeable media carousel - Metronome (always first, existing markup unchanged
+             below) plus one slide per attached audio track/video link (built by JS from
+             currentFlowDetail.recordings, same split Edit Flow's own Media tab uses - see
+             renderFlowMediaCarousel). Dots + swipe chrome only ever render when there's more than
+             the one metronome slide - a media-less flow looks exactly like it always has. -->
+        <div class="flow-media-dots hidden-group" id="flowMediaDots"></div>
+        <div class="flow-media-carousel-viewport" id="flowMediaViewport">
+            <div class="flow-media-carousel-track" id="flowMediaTrack">
+                <div class="flow-media-slide" data-slide-type="metronome">
+                    <div class="metroBlk-rows">
+                        <div class="metroBlk-row metroBlk-row-current">
+                            <div class="metroBlk-row-head">
+                                <span class="metroBlk-row-label" id="flowPlayRowLabel"></span>
+                                <button type="button" class="metroBlk-row-volume-btn" id="flowVolumeBtn" aria-label="Volume - tap to change"><span class="material-symbols-outlined">volume_mute</span></button>
+                            </div>
+                            <div class="metro-display-viewport" id="flowPlayRowViewport">
+                                <div class="metro-display-content" id="flowPlayRowContent">
+                                    <div class="metro-tier" id="flowPlayRowDots"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metro-transport-grid">
+                        <button class="metro-play-grid-btn" id="flowPlayBtn" aria-label="Play - press and hold to reset to the start">
+                            <span class="material-symbols-outlined" id="flowPlayIcon">play_arrow</span>
+                            <span class="metroBlk-ctrl-value-label">play</span>
+                        </button>
+                        <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="flowResetBtn" aria-label="Reset to start">
+                            <span class="material-symbols-outlined">restart_alt</span>
+                            <span class="metroBlk-ctrl-value-label">reset</span>
+                        </button>
+                        <button type="button" class="metroBlk-ctrl-value-btn" id="flowSubdivideBtn" aria-label="Sub beats - tap to change">
+                            <strong id="flowSubdivideLbl">1</strong>
+                            <span class="metroBlk-ctrl-value-label" id="flowSubdivideUnitLbl">sub beats</span>
+                        </button>
+                        <button type="button" class="metroBlk-ctrl-value-btn" id="flowSpeedBtn" aria-label="Play speed - tap to change">
+                            <strong id="flowSpeedLbl">100%</strong>
+                            <span class="metroBlk-ctrl-value-label">play speed</span>
+                        </button>
                     </div>
                 </div>
+                <!-- Audio/video slides appended here by renderFlowMediaCarousel -->
             </div>
-        </div>
-
-        <div class="metro-transport-grid">
-            <button class="metro-play-grid-btn" id="flowPlayBtn" aria-label="Play - press and hold to reset to the start">
-                <span class="material-symbols-outlined" id="flowPlayIcon">play_arrow</span>
-                <span class="metroBlk-ctrl-value-label">play</span>
-            </button>
-            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="flowResetBtn" aria-label="Reset to start">
-                <span class="material-symbols-outlined">restart_alt</span>
-                <span class="metroBlk-ctrl-value-label">reset</span>
-            </button>
-            <button type="button" class="metroBlk-ctrl-value-btn" id="flowSubdivideBtn" aria-label="Sub beats - tap to change">
-                <strong id="flowSubdivideLbl">1</strong>
-                <span class="metroBlk-ctrl-value-label" id="flowSubdivideUnitLbl">sub beats</span>
-            </button>
-            <button type="button" class="metroBlk-ctrl-value-btn" id="flowSpeedBtn" aria-label="Play speed - tap to change">
-                <strong id="flowSpeedLbl">100%</strong>
-                <span class="metroBlk-ctrl-value-label">play speed</span>
-            </button>
         </div>
 
         <div class="section-title">
             <span id="flowPlayTitleLabel">Flow</span>
-            <!-- position:relative wrapper anchors the dropdown under the button - same "flow-hub-topline"
-                 pattern as flowHubMenuBtn/flowHubMenu, needed because .section-title itself isn't
-                 positioned and .dropdown-menu's top:100%/right:0 resolve against the nearest
-                 positioned ancestor. -->
+            <!-- position:relative wrapper anchors the dropdown under the button - same pattern as the
+                 burger menu, needed because .section-title itself isn't positioned and
+                 .dropdown-menu's top:100%/right:0 resolve against the nearest positioned ancestor. -->
             <div style="position:relative;">
                 <button type="button" class="list-item-menu-btn" id="flowPlayMenuBtn" aria-label="Flow options"><span class="material-symbols-outlined">more_vert</span></button>
                 <div class="dropdown-menu" id="flowPlayMenu" style="right:0;">
@@ -911,10 +985,18 @@
         <div class="dropdown-item" id="flowBlockMenuDuplicate">Duplicate</div>
         <div class="dropdown-item" id="flowBlockMenuMoveUp">Move up</div>
         <div class="dropdown-item" id="flowBlockMenuMoveDown">Move down</div>
-        <div class="dropdown-item metroBlk-tile-menu-delete" id="flowBlockMenuDelete">Delete block</div>
+        <div class="dropdown-item metroBlk-tile-menu-delete" id="flowBlockMenuDelete">Delete bar</div>
     </div>
     <div class="dropdown-menu metroBlk-tile-menu" id="flowLeadInMenu">
         <div class="dropdown-item metroBlk-tile-menu-delete" id="flowLeadInMenuDelete">Delete lead-in</div>
+    </div>
+    <div class="dropdown-menu metroBlk-tile-menu" id="flowFermataRowMenu">
+        <div class="dropdown-item" id="flowFermataRowMenuEdit">Edit</div>
+        <div class="dropdown-item metroBlk-tile-menu-delete" id="flowFermataRowMenuDelete">Delete</div>
+    </div>
+    <div class="dropdown-menu metroBlk-tile-menu" id="flowRampRowMenu">
+        <div class="dropdown-item" id="flowRampRowMenuEdit">Edit</div>
+        <div class="dropdown-item metroBlk-tile-menu-delete" id="flowRampRowMenuDelete">Delete</div>
     </div>
 
     <!-- BPM popup (ML-179 follow-up) - exactly the same tiered slider mechanic as the ad-hoc/Quick
@@ -982,14 +1064,166 @@
         </div>
     </div>
 
-    <!-- Fermata ("pause") mini list - the one Block Inspector tile that's a list, not a single
-         value, so it gets its own small modal rather than fitting the generic choice-list shape. -->
+    <!-- Pauses (fermata/caesura) mini list - the one Block Inspector tile that's a list, not a
+         single value, so it gets its own small modal rather than fitting the generic choice-list
+         shape. No bottom Close button (the top-right X already covers that). Empty-block state opens
+         straight into the form (no list/header at all, see flowFermataFormOpen); once a pause exists
+         the list + count sits on top and the form collapses behind "+ Add another pause". -->
     <div class="modal" id="flowFermataModal">
         <div class="modal-content">
-            <h2>Pause (fermata)</h2>
+            <button type="button" class="modal-close-x" id="flowFermataCloseBtn" aria-label="Close">&times;</button>
+            <h2>Pauses <span class="flow-modal-bar-pill" id="flowFermataPill"></span></h2>
+            <div class="flow-pause-list-header hidden-group" id="flowFermataListHeader">
+                <span class="flow-tile-section-label">Current pauses</span>
+                <span class="flow-pause-count-badge" id="flowFermataCountBadge">0</span>
+            </div>
             <div id="flowFermataList"></div>
-            <button class="flow-action-btn flow-action-btn-wide" id="flowFermataAddBtn">+ Add fermata</button>
-            <button class="btn-cancel btn-nav" onclick="document.getElementById('flowFermataModal').style.display='none'">Close</button>
+            <button type="button" class="btn-submit" id="flowFermataOpenFormBtn">+ Add another pause</button>
+            <div id="flowFermataAddBox">
+                <span class="flow-tile-section-label hidden-group" id="flowFermataAddBoxLabel">Add another pause</span>
+                <div class="flow-pause-field-card">
+                    <div class="flow-pause-field-label">
+                        <span class="flow-pause-field-title">Pause type</span>
+                        <span class="flow-pause-field-subtitle">Effect on tempo</span>
+                    </div>
+                    <div class="flow-pause-kind-grid" id="flowFermataKindGrid"></div>
+                </div>
+                <div class="flow-pause-field-card">
+                    <div class="flow-pause-field-label">
+                        <span class="flow-pause-field-title">Bar in block</span>
+                        <span class="flow-pause-field-subtitle">Target measure</span>
+                    </div>
+                    <div class="flow-pause-field-control">
+                        <span class="flow-pause-field-warning-slot" id="flowFermataBarWarning"></span>
+                        <div class="metro-speed-row no-margin">
+                            <button class="metro-bpm-step" id="flowFermataBarMinus" type="button" aria-label="Decrease bar">&minus;</button>
+                            <div class="metro-speed-readout"><div id="flowFermataBarValue" class="flow-bar-readout">Bar 1</div></div>
+                            <button class="metro-bpm-step" id="flowFermataBarPlus" type="button" aria-label="Increase bar">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="flow-pause-field-card">
+                    <div class="flow-pause-field-label">
+                        <span class="flow-pause-field-title" id="flowFermataBeatLabel">On beat</span>
+                        <span class="flow-pause-field-subtitle">Position in bar</span>
+                    </div>
+                    <div class="metro-speed-row no-margin">
+                        <button class="metro-bpm-step" id="flowFermataBeatMinus" type="button" aria-label="Decrease beat">&minus;</button>
+                        <div class="metro-speed-readout"><div id="flowFermataBeatValue" class="flow-bar-readout">Beat 1</div></div>
+                        <button class="metro-bpm-step" id="flowFermataBeatPlus" type="button" aria-label="Increase beat">+</button>
+                    </div>
+                </div>
+                <div class="flow-pause-field-card">
+                    <div class="flow-pause-field-label">
+                        <span class="flow-pause-field-title" id="flowFermataDurationLabel">Hold duration</span>
+                        <span class="flow-pause-field-subtitle">Total length</span>
+                    </div>
+                    <div class="metro-speed-row no-margin">
+                        <button class="metro-bpm-step" id="flowFermataDurationMinus" type="button" aria-label="Decrease duration">&minus;</button>
+                        <div class="metro-speed-readout"><div id="flowFermataDurationValue" class="flow-bar-readout">1 beat</div></div>
+                        <button class="metro-bpm-step" id="flowFermataDurationPlus" type="button" aria-label="Increase duration">+</button>
+                    </div>
+                </div>
+                <button type="button" class="btn-submit no-margin" id="flowFermataAddBtn">+ Insert pause into block</button>
+                <button type="button" class="btn-cancel btn-nav no-margin hidden-group" id="flowFermataCancelEditBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tempo ramps mini list - same shape as the Pauses/Fermata modal directly above (list +
+         count on top once populated, "+ Add another ramp" button, form collapses behind it), plus a
+         ramp's own extra fields: where it ends (end of block, or a specific bar/beat) and its target
+         speed (the next block's own bpm, or a custom one - reuses the same Tempo (bpm) popup as the
+         block's own bpm tile and the ad-hoc/Quick Play metronome, see flowOpenBpmModal). -->
+    <div class="modal" id="flowRampModal">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" id="flowRampCloseBtn" aria-label="Close">&times;</button>
+            <h2>Tempo ramps <span class="flow-modal-bar-pill" id="flowRampPill"></span></h2>
+            <div class="flow-pause-list-header hidden-group" id="flowRampListHeader">
+                <span class="flow-tile-section-label">Current ramps</span>
+                <span class="flow-pause-count-badge" id="flowRampCountBadge">0</span>
+            </div>
+            <div id="flowRampList"></div>
+            <button type="button" class="btn-submit" id="flowRampOpenFormBtn">+ Add another ramp</button>
+            <div id="flowRampAddBox">
+                <span class="flow-tile-section-label hidden-group" id="flowRampAddBoxLabel">Add another ramp</span>
+                <div class="flow-pause-field-card">
+                    <div class="flow-pause-field-label">
+                        <span class="flow-pause-field-title">Start bar</span>
+                        <span class="flow-pause-field-subtitle">Beginning measure</span>
+                    </div>
+                    <div class="metro-speed-row no-margin">
+                        <button class="metro-bpm-step" id="flowRampBarMinus" type="button" aria-label="Decrease start bar">&minus;</button>
+                        <div class="metro-speed-readout"><div id="flowRampBarValue" class="flow-bar-readout">Bar 1</div></div>
+                        <button class="metro-bpm-step" id="flowRampBarPlus" type="button" aria-label="Increase start bar">+</button>
+                    </div>
+                </div>
+                <div class="flow-pause-field-card">
+                    <div class="flow-pause-field-label">
+                        <span class="flow-pause-field-title">Start on beat</span>
+                        <span class="flow-pause-field-subtitle">Position in bar</span>
+                    </div>
+                    <div class="metro-speed-row no-margin">
+                        <button class="metro-bpm-step" id="flowRampBeatMinus" type="button" aria-label="Decrease start beat">&minus;</button>
+                        <div class="metro-speed-readout"><div id="flowRampBeatValue" class="flow-bar-readout">Beat 1</div></div>
+                        <button class="metro-bpm-step" id="flowRampBeatPlus" type="button" aria-label="Increase start beat">+</button>
+                    </div>
+                </div>
+                <div class="flow-pause-field-card">
+                    <div class="flow-pause-field-label">
+                        <span class="flow-pause-field-title">Ramp ends at</span>
+                        <span class="flow-pause-field-subtitle">Duration span</span>
+                    </div>
+                    <div class="flow-ramp-toggle-row" id="flowRampEndModeToggle">
+                        <button type="button" class="flow-ramp-toggle-btn" data-ramp-end-mode="block_end">End of block</button>
+                        <button type="button" class="flow-ramp-toggle-btn" data-ramp-end-mode="specific">Specific beat</button>
+                    </div>
+                </div>
+                <div class="flow-pause-field-card hidden-group" id="flowRampEndBarCard">
+                    <div class="flow-pause-field-label">
+                        <span class="flow-pause-field-title">End bar</span>
+                        <span class="flow-pause-field-subtitle">Target measure</span>
+                    </div>
+                    <div class="flow-pause-field-control">
+                        <span class="flow-pause-field-warning-slot" id="flowRampEndBarWarning"></span>
+                        <div class="metro-speed-row no-margin">
+                            <button class="metro-bpm-step" id="flowRampEndBarMinus" type="button" aria-label="Decrease end bar">&minus;</button>
+                            <div class="metro-speed-readout"><div id="flowRampEndBarValue" class="flow-bar-readout">Bar 1</div></div>
+                            <button class="metro-bpm-step" id="flowRampEndBarPlus" type="button" aria-label="Increase end bar">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="flow-pause-field-card hidden-group" id="flowRampEndBeatCard">
+                    <div class="flow-pause-field-label">
+                        <span class="flow-pause-field-title">End on beat</span>
+                        <span class="flow-pause-field-subtitle">Finish position</span>
+                    </div>
+                    <div class="metro-speed-row no-margin">
+                        <button class="metro-bpm-step" id="flowRampEndBeatMinus" type="button" aria-label="Decrease end beat">&minus;</button>
+                        <div class="metro-speed-readout"><div id="flowRampEndBeatValue" class="flow-bar-readout">Beat 1</div></div>
+                        <button class="metro-bpm-step" id="flowRampEndBeatPlus" type="button" aria-label="Increase end beat">+</button>
+                    </div>
+                </div>
+                <div class="flow-pause-field-card">
+                    <div class="flow-pause-field-label">
+                        <span class="flow-pause-field-title">Target speed</span>
+                        <span class="flow-pause-field-subtitle" id="flowRampTargetSubtitle">Final tempo to reach</span>
+                    </div>
+                    <div class="flow-pause-kind-grid" id="flowRampTargetGrid"></div>
+                </div>
+                <div class="flow-pause-field-card hidden-group" id="flowRampCustomTempoCard">
+                    <div class="flow-pause-field-label">
+                        <span class="flow-pause-field-title">Set custom tempo</span>
+                        <span class="flow-pause-field-subtitle">Tap to configure</span>
+                    </div>
+                    <button type="button" class="flow-ramp-tempo-btn" id="flowRampCustomTempoBtn">
+                        <span id="flowRampCustomTempoValue">120</span> <span class="flow-ramp-tempo-unit">bpm</span>
+                        <span class="material-symbols-outlined">edit</span>
+                    </button>
+                </div>
+                <button type="button" class="btn-submit no-margin" id="flowRampAddBtn">+ Insert ramp into block</button>
+                <button type="button" class="btn-cancel btn-nav no-margin hidden-group" id="flowRampCancelEditBtn">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -1262,9 +1496,9 @@
                     <strong id="metroSegTimeSigBtnLabel">4/4</strong>
                     <span class="metroBlk-ctrl-value-label">time</span>
                 </button>
-                <button type="button" class="metroBlk-ctrl-value-btn qp-notelen-cell" id="metroSegNoteSelectBtn" aria-label="Beat unit - tap to change">
+                <button type="button" class="metroBlk-ctrl-value-btn qp-notelen-cell" id="metroSegNoteSelectBtn" aria-label="Beat note - tap to change">
                     <span class="qp-note-btn-icon" id="metroSegNoteBtnIcon"></span>
-                    <span class="metroBlk-ctrl-value-label">beat unit</span>
+                    <span class="metroBlk-ctrl-value-label">beat note</span>
                 </button>
                 <div class="metroBlk-bpm-box qp-bpm-cell">
                     <div class="metro-speed-row no-margin qp-bpm-speed-row">
@@ -1921,8 +2155,10 @@
         </div>
         <div class="form-group">
             <label>Hold duration (beat lengths)</label>
-            <div class="metroSeg-tile-grid metroSeg-tile-grid-4" id="metroSegFermataHoldOptions">
-                <button type="button" class="metroSeg-tap-btn" data-value="1"><strong>1</strong><span class="metroSeg-tap-label">beat</span></button>
+            <!-- 2-4, not 1-4 (ML-179 follow-up) - a 1-beat "hold" is indistinguishable from no hold
+                 at all, and the server now rejects it (metronomeSegments.js validateSegmentPayload) -
+                 same floor the Flow Pauses picker's own duration stepper enforces. -->
+            <div class="metroSeg-tile-grid metroSeg-tile-grid-3" id="metroSegFermataHoldOptions">
                 <button type="button" class="metroSeg-tap-btn selected" data-value="2"><strong>2</strong><span class="metroSeg-tap-label">beats</span></button>
                 <button type="button" class="metroSeg-tap-btn" data-value="3"><strong>3</strong><span class="metroSeg-tap-label">beats</span></button>
                 <button type="button" class="metroSeg-tap-btn" data-value="4"><strong>4</strong><span class="metroSeg-tap-label">beats</span></button>
@@ -1941,9 +2177,156 @@
 <div class="modal" id="metroSegNoteModal">
     <div class="modal-content">
         <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegNoteModal').style.display='none'" aria-label="Close">&times;</button>
-        <h2>Beat unit</h2>
-        <p class="metro-help-text">Which note gets the beat for the beats per minute (bpm) (e.g. "&#9834; = 120").</p>
+        <h2>Beat note</h2>
+        <p class="metro-help-text">Choose the note value for the tempo (e.g. &#9833; = 120).</p>
         <div class="metroBlk-note-picker" id="metroSegNotePicker"></div>
+    </div>
+</div>
+
+<!-- Same "Beat unit" modal format (see metroSegNoteModal above) applied to the Blocks Studio bar
+     card's "start" tile - a proper barline glyph pair (flowBarlineIconSvg) instead of the old
+     text-list picker's "|"/"|:" characters. -->
+<div class="modal" id="flowBarStartModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('flowBarStartModal').style.display='none'" aria-label="Close">&times;</button>
+        <h2>Start of bar</h2>
+        <p class="metro-help-text">Whether this bar starts a repeated section.</p>
+        <div class="metroBlk-note-picker" id="flowBarStartPicker"></div>
+    </div>
+</div>
+
+<!-- End-of-bar picker (flowOpenBarEndPicker) - "Structure" (Normal/Section/Fine/Final) plus a direct
+     "Repeats" grid (tapping a count both marks the bar a repeat end and sets it, no separate
+     slider step). Own modal rather than reusing #flowChoiceModal - two titled tile grids, not a
+     single option list. -->
+<div class="modal" id="flowBarEndModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" onclick="document.getElementById('flowBarEndModal').style.display='none'" aria-label="Close">&times;</button>
+        <h2>End of bar</h2>
+        <div class="flow-tile-section">
+            <span class="flow-tile-section-label">Structure</span>
+            <!-- flow-tile-grid-4 - same fixed column width as the Repeats grid below (see
+                 .metroBlk-note-picker's own comment for the same "don't resize columns to the item
+                 count" rule) - now genuinely 4 tiles (Normal/Section/Fine/Final). -->
+            <div class="flow-tile-grid flow-tile-grid-4" id="flowBarEndStructureGrid"></div>
+        </div>
+        <div class="flow-tile-section">
+            <span class="flow-tile-section-label">Repeats</span>
+            <div class="flow-tile-grid flow-tile-grid-4" id="flowBarEndRepeatsGrid"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Jump sign (openFlowSignPicker) - only 3 options ever (None/Segno/Coda), so unlike End of bar's
+     Structure grid above (which pads a real 3-tile set out to a blank 4th slot to match its sibling
+     Repeats grid), there's no sibling grid here to match widths against - the 3 tiles are centered
+     as their own block instead, at the same per-tile width a 4-column grid would give them
+     (.flow-tile-grid-3-centered, same "match the standard width, then center" technique as the
+     alternate-ending picker's repeat-pass grid). Tap an option to select & close - no Save/Cancel. -->
+<div class="modal" id="flowSignModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" id="flowSignCloseBtn" aria-label="Close">&times;</button>
+        <h2>Jump sign</h2>
+        <div class="flow-tile-grid flow-tile-grid-3-centered" id="flowSignOptions"></div>
+    </div>
+</div>
+
+<!-- Jump instruction (openFlowJumpPicker) - exactly 6 options (a clean 2x3), so unlike End of bar's
+     Structure grid above (padded/wrapped against a real column count), these are centered as their
+     own block at the standard 4-column width instead - same .flow-tile-grid-3-centered technique as
+     the Jump sign picker. Marking a bar as the Fine stopping point itself lives on the End-of-bar
+     Structure picker instead (isFine), not here - this picker is jump instructions only. Tap an
+     option to select & close - no Save/Cancel. -->
+<div class="modal" id="flowJumpModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" id="flowJumpCloseBtn" aria-label="Close">&times;</button>
+        <h2>Jump instruction</h2>
+        <div class="flow-tile-grid flow-tile-grid-3-centered" id="flowJumpOptions"></div>
+    </div>
+</div>
+
+<!-- Repeat bar / volta (openFlowRepeatBarPicker) - which repeat pass(es) this bar plays on, plus
+     (037_volta_start_bar.sql) which bar a multi-bar ending starts at. Own modal, own Save/Cancel
+     (never written until committed) rather than #flowChoiceModal - a toggle plus two sections is
+     more than that generic single-list picker's shape. -->
+<div class="modal" id="flowRepeatBarModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" id="flowRepeatBarCloseBtn" aria-label="Close">&times;</button>
+        <h2>Alternate ending <span class="flow-modal-bar-pill" id="flowRepeatBarPill"></span></h2>
+        <div class="flow-volta-toggle-row">
+            <div class="flow-volta-toggle-text">
+                <span class="flow-volta-toggle-title">Alternate ending (volta)</span>
+                <span class="flow-volta-toggle-help">Play this bar only on specified repeat passes</span>
+            </div>
+            <label class="toggle-switch"><input type="checkbox" id="flowRepeatBarToggle"><span class="toggle-slider"></span></label>
+        </div>
+        <div id="flowRepeatBarFields">
+            <div class="flow-tile-section">
+                <span class="flow-tile-section-label">Start bar</span>
+                <p class="metro-help-text">Which bar does this ending start at?</p>
+                <div class="metro-speed-row no-margin">
+                    <button class="metro-bpm-step" id="flowRepeatBarStartMinus" type="button" aria-label="Decrease start bar">&minus;</button>
+                    <div class="metro-speed-readout"><div id="flowRepeatBarStartValue" class="flow-bar-readout">Bar 1</div></div>
+                    <button class="metro-bpm-step" id="flowRepeatBarStartPlus" type="button" aria-label="Increase start bar">+</button>
+                </div>
+            </div>
+            <div class="flow-tile-section">
+                <span class="flow-tile-section-label">Repeat pass(es)</span>
+                <p class="metro-help-text">Tap to toggle multiple passes</p>
+                <div class="flow-multiselect-grid flow-multiselect-grid-3" id="flowRepeatBarPassesGrid"></div>
+            </div>
+        </div>
+        <div class="flow-edit-sticky-bar-actions">
+            <button type="button" class="btn-cancel btn-nav no-margin" id="flowRepeatBarCancelBtn">Cancel</button>
+            <button type="button" class="btn-submit no-margin" id="flowRepeatBarSaveBtn">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="flowIntroModal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" id="flowIntroCloseBtn" aria-label="Close">&times;</button>
+        <h2>Intro section <span class="flow-modal-bar-pill" id="flowIntroPill"></span></h2>
+        <div class="flow-volta-toggle-row">
+            <div class="flow-volta-toggle-text">
+                <span class="flow-volta-toggle-title">Start intro?</span>
+                <span class="flow-volta-toggle-help">Play from this bar before starting bar 1</span>
+            </div>
+            <label class="toggle-switch"><input type="checkbox" id="flowIntroStartToggle"><span class="toggle-slider"></span></label>
+        </div>
+        <div id="flowIntroStartFields">
+            <div class="flow-tile-section">
+                <span class="flow-tile-section-label">Start bar</span>
+                <p class="metro-help-text">Which bar does the intro start at?</p>
+                <div class="metro-speed-row no-margin">
+                    <button class="metro-bpm-step" id="flowIntroStartMinus" type="button" aria-label="Decrease start bar">&minus;</button>
+                    <div class="metro-speed-readout"><div id="flowIntroStartValue" class="flow-bar-readout">Bar 1</div></div>
+                    <button class="metro-bpm-step" id="flowIntroStartPlus" type="button" aria-label="Increase start bar">+</button>
+                </div>
+            </div>
+        </div>
+        <div class="flow-volta-toggle-row" id="flowIntroEndToggleRow">
+            <div class="flow-volta-toggle-text">
+                <span class="flow-volta-toggle-title">End intro early?</span>
+                <span class="flow-volta-toggle-help" id="flowIntroEndToggleHelp">Enable start intro first</span>
+            </div>
+            <label class="toggle-switch"><input type="checkbox" id="flowIntroEndToggle"><span class="toggle-slider"></span></label>
+        </div>
+        <div id="flowIntroEndFields">
+            <div class="flow-tile-section">
+                <span class="flow-tile-section-label">End bar</span>
+                <p class="metro-help-text">Which bar should the intro finish at?</p>
+                <div class="metro-speed-row no-margin">
+                    <button class="metro-bpm-step" id="flowIntroEndMinus" type="button" aria-label="Decrease end bar">&minus;</button>
+                    <div class="metro-speed-readout"><div id="flowIntroEndValue" class="flow-bar-readout">Bar 1</div></div>
+                    <button class="metro-bpm-step" id="flowIntroEndPlus" type="button" aria-label="Increase end bar">+</button>
+                </div>
+            </div>
+        </div>
+        <div class="flow-edit-sticky-bar-actions">
+            <button type="button" class="btn-cancel btn-nav no-margin" id="flowIntroCancelBtn">Cancel</button>
+            <button type="button" class="btn-submit no-margin" id="flowIntroSaveBtn">Save</button>
+        </div>
     </div>
 </div>
 
@@ -1962,7 +2345,7 @@
 
         <div class="metroSeg-timesig-divider"></div>
 
-        <div class="metroSeg-timesig-family-label">Custom time signature</div>
+        <div class="flow-tile-section-label">Custom time signature</div>
         <div class="metroSeg-timesig-custom-row">
             <div class="metroSeg-timesig-custom-field">
                 <label for="metroSegCustomNumerator">Beats</label>
@@ -1991,7 +2374,6 @@
         </div>
         </div>
         <div class="metroSeg-sticky-footer metroSeg-timesig-footer">
-            <span class="metro-help-text no-margin">Tap any preset to select &amp; close</span>
             <button type="button" class="btn-text no-margin" onclick="document.getElementById('metroSegTimeSigModal').style.display='none'">Done</button>
         </div>
     </div>

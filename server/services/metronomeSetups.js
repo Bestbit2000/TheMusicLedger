@@ -267,10 +267,13 @@ export async function deleteAdhocSetup(accountId, id) {
   if (result.rowCount === 0) throw withStatus(404, 'Setup not found');
 }
 
-// fermatas/rehearsalMarks default to [] so every other caller (duplicate/quick-play, which never
-// insert into metronome_segment_fermatas/metronome_segment_rehearsal_marks - see the ML-103 note
-// on duplicateAdhocSetup/createQuickPlaySetup below) doesn't need to pass one.
-export function toSegmentDto(row, fermatas = [], rehearsalMarks = []) {
+// fermatas/rehearsalMarks/ramps default to [] so every other caller (duplicate/quick-play, which
+// never insert into metronome_segment_fermatas/metronome_segment_rehearsal_marks/
+// metronome_segment_ramps - see the ML-103 note on duplicateAdhocSetup/createQuickPlaySetup below)
+// doesn't need to pass one. The ad-hoc Metronome Blocks tool doesn't have the Tempo ramps list UI
+// (only Flow's Block Inspector does - ML-179 follow-up) so `ramps` is always [] here today; it
+// still keeps reading/writing the legacy single rampStartBarOffset/rampDurationBars fields below.
+export function toSegmentDto(row, fermatas = [], rehearsalMarks = [], ramps = []) {
   return {
     id: Number(row.id),
     orderIndex: row.order_index,
@@ -290,6 +293,7 @@ export function toSegmentDto(row, fermatas = [], rehearsalMarks = []) {
     isRepeatStart: row.is_repeat_start,
     isRepeatEnd: row.is_repeat_end,
     isSectionBoundary: row.is_section_boundary,
+    isFinalBarline: row.is_final_barline,
     repeatPlayCount: row.repeat_play_count,
     gotoCoda: row.goto_coda,
     gotoStartDc: row.goto_start_dc,
@@ -297,9 +301,12 @@ export function toSegmentDto(row, fermatas = [], rehearsalMarks = []) {
     isSegno: row.is_segno,
     gotoSegno: row.goto_segno,
     gotoSegnoThenCoda: row.goto_segno_then_coda,
+    gotoStartDcThenCoda: row.goto_start_dc_then_coda,
+    isFine: row.is_fine,
     isFirstTimeBar: row.is_first_time_bar,
     isSecondTimeBar: row.is_second_time_bar,
     repeatEndingNumbers: row.repeat_ending_numbers || [],
+    repeatEndingStartBar: row.repeat_ending_start_bar,
     introStartBarOffset: row.intro_start_bar_offset,
     introStartBeatOffset: row.intro_start_beat_offset,
     introEndBarOffset: row.intro_end_bar_offset,
@@ -308,6 +315,7 @@ export function toSegmentDto(row, fermatas = [], rehearsalMarks = []) {
     rampStartBeatOffset: row.ramp_start_beat_offset,
     rampDurationBars: row.ramp_duration_bars,
     fermatas,
+    ramps,
     rehearsalMarks
   };
 }
@@ -324,6 +332,7 @@ export async function getAdhocSetupWithSegments(accountId, id) {
             ms.time_signature_id, ms.account_time_signature_id, ms.note_value,
             ms.rehearsal_mark, ms.is_repeat_start, ms.is_repeat_end, ms.is_section_boundary, ms.repeat_play_count,
             ms.goto_coda, ms.goto_start_dc, ms.is_coda, ms.is_segno, ms.goto_segno, ms.goto_segno_then_coda,
+            ms.goto_start_dc_then_coda, ms.is_fine,
             ms.is_first_time_bar, ms.is_second_time_bar,
             ms.intro_start_bar_offset, ms.intro_start_beat_offset, ms.intro_end_bar_offset, ms.intro_end_beat_offset,
             ms.ramp_start_bar_offset, ms.ramp_start_beat_offset, ms.ramp_duration_bars,

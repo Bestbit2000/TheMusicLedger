@@ -9,8 +9,8 @@ import { withStatus, assertFlowAccess } from './flows.js';
 import { toSegmentDto } from './metronomeSetups.js';
 import {
   SEGMENT_COLUMNS, segmentColumnValues, validateSegmentPayload,
-  replaceFermatas, replaceRehearsalMarks, withTransaction,
-  getFermatasForSegmentIds, getRehearsalMarksForSegmentIds
+  replaceFermatas, replaceRehearsalMarks, replaceRamps, withTransaction,
+  getFermatasForSegmentIds, getRehearsalMarksForSegmentIds, getRampsForSegmentIds
 } from './metronomeSegments.js';
 
 // Same "at most one lead-in" rule as the ad-hoc side's own assertNoOtherLeadIn, scoped to
@@ -27,9 +27,10 @@ async function getBlockDtoById(segmentId) {
   const { rows } = await pool.query(
     `SELECT ms.id, ms.order_index, ms.bar_count, ms.bpm, ms.is_lead_in, ms.repeat_lead_in, ms.quiet_seconds_before_lead_in, ms.pickup_beats,
             ms.time_signature_id, ms.account_time_signature_id, ms.note_value,
-            ms.rehearsal_mark, ms.is_repeat_start, ms.is_repeat_end, ms.is_section_boundary, ms.repeat_play_count,
+            ms.rehearsal_mark, ms.is_repeat_start, ms.is_repeat_end, ms.is_section_boundary, ms.is_final_barline, ms.repeat_play_count,
             ms.goto_coda, ms.goto_start_dc, ms.is_coda, ms.is_segno, ms.goto_segno, ms.goto_segno_then_coda,
-            ms.is_first_time_bar, ms.is_second_time_bar, ms.repeat_ending_numbers,
+            ms.goto_start_dc_then_coda, ms.is_fine,
+            ms.is_first_time_bar, ms.is_second_time_bar, ms.repeat_ending_numbers, ms.repeat_ending_start_bar,
             ms.intro_start_bar_offset, ms.intro_start_beat_offset, ms.intro_end_bar_offset, ms.intro_end_beat_offset,
             ms.ramp_start_bar_offset, ms.ramp_start_beat_offset, ms.ramp_duration_bars,
             COALESCE(tso.numerator, ats.numerator) AS numerator,
@@ -42,8 +43,9 @@ async function getBlockDtoById(segmentId) {
     [segmentId]
   );
   const fermatas = await getFermatasForSegmentIds([segmentId]);
+  const ramps = await getRampsForSegmentIds([segmentId]);
   const rehearsalMarks = await getRehearsalMarksForSegmentIds([segmentId]);
-  return toSegmentDto(rows[0], fermatas[String(segmentId)] || [], rehearsalMarks[String(segmentId)] || []);
+  return toSegmentDto(rows[0], fermatas[String(segmentId)] || [], rehearsalMarks[String(segmentId)] || [], ramps[String(segmentId)] || []);
 }
 
 // Ownership-scoped fetch: reads the block's own parent_score_id first, then defers to
@@ -54,9 +56,10 @@ async function getBlockForFlow(accountId, segmentId) {
   const { rows } = await pool.query(
     `SELECT ms.parent_score_id, ms.order_index, ms.bar_count, ms.bpm, ms.is_lead_in, ms.repeat_lead_in, ms.quiet_seconds_before_lead_in, ms.pickup_beats,
             ms.time_signature_id, ms.account_time_signature_id, ms.note_value,
-            ms.rehearsal_mark, ms.is_repeat_start, ms.is_repeat_end, ms.is_section_boundary, ms.repeat_play_count,
+            ms.rehearsal_mark, ms.is_repeat_start, ms.is_repeat_end, ms.is_section_boundary, ms.is_final_barline, ms.repeat_play_count,
             ms.goto_coda, ms.goto_start_dc, ms.is_coda, ms.is_segno, ms.goto_segno, ms.goto_segno_then_coda,
-            ms.is_first_time_bar, ms.is_second_time_bar, ms.repeat_ending_numbers,
+            ms.goto_start_dc_then_coda, ms.is_fine,
+            ms.is_first_time_bar, ms.is_second_time_bar, ms.repeat_ending_numbers, ms.repeat_ending_start_bar,
             ms.intro_start_bar_offset, ms.intro_start_beat_offset, ms.intro_end_bar_offset, ms.intro_end_beat_offset,
             ms.ramp_start_bar_offset, ms.ramp_start_beat_offset, ms.ramp_duration_bars
      FROM metronome_segments ms
@@ -67,6 +70,7 @@ async function getBlockForFlow(accountId, segmentId) {
   const row = rows[0];
   await assertFlowAccess(accountId, row.parent_score_id);
   const fermatas = await getFermatasForSegmentIds([segmentId]);
+  const ramps = await getRampsForSegmentIds([segmentId]);
   const rehearsalMarks = await getRehearsalMarksForSegmentIds([segmentId]);
   return {
     scoreId: Number(row.parent_score_id),
@@ -84,6 +88,7 @@ async function getBlockForFlow(accountId, segmentId) {
     isRepeatStart: row.is_repeat_start,
     isRepeatEnd: row.is_repeat_end,
     isSectionBoundary: row.is_section_boundary,
+    isFinalBarline: row.is_final_barline,
     repeatPlayCount: row.repeat_play_count,
     gotoCoda: row.goto_coda,
     gotoStartDc: row.goto_start_dc,
@@ -91,9 +96,12 @@ async function getBlockForFlow(accountId, segmentId) {
     isSegno: row.is_segno,
     gotoSegno: row.goto_segno,
     gotoSegnoThenCoda: row.goto_segno_then_coda,
+    gotoStartDcThenCoda: row.goto_start_dc_then_coda,
+    isFine: row.is_fine,
     isFirstTimeBar: row.is_first_time_bar,
     isSecondTimeBar: row.is_second_time_bar,
     repeatEndingNumbers: row.repeat_ending_numbers || [],
+    repeatEndingStartBar: row.repeat_ending_start_bar,
     introStartBarOffset: row.intro_start_bar_offset,
     introStartBeatOffset: row.intro_start_beat_offset,
     introEndBarOffset: row.intro_end_bar_offset,
@@ -102,6 +110,7 @@ async function getBlockForFlow(accountId, segmentId) {
     rampStartBeatOffset: row.ramp_start_beat_offset,
     rampDurationBars: row.ramp_duration_bars,
     fermatas: fermatas[String(segmentId)] || [],
+    ramps: ramps[String(segmentId)] || [],
     rehearsalMarks: rehearsalMarks[String(segmentId)] || []
   };
 }
@@ -112,9 +121,10 @@ export async function listFlowBlocks(accountId, scoreId) {
   const { rows } = await pool.query(
     `SELECT ms.id, ms.order_index, ms.bar_count, ms.bpm, ms.is_lead_in, ms.repeat_lead_in, ms.quiet_seconds_before_lead_in, ms.pickup_beats,
             ms.time_signature_id, ms.account_time_signature_id, ms.note_value,
-            ms.rehearsal_mark, ms.is_repeat_start, ms.is_repeat_end, ms.is_section_boundary, ms.repeat_play_count,
+            ms.rehearsal_mark, ms.is_repeat_start, ms.is_repeat_end, ms.is_section_boundary, ms.is_final_barline, ms.repeat_play_count,
             ms.goto_coda, ms.goto_start_dc, ms.is_coda, ms.is_segno, ms.goto_segno, ms.goto_segno_then_coda,
-            ms.is_first_time_bar, ms.is_second_time_bar, ms.repeat_ending_numbers,
+            ms.goto_start_dc_then_coda, ms.is_fine,
+            ms.is_first_time_bar, ms.is_second_time_bar, ms.repeat_ending_numbers, ms.repeat_ending_start_bar,
             ms.intro_start_bar_offset, ms.intro_start_beat_offset, ms.intro_end_bar_offset, ms.intro_end_beat_offset,
             ms.ramp_start_bar_offset, ms.ramp_start_beat_offset, ms.ramp_duration_bars,
             COALESCE(tso.numerator, ats.numerator) AS numerator,
@@ -129,11 +139,12 @@ export async function listFlowBlocks(accountId, scoreId) {
   );
   if (!rows.length) return [];
   const ids = rows.map(r => r.id);
-  const [fermatas, rehearsalMarks] = await Promise.all([
+  const [fermatas, rehearsalMarks, ramps] = await Promise.all([
     getFermatasForSegmentIds(ids),
-    getRehearsalMarksForSegmentIds(ids)
+    getRehearsalMarksForSegmentIds(ids),
+    getRampsForSegmentIds(ids)
   ]);
-  return rows.map(row => toSegmentDto(row, fermatas[String(row.id)] || [], rehearsalMarks[String(row.id)] || []));
+  return rows.map(row => toSegmentDto(row, fermatas[String(row.id)] || [], rehearsalMarks[String(row.id)] || [], ramps[String(row.id)] || []));
 }
 
 export async function createFlowBlock(accountId, scoreId, data) {
@@ -158,6 +169,7 @@ export async function createFlowBlock(accountId, scoreId, data) {
     );
     const newId = inserted.rows[0].id;
     await replaceFermatas(client, newId, normalized.fermatas);
+    await replaceRamps(client, newId, normalized.ramps);
     await replaceRehearsalMarks(client, newId, normalized.rehearsalMarks);
     return newId;
   });
@@ -174,9 +186,10 @@ export async function updateFlowBlock(accountId, segmentId, data) {
   const mergeKeys = [
     'barCount', 'bpm', 'isLeadIn', 'repeatLeadIn', 'quietSecondsBeforeLeadIn', 'pickupBeats',
     'timeSignatureId', 'accountTimeSignatureId', 'noteValue',
-    'rehearsalMark', 'isRepeatStart', 'isRepeatEnd', 'isSectionBoundary', 'repeatPlayCount',
+    'rehearsalMark', 'isRepeatStart', 'isRepeatEnd', 'isSectionBoundary', 'isFinalBarline', 'repeatPlayCount',
     'gotoCoda', 'gotoStartDc', 'isCoda', 'isSegno', 'gotoSegno', 'gotoSegnoThenCoda',
-    'isFirstTimeBar', 'isSecondTimeBar', 'repeatEndingNumbers',
+    'gotoStartDcThenCoda', 'isFine',
+    'isFirstTimeBar', 'isSecondTimeBar', 'repeatEndingNumbers', 'repeatEndingStartBar',
     'introStartBarOffset', 'introStartBeatOffset', 'introEndBarOffset', 'introEndBeatOffset',
     'rampStartBarOffset', 'rampStartBeatOffset', 'rampDurationBars'
   ];
@@ -185,6 +198,7 @@ export async function updateFlowBlock(accountId, segmentId, data) {
     merged[key] = data[key] !== undefined ? data[key] : current[key];
   }
   merged.fermatas = data.fermatas !== undefined ? data.fermatas : current.fermatas;
+  merged.ramps = data.ramps !== undefined ? data.ramps : current.ramps;
   merged.rehearsalMarks = data.rehearsalMarks !== undefined ? data.rehearsalMarks : current.rehearsalMarks;
   if (data.timeSignatureId !== undefined && data.accountTimeSignatureId === undefined) merged.accountTimeSignatureId = null;
   if (data.accountTimeSignatureId !== undefined && data.timeSignatureId === undefined) merged.timeSignatureId = null;
@@ -199,6 +213,7 @@ export async function updateFlowBlock(accountId, segmentId, data) {
     const setClause = columns.map((col, i) => `${col} = $${i + 1}`).join(', ');
     await client.query(`UPDATE metronome_segments SET ${setClause} WHERE id = $${values.length}`, values);
     await replaceFermatas(client, segmentId, normalized.fermatas);
+    await replaceRamps(client, segmentId, normalized.ramps);
     await replaceRehearsalMarks(client, segmentId, normalized.rehearsalMarks);
   });
 
@@ -237,6 +252,7 @@ export async function duplicateFlowBlock(accountId, segmentId) {
     );
     const copyId = inserted.rows[0].id;
     await replaceFermatas(client, copyId, normalized.fermatas);
+    await replaceRamps(client, copyId, normalized.ramps);
     await replaceRehearsalMarks(client, copyId, normalized.rehearsalMarks);
     return copyId;
   });
@@ -255,9 +271,10 @@ export async function copyAllFlowBlocks(sourceScoreId, destScoreId) {
   );
   if (!rows.length) return;
   const ids = rows.map(r => r.id);
-  const [fermatas, rehearsalMarks] = await Promise.all([
+  const [fermatas, rehearsalMarks, ramps] = await Promise.all([
     getFermatasForSegmentIds(ids),
-    getRehearsalMarksForSegmentIds(ids)
+    getRehearsalMarksForSegmentIds(ids),
+    getRampsForSegmentIds(ids)
   ]);
 
   await withTransaction(async (client) => {
@@ -268,15 +285,19 @@ export async function copyAllFlowBlocks(sourceScoreId, destScoreId) {
         timeSignatureId: row.time_signature_id, accountTimeSignatureId: row.account_time_signature_id,
         noteValue: row.note_value, rehearsalMark: row.rehearsal_mark,
         isRepeatStart: row.is_repeat_start, isRepeatEnd: row.is_repeat_end, isSectionBoundary: row.is_section_boundary,
+        isFinalBarline: row.is_final_barline,
         repeatPlayCount: row.repeat_play_count, gotoCoda: row.goto_coda, gotoStartDc: row.goto_start_dc,
         isCoda: row.is_coda, isSegno: row.is_segno, gotoSegno: row.goto_segno, gotoSegnoThenCoda: row.goto_segno_then_coda,
+        gotoStartDcThenCoda: row.goto_start_dc_then_coda, isFine: row.is_fine,
         isFirstTimeBar: row.is_first_time_bar, isSecondTimeBar: row.is_second_time_bar,
         repeatEndingNumbers: row.repeat_ending_numbers,
+        repeatEndingStartBar: row.repeat_ending_start_bar,
         introStartBarOffset: row.intro_start_bar_offset, introStartBeatOffset: row.intro_start_beat_offset,
         introEndBarOffset: row.intro_end_bar_offset, introEndBeatOffset: row.intro_end_beat_offset,
         rampStartBarOffset: row.ramp_start_bar_offset, rampStartBeatOffset: row.ramp_start_beat_offset,
         rampDurationBars: row.ramp_duration_bars,
-        fermatas: fermatas[String(row.id)] || [], rehearsalMarks: rehearsalMarks[String(row.id)] || []
+        fermatas: fermatas[String(row.id)] || [], ramps: ramps[String(row.id)] || [],
+        rehearsalMarks: rehearsalMarks[String(row.id)] || []
       });
       const columns = ['parent_score_id', 'order_index', ...SEGMENT_COLUMNS];
       const values = [destScoreId, row.order_index, ...segmentColumnValues(normalized)];
@@ -287,6 +308,7 @@ export async function copyAllFlowBlocks(sourceScoreId, destScoreId) {
       );
       const newId = inserted.rows[0].id;
       await replaceFermatas(client, newId, normalized.fermatas);
+      await replaceRamps(client, newId, normalized.ramps);
       await replaceRehearsalMarks(client, newId, normalized.rehearsalMarks);
     }
   });

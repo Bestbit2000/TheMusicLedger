@@ -82,15 +82,17 @@
     #mainContainer { width: 100%; max-width: var(--app-max-width); }
 
     .top-bar-sticky-group { width: 100%; display: flex; flex-direction: column; align-items: center; position: sticky; top: 0; z-index: 50; }
-    .top-bar { width: 100%; max-width: var(--app-max-width); background: var(--container-bg); padding: 15px 20px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-md); }
+    .top-bar { width: 100%; max-width: var(--app-max-width); background: var(--container-bg); padding: 8px 20px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-md); }
     .top-bar-title { font-size: var(--font-md); font-weight: bold; flex-grow: 1; text-align: center; }
     .top-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-color); padding: 5px 10px; font-weight: bold; }
     /* Plain icon button, same visual weight as the burger menu next to it (no filled-circle "active"
        treatment) - it only ever offers to open the tuner (it disappears entirely once open, see
-       renderTopTunerToggleState), so there's no on/off state left to show here either. */
+       renderTopTunerToggleState), so there's no on/off state left to show here either. Fixed 40px
+       (not tied to the bar's own padding) - still the tallest element in a tightened bar, so this is
+       the floor the rest of the row's paddings were brought down to meet, not shrunk further. */
     .top-tuner-toggle { width: 40px; height: 40px; min-width: 40px; border-radius: var(--radius-circle); display: flex; align-items: center; justify-content: center; padding: 0; }
     .top-tuner-toggle-icon { height: 20px; width: auto; }
-    .top-btn-back { background: transparent; border: none; color: var(--text-color); padding: 10px 20px 10px 5px; font-size: 1.6rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; }
+    .top-btn-back { background: transparent; border: none; color: var(--text-color); padding: 6px 20px 6px 5px; font-size: 1.6rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; }
     .hidden-btn { visibility: hidden; pointer-events: none; }
 
     .dropdown-menu { display: none; position: absolute; top: 100%; right: 20px; background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-sm); box-shadow: var(--shadow-xl); z-index: 100; min-width: 200px; overflow: hidden; }
@@ -117,8 +119,12 @@
     .container { width: 100%; max-width: var(--app-max-width); background: var(--container-bg); padding: var(--space-5); box-sizing: border-box; min-height: calc(100vh - 60px); }
 
     .btn-large, .btn-submit, .btn-nav { display: block; width: 100%; color: white; border: none; padding: var(--space-4); font-size: var(--font-md); font-weight: bold; border-radius: var(--radius-md); cursor: pointer; margin-bottom: var(--space-4); box-sizing: border-box; text-align: center; }
+    /* A plain ">" at the same weight/size language as the top bar's own "<" back button (.top-btn-back)
+       - stronger than a "&rarr;" glyph, and visually pairs with it as forward's counterpart to back. */
+    .btn-nav-arrow { font-size: 1.2em; font-weight: bold; }
     .btn-large { background: var(--primary-action); color: var(--primary-action-text); font-size: var(--font-lg); padding: 18px; }
     .btn-submit { background: var(--primary-action); color: var(--primary-action-text); }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-nav { background: var(--nav-action); color: var(--nav-action-text); }
     /* Design system: three button levels, one corner radius.
        1. Primary (.btn-submit/.btn-large) - filled, var(--primary-action).
@@ -432,6 +438,39 @@
        read as a flash on a 10px circle - give it its own colour change, same pattern as
        .metro-dot-note.lit, so the sub-beat flash is actually visible. */
     .metro-dot-sub.lit { background: var(--danger-color); border-color: var(--danger-color); transform: translate(-50%, -50%) scale(1.35); }
+
+    /* ML-130: a fermata's held beat - persistent (not the transient 120ms .lit flash, which keeps
+       firing independently underneath this via flashTierDot) for the whole hold, gold-filled with a
+       pulsing glow so it reads unmistakably as "time is suspended here", plus a live countdown
+       numeral (metro-dot-count, injected/removed by updateFermataDotState) of beats left in the hold.
+       Wins over .lit's own colour so the transient flash never fights the sustained gold underneath it. */
+    @keyframes metro-fermata-glow {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.55); }
+        50% { box-shadow: 0 0 10px 5px rgba(212, 175, 55, 0.55); }
+    }
+    .metro-dot.fermata-holding,
+    .metro-dot.fermata-holding.lit {
+        background: var(--primary-action);
+        border-color: var(--primary-action);
+        animation: metro-fermata-glow 1s ease-in-out infinite;
+    }
+    .metro-dot-count { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; color: var(--container-bg); pointer-events: none; }
+    /* A fermata's held beat once the hold itself has finished - static gold (no glow, no countdown),
+       kept for the rest of the bar (cleared by renderFermataMarkers at the next bar boundary) instead
+       of snapping straight back to a plain dot the instant the hold ends, so there's still a visible
+       record of "a fermata happened here" while that bar keeps playing. */
+    .metro-dot.fermata-done, .metro-dot.fermata-done.lit { background: var(--primary-action); border-color: var(--primary-action); }
+    /* The small fermata glyph shown above a beat's dot for as long as that beat's own bar is playing
+       (renderFermataMarkers) - a sibling of the dots in the same scrolling row, so it pans with them
+       for free rather than needing its own scroll-follow logic. */
+    .metro-fermata-marker { position: absolute; top: -16px; transform: translateX(-50%); color: var(--primary-action); pointer-events: none; }
+    /* Scaled down from flowSignIconSvg's default 32px picker-tile size - proportionate to the 15px
+       beat dot it sits above, not the much bigger context it was originally sized for. */
+    .metro-fermata-marker .flow-sign-svg { font-size: 18px; }
+    /* Extra headroom so the marker's -16px offset (above) doesn't get clipped by the viewport's own
+       overflow:hidden (needed for horizontal scrolling) - toggled per-row by renderFermataMarkers only
+       while that row actually has a marker to show, not permanently on every metronome-family row. */
+    .metro-display-viewport.metro-has-fermata-marker { padding-top: 22px; }
 
     .metro-bpm-step { width: 48px; height: 48px; flex-shrink: 0; border-radius: var(--radius-circle); border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: 1.4rem; font-weight: bold; cursor: pointer; user-select: none; touch-action: manipulation; }
     .metro-bpm-step:active { background: var(--radio-highlight); color: #fff; border-color: var(--radio-highlight); }
@@ -776,11 +815,20 @@
        (themed already, light/dark alike) is what colours the glyph - no separate light/dark case
        needed here. */
     /* Icon-only now (no text label) - the picker modal has room to make the glyphs themselves
-       bigger instead, which reads faster than a row of small icon+text pairs. */
-    .metroBlk-note-picker { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
-    .metroBlk-note-btn { flex: 1; background: var(--input-bg); border: 2px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3) 4px; cursor: pointer; color: var(--text-color); display: flex; align-items: center; justify-content: center; }
+       bigger instead, which reads faster than a row of small icon+text pairs. Fixed 4-column grid
+       (same "don't stretch buttons to fill the row" rule as every other picker in this app - see
+       .flow-tile-grid/metroSeg-timesig-family-grid) rather than flex:1, so a picker with fewer than
+       4 options (Start of bar's 2) or more doesn't change how wide each button is - Beat note's 8
+       fills exactly two rows, 2 leaves the outer columns empty (individual pickers re-center
+       themselves into the middle two columns where that's wanted - see #flowBarStartPicker below). */
+    .metroBlk-note-picker { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin-bottom: var(--space-2); }
+    .metroBlk-note-btn { background: var(--input-bg); border: 2px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3) 4px; cursor: pointer; color: var(--text-color); display: flex; align-items: center; justify-content: center; }
     .metroBlk-note-btn.selected { border-color: var(--primary-action); color: var(--primary-action); background: rgba(212, 175, 55, 0.12); }
     .metroBlk-note-btn .metroBlk-note-svg { width: 26px; height: 44px; }
+    /* Start of bar has just 2 options - centered into the grid's middle two columns (2 and 3)
+       rather than left-packed into 1 and 2. */
+    #flowBarStartPicker .metroBlk-note-btn:nth-child(1) { grid-column: 2; }
+    #flowBarStartPicker .metroBlk-note-btn:nth-child(2) { grid-column: 3; }
 
     /* The Blocks segment-edit modal's own trigger for .metroBlk-note-picker above used to be a
        separate compact "note = bpm" row (.metroBlk-note-select-btn/-eq/-bpm-row); ML-103 replaced it
@@ -819,7 +867,6 @@
     .metroBlk-timesig-opt { width: 100%; min-height: 48px; background: var(--input-bg); border: 2px solid var(--input-border); border-radius: var(--radius-sm); padding: var(--space-3) 4px; text-align: center; font-weight: bold; font-size: var(--font-md); cursor: pointer; color: var(--text-color); box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
     .metroBlk-timesig-opt.selected { border-color: var(--primary-action); background: rgba(212, 175, 55, 0.12); color: var(--primary-action); box-shadow: 0 0 14px rgba(212, 175, 55, 0.25); }
     .metroSeg-timesig-family { margin-bottom: var(--space-4); }
-    .metroSeg-timesig-family-label { font-size: var(--font-sm); font-weight: bold; color: var(--label-color); text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: var(--space-2); }
     .metroSeg-timesig-family-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
     .metroSeg-timesig-divider { border-top: 1px solid var(--input-border); margin: var(--space-2) 0 var(--space-4) 0; }
     .metroSeg-timesig-custom-row { display: flex; align-items: flex-end; gap: var(--space-2); }
@@ -831,16 +878,17 @@
     .metroSeg-timesig-chips-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
     .metroSeg-timesig-chips-label { font-size: var(--font-sm); color: var(--label-color); }
     .metroSeg-timesig-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-    /* Wrapper around a select button (the pill look, tap to apply) and a small trailing × (archives
-       the signature instead of selecting it - see renderMetroSegTimeSigChips in app.js, ML-153). */
-    .metroSeg-timesig-chip { display: flex; align-items: stretch; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-circle); overflow: hidden; }
+    /* Wrapper around a select button (tap to apply) and a small trailing × (archives the signature
+       instead of selecting it - see renderMetroSegTimeSigChips in app.js, ML-153). Same standard-box
+       look as the preset tiles above it (.metroBlk-timesig-opt) - rounded corners, not a pill. */
+    .metroSeg-timesig-chip { display: flex; align-items: stretch; background: var(--input-bg); border: 2px solid var(--input-border); border-radius: var(--radius-sm); overflow: hidden; }
     .metroSeg-timesig-chip-select { background: none; border: none; padding: 6px 4px 6px 14px; font-weight: bold; font-size: var(--font-sm); color: var(--text-color); cursor: pointer; }
     .metroSeg-timesig-chip-select:hover { background: var(--input-border); }
     .metroSeg-timesig-chip-remove { background: none; border: none; padding: 6px 12px 6px 6px; font-size: var(--font-md); line-height: 1; color: var(--label-color); cursor: pointer; }
     .metroSeg-timesig-chip-remove:hover { color: var(--danger-color); }
     /* Overrides the base .metroSeg-sticky-footer's plain gap-of-buttons layout (metroSegmentModal's
-       Cancel/Save) to spread status text left / Done right instead. */
-    .metroSeg-timesig-footer { justify-content: space-between; align-items: center; }
+       Cancel/Save) to right-align the lone Done button instead. */
+    .metroSeg-timesig-footer { justify-content: flex-end; align-items: center; }
 
     /* ML-103 follow-up: block editor reworked into the "expandable card" layout from the attached
        reference (expandable_metronome_sections.html) - a bordered box per topic (Standard/Multiple
@@ -958,6 +1006,10 @@
     .metroBlk-entry-choice { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); min-height: 140px; padding: var(--space-4); border: 2px solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); cursor: pointer; text-align: center; box-sizing: border-box; }
     .metroBlk-entry-choice .material-symbols-outlined { font-size: 32px; color: var(--primary-action); }
     .metroBlk-entry-choice strong { font-size: var(--font-md); }
+    /* "Coming soon" tile - dimmed and not clickable (cursor: default, no primary-action icon tint)
+       rather than styled identically to the two real choices either side of it. */
+    .metroBlk-entry-choice-disabled { cursor: default; opacity: 0.55; }
+    .metroBlk-entry-choice-disabled .material-symbols-outlined { color: var(--label-color); }
     #metroBlkEntryLibrary { margin-top: var(--space-4); }
 
     .metroBlk-mini-label-readout { font-size: var(--font-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -979,7 +1031,7 @@
     /* ML-164: page background, not the clickable input-bg - the card itself isn't a control, only the
        time-signature/beat-unit/BPM-stepper buttons inside it (which keep their own explicit input-bg
        background regardless of what this parent sets) are. */
-    .qp-block-surface { position: relative; background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-4); }
+    .qp-block-surface { position: relative; background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-4); transition: border-color 0.15s ease, border-width 0.15s ease; }
     /* Whichever bar is actually sounding right now, while playing only (renderQpActiveBoxHighlight) -
        same bold-gold-border language as Blocks' own .metroBlk-tile-active. Targets the surface (the
        visible card), not the outer clipping box, which has no border/background of its own any more. */
@@ -1041,6 +1093,16 @@
        permanently, so a bar's own layout-affecting style changes (e.g. resizing while editing a field)
        never unintentionally animate through this. */
     .qp-block-animating { transition: transform 0.25s ease, opacity 0.25s ease; }
+    /* Same move-feedback treatment, Flow's own block cards (flowAnimateBlocksChange/animateFlipReorder) -
+       applied just for the moment of the animation itself, same reasoning as .qp-block-animating above. */
+    .flow-block-animating { transition: transform 0.25s ease, opacity 0.25s ease; }
+    /* Gold, thicker border on whichever card is actually being reordered - applied the moment the
+       grab handle is picked up (wireVerticalDragHandle) and kept through the settle animation
+       (animateFlipReorder re-applies it to the freshly re-rendered element, matched by raiseUid),
+       reverting the instant it lands. .qp-block-surface/.flow-block-card's own border-color/width
+       transition (above) is what makes both the appearance and the reversion animate smoothly rather
+       than snapping. One shared class/rule for both surfaces, not a copy per screen. */
+    .qp-block-surface.drag-reorder-highlight, .flow-block-card.drag-reorder-highlight { border-color: var(--primary-action); border-width: 3px; }
     /* "Bars" section-title's own right-side slot (placeholder - Show history/Create flow aren't wired
        up to anything yet) - low-emphasis text links, not buttons, so they read as secondary next to
        the bold title beside them; a small gap keeps the two from reading as one run-on phrase. */
@@ -1137,11 +1199,43 @@
        naming/theme note in that ticket's plan) - --container-bg/--input-border/
        --radius-xl instead of hardcoding either the mockup's light Tailwind
        colours or the ticket text's separate dark hex spec. */
-    .flow-hub-topline { display: flex; justify-content: flex-end; margin-bottom: var(--space-3); }
+    /* Edit Flow's 3-way Details/Media/Blocks tab bar - a segmented control, not the .flow-pill
+       badge language, so its own radius scale (not --radius-pill, reserved for badges/chips). No
+       more 3-dot menu sharing this row (see index.html) - it had nothing left in it once Visibility/
+       Delete moved out of the popup, so the row is tabs-only again. */
+    .flow-edit-tabs { display: flex; gap: 2px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-lg); padding: 3px; margin-bottom: var(--space-4); }
+    .flow-edit-tab { flex: 1; background: transparent; border: none; color: var(--label-color); font-size: var(--font-sm); font-weight: bold; padding: var(--space-2) var(--space-1); border-radius: var(--radius-md); cursor: pointer; }
+    .flow-edit-tab.active { background: var(--container-bg); color: var(--text-color); box-shadow: var(--shadow-sm); }
+    .flow-edit-tab-count { color: inherit; opacity: 0.7; font-weight: normal; }
+    /* Edit Flow's own content sits under a pinned sticky bottom bar (.flow-edit-sticky-bar below) -
+       extra bottom padding on the view itself (not a scrolling element of its own - body is what
+       scrolls, same as everywhere else in the app) keeps the bar from permanently covering the last
+       bit of real content once scrolled all the way down. Sized for Edit mode's taller 3-row bar
+       (Cancel/Save + Delete link, on top of Create mode's own single button) plus headroom for a
+       safe-area inset. */
+    #flowDetailsHubView { padding-bottom: 150px; }
+    /* Mirrors .top-bar-sticky-group/.top-bar's own "full-width flex-centered wrap + max-width inner
+       bar" pattern, just pinned to the bottom instead of the top. The wrap spans the full viewport
+       so it can center the bar under body's own centered column on desktop; pointer-events:none on
+       it (restored to auto on the bar) stops its transparent side margins from eating clicks on
+       whatever's behind them. */
+    .flow-edit-sticky-bar-wrap { width: 100%; display: flex; justify-content: center; position: fixed; left: 0; bottom: 0; z-index: 50; pointer-events: none; }
+    /* Visual boundary (border + upward elevation shadow, mirroring --shadow-md's values with the
+       offset flipped to point up instead of down) separating the bar from scrolled content behind
+       it, plus safe-area-aware bottom padding for the iOS home indicator (env() resolves to 0 - a
+       harmless no-op - on any device/browser without one). */
+    .flow-edit-sticky-bar { pointer-events: auto; width: 100%; max-width: var(--app-max-width); box-sizing: border-box; background: var(--container-bg); border-top: 1px solid var(--input-border); box-shadow: 0 -2px 8px rgba(0,0,0,0.1); padding: var(--space-3) 20px calc(var(--space-3) + env(safe-area-inset-bottom, 0px)) 20px; }
+    .flow-edit-sticky-bar .btn-submit { margin-bottom: 0; }
+    /* Cancel + Save side by side, same shape as .metroBlk-edit-bar-actions. */
+    .flow-edit-sticky-bar-actions { display: flex; gap: var(--space-3); }
+    .flow-edit-sticky-bar-actions .btn-cancel, .flow-edit-sticky-bar-actions .btn-submit { flex: 1; margin-bottom: 0; }
     .flow-card { background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-xl); padding: var(--space-5); margin-bottom: var(--space-4); }
     .flow-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-4); }
-    .flow-card-label { display: block; font-size: var(--font-xs); font-weight: bold; text-transform: uppercase; letter-spacing: 0.03em; color: var(--label-color); }
+    /* Sentence case, same weight/size/color as a block card's own title (.flow-block-name) rather
+       than the small uppercase label style used elsewhere - these are card titles, not field labels. */
+    .flow-card-label { display: block; font-size: var(--font-md); font-weight: bold; color: var(--text-color); }
     .flow-card-sublabel { margin: 2px 0 0; font-size: var(--font-sm); color: var(--label-color); }
+    .flow-visibility-value { margin: 0; font-size: var(--font-base); color: var(--text-color); }
     .flow-pill { flex-shrink: 0; font-size: var(--font-xs); font-weight: bold; color: var(--label-color); background: var(--input-bg); border: 1px solid var(--input-border); padding: 3px var(--space-3); border-radius: var(--radius-pill); white-space: nowrap; }
     .flow-pill-accent { color: var(--primary-action); border-color: var(--primary-action); background: rgba(212, 175, 55, 0.12); }
     .flow-required { color: var(--danger-color); }
@@ -1175,16 +1269,21 @@
     .flow-doc-item { margin-bottom: var(--space-2); }
     .flow-media-item-top { display: flex; justify-content: space-between; align-items: center; width: 100%; }
     .flow-media-icon, .flow-doc-icon { width: 32px; height: 32px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-right: var(--space-3); font-size: 18px; }
-    .flow-media-icon.type-audio { background: rgba(212, 175, 55, 0.18); color: var(--primary-action); }
+    .flow-media-icon.type-audio, .flow-media-icon.type-metronome { background: rgba(212, 175, 55, 0.18); color: var(--primary-action); }
     .flow-media-icon.type-youtube { background: rgba(244, 67, 54, 0.15); color: var(--danger-color); }
+    .flow-media-icon.type-metronome svg { width: 18px; height: 18px; }
     .flow-doc-icon { background: rgba(33, 150, 243, 0.15); color: var(--info-color); font-size: 11px; font-weight: bold; }
     .flow-media-item .history-details, .flow-doc-item .history-details { display: flex; align-items: center; }
-    .flow-media-item .history-details strong, .flow-doc-item .history-details strong { display: block; font-size: var(--font-sm); }
-    .flow-media-item .history-details span, .flow-doc-item .history-details span { display: block; font-size: var(--font-xs); color: var(--label-color); }
+    /* Scoped to the text div's own children, not a bare "span" - that used to also match
+       .flow-media-icon/.flow-doc-icon (also a span, also a direct child of .history-details),
+       forcing it to display:block and killing its own centering (the icon glyph collapsed to the
+       top-left of its box instead of sitting centered). */
+    .flow-media-item .history-details > div strong, .flow-doc-item .history-details > div strong { display: block; font-size: var(--font-sm); }
+    .flow-media-item .history-details > div span, .flow-doc-item .history-details > div span { display: block; font-size: var(--font-xs); color: var(--label-color); }
     .flow-doc-item-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
     /* Same grey-outline "clickable circle" shape as .list-item-menu-btn, tinted red for delete
        rather than .btn-icon-delete's solid red fill - Recordings/Documents rows delete far more
-       casually than a whole flow (see flowHubMenuDelete), so it shouldn't read as loudly. */
+       casually than a whole flow (see flowDeleteLink), so it shouldn't read as loudly. */
     .flow-delete-btn { width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-circle); border: 1px solid var(--input-border); background: var(--input-bg); color: var(--danger-color); display: flex; align-items: center; justify-content: center; cursor: pointer; }
     /* Native <audio> controls, full row width - no extra chrome needed for a compact,
        "just play it" control. */
@@ -1193,6 +1292,32 @@
        16:9 aspect ratio so the row's height is predictable regardless of source. */
     .flow-media-player-video { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--radius-md); overflow: hidden; background: #000; }
     .flow-media-player-video iframe, .flow-media-player-video video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+    /* ML-166: Play Flow's swipeable media carousel (Metronome + one slide per attached audio
+       track/video link) - a self-contained set of classes rather than reusing .history-item/
+       .flow-media-item, which are shaped for Edit Flow's list-of-rows context, not a single
+       full-width carousel slide. Mirrors .flow-edit-tab's active-state language for the dots. */
+    .flow-media-dots { display: flex; justify-content: center; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+    .flow-media-dot { width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--radius-circle); border: 2px solid transparent; background: var(--input-bg); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--label-color); padding: 0; }
+    .flow-media-dot .material-symbols-outlined { font-size: 18px; }
+    .flow-media-dot svg { width: 18px; height: 18px; }
+    .flow-media-dot.active { border-color: var(--primary-action); color: var(--primary-action); background: rgba(212, 175, 55, 0.12); }
+    /* Height is set inline by JS (renderFlowMediaCarousel/goToFlowMediaSlide) to the active
+       slide's own measured scrollHeight - the transition here is what makes that change smooth
+       rather than an instant jump, same "measure, don't hardcode per type" reasoning as the plan. */
+    .flow-media-carousel-viewport { overflow: hidden; transition: height 250ms ease; }
+    /* touch-action:pan-y (not none) - vertical page scroll still works natively; only horizontal
+       drag is captured by JS (wireFlowMediaSwipe), same split Quick Play's own swipe-to-delete
+       relies on for its own gesture. */
+    /* align-items:flex-start (not the flex default of stretch) - otherwise every slide is
+       stretched to match the tallest sibling's height, which is exactly what the JS-measured
+       per-slide scrollHeight above is trying to avoid. */
+    .flow-media-carousel-track { display: flex; align-items: flex-start; transition: transform 250ms ease; touch-action: pan-y; }
+    .flow-media-slide { flex: 0 0 100%; width: 100%; box-sizing: border-box; }
+    .flow-media-slide-header { display: flex; align-items: center; margin-bottom: var(--space-3); }
+    .flow-media-slide-header > div { min-width: 0; }
+    .flow-media-slide-header > div strong { display: block; font-size: var(--font-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .flow-media-slide-header > div span { display: block; font-size: var(--font-xs); color: var(--label-color); }
 
     .flow-blocks-card { border: 2px solid rgba(212, 175, 55, 0.4); }
     /* .no-margin on this button (avoids unwanted space below it, inside the card, since it's the
@@ -1205,14 +1330,22 @@
     .flow-lead-in-card { border: 2px solid var(--primary-action); margin-bottom: var(--space-3); }
     .flow-lead-in-card .flow-card-header { margin-bottom: var(--space-3); }
     /* Reorderable block cards - same rounded-card language as .flow-card, plus a drag handle and
-       rehearsal-mark badge in the header (mirrors Quick Play's own qp-bar-grab-handle rather than
-       Blocks' handle-less whole-tile drag, since these cards are busier/denser). */
-    .flow-block-card { background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-xl); padding: var(--space-4); margin-bottom: var(--space-3); touch-action: none; }
-    .flow-block-card.dragging { opacity: 0.5; }
+       rehearsal-mark badge in the header. Gesture split now genuinely mirrors Quick Play's own
+       qp-block-box/qp-block-surface/qp-bar-grab-handle (wireQpBarGrabHandle/wireQpBarSwipe): a plain
+       clipping wrapper (.flow-block-box - delete underlay behind, the card itself in front and
+       sliding) with touch-action:pan-y, so native vertical page scroll works from anywhere on a bar
+       card - only the grab handle (touch-action:none, isolated to itself) owns vertical drag, and a
+       swipe only ever intercepts once it's confirmed horizontal (wireFlowBlockSwipe). */
+    .flow-block-box { position: relative; border-radius: var(--radius-xl); margin-bottom: var(--space-3); overflow: hidden; touch-action: pan-y; }
+    .flow-block-card { background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-xl); padding: var(--space-4); position: relative; transition: border-color 0.15s ease, border-width 0.15s ease; }
     .flow-block-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
     .flow-block-card-title { display: flex; align-items: center; gap: var(--space-2); }
-    .flow-block-grab-handle { width: 32px; height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--label-color); cursor: grab; }
+    .flow-block-grab-handle { width: 32px; height: 32px; flex-shrink: 0; border: none; background: transparent; padding: 0; display: flex; align-items: center; justify-content: center; color: var(--label-color); cursor: grab; touch-action: none; }
     .flow-block-grab-handle:active { cursor: grabbing; }
+    /* Revealed behind .flow-block-card as it slides left - width matches FLOW_BLOCK_SWIPE_OPEN_PX
+       in app.js, same shape as Quick Play's own .qp-block-delete-underlay. */
+    .flow-block-delete-underlay { position: absolute; top: 0; right: 0; bottom: 0; width: 96px; background: var(--danger-color); color: #fff; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; font-weight: bold; font-size: var(--font-sm); }
+    .flow-block-delete-underlay .material-symbols-outlined { font-size: 22px; }
     .flow-block-name { font-weight: bold; font-size: var(--font-md); }
     /* A <button> now (tappable to edit), not just a display badge - reset the native button
        chrome so it still reads as the same small pill it always was. */
@@ -1229,57 +1362,316 @@
     .flow-tile-grid { display: grid; gap: var(--space-2); }
     .flow-tile-grid-3 { grid-template-columns: repeat(3, 1fr); }
     .flow-tile-grid-4 { grid-template-columns: repeat(4, 1fr); }
+    /* Jump sign (#flowSignOptions, 3 tiles) and Score jump (#flowJumpOptions, 6 tiles - wraps to 2
+       rows of 3 automatically) pickers - tiles at a 4-column grid's own per-tile width, centered as a
+       block (75% = 3/4 columns) rather than stretched to fill the row - same technique as
+       .flow-multiselect-grid-3. */
+    .flow-tile-grid-3-centered { grid-template-columns: repeat(3, 1fr); width: 75%; margin-left: auto; margin-right: auto; }
+    /* "Repeats"/"Intro" and "Tempo"/"Jumps" (flowBlockCardHtml) - each a single 4-tile row shared by
+       two section labels instead of two separate grids, so all 4 tiles keep the same standard width
+       every other row uses. Mirrors the tile grid's own 4 columns; default split is 2/2 (first label
+       over the first pair, second over the last pair) - "Tempo"/"Jumps" uses this as-is. "Repeats"/
+       "Intro" needs 3/1 instead (alt ending groups with start/end under "Repeats", not with the bar
+       range tile under "Intro") - .flow-tile-section-split-labels-3-1 overrides the span accordingly. */
+    .flow-tile-section-split-labels { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin-bottom: var(--space-2); }
+    .flow-tile-section-split-labels .flow-tile-section-label { grid-column: span 2; margin-bottom: 0; }
+    .flow-tile-section-split-labels-3-1 .flow-tile-section-label:first-child { grid-column: span 3; }
+    .flow-tile-section-split-labels-3-1 .flow-tile-section-label:last-child { grid-column: span 1; }
     .flow-tile-section { margin-bottom: var(--space-4); }
     .flow-tile-section:last-of-type { margin-bottom: 0; }
-    .flow-tile-section-label { display: block; font-size: var(--font-xs); font-weight: bold; color: var(--label-color); margin-bottom: var(--space-2); }
+    .flow-tile-section-label { display: block; font-size: var(--font-sm); font-weight: bold; color: var(--label-color); margin-bottom: var(--space-2); }
     /* Same "tap opens a picker" tile shape used both inside the Block Inspector Modal and inline
        for the lead-in's own 3 tiles - light hollow card, no heavy border, gold on select-state
        controls elsewhere already covers "this is active", so plain neutral here is enough for
        "tap to change". */
-    .flow-tile { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; min-height: 56px; }
-    .flow-tile-value { font-size: var(--font-md); font-weight: bold; color: var(--text-color); line-height: 1; }
-    .flow-tile-label { font-size: var(--font-xs); color: var(--label-color); }
+    /* Fixed min-height sized for the tallest tile content today (the 3-line alt-ending value: bracket
+       + "from bar N" + caption) - every tile grows to at least that, so a row's short tiles ("None")
+       and its tall ones share one height instead of each shrinking to its own content. The value
+       area is flex:1 and centers its own content vertically within whatever space that leaves, so
+       the caption underneath always sits at the same distance from the tile's bottom edge regardless
+       of how tall the value above it is - not both centered as one block (main-axis centering would
+       move a short tile's whole label+value group, and only it, toward the middle). */
+    .flow-tile { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-2); display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; min-height: 90px; }
+    .flow-tile-value { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: var(--font-md); font-weight: bold; color: var(--text-color); line-height: 1; }
+    .flow-tile-label { flex-shrink: 0; font-size: var(--font-xs); color: var(--label-color); }
     /* metroNoteIconSvg's paths all use fill/stroke="currentColor" - sizing/coloring the icon is
        just sizing/coloring this wrapper. */
     .flow-tile-value svg { height: 1.6em; width: auto; color: inherit; }
-    /* "This has something set" (ML-179 follow-up) - gold border + gold value text/icon, applied to
-       whichever of the optional Repeats/intro/Changes/jumps tiles currently holds a real value
-       instead of "None"/the plain default. Core row (time/beat unit/bpm/bars) never uses this -
-       those are always a concrete value, there's no meaningful "empty" state for them. */
-    .flow-tile-filled { border-color: var(--primary-action); }
-    .flow-tile-filled .flow-tile-value { color: var(--primary-action); }
+    /* End tile's repeat count (flowEndLabel) - same smaller, icon-centered format as the End of bar
+       picker's own .flow-picker-tile-count, not the tile-value's own big bold baseline-aligned text. */
+    .flow-tile-value .flow-barline-value-row { display: inline-flex; align-items: center; gap: 4px; }
+    .flow-tile-value .flow-barline-value-count { font-size: var(--font-sm); font-weight: bold; color: inherit; }
+    /* Repeat bar tile's empty state (flowRepeatBarLabel) - a plain "+" in the same muted colour as
+       the tile's own caption underneath it, not the bold value colour every other tile's "None"
+       text uses. */
+    .flow-tile-value .flow-tile-value-empty { color: var(--label-color); font-weight: normal; }
+    .flow-tile-value .flow-warning-icon { width: 1.2em; height: 1.2em; vertical-align: -0.2em; }
+    /* Repeat-bar/intro tile's "stale" state (flowRepeatBarInvalid/flowIntroInvalid) - a stored bar
+       number left stranded outside the block after it was shortened. Replaces the tile's normal
+       value entirely (no point showing a bracket/bar number that's no longer valid) with a big
+       triangle + "Update", and reddens the tile itself so it reads as needing attention at a glance. */
+    .flow-tile.flow-tile-warning { border-color: var(--danger-color); background: rgba(244, 67, 54, 0.08); }
+    .flow-tile-value-warning { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .flow-tile-value-warning .flow-tile-warning-icon { width: 26px; height: 26px; color: var(--danger-color); }
+    .flow-tile-value-warning-text { font-size: var(--font-xs); font-weight: bold; color: var(--danger-color); }
+    /* Volta/alternate-ending bracket (flowRepeatBarLabel) - real notation, not plain "1-3,5&7-9."
+       text: a corner (::before) whose horizontal stroke sits above the figures and whose vertical
+       tick runs down immediately to their left, overlapping alongside them rather than floating
+       disconnected above - padding-top/left on the wrapper is exactly the tick's own reach, so the
+       figures start right where the corner leaves off. "from bar N" sits below as its own smaller
+       line, only shown once a start bar is set. */
+    .flow-volta-bracket { position: relative; display: inline-block; padding-top: 2px; padding-left: 7px; }
+    .flow-volta-bracket::before {
+        content: '';
+        position: absolute;
+        top: 3px; left: 3px; right: -4px;
+        height: 14px;
+        border-top: 2px solid currentColor;
+        border-left: 2px solid currentColor;
+    }
+    .flow-volta-bracket-numbers { display: inline-block; font-size: var(--font-sm); font-weight: bold; line-height: 1.15; white-space: nowrap; }
+    .flow-tile-value .flow-volta-from-bar { display: block; font-size: var(--font-xs); font-weight: normal; color: var(--label-color); margin-top: 2px; }
+
+    /* Intro tile's cue bracket (#flowIntroModal's main-card display) - a tall tick to the left of the
+       "Bar N" text and a line underneath it, with a short answering tick at the line's right end -
+       same real-notation language as .flow-volta-bracket, mirrored: the stroke sits below the text
+       here instead of above it. */
+    .flow-intro-bracket { position: relative; display: inline-block; padding: 0 8px 2px 8px; }
+    .flow-intro-bracket::before {
+        content: '';
+        position: absolute;
+        top: 3px; left: 3px; right: 3px; bottom: 0;
+        border-left: 2px solid currentColor;
+        border-bottom: 2px solid currentColor;
+    }
+    .flow-intro-bracket::after {
+        content: '';
+        position: absolute;
+        top: 3px; right: 3px; bottom: 0;
+        border-right: 2px solid currentColor;
+    }
+    /* No end bar set ("End intro early?" off) - the bottom line just runs off the right edge with no
+       closing tick, reading as "continues to the end of the section" rather than a bounded range. */
+    .flow-intro-bracket-open-end::after { display: none; }
+    .flow-intro-bracket-text { display: inline-block; font-size: var(--font-sm); font-weight: bold; line-height: 1.15; white-space: nowrap; }
+
+    /* Start-of-bar/End-of-bar picker option cards (flowBarlinePickerTileHtml) - reuses
+       .flow-tile-grid/-3/-4 for layout, its own tile class since these carry an icon+count row and
+       a caption below, neither of which the card's own .flow-tile needs. Same "icon area is flex:1
+       and centers its own content, caption stays pinned at a fixed distance from the bottom" split
+       as .flow-tile/.flow-tile-value use (see that rule's own comment) - a fixed min-height plus
+       flex:1 on the icon row, not both centered together as one block. */
+    .flow-picker-tile { background: var(--input-bg); border: 2px solid var(--input-border); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-2); display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: var(--text-color); min-height: 84px; }
+    .flow-picker-tile.selected { border-color: var(--primary-action); background: rgba(212, 175, 55, 0.12); color: var(--primary-action); }
+    /* Icon and its repeat count (when it has one) sit side by side, not stacked - the icon keeps
+       its natural size either way, nothing reserves extra height for a count that isn't there.
+       font-size/weight here (rather than on each glyph individually) covers the Score jump picker's
+       plain-text icons too ("D.C.", "D.S.", "None") which have no glyph/svg of their own to size
+       themselves - .flow-sign-svg-inline's coda glyph still scales off this same 1em, so text and
+       glyph read at a matching size within one option ("D.C. al <coda>"). Kept modest (var(--font-md),
+       not -lg) so these tiles don't run visibly bigger than the rest of the page. */
+    .flow-picker-tile-icon-row { flex: 1; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px; font-size: var(--font-md); font-weight: bold; }
+    .flow-picker-tile-count { font-size: var(--font-sm); font-weight: bold; color: inherit; }
+    .flow-picker-tile .metroBlk-note-svg { width: 22px; height: 38px; margin: 2px 0; }
+    .flow-picker-tile-label { display: block; font-size: var(--font-xs); color: var(--label-color); min-height: 1em; }
+    .flow-picker-tile.selected .flow-picker-tile-label { color: var(--primary-action); }
 
     /* Reused inside #flowChoiceModal for every discrete-option tile. */
     .flow-choice-option { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border: 2px solid var(--input-border); border-radius: var(--radius-lg); margin-bottom: var(--space-2); cursor: pointer; font-weight: bold; }
     .flow-choice-option.selected { border-color: var(--primary-action); background: rgba(212, 175, 55, 0.12); color: var(--primary-action); }
     .flow-choice-option .material-symbols-outlined { color: var(--primary-action); }
-    /* Sign picker (segno/coda) - horizontal row of icon buttons instead of the generic vertical
-       list, same .selected gold language (its color propagates to the icon's own currentColor). */
-    .flow-choice-options-horizontal { display: flex; gap: var(--space-2); }
-    .flow-choice-options-horizontal .flow-choice-option { flex: 1; flex-direction: column; justify-content: center; gap: var(--space-2); margin-bottom: 0; }
-    .flow-sign-svg { width: 32px; height: 32px; }
+    /* Segno/coda glyphs (flowSignIconSvg) - the real Unicode Musical Symbols characters, set in Noto
+       Music (loaded in index.html) rather than drawn by hand; plain text, so it inherits currentColor
+       for free (no separate selected-state handling needed, unlike a stroked SVG). */
+    .flow-sign-svg { font-family: 'Noto Music', serif; font-size: 32px; line-height: 1; display: inline-block; }
     /* Sized to sit inline with surrounding text (jump tile labels like "D.<segno>") - matches the
        text's own line-height rather than a fixed pixel size. */
-    .flow-sign-svg-inline { width: 1em; height: 1em; vertical-align: -0.15em; }
+    .flow-sign-svg-inline { font-family: 'Noto Music', serif; font-size: 1em; line-height: 1; vertical-align: -0.15em; }
+    /* Coda's own ink sits smaller within its character box than segno's, even at the same font-size -
+       bumped up to 1.6x so the two read as the same visual size next to each other, wherever coda
+       shows up (main tile, Jump sign picker, inline "al <coda>" labels). */
+    .flow-sign-svg.flow-sign-svg-coda { font-size: 51px; }
+    /* vertical-align is relative to the ELEMENT's own font-size, so the base -0.15em (tuned for
+       plain-size segno) pulls coda down 1.6x further once its font-size is bumped to 1.6em - net
+       effect was coda sitting visibly low against the surrounding text's baseline. Own value here
+       instead of inheriting the segno one, to land coda's own bottom edge level with the text. */
+    .flow-sign-svg-inline.flow-sign-svg-coda { font-size: 1.6em; vertical-align: 0.1em; }
 
     /* Inline extra control shown below the choice list itself (ML-179 follow-up) - e.g. the
        repeat-count slider once "Repeat end" is picked - rather than stacking a second popup on
        top of the first. */
     .flow-choice-inline-extra { margin-top: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--input-border); }
 
-    /* Repeat-ending multi-select (1-10) - each number toggles independently, gold when selected. */
+    /* Repeat-ending multi-select (1-10) - each number toggles independently, gold when selected.
+       -3 is the Repeat bar/volta modal's own 3x3 layout (1-9) - 3 columns sized to match every
+       other picker's standard 4-column width (75% of the row, so each column is still a quarter of
+       the full row) rather than 3 columns stretched to fill it, centered since there's no sibling
+       grid here to align widths against (unlike End-of-bar's Structure/Repeats pair). */
     .flow-multiselect-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-2); margin: var(--space-3) 0; }
+    .flow-multiselect-grid-3 { grid-template-columns: repeat(3, 1fr); width: 75%; margin-left: auto; margin-right: auto; }
     .flow-multiselect-num { display: flex; align-items: center; justify-content: center; height: 44px; border-radius: var(--radius-md); border: 2px solid var(--input-border); font-weight: bold; cursor: pointer; background: var(--input-bg); color: var(--text-color); }
     .flow-multiselect-num.selected { border-color: var(--primary-action); background: rgba(212, 175, 55, 0.12); color: var(--primary-action); }
 
-    .flow-fermata-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-3); background: var(--input-bg); border-radius: var(--radius-md); margin-bottom: var(--space-2); }
+    /* Repeat bar / volta modal (#flowRepeatBarModal) - small pieces not shared with anything else:
+       the "Bar N" context pill next to the title, and the toggle row's label+helptext-left,
+       switch-right layout. */
+    .flow-modal-bar-pill { display: inline-block; font-size: var(--font-sm); font-weight: normal; color: var(--label-color); background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: 2px var(--space-2); vertical-align: middle; margin-left: var(--space-2); }
+    .flow-volta-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); background: var(--input-bg); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); }
+    .flow-volta-toggle-text { display: flex; flex-direction: column; gap: 2px; }
+    .flow-volta-toggle-title { font-weight: bold; }
+    .flow-volta-toggle-help { font-size: var(--font-xs); color: var(--label-color); }
+    /* Intro modal's "End intro early?" row - grayed out and non-interactive until "Start intro?" is
+       on, since an early end has no meaning without a start (#flowIntroModal). */
+    .flow-volta-toggle-row.flow-toggle-row-disabled { opacity: 0.5; }
+    .toggle-switch input:disabled + .toggle-slider { cursor: not-allowed; }
+    /* Intro modal's own stepper sections sit tighter to their neighbours than .flow-tile-section's
+       default margin-bottom allows for - a bit more room below the Start bar stepper (before the
+       End intro toggle row) and below the End bar stepper/toggle row (before Save/Cancel). */
+    #flowIntroStartFields .flow-tile-section, #flowIntroEndFields .flow-tile-section { margin-bottom: var(--space-6); }
+    #flowIntroEndToggleRow { margin-bottom: var(--space-5); }
+    /* Shared stepper-readout style for #flowRepeatBarStartValue/#flowIntroStartValue/
+       #flowIntroEndValue - flags a value left stranded above the block's own bar count after the
+       block was shortened (these bar offsets aren't DB-bounded against bar count, see
+       db/migrations/037_volta_start_bar.sql), rather than silently clamping it. */
+    .flow-bar-readout { display: inline-flex; align-items: center; gap: 6px; }
+    .flow-bar-readout.flow-bar-readout-invalid { color: var(--danger-color); }
+    .flow-warning-icon { width: 18px; height: 18px; flex-shrink: 0; color: var(--danger-color); }
+
+    /* Opened while #flowFermataModal is on screen (unlike every other .metroBlk-tile-menu, which
+       only ever opens on a plain page, never over a modal) - same z-index (100) as .modal, and
+       earlier in the DOM, meant it painted BEHIND the modal's own full-viewport backdrop, so a tap
+       on Edit/Delete was actually landing on the modal instead. Needs to sit above it explicitly. */
+    #flowFermataRowMenu { z-index: 200; }
+    /* "Current pauses" list header - only shown once there's at least one (renderFlowFermataList),
+       with a small count badge next to the label rather than baking the number into the text itself. */
+    .flow-pause-list-header { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+    .flow-pause-list-header .flow-tile-section-label { margin-bottom: 0; }
+    /* --radius-pill (a fixed px value), not --radius-circle (50% - only correct for a square box,
+       and this badge's width grows with the digit count) - a badge/chip per this file's own radius
+       convention (see :root's own comment on --radius-pill/--radius-circle), same class the ramp
+       count badge (#flowRampCountBadge) reuses too. */
+    .flow-pause-count-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--radius-pill); background: var(--input-bg); border: 1px solid var(--input-border); font-size: var(--font-xs); font-weight: bold; color: var(--label-color); }
+    /* Breathing room before the "+ Add another pause" button/form below the list. */
+    #flowFermataList { margin-bottom: var(--space-4); }
+    /* Same clipping-wrapper-with-delete-underlay-behind shape as Flow's own block cards/Quick Play's
+       bar boxes (wireFlowBlockSwipe/wireQpBarSwipe) - touch-action:pan-y so page scroll still works
+       from anywhere on a pause row, only a confirmed horizontal swipe (wireFlowPauseSwipe) reveals
+       the delete underlay behind it. */
+    .flow-fermata-box { position: relative; border-radius: var(--radius-md); margin-bottom: var(--space-2); overflow: hidden; touch-action: pan-y; }
+    .flow-fermata-delete-underlay { position: absolute; top: 0; right: 0; bottom: 0; width: 96px; background: var(--danger-color); color: #fff; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; font-weight: bold; font-size: var(--font-sm); }
+    .flow-fermata-delete-underlay .material-symbols-outlined { font-size: 22px; }
+    /* Same 1px surround as every other "boxed" element in this app (.flow-block-card/.flow-tile) -
+       a plain background fill on its own doesn't read as a bounded box against the modal's own
+       (also var(--input-bg)-free) background. This is the sliding surface now, not the outer element -
+       margin-bottom lives on .flow-fermata-box instead. */
+    .flow-fermata-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-3); background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); position: relative; }
+    .flow-fermata-row-text { display: flex; align-items: center; gap: var(--space-2); }
+    .flow-fermata-row-tag { font-size: var(--font-xs); font-weight: bold; color: var(--label-color); }
+    /* Stale entry - the bar it's on no longer exists after the block was shortened (same "flag,
+       don't clamp/hide" treatment as .flow-bar-readout-invalid). */
+    .flow-fermata-row-text-invalid, .flow-fermata-row-text-invalid .flow-fermata-row-tag { color: var(--danger-color); }
+    #flowFermataAddBox .btn-submit, #flowFermataAddBox .btn-cancel { margin-top: var(--space-2); }
+    /* Add/edit pause form - each field is its OWN bordered card (label left, control right), not one
+       big box wrapping everything - matches the design's individually-boxed fields, each with a bold
+       title + a smaller grey subtitle explaining what it's for. */
+    .flow-pause-field-card { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
+    .flow-pause-field-label { display: flex; flex-direction: column; gap: 2px; }
+    .flow-pause-field-title { font-weight: bold; font-size: var(--font-sm); }
+    .flow-pause-field-subtitle { font-size: var(--font-xs); color: var(--label-color); }
+    /* Bar in block's own warning icon slot (flowFermataBarWarning) - sits to the left of the stepper's
+       own minus button, not inside the readout between minus/plus like every other stale-value
+       warning in this app, so it reads as "this whole row needs fixing" rather than being buried
+       between the two step buttons. Empty (no width) when not invalid. */
+    .flow-pause-field-control { display: flex; align-items: center; gap: var(--space-2); }
+    .flow-pause-field-warning-slot .flow-warning-icon { display: block; }
+    /* Fixed left/centre/right columns (scaled down to fit alongside a label in the same card)
+       instead of .metro-speed-row's default centered-as-a-group layout, whose minus/plus buttons
+       would otherwise drift depending on the readout text's own width. A fixed overall width (not
+       shrink-to-fit) with the centre column as 1fr, rather than auto, is what actually centres the
+       readout between the two buttons - auto-sizing the centre column to its own content left the
+       whole cluster hugging the right edge (where + anchors via the card's own space-between), so -
+       sat close to the number instead of symmetric either side of it. */
+    .flow-pause-field-card .metro-speed-row { display: grid; grid-template-columns: 32px 1fr 32px; align-items: center; gap: var(--space-2); margin: 0; width: 220px; }
+    .flow-pause-field-card .metro-bpm-step { width: 32px; height: 32px; font-size: 1.1rem; }
+    .flow-pause-field-card .metro-speed-readout { min-width: 0; }
+    /* Pause type toggle - two cards (glyph + the plain-English effect, bold, + the musical term,
+       smaller, underneath) rather than plain text alone - most people recognise the symbol/effect
+       before the term. Fixed width so it sits compactly on the field card's right side rather than
+       stretching to fill the remaining space. */
+    .flow-pause-kind-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); width: 190px; flex-shrink: 0; }
+    .flow-pause-kind-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--space-2) 4px; border-radius: var(--radius-md); border: 2px solid var(--input-border); background: var(--container-bg); cursor: pointer; color: var(--text-color); }
+    .flow-pause-kind-btn.selected { border-color: var(--primary-action); background: rgba(212, 175, 55, 0.12); color: var(--primary-action); }
+    .flow-pause-kind-btn .flow-sign-svg { font-size: 20px; }
+    .flow-pause-kind-title { font-weight: bold; font-size: var(--font-xs); }
+    .flow-pause-kind-sub { font-size: var(--font-xs); color: var(--label-color); }
+    .flow-pause-kind-btn.selected .flow-pause-kind-sub { color: var(--primary-action); }
+    /* A disabled target-speed card (Next block, once a ramp ends at a specific mid-block beat
+       rather than the block boundary - see flowRampTargetGrid) - same muted treatment wherever else
+       a kind-grid-style card needs to say "not selectable right now" rather than being hidden. */
+    .flow-pause-kind-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* Tempo ramps mini list (#flowRampModal) - same shape as the Pauses/Fermata modal directly
+       above throughout this section; only the row text/swipe machinery gets its own copy of
+       classes (own JS state too - flowOpenSwipeRampIndex etc.) rather than sharing .flow-fermata-*,
+       same "own copy per feature" precedent as wireFlowPauseSwipe itself not sharing with
+       wireFlowBlockSwipe/wireQpBarSwipe. */
+    #flowRampRowMenu { z-index: 200; }
+    /* The Tempo (bpm) popup (#flowBpmModal) can now be opened FROM this modal too (the "Set custom
+       tempo" row, flowRampCustomTempoBtn) - same "needs to paint above the modal already on screen"
+       z-index bump as the row menus above, harmless when it's opened the normal way (directly over
+       the page, nothing else below it to out-rank). */
+    #flowBpmModal { z-index: 200; }
+    #flowRampList { margin-bottom: var(--space-4); }
+    .flow-ramp-box { position: relative; border-radius: var(--radius-md); margin-bottom: var(--space-2); overflow: hidden; touch-action: pan-y; }
+    .flow-ramp-delete-underlay { position: absolute; top: 0; right: 0; bottom: 0; width: 96px; background: var(--danger-color); color: #fff; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; font-weight: bold; font-size: var(--font-sm); }
+    .flow-ramp-delete-underlay .material-symbols-outlined { font-size: 22px; }
+    .flow-ramp-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-3); background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); position: relative; }
+    /* Two-line row text (bold "Bar X, beat Y -> ..." title + a lighter "Tempo change - To N bpm"
+       subtitle underneath) - unlike the Pauses list's single-line row, since a ramp's start/end/
+       target is more to read than one line comfortably holds. */
+    .flow-ramp-row-text { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+    /* Same tinted rounded-square badge as the Media tab's own row icons (.flow-media-icon) - a bare
+       <svg> has no intrinsic size without this, which is what made the plain arrow glyph render at
+       its raw default size (see flowRampIconSvg/flowWarningIconSvg, both stroke="currentColor" so
+       the badge's own color drives them). */
+    .flow-ramp-row-icon { width: 32px; height: 32px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: rgba(212, 175, 55, 0.18); color: var(--primary-action); }
+    .flow-ramp-row-icon svg { width: 18px; height: 18px; }
+    .flow-ramp-row-icon.invalid { background: rgba(244, 67, 54, 0.15); color: var(--danger-color); }
+    /* Overrides .flow-tile-value svg's default 1.6em (tuned for the barline icons' own tall/narrow
+       viewBox) - this icon's square viewBox reads too bulky at that height next to the pause tile's
+       own slighter font-glyph icon. */
+    .flow-tile-value .flow-ramp-tile-icon { height: 0.85em; }
+    /* Up to three icon+count groups (accel/rit/flat) can now share this tile, so they sit tighter
+       than .flow-barline-value-row's own default 4px gap (tuned for a single icon+count pair) -
+       needs to match that selector's own specificity (two classes) to actually win over it. */
+    .flow-tile-value .flow-ramp-tile-row { gap: 3px; }
+    .flow-ramp-tile-row .flow-barline-value-count { margin-right: 1px; }
+    .flow-ramp-row-lines { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .flow-ramp-row-title { font-weight: bold; font-size: var(--font-sm); }
+    .flow-ramp-row-tag { font-size: var(--font-xs); font-weight: bold; color: var(--label-color); }
+    .flow-ramp-row-text-invalid .flow-ramp-row-title, .flow-ramp-row-text-invalid .flow-ramp-row-tag { color: var(--danger-color); }
+    #flowRampAddBox .btn-submit, #flowRampAddBox .btn-cancel { margin-top: var(--space-2); }
+    /* "Ramp ends at" toggle - a compact two-option segmented pill (End of block/Specific beat)
+       rather than the Pause-type grid's larger glyph+title+subtitle cards, since there's no glyph
+       to show here and the field card's own label already explains what it's for. */
+    .flow-ramp-toggle-row { display: flex; border: 1px solid var(--input-border); border-radius: var(--radius-md); overflow: hidden; }
+    .flow-ramp-toggle-btn { padding: var(--space-2) var(--space-3); border: none; background: var(--container-bg); color: var(--text-color); font-size: var(--font-xs); font-weight: bold; cursor: pointer; white-space: nowrap; }
+    .flow-ramp-toggle-btn + .flow-ramp-toggle-btn { border-left: 1px solid var(--input-border); }
+    .flow-ramp-toggle-btn.selected { background: var(--primary-action); color: var(--container-bg); }
+    /* "Set custom tempo" row's own button - opens the same Tempo (bpm) popup as the block's own bpm
+       tile (flowOpenBpmModal, generalised to take an onApply callback for this) rather than a new
+       picker of its own. */
+    .flow-ramp-tempo-btn { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--input-border); background: var(--container-bg); color: var(--text-color); font-weight: bold; font-size: var(--font-sm); cursor: pointer; }
+    .flow-ramp-tempo-btn .material-symbols-outlined { font-size: 16px; color: var(--label-color); }
+    .flow-ramp-tempo-unit { font-weight: normal; font-size: var(--font-xs); color: var(--label-color); }
 
     /* Mobile responsive - remove max-width and adjust spacing */
     @media (max-width: 768px) {
         body { align-items: stretch; }
-        .top-bar { max-width: 100%; padding: 12px 15px; }
+        .top-bar { max-width: 100%; padding: 6px 15px; }
         .top-bar-title { font-size: 1.1rem; }
         .container { max-width: 100%; padding: 15px; min-height: calc(100vh - 55px); }
+        .flow-edit-sticky-bar { max-width: 100%; padding-left: 15px; padding-right: 15px; }
         .btn-large, .btn-submit, .btn-nav { padding: 14px; font-size: 1rem; }
         .form-group { margin-bottom: 15px; }
         label { margin-bottom: 6px; font-size: 0.95rem; }
@@ -1302,9 +1694,10 @@
 
     @media (max-width: 480px) {
         body { align-items: stretch; }
-        .top-bar { padding: 10px 12px; }
+        .top-bar { padding: 5px 12px; }
         .top-bar-title { font-size: 1rem; }
         .container { padding: 12px; }
+        .flow-edit-sticky-bar { padding-left: 12px; padding-right: 12px; }
         .btn-large, .btn-submit, .btn-nav { padding: 12px; font-size: 0.95rem; margin-bottom: 12px; }
         input, select { font-size: 16px; padding: 10px; }
         .dashboard-grid { gap: 6px; }

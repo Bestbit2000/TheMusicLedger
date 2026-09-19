@@ -733,8 +733,24 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'blocksStudioView', 'flowPlayView', 'tunerView', 'timerView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowPlayView', 'tunerView', 'timerView'];
     let viewStack = ['mainView'];
+    // Which tab flowDetailsHubView should open on next - set by a caller just before switchView,
+    // read/cleared by that view's own switchView case. null means the default (Details).
+    let flowEditRequestedTab = null;
+    // 'create' only for the brand-new flow createAndOpenFlow just created; every other entry point
+    // (openFlow, the Play Flow 3-dot menu) is editing a flow that already exists, so sets this to
+    // 'edit'. Drives the top bar title, the sticky bar's layout (Next-chain vs Cancel/Save/Delete),
+    // and whether Details/Media/Blocks edits autosave immediately or stage as a local draft (see
+    // flowEditSnapshot below) - a real Cancel only makes sense once there's something to cancel
+    // back to, which a brand-new flow doesn't have yet.
+    let flowEditMode = 'create';
+    // Snapshot of everything editable, taken once on entering Edit mode (loadAndRenderFlowDetailsHub)
+    // - null in Create mode, where there's nothing to stage/revert. Cancel needs no revert logic at
+    // all: every Edit-mode mutation below stays purely local (no API calls) until Save, so Cancel is
+    // just leaving - same "stage locally, sync in one batch on Save" pattern as metroBuilderView's
+    // own metroBlkEditSnapshot/saveMetroBlkEdit.
+    let flowEditSnapshot = null;
 
     const viewAliasMap = {
         'main': 'mainView', 'history': 'historyView', 'stats': 'statsView', 'addForm': 'entryForm',
@@ -762,10 +778,10 @@
         }
 
         // Same reasoning as Quick Play above - Play Flow has no mini bar either, so leaving it just
-        // pauses in place rather than continuing in the background.
-        if (viewStack[viewStack.length - 1] === 'flowPlayView' && viewName !== 'flowPlayView' && flowPlayer.isPlaying()) {
-            flowPlayer.pause();
-            updateFlowPlayIcon();
+        // pauses in place rather than continuing in the background. Covers the whole media
+        // carousel now (ML-166), not just the metronome - whichever slide was playing.
+        if (viewStack[viewStack.length - 1] === 'flowPlayView' && viewName !== 'flowPlayView') {
+            pauseAllFlowMedia();
         }
 
         if (!isBack && viewStack[viewStack.length - 1] !== viewName) viewStack.push(viewName);
@@ -854,24 +870,29 @@
         // ML-179: currentFlowDetail is already fetched by openFlow/createAndOpenFlow before this
         // view is ever switched to - no fetch happens here, just rendering from what's already loaded
         // (same "load first, switch second" order as metroBuilderView's own setup loading above).
+        // Details/Media/Blocks are tabs within this one view now (Jira tab restructure), not separate
+        // views - flowEditRequestedTab lets a caller (the Play Flow 3-dot menu) land on a specific
+        // tab; every other entry point falls back to Details.
         if (viewName === 'flowDetailsHubView') {
-            document.getElementById('topTitle').innerText = 'Edit flow';
+            document.getElementById('topTitle').innerText = flowEditMode === 'create' ? 'Create flow' : 'Edit flow';
+            setFlowEditTab(flowEditRequestedTab || 'details');
+            flowEditRequestedTab = null;
             loadAndRenderFlowDetailsHub();
-        }
-        if (viewName === 'blocksStudioView') {
-            document.getElementById('topTitle').innerText = 'Blocks studio';
-            renderFlowBlocksStudio();
         }
         if (viewName === 'flowPlayView') {
             document.getElementById('topTitle').innerText = 'Play flow';
             document.getElementById('flowPlayTitleLabel').innerText = currentFlowDetail?.title || 'Flow';
             flowPlayer.prewarm();
             loadFlowPlaybackSpeeds();
-            // currentFlowBlocks/flowLeadInBlock were just re-fetched by flowPlayFlowBtn's own click
-            // handler (or by returning here after editing in Blocks Studio) - rebuild the queue fresh
-            // every entry, same "don't trust it's still current" caution as refreshMetroBlkQueueIfStale.
+            // currentFlowBlocks/flowLeadInBlock were just re-fetched by goToFlowPlayView (or by
+            // returning here after editing in the Blocks tab) - rebuild the queue fresh every entry,
+            // same "don't trust it's still current" caution as refreshMetroBlkQueueIfStale.
             buildFlowPlayQueue();
             renderFlowPlaybackRow();
+            // Same freshness reasoning as buildFlowPlayQueue above, for the media carousel
+            // (ML-166) - currentFlowDetail.recordings was just re-fetched too.
+            buildFlowMediaSlides();
+            renderFlowMediaCarousel();
         }
         // Same persistence rule as the single-bar tool's mini bar (ML-64) - only visibility changes.
         updateMetroBlocksMiniBarVisibility(viewName);
@@ -2819,6 +2840,28 @@
         let muted = false;
         let visualLatencyMs = 0; // extra delay applied to the beat callback only, to match Bluetooth output lag
 
+        // --- ML-130: fermata (held-beat pause) playback. A block's fermata positions are fully known
+        // before it starts playing (see setFermataSchedule, called once per block by the Flow/Metronome
+        // Blocks glue that owns block/bar structure - this engine itself has no concept of either),
+        // so held-beat decisions are entirely deterministic from the scheduler's own raw clickIndex -
+        // no async coordination with the deferred beatListener callbacks needed. triggerClick values
+        // are in the SAME numbering the scheduler already uses for clickIndex (raw base-click count
+        // since the block/bar was last realigned via resetToBarStart/setBeatIndex). ---
+        let fermataSchedule = []; // [{ triggerClick, holdBeats, holdClicks }]
+        let fermataMode = 'tone'; // 'tone' | 'silent' | 'count' - mirrors FERMATA_PLAYBACK_MODE_KEY's 3 values
+        let activeFermata = null; // { holdBeats, holdClicks, clicksRemaining } while a hold is in progress
+        let fermataPendingEndKind = null; // set for exactly one click right after a hold finishes - 'tone-end' (fade the sustained tone) or 'normal' (silent/count modes have nothing extra to do)
+        let fermataToneOsc = null;
+        let fermataToneGain = null;
+        const FERMATA_TONE_FREQ = 440;
+        const FERMATA_TONE_LEVEL = 0.65; // of the normal click peak - masterGain already applies overall volume/mute, same as every other sound here
+        const FERMATA_COUNT_THROUGH_FREQ = 330;
+        // Prep cue - deliberately not the same 1760Hz 'tick' as a normal bar-start accent (that would
+        // read as "a new bar/beat 1 just happened", not "the hold is about to end"). Triangle instead
+        // of the normal clicks' square wave for a rounder, more clearly distinct texture, not just a
+        // different pitch.
+        const FERMATA_PREP_CUE_FREQ = 1200;
+
         const LOOKAHEAD_MS = 25;
         const SCHEDULE_AHEAD_S = 0.12;
         const beatListeners = [];
@@ -2859,13 +2902,13 @@
         // third, in-between "tock" sound for non-first main beats made three near-identical clicks too
         // hard to tell apart. Zero-bar mode never uses "tick" at all (see scheduler below) since there
         // is no bar-start to accent, just an even, unaccented pulse.
-        function playClick(kind, time) {
-            const freq = (kind === 'tick' ? 1760 : 650) * (lowPitch ? 0.5 : 1);
-            const peak = kind === 'tick' ? 2.0 : 1.1; // pushed past 0dBFS - the limiter above tames it
-            const dur = kind === 'tick' ? 0.035 : 0.045;
+        // Factored out of playClick so the fermata "Count Through" mode's pitch-shifted click and
+        // the prep cue (ML-130) can reuse the same short percussive envelope at a different
+        // frequency/waveform, rather than duplicating the oscillator/gain boilerplate.
+        function fireOscillatorBlip(freq, peak, dur, time, waveform = 'square') {
             const osc = audioCtx.createOscillator();
             const g = audioCtx.createGain();
-            osc.type = 'square'; // brighter/more harmonic-rich than triangle - reads as louder at the same peak, and cuts through a lossy Bluetooth link better
+            osc.type = waveform; // square: brighter/more harmonic-rich, reads as louder at the same peak and cuts through a lossy Bluetooth link better - the normal clicks' choice, not the prep cue's (see fireFermataPrepCue)
             osc.frequency.setValueAtTime(freq, time);
             g.gain.setValueAtTime(0.0001, time);
             g.gain.exponentialRampToValueAtTime(peak, time + 0.002);
@@ -2874,6 +2917,119 @@
             g.connect(masterGain);
             osc.start(time);
             osc.stop(time + dur + 0.01);
+        }
+        function playClick(kind, time) {
+            const freq = (kind === 'tick' ? 1760 : 650) * (lowPitch ? 0.5 : 1);
+            const peak = kind === 'tick' ? 2.0 : 1.1; // pushed past 0dBFS - the limiter above tames it
+            const dur = kind === 'tick' ? 0.035 : 0.045;
+            fireOscillatorBlip(freq, peak, dur, time);
+        }
+        // A fermata hold's prep cue, one beat before resumption - genuinely distinct from either
+        // normal click (not just a re-use of 'tick'), so it can't be mistaken for a bar-start accent
+        // arriving early. Triangle wave (rounder than the normal clicks' square) at a pitch between
+        // the two, held a touch longer, so it stands apart on both timbre and pitch.
+        function fireFermataPrepCue(time) {
+            fireOscillatorBlip(FERMATA_PREP_CUE_FREQ, 1.8, 0.05, time, 'triangle');
+        }
+
+        // --- ML-130 fermata audio primitives ---
+        // "Tone + Cue": a single persistent oscillator/gain held across every click of the hold
+        // (not recreated per click, unlike the one-shot playClick blips) - started here on the
+        // hold's first click, warm sine at FERMATA_TONE_FREQ with a 10ms attack ramp to avoid
+        // popping, at 65% of a normal click's level.
+        function startFermataTone(time) {
+            stopFermataToneImmediately();
+            fermataToneOsc = audioCtx.createOscillator();
+            fermataToneGain = audioCtx.createGain();
+            fermataToneOsc.type = 'sine';
+            fermataToneOsc.frequency.setValueAtTime(FERMATA_TONE_FREQ, time);
+            fermataToneGain.gain.setValueAtTime(0.0001, time);
+            fermataToneGain.gain.linearRampToValueAtTime(FERMATA_TONE_LEVEL, time + 0.01);
+            fermataToneOsc.connect(fermataToneGain);
+            fermataToneGain.connect(masterGain);
+            fermataToneOsc.start(time);
+        }
+        // One beat before resumption: attenuate the sustained tone -6dB and layer the standard
+        // accented click on top as a preparatory cue.
+        function duckFermataTone(time) {
+            if (!fermataToneGain) return;
+            fermataToneGain.gain.linearRampToValueAtTime(FERMATA_TONE_LEVEL * 0.501, time);
+        }
+        // Fades the tone out over 5ms exactly at the resuming beat's own time, then lets that beat's
+        // normal click proceed - called from applyFermataAudio, not scheduler() directly.
+        function endFermataTone(time) {
+            if (!fermataToneOsc) return;
+            fermataToneGain.gain.linearRampToValueAtTime(0.0001, time + 0.005);
+            fermataToneOsc.stop(time + 0.01);
+            fermataToneOsc = null;
+            fermataToneGain = null;
+        }
+        // Hard-stops any sustaining tone immediately (no fade) - used when pause()/stop() or a fresh
+        // setFermataSchedule cuts playback off mid-hold, where there's no "next click" left to fade
+        // gracefully into.
+        function stopFermataToneImmediately() {
+            if (!fermataToneOsc) return;
+            try {
+                fermataToneGain.gain.cancelScheduledValues(audioCtx.currentTime);
+                fermataToneGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+                fermataToneOsc.stop(audioCtx.currentTime + 0.01);
+            } catch (error) { /* already stopped */ }
+            fermataToneOsc = null;
+            fermataToneGain = null;
+        }
+
+        // Decides what THIS click (raw base-click index idx, matching clickIndex's own numbering)
+        // should do, given the block's static fermataSchedule - called synchronously from inside
+        // scheduler()'s own loop, before the click's audio is committed, so (unlike reacting from the
+        // deferred beatListener callback) it can actually swap out a fermata's own trigger click for
+        // the sustained-tone start rather than always playing that beat's normal sound first.
+        // freezePosition: true for every click that's part of an in-progress hold (including its own
+        // first and last) - the scheduler skips incrementing clickIndex for these, so idxInBar/the
+        // beat-dot position genuinely stays put on the fermata's own beat for the whole hold, the same
+        // way a real fermata suspends the beat rather than just re-colouring several beats in a row.
+        function resolveFermataPulse(idx) {
+            if (fermataPendingEndKind !== null) {
+                const kind = fermataPendingEndKind;
+                fermataPendingEndKind = null;
+                return { kind, holding: false, freezePosition: false };
+            }
+            if (!activeFermata) {
+                const match = fermataSchedule.find(f => f.triggerClick === idx);
+                if (!match || match.holdClicks < 1) return { kind: 'normal', holding: false, freezePosition: false };
+                activeFermata = { holdBeats: match.holdBeats, holdClicks: match.holdClicks, clicksRemaining: match.holdClicks };
+            }
+            const isFirst = activeFermata.clicksRemaining === activeFermata.holdClicks;
+            const isLast = activeFermata.clicksRemaining === 1;
+            const remaining = activeFermata.clicksRemaining;
+            const holdBeats = activeFermata.holdBeats;
+            activeFermata.clicksRemaining--;
+            if (activeFermata.clicksRemaining <= 0) {
+                activeFermata = null;
+                fermataPendingEndKind = fermataMode === 'tone' ? 'tone-end' : 'normal';
+            }
+            let kind;
+            if (fermataMode === 'silent') kind = isLast ? 'prep-cue' : 'silent';
+            else if (fermataMode === 'count') kind = 'count-through';
+            else kind = isFirst ? 'tone-start' : (isLast ? 'tone-end-with-cue' : 'tone-continue');
+            return { kind, holding: true, remaining, holdBeats, isFirst, isLast, freezePosition: true };
+        }
+
+        // Carries out whatever resolveFermataPulse decided, in place of (or alongside) the click's own
+        // otherwise-normal sound.
+        function applyFermataAudio(result, normalKind, time) {
+            switch (result.kind) {
+                case 'normal': playClick(normalKind, time); break;
+                // The beat's own normal click marks the exact instant the fermata begins (so it's
+                // heard as a real note onset, not a silent gap that a tone just fades into), then the
+                // sustained tone swells in underneath/alongside it.
+                case 'tone-start': playClick(normalKind, time); startFermataTone(time); break;
+                case 'tone-continue': break; // already sustaining - nothing new to trigger
+                case 'tone-end-with-cue': duckFermataTone(time); fireFermataPrepCue(time); break;
+                case 'tone-end': endFermataTone(time); playClick(normalKind, time); break; // the resuming beat still sounds normally
+                case 'silent': break;
+                case 'prep-cue': fireFermataPrepCue(time); break;
+                case 'count-through': fireOscillatorBlip(FERMATA_COUNT_THROUGH_FREQ, 1.1, 0.045, time); break;
+            }
         }
 
         function effectiveConductorBpm() {
@@ -2897,8 +3053,16 @@
 
             // A live beats/conduct-in/subdivide edit changes the shape of the bar (totalPerBar) out
             // from under an in-progress clickIndex count - without this, the accent could land
-            // anywhere in the new grid instead of at its start (ML-61).
-            if (lastTotalPerBar !== null && totalPerBar !== lastTotalPerBar) clickIndex = 0;
+            // anywhere in the new grid instead of at its start (ML-61). ML-130: also abandons any
+            // fermata hold in progress (same cleanup as resetToBarStart/setBeatIndex) - a shape change
+            // this abrupt has no meaningful "resume the hold" story, and leaving a Tone+Cue drone
+            // sustaining forever with nothing left to ever fade it out would be a real bug.
+            if (lastTotalPerBar !== null && totalPerBar !== lastTotalPerBar) {
+                clickIndex = 0;
+                stopFermataToneImmediately();
+                activeFermata = null;
+                fermataPendingEndKind = null;
+            }
             lastTotalPerBar = totalPerBar;
 
             while (nextClickTime < audioCtx.currentTime + SCHEDULE_AHEAD_S) {
@@ -2919,7 +3083,12 @@
                     noteIndex = Math.floor(idxInBar / Math.max(1, subdivisionFactor));
                     conductorBeatIndex = Math.floor(idxInBar / groupSize);
                 }
-                playClick(kind, nextClickTime);
+                // ML-130: resolved against clickIndex (raw, pre-freeze) - the fermata's own hold
+                // occupies exactly this click position for as many pulses as it needs (freezePosition
+                // below), so idx never itself changes mid-hold; resolveFermataPulse's own internal
+                // clicksRemaining is what actually advances the hold along.
+                const fermataResult = resolveFermataPulse(clickIndex);
+                applyFermataAudio(fermataResult, kind, nextClickTime);
 
                 const fireTime = nextClickTime;
                 // The click itself always fires bang on schedule - visualLatencyMs only holds back the
@@ -2937,12 +3106,19 @@
                         isConductorBeat, isNoteBoundary,
                         conductorBeatIndex, conductorBeatsPerBar: zeroBar ? 1 : conductorBeatsPerBar,
                         noteIndex, notesPerBar: zeroBar ? 1 : conductorBeatsPerBar * Math.max(1, notesPerBeat),
-                        secondsPerConductorBeat
+                        secondsPerConductorBeat,
+                        fermataHold: fermataResult.holding
+                            ? { remaining: fermataResult.remaining, holdBeats: fermataResult.holdBeats, isFirst: fermataResult.isFirst, isLast: fermataResult.isLast }
+                            : null
                     }));
                 }, delayMs);
 
                 nextClickTime += secondsPerBaseClick();
-                clickIndex++;
+                // A held pulse repeats the SAME beat/bar position rather than advancing to the next -
+                // clickIndex only moves on once the hold (and its one dedicated "ending" pulse for
+                // Tone+Cue's fade-out) has fully played out. See onFlowBeat/onMetroBlkBeat's matching
+                // "don't count a repeat pulse as a new beat" gate on the UI side.
+                if (!fermataResult.freezePosition) clickIndex++;
             }
             schedulerId = setTimeout(scheduler, LOOKAHEAD_MS);
         }
@@ -2971,16 +3147,25 @@
                 });
             },
             // Halts playback but leaves clickIndex where it is, so a subsequent play() continues
-            // from this exact point in the bar rather than restarting it.
+            // from this exact point in the bar rather than restarting it. Any fermata hold in
+            // progress is abandoned (not resumed) - a sustained Tone+Cue drone left running while
+            // "paused" would be its own bug, and the hold's remaining count has no clean meaning
+            // once playback stops moving through time anyway.
             pause() {
                 playing = false;
                 clearTimeout(schedulerId);
+                stopFermataToneImmediately();
+                activeFermata = null;
+                fermataPendingEndKind = null;
             },
             // Halts playback AND resets position back to the start of the bar.
             stop() {
                 playing = false;
                 clearTimeout(schedulerId);
                 clickIndex = 0;
+                stopFermataToneImmediately();
+                activeFermata = null;
+                fermataPendingEndKind = null;
             },
             // Re-aligns to beat 1 without stopping - the scheduler already does this on its own
             // whenever the bar "shape" (beatsPerBar*notesPerBeat*subdivisionFactor) changes, but a
@@ -2995,10 +3180,13 @@
             // to a lead-in after the loop's own bars have been playing) silently overrode setBeatIndex
             // below, so a partial lead-in always audibly started from its own beat 1 regardless of
             // which beats were actually meant to sound.
-            resetToBarStart() { clickIndex = 0; lastTotalPerBar = null; },
+            // ML-130: also abandons any in-progress fermata hold - a block boundary always brings its
+            // own fresh setFermataSchedule call right after this, so a stale hold from the block just
+            // left behind must not bleed into the new one's click positions.
+            resetToBarStart() { clickIndex = 0; lastTotalPerBar = null; stopFermataToneImmediately(); activeFermata = null; fermataPendingEndKind = null; },
             // Same idea as resetToBarStart, but to an arbitrary beat within the bar - used to start a
             // partial lead-in on its actual first beat (the tail end of the bar, not index 0).
-            setBeatIndex(n) { clickIndex = n; lastTotalPerBar = null; },
+            setBeatIndex(n) { clickIndex = n; lastTotalPerBar = null; stopFermataToneImmediately(); activeFermata = null; fermataPendingEndKind = null; },
             // Pushes the next scheduled click back by this many seconds of silence, without touching
             // clickIndex - the click that eventually fires still lands on whatever beat resetToBarStart/
             // setBeatIndex already aligned to. The mid-playback counterpart to play()'s own
@@ -3025,7 +3213,21 @@
             setMuted(m) { muted = m; if (masterGain) masterGain.gain.value = m ? 0 : volume; },
             setVisualLatencyMs(ms) { visualLatencyMs = ms; },
             getEffectiveConductorBpm: effectiveConductorBpm,
-            onBeat(cb) { beatListeners.push(cb); }
+            onBeat(cb) { beatListeners.push(cb); },
+            // ML-130: call once per block (right after resetToBarStart/setBeatIndex, before/while it
+            // plays) with that block's fermata trigger positions and the user's global playback-mode
+            // setting. An empty list is the normal case for any block with no fermatas - Metronome
+            // Blocks has no UI to create one yet, so it always passes [] today, but calls this the
+            // same way Flow does, so the engine is exercised identically on both and needs no changes
+            // whenever Metronome Blocks does grow that UI. Always abandons any hold already in
+            // progress (a fresh schedule always means a new block has just started).
+            setFermataSchedule(list, mode) {
+                fermataSchedule = Array.isArray(list) ? list : [];
+                fermataMode = mode || 'tone';
+                stopFermataToneImmediately();
+                activeFermata = null;
+                fermataPendingEndKind = null;
+            }
         };
     }
 
@@ -3168,6 +3370,106 @@
             dot.classList.add('lit');
             setTimeout(() => dot.classList.remove('lit'), 120);
         }
+    }
+
+    // --- ML-130: fermata playback visuals - shared by Flow's own row (renderFlowPlaybackRow/
+    // onFlowBeat) and Metronome Blocks' (renderMetroBlkRows/onMetroBlkBeat, both its main and mini
+    // rows). Metronome Blocks has no UI to create a fermata yet, so block.fermatas is always []
+    // there today - these all no-op cleanly on an empty list, the same way createMetronomePlayer's
+    // own setFermataSchedule does, rather than needing a separate "does this tool support fermatas"
+    // branch anywhere. ---
+
+    // Turns a block's stored fermatas into the player's setFermataSchedule shape - triggerClick uses
+    // the exact same raw base-click numbering the scheduler's own clickIndex does (bar-relative
+    // beatOffset/barOffset scaled by beatsPerBar and the sub-beat factor), so a fermata lands on
+    // precisely the beat it was placed on regardless of subdivision. Caesura entries are skipped
+    // entirely for now - a separate follow-up, not implemented here.
+    function buildFermataSchedule(block, subFactor) {
+        if (!block || !block.fermatas || !block.fermatas.length) return [];
+        const beatsPerBar = metroBlkBeatsPerBarFor(block);
+        return block.fermatas
+            .filter(f => f.kind !== 'caesura')
+            .map(f => ({
+                triggerClick: ((f.barOffset || 0) * beatsPerBar + (f.beatOffset - 1)) * subFactor,
+                holdBeats: f.holdBeats,
+                holdClicks: f.holdBeats * subFactor
+            }));
+    }
+    function fermataPlaybackModeSetting() {
+        return localStorage.getItem(FERMATA_PLAYBACK_MODE_KEY) || 'tone';
+    }
+    // 0-based bar-within-block, derived the same way metroBlkBlockLabel's own "X of Y" text is -
+    // used by renderFlowPlaybackRow/renderMetroBlkRows to know which bar's fermata marker(s) (if any)
+    // to show on a full row rebuild, which can happen well after bar 0 (sub-beats/play-speed changes
+    // mid-block re-render the row from wherever playback currently sits, not just on block entry).
+    function metroBlkCurrentBarIndex(block, beatsPlayedInBlock) {
+        if (!block || block.pickupBeats) return 0;
+        const beatsPerBar = metroBlkBeatsPerBarFor(block);
+        return Math.min((block.barCount || 1) - 1, Math.floor((beatsPlayedInBlock || 0) / beatsPerBar));
+    }
+
+    // Persistent "holding" visual (glow + a live countdown numeral) - distinct from flashTierDot's own
+    // 120ms flash, which still fires every pulse alongside this via the caller. Once a hold ends, the
+    // dot doesn't snap straight back to looking plain - it settles into a static "fermata-done" gold
+    // fill (no glow, no countdown) for the rest of the bar, cleared by renderFermataMarkers at the
+    // next bar boundary (same lifecycle as the glyph marker above it), so there's still a clear "a
+    // fermata happened here" record after the hold itself finishes rather than it vanishing the
+    // instant playback moves on.
+    function updateFermataDotState(rowId, beatInfo) {
+        const row = document.getElementById(rowId);
+        if (!row) return;
+        row.querySelectorAll('.metro-dot.fermata-holding').forEach(dot => {
+            const stillHolding = beatInfo.fermataHold && Number(dot.dataset.index) === beatInfo.clickIndexInBar;
+            if (!stillHolding) {
+                dot.classList.remove('fermata-holding');
+                dot.querySelector('.metro-dot-count')?.remove();
+                dot.classList.add('fermata-done');
+            }
+        });
+        if (!beatInfo.fermataHold) return;
+        const dot = row.querySelector(`.metro-dot[data-index="${beatInfo.clickIndexInBar}"]`);
+        if (!dot) return;
+        dot.classList.remove('fermata-done');
+        dot.classList.add('fermata-holding');
+        let countEl = dot.querySelector('.metro-dot-count');
+        if (!countEl) {
+            countEl = document.createElement('span');
+            countEl.className = 'metro-dot-count';
+            dot.appendChild(countEl);
+        }
+        countEl.textContent = String(beatInfo.fermataHold.remaining);
+    }
+
+    // The small fermata glyph shown above a beat's dot - visible for the whole time that beat's own
+    // BAR is the one currently playing (not just during the active hold), and pans with the dots
+    // since it's a sibling of them in the same scrolling row. currentBarIndex is 0-based, matching
+    // block.fermatas' own barOffset. The row's own viewport (rowId with "Dots" swapped for
+    // "Viewport" - true of every dot row in this app: flowPlayRowDots/flowPlayRowViewport,
+    // metroBlkRow0Dots/metroBlkRow0Viewport, metroBlkMiniDots/metroBlkMiniViewport) clips overflow,
+    // so it only gets extra top padding (metro-has-fermata-marker) while a marker actually needs the
+    // room - permanently reserving that space on every row, fermata or not, would nudge every
+    // metronome-family screen down a little for a feature most blocks never use.
+    function renderFermataMarkers(rowId, block, currentBarIndex, subFactor) {
+        const row = document.getElementById(rowId);
+        if (!row) return;
+        row.querySelectorAll('.metro-fermata-marker').forEach(el => el.remove());
+        // A new bar's own dots are the same reused DOM elements a previous bar's fermata may have left
+        // in the static "fermata-done" state (updateFermataDotState) - clear that here too, at the
+        // same bar-boundary this already refreshes the marker on, rather than leaving a stale gold
+        // dot from an earlier bar.
+        row.querySelectorAll('.metro-dot.fermata-done').forEach(dot => dot.classList.remove('fermata-done'));
+        const viewport = document.getElementById(rowId.replace(/Dots$/, 'Viewport'));
+        const matches = (block?.fermatas || []).filter(f => f.kind !== 'caesura' && (f.barOffset || 0) === currentBarIndex);
+        viewport?.classList.toggle('metro-has-fermata-marker', matches.length > 0);
+        matches.forEach(f => {
+            const dot = row.querySelector(`.metro-dot[data-index="${(f.beatOffset - 1) * subFactor}"]`);
+            if (!dot) return;
+            const marker = document.createElement('span');
+            marker.className = 'metro-fermata-marker';
+            marker.style.left = dot.style.left;
+            marker.innerHTML = flowPauseIconSvg('fermata', false);
+            row.appendChild(marker);
+        });
     }
 
     // --- Slider (shared design-system component) drag + keyboard interaction ---
@@ -3573,7 +3875,7 @@
             <div class="history-item" data-flow-library-id="${f.id}">
                 <div style="flex-grow:1; cursor:pointer;" onclick="openFlow(${f.id})">
                     <strong>${escapeHtml(f.title)}</strong>
-                    <div style="font-size:0.85rem; color:#666;">${f.blockCount} block${f.blockCount === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}</div>
+                    <div style="font-size:0.85rem; color:#666;">${f.blockCount} bar${f.blockCount === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}</div>
                 </div>
                 ${flowOwnershipLabel(f) === 'Personal' ? `<button type="button" class="list-item-menu-btn" data-flow-library-menu-btn aria-label="Options for ${escapeHtml(f.title)}"><span class="material-symbols-outlined">more_vert</span></button>` : ''}
             </div>
@@ -3608,6 +3910,20 @@
     }
     document.addEventListener('click', closeFlowLibraryItemMenu);
 
+    // Lands on the Details tab regardless of whether this flow already has bars (unlike openFlow's
+    // own tap-the-row behaviour, which sends a non-empty flow straight to Play Flow) - the whole
+    // point of this menu item is to edit, not play, so it always opens the Hub first (flowEditRequestedTab,
+    // same mechanism Play Flow's own 3-dot menu uses), leaving Media/Blocks a tab tap away.
+    document.getElementById('flowLibraryItemMenuEdit')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = flowLibraryMenuTargetId;
+        closeFlowLibraryItemMenu();
+        if (id === null) return;
+        currentFlowId = id;
+        flowEditMode = 'edit';
+        flowEditRequestedTab = 'details';
+        switchView('flowDetailsHubView');
+    });
     document.getElementById('flowLibraryItemMenuDuplicate')?.addEventListener('click', async (e) => {
         e.stopPropagation();
         const id = flowLibraryMenuTargetId;
@@ -3624,7 +3940,7 @@
         e.stopPropagation();
         const id = flowLibraryMenuTargetId;
         closeFlowLibraryItemMenu();
-        showConfirmModal('Delete flow', "Delete this flow and all its blocks, recordings, and documents? This can't be undone.", async () => {
+        showConfirmModal('Delete flow', "Delete this flow and all its bars, recordings, and documents? This can't be undone.", async () => {
             try {
                 await API.flows.delete(id);
                 await loadFlowsList();
@@ -3651,19 +3967,6 @@
         }
     }
 
-    // Fetches the flow's block list and lands on Blocks Studio - shared by the Hub's own "Open
-    // blocks studio" button and Play Flow's 3-dot "Edit flow" menu item.
-    async function goToBlocksStudio(id) {
-        try {
-            const blocks = await API.flows.blocks.list(id);
-            flowLeadInBlock = blocks.find(b => b.isLeadIn) || null;
-            currentFlowBlocks = blocks.filter(b => !b.isLeadIn);
-            switchView('blocksStudioView');
-        } catch (error) {
-            showWarningToast('Error loading blocks: ' + error.message);
-        }
-    }
-
     // Only sets which flow is open before deciding where to land - switchView's own flowDetailsHubView/
     // flowPlayView cases are what actually fetch and render, so returning here via the back button
     // (goBack -> switchView(..., true), never through openFlow/createAndOpenFlow again) still picks up
@@ -3674,6 +3977,7 @@
     // for a brand new flow (see createAndOpenFlow below).
     window.openFlow = function(id) {
         currentFlowId = id;
+        flowEditMode = 'edit';
         const listEntry = flowsListCache.find(f => f.id === id);
         if (listEntry && listEntry.blockCount > 0) {
             goToFlowPlayView(id);
@@ -3688,6 +3992,7 @@
         try {
             const created = await API.flows.create({});
             currentFlowId = created.id;
+            flowEditMode = 'create';
             switchView('flowDetailsHubView');
         } catch (error) {
             showWarningToast('Error creating flow: ' + error.message);
@@ -3701,13 +4006,154 @@
         return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
     }
 
-    // The single entry point into the Hub - see openFlow's own comment for why fetching lives here
-    // rather than at each caller.
+    // --- Edit Flow tabs (Details/Media/Blocks) ---
+    // Just show/hide panels + active-tab styling - no data fetching here, so it's safe to call
+    // before loadAndRenderFlowDetailsHub's own fetch resolves (switchView's flowDetailsHubView case
+    // does exactly that, so the right panel is visible immediately even while the network request
+    // is still in flight).
+    let flowEditActiveTab = 'details';
+    function setFlowEditTab(tab) {
+        flowEditActiveTab = tab;
+        document.getElementById('flowEditTabDetailsBtn')?.classList.toggle('active', tab === 'details');
+        document.getElementById('flowEditTabMediaBtn')?.classList.toggle('active', tab === 'media');
+        document.getElementById('flowEditTabBlocksBtn')?.classList.toggle('active', tab === 'blocks');
+        document.getElementById('flowEditTabDetailsBtn')?.setAttribute('aria-selected', String(tab === 'details'));
+        document.getElementById('flowEditTabMediaBtn')?.setAttribute('aria-selected', String(tab === 'media'));
+        document.getElementById('flowEditTabBlocksBtn')?.setAttribute('aria-selected', String(tab === 'blocks'));
+        const detailsPanel = document.getElementById('flowEditDetailsTab');
+        const mediaPanel = document.getElementById('flowEditMediaTab');
+        const blocksPanel = document.getElementById('flowEditBlocksTab');
+        if (detailsPanel) detailsPanel.style.display = tab === 'details' ? 'block' : 'none';
+        if (mediaPanel) mediaPanel.style.display = tab === 'media' ? 'block' : 'none';
+        if (blocksPanel) blocksPanel.style.display = tab === 'blocks' ? 'block' : 'none';
+        updateFlowEditStickyBar();
+    }
+    // Guards leaving the Details tab (via a tab click or the sticky bar button) on an empty flow
+    // name - same "required" rule the field itself already enforces on blur (wireFlowMetadataField),
+    // just also blocking navigation so an empty name doesn't silently carry through to Media/Blocks.
+    // Only meaningful for Create mode's guided chain - Edit mode has no chain to gate (tabs are
+    // freely switchable there; the name is validated once, at Save time - see saveFlowEdit).
+    function flowNameRequiredToLeaveDetails() {
+        if (flowEditMode === 'edit' || flowEditActiveTab !== 'details') return true;
+        const nameEl = document.getElementById('flowTitleInput');
+        if (nameEl && nameEl.value.trim()) return true;
+        showWarningToast('Enter a flow name first.');
+        nameEl?.focus();
+        return false;
+    }
+    // One pinned sticky bottom bar shared across all 3 tabs (index.html) instead of a separate
+    // in-flow button at the end of each tab's own content. Its contents swap by *mode*, not just by
+    // tab: Create mode is the guided Details->Bars->Media chain - one primary button shared across
+    // all 3 tabs (label/action swaps with the active tab), plus a secondary "Add media" button that
+    // only appears on the Bars tab, alongside the primary "Open player", as a second optional path
+    // straight from Bars to Media. Edit mode replaces both of those with a fixed Cancel/Save row +
+    // Delete link, shown identically regardless of which tab is active. Re-run on every
+    // setFlowEditTab call, and separately from renderFlowBlocksStudio whenever Create mode's
+    // "nothing to play yet" gate might have changed (a bar added/removed while already on the Bars
+    // tab, not just on arrival).
+    function updateFlowEditStickyBar() {
+        const createBarActions = document.getElementById('flowEditCreateBarActions');
+        const primaryBtn = document.getElementById('flowEditStickyActionBtn');
+        const secondaryBtn = document.getElementById('flowEditStickySecondaryBtn');
+        const saveBarActions = document.getElementById('flowEditSaveBarActions');
+        const deleteLink = document.getElementById('flowDeleteLink');
+        if (!createBarActions || !primaryBtn || !secondaryBtn || !saveBarActions || !deleteLink) return;
+
+        if (flowEditMode === 'edit') {
+            createBarActions.classList.add('hidden-group');
+            saveBarActions.classList.remove('hidden-group');
+            deleteLink.classList.remove('hidden-group');
+            return;
+        }
+
+        createBarActions.classList.remove('hidden-group');
+        saveBarActions.classList.add('hidden-group');
+        deleteLink.classList.add('hidden-group');
+        if (flowEditActiveTab === 'details') {
+            secondaryBtn.classList.add('hidden-group');
+            primaryBtn.innerHTML = 'Add bars <span class="btn-nav-arrow">&gt;</span>';
+            primaryBtn.classList.remove('hidden-group');
+        } else if (flowEditActiveTab === 'blocks') {
+            secondaryBtn.classList.remove('hidden-group');
+            primaryBtn.innerHTML = 'Open player <span class="btn-nav-arrow">&gt;</span>';
+            // Same "nothing to play yet" gate as before - a lead-in alone still isn't playable.
+            primaryBtn.classList.toggle('hidden-group', currentFlowBlocks.length === 0);
+        } else {
+            secondaryBtn.classList.add('hidden-group');
+            primaryBtn.innerHTML = 'Open player <span class="btn-nav-arrow">&gt;</span>';
+            primaryBtn.classList.toggle('hidden-group', currentFlowBlocks.length === 0);
+        }
+    }
+    document.getElementById('flowEditTabDetailsBtn')?.addEventListener('click', () => setFlowEditTab('details'));
+    document.getElementById('flowEditTabMediaBtn')?.addEventListener('click', () => { if (flowNameRequiredToLeaveDetails()) setFlowEditTab('media'); });
+    document.getElementById('flowEditTabBlocksBtn')?.addEventListener('click', () => { if (flowNameRequiredToLeaveDetails()) setFlowEditTab('blocks'); });
+    document.getElementById('flowEditStickySecondaryBtn')?.addEventListener('click', () => setFlowEditTab('media'));
+    document.getElementById('flowEditStickyActionBtn')?.addEventListener('click', () => {
+        if (flowEditActiveTab === 'details') {
+            if (flowNameRequiredToLeaveDetails()) setFlowEditTab('blocks');
+        } else if (currentFlowId) {
+            switchView('flowPlayView');
+        }
+    });
+    // Cancel needs no *server* revert - in Edit mode nothing is written to the server until Save
+    // (see the Details/Media/Blocks sections below). But the in-memory currentFlowDetail/
+    // currentFlowBlocks/flowLeadInBlock were mutated directly while staging the draft (same objects
+    // other views read from without refetching - e.g. flowPlayView's own switchView case rebuilds
+    // its queue straight off currentFlowBlocks), so those still need restoring from the snapshot
+    // before leaving, or a cancelled add/edit would still show up wherever you land next. Exactly
+    // the same restore cancelMetroBlkEdit does for metroBlkCurrentSetup.name/segments.
+    document.getElementById('flowEditCancelBtn')?.addEventListener('click', () => {
+        if (flowEditSnapshot && currentFlowDetail) {
+            currentFlowDetail.title = flowEditSnapshot.title;
+            currentFlowDetail.composer = flowEditSnapshot.composer;
+            currentFlowDetail.arranger = flowEditSnapshot.arranger;
+            currentFlowDetail.publisher = flowEditSnapshot.publisher;
+            currentFlowDetail.description = flowEditSnapshot.description;
+            currentFlowDetail.recordings = flowEditSnapshot.recordings;
+            currentFlowDetail.documents = flowEditSnapshot.documents;
+            flowLeadInBlock = flowEditSnapshot.leadIn;
+            currentFlowBlocks = flowEditSnapshot.blocks;
+        }
+        flowEditSnapshot = null;
+        goBack();
+    });
+
+    // Media's tab count is recordings (audio + YouTube) plus documents together - Blocks' is the
+    // playable block count (lead-in excluded, same convention as everywhere else it's counted).
+    function updateFlowEditTabCounts() {
+        const recordings = currentFlowDetail?.recordings || [];
+        const documents = currentFlowDetail?.documents || [];
+        const mediaCountEl = document.getElementById('flowEditTabMediaCount');
+        if (mediaCountEl) mediaCountEl.innerText = `(${recordings.length + documents.length})`;
+        const blocksCountEl = document.getElementById('flowEditTabBlocksCount');
+        if (blocksCountEl) blocksCountEl.innerText = `(${currentFlowBlocks.length})`;
+    }
+
+    // The single entry point into Edit Flow - see openFlow's own comment for why fetching lives here
+    // rather than at each caller. Fetches the flow's metadata AND its block list together (unlike the
+    // old separate Hub/Blocks Studio views) since Blocks is just a tab away now, not a fresh navigation.
     async function loadAndRenderFlowDetailsHub() {
         if (!currentFlowId) return;
         try {
-            currentFlowDetail = await API.flows.get(currentFlowId);
+            const [detail, blocks] = await Promise.all([API.flows.get(currentFlowId), API.flows.blocks.list(currentFlowId)]);
+            currentFlowDetail = detail;
+            flowLeadInBlock = blocks.find(b => b.isLeadIn) || null;
+            currentFlowBlocks = blocks.filter(b => !b.isLeadIn);
+            // Edit mode only - Create mode has no Cancel to revert to, so nothing to stage. Shallow
+            // clone per item (not a deep JSON clone) is enough: every mutation below reassigns
+            // fields/arrays rather than mutating one in place, so the snapshot's own references never
+            // get touched by later edits - same reasoning metroBuilderView's own
+            // enterMetroBlkEditMode/metroBlkEditSnapshot relies on.
+            flowEditSnapshot = flowEditMode === 'edit' ? {
+                title: currentFlowDetail.title, composer: currentFlowDetail.composer, arranger: currentFlowDetail.arranger,
+                publisher: currentFlowDetail.publisher, description: currentFlowDetail.description,
+                recordings: (currentFlowDetail.recordings || []).map(r => ({ ...r })),
+                documents: (currentFlowDetail.documents || []).map(d => ({ ...d })),
+                leadIn: flowLeadInBlock ? { ...flowLeadInBlock } : null,
+                blocks: currentFlowBlocks.map(b => ({ ...b }))
+            } : null;
             renderFlowDetailsHub();
+            renderFlowBlocksStudio();
         } catch (error) {
             showWarningToast('Error loading flow: ' + error.message);
         }
@@ -3716,39 +4162,26 @@
     function renderFlowDetailsHub() {
         const f = currentFlowDetail;
         if (!f) return;
-        document.getElementById('flowNameInput').value = f.title || '';
+        // A brand new flow already arrives with a real, ready-to-keep name (the server computes a
+        // unique "Untitled"/"Untitled 1"/... via getUniqueDefaultFlowName) - shown verbatim, not
+        // blanked out, so there's something sensible here even if the user never touches this field.
+        document.getElementById('flowTitleInput').value = f.title || '';
         document.getElementById('flowComposerInput').value = f.composer || '';
         document.getElementById('flowArrangerInput').value = f.arranger || '';
         document.getElementById('flowPublisherInput').value = f.publisher || '';
         document.getElementById('flowDescriptionInput').value = f.description || '';
-        document.getElementById('flowUploadedPill').innerText = `Uploaded: ${formatFlowDate(f.createdAt)}`;
+        document.getElementById('flowUploadedPill').innerText = `Created: ${formatFlowDate(f.createdAt)}`;
 
         renderFlowRecordingsList();
         renderFlowDocumentsList();
-
-        // Blocks are required, not an optional extra - a flow with zero blocks has nothing to
-        // play. "Step 2 of 2" in the card header (index.html) makes that a two-part journey
-        // rather than a bonus card; this empty-state copy/button spell out the "you do" part
-        // explicitly rather than just quietly offering "edit 0 blocks".
-        const summary = f.blocksSummary || { count: 0, totalBars: 0, totalSeconds: 0 };
-        document.getElementById('flowBlocksSummaryValue').innerText = String(summary.count);
-        const summaryMins = Math.floor((summary.totalSeconds || 0) / 60);
-        const summarySecs = Math.round((summary.totalSeconds || 0) % 60);
-        document.getElementById('flowBlocksSummaryTime').innerText = `${summary.totalBars} bar${summary.totalBars === 1 ? '' : 's'} • ~${summaryMins}m ${summarySecs}s total`;
-        document.getElementById('flowPlayFlowBtn')?.classList.toggle('hidden-group', summary.count === 0);
-        if (summary.count === 0) {
-            document.getElementById('flowBlocksSublabel').innerText = "A flow isn't playable until it has at least one block - add rehearsal marks, tempo, and repeats for each section next.";
-            document.getElementById('flowOpenStudioBtn').innerText = 'Add blocks →';
-        } else {
-            document.getElementById('flowBlocksSublabel').innerText = 'Configure tempo roadmaps, rehearsal marks, fermatas, voltas, and speed transitions across dedicated full-screen blocks.';
-            document.getElementById('flowOpenStudioBtn').innerText = `Open blocks studio (edit ${summary.count} block${summary.count === 1 ? '' : 's'}) →`;
-        }
-
-        renderFlowHubMenuOptions();
+        updateFlowEditTabCounts();
     }
 
-    // On-blur save (no separate Save button for this card - see the plan's own note on why) -
-    // skips the request entirely when the value hasn't actually changed.
+    // On-blur save (no separate Save button for this card in Create mode - see the plan's own note
+    // on why) - skips the request entirely when the value hasn't actually changed. In Edit mode,
+    // this only ever updates currentFlowDetail locally (no API call) - saveFlowEdit sends every
+    // field in one PATCH when Save is pressed; Cancel just never calls it, so nothing here needs
+    // reverting on Cancel either.
     function wireFlowMetadataField(inputId, field, required) {
         const el = document.getElementById(inputId);
         if (!el) return;
@@ -3761,6 +4194,10 @@
                 return;
             }
             if (currentFlowDetail && currentFlowDetail[field] === value) return;
+            if (flowEditMode === 'edit') {
+                if (currentFlowDetail) currentFlowDetail[field] = value;
+                return;
+            }
             try {
                 currentFlowDetail = await API.flows.update(currentFlowId, { [field]: value });
             } catch (error) {
@@ -3768,109 +4205,20 @@
             }
         });
     }
-    wireFlowMetadataField('flowNameInput', 'title', true);
+    wireFlowMetadataField('flowTitleInput', 'title', true);
     wireFlowMetadataField('flowComposerInput', 'composer');
     wireFlowMetadataField('flowArrangerInput', 'arranger');
     wireFlowMetadataField('flowPublisherInput', 'publisher');
     wireFlowMetadataField('flowDescriptionInput', 'description');
 
-    // --- Flow Hub options menu (Move to a band / Remove from band, Publish/Unpublish for super
-    // admins, Delete flow) - bare .dropdown-menu (same as the burger menu), not the
-    // .metroBlk-tile-menu/JS-clamped variant, since there's only ever one instance on screen. ---
-    function renderFlowHubMenuOptions() {
-        const f = currentFlowDetail;
-        if (!f) return;
-        const isPersonal = !f.isPublic && !f.ownerBandId;
-        const isBandOwned = !f.isPublic && !!f.ownerBandId;
-        document.getElementById('flowHubMenuMoveToBand')?.classList.toggle('hidden-group', !isPersonal);
-        document.getElementById('flowHubMenuRemoveFromBand')?.classList.toggle('hidden-group', !isBandOwned);
-        document.getElementById('flowHubMenuPublish')?.classList.toggle('hidden-group', !(currentAccountIsSuperAdmin && !f.isPublic));
-        document.getElementById('flowHubMenuUnpublish')?.classList.toggle('hidden-group', !(currentAccountIsSuperAdmin && f.isPublic));
-    }
-    function closeFlowHubMenu() {
-        document.getElementById('flowHubMenu')?.classList.remove('show');
-    }
-    document.addEventListener('click', closeFlowHubMenu);
-    document.getElementById('flowHubMenuBtn')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        document.getElementById('flowHubMenu')?.classList.toggle('show');
-    });
-
-    document.getElementById('flowHubMenuMoveToBand')?.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        closeFlowHubMenu();
-        try {
-            const bands = await API.account.getBands();
-            if (!bands.myBands.length) { showWarningToast('Join a band first from My account.'); return; }
-            document.getElementById('flowBandPickerSelect').innerHTML = bands.myBands.map(b => `<option value="${b.id}">${escapeHtml(b.displayName)}</option>`).join('');
-            document.getElementById('flowBandPickerModal').style.display = 'flex';
-        } catch (error) {
-            showWarningToast('Error loading your bands: ' + error.message);
-        }
-    });
-    document.getElementById('flowBandPickerConfirmBtn')?.addEventListener('click', async () => {
-        const bandId = document.getElementById('flowBandPickerSelect').value;
-        if (!bandId || !currentFlowId) return;
-        try {
-            currentFlowDetail = await API.flows.moveToBand(currentFlowId, Number(bandId));
-            document.getElementById('flowBandPickerModal').style.display = 'none';
-            renderFlowHubMenuOptions();
-            showSuccessToast('Flow moved to band');
-        } catch (error) {
-            showWarningToast('Error moving flow: ' + error.message);
-        }
-    });
-
-    document.getElementById('flowHubMenuRemoveFromBand')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeFlowHubMenu();
+    // --- Delete flow - a plain text link (Details tab, below Next), not the old 3-dot dropdown item.
+    // Move to a band/Remove from band/Publish/Unpublish used to live in that same dropdown - they're
+    // dropped for now, pending a follow-up that wires them to the Visibility card instead (see its
+    // own comment in index.html); the API methods themselves (API.flows.moveToBand etc.) are
+    // untouched, just nothing in this view calls them at the moment. ---
+    document.getElementById('flowDeleteLink')?.addEventListener('click', () => {
         if (!currentFlowId) return;
-        showConfirmModal('Remove from band', 'Make this flow personal again? It will only be owned by you.', async () => {
-            try {
-                currentFlowDetail = await API.flows.removeFromBand(currentFlowId);
-                renderFlowHubMenuOptions();
-                showSuccessToast('Flow is now personal');
-            } catch (error) {
-                showWarningToast('Error removing from band: ' + error.message);
-            }
-        }, false, 'Remove');
-    });
-
-    document.getElementById('flowHubMenuPublish')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeFlowHubMenu();
-        if (!currentFlowId) return;
-        showConfirmModal('Publish flow', 'Make this flow public? Any super admin will then be able to manage it.', async () => {
-            try {
-                currentFlowDetail = await API.flows.publish(currentFlowId);
-                renderFlowHubMenuOptions();
-                showSuccessToast('Flow published');
-            } catch (error) {
-                showWarningToast('Error publishing flow: ' + error.message);
-            }
-        }, false, 'Publish');
-    });
-
-    document.getElementById('flowHubMenuUnpublish')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeFlowHubMenu();
-        if (!currentFlowId) return;
-        showConfirmModal('Unpublish flow', 'Make this flow private again? It will become personal, owned by you.', async () => {
-            try {
-                currentFlowDetail = await API.flows.unpublish(currentFlowId);
-                renderFlowHubMenuOptions();
-                showSuccessToast('Flow unpublished');
-            } catch (error) {
-                showWarningToast('Error unpublishing flow: ' + error.message);
-            }
-        }, false, 'Unpublish');
-    });
-
-    document.getElementById('flowHubMenuDelete')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeFlowHubMenu();
-        if (!currentFlowId) return;
-        showConfirmModal('Delete flow', `Delete "${currentFlowDetail?.title || 'this flow'}" and all its blocks, recordings, and documents? This can't be undone.`, async () => {
+        showConfirmModal('Delete flow', `Delete "${currentFlowDetail?.title || 'this flow'}" and all its bars, recordings, and documents? This can't be undone.`, async () => {
             try {
                 await API.flows.delete(currentFlowId);
                 currentFlowId = null;
@@ -3883,52 +4231,77 @@
         }, true);
     });
 
-    // --- Recordings & media card ---
-    function renderFlowRecordingsList() {
-        const list = document.getElementById('flowRecordingsList');
-        const countPill = document.getElementById('flowRecordingsCountPill');
-        if (!list) return;
-        const recordings = currentFlowDetail?.recordings || [];
-        if (countPill) countPill.innerText = `${recordings.length} linked`;
-        if (!recordings.length) {
-            list.innerHTML = '<p class="text-muted">No media uploaded yet.</p>';
-            return;
-        }
+    // Edit mode's local-only recording/document rows get a string temp id (`tmp1`, `tmp2`, ...)
+    // instead of a real numeric one until saveFlowEdit creates them for real - same convention as
+    // flowTempBlockCounter below.
+    let flowTempMediaCounter = 0;
+    // Recording adds normally resolve youtubeVideoId server-side (addYouTube just takes the raw
+    // url) - Edit mode stages the row locally instead, so this does that same parse client-side
+    // for preview purposes only. Handles the common watch/short/embed URL shapes.
+    function flowParseYouTubeId(url) {
+        const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+        return match ? match[1] : '';
+    }
+
+    // --- Audio tracks / Video links cards (one "recordings" list from the API, split into two
+    // cards by type - see the Media tab's own layout note in index.html) ---
+    function flowMediaItemHtml(r, isYoutube) {
+        const isVideo = !isYoutube && (r.mimeType || '').startsWith('video/');
+        const icon = isYoutube ? 'smart_display' : (isVideo ? 'movie' : 'music_note');
+        const meta = isYoutube ? 'YouTube video' : (r.mimeType || 'Audio/video file');
         // Inline player per row (native <audio>/<video> controls for an upload, an embedded
         // YouTube iframe for a link) rather than an "open in a new tab" button - the point of
-        // Recordings & media is quick playback while looking at the rest of the flow, not a
-        // detour to another tab/app for a "small set of controls" you'd get there anyway.
-        list.innerHTML = recordings.map(r => {
-            const isYoutube = r.type === 'youtube';
-            const isVideo = !isYoutube && (r.mimeType || '').startsWith('video/');
-            const icon = isYoutube ? 'smart_display' : (isVideo ? 'movie' : 'music_note');
-            const meta = isYoutube ? 'YouTube video' : (r.mimeType || 'Audio/video file');
-            let playerHtml;
-            if (isYoutube) {
-                playerHtml = `<div class="flow-media-player-video"><iframe src="https://www.youtube.com/embed/${encodeURIComponent(r.youtubeVideoId)}" title="${escapeHtml(r.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
-            } else if (isVideo) {
-                playerHtml = `<div class="flow-media-player-video"><video controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></video></div>`;
-            } else {
-                playerHtml = `<audio class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></audio>`;
-            }
-            return `
-                <div class="history-item flow-media-item">
-                    <div class="flow-media-item-top">
-                        <div class="history-details">
-                            <span class="flow-media-icon ${isYoutube ? 'type-youtube' : 'type-audio'}"><span class="material-symbols-outlined" style="font-size:18px;">${icon}</span></span>
-                            <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(meta)}</span></div>
-                        </div>
-                        <button type="button" class="flow-delete-btn" onclick="deleteFlowRecording(${r.id})" aria-label="Delete ${escapeHtml(r.title)}"><span class="material-symbols-outlined">delete</span></button>
+        // this card is quick playback while looking at the rest of the flow, not a detour to
+        // another tab/app for a "small set of controls" you'd get there anyway.
+        let playerHtml;
+        if (isYoutube) {
+            playerHtml = `<div class="flow-media-player-video"><iframe src="https://www.youtube.com/embed/${encodeURIComponent(r.youtubeVideoId)}" title="${escapeHtml(r.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+        } else if (isVideo) {
+            playerHtml = `<div class="flow-media-player-video"><video controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></video></div>`;
+        } else {
+            playerHtml = `<audio class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></audio>`;
+        }
+        return `
+            <div class="history-item flow-media-item">
+                <div class="flow-media-item-top">
+                    <div class="history-details">
+                        <span class="flow-media-icon ${isYoutube ? 'type-youtube' : 'type-audio'}"><span class="material-symbols-outlined" style="font-size:18px;">${icon}</span></span>
+                        <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(meta)}</span></div>
                     </div>
-                    ${playerHtml}
+                    <button type="button" class="flow-delete-btn" onclick="deleteFlowRecording('${r.id}')" aria-label="Delete ${escapeHtml(r.title)}"><span class="material-symbols-outlined">delete</span></button>
                 </div>
-            `;
-        }).join('');
+                ${playerHtml}
+            </div>
+        `;
+    }
+    function renderFlowRecordingsList() {
+        const recordings = currentFlowDetail?.recordings || [];
+        const audioTracks = recordings.filter(r => r.type !== 'youtube');
+        const videoLinks = recordings.filter(r => r.type === 'youtube');
+
+        const audioList = document.getElementById('flowAudioTracksList');
+        const audioCountPill = document.getElementById('flowAudioTracksCountPill');
+        if (audioCountPill) audioCountPill.innerText = `${audioTracks.length} file${audioTracks.length === 1 ? '' : 's'}`;
+        if (audioList) audioList.innerHTML = audioTracks.length ? audioTracks.map(r => flowMediaItemHtml(r, false)).join('') : '<p class="text-muted">No audio uploaded yet.</p>';
+
+        const videoList = document.getElementById('flowVideoLinksList');
+        const videoCountPill = document.getElementById('flowVideoLinksCountPill');
+        if (videoCountPill) videoCountPill.innerText = `${videoLinks.length} linked`;
+        if (videoList) videoList.innerHTML = videoLinks.length ? videoLinks.map(r => flowMediaItemHtml(r, true)).join('') : '<p class="text-muted">No video linked yet.</p>';
+
+        updateFlowEditTabCounts();
     }
 
     window.deleteFlowRecording = function(recordingId) {
         if (!currentFlowId) return;
         showConfirmModal('Delete recording', 'Remove this recording from the flow?', async () => {
+            // recordingId arrives as a string (quoted in the onclick so a temp id like "tmp3" isn't
+            // a broken bare identifier) - String() both sides so a real numeric id still matches.
+            if (flowEditMode === 'edit') {
+                currentFlowDetail.recordings = (currentFlowDetail.recordings || []).filter(r => String(r.id) !== String(recordingId));
+                renderFlowRecordingsList();
+                return;
+            }
             try {
                 currentFlowDetail = await API.flows.recordings.delete(currentFlowId, recordingId);
                 renderFlowRecordingsList();
@@ -3970,9 +4343,14 @@
                     fillEl.style.width = `${pct}%`;
                 }
             });
-            currentFlowDetail = await API.flows.recordings.addUploaded(currentFlowId, {
-                blobUrl: blob.url, blobPathname: blob.pathname, fileName: file.name, fileSizeBytes: file.size, mimeType: blob.contentType || file.type
-            });
+            // The blob upload itself always happens immediately either way (it's just getting the
+            // file into storage) - only "attach it to the flow" is staged in Edit mode.
+            const uploaded = { blobUrl: blob.url, blobPathname: blob.pathname, fileName: file.name, fileSizeBytes: file.size, mimeType: blob.contentType || file.type };
+            if (flowEditMode === 'edit') {
+                currentFlowDetail.recordings = [...(currentFlowDetail.recordings || []), { id: `tmp${++flowTempMediaCounter}`, type: 'upload', title: file.name, ...uploaded }];
+            } else {
+                currentFlowDetail = await API.flows.recordings.addUploaded(currentFlowId, uploaded);
+            }
             renderFlowRecordingsList();
             showSuccessToast('Recording uploaded');
         } catch (error) {
@@ -3993,7 +4371,15 @@
         if (!url) return showWarningToast('YouTube link required.');
         if (!currentFlowId) return;
         try {
-            currentFlowDetail = await API.flows.recordings.addYouTube(currentFlowId, { url, title });
+            if (flowEditMode === 'edit') {
+                const youtubeVideoId = flowParseYouTubeId(url);
+                if (!youtubeVideoId) return showWarningToast("Couldn't recognize that as a YouTube link.");
+                currentFlowDetail.recordings = [...(currentFlowDetail.recordings || []), {
+                    id: `tmp${++flowTempMediaCounter}`, type: 'youtube', title: title || 'YouTube video', sourceUrl: url, youtubeVideoId
+                }];
+            } else {
+                currentFlowDetail = await API.flows.recordings.addYouTube(currentFlowId, { url, title });
+            }
             document.getElementById('flowYouTubeModal').style.display = 'none';
             renderFlowRecordingsList();
             showSuccessToast('YouTube video added');
@@ -4006,34 +4392,37 @@
     function renderFlowDocumentsList() {
         const list = document.getElementById('flowDocumentsList');
         const countPill = document.getElementById('flowDocumentsCountPill');
-        if (!list) return;
         const documents = currentFlowDetail?.documents || [];
         if (countPill) countPill.innerText = `${documents.length} file${documents.length === 1 ? '' : 's'}`;
-        if (!documents.length) {
-            list.innerHTML = '<p class="text-muted">No documents uploaded yet.</p>';
-            return;
+        if (list) {
+            list.innerHTML = documents.length ? documents.map(d => {
+                const ext = (d.fileName.split('.').pop() || '?').toUpperCase();
+                const sizeText = d.fileSizeBytes ? `${(d.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB` : '';
+                return `
+                    <div class="history-item flow-doc-item">
+                        <div class="history-details">
+                            <span class="flow-doc-icon">${escapeHtml(ext.slice(0, 4))}</span>
+                            <div><strong>${escapeHtml(d.fileName)}</strong><span>${sizeText}</span></div>
+                        </div>
+                        <div class="flow-doc-item-actions">
+                            <button type="button" class="list-item-menu-btn" onclick="window.open('${d.blobUrl}', '_blank')" aria-label="View ${escapeHtml(d.fileName)}"><span class="material-symbols-outlined">visibility</span></button>
+                            <button type="button" class="flow-delete-btn" onclick="deleteFlowDocument('${d.id}')" aria-label="Delete ${escapeHtml(d.fileName)}"><span class="material-symbols-outlined">delete</span></button>
+                        </div>
+                    </div>
+                `;
+            }).join('') : '<p class="text-muted">No documents uploaded yet.</p>';
         }
-        list.innerHTML = documents.map(d => {
-            const ext = (d.fileName.split('.').pop() || '?').toUpperCase();
-            const sizeText = d.fileSizeBytes ? `${(d.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB` : '';
-            return `
-                <div class="history-item flow-doc-item">
-                    <div class="history-details">
-                        <span class="flow-doc-icon">${escapeHtml(ext.slice(0, 4))}</span>
-                        <div><strong>${escapeHtml(d.fileName)}</strong><span>${sizeText}</span></div>
-                    </div>
-                    <div class="flow-doc-item-actions">
-                        <button type="button" class="list-item-menu-btn" onclick="window.open('${d.blobUrl}', '_blank')" aria-label="View ${escapeHtml(d.fileName)}"><span class="material-symbols-outlined">visibility</span></button>
-                        <button type="button" class="flow-delete-btn" onclick="deleteFlowDocument(${d.id})" aria-label="Delete ${escapeHtml(d.fileName)}"><span class="material-symbols-outlined">delete</span></button>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        updateFlowEditTabCounts();
     }
 
     window.deleteFlowDocument = function(documentId) {
         if (!currentFlowId) return;
         showConfirmModal('Delete document', 'Remove this document from the flow?', async () => {
+            if (flowEditMode === 'edit') {
+                currentFlowDetail.documents = (currentFlowDetail.documents || []).filter(d => String(d.id) !== String(documentId));
+                renderFlowDocumentsList();
+                return;
+            }
             try {
                 currentFlowDetail = await API.flows.documents.delete(currentFlowId, documentId);
                 renderFlowDocumentsList();
@@ -4069,9 +4458,12 @@
                     fillEl.style.width = `${pct}%`;
                 }
             });
-            currentFlowDetail = await API.flows.documents.add(currentFlowId, {
-                blobUrl: blob.url, blobPathname: blob.pathname, fileName: file.name, fileSizeBytes: file.size, mimeType: blob.contentType || file.type
-            });
+            const uploaded = { blobUrl: blob.url, blobPathname: blob.pathname, fileName: file.name, fileSizeBytes: file.size, mimeType: blob.contentType || file.type };
+            if (flowEditMode === 'edit') {
+                currentFlowDetail.documents = [...(currentFlowDetail.documents || []), { id: `tmp${++flowTempMediaCounter}`, ...uploaded }];
+            } else {
+                currentFlowDetail = await API.flows.documents.add(currentFlowId, uploaded);
+            }
             renderFlowDocumentsList();
             showSuccessToast('Document uploaded');
         } catch (error) {
@@ -4081,25 +4473,92 @@
         }
     });
 
-    // --- Blocks summary card ---
-    document.getElementById('flowOpenStudioBtn')?.addEventListener('click', () => {
-        if (currentFlowId) goToBlocksStudio(currentFlowId);
-    });
-
     // ========================================
     // BLOCKS STUDIO (Jira ML-179 Phase 2) - Full density view for score-backed Flow blocks
     // (parent_score_id on metronome_segments). The 2-col/4-col compact density views, and a
     // separate tap-to-open Block Inspector Modal for them, are a deferred follow-up - Full
     // already shows every one of the 12 parameters directly editable inline on each block's own
     // card (per the ticket's own Full-view spec), so there's nothing a modal would add here.
-    // Every tile edit applies immediately (updateFlowBlock already merges partial changes safely
-    // and re-validates the whole row) rather than needing a separate Save step.
+    // Create mode: every tile edit applies immediately (updateFlowBlock already merges partial
+    // changes safely and re-validates the whole row), same as always. Edit mode: every mutation
+    // below (flowUpdateBlock, create/delete/duplicate/reorder, lead-in create/delete) instead
+    // stages locally with zero API calls, synced in one batch by saveFlowEdit - same
+    // "stage-then-sync" pattern as metroBuilderView's own Edit Mode (metroBlkEditMode/
+    // saveMetroBlkEdit), so Cancel needs no revert logic at all.
     // ========================================
     let currentFlowBlocks = [];
     let flowLeadInBlock = null;
     let flowBlockMenuTargetId = null;
-    let flowDragBlockIndex = null;
     let flowFermataTargetBlockId = null;
+    // Which block (if any) currently has its swipe-to-delete underlay revealed - at most one at a
+    // time, same as Quick Play's own qpOpenSwipeIndex. Tracked by id rather than a DOM reference
+    // since renderFlowBlocksList throws every node away on each render, which resets this to null too.
+    let flowOpenSwipeBlockId = null;
+    // Edit mode's locally-staged blocks get a string temp id (`tmp1`, `tmp2`, ...) instead of a
+    // real numeric one until saveFlowEdit creates them for real.
+    let flowTempBlockCounter = 0;
+
+    // Every optional block field, at its natural falsy/null default - exactly what a fresh
+    // server-created row already looks like. Spread first so `data` (the caller's actual values)
+    // always wins for whatever it sets.
+    function flowDefaultBlockFields() {
+        return {
+            isRepeatStart: false, isRepeatEnd: false, isSectionBoundary: false, isFinalBarline: false, repeatPlayCount: null,
+            repeatEndingNumbers: [], repeatEndingStartBar: null, isFirstTimeBar: false, isSecondTimeBar: false,
+            introStartBarOffset: null, introStartBeatOffset: null, introEndBarOffset: null, introEndBeatOffset: null,
+            rampStartBarOffset: null, rampStartBeatOffset: null, rampDurationBars: null,
+            isSegno: false, isCoda: false, gotoSegno: false, gotoSegnoThenCoda: false, gotoCoda: false, gotoStartDc: false,
+            gotoStartDcThenCoda: false, isFine: false,
+            rehearsalMark: null, rehearsalMarks: [], fermatas: [], ramps: [],
+            pickupBeats: null, repeatLeadIn: false, quietSecondsBeforeLeadIn: 0, noteValue: null
+        };
+    }
+    // Resolves the display fields (timeSignatureLabel/numerator/denominator) a locally-staged block
+    // needs for rendering, off its raw timeSignatureId/accountTimeSignatureId - mirrors what the
+    // server's own getBlockDtoById does via SQL join, done client-side since Edit mode stages block
+    // changes locally instead of round-tripping to the server for every one. Shared by
+    // buildLocalFlowBlockDto (a fresh block) and flowUpdateBlock's edit-mode branch (an existing one
+    // whose time signature just changed) - both need the same re-resolution, or a picked signature
+    // stays invisible/inert until the whole card rebuilds from a fresh server fetch.
+    function flowResolveTimeSigFields(timeSignatureId, accountTimeSignatureId) {
+        const list = timeSignatureId != null ? metroBlkTimeSigCache.public : metroBlkTimeSigCache.custom;
+        const sig = list.find(t => t.id === (timeSignatureId ?? accountTimeSignatureId));
+        return { timeSignatureLabel: sig ? sig.label : '', numerator: sig ? sig.numerator : 4, denominator: sig ? sig.denominator : 4 };
+    }
+    function buildLocalFlowBlockDto(data, existingId) {
+        return {
+            ...flowDefaultBlockFields(), ...data,
+            id: existingId ?? `tmp${++flowTempBlockCounter}`,
+            ...flowResolveTimeSigFields(data.timeSignatureId, data.accountTimeSignatureId)
+        };
+    }
+    // Exactly the fields the block create/update API accepts, off a local (possibly draft) block
+    // object - shared by saveFlowEdit's create and update calls. Field list mirrors
+    // updateFlowBlock's own mergeKeys (server/services/flowBlocks.js) plus fermatas/rehearsalMarks.
+    function flowBlockPayload(b) {
+        return {
+            barCount: b.barCount, bpm: b.bpm, isLeadIn: !!b.isLeadIn, repeatLeadIn: !!b.repeatLeadIn,
+            quietSecondsBeforeLeadIn: b.quietSecondsBeforeLeadIn || 0, pickupBeats: b.pickupBeats,
+            timeSignatureId: b.timeSignatureId, accountTimeSignatureId: b.accountTimeSignatureId, noteValue: b.noteValue,
+            rehearsalMark: b.rehearsalMark, isRepeatStart: !!b.isRepeatStart, isRepeatEnd: !!b.isRepeatEnd,
+            isSectionBoundary: !!b.isSectionBoundary, isFinalBarline: !!b.isFinalBarline, repeatPlayCount: b.repeatPlayCount,
+            gotoCoda: !!b.gotoCoda, gotoStartDc: !!b.gotoStartDc, isCoda: !!b.isCoda, isSegno: !!b.isSegno,
+            gotoSegno: !!b.gotoSegno, gotoSegnoThenCoda: !!b.gotoSegnoThenCoda,
+            gotoStartDcThenCoda: !!b.gotoStartDcThenCoda, isFine: !!b.isFine,
+            isFirstTimeBar: !!b.isFirstTimeBar, isSecondTimeBar: !!b.isSecondTimeBar,
+            repeatEndingNumbers: b.repeatEndingNumbers || [], repeatEndingStartBar: b.repeatEndingStartBar ?? null,
+            introStartBarOffset: b.introStartBarOffset, introStartBeatOffset: b.introStartBeatOffset,
+            introEndBarOffset: b.introEndBarOffset, introEndBeatOffset: b.introEndBeatOffset,
+            rampStartBarOffset: b.rampStartBarOffset, rampStartBeatOffset: b.rampStartBeatOffset, rampDurationBars: b.rampDurationBars,
+            fermatas: b.fermatas || [], ramps: b.ramps || [], rehearsalMarks: b.rehearsalMarks || []
+        };
+    }
+    // A block id read off a DOM dataset is always a string - numify it only when it's a real,
+    // purely-numeric id, so a temp id (e.g. "tmp3") passes through unchanged and still compares
+    // correctly (===) against b.id (a string for a draft block, a Number for a real one).
+    function flowBlockIdFromDataset(raw) {
+        return /^\d+$/.test(raw) ? Number(raw) : raw;
+    }
 
     const FLOW_NOTE_VALUES = [
         { value: 'semibreve', label: 'Semibreve' },
@@ -4143,14 +4602,32 @@
         const mins = Math.floor(totalSeconds / 60);
         const secs = Math.round(totalSeconds % 60);
         document.getElementById('flowStudioSummaryText').innerText = `${totalBars} bar${totalBars === 1 ? '' : 's'} • ~${mins}m ${secs}s total`;
-        // Same "nothing to play yet" gate as the Hub's own flowPlayFlowBtn (currentFlowBlocks alone -
-        // a lead-in by itself still isn't playable).
-        document.getElementById('flowStudioPlayFlowBtn')?.classList.toggle('hidden-group', currentFlowBlocks.length === 0);
+        // The sticky bar's "Use flow" state (hidden-group when there's nothing to play yet) depends
+        // on currentFlowBlocks, which just changed - refresh it here too, not only on tab switch.
+        updateFlowEditStickyBar();
         renderFlowLeadIn();
         renderFlowBlocksList();
+        updateFlowEditTabCounts();
     }
 
     async function flowUpdateBlock(blockId, data) {
+        // Edit mode: merge the partial update straight onto the local object (same "merge only
+        // what's present" shape the server's own updateFlowBlock does) - no API call until Save.
+        if (flowEditMode === 'edit') {
+            const target = flowFindBlockById(blockId);
+            if (!target) return;
+            Object.assign(target, data);
+            // Time signature is stored as an id but displayed via derived fields resolved from the
+            // catalog (flowResolveTimeSigFields) - without this, picking a signature (a preset, or a
+            // custom one just created) leaves the tile showing whatever was there before, since
+            // Object.assign only touched timeSignatureId/accountTimeSignatureId, not the label/
+            // numerator/denominator the card actually renders.
+            if (data.timeSignatureId !== undefined || data.accountTimeSignatureId !== undefined) {
+                Object.assign(target, flowResolveTimeSigFields(target.timeSignatureId, target.accountTimeSignatureId));
+            }
+            renderFlowBlocksStudio();
+            return;
+        }
         try {
             const updated = await API.flows.blocks.update(blockId, data);
             if (flowLeadInBlock && flowLeadInBlock.id === blockId) {
@@ -4160,7 +4637,7 @@
             }
             renderFlowBlocksStudio();
         } catch (error) {
-            showWarningToast('Error updating block: ' + error.message);
+            showWarningToast('Error updating bar: ' + error.message);
         }
     }
 
@@ -4220,7 +4697,12 @@
         e.stopPropagation();
         closeFlowLeadInMenu();
         if (!flowLeadInBlock) return;
-        showConfirmModal('Delete lead-in', 'Remove the lead-in block?', async () => {
+        showConfirmModal('Delete lead-in', 'Remove the lead-in?', async () => {
+            if (flowEditMode === 'edit') {
+                flowLeadInBlock = null;
+                renderFlowBlocksStudio();
+                return;
+            }
             try {
                 await API.flows.blocks.delete(flowLeadInBlock.id);
                 flowLeadInBlock = null;
@@ -4234,104 +4716,312 @@
     document.getElementById('flowAddLeadInBtn')?.addEventListener('click', async () => {
         if (!currentFlowId) return;
         const firstBlock = currentFlowBlocks[0];
+        const data = {
+            barCount: 2,
+            bpm: firstBlock ? firstBlock.bpm : 120,
+            timeSignatureId: firstBlock ? firstBlock.timeSignatureId : (metroBlkTimeSigCache.public[0] ? metroBlkTimeSigCache.public[0].id : null),
+            accountTimeSignatureId: firstBlock ? firstBlock.accountTimeSignatureId : null,
+            isLeadIn: true
+        };
+        if (flowEditMode === 'edit') {
+            flowLeadInBlock = buildLocalFlowBlockDto(data);
+            renderFlowBlocksStudio();
+            return;
+        }
         try {
-            flowLeadInBlock = await API.flows.blocks.create(currentFlowId, {
-                barCount: 2,
-                bpm: firstBlock ? firstBlock.bpm : 120,
-                timeSignatureId: firstBlock ? firstBlock.timeSignatureId : (metroBlkTimeSigCache.public[0] ? metroBlkTimeSigCache.public[0].id : null),
-                accountTimeSignatureId: firstBlock ? firstBlock.accountTimeSignatureId : null,
-                isLeadIn: true
-            });
+            flowLeadInBlock = await API.flows.blocks.create(currentFlowId, data);
             renderFlowBlocksStudio();
         } catch (error) {
             showWarningToast('Error adding lead-in: ' + error.message);
         }
     });
 
-    // --- Musical symbol glyphs (segno/coda) - hand-drawn SVG, same currentColor-fill approach as
-    // metroNoteIconSvg, so the gold "this has content" tile styling (.flow-tile-filled/.selected)
-    // colors these automatically with no extra JS. `inline` sizes it to sit inline with text (the
-    // jump tile's "D.<segno>"/"al <coda>" labels); otherwise it's the picker's own button-sized icon. ---
+    // --- Musical symbol glyphs (segno/coda) - the real Unicode Musical Symbols characters (U+1D10B
+    // Segno, U+1D10C Coda), rendered in Noto Music (loaded in index.html) rather than hand-drawn SVG -
+    // a properly designed notation glyph beats an approximation, and Noto Music actually covers these
+    // two codepoints (most fonts don't, which is why a webfont is loaded for them specifically instead
+    // of trusting whatever's on the system). Plain currentColor-inheriting text, so it themes/sizes
+    // itself for free wherever it's dropped - no separate light/dark or selected-state handling
+    // needed. `inline` sizes it to sit inline with text (the jump tile's "D.<segno>"/"al <coda>"
+    // labels); otherwise it's the picker's own larger glyph size. ---
     function flowSignIconSvg(kind, inline) {
         const cls = inline ? 'flow-sign-svg-inline' : 'flow-sign-svg';
-        if (kind === 'segno') {
-            return `<svg viewBox="0 0 40 40" class="${cls}"><path d="M28 10 C 34 10 34 18 26 20 C 18 22 18 28 26 30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><line x1="8" y1="32" x2="32" y2="8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><circle cx="28" cy="28" r="2.2" fill="currentColor"/></svg>`;
-        }
-        if (kind === 'coda') {
-            return `<svg viewBox="0 0 40 40" class="${cls}"><circle cx="20" cy="20" r="12" fill="none" stroke="currentColor" stroke-width="2.6"/><line x1="20" y1="2" x2="20" y2="38" stroke="currentColor" stroke-width="2.6"/><line x1="2" y1="20" x2="38" y2="20" stroke="currentColor" stroke-width="2.6"/></svg>`;
-        }
+        if (kind === 'segno') return `<span class="${cls}">\u{1D10B}</span>`;
+        // Noto Music draws the coda glyph's own ink noticeably smaller within its character box than
+        // segno's, even at an identical font-size - flow-sign-svg-coda bumps it back up to read as
+        // the same visual size as segno alongside it.
+        if (kind === 'coda') return `<span class="${cls} flow-sign-svg-coda">\u{1D10C}</span>`;
+        return '';
+    }
+    // Fermata/caesura glyphs - same real-Unicode-Musical-Symbols-via-Noto-Music approach as segno/coda
+    // above (U+1D110 fermata, U+1D113 caesura - the actual "//" break mark), reusing the same
+    // .flow-sign-svg(-inline) classes since they're generic Noto Music glyph renderers, not
+    // sign-specific despite the name.
+    function flowPauseIconSvg(kind, inline) {
+        const cls = inline ? 'flow-sign-svg-inline' : 'flow-sign-svg';
+        if (kind === 'fermata') return `<span class="${cls}">\u{1D110}</span>`;
+        if (kind === 'caesura') return `<span class="${cls}">\u{1D113}</span>`;
         return '';
     }
 
-    // --- Reorderable blocks: label helpers (each mirrors a small slice of the schema - see
-    // docs/database-schema.md's "Journey/repeat wiring" note for what each column means). Each has
-    // a matching *Filled companion - whichever of these read "None"/the plain default gets the
-    // neutral tile styling, everything else gets .flow-tile-filled (gold border + value). ---
-    function flowStartLabel(b) { return b.isRepeatStart ? '|:' : '|'; }
-    function flowStartFilled(b) { return !!b.isRepeatStart; }
-    function flowEndLabel(b) {
-        if (b.isRepeatEnd) return ':|' + (b.repeatPlayCount ? ` ${b.repeatPlayCount}x` : '');
-        if (b.isSectionBoundary) return '||';
-        return '|';
+    // Barline glyphs - same hand-drawn SVG approach as flowSignIconSvg above, real notation rather
+    // than standing in with "|"/"|:" characters. `muted` (plain barline only, used by the pickers
+    // below) draws it in the same label colour as an unset tile, deliberately lighter/less bold than
+    // the other options it sits next to.
+    function flowBarlineIconSvg(kind, cls, muted) {
+        const c = cls ? ` class="${cls}"` : '';
+        if (kind === 'repeatStart') {
+            // Thick line on the outside (left - the very start of the repeated section), thin line
+            // just inside it, dots facing further right into the section that repeats.
+            return `<svg viewBox="0 0 32 56"${c}><line x1="10" y1="6" x2="10" y2="50" stroke="currentColor" stroke-width="5"/><line x1="18" y1="6" x2="18" y2="50" stroke="currentColor" stroke-width="2"/><circle cx="26" cy="20" r="2.4" fill="currentColor"/><circle cx="26" cy="36" r="2.4" fill="currentColor"/></svg>`;
+        }
+        if (kind === 'repeatEnd') {
+            // Mirror of repeatStart - dots face left into the section that just played, thin line
+            // then the thick line on the outside (right - the far edge of the repeated section).
+            return `<svg viewBox="0 0 32 56"${c}><circle cx="6" cy="20" r="2.4" fill="currentColor"/><circle cx="6" cy="36" r="2.4" fill="currentColor"/><line x1="14" y1="6" x2="14" y2="50" stroke="currentColor" stroke-width="2"/><line x1="22" y1="6" x2="22" y2="50" stroke="currentColor" stroke-width="5"/></svg>`;
+        }
+        if (kind === 'fine') {
+            // The final barline (end of the piece) - a thin line followed by a thick line, no dots.
+            return `<svg viewBox="0 0 32 56"${c}><line x1="12" y1="6" x2="12" y2="50" stroke="currentColor" stroke-width="2"/><line x1="20" y1="6" x2="20" y2="50" stroke="currentColor" stroke-width="5"/></svg>`;
+        }
+        if (kind === 'section') {
+            // A plain double barline (a mid-piece section boundary) - two thin lines, same weight,
+            // distinct from "fine" above where the second line is heavy.
+            return `<svg viewBox="0 0 32 56"${c}><line x1="12" y1="6" x2="12" y2="50" stroke="currentColor" stroke-width="2"/><line x1="20" y1="6" x2="20" y2="50" stroke="currentColor" stroke-width="2"/></svg>`;
+        }
+        const color = muted ? 'var(--label-color)' : 'currentColor';
+        return `<svg viewBox="0 0 32 56"${c}><line x1="16" y1="6" x2="16" y2="50" stroke="${color}" stroke-width="3" stroke-linecap="round"/></svg>`;
     }
-    function flowEndFilled(b) { return !!b.isRepeatEnd || !!b.isSectionBoundary; }
+
+    // --- Reorderable blocks: label helpers (each mirrors a small slice of the schema - see
+    // docs/database-schema.md's "Journey/repeat wiring" note for what each column means). Repeats/
+    // intro and Changes/jumps tiles deliberately stay standard-input coloured regardless of value -
+    // no gold-filled state - unlike Core's own tiles, which never had one either. ---
+    function flowStartLabel(b) { return flowBarlineIconSvg(b.isRepeatStart ? 'repeatStart' : 'plain'); }
+    // 2x is the implicit default (same as picking "Repeat" with no count at all) - never shown, in
+    // the picker or here, so the card matches exactly what was selected there.
+    function flowRepeatCountLabel(n) { return n === 2 ? '' : `${n}x`; }
+    function flowEndLabel(b) {
+        if (b.isRepeatEnd) {
+            const icon = flowBarlineIconSvg('repeatEnd');
+            // Same smaller, vertically-centered-with-the-icon count as the End of bar picker's own
+            // tiles (.flow-picker-tile-count) - not full tile-value size/baseline.
+            const countLabel = flowRepeatCountLabel(b.repeatPlayCount || 2);
+            return countLabel
+                ? `<span class="flow-barline-value-row">${icon}<span class="flow-barline-value-count">${countLabel}</span></span>`
+                : icon;
+        }
+        if (b.isFinalBarline) return flowBarlineIconSvg('fine');
+        // Fine reuses Section's plain double-bar glyph plus a "Fine" tag, same .flow-barline-value-row/
+        // -count pattern isRepeatEnd's own count uses above - not a distinct barline shape of its own.
+        if (b.isFine) return `<span class="flow-barline-value-row">${flowBarlineIconSvg('section')}<span class="flow-barline-value-count">Fine</span></span>`;
+        if (b.isSectionBoundary) return flowBarlineIconSvg('section');
+        return flowBarlineIconSvg('plain');
+    }
+    // Generic status glyph (Repeat bar/volta's stale start-bar warning today, reusable wherever else
+    // a value needs flagging as "needs fixing" rather than silently wrong or silently clamped).
+    function flowWarningIconSvg(cls) {
+        const c = cls ? ` class="${cls}"` : '';
+        return `<svg viewBox="0 0 24 24"${c} fill="none"><path d="M12 4L22 20H2L12 4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="12" y1="10" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="18" r="1.2" fill="currentColor"/></svg>`;
+    }
+    // Tempo ramp glyph - a rising diagonal (accelerando) by default, mirrored into a falling one
+    // (ritardando) when the direction is known - same hand-drawn-SVG approach as
+    // flowBarlineIconSvg/flowWarningIconSvg above. 'flat' (the target bpm resolves to exactly the
+    // current one - unusual, but not itself invalid) gets a plain rightward arrow instead of either.
+    function flowRampIconSvg(direction, cls) {
+        const c = cls ? ` class="${cls}"` : '';
+        if (direction === 'down') {
+            return `<svg viewBox="0 0 24 24"${c} fill="none"><path d="M4 6L18 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M10 18H18V10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        }
+        if (direction === 'flat') {
+            return `<svg viewBox="0 0 24 24"${c} fill="none"><path d="M3 12H17" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M12 7L19 12L12 17" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        }
+        return `<svg viewBox="0 0 24 24"${c} fill="none"><path d="M4 18L18 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M10 6H18V14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    }
+    // Resolves whether a ramp speeds up, slows down, or holds - null only when the target itself
+    // can't be resolved yet (a 'next_block' target with no next block - always caught by
+    // flowRampInvalid before this is reached, so callers can treat null as "can't happen" in
+    // practice, not a case they need their own fallback for).
+    function flowRampDirection(r, block, nextBlock) {
+        const fromBpm = Number(block.bpm);
+        const toBpm = r.targetMode === 'custom' ? Number(r.targetBpm) : (nextBlock ? Number(nextBlock.bpm) : null);
+        if (toBpm === null || !Number.isFinite(toBpm) || !Number.isFinite(fromBpm)) return null;
+        if (toBpm > fromBpm) return 'up';
+        if (toBpm < fromBpm) return 'down';
+        return 'flat';
+    }
+    // "1-3,5&7-9." - consecutive runs collapse to a range ([1,2,3] -> "1-3", a lone number stays
+    // bare), commas between all but the last two tokens, "&" joining the final pair, and a single
+    // full stop at the very end (not one per number/range) - squashed up, no spaces.
+    function flowFormatRepeatPasses(nums) {
+        const sorted = [...nums].sort((a, b) => a - b);
+        if (!sorted.length) return '';
+        const tokens = [];
+        let rangeStart = sorted[0];
+        let rangeEnd = sorted[0];
+        for (let i = 1; i < sorted.length; i++) {
+            if (sorted[i] === rangeEnd + 1) { rangeEnd = sorted[i]; continue; }
+            tokens.push(rangeStart === rangeEnd ? `${rangeStart}` : `${rangeStart}-${rangeEnd}`);
+            rangeStart = rangeEnd = sorted[i];
+        }
+        tokens.push(rangeStart === rangeEnd ? `${rangeStart}` : `${rangeStart}-${rangeEnd}`);
+        const joined = tokens.length <= 1 ? (tokens[0] || '') : `${tokens.slice(0, -1).join(',')}&${tokens[tokens.length - 1]}`;
+        return `${joined}.`;
+    }
     // Repeat-ending numbers (ML-179 follow-up, db/migrations/034_repeat_ending_numbers.sql) - a
     // superset of the old binary 1st/2nd pair, e.g. [1,3,5] for "plays on passes 1, 3 and 5 only".
+    // Empty state is a plain "+" (matching flowBlockMarkEmpty's own muted-tile language) rather than
+    // the word "None" every other tile's empty state uses - this tile opens straight into a form,
+    // not a list of named options, so "+" reads as "add one" instead.
+    // Start/end bars aren't DB-bounded against bar count (db/migrations/037_volta_start_bar.sql) - if
+    // the block is shortened after one's set, it's left stranded outside the block. Rather than a
+    // small inline warning icon next to otherwise-stale content, the whole tile flags this: a big
+    // triangle + "Update" replaces the tile's normal value, and .flow-tile-warning reddens the tile
+    // itself (flowBlockCardHtml) - same treatment for the alt-ending tile and the intro tile.
+    function flowRepeatBarInvalid(b) {
+        return !!(b.repeatEndingStartBar && b.barCount && b.repeatEndingStartBar > b.barCount);
+    }
+    function flowIntroInvalid(b) {
+        const maxBar = b.barCount || 1;
+        const startBad = b.introStartBarOffset !== null && b.introStartBarOffset !== undefined && b.introStartBarOffset > maxBar;
+        const endBad = b.introEndBarOffset !== null && b.introEndBarOffset !== undefined && b.introEndBarOffset > maxBar;
+        return startBad || endBad;
+    }
+    function flowPauseInvalid(b) {
+        const maxBar = b.barCount || 1;
+        return (b.fermatas || []).some(f => ((f.barOffset || 0) + 1) > maxBar);
+    }
+    function flowTileUpdateWarning() {
+        return `<span class="flow-tile-value-warning">${flowWarningIconSvg('flow-tile-warning-icon')}<span class="flow-tile-value-warning-text">Update</span></span>`;
+    }
     function flowRepeatBarLabel(b) {
+        if (flowRepeatBarInvalid(b)) return flowTileUpdateWarning();
         const nums = b.repeatEndingNumbers || [];
-        return nums.length ? nums.join(', ') : 'None';
+        if (!nums.length) return '<span class="flow-tile-value-empty">+</span>';
+        const text = escapeHtml(flowFormatRepeatPasses(nums));
+        // Real volta-bracket notation (the corner drawn by .flow-volta-bracket::before in CSS) - a
+        // line above the figures with a downward tick immediately to their left, running alongside
+        // them - not just plain text, same "hand-drawn real notation" language as flowBarlineIconSvg.
+        const bracket = `<span class="flow-volta-bracket"><span class="flow-volta-bracket-numbers">${text}</span></span>`;
+        const fromBar = b.repeatEndingStartBar
+            ? `<span class="flow-volta-from-bar">from bar ${b.repeatEndingStartBar}</span>`
+            : '';
+        return `${bracket}${fromBar}`;
     }
-    function flowRepeatBarFilled(b) { return (b.repeatEndingNumbers || []).length > 0; }
     function flowIntroLabel(b) {
-        const hasStart = b.introStartBarOffset !== null;
-        const hasEnd = b.introEndBarOffset !== null;
-        if (hasStart && hasEnd) return 'Both';
-        if (hasStart) return 'Starts';
-        if (hasEnd) return 'Ends';
-        return 'None';
+        if (flowIntroInvalid(b)) return flowTileUpdateWarning();
+        const hasStart = b.introStartBarOffset !== null && b.introStartBarOffset !== undefined;
+        const hasEnd = b.introEndBarOffset !== null && b.introEndBarOffset !== undefined;
+        if (!hasStart && !hasEnd) return '<span class="flow-tile-value-empty">+</span>';
+        const spansMultiple = hasStart && hasEnd && b.introStartBarOffset !== b.introEndBarOffset;
+        const text = spansMultiple ? `Bars ${b.introStartBarOffset}-${b.introEndBarOffset}`
+            : hasStart ? `Bar ${b.introStartBarOffset}`
+            : `Bar ${b.introEndBarOffset}`;
+        // Real-notation cue bracket (the corner drawn by .flow-intro-bracket's ::before/::after in
+        // CSS) - a tall tick to the left of the text and a line underneath, same "hand-drawn real
+        // notation" language as flowBarlineIconSvg/the volta bracket. The right-hand tick only shows
+        // once an end bar is actually set ("End intro early?" on) - left open when it isn't, since
+        // that reads more clearly as "runs through to the end of the section" than any text would.
+        const openEndClass = hasEnd ? '' : ' flow-intro-bracket-open-end';
+        return `<span class="flow-intro-bracket${openEndClass}"><span class="flow-intro-bracket-text">${text}</span></span>`;
     }
-    function flowIntroFilled(b) { return b.introStartBarOffset !== null || b.introEndBarOffset !== null; }
-    // Direction (rit/accel) isn't stored - it's derived by comparing to the next block's own bpm
-    // (see docs/database-schema.md's "Tempo ramp" note: "no separate target-tempo field").
+    // A block can carry more than one ramp (b.ramps, metronome_segment_ramps) - same "stale until
+    // fixed, flagged rather than silently wrong" precedent as flowPauseInvalid/flowIntroInvalid.
+    // Stale start/end bars mean the block shrank after the ramp was set; a "next block" target with
+    // no next block (this is the last block in the flow) can't resolve to anything, per the user's
+    // own request that this be surfaced before Saving rather than silently ignored at playback time.
+    function flowRampInvalid(b, nextBlock) {
+        const maxBar = b.barCount || 1;
+        return (b.ramps || []).some(r => {
+            if (((r.startBarOffset || 0) + 1) > maxBar) return true;
+            if (r.endMode === 'specific' && ((r.endBarOffset || 0) + 1) > maxBar) return true;
+            if (r.targetMode === 'next_block' && !nextBlock) return true;
+            return false;
+        });
+    }
     function flowChangeLabel(b, nextBlock) {
-        if (b.rampStartBarOffset === null) return 'None';
-        if (nextBlock && Number(nextBlock.bpm) > Number(b.bpm)) return 'accel';
-        if (nextBlock && Number(nextBlock.bpm) < Number(b.bpm)) return 'rit';
-        return 'ramp';
+        if (flowRampInvalid(b, nextBlock)) return flowTileUpdateWarning();
+        const ramps = b.ramps || [];
+        if (!ramps.length) return '<span class="flow-tile-value-empty">+</span>';
+        // A block can mix speed-ups and slow-downs, so this tallies by direction rather than just
+        // showing one combined count - up first, then down, then flat (equal bpm, unusual but not
+        // invalid), each only shown when the block actually has one. flow-ramp-tile-icon shrinks the
+        // icon down from .flow-tile-value svg's default 1.6em (tuned for the taller/narrower barline
+        // glyphs) - up to three icon+count groups need to fit in the same tile now.
+        const counts = { up: 0, down: 0, flat: 0 };
+        ramps.forEach(r => { counts[flowRampDirection(r, b, nextBlock) || 'flat']++; });
+        const groups = ['up', 'down', 'flat']
+            .filter(dir => counts[dir])
+            .map(dir => `${flowRampIconSvg(dir, 'flow-ramp-tile-icon')}<span class="flow-barline-value-count">×${counts[dir]}</span>`)
+            .join('');
+        return `<span class="flow-barline-value-row flow-ramp-tile-row">${groups}</span>`;
     }
-    function flowChangeFilled(b) { return b.rampStartBarOffset !== null; }
     function flowSignLabel(b) {
         if (b.isSegno) return flowSignIconSvg('segno');
         if (b.isCoda) return flowSignIconSvg('coda');
-        return 'None';
+        return '<span class="flow-tile-value-empty">+</span>';
     }
-    function flowSignFilled(b) { return !!b.isSegno || !!b.isCoda; }
-    // "D.<segno>"/"To <coda>"/"D.<segno> al <coda>" - the actual symbol at the same size as the
-    // surrounding text (flowSignIconSvg's inline variant), not the word spelled out.
+    // "D.S. al <coda>"/"To <coda>" - the real coda symbol at the same size as the surrounding text
+    // (flowSignIconSvg's inline variant), but "D.S."/"D.C." spelled with a plain letter S/C rather
+    // than the segno symbol - these are jump instructions, not a claim that the segno sign itself is
+    // printed on this bar (that's the separate "sign" tile/flowSignLabel, openFlowSignPicker).
     function flowJumpLabel(b) {
-        if (b.gotoSegnoThenCoda) return `D.${flowSignIconSvg('segno', true)} al ${flowSignIconSvg('coda', true)}`;
-        if (b.gotoSegno) return `D.${flowSignIconSvg('segno', true)}`;
-        if (b.gotoCoda) return `To ${flowSignIconSvg('coda', true)}`;
+        // .flow-tile-value is flex-direction:column, so raw sibling text+glyph content becomes two
+        // separate flex items and stacks onto two lines instead of flowing inline - wrapping them
+        // together in one .flow-barline-value-row (already inline-flex, row direction) keeps text and
+        // glyph on a single line, same fix flowEndLabel's own icon+count pairing already relies on.
+        if (b.gotoSegnoThenCoda) return `<span class="flow-barline-value-row">D.S. al ${flowSignIconSvg('coda', true)}</span>`;
+        if (b.gotoStartDcThenCoda) return `<span class="flow-barline-value-row">D.C. al ${flowSignIconSvg('coda', true)}</span>`;
+        if (b.gotoCoda) return `<span class="flow-barline-value-row">To ${flowSignIconSvg('coda', true)}</span>`;
+        if (b.gotoSegno) return 'D.S.';
         if (b.gotoStartDc) return 'D.C.';
-        return 'None';
+        return '<span class="flow-tile-value-empty">+</span>';
     }
-    function flowJumpFilled(b) { return !!b.gotoSegno || !!b.gotoSegnoThenCoda || !!b.gotoCoda || !!b.gotoStartDc; }
     function flowPauseLabel(b) {
-        const n = (b.fermatas || []).length;
-        return n === 0 ? 'None' : `${n} fermata${n === 1 ? '' : 's'}`;
+        if (flowPauseInvalid(b)) return flowTileUpdateWarning();
+        const pauses = b.fermatas || [];
+        const fermataCount = pauses.filter(p => (p.kind || 'fermata') === 'fermata').length;
+        const caesuraCount = pauses.filter(p => p.kind === 'caesura').length;
+        if (!fermataCount && !caesuraCount) return '<span class="flow-tile-value-empty">+</span>';
+        // Wrapped in one .flow-barline-value-row so the fermata group and caesura group (each itself
+        // an icon+count pair) flow side by side on one line rather than stacking - .flow-tile-value's
+        // flex-direction:column would otherwise turn each into its own flex item, same bug already
+        // fixed once for flowJumpLabel/flowEndLabel.
+        let inner = '';
+        if (fermataCount) inner += `${flowPauseIconSvg('fermata', true)}<span class="flow-barline-value-count">×${fermataCount}</span>`;
+        if (caesuraCount) inner += `${flowPauseIconSvg('caesura', true)}<span class="flow-barline-value-count">×${caesuraCount}</span>`;
+        return `<span class="flow-barline-value-row">${inner}</span>`;
     }
-    function flowPauseFilled(b) { return (b.fermatas || []).length > 0; }
 
     function flowBlockCardHtml(b, idx, nextBlock) {
         const timeSig = b.timeSignatureLabel || `${b.numerator}/${b.denominator}`;
         const markBox = b.rehearsalMark
             ? `<button type="button" class="flow-block-mark-box" data-block-tile="rehearsalMark">${escapeHtml(b.rehearsalMark)}</button>`
             : `<button type="button" class="flow-block-mark-empty" data-block-tile="rehearsalMark" aria-label="Add rehearsal mark">+</button>`;
+        // Grab handle/delete-underlay only render once there's more than one block to reorder/delete -
+        // same "hide, don't just no-op" precedent as the 3-dot menu's own Move up/down/Delete
+        // (openFlowBlockMenu) and Quick Play's own qp-bar-grab-handle/qp-block-delete-underlay.
+        const canReorderOrDelete = currentFlowBlocks.length > 1;
+        const grabHandle = canReorderOrDelete
+            ? `<button type="button" class="flow-block-grab-handle" data-block-grab-handle aria-label="Drag to reorder ${flowBarRangeLabel(idx)}"><span class="material-symbols-outlined">drag_indicator</span></button>`
+            : '';
+        const deleteUnderlay = canReorderOrDelete
+            ? `<div class="flow-block-delete-underlay" data-block-delete-btn aria-label="Delete ${flowBarRangeLabel(idx)}">
+                <span class="material-symbols-outlined">delete</span>
+                <span>Delete</span>
+            </div>`
+            : '';
+        // .flow-block-box is a plain clipping wrapper (delete underlay behind, the actual card in
+        // front and sliding) - same split as Quick Play's own qp-block-box/qp-block-surface
+        // (wireQpBarSwipe), which this mirrors so scrolling from anywhere on a bar card works exactly
+        // the same way here as it does there (see wireFlowBlockSwipe/wireFlowBlockGrabHandle below).
         return `
-            <div class="flow-block-card" draggable="true" data-block-id="${b.id}">
+            <div class="flow-block-box" data-block-index="${idx}" data-block-id="${b.id}">
+                ${deleteUnderlay}
+                <div class="flow-block-card">
                 <div class="flow-block-card-header">
                     <div class="flow-block-card-title">
-                        <span class="flow-block-grab-handle material-symbols-outlined">drag_indicator</span>
+                        ${grabHandle}
                         ${markBox}
                         <span class="flow-block-name">${flowBarRangeLabel(idx)}</span>
                     </div>
@@ -4341,28 +5031,35 @@
                     <span class="flow-tile-section-label">Core</span>
                     <div class="flow-tile-grid flow-tile-grid-4">
                         <button type="button" class="flow-tile" data-block-tile="time"><span class="flow-tile-value">${escapeHtml(timeSig)}</span><span class="flow-tile-label">time</span></button>
-                        <button type="button" class="flow-tile" data-block-tile="beatUnit"><span class="flow-tile-value">${metroNoteIconSvg(b.noteValue || 'crotchet')}</span><span class="flow-tile-label">beat unit</span></button>
+                        <button type="button" class="flow-tile" data-block-tile="beatUnit"><span class="flow-tile-value">${metroNoteIconSvg(b.noteValue || 'crotchet')}</span><span class="flow-tile-label">beat note</span></button>
                         <button type="button" class="flow-tile" data-block-tile="bpm"><span class="flow-tile-value">${b.bpm}</span><span class="flow-tile-label">bpm</span></button>
                         <button type="button" class="flow-tile" data-block-tile="bars"><span class="flow-tile-value">${b.barCount}</span><span class="flow-tile-label">bars</span></button>
                     </div>
                 </div>
                 <div class="flow-tile-section">
-                    <span class="flow-tile-section-label">Repeats and intro</span>
+                    <div class="flow-tile-section-split-labels flow-tile-section-split-labels-3-1">
+                        <span class="flow-tile-section-label">Repeats</span>
+                        <span class="flow-tile-section-label">Intro</span>
+                    </div>
                     <div class="flow-tile-grid flow-tile-grid-4">
-                        <button type="button" class="flow-tile${flowStartFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="start"><span class="flow-tile-value">${flowStartLabel(b)}</span><span class="flow-tile-label">start</span></button>
-                        <button type="button" class="flow-tile${flowEndFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="end"><span class="flow-tile-value">${flowEndLabel(b)}</span><span class="flow-tile-label">end</span></button>
-                        <button type="button" class="flow-tile${flowRepeatBarFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="repeatBar"><span class="flow-tile-value">${flowRepeatBarLabel(b)}</span><span class="flow-tile-label">repeat bar</span></button>
-                        <button type="button" class="flow-tile${flowIntroFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="intro"><span class="flow-tile-value">${flowIntroLabel(b)}</span><span class="flow-tile-label">intro</span></button>
+                        <button type="button" class="flow-tile" data-block-tile="start"><span class="flow-tile-value">${flowStartLabel(b)}</span><span class="flow-tile-label">start</span></button>
+                        <button type="button" class="flow-tile" data-block-tile="end"><span class="flow-tile-value">${flowEndLabel(b)}</span><span class="flow-tile-label">end</span></button>
+                        <button type="button" class="flow-tile${flowRepeatBarInvalid(b) ? ' flow-tile-warning' : ''}" data-block-tile="repeatBar"><span class="flow-tile-value">${flowRepeatBarLabel(b)}</span><span class="flow-tile-label">alt ending</span></button>
+                        <button type="button" class="flow-tile${flowIntroInvalid(b) ? ' flow-tile-warning' : ''}" data-block-tile="intro"><span class="flow-tile-value">${flowIntroLabel(b)}</span><span class="flow-tile-label">bar range</span></button>
                     </div>
                 </div>
                 <div class="flow-tile-section">
-                    <span class="flow-tile-section-label">Changes and jumps</span>
-                    <div class="flow-tile-grid flow-tile-grid-4">
-                        <button type="button" class="flow-tile${flowChangeFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="change"><span class="flow-tile-value">${flowChangeLabel(b, nextBlock)}</span><span class="flow-tile-label">change</span></button>
-                        <button type="button" class="flow-tile${flowSignFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="sign"><span class="flow-tile-value">${flowSignLabel(b)}</span><span class="flow-tile-label">sign</span></button>
-                        <button type="button" class="flow-tile${flowPauseFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="pause"><span class="flow-tile-value">${flowPauseLabel(b)}</span><span class="flow-tile-label">pause</span></button>
-                        <button type="button" class="flow-tile${flowJumpFilled(b) ? ' flow-tile-filled' : ''}" data-block-tile="jump"><span class="flow-tile-value">${flowJumpLabel(b)}</span><span class="flow-tile-label">jump</span></button>
+                    <div class="flow-tile-section-split-labels">
+                        <span class="flow-tile-section-label">Tempo</span>
+                        <span class="flow-tile-section-label">Jumps</span>
                     </div>
+                    <div class="flow-tile-grid flow-tile-grid-4">
+                        <button type="button" class="flow-tile${flowPauseInvalid(b) ? ' flow-tile-warning' : ''}" data-block-tile="pause"><span class="flow-tile-value">${flowPauseLabel(b)}</span><span class="flow-tile-label">pause</span></button>
+                        <button type="button" class="flow-tile${flowRampInvalid(b, nextBlock) ? ' flow-tile-warning' : ''}" data-block-tile="change"><span class="flow-tile-value">${flowChangeLabel(b, nextBlock)}</span><span class="flow-tile-label">ramp</span></button>
+                        <button type="button" class="flow-tile" data-block-tile="sign"><span class="flow-tile-value">${flowSignLabel(b)}</span><span class="flow-tile-label">sign</span></button>
+                        <button type="button" class="flow-tile" data-block-tile="jump"><span class="flow-tile-value">${flowJumpLabel(b)}</span><span class="flow-tile-label">jump</span></button>
+                    </div>
+                </div>
                 </div>
             </div>
         `;
@@ -4372,62 +5069,192 @@
         const container = document.getElementById('flowBlocksList');
         if (!container) return;
         if (!currentFlowBlocks.length) {
-            container.innerHTML = '<p class="text-muted" style="text-align:center; padding: 20px;">No blocks yet - add your first one below.</p>';
+            container.innerHTML = '<p class="text-muted" style="text-align:center; padding: 20px;">No bars yet - add your first one below.</p>';
             return;
         }
         container.innerHTML = currentFlowBlocks.map((b, idx) => flowBlockCardHtml(b, idx, currentFlowBlocks[idx + 1])).join('');
 
-        // Mouse-only HTML5 drag-and-drop for now (matches this pass's Full-view-only scope) - a
-        // proper touch-friendly implementation would mirror setupMetroBlkDragAndDrop's dual
-        // mouse/Pointer-Events approach; noted as a follow-up alongside the density switcher.
-        container.querySelectorAll('.flow-block-card').forEach((el) => {
-            el.addEventListener('dragstart', () => {
-                flowDragBlockIndex = currentFlowBlocks.findIndex(b => b.id === Number(el.dataset.blockId));
-                el.classList.add('dragging');
-            });
-            el.addEventListener('dragover', (e) => e.preventDefault());
-            el.addEventListener('dragend', () => el.classList.remove('dragging'));
-            el.addEventListener('drop', (e) => {
-                e.preventDefault();
-                const targetIdx = currentFlowBlocks.findIndex(b => b.id === Number(el.dataset.blockId));
-                if (flowDragBlockIndex === null || flowDragBlockIndex === targetIdx) return;
-                const moved = currentFlowBlocks.splice(flowDragBlockIndex, 1)[0];
-                currentFlowBlocks.splice(targetIdx, 0, moved);
-                flowDragBlockIndex = null;
-                renderFlowBlocksList();
-                API.flows.blocks.reorder(currentFlowId, currentFlowBlocks.map(b => b.id))
-                    .catch(error => showWarningToast('Error saving order: ' + error.message));
-            });
+        // Same gesture split as Quick Play's own bar boxes (wireQpBarGrabHandle/wireQpBarSwipe) -
+        // reordering is scoped strictly to the grab handle, deleting to a horizontal swipe that only
+        // intercepts the gesture once it's confirmed horizontal, and neither touches the page's own
+        // vertical scroll otherwise (see .flow-block-box's touch-action:pan-y in style.css). Replaces
+        // the old whole-card HTML5 draggable="true", whose touch-action:none on the entire card blocked
+        // native scroll from ever starting on a bar card at all.
+        container.querySelectorAll('.flow-block-box').forEach((boxEl) => {
+            const blockId = flowBlockIdFromDataset(boxEl.dataset.blockId);
+            wireFlowBlockGrabHandle(boxEl.querySelector('[data-block-grab-handle]'), boxEl, blockId);
+            wireFlowBlockSwipe(boxEl, blockId);
         });
 
         container.querySelectorAll('[data-block-tile]').forEach(btn => {
-            const blockId = Number(btn.closest('.flow-block-card').dataset.blockId);
+            const blockId = flowBlockIdFromDataset(btn.closest('.flow-block-box').dataset.blockId);
             btn.addEventListener('click', () => handleFlowBlockTileClick(blockId, btn.dataset.blockTile));
         });
         container.querySelectorAll('[data-block-menu-btn]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                openFlowBlockMenu(e.currentTarget, Number(btn.closest('.flow-block-card').dataset.blockId));
+                openFlowBlockMenu(e.currentTarget, flowBlockIdFromDataset(btn.closest('.flow-block-box').dataset.blockId));
             });
+        });
+    }
+
+    // --- Block card reorder/delete gestures - directly mirrors Quick Play's own bar-box gestures
+    // (wireQpBarGrabHandle/wireQpBarSwipe): reordering is a single-step move (same as the 3-dot
+    // menu's own Move up/down), scoped strictly to the small grab handle so it never competes with
+    // the page's vertical scroll; deleting is a horizontal swipe that only ever intercepts the
+    // gesture once it's confirmed horizontal (>30px horizontal travel while vertical travel is still
+    // under 15px) - a clearly-vertical drag before that point is left alone entirely so the browser's
+    // own touch-action:pan-y scroll handles it, same reasoning as Quick Play's own. ---
+    // Raw position swap (no bounds checking) - the one place the actual array mutation for a move
+    // happens, animated via flowAnimateBlocksChange (FLIP) so the displaced block visibly slides into
+    // its new spot instead of the re-render just snapping it there - same "swap, don't just rebuild"
+    // shape as Quick Play's own qpSwapBarPositions.
+    function flowSwapBlockPositions(i, j) {
+        const movedId = currentFlowBlocks[i].id;
+        flowAnimateBlocksChange(() => {
+            [currentFlowBlocks[i], currentFlowBlocks[j]] = [currentFlowBlocks[j], currentFlowBlocks[i]];
+        }, { raiseUid: movedId });
+        flowPersistBlockOrder();
+    }
+    function flowMoveBlockUp(blockId) {
+        const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
+        if (idx <= 0) return;
+        flowSwapBlockPositions(idx, idx - 1);
+    }
+    function flowMoveBlockDown(blockId) {
+        const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
+        if (idx < 0 || idx >= currentFlowBlocks.length - 1) return;
+        flowSwapBlockPositions(idx, idx + 1);
+    }
+    // Same confirm-before-delete flow the 3-dot menu's own Delete item already used - shared so the
+    // swipe-revealed delete button below behaves identically, not a lighter no-confirm shortcut.
+    function flowDeleteBlockConfirm(blockId) {
+        showConfirmModal('Delete bar', "Delete this bar? This can't be undone.", async () => {
+            if (flowEditMode === 'edit') {
+                currentFlowBlocks = currentFlowBlocks.filter(b => b.id !== blockId);
+                renderFlowBlocksStudio();
+                return;
+            }
+            try {
+                await API.flows.blocks.delete(blockId);
+                currentFlowBlocks = currentFlowBlocks.filter(b => b.id !== blockId);
+                renderFlowBlocksStudio(); // not just renderFlowBlocksList - the total bars/runtime summary needs refreshing too
+            } catch (error) {
+                showWarningToast('Error deleting bar: ' + error.message);
+            }
+        }, true);
+    }
+
+    const FLOW_BLOCK_REORDER_THRESHOLD_PX = 40;
+    const FLOW_BLOCK_SWIPE_LOCK_X_PX = 30;
+    const FLOW_BLOCK_SWIPE_LOCK_Y_MAX_PX = 15;
+    const FLOW_BLOCK_SWIPE_OPEN_PX = 96; // keep in sync with .flow-block-delete-underlay's width in style.css
+    const FLOW_BLOCK_SWIPE_SNAP_THRESHOLD_PX = 48;
+    const FLOW_BLOCK_SWIPE_EXCLUDE_SELECTOR = 'button, input, [role="slider"], [role="button"], .slider-track, .slider-thumb';
+
+    function flowBlockSurfaceFor(blockId) {
+        return document.querySelector(`.flow-block-box[data-block-id="${blockId}"] .flow-block-card`);
+    }
+    function flowSetSwipeOffset(blockId, offset, animate) {
+        const surface = flowBlockSurfaceFor(blockId);
+        if (!surface) return;
+        surface.style.transition = animate ? 'transform 0.2s ease' : 'none';
+        surface.style.transform = offset ? `translateX(${offset}px)` : '';
+    }
+    function flowCloseOpenSwipe(animate = true) {
+        if (flowOpenSwipeBlockId === null) return;
+        flowSetSwipeOffset(flowOpenSwipeBlockId, 0, animate);
+        flowOpenSwipeBlockId = null;
+    }
+    // Tapping anywhere outside an open card snaps it back - a document-level listener rather than a
+    // per-card blur/outside-click check, same pattern as closeQpBarMenu/qpOpenSwipeIndex's own.
+    document.addEventListener('pointerdown', (e) => {
+        if (flowOpenSwipeBlockId === null) return;
+        const openBoxEl = document.querySelector(`.flow-block-box[data-block-id="${flowOpenSwipeBlockId}"]`);
+        if (openBoxEl && !openBoxEl.contains(e.target)) flowCloseOpenSwipe();
+    });
+
+    // Vertical reordering, scoped strictly to the grab handle. Single-step swap
+    // (flowMoveBlockUp/Down), same as the menu's own Move up/down - this is about where the gesture
+    // is allowed to start, not a full drag-to-arbitrary-position sortable list. wireVerticalDragHandle
+    // (shared with Quick Play's own wireQpBarGrabHandle) owns the actual gesture/animation handoff.
+    function wireFlowBlockGrabHandle(handleEl, boxEl, blockId) {
+        wireVerticalDragHandle(handleEl, boxEl, FLOW_BLOCK_REORDER_THRESHOLD_PX,
+            () => flowMoveBlockUp(blockId), () => flowMoveBlockDown(blockId), '.flow-block-card');
+    }
+
+    // Horizontal swipe-to-reveal delete. Doesn't touch anything (no transform, no preventDefault)
+    // until the gesture actually locks into "this is a horizontal swipe" - a clearly-vertical drag
+    // before that point is treated as a scroll attempt and left alone entirely.
+    function wireFlowBlockSwipe(boxEl, blockId) {
+        const surfaceEl = boxEl.querySelector('.flow-block-card');
+        let startX = 0, startY = 0, tracking = false, locked = false, abandoned = false;
+
+        function currentBaseOffset() { return flowOpenSwipeBlockId === blockId ? -FLOW_BLOCK_SWIPE_OPEN_PX : 0; }
+
+        function onMove(e) {
+            if (!tracking || abandoned) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (!locked) {
+                if (Math.abs(dx) > FLOW_BLOCK_SWIPE_LOCK_X_PX && Math.abs(dy) < FLOW_BLOCK_SWIPE_LOCK_Y_MAX_PX) {
+                    locked = true;
+                    // Only one card open at a time - starting a fresh swipe elsewhere closes any other.
+                    if (flowOpenSwipeBlockId !== null && flowOpenSwipeBlockId !== blockId) flowCloseOpenSwipe(false);
+                } else if (Math.abs(dy) >= FLOW_BLOCK_SWIPE_LOCK_Y_MAX_PX) {
+                    abandoned = true; // a scroll, not a swipe - stop tracking, never transform
+                    return;
+                } else {
+                    return; // not enough travel yet either way
+                }
+            }
+            e.preventDefault();
+            const offset = Math.min(0, Math.max(-FLOW_BLOCK_SWIPE_OPEN_PX, currentBaseOffset() + dx));
+            surfaceEl.style.transition = 'none';
+            surfaceEl.style.transform = `translateX(${offset}px)`;
+        }
+        function onUp(e) {
+            if (!tracking) return;
+            tracking = false;
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            if (!locked) return;
+            const dx = e.clientX - startX;
+            const finalOffset = Math.min(0, Math.max(-FLOW_BLOCK_SWIPE_OPEN_PX, currentBaseOffset() + dx));
+            if (Math.abs(finalOffset) > FLOW_BLOCK_SWIPE_SNAP_THRESHOLD_PX) {
+                flowSetSwipeOffset(blockId, -FLOW_BLOCK_SWIPE_OPEN_PX, true);
+                flowOpenSwipeBlockId = blockId;
+            } else {
+                flowSetSwipeOffset(blockId, 0, true);
+                if (flowOpenSwipeBlockId === blockId) flowOpenSwipeBlockId = null;
+            }
+        }
+        boxEl.addEventListener('pointerdown', (e) => {
+            if (e.target.closest(FLOW_BLOCK_SWIPE_EXCLUDE_SELECTOR)) return;
+            startX = e.clientX;
+            startY = e.clientY;
+            tracking = true;
+            locked = false;
+            abandoned = false;
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+        });
+        boxEl.querySelector('[data-block-delete-btn]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            flowOpenSwipeBlockId = null;
+            flowDeleteBlockConfirm(blockId);
         });
     }
 
     // --- Generic choice-list modal - every discrete-option tile shares this one modal rather
     // than each getting its own bespoke picker. An option can pass `html` instead of `label` for
-    // cases that need more than plain escaped text (the sign picker's icons); `opts.horizontal`
-    // switches to a row of equal-width buttons instead of a vertical list (also the sign picker).
-    // `opts.onSelectKeepsOpen` skips the auto-close, for tiles (end-of-bar repeat) that need to
-    // show more inline UI after a choice rather than closing immediately. ---
-    function openFlowChoiceModal(title, options, onSelect, opts = {}) {
+    // cases that need more than plain escaped text (the jump tile's inline segno/coda glyphs). ---
+    function openFlowChoiceModal(title, options, onSelect) {
         document.getElementById('flowChoiceTitle').innerText = title;
-        // Always starts clean - a previous tile (end-of-bar's repeat-count slider, say) may have
-        // left this populated and visible, and it should never bleed into an unrelated tile's own
-        // choice list. Callers that DO want it (flowShowRepeatCountSlider) re-show it afterwards.
         const inlineExtra = document.getElementById('flowChoiceInlineExtra');
         inlineExtra.classList.add('hidden-group');
         inlineExtra.innerHTML = '';
         const container = document.getElementById('flowChoiceOptions');
-        container.classList.toggle('flow-choice-options-horizontal', !!opts.horizontal);
         container.innerHTML = options.map((opt, i) => `
             <div class="flow-choice-option${opt.selected ? ' selected' : ''}" data-choice-idx="${i}">
                 ${opt.html ? opt.html : `<span>${escapeHtml(opt.label)}</span>`}
@@ -4436,7 +5263,7 @@
         `).join('');
         container.querySelectorAll('[data-choice-idx]').forEach(el => {
             el.addEventListener('click', () => {
-                if (!opts.onSelectKeepsOpen) document.getElementById('flowChoiceModal').style.display = 'none';
+                document.getElementById('flowChoiceModal').style.display = 'none';
                 onSelect(options[Number(el.dataset.choiceIdx)]);
             });
         });
@@ -4446,95 +5273,206 @@
         document.getElementById('flowChoiceModal').style.display = 'none';
     }
 
-    // --- End-of-bar repeat count - an inline slider shown inside flowChoiceModal's own extra area
-    // once "Repeat end" is picked, not a second popup stacked on the first. Own explicit Save
-    // button (not the modal's shared Cancel) so dragging the slider around never writes anything
-    // until you actually commit - Cancel still just discards, same as it always has. Max 10. ---
-    const FLOW_REPEAT_COUNT_MIN = 2;
-    const FLOW_REPEAT_COUNT_MAX = 10;
-    function flowShowRepeatCountSlider(blockId, initial) {
-        let value = Math.min(FLOW_REPEAT_COUNT_MAX, Math.max(FLOW_REPEAT_COUNT_MIN, initial));
-        const extra = document.getElementById('flowChoiceInlineExtra');
-        extra.innerHTML = `
-            <div class="metro-speed-row no-margin">
-                <button class="metro-bpm-step" id="flowRepeatCountMinus" type="button" aria-label="Decrease repeat count">&minus;</button>
-                <div class="metro-speed-readout">
-                    <div id="flowRepeatCountValue">${value}</div>
-                    <div class="metro-speed-sub">times</div>
-                </div>
-                <button class="metro-bpm-step" id="flowRepeatCountPlus" type="button" aria-label="Increase repeat count">+</button>
-            </div>
-            <div class="slider-wrap no-margin">
-                <div class="slider-track" id="flowRepeatCountSliderTrack">
-                    <div class="slider-fill" id="flowRepeatCountSliderFill"></div>
-                    <div class="slider-thumb" id="flowRepeatCountSliderThumb" tabindex="0" role="slider" aria-label="Repeat count" aria-valuemin="${FLOW_REPEAT_COUNT_MIN}" aria-valuemax="${FLOW_REPEAT_COUNT_MAX}" aria-valuenow="${value}"></div>
-                </div>
-                <div class="slider-scale"><span>${FLOW_REPEAT_COUNT_MIN}</span><span>${FLOW_REPEAT_COUNT_MAX}</span></div>
-            </div>
-            <button type="button" class="btn-submit no-margin" id="flowRepeatCountSaveBtn" style="margin-top:var(--space-3);">Save</button>
-        `;
-        extra.classList.remove('hidden-group');
-        function render() {
-            const pct = ((value - FLOW_REPEAT_COUNT_MIN) / (FLOW_REPEAT_COUNT_MAX - FLOW_REPEAT_COUNT_MIN)) * 100;
-            document.getElementById('flowRepeatCountSliderFill').style.width = `${pct}%`;
-            const thumb = document.getElementById('flowRepeatCountSliderThumb');
-            thumb.style.left = `${pct}%`;
-            thumb.setAttribute('aria-valuenow', value);
-            document.getElementById('flowRepeatCountValue').innerText = value;
-        }
-        function setValue(v) {
-            value = Math.round(Math.min(FLOW_REPEAT_COUNT_MAX, Math.max(FLOW_REPEAT_COUNT_MIN, v)));
-            render();
-        }
-        setupHoldStepper(document.getElementById('flowRepeatCountMinus'), -1, (amount) => setValue(value + amount));
-        setupHoldStepper(document.getElementById('flowRepeatCountPlus'), 1, (amount) => setValue(value + amount));
-        setupSliderInteraction(document.getElementById('flowRepeatCountSliderTrack'), document.getElementById('flowRepeatCountSliderThumb'), {
-            onDragRatio: (ratio) => setValue(FLOW_REPEAT_COUNT_MIN + ratio * (FLOW_REPEAT_COUNT_MAX - FLOW_REPEAT_COUNT_MIN)),
-            onArrowStep: (dir) => setValue(value + dir)
-        });
-        makeSliderReadoutEditable('flowRepeatCountValue', () => value, (v) => setValue(v), { label: 'Repeat count', min: FLOW_REPEAT_COUNT_MIN, max: FLOW_REPEAT_COUNT_MAX });
-        document.getElementById('flowRepeatCountSaveBtn').addEventListener('click', () => {
-            closeFlowChoiceModal();
-            flowUpdateBlock(blockId, { isRepeatEnd: true, isSectionBoundary: false, repeatPlayCount: value });
+    // --- Repeat bar / volta - which repeat pass(es) (1-9) this bar plays on, multi-select rather
+    // than the old binary 1st/2nd pair (some pieces use a section on passes 1, 3, 5 and a different
+    // one on 2, 4 - see db/migrations/034_repeat_ending_numbers.sql), plus which bar (within this
+    // block) a multi-bar ending starts at (037_volta_start_bar.sql). Own modal/state, own Save -
+    // never written until committed, same reasoning as every other picker here. The toggle is
+    // presentation only (hides/shows the fields below); what actually gets saved is derived from it
+    // on Save, not stored as its own field. ---
+    let flowRepeatBarTargetId = null;
+    let flowRepeatBarDraft = null; // { on, startBar, maxBar, numbers: Set }
+
+    function renderFlowRepeatBarModal() {
+        const draft = flowRepeatBarDraft;
+        if (!draft) return;
+        document.getElementById('flowRepeatBarToggle').checked = draft.on;
+        document.getElementById('flowRepeatBarFields').classList.toggle('hidden-group', !draft.on);
+        // Both halves are required together once the volta's switched on - a start bar with no
+        // repeat pass (or vice versa) isn't a usable alternate ending.
+        document.getElementById('flowRepeatBarSaveBtn').disabled = draft.on && draft.numbers.size === 0;
+        if (!draft.on) return;
+
+        const invalid = draft.startBar > draft.maxBar;
+        const valueEl = document.getElementById('flowRepeatBarStartValue');
+        valueEl.classList.toggle('flow-bar-readout-invalid', invalid);
+        // "of Y" is this block's own bar count - shows how far the ending could run without leaving
+        // the block, not just the raw start-bar number on its own.
+        const startText = `Bar ${draft.startBar} of ${draft.maxBar}`;
+        valueEl.innerHTML = invalid ? `${flowWarningIconSvg('flow-warning-icon')}${startText}` : startText;
+
+        const grid = document.getElementById('flowRepeatBarPassesGrid');
+        grid.innerHTML = Array.from({ length: 9 }, (_, i) => i + 1).map(n => `
+            <button type="button" class="flow-multiselect-num${draft.numbers.has(n) ? ' selected' : ''}" data-pass="${n}">${n}</button>
+        `).join('');
+        grid.querySelectorAll('[data-pass]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const n = Number(btn.dataset.pass);
+                if (draft.numbers.has(n)) draft.numbers.delete(n); else draft.numbers.add(n);
+                renderFlowRepeatBarModal();
+            });
         });
     }
-
-    // --- Repeat bar / volta - which repeat pass(es) (1-10) this bar plays on, multi-select rather
-    // than the old binary 1st/2nd pair (some pieces use a section on passes 1, 3, 5 and a different
-    // one on 2, 4 - see db/migrations/034_repeat_ending_numbers.sql). Own Save button, same
-    // "never write until committed" reasoning as the repeat-count slider above. ---
     function openFlowRepeatBarPicker(blockId) {
         const b = flowFindBlockById(blockId);
         if (!b) return;
-        const selected = new Set(b.repeatEndingNumbers || []);
-        document.getElementById('flowChoiceTitle').innerText = 'Repeat bar / volta';
-        const optionsContainer = document.getElementById('flowChoiceOptions');
-        optionsContainer.classList.remove('flow-choice-options-horizontal');
-        optionsContainer.innerHTML = '<p class="metro-help-text">Which repeat pass(es) does this bar play on? Leave none selected for a plain bar.</p>';
-        const extra = document.getElementById('flowChoiceInlineExtra');
-        function renderGrid() {
-            extra.innerHTML = `
-                <div class="flow-multiselect-grid">
-                    ${Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<button type="button" class="flow-multiselect-num${selected.has(n) ? ' selected' : ''}" data-num="${n}">${n}</button>`).join('')}
-                </div>
-                <button type="button" class="btn-submit no-margin" id="flowRepeatBarSaveBtn">Save</button>
-            `;
-            extra.querySelectorAll('[data-num]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const n = Number(btn.dataset.num);
-                    if (selected.has(n)) selected.delete(n); else selected.add(n);
-                    renderGrid();
-                });
-            });
-            document.getElementById('flowRepeatBarSaveBtn').addEventListener('click', () => {
-                closeFlowChoiceModal();
-                flowUpdateBlock(blockId, { repeatEndingNumbers: Array.from(selected), isFirstTimeBar: false, isSecondTimeBar: false });
-            });
-        }
-        extra.classList.remove('hidden-group');
-        renderGrid();
-        document.getElementById('flowChoiceModal').style.display = 'flex';
+        flowRepeatBarTargetId = blockId;
+        const idx = currentFlowBlocks.findIndex(x => x.id === blockId);
+        document.getElementById('flowRepeatBarPill').innerText = idx === -1 ? '' : flowBarRangeLabel(idx);
+        flowRepeatBarDraft = {
+            on: !!(b.repeatEndingNumbers && b.repeatEndingNumbers.length),
+            startBar: b.repeatEndingStartBar || 1,
+            maxBar: Math.max(1, b.barCount || 1),
+            numbers: new Set(b.repeatEndingNumbers || [])
+        };
+        renderFlowRepeatBarModal();
+        document.getElementById('flowRepeatBarModal').style.display = 'flex';
     }
+    function closeFlowRepeatBarModal() {
+        document.getElementById('flowRepeatBarModal').style.display = 'none';
+        flowRepeatBarTargetId = null;
+        flowRepeatBarDraft = null;
+    }
+    document.getElementById('flowRepeatBarToggle')?.addEventListener('change', (e) => {
+        if (!flowRepeatBarDraft) return;
+        flowRepeatBarDraft.on = e.target.checked;
+        renderFlowRepeatBarModal();
+    });
+    setupHoldStepper(document.getElementById('flowRepeatBarStartMinus'), -1, (amount) => {
+        if (!flowRepeatBarDraft) return;
+        flowRepeatBarDraft.startBar = Math.max(1, flowRepeatBarDraft.startBar + amount);
+        renderFlowRepeatBarModal();
+    });
+    setupHoldStepper(document.getElementById('flowRepeatBarStartPlus'), 1, (amount) => {
+        if (!flowRepeatBarDraft) return;
+        flowRepeatBarDraft.startBar = Math.max(1, Math.min(flowRepeatBarDraft.maxBar, flowRepeatBarDraft.startBar + amount));
+        renderFlowRepeatBarModal();
+    });
+    document.getElementById('flowRepeatBarCloseBtn')?.addEventListener('click', closeFlowRepeatBarModal);
+    document.getElementById('flowRepeatBarCancelBtn')?.addEventListener('click', closeFlowRepeatBarModal);
+    document.getElementById('flowRepeatBarSaveBtn')?.addEventListener('click', () => {
+        if (!flowRepeatBarDraft || flowRepeatBarTargetId === null) return closeFlowRepeatBarModal();
+        const draft = flowRepeatBarDraft;
+        const targetId = flowRepeatBarTargetId;
+        const numbers = draft.on ? Array.from(draft.numbers).sort((a, b) => a - b) : [];
+        closeFlowRepeatBarModal();
+        flowUpdateBlock(targetId, {
+            repeatEndingNumbers: numbers,
+            repeatEndingStartBar: draft.on ? draft.startBar : null,
+            isFirstTimeBar: false, isSecondTimeBar: false
+        });
+    });
+
+    // --- Intro picker (#flowIntroModal) - which bar (within this block) the intro starts at, and
+    // optionally which bar it finishes at if it ends before the block's own final bar. Reuses
+    // introStartBarOffset/introEndBarOffset (shared columns with the ad-hoc Metronome Blocks tool -
+    // see metroSegIntroCard elsewhere in this file) as plain 1-based bar-within-block numbers; the
+    // beat-offset half of those columns is a pickup-beat concept that tool uses and this picker
+    // doesn't touch - validateSegmentPayload (metronomeSegments.js) defaults it to beat 1 server-side
+    // whenever a bar offset is set. End is gated behind Start (can't end early without
+    // an intro to end) and bounded so it can never sit before the start bar. Never written until
+    // committed, same "own modal, own draft" pattern as every other picker here. ---
+    let flowIntroTargetId = null;
+    let flowIntroDraft = null; // { startOn, startBar, endOn, endBar, maxBar }
+
+    function renderFlowIntroModal() {
+        const draft = flowIntroDraft;
+        if (!draft) return;
+        document.getElementById('flowIntroStartToggle').checked = draft.startOn;
+        document.getElementById('flowIntroStartFields').classList.toggle('hidden-group', !draft.startOn);
+        const startInvalid = draft.startOn && draft.startBar > draft.maxBar;
+        const startValueEl = document.getElementById('flowIntroStartValue');
+        startValueEl.classList.toggle('flow-bar-readout-invalid', startInvalid);
+        const startText = `Bar ${draft.startBar} of ${draft.maxBar}`;
+        startValueEl.innerHTML = startInvalid ? `${flowWarningIconSvg('flow-warning-icon')}${startText}` : startText;
+
+        const endToggle = document.getElementById('flowIntroEndToggle');
+        endToggle.checked = draft.endOn;
+        endToggle.disabled = !draft.startOn;
+        document.getElementById('flowIntroEndToggleRow').classList.toggle('flow-toggle-row-disabled', !draft.startOn);
+        document.getElementById('flowIntroEndToggleHelp').innerText = !draft.startOn ? 'Enable start intro first'
+            : draft.endOn ? '' : `Default plays through to final bar (Bar ${draft.maxBar})`;
+        document.getElementById('flowIntroEndFields').classList.toggle('hidden-group', !(draft.startOn && draft.endOn));
+        if (draft.startOn && draft.endOn) {
+            const endInvalid = draft.endBar > draft.maxBar;
+            const endValueEl = document.getElementById('flowIntroEndValue');
+            endValueEl.classList.toggle('flow-bar-readout-invalid', endInvalid);
+            const endText = `Bar ${draft.endBar} of ${draft.maxBar}`;
+            endValueEl.innerHTML = endInvalid ? `${flowWarningIconSvg('flow-warning-icon')}${endText}` : endText;
+        }
+    }
+    function openFlowIntroPicker(blockId) {
+        const b = flowFindBlockById(blockId);
+        if (!b) return;
+        flowIntroTargetId = blockId;
+        const idx = currentFlowBlocks.findIndex(x => x.id === blockId);
+        document.getElementById('flowIntroPill').innerText = idx === -1 ? '' : flowBarRangeLabel(idx);
+        const maxBar = Math.max(1, b.barCount || 1);
+        const startOn = b.introStartBarOffset !== null && b.introStartBarOffset !== undefined;
+        const endOn = startOn && b.introEndBarOffset !== null && b.introEndBarOffset !== undefined;
+        // Not clamped to maxBar here - a stale value (the block shortened after this was set) shows
+        // as-is, flagged red by renderFlowIntroModal, same as the alt-ending picker's own start bar.
+        flowIntroDraft = {
+            startOn,
+            startBar: startOn ? Math.max(1, b.introStartBarOffset) : 1,
+            endOn,
+            endBar: endOn ? Math.max(1, b.introEndBarOffset) : maxBar,
+            maxBar
+        };
+        renderFlowIntroModal();
+        document.getElementById('flowIntroModal').style.display = 'flex';
+    }
+    function closeFlowIntroModal() {
+        document.getElementById('flowIntroModal').style.display = 'none';
+        flowIntroTargetId = null;
+        flowIntroDraft = null;
+    }
+    document.getElementById('flowIntroStartToggle')?.addEventListener('change', (e) => {
+        if (!flowIntroDraft) return;
+        flowIntroDraft.startOn = e.target.checked;
+        if (!flowIntroDraft.startOn) flowIntroDraft.endOn = false;
+        renderFlowIntroModal();
+    });
+    document.getElementById('flowIntroEndToggle')?.addEventListener('change', (e) => {
+        if (!flowIntroDraft || !flowIntroDraft.startOn) return;
+        flowIntroDraft.endOn = e.target.checked;
+        if (flowIntroDraft.endOn) flowIntroDraft.endBar = Math.max(flowIntroDraft.endBar, flowIntroDraft.startBar);
+        renderFlowIntroModal();
+    });
+    setupHoldStepper(document.getElementById('flowIntroStartMinus'), -1, (amount) => {
+        if (!flowIntroDraft) return;
+        flowIntroDraft.startBar = Math.max(1, flowIntroDraft.startBar + amount);
+        if (flowIntroDraft.endOn) flowIntroDraft.endBar = Math.max(flowIntroDraft.endBar, flowIntroDraft.startBar);
+        renderFlowIntroModal();
+    });
+    setupHoldStepper(document.getElementById('flowIntroStartPlus'), 1, (amount) => {
+        if (!flowIntroDraft) return;
+        flowIntroDraft.startBar = Math.max(1, Math.min(flowIntroDraft.maxBar, flowIntroDraft.startBar + amount));
+        if (flowIntroDraft.endOn) flowIntroDraft.endBar = Math.max(flowIntroDraft.endBar, flowIntroDraft.startBar);
+        renderFlowIntroModal();
+    });
+    setupHoldStepper(document.getElementById('flowIntroEndMinus'), -1, (amount) => {
+        if (!flowIntroDraft) return;
+        flowIntroDraft.endBar = Math.max(flowIntroDraft.startBar, flowIntroDraft.endBar + amount);
+        renderFlowIntroModal();
+    });
+    setupHoldStepper(document.getElementById('flowIntroEndPlus'), 1, (amount) => {
+        if (!flowIntroDraft) return;
+        flowIntroDraft.endBar = Math.max(flowIntroDraft.startBar, Math.min(flowIntroDraft.maxBar, flowIntroDraft.endBar + amount));
+        renderFlowIntroModal();
+    });
+    document.getElementById('flowIntroCloseBtn')?.addEventListener('click', closeFlowIntroModal);
+    document.getElementById('flowIntroCancelBtn')?.addEventListener('click', closeFlowIntroModal);
+    document.getElementById('flowIntroSaveBtn')?.addEventListener('click', () => {
+        if (!flowIntroDraft || flowIntroTargetId === null) return closeFlowIntroModal();
+        const draft = flowIntroDraft;
+        const targetId = flowIntroTargetId;
+        closeFlowIntroModal();
+        flowUpdateBlock(targetId, {
+            introStartBarOffset: draft.startOn ? draft.startBar : null,
+            introEndBarOffset: draft.startOn && draft.endOn ? draft.endBar : null
+        });
+    });
 
     // --- Time signature / beat unit pickers - literally the same shared modals Quick Play's own
     // per-block pickers reuse (qpOpenTimeSigPicker/qpOpenNotePicker), not a Flow-only copy - per the
@@ -4578,12 +5516,174 @@
         document.getElementById('metroSegNoteModal').style.display = 'flex';
     }
 
+    // Start-of-bar picker - same "Beat unit" modal format (title/help text/close-x, a row of
+    // .metroBlk-note-btn icon cards) as flowOpenNotePicker above, just its own modal/picker element
+    // and two barline options (flowBarlineIconSvg) instead of five note-duration ones.
+    function flowOpenBarStartPicker(blockId) {
+        const b = flowFindBlockById(blockId);
+        if (!b) return;
+        const el = document.getElementById('flowBarStartPicker');
+        if (!el) return;
+        const options = [
+            { key: 'plain', label: 'Plain barline', selected: !b.isRepeatStart, apply: { isRepeatStart: false } },
+            { key: 'repeatStart', label: 'Repeat start', selected: !!b.isRepeatStart, apply: { isRepeatStart: true } }
+        ];
+        el.innerHTML = options.map(o => `
+            <button type="button" class="metroBlk-note-btn${o.selected ? ' selected' : ''}" data-start-option="${o.key}" aria-label="${o.label}" aria-pressed="${o.selected}">
+                ${flowBarlineIconSvg(o.key, 'metroBlk-note-svg', o.key === 'plain')}
+            </button>
+        `).join('');
+        el.querySelectorAll('[data-start-option]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const opt = options.find(o => o.key === btn.dataset.startOption);
+                flowUpdateBlock(blockId, opt.apply);
+                document.getElementById('flowBarStartModal').style.display = 'none';
+            }, { once: true });
+        });
+        document.getElementById('flowBarStartModal').style.display = 'flex';
+    }
+
+    // Shared option-card markup for the End-of-bar picker below - icon (+ a repeat count next to
+    // it, when it has one - never stacked above, so the card's height doesn't change either way)
+    // and a caption underneath.
+    function flowBarlinePickerTileHtml(o) {
+        return `
+            <button type="button" class="flow-picker-tile${o.selected ? ' selected' : ''}" aria-label="${escapeHtml(o.caption)}${o.countLabel ? ' ' + o.countLabel : ''}" aria-pressed="${o.selected}">
+                <span class="flow-picker-tile-icon-row">
+                    ${flowBarlineIconSvg(o.kind, 'metroBlk-note-svg')}
+                    ${o.countLabel ? `<span class="flow-picker-tile-count">${escapeHtml(o.countLabel)}</span>` : ''}
+                </span>
+                <span class="flow-picker-tile-label">${escapeHtml(o.caption)}</span>
+            </button>
+        `;
+    }
+
+    // End-of-bar picker - "Structure" (Normal/Section/Fine/Final, mutually exclusive with a repeat
+    // end) plus "Repeats" (a direct 2x-9x grid - tapping one both marks this a repeat end and sets
+    // its count in one step, replacing the old two-step "pick Repeat end, then drag a count slider"
+    // flow). The 2x tile shows no count of its own - it's the implicit default, same as how neither
+    // Normal/Section/Fine/Final ever show one of their own. Fine reuses Section's plain double-bar
+    // glyph (a Fine mark isn't a different-shaped barline, just a plain one with "Fine" printed by
+    // it) with a "Fine" tag alongside it, same .flow-picker-tile-count slot the Repeats grid's own
+    // "2x"/"3x" labels use.
+    function flowOpenBarEndPicker(blockId) {
+        const b = flowFindBlockById(blockId);
+        if (!b) return;
+        const structureOptions = [
+            { kind: 'plain', caption: 'Normal', selected: !b.isRepeatEnd && !b.isSectionBoundary && !b.isFinalBarline && !b.isFine,
+                apply: { isRepeatEnd: false, isSectionBoundary: false, isFinalBarline: false, isFine: false, repeatPlayCount: null } },
+            { kind: 'section', caption: 'Section', selected: !b.isRepeatEnd && b.isSectionBoundary,
+                apply: { isRepeatEnd: false, isSectionBoundary: true, isFinalBarline: false, isFine: false, repeatPlayCount: null } },
+            { kind: 'section', caption: 'Fine', countLabel: 'Fine', selected: !b.isRepeatEnd && b.isFine,
+                apply: { isRepeatEnd: false, isSectionBoundary: false, isFinalBarline: false, isFine: true, repeatPlayCount: null } },
+            { kind: 'fine', caption: 'Final', selected: !b.isRepeatEnd && b.isFinalBarline,
+                apply: { isRepeatEnd: false, isSectionBoundary: false, isFinalBarline: true, isFine: false, repeatPlayCount: null } }
+        ];
+        const repeatOptions = Array.from({ length: 8 }, (_, i) => i + 2).map(n => ({
+            kind: 'repeatEnd', caption: 'Repeat', countLabel: flowRepeatCountLabel(n),
+            selected: b.isRepeatEnd && (b.repeatPlayCount || 2) === n,
+            apply: { isRepeatEnd: true, isSectionBoundary: false, isFinalBarline: false, isFine: false, repeatPlayCount: n }
+        }));
+        function render(elId, options) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            el.innerHTML = options.map(flowBarlinePickerTileHtml).join('');
+            el.querySelectorAll('.flow-picker-tile').forEach((btn, i) => {
+                btn.addEventListener('click', () => {
+                    flowUpdateBlock(blockId, options[i].apply);
+                    document.getElementById('flowBarEndModal').style.display = 'none';
+                }, { once: true });
+            });
+        }
+        render('flowBarEndStructureGrid', structureOptions);
+        render('flowBarEndRepeatsGrid', repeatOptions);
+        document.getElementById('flowBarEndModal').style.display = 'flex';
+    }
+
+    // --- Shared "tap a glyph tile to select & close, no Save/Cancel" picker shape, used by both the
+    // Jump sign picker (#flowSignModal - None/Segno/Coda) and the Jump instruction picker
+    // (#flowJumpModal - None plus 5 D.S./D.C./Coda combinations). Its own tile builder (rather than
+    // reusing flowBarlinePickerTileHtml above) because these tiles carry a single centered icon/glyph
+    // (no repeat count row) plus a caption under every option. "None" is obvious enough on its own -
+    // it's the big icon-row text instead, no caption underneath (ariaLabel covers the button's
+    // accessible name when caption is blank). ---
+    function flowGlyphPickerTileHtml(o) {
+        const ariaLabel = o.ariaLabel || o.caption;
+        return `
+            <button type="button" class="flow-picker-tile${o.selected ? ' selected' : ''}" aria-label="${escapeHtml(ariaLabel)}" aria-pressed="${o.selected}">
+                <span class="flow-picker-tile-icon-row">${o.icon || ''}</span>
+                <span class="flow-picker-tile-label">${escapeHtml(o.caption)}</span>
+            </button>
+        `;
+    }
+    function openFlowGlyphPicker(modalId, gridId, options, onSelect) {
+        const grid = document.getElementById(gridId);
+        grid.innerHTML = options.map(flowGlyphPickerTileHtml).join('');
+        grid.querySelectorAll('.flow-picker-tile').forEach((btn, i) => {
+            btn.addEventListener('click', () => {
+                onSelect(options[i]);
+                document.getElementById(modalId).style.display = 'none';
+            }, { once: true });
+        });
+        document.getElementById(modalId).style.display = 'flex';
+    }
+    function openFlowSignPicker(blockId) {
+        const b = flowFindBlockById(blockId);
+        if (!b) return;
+        const options = [
+            { icon: 'None', caption: '', ariaLabel: 'None', selected: !b.isSegno && !b.isCoda, apply: { isSegno: false, isCoda: false } },
+            { icon: flowSignIconSvg('segno'), caption: 'Segno', selected: b.isSegno, apply: { isSegno: true, isCoda: false } },
+            { icon: flowSignIconSvg('coda'), caption: 'Coda', selected: b.isCoda, apply: { isSegno: false, isCoda: true } }
+        ];
+        openFlowGlyphPicker('flowSignModal', 'flowSignOptions', options, (opt) => flowUpdateBlock(blockId, opt.apply));
+    }
+    document.getElementById('flowSignCloseBtn')?.addEventListener('click', () => {
+        document.getElementById('flowSignModal').style.display = 'none';
+    });
+
+    // --- Jump instruction picker (#flowJumpModal) - None, then the 5 core jump instructions, a clean
+    // 2x3 grid (.flow-tile-grid-3-centered). All 5 flags are mutually exclusive - every option clears
+    // the other 4 alongside setting its own. Marking THIS bar as the Fine stopping point itself is a
+    // separate concern, not a jump instruction - that's the End-of-bar Structure picker's own "Fine"
+    // tile (isFine), not this one. Captions are the plain-English action (not the notation the icon
+    // above already spells out), matching what each instruction actually does on playback:
+    // - D.S. al Coda: jump to the Segno, play until a "To Coda" bar, then jump to the Coda.
+    // - D.C. al Coda: jump to bar 1, play until a "To Coda" bar, then jump to the Coda.
+    // - To Coda: the mid-piece exit ramp a D.S./D.C. al Coda jumps to on replay.
+    // - D.S. al Fine: jump to the Segno, play through to the bar marked Fine.
+    // - D.C. al Fine: jump to bar 1, play through to the bar marked Fine. ---
+    function openFlowJumpPicker(blockId) {
+        const b = flowFindBlockById(blockId);
+        if (!b) return;
+        const clear = { gotoSegno: false, gotoSegnoThenCoda: false, gotoCoda: false, gotoStartDc: false, gotoStartDcThenCoda: false };
+        const options = [
+            { icon: 'None', caption: '', ariaLabel: 'None',
+                selected: !b.gotoSegno && !b.gotoSegnoThenCoda && !b.gotoCoda && !b.gotoStartDc && !b.gotoStartDcThenCoda,
+                apply: { ...clear } },
+            { icon: `D.S. al ${flowSignIconSvg('coda', true)}`, caption: 'Segno to Coda',
+                selected: b.gotoSegnoThenCoda, apply: { ...clear, gotoSegnoThenCoda: true } },
+            { icon: `D.C. al ${flowSignIconSvg('coda', true)}`, caption: 'Start to Coda',
+                selected: b.gotoStartDcThenCoda, apply: { ...clear, gotoStartDcThenCoda: true } },
+            { icon: `To ${flowSignIconSvg('coda', true)}`, caption: 'Jump to Coda',
+                selected: b.gotoCoda, apply: { ...clear, gotoCoda: true } },
+            { icon: 'D.S.', caption: 'Segno to Fine',
+                selected: b.gotoSegno, apply: { ...clear, gotoSegno: true } },
+            { icon: 'D.C.', caption: 'Start to Fine',
+                selected: b.gotoStartDc, apply: { ...clear, gotoStartDc: true } }
+        ];
+        openFlowGlyphPicker('flowJumpModal', 'flowJumpOptions', options, (opt) => flowUpdateBlock(blockId, opt.apply));
+    }
+    document.getElementById('flowJumpCloseBtn')?.addEventListener('click', () => {
+        document.getElementById('flowJumpModal').style.display = 'none';
+    });
+
     // --- BPM popup - same tiered-slider mechanic as the ad-hoc/Quick Play BPM controls
     // (METRO_MIN_BPM/METRO_MAX_BPM/METRO_SLIDER_TIERS, metroBestFitTier, setupSliderInteraction/
     // makeSliderReadoutEditable - all already value-agnostic), own copy of the small stepping state
     // machine per this file's usual "own copy per feature" precedent, just presented as its own
     // single-field popup rather than embedded inline on a card. ---
     let flowBpmModalTargetId = null;
+    let flowBpmOnApply = null;
     let flowBpmSliderMax = METRO_SLIDER_TIERS[0];
     let flowBpmTierChangeCooldownUntil = 0;
     // The value the block actually had when this popup opened - only committed to the server (and
@@ -4618,13 +5718,17 @@
         if (opts.dragging) flowBpmStepTier(clamped); else flowBpmSliderMax = metroBestFitTier(clamped);
         renderFlowBpmSlider(clamped);
     }
-    function flowOpenBpmModal(blockId) {
-        const b = flowFindBlockById(blockId);
-        if (!b) return;
+    // opts.value/opts.onApply let a caller other than the block's own bpm tile reuse this same
+    // popup (the Tempo ramps modal's "Set custom tempo" row, flowRampCustomTempoBtn) - defaults to
+    // exactly the original blockId-only behaviour when neither is passed.
+    function flowOpenBpmModal(blockId, opts = {}) {
+        const value = opts.value !== undefined ? opts.value : flowFindBlockById(blockId)?.bpm;
+        if (value === undefined || value === null) return;
         flowBpmModalTargetId = blockId;
-        flowBpmOriginalValue = b.bpm;
-        flowBpmSliderMax = metroBestFitTier(b.bpm);
-        renderFlowBpmSlider(b.bpm);
+        flowBpmOnApply = opts.onApply || null;
+        flowBpmOriginalValue = value;
+        flowBpmSliderMax = metroBestFitTier(value);
+        renderFlowBpmSlider(value);
         document.getElementById('flowBpmModal').style.display = 'flex';
     }
     setupHoldStepper(document.getElementById('flowBpmMinus'), -1, (amount) => setFlowBpmFromDisplayed(Number(document.getElementById('flowBpmPopupValue').innerText) + amount, { dragging: true }));
@@ -4640,7 +5744,9 @@
     function closeFlowBpmModal() {
         document.getElementById('flowBpmModal').style.display = 'none';
         const finalValue = Number(document.getElementById('flowBpmPopupValue').innerText);
-        if (flowBpmModalTargetId && finalValue !== flowBpmOriginalValue) flowUpdateBlock(flowBpmModalTargetId, { bpm: finalValue });
+        if (finalValue === flowBpmOriginalValue) return;
+        if (flowBpmOnApply) flowBpmOnApply(finalValue);
+        else if (flowBpmModalTargetId) flowUpdateBlock(flowBpmModalTargetId, { bpm: finalValue });
     }
     document.getElementById('flowBpmCloseBtn')?.addEventListener('click', closeFlowBpmModal);
     document.getElementById('flowBpmModal')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeFlowBpmModal(); });
@@ -4741,28 +5847,12 @@
         }
 
         if (tileKey === 'start') {
-            const options = [
-                { label: 'Plain (|)', selected: !b.isRepeatStart, apply: { isRepeatStart: false } },
-                { label: 'Repeat start (|:)', selected: b.isRepeatStart, apply: { isRepeatStart: true } }
-            ];
-            openFlowChoiceModal('Start of bar', options, (opt) => flowUpdateBlock(blockId, opt.apply));
+            flowOpenBarStartPicker(blockId);
             return;
         }
 
         if (tileKey === 'end') {
-            const options = [
-                { label: 'Plain (|)', selected: !b.isRepeatEnd && !b.isSectionBoundary, apply: { isRepeatEnd: false, isSectionBoundary: false, repeatPlayCount: null } },
-                { label: 'Double barline (||)', selected: b.isSectionBoundary, apply: { isRepeatEnd: false, isSectionBoundary: true, repeatPlayCount: null } },
-                { label: 'Repeat end (:|)', selected: b.isRepeatEnd, apply: 'repeatEnd' }
-            ];
-            openFlowChoiceModal('End of bar', options, (opt) => {
-                if (opt.apply === 'repeatEnd') { flowShowRepeatCountSlider(blockId, b.repeatPlayCount || 2); return; }
-                closeFlowChoiceModal();
-                flowUpdateBlock(blockId, opt.apply);
-            }, { onSelectKeepsOpen: true });
-            // Already a repeat-end block - show the count slider immediately rather than making
-            // you re-tap "Repeat end" just to see/change the number that's already set.
-            if (b.isRepeatEnd) flowShowRepeatCountSlider(blockId, b.repeatPlayCount || 2);
+            flowOpenBarEndPicker(blockId);
             return;
         }
 
@@ -4772,53 +5862,22 @@
         }
 
         if (tileKey === 'intro') {
-            const hasStart = b.introStartBarOffset !== null;
-            const hasEnd = b.introEndBarOffset !== null;
-            const options = [
-                { label: 'None', selected: !hasStart && !hasEnd, apply: { introStartBarOffset: null, introStartBeatOffset: null, introEndBarOffset: null, introEndBeatOffset: null } },
-                { label: 'Introduction starts here', selected: hasStart && !hasEnd, apply: { introStartBarOffset: 0, introStartBeatOffset: 1, introEndBarOffset: null, introEndBeatOffset: null } },
-                { label: 'Introduction ends here', selected: !hasStart && hasEnd, apply: { introStartBarOffset: null, introStartBeatOffset: null, introEndBarOffset: 0, introEndBeatOffset: 1 } },
-                { label: 'Starts and ends here', selected: hasStart && hasEnd, apply: { introStartBarOffset: 0, introStartBeatOffset: 1, introEndBarOffset: 0, introEndBeatOffset: 1 } }
-            ];
-            openFlowChoiceModal('Introduction', options, (opt) => flowUpdateBlock(blockId, opt.apply));
+            openFlowIntroPicker(blockId);
             return;
         }
 
         if (tileKey === 'change') {
-            const options = [
-                { label: 'None', selected: b.rampStartBarOffset === null, apply: null },
-                { label: 'Starts here (set duration next)', selected: b.rampStartBarOffset !== null, apply: 'set' }
-            ];
-            openFlowChoiceModal('Tempo change', options, (opt) => {
-                if (opt.apply === null) return flowUpdateBlock(blockId, { rampStartBarOffset: null, rampStartBeatOffset: null, rampDurationBars: null });
-                showPromptModal('Ramps over how many bars?', String(b.rampDurationBars || b.barCount), (val) => {
-                    const n = Number(val);
-                    if (!Number.isInteger(n) || n < 1) return showWarningToast('Enter a whole number of 1 or more.');
-                    flowUpdateBlock(blockId, { rampStartBarOffset: 0, rampStartBeatOffset: 1, rampDurationBars: n });
-                });
-            });
+            openFlowRampModal(blockId);
             return;
         }
 
         if (tileKey === 'sign') {
-            const options = [
-                { label: 'None', selected: !b.isSegno && !b.isCoda, apply: { isSegno: false, isCoda: false } },
-                { html: flowSignIconSvg('segno'), selected: b.isSegno, apply: { isSegno: true, isCoda: false } },
-                { html: flowSignIconSvg('coda'), selected: b.isCoda, apply: { isSegno: false, isCoda: true } }
-            ];
-            openFlowChoiceModal('Musical sign', options, (opt) => flowUpdateBlock(blockId, opt.apply), { horizontal: true });
+            openFlowSignPicker(blockId);
             return;
         }
 
         if (tileKey === 'jump') {
-            const options = [
-                { label: 'None', selected: !b.gotoSegno && !b.gotoSegnoThenCoda && !b.gotoCoda && !b.gotoStartDc, apply: { gotoSegno: false, gotoSegnoThenCoda: false, gotoCoda: false, gotoStartDc: false } },
-                { html: `<span>D.${flowSignIconSvg('segno', true)}</span>`, selected: b.gotoSegno && !b.gotoSegnoThenCoda, apply: { gotoSegno: true, gotoSegnoThenCoda: false, gotoCoda: false, gotoStartDc: false } },
-                { html: `<span>D.${flowSignIconSvg('segno', true)} al ${flowSignIconSvg('coda', true)}</span>`, selected: b.gotoSegnoThenCoda, apply: { gotoSegno: false, gotoSegnoThenCoda: true, gotoCoda: false, gotoStartDc: false } },
-                { html: `<span>To ${flowSignIconSvg('coda', true)}</span>`, selected: b.gotoCoda, apply: { gotoSegno: false, gotoSegnoThenCoda: false, gotoCoda: true, gotoStartDc: false } },
-                { label: 'D.C.', selected: b.gotoStartDc, apply: { gotoSegno: false, gotoSegnoThenCoda: false, gotoCoda: false, gotoStartDc: true } }
-            ];
-            openFlowChoiceModal('Score jump', options, (opt) => flowUpdateBlock(blockId, opt.apply));
+            openFlowJumpPicker(blockId);
             return;
         }
 
@@ -4827,64 +5886,811 @@
         }
     }
 
-    // --- Pause/fermata mini list - the one tile that's a list, not a single value, so it gets
-    // its own small modal rather than fitting the generic choice-list shape. ---
+    // --- Pauses list (#flowFermataModal) - fermata (held beat) and caesura (silent break) entries
+    // for this block, each on its own bar/beat within it. The one Block Inspector tile that's a
+    // list, not a single value, so it gets its own small modal rather than fitting the generic
+    // choice-list shape. List edits (add/remove/replace) write immediately via flowUpdateBlock, same
+    // as before; only the "Add new pause" fields below are a local draft, reset after each
+    // insert/save. Existing entries have no id of their own (child rows, full-replace-on-save, see
+    // replaceFermatas server-side) - identified by object reference within b.fermatas instead, same
+    // as the row delete already relied on before Edit existed. ---
+    let flowFermataDraft = null; // { kind: 'fermata'|'caesura', bar, beat, duration, maxBar, maxBeat }
+    let flowFermataEditTarget = null; // the b.fermatas entry currently being edited, or null when adding new
+    let flowFermataRowMenuTarget = null;
+    // Collapsed by default once the block has at least one pause (the list + a "+ Add pause" button
+    // is the scannable view then) - open by default when it has none, so a user who opened this
+    // modal specifically to add one isn't made to tap an extra button on an empty screen first.
+    // Always forced open while editing/adding (openFlowFermataModal/the row menu/openFormBtn set it).
+    let flowFermataFormOpen = true;
+
+    // Time-delivered order - earliest bar, then earliest beat within it - regardless of the order
+    // entries were added in.
+    function flowPauseSorted(fermatas) {
+        return [...fermatas].sort((a, b) => (a.barOffset || 0) - (b.barOffset || 0) || a.beatOffset - b.beatOffset);
+    }
     function renderFlowFermataList() {
         const b = flowFindBlockById(flowFermataTargetBlockId);
         const list = document.getElementById('flowFermataList');
         if (!b || !list) return;
         const fermatas = b.fermatas || [];
+        // A round-trip through the server (non-edit-mode) replaces b.fermatas with fresh objects -
+        // if the entry an in-progress edit pointed at no longer exists by reference, drop back to
+        // "add new" rather than silently discarding the edit on Save (renderFlowFermataAddSection
+        // reflects this back into the label/button text).
+        if (flowFermataEditTarget && !fermatas.includes(flowFermataEditTarget)) {
+            flowFermataEditTarget = null;
+        }
+        // "Current pauses" header (+ count) only makes sense once there's something to count - the
+        // empty-block state shows nothing here at all, just the form (no placeholder text either).
+        document.getElementById('flowFermataListHeader')?.classList.toggle('hidden-group', !fermatas.length);
+        const countBadge = document.getElementById('flowFermataCountBadge');
+        if (countBadge) countBadge.innerText = String(fermatas.length);
         if (!fermatas.length) {
-            list.innerHTML = '<p class="text-muted">No fermatas on this block yet.</p>';
+            list.innerHTML = '';
             return;
         }
-        list.innerHTML = fermatas.map((f, i) => `
-            <div class="flow-fermata-row">
-                <span>Bar ${(f.barOffset || 0) + 1}, beat ${f.beatOffset}, hold ${f.holdBeats} beat${f.holdBeats === 1 ? '' : 's'}</span>
-                <button type="button" class="flow-delete-btn" data-fermata-idx="${i}" aria-label="Remove fermata"><span class="material-symbols-outlined">delete</span></button>
-            </div>
-        `).join('');
-        list.querySelectorAll('[data-fermata-idx]').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const idx = Number(btn.dataset.fermataIdx);
-                await flowUpdateBlock(b.id, { fermatas: fermatas.filter((_, i) => i !== idx) });
+        const maxBar = Math.max(1, b.barCount || 1);
+        const sorted = flowPauseSorted(fermatas);
+        // A fresh render throws every row away - any swipe left open on the previous render is
+        // already gone with it, same as Quick Play's own qpOpenSwipeIndex/Flow block's own
+        // flowOpenSwipeBlockId reset on their own re-renders.
+        flowOpenSwipePauseIndex = null;
+        list.innerHTML = sorted.map((f, i) => {
+            const kind = f.kind || 'fermata';
+            const durationTag = `${kind === 'caesura' ? 'Silence' : 'Hold'} ${f.holdBeats} beat${f.holdBeats === 1 ? '' : 's'}`;
+            // Flags a pause left stranded on a bar that no longer exists after the block was
+            // shortened - same "show the stale value in red with a warning icon" treatment as the
+            // Intro/Alt ending pickers' own stepper readouts, rather than hiding or clamping it.
+            const invalid = ((f.barOffset || 0) + 1) > maxBar;
+            // .flow-fermata-box is the same clipping-wrapper-with-delete-underlay-behind shape as
+            // Flow's own block cards/Quick Play's bar boxes (wireFlowBlockSwipe/wireQpBarSwipe) - the
+            // row itself (.flow-fermata-row) is what slides, the 3-dot menu keeps offering Edit/Delete
+            // too, this is just a second way to reach the same delete.
+            return `
+                <div class="flow-fermata-box" data-pause-index="${i}">
+                    <div class="flow-fermata-delete-underlay" data-pause-swipe-delete aria-label="Delete pause">
+                        <span class="material-symbols-outlined">delete</span>
+                        <span>Delete</span>
+                    </div>
+                    <div class="flow-fermata-row">
+                        <span class="flow-fermata-row-text${invalid ? ' flow-fermata-row-text-invalid' : ''}">
+                            ${invalid ? flowWarningIconSvg('flow-warning-icon') : flowPauseIconSvg(kind, true)}
+                            <span>Bar ${(f.barOffset || 0) + 1}, beat ${f.beatOffset} &middot; <span class="flow-fermata-row-tag">${durationTag}</span></span>
+                        </span>
+                        <button type="button" class="list-item-menu-btn" data-pause-menu aria-label="Pause options"><span class="material-symbols-outlined">more_vert</span></button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        list.querySelectorAll('[data-pause-menu]').forEach((btn, i) => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openFlowFermataRowMenu(btn, sorted[i]);
+            });
+        });
+        list.querySelectorAll('.flow-fermata-box').forEach((boxEl, i) => {
+            const target = sorted[i];
+            wireFlowPauseSwipe(boxEl, i, async () => {
+                await flowUpdateBlock(b.id, { fermatas: fermatas.filter(x => x !== target) });
                 renderFlowFermataList();
             });
         });
     }
+    // --- Pause row swipe-to-delete - same shape as wireFlowBlockSwipe/wireQpBarSwipe (only intercepts
+    // once the gesture is confirmed horizontal, so the page's own vertical scroll is untouched), just
+    // without the reorder half those two also have (pauses aren't reorderable). Tracked by index
+    // within the current render's sorted list, not object identity - renderFlowFermataList already
+    // resets flowOpenSwipePauseIndex to null on every re-render, so a stale index never lingers. ---
+    let flowOpenSwipePauseIndex = null;
+    const FLOW_PAUSE_SWIPE_LOCK_X_PX = 30;
+    const FLOW_PAUSE_SWIPE_LOCK_Y_MAX_PX = 15;
+    const FLOW_PAUSE_SWIPE_OPEN_PX = 96; // keep in sync with .flow-fermata-delete-underlay's width in style.css
+    const FLOW_PAUSE_SWIPE_SNAP_THRESHOLD_PX = 48;
+    const FLOW_PAUSE_SWIPE_EXCLUDE_SELECTOR = 'button, input, [role="slider"], [role="button"]';
+    function flowPauseSurfaceFor(index) {
+        return document.querySelector(`#flowFermataList [data-pause-index="${index}"] .flow-fermata-row`);
+    }
+    function flowSetPauseSwipeOffset(index, offset, animate) {
+        const surface = flowPauseSurfaceFor(index);
+        if (!surface) return;
+        surface.style.transition = animate ? 'transform 0.2s ease' : 'none';
+        surface.style.transform = offset ? `translateX(${offset}px)` : '';
+    }
+    function flowCloseOpenPauseSwipe(animate = true) {
+        if (flowOpenSwipePauseIndex === null) return;
+        flowSetPauseSwipeOffset(flowOpenSwipePauseIndex, 0, animate);
+        flowOpenSwipePauseIndex = null;
+    }
+    document.addEventListener('pointerdown', (e) => {
+        if (flowOpenSwipePauseIndex === null) return;
+        const openBoxEl = document.querySelector(`#flowFermataList [data-pause-index="${flowOpenSwipePauseIndex}"]`);
+        if (openBoxEl && !openBoxEl.contains(e.target)) flowCloseOpenPauseSwipe();
+    });
+    function wireFlowPauseSwipe(boxEl, index, onDelete) {
+        const surfaceEl = boxEl.querySelector('.flow-fermata-row');
+        let startX = 0, startY = 0, tracking = false, locked = false, abandoned = false;
+        function currentBaseOffset() { return flowOpenSwipePauseIndex === index ? -FLOW_PAUSE_SWIPE_OPEN_PX : 0; }
+        function onMove(e) {
+            if (!tracking || abandoned) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (!locked) {
+                if (Math.abs(dx) > FLOW_PAUSE_SWIPE_LOCK_X_PX && Math.abs(dy) < FLOW_PAUSE_SWIPE_LOCK_Y_MAX_PX) {
+                    locked = true;
+                    if (flowOpenSwipePauseIndex !== null && flowOpenSwipePauseIndex !== index) flowCloseOpenPauseSwipe(false);
+                } else if (Math.abs(dy) >= FLOW_PAUSE_SWIPE_LOCK_Y_MAX_PX) {
+                    abandoned = true;
+                    return;
+                } else {
+                    return;
+                }
+            }
+            e.preventDefault();
+            const offset = Math.min(0, Math.max(-FLOW_PAUSE_SWIPE_OPEN_PX, currentBaseOffset() + dx));
+            surfaceEl.style.transition = 'none';
+            surfaceEl.style.transform = `translateX(${offset}px)`;
+        }
+        function onUp(e) {
+            if (!tracking) return;
+            tracking = false;
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            if (!locked) return;
+            const dx = e.clientX - startX;
+            const finalOffset = Math.min(0, Math.max(-FLOW_PAUSE_SWIPE_OPEN_PX, currentBaseOffset() + dx));
+            if (Math.abs(finalOffset) > FLOW_PAUSE_SWIPE_SNAP_THRESHOLD_PX) {
+                flowSetPauseSwipeOffset(index, -FLOW_PAUSE_SWIPE_OPEN_PX, true);
+                flowOpenSwipePauseIndex = index;
+            } else {
+                flowSetPauseSwipeOffset(index, 0, true);
+                if (flowOpenSwipePauseIndex === index) flowOpenSwipePauseIndex = null;
+            }
+        }
+        boxEl.addEventListener('pointerdown', (e) => {
+            if (e.target.closest(FLOW_PAUSE_SWIPE_EXCLUDE_SELECTOR)) return;
+            startX = e.clientX;
+            startY = e.clientY;
+            tracking = true;
+            locked = false;
+            abandoned = false;
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+        });
+        boxEl.querySelector('[data-pause-swipe-delete]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            flowOpenSwipePauseIndex = null;
+            onDelete();
+        });
+    }
+    // Shows/hides the form vs. the "+ Add pause" button - separate from renderFlowFermataAddSection
+    // (which fills in the form's own content) since the two toggle independently: closing the form
+    // doesn't touch the draft, and re-rendering the draft doesn't touch open/closed state.
+    function renderFlowFermataFormState() {
+        document.getElementById('flowFermataAddBox')?.classList.toggle('hidden-group', !flowFermataFormOpen);
+        document.getElementById('flowFermataOpenFormBtn')?.classList.toggle('hidden-group', flowFermataFormOpen);
+    }
+    function renderFlowFermataAddSection() {
+        const draft = flowFermataDraft;
+        if (!draft) return;
+        const b = flowFindBlockById(flowFermataTargetBlockId);
+        const editing = !!flowFermataEditTarget;
+        const hasPauses = !!(b && b.fermatas && b.fermatas.length);
+        // Leads with the plain-English effect ("Hold note"/"Silent pause"), the musical term
+        // ("Fermata"/"Caesura") second and smaller - most users recognise the symbol, not the term.
+        document.getElementById('flowFermataKindGrid').innerHTML = [
+            { key: 'fermata', title: 'Hold note', sub: 'Fermata' },
+            { key: 'caesura', title: 'Silent pause', sub: 'Caesura' }
+        ].map(o => `
+            <button type="button" class="flow-pause-kind-btn${draft.kind === o.key ? ' selected' : ''}" data-pause-kind="${o.key}">
+                ${flowPauseIconSvg(o.key)}
+                <span class="flow-pause-kind-title">${o.title}</span>
+                <span class="flow-pause-kind-sub">${o.sub}</span>
+            </button>
+        `).join('');
+        document.getElementById('flowFermataKindGrid').querySelectorAll('[data-pause-kind]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                draft.kind = btn.dataset.pauseKind;
+                renderFlowFermataAddSection();
+            });
+        });
+        // Editing a pause already stranded on a bar the block no longer has (see the row list's own
+        // flow-fermata-row-text-invalid) carries the same red flag into the form - the warning icon
+        // sits to the left of the minus button (flowFermataBarWarning), not inside the readout, so
+        // it reads as "this whole row needs fixing" while still letting the stepper walk the value
+        // back down into range (not clamped, same "flag, don't clamp" rule as everywhere else).
+        const barInvalid = draft.bar > draft.maxBar;
+        const barValueEl = document.getElementById('flowFermataBarValue');
+        barValueEl.classList.toggle('flow-bar-readout-invalid', barInvalid);
+        barValueEl.innerText = `Bar ${draft.bar} of ${draft.maxBar}`;
+        document.getElementById('flowFermataBarWarning').innerHTML = barInvalid ? flowWarningIconSvg('flow-warning-icon') : '';
+        document.getElementById('flowFermataBeatValue').innerText = `Beat ${draft.beat} of ${draft.maxBeat}`;
+        document.getElementById('flowFermataDurationValue').innerText = `${draft.duration} beat${draft.duration === 1 ? '' : 's'}`;
+        document.getElementById('flowFermataBeatLabel').innerText = draft.kind === 'caesura' ? 'After beat' : 'On beat';
+        document.getElementById('flowFermataDurationLabel').innerText = draft.kind === 'caesura' ? 'Silence duration' : 'Hold duration';
+        // No caption at all on the empty-block form (nothing to distinguish it from) - "Add another
+        // pause"/"Edit pause" once the block already has at least one, matching how this form was
+        // reached (the +Add another pause button vs. a row's Edit menu item).
+        const addBoxLabel = document.getElementById('flowFermataAddBoxLabel');
+        addBoxLabel.classList.toggle('hidden-group', !hasPauses);
+        addBoxLabel.innerText = editing ? 'Edit pause' : 'Add another pause';
+        // Three distinct button copies: the very first pause on an empty block ("+ Insert pause into
+        // block"), an additional one once the list is already populated ("+ Add pause"), and editing
+        // an existing one ("Update pause") - matches how each of those states was reached.
+        document.getElementById('flowFermataAddBtn').innerText = editing ? 'Update pause' : (hasPauses ? '+ Add pause' : '+ Insert pause into block');
+        // Only meaningful when there's a collapsed list view to cancel back to - the empty-block
+        // form has nowhere to collapse to, so no Cancel there.
+        document.getElementById('flowFermataCancelEditBtn').classList.toggle('hidden-group', !hasPauses);
+    }
+    function flowFermataResetDraft(kind) {
+        const b = flowFindBlockById(flowFermataTargetBlockId);
+        flowFermataDraft = {
+            kind: kind || 'fermata', bar: 1, beat: 1, duration: 2,
+            maxBar: Math.max(1, (b && b.barCount) || 1), maxBeat: Math.max(1, (b && b.numerator) || 4)
+        };
+    }
     function openFlowFermataModal(blockId) {
+        const b = flowFindBlockById(blockId);
+        if (!b) return;
         flowFermataTargetBlockId = blockId;
+        const idx = currentFlowBlocks.findIndex(x => x.id === blockId);
+        document.getElementById('flowFermataPill').innerText = idx === -1 ? '' : flowBarRangeLabel(idx);
+        flowFermataEditTarget = null;
+        flowFermataResetDraft();
+        flowFermataFormOpen = !(b.fermatas && b.fermatas.length);
         renderFlowFermataList();
+        renderFlowFermataAddSection();
+        renderFlowFermataFormState();
         document.getElementById('flowFermataModal').style.display = 'flex';
     }
-    document.getElementById('flowFermataAddBtn')?.addEventListener('click', () => {
-        const b = flowFindBlockById(flowFermataTargetBlockId);
-        if (!b) return;
-        // Multi-add list (renderFlowFermataList already appends rather than replacing) - a block
-        // spanning several bars needs to say which one, not just which beat within it, since
-        // barOffset used to always be hardcoded to 0 regardless of the block's own bar count.
-        function askBeatAndHold(barOffset) {
-            showPromptModal('Which beat does the fermata land on?', '1', (beatVal) => {
-                const beat = Number(beatVal);
-                if (!Number.isInteger(beat) || beat < 1) return showWarningToast('Enter a whole number of 1 or more.');
-                showPromptModal('Hold for how many beats? (1-4)', '2', async (holdVal) => {
-                    const hold = Number(holdVal);
-                    if (!Number.isInteger(hold) || hold < 1 || hold > 4) return showWarningToast('Enter a whole number between 1 and 4.');
-                    await flowUpdateBlock(b.id, { fermatas: [...(b.fermatas || []), { barOffset, beatOffset: beat, holdBeats: hold, playbackMode: 'tone' }] });
-                    renderFlowFermataList();
-                });
-            });
-        }
-        if (b.barCount > 1) {
-            showPromptModal(`Which bar? (1-${b.barCount})`, '1', (barVal) => {
-                const bar = Number(barVal);
-                if (!Number.isInteger(bar) || bar < 1 || bar > b.barCount) return showWarningToast(`Enter a whole number between 1 and ${b.barCount}.`);
-                askBeatAndHold(bar - 1);
-            });
-        } else {
-            askBeatAndHold(0);
-        }
+    function closeFlowFermataModal() {
+        document.getElementById('flowFermataModal').style.display = 'none';
+        flowFermataTargetBlockId = null;
+        flowFermataDraft = null;
+        flowFermataEditTarget = null;
+    }
+    document.getElementById('flowFermataOpenFormBtn')?.addEventListener('click', () => {
+        flowFermataEditTarget = null;
+        flowFermataResetDraft();
+        flowFermataFormOpen = true;
+        renderFlowFermataAddSection();
+        renderFlowFermataFormState();
     });
+    // --- Per-row options menu (Edit/Delete) - same shared floating dropdown-menu + measure-then-
+    // clamp positioning as openFlowBlockMenu/openQpHistoryItemMenu. ---
+    function openFlowFermataRowMenu(btnEl, target) {
+        flowFermataRowMenuTarget = target;
+        const menu = document.getElementById('flowFermataRowMenu');
+        menu.classList.add('show');
+        const btnRect = btnEl.getBoundingClientRect();
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+        let left = btnRect.right - menuWidth;
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+        let top = btnRect.bottom + 4;
+        top = Math.min(top, window.innerHeight - menuHeight - 8);
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    }
+    function closeFlowFermataRowMenu() {
+        document.getElementById('flowFermataRowMenu')?.classList.remove('show');
+    }
+    document.addEventListener('click', closeFlowFermataRowMenu);
+    document.getElementById('flowFermataRowMenuEdit')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const target = flowFermataRowMenuTarget;
+        closeFlowFermataRowMenu();
+        if (!target) return;
+        flowFermataEditTarget = target;
+        const kind = target.kind || 'fermata';
+        flowFermataResetDraft(kind);
+        flowFermataDraft.bar = (target.barOffset || 0) + 1;
+        flowFermataDraft.beat = target.beatOffset;
+        flowFermataDraft.duration = target.holdBeats;
+        flowFermataFormOpen = true;
+        renderFlowFermataAddSection();
+        renderFlowFermataFormState();
+    });
+    document.getElementById('flowFermataRowMenuDelete')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const target = flowFermataRowMenuTarget;
+        closeFlowFermataRowMenu();
+        const b = flowFindBlockById(flowFermataTargetBlockId);
+        if (!b || !target) return;
+        if (flowFermataEditTarget === target) {
+            flowFermataEditTarget = null;
+            flowFermataResetDraft(flowFermataDraft ? flowFermataDraft.kind : undefined);
+        }
+        const remaining = (b.fermatas || []).filter(f => f !== target);
+        await flowUpdateBlock(b.id, { fermatas: remaining });
+        // Back to the empty-state "form always open" behaviour once the last pause is gone.
+        if (!remaining.length) flowFermataFormOpen = true;
+        renderFlowFermataList();
+        renderFlowFermataAddSection();
+        renderFlowFermataFormState();
+    });
+    document.getElementById('flowFermataCancelEditBtn')?.addEventListener('click', () => {
+        flowFermataEditTarget = null;
+        flowFermataResetDraft(flowFermataDraft ? flowFermataDraft.kind : undefined);
+        flowFermataFormOpen = false;
+        renderFlowFermataAddSection();
+        renderFlowFermataFormState();
+    });
+    setupHoldStepper(document.getElementById('flowFermataBarMinus'), -1, (amount) => {
+        if (!flowFermataDraft) return;
+        flowFermataDraft.bar = Math.max(1, flowFermataDraft.bar + amount);
+        renderFlowFermataAddSection();
+    });
+    setupHoldStepper(document.getElementById('flowFermataBarPlus'), 1, (amount) => {
+        if (!flowFermataDraft) return;
+        flowFermataDraft.bar = Math.max(1, Math.min(flowFermataDraft.maxBar, flowFermataDraft.bar + amount));
+        renderFlowFermataAddSection();
+    });
+    setupHoldStepper(document.getElementById('flowFermataBeatMinus'), -1, (amount) => {
+        if (!flowFermataDraft) return;
+        flowFermataDraft.beat = Math.max(1, flowFermataDraft.beat + amount);
+        renderFlowFermataAddSection();
+    });
+    setupHoldStepper(document.getElementById('flowFermataBeatPlus'), 1, (amount) => {
+        if (!flowFermataDraft) return;
+        flowFermataDraft.beat = Math.max(1, Math.min(flowFermataDraft.maxBeat, flowFermataDraft.beat + amount));
+        renderFlowFermataAddSection();
+    });
+    setupHoldStepper(document.getElementById('flowFermataDurationMinus'), -1, (amount) => {
+        if (!flowFermataDraft) return;
+        flowFermataDraft.duration = Math.max(2, flowFermataDraft.duration + amount);
+        renderFlowFermataAddSection();
+    });
+    setupHoldStepper(document.getElementById('flowFermataDurationPlus'), 1, (amount) => {
+        if (!flowFermataDraft) return;
+        flowFermataDraft.duration = Math.max(2, Math.min(4, flowFermataDraft.duration + amount));
+        renderFlowFermataAddSection();
+    });
+    document.getElementById('flowFermataAddBtn')?.addEventListener('click', async () => {
+        const b = flowFindBlockById(flowFermataTargetBlockId);
+        if (!b || !flowFermataDraft) return;
+        const draft = flowFermataDraft;
+        const entry = {
+            kind: draft.kind, barOffset: draft.bar - 1, beatOffset: draft.beat, holdBeats: draft.duration,
+            playbackMode: draft.kind === 'caesura' ? 'silent' : 'tone'
+        };
+        const existing = b.fermatas || [];
+        const fermatas = flowFermataEditTarget
+            ? existing.map(f => f === flowFermataEditTarget ? entry : f)
+            : [...existing, entry];
+        await flowUpdateBlock(b.id, { fermatas });
+        flowFermataEditTarget = null;
+        flowFermataResetDraft(draft.kind);
+        // Collapse back to the list + "+ Add pause" button - fermatas is never empty at this point
+        // (an entry was just inserted/updated into it), so this always lands in the populated state.
+        flowFermataFormOpen = false;
+        renderFlowFermataList();
+        renderFlowFermataAddSection();
+        renderFlowFermataFormState();
+    });
+    document.getElementById('flowFermataCloseBtn')?.addEventListener('click', closeFlowFermataModal);
+
+    // --- Tempo ramps list (#flowRampModal) - same shape as the Pauses list directly above (list +
+    // count once populated, "+ Add another ramp" collapses the form, row Edit/Delete via the 3-dot
+    // menu plus swipe-to-delete), one ramp entry being { startBarOffset, startBeatOffset, endMode:
+    // 'block_end'|'specific', endBarOffset, endBeatOffset, targetMode: 'next_block'|'custom',
+    // targetBpm } (metronome_segment_ramps - a block can hold more than one, ML-179 follow-up).
+    // List edits write immediately via flowUpdateBlock, same as Pauses; only the form below is a
+    // local draft, reset after each insert/save. ---
+    let flowRampDraft = null; // { bar, beat, endMode, endBar, endBeat, targetMode, targetBpm, maxBar, maxBeat }
+    let flowRampEditTarget = null; // the b.ramps entry currently being edited, or null when adding new
+    let flowRampRowMenuTarget = null;
+    let flowRampTargetBlockId = null;
+    let flowRampFormOpen = true;
+
+    // The block right after the one this modal is open for, in sequence - what a 'next_block'
+    // target mode actually resolves to (and, if undefined, why that target mode is flagged invalid).
+    function flowRampNextBlock() {
+        const idx = currentFlowBlocks.findIndex(x => x.id === flowRampTargetBlockId);
+        return idx === -1 ? undefined : currentFlowBlocks[idx + 1];
+    }
+    function flowRampSorted(ramps) {
+        return [...ramps].sort((a, b) => (a.startBarOffset || 0) - (b.startBarOffset || 0) || a.startBeatOffset - b.startBeatOffset);
+    }
+    function flowRampEndLabel(r) {
+        return r.endMode === 'specific' ? `Bar ${(r.endBarOffset || 0) + 1}, beat ${r.endBeatOffset}` : 'End of block';
+    }
+    function flowRampTargetLabel(r, nextBlock) {
+        if (r.targetMode === 'custom') return `${r.targetBpm} bpm`;
+        return nextBlock ? `${nextBlock.bpm} bpm` : 'next block';
+    }
+    function flowRampRowInvalid(r, maxBar, nextBlock) {
+        if (((r.startBarOffset || 0) + 1) > maxBar) return true;
+        if (r.endMode === 'specific' && ((r.endBarOffset || 0) + 1) > maxBar) return true;
+        if (r.targetMode === 'next_block' && !nextBlock) return true;
+        return false;
+    }
+    function renderFlowRampList() {
+        const b = flowFindBlockById(flowRampTargetBlockId);
+        const list = document.getElementById('flowRampList');
+        if (!b || !list) return;
+        const ramps = b.ramps || [];
+        if (flowRampEditTarget && !ramps.includes(flowRampEditTarget)) {
+            flowRampEditTarget = null;
+        }
+        document.getElementById('flowRampListHeader')?.classList.toggle('hidden-group', !ramps.length);
+        const countBadge = document.getElementById('flowRampCountBadge');
+        if (countBadge) countBadge.innerText = String(ramps.length);
+        if (!ramps.length) {
+            list.innerHTML = '';
+            return;
+        }
+        const maxBar = Math.max(1, b.barCount || 1);
+        const nextBlock = flowRampNextBlock();
+        const sorted = flowRampSorted(ramps);
+        flowOpenSwipeRampIndex = null;
+        list.innerHTML = sorted.map((r, i) => {
+            const invalid = flowRampRowInvalid(r, maxBar, nextBlock);
+            return `
+                <div class="flow-ramp-box" data-ramp-index="${i}">
+                    <div class="flow-ramp-delete-underlay" data-ramp-swipe-delete aria-label="Delete ramp">
+                        <span class="material-symbols-outlined">delete</span>
+                        <span>Delete</span>
+                    </div>
+                    <div class="flow-ramp-row">
+                        <span class="flow-ramp-row-text${invalid ? ' flow-ramp-row-text-invalid' : ''}">
+                            <span class="flow-ramp-row-icon${invalid ? ' invalid' : ''}">${invalid ? flowWarningIconSvg() : flowRampIconSvg(flowRampDirection(r, b, nextBlock))}</span>
+                            <span class="flow-ramp-row-lines">
+                                <span class="flow-ramp-row-title">Bar ${(r.startBarOffset || 0) + 1}, beat ${r.startBeatOffset} &rarr; ${flowRampEndLabel(r)}</span>
+                                <span class="flow-ramp-row-tag">Tempo change &middot; To ${flowRampTargetLabel(r, nextBlock)}</span>
+                            </span>
+                        </span>
+                        <button type="button" class="list-item-menu-btn" data-ramp-menu aria-label="Ramp options"><span class="material-symbols-outlined">more_vert</span></button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        list.querySelectorAll('[data-ramp-menu]').forEach((btn, i) => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openFlowRampRowMenu(btn, sorted[i]);
+            });
+        });
+        list.querySelectorAll('.flow-ramp-box').forEach((boxEl, i) => {
+            const target = sorted[i];
+            wireFlowRampSwipe(boxEl, i, async () => {
+                await flowUpdateBlock(b.id, { ramps: ramps.filter(x => x !== target) });
+                renderFlowRampList();
+            });
+        });
+    }
+    // --- Ramp row swipe-to-delete - own copy of wireFlowPauseSwipe's own shape (which is itself its
+    // own copy of wireFlowBlockSwipe/wireQpBarSwipe, minus their reorder half - see that function's
+    // own comment for why this isn't shared code). ---
+    let flowOpenSwipeRampIndex = null;
+    const FLOW_RAMP_SWIPE_LOCK_X_PX = 30;
+    const FLOW_RAMP_SWIPE_LOCK_Y_MAX_PX = 15;
+    const FLOW_RAMP_SWIPE_OPEN_PX = 96; // keep in sync with .flow-ramp-delete-underlay's width in style.css
+    const FLOW_RAMP_SWIPE_SNAP_THRESHOLD_PX = 48;
+    const FLOW_RAMP_SWIPE_EXCLUDE_SELECTOR = 'button, input, [role="slider"], [role="button"]';
+    function flowRampSurfaceFor(index) {
+        return document.querySelector(`#flowRampList [data-ramp-index="${index}"] .flow-ramp-row`);
+    }
+    function flowSetRampSwipeOffset(index, offset, animate) {
+        const surface = flowRampSurfaceFor(index);
+        if (!surface) return;
+        surface.style.transition = animate ? 'transform 0.2s ease' : 'none';
+        surface.style.transform = offset ? `translateX(${offset}px)` : '';
+    }
+    function flowCloseOpenRampSwipe(animate = true) {
+        if (flowOpenSwipeRampIndex === null) return;
+        flowSetRampSwipeOffset(flowOpenSwipeRampIndex, 0, animate);
+        flowOpenSwipeRampIndex = null;
+    }
+    document.addEventListener('pointerdown', (e) => {
+        if (flowOpenSwipeRampIndex === null) return;
+        const openBoxEl = document.querySelector(`#flowRampList [data-ramp-index="${flowOpenSwipeRampIndex}"]`);
+        if (openBoxEl && !openBoxEl.contains(e.target)) flowCloseOpenRampSwipe();
+    });
+    function wireFlowRampSwipe(boxEl, index, onDelete) {
+        const surfaceEl = boxEl.querySelector('.flow-ramp-row');
+        let startX = 0, startY = 0, tracking = false, locked = false, abandoned = false;
+        function currentBaseOffset() { return flowOpenSwipeRampIndex === index ? -FLOW_RAMP_SWIPE_OPEN_PX : 0; }
+        function onMove(e) {
+            if (!tracking || abandoned) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (!locked) {
+                if (Math.abs(dx) > FLOW_RAMP_SWIPE_LOCK_X_PX && Math.abs(dy) < FLOW_RAMP_SWIPE_LOCK_Y_MAX_PX) {
+                    locked = true;
+                    if (flowOpenSwipeRampIndex !== null && flowOpenSwipeRampIndex !== index) flowCloseOpenRampSwipe(false);
+                } else if (Math.abs(dy) >= FLOW_RAMP_SWIPE_LOCK_Y_MAX_PX) {
+                    abandoned = true;
+                    return;
+                } else {
+                    return;
+                }
+            }
+            e.preventDefault();
+            const offset = Math.min(0, Math.max(-FLOW_RAMP_SWIPE_OPEN_PX, currentBaseOffset() + dx));
+            surfaceEl.style.transition = 'none';
+            surfaceEl.style.transform = `translateX(${offset}px)`;
+        }
+        function onUp(e) {
+            if (!tracking) return;
+            tracking = false;
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            if (!locked) return;
+            const dx = e.clientX - startX;
+            const finalOffset = Math.min(0, Math.max(-FLOW_RAMP_SWIPE_OPEN_PX, currentBaseOffset() + dx));
+            if (Math.abs(finalOffset) > FLOW_RAMP_SWIPE_SNAP_THRESHOLD_PX) {
+                flowSetRampSwipeOffset(index, -FLOW_RAMP_SWIPE_OPEN_PX, true);
+                flowOpenSwipeRampIndex = index;
+            } else {
+                flowSetRampSwipeOffset(index, 0, true);
+                if (flowOpenSwipeRampIndex === index) flowOpenSwipeRampIndex = null;
+            }
+        }
+        boxEl.addEventListener('pointerdown', (e) => {
+            if (e.target.closest(FLOW_RAMP_SWIPE_EXCLUDE_SELECTOR)) return;
+            startX = e.clientX;
+            startY = e.clientY;
+            tracking = true;
+            locked = false;
+            abandoned = false;
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+        });
+        boxEl.querySelector('[data-ramp-swipe-delete]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            flowOpenSwipeRampIndex = null;
+            onDelete();
+        });
+    }
+    function renderFlowRampFormState() {
+        document.getElementById('flowRampAddBox')?.classList.toggle('hidden-group', !flowRampFormOpen);
+        document.getElementById('flowRampOpenFormBtn')?.classList.toggle('hidden-group', flowRampFormOpen);
+    }
+    function renderFlowRampAddSection() {
+        const draft = flowRampDraft;
+        if (!draft) return;
+        const editing = !!flowRampEditTarget;
+        const b = flowFindBlockById(flowRampTargetBlockId);
+        const hasRamps = !!(b && b.ramps && b.ramps.length);
+        const nextBlock = flowRampNextBlock();
+
+        const barInvalid = draft.bar > draft.maxBar;
+        const barValueEl = document.getElementById('flowRampBarValue');
+        barValueEl.classList.toggle('flow-bar-readout-invalid', barInvalid);
+        barValueEl.innerText = `Bar ${draft.bar} of ${draft.maxBar}`;
+        document.getElementById('flowRampBeatValue').innerText = `Beat ${draft.beat} of ${draft.maxBeat}`;
+
+        document.querySelectorAll('#flowRampEndModeToggle [data-ramp-end-mode]').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.rampEndMode === draft.endMode);
+        });
+        const specific = draft.endMode === 'specific';
+        document.getElementById('flowRampEndBarCard')?.classList.toggle('hidden-group', !specific);
+        document.getElementById('flowRampEndBeatCard')?.classList.toggle('hidden-group', !specific);
+        if (specific) {
+            const endBarInvalid = draft.endBar > draft.maxBar;
+            const endBarValueEl = document.getElementById('flowRampEndBarValue');
+            endBarValueEl.classList.toggle('flow-bar-readout-invalid', endBarInvalid);
+            endBarValueEl.innerText = `Bar ${draft.endBar} of ${draft.maxBar}`;
+            document.getElementById('flowRampEndBarWarning').innerHTML = endBarInvalid ? flowWarningIconSvg('flow-warning-icon') : '';
+            document.getElementById('flowRampEndBeatValue').innerText = `Beat ${draft.endBeat} of ${draft.maxBeat}`;
+            // A ramp landing at a specific mid-block beat can't defer to "whatever the next block's
+            // bpm turns out to be" - same forced-value rule validateSegmentPayload enforces server-side.
+            if (draft.targetMode === 'next_block') draft.targetMode = 'custom';
+        }
+
+        document.getElementById('flowRampTargetSubtitle').innerText = specific ? 'Only custom bpm allowed before block end' : 'Final tempo to reach';
+        document.getElementById('flowRampTargetGrid').innerHTML = [
+            { key: 'next_block', title: 'Next block', sub: nextBlock ? `${nextBlock.bpm} bpm` : 'No next block', disabled: specific || !nextBlock },
+            { key: 'custom', title: 'Custom bpm', sub: `${draft.targetBpm} bpm` }
+        ].map(o => `
+            <button type="button" class="flow-pause-kind-btn${draft.targetMode === o.key ? ' selected' : ''}" data-ramp-target="${o.key}"${o.disabled ? ' disabled' : ''}>
+                <span class="flow-pause-kind-title">${o.title}</span>
+                <span class="flow-pause-kind-sub">${o.sub}</span>
+            </button>
+        `).join('');
+        document.querySelectorAll('#flowRampTargetGrid [data-ramp-target]:not(:disabled)').forEach(btn => {
+            btn.addEventListener('click', () => {
+                draft.targetMode = btn.dataset.rampTarget;
+                renderFlowRampAddSection();
+            });
+        });
+
+        const showCustomTempo = draft.targetMode === 'custom';
+        document.getElementById('flowRampCustomTempoCard')?.classList.toggle('hidden-group', !showCustomTempo);
+        document.getElementById('flowRampCustomTempoValue').innerText = draft.targetBpm;
+
+        const addBoxLabel = document.getElementById('flowRampAddBoxLabel');
+        addBoxLabel.classList.toggle('hidden-group', !hasRamps);
+        addBoxLabel.innerText = editing ? 'Edit ramp' : 'Add another ramp';
+        document.getElementById('flowRampAddBtn').innerText = editing ? 'Update ramp' : (hasRamps ? '+ Add ramp' : '+ Insert ramp into block');
+        document.getElementById('flowRampCancelEditBtn').classList.toggle('hidden-group', !hasRamps);
+    }
+    function flowRampResetDraft() {
+        const b = flowFindBlockById(flowRampTargetBlockId);
+        const nextBlock = flowRampNextBlock();
+        flowRampDraft = {
+            bar: 1, beat: 1,
+            endMode: 'block_end', endBar: 1, endBeat: 1,
+            // "Next block" is the more useful default when there is one (matches the old single-ramp
+            // field's own implicit "lands on the next segment's bpm" behaviour) - falls back to
+            // custom when there isn't, since "next block" would have nothing to resolve to.
+            targetMode: nextBlock ? 'next_block' : 'custom',
+            targetBpm: (b && b.bpm) || 120,
+            maxBar: Math.max(1, (b && b.barCount) || 1), maxBeat: Math.max(1, (b && b.numerator) || 4)
+        };
+    }
+    function openFlowRampModal(blockId) {
+        const b = flowFindBlockById(blockId);
+        if (!b) return;
+        flowRampTargetBlockId = blockId;
+        const idx = currentFlowBlocks.findIndex(x => x.id === blockId);
+        document.getElementById('flowRampPill').innerText = idx === -1 ? '' : flowBarRangeLabel(idx);
+        flowRampEditTarget = null;
+        flowRampResetDraft();
+        flowRampFormOpen = !(b.ramps && b.ramps.length);
+        renderFlowRampList();
+        renderFlowRampAddSection();
+        renderFlowRampFormState();
+        document.getElementById('flowRampModal').style.display = 'flex';
+    }
+    function closeFlowRampModal() {
+        document.getElementById('flowRampModal').style.display = 'none';
+        flowRampTargetBlockId = null;
+        flowRampDraft = null;
+        flowRampEditTarget = null;
+    }
+    document.getElementById('flowRampOpenFormBtn')?.addEventListener('click', () => {
+        flowRampEditTarget = null;
+        flowRampResetDraft();
+        flowRampFormOpen = true;
+        renderFlowRampAddSection();
+        renderFlowRampFormState();
+    });
+    function openFlowRampRowMenu(btnEl, target) {
+        flowRampRowMenuTarget = target;
+        const menu = document.getElementById('flowRampRowMenu');
+        menu.classList.add('show');
+        const btnRect = btnEl.getBoundingClientRect();
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+        let left = btnRect.right - menuWidth;
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+        let top = btnRect.bottom + 4;
+        top = Math.min(top, window.innerHeight - menuHeight - 8);
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    }
+    function closeFlowRampRowMenu() {
+        document.getElementById('flowRampRowMenu')?.classList.remove('show');
+    }
+    document.addEventListener('click', closeFlowRampRowMenu);
+    document.getElementById('flowRampRowMenuEdit')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const target = flowRampRowMenuTarget;
+        closeFlowRampRowMenu();
+        if (!target) return;
+        flowRampEditTarget = target;
+        flowRampResetDraft();
+        flowRampDraft.bar = (target.startBarOffset || 0) + 1;
+        flowRampDraft.beat = target.startBeatOffset;
+        flowRampDraft.endMode = target.endMode;
+        flowRampDraft.endBar = (target.endBarOffset || 0) + 1;
+        flowRampDraft.endBeat = target.endBeatOffset || 1;
+        flowRampDraft.targetMode = target.targetMode;
+        flowRampDraft.targetBpm = target.targetBpm || flowRampDraft.targetBpm;
+        flowRampFormOpen = true;
+        renderFlowRampAddSection();
+        renderFlowRampFormState();
+    });
+    document.getElementById('flowRampRowMenuDelete')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const target = flowRampRowMenuTarget;
+        closeFlowRampRowMenu();
+        const b = flowFindBlockById(flowRampTargetBlockId);
+        if (!b || !target) return;
+        if (flowRampEditTarget === target) {
+            flowRampEditTarget = null;
+            flowRampResetDraft();
+        }
+        const remaining = (b.ramps || []).filter(r => r !== target);
+        await flowUpdateBlock(b.id, { ramps: remaining });
+        // Back to the empty-state "form always open" behaviour once the last ramp is gone.
+        if (!remaining.length) flowRampFormOpen = true;
+        renderFlowRampList();
+        renderFlowRampAddSection();
+        renderFlowRampFormState();
+    });
+    document.getElementById('flowRampCancelEditBtn')?.addEventListener('click', () => {
+        flowRampEditTarget = null;
+        flowRampResetDraft();
+        flowRampFormOpen = false;
+        renderFlowRampAddSection();
+        renderFlowRampFormState();
+    });
+    setupHoldStepper(document.getElementById('flowRampBarMinus'), -1, (amount) => {
+        if (!flowRampDraft) return;
+        flowRampDraft.bar = Math.max(1, flowRampDraft.bar + amount);
+        renderFlowRampAddSection();
+    });
+    setupHoldStepper(document.getElementById('flowRampBarPlus'), 1, (amount) => {
+        if (!flowRampDraft) return;
+        flowRampDraft.bar = Math.max(1, Math.min(flowRampDraft.maxBar, flowRampDraft.bar + amount));
+        renderFlowRampAddSection();
+    });
+    setupHoldStepper(document.getElementById('flowRampBeatMinus'), -1, (amount) => {
+        if (!flowRampDraft) return;
+        flowRampDraft.beat = Math.max(1, flowRampDraft.beat + amount);
+        renderFlowRampAddSection();
+    });
+    setupHoldStepper(document.getElementById('flowRampBeatPlus'), 1, (amount) => {
+        if (!flowRampDraft) return;
+        flowRampDraft.beat = Math.max(1, Math.min(flowRampDraft.maxBeat, flowRampDraft.beat + amount));
+        renderFlowRampAddSection();
+    });
+    setupHoldStepper(document.getElementById('flowRampEndBarMinus'), -1, (amount) => {
+        if (!flowRampDraft) return;
+        flowRampDraft.endBar = Math.max(1, flowRampDraft.endBar + amount);
+        renderFlowRampAddSection();
+    });
+    setupHoldStepper(document.getElementById('flowRampEndBarPlus'), 1, (amount) => {
+        if (!flowRampDraft) return;
+        flowRampDraft.endBar = Math.max(1, Math.min(flowRampDraft.maxBar, flowRampDraft.endBar + amount));
+        renderFlowRampAddSection();
+    });
+    setupHoldStepper(document.getElementById('flowRampEndBeatMinus'), -1, (amount) => {
+        if (!flowRampDraft) return;
+        flowRampDraft.endBeat = Math.max(1, flowRampDraft.endBeat + amount);
+        renderFlowRampAddSection();
+    });
+    setupHoldStepper(document.getElementById('flowRampEndBeatPlus'), 1, (amount) => {
+        if (!flowRampDraft) return;
+        flowRampDraft.endBeat = Math.max(1, Math.min(flowRampDraft.maxBeat, flowRampDraft.endBeat + amount));
+        renderFlowRampAddSection();
+    });
+    document.querySelectorAll('#flowRampEndModeToggle [data-ramp-end-mode]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!flowRampDraft) return;
+            flowRampDraft.endMode = btn.dataset.rampEndMode;
+            renderFlowRampAddSection();
+        });
+    });
+    document.getElementById('flowRampCustomTempoBtn')?.addEventListener('click', () => {
+        if (!flowRampDraft) return;
+        flowOpenBpmModal(null, {
+            value: flowRampDraft.targetBpm,
+            onApply: (v) => {
+                flowRampDraft.targetBpm = v;
+                renderFlowRampAddSection();
+            }
+        });
+    });
+    document.getElementById('flowRampAddBtn')?.addEventListener('click', async () => {
+        const b = flowFindBlockById(flowRampTargetBlockId);
+        if (!b || !flowRampDraft) return;
+        const draft = flowRampDraft;
+        const entry = {
+            startBarOffset: draft.bar - 1, startBeatOffset: draft.beat,
+            endMode: draft.endMode,
+            endBarOffset: draft.endMode === 'specific' ? draft.endBar - 1 : null,
+            endBeatOffset: draft.endMode === 'specific' ? draft.endBeat : null,
+            targetMode: draft.targetMode,
+            targetBpm: draft.targetMode === 'custom' ? draft.targetBpm : null
+        };
+        const existing = b.ramps || [];
+        const ramps = flowRampEditTarget
+            ? existing.map(r => r === flowRampEditTarget ? entry : r)
+            : [...existing, entry];
+        await flowUpdateBlock(b.id, { ramps });
+        flowRampEditTarget = null;
+        flowRampResetDraft();
+        // Collapse back to the list + "+ Add ramp" button - ramps is never empty at this point (an
+        // entry was just inserted/updated into it), so this always lands in the populated state.
+        flowRampFormOpen = false;
+        renderFlowRampList();
+        renderFlowRampAddSection();
+        renderFlowRampFormState();
+    });
+    document.getElementById('flowRampCloseBtn')?.addEventListener('click', closeFlowRampModal);
 
     // --- Per-block options menu (Duplicate/Move up/Move down/Delete) - same shared floating
     // dropdown-menu + measure-then-clamp positioning as openMetroBlkTileMenu/openQpBarMenu. ---
@@ -4917,17 +6723,28 @@
         e.stopPropagation();
         const blockId = flowBlockMenuTargetId;
         closeFlowBlockMenu();
+        const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
+        if (idx < 0) return;
+        if (flowEditMode === 'edit') {
+            const source = currentFlowBlocks[idx];
+            const dup = { ...source, id: `tmp${++flowTempBlockCounter}`, fermatas: [...(source.fermatas || [])], rehearsalMarks: [...(source.rehearsalMarks || [])] };
+            currentFlowBlocks.splice(idx + 1, 0, dup);
+            renderFlowBlocksStudio();
+            return;
+        }
         try {
             const dup = await API.flows.blocks.duplicate(blockId);
-            const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
             currentFlowBlocks.splice(idx + 1, 0, dup);
             renderFlowBlocksStudio(); // not just renderFlowBlocksList - the total bars/runtime summary needs refreshing too
         } catch (error) {
-            showWarningToast('Error duplicating block: ' + error.message);
+            showWarningToast('Error duplicating bar: ' + error.message);
         }
     });
 
     async function flowPersistBlockOrder() {
+        // Edit mode: the local splice already happened at each call site - saveFlowEdit does one
+        // reorder call with the final order when Save is pressed.
+        if (flowEditMode === 'edit') return;
         try {
             await API.flows.blocks.reorder(currentFlowId, currentFlowBlocks.map(b => b.id));
         } catch (error) {
@@ -4939,64 +6756,151 @@
         e.stopPropagation();
         const blockId = flowBlockMenuTargetId;
         closeFlowBlockMenu();
-        const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
-        if (idx <= 0) return;
-        const moved = currentFlowBlocks.splice(idx, 1)[0];
-        currentFlowBlocks.splice(idx - 1, 0, moved);
-        renderFlowBlocksList();
-        flowPersistBlockOrder();
+        flowMoveBlockUp(blockId);
     });
 
     document.getElementById('flowBlockMenuMoveDown')?.addEventListener('click', (e) => {
         e.stopPropagation();
         const blockId = flowBlockMenuTargetId;
         closeFlowBlockMenu();
-        const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
-        if (idx < 0 || idx >= currentFlowBlocks.length - 1) return;
-        const moved = currentFlowBlocks.splice(idx, 1)[0];
-        currentFlowBlocks.splice(idx + 1, 0, moved);
-        renderFlowBlocksList();
-        flowPersistBlockOrder();
+        flowMoveBlockDown(blockId);
     });
 
     document.getElementById('flowBlockMenuDelete')?.addEventListener('click', (e) => {
         e.stopPropagation();
         const blockId = flowBlockMenuTargetId;
         closeFlowBlockMenu();
-        showConfirmModal('Delete block', "Delete this block? This can't be undone.", async () => {
-            try {
-                await API.flows.blocks.delete(blockId);
-                currentFlowBlocks = currentFlowBlocks.filter(b => b.id !== blockId);
-                renderFlowBlocksStudio(); // not just renderFlowBlocksList - the total bars/runtime summary needs refreshing too
-            } catch (error) {
-                showWarningToast('Error deleting block: ' + error.message);
-            }
-        }, true);
+        flowDeleteBlockConfirm(blockId);
     });
 
     document.getElementById('flowAddBlockBtn')?.addEventListener('click', async () => {
         if (!currentFlowId) return;
         const lastBlock = currentFlowBlocks[currentFlowBlocks.length - 1];
+        const data = {
+            barCount: lastBlock ? lastBlock.barCount : 4,
+            bpm: lastBlock ? lastBlock.bpm : 120,
+            timeSignatureId: lastBlock && lastBlock.timeSignatureId ? lastBlock.timeSignatureId : (metroBlkTimeSigCache.public[0] ? metroBlkTimeSigCache.public[0].id : null),
+            accountTimeSignatureId: lastBlock ? lastBlock.accountTimeSignatureId : null
+        };
+        if (flowEditMode === 'edit') {
+            currentFlowBlocks.push(buildLocalFlowBlockDto(data));
+            renderFlowBlocksStudio();
+            return;
+        }
         try {
-            const newBlock = await API.flows.blocks.create(currentFlowId, {
-                barCount: lastBlock ? lastBlock.barCount : 4,
-                bpm: lastBlock ? lastBlock.bpm : 120,
-                timeSignatureId: lastBlock && lastBlock.timeSignatureId ? lastBlock.timeSignatureId : (metroBlkTimeSigCache.public[0] ? metroBlkTimeSigCache.public[0].id : null),
-                accountTimeSignatureId: lastBlock ? lastBlock.accountTimeSignatureId : null
-            });
+            const newBlock = await API.flows.blocks.create(currentFlowId, data);
             currentFlowBlocks.push(newBlock);
             renderFlowBlocksStudio(); // not just renderFlowBlocksList - the total bars/runtime summary needs refreshing too
         } catch (error) {
-            showWarningToast('Error adding block: ' + error.message);
+            showWarningToast('Error adding bar: ' + error.message);
         }
     });
 
-    // currentFlowBlocks/flowLeadInBlock are already current (this is the screen editing them
-    // directly) - no need to go through goToFlowPlayView's own refetch, just switch straight over
-    // (its switchView case rebuilds the play queue from them itself).
-    document.getElementById('flowStudioPlayFlowBtn')?.addEventListener('click', () => {
-        if (currentFlowId) switchView('flowPlayView');
-    });
+    // "Use flow" (Blocks tab's own state of the shared sticky bar button) is wired above, next to
+    // the rest of the Edit Flow tab logic - currentFlowBlocks/flowLeadInBlock are already current
+    // (this is the screen editing them directly), no need for goToFlowPlayView's own refetch.
+
+    // --- Save (Edit mode only) - commits everything staged since loadAndRenderFlowDetailsHub's own
+    // snapshot in one batch: Details (one PATCH), Media (diff recordings/documents against the
+    // snapshot by id - delete what's gone, add what's new), then Blocks (diff the combined lead-in
+    // + blocks list against the snapshot by id - delete/create/update, then one reorder call).
+    // Mirrors saveMetroBlkEdit's own diff-and-sync shape. Leaves the draft/Edit mode intact on
+    // error so nothing already staged is lost - the user can retry Save or explicitly Cancel. ---
+    // curRecordings/curDocuments are passed in rather than read fresh off currentFlowDetail here -
+    // by the time this runs, currentFlowDetail has already been reassigned to the Details PATCH's
+    // response (saveFlowEdit), which reflects the server's pre-save state and would silently drop
+    // whatever was staged locally (bug: a YouTube link added in Edit mode, then Save, never
+    // actually reached the server - saveFlowMediaEdits saw an empty list and had nothing to sync).
+    async function saveFlowMediaEdits(curRecordings, curDocuments) {
+        const snapRecordings = flowEditSnapshot.recordings;
+        const snapDocuments = flowEditSnapshot.documents;
+
+        const deletedRecordingIds = snapRecordings.filter(r => !curRecordings.some(cr => cr.id === r.id)).map(r => r.id);
+        const deletedDocumentIds = snapDocuments.filter(d => !curDocuments.some(cd => cd.id === d.id)).map(d => d.id);
+        await Promise.all([
+            ...deletedRecordingIds.map(id => API.flows.recordings.delete(currentFlowId, id)),
+            ...deletedDocumentIds.map(id => API.flows.documents.delete(currentFlowId, id))
+        ]);
+
+        const newRecordings = curRecordings.filter(r => typeof r.id === 'string');
+        const newDocuments = curDocuments.filter(d => typeof d.id === 'string');
+        for (const r of newRecordings) {
+            if (r.type === 'youtube') await API.flows.recordings.addYouTube(currentFlowId, { url: r.sourceUrl, title: r.title });
+            else await API.flows.recordings.addUploaded(currentFlowId, { blobUrl: r.blobUrl, blobPathname: r.blobPathname, fileName: r.fileName, fileSizeBytes: r.fileSizeBytes, mimeType: r.mimeType });
+        }
+        for (const d of newDocuments) {
+            await API.flows.documents.add(currentFlowId, { blobUrl: d.blobUrl, blobPathname: d.blobPathname, fileName: d.fileName, fileSizeBytes: d.fileSizeBytes, mimeType: d.mimeType });
+        }
+    }
+
+    async function saveFlowBlockEdits() {
+        const snapshotAll = flowEditSnapshot.leadIn ? [flowEditSnapshot.leadIn, ...flowEditSnapshot.blocks] : flowEditSnapshot.blocks;
+        const currentAll = flowLeadInBlock ? [flowLeadInBlock, ...currentFlowBlocks] : currentFlowBlocks;
+        const currentRealIds = new Set(currentAll.filter(b => typeof b.id !== 'string').map(b => b.id));
+        const deletedIds = snapshotAll.filter(b => !currentRealIds.has(b.id)).map(b => b.id);
+        if (deletedIds.length) await Promise.all(deletedIds.map(id => API.flows.blocks.delete(id)));
+
+        // Sequential, not Promise.all - lead-in first, then in display order, so the reorder call
+        // right after has every real id to work with.
+        for (const b of currentAll) {
+            if (typeof b.id === 'string') {
+                const created = await API.flows.blocks.create(currentFlowId, flowBlockPayload(b));
+                b.id = created.id;
+            }
+        }
+
+        // Every surviving/created entry, unconditionally - harmless no-op if a given block actually
+        // didn't change, same as saveMetroBlkEdit's own segment update pass.
+        await Promise.all(currentAll.map(b => API.flows.blocks.update(b.id, flowBlockPayload(b))));
+
+        if (currentFlowBlocks.length) await API.flows.blocks.reorder(currentFlowId, currentFlowBlocks.map(b => b.id));
+    }
+
+    async function saveFlowEdit() {
+        if (!currentFlowId || !flowEditSnapshot) return;
+        const nameEl = document.getElementById('flowTitleInput');
+        if (!nameEl?.value.trim()) {
+            showWarningToast('Flow name is required.');
+            setFlowEditTab('details');
+            nameEl?.focus();
+            return;
+        }
+        const btn = document.getElementById('flowEditSaveBtn');
+        if (btn) { btn.disabled = true; btn.innerText = 'Saving...'; }
+        // Captured before the Details PATCH below reassigns currentFlowDetail - see
+        // saveFlowMediaEdits's own comment on why reading them fresh off currentFlowDetail there
+        // would silently miss whatever's staged.
+        const stagedRecordings = currentFlowDetail.recordings || [];
+        const stagedDocuments = currentFlowDetail.documents || [];
+        try {
+            currentFlowDetail = await API.flows.update(currentFlowId, {
+                title: nameEl.value.trim(),
+                composer: document.getElementById('flowComposerInput').value,
+                arranger: document.getElementById('flowArrangerInput').value,
+                publisher: document.getElementById('flowPublisherInput').value,
+                description: document.getElementById('flowDescriptionInput').value
+            });
+            await saveFlowMediaEdits(stagedRecordings, stagedDocuments);
+            await saveFlowBlockEdits();
+            // Refreshed once more at the end - the Details PATCH's own response (above) predates
+            // the media/block syncing that just happened, so it's stale by now (missing real ids
+            // for anything just created). Whatever view goBack() lands on next (e.g. Play Flow's
+            // media carousel) reads currentFlowDetail/currentFlowBlocks directly, not a fetch of
+            // its own, so this has to be the true final state.
+            const [freshDetail, freshBlocks] = await Promise.all([API.flows.get(currentFlowId), API.flows.blocks.list(currentFlowId)]);
+            currentFlowDetail = freshDetail;
+            flowLeadInBlock = freshBlocks.find(b => b.isLeadIn) || null;
+            currentFlowBlocks = freshBlocks.filter(b => !b.isLeadIn);
+            flowEditSnapshot = null;
+            showSuccessToast('Flow saved');
+            goBack();
+        } catch (error) {
+            showWarningToast('Error saving flow: ' + error.message);
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerText = 'Save'; }
+        }
+    }
+    document.getElementById('flowEditSaveBtn')?.addEventListener('click', saveFlowEdit);
 
     // ========================================
     // PLAY FLOW (Jira ML-179 follow-up) - the actual playback screen, requested separately from
@@ -5077,6 +6981,9 @@
         const block = metroBlkEffectiveBlock(flowPlayQueue[index], flowPlayQueue);
         flowApplyToPlayer(block);
         flowRealignPlayer(block);
+        // ML-130: fermata positions are static per block, so the whole schedule is handed over once
+        // here rather than resolved click-by-click.
+        flowPlayer.setFermataSchedule(buildFermataSchedule(block, flowSubFactorFor(block)), fermataPlaybackModeSetting());
     }
 
     function flowStartIndex() {
@@ -5147,6 +7054,14 @@
 
         const subFactor = flowSubFactorFor(block);
         flashTierDot('flowPlayRowDots', beatInfo.clickIndexInBar);
+        updateFermataDotState('flowPlayRowDots', beatInfo);
+
+        // ML-130: every pulse of a fermata hold except its own first one is a repeat of the SAME
+        // beat (the player froze clickIndex for the whole hold - see resolveFermataPulse), not a new
+        // beat - it must not count towards "a beat/bar has now played" bookkeeping below, or the
+        // block would advance early and "Bar X of Y" would overcount.
+        const isFermataRepeat = !!(beatInfo.fermataHold && !beatInfo.fermataHold.isFirst);
+        if (isFermataRepeat) return;
 
         // Advancing has to wait for every click of the target's last beat, sub-beats included, not
         // just that beat's own main click - same reasoning as onMetroBlkBeat's own targetClicks.
@@ -5166,13 +7081,394 @@
             const justCompletedABar = !block.pickupBeats && flowBeatsPlayedInBlock % metroBlkBeatsPerBarFor(block) === 0;
             if (block.pickupBeats || justCompletedABar) {
                 const labelEl = document.getElementById('flowPlayRowLabel');
-                if (labelEl) labelEl.innerText = metroBlkBlockLabel(block, flowBeatsPlayedInBlock);
+                if (labelEl) labelEl.innerHTML = metroBlkBlockLabel(block, flowBeatsPlayedInBlock); // ML-130: label carries a real fermata glyph now, not plain text
+            }
+            // ML-130: a new bar just started (or this is a partial lead-in, which has no "bars" of its
+            // own to speak of) - refresh which fermata glyph(s), if any, sit above this bar's own dots.
+            if (justCompletedABar && !block.pickupBeats) {
+                const newBarIndex = Math.floor(flowBeatsPlayedInBlock / metroBlkBeatsPerBarFor(block));
+                renderFermataMarkers('flowPlayRowDots', block, newBarIndex, subFactor);
             }
         }
 
         if (isFinalClickOfBlock) advanceFlow();
     }
     flowPlayer.onBeat(onFlowBeat);
+
+    // ========================================
+    // ML-166: swipeable media carousel (Metronome + one slide per attached audio track/video
+    // link). Slide 0 is always the metronome (the view's own always-present markup, index.html) -
+    // audio/video slides are built fresh from currentFlowDetail.recordings every time Play Flow
+    // loads (buildFlowMediaSlides, called from switchView's flowPlayView case, same "don't trust
+    // it's stale" reasoning as buildFlowPlayQueue). Dots + swipe chrome only ever render when
+    // there's more than the one metronome slide (renderFlowMediaDots) - a media-less flow looks
+    // exactly like it always has.
+    // ========================================
+    let flowMediaSlides = [{ type: 'metronome' }];
+    let flowMediaActiveIndex = 0;
+    let flowYtPlayers = {}; // recording id -> YT.Player, video slides only
+    let flowYtApiPromise = null;
+
+    // Same path data as the Home screen's own "Metronome" tool icon (public/icons/quick-play.svg) -
+    // used instead of a generic Material Symbol wherever this carousel represents the metronome
+    // slide (the dots row, and the decorative wrap-around preview below).
+    const FLOW_METRONOME_ICON_SVG = '<svg viewBox="0 0 883 1025" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><g transform="translate(-2956 -1363)"><path d="M3299.02 1831.86 3528.57 1965.12 3299.02 2098.38ZM3329.89 1454.01 3064.12 2264.42 3731.24 2264.42 3465.47 1454.01ZM3297.05 1363 3499.94 1363C3518.77 1363 3534.93 1374.46 3541.83 1390.79L3544.05 1401.79 3839 2301.17 3837.74 2301.58 3839 2309.93C3839 2328.77 3827.55 2344.95 3811.23 2351.86L3795.05 2355.12 3795.05 2355.43 3793.53 2355.43 3793.53 2355.43 3793.53 2355.43 3702.53 2355.43 3701.57 2360.21C3694.67 2376.54 3678.51 2388 3659.68 2388 3640.84 2388 3624.68 2376.54 3617.78 2360.21L3616.82 2355.43 3186.33 2355.43 3185.37 2360.21C3178.47 2376.54 3162.31 2388 3143.47 2388 3124.64 2388 3108.48 2376.54 3101.58 2360.21L3100.62 2355.43 3008.1 2355.43 3008.1 2354.09 3001.47 2355.43C2976.36 2355.43 2956 2335.06 2956 2309.93L2957.68 2301.6 2956.37 2301.17 3254.77 1391.26 3255.04 1391.35 3255.16 1390.79C3262.06 1374.46 3278.22 1363 3297.05 1363Z" fill-rule="evenodd"/></g></svg>';
+
+    function buildFlowMediaSlides() {
+        Object.values(flowYtPlayers).forEach(player => { try { player.destroy(); } catch (error) { /* already gone */ } });
+        flowYtPlayers = {};
+        const recordings = currentFlowDetail?.recordings || [];
+        const audioTracks = recordings.filter(r => r.type !== 'youtube');
+        const videoLinks = recordings.filter(r => r.type === 'youtube');
+        flowMediaSlides = [
+            { type: 'metronome' },
+            ...audioTracks.map(r => ({ type: 'audio', data: r })),
+            ...videoLinks.map(r => ({ type: 'video', data: r }))
+        ];
+        flowMediaActiveIndex = 0;
+    }
+
+    function flowMediaSlideKey(slide) {
+        return slide.type === 'metronome' ? 'metronome' : `${slide.type}-${slide.data.id}`;
+    }
+
+    // Loads the YouTube IFrame API script exactly once, only when a flow actually has a video
+    // attached - most flows don't, no reason to pull in third-party JS for them. Chains onto
+    // whatever onYouTubeIframeAPIReady already exists (there isn't one elsewhere in this app
+    // today, but this is the polite way to add a global callback regardless).
+    function ensureFlowYtApi() {
+        if (flowYtApiPromise) return flowYtApiPromise;
+        flowYtApiPromise = new Promise((resolve) => {
+            if (window.YT && window.YT.Player) { resolve(window.YT); return; }
+            const prevCallback = window.onYouTubeIframeAPIReady;
+            window.onYouTubeIframeAPIReady = () => {
+                if (typeof prevCallback === 'function') prevCallback();
+                resolve(window.YT);
+            };
+            if (!document.getElementById('youtubeIframeApiScript')) {
+                const script = document.createElement('script');
+                script.id = 'youtubeIframeApiScript';
+                script.src = 'https://www.youtube.com/iframe_api';
+                document.head.appendChild(script);
+            }
+        });
+        return flowYtApiPromise;
+    }
+
+    function flowMediaSlideHtml(slide) {
+        if (slide.type === 'audio') {
+            const r = slide.data;
+            return `
+                <div class="flow-media-slide" data-slide-key="${flowMediaSlideKey(slide)}">
+                    <div class="metroBlk-row">
+                        <div class="flow-media-slide-header">
+                            <span class="flow-media-icon type-audio"><span class="material-symbols-outlined" style="font-size:18px;">music_note</span></span>
+                            <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(r.mimeType || 'Audio file')}</span></div>
+                        </div>
+                        <audio class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}" data-flow-media-key="${flowMediaSlideKey(slide)}"></audio>
+                    </div>
+                </div>
+            `;
+        }
+        if (slide.type === 'video') {
+            const r = slide.data;
+            const origin = encodeURIComponent(location.origin);
+            return `
+                <div class="flow-media-slide" data-slide-key="${flowMediaSlideKey(slide)}">
+                    <div class="metroBlk-row">
+                        <div class="flow-media-slide-header">
+                            <span class="flow-media-icon type-youtube"><span class="material-symbols-outlined" style="font-size:18px;">smart_display</span></span>
+                            <div><strong>${escapeHtml(r.title)}</strong><span>YouTube video</span></div>
+                        </div>
+                        <div class="flow-media-player-video"><iframe id="flowYtFrame-${r.id}" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}?enablejsapi=1&amp;origin=${origin}" title="${escapeHtml(r.title)}" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                    </div>
+                </div>
+            `;
+        }
+        return '';
+    }
+
+    // Non-interactive stand-in for a slide (header only - icon/title/subtitle, no player) used to
+    // pad either end of the track so wrap-around swiping has something to animate into. Deliberately
+    // not a clone of the real slide's DOM: the real metronome slide's transport controls and a real
+    // video slide's YT iframe both rely on singular ids (flowPlayBtn, flowYtFrame-<id>, ...) that a
+    // true clone would duplicate. These previews are only ever on screen for the tail end of a single
+    // swipe gesture before goToFlowMediaSlide snaps the track back onto the real slide in its place.
+    function flowMediaSlidePreviewHtml(slide) {
+        let iconHtml, title, subtitle;
+        if (slide.type === 'metronome') {
+            iconHtml = `<span class="flow-media-icon type-metronome">${FLOW_METRONOME_ICON_SVG}</span>`;
+            title = 'Metronome';
+            subtitle = '';
+        } else {
+            const r = slide.data;
+            iconHtml = slide.type === 'audio'
+                ? '<span class="flow-media-icon type-audio"><span class="material-symbols-outlined" style="font-size:18px;">music_note</span></span>'
+                : '<span class="flow-media-icon type-youtube"><span class="material-symbols-outlined" style="font-size:18px;">smart_display</span></span>';
+            title = r.title;
+            subtitle = slide.type === 'audio' ? (r.mimeType || 'Audio file') : 'YouTube video';
+        }
+        return `
+            <div class="flow-media-slide flow-media-slide-preview" data-clone="true" aria-hidden="true">
+                <div class="metroBlk-row">
+                    <div class="flow-media-slide-header">
+                        ${iconHtml}
+                        <div><strong>${escapeHtml(title)}</strong>${subtitle ? `<span>${escapeHtml(subtitle)}</span>` : ''}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // "Exclusive Playback" (ticket's own term) - called whenever any one source starts, whether
+    // that's the metronome's own Play button, an <audio> element's native play event, or a
+    // YT.Player moving into the PLAYING state. sourceKey is 'metronome', or flowMediaSlideKey's
+    // own 'audio-<id>'/'video-<id>' shape for whichever one just started.
+    function stopAllFlowMediaExcept(sourceKey) {
+        if (sourceKey !== 'metronome' && flowPlayer.isPlaying()) pauseFlow();
+        document.querySelectorAll('#flowMediaTrack audio[data-flow-media-key]').forEach(el => {
+            if (el.dataset.flowMediaKey !== sourceKey && !el.paused) el.pause();
+        });
+        Object.entries(flowYtPlayers).forEach(([id, player]) => {
+            if (`video-${id}` === sourceKey || !player || typeof player.pauseVideo !== 'function') return;
+            try {
+                if (player.getPlayerState && player.getPlayerState() === window.YT.PlayerState.PLAYING) player.pauseVideo();
+            } catch (error) { /* not ready yet - nothing playing to stop */ }
+        });
+    }
+
+    // Pauses whatever's active on one specific slide - used both when swiping/tapping away from it
+    // (the ticket's "swiping away... pause or mute the outgoing media") and when leaving Play Flow
+    // entirely (see switchView's own flowPlayView leave-check, pauseAllFlowMedia below).
+    function pauseFlowMediaSlide(slide) {
+        if (!slide) return;
+        if (slide.type === 'metronome') {
+            if (flowPlayer.isPlaying()) pauseFlow();
+        } else if (slide.type === 'audio') {
+            const el = document.querySelector(`audio[data-flow-media-key="${flowMediaSlideKey(slide)}"]`);
+            if (el && !el.paused) el.pause();
+        } else if (slide.type === 'video') {
+            const player = flowYtPlayers[slide.data.id];
+            if (player && typeof player.pauseVideo === 'function') {
+                try { player.pauseVideo(); } catch (error) { /* not ready yet */ }
+            }
+        }
+    }
+    function pauseAllFlowMedia() {
+        flowMediaSlides.forEach(pauseFlowMediaSlide);
+    }
+
+    // When there's more than one slide, renderFlowMediaCarousel pads the track with one preview
+    // slide on each end (a clone of the last slide up front, a clone of the first slide at the
+    // back - see flowMediaSlidePreviewHtml) so wrap-around swiping has something to animate into.
+    // That shifts every real slide's track position (data-track-slot) one place to the right - this
+    // is the shift amount, 0 when there's only the metronome slide and no padding was added.
+    function flowMediaTrackOffset() {
+        return flowMediaSlides.length > 1 ? 1 : 0;
+    }
+
+    // Pixels, not a percentage transform - .flow-media-slide's flex:0 0 100% makes the track's own
+    // rendered width N-times the viewport's (that's what makes it overflow rather than shrink to
+    // fit), so translateX(-slot*100%) would resolve against that N-times width, not the viewport -
+    // wrong distance for anything past the first slide. `slot` defaults to the active slide's own
+    // track position, but a wrap transition passes the padding slide's position explicitly.
+    function applyFlowMediaTrackPosition(slot) {
+        const viewport = document.getElementById('flowMediaViewport');
+        const track = document.getElementById('flowMediaTrack');
+        if (!viewport || !track) return;
+        if (slot === undefined) slot = flowMediaActiveIndex + flowMediaTrackOffset();
+        const width = viewport.getBoundingClientRect().width;
+        track.style.transform = `translateX(-${slot * width}px)`;
+    }
+
+    function updateFlowMediaViewportHeight() {
+        const viewport = document.getElementById('flowMediaViewport');
+        const track = document.getElementById('flowMediaTrack');
+        if (!viewport || !track) return;
+        const activeEl = track.children[flowMediaActiveIndex + flowMediaTrackOffset()];
+        if (activeEl) viewport.style.height = `${activeEl.scrollHeight}px`;
+    }
+
+    function renderFlowMediaDots() {
+        const dotsEl = document.getElementById('flowMediaDots');
+        if (!dotsEl) return;
+        if (flowMediaSlides.length <= 1) {
+            dotsEl.classList.add('hidden-group');
+            dotsEl.innerHTML = '';
+            return;
+        }
+        dotsEl.classList.remove('hidden-group');
+        dotsEl.innerHTML = flowMediaSlides.map((slide, i) => {
+            const iconHtml = slide.type === 'metronome' ? FLOW_METRONOME_ICON_SVG : `<span class="material-symbols-outlined">${slide.type === 'audio' ? 'music_note' : 'smart_display'}</span>`;
+            const label = slide.type === 'metronome' ? 'Metronome' : `${slide.type === 'audio' ? 'Audio' : 'Video'} - ${slide.data.title}`;
+            return `<button type="button" class="flow-media-dot${i === flowMediaActiveIndex ? ' active' : ''}" data-slide-index="${i}" aria-label="${escapeHtml(label)}">${iconHtml}</button>`;
+        }).join('');
+        dotsEl.querySelectorAll('[data-slide-index]').forEach(btn => {
+            btn.addEventListener('click', () => goToFlowMediaSlide(Number(btn.dataset.slideIndex)));
+        });
+    }
+
+    // Index sync (ticket's own term) - the active carousel slide and its indicator dot always
+    // move together, whichever one triggered the change (dot tap, swipe, or a no-op call that just
+    // needs to snap the track back to where it already was). Wraps round at either end, so
+    // continuing to swipe past the last slide lands back on the first (and vice versa) - `rawIndex`
+    // arriving as exactly -1 or exactly flowMediaSlides.length (one step past either end, only ever
+    // sent by the swipe handler below) is what triggers the wrap-through-the-padding-slide
+    // animation rather than a plain cut to the target slide.
+    function goToFlowMediaSlide(rawIndex) {
+        const count = flowMediaSlides.length;
+        const targetIndex = ((rawIndex % count) + count) % count;
+        const offset = flowMediaTrackOffset();
+        const isForwardWrap = offset && rawIndex === count;
+        const isBackwardWrap = offset && rawIndex === -1;
+        if (targetIndex === flowMediaActiveIndex && !isForwardWrap && !isBackwardWrap) {
+            applyFlowMediaTrackPosition();
+            return;
+        }
+        pauseFlowMediaSlide(flowMediaSlides[flowMediaActiveIndex]);
+        const track = document.getElementById('flowMediaTrack');
+        flowMediaActiveIndex = targetIndex;
+        const realSlot = flowMediaActiveIndex + offset;
+        if ((isForwardWrap || isBackwardWrap) && track) {
+            // Animate on into the padding slide at the far end (the "coming in" slide the user
+            // just swiped toward), then hop back onto the real slide sitting in its place with the
+            // transition switched off for that one frame - to the eye it's one continuous slide.
+            applyFlowMediaTrackPosition(isForwardWrap ? count + offset : 0);
+            track.addEventListener('transitionend', function onFlowMediaWrapEnd(e) {
+                if (e.propertyName && e.propertyName !== 'transform') return;
+                track.removeEventListener('transitionend', onFlowMediaWrapEnd);
+                track.style.transition = 'none';
+                applyFlowMediaTrackPosition(realSlot);
+                void track.offsetWidth; // force reflow so the transition below doesn't apply to this jump
+                track.style.transition = '';
+            }, { once: true });
+        } else {
+            applyFlowMediaTrackPosition();
+        }
+        updateFlowMediaViewportHeight();
+        document.querySelectorAll('#flowMediaDots .flow-media-dot').forEach((btn, i) => {
+            btn.classList.toggle('active', i === flowMediaActiveIndex);
+        });
+    }
+
+    // Horizontal swipe on the carousel viewport - same lock/abandon technique as Quick Play's own
+    // swipe-to-delete (wireQpBarSwipe): nothing transforms until the gesture actually commits to
+    // "this is a horizontal swipe" (enough X travel while Y travel stays small), a clearly-vertical
+    // drag before that point is left alone entirely so touch-action:pan-y can still scroll the page.
+    const FLOW_MEDIA_SWIPE_LOCK_X_PX = 10;
+    const FLOW_MEDIA_SWIPE_LOCK_Y_MAX_PX = 15;
+    const FLOW_MEDIA_SWIPE_COMMIT_RATIO = 0.2;
+    function wireFlowMediaSwipe() {
+        const viewport = document.getElementById('flowMediaViewport');
+        const track = document.getElementById('flowMediaTrack');
+        if (!viewport || !track) return;
+        let startX = 0, startY = 0, tracking = false, locked = false, abandoned = false, baseOffsetPx = 0;
+
+        function onMove(e) {
+            if (!tracking || abandoned) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (!locked) {
+                if (Math.abs(dx) > FLOW_MEDIA_SWIPE_LOCK_X_PX && Math.abs(dy) < FLOW_MEDIA_SWIPE_LOCK_Y_MAX_PX) {
+                    locked = true;
+                    track.style.transition = 'none';
+                } else if (Math.abs(dy) >= FLOW_MEDIA_SWIPE_LOCK_Y_MAX_PX) {
+                    abandoned = true;
+                    return;
+                } else {
+                    return;
+                }
+            }
+            e.preventDefault();
+            const width = viewport.getBoundingClientRect().width;
+            // Bounds include the padding slides at each end (flowMediaTrackOffset) so the drag can
+            // continue past the last/first real slide onto whichever preview is coming in next.
+            const slotOffset = flowMediaTrackOffset();
+            const rightmostSlot = flowMediaSlides.length - 1 + 2 * slotOffset;
+            const min = -rightmostSlot * width;
+            const posPx = Math.min(0, Math.max(min, baseOffsetPx + dx));
+            track.style.transform = `translateX(${posPx}px)`;
+        }
+        function onUp(e) {
+            if (!tracking) return;
+            tracking = false;
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            track.style.transition = '';
+            if (!locked) return;
+            const dx = e.clientX - startX;
+            const width = viewport.getBoundingClientRect().width;
+            if (Math.abs(dx) > width * FLOW_MEDIA_SWIPE_COMMIT_RATIO) {
+                goToFlowMediaSlide(flowMediaActiveIndex + (dx < 0 ? 1 : -1));
+            } else {
+                goToFlowMediaSlide(flowMediaActiveIndex);
+            }
+        }
+        viewport.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('audio, iframe, button, input')) return;
+            startX = e.clientX;
+            startY = e.clientY;
+            baseOffsetPx = -(flowMediaActiveIndex + flowMediaTrackOffset()) * viewport.getBoundingClientRect().width;
+            tracking = true;
+            locked = false;
+            abandoned = false;
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+        });
+    }
+    let flowMediaSwipeWired = false;
+
+    // Renders the carousel for the flow that's just loaded (buildFlowMediaSlides already ran) -
+    // appends fresh audio/video slide markup after the always-present metronome slide, pads either
+    // end with a wrap-around preview slide (see flowMediaSlidePreviewHtml), wires the YT players
+    // for any video slides, and (re)measures the active slide's height.
+    function renderFlowMediaCarousel() {
+        const track = document.getElementById('flowMediaTrack');
+        if (!track) return;
+        // The metronome slide is the view's own static markup, kept by data-slide-type rather than
+        // by position - a previous render may have left a wrap-around preview clone in front of it
+        // (also data-slide-type="metronome", so excluded here by its own data-clone marker).
+        const metronomeEl = track.querySelector('.flow-media-slide[data-slide-type="metronome"]:not([data-clone])');
+        Array.from(track.children).forEach(child => { if (child !== metronomeEl) track.removeChild(child); });
+        flowMediaSlides.slice(1).forEach(slide => {
+            track.insertAdjacentHTML('beforeend', flowMediaSlideHtml(slide));
+        });
+        if (flowMediaSlides.length > 1) {
+            track.insertAdjacentHTML('afterbegin', flowMediaSlidePreviewHtml(flowMediaSlides[flowMediaSlides.length - 1]));
+            track.insertAdjacentHTML('beforeend', flowMediaSlidePreviewHtml(flowMediaSlides[0]));
+        }
+
+        track.querySelectorAll('audio[data-flow-media-key]').forEach(el => {
+            el.addEventListener('play', () => stopAllFlowMediaExcept(el.dataset.flowMediaKey));
+        });
+
+        const videoSlides = flowMediaSlides.filter(s => s.type === 'video');
+        if (videoSlides.length) {
+            ensureFlowYtApi().then((YT) => {
+                videoSlides.forEach(slide => {
+                    const id = slide.data.id;
+                    const frameEl = document.getElementById(`flowYtFrame-${id}`);
+                    if (!frameEl || flowYtPlayers[id]) return;
+                    flowYtPlayers[id] = new YT.Player(frameEl, {
+                        events: {
+                            onStateChange: (e) => {
+                                if (e.data === YT.PlayerState.PLAYING) stopAllFlowMediaExcept(`video-${id}`);
+                            }
+                        }
+                    });
+                });
+            });
+        }
+
+        applyFlowMediaTrackPosition();
+        renderFlowMediaDots();
+        updateFlowMediaViewportHeight();
+
+        if (!flowMediaSwipeWired) {
+            wireFlowMediaSwipe();
+            flowMediaSwipeWired = true;
+        }
+    }
 
     function renderFlowPlaybackTiles() {
         const leadInSlot = document.getElementById('flowPlayLeadInSlot');
@@ -5218,7 +7514,7 @@
         const block = metroBlkEffectiveBlock(flowPlayQueue[flowPlayIndex], flowPlayQueue);
         const subFactor = flowSubFactorFor(block);
         const labelEl = document.getElementById('flowPlayRowLabel');
-        if (labelEl) labelEl.innerText = block ? metroBlkBlockLabel(block, flowBeatsPlayedInBlock) : '';
+        if (labelEl) labelEl.innerHTML = block ? metroBlkBlockLabel(block, flowBeatsPlayedInBlock) : ''; // ML-130: label carries a real fermata glyph now, not plain text
 
         const beatsPerBar = block ? metroBlkBeatsPerBarFor(block) : 4;
         const totalBaseClicks = beatsPerBar * subFactor;
@@ -5228,6 +7524,10 @@
         metroApplyDisplayWidth('flowPlayRowViewport', 'flowPlayRowContent', totalBaseClicks + 1);
         connectMetroBlkDotsWithTrack('flowPlayRowDots', endLeftStyle);
         greyOutSkippedDots('flowPlayRowDots', block, subFactor);
+        // ML-130: NOT always bar 0 - a sub-beats/play-speed change mid-block re-renders this row from
+        // wherever playback currently sits (flowSubdivideSaveBtn/setFlowSpeedPercent), not just on a
+        // fresh block entry, so this has to derive the real current bar rather than assume the start.
+        renderFermataMarkers('flowPlayRowDots', block, metroBlkCurrentBarIndex(block, flowBeatsPlayedInBlock), subFactor);
         if (!flowPlayer.isPlaying()) resetMetroScrollPosition('flowPlayRowContent');
         const inQuietGap = flowQuietGapActive && flowPlayer.isPlaying() && block && block.isLeadIn;
         document.getElementById('flowPlayRowContent')?.classList.toggle('metroBlk-quiet-gap', inQuietGap);
@@ -5243,6 +7543,8 @@
 
     function playFlow() {
         if (!flowPlayQueue.length) return;
+        // ML-166 "Exclusive Playback" - starting the metronome stops any audio/video slide.
+        stopAllFlowMediaExcept('metronome');
         flowPlayer.play(flowPendingLeadInSilence);
         flowPendingLeadInSilence = 0;
         updateFlowPlayIcon();
@@ -5411,13 +7713,11 @@
     });
     renderFlowVolumeSlider();
 
-    document.getElementById('flowPlayFlowBtn')?.addEventListener('click', () => {
-        if (currentFlowId) goToFlowPlayView(currentFlowId);
-    });
-
     // --- Play Flow's own 3-dot menu (Edit details / Edit flow) - replaces Quick Play's static
     // "Bars" title's Show history/Create flow links. Bare .dropdown-menu, same "only ever one
-    // instance on screen" precedent as flowHubMenu. ---
+    // instance on screen" precedent as elsewhere in the app (e.g. the burger menu). Both items land
+    // on the same Edit Flow view (Details/Media/Blocks tabs) now, just on a different starting tab -
+    // see flowEditRequestedTab. ---
     function closeFlowPlayMenu() {
         document.getElementById('flowPlayMenu')?.classList.remove('show');
     }
@@ -5429,12 +7729,18 @@
     document.getElementById('flowPlayMenuEditDetails')?.addEventListener('click', (e) => {
         e.stopPropagation();
         closeFlowPlayMenu();
-        if (currentFlowId) switchView('flowDetailsHubView');
+        if (!currentFlowId) return;
+        flowEditRequestedTab = 'details';
+        flowEditMode = 'edit';
+        switchView('flowDetailsHubView');
     });
     document.getElementById('flowPlayMenuEditFlow')?.addEventListener('click', (e) => {
         e.stopPropagation();
         closeFlowPlayMenu();
-        if (currentFlowId) goToBlocksStudio(currentFlowId);
+        if (!currentFlowId) return;
+        flowEditRequestedTab = 'blocks';
+        flowEditMode = 'edit';
+        switchView('flowDetailsHubView');
     });
     // Lands straight on the library list, not the create/load choice screen.
     document.getElementById('flowPlayMenuLoadLibrary')?.addEventListener('click', (e) => {
@@ -5761,19 +8067,33 @@
     // ML-172: bar identification leads now (which block/lead-in this is matters more at a glance than
     // the time signature/tempo that follow it), then time signature, then bpm - same reorder as
     // qpBlockLabel's own.
+    // ML-130: the fermata glyph (+ ×N once there's more than one) appended to the "now playing"
+    // label - counted across the WHOLE block, not just whichever bar is currently playing, since the
+    // fermatas themselves are block-scoped data (two different bars of the same block can each carry
+    // one, and that's still just "this block has 2"). Caesura is a separate follow-up, not counted
+    // here yet. Returns '' (not undefined) when the block has none, so callers can always just
+    // concatenate it straight onto the rest of the label.
+    function metroBlkFermataLabelSuffix(block) {
+        const count = (block.fermatas || []).filter(f => f.kind !== 'caesura').length;
+        if (!count) return '';
+        return ` · ${flowPauseIconSvg('fermata', true)}${count > 1 ? `×${count}` : ''}`;
+    }
+    // Returns HTML (the fermata suffix embeds a real glyph span, not plain text) - every caller must
+    // assign this via innerHTML, not innerText.
     function metroBlkBlockLabel(block, beatsPlayedInBlock) {
         const prefix = block.isLeadIn ? 'Lead-in · ' : '';
+        const fermataSuffix = metroBlkFermataLabelSuffix(block);
         // A lead-in only ever plays once, so an "x of y beats" progress count is meaningless - only
         // a repeating block's bar count needs that. (Already identification-first as-is here - a
         // partial-bar lead-in has no count to reorder around.)
         if (block.pickupBeats) {
-            return `${prefix}${block.timeSignatureLabel} · ${block.bpm} bpm`;
+            return `${prefix}${block.timeSignatureLabel} · ${block.bpm} bpm${fermataSuffix}`;
         }
         const total = block.barCount;
         const countStr = beatsPlayedInBlock === undefined
             ? `${total} bar${total === 1 ? '' : 's'}`
             : `${Math.min(total, Math.floor(beatsPlayedInBlock / metroBlkBeatsPerBarFor(block)) + 1)} of ${total} bar${total === 1 ? '' : 's'}`;
-        return `${prefix}${countStr} · ${block.timeSignatureLabel} · ${block.bpm} bpm`;
+        return `${prefix}${countStr} · ${block.timeSignatureLabel} · ${block.bpm} bpm${fermataSuffix}`;
     }
 
     // Segment ids are either a real number (persisted) or a temp string like "tmp3" (staged, not
@@ -6041,7 +8361,7 @@
                 .sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
             if (!members.length) return '';
             return `<div class="metroSeg-timesig-family">
-                <div class="metroSeg-timesig-family-label">${METRO_SEG_TIMESIG_FAMILY_LABELS[family]}</div>
+                <div class="flow-tile-section-label">${METRO_SEG_TIMESIG_FAMILY_LABELS[family]}</div>
                 <div class="metroSeg-timesig-family-grid">
                     ${members.map(t => {
                         const value = `public:${t.id}`;
@@ -6391,28 +8711,41 @@
 
     // --- Note-value icons (real vector glyphs, not unicode musical symbols - see the CSS comment
     // on .metroBlk-note-picker for why). Shared with Quick Play's own per-block note picker
-    // (qpOpenNotePicker) - same five note values throughout the app. ---
+    // (qpOpenNotePicker) - same eight note values throughout the app, shortest to longest. Fraction
+    // is of a semibreve (quaver = 1/8 = 0.125, etc.) - see metroSegNoteFraction. ---
     const METRO_NOTE_TYPES = [
+        { key: 'semiquaver', label: 'Semiquaver', fraction: 0.0625 },
         { key: 'quaver', label: 'Quaver', fraction: 0.125 },
+        { key: 'dotted-quaver', label: 'Dotted quaver', fraction: 0.1875 },
         { key: 'crotchet', label: 'Crotchet', fraction: 0.25 },
         { key: 'dotted-crotchet', label: 'Dotted crotchet', fraction: 0.375 },
         { key: 'minim', label: 'Minim', fraction: 0.5 },
+        { key: 'dotted-minim', label: 'Dotted minim', fraction: 0.75 },
         { key: 'semibreve', label: 'Semibreve', fraction: 1 }
     ];
-    // One shared viewBox/layout across all five so they line up in a row regardless of whether a
-    // given note has a stem/flag/dot - notehead centre and stem position are fixed constants.
+    // One shared viewBox/layout across all eight so they line up in a row regardless of whether a
+    // given note has a stem/flag(s)/dot - notehead centre and stem position are fixed constants.
     function metroNoteIconSvg(key) {
         const head = '<ellipse cx="13" cy="44" rx="7.5" ry="5.2" transform="rotate(-20 13 44)"';
         const stem = '<rect x="19" y="6" width="2.6" height="38" fill="currentColor"/>';
+        const flag = '<path d="M21.6 6 C30 10 29 20 21 26" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>';
+        const flagLow = '<path d="M21.6 16 C30 20 29 30 21 36" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>';
+        const dot = '<circle cx="27" cy="42" r="2.2" fill="currentColor"/>';
         switch (key) {
             case 'semibreve':
                 return '<svg viewBox="0 0 32 56" class="metroBlk-note-svg"><ellipse cx="16" cy="28" rx="10" ry="6" fill="none" stroke="currentColor" stroke-width="3"/></svg>';
+            case 'dotted-minim':
+                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="none" stroke="currentColor" stroke-width="2.6"/>${stem}${dot}</svg>`;
             case 'minim':
                 return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="none" stroke="currentColor" stroke-width="2.6"/>${stem}</svg>`;
             case 'dotted-crotchet':
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}<circle cx="27" cy="42" r="2.2" fill="currentColor"/></svg>`;
+                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}${dot}</svg>`;
+            case 'dotted-quaver':
+                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}${flag}${dot}</svg>`;
             case 'quaver':
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}<path d="M21.6 6 C30 10 29 20 21 26" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>`;
+                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}${flag}</svg>`;
+            case 'semiquaver':
+                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}${flag}${flagLow}</svg>`;
             default: // crotchet
                 return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}</svg>`;
         }
@@ -6427,6 +8760,7 @@
     // the default means the displayed "note = bpm" number equals the block's own raw bpm the first
     // time a block is opened, with no surprise rescale, while still leaving it fully changeable.
     function metroSegDefaultNoteForDenominator(denominator) {
+        if (denominator === 16) return 'semiquaver';
         if (denominator === 8) return 'quaver';
         if (denominator === 2) return 'minim';
         if (denominator === 1) return 'semibreve';
@@ -6440,7 +8774,7 @@
         // index.html) - only the icon span's own content gets replaced, not the whole button.
         icon.innerHTML = metroNoteIconSvg(metroSegNoteSelected);
         const label = METRO_NOTE_TYPES.find(t => t.key === metroSegNoteSelected)?.label || '';
-        btn.setAttribute('aria-label', `Beat unit: ${label}. Tap to change.`);
+        btn.setAttribute('aria-label', `Beat note: ${label}. Tap to change.`);
     }
     function renderMetroSegNotePicker() {
         const el = document.getElementById('metroSegNotePicker');
@@ -7527,6 +9861,10 @@
         const useIntroStart = !metroBlkIntroConsumed && !block.pickupBeats && block.introStartBeatOffset > 1;
         applyMetroBlkToPlayer(block);
         metroBlkRealignPlayer(block, useIntroStart);
+        // ML-130: same shared engine/schedule shape as Flow's own jumpFlowToIndex - block.fermatas is
+        // always [] here today (no UI to create one on an ad-hoc segment yet), so this is a no-op in
+        // practice, but the wiring is real and needs no changes whenever that UI is added.
+        metroBlkPlayer.setFermataSchedule(buildFermataSchedule(block, metroBlkSubFactorFor(block)), fermataPlaybackModeSetting());
         if (useIntroStart) {
             const skippedBeats = block.introStartBeatOffset - 1;
             metroBlkBeatsPlayedInBlock = skippedBeats;
@@ -7634,6 +9972,13 @@
         // (ML-111). Removed - Auto now animates every click exactly like Fixed mode already did.
         flashTierDot('metroBlkRow0Dots', beatInfo.clickIndexInBar);
         flashTierDot('metroBlkMiniDots', beatInfo.clickIndexInBar);
+        updateFermataDotState('metroBlkRow0Dots', beatInfo);
+        updateFermataDotState('metroBlkMiniDots', beatInfo);
+
+        // ML-130: see onFlowBeat's matching comment - a repeat pulse within a fermata hold isn't a new
+        // beat, and must not count towards block-advancement/bar-label bookkeeping below.
+        const isFermataRepeat = !!(beatInfo.fermataHold && !beatInfo.fermataHold.isFirst);
+        if (isFermataRepeat) return;
 
         // Advancing has to wait for every click of the target's last beat, sub-beats included, not
         // just that beat's own main click - a 4/4 bar with subdivide on isn't actually finished the
@@ -7668,9 +10013,17 @@
             if (block.pickupBeats || justCompletedABar) {
                 const freshLabel = metroBlkBlockLabel(block, metroBlkBeatsPlayedInBlock);
                 const labelEl = document.getElementById('metroBlkRow0Label');
-                if (labelEl) labelEl.innerText = freshLabel;
+                if (labelEl) labelEl.innerHTML = freshLabel; // ML-130: label carries a real fermata glyph now, not plain text
                 const miniLabel = document.getElementById('metroBlkMiniLabel');
-                if (miniLabel) miniLabel.innerText = freshLabel;
+                if (miniLabel) miniLabel.innerHTML = freshLabel;
+            }
+            // ML-130: a new bar just started - refresh which fermata glyph(s), if any, sit above this
+            // bar's own dots (always none today - see buildFermataSchedule's own comment - but kept in
+            // step with Flow's identical marker-refresh call for whenever that changes).
+            if (justCompletedABar && !block.pickupBeats) {
+                const newBarIndex = Math.floor(metroBlkBeatsPlayedInBlock / metroBlkBeatsPerBarFor(block));
+                renderFermataMarkers('metroBlkRow0Dots', block, newBarIndex, subFactor);
+                renderFermataMarkers('metroBlkMiniDots', block, newBarIndex, subFactor);
             }
         }
 
@@ -7740,7 +10093,7 @@
         const subFactor = metroBlkSubFactorFor(block);
         const label = block ? metroBlkBlockLabel(block, metroBlkBeatsPlayedInBlock) : '';
         const labelEl = document.getElementById('metroBlkRow0Label');
-        if (labelEl) labelEl.innerText = label;
+        if (labelEl) labelEl.innerHTML = label; // ML-130: label carries a real fermata glyph now, not plain text
 
         // ML-95: macro beats, not the raw time-signature numerator - a 9/8 block lays out 3 big-dot
         // groups (each subFactor clicks wide when subdividing), not 9.
@@ -7758,6 +10111,10 @@
         metroApplyDisplayWidth('metroBlkRow0Viewport', 'metroBlkRow0Content', totalBaseClicks + 1);
         connectMetroBlkDotsWithTrack('metroBlkRow0Dots', endLeftStyle);
         greyOutSkippedDots('metroBlkRow0Dots', block, subFactor);
+        // ML-130: NOT always bar 0 - the window resize listener calls this from wherever playback
+        // currently sits, not just on a fresh block entry.
+        const fermataBarIndex = metroBlkCurrentBarIndex(block, metroBlkBeatsPlayedInBlock);
+        renderFermataMarkers('metroBlkRow0Dots', block, fermataBarIndex, subFactor);
         if (!metroBlkPlayer.isPlaying()) resetMetroScrollPosition('metroBlkRow0Content');
         // Requires isPlaying(): sitting on a not-yet-started lead-in (paused, or never played this
         // session) isn't "during the quiet space" in any meaningful sense yet, so it shouldn't
@@ -7769,10 +10126,11 @@
         metroApplyDisplayWidth('metroBlkMiniViewport', 'metroBlkMiniContent', totalBaseClicks + 1);
         connectMetroBlkDotsWithTrack('metroBlkMiniDots', endLeftStyle);
         greyOutSkippedDots('metroBlkMiniDots', block, subFactor);
+        renderFermataMarkers('metroBlkMiniDots', block, fermataBarIndex, subFactor);
         if (!metroBlkPlayer.isPlaying()) resetMetroScrollPosition('metroBlkMiniContent');
         document.getElementById('metroBlkMiniContent')?.classList.toggle('metroBlk-quiet-gap', inQuietGap);
         const miniLabel = document.getElementById('metroBlkMiniLabel');
-        if (miniLabel) miniLabel.innerText = label || '-';
+        if (miniLabel) miniLabel.innerHTML = label || '-'; // ML-130: label carries a real fermata glyph now, not plain text
 
         renderMetroBlkActiveTileHighlight();
         // Keeps the collapsed sub-beats button live (ML-95) - Auto's decision depends on this
@@ -8176,9 +10534,9 @@
                         <strong>${escapeHtml(qpBlockTimeSigLabel(block))}</strong>
                         <span class="metroBlk-ctrl-value-label">time</span>
                     </button>
-                    <button type="button" class="metroBlk-ctrl-value-btn qp-notelen-cell" data-qp-note-btn aria-label="Beat unit - tap to change">
+                    <button type="button" class="metroBlk-ctrl-value-btn qp-notelen-cell" data-qp-note-btn aria-label="Beat note - tap to change">
                         <span class="qp-note-btn-icon">${metroNoteIconSvg(block.noteSelected)}</span>
-                        <span class="metroBlk-ctrl-value-label">beat unit</span>
+                        <span class="metroBlk-ctrl-value-label">beat note</span>
                     </button>
                     <div class="metroBlk-bpm-box qp-bpm-cell">
                         <div class="metro-speed-row no-margin qp-bpm-speed-row">
@@ -8339,32 +10697,88 @@
         });
     }
 
-    // FLIP (First-Last-Invert-Play): measures every bar's current on-screen position before a
-    // structural change, lets renderQuickPlayBlocks rebuild the DOM as normal (bar titles are
-    // position-derived off the array, so a full rebuild is the simplest way to keep them correct),
-    // then animates each surviving bar from its old position to its new one. Matched by _uid, not
-    // DOM node identity or array index - the rebuild throws every node away, and index alone can't
-    // tell "this bar moved" from "a different bar is now sitting at this index". A bar with no
-    // "before" entry is brand new (add/duplicate) and fades in instead of sliding, since there's no
-    // old position for it to slide from. raiseUid optionally lifts one bar's z-index for the
-    // duration, so on a move it visibly passes over the bar it's swapping with rather than both just
-    // sliding past each other flat.
-    function qpAnimateBlocksChange(mutate, { raiseUid } = {}) {
-        const container = document.getElementById('qpBlocks');
+    // Generic grab-handle-driven vertical reorder gesture, shared by Quick Play's own bar boxes
+    // (wireQpBarGrabHandle) and Flow's block cards (wireFlowBlockGrabHandle). Picking up the handle
+    // live-follows the pointer with a translateY on the whole box, and gives the card (surfaceSelector,
+    // a child of boxEl) a gold, thicker border (.drag-reorder-highlight) for the duration - clear
+    // "this is the one moving" feedback the whole gesture through. Releasing past the threshold
+    // deliberately leaves both the transform and the highlight in place (NOT reset here) and calls
+    // onMoveUp/onMoveDown - whichever animated swap that triggers (qpSwapBarPositions/
+    // flowSwapBlockPositions, both built on animateFlipReorder below) captures the box's current,
+    // already-dragged position as its FLIP "before" state (so the box continues smoothly on to its new
+    // slot instead of snapping back to its original position first - the bug this replaced) and
+    // re-applies the highlight to the freshly re-rendered element until the settle animation actually
+    // finishes, so the border reads as one continuous highlight across the whole gesture rather than
+    // flickering off between the live-drag and settle phases. Releasing short of the threshold springs
+    // back (and clears the highlight) instead, since nothing moved.
+    function wireVerticalDragHandle(handleEl, boxEl, thresholdPx, onMoveUp, onMoveDown, surfaceSelector) {
+        if (!handleEl) return;
+        let startY = 0, dragging = false;
+        function onMove(e) {
+            if (!dragging) return;
+            boxEl.style.transform = `translateY(${e.clientY - startY}px)`;
+        }
+        function onUp(e) {
+            if (!dragging) return;
+            dragging = false;
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            const dy = e.clientY - startY;
+            if (Math.abs(dy) > thresholdPx) {
+                if (dy < 0) onMoveUp(); else onMoveDown();
+            } else {
+                boxEl.style.transition = 'transform 0.2s ease';
+                boxEl.style.transform = '';
+                boxEl.querySelector(surfaceSelector)?.classList.remove('drag-reorder-highlight');
+            }
+        }
+        handleEl.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            boxEl.querySelector(surfaceSelector)?.classList.add('drag-reorder-highlight');
+            startY = e.clientY;
+            dragging = true;
+            boxEl.style.transition = 'none';
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+        });
+    }
+
+    // FLIP (First-Last-Invert-Play): measures every item's current on-screen position before a
+    // structural change, lets `rerender` rebuild the DOM as normal (titles/bar numbers are
+    // position-derived off the underlying array, so a full rebuild is the simplest way to keep them
+    // correct), then animates each surviving item from its old position to its new one. Matched by
+    // `itemAttr` (e.g. `data-qp-uid`/`data-block-id`), not DOM node identity or array index - the
+    // rebuild throws every node away, and index alone can't tell "this item moved" from "a different
+    // item is now sitting at this index". An item with no "before" entry is brand new (add/duplicate)
+    // and fades in instead of sliding, since there's no old position for it to slide from. raiseUid
+    // optionally lifts one item's z-index for the duration, so on a move it visibly passes over the
+    // item it's swapping with rather than both just sliding past each other flat - also re-applies the
+    // gold-border drag-reorder-highlight (wireVerticalDragHandle) to that same raised element, on the
+    // freshly re-rendered node, clearing it once its settle transition actually finishes - so the
+    // border reads as one continuous highlight across the live-drag and settle phases rather than
+    // flickering off in between. Shared by Quick Play's own bar boxes (qpAnimateBlocksChange) and
+    // Flow's block cards (flowAnimateBlocksChange) - same technique, one implementation, rather than
+    // two copies drifting apart.
+    function animateFlipReorder({ containerId, itemAttr, mutate, rerender, raiseUid, animatingClass, surfaceSelector }) {
+        const container = document.getElementById(containerId);
         const before = new Map();
         if (container) {
-            container.querySelectorAll('[data-qp-uid]').forEach(el => {
-                before.set(el.dataset.qpUid, el.getBoundingClientRect());
+            container.querySelectorAll(`[${itemAttr}]`).forEach(el => {
+                before.set(el.getAttribute(itemAttr), el.getBoundingClientRect());
             });
         }
         mutate();
-        renderQuickPlayBlocks();
+        rerender();
         if (!container) return;
-        const afterEls = [...container.querySelectorAll('[data-qp-uid]')];
+        const afterEls = [...container.querySelectorAll(`[${itemAttr}]`)];
         afterEls.forEach(el => {
-            const uid = el.dataset.qpUid;
+            const uid = el.getAttribute(itemAttr);
             const prev = before.get(uid);
-            if (raiseUid !== undefined && String(raiseUid) === uid) el.style.zIndex = '2';
+            if (raiseUid !== undefined && String(raiseUid) === uid) {
+                el.style.zIndex = '2';
+                el.querySelector(surfaceSelector)?.classList.add('drag-reorder-highlight');
+            }
             if (prev) {
                 const now = el.getBoundingClientRect();
                 const dx = prev.left - now.left;
@@ -8381,15 +10795,32 @@
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 afterEls.forEach(el => {
-                    el.classList.add('qp-block-animating');
+                    el.classList.add(animatingClass);
                     el.style.transform = '';
                     el.style.opacity = '';
                     el.addEventListener('transitionend', () => {
-                        el.classList.remove('qp-block-animating');
+                        el.classList.remove(animatingClass);
                         el.style.zIndex = '';
+                        el.querySelector(surfaceSelector)?.classList.remove('drag-reorder-highlight');
                     }, { once: true });
                 });
             });
+        });
+    }
+    function qpAnimateBlocksChange(mutate, { raiseUid } = {}) {
+        animateFlipReorder({
+            containerId: 'qpBlocks', itemAttr: 'data-qp-uid', mutate,
+            rerender: renderQuickPlayBlocks, raiseUid, animatingClass: 'qp-block-animating',
+            surfaceSelector: '.qp-block-surface'
+        });
+    }
+    // data-block-id is already on every .flow-block-box (flowBlockCardHtml) for the swipe/grab-handle
+    // wiring - reused here as the same stable identity FLIP needs, no extra markup required.
+    function flowAnimateBlocksChange(mutate, { raiseUid } = {}) {
+        animateFlipReorder({
+            containerId: 'flowBlocksList', itemAttr: 'data-block-id', mutate,
+            rerender: renderFlowBlocksList, raiseUid, animatingClass: 'flow-block-animating',
+            surfaceSelector: '.flow-block-card'
         });
     }
 
@@ -8508,36 +10939,11 @@
     // Vertical reordering, scoped strictly to the grab handle (only rendered once there are 2+ bars -
     // see qpBlockBoxHtml). Single-step swap (qpMoveBarUp/Down), same as the menu's own Move up/down -
     // this refactor is about where the gesture is allowed to start, not building a full drag-to-
-    // arbitrary-position sortable list.
+    // arbitrary-position sortable list. wireVerticalDragHandle (shared with Flow's own
+    // wireFlowBlockGrabHandle) owns the actual gesture/animation handoff.
     function wireQpBarGrabHandle(handleEl, boxEl, index) {
-        if (!handleEl) return;
-        let startY = 0, dragging = false;
-
-        function onMove(e) {
-            if (!dragging) return;
-            boxEl.style.transform = `translateY(${e.clientY - startY}px)`;
-        }
-        function onUp(e) {
-            if (!dragging) return;
-            dragging = false;
-            document.removeEventListener('pointermove', onMove);
-            document.removeEventListener('pointerup', onUp);
-            const dy = e.clientY - startY;
-            boxEl.style.transition = '';
-            boxEl.style.transform = '';
-            if (Math.abs(dy) > QP_REORDER_THRESHOLD_PX) {
-                if (dy < 0) qpMoveBarUp(index); else qpMoveBarDown(index);
-            }
-        }
-        handleEl.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            startY = e.clientY;
-            dragging = true;
-            boxEl.style.transition = 'none';
-            document.addEventListener('pointermove', onMove);
-            document.addEventListener('pointerup', onUp);
-        });
+        wireVerticalDragHandle(handleEl, boxEl, QP_REORDER_THRESHOLD_PX,
+            () => qpMoveBarUp(index), () => qpMoveBarDown(index), '.qp-block-surface');
     }
 
     // Horizontal swipe-to-reveal delete. Doesn't touch anything (no transform, no preventDefault)
