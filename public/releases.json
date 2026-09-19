@@ -7,6 +7,36 @@
         "key": "ML-182",
         "type": "New",
         "summary": "Blocks Studio: replace \"Block N\" title with rehearsal mark + bar range"
+      },
+      {
+        "key": "ML-178",
+        "type": "New",
+        "summary": "Create flow - add mp3 and links for Youtube"
+      },
+      {
+        "key": "ML-177",
+        "type": "New",
+        "summary": "Create flow - add details section"
+      },
+      {
+        "key": "ML-176",
+        "type": "New",
+        "summary": "Filter redesign for session history and stats page"
+      },
+      {
+        "key": "ML-175",
+        "type": "New",
+        "summary": "Session history menu change"
+      },
+      {
+        "key": "ML-161",
+        "type": "Fixes",
+        "summary": "Slow to load the metronome page at the top"
+      },
+      {
+        "key": "ML-23",
+        "type": "New",
+        "summary": "Create a variable metronome for individual music pieces"
       }
     ]
   },
