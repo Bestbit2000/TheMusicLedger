@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.20.0",
+    "date": "2026-09-19",
+    "changes": [
+      {
+        "key": "ML-130",
+        "type": "New",
+        "summary": "Update flow metronome for the fermata"
+      }
+    ]
+  },
+  {
     "version": "0.19.0",
     "date": "2026-09-18",
     "changes": [
