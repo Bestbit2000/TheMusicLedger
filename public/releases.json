@@ -1,12 +1,27 @@
 [
   {
     "version": "0.20.0",
-    "date": "2026-09-19",
+    "date": "2026-09-20",
     "changes": [
+      {
+        "key": "ML-183",
+        "type": "New",
+        "summary": "Tabbed version of flow edit screen"
+      },
+      {
+        "key": "ML-166",
+        "type": "New",
+        "summary": "Add mp3 to library for play along to music"
+      },
       {
         "key": "ML-130",
         "type": "New",
         "summary": "Update flow metronome for the fermata"
+      },
+      {
+        "key": "ML-103",
+        "type": "New",
+        "summary": "Revised Flow journey"
       }
     ]
   },
