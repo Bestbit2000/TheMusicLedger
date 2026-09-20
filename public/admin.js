@@ -165,7 +165,7 @@
             <div class="admin-feature">
                 <div class="admin-feature-header">
                     <div class="admin-feature-header-text">
-                        <h2>${escapeHtml(f.name)}</h2>
+                        <h2>${escapeHtml(f.name)}${f.enabled ? '' : ' (disabled)'}</h2>
                         <p>${escapeHtml(f.description || '')}</p>
                         <p class="admin-test-case-meta">${escapeHtml(f.featureKey)}</p>
                     </div>
@@ -196,6 +196,7 @@
         document.getElementById('featureKeyInput').value = feature ? feature.featureKey : '';
         document.getElementById('featureNameInput').value = feature ? feature.name : '';
         document.getElementById('featureDescInput').value = feature ? (feature.description || '') : '';
+        document.getElementById('featureEnabledInput').checked = feature ? feature.enabled : true;
         document.getElementById('featureFormModal').style.display = 'flex';
         document.getElementById('featureKeyInput').focus();
     }
@@ -209,6 +210,7 @@
         const featureKey = document.getElementById('featureKeyInput').value.trim();
         const name = document.getElementById('featureNameInput').value.trim();
         const description = document.getElementById('featureDescInput').value.trim();
+        const enabled = document.getElementById('featureEnabledInput').checked;
 
         if (!featureKey || !name) {
             showToast('Feature key and name are both required.');
@@ -219,9 +221,9 @@
         saveBtn.disabled = true;
         try {
             if (editingFeatureId) {
-                await apiCall(`/api/admin/features/${editingFeatureId}`, 'PUT', { featureKey, name, description });
+                await apiCall(`/api/admin/features/${editingFeatureId}`, 'PUT', { featureKey, name, description, enabled });
             } else {
-                await apiCall('/api/admin/features', 'POST', { featureKey, name, description });
+                await apiCall('/api/admin/features', 'POST', { featureKey, name, description, enabled });
             }
             closeFeatureForm();
             await reloadFeatures();

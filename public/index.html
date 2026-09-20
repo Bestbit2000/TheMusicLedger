@@ -637,14 +637,16 @@
                     <strong>Load from library</strong>
                     <span class="metro-help-text">Open one of your saved flows</span>
                 </button>
-                <!-- Not wired up yet - importing a PDF/score needs an extra step (picking the file,
-                     presumably some parsing/review flow) that's still to be designed, so this is a
-                     plain unclickable div for now, not a button. -->
-                <div class="metroBlk-entry-choice metroBlk-entry-choice-disabled" aria-disabled="true">
+                <!-- ML-79: wired up - see flowFromFileView below (PDF/MusicXML/.mxl, Phase 2 added PDF
+                     via OMR). ML-190: starts hidden - the flow_import_from_file feature gate
+                     (renderFeatureGates, app.js) only ever REVEALS this once appData.enabledFeatures
+                     has actually loaded and says so; defaulting to hidden here avoids a flash of an
+                     option that then disappears the moment that resolves. -->
+                <button type="button" class="metroBlk-entry-choice hidden-group" id="metroBlkEntryFromFileBtn" aria-label="Create from file - import a PDF scan or MusicXML score">
                     <span class="material-symbols-outlined" aria-hidden="true">upload_file</span>
                     <strong>Create from file</strong>
-                    <span class="metro-help-text">Import from a PDF or music score (coming soon)</span>
-                </div>
+                    <span class="metro-help-text">Import from a PDF or MusicXML score</span>
+                </button>
             </div>
             <!-- No in-panel "Back" any more - the top header's own "<" already does that (leaving and
                  re-entering the tool lands back on the two-choice screen anyway, see
@@ -719,6 +721,58 @@
                 <button type="button" class="btn-submit no-margin" id="metroBlkEditSaveBtn">Save</button>
             </div>
         </div>
+        </div>
+    </div>
+
+    <!-- ML-79: "Create from file". Phase 1 (MusicXML/.mxl, parsed directly - server/services/
+         scoreImport.js) landed first; Phase 2 adds PDF/scan import via an external OMR service
+         (runOmr - AUDIVERIS_SERVICE_URL, not deployed anywhere yet) that turns the scan into
+         MusicXML first, then runs it through that exact same parser. A PDF pick still works end to
+         end here even with no OMR service configured - it just surfaces that as a clear toast at
+         the /flows/from-file step (scoreImport.js's runOmr) rather than failing silently or
+         pretending PDF isn't accepted. Reuses the Media tab's own upload-progress markup/classes
+         (flow-upload-progress*) rather than inventing a second version of the same thing.
+         handleFromFileUpload (app.js) drives both the real dropzone and the demo-score button below
+         through one shared path. -->
+    <div id="flowFromFileView" style="display:none;">
+        <div class="flow-from-file-banner">
+            <span class="material-symbols-outlined" aria-hidden="true">lightbulb</span>
+            <p><strong>How file import works:</strong> your score is saved into the <strong>Media</strong> section, while title, composer, tempo, and measure blocks are read into the flow. You'll review and amend everything on the next screen.</p>
+        </div>
+
+        <button type="button" class="flow-from-file-dropzone" id="flowFromFileDropBtn">
+            <span class="material-symbols-outlined" aria-hidden="true">upload_file</span>
+            <strong>Tap to browse score file</strong>
+            <span class="metro-help-text">Select a PDF scan, MusicXML, or .mxl</span>
+            <div class="flow-from-file-chip-row">
+                <span class="flow-pill">PDF</span>
+                <span class="flow-pill">MUSICXML</span>
+                <span class="flow-pill">MXL</span>
+            </div>
+        </button>
+        <input type="file" id="flowFromFileInput" class="hidden-group" accept=".pdf,.musicxml,.mxl,application/pdf,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml">
+
+        <div class="section-title"><span>Or test with demo score</span></div>
+        <div class="flow-card flow-from-file-demo-row">
+            <span class="material-symbols-outlined" aria-hidden="true">music_note</span>
+            <div class="flow-from-file-demo-info">
+                <strong>Simple Test Tune</strong>
+                <span class="metro-help-text">Traditional, arr. Test</span>
+            </div>
+            <button type="button" class="btn-cancel btn-nav no-margin" id="flowFromFileDemoBtn">Test scan</button>
+        </div>
+
+        <div class="flow-upload-progress hidden-group" id="flowFromFileProgress">
+            <div class="flow-upload-progress-text"><span id="flowFromFileProgressLabel">Uploading&hellip;</span><span id="flowFromFileProgressPercent">0%</span></div>
+            <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="flowFromFileProgressFill" style="width:0%;"></div></div>
+        </div>
+
+        <div class="flow-from-file-result hidden-group" id="flowFromFileResult">
+            <div class="flow-from-file-result-head"><span class="material-symbols-outlined" aria-hidden="true">check_circle</span> Score parsed successfully</div>
+            <div class="flow-from-file-result-row"><span>Title &amp; credits</span><span class="flow-from-file-result-ok" id="flowFromFileResultTitle">Extracted</span></div>
+            <div class="flow-from-file-result-row"><span>Document saved to Media</span><span class="flow-from-file-result-ok">Attached</span></div>
+            <div class="flow-from-file-result-row"><span>Measure blocks detected</span><span class="flow-pill flow-pill-accent" id="flowFromFileResultBlocks">0 blocks</span></div>
+            <button type="button" class="btn-submit" id="flowFromFileContinueBtn">Continue to flow</button>
         </div>
     </div>
 

@@ -189,6 +189,16 @@
         <div class="form-group"><label for="featureKeyInput">Feature key</label><input type="text" id="featureKeyInput" placeholder="e.g. metronome"></div>
         <div class="form-group"><label for="featureNameInput">Name</label><input type="text" id="featureNameInput" placeholder="e.g. Metronome"></div>
         <div class="form-group"><label for="featureDescInput">Description</label><textarea id="featureDescInput" rows="3"></textarea></div>
+        <!-- ML-190: shown for both add and edit (unlike durationActiveRow's edit-only equivalent) -
+             unlike a duration preset, a feature can meaningfully be created already disabled, same
+             as flow_import_from_file's own seed row (042_features_enabled.sql). Label-then-switch,
+             space-between - same convention as Settings' own Dark mode/Show flats toggles
+             (index.html), not the switch-then-label order the duration/time signature/speed forms
+             above use. -->
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); margin-bottom:var(--space-5);">
+            <span>Enabled (live for every user - only code that actually checks this feature's key is gated by it)</span>
+            <label class="toggle-switch"><input type="checkbox" id="featureEnabledInput" checked><span class="toggle-slider"></span></label>
+        </div>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="featureFormCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="featureFormSaveBtn" type="button">Save</button>
@@ -213,9 +223,9 @@
     <div class="modal-content">
         <h2 id="durationFormTitle">Add duration</h2>
         <div class="form-group"><label for="durationMinutesInput">Minutes</label><input type="number" id="durationMinutesInput" min="1" step="1"></div>
-        <div class="flex-row gap-md hidden-group" id="durationActiveRow" style="align-items:center; margin-bottom:var(--space-5);">
-            <label class="toggle-switch"><input type="checkbox" id="durationActiveInput" checked><span class="toggle-slider"></span></label>
+        <div class="hidden-group" id="durationActiveRow" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); margin-bottom:var(--space-5);">
             <span>Active (offered as a preset)</span>
+            <label class="toggle-switch"><input type="checkbox" id="durationActiveInput" checked><span class="toggle-slider"></span></label>
         </div>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="durationFormCancelBtn" type="button">Cancel</button>
@@ -230,9 +240,9 @@
         <div class="form-group"><label for="timeSigNumeratorInput">Numerator</label><input type="number" id="timeSigNumeratorInput" min="1" step="1"></div>
         <div class="form-group"><label for="timeSigDenominatorInput">Denominator</label><input type="number" id="timeSigDenominatorInput" min="1" step="1"></div>
         <div class="form-group"><label for="timeSigLabelInput">Label</label><input type="text" id="timeSigLabelInput" placeholder="e.g. 4/4"></div>
-        <div class="flex-row gap-md hidden-group" id="timeSigActiveRow" style="align-items:center; margin-bottom:var(--space-5);">
-            <label class="toggle-switch"><input type="checkbox" id="timeSigActiveInput" checked><span class="toggle-slider"></span></label>
+        <div class="hidden-group" id="timeSigActiveRow" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); margin-bottom:var(--space-5);">
             <span>Active (offered when picking a signature)</span>
+            <label class="toggle-switch"><input type="checkbox" id="timeSigActiveInput" checked><span class="toggle-slider"></span></label>
         </div>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="timeSigFormCancelBtn" type="button">Cancel</button>
@@ -245,9 +255,9 @@
     <div class="modal-content">
         <h2 id="speedFormTitle">Add playback speed</h2>
         <div class="form-group"><label for="speedPercentInput">Percent</label><input type="number" id="speedPercentInput" min="1" step="1"></div>
-        <div class="flex-row gap-md hidden-group" id="speedActiveRow" style="align-items:center; margin-bottom:var(--space-5);">
-            <label class="toggle-switch"><input type="checkbox" id="speedActiveInput" checked><span class="toggle-slider"></span></label>
+        <div class="hidden-group" id="speedActiveRow" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); margin-bottom:var(--space-5);">
             <span>Active (offered as a preset)</span>
+            <label class="toggle-switch"><input type="checkbox" id="speedActiveInput" checked><span class="toggle-slider"></span></label>
         </div>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="speedFormCancelBtn" type="button">Cancel</button>

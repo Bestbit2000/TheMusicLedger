@@ -17,8 +17,11 @@ import { listAdhocSetups, createAdhocSetup, renameAdhocSetup, saveAdhocSetup, de
 import { createSegment, updateSegment, deleteSegment } from '../services/metronomeSegments.js';
 import { listActivePlaybackSpeeds } from '../services/playbackSpeeds.js';
 import { handleUpload } from '@vercel/blob/client';
-import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, addUploadedRecording, addYouTubeRecording, deleteRecording, addDocument, deleteDocument, getFlowDefaultBlockSettings } from '../services/flows.js';
+import { put } from '@vercel/blob';
+import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, addUploadedRecording, addYouTubeRecording, deleteRecording, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks } from '../services/flowBlocks.js';
+import { importScoreFromFile } from '../services/scoreImport.js';
+import { isFeatureEnabled, listEnabledFeatureKeys } from '../services/features.js';
 
 const router = express.Router();
 
@@ -80,12 +83,15 @@ async function resolveWho(accountId, sessionType, who) {
 // ========================================
 router.get('/dropdown-options', requireAuth, resolveAccount, async (req, res) => {
   try {
-    const [organisations, teachers, durations] = await Promise.all([
+    const [organisations, teachers, durations, enabledFeatures] = await Promise.all([
       listBands(req.accountId),
       listTutors(),
-      listDurationOptions()
+      listDurationOptions(),
+      // ML-190: every enabled feature_key in one list, so the client can gate UI at app-load time
+      // without a request per feature - see server/services/features.js.
+      listEnabledFeatureKeys()
     ]);
-    res.json({ organisations, teachers, durations });
+    res.json({ organisations, teachers, durations, enabledFeatures });
   } catch (error) {
     console.error('Dropdown options error:', error);
     sendError(res, error);
@@ -1029,6 +1035,90 @@ router.post('/flows/:id/documents', requireAuth, resolveAccount, async (req, res
 router.delete('/flows/:id/documents/:documentId', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await deleteDocument(req.accountId, req.params.id, req.params.documentId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-79: "Create from file" - PDF/MusicXML/.mxl. No flow exists yet at upload time, unlike every
+// other /flows/:id/documents/... route above, so this isn't scoped to one. application/pdf is
+// back in the allowed list as of Phase 2 (OMR via runOmr - scoreImport.js); until
+// AUDIVERIS_SERVICE_URL is actually configured a PDF still uploads fine here, it just fails with a
+// clear message at the /flows/from-file step below, same as any other OMR failure.
+// application/octet-stream stays in for the same reason the general documents route keeps it -
+// browsers frequently don't have a registered MIME type for either MusicXML format and fall back
+// to it.
+//
+// ML-190: gated behind the flow_import_from_file feature flag (off for this release - the OMR
+// dependency, solfascribe-omr, hasn't had its security review yet). Checked here too, not just the
+// entry-screen button being hidden - otherwise a file would still upload to Blob (wasted storage)
+// even though the actual import at /flows/from-file below would then refuse it anyway.
+router.post('/flows/from-file/upload-token', requireAuthFromQueryOrHeader, resolveAccount, async (req, res) => {
+  try {
+    if (!(await isFeatureEnabled('flow_import_from_file'))) throw withStatus(403, "This feature isn't available right now.");
+    const result = await handleUpload({
+      body: req.body,
+      request: req,
+      onBeforeGenerateToken: async () => ({
+        allowedContentTypes: ['application/pdf', 'application/vnd.recordare.musicxml+xml', 'application/vnd.recordare.musicxml', 'application/xml', 'text/xml', 'application/octet-stream'],
+        addRandomSuffix: true
+      }),
+      onUploadCompleted: async () => {}
+    });
+    res.json(result);
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// The actual import: parses the file already sitting in Blob (see scoreImport.js), creates the
+// flow from what it found, and attaches the file to the new flow's Media regardless of how much
+// of it the parse actually used ("store it anyway, may reuse it for dynamics later" per the
+// request) - re-parsing later reads this same file back rather than needing a re-upload. For a
+// PDF, the MusicXML that OMR produced along the way gets saved too, as a second Media document
+// (uploaded server-side, not by the browser - see put() below) - a future re-parse (e.g. once
+// dynamics are supported) can read that clean structured file directly rather than re-running OMR
+// on the original scan. Deletes the auto-seeded starter block POST /flows always creates before
+// writing the real ones - same fix ML-163's "Save metronome to Flows" needed, and for the same
+// reason (a metronome/file import's own blocks ARE the content, not a placeholder to build on top
+// of).
+router.post('/flows/from-file', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    if (!(await isFeatureEnabled('flow_import_from_file'))) throw withStatus(403, "This feature isn't available right now.");
+    const { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType } = req.body || {};
+    if (!blobUrl || !blobPathname || !fileName) throw withStatus(400, 'Missing uploaded file details.');
+
+    const fileResponse = await fetch(blobUrl);
+    // 422, not the more "correct" 502 - sendError only passes a withStatus message through to the
+    // client below 500 (see scoreImport.js's runOmr, same reasoning).
+    if (!fileResponse.ok) throw withStatus(422, "Couldn't read the uploaded file - try uploading it again.");
+    const buffer = Buffer.from(await fileResponse.arrayBuffer());
+
+    const { title, composer, blocks, omrXmlText } = await importScoreFromFile(req.accountId, buffer);
+
+    const flow = await createFlow(req.accountId, { name: title || undefined });
+    if (composer) await updateFlowMetadata(req.accountId, flow.id, { composer });
+
+    // Sequential, not Promise.all - each block's order_index is assigned server-side as
+    // "current max + 1" (createFlowBlock) and would race if these ran in parallel.
+    const seededBlocks = await listFlowBlocks(req.accountId, flow.id);
+    for (const seeded of seededBlocks) await deleteFlowBlock(req.accountId, seeded.id);
+    for (const block of blocks) await createFlowBlock(req.accountId, flow.id, block);
+
+    await addDocument(req.accountId, flow.id, { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType });
+
+    if (omrXmlText) {
+      const derivedName = `${fileName.replace(/\.[^.]+$/, '')} (converted).musicxml`;
+      const derivedBlob = await put(`flows/from-file/${Date.now()}-${derivedName}`, omrXmlText, {
+        access: 'public', contentType: 'application/vnd.recordare.musicxml+xml', addRandomSuffix: true
+      });
+      await addDocument(req.accountId, flow.id, {
+        blobUrl: derivedBlob.url, blobPathname: derivedBlob.pathname,
+        fileName: derivedName, fileSizeBytes: Buffer.byteLength(omrXmlText), mimeType: 'application/vnd.recordare.musicxml+xml'
+      });
+    }
+
+    res.json(await getFlowDetail(req.accountId, flow.id));
   } catch (error) {
     sendError(res, error);
   }

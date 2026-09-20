@@ -2,6 +2,17 @@
         ? 'http://localhost:3000'
         : `https://${window.location.hostname}`;
 
+    // ML-190: real feature gates, backed by the `features` table (admin panel's Features page -
+    // server/services/features.js on the server side). appData.enabledFeatures is populated by
+    // loadAppData below, same as organisations/teachers/durations; until that resolves (or if it
+    // fails), this reads as an empty list - i.e. every gated feature defaults to OFF while unknown,
+    // not on. That's deliberate: a feature only ever reaches this check because some code chose to
+    // gate it, so "we don't know yet" should fail closed, not flash the feature on then off again.
+    // A feature nothing ever calls this for is simply never gated at all, regardless of its DB row.
+    function isFeatureEnabled(featureKey) {
+        return (appData.enabledFeatures || []).includes(featureKey);
+    }
+
     // ========================================
     // AUTHENTICATION & TOKEN MANAGEMENT
     // ========================================
@@ -202,6 +213,13 @@
                 add: (flowId, data) => apiCall(`/api/flows/${flowId}/documents`, 'POST', data),
                 delete: (flowId, documentId) => apiCall(`/api/flows/${flowId}/documents/${documentId}`, 'DELETE')
             },
+            // ML-79 Phase 1 - "Create from file" (MusicXML/.mxl): the file's already in Blob
+            // (fromFileUploadBtn's own upload, same client-upload shape as documents.add above) by
+            // the time this runs - it parses that file server-side and creates the whole flow
+            // (metadata + blocks + the file attached to Media) in one call, not a multi-step form.
+            fromFile: {
+                create: (data) => apiCall('/api/flows/from-file', 'POST', data)
+            },
             // ML-179 Phase 2 - score-backed blocks (parent_score_id), same shape as
             // metronomeBlocks.segments above.
             blocks: {
@@ -240,7 +258,7 @@
     // APP STATE & INITIALIZATION
     // ========================================
     let rawData = [];
-    let appData = { organisations: [], teachers: [], durations: [] };
+    let appData = { organisations: [], teachers: [], durations: [], enabledFeatures: [] };
     let currentHistDate = new Date();
     let activeFilters = { 'Practise': true, 'Rehearsal': true, 'Lesson': true, 'Performance': true };
     const colorMap = { 'Practise': 'var(--cat-practise)', 'Rehearsal': 'var(--cat-rehearsal)', 'Lesson': 'var(--cat-lesson)', 'Performance': 'var(--cat-performance)' };
@@ -545,10 +563,20 @@
             appData = await API.dropdownOptions(token);
             populateWhoDropdowns();
             renderDurationRadios();
+            renderFeatureGates();
         } catch (error) {
             console.warn('Failed to load settings:', error);
-            appData = { organisations: [], teachers: [], durations: [] };
+            appData = { organisations: [], teachers: [], durations: [], enabledFeatures: [] };
+            renderFeatureGates();
         }
+    }
+
+    // ML-190: applies appData.enabledFeatures to every gated UI entry point - called once
+    // loadAppData resolves (success or failure) since isFeatureEnabled reads appData, which isn't
+    // populated yet at plain page-load/script-parse time. Add a line here for each new gate rather
+    // than scattering ad-hoc appData.enabledFeatures checks around the file.
+    function renderFeatureGates() {
+        document.getElementById('metroBlkEntryFromFileBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('flow_import_from_file'));
     }
 
     // Archived organisations/teachers are hidden from pickers used for new
@@ -748,7 +776,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowPlayView', 'tunerView', 'timerView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView'];
     let viewStack = ['mainView'];
     // Which tab flowDetailsHubView should open on next - set by a caller just before switchView,
     // read/cleared by that view's own switchView case. null means the default (Details).
@@ -830,6 +858,7 @@
             document.getElementById('fermataPlaybackModeSetting').value = localStorage.getItem(FERMATA_PLAYBACK_MODE_KEY) || 'tone';
         }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
+        if (viewName === 'flowFromFileView') { document.getElementById('topTitle').innerText = 'Create from file'; resetFlowFromFileScreen(); }
         if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
         if (viewName === 'challengeSelectView') { document.getElementById('topTitle').innerText = 'Select challenge'; renderChallengeSelect(); }
         if (viewName === 'challengePlayView') { document.getElementById('topTitle').innerText = 'Practise'; }
@@ -3840,6 +3869,15 @@
         createAndOpenFlow();
     });
     document.getElementById('metroBlkEntryLoadBtn')?.addEventListener('click', showFlowLibraryList);
+    // Gated behind the flow_import_from_file feature (renderFeatureGates handles show/hide, once
+    // appData's actually loaded - this listener just needs to agree once clicked, in case it's
+    // clicked in the brief window before that's resolved). Hidden rather than disabled-looking, so
+    // the entry screen reads as the plain two-choice screen it always was before ML-79, not as
+    // "here's a third option, but not for you".
+    document.getElementById('metroBlkEntryFromFileBtn')?.addEventListener('click', () => {
+        if (!isFeatureEnabled('flow_import_from_file')) return;
+        switchView('flowFromFileView');
+    });
     // "Change flow": backs out to the entry screen from either Play or Edit Mode. In Edit Mode this
     // discards with no confirmation dialog, same as the existing Cancel button (cancelMetroBlkEdit) -
     // not a new UX pattern. Clears metroBlkCurrentSetup so a later plain nav-to-Flow asks again
@@ -4013,6 +4051,115 @@
             showWarningToast('Error creating flow: ' + error.message);
         }
     }
+
+    // --- ML-79 Phase 1: "Create from file" (MusicXML/.mxl) - one upload-then-parse path shared by
+    // both the real dropzone and the demo-score shortcut below (handleFromFileUpload), since they
+    // only differ in where the File object comes from. The heavy lifting (parsing, creating the
+    // flow/blocks, attaching the file to Media) all happens server-side in one call
+    // (API.flows.fromFile.create) - see server/routes/api.js's /flows/from-file and
+    // server/services/scoreImport.js. ---
+    let flowFromFilePendingId = null;
+
+    function resetFlowFromFileScreen() {
+        flowFromFilePendingId = null;
+        document.getElementById('flowFromFileInput').value = '';
+        document.getElementById('flowFromFileProgress')?.classList.add('hidden-group');
+        document.getElementById('flowFromFileResult')?.classList.add('hidden-group');
+        document.getElementById('flowFromFileDropBtn')?.classList.remove('hidden-group');
+        document.querySelector('#flowFromFileView .section-title')?.classList.remove('hidden-group');
+        document.querySelector('#flowFromFileView .flow-from-file-demo-row')?.classList.remove('hidden-group');
+    }
+
+    async function handleFromFileUpload(file) {
+        const progressBox = document.getElementById('flowFromFileProgress');
+        const labelEl = document.getElementById('flowFromFileProgressLabel');
+        const percentEl = document.getElementById('flowFromFileProgressPercent');
+        const fillEl = document.getElementById('flowFromFileProgressFill');
+        // Hides the picker/demo-score choices while a file's in flight - nothing sensible happens if
+        // you tap either again mid-upload, so they're out of the way rather than merely disabled.
+        document.getElementById('flowFromFileDropBtn')?.classList.add('hidden-group');
+        document.querySelector('#flowFromFileView .section-title')?.classList.add('hidden-group');
+        document.querySelector('#flowFromFileView .flow-from-file-demo-row')?.classList.add('hidden-group');
+        document.getElementById('flowFromFileResult')?.classList.add('hidden-group');
+        labelEl.innerText = 'Uploading…';
+        percentEl.innerText = '0%';
+        fillEl.style.width = '0%';
+        progressBox.classList.remove('hidden-group');
+
+        try {
+            const blob = await window.vercelBlobUpload(`flows/from-file/${Date.now()}-${file.name}`, file, {
+                access: 'public',
+                handleUploadUrl: `${API_BASE_URL}/api/flows/from-file/upload-token?token=${encodeURIComponent(auth.token)}`,
+                onUploadProgress: (progress) => {
+                    const pct = Math.round(progress.percentage);
+                    percentEl.innerText = `${pct}%`;
+                    fillEl.style.width = `${pct}%`;
+                }
+            });
+            // The upload's own progress has nothing to report during the parse itself (one request,
+            // no incremental feedback from the server) - the bar just holds at 100% with a relabel
+            // so it doesn't look stuck/finished right as the slower part actually starts. A PDF goes
+            // through OMR first (ML-79 Phase 2, can take a while) before the same parse the other
+            // formats skip straight to - "Scanning" sets that expectation rather than looking stuck.
+            labelEl.innerText = file.type === 'application/pdf' || /\.pdf$/i.test(file.name) ? 'Scanning score…' : 'Parsing score…';
+            percentEl.innerText = '100%';
+            fillEl.style.width = '100%';
+
+            const flow = await API.flows.fromFile.create({
+                blobUrl: blob.url, blobPathname: blob.pathname,
+                fileName: file.name, fileSizeBytes: file.size, mimeType: blob.contentType || file.type
+            });
+
+            flowFromFilePendingId = flow.id;
+            document.getElementById('flowFromFileResultTitle').innerText = flow.title ? 'Extracted' : 'Not found';
+            document.getElementById('flowFromFileResultBlocks').innerText =
+                `${flow.blocksSummary.count} block${flow.blocksSummary.count === 1 ? '' : 's'} detected`;
+            progressBox.classList.add('hidden-group');
+            document.getElementById('flowFromFileResult')?.classList.remove('hidden-group');
+        } catch (error) {
+            progressBox.classList.add('hidden-group');
+            document.getElementById('flowFromFileDropBtn')?.classList.remove('hidden-group');
+            document.querySelector('#flowFromFileView .section-title')?.classList.remove('hidden-group');
+            document.querySelector('#flowFromFileView .flow-from-file-demo-row')?.classList.remove('hidden-group');
+            showWarningToast('Error importing score: ' + error.message);
+        }
+    }
+
+    document.getElementById('flowFromFileDropBtn')?.addEventListener('click', () => {
+        document.getElementById('flowFromFileInput')?.click();
+    });
+    document.getElementById('flowFromFileInput')?.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (file) handleFromFileUpload(file);
+    });
+    // One-tap path for trying the feature without a real file of your own - fetches the same static
+    // fixture from public/demo-scores, wraps it as a File, and runs it through the exact same
+    // upload+parse path a real pick would (nothing about the server knows this came from a button
+    // instead of a file picker).
+    document.getElementById('flowFromFileDemoBtn')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        try {
+            const response = await fetch('/demo-scores/simple-test-tune.musicxml');
+            if (!response.ok) throw new Error('Could not load the demo score.');
+            const text = await response.text();
+            const file = new File([text], 'simple-test-tune.musicxml', { type: 'application/vnd.recordare.musicxml+xml' });
+            await handleFromFileUpload(file);
+        } catch (error) {
+            showWarningToast('Error loading demo score: ' + error.message);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+    document.getElementById('flowFromFileContinueBtn')?.addEventListener('click', () => {
+        if (!flowFromFilePendingId) return;
+        currentFlowId = flowFromFilePendingId;
+        flowEditMode = 'edit';
+        flowEditRequestedTab = 'blocks';
+        flowFromFilePendingId = null;
+        switchView('flowDetailsHubView');
+    });
 
     function formatFlowDate(dateStr) {
         if (!dateStr) return '–';

@@ -195,7 +195,11 @@
     input, select, textarea { width: 100%; padding: var(--space-3) 14px; border: 2px solid var(--input-border); border-radius: var(--radius-lg); font-size: 1rem; font-family: inherit; box-sizing: border-box; outline: none; background: var(--input-bg); color: var(--text-color); }
     textarea { resize: vertical; }
 
-    .toggle-switch { position: relative; display: inline-block; width: 50px; height: 28px; margin: 0; }
+    /* ML-190 fix: flex-shrink:0 so a wide sibling (e.g. a long toggle label in a flex row) never
+       squeezes this below its fixed 50x28 box - the knob's own translateX(22px) is a fixed pixel
+       offset, not relative to the pill's actual rendered width, so a squashed pill makes it poke
+       out past the now-narrower right edge instead of scaling down with it. */
+    .toggle-switch { position: relative; display: inline-block; flex-shrink: 0; width: 50px; height: 28px; margin: 0; }
     .toggle-switch input { opacity: 0; width: 0; height: 0; margin: 0; }
     .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 34px; }
     .toggle-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: var(--radius-circle); box-shadow: var(--shadow-sm); }
@@ -1284,6 +1288,33 @@
     .flow-action-btn { display: flex; align-items: center; justify-content: center; gap: var(--space-2); background: var(--input-bg); border: 2px solid var(--input-border); color: var(--text-color); font-size: var(--font-sm); font-weight: bold; padding: var(--space-3); border-radius: var(--radius-lg); cursor: pointer; }
     .flow-action-btn .material-symbols-outlined { font-size: 18px; }
     .flow-action-btn-wide { width: 100%; margin-top: var(--space-3); box-sizing: border-box; }
+
+    /* ML-79 Phase 1: "Create from file" (flowFromFileView) - the tip banner ahead of the dropzone,
+       same "informational, not a warning" tone as elsewhere, so it reads as a plain lightbulb tip
+       (--secondary-color's pale wash) rather than borrowing --warning-color/--info-color, which
+       already carry a specific meaning (toasts) elsewhere in this app. */
+    .flow-from-file-banner { display: flex; gap: var(--space-3); align-items: flex-start; background: var(--secondary-color); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-5); }
+    .flow-from-file-banner .material-symbols-outlined { color: var(--primary-action); font-size: 22px; flex-shrink: 0; }
+    .flow-from-file-banner p { margin: 0; font-size: var(--font-sm); line-height: 1.5; color: var(--text-color); }
+    /* Dashed border marks this as a drop target even though drag-and-drop itself isn't wired up
+       (tap-to-browse only) - same visual convention as everywhere else that pattern's used. */
+    .flow-from-file-dropzone { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); width: 100%; box-sizing: border-box; padding: var(--space-6) var(--space-4); border: 2px dashed var(--primary-action); border-radius: var(--radius-lg); background: var(--input-bg); color: var(--text-color); cursor: pointer; text-align: center; margin-bottom: var(--space-5); }
+    .flow-from-file-dropzone .material-symbols-outlined { font-size: 36px; color: var(--primary-action); }
+    .flow-from-file-dropzone strong { font-size: var(--font-md); }
+    .flow-from-file-chip-row { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+    .flow-from-file-demo-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4); }
+    .flow-from-file-demo-row .material-symbols-outlined { color: var(--primary-action); font-size: 24px; flex-shrink: 0; }
+    .flow-from-file-demo-info { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Overrides .btn-nav's own width:100%/display:block (sized for a full-width stacked button
+       elsewhere) - here it's one flex item alongside the icon/text, not the whole row's own width. */
+    .flow-from-file-demo-row .btn-nav { width: auto; display: inline-block; flex-shrink: 0; }
+    .flow-from-file-result { background: var(--secondary-color); border-radius: var(--radius-md); padding: var(--space-5); margin-top: var(--space-4); }
+    .flow-from-file-result-head { display: flex; align-items: center; gap: var(--space-2); font-weight: bold; margin-bottom: var(--space-4); }
+    .flow-from-file-result-head .material-symbols-outlined { color: var(--success-color); }
+    .flow-from-file-result-row { display: flex; justify-content: space-between; align-items: center; font-size: var(--font-sm); padding: var(--space-2) 0; border-bottom: 1px solid var(--input-border); }
+    .flow-from-file-result-row:last-of-type { border-bottom: none; }
+    .flow-from-file-result-ok { color: var(--success-color); font-weight: bold; }
+    .flow-from-file-result .btn-submit { margin-top: var(--space-4); }
     /* Extra breathing room below specifically - it was sitting right on top of the first block
        card below it with only the button's own margin-top for separation. */
     #flowAddLeadInBtn { margin-bottom: var(--space-4); }

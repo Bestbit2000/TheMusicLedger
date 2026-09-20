@@ -176,6 +176,10 @@ function toFeature(row) {
     featureKey: row.feature_key,
     name: row.name,
     description: row.description,
+    // ML-190: the one column the running app itself reads (server/services/features.js) - see
+    // that file/docs/database-schema.md's "Feature catalog" note for why this is opt-in gating,
+    // not a default-deny allowlist.
+    enabled: row.enabled,
     createdAt: row.created_at
   };
 }
@@ -183,7 +187,7 @@ function toFeature(row) {
 router.get('/features', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT id, feature_key, name, description, created_at FROM features ORDER BY name'
+      'SELECT id, feature_key, name, description, enabled, created_at FROM features ORDER BY name'
     );
     res.json({ features: rows.map(toFeature) });
   } catch (error) {
@@ -194,14 +198,14 @@ router.get('/features', requireAuth, resolveAccount, requireSuperAdmin, async (r
 
 router.post('/features', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
-    const { featureKey, name, description } = req.body;
+    const { featureKey, name, description, enabled } = req.body;
     if (!featureKey || !name) {
       return res.status(400).json({ error: 'featureKey and name are required' });
     }
     const { rows } = await pool.query(
-      `INSERT INTO features (feature_key, name, description) VALUES ($1, $2, $3)
-       RETURNING id, feature_key, name, description, created_at`,
-      [featureKey, name, description || null]
+      `INSERT INTO features (feature_key, name, description, enabled) VALUES ($1, $2, $3, $4)
+       RETURNING id, feature_key, name, description, enabled, created_at`,
+      [featureKey, name, description || null, enabled !== false]
     );
     res.json({ feature: toFeature(rows[0]) });
   } catch (error) {
@@ -215,14 +219,14 @@ router.post('/features', requireAuth, resolveAccount, requireSuperAdmin, async (
 
 router.put('/features/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
-    const { featureKey, name, description } = req.body;
+    const { featureKey, name, description, enabled } = req.body;
     if (!featureKey || !name) {
       return res.status(400).json({ error: 'featureKey and name are required' });
     }
     const { rows } = await pool.query(
-      `UPDATE features SET feature_key = $1, name = $2, description = $3, updated_at = now()
-       WHERE id = $4 RETURNING id, feature_key, name, description, created_at`,
-      [featureKey, name, description || null, req.params.id]
+      `UPDATE features SET feature_key = $1, name = $2, description = $3, enabled = $4, updated_at = now()
+       WHERE id = $5 RETURNING id, feature_key, name, description, enabled, created_at`,
+      [featureKey, name, description || null, enabled !== false, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Feature not found' });
     res.json({ feature: toFeature(rows[0]) });

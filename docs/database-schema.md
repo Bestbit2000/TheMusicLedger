@@ -354,7 +354,7 @@ or the `features` table above - just small display-only values.
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `features` | Canonical list of what the app actually does today - only things with real, wired-up code, not schema-only areas (scores/practice lists/scales/technique). Manually curated (add/edit/delete) from the admin panel's **Features** page, not just seeded by migrations | id, feature_key, name, description |
+| `features` | Canonical list of what the app actually does today - only things with real, wired-up code, not schema-only areas (scores/practice lists/scales/technique). Manually curated (add/edit/delete) from the admin panel's **Features** page, not just seeded by migrations. `enabled` (ML-190, `042_features_enabled.sql`) is the first column this table has that the *running app* itself reads, not just admin tooling - a global per-feature on/off switch, checked both client-side (hide the entry point) and server-side (refuse the request) wherever a feature opts into it. A feature absent from this table entirely, or present with no code checking it, is implicitly enabled - this is opt-in gating per feature, not a default-deny allowlist | id, feature_key, name, description, enabled |
 | `test_cases` | One Playwright spec, authored by Claude on request (no automated/billed API call) - can cover more than one feature | id, jira_ticket_key, title, passes_if_criteria, script, is_active |
 | `test_case_features` | Join table - which feature(s) a test case covers. Deliberately many-to-many: a single flow (e.g. "log a session, then check stats") legitimately exercises more than one feature, so it's linked to each rather than forced to pick one | test_case_id, feature_id |
 | `test_runs` | One row per back-test suite execution | id, trigger_source (always `manual` - no CI trigger exists), total/passed/failed_tests, started_at, completed_at |
@@ -377,8 +377,11 @@ never deletes the test case itself or its run history, even if that was the
 test case's only linked feature (it just ends up with zero features linked,
 still visible in the admin panel's **Test cases** list).
 
-None of these five tables are read or written by the running app itself -
-they're purely admin/tooling.
+Four of these five tables (`test_cases`, `test_case_features`, `test_runs`,
+`test_run_results`) are still purely admin/tooling, never read or written by
+the running app itself. `features` is the exception as of `enabled`
+(ML-190, `042_features_enabled.sql`, see above) - the running app reads that
+one column, for whichever features opt into checking it.
 
 ### Monetization
 
