@@ -304,14 +304,35 @@
     .play-meta { font-size: var(--font-base); color: #666; display: flex; justify-content: center; gap: var(--space-4); margin-bottom: var(--space-3); }
     .play-stats { font-size: var(--font-sm); color: #888; background: var(--container-bg); padding: 5px var(--space-3); border-radius: var(--radius-sm); display: inline-block; }
 
-    .tuner-card { background: var(--input-bg); padding: var(--space-6) var(--space-5); border-radius: var(--radius-lg); border: 2px solid var(--primary-action); margin-bottom: var(--space-6); transition: background 0.15s linear, border-color 0.15s linear; }
+    /* background: var(--container-bg) not --input-bg - this card isn't clickable, and --input-bg is
+       reserved for tappable surfaces (the Settings boxes below, the needle track, etc.) so dark mode
+       can tell "you can tap this" apart from "this is just a display" at a glance. Border is a
+       3-state read on the live pitch (set by renderTunerPitch/renderTunerIdle, app.js), not a fixed
+       gold outline - gold there would read as "this is selected", which isn't what this card is:
+       neutral gray by default (idle/silence - .out-of-tune below overrides while a note's actually
+       playing but off, .in-tune overrides again once it locks in). */
+    .tuner-card { position: relative; background: var(--container-bg); padding: var(--space-6) var(--space-5); border-radius: var(--radius-lg); border: 2px solid var(--input-border); margin-bottom: var(--space-6); transition: background 0.15s linear, border-color 0.15s linear; }
+    .tuner-card.out-of-tune { border-color: var(--primary-action); }
+    /* Opens #tunerSettingsModal (every Tuner setting) - same corner-badge placement/sizing as
+       .modal-close-x, just a settings gear instead of a close X, and living, so it reads as "more
+       options for this card" rather than "dismiss this card". */
+    .tuner-card-settings-btn { position: absolute; top: var(--space-3); right: var(--space-3); width: 36px; height: 36px; border-radius: var(--radius-circle); border: none; background: var(--input-bg); color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+    .tuner-card-settings-btn .material-symbols-outlined { font-size: 20px; }
     .tuner-card.in-tune { border-color: var(--tuner-in-tune-green); background: rgba(46, 204, 113, 0.28); }
-    .tuner-pitch-row { display: flex; }
+    .tuner-pitch-row { display: flex; margin-bottom: var(--space-5); }
     .tuner-pitch-col { flex: 1; text-align: center; }
     .tuner-pitch-label { font-size: var(--font-sm); font-weight: bold; color: var(--label-color); margin-bottom: var(--space-2); }
-    .tuner-note { font-size: 2.2rem; font-weight: bold; color: var(--primary-action); font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .tuner-note { font-size: 3rem; font-weight: bold; color: var(--primary-action); font-variant-numeric: tabular-nums; line-height: 1.1; }
+    /* Octave (tunerShowOctave) sits right after the big letter, not below it - align-items:flex-end
+       bottom-aligns it against the letter's own box instead of centring/top-aligning, and
+       justify-content:center keeps the pair centred as a unit now that it's two inline elements
+       instead of .tuner-note being the only thing in this column. */
+    .tuner-note-row { display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
+    .tuner-note-octave { font-size: 1.2rem; font-weight: bold; color: var(--primary-action); line-height: 1; padding-bottom: 0.25em; }
+    /* Hz (tunerShowHz) - its own small line under the letter+octave row. */
+    .tuner-note-hz { font-size: var(--font-xs); color: var(--label-color); margin-top: var(--space-1); font-variant-numeric: tabular-nums; }
 
-    .tuner-bar-wrap { margin-bottom: var(--space-5); }
+    .tuner-bar-wrap { margin: 0 0 var(--space-4) 0; }
     .tuner-bar-track { position: relative; height: 28px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); overflow: hidden; }
     .tuner-bar-zone { position: absolute; top: 0; bottom: 0; left: 35%; right: 35%; background: rgba(46, 204, 113, 0.45); }
     .tuner-bar-center-mark { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--input-border); transform: translateX(-50%); }
@@ -319,7 +340,144 @@
     .tuner-bar-needle.in-tune { background: var(--tuner-in-tune-green); }
     .tuner-bar-scale { display: flex; justify-content: space-between; font-size: var(--font-xs); color: var(--label-color); margin-top: var(--space-1); }
 
-    .tuner-status { text-align: center; font-size: var(--font-base); color: var(--label-color); margin-bottom: var(--space-4); min-height: 1.2em; }
+    /* Real messages only (requesting mic access / access denied) - genuinely appears/disappears since
+       those are real state changes, unlike the old "Listening..." toggle this used to also carry (a
+       separate "still listening" indicator icon briefly replaced that toggle, then was removed
+       entirely - the History card's own Pitch/Dynamics strips right below already show live activity,
+       so a second one up here was redundant). No min-height reservation needed: .hidden-group
+       (display:none) when there's nothing to say, rather than an empty text node holding a blank
+       line's worth of space open. */
+    .tuner-status { text-align: center; font-size: var(--font-base); color: var(--label-color); margin-bottom: var(--space-4); }
+
+    /* Rounded-rect pause/play toggle (not the circular icon-button shape used elsewhere, e.g.
+       .modal-close-x - a rectangle reads more like a distinct control here). Sits directly beside the
+       rewind slider (.tuner-rewind-row) rather than up in the section-title, since the two are one
+       control - pausing is what makes the slider mean anything. Pausing freezes the pitch+dynamics
+       history strips together (setTunerPaused, app.js) so a phrase can be scrubbed back through and
+       reviewed rather than only ever seen live - the "right now" card above (#tunerCard) keeps
+       updating regardless, since pausing only concerns the history box. flex-shrink:0 so the slider
+       (.tuner-rewind-row .slider-wrap's own flex:1) is what gives up width to this fixed 36x36, not
+       the other way round. */
+    .tuner-pause-btn { width: 36px; height: 36px; flex-shrink: 0; border: none; border-radius: var(--radius-md); background: var(--nav-action); color: var(--nav-action-text); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+    .tuner-pause-btn .material-symbols-outlined { font-size: 20px; }
+
+    .tuner-rewind-label { font-size: var(--font-sm); font-weight: bold; color: var(--label-color); margin: var(--space-4) 0 var(--space-2) 0; }
+    .tuner-rewind-row { display: flex; align-items: center; gap: var(--space-3); }
+    .tuner-rewind-row .slider-wrap { flex: 1; min-width: 0; }
+    /* No border-color override needed here (unlike .metroBlk-bpm-box .slider-thumb, which sits on
+       --input-bg and overrides accordingly) - .slider-thumb's own default border already targets
+       var(--container-bg), which is exactly what .tuner-graph-card's background is below, so the ring
+       already matches without one. An earlier override pinned this to --input-bg on the assumption
+       the card used that background - once the card moved to --container-bg (same "not clickable, so
+       not --input-bg" reasoning as .tuner-card above), that override became the mismatch it was meant
+       to prevent. */
+    /* Always visible (not hidden while live) so this card's height never changes on pause/resume -
+       just non-interactive and dimmed until setTunerPaused(true) toggles this off. */
+    #tunerScrubSliderWrap.disabled { opacity: 0.4; }
+    #tunerScrubSliderWrap.disabled .slider-track, #tunerScrubSliderWrap.disabled .slider-thumb { pointer-events: none; }
+
+    /* ML-181: history graphs (renderTunerHistoryGraphs, app.js) - pitch and dynamics share this one
+       card (always the same time-aligned window, see tunerHistory) rather than each having their own,
+       with one shared pause/rewind control between them. Same card language as .tuner-card (radius-lg)
+       but a plain 1px border, not the gold "hero" treatment, so it reads as secondary/supporting
+       relative to the "right now" card above it. background: var(--container-bg), not --input-bg -
+       same "not a clickable surface" reasoning as .tuner-card. */
+    .tuner-graph-card { background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-lg); padding: var(--space-4); margin-bottom: var(--space-5); }
+
+    /* Each graph pairs a vertical axis (what the bar height actually encodes - cents, or loudness)
+       with the graph itself, so the axis labels always read top/middle/bottom against the values they
+       describe, rather than being listed left-to-right below the graph as if they were a horizontal
+       scale (that used to be the case here, and was wrong - +50c/0c/-50c and pp/mf/ff are both
+       vertical scales). align-items: stretch (the default) is what makes .tuner-graph-yaxis's height
+       match its graph sibling, so justify-content: space-between lines its 3 labels up with the
+       graph's own top/middle/bottom. */
+    .tuner-graph-row { display: flex; gap: var(--space-2); }
+    .tuner-graph-yaxis { display: flex; flex-direction: column; justify-content: space-between; width: 28px; flex-shrink: 0; text-align: right; font-size: var(--font-xs); color: var(--label-color); padding: 2px 0; box-sizing: border-box; }
+
+    /* "Pitch"/"Dynamics" over each chart - needed now that the card's own section-title is just
+       "History" and no longer names what either strip actually is. First one has no extra top margin
+       (the card's own padding already provides that gap); the second's margin-top is what used to be
+       .tuner-graph-row's own "+ .tuner-graph-row" spacing, before a subtitle sat between the two rows. */
+    .tuner-graph-subtitle { font-size: var(--font-sm); font-weight: bold; color: var(--label-color); margin-bottom: var(--space-2); }
+    .tuner-graph-row + .tuner-graph-subtitle { margin-top: var(--space-4); }
+
+    /* The one genuine horizontal axis in the history card - time, shared by both graphs since they're
+       always the same TUNER_HISTORY_VIEW_MS-wide window (kept updated by renderTunerHistoryGraphs,
+       app.js, including while scrubbed - see #tunerGraphTimeAxis there). */
+    .tuner-graph-scale { display: flex; justify-content: space-between; font-size: var(--font-xs); color: var(--label-color); margin-top: var(--space-2); }
+
+    /* #tunerSettingsModal - every Tuner setting, in two labelled sections (Notation/Display). */
+    .tuner-settings-section-label { font-size: 12px; font-weight: bold; letter-spacing: 0.03em; text-transform: uppercase; color: var(--label-color); margin: var(--space-6) 0 var(--space-3) 0; }
+    .tuner-settings-section-label:first-of-type { margin-top: 0; }
+    .tuner-settings-group { margin-bottom: var(--space-5); }
+    .tuner-settings-group-label { font-size: var(--font-sm); font-weight: bold; color: var(--text-color); margin-bottom: 2px; }
+    .tuner-settings-group-sublabel { font-size: var(--font-xs); color: var(--label-color); margin-bottom: var(--space-2); }
+    /* Same shape as .metroBlk-ctrl-value-btn's own "opens a picker" affordance (corner caret via
+       ::after) but a full-width row instead of a square tile - Tuning needs its value + a label on one
+       line, not a tile grid, since it opens its own popup (a slider) rather than picking inline like
+       the tile groups above it. */
+    .tuner-settings-row-btn { position: relative; width: 100%; display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 var(--space-4); margin-bottom: var(--space-5); border: 2px solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font-size: var(--font-base); font-weight: bold; cursor: pointer; box-sizing: border-box; }
+    .tuner-settings-row-btn span:last-child { font-weight: normal; color: var(--label-color); }
+
+    /* #tunerTranspositionOptions - no caption under each tile (just the note letter), so the shared
+       .flow-picker-tile's own min-height/reserved caption row (.flow-picker-tile-label, normally
+       min-height:1em even when empty) would just be dead space here - shorter tiles, label hidden
+       entirely so the letter centers in the remaining height instead of sitting above an empty gap. */
+    #tunerTranspositionOptions .flow-picker-tile { min-height: 48px; padding: var(--space-2); }
+    #tunerTranspositionOptions .flow-picker-tile-label { display: none; }
+
+    /* Breathing room before Reset, matching the gap every other group in this popup gets. */
+    #tunerA4ResetBtn { margin-top: var(--space-5); }
+
+    /* #tunerSettingsModal's 3 toggle rows - same look as the equivalent rows on the main Settings
+       screen (inline-styled there; a real class here since there are 3 of them in the same popup). */
+    .tuner-display-toggle-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-5); font-size: 1.1rem; padding: 15px; background: var(--input-bg); border-radius: 12px; border: 1px solid var(--input-border); }
+    .tuner-display-toggle-row:last-child { margin-bottom: 0; }
+
+    /* Bipolar (+50c to -50c, 0 in the middle) - same 1cent=1% mapping .tuner-bar-needle's own left:
+       ${50+cents}% already uses, just read top-to-bottom instead of left-to-right. Every bar is a
+       flex item "slot" (even width, full height) with its own absolutely-positioned coloured segment
+       inside - keeps the flex row's own width distribution completely separate from each bar's own
+       vertical top/height, which a single flex-item-is-also-the-bar element can't do at once. */
+    .tuner-pitch-graph { position: relative; height: 90px; flex: 1; min-width: 0; }
+    .tuner-pitch-graph-zone { position: absolute; left: 0; right: 0; top: 35%; height: 30%; background: rgba(46, 204, 113, 0.15); }
+    /* Dashed top/bottom edges - positioned via inline top:0/bottom:0 (index.html) rather than a fixed
+       class each, same "one class, per-use inline position" convention .tuner-dynamics-gridline
+       already uses. Exactly 3 lines on this strip total, these 2 plus .tuner-pitch-graph-zero's own
+       solid one at the centre - not a 4th dashed line doubling up at 0 alongside the solid one. */
+    .tuner-pitch-graph-gridline { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--input-border); }
+    .tuner-pitch-graph-zero { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--input-border); }
+    .tuner-pitch-graph-bars { position: absolute; inset: 0; display: flex; align-items: stretch; gap: 2px; }
+    .tuner-history-bar-slot { position: relative; flex: 1; min-width: 3px; }
+    .tuner-history-bar { position: absolute; left: 0; right: 0; border-radius: 1px; background: var(--warning-color); }
+    .tuner-history-bar.in-tune { background: var(--tuner-in-tune-green); }
+    /* A "no signal" gap in the timeline (see pushTunerHistorySample) - a faint dot at the zero line
+       rather than nothing at all, so a silent beat still reads as "a moment passed" in the timeline. */
+    .tuner-history-bar-gap { position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; border-radius: var(--radius-circle); background: var(--input-border); transform: translate(-50%, -50%); }
+    /* Above the bar by default (top:-20px) - .below (assigned by renderTunerHistoryGraphs, app.js,
+       when consecutive note-attack labels are close enough together to collide) flips to sit below
+       the bar instead (bottom:-20px), alternating through a run of close attacks rather than letting
+       them all stack on top of each other above. Position is relative to .tuner-history-bar itself
+       (the label's own parent), not the strip - so "below" always means below THIS bar's own box,
+       whatever cents value put that box at. */
+    .tuner-history-bar-label { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: var(--font-xs); font-weight: bold; color: var(--text-color); white-space: nowrap; background: var(--container-bg); border: 1px solid var(--input-border); padding: 1px 4px; border-radius: var(--radius-sm); }
+    .tuner-history-bar-label.below { top: auto; bottom: -20px; }
+
+    /* Unipolar (0 dBFS at top, -60 at bottom) - baseline sits at the bottom, so plain flex items with
+       their own height:% and align-items:flex-end are enough here, no slot wrapper needed (unlike the
+       bipolar pitch graph above, nothing here ever needs to grow both up AND down from a mid-line). */
+    .tuner-dynamics-graph { position: relative; height: 70px; flex: 1; min-width: 0; }
+    /* Dashed halfway up and right at the top - no y-axis labels on this strip at all (loudness here is
+       only ever relative, not calibrated to real pp/mf/ff dynamic markings, so labeling it that way
+       would be misleading) - these are just plain visual reference ticks. Exactly 3 lines on this strip
+       total, these 2 plus .tuner-dynamics-graph-zero's own solid baseline. */
+    .tuner-dynamics-gridline { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--input-border); }
+    /* Solid baseline the bars grow up from - same treatment as .tuner-pitch-graph-zero's centre line,
+       just solid (not dashed, unlike the pp/ff gridlines above) since this is the strip's own true
+       zero, not just a reference tick. */
+    .tuner-dynamics-graph-zero { position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--input-border); }
+    .tuner-dynamics-bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 2px; }
+    .tuner-dynamics-bar { flex: 1; min-width: 3px; background: var(--primary-action); border-radius: 1px 1px 0 0; }
 
     /* padding (not modal-content's own width) is what guarantees the gap either side of the card -
        a fixed design-system space rather than a percentage, so it stays a real, constant gap on a
@@ -1433,6 +1591,9 @@
        block (75% = 3/4 columns) rather than stretched to fill the row - same technique as
        .flow-multiselect-grid-3. */
     .flow-tile-grid-3-centered { grid-template-columns: repeat(3, 1fr); width: 75%; margin-left: auto; margin-right: auto; }
+    /* Same technique, 2 tiles instead of 3 (e.g. the Tuner's sharps/flats picker, #tunerAccidentalOptions)
+       - 50% = 2/4 columns. */
+    .flow-tile-grid-2-centered { grid-template-columns: repeat(2, 1fr); width: 50%; margin-left: auto; margin-right: auto; }
     /* "Repeats"/"Intro" and "Tempo"/"Jumps" (flowBlockCardHtml) - each a single 4-tile row shared by
        two section labels instead of two separate grids, so all 4 tiles keep the same standard width
        every other row uses. Mirrors the tile grid's own 4 columns; default split is 2/2 (first label
@@ -1751,6 +1912,9 @@
         .chart-wrapper { height: 200px; margin-bottom: 8px; }
         .chart-scroll-area { padding: 8px 5px 30px 5px; }
         .chart-bar-container { min-width: 12px; margin-right: 1px; }
+        .tuner-graph-card { padding: var(--space-3); margin-bottom: var(--space-4); }
+        .tuner-pitch-graph { height: 75px; }
+        .tuner-dynamics-graph { height: 55px; }
         .history-item { padding: 10px; margin-bottom: 8px; }
         .play-card { padding: 20px 15px; margin-bottom: 20px; }
         .modal-content { padding: 20px; }

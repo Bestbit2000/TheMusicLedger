@@ -529,8 +529,12 @@
                 document.body.classList.add('dark-mode');
                 document.getElementById('darkModeToggle').checked = true;
             }
-            document.getElementById('tunerInstrumentSetting').value = localStorage.getItem(TUNER_INSTRUMENT_DEFAULT_KEY) || 'C';
+            document.getElementById('tunerTranspositionSetting').value = String(parseInt(localStorage.getItem(TUNER_TRANSPOSITION_KEY), 10) || 0);
             document.getElementById('tunerUseFlatsToggle').checked = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
+            document.getElementById('tunerNoteStyleSetting').value = localStorage.getItem(TUNER_NOTE_STYLE_KEY) || 'letters';
+            document.getElementById('tunerShowConcertSetting').checked = localStorage.getItem(TUNER_SHOW_CONCERT_KEY) !== 'false';
+            document.getElementById('tunerShowHzSetting').checked = localStorage.getItem(TUNER_SHOW_HZ_KEY) === 'true';
+            document.getElementById('tunerShowOctaveSetting').checked = localStorage.getItem(TUNER_SHOW_OCTAVE_KEY) === 'true';
             document.getElementById('fermataPlaybackModeSetting').value = localStorage.getItem(FERMATA_PLAYBACK_MODE_KEY) || 'tone';
             syncAdminLinkVisibility();
         } catch (error) {
@@ -852,9 +856,13 @@
         if (viewName === 'accountView') { document.getElementById('topTitle').innerText = 'My account'; loadAccountView(); }
         if (viewName === 'settingsView') {
             document.getElementById('topTitle').innerText = 'Settings';
-            // Re-sync from storage in case the instrument was last changed on the Tuner page itself.
-            document.getElementById('tunerInstrumentSetting').value = localStorage.getItem(TUNER_INSTRUMENT_DEFAULT_KEY) || 'C';
+            // Re-sync from storage in case these were last changed on the Tuner page itself.
+            document.getElementById('tunerTranspositionSetting').value = String(parseInt(localStorage.getItem(TUNER_TRANSPOSITION_KEY), 10) || 0);
             document.getElementById('tunerUseFlatsToggle').checked = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
+            document.getElementById('tunerNoteStyleSetting').value = localStorage.getItem(TUNER_NOTE_STYLE_KEY) || 'letters';
+            document.getElementById('tunerShowConcertSetting').checked = localStorage.getItem(TUNER_SHOW_CONCERT_KEY) !== 'false';
+            document.getElementById('tunerShowHzSetting').checked = localStorage.getItem(TUNER_SHOW_HZ_KEY) === 'true';
+            document.getElementById('tunerShowOctaveSetting').checked = localStorage.getItem(TUNER_SHOW_OCTAVE_KEY) === 'true';
             document.getElementById('fermataPlaybackModeSetting').value = localStorage.getItem(FERMATA_PLAYBACK_MODE_KEY) || 'tone';
         }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
@@ -12179,30 +12187,106 @@
     // ========================================
     const NOTE_NAMES_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const NOTE_NAMES_FLAT = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];
-    const A4_FREQ = 440;
+    // Fixed-do chromatic solfège - same sharps/flats spelling choice (TUNER_USE_FLATS_KEY) as the
+    // letter names above, just a different alphabet for the same 12 pitch classes.
+    const NOTE_NAMES_SOLFEGE_SHARP = ['Do', 'Di', 'Re', 'Ri', 'Mi', 'Fa', 'Fi', 'Sol', 'Si', 'La', 'Li', 'Ti'];
+    const NOTE_NAMES_SOLFEGE_FLAT = ['Do', 'Ra', 'Re', 'Me', 'Mi', 'Fa', 'Se', 'Sol', 'Le', 'La', 'Te', 'Ti'];
     const A4_MIDI = 69;
+    // The tuning reference itself - adjustable (TUNER_A4_KEY, the A4 popup further below), not the
+    // fixed 440 it used to be. Read by tunerFreqToMidi, so this is a real input to the pitch math, not
+    // just a display label - every note reading in the app (main Tuner, Flow/Metronome mini tuner)
+    // resolves against whatever this is currently set to. Seeded from localStorage right here (not
+    // just inside startTuner, unlike tunerTransposition/tunerShowConcert/etc.) since the mini tuner shares
+    // tunerFreqToMidi too and can be opened without the full Tuner view ever having run first.
+    const TUNER_A4_KEY = 'tunerA4Freq';
+    let tunerA4Freq = parseInt(localStorage.getItem(TUNER_A4_KEY), 10) || 440;
 
     // written = concert + offset semitones (mod 12) - the standard band transposition conventions
     // (Bb: clarinet/trumpet/tenor sax..., Eb: alto/bari sax..., F: horn). Octave isn't tracked, only
-    // the pitch class, since that's all a tuner readout needs.
+    // the pitch class, since that's all a tuner readout needs. Only the Flow/Metronome mini tuner
+    // (metroBlkMiniTunerInstrument) still uses this fixed 4-preset map - the full Tuner view's own
+    // Transposition setting (tunerTransposition, below) generalizes this to all 12 semitone offsets,
+    // stored directly as that offset rather than looked up through a name.
     const TUNER_TRANSPOSITIONS = { C: 0, Bb: 2, Eb: 9, F: 7 };
     const TUNER_ZONE_CENTS = 15; // "in tune" green-zone half-width
-    const TUNER_INSTRUMENT_DEFAULT_KEY = 'tunerInstrumentDefault';
     const TUNER_USE_FLATS_KEY = 'tunerUseFlats';
+    // The full Tuner view's transposition, as a semitone offset (0-11, C=0) rather than one of only 4
+    // named presets - real transposing instruments exist well beyond Bb/Eb/F (D trumpet, A clarinet...),
+    // and the underlying math (writtenMidi = concertMidi + offset) already only ever needed the number.
+    // Seeded from localStorage right here (not just inside startTuner, unlike tunerShowConcert/etc.)
+    // for the same reason as tunerA4Freq above - shared with the mini tuner's own seeding, further down.
+    const TUNER_TRANSPOSITION_KEY = 'tunerTransposition';
+    let tunerTransposition = parseInt(localStorage.getItem(TUNER_TRANSPOSITION_KEY), 10) || 0;
+    // Whether the "right now" card's Concert column shows at all - off collapses to just the written/
+    // instrument note, same single-column layout as when the transposition IS 0 (concert pitch itself,
+    // see updateTunerTranspositionLabel).
+    const TUNER_SHOW_CONCERT_KEY = 'tunerShowConcert';
+    // 'letters' (C, D, E...) or 'solfege' (Do, Re, Mi...) - read by tunerMidiToName, so this affects
+    // every note readout app-wide (main Tuner, and the Flow/Metronome mini tuner), not just this view.
+    const TUNER_NOTE_STYLE_KEY = 'tunerNoteStyle';
+    // Small Hz readout under each visible note (both columns show the same value - Hz is the actual
+    // physical frequency, which transposition only relabels, never changes) and a small octave suffix
+    // right after each big note letter. Both off by default.
+    const TUNER_SHOW_HZ_KEY = 'tunerShowHz';
+    const TUNER_SHOW_OCTAVE_KEY = 'tunerShowOctave';
+    let tunerShowConcert = true;
+    let tunerNoteStyle = 'letters';
+    let tunerShowHz = false;
+    let tunerShowOctave = false;
+    // ML-181: pitch/dynamics history strips (full Tuner view only) - a fixed-length ring buffer of
+    // { cents, inTune, note, db } samples, one pushed roughly every TUNER_HISTORY_SAMPLE_MS (10/sec,
+    // not every animation frame - 60 DOM bars/sec would be both unreadable and wasteful to re-render).
+    // cents/note/inTune are null on a silent sample (see pushTunerHistorySample) so the pitch strip
+    // shows a gap rather than a fabricated flat line; db is always real, even during silence, since
+    // "how loud is nothing" is still meaningful for the dynamics strip.
+    //
+    // BUFFER vs VIEW (pause/rewind follow-up): tunerHistory itself retains a much longer window
+    // (BUFFER) than what's ever shown at once (VIEW). Live, the visible slice is always the most
+    // recent VIEW_MS of the buffer, same "last few seconds scrolling by" look as before. Pausing
+    // (setTunerPaused) stops new samples from being appended and reveals a scrub slider that walks
+    // tunerScrubOffsetSamples back through the already-captured BUFFER, one VIEW_MS-wide slice at a
+    // time - so a whole phrase can be reviewed after playing it, not just the instant it happened.
+    const TUNER_HISTORY_BUFFER_MS = 30000;
+    const TUNER_HISTORY_VIEW_MS = 4000;
+    const TUNER_HISTORY_SAMPLE_MS = 100;
+    let tunerHistory = [];
+    let tunerHistoryLastSampleAt = 0;
+    // Resets to null on every silent gap (not just on tuner open) - so the same note attacking again
+    // after a pause still gets its own label, rather than being treated as "no change" from before
+    // the pause.
+    let tunerHistoryLastNote = null;
+    let tunerPaused = false;
+    // Samples back from the live edge (0 = live/most recent). Only meaningful while tunerPaused -
+    // always reset to 0 on resume so unpausing always snaps back to live.
+    let tunerScrubOffsetSamples = 0;
     // ML-103 follow-up: how a fermata sustained hold sounds (tone/silent/count) - a playback
     // preference, not per-block, so it lives here rather than in the block editor. Same
     // localStorage-only pattern as the tuner defaults above (device-local, no account sync) -
     // nothing in the metronome player reads this yet (fermata playback itself isn't wired into the
     // audio engine), this is just where a future playback engine should look.
     const FERMATA_PLAYBACK_MODE_KEY = 'fermataPlaybackMode';
+    // Below this, tunerAutoCorrelate gives up on pitch-tracking (there's nothing to lock onto) - also
+    // used by renderTunerPitch to decide whether a no-pitch sample is genuine silence (dynamics should
+    // show nothing too) vs a loud-but-untracked moment like a breath attack or key click (dynamics
+    // should still show what was actually happening, even though pitch couldn't).
+    const TUNER_QUIET_RMS = 0.01;
 
-    function tunerFreqToMidi(freq) { return A4_MIDI + 12 * Math.log2(freq / A4_FREQ); }
+    function tunerFreqToMidi(freq) { return A4_MIDI + 12 * Math.log2(freq / tunerA4Freq); }
+
+    // ML-181: dBFS relative to a full-scale sample of 1.0 - the same RMS math tunerAutoCorrelate
+    // already computes internally (just to gate itself on quiet input), exposed here separately for
+    // the dynamics history strip. Math.max floors it at 1e-4 (-80dB) so true digital silence doesn't
+    // produce -Infinity.
+    function tunerRmsToDb(rms) { return 20 * Math.log10(Math.max(rms, 1e-4)); }
 
     // Just the note letter/accidental - no octave number, per the tuner's simplified readout.
     function tunerMidiToName(midi) {
         const rounded = Math.round(midi);
         const useFlats = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
-        const names = useFlats ? NOTE_NAMES_FLAT : NOTE_NAMES_SHARP;
+        const useSolfege = tunerNoteStyle === 'solfege';
+        const names = useSolfege
+            ? (useFlats ? NOTE_NAMES_SOLFEGE_FLAT : NOTE_NAMES_SOLFEGE_SHARP)
+            : (useFlats ? NOTE_NAMES_FLAT : NOTE_NAMES_SHARP);
         return names[((rounded % 12) + 12) % 12];
     }
 
@@ -12213,7 +12297,7 @@
         let rms = 0;
         for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
         rms = Math.sqrt(rms / SIZE);
-        if (rms < 0.01) return -1;
+        if (rms < TUNER_QUIET_RMS) return -1;
 
         let r1 = 0, r2 = SIZE - 1;
         const threshold = 0.2;
@@ -12260,18 +12344,43 @@
         function tick() {
             analyser.getFloatTimeDomainData(dataArray);
             const freq = tunerAutoCorrelate(dataArray, audioCtx.sampleRate);
-            listeners.forEach(cb => cb(freq));
+            // ML-181: rms is computed again here (tunerAutoCorrelate already computes its own copy
+            // internally, just to gate itself on quiet input) rather than threading it out of that
+            // function's return value - keeps tunerAutoCorrelate's own return type (a plain number,
+            // freq or -1) untouched, and this is one cheap pass over a 2048-sample buffer, not
+            // something worth the coupling to save.
+            let rmsSum = 0;
+            for (let i = 0; i < dataArray.length; i++) rmsSum += dataArray[i] * dataArray[i];
+            const rms = Math.sqrt(rmsSum / dataArray.length);
+            listeners.forEach(cb => cb(freq, rms));
             rafId = requestAnimationFrame(tick);
         }
 
         return {
             async start() {
                 if (audioCtx) return true;
+                // ML-132: on Android, opening a mic stream makes the OS itself ("audio focus")
+                // duck other concurrently-playing audio, including the metronome's own separate
+                // AudioContext - not something the getUserMedia constraints below can prevent (they
+                // stop Chrome's own echo-cancel/gain processing from colouring the pitch reading,
+                // a different concern). navigator.audioSession is the actual API for telling the OS
+                // "this page intentionally plays and records together, don't duck" - set it before
+                // requesting the mic, per the spec's own guidance, not after. Currently a no-op on
+                // Chrome for Android (not yet implemented there as of this writing - see ML-132's
+                // own comment thread), so this doesn't fully resolve the ticket's own report today,
+                // but it's free/harmless and already fixes the same class of issue on Safari/iOS
+                // (supported since 16.4) and whichever Chrome version eventually adds it.
+                if ('audioSession' in navigator) {
+                    try { navigator.audioSession.type = 'play-and-record'; } catch { /* unsupported type value on this browser - ignore */ }
+                }
                 try {
                     micStream = await navigator.mediaDevices.getUserMedia({
                         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
                     });
                 } catch (err) {
+                    if ('audioSession' in navigator) {
+                        try { navigator.audioSession.type = 'auto'; } catch { /* ignore */ }
+                    }
                     return false;
                 }
                 const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -12292,6 +12401,13 @@
                 if (audioCtx) audioCtx.close();
                 audioCtx = null;
                 analyser = null;
+                // Hands control back to the browser's own default session-type resolution once the
+                // mic's no longer in use, rather than leaving 'play-and-record' pinned for the rest
+                // of the page's life (e.g. plain metronome playback with the tuner closed should go
+                // back to reading as ordinary 'playback', not still act like the record mode is live).
+                if ('audioSession' in navigator) {
+                    try { navigator.audioSession.type = 'auto'; } catch { /* ignore */ }
+                }
             },
             isActive() { return !!audioCtx; },
             onPitch(cb) { listeners.push(cb); }
@@ -12300,85 +12416,533 @@
 
     const tunerEngine = createTunerEngine();
 
-    function updateTunerInstrumentLabel() {
-        const instrument = document.getElementById('tunerInstrumentSelect').value;
+    // Also decides whether the "right now" card's Concert column is worth showing at all - it's
+    // redundant whenever it would just repeat the other column, either because the transposition IS 0
+    // (concert pitch, nothing to transpose) or because tunerShowConcert is off - so call this again
+    // whenever any of those change (the Transposition tile group, the Sharps/flats and Note names tile
+    // groups too since the label text depends on both of those, and the Show concert toggle), not just
+    // when the transposition itself changes.
+    function updateTunerTranspositionLabel() {
+        const isConcert = tunerTransposition === 0;
+        // Top card keeps saying "Concert" (not the bare note letter a non-zero transposition gets) -
+        // "Concert" reads better than a bare "C" sitting above another "C" in the other column.
         document.getElementById('tunerInstrumentLabel').innerText =
-            instrument === 'C' ? 'Concert pitch (C)' : `${instrument} instrument`;
+            isConcert ? 'Concert' : `${tunerMidiToName(tunerTransposition)} instrument`;
+        const concertCol = document.getElementById('tunerConcertCol');
+        if (concertCol) concertCol.classList.toggle('hidden-group', isConcert || !tunerShowConcert);
+    }
+
+    // Show concert/Hz/octave live as 3 pill toggles in #tunerSettingsModal (opened off the cog on
+    // #tunerCard) instead of 3 separate tap-to-open tile pickers - this just keeps both copies of each
+    // one (the popup's own toggle and its Settings-screen counterpart) showing the current state,
+    // called whenever the popup opens and isn't itself the thing that just changed.
+    function syncTunerDisplayToggles() {
+        const concertToggle = document.getElementById('tunerShowConcertToggle');
+        const hzToggle = document.getElementById('tunerShowHzToggle');
+        const octaveToggle = document.getElementById('tunerShowOctaveToggle');
+        if (concertToggle) concertToggle.checked = tunerShowConcert;
+        if (hzToggle) hzToggle.checked = tunerShowHz;
+        if (octaveToggle) octaveToggle.checked = tunerShowOctave;
     }
 
     function renderTunerIdle() {
         document.getElementById('tunerNoteDisplay').innerText = '–';
         document.getElementById('tunerConcertDisplay').innerText = '–';
+        document.getElementById('tunerNoteOctave').classList.add('hidden-group');
+        document.getElementById('tunerConcertOctave').classList.add('hidden-group');
+        document.getElementById('tunerNoteHz').classList.add('hidden-group');
+        document.getElementById('tunerConcertHz').classList.add('hidden-group');
         document.getElementById('tunerNeedle').style.left = '50%';
         document.getElementById('tunerNeedle').classList.remove('in-tune');
-        document.getElementById('tunerCard').classList.remove('in-tune');
+        document.getElementById('tunerCard').classList.remove('in-tune', 'out-of-tune');
+        // ML-181: fresh history every time the tuner (re)opens - a previous session's trace lingering
+        // on screen while nothing's been played yet this time would misrepresent what's live.
+        tunerHistory = [];
+        tunerHistoryLastSampleAt = 0;
+        tunerHistoryLastNote = null;
+        setTunerPaused(false);
+        renderTunerHistoryGraphs();
     }
 
-    function renderTunerPitch(freq) {
+    // Appends one sample to the shared ring buffer and re-renders both strips from it - a full
+    // innerHTML rebuild each time (only ~40 visible bars at once, at most 10 pushes/sec), same "just
+    // re-render the list" convention the rest of this app already uses rather than incrementally
+    // patching individual bar elements. Trims against the full BUFFER length, not the (shorter) VIEW -
+    // see the TUNER_HISTORY_BUFFER_MS/VIEW_MS comment above.
+    function pushTunerHistorySample(sample) {
+        tunerHistory.push(sample);
+        const maxSamples = Math.ceil(TUNER_HISTORY_BUFFER_MS / TUNER_HISTORY_SAMPLE_MS);
+        if (tunerHistory.length > maxSamples) tunerHistory.shift();
+        renderTunerHistoryGraphs();
+    }
+
+    // Freezes/unfreezes the history strips. The slider itself is always visible/rendered
+    // (renderTunerScrubSlider, called from renderTunerHistoryGraphs) - this just flips whether it's
+    // interactive (#tunerScrubSliderWrap.disabled) and, on resume, snaps back to the live edge.
+    function setTunerPaused(paused) {
+        tunerPaused = paused;
+        const icon = document.getElementById('tunerPauseIcon');
+        const btn = document.getElementById('tunerPauseBtn');
+        if (btn) {
+            btn.setAttribute('aria-pressed', String(paused));
+            // Names the action the button performs NEXT (same convention as every other play/pause
+            // toggle in this app, e.g. updateMetroBlkPlayIcon) - "Resume history" once already paused,
+            // not a static "Pause history" that stops matching what tapping it actually does.
+            btn.setAttribute('aria-label', paused ? 'Resume history' : 'Pause history');
+        }
+        if (icon) icon.innerText = paused ? 'play_arrow' : 'pause';
+        tunerScrubOffsetSamples = 0; // resume live, or start a fresh pause right where the live view already was
+        renderTunerHistoryGraphs();
+    }
+    document.getElementById('tunerPauseBtn')?.addEventListener('click', () => setTunerPaused(!tunerPaused));
+
+    // Same shared slider component as the bpm/volume sliders elsewhere (.slider-track/.slider-fill/
+    // .slider-thumb, setupSliderInteraction) rather than a native <input type=range>, so it matches
+    // their exact look. Ratio runs left(0)=fully rewound to right(1)=live, opposite of
+    // tunerScrubOffsetSamples itself (0=live) - inverted below. Guarded on tunerPaused since the
+    // slider stays in the DOM (just visually disabled, #tunerScrubSliderWrap.disabled) rather than
+    // being removed/hidden while live, and pointer-events:none doesn't stop a keyboard arrow event
+    // reaching the still-focusable thumb.
+    function tunerScrubMaxOffsetSamples() {
+        const viewSamples = Math.ceil(TUNER_HISTORY_VIEW_MS / TUNER_HISTORY_SAMPLE_MS);
+        return Math.max(0, tunerHistory.length - viewSamples);
+    }
+    setupSliderInteraction(document.getElementById('tunerScrubSliderTrack'), document.getElementById('tunerScrubSliderThumb'), {
+        onDragRatio: (ratio) => {
+            if (!tunerPaused) return;
+            const maxOffsetSamples = tunerScrubMaxOffsetSamples();
+            tunerScrubOffsetSamples = Math.round((1 - ratio) * maxOffsetSamples);
+            renderTunerHistoryGraphs();
+        },
+        onArrowStep: (dir) => {
+            if (!tunerPaused) return;
+            const maxOffsetSamples = tunerScrubMaxOffsetSamples();
+            // dir=1 is right/up (setupSliderInteraction) - right moves toward live, i.e. decreases offset.
+            tunerScrubOffsetSamples = Math.min(maxOffsetSamples, Math.max(0, tunerScrubOffsetSamples - dir * 5));
+            renderTunerHistoryGraphs();
+        }
+    });
+
+    // maxOffsetSamples is passed in rather than recomputed - renderTunerHistoryGraphs already has it
+    // from laying out the visible slice, and it must be the exact same value both places use or the
+    // slider's position would disagree with what the graphs above it are actually showing.
+    function renderTunerScrubSlider(maxOffsetSamples) {
+        const fill = document.getElementById('tunerScrubSliderFill');
+        const thumb = document.getElementById('tunerScrubSliderThumb');
+        const wrap = document.getElementById('tunerScrubSliderWrap');
+        const minLbl = document.getElementById('tunerScrubSliderMinLbl');
+        if (!fill || !thumb) return;
+        const pct = maxOffsetSamples > 0 ? ((maxOffsetSamples - tunerScrubOffsetSamples) / maxOffsetSamples) * 100 : 100;
+        fill.style.width = `${pct}%`;
+        thumb.style.left = `${pct}%`;
+        const offsetSec = Math.round((tunerScrubOffsetSamples * TUNER_HISTORY_SAMPLE_MS) / 1000);
+        thumb.setAttribute('aria-valuenow', String(offsetSec));
+        const maxOffsetSec = Math.round((maxOffsetSamples * TUNER_HISTORY_SAMPLE_MS) / 1000);
+        thumb.setAttribute('aria-valuemax', String(maxOffsetSec));
+        // NOT maxOffsetSec - that's how far the thumb's own reference point (the visible window's
+        // RIGHT edge) can travel, which undercounts by a whole view-width: once scrubbed all the way
+        // left, the window's LEFT edge (what you can actually still see) reaches viewSamples further
+        // back than maxOffsetSec alone suggests. tunerHistory.length is the true amount currently
+        // buffered - grows with the session and naturally caps at TUNER_HISTORY_BUFFER_MS/1000 (30s,
+        // matching the "(max 30s)" heading) once the ring buffer is full, without needing its own cap
+        // here.
+        if (minLbl) minLbl.innerText = `-${Math.round((tunerHistory.length * TUNER_HISTORY_SAMPLE_MS) / 1000)}s`;
+        if (wrap) wrap.classList.toggle('disabled', !tunerPaused);
+    }
+
+    // Bipolar strip (cents, ±50, 0 in the middle) - see the .tuner-pitch-graph-bars/.tuner-history-bar*
+    // CSS comment for why each sample is a flex "slot" wrapping an absolutely-positioned bar, rather
+    // than the slot itself being the bar. Unipolar strip (dB, 0 at top/-60 at bottom, baseline at the
+    // bottom) is simpler - flex items can just set their own height directly. Renders only the visible
+    // VIEW_MS slice of the BUFFER (see tunerScrubOffsetSamples), not the whole retained buffer.
+    function renderTunerHistoryGraphs() {
+        const pitchEl = document.getElementById('tunerPitchGraphBars');
+        const dynamicsEl = document.getElementById('tunerDynamicsBars');
+        if (!pitchEl || !dynamicsEl) return;
+
+        const viewSamples = Math.ceil(TUNER_HISTORY_VIEW_MS / TUNER_HISTORY_SAMPLE_MS);
+        const maxOffset = Math.max(0, tunerHistory.length - viewSamples);
+        if (tunerScrubOffsetSamples > maxOffset) tunerScrubOffsetSamples = maxOffset;
+        const end = tunerHistory.length - tunerScrubOffsetSamples;
+        const start = Math.max(0, end - viewSamples);
+        const visible = tunerHistory.slice(start, end);
+        // Every render lays out exactly viewSamples flex slots, padded with empty ones at the start
+        // when the buffer hasn't filled up yet (only possible early in a session, or right after
+        // renderTunerIdle resets it) - each flex:1 slot is then always the same width, rather than a
+        // handful of samples stretching to fill the whole row the moment the tuner opens and then
+        // visibly shrinking back down to normal width as the buffer fills. Padding slots render nothing
+        // at all (no bar, no gap-dot - those mean "silence", not "no data yet").
+        const padCount = Math.max(0, viewSamples - visible.length);
+        const pitchPad = '<div class="tuner-history-bar-slot"></div>'.repeat(padCount);
+        const dynamicsPad = '<div class="tuner-dynamics-bar" style="height:0%;"></div>'.repeat(padCount);
+
+        // Note-attack labels sit above their bar by default, but two attacks close together in time
+        // would stack their labels on top of each other there - alternate below whenever a label lands
+        // within NOTE_LABEL_MIN_GAP_SAMPLES of the previous one, so a run of close attacks reads
+        // above/below/above/... instead of every close pair independently picking "above" and
+        // colliding anyway.
+        const NOTE_LABEL_MIN_GAP_SAMPLES = 4; // ~0.4s apart - closer than this and stacked labels start to overlap
+        let lastLabelIdx = -Infinity;
+        let lastLabelSide = 'above';
+        const labelSides = visible.map((s, i) => {
+            if (!s.note) return null;
+            const side = (i - lastLabelIdx) < NOTE_LABEL_MIN_GAP_SAMPLES
+                ? (lastLabelSide === 'above' ? 'below' : 'above')
+                : 'above';
+            lastLabelIdx = i;
+            lastLabelSide = side;
+            return side;
+        });
+
+        pitchEl.innerHTML = pitchPad + visible.map((s, i) => {
+            if (s.cents === null) return `<div class="tuner-history-bar-slot"><div class="tuner-history-bar-gap"></div></div>`;
+            const centerPct = 50 - s.cents; // same 1-cent-per-percentage-point mapping tunerBarNeedle uses
+            const top = Math.min(50, centerPct);
+            const height = Math.max(Math.abs(centerPct - 50), 1.5); // floor so an exact 0c sample still shows a sliver
+            const label = s.note ? `<span class="tuner-history-bar-label${labelSides[i] === 'below' ? ' below' : ''}">${escapeHtml(s.note)}</span>` : '';
+            return `<div class="tuner-history-bar-slot"><div class="tuner-history-bar${s.inTune ? ' in-tune' : ''}" style="top:${top}%; height:${height}%;">${label}</div></div>`;
+        }).join('');
+
+        dynamicsEl.innerHTML = dynamicsPad + visible.map((s) => {
+            // s.db is null on a genuinely quiet sample (pushTunerHistorySample/renderTunerPitch) - a
+            // flat/empty bar there, matching the pitch strip's own gap at the same moment, rather than
+            // the ~33%-height bar TUNER_QUIET_RMS's cutoff (-40dBFS) would otherwise floor-map to. A
+            // loud-but-untracked moment (breath attack, key click) still has a real s.db and still
+            // shows its true height - only true silence flatlines both strips together.
+            if (s.db === null) return `<div class="tuner-dynamics-bar" style="height:0%;"></div>`;
+            const norm = Math.max(0, Math.min(1, (s.db + 60) / 60));
+            return `<div class="tuner-dynamics-bar" style="height:${Math.max(norm * 100, 1)}%;"></div>`;
+        }).join('');
+
+        // Shared horizontal time axis (#tunerGraphTimeAxis) - always TUNER_HISTORY_VIEW_MS wide, but
+        // its right edge moves with tunerScrubOffsetSamples so it still reflects reality while
+        // scrubbed (e.g. "-14s/-12s/-10s" well back in the buffer), not just while live.
+        const timeAxisEl = document.getElementById('tunerGraphTimeAxis');
+        if (timeAxisEl) {
+            const rightEdgeSec = Math.round((tunerScrubOffsetSamples * TUNER_HISTORY_SAMPLE_MS) / 1000);
+            const viewSec = TUNER_HISTORY_VIEW_MS / 1000;
+            const rightLabel = rightEdgeSec === 0 ? 'now' : `-${rightEdgeSec}s`;
+            timeAxisEl.innerHTML = `<span>-${rightEdgeSec + viewSec}s</span><span>-${rightEdgeSec + viewSec / 2}s</span><span>${rightLabel}</span>`;
+        }
+
+        renderTunerScrubSlider(maxOffset);
+    }
+
+    function renderTunerPitch(freq, rms) {
         if (!tunerEngine.isActive()) return; // stray frame from just before stop()
+        const db = tunerRmsToDb(rms);
+        const now = performance.now();
+        // Live reading (note/needle below) keeps updating regardless of pause - only the history
+        // strips freeze, so "pause" reviews the recent past without stopping you tuning right now.
+        const dueForHistorySample = !tunerPaused && now - tunerHistoryLastSampleAt >= TUNER_HISTORY_SAMPLE_MS;
+
         if (!freq || freq < 0) {
-            // No signal right now (gap between notes, breath, etc). Deliberately leave the note
-            // display, needle and in-tune highlight showing whatever was last detected, rather than
-            // resetting to the idle state - that reset only happens once, when the tuner first opens.
-            document.getElementById('tunerStatus').innerText = 'Listening...';
+            // No signal right now (gap between notes, breath, etc). Deliberately leave the note/needle
+            // display showing whatever was last detected, rather than resetting to the idle state -
+            // that reset only happens once, when the tuner first opens. The card's own border DOES
+            // reset here though (neutral gray, neither .in-tune nor .out-of-tune) - a stale green/gold
+            // outline surviving a rest would misrepresent "right now" as still being the last note.
+            document.getElementById('tunerCard').classList.remove('in-tune', 'out-of-tune');
+            if (dueForHistorySample) {
+                tunerHistoryLastSampleAt = now;
+                tunerHistoryLastNote = null; // the next real note re-attacks, even if it's the same pitch as before the gap
+                // Genuinely quiet (below the same cutoff tunerAutoCorrelate itself gave up at) -
+                // db: null flatlines the dynamics strip too, rather than showing a misleadingly tall
+                // bar for "quiet" (TUNER_QUIET_RMS's cutoff is still -40dBFS, not silence). A loud but
+                // untracked moment (breath attack, key click) keeps its real db - still worth seeing.
+                pushTunerHistorySample({ cents: null, inTune: false, note: null, db: rms < TUNER_QUIET_RMS ? null : db });
+            }
             return;
         }
-        document.getElementById('tunerStatus').innerText = '';
 
         const concertMidi = tunerFreqToMidi(freq);
         const nearestConcertMidi = Math.round(concertMidi);
         const centsOff = (concertMidi - nearestConcertMidi) * 100;
 
-        const instrument = document.getElementById('tunerInstrumentSelect').value;
-        const offset = TUNER_TRANSPOSITIONS[instrument] || 0;
-        const writtenMidi = nearestConcertMidi + offset;
+        const writtenMidi = nearestConcertMidi + tunerTransposition;
+        const writtenNote = tunerMidiToName(writtenMidi);
 
-        document.getElementById('tunerNoteDisplay').innerText = tunerMidiToName(writtenMidi);
+        document.getElementById('tunerNoteDisplay').innerText = writtenNote;
         document.getElementById('tunerConcertDisplay').innerText = tunerMidiToName(nearestConcertMidi);
+
+        // tunerShowOctave/tunerShowHz: both off by default. Octave uses scientific pitch notation
+        // (MIDI 60 = C4, MIDI 69 = A4/440Hz) computed per column since transposition can shift the
+        // octave too, not just the letter. Hz is the same physical value under both columns - written
+        // notation only renames the pitch, the actual frequency doesn't change.
+        const concertOctaveEl = document.getElementById('tunerConcertOctave');
+        const writtenOctaveEl = document.getElementById('tunerNoteOctave');
+        if (concertOctaveEl) {
+            concertOctaveEl.innerText = tunerShowOctave ? String(Math.floor(nearestConcertMidi / 12) - 1) : '';
+            concertOctaveEl.classList.toggle('hidden-group', !tunerShowOctave);
+        }
+        if (writtenOctaveEl) {
+            writtenOctaveEl.innerText = tunerShowOctave ? String(Math.floor(writtenMidi / 12) - 1) : '';
+            writtenOctaveEl.classList.toggle('hidden-group', !tunerShowOctave);
+        }
+        const hzText = `${Math.round(freq)} Hz`;
+        const concertHzEl = document.getElementById('tunerConcertHz');
+        const writtenHzEl = document.getElementById('tunerNoteHz');
+        if (concertHzEl) { concertHzEl.innerText = hzText; concertHzEl.classList.toggle('hidden-group', !tunerShowHz); }
+        if (writtenHzEl) { writtenHzEl.innerText = hzText; writtenHzEl.classList.toggle('hidden-group', !tunerShowHz); }
 
         const clampedCents = Math.max(-50, Math.min(50, centsOff));
         const inTune = Math.abs(centsOff) <= TUNER_ZONE_CENTS;
         document.getElementById('tunerNeedle').style.left = `${50 + clampedCents}%`;
         document.getElementById('tunerNeedle').classList.toggle('in-tune', inTune);
         document.getElementById('tunerCard').classList.toggle('in-tune', inTune);
+        document.getElementById('tunerCard').classList.toggle('out-of-tune', !inTune);
+
+        if (dueForHistorySample) {
+            tunerHistoryLastSampleAt = now;
+            const isAttack = writtenNote !== tunerHistoryLastNote;
+            tunerHistoryLastNote = writtenNote;
+            pushTunerHistorySample({ cents: clampedCents, inTune, note: isAttack ? writtenNote : null, db });
+        }
     }
 
     tunerEngine.onPitch(renderTunerPitch);
 
-    // Both instrument pickers (this one on the Tuner page, and the one in Settings) read/write the
-    // same stored value, so whichever you last touched is what comes back next time - it genuinely
-    // varies by instrument, so there's no separate "default" to fall back to.
-    document.getElementById('tunerInstrumentSelect')?.addEventListener('change', (e) => {
-        localStorage.setItem(TUNER_INSTRUMENT_DEFAULT_KEY, e.target.value);
-        updateTunerInstrumentLabel();
-    });
-    document.getElementById('tunerInstrumentSetting')?.addEventListener('change', (e) => {
-        localStorage.setItem(TUNER_INSTRUMENT_DEFAULT_KEY, e.target.value);
-    });
+    // Replaces the old plain <select>s / tap-to-open-own-modal pickers with tap-a-tile groups
+    // (openFlowGlyphPicker's own shared tile markup, flowGlyphPickerTileHtml) rendered inline inside
+    // #tunerSettingsModal, rather than each opening its own modal that auto-closes on pick - picking a
+    // tile here should just update state and leave the rest of the settings popup open.
+    // renderTunerSettingsModal rebuilds all 3 groups (plus the Tuning row and the Concert-column label,
+    // both of which depend on some of these) on every change, same "just re-render the list" convention
+    // the rest of this app already uses for anything list-shaped.
+    function renderTunerInlineTiles(gridId, options, onSelect) {
+        const grid = document.getElementById(gridId);
+        if (!grid) return;
+        grid.innerHTML = options.map(flowGlyphPickerTileHtml).join('');
+        grid.querySelectorAll('.flow-picker-tile').forEach((btn, i) => {
+            btn.addEventListener('click', () => onSelect(options[i]));
+        });
+    }
+    // Note letter shown in the Transposition row button (#tunerSettingsModal) - kept as its own
+    // function since it needs refreshing from several places (picking a tile, the Settings-screen
+    // select, and just opening/re-rendering the Settings popup) independently of the label the "right
+    // now" card itself shows (updateTunerTranspositionLabel).
+    function updateTunerTranspositionRowValue() {
+        const rowValue = document.getElementById('tunerTranspositionRowValue');
+        if (rowValue) rowValue.innerText = `${tunerMidiToName(tunerTransposition)} ›`;
+    }
+    function renderTunerSettingsModal() {
+        const useFlats = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
+        renderTunerInlineTiles('tunerAccidentalOptions', [
+            { icon: '♯', caption: 'Sharps', ariaLabel: 'Sharps', selected: !useFlats, value: false },
+            { icon: '♭', caption: 'Flats', ariaLabel: 'Flats', selected: useFlats, value: true }
+        ], (opt) => {
+            localStorage.setItem(TUNER_USE_FLATS_KEY, opt.value ? 'true' : 'false');
+            const settingsToggle = document.getElementById('tunerUseFlatsToggle');
+            if (settingsToggle) settingsToggle.checked = opt.value;
+            renderTunerSettingsModal();
+        });
+
+        renderTunerInlineTiles('tunerNoteStyleOptions', [
+            { icon: 'CDE', caption: 'Letters', ariaLabel: 'Letters (C, D, E...)', selected: tunerNoteStyle === 'letters', value: 'letters' },
+            { icon: 'Do', caption: 'Solfège', ariaLabel: 'Solfège (Do, Re, Mi...)', selected: tunerNoteStyle === 'solfege', value: 'solfege' }
+        ], (opt) => {
+            tunerNoteStyle = opt.value;
+            localStorage.setItem(TUNER_NOTE_STYLE_KEY, tunerNoteStyle);
+            const settingsSelect = document.getElementById('tunerNoteStyleSetting');
+            if (settingsSelect) settingsSelect.value = tunerNoteStyle;
+            renderTunerSettingsModal();
+        });
+
+        updateTunerTranspositionLabel();
+        updateTunerTranspositionRowValue();
+
+        const a4RowValue = document.getElementById('tunerA4RowValue');
+        if (a4RowValue) a4RowValue.innerText = `${tunerA4Freq}Hz ›`;
+
+        syncTunerDisplayToggles();
+    }
     document.getElementById('tunerUseFlatsToggle')?.addEventListener('change', (e) => {
         localStorage.setItem(TUNER_USE_FLATS_KEY, e.target.checked ? 'true' : 'false');
+        renderTunerSettingsModal();
     });
+    document.getElementById('tunerNoteStyleSetting')?.addEventListener('change', (e) => {
+        tunerNoteStyle = e.target.value;
+        localStorage.setItem(TUNER_NOTE_STYLE_KEY, tunerNoteStyle);
+        renderTunerSettingsModal();
+    });
+    document.getElementById('tunerTranspositionSetting')?.addEventListener('change', (e) => {
+        tunerTransposition = parseInt(e.target.value, 10) || 0;
+        localStorage.setItem(TUNER_TRANSPOSITION_KEY, String(tunerTransposition));
+        updateTunerTranspositionLabel();
+        updateTunerTranspositionRowValue();
+    });
+
+    // Transposition opens its own popup (12 options - too many to sit inline as a "glance at it" row)
+    // rather than showing the tile grid inline in #tunerSettingsModal - same tap-a-tile-to-select-and-
+    // close shape as the Flow editor's own glyph pickers (openFlowGlyphPicker), not the "stay open,
+    // just re-render" shape the groups still inline in that popup use.
+    function openTunerTranspositionPicker() {
+        closeTunerSettingsModal();
+        const options = Array.from({ length: 12 }, (_, i) => ({
+            icon: tunerMidiToName(i), caption: '', ariaLabel: tunerMidiToName(i), selected: tunerTransposition === i, value: i
+        }));
+        openFlowGlyphPicker('tunerTranspositionModal', 'tunerTranspositionOptions', options, (opt) => {
+            tunerTransposition = opt.value;
+            localStorage.setItem(TUNER_TRANSPOSITION_KEY, String(tunerTransposition));
+            const settingsSelect = document.getElementById('tunerTranspositionSetting');
+            if (settingsSelect) settingsSelect.value = String(tunerTransposition);
+            updateTunerTranspositionLabel();
+            updateTunerTranspositionRowValue();
+        });
+    }
+    document.getElementById('tunerTranspositionBtn')?.addEventListener('click', openTunerTranspositionPicker);
+    document.getElementById('tunerTranspositionCloseBtn')?.addEventListener('click', () => {
+        document.getElementById('tunerTranspositionModal').style.display = 'none';
+    });
+
+    // Settings-screen toggle for the "right now" card's Concert column (updateTunerTranspositionLabel
+    // decides the actual hide/show, since it also depends on the transposition choice too) - the popup
+    // trigger for this lives in #tunerSettingsModal now (see syncTunerDisplayToggles and the toggle
+    // listeners below), not its own tap-to-open tile picker.
+    document.getElementById('tunerShowConcertSetting')?.addEventListener('change', (e) => {
+        tunerShowConcert = e.target.checked;
+        localStorage.setItem(TUNER_SHOW_CONCERT_KEY, tunerShowConcert ? 'true' : 'false');
+        updateTunerTranspositionLabel();
+        const popupToggle = document.getElementById('tunerShowConcertToggle');
+        if (popupToggle) popupToggle.checked = tunerShowConcert;
+    });
+
+    // #tunerSettingsModal - every Tuner setting, in one popup (syncTunerDisplayToggles/
+    // renderTunerSettingsModal keep this popup and the Settings-screen rows showing the same state).
+    // Closes on its own X or a tap on the dark backdrop outside .modal-content, unlike every other
+    // modal in the app (which only close via an explicit button) - nothing here needs an explicit
+    // Cancel/Save, it's just live picks/toggles.
+    function openTunerSettingsModal() {
+        renderTunerSettingsModal();
+        document.getElementById('tunerSettingsModal').style.display = 'flex';
+    }
+    function closeTunerSettingsModal() {
+        document.getElementById('tunerSettingsModal').style.display = 'none';
+    }
+    document.getElementById('tunerSettingsBtn')?.addEventListener('click', openTunerSettingsModal);
+    document.getElementById('tunerSettingsCloseBtn')?.addEventListener('click', closeTunerSettingsModal);
+    document.getElementById('tunerSettingsModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'tunerSettingsModal') closeTunerSettingsModal();
+    });
+    document.getElementById('tunerShowConcertToggle')?.addEventListener('change', (e) => {
+        tunerShowConcert = e.target.checked;
+        localStorage.setItem(TUNER_SHOW_CONCERT_KEY, tunerShowConcert ? 'true' : 'false');
+        updateTunerTranspositionLabel();
+        const settingsToggle = document.getElementById('tunerShowConcertSetting');
+        if (settingsToggle) settingsToggle.checked = tunerShowConcert;
+    });
+    document.getElementById('tunerShowHzToggle')?.addEventListener('change', (e) => {
+        tunerShowHz = e.target.checked;
+        localStorage.setItem(TUNER_SHOW_HZ_KEY, tunerShowHz ? 'true' : 'false');
+        const settingsToggle = document.getElementById('tunerShowHzSetting');
+        if (settingsToggle) settingsToggle.checked = tunerShowHz;
+    });
+    document.getElementById('tunerShowOctaveToggle')?.addEventListener('change', (e) => {
+        tunerShowOctave = e.target.checked;
+        localStorage.setItem(TUNER_SHOW_OCTAVE_KEY, tunerShowOctave ? 'true' : 'false');
+        const settingsToggle = document.getElementById('tunerShowOctaveSetting');
+        if (settingsToggle) settingsToggle.checked = tunerShowOctave;
+    });
+    document.getElementById('tunerShowHzSetting')?.addEventListener('change', (e) => {
+        tunerShowHz = e.target.checked;
+        localStorage.setItem(TUNER_SHOW_HZ_KEY, tunerShowHz ? 'true' : 'false');
+        const popupToggle = document.getElementById('tunerShowHzToggle');
+        if (popupToggle) popupToggle.checked = tunerShowHz;
+    });
+    document.getElementById('tunerShowOctaveSetting')?.addEventListener('change', (e) => {
+        tunerShowOctave = e.target.checked;
+        localStorage.setItem(TUNER_SHOW_OCTAVE_KEY, tunerShowOctave ? 'true' : 'false');
+        const popupToggle = document.getElementById('tunerShowOctaveToggle');
+        if (popupToggle) popupToggle.checked = tunerShowOctave;
+    });
+
+    // A4 tuning reference - feeds tunerFreqToMidi directly (see its own definition above), not just
+    // cosmetic. Same minus/plus + typeable readout + slider shape as the Tempo (bpm) popup
+    // (flowOpenBpmModal), just a fixed 415-466Hz range (a semitone either side of 440, the standard
+    // adjustable span on a reference tuner) instead of that one's dynamic bpm tiers.
+    const TUNER_A4_MIN = 415;
+    const TUNER_A4_MAX = 466;
+    const TUNER_A4_DEFAULT = 440;
+    function renderTunerA4Slider() {
+        const pct = ((tunerA4Freq - TUNER_A4_MIN) / (TUNER_A4_MAX - TUNER_A4_MIN)) * 100;
+        const fill = document.getElementById('tunerA4SliderFill');
+        const thumb = document.getElementById('tunerA4SliderThumb');
+        if (fill) fill.style.width = `${pct}%`;
+        if (thumb) { thumb.style.left = `${pct}%`; thumb.setAttribute('aria-valuenow', String(tunerA4Freq)); }
+        const valueEl = document.getElementById('tunerA4PopupValue');
+        if (valueEl) valueEl.innerText = String(tunerA4Freq);
+        const rowValue = document.getElementById('tunerA4RowValue');
+        if (rowValue) rowValue.innerText = `${tunerA4Freq}Hz ›`;
+    }
+    function setTunerA4(value) {
+        tunerA4Freq = Math.round(Math.min(TUNER_A4_MAX, Math.max(TUNER_A4_MIN, value)));
+        localStorage.setItem(TUNER_A4_KEY, String(tunerA4Freq));
+        renderTunerA4Slider();
+    }
+    function openTunerA4Modal() {
+        renderTunerA4Slider();
+        document.getElementById('tunerA4Modal').style.display = 'flex';
+    }
+    function closeTunerA4Modal() {
+        document.getElementById('tunerA4Modal').style.display = 'none';
+    }
+    // Tuning opens its own popup (a slider needs more room than a tile grid) - closes the Settings
+    // popup first rather than stacking two dark-backdrop modals on top of each other.
+    document.getElementById('tunerA4Btn')?.addEventListener('click', () => {
+        closeTunerSettingsModal();
+        openTunerA4Modal();
+    });
+    document.getElementById('tunerA4CloseBtn')?.addEventListener('click', closeTunerA4Modal);
+    document.getElementById('tunerA4Modal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'tunerA4Modal') closeTunerA4Modal();
+    });
+    document.getElementById('tunerA4ResetBtn')?.addEventListener('click', () => setTunerA4(TUNER_A4_DEFAULT));
+    setupHoldStepper('tunerA4Minus', -1, (amount) => setTunerA4(tunerA4Freq + amount));
+    setupHoldStepper('tunerA4Plus', 1, (amount) => setTunerA4(tunerA4Freq + amount));
+    setupSliderInteraction(document.getElementById('tunerA4SliderTrack'), document.getElementById('tunerA4SliderThumb'), {
+        onDragRatio: (ratio) => setTunerA4(TUNER_A4_MIN + ratio * (TUNER_A4_MAX - TUNER_A4_MIN)),
+        onArrowStep: (dir) => setTunerA4(tunerA4Freq + dir)
+    });
+    makeSliderReadoutEditable('tunerA4PopupValue', () => tunerA4Freq, (v) => setTunerA4(v), { label: 'A4 tuning reference', min: TUNER_A4_MIN, max: TUNER_A4_MAX });
+
     document.getElementById('fermataPlaybackModeSetting')?.addEventListener('change', (e) => {
         localStorage.setItem(FERMATA_PLAYBACK_MODE_KEY, e.target.value);
     });
     document.getElementById('tunerRetryBtn')?.addEventListener('click', startTuner);
 
+    // Shows a real #tunerStatus message (requesting access / access denied) - unlike the old
+    // "Listening..." toggle this element used to also carry, these two are genuine, infrequent state
+    // changes, so it's fine for the card to make room for them; empty (.hidden-group) the rest of the
+    // time rather than reserving blank space for a message that's usually not there.
+    function setTunerStatusMessage(text) {
+        const el = document.getElementById('tunerStatus');
+        el.innerText = text;
+        el.classList.toggle('hidden-group', !text);
+    }
+
     async function startTuner() {
-        // Restore whichever instrument was last picked (here or in Settings) rather than a fixed default.
-        document.getElementById('tunerInstrumentSelect').value = localStorage.getItem(TUNER_INSTRUMENT_DEFAULT_KEY) || 'C';
-        updateTunerInstrumentLabel();
+        // Restore whichever values were last picked (here or in Settings) rather than fixed defaults.
+        tunerTransposition = parseInt(localStorage.getItem(TUNER_TRANSPOSITION_KEY), 10) || 0;
+        tunerShowConcert = localStorage.getItem(TUNER_SHOW_CONCERT_KEY) !== 'false'; // defaults true (unset)
+        tunerNoteStyle = localStorage.getItem(TUNER_NOTE_STYLE_KEY) || 'letters';
+        tunerShowHz = localStorage.getItem(TUNER_SHOW_HZ_KEY) === 'true'; // defaults false (unset)
+        tunerShowOctave = localStorage.getItem(TUNER_SHOW_OCTAVE_KEY) === 'true'; // defaults false (unset)
+        tunerA4Freq = parseInt(localStorage.getItem(TUNER_A4_KEY), 10) || 440; // defaults 440 (unset/invalid)
+        updateTunerTranspositionLabel();
+        updateTunerTranspositionRowValue();
+        renderTunerA4Slider();
         renderTunerIdle();
 
         document.getElementById('tunerRetryBtn').classList.add('hidden-group');
-        document.getElementById('tunerStatus').innerText = 'Requesting microphone access...';
+        setTunerStatusMessage('Requesting microphone access...');
 
         const ok = await tunerEngine.start();
         if (!ok) {
-            document.getElementById('tunerStatus').innerText = 'Microphone access is needed for the tuner. Check your browser/site permissions and try again.';
+            setTunerStatusMessage('Microphone access is needed for the tuner. Check your browser/site permissions and try again.');
             document.getElementById('tunerRetryBtn').classList.remove('hidden-group');
             return;
         }
-        document.getElementById('tunerStatus').innerText = 'Listening...';
+        setTunerStatusMessage('');
     }
 
     function stopTuner() {
@@ -12472,7 +13036,12 @@
     }
 
     function openMetroBlkMiniTuner() {
-        metroBlkMiniTunerInstrument = localStorage.getItem(TUNER_INSTRUMENT_DEFAULT_KEY) || 'C';
+        // Inherits the full Tuner view's own transposition default when it happens to match one of
+        // this widget's own 4 presets (all this mini popup offers) - falls back to Concert otherwise,
+        // since it can't represent an arbitrary semitone offset the way the full view's own 12-tile
+        // Transposition picker can.
+        const offset = parseInt(localStorage.getItem(TUNER_TRANSPOSITION_KEY), 10) || 0;
+        metroBlkMiniTunerInstrument = Object.keys(TUNER_TRANSPOSITIONS).find(k => TUNER_TRANSPOSITIONS[k] === offset) || 'C';
         renderMetroBlkMiniTunerInstrumentBtn();
         renderMetroBlkMiniTunerIdle();
         // .metroBlk-mini-tuner-open (not hidden-group) so opening/closing animates - see the CSS.

@@ -417,16 +417,45 @@
 
         <div class="section-title">Tuner</div>
         <div class="form-group">
-            <label for="tunerInstrumentSetting">Default instrument</label>
-            <select id="tunerInstrumentSetting">
-                <option value="C">Concert pitch (C)</option>
-                <option value="Bb">B&flat; instrument</option>
-                <option value="Eb">E&flat; instrument</option>
-                <option value="F">F instrument</option>
+            <!-- 12 options (every semitone offset), not just the 4 common band families - matches
+                 #tunerTranspositionOptions in the Tuner settings popup. Labels are fixed sharp spelling
+                 regardless of the Show flats setting - a native <select>'s own option text can't
+                 retranslate live the way that popup's tiles do, and this is the secondary "default for
+                 next time" screen, not the primary control. -->
+            <label for="tunerTranspositionSetting">Default transposition</label>
+            <select id="tunerTranspositionSetting">
+                <option value="0">Concert pitch (C)</option>
+                <option value="1">C&sharp; instrument</option>
+                <option value="2">D instrument</option>
+                <option value="3">D&sharp; instrument</option>
+                <option value="4">E instrument</option>
+                <option value="5">F instrument</option>
+                <option value="6">F&sharp; instrument</option>
+                <option value="7">G instrument</option>
+                <option value="8">G&sharp; instrument</option>
+                <option value="9">A instrument</option>
+                <option value="10">A&sharp; instrument</option>
+                <option value="11">B instrument</option>
             </select>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 1.1rem; padding: 15px; background: var(--input-bg); border-radius: 12px; border: 1px solid var(--input-border);">
             <span>Show flats instead of sharps</span><label class="toggle-switch"><input type="checkbox" id="tunerUseFlatsToggle"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="form-group">
+            <label for="tunerNoteStyleSetting">Note names</label>
+            <select id="tunerNoteStyleSetting">
+                <option value="letters">Letters (C, D, E&hellip;)</option>
+                <option value="solfege">Solf&egrave;ge (Do, Re, Mi&hellip;)</option>
+            </select>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 1.1rem; padding: 15px; background: var(--input-bg); border-radius: 12px; border: 1px solid var(--input-border);">
+            <span>Show concert pitch</span><label class="toggle-switch"><input type="checkbox" id="tunerShowConcertSetting" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 1.1rem; padding: 15px; background: var(--input-bg); border-radius: 12px; border: 1px solid var(--input-border);">
+            <span>Show Hz</span><label class="toggle-switch"><input type="checkbox" id="tunerShowHzSetting"><span class="toggle-slider"></span></label>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 1.1rem; padding: 15px; background: var(--input-bg); border-radius: 12px; border: 1px solid var(--input-border);">
+            <span>Show octave</span><label class="toggle-switch"><input type="checkbox" id="tunerShowOctaveSetting"><span class="toggle-slider"></span></label>
         </div>
 
         <!-- ML-103 follow-up: how a fermata sustained hold sounds is a playback preference, not a
@@ -1312,38 +1341,236 @@
     </div>
 
     <div id="tunerView" style="display:none;">
+        <!-- Box 1: "right now" only - live note/needle reading, no history. Kept separate from the
+             history box below it: this reflects the current instant, the history box reflects a span
+             of time, and pausing/rewinding the latter shouldn't freeze this one (see renderTunerPitch,
+             app.js - the live reading keeps updating even while the history strips are paused). -->
         <div class="tuner-card" id="tunerCard">
+            <!-- Every Tuner setting (notation + display) lives in one popup off this cog now
+                 (#tunerSettingsModal) - closes on its own X or a tap outside it. -->
+            <button type="button" class="tuner-card-settings-btn" id="tunerSettingsBtn" aria-label="Tuner settings"><span class="material-symbols-outlined">settings</span></button>
+            <!-- tunerConcertCol is hidden (updateTunerTranspositionLabel, app.js) whenever it would
+                 just repeat the other column - transposition is 0 (concert pitch itself, nothing to
+                 transpose), or "show concert" is off - so the remaining column expands to fill the row
+                 via its own flex:1 rather than sitting oddly narrow next to an empty gap. -->
+            <!-- .tuner-note-octave (tunerShowOctave) and .tuner-note-hz (tunerShowHz) are both
+                 populated only when their setting is on, and .hidden-group otherwise (renderTunerPitch,
+                 app.js) - off by default for both. Octave sits inline right after the big letter
+                 (flex row, align-items:flex-end so it's bottom-aligned against the letter's own
+                 baseline-ish bottom rather than centred or top-aligned), Hz sits on its own small line
+                 below. -->
             <div class="tuner-pitch-row">
-                <div class="tuner-pitch-col">
+                <div class="tuner-pitch-col" id="tunerConcertCol">
                     <div class="tuner-pitch-label">Concert</div>
-                    <div class="tuner-note" id="tunerConcertDisplay">&ndash;</div>
+                    <div class="tuner-note-row">
+                        <span class="tuner-note" id="tunerConcertDisplay">&ndash;</span><span class="tuner-note-octave hidden-group" id="tunerConcertOctave"></span>
+                    </div>
+                    <div class="tuner-note-hz hidden-group" id="tunerConcertHz"></div>
                 </div>
                 <div class="tuner-pitch-col">
                     <div class="tuner-pitch-label" id="tunerInstrumentLabel">Concert pitch (C)</div>
-                    <div class="tuner-note" id="tunerNoteDisplay">&ndash;</div>
+                    <div class="tuner-note-row">
+                        <span class="tuner-note" id="tunerNoteDisplay">&ndash;</span><span class="tuner-note-octave hidden-group" id="tunerNoteOctave"></span>
+                    </div>
+                    <div class="tuner-note-hz hidden-group" id="tunerNoteHz"></div>
+                </div>
+            </div>
+
+            <div class="tuner-bar-wrap">
+                <div class="tuner-bar-track" id="tunerBarTrack">
+                    <div class="tuner-bar-zone"></div>
+                    <div class="tuner-bar-center-mark"></div>
+                    <div class="tuner-bar-needle" id="tunerNeedle"></div>
+                </div>
+                <!-- Genuinely a horizontal scale here (unlike the history graphs below) - the needle's
+                     own left:% position directly encodes cents, so plotting the scale left-to-right is
+                     correct, not the mislabeling those graphs used to have. -->
+                <div class="tuner-bar-scale"><span>&minus;50c</span><span>0</span><span>+50c</span></div>
+            </div>
+
+            <!-- #tunerStatus is real messages only now (requesting mic access / access denied) - the
+                 old "Listening..." text that toggled on/off every time a note dropped out between
+                 attacks is gone (that was also why this card's height used to jiggle - the message
+                 appearing/disappearing changed how much the card needed). No separate "still
+                 listening" indicator any more either - the History card's own Pitch/Dynamics strips
+                 right below already show live activity, a second live indicator up here duplicated
+                 that. -->
+            <div class="tuner-status hidden-group" id="tunerStatus">Requesting microphone access&hellip;</div>
+            <button class="btn-nav hidden-group" id="tunerRetryBtn">Try again</button>
+        </div>
+
+        <!-- Box 2: pitch + dynamics history together (both are "how did the recent past go" strips,
+             always time-aligned sample-for-sample - see tunerHistory, app.js), with one shared
+             pause/rewind control since both freeze and scrub in sync (setTunerPaused). No section-title
+             above this card any more (there's nothing else on the page to distinguish "History" from,
+             now that Box 3's own "Settings" title is gone too). Pitch keeps a VERTICAL axis (cents -
+             what the bar height actually encodes) via .tuner-graph-yaxis; Dynamics doesn't (loudness
+             here is only ever relative - "louder"/"quieter" - not calibrated to real pp/mf/ff dynamic
+             markings, so a scale implying otherwise would be misleading). The one true horizontal axis
+             here is time, shared by both graphs since they're always the same TUNER_HISTORY_VIEW_MS-
+             wide window - #tunerGraphTimeAxis (updated by renderTunerHistoryGraphs, app.js) reflects
+             that, including while scrubbed. -->
+        <div class="tuner-graph-card">
+            <!-- Plain divs sized via inline top/height/width percentages, same convention as the Stats
+                 screen's own bar chart (.chart-wrapper et al) - this app has never used canvas/SVG for
+                 a visualization and there's no reason to start here. -->
+            <div class="tuner-graph-subtitle">Pitch</div>
+            <div class="tuner-graph-row">
+                <div class="tuner-graph-yaxis"><span>+50c</span><span>0c</span><span>&minus;50c</span></div>
+                <div class="tuner-pitch-graph">
+                    <div class="tuner-pitch-graph-zone"></div>
+                    <!-- Exactly 3 lines: dashed top/bottom edges, one solid line at 0 (the strip's own
+                         centre, not both a dashed and solid line stacked there). -->
+                    <div class="tuner-pitch-graph-gridline" style="top:0;"></div>
+                    <div class="tuner-pitch-graph-gridline" style="bottom:0;"></div>
+                    <div class="tuner-pitch-graph-zero"></div>
+                    <div class="tuner-pitch-graph-bars" id="tunerPitchGraphBars"></div>
+                </div>
+            </div>
+            <div class="tuner-graph-subtitle">Dynamics</div>
+            <div class="tuner-graph-row">
+                <!-- No axis labels here (see the section-title comment above), but still an empty
+                     spacer at the same width as Pitch's own .tuner-graph-yaxis - otherwise this
+                     graph's left edge sits further left than Pitch's own (which is inset by its
+                     y-axis column), and the two strips no longer line up despite being the same
+                     time-aligned window. -->
+                <div class="tuner-graph-yaxis" aria-hidden="true"></div>
+                <div class="tuner-dynamics-graph">
+                    <!-- Exactly 3 lines: solid baseline the bars actually grow up from, dashed halfway
+                         up, dashed at the very top. -->
+                    <div class="tuner-dynamics-gridline" style="bottom:50%;"></div>
+                    <div class="tuner-dynamics-gridline" style="top:0;"></div>
+                    <div class="tuner-dynamics-graph-zero"></div>
+                    <div class="tuner-dynamics-bars" id="tunerDynamicsBars"></div>
+                </div>
+            </div>
+            <div class="tuner-graph-scale" id="tunerGraphTimeAxis"><span>-4s</span><span>-2s</span><span>now</span></div>
+
+            <!-- Pause and rewind are one control, not two - the button sits directly beside the slider
+                 it freezes/unfreezes, both under a shared label, rather than the pause button living up
+                 in the section-title disconnected from what it actually does. The slider itself is
+                 always visible (not hidden while live) so nothing about this card's height changes when
+                 you pause - it's just disabled (.disabled on #tunerScrubSliderWrap, toggled by
+                 setTunerPaused) until then. Same shared slider component as the bpm/volume sliders
+                 elsewhere in the app (.slider-track/.slider-fill/.slider-thumb/.slider-scale,
+                 setupSliderInteraction) rather than a native <input type=range>, so it matches their
+                 look exactly (bigger thumb, grey remainder). -->
+            <div class="tuner-rewind-label">Rewind history (max 30s)</div>
+            <div class="tuner-rewind-row">
+                <button type="button" class="tuner-pause-btn" id="tunerPauseBtn" aria-label="Pause history" aria-pressed="false"><span class="material-symbols-outlined" id="tunerPauseIcon">pause</span></button>
+                <div class="slider-wrap no-margin" id="tunerScrubSliderWrap">
+                    <div class="slider-track" id="tunerScrubSliderTrack">
+                        <div class="slider-fill" id="tunerScrubSliderFill"></div>
+                        <div class="slider-thumb" id="tunerScrubSliderThumb" tabindex="0" role="slider" aria-label="Rewind through recent history" aria-valuemin="0" aria-valuemax="30" aria-valuenow="0"></div>
+                    </div>
+                    <div class="slider-scale"><span id="tunerScrubSliderMinLbl">-30s</span><span>0s</span></div>
                 </div>
             </div>
         </div>
 
-        <div class="tuner-bar-wrap">
-            <div class="tuner-bar-track" id="tunerBarTrack">
-                <div class="tuner-bar-zone"></div>
-                <div class="tuner-bar-center-mark"></div>
-                <div class="tuner-bar-needle" id="tunerNeedle"></div>
+    </div>
+
+    <!-- Every Tuner setting in one popup off the cog on #tunerCard - Notation (things that change what
+         gets computed) then Display (things that change what's shown). Sharps/flats, Note names and
+         Transposition are inline tap-a-tile groups (same shared tile markup as the Flow editor's own
+         glyph pickers, flowGlyphPickerTileHtml/openFlowGlyphPicker - but rendered in place by
+         renderTunerSettingsModal, app.js, rather than each opening its own modal that closes on pick,
+         since picking one here should leave the rest of this popup open). Transposition is 12 tiles
+         (every semitone offset, not just the 4 common band families) since transposition is really
+         just "which note sounds like concert C when this instrument reads its own C" - any of the 12
+         is a real instrument (D trumpet, A clarinet...), and a player already using a common one still
+         just taps that same note letter, same recognition speed as a dedicated "B flat instrument"
+         button gave them. Tuning still opens its own popup (#tunerA4Modal) since a slider needs more
+         room than a tile grid - tapping it closes this popup first (no stacked/nested modals). Closes
+         on its own X or a tap on the dark backdrop outside .modal-content - the only popup in the app
+         that does that, since nothing here needs an explicit Cancel/Save. Every value here also has a
+         matching control on the Settings screen (#settingsView) to come back to next time the app's
+         opened, even after changing it here mid-session - see
+         tunerTranspositionSetting/tunerUseFlatsToggle/tunerNoteStyleSetting/tunerShowConcertSetting/
+         tunerShowHzSetting/tunerShowOctaveSetting and their sync-on-settings-view-open code in app.js. -->
+    <div class="modal" id="tunerSettingsModal">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" id="tunerSettingsCloseBtn" aria-label="Close">&times;</button>
+            <h2>Tuner settings</h2>
+
+            <div class="tuner-settings-section-label">Notation</div>
+            <!-- flow-tile-grid-4 (not the full-width flow-tile-grid-2) with only 2 tiles each - left
+                 aligned at the same per-tile width the 4-column grids elsewhere in the app use, rather
+                 than 2 tiles stretched to fill the whole row width. -->
+            <div class="tuner-settings-group">
+                <div class="tuner-settings-group-label">Sharps or flats</div>
+                <div class="flow-tile-grid flow-tile-grid-4" id="tunerAccidentalOptions"></div>
             </div>
-            <div class="tuner-bar-scale"><span>&minus;50c</span><span>0</span><span>+50c</span></div>
+            <div class="tuner-settings-group">
+                <div class="tuner-settings-group-label">Note names</div>
+                <div class="flow-tile-grid flow-tile-grid-4" id="tunerNoteStyleOptions"></div>
+            </div>
+            <!-- Transposition opens its own popup (12 options - too many to sit inline as a "glance at
+                 it" row) rather than showing the full tile grid inline here. -->
+            <button type="button" class="tuner-settings-row-btn" id="tunerTranspositionBtn">
+                <span>Transposition</span>
+                <span id="tunerTranspositionRowValue">C &rsaquo;</span>
+            </button>
+            <button type="button" class="tuner-settings-row-btn" id="tunerA4Btn">
+                <span>Tuning reference (A4)</span>
+                <span id="tunerA4RowValue">440Hz &rsaquo;</span>
+            </button>
+
+            <div class="tuner-settings-section-label">Display</div>
+            <div class="tuner-display-toggle-row">
+                <span>Show concert pitch</span><label class="toggle-switch"><input type="checkbox" id="tunerShowConcertToggle" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="tuner-display-toggle-row">
+                <span>Show Hz</span><label class="toggle-switch"><input type="checkbox" id="tunerShowHzToggle"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="tuner-display-toggle-row">
+                <span>Show octave</span><label class="toggle-switch"><input type="checkbox" id="tunerShowOctaveToggle"><span class="toggle-slider"></span></label>
+            </div>
         </div>
+    </div>
 
-        <div class="tuner-status" id="tunerStatus">Requesting microphone access&hellip;</div>
-        <button class="btn-nav hidden-group" id="tunerRetryBtn">Try again</button>
+    <!-- Transposition (tunerTransposition, app.js) - all 12 semitone offsets, tap-a-tile-to-select-
+         and-close same as the Flow editor's own glyph pickers, opened from the row button in
+         #tunerSettingsModal instead of sitting inline there (12 options is "a page of notes", not a
+         glance-and-pick row) - closes the Settings popup first rather than stacking two dark-backdrop
+         modals. #tunerTranspositionOptions tiles are shorter than the shared .flow-picker-tile default
+         (no caption under each one, just the note letter, so no need for the extra height that
+         reserves) - see the scoped override in style.css. -->
+    <div class="modal" id="tunerTranspositionModal">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" id="tunerTranspositionCloseBtn" aria-label="Close">&times;</button>
+            <h2>Transposition</h2>
+            <p class="tuner-settings-group-sublabel">Written note that sounds as concert C</p>
+            <div class="flow-tile-grid flow-tile-grid-4" id="tunerTranspositionOptions"></div>
+        </div>
+    </div>
 
-        <div class="section-title">Instrument</div>
-        <select id="tunerInstrumentSelect">
-            <option value="C">Concert pitch (C)</option>
-            <option value="Bb">B&flat; instrument</option>
-            <option value="Eb">E&flat; instrument</option>
-            <option value="F">F instrument</option>
-        </select>
+    <!-- A4 tuning reference (tunerA4Freq, app.js) - same minus/plus + typeable readout + slider shape
+         as the Tempo (bpm) popup (#flowBpmModal), plus a Reset button since this one has an obvious
+         "normal" value to snap back to. 415-466Hz (a semitone either side of 440) is the standard
+         adjustable range on a reference tuner. Actually feeds tunerFreqToMidi - not cosmetic, this
+         changes what every note reading in the app resolves to. -->
+    <div class="modal" id="tunerA4Modal">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" id="tunerA4CloseBtn" aria-label="Close">&times;</button>
+            <h2>Tuning reference (A4)</h2>
+            <div class="metro-speed-row no-margin">
+                <button class="metro-bpm-step" id="tunerA4Minus" type="button" aria-label="Decrease A4 reference">&minus;</button>
+                <div class="metro-speed-readout">
+                    <div id="tunerA4PopupValue">440</div>
+                    <div class="metro-speed-sub">Hz</div>
+                </div>
+                <button class="metro-bpm-step" id="tunerA4Plus" type="button" aria-label="Increase A4 reference">+</button>
+            </div>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="tunerA4SliderTrack">
+                    <div class="slider-fill" id="tunerA4SliderFill"></div>
+                    <div class="slider-thumb" id="tunerA4SliderThumb" tabindex="0" role="slider" aria-label="A4 tuning reference" aria-valuemin="415" aria-valuemax="466" aria-valuenow="440"></div>
+                </div>
+                <div class="slider-scale"><span>415</span><span>466</span></div>
+            </div>
+            <button type="button" class="btn-nav" id="tunerA4ResetBtn">Reset to 440Hz</button>
+        </div>
     </div>
 
     <div id="timerView" style="display:none;">
