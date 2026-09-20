@@ -1103,11 +1103,46 @@
        transition (above) is what makes both the appearance and the reversion animate smoothly rather
        than snapping. One shared class/rule for both surfaces, not a copy per screen. */
     .qp-block-surface.drag-reorder-highlight, .flow-block-card.drag-reorder-highlight { border-color: var(--primary-action); border-width: 3px; }
-    /* "Bars" section-title's own right-side slot (placeholder - Show history/Create flow aren't wired
-       up to anything yet) - low-emphasis text links, not buttons, so they read as secondary next to
-       the bold title beside them; a small gap keeps the two from reading as one run-on phrase. */
+    /* "Bars" section-title's own right-side slot - low-emphasis text links, not buttons, so they read
+       as secondary next to the bold title beside them; a small gap keeps the two from reading as one
+       run-on phrase. */
     .qp-bars-title-links { display: flex; gap: var(--space-4); }
     .qp-bars-title-link { font-size: var(--font-sm); font-weight: normal; color: var(--label-color); text-decoration: underline; cursor: pointer; }
+
+    /* ML-163: "Merge bars?" - see the modal's own HTML comment for the shape. Reuses the sticky-footer
+       modal skeleton (.metroSeg-sticky-footer et al) but stacks a toggle row above the button row
+       instead of that base class's plain single row of buttons. */
+    .qp-merge-sticky-footer { flex-direction: column; align-items: stretch; gap: var(--space-3); }
+    .qp-merge-toggle-row { display: flex; align-items: center; justify-content: space-between; font-size: var(--font-base); }
+    .qp-merge-buttons-row { display: flex; gap: 10px; }
+    .qp-merge-buttons-row .btn-cancel, .qp-merge-buttons-row .btn-submit { flex: 1; margin-bottom: 0; }
+
+    .qp-merge-group { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+    /* The border-left is the "bracket" - every bar feeding the same block visually converges on one
+       line before the arrow/connector column, no per-bar line-drawing needed. */
+    .qp-merge-bars { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; border-left: 2px solid var(--input-border); padding-left: var(--space-3); }
+    .qp-merge-bar-row, .qp-merge-flat-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: var(--font-xs); background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-sm); padding: 6px 8px; }
+    .qp-merge-flat-row { margin-bottom: 6px; font-size: var(--font-sm); }
+    .qp-merge-bar-num { color: var(--label-color); flex-shrink: 0; }
+    .qp-merge-bar-fields { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; column-gap: var(--space-2); row-gap: 2px; font-weight: bold; justify-content: flex-end; text-align: right; }
+    /* Sits on the bar row itself, right where its own line "leaves the bar" for the shared merge
+       point - tapping it peels just that bar out into a new block (qpMergeSplitBar), not the whole
+       group. Only rendered on a bar that's actually part of a multi-bar block. */
+    .qp-merge-split-btn { flex-shrink: 0; width: 26px; height: 26px; border-radius: var(--radius-circle); border: none; background: transparent; color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+    .qp-merge-split-btn .material-symbols-outlined { font-size: 17px; }
+    .qp-merge-connector { width: 40px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .qp-merge-arrow { color: var(--label-color); font-size: 20px; }
+    /* A freshly split-out bar's connector - replaces the plain arrow once it's its own block awaiting
+       a merge decision (qpMergeToggleMenu opens the Merge above/below choice below it). */
+    .qp-merge-branch-btn { width: 30px; height: 30px; border-radius: var(--radius-circle); border: 2px solid var(--primary-action); background: var(--secondary-color); color: var(--primary-action); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+    .qp-merge-branch-btn .material-symbols-outlined { font-size: 17px; }
+    .qp-merge-menu { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+    .qp-merge-menu-btn { font-size: var(--font-xs); padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid var(--input-border); background: var(--container-bg); color: var(--text-color); cursor: pointer; white-space: nowrap; }
+    .qp-merge-menu-btn:disabled { color: var(--label-color); opacity: 0.5; cursor: not-allowed; }
+    .qp-merge-block { flex: 1; min-width: 0; border: 2px solid var(--primary-action); border-radius: var(--radius-md); padding: 9px 12px; background: var(--secondary-color); }
+    .qp-merge-block-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); font-size: var(--font-sm); font-weight: bold; }
+    .qp-merge-block-badge { flex-shrink: 0; font-size: var(--font-xs); font-weight: bold; background: var(--primary-action); color: var(--primary-action-text); padding: 2px 8px; border-radius: var(--radius-pill); }
+    .qp-merge-block-fields { display: flex; flex-wrap: wrap; column-gap: var(--space-3); row-gap: 2px; font-size: var(--font-sm); margin-top: 4px; }
 
     /* ML-34 follow-up: the currently-loaded history entry's name, under the "Bars" title. No negative
        margin here any more - that pulled this row up into .section-title's own border-bottom line

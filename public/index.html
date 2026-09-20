@@ -64,7 +64,7 @@
         <button type="button" class="top-bar-timer-pill hidden-group" id="topTimerPill" aria-label="Timer running - tap for controls">
             <span class="material-symbols-outlined top-bar-timer-pill-icon" aria-hidden="true">timer</span>
             <span class="top-bar-timer-pill-time" id="topTimerPillRemaining">00:00</span>
-            <span class="top-bar-timer-pill-left">left</span>
+            <span class="top-bar-timer-pill-left" id="topTimerPillLeftLbl">left</span>
         </button>
         <!-- ML-129 follow-up: shown next to the tuner toggle whenever no timer is currently
              running/paused, on every screen except the Timer screen itself - tapping it opens the same
@@ -130,7 +130,7 @@
                     <!-- Running: plain read-out, not a button - nothing to pick while it's already going. -->
                     <div class="timer-inline-time-plain hidden-group" id="timerInlineTimeDisplay">
                         <strong id="timerInlineRemainingLbl">00:00</strong>
-                        <span class="metroBlk-ctrl-value-label">left</span>
+                        <span class="metroBlk-ctrl-value-label" id="timerInlineLeftLbl">left</span>
                     </div>
                 </div>
                 <button type="button" class="metro-play-grid-btn" id="timerInlinePlayBtn" aria-label="Start">
@@ -561,7 +561,7 @@
             <span>Bars</span>
             <div class="qp-bars-title-links">
                 <span class="qp-bars-title-link" id="qpShowHistoryBtn">Show history</span>
-                <span class="qp-bars-title-link">Create flow</span>
+                <span class="qp-bars-title-link" id="qpSaveToFlowBtn">Save to flow</span>
             </div>
         </div>
         <!-- Which history entry (if any) is currently loaded - hidden entirely otherwise, see
@@ -1302,9 +1302,13 @@
         </div>
 
         <div id="timerRunningGroup" class="hidden-group">
-            <div class="stat-card" style="margin-bottom: var(--space-4);"><div class="label">Time left in session</div><div class="value" id="timerRemainingDisplay">00:00</div></div>
+            <!-- ML-184 follow-up: hidden entirely while open-ended (renderTimerScreen) - open-ended has
+                 nothing left to show separately from elapsed, so this card would just be showing the
+                 same number as "This session" below it twice. That card's own label doubles as "Time
+                 done" instead when hidden here - see updateTimerDisplays. -->
+            <div class="stat-card" id="timerRemainingCard" style="margin-bottom: var(--space-4);"><div class="label" id="timerRemainingLabel">Time left in session</div><div class="value" id="timerRemainingDisplay">00:00</div></div>
             <div class="dashboard-grid">
-                <div class="stat-card"><div class="label">This session</div><div class="value" id="timerElapsedDisplay">00:00</div></div>
+                <div class="stat-card"><div class="label" id="timerElapsedLabel">This session</div><div class="value" id="timerElapsedDisplay">00:00</div></div>
                 <div class="stat-card"><div class="label">Today</div><div class="value" id="timerTodayDisplay">00:00</div></div>
             </div>
             <div class="metro-transport-row">
@@ -1333,6 +1337,22 @@
                 <button class="btn-cancel btn-nav no-margin" id="timerDurationPickerCancelBtn">Cancel</button>
                 <button class="btn-submit no-margin" id="timerDurationPickerSaveBtn">Save</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ML-185: the timer's own "session finished" popup - was the generic #confirmModal (Yes/No
+         only), but that one's shared by plain confirms all over the app, so a 3rd action ("Just
+         another 5 minutes", the "snooze" button per the request) gets its own modal instead of being
+         bolted onto it. Reopens on itself every time the extended 5 minutes also runs out (or Stop is
+         pressed again), any number of times - see timerPendingFinish/finishTimerSession for how the
+         elapsed time survives each round trip so the eventual save always reflects the full total. -->
+    <div class="modal" id="timerFinishedModal">
+        <div class="modal-content">
+            <h2>Session finished!</h2>
+            <p id="timerFinishedMessage" style="margin-bottom: 25px; line-height: 1.4;"></p>
+            <button class="btn-submit" id="timerFinishedYesBtn">Yes, save it</button>
+            <button class="btn-cancel btn-nav" id="timerFinishedExtendBtn">Just another 5 minutes</button>
+            <button type="button" class="btn-text" id="timerFinishedNoBtn">No</button>
         </div>
     </div>
 
@@ -2021,6 +2041,36 @@
         <div class="metroSeg-sticky-footer">
             <button type="button" class="btn-cancel btn-nav no-margin" id="qpHistoryCloseBtn">Close</button>
             <button type="button" class="btn-submit no-margin" id="qpHistoryLoadBtn" disabled>Load</button>
+        </div>
+    </div>
+</div>
+
+<!-- ML-163: "Save to flow" - bar-by-bar Quick Play data has to become Flow's own multi-bar blocks,
+     so this confirms how consecutive identical bars (same time sig/beat note/bpm) will merge before
+     anything's actually created. Bars on the left, the blocks they'll become on the right - the
+     default is maximum merging (openQpMergeBarsModal/qpComputeDefaultMergeBlocks). Each bar inside a
+     multi-bar block gets its own small link icon (it leaves that specific bar, not just the group) to
+     split it out into a new block of its own; a freshly split-out bar's arrow becomes a branch icon
+     instead, offering "Merge above"/"Merge below" - never auto-picked, always an explicit tap even
+     when only one direction is actually possible (see qpMergeInto). If no bars can merge at all, this
+     is just a flat confirmation list instead - nothing to decide, so no arrows/blocks column
+     (qpMergeFlatMode). "Go to flows?" decides whether Save lands on the new flow or stays here. -->
+<div class="modal" id="qpMergeBarsModal">
+    <div class="modal-content modal-content-sticky-footer">
+        <div class="metroSeg-scroll-area">
+            <h2>Merge bars?</h2>
+            <p class="metro-help-text" id="qpMergeBarsSubtitle"></p>
+            <div id="qpMergeBarsList"></div>
+        </div>
+        <div class="metroSeg-sticky-footer qp-merge-sticky-footer">
+            <div class="qp-merge-toggle-row">
+                <span>Go to flows?</span>
+                <label class="toggle-switch"><input type="checkbox" id="qpMergeGoToFlowsToggle" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="qp-merge-buttons-row">
+                <button type="button" class="btn-cancel btn-nav no-margin" id="qpMergeBarsCancelBtn">Cancel</button>
+                <button type="button" class="btn-submit no-margin" id="qpMergeBarsSaveBtn">Save to flow</button>
+            </div>
         </div>
     </div>
 </div>

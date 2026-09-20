@@ -582,20 +582,35 @@
     // and reused by both the save-session screen and the practice timer -
     // each gets its own id/name prefix since both radio groups exist in the
     // DOM at once (only one screen is visible, but ids must stay unique).
-    function renderDurationOptionsInto(containerId, idPrefix, radioName) {
+    // ML-184: "Open ended" is a 4th choice, timer-only (isTimerVariant) - it has no minutes of its
+    // own (open-ended counts up until Stop, see startTimerSession/timerTick), so it doesn't belong on
+    // the save-session screen's own copy of this list, which is always a fixed past duration.
+    // isTimerVariant also swaps the Custom label to "Custom…" - the ellipsis flags that picking it
+    // isn't the end of the action (a number input still needs filling in), same convention the burger
+    // menu's own "Tools…"/"Progress…" already use for "this opens something else first". Left as
+    // plain "Custom" on the save-session screen, which wasn't asked to change.
+    // Open ended is placed BEFORE Custom (not after) specifically so Custom stays the very last radio
+    // in the grid - the custom-minutes input box is a separate form-group that always renders
+    // directly below the whole grid, not below whichever button happens to be last, so keeping Custom
+    // last is what keeps that input visually next to the button that reveals it.
+    function renderDurationOptionsInto(containerId, idPrefix, radioName, isTimerVariant) {
         const container = document.getElementById(containerId);
         if (!container) return;
         const optionsHtml = (appData.durations || []).map(mins =>
             `<input type="radio" id="${idPrefix}-${mins}" name="${radioName}" value="${mins}"><label for="${idPrefix}-${mins}">${mins}</label>`
         ).join('');
-        container.innerHTML = optionsHtml +
-            `<input type="radio" id="${idPrefix}-custom" name="${radioName}" value="custom"><label for="${idPrefix}-custom">Custom</label>`;
+        const openEndedHtml = isTimerVariant
+            ? `<input type="radio" id="${idPrefix}-open-ended" name="${radioName}" value="open-ended"><label for="${idPrefix}-open-ended">Open ended</label>`
+            : '';
+        const customLabel = isTimerVariant ? 'Custom&hellip;' : 'Custom';
+        container.innerHTML = optionsHtml + openEndedHtml +
+            `<input type="radio" id="${idPrefix}-custom" name="${radioName}" value="custom"><label for="${idPrefix}-custom">${customLabel}</label>`;
     }
 
     function renderDurationRadios() {
         renderDurationOptionsInto('durationRadios', 'dur', 'durationOption');
-        renderDurationOptionsInto('timerDurationRadios', 'timerDur', 'timerDurationOption');
-        renderDurationOptionsInto('timerPickerDurationRadios', 'timerPickerDur', 'timerPickerDurationOption');
+        renderDurationOptionsInto('timerDurationRadios', 'timerDur', 'timerDurationOption', true);
+        renderDurationOptionsInto('timerPickerDurationRadios', 'timerPickerDur', 'timerPickerDurationOption', true);
     }
 
     function fetchDataAndRender(token) {
@@ -11333,6 +11348,231 @@
         }
     }
 
+    // --- ML-163: "Save to flow" - turns the current bar-by-bar qpBlocks into a Flow's multi-bar
+    // blocks. Quick Play has no merge concept of its own (every qpBlocks entry is exactly one bar),
+    // so this confirms how consecutive identical bars (same timeSigValue/noteSelected/bpm) will
+    // combine before a Flow (and its blocks) actually get created - see the modal's own HTML comment.
+    // qpMergeBlocks is the editable working state once the modal's open; qpBlocks itself is never
+    // touched by any of this. ---
+    let qpMergeBlocks = [];
+    let qpMergeFlatMode = false;
+    // Which pending (freshly split-out) block's Merge above/below choice is currently showing - at
+    // most one at a time, closed again by qpMergeToggleMenu or whenever the list re-renders after an
+    // edit elsewhere.
+    let qpMergeOpenMenuKey = null;
+    let qpMergeKeyCounter = 0;
+
+    function qpBarsMatch(a, b) {
+        return a.timeSigValue === b.timeSigValue && a.noteSelected === b.noteSelected && a.bpm === b.bpm;
+    }
+    // bpm is stored raw (same meaning as a segment's own bpm column - see qpBlocksPayload above); the
+    // number shown to the user throughout the rest of Quick Play is that raw value re-expressed per
+    // the block's own beat unit, so this screen matches rather than showing an unfamiliar figure.
+    function qpMergeDisplayedBpm(bar) {
+        return Math.round(bar.bpm / (qpBlockNoteFraction(bar.noteSelected) * qpBlockDenominator(bar)));
+    }
+    function qpMergeBarFieldsHtml(bar) {
+        const noteType = METRO_NOTE_TYPES.find(t => t.key === bar.noteSelected);
+        return `<span>${escapeHtml(metroSegTimeSigLabelFor(bar.timeSigValue) || '—')}</span>` +
+            `<span>${escapeHtml(noteType ? noteType.label : '')}</span>` +
+            `<span>${qpMergeDisplayedBpm(bar)} bpm</span>`;
+    }
+
+    // Default grouping: greedily merges each bar into the previous block whenever it matches, which
+    // is the "minimise the number of blocks" default per the request - every group starts as a single
+    // real block, never "pending" (that flag only ever applies to a block created by splitting one
+    // apart below).
+    function qpComputeDefaultMergeBlocks() {
+        const result = [];
+        qpBlocks.forEach((b, i) => {
+            const bar = { timeSigValue: b.timeSigValue, noteSelected: b.noteSelected, bpm: b.bpm, barNumber: i + 1 };
+            const last = result[result.length - 1];
+            if (last && qpBarsMatch(last.bars[last.bars.length - 1], bar)) {
+                last.bars.push(bar);
+            } else {
+                result.push({ key: ++qpMergeKeyCounter, bars: [bar], pending: false });
+            }
+        });
+        return result;
+    }
+
+    function openQpMergeBarsModal() {
+        qpMergeBlocks = qpComputeDefaultMergeBlocks();
+        qpMergeFlatMode = !qpMergeBlocks.some(g => g.bars.length > 1);
+        qpMergeOpenMenuKey = null;
+        renderQpMergeBarsModal();
+        document.getElementById('qpMergeBarsModal').style.display = 'flex';
+    }
+
+    // Peels one specific bar out of a multi-bar block into a new block of its own, right where it
+    // was - "as it leaves the bar", not just the group as a whole, so any bar in the middle of a
+    // block can be split out, not only the first/last. Whatever's left on either side stays merged
+    // (it was already identical to itself). The new block starts "pending" - its own connector
+    // becomes the Merge above/below choice (qpMergeToggleMenu/qpMergeInto) rather than a plain arrow.
+    function qpMergeSplitBar(groupKey, barIndex) {
+        const gi = qpMergeBlocks.findIndex(g => g.key === groupKey);
+        if (gi === -1) return;
+        const group = qpMergeBlocks[gi];
+        const bar = group.bars[barIndex];
+        if (!bar) return;
+        const leftBars = group.bars.slice(0, barIndex);
+        const rightBars = group.bars.slice(barIndex + 1);
+        const newGroups = [];
+        if (leftBars.length) newGroups.push({ key: ++qpMergeKeyCounter, bars: leftBars, pending: false });
+        newGroups.push({ key: ++qpMergeKeyCounter, bars: [bar], pending: true });
+        if (rightBars.length) newGroups.push({ key: ++qpMergeKeyCounter, bars: rightBars, pending: false });
+        qpMergeBlocks.splice(gi, 1, ...newGroups);
+        qpMergeOpenMenuKey = null;
+        renderQpMergeBarsModal();
+    }
+
+    function qpMergeToggleMenu(groupKey) {
+        qpMergeOpenMenuKey = qpMergeOpenMenuKey === groupKey ? null : groupKey;
+        renderQpMergeBarsModal();
+    }
+
+    // Always an explicit tap on one specific direction - never auto-picked, even when only one of
+    // "above"/"below" is actually possible, so re-merging is always a deliberate choice rather than
+    // something that just happens on its own.
+    function qpMergeInto(groupKey, direction) {
+        const gi = qpMergeBlocks.findIndex(g => g.key === groupKey);
+        if (gi === -1) return;
+        const group = qpMergeBlocks[gi];
+        const bar = group.bars[0];
+        if (direction === 'above') {
+            const target = qpMergeBlocks[gi - 1];
+            if (!target || !qpBarsMatch(target.bars[target.bars.length - 1], bar)) return;
+            target.bars.push(bar);
+        } else {
+            const target = qpMergeBlocks[gi + 1];
+            if (!target || !qpBarsMatch(target.bars[0], bar)) return;
+            target.bars.unshift(bar);
+        }
+        qpMergeBlocks.splice(gi, 1);
+        qpMergeOpenMenuKey = null;
+        renderQpMergeBarsModal();
+    }
+
+    function renderQpMergeGroupHtml(group, gi) {
+        const isMultiBar = group.bars.length > 1;
+        const barsHtml = group.bars.map((bar, bi) => `
+            <div class="qp-merge-bar-row">
+                <span class="qp-merge-bar-num">Bar ${bar.barNumber}</span>
+                <span class="qp-merge-bar-fields">${qpMergeBarFieldsHtml(bar)}</span>
+                ${isMultiBar ? `<button type="button" class="qp-merge-split-btn" data-qp-merge-split data-group-key="${group.key}" data-bar-index="${bi}" aria-label="Bar ${bar.barNumber} merges into Block ${gi + 1} - tap to split into its own block"><span class="material-symbols-outlined">link</span></button>` : ''}
+            </div>
+        `).join('');
+
+        let connector;
+        if (group.pending) {
+            const above = qpMergeBlocks[gi - 1];
+            const below = qpMergeBlocks[gi + 1];
+            const canAbove = !!(above && qpBarsMatch(above.bars[above.bars.length - 1], group.bars[0]));
+            const canBelow = !!(below && qpBarsMatch(below.bars[0], group.bars[0]));
+            const menuOpen = qpMergeOpenMenuKey === group.key;
+            connector = `<button type="button" class="qp-merge-branch-btn" data-qp-merge-toggle-menu data-group-key="${group.key}" aria-label="Bar ${group.bars[0].barNumber} is its own block - tap for merge options"><span class="material-symbols-outlined">call_split</span></button>` +
+                (menuOpen ? `<div class="qp-merge-menu">
+                    <button type="button" class="qp-merge-menu-btn" data-qp-merge-into data-group-key="${group.key}" data-direction="above" ${canAbove ? '' : 'disabled title="Different time signature, beat note or tempo"'}>Merge above</button>
+                    <button type="button" class="qp-merge-menu-btn" data-qp-merge-into data-group-key="${group.key}" data-direction="below" ${canBelow ? '' : 'disabled title="Different time signature, beat note or tempo"'}>Merge below</button>
+                </div>` : '');
+        } else {
+            connector = '<span class="material-symbols-outlined qp-merge-arrow" aria-hidden="true">arrow_forward</span>';
+        }
+
+        const repBar = group.bars[0];
+        return `<div class="qp-merge-group">
+            <div class="qp-merge-bars">${barsHtml}</div>
+            <div class="qp-merge-connector">${connector}</div>
+            <div class="qp-merge-block">
+                <div class="qp-merge-block-head"><span>Block ${gi + 1}</span><span class="qp-merge-block-badge">${group.bars.length} ${group.bars.length === 1 ? 'bar' : 'bars'}</span></div>
+                <div class="qp-merge-block-fields">${qpMergeBarFieldsHtml(repBar)}</div>
+            </div>
+        </div>`;
+    }
+
+    function wireQpMergeGroupControls() {
+        const list = document.getElementById('qpMergeBarsList');
+        list.querySelectorAll('[data-qp-merge-split]').forEach(btn => {
+            btn.addEventListener('click', () => qpMergeSplitBar(Number(btn.dataset.groupKey), Number(btn.dataset.barIndex)));
+        });
+        list.querySelectorAll('[data-qp-merge-toggle-menu]').forEach(btn => {
+            btn.addEventListener('click', () => qpMergeToggleMenu(Number(btn.dataset.groupKey)));
+        });
+        list.querySelectorAll('[data-qp-merge-into]').forEach(btn => {
+            if (btn.disabled) return;
+            btn.addEventListener('click', () => qpMergeInto(Number(btn.dataset.groupKey), btn.dataset.direction));
+        });
+    }
+
+    function renderQpMergeBarsModal() {
+        const subtitle = document.getElementById('qpMergeBarsSubtitle');
+        const list = document.getElementById('qpMergeBarsList');
+
+        if (qpMergeFlatMode) {
+            const n = qpBlocks.length;
+            subtitle.textContent = `Every bar is different, so nothing can merge - ${n} bar${n === 1 ? '' : 's'} will become ${n} block${n === 1 ? '' : 's'}.`;
+            list.innerHTML = qpBlocks.map((b, i) => `
+                <div class="qp-merge-flat-row">
+                    <span class="qp-merge-bar-num">Bar ${i + 1}</span>
+                    <span class="qp-merge-bar-fields">${qpMergeBarFieldsHtml({ timeSigValue: b.timeSigValue, noteSelected: b.noteSelected, bpm: b.bpm })}</span>
+                </div>
+            `).join('');
+            return;
+        }
+
+        const blockCount = qpMergeBlocks.length;
+        subtitle.textContent = `${qpBlocks.length} bars will become ${blockCount} block${blockCount === 1 ? '' : 's'}.`;
+        list.innerHTML = qpMergeBlocks.map((group, gi) => renderQpMergeGroupHtml(group, gi)).join('');
+        wireQpMergeGroupControls();
+    }
+
+    // Creates the flow, then adds one block per current group/bar in order - sequential, not
+    // Promise.all, since each block's order_index is assigned server-side as "current max + 1"
+    // (createFlowBlock) and would race if these ran in parallel.
+    async function qpMergeSaveToFlow() {
+        const saveBtn = document.getElementById('qpMergeBarsSaveBtn');
+        saveBtn.disabled = true;
+        try {
+            const flow = await API.flows.create({});
+            // POST /flows always seeds one default starter block (ML-179 follow-up, "never a truly
+            // empty flow") - fine for "Create your own", but here the merged bars ARE the content, so
+            // that placeholder has to go before adding them, not sit stranded ahead of Block 1.
+            const seededBlocks = await API.flows.blocks.list(flow.id);
+            for (const seeded of seededBlocks) await API.flows.blocks.delete(seeded.id);
+            const groups = qpMergeFlatMode
+                ? qpBlocks.map(b => ({ bars: [{ timeSigValue: b.timeSigValue, noteSelected: b.noteSelected, bpm: b.bpm }] }))
+                : qpMergeBlocks;
+            for (const group of groups) {
+                const bar = group.bars[0];
+                await API.flows.blocks.create(flow.id, {
+                    barCount: group.bars.length,
+                    bpm: bar.bpm,
+                    noteValue: bar.noteSelected,
+                    timeSignatureId: bar.timeSigValue?.startsWith('public:') ? Number(bar.timeSigValue.split(':')[1]) : null,
+                    accountTimeSignatureId: bar.timeSigValue?.startsWith('custom:') ? Number(bar.timeSigValue.split(':')[1]) : null
+                });
+            }
+            document.getElementById('qpMergeBarsModal').style.display = 'none';
+            if (document.getElementById('qpMergeGoToFlowsToggle').checked) {
+                currentFlowId = flow.id;
+                flowEditMode = 'edit';
+                await goToFlowPlayView(flow.id);
+            } else {
+                showSuccessToast(`Saved to "${flow.title}"`);
+            }
+        } catch (error) {
+            showWarningToast('Error saving to flow: ' + error.message);
+        } finally {
+            saveBtn.disabled = false;
+        }
+    }
+
+    document.getElementById('qpSaveToFlowBtn')?.addEventListener('click', openQpMergeBarsModal);
+    document.getElementById('qpMergeBarsCancelBtn')?.addEventListener('click', () => {
+        document.getElementById('qpMergeBarsModal').style.display = 'none';
+    });
+    document.getElementById('qpMergeBarsSaveBtn')?.addEventListener('click', qpMergeSaveToFlow);
+
     // --- ML-34: "Show history" - browse/rename/favourite/delete past history rows and load one
     // back into qpBlocks. qpLocalTimestamp's stored format ("YYYY-MM-DD HH:MM:SS") is kept as-is
     // (an earlier, deliberate choice - see its own comment above) - this only reformats it for
@@ -12171,7 +12411,11 @@
     // setInterval that's independent of which view is on screen - navigating away
     // just shrinks it to the top-bar indicator (see updateTopTimerIndicator) rather
     // than stopping it. State lives in `timerState`: null when idle, otherwise
-    // { targetSeconds, remainingSeconds, elapsedSeconds, running }.
+    // { targetSeconds, remainingSeconds, elapsedSeconds, running, openEnded }.
+    // ML-184: "Open ended" (targetSeconds/remainingSeconds both null, openEnded true) counts up
+    // instead of down and never finishes itself - timerTick just keeps banking elapsedSeconds until
+    // Stop is pressed. Every display that normally reads "remaining .../left" reads elapsed/"done"
+    // instead while openEnded is set - see updateTimerDisplays.
     let timerState = null;
     let timerIntervalId = null;
 
@@ -12242,21 +12486,36 @@
         document.getElementById('topTimerPill')?.classList.toggle('top-bar-timer-pill-running', running);
     }
 
+    // ML-184: every "remaining .../left" slot shows elapsed/"done" instead once openEnded - there's no
+    // countdown to be remaining from. primarySeconds is whichever of the two that slot actually means
+    // right now. Open-ended also hides the standalone top card entirely (renderTimerScreen) rather
+    // than showing that same elapsed figure a second time - "This session" below takes over as the
+    // one combined display, relabelled "Time done" here to match.
     function updateTimerDisplays() {
         if (!timerState) return;
+        const openEnded = timerState.openEnded;
+        const primarySeconds = openEnded ? timerState.elapsedSeconds : timerState.remainingSeconds;
         const remainingEl = document.getElementById('timerRemainingDisplay');
         const elapsedEl = document.getElementById('timerElapsedDisplay');
         const todayEl = document.getElementById('timerTodayDisplay');
-        if (remainingEl) remainingEl.innerText = formatClock(timerState.remainingSeconds);
+        if (remainingEl) remainingEl.innerText = formatClock(primarySeconds);
         if (elapsedEl) elapsedEl.innerText = formatClock(timerState.elapsedSeconds);
         if (todayEl) todayEl.innerText = formatClock(getTimerTodaySeconds());
+        const remainingLabelEl = document.getElementById('timerRemainingLabel');
+        if (remainingLabelEl) remainingLabelEl.innerText = openEnded ? 'Time done' : 'Time left in session';
+        const elapsedLabelEl = document.getElementById('timerElapsedLabel');
+        if (elapsedLabelEl) elapsedLabelEl.innerText = openEnded ? 'Time done' : 'This session';
 
         // The pill only has room for one figure, per the request ("has the time remaining") -
         // elapsed/"today" stay full-screen-only (timerElapsedDisplay/timerTodayDisplay above).
         const pillRemainingEl = document.getElementById('topTimerPillRemaining');
-        if (pillRemainingEl) pillRemainingEl.innerText = formatClock(timerState.remainingSeconds);
+        if (pillRemainingEl) pillRemainingEl.innerText = formatClock(primarySeconds);
+        const pillLeftLbl = document.getElementById('topTimerPillLeftLbl');
+        if (pillLeftLbl) pillLeftLbl.innerText = openEnded ? 'done' : 'left';
         const inlineRemainingEl = document.getElementById('timerInlineRemainingLbl');
-        if (inlineRemainingEl) inlineRemainingEl.innerText = formatClock(timerState.remainingSeconds);
+        if (inlineRemainingEl) inlineRemainingEl.innerText = formatClock(primarySeconds);
+        const inlineLeftLbl = document.getElementById('timerInlineLeftLbl');
+        if (inlineLeftLbl) inlineLeftLbl.innerText = openEnded ? 'done' : 'left';
     }
 
     // --- Inline box (ML-129 follow-up) - opened by tapping either the running pill or the idle
@@ -12273,7 +12532,7 @@
         // Just the number now (no "min" suffix) - "XX min." was overflowing the fixed-width cell,
         // same reason the label underneath now says "minutes" instead of "duration".
         const pickLbl = document.getElementById('timerInlinePickLbl');
-        if (pickLbl) pickLbl.innerText = timerPickedMinutes ? String(timerPickedMinutes) : 'Pick';
+        if (pickLbl) pickLbl.innerText = timerPickedMinutes === 'open-ended' ? 'Open' : (timerPickedMinutes ? String(timerPickedMinutes) : 'Pick');
         const stopBtn = document.getElementById('timerInlineStopBtn');
         if (stopBtn) stopBtn.disabled = !running;
         updateTimerPlayIcons();
@@ -12305,7 +12564,7 @@
     document.getElementById('timerInlinePlayBtn')?.addEventListener('click', () => {
         if (!timerState) {
             if (!timerPickedMinutes) { showWarningToast('Pick a duration first!'); return; }
-            startTimerSession(timerPickedMinutes * 60);
+            startTimerSession(timerPickedMinutes === 'open-ended' ? null : timerPickedMinutes * 60);
         } else {
             toggleTimerPlayPause();
         }
@@ -12351,6 +12610,12 @@
     document.getElementById('timerDurationPickerCancelBtn')?.addEventListener('click', closeTimerDurationPickerModal);
     document.getElementById('timerDurationPickerSaveBtn')?.addEventListener('click', () => {
         const radio = document.querySelector('input[name="timerPickerDurationOption"]:checked')?.value;
+        if (radio === 'open-ended') {
+            timerPickedMinutes = 'open-ended';
+            closeTimerDurationPickerModal();
+            renderTimerInlineBox();
+            return;
+        }
         const mins = Number(radio === 'custom' ? document.getElementById('timerPickerCustomDuration')?.value : radio);
         if (!mins || isNaN(mins) || mins <= 0) { showWarningToast('Pick a duration first!'); return; }
         timerPickedMinutes = mins;
@@ -12365,6 +12630,9 @@
         document.getElementById('timerSetupGroup')?.classList.toggle('hidden-group', !!timerState);
         document.getElementById('timerRunningGroup')?.classList.toggle('hidden-group', !timerState);
         if (timerState) {
+            // ML-184 follow-up: see the card's own HTML comment - open-ended combines into "This
+            // session" below instead of showing the same elapsed figure twice.
+            document.getElementById('timerRemainingCard')?.classList.toggle('hidden-group', !!timerState.openEnded);
             updateTimerDisplays();
             updateTimerPlayIcons();
         }
@@ -12373,14 +12641,22 @@
     function timerTick() {
         if (!timerState || !timerState.running) return;
         timerState.elapsedSeconds++;
-        timerState.remainingSeconds--;
         addTimerTodaySeconds(1);
+        // ML-184: open-ended never runs out on its own - just keep banking elapsed time until Stop.
+        if (timerState.openEnded) {
+            updateTimerDisplays();
+            return;
+        }
+        timerState.remainingSeconds--;
         updateTimerDisplays();
         if (timerState.remainingSeconds <= 0) finishTimerSession();
     }
 
+    // targetSeconds is null for an open-ended session (ML-184) - no countdown, so remainingSeconds
+    // stays null too and is never read while openEnded (see timerTick/updateTimerDisplays).
     function startTimerSession(targetSeconds) {
-        timerState = { targetSeconds, remainingSeconds: targetSeconds, elapsedSeconds: 0, running: true };
+        const openEnded = targetSeconds === null;
+        timerState = { targetSeconds, remainingSeconds: openEnded ? null : targetSeconds, elapsedSeconds: 0, running: true, openEnded };
         clearInterval(timerIntervalId);
         timerIntervalId = setInterval(timerTick, 1000);
         renderTimerScreen();
@@ -12398,6 +12674,11 @@
         syncWakeLock();
     }
 
+    // ML-185: carries the elapsed time (and enough of the original session's shape to resume it)
+    // from finishTimerSession into the "session finished" popup's own button handlers below, so
+    // "Just another 5 minutes" can rebuild timerState from exactly where it left off.
+    let timerPendingFinish = null;
+
     // Ends the current timer (whether the countdown ran out, or Stop/Close was
     // pressed early) and - if any real time was logged - offers to save it as a
     // practice session via the existing save-session screen, pre-filled.
@@ -12405,7 +12686,7 @@
         if (!timerState) return;
         clearInterval(timerIntervalId);
         timerIntervalId = null;
-        const elapsedSeconds = timerState.elapsedSeconds;
+        const { elapsedSeconds, openEnded, targetSeconds } = timerState;
         timerState = null;
         renderTimerScreen();
         // Also closes the inline box if it was open - nothing left for it to control once the
@@ -12414,14 +12695,53 @@
         syncWakeLock();
 
         if (elapsedSeconds < 1) return;
-        const minutes = Math.max(1, Math.round(elapsedSeconds / 60));
-        showConfirmModal(
-            'Session finished!',
-            `Would you like to store this ${minutes} minute session as a practice session?`,
-            () => { prefillEntryFormForTimer(minutes); switchView('entryForm'); },
-            false, 'Yes', 'No'
-        );
+        timerPendingFinish = { elapsedSeconds, openEnded, targetSeconds };
+        openTimerFinishedModal();
     }
+
+    function openTimerFinishedModal() {
+        const minutes = Math.max(1, Math.round(timerPendingFinish.elapsedSeconds / 60));
+        document.getElementById('timerFinishedMessage').innerText = `Would you like to store this ${minutes} minute session as a practice session?`;
+        document.getElementById('timerFinishedModal').style.display = 'flex';
+    }
+    function closeTimerFinishedModal() {
+        document.getElementById('timerFinishedModal').style.display = 'none';
+    }
+    document.getElementById('timerFinishedYesBtn')?.addEventListener('click', () => {
+        if (!timerPendingFinish) return closeTimerFinishedModal();
+        const minutes = Math.max(1, Math.round(timerPendingFinish.elapsedSeconds / 60));
+        timerPendingFinish = null;
+        closeTimerFinishedModal();
+        prefillEntryFormForTimer(minutes);
+        switchView('entryForm');
+    });
+    document.getElementById('timerFinishedNoBtn')?.addEventListener('click', () => {
+        timerPendingFinish = null;
+        closeTimerFinishedModal();
+    });
+    // ML-185's "snooze" button - resumes from exactly the elapsed time already banked (not a fresh
+    // 0:00), so however many times this gets pressed in a row, the total offered for saving next
+    // keeps growing by 5 minutes each time rather than resetting. A countdown session gets 5 more
+    // minutes added to its target and remaining; an open-ended one just keeps counting up (there was
+    // never a target to extend).
+    document.getElementById('timerFinishedExtendBtn')?.addEventListener('click', () => {
+        if (!timerPendingFinish) return closeTimerFinishedModal();
+        const { elapsedSeconds, openEnded, targetSeconds } = timerPendingFinish;
+        timerPendingFinish = null;
+        closeTimerFinishedModal();
+        timerState = {
+            targetSeconds: openEnded ? null : (targetSeconds || 0) + 300,
+            remainingSeconds: openEnded ? null : 300,
+            elapsedSeconds,
+            running: true,
+            openEnded
+        };
+        clearInterval(timerIntervalId);
+        timerIntervalId = setInterval(timerTick, 1000);
+        renderTimerScreen();
+        updateTopTimerIndicator(viewStack[viewStack.length - 1]);
+        syncWakeLock();
+    });
 
     // Pre-selects Practise + the timer's actual duration on the save-session
     // screen - falls back to the Custom entry if the timer's minutes don't match
@@ -12458,6 +12778,7 @@
 
     document.getElementById('timerStartBtn')?.addEventListener('click', () => {
         const radio = document.querySelector('input[name="timerDurationOption"]:checked')?.value;
+        if (radio === 'open-ended') { startTimerSession(null); return; }
         const mins = Number(radio === 'custom' ? document.getElementById('timerCustomDuration')?.value : radio);
         if (!mins || isNaN(mins) || mins <= 0) { showWarningToast('Pick a duration first!'); return; }
         startTimerSession(mins * 60);
