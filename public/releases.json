@@ -1,5 +1,41 @@
 [
   {
+    "version": "0.21.0",
+    "date": "2026-09-20",
+    "changes": [
+      {
+        "key": "ML-190",
+        "type": "New",
+        "summary": "Global feature gates - admin on/off switch per feature (features.enabled)"
+      },
+      {
+        "key": "ML-185",
+        "type": "New",
+        "summary": "Add the option for another 5 minutes at the end of the timer session"
+      },
+      {
+        "key": "ML-184",
+        "type": "New",
+        "summary": "Timer count up"
+      },
+      {
+        "key": "ML-181",
+        "type": "New",
+        "summary": "Tuner dynamic and history"
+      },
+      {
+        "key": "ML-163",
+        "type": "New",
+        "summary": "Save metronome to Flows"
+      },
+      {
+        "key": "ML-79",
+        "type": "New",
+        "summary": "Connect to solfrascore for importing to music xml"
+      }
+    ]
+  },
+  {
     "version": "0.20.0",
     "date": "2026-09-20",
     "changes": [
