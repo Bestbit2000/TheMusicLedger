@@ -2,8 +2,9 @@
 
 Status: **Neon side is live and in use; production is fully cut over**
 (release 0.6.0, 2026-09-09) — schema applied and real data migrated on
-`production`, `sandbox`, and `dev`. See "Outstanding" at the bottom for what's
-still left (mainly sandbox's own Vercel/OAuth setup). This is the "what's
+`production`, `sandbox`, and `dev`. Sandbox's own Vercel/OAuth setup is also
+done (`ML-189`) - see "Outstanding" at the bottom for what's still left. This
+is the "what's
 actually been done and how to
 work with it" doc; [`docs/database-schema.md`](database-schema.md) is the "why"
 and [`docs/migrations.md`](migrations.md) is "how the schema itself gets
@@ -85,16 +86,30 @@ in `.env` automatically.
 
 ## Outstanding
 
-1. Vercel: add a `sandbox` git branch, confirm it deploys as a Preview
-   environment, add sandbox-scoped env vars (DB connection string, OAuth
-   redirect URIs) separate from production's.
+~~1. Vercel: add a `sandbox` git branch, confirm it deploys as a Preview
+environment, add sandbox-scoped env vars (DB connection string, OAuth
+redirect URIs) separate from production's.~~ — **done**, `ML-189`. The
+`sandbox` git branch deploys as its own Vercel Preview, aliased to
+`https://themusicledger-sandbox.vercel.app` (also reachable via the
+standard `the-music-ledger-git-sandbox-bestbit.vercel.app` branch alias).
+`DATABASE_URL`, `GOOGLE_REDIRECT_URI`, and `TEST_LOGIN_SECRET` all have a
+`Preview (sandbox)`-scoped override in the Vercel dashboard, separate from
+production's - everything else (`GOOGLE_CLIENT_ID`/`_SECRET`, `SESSION_SECRET`,
+etc.) is shared across every Preview via the plain `Preview` scope, which
+sandbox inherits like any other preview deployment. The sandbox callback URL
+is in the Google OAuth app's authorised redirect URIs. Left as-is:
+Vercel's own Deployment Protection still gates the sandbox Preview behind a
+Vercel account login - intentional for now, not something this ticket
+needed to change. `AUDIVERIS_SERVICE_URL` (mentioned in the original
+ticket as possibly needing a per-environment value) isn't set for *any*
+environment yet, matching `flow_import_from_file` still being feature-gated
+off - nothing sandbox-specific to add there until that ships.
 1a. **ML-179**: attach a Vercel Blob store to the project (Vercel dashboard),
     which auto-provisions `BLOB_READ_WRITE_TOKEN` for production/preview -
     then copy that same token into local `.env` (see `.env.example`) for
     local Flow recordings/documents upload testing.
 2. Register the Microsoft Entra ID app (`ML-43`) and add its Client ID/secret
    per environment.
-3. Add the sandbox URL to the Google OAuth app's authorised redirect URIs.
 
 ~~4. Write and run the actual data migration script against `sandbox`, then
 `production`~~ — **done**, `ML-21`, release 0.6.0 (2026-09-09).
