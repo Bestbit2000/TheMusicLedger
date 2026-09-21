@@ -42,12 +42,30 @@ picked.
    ```bash
    git commit -m "Cut release <version>: <short description>"
    ```
-5. `git push origin main` — this deploys to production. A `pre-push` hook
+5. **Check for pending migrations against `production` before pushing** —
+   not just `dev`/`sandbox`. The code about to go live may depend on a
+   migration file that was only ever run against `dev`/`sandbox`; nothing
+   catches that mismatch except this step (there's no
+   `PRODUCTION_DATABASE_URL` convenience var by design, see
+   `docs/environments.md`, so it can't be hook-enforced the way the version
+   bump is):
+   ```bash
+   # Get production's connection string deliberately (via Neon MCP's
+   # get_connection_string, or `neon connection-string production`) and run:
+   DATABASE_URL="<production connection string>" node db/migrate.js
+   ```
+   It's safe to run any time — already-applied migrations are skipped (see
+   `docs/migrations.md`), so this only ever applies what's actually missing.
+   This exists because release 0.21.0 shipped code reading a column
+   (`features.enabled`, migration `042_features_enabled.sql`) that had only
+   been applied to `dev`/`sandbox` — production 500'd on it live (`ML-195`).
+6. `git push origin main` — this deploys to production. A `pre-push` hook
    (`.husky/pre-push`) blocks this push if `package.json`'s version didn't
    actually change since `origin/main`, or if `public/releases.json` doesn't
    have an entry for the new version — i.e. it catches exactly the mistake
    made on 2026-09-08 (pushed straight to production with no version bump, no
-   Jira Fix Version, no release notes).
+   Jira Fix Version, no release notes). It does **not** catch a missing
+   migration — that's what step 5 is for.
 
 ## Deliberately not a release
 
