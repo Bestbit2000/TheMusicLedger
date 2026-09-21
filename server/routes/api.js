@@ -22,6 +22,7 @@ import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBan
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks } from '../services/flowBlocks.js';
 import { importScoreFromFile } from '../services/scoreImport.js';
 import { isFeatureEnabled, listEnabledFeatureKeys } from '../services/features.js';
+import { getActiveTimerSession, upsertActiveTimerSession, clearActiveTimerSession } from '../services/timerSessions.js';
 
 const router = express.Router();
 
@@ -180,6 +181,53 @@ router.delete('/sessions/:row', requireAuth, resolveAccount, async (req, res) =>
     res.json({ message: 'Session deleted' });
   } catch (error) {
     console.error('Session delete error:', error);
+    sendError(res, error);
+  }
+});
+
+// ========================================
+// ACTIVE TIMER SESSION (ML-197 - lets an in-progress practice timer survive an accidental
+// reload/relogin, e.g. mobile pull-to-refresh. See db/migrations/043_active_timer_sessions.sql -
+// this is deliberately separate from the SESSIONS routes above, which only ever record a
+// finished session's authoritative total.)
+// ========================================
+router.get('/timer/active', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const activeSession = await getActiveTimerSession(req.accountId);
+    res.json({ activeSession });
+  } catch (error) {
+    console.error('Active timer fetch error:', error);
+    sendError(res, error);
+  }
+});
+
+router.put('/timer/active', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { targetSeconds, elapsedSeconds, running } = req.body;
+    if (!Number.isFinite(elapsedSeconds) || elapsedSeconds < 0) {
+      return res.status(400).json({ error: 'Invalid elapsedSeconds' });
+    }
+    if (targetSeconds !== null && targetSeconds !== undefined && !Number.isFinite(targetSeconds)) {
+      return res.status(400).json({ error: 'Invalid targetSeconds' });
+    }
+    await upsertActiveTimerSession(req.accountId, {
+      targetSeconds: targetSeconds === null || targetSeconds === undefined ? null : Number(targetSeconds),
+      elapsedSeconds: Number(elapsedSeconds),
+      running: !!running
+    });
+    res.json({ message: 'Active timer synced' });
+  } catch (error) {
+    console.error('Active timer sync error:', error);
+    sendError(res, error);
+  }
+});
+
+router.delete('/timer/active', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await clearActiveTimerSession(req.accountId);
+    res.json({ message: 'Active timer cleared' });
+  } catch (error) {
+    console.error('Active timer clear error:', error);
     sendError(res, error);
   }
 });

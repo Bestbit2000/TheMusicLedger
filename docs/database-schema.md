@@ -302,6 +302,7 @@ Notes on fields that took a few passes to nail down:
 | `sessions` | The umbrella event (practice/rehearsal/performance/lesson) | id, session_type, account_id, band_id, tutor_id, practice_list_id, started_at, **total_duration_minutes** (actual, authoritative) |
 | `session_participants` | Attendance, incl. one-off guests who aren't full band members | session_id, account_id, is_guest, role |
 | `session_segments` | The up-to-4 timed chunks (warm up / scales / technique / performance) within a session | id, session_id, segment_type, order_index, **planned_duration_minutes** (guidance only), score_id, metronome_segment_id |
+| `active_timer_sessions` | The practice **timer** tool's currently in-progress run, if any (`ML-197`) - one row per account, synced only on start/pause/resume/snooze (not periodically) and deleted once it finishes/stops, so an accidental reload/relogin can resume it instead of losing it. `elapsed_seconds`/`updated_at` are a wall-clock anchor: while `running`, elapsed is projected forward from `updated_at` using Postgres's own clock, so a resume picks up with exactly the same time left to the second rather than "aware a timer was going" - a pause freezes that projection instead of letting the paused stretch count against it. Deliberately separate from `sessions` (whose `total_duration_minutes` is only ever written once, at completion - see "Session timing" above) rather than a status column bolted onto it | account_id (PK), target_seconds (NULL = open-ended/count-up), elapsed_seconds, running, updated_at |
 
 ### Scales
 

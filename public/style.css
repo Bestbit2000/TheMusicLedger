@@ -72,6 +72,17 @@
 
     body { font-family: var(--font-sans); background: var(--bg-color); color: var(--text-color); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
 
+    /* ML-197: stops a downward drag from triggering the browser/OS's native pull-to-refresh, which
+       silently reloaded the page (and lost whatever was running - most noticeably the practice
+       timer) when scrolled past the top by accident. Applied only in the installed/standalone app
+       (.installed-app, set on <html> in app.js once display-mode: standalone or iOS's
+       navigator.standalone is detected) - a normal browser tab keeps pull-to-refresh, where it's
+       expected rather than accidental. "contain" (not "none") still allows the page's own natural
+       rubber-band/scroll feel, it just stops that scroll gesture from chaining up to the browser
+       shell's own refresh action. Set on both html and body since either can end up being the
+       actual scrolling box depending on content height/browser. */
+    html.installed-app, html.installed-app body { overscroll-behavior-y: contain; }
+
     /* #mainContainer is body's other flex child alongside .top-bar-sticky-group (ML-53) - it needs
        the exact same explicit width:100%/max-width pairing that group already has, or its cross-axis
        size under body's align-items:center falls back to shrink-to-fit over whichever single view is

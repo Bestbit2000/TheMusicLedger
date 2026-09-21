@@ -140,6 +140,13 @@
             update: (row, data) => apiCall(`/api/sessions/${row}`, 'PUT', data),
             delete: (row, category) => apiCall(`/api/sessions/${row}`, 'DELETE', { category })
         },
+        // ML-197: the in-progress practice timer, persisted so it survives an accidental
+        // reload/relogin - see syncActiveTimerSession/restoreTimerSession in the TIMER section.
+        timer: {
+            getActive: () => apiCall('/api/timer/active'),
+            syncActive: (data) => apiCall('/api/timer/active', 'PUT', data),
+            clearActive: () => apiCall('/api/timer/active', 'DELETE')
+        },
         challenges: {
             get: (token) => apiCall('/api/challenges', 'GET', null, token),
             create: (data) => apiCall('/api/challenges', 'POST', data),
@@ -537,6 +544,17 @@
             document.getElementById('tunerShowOctaveSetting').checked = localStorage.getItem(TUNER_SHOW_OCTAVE_KEY) === 'true';
             document.getElementById('fermataPlaybackModeSetting').value = localStorage.getItem(FERMATA_PLAYBACK_MODE_KEY) || 'tone';
             syncAdminLinkVisibility();
+            // ML-197: picks back up an in-progress timer left running server-side (see
+            // syncActiveTimerSession) - most often after an accidental reload/relogin lost the local
+            // timerState. Caught on its own (not folded into the outer catch) so a failure here -
+            // offline, or simply no active session - never gets treated as an auth failure and bounces
+            // the user back to the login screen.
+            try {
+                const { activeSession } = await API.timer.getActive();
+                if (activeSession) restoreTimerSession(activeSession);
+            } catch (timerError) {
+                console.warn('Failed to restore active timer:', timerError.message);
+            }
         } catch (error) {
             console.warn('Failed to initialize app:', error.message);
             displayLoginScreen();
@@ -13135,6 +13153,55 @@
     let timerState = null;
     let timerIntervalId = null;
 
+    // Best-effort push of the current timerState to the server so a later reload/relogin (see
+    // restoreTimerSession) can pick back up with exactly the same amount of time left, to the
+    // second - not just "aware a timer was going" (ML-197). Only called on actual state changes
+    // (start/pause/resume/snooze/finish), never on a plain tick: while running, the server doesn't
+    // need a fresher elapsed_seconds than whatever this last sent - getActiveTimerSession projects
+    // it forward from updated_at using Postgres's own clock, so real wall-clock time keeps counting
+    // against the remaining time even while the app is closed, exactly as if it had been a real
+    // clock running the whole time. A pause freezes that projection (this same function fires again
+    // on pause, moving the anchor to that instant) - only a running stretch should ever count.
+    // Fire-and-forget: a failed sync (offline, etc) just delays how current the next restore's
+    // anchor point is - it must never interrupt or stall the local timer itself.
+    function syncActiveTimerSession() {
+        if (!timerState) return;
+        API.timer.syncActive({
+            targetSeconds: timerState.targetSeconds,
+            elapsedSeconds: timerState.elapsedSeconds,
+            running: timerState.running
+        }).catch(() => {});
+    }
+
+    // Rebuilds timerState from the server's already wall-clock-projected elapsedSeconds (see
+    // getActiveTimerSession) - the counterpart to syncActiveTimerSession, used to recover a timer an
+    // accidental reload/relogin would otherwise have silently lost (ML-197), with the same amount of
+    // time left it would actually have if it had just kept a real clock running the whole time it
+    // was away (or exactly where it was left, if it was paused when the app went away).
+    function restoreTimerSession(active) {
+        const { targetSeconds, elapsedSeconds, running } = active;
+        const openEnded = targetSeconds === null;
+        // A countdown that had already run out (or was seconds from it) by the time this reload
+        // happened - nothing left to meaningfully resume. Drop the stale row rather than restoring
+        // a ~0:00 timer that would just immediately re-trigger the finished-session flow on its own.
+        if (!openEnded && elapsedSeconds >= targetSeconds) {
+            API.timer.clearActive().catch(() => {});
+            return;
+        }
+        timerState = {
+            targetSeconds,
+            remainingSeconds: openEnded ? null : targetSeconds - elapsedSeconds,
+            elapsedSeconds,
+            running,
+            openEnded
+        };
+        clearInterval(timerIntervalId);
+        if (running) timerIntervalId = setInterval(timerTick, 1000);
+        renderTimerScreen();
+        updateTopTimerIndicator(viewStack[viewStack.length - 1]);
+        syncWakeLock();
+    }
+
     const TIMER_TODAY_SECONDS_KEY = 'timerTodaySeconds';
     const TIMER_TODAY_DATE_KEY = 'timerTodayDate';
 
@@ -13358,6 +13425,10 @@
         if (!timerState || !timerState.running) return;
         timerState.elapsedSeconds++;
         addTimerTodaySeconds(1);
+        // No per-tick sync to the server (ML-197) - while running, getActiveTimerSession projects
+        // elapsed_seconds forward from the last sync's updated_at using Postgres's own clock, so the
+        // anchor set by the last start/pause/resume/snooze stays accurate to the second on its own;
+        // a mid-tick sync here would only add network chatter, not accuracy.
         // ML-184: open-ended never runs out on its own - just keep banking elapsed time until Stop.
         if (timerState.openEnded) {
             updateTimerDisplays();
@@ -13381,6 +13452,7 @@
         // actually active (it stays hidden regardless while the box itself is open).
         updateTopTimerIndicator(viewStack[viewStack.length - 1]);
         syncWakeLock();
+        syncActiveTimerSession(); // ML-197
     }
 
     function toggleTimerPlayPause() {
@@ -13388,6 +13460,7 @@
         timerState.running = !timerState.running;
         updateTimerPlayIcons();
         syncWakeLock();
+        syncActiveTimerSession(); // ML-197: pause/resume matters enough to push immediately, not wait for the next periodic tick sync
     }
 
     // ML-185: carries the elapsed time (and enough of the original session's shape to resume it)
@@ -13409,6 +13482,7 @@
         // session has actually ended (recomputes the top-bar indicator either way).
         closeTimerInlineBox();
         syncWakeLock();
+        API.timer.clearActive().catch(() => {}); // ML-197: nothing left to resume once the session's actually over
 
         if (elapsedSeconds < 1) return;
         timerPendingFinish = { elapsedSeconds, openEnded, targetSeconds };
@@ -13457,6 +13531,7 @@
         renderTimerScreen();
         updateTopTimerIndicator(viewStack[viewStack.length - 1]);
         syncWakeLock();
+        syncActiveTimerSession(); // ML-197
     });
 
     // Pre-selects Practise + the timer's actual duration on the save-session
@@ -13516,6 +13591,17 @@
 
     // Initialize app on page load
     window.addEventListener('load', initializeApp);
+
+    // ML-197: pull-to-refresh in an installed/standalone PWA reloads the whole page - and with it,
+    // silently drops the in-memory timerState above (before that state was itself made
+    // server-recoverable, this used to just lose the running timer outright). Scoped to standalone
+    // mode only, via a CSS class rather than a blanket overscroll-behavior rule in style.css - an
+    // ordinary mobile browser tab still gets pull-to-refresh, where it's an expected gesture rather
+    // than an accidental one, and iOS Safari's own `navigator.standalone` is checked too (its PWA
+    // mode doesn't set the `display-mode` media feature).
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+        document.documentElement.classList.add('installed-app');
+    }
 
     // Register service worker so the app can be installed (Add to Home
     // Screen / desktop install prompt on Chrome and Android require one).
