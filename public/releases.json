@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.22.0",
+    "date": "2026-09-22",
+    "changes": [
+      {
+        "key": "ML-197",
+        "type": "New",
+        "summary": "Prevent a scroll / refresh from restarting the timer"
+      },
+      {
+        "key": "ML-189",
+        "type": "New",
+        "summary": "Finish sandbox Vercel environment (own Preview deployment + env vars)"
+      }
+    ]
+  },
+  {
     "version": "0.21.0",
     "date": "2026-09-20",
     "changes": [
