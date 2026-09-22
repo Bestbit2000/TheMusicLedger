@@ -3297,6 +3297,17 @@
                 stopFermataToneImmediately();
                 activeFermata = null;
                 fermataPendingEndKind = null;
+            },
+            // ML-132 test: exposes this engine's own AudioContext so other audio (the tuner's mic
+            // input graph) can be routed through the IDENTICAL context instead of its own separate
+            // one, to test whether that avoids Android Chrome's audio-focus ducking between the two -
+            // see createTunerEngine's sharedAudioCtx param. Also nudges it out of 'suspended' the same
+            // way ensureAudio's play()-time resume does, since a caller here wants it usable right
+            // away rather than only once this player itself is pressed play on.
+            getAudioContext() {
+                ensureAudio();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                return audioCtx;
             }
         };
     }
@@ -12353,6 +12364,7 @@
     // view later as an add-in without rewriting the mic/analysis plumbing.
     function createTunerEngine() {
         let audioCtx = null;
+        let ownsAudioCtx = false; // ML-132 test: false when audioCtx is a shared context borrowed via start()'s sharedAudioCtx - stop() must never close a context this engine doesn't own
         let analyser = null;
         let micStream = null;
         let dataArray = null;
@@ -12375,7 +12387,16 @@
         }
 
         return {
-            async start() {
+            // ML-132 test: sharedAudioCtx, when passed, is an already-live AudioContext (currently
+            // the metronome player behind whichever tuner-capable view is open - see
+            // activeMetroPlayerForTuner/getAudioContext) that this engine's mic graph is routed
+            // through INSTEAD of creating its own. The idea being tested: Chrome's Android audio-focus
+            // ducking triggers between two separate AudioContext instances, so collapsing the
+            // metronome synth and the mic input into one shared graph may avoid it - see the ML-132
+            // comment thread just below for the (currently Chrome-Android-ineffective) audioSession
+            // attempt this sits alongside. The full Tuner view has no metronome behind it, so it
+            // always calls start() with no argument and keeps today's own-context behaviour.
+            async start(sharedAudioCtx) {
                 if (audioCtx) return true;
                 // ML-132: on Android, opening a mic stream makes the OS itself ("audio focus")
                 // duck other concurrently-playing audio, including the metronome's own separate
@@ -12401,8 +12422,19 @@
                     }
                     return false;
                 }
-                const Ctx = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new Ctx();
+                if (sharedAudioCtx) {
+                    audioCtx = sharedAudioCtx;
+                    ownsAudioCtx = false;
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                } else {
+                    const Ctx = window.AudioContext || window.webkitAudioContext;
+                    audioCtx = new Ctx();
+                    ownsAudioCtx = true;
+                }
+                // AnalyserNode only, deliberately never connected on to audioCtx.destination - it
+                // exists purely for tunerAutoCorrelate to read from, not to be heard. On a shared
+                // context this matters even more than before: wiring the mic straight to destination
+                // would feed it back into whatever the metronome side of the same graph is playing.
                 const source = audioCtx.createMediaStreamSource(micStream);
                 analyser = audioCtx.createAnalyser();
                 analyser.fftSize = 2048;
@@ -12416,8 +12448,12 @@
                 rafId = null;
                 if (micStream) micStream.getTracks().forEach(t => t.stop());
                 micStream = null;
-                if (audioCtx) audioCtx.close();
+                // A shared context is owned by whichever metronome player handed it out (see
+                // getAudioContext) - it keeps running its own playback/prewarm lifecycle regardless of
+                // this tuner session, so only close a context this engine created for itself.
+                if (audioCtx && ownsAudioCtx) audioCtx.close();
                 audioCtx = null;
+                ownsAudioCtx = false;
                 analyser = null;
                 // Hands control back to the browser's own default session-type resolution once the
                 // mic's no longer in use, rather than leaving 'play-and-record' pinned for the rest
@@ -13066,11 +13102,22 @@
         document.getElementById('metroBlkMiniTuner').classList.add('metroBlk-mini-tuner-open');
     }
 
+    // ML-132 test: which metronome engine's AudioContext the mini tuner widget should share, matching
+    // whichever tool is actually behind it on the current view - same view pair renderTopTunerToggleState
+    // already gates the widget's availability on. Neither player may have been pressed play yet (the
+    // mini tuner can open before that), but getAudioContext() creates/warms the context regardless.
+    function activeMetroPlayerForTuner() {
+        const currentView = viewStack[viewStack.length - 1];
+        if (currentView === 'quickPlayView') return qpPlayer;
+        if (currentView === 'metroBuilderView') return metroBlkPlayer;
+        return null;
+    }
+
     async function startMetroBlkMiniTuner() {
         openMetroBlkMiniTuner();
         metroBlkMiniTunerActive = true;
         renderTopTunerToggleState();
-        const ok = await tunerEngine.start();
+        const ok = await tunerEngine.start(activeMetroPlayerForTuner()?.getAudioContext());
         if (!ok) {
             showWarningToast('Microphone access is needed for the tuner.');
             closeMetroBlkMiniTuner();
