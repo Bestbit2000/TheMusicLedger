@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<!-- ML-204 test file, hand-written to look like OMR output (a scanned PDF turned into MusicXML):
+     one part, no title/creator, playback-only jumps (<sound dacapo/fine> with no printed words),
+     a bare <sound tempo> as a measure child, a tempo change partway through a bar (not
+     representable - should warn), a composite "3+3" time signature, a fermata on a barline, a
+     caesura on a note, and a repeat count outside the app's 2-10 range (should warn). -->
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Music</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>2</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+      <sound tempo="96"/>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>8</duration><voice>1</voice><type>whole</type></note>
+    </measure>
+    <measure number="2">
+      <note><pitch><step>D</step><octave>5</octave></pitch><duration>8</duration><voice>1</voice><type>whole</type></note>
+      <barline location="right"><fermata type="upright"/></barline>
+    </measure>
+    <measure number="3">
+      <direction placement="above"><direction-type><rehearsal>B</rehearsal></direction-type></direction>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>4</duration><voice>1</voice><type>half</type></note>
+      <direction placement="above"><direction-type><words>Piu mosso</words></direction-type><sound tempo="120"/></direction>
+      <note><pitch><step>F</step><octave>5</octave></pitch><duration>4</duration><voice>1</voice><type>half</type><notations><articulations><caesura/></articulations></notations></note>
+    </measure>
+    <measure number="4">
+      <attributes><time><beats>3+3</beats><beat-type>8</beat-type></time></attributes>
+      <direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit><beat-unit-dot/><per-minute>60</per-minute></metronome></direction-type><sound tempo="90"/></direction>
+      <note><pitch><step>G</step><octave>5</octave></pitch><duration>3</duration><voice>1</voice><type>quarter</type><dot/></note>
+      <note><pitch><step>A</step><octave>5</octave></pitch><duration>3</duration><voice>1</voice><type>quarter</type><dot/></note>
+    </measure>
+    <measure number="5">
+      <note><pitch><step>G</step><octave>5</octave></pitch><duration>6</duration><voice>1</voice><type>half</type><dot/></note>
+      <direction><direction-type><words> </words></direction-type><sound fine="yes"/></direction>
+      <barline location="right"><bar-style>light-heavy</bar-style><repeat direction="backward" times="11"/></barline>
+    </measure>
+    <measure number="6">
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>6</duration><voice>1</voice><type>half</type><dot/></note>
+      <direction><direction-type><words> </words></direction-type><sound dacapo="yes"/></direction>
+      <barline location="right"><bar-style>light-heavy</bar-style></barline>
+    </measure>
+  </part>
+</score-partwise>

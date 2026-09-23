@@ -1144,10 +1144,17 @@ router.post('/flows/from-file', requireAuth, resolveAccount, async (req, res) =>
     if (!fileResponse.ok) throw withStatus(422, "Couldn't read the uploaded file - try uploading it again.");
     const buffer = Buffer.from(await fileResponse.arrayBuffer());
 
-    const { title, composer, blocks, omrXmlText } = await importScoreFromFile(req.accountId, buffer);
+    const { flow: parsed, blocks, omrXmlText } = await importScoreFromFile(req.accountId, buffer);
 
-    const flow = await createFlow(req.accountId, { name: title || undefined });
-    if (composer) await updateFlowMetadata(req.accountId, flow.id, { composer });
+    const flow = await createFlow(req.accountId, { name: parsed.title || undefined });
+    const { composer, arranger, publisher, description } = parsed;
+    if (composer || arranger || publisher || description) {
+      await updateFlowMetadata(req.accountId, flow.id, { composer, arranger, publisher, description });
+    }
+    // Only ever present in this app's own exports (ML-204) - a notation app's file has none.
+    for (const r of parsed.recordings) {
+      await addYouTubeRecording(req.accountId, flow.id, { url: `https://www.youtube.com/watch?v=${r.youtubeVideoId}`, title: r.title });
+    }
 
     // Sequential, not Promise.all - each block's order_index is assigned server-side as
     // "current max + 1" (createFlowBlock) and would race if these ran in parallel.
@@ -1168,7 +1175,9 @@ router.post('/flows/from-file', requireAuth, resolveAccount, async (req, res) =>
       });
     }
 
-    res.json(await getFlowDetail(req.accountId, flow.id));
+    // importWarnings: anything in the file the reader couldn't represent exactly (see
+    // flowMusicXmlReader.js) - additive to the usual flow detail shape.
+    res.json({ ...(await getFlowDetail(req.accountId, flow.id)), importWarnings: parsed.warnings });
   } catch (error) {
     sendError(res, error);
   }

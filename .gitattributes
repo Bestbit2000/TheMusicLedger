@@ -1,0 +1,4 @@
+# ML-204: MusicXML test fixtures are compared byte-for-byte against fresh writer output, so they
+# must keep LF endings on every checkout (core.autocrlf would otherwise rewrite them to CRLF).
+*.musicxml text eol=lf
+*.xsd text eol=lf

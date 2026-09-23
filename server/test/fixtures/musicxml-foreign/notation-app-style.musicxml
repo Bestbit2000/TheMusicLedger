@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<!-- ML-204 test file, hand-written to look like a notation app's export (MuseScore/Sibelius
+     style), NOT like our own writer's output: real pitches, a two-part score with a two-staff
+     piano (chords, <backup>), different <divisions> per part, a pickup bar before the first tempo
+     mark, a "c. 120" metronome with no <sound tempo>, a fermata on the piano only, the same "rit."
+     printed on both parts, and every jump written as <words> only (no <sound> playback attrs). -->
+<score-partwise version="4.0">
+  <work><work-title>Notation App Style</work-title></work>
+  <identification>
+    <creator type="composer">Test Composer</creator>
+    <creator type="arranger">Test Arranger</creator>
+    <encoding><software>Hand-written test file</software></encoding>
+  </identification>
+  <part-list>
+    <score-part id="P1"><part-name>Flute</part-name></score-part>
+    <score-part id="P2"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="0" implicit="yes">
+      <attributes><divisions>2</divisions><key><fifths>0</fifths></key><time><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type></note>
+    </measure>
+    <measure number="1">
+      <barline location="left"><bar-style>heavy-light</bar-style><repeat direction="forward"/></barline>
+      <direction placement="above"><direction-type><rehearsal>A</rehearsal></direction-type></direction>
+      <direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>c. 120</per-minute></metronome></direction-type></direction>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><voice>1</voice><type>half</type></note>
+      <note><pitch><step>D</step><octave>5</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type></note>
+    </measure>
+    <measure number="2">
+      <direction placement="above"><direction-type><segno/></direction-type></direction>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>6</duration><voice>1</voice><type>half</type><dot/></note>
+    </measure>
+    <measure number="3">
+      <note><pitch><step>F</step><octave>5</octave></pitch><duration>6</duration><voice>1</voice><type>half</type><dot/></note>
+    </measure>
+    <measure number="4">
+      <barline location="left"><ending number="1" type="start">1.</ending></barline>
+      <note><pitch><step>G</step><octave>5</octave></pitch><duration>6</duration><voice>1</voice><type>half</type><dot/></note>
+      <barline location="right"><bar-style>light-heavy</bar-style><ending number="1" type="stop"/><repeat direction="backward"/></barline>
+    </measure>
+    <measure number="5">
+      <barline location="left"><ending number="2" type="start">2.</ending></barline>
+      <note><pitch><step>A</step><octave>5</octave></pitch><duration>6</duration><voice>1</voice><type>half</type><dot/></note>
+      <barline location="right"><ending number="2" type="discontinue"/></barline>
+    </measure>
+    <measure number="6">
+      <note><pitch><step>G</step><octave>5</octave></pitch><duration>6</duration><voice>1</voice><type>half</type><dot/></note>
+      <direction placement="above"><direction-type><words>To</words></direction-type><direction-type><coda/></direction-type></direction>
+    </measure>
+    <measure number="7">
+      <note><pitch><step>F</step><octave>5</octave></pitch><duration>6</duration><voice>1</voice><type>half</type><dot/></note>
+    </measure>
+    <measure number="8">
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>6</duration><voice>1</voice><type>half</type><dot/></note>
+      <direction placement="below"><direction-type><words>D.S. al Coda</words></direction-type></direction>
+      <barline location="right"><bar-style>light-light</bar-style></barline>
+    </measure>
+    <measure number="9">
+      <direction placement="above"><direction-type><words>Coda</words></direction-type><direction-type><coda/></direction-type></direction>
+      <note><pitch><step>D</step><octave>5</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type></note>
+      <direction placement="above"><direction-type><words>rit.</words></direction-type><direction-type><dashes type="start" number="1"/></direction-type></direction>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><voice>1</voice><type>half</type></note>
+    </measure>
+    <measure number="10">
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>6</duration><voice>1</voice><type>half</type><dot/></note>
+      <direction placement="above"><direction-type><dashes type="stop" number="1"/></direction-type><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>80</per-minute></metronome></direction-type></direction>
+      <barline location="right"><bar-style>light-heavy</bar-style></barline>
+    </measure>
+  </part>
+  <part id="P2">
+    <measure number="0" implicit="yes">
+      <attributes><divisions>4</divisions><key><fifths>0</fifths></key><time><beats>3</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes>
+      <note><pitch><step>B</step><octave>3</octave></pitch><duration>4</duration><voice>1</voice><type>quarter</type><staff>1</staff></note>
+      <backup><duration>4</duration></backup>
+      <note><rest/><duration>4</duration><voice>5</voice><type>quarter</type><staff>2</staff></note>
+    </measure>
+    <measure number="1">
+      <barline location="left"><bar-style>heavy-light</bar-style><repeat direction="forward"/></barline>
+      <direction placement="above"><direction-type><rehearsal>A</rehearsal></direction-type><staff>1</staff></direction>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>12</duration><voice>1</voice><type>half</type><dot/><staff>1</staff></note>
+      <note><chord/><pitch><step>E</step><octave>4</octave></pitch><duration>12</duration><voice>1</voice><type>half</type><dot/><staff>1</staff></note>
+      <backup><duration>12</duration></backup>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>12</duration><voice>5</voice><type>half</type><dot/><staff>2</staff></note>
+    </measure>
+    <measure number="2">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>12</duration><voice>1</voice><type>half</type><dot/><staff>1</staff></note>
+      <backup><duration>12</duration></backup>
+      <note><rest measure="yes"/><duration>12</duration><voice>5</voice><staff>2</staff></note>
+    </measure>
+    <measure number="3">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>quarter</type><staff>1</staff></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>quarter</type><staff>1</staff><notations><fermata type="upright"/></notations></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>quarter</type><staff>1</staff></note>
+      <backup><duration>12</duration></backup>
+      <note><rest measure="yes"/><duration>12</duration><voice>5</voice><staff>2</staff></note>
+    </measure>
+    <measure number="4">
+      <barline location="left"><ending number="1" type="start">1.</ending></barline>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>12</duration><voice>1</voice><type>half</type><dot/><staff>1</staff></note>
+      <backup><duration>12</duration></backup>
+      <note><rest measure="yes"/><duration>12</duration><voice>5</voice><staff>2</staff></note>
+      <barline location="right"><bar-style>light-heavy</bar-style><ending number="1" type="stop"/><repeat direction="backward"/></barline>
+    </measure>
+    <measure number="5">
+      <barline location="left"><ending number="2" type="start">2.</ending></barline>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>12</duration><voice>1</voice><type>half</type><dot/><staff>1</staff></note>
+      <backup><duration>12</duration></backup>
+      <note><rest measure="yes"/><duration>12</duration><voice>5</voice><staff>2</staff></note>
+      <barline location="right"><ending number="2" type="discontinue"/></barline>
+    </measure>
+    <measure number="6">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>12</duration><voice>1</voice><type>half</type><dot/><staff>1</staff></note>
+      <backup><duration>12</duration></backup>
+      <note><rest measure="yes"/><duration>12</duration><voice>5</voice><staff>2</staff></note>
+    </measure>
+    <measure number="7">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>12</duration><voice>1</voice><type>half</type><dot/><staff>1</staff></note>
+      <backup><duration>12</duration></backup>
+      <note><rest measure="yes"/><duration>12</duration><voice>5</voice><staff>2</staff></note>
+    </measure>
+    <measure number="8">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>12</duration><voice>1</voice><type>half</type><dot/><staff>1</staff></note>
+      <backup><duration>12</duration></backup>
+      <note><rest measure="yes"/><duration>12</duration><voice>5</voice><staff>2</staff></note>
+      <barline location="right"><bar-style>light-light</bar-style></barline>
+    </measure>
+    <measure number="9">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>quarter</type><staff>1</staff></note>
+      <direction placement="above"><direction-type><words>rit.</words></direction-type><direction-type><dashes type="start" number="1"/></direction-type><staff>1</staff></direction>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>8</duration><voice>1</voice><type>half</type><staff>1</staff></note>
+      <backup><duration>12</duration></backup>
+      <note><rest measure="yes"/><duration>12</duration><voice>5</voice><staff>2</staff></note>
+    </measure>
+    <measure number="10">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>12</duration><voice>1</voice><type>half</type><dot/><staff>1</staff></note>
+      <direction placement="above"><direction-type><dashes type="stop" number="1"/></direction-type><staff>1</staff></direction>
+      <backup><duration>12</duration></backup>
+      <note><rest measure="yes"/><duration>12</duration><voice>5</voice><staff>2</staff></note>
+      <barline location="right"><bar-style>light-heavy</bar-style></barline>
+    </measure>
+  </part>
+</score-partwise>

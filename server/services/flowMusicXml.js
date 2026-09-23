@@ -83,6 +83,12 @@ function repeatEndingNumbersFor(b) {
   return legacy;
 }
 
+// The legacy single-column rehearsal mark (superseded by the rehearsalMarks list) only prints if
+// the list doesn't already carry the same mark.
+function legacyRehearsalMarkPrinted(b) {
+  return !!(b.rehearsalMark && !(b.rehearsalMarks || []).some(m => m.mark === b.rehearsalMark));
+}
+
 function rampTargetBpm(ramp, block, nextBlock) {
   if (ramp.targetMode === 'custom') return Number(ramp.targetBpm);
   if (!nextBlock) return null;
@@ -106,9 +112,17 @@ function blockExtension(b, index) {
     if (b.quietSecondsBeforeLeadIn) ext.quietSecondsBeforeLeadIn = b.quietSecondsBeforeLeadIn;
   }
   if (!b.noteValue) ext.noteValueUnset = true;
-  if (b.rehearsalMark) ext.rehearsalMark = b.rehearsalMark;
+  if (b.rehearsalMark) {
+    ext.rehearsalMark = b.rehearsalMark;
+    // Printed as a <rehearsal> on bar 1 only when the newer list doesn't already carry it (see
+    // flowToMusicXml) - flagged so the reader drops that printed copy from the list again.
+    if (legacyRehearsalMarkPrinted(b)) ext.legacyRehearsalMarkPrinted = true;
+  }
   if (b.isFirstTimeBar) ext.isFirstTimeBar = true;
   if (b.isSecondTimeBar) ext.isSecondTimeBar = true;
+  // The volta printed from the legacy flags (repeatEndingNumbersFor) isn't a real
+  // repeatEndingNumbers value - flagged so the reader doesn't turn it into one.
+  if ((b.isFirstTimeBar || b.isSecondTimeBar) && !(b.repeatEndingNumbers && b.repeatEndingNumbers.length)) ext.legacyEndingOnly = true;
   if (hasValue(b.repeatEndingStartBar)) ext.repeatEndingStartBar = b.repeatEndingStartBar;
   for (const k of ['introStartBarOffset', 'introStartBeatOffset', 'introEndBarOffset', 'introEndBeatOffset',
     'rampStartBarOffset', 'rampStartBeatOffset', 'rampDurationBars']) {
@@ -220,8 +234,7 @@ export function flowToMusicXml(flow, blocks, opts = {}) {
       rehearsalByBar.get(bar).push(mark);
     };
     for (const m of b.rehearsalMarks || []) addMark(m.barOffset || 0, m.mark);
-    // The legacy single-column mark only prints if the newer list doesn't already carry it.
-    if (b.rehearsalMark && !(b.rehearsalMarks || []).some(m => m.mark === b.rehearsalMark)) addMark(0, b.rehearsalMark);
+    if (legacyRehearsalMarkPrinted(b)) addMark(0, b.rehearsalMark);
 
     // Beat-positioned events, keyed "bar:beat" (bar 0-based, beat 1-based). Anything whose offsets
     // fall outside the block (stale after a shortening) is left to the extension alone.
@@ -353,7 +366,9 @@ export function flowToMusicXml(flow, blocks, opts = {}) {
           rightBits.push(`<ending number="${endingNumbers.join(', ')}" type="${b.isRepeatEnd ? 'stop' : 'discontinue'}"/>`);
         }
         if (b.isRepeatEnd) {
-          const times = b.repeatPlayCount && b.repeatPlayCount !== 2 ? ` times="${b.repeatPlayCount}"` : '';
+          // Written whenever it's set - even 2, the implicit default - so "explicitly 2" and "not
+          // set" stay distinguishable on the way back in.
+          const times = b.repeatPlayCount ? ` times="${b.repeatPlayCount}"` : '';
           rightBits.push(`<repeat direction="backward"${times}/>`);
         }
         if (style || rightBits.length) {
