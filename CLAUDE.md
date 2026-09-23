@@ -112,3 +112,10 @@ Pushing to `main` deploys straight to production. A `pre-push` hook
 `npm run cut-release -- <version> <ISSUE-1> [...]` then `npm run sync-releases`
 rather than trying to work around the hook. It exists because a push went out
 on 2026-09-08 with no version bump and no release notes at all.
+
+**Sandbox must always match production.** Release with
+`git push --atomic origin main main:sandbox`, never `main` alone. The hook blocks a
+push to `main` whose code differs from `origin/sandbox` (apart from the release
+commit's `package.json`/`public/releases.json`), and a push to `sandbox` that's
+missing anything already on `origin/main`. See "Sandbox = production parity" in
+`docs/release-process.md`.

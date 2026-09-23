@@ -123,13 +123,42 @@ regenerate the token reference if tokens changed. The Design page is how the own
    This exists because release 0.21.0 shipped code reading a column
    (`features.enabled`, migration `042_features_enabled.sql`) that had only
    been applied to `dev`/`sandbox` — production 500'd on it live (`ML-195`).
-6. `git push origin main` — this deploys to production. A `pre-push` hook
+6. Push to production **and sandbox together**, so they end up on the same commit:
+   ```bash
+   git push --atomic origin main main:sandbox
+   ```
+   `--atomic` means both branches move or neither does. This deploys `main` to
+   production. A `pre-push` hook
    (`.husky/pre-push`) blocks this push if `package.json`'s version didn't
    actually change since `origin/main`, or if `public/releases.json` doesn't
    have an entry for the new version — i.e. it catches exactly the mistake
    made on 2026-09-08 (pushed straight to production with no version bump, no
    Jira Fix Version, no release notes). It does **not** catch a missing
    migration — that's what step 5 is for.
+7. Check that the two are identical: `git fetch origin && git rev-parse origin/main origin/sandbox`
+   must print the same hash twice. If only `main` went out, run
+   `git push origin main:sandbox` to bring sandbox back in line.
+
+## Sandbox = production parity
+
+Sandbox must always run exactly what production runs, or be ahead of it with the next release
+under QA, and never behind it. Before 2026-09-23 this drifted on every release. The release commit
+(`package.json` + `public/releases.json`) is made *after* sandbox QA, so that issues only move
+to Released when they really go out. It was then pushed to `main` only, which left sandbox one
+commit behind production.
+
+The `pre-push` hook now enforces parity:
+
+- **Push to `main`:** blocked unless the pushed commit matches `origin/sandbox` in every file
+  except `package.json` and `public/releases.json`. Nothing reaches production that wasn't on
+  sandbox first.
+- **Push to `sandbox`:** blocked if the pushed commit is missing anything already on
+  `origin/main`; fix it with `git merge origin/main`. It warns, without blocking, if sandbox
+  had been left behind production by an earlier release, because that push is the one putting
+  it right.
+- **Production-incident hotfixes only:** `SKIP_SANDBOX_CHECK=1`. Afterwards, bring sandbox
+  back in line (`git push origin main:sandbox`) and land the fix properly (see the production
+  incident workflow).
 
 ## Deliberately not a release
 
