@@ -1462,6 +1462,148 @@
         document.getElementById('flowsImportConfirmBtn')?.addEventListener('click', confirmImport);
     }
 
+    // ========================================
+    // Notifications (ML-201) - announcements for every account's ☰ -> Notifications. "Live" is
+    // computed server-side from the clock (no scheduler), so a scheduled one just starts appearing.
+    // ========================================
+    const NOTIFICATION_STATUS_LABELS = { live: 'Live', scheduled: 'Scheduled', expired: 'Expired', withdrawn: 'Withdrawn' };
+    let notificationsById = new Map();
+    let editingNotificationId = null;
+
+    // <input type="datetime-local"> works in local time with no zone: ISO -> "YYYY-MM-DDTHH:mm" local.
+    function toLocalInputValue(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    function fromLocalInputValue(value) {
+        return value ? new Date(value).toISOString() : null;
+    }
+
+    function renderNotificationsAdmin(data) {
+        const el = document.getElementById('notificationsAdminList');
+        notificationsById = new Map(data.notifications.map(n => [n.id, n]));
+        if (!data.notifications.length) {
+            el.innerHTML = '<p>No notifications yet.</p>';
+            return;
+        }
+        el.innerHTML = data.notifications.map(n => `
+            <div class="admin-feature">
+                <div class="admin-feature-header">
+                    <div class="admin-feature-header-text">
+                        <h2>${escapeHtml(n.title)}</h2>
+                        <p class="admin-test-case-meta">${n.status === 'scheduled' ? 'Publishes' : 'Published'} ${escapeHtml(fmtDate(n.publishAt))}${
+                            n.expiresAt ? ` &bull; ${n.status === 'expired' ? 'expired' : 'expires'} ${escapeHtml(fmtDate(n.expiresAt))}` : ''}${
+                            n.createdBy ? ` &bull; by ${escapeHtml(n.createdBy)}` : ''}</p>
+                        <p class="admin-notification-body">${escapeHtml(n.body)}</p>
+                        <div class="admin-feedback-badges">
+                            <span class="admin-feedback-badge notification-status-${n.status}">${NOTIFICATION_STATUS_LABELS[n.status] || n.status}</span>
+                            <span class="admin-feedback-badge cat">Read by ${n.readCount} of ${data.accountCount}</span>
+                        </div>
+                    </div>
+                    <div class="admin-feature-actions">
+                        <button class="btn-edit" type="button" data-notification-edit="${n.id}">Edit</button>
+                        <button class="btn-edit" type="button" data-notification-withdraw="${n.id}">${n.status === 'withdrawn' ? 'Restore' : 'Withdraw'}</button>
+                        <button class="btn-delete" type="button" data-notification-delete="${n.id}">Delete</button>
+                    </div>
+                </div>
+            </div>`).join('');
+        el.querySelectorAll('[data-notification-edit]').forEach(btn => btn.addEventListener('click', () => openNotificationForm(notificationsById.get(Number(btn.dataset.notificationEdit)))));
+        el.querySelectorAll('[data-notification-withdraw]').forEach(btn => btn.addEventListener('click', () => toggleNotificationWithdrawn(Number(btn.dataset.notificationWithdraw))));
+        el.querySelectorAll('[data-notification-delete]').forEach(btn => btn.addEventListener('click', () => deleteNotificationAdmin(Number(btn.dataset.notificationDelete))));
+    }
+
+    async function reloadNotificationsAdmin() {
+        try {
+            renderNotificationsAdmin(await apiCall('/api/admin/notifications'));
+        } catch (error) {
+            document.getElementById('notificationsAdminList').innerHTML = `<p>Error loading notifications: ${escapeHtml(error.message)}</p>`;
+        }
+    }
+
+    function syncNotificationPublishMode() {
+        const scheduled = document.getElementById('notificationPublishMode').value === 'scheduled';
+        document.getElementById('notificationPublishAtGroup').classList.toggle('hidden-group', !scheduled);
+    }
+
+    function openNotificationForm(n) {
+        editingNotificationId = n ? n.id : null;
+        document.getElementById('notificationFormTitle').innerText = n ? 'Edit notification' : 'New notification';
+        document.getElementById('notificationTitleInput').value = n ? n.title : '';
+        document.getElementById('notificationBodyInput').value = n ? n.body : '';
+        // An existing notification keeps its own publish time unless it's changed here.
+        const scheduled = !!n;
+        document.getElementById('notificationPublishMode').value = scheduled ? 'scheduled' : 'now';
+        document.getElementById('notificationPublishAtInput').value = n ? toLocalInputValue(n.publishAt) : '';
+        document.getElementById('notificationExpiresAtInput').value = n ? toLocalInputValue(n.expiresAt) : '';
+        syncNotificationPublishMode();
+        document.getElementById('notificationFormModal').style.display = 'flex';
+    }
+    function closeNotificationForm() {
+        document.getElementById('notificationFormModal').style.display = 'none';
+        editingNotificationId = null;
+    }
+
+    async function saveNotificationForm() {
+        const scheduled = document.getElementById('notificationPublishMode').value === 'scheduled';
+        const publishValue = document.getElementById('notificationPublishAtInput').value;
+        if (scheduled && !publishValue) { showToast('Choose when to publish it.'); return; }
+        const body = {
+            title: document.getElementById('notificationTitleInput').value,
+            body: document.getElementById('notificationBodyInput').value,
+            publishAt: scheduled ? fromLocalInputValue(publishValue) : null,
+            expiresAt: fromLocalInputValue(document.getElementById('notificationExpiresAtInput').value)
+        };
+        const btn = document.getElementById('notificationFormSaveBtn');
+        btn.disabled = true;
+        btn.innerText = 'Saving...';
+        try {
+            if (editingNotificationId) await apiCall(`/api/admin/notifications/${editingNotificationId}`, 'PUT', body);
+            else await apiCall('/api/admin/notifications', 'POST', body);
+            closeNotificationForm();
+            await reloadNotificationsAdmin();
+            showToast(scheduled ? 'Notification scheduled' : 'Notification published', 'success');
+        } catch (error) {
+            showToast(error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'Save';
+        }
+    }
+
+    async function toggleNotificationWithdrawn(id) {
+        const n = notificationsById.get(id);
+        if (!n) return;
+        try {
+            await apiCall(`/api/admin/notifications/${id}/withdrawn`, 'PUT', { withdrawn: n.status !== 'withdrawn' });
+            await reloadNotificationsAdmin();
+            showToast(n.status === 'withdrawn' ? 'Notification restored' : 'Notification withdrawn', 'success');
+        } catch (error) {
+            showToast(error.message);
+        }
+    }
+
+    function deleteNotificationAdmin(id) {
+        const n = notificationsById.get(id);
+        showConfirmModal('Delete notification', `Delete "${n ? n.title : 'this notification'}" and its read history? Withdraw instead to hide it but keep the numbers.`, async () => {
+            try {
+                await apiCall(`/api/admin/notifications/${id}`, 'DELETE');
+                await reloadNotificationsAdmin();
+                showToast('Notification deleted', 'success');
+            } catch (error) {
+                showToast(error.message);
+            }
+        });
+    }
+
+    function initNotificationsAdmin() {
+        document.getElementById('addNotificationBtn')?.addEventListener('click', () => openNotificationForm(null));
+        document.getElementById('notificationPublishMode')?.addEventListener('change', syncNotificationPublishMode);
+        document.getElementById('notificationFormCancelBtn')?.addEventListener('click', closeNotificationForm);
+        document.getElementById('notificationFormSaveBtn')?.addEventListener('click', saveNotificationForm);
+    }
+
     async function load() {
         initNav();
         initFeatureForm();
@@ -1474,6 +1616,7 @@
         initConfigForm();
         initFeedback();
         initFlows();
+        initNotificationsAdmin();
         document.getElementById('adminShell').classList.remove('hidden-group');
         try {
             const [backtest, featuresRes] = await Promise.all([
@@ -1484,7 +1627,7 @@
             renderFeatures(backtest);
             renderFeaturesCatalog(featuresRes.features);
             await Promise.all([
-                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadPosthogLink(),
+                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadNotificationsAdmin(), reloadPosthogLink(),
                 reloadFlowDefaultName(), reloadFlowDefaultTimeSig(), reloadFlowDefaultBpm(), reloadFlowDefaultBarCount(), reloadFlowDefaultNoteValue()
             ]);
         } catch (error) {

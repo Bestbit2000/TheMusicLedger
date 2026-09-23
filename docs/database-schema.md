@@ -501,6 +501,19 @@ picked later (e.g. Stripe) rather than storing billing detail directly.
 catalog" above) - not enforced with a real FK since this table predates that one
 and neither is wired to any endpoint yet.
 
+### Notifications (`ML-201`)
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `notifications` | Announcements a super admin writes for every account's ☰ → Notifications | id, title (≤120), body (plain text, ≤4000), audience ('all' only for now), publish_at, expires_at, withdrawn_at, created_by_account_id, created_at, updated_at |
+| `notification_reads` | Which account has read which notification - absence means unread | notification_id, account_id (PK together), read_at |
+
+- **No scheduler**: "live" is computed at query time (`publish_at <= now()`, not expired, not withdrawn), and clients poll every ~5 minutes - a scheduled notification just starts matching.
+- **Everyone sees every live notification**, including accounts created after it was published, until its optional expiry.
+- **Withdraw vs delete**: `withdrawn_at` hides it but keeps the read history; a delete cascades the reads away.
+- **`audience`** is a placeholder for targeting (bands, account levels, plans) - its CHECK widens when a second value is actually supported.
+- The **"update available - reload"** notice is deliberately not a row: it's about the code running on one device, worked out client-side from the server's version. See [`docs/notifications.md`](notifications.md).
+
 ## Open questions (not yet resolved)
 
 1. Should a subscription ever be band-held to unlock features for all members at once

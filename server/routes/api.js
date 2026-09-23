@@ -26,6 +26,7 @@ import { getActiveTimerSession, upsertActiveTimerSession, clearActiveTimerSessio
 import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from '../services/flowAuthoringStats.js';
 import { exportFlowForUser } from '../services/flowTransfer.js';
 import { submitFeedback } from '../services/feedback.js';
+import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead } from '../services/notifications.js';
 
 const router = express.Router();
 
@@ -81,6 +82,44 @@ async function resolveWho(accountId, sessionType, who) {
   }
   return { bandId: null, tutorId: null };
 }
+
+// ========================================
+// NOTIFICATIONS (ML-201) - polled by every open client (on open, on resume, and every ~5 minutes),
+// so it's one cheap query. appVersion is the release this deployment is running (from
+// public/releases.json, same source as the About page and feedback's version stamp): the client
+// compares it with the version its own in-memory code loaded as, and shows an "update available -
+// reload" notice when the server's is newer - see checkNotifications in public/app.js.
+// ========================================
+async function assertNotificationsEnabled() {
+  if (!(await isFeatureEnabled('notifications'))) throw withStatus(403, "This feature isn't available right now.");
+}
+
+router.get('/notifications', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertNotificationsEnabled();
+    res.json({ ...(await listNotificationsForAccount(req.accountId)), appVersion: currentAppVersion() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/notifications/read-all', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertNotificationsEnabled();
+    res.json({ ...(await markAllNotificationsRead(req.accountId)), appVersion: currentAppVersion() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/notifications/:id/read', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertNotificationsEnabled();
+    res.json({ ...(await markNotificationRead(req.accountId, req.params.id)), appVersion: currentAppVersion() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
 
 // ========================================
 // DROPDOWN OPTIONS

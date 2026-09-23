@@ -238,6 +238,12 @@
                 reorder: (flowId, orderedIds) => apiCall(`/api/flows/${flowId}/blocks/reorder`, 'PUT', { orderedIds })
             }
         },
+        // ML-201 - every response also carries appVersion (the server's running release).
+        notifications: {
+            list: () => apiCall('/api/notifications'),
+            read: (id) => apiCall(`/api/notifications/${id}/read`, 'POST'),
+            readAll: () => apiCall('/api/notifications/read-all', 'POST')
+        },
         // ML-170 - capture only. Triage is admin-panel-side (public/admin.js).
         feedback: {
             submit: (data) => apiCall('/api/feedback', 'POST', data)
@@ -548,6 +554,7 @@
             document.getElementById('tunerShowOctaveSetting').checked = localStorage.getItem(TUNER_SHOW_OCTAVE_KEY) === 'true';
             document.getElementById('fermataPlaybackModeSetting').value = localStorage.getItem(FERMATA_PLAYBACK_MODE_KEY) || 'tone';
             syncAdminLinkVisibility();
+            startNotifications();
             // ML-197: picks back up an in-progress timer left running server-side (see
             // syncActiveTimerSession) - most often after an accidental reload/relogin lost the local
             // timerState. Caught on its own (not folded into the outer catch) so a failure here -
@@ -603,6 +610,8 @@
     // than scattering ad-hoc appData.enabledFeatures checks around the file.
     function renderFeatureGates() {
         applyFlowImportFormats();
+        document.getElementById('notificationsNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('notifications'));
+        renderNotificationIndicators();
         document.getElementById('feedbackNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('feedback'));
     }
 
@@ -933,7 +942,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'aboutView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView'];
     let viewStack = ['mainView'];
     // Which tab flowDetailsHubView should open on next - set by a caller just before switchView,
     // read/cleared by that view's own switchView case. null means the default (Details).
@@ -1040,6 +1049,7 @@
             document.getElementById('fermataPlaybackModeSetting').value = localStorage.getItem(FERMATA_PLAYBACK_MODE_KEY) || 'tone';
         }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
+        if (viewName === 'notificationsView') { document.getElementById('topTitle').innerText = 'Notifications'; renderNotificationsView(); checkNotifications(true); }
         if (viewName === 'flowFromFileView') { document.getElementById('topTitle').innerText = flowImportTitle(); resetFlowFromFileScreen(); }
         if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
         if (viewName === 'challengeSelectView') { document.getElementById('topTitle').innerText = 'Select challenge'; renderChallengeSelect(); }
@@ -1213,7 +1223,13 @@
             }
 
             const [current, ...older] = releases;
-            currentEl.innerHTML = `
+            // ML-201: releases.json is always fetched fresh, so it describes the DEPLOYED release - not
+            // necessarily the code this device is actually running (an installed app resumed from the
+            // background keeps its old code in memory). Said out loud when they differ.
+            const staleNote = runningAppVersion && compareVersions(current.version, runningAppVersion) > 0
+                ? `<div class="about-running-note">This device is running v${escapeHtml(runningAppVersion)}. Close and reopen the app (or <a href="#" onclick="event.preventDefault(); location.reload();">reload now</a>) to get v${escapeHtml(current.version)}.</div>`
+                : '';
+            currentEl.innerHTML = staleNote + `
                 <div class="play-card" style="text-align:left;">
                     <div style="font-size:0.85rem; color:#888; margin-bottom:5px;">Current version</div>
                     <div class="play-piece">v${current.version}</div>
@@ -1233,6 +1249,176 @@
             currentEl.innerHTML = `<div style="color:var(--danger-color);">Error loading releases: ${err.message}</div>`;
         }
     }
+
+    // ========================================
+    // NOTIFICATIONS (Jira ML-201)
+    // ========================================
+    // Two sources feed one red dot on ☰ and one Notifications screen:
+    //  1. Admin-written notifications (server/services/notifications.js) - live ones come back from
+    //     GET /api/notifications with this account's read state.
+    //  2. "Update available": this device's running code is older than the deployed release. An
+    //     installed app resumed from the background keeps its old JavaScript in memory even though
+    //     the service worker serves new code network-first to any fresh load - so About (which
+    //     fetches releases.json fresh) showed the new version while the old code was still running.
+    //     runningAppVersion is captured once, at startup, from the same deployment the code itself
+    //     came from; every poll compares it with the server's appVersion.
+    // Polled on open, whenever the app comes back to the foreground, and every 5 minutes while open -
+    // so a scheduled notification or a new release shows up within about 5 minutes.
+    const NOTIFICATIONS_POLL_MS = 5 * 60 * 1000;
+    const NOTIFICATIONS_RESUME_MIN_GAP_MS = 60 * 1000;
+    let runningAppVersion = null;
+    let latestAppVersion = null;
+    let notificationsCache = [];
+    let notificationsUnreadCount = 0;
+    let notificationsLastCheckAt = 0;
+    let notificationsPollTimer = null;
+    const expandedNotificationIds = new Set();
+
+    // "0.24.0" vs "0.23.10" - numeric per segment, so 10 > 9. Positive when a is newer.
+    function compareVersions(a, b) {
+        const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
+        const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
+        for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+            const d = (pa[i] || 0) - (pb[i] || 0);
+            if (d) return d > 0 ? 1 : -1;
+        }
+        return 0;
+    }
+    function isAppUpdateAvailable() {
+        return !!(runningAppVersion && latestAppVersion && compareVersions(latestAppVersion, runningAppVersion) > 0);
+    }
+
+    async function startNotifications() {
+        // Network-first like every other request (sw.js), so this is the release the code now running
+        // was loaded from. no-store keeps an HTTP cache from handing back an older copy.
+        try {
+            const releases = await (await fetch('/releases.json', { cache: 'no-store' })).json();
+            runningAppVersion = Array.isArray(releases) && releases.length ? releases[0].version : null;
+        } catch {
+            runningAppVersion = null; // no baseline -> no update notice, rather than a wrong one
+        }
+        await checkNotifications(true);
+        clearInterval(notificationsPollTimer);
+        notificationsPollTimer = setInterval(() => checkNotifications(), NOTIFICATIONS_POLL_MS);
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && auth.isAuthenticated
+            && Date.now() - notificationsLastCheckAt > NOTIFICATIONS_RESUME_MIN_GAP_MS) {
+            checkNotifications();
+        }
+    });
+
+    function applyNotificationsResponse(res) {
+        notificationsCache = res.notifications || [];
+        notificationsUnreadCount = res.unreadCount || 0;
+        if (res.appVersion) latestAppVersion = res.appVersion;
+        renderNotificationIndicators();
+        if (document.getElementById('notificationsView')?.style.display === 'block') renderNotificationsView();
+    }
+
+    // Quiet by design - a failed poll (offline, flag switched off) never toasts; the next one retries.
+    async function checkNotifications(force = false) {
+        if (!auth.isAuthenticated || !isFeatureEnabled('notifications')) return;
+        if (!force && document.visibilityState === 'hidden') return;
+        notificationsLastCheckAt = Date.now();
+        try {
+            applyNotificationsResponse(await API.notifications.list());
+        } catch (error) {
+            console.warn('Notifications check failed:', error.message);
+        }
+    }
+
+    function renderNotificationIndicators() {
+        const enabled = isFeatureEnabled('notifications');
+        const count = enabled ? notificationsUnreadCount + (isAppUpdateAvailable() ? 1 : 0) : 0;
+        document.getElementById('navNotifDot')?.classList.toggle('hidden-group', !count);
+        const badge = document.getElementById('notificationsNavCount');
+        if (badge) {
+            badge.innerText = String(count);
+            badge.classList.toggle('hidden-group', !count);
+        }
+        document.getElementById('navBurgerMenuBtn')?.setAttribute('aria-label', count ? `Menu - ${count} new notification${count === 1 ? '' : 's'}` : 'Menu');
+    }
+
+    function formatNotificationDate(iso) {
+        const d = new Date(iso);
+        return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+            + ', ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+
+    async function renderNotificationsUpdateCard() {
+        const card = document.getElementById('notificationsUpdateCard');
+        if (!card) return;
+        if (!isAppUpdateAvailable()) { card.classList.add('hidden-group'); card.innerHTML = ''; return; }
+        card.classList.remove('hidden-group');
+        card.innerHTML = `
+            <div class="notification-item notification-update">
+                <div class="notification-head"><span class="notification-unread-dot" aria-hidden="true"></span><strong>Update available: v${escapeHtml(latestAppVersion)}</strong></div>
+                <p class="notification-body">This device is still running v${escapeHtml(runningAppVersion)}. Close and reopen the app, or reload now, for the changes to take effect.</p>
+                <div id="notificationsUpdateNotes"></div>
+                <button type="button" class="btn-submit no-margin" id="notificationsReloadBtn">Reload now</button>
+            </div>`;
+        document.getElementById('notificationsReloadBtn')?.addEventListener('click', () => location.reload());
+        // What's new between the running version and the latest - the same notes the About page shows.
+        try {
+            const releases = await (await fetch('/releases.json', { cache: 'no-store' })).json();
+            const newer = releases.filter(r => compareVersions(r.version, runningAppVersion) > 0);
+            const notesEl = document.getElementById('notificationsUpdateNotes');
+            if (notesEl && newer.length) {
+                notesEl.innerHTML = newer.map(r => `<div class="notification-release"><div class="text-muted">v${escapeHtml(r.version)}</div>${renderChangeList(r.changes)}</div>`).join('');
+            }
+        } catch { /* the notice itself is what matters - notes are a bonus */ }
+    }
+
+    function renderNotificationsView() {
+        renderNotificationsUpdateCard();
+        const list = document.getElementById('notificationsList');
+        if (!list) return;
+        document.getElementById('notificationsToolbar')?.classList.toggle('hidden-group', !notificationsUnreadCount);
+        if (!notificationsCache.length) {
+            list.innerHTML = isAppUpdateAvailable() ? '' : '<p class="text-muted notifications-empty">No notifications yet.</p>';
+            return;
+        }
+        list.innerHTML = notificationsCache.map(n => {
+            const expanded = expandedNotificationIds.has(n.id);
+            return `
+            <button type="button" class="notification-item${n.read ? '' : ' unread'}${expanded ? ' expanded' : ''}" data-notification-id="${n.id}" aria-expanded="${expanded}">
+                <div class="notification-head">${n.read ? '' : '<span class="notification-unread-dot" aria-label="Unread"></span>'}<strong>${escapeHtml(n.title)}</strong></div>
+                <div class="notification-date">${escapeHtml(formatNotificationDate(n.publishAt))}</div>
+                <p class="notification-body">${escapeHtml(n.body)}</p>
+            </button>`;
+        }).join('');
+        list.querySelectorAll('[data-notification-id]').forEach(el => {
+            el.addEventListener('click', () => openNotification(Number(el.dataset.notificationId)));
+        });
+    }
+
+    // Opening a notification shows it in full and marks it read - reading IS marking as read.
+    async function openNotification(id) {
+        if (expandedNotificationIds.has(id)) expandedNotificationIds.delete(id); else expandedNotificationIds.add(id);
+        const n = notificationsCache.find(x => x.id === id);
+        if (n && !n.read) {
+            n.read = true; // optimistic - the dot clears immediately
+            notificationsUnreadCount = Math.max(0, notificationsUnreadCount - 1);
+            renderNotificationIndicators();
+            try {
+                applyNotificationsResponse(await API.notifications.read(id));
+                return;
+            } catch (error) {
+                console.warn('Mark read failed:', error.message);
+            }
+        }
+        renderNotificationsView();
+    }
+
+    document.getElementById('notificationsMarkAllBtn')?.addEventListener('click', async () => {
+        try {
+            applyNotificationsResponse(await API.notifications.readAll());
+        } catch (error) {
+            showWarningToast('Error marking notifications as read: ' + error.message);
+        }
+    });
 
     // ========================================
     // CHALLENGE LOGIC

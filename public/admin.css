@@ -162,6 +162,13 @@ body.dark-mode .admin-feedback-badge.status-resolved { background: #2f2557; colo
   .admin-stat-tiles { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ML-201 - Notifications */
+.admin-notification-body { white-space: pre-wrap; margin: var(--space-2) 0 0 !important; color: var(--text-color) !important; }
+.admin-feature-actions .btn-edit, .admin-feature-actions .btn-delete { min-height: 36px; padding: var(--space-1) var(--space-3); }
+.admin-feedback-badge.notification-status-live { background: #d9f2df; color: #1c5c2e; }
+.admin-feedback-badge.notification-status-scheduled { background: #d6e8fb; color: #14457a; }
+.admin-feedback-badge.notification-status-expired, .admin-feedback-badge.notification-status-withdrawn { background: #eee; color: #555; }
+
 /* ML-204 - Flows (export/import between environments). Reuses .admin-stat-table for the list; the
    import preview is a scrolling list inside the standard modal, one card per flow in the file. */
 .admin-flows-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-bottom: var(--space-5); }

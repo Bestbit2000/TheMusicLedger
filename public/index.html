@@ -74,7 +74,10 @@
             <span class="material-symbols-outlined">timer</span>
         </button>
         <div style="position: relative;">
-            <button class="top-btn" id="navBurgerMenuBtn">☰</button>
+            <!-- ML-201: the red dot rides on ☰ itself - no extra top-row icon. Shown while anything in
+                 Notifications is unread, or this device is running an older release than the server
+                 (renderNotificationIndicators). -->
+            <button class="top-btn" id="navBurgerMenuBtn" aria-label="Menu">☰<span class="notif-dot hidden-group" id="navNotifDot" aria-hidden="true"></span></button>
             <!-- ML-135: Tools and Progress are staged sub-screens of the same dropdown rather than a
                  hover flyout - this is a touch app first, and hover has no mobile equivalent. Only one
                  of #burgerMenuMain/-Tools/-Progress is ever shown at once (see openBurgerSubmenu/
@@ -82,6 +85,8 @@
             <div id="burgerDropdown" class="dropdown-menu">
                 <div id="burgerMenuMain">
                     <div class="dropdown-item" onclick="switchView('mainView'); closeMenu();">Home</div>
+                    <!-- ML-201: gated by the `notifications` feature (renderFeatureGates). -->
+                    <div class="dropdown-item hidden-group" id="notificationsNavItem" onclick="switchView('notificationsView'); closeMenu();">Notifications <span class="notif-count hidden-group" id="notificationsNavCount"></span></div>
                     <div class="dropdown-item" onclick="openBurgerSubmenu('burgerMenuTools', event)">Tools&hellip;</div>
                     <div class="dropdown-item" onclick="openBurgerSubmenu('burgerMenuProgress', event)">Progress&hellip;</div>
                     <div class="dropdown-item" onclick="switchView('manageChallengesView'); closeMenu();">Manage challenges</div>
@@ -541,6 +546,17 @@
     <div class="dropdown-menu account-band-menu" id="accountBandMenu">
         <div class="dropdown-item" id="accountBandMenuLeave">Leave band</div>
         <div class="dropdown-item account-band-menu-delete hidden-group" id="accountBandMenuDelete">Delete band</div>
+    </div>
+
+    <!-- ML-201: notification centre. The update card (only when this device is running an older
+         release than the server) always sits first; admin-written notifications below, newest first.
+         Tapping a notification opens it in full and marks it read. -->
+    <div id="notificationsView" style="display:none;">
+        <div id="notificationsUpdateCard" class="hidden-group"></div>
+        <div class="notifications-toolbar hidden-group" id="notificationsToolbar">
+            <button type="button" class="btn-cancel btn-nav no-margin" id="notificationsMarkAllBtn">Mark all as read</button>
+        </div>
+        <div id="notificationsList"></div>
     </div>
 
     <div id="aboutView" style="display:none;">

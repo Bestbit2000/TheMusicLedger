@@ -21,6 +21,7 @@ import { getConfigValue, setConfigValue } from '../services/appConfig.js';
 import { getFlowAuthoringStats, setFlowAuthoringSessionExcluded, currentAppVersion } from '../services/flowAuthoringStats.js';
 import { listFeedbackForAdmin, updateFeedbackAdmin } from '../services/feedback.js';
 import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitImport, MAX_IMPORT_BYTES } from '../services/flowTransfer.js';
+import { listNotificationsForAdmin, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
 
 const router = express.Router();
 
@@ -526,6 +527,52 @@ router.put('/config/:key', requireAuth, resolveAccount, requireSuperAdmin, async
   }
 });
 
+
+// ========================================
+// NOTIFICATIONS (ML-201) - announcements shown in every account's ☰ -> Notifications. Publish now or
+// at a future time (no scheduler - "live" is computed at read time, see services/notifications.js),
+// optional expiry, withdraw (keeps read stats) or delete.
+// ========================================
+router.get('/notifications', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await listNotificationsForAdmin());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/notifications', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await createNotification(req.accountId, req.body));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.put('/notifications/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await updateNotification(req.params.id, req.body));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.put('/notifications/:id/withdrawn', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await setNotificationWithdrawn(req.params.id, !!req.body?.withdrawn));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.delete('/notifications/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await deleteNotification(req.params.id);
+    res.json({ message: 'Notification deleted' });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
 
 // ========================================
 // FLOW TRANSFER (ML-204) - copying flows between environments (e.g. production -> dev/sandbox for

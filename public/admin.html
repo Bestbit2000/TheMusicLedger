@@ -38,6 +38,7 @@
         <button class="admin-nav-item" data-section="metadata" type="button">Metadata lists</button>
         <button class="admin-nav-item" data-section="usage" type="button">Usage</button>
         <button class="admin-nav-item" data-section="flows" type="button">Flows</button>
+        <button class="admin-nav-item" data-section="notifications" type="button">Notifications</button>
         <!-- ML-170: the untriaged count rides on the nav item itself - the whole value of this tab
              is noticing there's something waiting without having to go and look. -->
         <button class="admin-nav-item" data-section="feedback" type="button">Feedback <span id="feedbackNavCount" class="admin-nav-count hidden-group"></span></button>
@@ -189,6 +190,13 @@
                 <div id="flowAuthoringStats">Loading&hellip;</div>
             </div>
         </section>
+        <!-- ML-201: announcements for every account's ☰ -> Notifications (red dot on ☰ until read). -->
+        <section id="notifications-section" class="admin-section hidden-group">
+            <h1>Notifications</h1>
+            <p class="admin-intro">Announcements shown to <strong>every account</strong> under ☰ &rarr; Notifications, with a red dot on ☰ until they've read it. Publish now or schedule a time - anyone with the app open sees it within about 5 minutes, everyone else next time they open it. Optional expiry hides it from everyone afterwards. Plain text; line breaks are kept. The "update available - reload" notice after a release is automatic and doesn't need a notification here.</p>
+            <button class="btn-submit no-margin admin-add-btn" id="addNotificationBtn" type="button">+ New notification</button>
+            <div id="notificationsAdminList">Loading&hellip;</div>
+        </section>
         <!-- ML-204: copying flows between environments (e.g. production -> dev/sandbox for testing) as
              MusicXML. Export works on any flow on this environment; import always lands as your own
              private flow (no band, not public) - see docs/flow-musicxml.md. -->
@@ -263,6 +271,29 @@
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="feedbackReviewCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="feedbackReviewSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ML-201: create/edit a notification. Times are entered in this browser's local time and stored as
+     absolute timestamps. -->
+<div class="modal" id="notificationFormModal">
+    <div class="modal-content">
+        <h2 id="notificationFormTitle">New notification</h2>
+        <div class="form-group"><label for="notificationTitleInput">Title</label><input type="text" id="notificationTitleInput" maxlength="120" placeholder="e.g. New: export flows to MusicXML"></div>
+        <div class="form-group"><label for="notificationBodyInput">Message</label><textarea id="notificationBodyInput" rows="6" maxlength="4000"></textarea></div>
+        <div class="form-group">
+            <label for="notificationPublishMode">Publish</label>
+            <select id="notificationPublishMode">
+                <option value="now">Now</option>
+                <option value="scheduled">At a set time</option>
+            </select>
+        </div>
+        <div class="form-group hidden-group" id="notificationPublishAtGroup"><label for="notificationPublishAtInput">Publish at</label><input type="datetime-local" id="notificationPublishAtInput"></div>
+        <div class="form-group"><label for="notificationExpiresAtInput">Expires (optional)</label><input type="datetime-local" id="notificationExpiresAtInput"></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="notificationFormCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="notificationFormSaveBtn" type="button">Save</button>
         </div>
     </div>
 </div>

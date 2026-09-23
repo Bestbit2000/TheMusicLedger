@@ -108,6 +108,24 @@
 
     .dropdown-menu { display: none; position: absolute; top: 100%; right: 20px; background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-sm); box-shadow: var(--shadow-xl); z-index: 100; min-width: 200px; overflow: hidden; }
     .dropdown-menu.show { display: flex; flex-direction: column; }
+    /* ML-201: notification centre - red dot on ☰, count badge in the menu, the Notifications list */
+    #navBurgerMenuBtn { position: relative; }
+    .notif-dot { position: absolute; top: 4px; right: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--danger-color); box-shadow: 0 0 0 2px var(--container-bg); }
+    .notif-count { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: var(--space-2); border-radius: 10px; background: var(--danger-color); color: #fff; font-size: var(--font-sm); line-height: 20px; text-align: center; }
+    .notifications-toolbar { display: flex; justify-content: flex-end; margin-bottom: var(--space-4); }
+    .notifications-toolbar .btn-nav { width: auto; }
+    .notification-item { display: block; width: 100%; box-sizing: border-box; text-align: left; font: inherit; color: var(--text-color); background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-3); cursor: pointer; }
+    .notification-item.unread { border-color: var(--primary-action); }
+    .notification-head { display: flex; align-items: center; gap: var(--space-2); }
+    .notification-unread-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--danger-color); }
+    .notification-date { font-size: var(--font-sm); color: var(--label-color); margin-top: 2px; }
+    .notification-body { margin: var(--space-2) 0 0; white-space: pre-wrap; line-height: 1.45; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .notification-item.expanded .notification-body, .notification-update .notification-body { display: block; -webkit-line-clamp: unset; }
+    .notification-update { cursor: default; border-color: var(--primary-action); }
+    .notification-update .btn-submit { margin-top: var(--space-4); }
+    .notification-release { margin-top: var(--space-3); font-size: var(--font-sm); }
+    .notifications-empty { text-align: center; margin-top: var(--space-6); }
+    .about-running-note { background: var(--input-bg); border: 1px solid var(--primary-action); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); font-size: var(--font-sm); }
     .dropdown-item { display: block; padding: var(--space-3) var(--space-4); cursor: pointer; font-weight: bold; color: var(--text-color); text-decoration: none; }
     /* A separator belongs only between two rows that are both actually showing - :last-child alone
        isn't enough once some items are conditionally hidden via .hidden-group (e.g. qpBarMenu's Move
