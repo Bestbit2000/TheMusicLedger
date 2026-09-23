@@ -18,8 +18,9 @@ import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption
 import { listTimeSignatureOptionsForAdmin, createTimeSignatureOption, updateTimeSignatureOption, deleteOrArchiveTimeSignatureOption, listNoteValueUsage } from '../services/timeSignatures.js';
 import { listPlaybackSpeedsForAdmin, createPlaybackSpeedOption, updatePlaybackSpeedOption, deletePlaybackSpeedOption } from '../services/playbackSpeeds.js';
 import { getConfigValue, setConfigValue } from '../services/appConfig.js';
-import { getFlowAuthoringStats, setFlowAuthoringSessionExcluded } from '../services/flowAuthoringStats.js';
+import { getFlowAuthoringStats, setFlowAuthoringSessionExcluded, currentAppVersion } from '../services/flowAuthoringStats.js';
 import { listFeedbackForAdmin, updateFeedbackAdmin } from '../services/feedback.js';
+import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitImport, MAX_IMPORT_BYTES } from '../services/flowTransfer.js';
 
 const router = express.Router();
 
@@ -520,6 +521,58 @@ router.get('/config/:key', requireAuth, resolveAccount, requireSuperAdmin, async
 router.put('/config/:key', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     res.json({ key: req.params.key, value: await setConfigValue(req.params.key, req.body.value) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+
+// ========================================
+// FLOW TRANSFER (ML-204) - copying flows between environments (e.g. production -> dev/sandbox for
+// testing) as MusicXML. See server/services/flowTransfer.js and docs/flow-musicxml.md.
+// ========================================
+router.get('/flows', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ flows: await listFlowsForAdmin() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// One id -> a .musicxml file; several -> a .zip. Sent as a download (Content-Disposition) - the
+// admin page fetches it with the auth header and saves the blob, since a plain link can't carry one.
+router.post('/flows/export', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    const { fileName, contentType, body } = await exportFlows(ids, {
+      appVersion: currentAppVersion(),
+      envName: process.env.NEON_BRANCH || process.env.VERCEL_ENV || 'export'
+    });
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+    res.send(body);
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// Import is two calls on the same file: /preview (parse + validate, writes nothing) then /import
+// (writes, re-validating first). The file is sent as the raw request body - flows export to a few
+// KB each, so even a large .zip is far inside the request cap and needs no Blob round-trip.
+const rawImportBody = express.raw({ type: () => true, limit: MAX_IMPORT_BYTES });
+
+router.post('/flows/import/preview', requireAuth, resolveAccount, requireSuperAdmin, rawImportBody, async (req, res) => {
+  try {
+    const preview = await previewImport(req.accountId, req.body, String(req.query.fileName || 'upload.musicxml'));
+    res.json(previewSummary(preview));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/flows/import', requireAuth, resolveAccount, requireSuperAdmin, rawImportBody, async (req, res) => {
+  try {
+    res.json(await commitImport(req.accountId, req.body, String(req.query.fileName || 'upload.musicxml')));
   } catch (error) {
     sendError(res, error);
   }

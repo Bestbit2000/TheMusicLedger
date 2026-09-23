@@ -28,7 +28,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // row's app_version always matches a release the user can actually point at. Cached at module load
 // since it cannot change without a redeploy, which restarts the process anyway.
 let cachedAppVersion;
-function currentAppVersion() {
+export function currentAppVersion() {
   if (cachedAppVersion !== undefined) return cachedAppVersion;
   try {
     const raw = fs.readFileSync(path.resolve(__dirname, '../../public/releases.json'), 'utf8');

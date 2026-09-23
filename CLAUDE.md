@@ -24,10 +24,14 @@ future feature that attaches real notation to the same piece). That covers
 Flow metadata, recordings (`score_recordings`, mp3/mp4 via Vercel Blob or a
 YouTube link), documents (`score_documents`, PDF/MusicXML/Sibelius/MuseScore
 via Vercel Blob), and the three-way personal/band/admin-public ownership model
-with fully-reversible transfer actions. **Score-attached metronome blocks
-(`parent_score_id` on `metronome_segments`) are still not wired up** — that's
-the separate Blocks Studio + Block Inspector Modal work (ML-179 Phase 2, not
-started). The rest of the schema (practice lists, scales, technique,
+with fully-reversible transfer actions. Score-attached metronome blocks
+(`parent_score_id` on `metronome_segments`) are wired up too, as a Flow's
+blocks (ML-179 Phase 2 — `server/services/flowBlocks.js`, `/api/flows/:id/blocks`).
+Flows move in and out of the app as **MusicXML** — one writer/reader pair used
+by the admin panel's Flows page (export/import between environments),
+"Create from file", and PDF/OMR import; read
+[`docs/flow-musicxml.md`](docs/flow-musicxml.md) before touching any of them
+(`ML-204`). The rest of the schema (practice lists, scales, technique,
 monetization) remains provisioned but not wired up to any endpoint. The full
 history of the
 Sheets→Postgres cutover (endpoint mapping, decisions, the real data migration)

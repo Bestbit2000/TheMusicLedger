@@ -20,7 +20,7 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-back-link { text-decoration: none; color: var(--label-color); border-bottom: 1px solid var(--input-border); margin-bottom: var(--space-2); padding-bottom: var(--space-4); }
 .admin-back-link:hover { color: var(--text-color); }
 
-.admin-content { flex: 1; padding: var(--space-6) var(--space-7); box-sizing: border-box; max-width: 900px; }
+.admin-content { flex: 1; min-width: 0; padding: var(--space-6) var(--space-7); box-sizing: border-box; max-width: 900px; } /* min-width: 0 lets wide tables scroll inside .admin-stat-table-wrap instead of widening the page (ML-204) */
 .admin-content h1 { margin-top: 0; color: var(--text-color); }
 .admin-intro { color: var(--label-color); font-size: var(--font-sm); margin-top: -10px; }
 .admin-intro code { background: var(--input-bg); padding: 1px 5px; border-radius: 4px; }
@@ -161,3 +161,21 @@ body.dark-mode .admin-feedback-badge.status-resolved { background: #2f2557; colo
 @media (max-width: 700px) {
   .admin-stat-tiles { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ML-204 - Flows (export/import between environments). Reuses .admin-stat-table for the list; the
+   import preview is a scrolling list inside the standard modal, one card per flow in the file. */
+.admin-flows-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-bottom: var(--space-5); }
+.admin-flows-toolbar .btn-submit { width: auto; flex: 0 0 auto; padding-left: var(--space-5); padding-right: var(--space-5); }
+.admin-flows-filter { flex: 1 1 240px; min-width: 0; padding: var(--space-3); border: 1px solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font-family: var(--font-sans); font-size: var(--font-base); }
+.admin-flows-table td { vertical-align: top; }
+.admin-flows-table td:nth-child(2), .admin-flows-table th:nth-child(2), .admin-flows-table td:nth-child(3), .admin-flows-table th:nth-child(3) { text-align: left; white-space: normal; min-width: 110px; }
+.admin-flows-table td:nth-child(6), .admin-flows-table td:nth-child(7) { white-space: normal; }
+.admin-flows-table th, .admin-flows-table td { padding-left: var(--space-2); padding-right: var(--space-2); }
+.admin-flows-table .btn-edit { min-height: 36px; padding: var(--space-1) var(--space-3); }
+.admin-flows-import-modal { max-width: 640px; }
+#flowsImportList { max-height: 50vh; overflow-y: auto; margin: var(--space-4) 0; }
+.admin-flows-import-item { border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-3); display: flex; flex-direction: column; gap: 4px; }
+.admin-flows-import-item.has-errors { border-color: var(--danger-color); }
+.admin-flows-import-item p { margin: 0; font-size: var(--font-sm); }
+.admin-flows-import-error { color: var(--danger-color); }
+.admin-flows-import-note { color: var(--label-color); }

@@ -1227,6 +1227,241 @@
         document.getElementById('speedFormSaveBtn')?.addEventListener('click', saveSpeedForm);
     }
 
+    // ========================================
+    // Flows (ML-204) - export any flow on this environment as MusicXML (one .musicxml, or a .zip
+    // for several), and import such files as the admin's own private flows. Import is preview
+    // first (parse + validate, nothing written), then all-or-nothing - see flowTransfer.js.
+    // ========================================
+    let allFlows = [];
+    const selectedFlowIds = new Set();
+    let pendingImportFile = null;
+
+    const FLOW_OWNERSHIP_LABELS = { personal: 'Personal', band: 'Band', public: 'Public' };
+
+    function flowOwnerText(f) {
+        if (f.ownership === 'public') return '';
+        if (f.ownership === 'band') return f.bandName || '?';
+        return f.ownerName || f.ownerEmail || '-';
+    }
+
+    function filteredFlows() {
+        const q = (document.getElementById('flowsFilter')?.value || '').trim().toLowerCase();
+        if (!q) return allFlows;
+        return allFlows.filter(f => [f.title, f.composer, f.ownerName, f.ownerEmail, f.bandName]
+            .some(v => v && String(v).toLowerCase().includes(q)));
+    }
+
+    function updateFlowsExportButton() {
+        const btn = document.getElementById('flowsExportSelectedBtn');
+        if (!btn) return;
+        btn.disabled = !selectedFlowIds.size;
+        btn.innerText = selectedFlowIds.size ? `Export selected (${selectedFlowIds.size})` : 'Export selected';
+    }
+
+    function flowMediaText(f) {
+        const parts = [];
+        if (f.youtubeCount) parts.push(`${f.youtubeCount} YouTube`);
+        if (f.fileMediaCount) parts.push(`${f.fileMediaCount} file${f.fileMediaCount === 1 ? '' : 's'} (not exported)`);
+        return parts.join(', ') || '-';
+    }
+
+    function renderFlows() {
+        const el = document.getElementById('flowsList');
+        const flows = filteredFlows();
+        if (!allFlows.length) { el.innerHTML = '<p>No flows on this environment yet.</p>'; return; }
+        if (!flows.length) { el.innerHTML = '<p>No flows match that filter.</p>'; return; }
+        const allSelected = flows.every(f => selectedFlowIds.has(f.id));
+        el.innerHTML = `
+            <div class="admin-stat-table-wrap">
+                <table class="admin-stat-table admin-flows-table">
+                    <thead><tr>
+                        <th><input type="checkbox" id="flowsSelectAll" aria-label="Select all shown" ${allSelected ? 'checked' : ''}></th>
+                        <th>Title</th><th>Owner</th><th>Blocks</th><th>Bars</th><th>Media</th><th>Created</th><th></th>
+                    </tr></thead>
+                    <tbody>${flows.map(f => `
+                        <tr>
+                            <td><input type="checkbox" data-flow-select="${f.id}" aria-label="Select ${escapeHtml(f.title)}" ${selectedFlowIds.has(f.id) ? 'checked' : ''}></td>
+                            <td><strong>${escapeHtml(f.title)}</strong>${f.composer ? `<br><span class="admin-test-case-meta">${escapeHtml(f.composer)}</span>` : ''}</td>
+                            <td><span class="admin-feedback-badge cat">${escapeHtml(FLOW_OWNERSHIP_LABELS[f.ownership])}</span> ${escapeHtml(flowOwnerText(f))}</td>
+                            <td>${f.blockCount}</td>
+                            <td>${f.totalBars}</td>
+                            <td>${escapeHtml(flowMediaText(f))}</td>
+                            <td>${escapeHtml(new Date(f.createdAt).toLocaleDateString())}</td>
+                            <td><button class="btn-edit" type="button" data-flow-export="${f.id}">Export</button></td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+        el.querySelectorAll('[data-flow-select]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const id = Number(cb.dataset.flowSelect);
+                if (cb.checked) selectedFlowIds.add(id); else selectedFlowIds.delete(id);
+                updateFlowsExportButton();
+                const selectAll = document.getElementById('flowsSelectAll');
+                if (selectAll) selectAll.checked = filteredFlows().every(f => selectedFlowIds.has(f.id));
+            });
+        });
+        document.getElementById('flowsSelectAll')?.addEventListener('change', (e) => {
+            filteredFlows().forEach(f => { if (e.target.checked) selectedFlowIds.add(f.id); else selectedFlowIds.delete(f.id); });
+            renderFlows();
+            updateFlowsExportButton();
+        });
+        el.querySelectorAll('[data-flow-export]').forEach(btn => {
+            btn.addEventListener('click', () => exportFlowFiles([Number(btn.dataset.flowExport)], btn));
+        });
+    }
+
+    async function reloadFlows() {
+        const el = document.getElementById('flowsList');
+        try {
+            const { flows } = await apiCall('/api/admin/flows');
+            allFlows = flows;
+            // Drop selections for flows that no longer exist on this environment.
+            [...selectedFlowIds].forEach(id => { if (!flows.some(f => f.id === id)) selectedFlowIds.delete(id); });
+            renderFlows();
+            updateFlowsExportButton();
+        } catch (error) {
+            el.innerHTML = `<p>Error loading flows: ${escapeHtml(error.message)}</p>`;
+        }
+    }
+
+    // "attachment; filename="x.zip"; filename*=UTF-8''x.zip" - the encoded form wins when present.
+    function downloadFileName(disposition, fallback) {
+        const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/);
+        if (encoded) return decodeURIComponent(encoded[1]);
+        const plain = disposition.match(/filename="([^"]+)"/);
+        return plain ? plain[1] : fallback;
+    }
+
+    // A download needs the auth header, so it can't be a plain link - fetch the file and save the
+    // blob under the name the server chose (Content-Disposition).
+    async function exportFlowFiles(ids, btn) {
+        const label = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = 'Exporting...';
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/admin/flows/export`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids })
+            });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || `Export failed (${response.status})`);
+            }
+            const fileName = downloadFileName(response.headers.get('Content-Disposition') || '', 'flows.musicxml');
+            const url = URL.createObjectURL(await response.blob());
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            showToast(`Exported ${ids.length} flow${ids.length === 1 ? '' : 's'} as ${fileName}`, 'success');
+        } catch (error) {
+            showToast(error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = label;
+            updateFlowsExportButton();
+        }
+    }
+
+    async function postImportFile(endpoint, file) {
+        const response = await fetch(`${API_BASE_URL}${endpoint}?fileName=${encodeURIComponent(file.name)}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/octet-stream' },
+            body: file
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || `Import failed (${response.status})`);
+        return data;
+    }
+
+    function plural(n, word) { return `${n} ${word}${n === 1 ? '' : 's'}`; }
+
+    function renderImportPreview(preview) {
+        const count = preview.flows.length;
+        const failing = preview.flows.filter(f => f.errors.length).length;
+        document.getElementById('flowsImportSummary').innerText = preview.ok
+            ? `${plural(count, 'flow')} ready to import as your own private ${count === 1 ? 'flow' : 'flows'}.`
+            : `${failing} of ${plural(count, 'flow')} can't be imported - nothing will be imported until ${failing === 1 ? 'it is' : 'they are'} fixed.`;
+        document.getElementById('flowsImportList').innerHTML = preview.flows.map(f => {
+            const meta = [
+                escapeHtml(f.fileName),
+                `${plural(f.blockCount, 'block')}, ${plural(f.totalBars, 'bar')}`,
+                f.ownFormat ? 'TheMusicLedger export' : 'other software',
+                f.youtubeCount ? plural(f.youtubeCount, 'YouTube link') : null,
+                f.importTitle !== f.title ? 'renamed - title already in use' : null
+            ].filter(Boolean).join(' &bull; ');
+            return `
+            <div class="admin-flows-import-item${f.errors.length ? ' has-errors' : ''}">
+                <strong>${escapeHtml(f.importTitle)}</strong>
+                <span class="admin-test-case-meta">${meta}</span>
+                ${f.skippedMediaCount ? `<p class="admin-flows-import-note">${plural(f.skippedMediaCount, 'uploaded media file')} on the original not included.</p>` : ''}
+                ${f.errors.map(e => `<p class="admin-flows-import-error">${escapeHtml(e)}</p>`).join('')}
+                ${f.warnings.map(w => `<p class="admin-flows-import-note">${escapeHtml(w)}</p>`).join('')}
+            </div>`;
+        }).join('');
+        const confirmBtn = document.getElementById('flowsImportConfirmBtn');
+        confirmBtn.disabled = !preview.ok;
+        confirmBtn.innerText = `Import ${plural(count, 'flow')}`;
+    }
+
+    function closeImportModal() {
+        document.getElementById('flowsImportModal').style.display = 'none';
+        pendingImportFile = null;
+        document.getElementById('flowsImportFile').value = '';
+    }
+
+    async function onImportFileChosen(file) {
+        if (!file) return;
+        pendingImportFile = file;
+        const btn = document.getElementById('flowsImportBtn');
+        btn.disabled = true;
+        btn.innerText = 'Reading...';
+        try {
+            renderImportPreview(await postImportFile('/api/admin/flows/import/preview', file));
+            document.getElementById('flowsImportModal').style.display = 'flex';
+        } catch (error) {
+            showToast(error.message);
+            pendingImportFile = null;
+            document.getElementById('flowsImportFile').value = '';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Import&hellip;';
+        }
+    }
+
+    async function confirmImport() {
+        if (!pendingImportFile) return;
+        const btn = document.getElementById('flowsImportConfirmBtn');
+        btn.disabled = true;
+        btn.innerText = 'Importing...';
+        try {
+            const { imported } = await postImportFile('/api/admin/flows/import', pendingImportFile);
+            closeImportModal();
+            await reloadFlows();
+            showToast(`Imported ${plural(imported.length, 'flow')}: ${imported.map(f => f.title).join(', ')}`, 'success');
+        } catch (error) {
+            showToast(error.message);
+            btn.disabled = false;
+            btn.innerText = 'Import';
+        }
+    }
+
+    function initFlows() {
+        document.getElementById('flowsFilter')?.addEventListener('input', renderFlows);
+        document.getElementById('flowsExportSelectedBtn')?.addEventListener('click', (e) => {
+            if (selectedFlowIds.size) exportFlowFiles([...selectedFlowIds], e.currentTarget);
+        });
+        document.getElementById('flowsImportBtn')?.addEventListener('click', () => document.getElementById('flowsImportFile').click());
+        document.getElementById('flowsImportFile')?.addEventListener('change', (e) => onImportFileChosen(e.target.files[0]));
+        document.getElementById('flowsImportCancelBtn')?.addEventListener('click', closeImportModal);
+        document.getElementById('flowsImportConfirmBtn')?.addEventListener('click', confirmImport);
+    }
+
     async function load() {
         initNav();
         initFeatureForm();
@@ -1238,6 +1473,7 @@
         initSpeedForm();
         initConfigForm();
         initFeedback();
+        initFlows();
         document.getElementById('adminShell').classList.remove('hidden-group');
         try {
             const [backtest, featuresRes] = await Promise.all([
@@ -1248,7 +1484,7 @@
             renderFeatures(backtest);
             renderFeaturesCatalog(featuresRes.features);
             await Promise.all([
-                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadFlowAuthoring(), reloadFeedback(), reloadPosthogLink(),
+                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadPosthogLink(),
                 reloadFlowDefaultName(), reloadFlowDefaultTimeSig(), reloadFlowDefaultBpm(), reloadFlowDefaultBarCount(), reloadFlowDefaultNoteValue()
             ]);
         } catch (error) {

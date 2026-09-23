@@ -37,6 +37,7 @@
         <button class="admin-nav-item" data-section="bands" type="button">Bands</button>
         <button class="admin-nav-item" data-section="metadata" type="button">Metadata lists</button>
         <button class="admin-nav-item" data-section="usage" type="button">Usage</button>
+        <button class="admin-nav-item" data-section="flows" type="button">Flows</button>
         <!-- ML-170: the untriaged count rides on the nav item itself - the whole value of this tab
              is noticing there's something waiting without having to go and look. -->
         <button class="admin-nav-item" data-section="feedback" type="button">Feedback <span id="feedbackNavCount" class="admin-nav-count hidden-group"></span></button>
@@ -188,6 +189,20 @@
                 <div id="flowAuthoringStats">Loading&hellip;</div>
             </div>
         </section>
+        <!-- ML-204: copying flows between environments (e.g. production -> dev/sandbox for testing) as
+             MusicXML. Export works on any flow on this environment; import always lands as your own
+             private flow (no band, not public) - see docs/flow-musicxml.md. -->
+        <section id="flows-section" class="admin-section hidden-group">
+            <h1>Flows</h1>
+            <p class="admin-intro">Export flows from this environment as MusicXML and import them into another - e.g. production &rarr; dev or sandbox for testing. One flow exports as a <code>.musicxml</code> file, several as a <code>.zip</code>. Imports always arrive as <strong>your own private flow</strong> (no band, not public) until you publish or move them yourself. Uploaded audio/video and document files aren't copied; YouTube links are. The same files open in MuseScore and other notation software.</p>
+            <div class="admin-flows-toolbar">
+                <input type="search" id="flowsFilter" class="admin-flows-filter" placeholder="Filter by title, composer, owner or band" aria-label="Filter flows">
+                <button class="btn-submit no-margin" id="flowsExportSelectedBtn" type="button" disabled>Export selected</button>
+                <button class="btn-submit no-margin" id="flowsImportBtn" type="button">Import&hellip;</button>
+                <input type="file" id="flowsImportFile" accept=".musicxml,.xml,.mxl,.zip" hidden>
+            </div>
+            <div id="flowsList">Loading&hellip;</div>
+        </section>
         <!-- ML-170: triage. Two independent filter rows rather than one combined list of options -
              status and category answer different questions ("what still needs doing" vs "what kind
              of thing is it") and are routinely used together, e.g. untriaged + under review. -->
@@ -248,6 +263,20 @@
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="feedbackReviewCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="feedbackReviewSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ML-204: import preview - everything in the chosen file is parsed and validated server-side
+     before anything is written, and the import is all-or-nothing. -->
+<div class="modal" id="flowsImportModal">
+    <div class="modal-content admin-flows-import-modal">
+        <h2>Import flows</h2>
+        <p class="admin-test-case-meta" id="flowsImportSummary"></p>
+        <div id="flowsImportList"></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="flowsImportCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="flowsImportConfirmBtn" type="button">Import</button>
         </div>
     </div>
 </div>
