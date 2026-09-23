@@ -989,6 +989,9 @@
                 <div class="flow-edit-sticky-bar-actions hidden-group" id="flowEditSaveBarActions">
                     <button type="button" class="btn-cancel btn-nav no-margin" id="flowEditCancelBtn">Cancel</button>
                     <button type="button" class="btn-submit no-margin" id="flowEditSaveBtn">Save</button>
+                    <!-- ML-204: only when reviewing a just-imported flow (flowEditFromImport) - the same
+                         "straight on to the player" ending the create journey's "Open player" has. -->
+                    <button type="button" class="btn-submit no-margin hidden-group" id="flowEditSavePlayBtn">Save and play</button>
                 </div>
                 <!-- Edit mode only - nothing worth deleting on a flow you've never saved-and-reopened,
                      which is the only time Create mode is ever showing. Low priority on purpose (plain

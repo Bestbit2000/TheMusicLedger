@@ -947,6 +947,12 @@
     // flowEditSnapshot below) - a real Cancel only makes sense once there's something to cancel
     // back to, which a brand-new flow doesn't have yet.
     let flowEditMode = 'create';
+    // ML-204: set when the Hub is showing a flow that "Import from MusicXML" just created - it opens
+    // in Edit mode (review what was read, then commit), but gets a "Save and play" ending like the
+    // create journey's "Open player", instead of Save alone landing back on the import screen.
+    // Requested by the import's Continue button; consumed on arrival, like flowEditRequestedTab.
+    let flowEditFromImport = false;
+    let flowEditFromImportRequested = false;
     // Snapshot of everything editable, taken once on entering Edit mode (loadAndRenderFlowDetailsHub)
     // - null in Create mode, where there's nothing to stage/revert. Cancel needs no revert logic at
     // all: every Edit-mode mutation below stays purely local (no API calls) until Save, so Cancel is
@@ -1101,6 +1107,8 @@
             // to it) and before the Hub's own async load - see flowStatsBegin for why the server
             // row is created later than the clock.
             flowStatsBegin();
+            flowEditFromImport = flowEditFromImportRequested;
+            flowEditFromImportRequested = false;
             setFlowEditTab(flowEditRequestedTab || 'details');
             flowEditRequestedTab = null;
             loadAndRenderFlowDetailsHub();
@@ -4595,7 +4603,11 @@
         currentFlowId = flowFromFilePendingId;
         flowEditMode = 'edit';
         flowEditRequestedTab = 'blocks';
+        flowEditFromImportRequested = true;
         flowFromFilePendingId = null;
+        // ML-204: the import screen has done its job - taken off the back stack so Save, Cancel and
+        // Back from the flow land on the Flow start screen, not back on "Import from MusicXML".
+        if (viewStack[viewStack.length - 1] === 'flowFromFileView') viewStack.pop();
         // ML-199: still the flow's initial creation, just import-assisted rather than typed - so
         // kind stays 'create' and creationSource carries the difference. Keeping these in one
         // bucket would quietly drag the manual-entry baseline down towards import speed.
@@ -4671,6 +4683,8 @@
             createBarActions.classList.add('hidden-group');
             saveBarActions.classList.remove('hidden-group');
             deleteLink.classList.remove('hidden-group');
+            // Same "nothing to play yet" gate as the create journey's Open player.
+            document.getElementById('flowEditSavePlayBtn')?.classList.toggle('hidden-group', !flowEditFromImport || currentFlowBlocks.length === 0);
             return;
         }
 
@@ -7482,7 +7496,9 @@
         if (currentFlowBlocks.length) await API.flows.blocks.reorder(currentFlowId, currentFlowBlocks.map(b => b.id));
     }
 
-    async function saveFlowEdit() {
+    // { play: true } is "Save and play" (ML-204, import review) - same save, then on to the player
+    // instead of back.
+    async function saveFlowEdit({ play = false } = {}) {
         if (!currentFlowId || !flowEditSnapshot) return;
         const nameEl = document.getElementById('flowTitleInput');
         if (!nameEl?.value.trim()) {
@@ -7491,7 +7507,8 @@
             nameEl?.focus();
             return;
         }
-        const btn = document.getElementById('flowEditSaveBtn');
+        const btn = document.getElementById(play ? 'flowEditSavePlayBtn' : 'flowEditSaveBtn');
+        const btnLabel = btn ? btn.innerText : '';
         if (btn) { btn.disabled = true; btn.innerText = 'Saving...'; }
         // Captured before the Details PATCH below reassigns currentFlowDetail - see
         // saveFlowMediaEdits's own comment on why reading them fresh off currentFlowDetail there
@@ -7525,14 +7542,16 @@
             // time was spent, nothing was kept. Finalised after the block sync above so the block
             // counts reported are the ones that actually landed.
             flowStatsFinish('completed');
-            goBack();
+            if (play && currentFlowBlocks.length) switchView('flowPlayView');
+            else goBack();
         } catch (error) {
             showWarningToast('Error saving flow: ' + error.message);
         } finally {
-            if (btn) { btn.disabled = false; btn.innerText = 'Save'; }
+            if (btn) { btn.disabled = false; btn.innerText = btnLabel; }
         }
     }
-    document.getElementById('flowEditSaveBtn')?.addEventListener('click', saveFlowEdit);
+    document.getElementById('flowEditSaveBtn')?.addEventListener('click', () => saveFlowEdit());
+    document.getElementById('flowEditSavePlayBtn')?.addEventListener('click', () => saveFlowEdit({ play: true }));
 
     // ========================================
     // PLAY FLOW (Jira ML-179 follow-up) - the actual playback screen, requested separately from
