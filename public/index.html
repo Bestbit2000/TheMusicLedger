@@ -675,10 +675,13 @@
                      (renderFeatureGates, app.js) only ever REVEALS this once appData.enabledFeatures
                      has actually loaded and says so; defaulting to hidden here avoids a flash of an
                      option that then disappears the moment that resolves. -->
-                <button type="button" class="metroBlk-entry-choice hidden-group" id="metroBlkEntryFromFileBtn" aria-label="Create from file - import a PDF scan or MusicXML score">
+                <!-- ML-204: two gates share this one button - flow_import_musicxml ("Import from
+                     MusicXML", .musicxml/.mxl) and flow_import_from_file (PDF/scan via OMR). Its
+                     label/help text are set by renderFeatureGates (app.js) to match whichever are on. -->
+                <button type="button" class="metroBlk-entry-choice hidden-group" id="metroBlkEntryFromFileBtn" aria-label="Import from MusicXML - create a flow from a MusicXML or .mxl file">
                     <span class="material-symbols-outlined" aria-hidden="true">upload_file</span>
-                    <strong>Create from file</strong>
-                    <span class="metro-help-text">Import from a PDF or MusicXML score</span>
+                    <strong id="metroBlkEntryFromFileLabel">Import from MusicXML</strong>
+                    <span class="metro-help-text" id="metroBlkEntryFromFileHelp">Open a MusicXML or .mxl file from notation software</span>
                 </button>
             </div>
             <!-- No in-panel "Back" any more - the top header's own "<" already does that (leaving and
@@ -693,6 +696,8 @@
         <div class="dropdown-menu metroBlk-tile-menu" id="flowLibraryItemMenu">
             <div class="dropdown-item" id="flowLibraryItemMenuEdit">Edit</div>
             <div class="dropdown-item" id="flowLibraryItemMenuDuplicate">Duplicate</div>
+            <!-- ML-204: personal + band flows, gated by flow_export_musicxml (openFlowLibraryItemMenu) -->
+            <div class="dropdown-item" id="flowLibraryItemMenuExport">Export to MusicXML</div>
             <div class="dropdown-item metroBlk-tile-menu-delete" id="flowLibraryItemMenuDelete">Delete flow</div>
         </div>
 
@@ -776,9 +781,9 @@
         <button type="button" class="flow-from-file-dropzone" id="flowFromFileDropBtn">
             <span class="material-symbols-outlined" aria-hidden="true">upload_file</span>
             <strong>Tap to browse score file</strong>
-            <span class="metro-help-text">Select a PDF scan, MusicXML, or .mxl</span>
+            <span class="metro-help-text" id="flowFromFileDropHelp">Select a PDF scan, MusicXML, or .mxl</span>
             <div class="flow-from-file-chip-row">
-                <span class="flow-pill">PDF</span>
+                <span class="flow-pill" id="flowFromFilePdfChip">PDF</span>
                 <span class="flow-pill">MUSICXML</span>
                 <span class="flow-pill">MXL</span>
             </div>
@@ -805,6 +810,12 @@
             <div class="flow-from-file-result-row"><span>Title &amp; credits</span><span class="flow-from-file-result-ok" id="flowFromFileResultTitle">Extracted</span></div>
             <div class="flow-from-file-result-row"><span>Document saved to Media</span><span class="flow-from-file-result-ok">Attached</span></div>
             <div class="flow-from-file-result-row"><span>Measure blocks detected</span><span class="flow-pill flow-pill-accent" id="flowFromFileResultBlocks">0 blocks</span></div>
+            <!-- ML-204: anything in the file that couldn't be represented exactly (importWarnings from
+                 /flows/from-file) - worth checking on the next screen, so it's listed, not hidden. -->
+            <div class="flow-from-file-warnings hidden-group" id="flowFromFileResultWarnings">
+                <strong>Worth checking</strong>
+                <ul id="flowFromFileResultWarningsList"></ul>
+            </div>
             <button type="button" class="btn-submit" id="flowFromFileContinueBtn">Continue to flow</button>
         </div>
     </div>

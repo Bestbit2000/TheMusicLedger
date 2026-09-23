@@ -2,14 +2,15 @@
 // import (server/routes/admin.js), plus the local dev scripts. flowMusicXml.js/flowMusicXmlReader.js
 // do the actual conversion; this file is the DB side.
 //
-// No ownership checks on the read side: every caller is super-admin-only, since copying flows
-// between environments needs to read ANY flow on the branch, not just the admin's own. Imports
+// No ownership checks on the admin read side: those callers are super-admin-only, since copying
+// flows between environments needs to read ANY flow on the branch, not just the admin's own (the
+// one user-facing export, exportFlowForUser, does its own access check). Imports
 // always land as the importing admin's own private flow (no band, not public) - publishing or
 // moving to a band afterwards goes through the normal, reversible actions in flows.js.
 
 import JSZip from 'jszip';
 import pool from '../config/db.js';
-import { withStatus, createFlow, updateFlowMetadata, addYouTubeRecording, deleteFlow } from './flows.js';
+import { withStatus, assertFlowAccess, createFlow, updateFlowMetadata, addYouTubeRecording, deleteFlow } from './flows.js';
 import { listFlowBlocksUnchecked, createFlowBlock } from './flowBlocks.js';
 import { validateSegmentPayload } from './metronomeSegments.js';
 import { flowToMusicXml, musicXmlFileName } from './flowMusicXml.js';
@@ -84,6 +85,17 @@ export async function loadFlowForExport(scoreId) {
 export async function exportFlowAsMusicXml(scoreId, opts = {}) {
   const { flow, blocks } = await loadFlowForExport(scoreId);
   return { flow, xml: flowToMusicXml(flow, blocks, opts) };
+}
+
+// A user's own "Export to MusicXML" (library ⋮ menu, feature flow_export_musicxml): any personal or
+// band flow they can access (assertFlowAccess's own rules), but not public library flows - those
+// are the content most likely to be commercialised, so they stay in-app only. Checked on the flow's
+// current state, not the caller's role: a super admin exporting a public flow uses the admin page.
+export async function exportFlowForUser(accountId, scoreId, opts = {}) {
+  const row = await assertFlowAccess(accountId, scoreId);
+  if (row.is_public) throw withStatus(403, "Public library flows can't be exported.");
+  const { flow, xml } = await exportFlowAsMusicXml(scoreId, opts);
+  return { fileName: musicXmlFileName(flow.title, scoreId), body: Buffer.from(xml, 'utf8') };
 }
 
 // One flow -> one .musicxml file; several -> a .zip of them (one file per flow, rather than

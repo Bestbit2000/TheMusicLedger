@@ -1484,6 +1484,11 @@
     .flow-from-file-result-row:last-of-type { border-bottom: none; }
     .flow-from-file-result-ok { color: var(--success-color); font-weight: bold; }
     .flow-from-file-result .btn-submit { margin-top: var(--space-4); }
+    /* ML-204: import warnings on the result card, and hiding the (MusicXML) demo score when only PDF import is on */
+    .flow-from-file-warnings { margin-top: var(--space-4); padding: var(--space-3) var(--space-4); border-left: 3px solid var(--warning-color); background: var(--input-bg); border-radius: var(--radius-md); font-size: var(--font-sm); }
+    .flow-from-file-warnings ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); }
+    .flow-from-file-warnings li { margin-bottom: var(--space-1); line-height: 1.4; }
+    .flow-from-file-no-demo .section-title, .flow-from-file-no-demo .flow-from-file-demo-row { display: none !important; }
     /* Extra breathing room below specifically - it was sitting right on top of the first block
        card below it with only the button's own margin-top for separation. */
     #flowAddLeadInBtn { margin-bottom: var(--space-4); }

@@ -23,7 +23,8 @@ import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, dupl
 import { importScoreFromFile } from '../services/scoreImport.js';
 import { isFeatureEnabled, listEnabledFeatureKeys } from '../services/features.js';
 import { getActiveTimerSession, upsertActiveTimerSession, clearActiveTimerSession } from '../services/timerSessions.js';
-import { startAuthoringSession, updateAuthoringSession } from '../services/flowAuthoringStats.js';
+import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from '../services/flowAuthoringStats.js';
+import { exportFlowForUser } from '../services/flowTransfer.js';
 import { submitFeedback } from '../services/feedback.js';
 
 const router = express.Router();
@@ -997,6 +998,22 @@ router.post('/flows/:id/duplicate', requireAuth, resolveAccount, async (req, res
   }
 });
 
+// ML-204: "Export to MusicXML" (library ⋮ menu) - the same file the admin Flows page exports, so it
+// opens in notation software and re-imports losslessly via "Import from MusicXML". Personal and band
+// flows only (exportFlowForUser). Gated by flow_export_musicxml - the one place a per-plan check
+// would go if export is ever commercialised.
+router.get('/flows/:id/musicxml', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    if (!(await isFeatureEnabled('flow_export_musicxml'))) throw withStatus(403, "This feature isn't available right now.");
+    const { fileName, body } = await exportFlowForUser(req.accountId, req.params.id, { appVersion: currentAppVersion() });
+    res.setHeader('Content-Type', 'application/vnd.recordare.musicxml+xml');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+    res.send(body);
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 // Client-upload token for mp3/mp4 recordings (@vercel/blob/client's upload()
 // calls this) - the file goes straight from the browser to Blob storage, never
 // through this function (Vercel's ~4.5MB request body cap rules out proxying
@@ -1099,20 +1116,34 @@ router.delete('/flows/:id/documents/:documentId', requireAuth, resolveAccount, a
 // browsers frequently don't have a registered MIME type for either MusicXML format and fall back
 // to it.
 //
-// ML-190: gated behind the flow_import_from_file feature flag (off for this release - the OMR
-// dependency, solfascribe-omr, hasn't had its security review yet). Checked here too, not just the
-// entry-screen button being hidden - otherwise a file would still upload to Blob (wasted storage)
-// even though the actual import at /flows/from-file below would then refuse it anyway.
+// Two gates (ML-204): flow_import_musicxml covers .musicxml/.mxl (no third-party dependency);
+// flow_import_from_file (ML-190) now means PDF/scan import only - off until the OMR dependency,
+// solfascribe-omr, has had its security review. Checked here too, not just the entry-screen button
+// being hidden - otherwise a file would still upload to Blob (wasted storage) even though the
+// actual import at /flows/from-file below would then refuse it anyway.
+async function fileImportGates() {
+  const [pdf, musicxml] = await Promise.all([isFeatureEnabled('flow_import_from_file'), isFeatureEnabled('flow_import_musicxml')]);
+  return { pdf, musicxml };
+}
+const PDF_NOT_AVAILABLE = "PDF import isn't available right now - use a MusicXML or .mxl file instead.";
+
 router.post('/flows/from-file/upload-token', requireAuthFromQueryOrHeader, resolveAccount, async (req, res) => {
   try {
-    if (!(await isFeatureEnabled('flow_import_from_file'))) throw withStatus(403, "This feature isn't available right now.");
+    const gates = await fileImportGates();
+    if (!gates.pdf && !gates.musicxml) throw withStatus(403, "This feature isn't available right now.");
     const result = await handleUpload({
       body: req.body,
       request: req,
-      onBeforeGenerateToken: async () => ({
-        allowedContentTypes: ['application/pdf', 'application/vnd.recordare.musicxml+xml', 'application/vnd.recordare.musicxml', 'application/xml', 'text/xml', 'application/octet-stream'],
-        addRandomSuffix: true
-      }),
+      onBeforeGenerateToken: async (pathname) => {
+        if (/\.pdf$/i.test(pathname) && !gates.pdf) throw withStatus(403, PDF_NOT_AVAILABLE);
+        return {
+          allowedContentTypes: [
+            ...(gates.pdf ? ['application/pdf'] : []),
+            'application/vnd.recordare.musicxml+xml', 'application/vnd.recordare.musicxml', 'application/xml', 'text/xml', 'application/octet-stream'
+          ],
+          addRandomSuffix: true
+        };
+      },
       onUploadCompleted: async () => {}
     });
     res.json(result);
@@ -1134,7 +1165,8 @@ router.post('/flows/from-file/upload-token', requireAuthFromQueryOrHeader, resol
 // of).
 router.post('/flows/from-file', requireAuth, resolveAccount, async (req, res) => {
   try {
-    if (!(await isFeatureEnabled('flow_import_from_file'))) throw withStatus(403, "This feature isn't available right now.");
+    const gates = await fileImportGates();
+    if (!gates.pdf && !gates.musicxml) throw withStatus(403, "This feature isn't available right now.");
     const { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType } = req.body || {};
     if (!blobUrl || !blobPathname || !fileName) throw withStatus(400, 'Missing uploaded file details.');
 
@@ -1143,6 +1175,11 @@ router.post('/flows/from-file', requireAuth, resolveAccount, async (req, res) =>
     // client below 500 (see scoreImport.js's runOmr, same reasoning).
     if (!fileResponse.ok) throw withStatus(422, "Couldn't read the uploaded file - try uploading it again.");
     const buffer = Buffer.from(await fileResponse.arrayBuffer());
+    // By content, not the file name - the name is the client's to choose.
+    const isPdf = buffer.length >= 4 && buffer.toString('ascii', 0, 4) === '%PDF';
+    if (isPdf ? !gates.pdf : !gates.musicxml) {
+      throw withStatus(403, isPdf ? PDF_NOT_AVAILABLE : "MusicXML import isn't available right now.");
+    }
 
     const { flow: parsed, blocks, omrXmlText } = await importScoreFromFile(req.accountId, buffer);
 

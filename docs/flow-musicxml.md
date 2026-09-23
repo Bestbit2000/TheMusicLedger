@@ -2,11 +2,12 @@
 
 One file format, one parser, for every way a Flow leaves or enters the app as notation:
 
-| Use | Entry point |
-|---|---|
-| Copy flows between environments (e.g. production → dev/sandbox for testing) | Admin panel → **Flows** (export / import) |
-| Create a flow from a notation app's file (`.musicxml`/`.mxl`) | "Create from file" (`/api/flows/from-file`, feature flag `flow_import_from_file`) |
-| Create a flow from a PDF/scan | Same route - OMR/AI turns the scan into MusicXML first (`scoreImport.js`'s `runOmr`), which then goes through the same parser |
+| Use | Entry point | Gate (`features`) |
+|---|---|---|
+| Copy flows between environments (e.g. production → dev/sandbox for testing) | Admin panel → **Flows** (export / import, bulk, any owner) | super admin only |
+| Create a flow from a `.musicxml`/`.mxl` file | Flow start screen → **Import from MusicXML** (`/api/flows/from-file`) | `flow_import_musicxml` |
+| Create a flow from a PDF/scan | Same screen, shown as **Create from file** when this is on - OMR/AI turns the scan into MusicXML first (`scoreImport.js`'s `runOmr`), then the same parser | `flow_import_from_file` (off until the OMR dependency's security review) |
+| Download one of your flows | Flow library ⋮ → **Export to MusicXML** (`GET /api/flows/:id/musicxml`) | `flow_export_musicxml` |
 | Local dev | `scripts/seed-flow-fixtures.mjs`, `scripts/export-flow-musicxml.mjs` |
 
 Code:
@@ -109,6 +110,24 @@ Things that can't be represented exactly are **reported as warnings**, never sil
 a tempo change partway through a bar (applied from the next block), a repeat count outside 2-10,
 a coda sign on a barline with no jump information, a speed change with nowhere to go, no tempo
 marking at all (100 bpm).
+
+## For every user
+
+"For every action there should be a re-action": if you can import MusicXML, you can export it.
+
+- **Import from MusicXML** (Flow start screen): one `.musicxml`/`.mxl` file → a new personal flow,
+  the file itself attached to its Media. The start-screen label, help text, accepted file types
+  and screen title follow whichever import gates are on (`applyFlowImportFormats`, `app.js`), so
+  it never offers a format the server would refuse - and the server enforces the same split by
+  file *content* (a PDF is detected by its `%PDF` header, not its name). Any reader warnings are
+  listed on the result card under "Worth checking".
+- **Export to MusicXML** (library ⋮ menu): **personal and band flows** only - not public library
+  flows, the content most likely to be commercialised (`exportFlowForUser`, `flowTransfer.js`).
+  Band flows get a ⋮ menu with just this item; Edit/Duplicate/Delete stay personal-only.
+- Both gates are global on/off switches today (no per-plan gating exists yet). Each is checked in
+  exactly one place server-side and one client-side - where a plan check would go if these are
+  commercialised.
+- Bulk (`.zip`) import/export stays on the admin page.
 
 ## Admin: Flows page
 

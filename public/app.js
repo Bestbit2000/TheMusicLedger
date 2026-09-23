@@ -602,8 +602,46 @@
     // populated yet at plain page-load/script-parse time. Add a line here for each new gate rather
     // than scattering ad-hoc appData.enabledFeatures checks around the file.
     function renderFeatureGates() {
-        document.getElementById('metroBlkEntryFromFileBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('flow_import_from_file'));
+        applyFlowImportFormats();
         document.getElementById('feedbackNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('feedback'));
+    }
+
+    // ML-204: one start-screen option and one import screen, shared by two gates - MusicXML
+    // (flow_import_musicxml, no third-party dependency) and PDF/scan via OMR (flow_import_from_file,
+    // ML-190). Label, help text, accepted formats and screen title all follow whichever are on, so
+    // the option never offers a format the server would refuse.
+    function flowImportGates() {
+        return { pdf: isFeatureEnabled('flow_import_from_file'), musicxml: isFeatureEnabled('flow_import_musicxml') };
+    }
+    function flowImportTitle() {
+        return flowImportGates().pdf ? 'Create from file' : 'Import from MusicXML';
+    }
+    function applyFlowImportFormats() {
+        const { pdf, musicxml } = flowImportGates();
+        const btn = document.getElementById('metroBlkEntryFromFileBtn');
+        btn?.classList.toggle('hidden-group', !pdf && !musicxml);
+        const label = flowImportTitle();
+        const help = pdf && musicxml ? 'Import from a PDF or MusicXML score'
+            : pdf ? 'Import from a PDF score' : 'Open a MusicXML or .mxl file from notation software';
+        const labelEl = document.getElementById('metroBlkEntryFromFileLabel');
+        const helpEl = document.getElementById('metroBlkEntryFromFileHelp');
+        if (labelEl) labelEl.innerText = label;
+        if (helpEl) helpEl.innerText = help;
+        btn?.setAttribute('aria-label', label + ' - ' + help);
+        const dropHelp = document.getElementById('flowFromFileDropHelp');
+        if (dropHelp) dropHelp.innerText = pdf && musicxml ? 'Select a PDF scan, MusicXML, or .mxl' : pdf ? 'Select a PDF scan' : 'Select a MusicXML or .mxl file';
+        document.getElementById('flowFromFilePdfChip')?.classList.toggle('hidden-group', !pdf);
+        document.querySelectorAll('#flowFromFileView .flow-from-file-chip-row .flow-pill:not(#flowFromFilePdfChip)')
+            .forEach(chip => chip.classList.toggle('hidden-group', !musicxml));
+        const input = document.getElementById('flowFromFileInput');
+        if (input) {
+            input.accept = [
+                ...(pdf ? ['.pdf', 'application/pdf'] : []),
+                ...(musicxml ? ['.musicxml', '.mxl', 'application/vnd.recordare.musicxml+xml', 'application/vnd.recordare.musicxml'] : [])
+            ].join(',');
+        }
+        // The demo score is a MusicXML file - hidden when only PDF import is on (the server would refuse it).
+        document.getElementById('flowFromFileView')?.classList.toggle('flow-from-file-no-demo', !musicxml);
     }
 
     // Archived organisations/teachers are hidden from pickers used for new
@@ -998,7 +1036,7 @@
             document.getElementById('fermataPlaybackModeSetting').value = localStorage.getItem(FERMATA_PLAYBACK_MODE_KEY) || 'tone';
         }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
-        if (viewName === 'flowFromFileView') { document.getElementById('topTitle').innerText = 'Create from file'; resetFlowFromFileScreen(); }
+        if (viewName === 'flowFromFileView') { document.getElementById('topTitle').innerText = flowImportTitle(); resetFlowFromFileScreen(); }
         if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
         if (viewName === 'challengeSelectView') { document.getElementById('topTitle').innerText = 'Select challenge'; renderChallengeSelect(); }
         if (viewName === 'challengePlayView') { document.getElementById('topTitle').innerText = 'Practise'; }
@@ -4030,7 +4068,8 @@
     // the entry screen reads as the plain two-choice screen it always was before ML-79, not as
     // "here's a third option, but not for you".
     document.getElementById('metroBlkEntryFromFileBtn')?.addEventListener('click', () => {
-        if (!isFeatureEnabled('flow_import_from_file')) return;
+        const { pdf, musicxml } = flowImportGates();
+        if (!pdf && !musicxml) return;
         switchView('flowFromFileView');
     });
     // "Change flow": backs out to the entry screen from either Play or Edit Mode. In Edit Mode this
@@ -4085,7 +4124,7 @@
                     <strong>${escapeHtml(f.title)}</strong>
                     <div style="font-size:0.85rem; color:#666;">${f.blockCount} bar${f.blockCount === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}</div>
                 </div>
-                ${flowOwnershipLabel(f) === 'Personal' ? `<button type="button" class="list-item-menu-btn" data-flow-library-menu-btn aria-label="Options for ${escapeHtml(f.title)}"><span class="material-symbols-outlined">more_vert</span></button>` : ''}
+                ${flowLibraryMenuItemsFor(f).length ? `<button type="button" class="list-item-menu-btn" data-flow-library-menu-btn aria-label="Options for ${escapeHtml(f.title)}"><span class="material-symbols-outlined">more_vert</span></button>` : ''}
             </div>
         `).join('');
         ui.querySelectorAll('[data-flow-library-menu-btn]').forEach(btn => {
@@ -4097,11 +4136,26 @@
         });
     }
 
+    // Which ⋮ menu items a library row gets: Edit/Duplicate/Delete stay personal-only (see the
+    // renderFlowsList comment); ML-204's Export covers band flows too, but never public library
+    // flows (the server refuses those anyway - exportFlowForUser).
+    function flowLibraryMenuItemsFor(flow) {
+        const ownership = flowOwnershipLabel(flow);
+        const items = ownership === 'Personal' ? ['Edit', 'Duplicate', 'Delete'] : [];
+        if (ownership !== 'Public' && isFeatureEnabled('flow_export_musicxml')) items.push('Export');
+        return items;
+    }
+
     let flowLibraryMenuTargetId = null;
     function openFlowLibraryItemMenu(btnEl, id) {
         flowLibraryMenuTargetId = id;
         const menu = document.getElementById('flowLibraryItemMenu');
         if (!menu) return;
+        const flow = flowsListCache.find(f => f.id === id);
+        const items = flow ? flowLibraryMenuItemsFor(flow) : [];
+        ['Edit', 'Duplicate', 'Delete', 'Export'].forEach(item => {
+            document.getElementById('flowLibraryItemMenu' + item)?.classList.toggle('hidden-group', !items.includes(item));
+        });
         menu.classList.add('show');
         const btnRect = btnEl.getBoundingClientRect();
         const menuWidth = menu.offsetWidth;
@@ -4142,6 +4196,37 @@
             showSuccessToast('Flow duplicated');
         } catch (error) {
             showWarningToast('Error duplicating flow: ' + error.message);
+        }
+    });
+    // ML-204: downloads the flow as .musicxml - fetched with the auth header (a plain link can't carry
+    // one), then saved under the name the server chose (Content-Disposition's UTF-8 filename*).
+    document.getElementById('flowLibraryItemMenuExport')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = flowLibraryMenuTargetId;
+        closeFlowLibraryItemMenu();
+        if (id === null) return;
+        try {
+            const response = await fetch(API_BASE_URL + '/api/flows/' + id + '/musicxml', {
+                headers: { Authorization: 'Bearer ' + auth.token }
+            });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || 'Export failed (' + response.status + ')');
+            }
+            const disposition = response.headers.get('Content-Disposition') || '';
+            const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/);
+            const fileName = encoded ? decodeURIComponent(encoded[1]) : 'flow.musicxml';
+            const url = URL.createObjectURL(await response.blob());
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            showSuccessToast('Exported ' + fileName);
+        } catch (error) {
+            showWarningToast('Error exporting flow: ' + error.message);
         }
     });
     document.getElementById('flowLibraryItemMenuDelete')?.addEventListener('click', (e) => {
@@ -4412,6 +4497,7 @@
         document.getElementById('flowFromFileInput').value = '';
         document.getElementById('flowFromFileProgress')?.classList.add('hidden-group');
         document.getElementById('flowFromFileResult')?.classList.add('hidden-group');
+        document.getElementById('flowFromFileResultWarnings')?.classList.add('hidden-group');
         document.getElementById('flowFromFileDropBtn')?.classList.remove('hidden-group');
         document.querySelector('#flowFromFileView .section-title')?.classList.remove('hidden-group');
         document.querySelector('#flowFromFileView .flow-from-file-demo-row')?.classList.remove('hidden-group');
@@ -4461,6 +4547,11 @@
             document.getElementById('flowFromFileResultTitle').innerText = flow.title ? 'Extracted' : 'Not found';
             document.getElementById('flowFromFileResultBlocks').innerText =
                 `${flow.blocksSummary.count} block${flow.blocksSummary.count === 1 ? '' : 's'} detected`;
+            // ML-204: whatever the reader couldn't represent exactly - listed so it can be checked on
+            // the next screen, rather than discovered later during playback.
+            const warnings = flow.importWarnings || [];
+            document.getElementById('flowFromFileResultWarningsList').innerHTML = warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('');
+            document.getElementById('flowFromFileResultWarnings')?.classList.toggle('hidden-group', !warnings.length);
             progressBox.classList.add('hidden-group');
             document.getElementById('flowFromFileResult')?.classList.remove('hidden-group');
         } catch (error) {

@@ -29,7 +29,8 @@ with fully-reversible transfer actions. Score-attached metronome blocks
 blocks (ML-179 Phase 2 — `server/services/flowBlocks.js`, `/api/flows/:id/blocks`).
 Flows move in and out of the app as **MusicXML** — one writer/reader pair used
 by the admin panel's Flows page (export/import between environments),
-"Create from file", and PDF/OMR import; read
+"Import from MusicXML" and "Export to MusicXML" for
+every user (feature-gated), and PDF/OMR import; read
 [`docs/flow-musicxml.md`](docs/flow-musicxml.md) before touching any of them
 (`ML-204`). The rest of the schema (practice lists, scales, technique,
 monetization) remains provisioned but not wired up to any endpoint. The full
