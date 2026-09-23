@@ -118,6 +118,12 @@ async function getBlockForFlow(accountId, segmentId) {
 // Every block for a flow, in order - the Blocks Studio list/Block Inspector's data source.
 export async function listFlowBlocks(accountId, scoreId) {
   await assertFlowAccess(accountId, scoreId);
+  return listFlowBlocksUnchecked(scoreId);
+}
+
+// No ownership check - only for callers that have already authorised access some other way (ML-204's
+// super-admin export in flowTransfer.js, which reads any flow on the branch regardless of owner).
+export async function listFlowBlocksUnchecked(scoreId) {
   const { rows } = await pool.query(
     `SELECT ms.id, ms.order_index, ms.bar_count, ms.bpm, ms.is_lead_in, ms.repeat_lead_in, ms.quiet_seconds_before_lead_in, ms.pickup_beats,
             ms.time_signature_id, ms.account_time_signature_id, ms.note_value,

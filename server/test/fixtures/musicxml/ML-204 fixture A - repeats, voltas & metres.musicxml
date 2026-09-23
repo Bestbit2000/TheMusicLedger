@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="4.0">
+<work><work-title>ML-204 fixture A - repeats, voltas &amp; metres</work-title></work>
+<identification>
+<creator type="composer">Fixture Composer</creator>
+<creator type="arranger">Fixture Arranger</creator>
+<encoding><software>TheMusicLedger 0.23.0</software><encoding-date>2026-09-23</encoding-date></encoding>
+<miscellaneous>
+<miscellaneous-field name="musicledger:flow">{&quot;formatVersion&quot;:1,&quot;publisher&quot;:&quot;Fixture Publisher&quot;,&quot;description&quot;:&quot;Pickup lead-in, repeats with play counts, multi-number voltas (one starting mid-block), section barlines, rehearsal marks, compound/irregular/custom metres, dotted beat notes.&quot;,&quot;recordings&quot;:[{&quot;type&quot;:&quot;youtube&quot;,&quot;youtubeVideoId&quot;:&quot;dQw4w9WgXcQ&quot;,&quot;title&quot;:&quot;Fixture reference video&quot;}],&quot;skippedMedia&quot;:{&quot;recordings&quot;:0,&quot;documents&quot;:0}}</miscellaneous-field>
+</miscellaneous>
+</identification>
+<part-list><score-part id="P1"><part-name print-object="no">Flow</part-name></score-part></part-list>
+<part id="P1">
+<measure number="0" implicit="yes"><attributes><divisions>8</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>percussion</sign></clef><staff-details><staff-lines>1</staff-lines></staff-details></attributes><direction><direction-type><other-direction print-object="no">musicledger:{&quot;block&quot;:0,&quot;isLeadIn&quot;:true,&quot;repeatLeadIn&quot;:true,&quot;quietSecondsBeforeLeadIn&quot;:2,&quot;noteValueUnset&quot;:true}</other-direction></direction-type></direction><direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>100</per-minute></metronome></direction-type><sound tempo="100"/></direction><note><rest/><duration>8</duration><voice>1</voice><type>quarter</type></note><note><rest/><duration>8</duration><voice>1</voice><type>quarter</type></note></measure>
+<measure number="1"><barline location="left"><bar-style>heavy-light</bar-style><repeat direction="forward"/></barline><direction><direction-type><other-direction print-object="no">musicledger:{&quot;block&quot;:1}</other-direction></direction-type></direction><direction placement="above"><direction-type><rehearsal>A</rehearsal></direction-type></direction><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="2"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="3"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="4"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="5"><direction placement="above"><direction-type><rehearsal>A2</rehearsal></direction-type></direction><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="6"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="7"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="8"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note><barline location="right"><bar-style>light-light</bar-style></barline></measure>
+<measure number="9"><barline location="left"><bar-style>heavy-light</bar-style><repeat direction="forward"/></barline><direction><direction-type><other-direction print-object="no">musicledger:{&quot;block&quot;:2}</other-direction></direction-type></direction><direction placement="above"><direction-type><rehearsal>B</rehearsal></direction-type></direction><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="10"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="11"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="12"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="13"><direction><direction-type><other-direction print-object="no">musicledger:{&quot;block&quot;:3,&quot;repeatEndingStartBar&quot;:2}</other-direction></direction-type></direction><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="14"><barline location="left"><ending number="1, 2" type="start">1, 2.</ending></barline><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="15"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note><barline location="right"><bar-style>light-heavy</bar-style><ending number="1, 2" type="stop"/><repeat direction="backward" times="3"/></barline></measure>
+<measure number="16"><barline location="left"><ending number="3" type="start">3.</ending></barline><direction><direction-type><other-direction print-object="no">musicledger:{&quot;block&quot;:4}</other-direction></direction-type></direction><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="17"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note><barline location="right"><bar-style>light-light</bar-style><ending number="3" type="discontinue"/></barline></measure>
+<measure number="18"><barline location="left"><bar-style>heavy-light</bar-style><repeat direction="forward"/></barline><attributes><time><beats>6</beats><beat-type>8</beat-type></time></attributes><direction><direction-type><other-direction print-object="no">musicledger:{&quot;block&quot;:5}</other-direction></direction-type></direction><direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit><beat-unit-dot/><per-minute>60</per-minute></metronome></direction-type><sound tempo="90"/></direction><direction placement="above"><direction-type><rehearsal>C</rehearsal></direction-type></direction><note><rest measure="yes"/><duration>24</duration><voice>1</voice></note></measure>
+<measure number="19"><note><rest measure="yes"/><duration>24</duration><voice>1</voice></note></measure>
+<measure number="20"><note><rest measure="yes"/><duration>24</duration><voice>1</voice></note></measure>
+<measure number="21"><note><rest measure="yes"/><duration>24</duration><voice>1</voice></note><barline location="right"><bar-style>light-heavy</bar-style><repeat direction="backward"/></barline></measure>
+<measure number="22"><attributes><time><beats>11</beats><beat-type>16</beat-type></time></attributes><direction><direction-type><other-direction print-object="no">musicledger:{&quot;block&quot;:6}</other-direction></direction-type></direction><direction placement="above"><direction-type><metronome><beat-unit>16th</beat-unit><per-minute>200</per-minute></metronome></direction-type><sound tempo="50"/></direction><note><rest measure="yes"/><duration>22</duration><voice>1</voice></note></measure>
+<measure number="23"><note><rest measure="yes"/><duration>22</duration><voice>1</voice></note></measure>
+<measure number="24"><attributes><time><beats>7</beats><beat-type>8</beat-type></time></attributes><direction><direction-type><other-direction print-object="no">musicledger:{&quot;block&quot;:7}</other-direction></direction-type></direction><direction placement="above"><direction-type><metronome><beat-unit>eighth</beat-unit><per-minute>210</per-minute></metronome></direction-type><sound tempo="105"/></direction><note><rest measure="yes"/><duration>28</duration><voice>1</voice></note></measure>
+<measure number="25"><note><rest measure="yes"/><duration>28</duration><voice>1</voice></note></measure>
+<measure number="26"><attributes><time><beats>3</beats><beat-type>4</beat-type></time></attributes><direction><direction-type><other-direction print-object="no">musicledger:{&quot;block&quot;:8}</other-direction></direction-type></direction><direction placement="above"><direction-type><metronome><beat-unit>half</beat-unit><beat-unit-dot/><per-minute>20</per-minute></metronome></direction-type><sound tempo="60"/></direction><note><rest measure="yes"/><duration>24</duration><voice>1</voice></note></measure>
+<measure number="27"><note><rest measure="yes"/><duration>24</duration><voice>1</voice></note></measure>
+<measure number="28"><attributes><time><beats>2</beats><beat-type>2</beat-type></time></attributes><direction><direction-type><other-direction print-object="no">musicledger:{&quot;block&quot;:9,&quot;noteValueUnset&quot;:true}</other-direction></direction-type></direction><direction placement="above"><direction-type><metronome><beat-unit>half</beat-unit><per-minute>120</per-minute></metronome></direction-type><sound tempo="240"/></direction><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note><barline location="right"><bar-style>light-heavy</bar-style></barline></measure>
+</part>
+</score-partwise>

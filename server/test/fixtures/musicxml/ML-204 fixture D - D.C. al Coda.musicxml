@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="4.0">
+<work><work-title>ML-204 fixture D - D.C. al Coda</work-title></work>
+<identification>
+<encoding><software>TheMusicLedger 0.23.0</software><encoding-date>2026-09-23</encoding-date></encoding>
+<miscellaneous>
+<miscellaneous-field name="musicledger:flow">{&quot;formatVersion&quot;:1,&quot;skippedMedia&quot;:{&quot;recordings&quot;:0,&quot;documents&quot;:0}}</miscellaneous-field>
+</miscellaneous>
+</identification>
+<part-list><score-part id="P1"><part-name print-object="no">Flow</part-name></score-part></part-list>
+<part id="P1">
+<measure number="1"><attributes><divisions>8</divisions><key><fifths>0</fifths></key><time><beats>2</beats><beat-type>2</beat-type></time><clef><sign>percussion</sign></clef><staff-details><staff-lines>1</staff-lines></staff-details></attributes><direction><direction-type><other-direction print-object="no">musicledger:{&quot;block&quot;:0}</other-direction></direction-type></direction><direction placement="above"><direction-type><metronome><beat-unit>half</beat-unit><per-minute>132</per-minute></metronome></direction-type><sound tempo="264"/></direction><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="2"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="3"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="4"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="5"><direction><direction-type><other-direction print-object="no">musicledger:{&quot;block&quot;:1}</other-direction></direction-type></direction><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="6"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note><direction placement="above"><direction-type><words>To Coda</words></direction-type><sound tocoda="coda"/></direction></measure>
+<measure number="7"><direction><direction-type><other-direction print-object="no">musicledger:{&quot;block&quot;:2}</other-direction></direction-type></direction><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="8"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="9"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="10"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note><direction placement="below"><direction-type><words>D.C. al Coda</words></direction-type><sound dacapo="yes"/></direction><barline location="right"><bar-style>light-light</bar-style></barline></measure>
+<measure number="11"><direction><direction-type><other-direction print-object="no">musicledger:{&quot;block&quot;:3}</other-direction></direction-type></direction><direction placement="above"><direction-type><coda/></direction-type><sound coda="coda"/></direction><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note></measure>
+<measure number="12"><note><rest measure="yes"/><duration>32</duration><voice>1</voice></note><barline location="right"><bar-style>light-heavy</bar-style></barline></measure>
+</part>
+</score-partwise>
