@@ -20,7 +20,7 @@ import { handleUpload } from '@vercel/blob/client';
 import { put } from '@vercel/blob';
 import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, addUploadedRecording, addYouTubeRecording, deleteRecording, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks } from '../services/flowBlocks.js';
-import { importScoreFromFile } from '../services/scoreImport.js';
+import { importScoreFromFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/scoreImport.js';
 import { isFeatureEnabled, listEnabledFeatureKeys } from '../services/features.js';
 import { getActiveTimerSession, upsertActiveTimerSession, clearActiveTimerSession } from '../services/timerSessions.js';
 import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from '../services/flowAuthoringStats.js';
@@ -1180,6 +1180,8 @@ router.post('/flows/from-file/upload-token', requireAuthFromQueryOrHeader, resol
             ...(gates.pdf ? ['application/pdf'] : []),
             'application/vnd.recordare.musicxml+xml', 'application/vnd.recordare.musicxml', 'application/xml', 'text/xml', 'application/octet-stream'
           ],
+          // ML-192: Blob enforces this at upload time, so nothing bigger ever reaches /flows/from-file.
+          maximumSizeInBytes: MAX_SCORE_FILE_BYTES,
           addRandomSuffix: true
         };
       },
@@ -1208,12 +1210,15 @@ router.post('/flows/from-file', requireAuth, resolveAccount, async (req, res) =>
     if (!gates.pdf && !gates.musicxml) throw withStatus(403, "This feature isn't available right now.");
     const { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType } = req.body || {};
     if (!blobUrl || !blobPathname || !fileName) throw withStatus(400, 'Missing uploaded file details.');
+    // ML-192: only ever fetch from this app's own Blob store, at the pathname the upload returned -
+    // never an arbitrary URL from the request body (server-side request forgery).
+    if (!isOwnBlobUrl(blobUrl, blobPathname)) throw withStatus(400, "That doesn't look like a file uploaded to this app.");
 
-    const fileResponse = await fetch(blobUrl);
+    const fileResponse = await fetch(blobUrl, { redirect: 'error' }).catch(() => null);
     // 422, not the more "correct" 502 - sendError only passes a withStatus message through to the
     // client below 500 (see scoreImport.js's runOmr, same reasoning).
-    if (!fileResponse.ok) throw withStatus(422, "Couldn't read the uploaded file - try uploading it again.");
-    const buffer = Buffer.from(await fileResponse.arrayBuffer());
+    if (!fileResponse?.ok) throw withStatus(422, "Couldn't read the uploaded file - try uploading it again.");
+    const buffer = await readCappedBody(fileResponse, MAX_SCORE_FILE_BYTES, 'That file is larger than this app accepts.');
     // By content, not the file name - the name is the client's to choose.
     const isPdf = buffer.length >= 4 && buffer.toString('ascii', 0, 4) === '%PDF';
     if (isPdf ? !gates.pdf : !gates.musicxml) {

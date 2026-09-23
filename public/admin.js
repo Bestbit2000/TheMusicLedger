@@ -1604,8 +1604,153 @@
         document.getElementById('notificationFormSaveBtn')?.addEventListener('click', saveNotificationForm);
     }
 
+    // ========================================
+    // Security (ML-192) - repeatable review of the OMR service. Everything below is read-only
+    // except "Run now", which re-runs the automated checks server-side and records them. The deep
+    // review's results come from the repo (server/securityReviews/), shown alongside.
+    // ========================================
+    const SECURITY_STATUS_LABELS = { pass: 'Pass', warn: 'Warn', fail: 'Fail', info: 'Info', not_run: 'Not run', error: 'Error' };
+    // Maps a result status onto an .admin-badge modifier (pill-badge spec) - "error" is a failure
+    // of the check itself, shown the same way as a failed check so it can't be missed.
+    const SECURITY_BADGE_CLASS = { pass: 'pass', warn: 'warn', fail: 'fail', info: 'info', not_run: 'never', error: 'fail' };
+    const VERDICT_LABELS = { go: ['pass', 'Go'], conditional: ['warn', 'Conditional'], 'no-go': ['fail', 'Not yet'] };
+
+    function securityBadge(status) {
+        return `<span class="admin-badge ${SECURITY_BADGE_CLASS[status] || 'never'}">${SECURITY_STATUS_LABELS[status] || 'Never run'}</span>`;
+    }
+
+    const shortSha = (sha) => (sha ? String(sha).slice(0, 8) : '-');
+    const fmtDay = (iso) => (iso ? new Date(iso).toLocaleDateString() : '-');
+
+    function renderSecurityEvidence(lines) {
+        if (!lines || !lines.length) return '';
+        return `<ul class="admin-security-evidence">${lines.map((l) => `<li>${escapeHtml(l)}</li>`).join('')}</ul>`;
+    }
+
+    function renderSecurityCheck(check, result) {
+        const kindLabel = check.mode === 'automated' ? 'Automated' : 'Deep review';
+        const meta = result
+            ? `${kindLabel} &middot; ${fmtDate(result.at)} &middot; upstream ${escapeHtml(shortSha(result.upstreamCommitSha))}`
+            : `${kindLabel} &middot; never run`;
+        return `
+            <div class="admin-test-case">
+                <div class="admin-feature-header-text">
+                    <div class="admin-security-head">
+                        <div class="admin-test-case-title">${escapeHtml(check.title)}</div>
+                        ${securityBadge(result ? result.status : null)}
+                    </div>
+                    <div class="admin-test-case-meta">${meta}</div>
+                    ${result ? `<p class="admin-run-notes">${escapeHtml(result.summary)}</p>` : ''}
+                    <details class="admin-security-details">
+                        <summary>Evidence and how to re-run</summary>
+                        ${result ? renderSecurityEvidence(result.details) : ''}
+                        <p class="admin-run-notes"><strong>How to re-run:</strong> ${escapeHtml(check.rerun)}</p>
+                    </details>
+                </div>
+            </div>`;
+    }
+
+    function renderSecurityHistoryRun(run, checksByKey) {
+        const counts = Object.entries(run.counts || {})
+            .sort(([a], [b]) => Object.keys(SECURITY_STATUS_LABELS).indexOf(a) - Object.keys(SECURITY_STATUS_LABELS).indexOf(b))
+            .map(([status, n]) => `${n} ${SECURITY_STATUS_LABELS[status]?.toLowerCase() || status}`).join(', ');
+        const verdict = run.verdict ? VERDICT_LABELS[run.verdict.status] : null;
+        return `
+            <div class="admin-test-case">
+                <details class="admin-security-details">
+                    <summary>${fmtDate(run.at)} &middot; ${run.kind === 'automated' ? 'Automated run' : 'Deep review'}${run.by ? ` by ${escapeHtml(run.by)}` : ''} &middot; ${escapeHtml(counts || 'no results')}</summary>
+                    <p class="admin-test-case-meta">Upstream commit ${escapeHtml(shortSha(run.upstreamCommitSha))}${verdict ? ` &middot; verdict: ${verdict[1]}` : ''}</p>
+                    ${run.tools && run.tools.length ? `<p class="admin-run-notes"><strong>Tools:</strong> ${run.tools.map(escapeHtml).join('; ')}</p>` : ''}
+                    ${run.results.map((r) => `
+                        <div class="admin-run-row">
+                            <div class="admin-run-when">${securityBadge(r.status)}</div>
+                            <div class="admin-run-detail">
+                                <strong>${escapeHtml(checksByKey.get(r.checkKey)?.title || r.checkKey)}</strong>
+                                <p class="admin-run-notes">${escapeHtml(r.summary)}</p>
+                                ${renderSecurityEvidence(r.details)}
+                            </div>
+                        </div>`).join('')}
+                </details>
+            </div>`;
+    }
+
+    function renderSecurityReview(data) {
+        const el = document.getElementById('securityReview');
+        const checksByKey = new Map(data.checks.map((c) => [c.key, c]));
+        const verdict = data.verdict ? VERDICT_LABELS[data.verdict.status] : null;
+        const deep = data.lastDeepReview;
+        const auto = data.lastAutomatedRun;
+        const t = data.target;
+
+        const tiles = `
+            <div class="admin-stat-tiles">
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Verdict</div><div class="admin-stat-tile-value">${verdict ? verdict[1] : '-'}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Last deep review</div><div class="admin-stat-tile-value">${fmtDay(deep?.at)}</div><div class="admin-stat-tile-sub">upstream ${escapeHtml(shortSha(deep?.upstreamCommitSha))}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Last automated run</div><div class="admin-stat-tile-value">${auto ? fmtDay(auto.at) : 'Never'}</div><div class="admin-stat-tile-sub">${data.automatedRunDue ? `Due - over ${data.automatedDueAfterDays} days` : 'Up to date'}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Upstream since deep review</div><div class="admin-stat-tile-value">${!auto ? 'Unknown' : data.upstreamChangedSinceDeepReview ? 'Changed' : 'Unchanged'}</div><div class="admin-stat-tile-sub">${auto ? `head ${escapeHtml(shortSha(auto.upstreamCommitSha))}` : 'run the automated checks'}</div></div>
+            </div>`;
+
+        const verdictCard = `
+            <div class="admin-feature">
+                <div class="admin-feature-header">
+                    <div class="admin-feature-header-text">
+                        <h2>${escapeHtml(t.name)}</h2>
+                        <p><a href="https://github.com/${encodeURI(t.repo)}" target="_blank" rel="noopener">github.com/${escapeHtml(t.repo)}</a> &middot; <a href="https://bestbit2000.atlassian.net/browse/${encodeURIComponent(t.jiraKey)}" target="_blank" rel="noopener">${escapeHtml(t.jiraKey)}</a> &middot; gates <code>${escapeHtml(t.gatedFeature)}</code></p>
+                    </div>
+                    ${verdict ? `<span class="admin-badge ${verdict[0]}">${verdict[1]}</span>` : ''}
+                </div>
+                ${data.verdict ? `
+                <div class="admin-test-case">
+                    <p class="admin-run-notes">${escapeHtml(data.verdict.summary)}</p>
+                    <ul class="admin-security-evidence">
+                        ${(data.verdict.conditions || []).map((c) => `<li><strong>${c.done ? 'Done' : 'To do'}:</strong> ${escapeHtml(c.text)}</li>`).join('')}
+                    </ul>
+                    ${data.upstreamChangedSinceDeepReview ? '<p class="admin-run-notes"><strong>The upstream repo has changed since this verdict</strong> - re-run the deep review before relying on it.</p>' : ''}
+                </div>` : ''}
+            </div>`;
+
+        const sections = data.sections.map((section) => {
+            const checks = data.checks.filter((c) => c.section === section.key);
+            if (!checks.length) return '';
+            return `
+                <h2 class="admin-stat-section-title">${escapeHtml(section.title)}</h2>
+                <div class="admin-feature">${checks.map((c) => renderSecurityCheck(c, data.latest[c.key])).join('')}</div>`;
+        }).join('');
+
+        const history = `
+            <h2 class="admin-stat-section-title">History</h2>
+            <p class="admin-intro">Every run, newest first. Automated runs are stored per environment; deep reviews come from the repo, so every environment shows the same ones.</p>
+            <div class="admin-feature">${data.history.length ? data.history.map((r) => renderSecurityHistoryRun(r, checksByKey)).join('') : '<p class="admin-test-case">No runs yet.</p>'}</div>`;
+
+        el.innerHTML = tiles + verdictCard + sections + history;
+    }
+
+    async function reloadSecurityReview() {
+        renderSecurityReview(await apiCall('/api/admin/security-review'));
+    }
+
+    function initSecurityReview() {
+        const btn = document.getElementById('securityRunBtn');
+        const status = document.getElementById('securityRunStatus');
+        btn?.addEventListener('click', async () => {
+            btn.disabled = true;
+            status.textContent = 'Running the automated checks - this takes a few seconds…';
+            try {
+                const data = await apiCall('/api/admin/security-review/run', 'POST');
+                renderSecurityReview(data);
+                status.textContent = 'Done - results updated below.';
+            } catch (error) {
+                status.textContent = '';
+                showToast(error.message);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    }
+
     async function load() {
         initNav();
+        initSecurityReview();
         initFeatureForm();
         initConfirmModal();
         initBandForm();
@@ -1628,6 +1773,7 @@
             renderFeaturesCatalog(featuresRes.features);
             await Promise.all([
                 reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadNotificationsAdmin(), reloadPosthogLink(),
+                reloadSecurityReview().catch((error) => { document.getElementById('securityReview').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`; }),
                 reloadFlowDefaultName(), reloadFlowDefaultTimeSig(), reloadFlowDefaultBpm(), reloadFlowDefaultBarCount(), reloadFlowDefaultNoteValue()
             ]);
         } catch (error) {

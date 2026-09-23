@@ -17,12 +17,13 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
 ## 4. Tokens used
 `--bg-color`, `--container-bg`, `--secondary-color`, `--input-bg`, `--input-border`, `--text-color`,
 `--label-color`, `--primary-action`, `--success-color`, `--danger-color`, `--warning-color`,
-`--nav-action`, `--nav-action-text`, `--text-on-accent`, `--font-mono`, `--radius-xs`/`-md`/`-pill`,
+`--nav-action`, `--nav-action-text`, `--status-amber-bg`/`-fg`, `--status-blue-bg`/`-fg`, `--info-text`, `--touch-target`, `--text-on-accent`, `--font-mono`, `--radius-xs`/`-md`/`-pill`,
 `--space-*`, `--font-xs`…`--font-lg`, `--font-weight-semibold`, `--font-weight-bold`, `--app-max-width`.
 
 ## 5. Props / API
 - Tables: wrap in `.admin-stat-table-wrap` so wide tables scroll inside the column (`.admin-content` has `min-width: 0`).
 - Status badges: see [pill-badge](pill-badge.md).
+- Security review (ML-192, Admin → Security): `.admin-security-toolbar` (run button + live status text), `.admin-security-head` (a check's title and status badge on one line - **not** clickable, unlike `.admin-test-case-head`), `.admin-security-details` (a native `<details>`/`<summary>` disclosure for evidence and run history - the summary is a 48px (`--touch-target`) row in `--info-text`, keeping the browser's disclosure triangle), `.admin-security-evidence` (the evidence list, `--font-xs`).
 - The Design page (`.admin-design-*`, `public/admin-design.js`) is page chrome around the design-system specimens. Its own classes are admin-only and never used in the app.
 
 ## 6. States

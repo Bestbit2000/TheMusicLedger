@@ -6,7 +6,7 @@ One file format, one parser, for every way a Flow leaves or enters the app as no
 |---|---|---|
 | Copy flows between environments (e.g. production → dev/sandbox for testing) | Admin panel → **Flows** (export / import, bulk, any owner) | super admin only |
 | Create a flow from a `.musicxml`/`.mxl` file | Flow start screen → **Import from MusicXML** (`/api/flows/from-file`) | `flow_import_musicxml` |
-| Create a flow from a PDF/scan | Same screen, shown as **Create from file** when this is on - OMR/AI turns the scan into MusicXML first (`scoreImport.js`'s `runOmr`), then the same parser | `flow_import_from_file` (off until the OMR dependency's security review) |
+| Create a flow from a PDF/scan | Same screen, shown as **Create from file** when this is on - OMR/AI turns the scan into MusicXML first (`scoreImport.js`'s `runOmr`), then the same parser | `flow_import_from_file` (off until the OMR dependency's security review - [`omr-security-review.md`](omr-security-review.md), currently "not yet") |
 | Download one of your flows | Flow library ⋮ → **Export to MusicXML** (`GET /api/flows/:id/musicxml`) | `flow_export_musicxml` |
 | Local dev | `scripts/seed-flow-fixtures.mjs`, `scripts/export-flow-musicxml.mjs` |
 

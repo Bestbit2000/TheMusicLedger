@@ -18,6 +18,51 @@ import { withStatus } from './metronomeSetups.js';
 import { createCustomTimeSignature } from './timeSignatures.js';
 import { musicXmlToFlow } from './flowMusicXmlReader.js';
 
+// ML-192 (OMR security review): every byte this front end reads comes from somewhere a user or a
+// third-party service controls, so each read is capped before it's held in memory.
+// - MAX_SCORE_FILE_BYTES: the uploaded file itself (also the Blob upload token's own limit - see
+//   the upload-token route). Matches the OMR service's own MAX_UPLOAD_MB default, so a scan that
+//   uploads here is never refused there for size.
+// - MAX_MUSICXML_BYTES: one MusicXML document once it's text - an .mxl's unzipped root entry, or
+//   what the OMR service sends back. A real score is well under 1 MB; 20 MB leaves huge headroom
+//   while stopping a small zip that expands to gigabytes (a "zip bomb") from taking the function down.
+export const MAX_SCORE_FILE_BYTES = 40 * 1024 * 1024;
+export const MAX_MUSICXML_BYTES = 20 * 1024 * 1024;
+
+// The only place /flows/from-file may fetch the uploaded file from: this app's own Vercel Blob
+// store, at exactly the pathname the upload returned. Before ML-192 the route fetched whatever
+// blobUrl the browser sent - a server-side request forgery hole (any signed-in user could make
+// the server request any URL, internal or not, and have the response parsed and attached to a flow).
+const BLOB_HOST_SUFFIX = '.public.blob.vercel-storage.com';
+
+export function isOwnBlobUrl(blobUrl, blobPathname) {
+  let url;
+  try {
+    url = new URL(blobUrl);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:' || !url.hostname.endsWith(BLOB_HOST_SUFFIX)) return false;
+  if (url.username || url.password || url.port) return false;
+  let pathname;
+  try {
+    pathname = decodeURIComponent(url.pathname.slice(1));
+  } catch {
+    return false;
+  }
+  return typeof blobPathname === 'string' && pathname === blobPathname;
+}
+
+// Reads a fetch Response body with a hard size cap - the Content-Length header first (cheap, but
+// optional and the sender's to choose), then the real byte count.
+export async function readCappedBody(response, maxBytes, tooLargeMessage) {
+  const declared = Number(response.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > maxBytes) throw withStatus(413, tooLargeMessage);
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length > maxBytes) throw withStatus(413, tooLargeMessage);
+  return buffer;
+}
+
 // Phase 2: a scan has no structure of its own to read - it has to go through an external OMR
 // (Optical Music Recognition) service first, which turns it into MusicXML that then runs through
 // the exact same musicXmlToFlow (flowMusicXmlReader.js) everything else does. This app never runs Audiveris
@@ -64,7 +109,11 @@ async function runOmr(pdfBuffer) {
     const detail = await submitResponse.json().catch(() => null);
     throw withStatus(422, `Score scanning couldn't start${detail?.error ? `: ${detail.error}` : '.'}`);
   }
-  const { jobId } = await submitResponse.json();
+  const { jobId: rawJobId } = await submitResponse.json();
+  // The service's answer goes into every URL below - encoded, so a misbehaving service can't
+  // steer those requests anywhere but its own /jobs/<id> (ML-192).
+  const jobId = encodeURIComponent(String(rawJobId ?? ''));
+  if (!jobId) throw withStatus(422, 'Score scanning couldn\'t start.');
 
   const pollIntervalMs = 3000;
   const maxWaitMs = Number(process.env.AUDIVERIS_POLL_TIMEOUT_MS) || 50000;
@@ -97,10 +146,13 @@ async function runOmr(pdfBuffer) {
   // imports the first one, same "start simple" scope as Phase 1 only reading the first <part>.
   const fileResponse = await fetch(`${baseUrl}/jobs/${jobId}/files/${encodeURIComponent(job.movements[0].filename)}`, { headers: authHeaders });
   if (!fileResponse.ok) throw withStatus(422, "Couldn't retrieve the scanned score's MusicXML - try again.");
-  const xmlText = await fileResponse.text();
-
+  // Audiveris exports compressed .mxl movements (solfascribe-omr only ever lists *.mxl), so this
+  // is a zip, not text - it goes through the same capped unzip as an uploaded .mxl (ML-192: this
+  // used to be fileResponse.text(), which would have handed the parser zip bytes). Still accepts
+  // plain MusicXML in case a service ever sends that instead.
+  const scanned = await readCappedBody(fileResponse, MAX_MUSICXML_BYTES, 'The scanned score came back larger than this app accepts.');
   fetch(`${baseUrl}/jobs/${jobId}`, { method: 'DELETE', headers: authHeaders }).catch(() => {});
-  return xmlText;
+  return extractMusicXmlText(scanned);
 }
 
 // .mxl is just a zip container (a compressed MusicXML - META-INF/container.xml points at the
@@ -109,7 +161,10 @@ async function runOmr(pdfBuffer) {
 // unreliable for both (see the upload-token route's own comment on this).
 export async function extractMusicXmlText(buffer) {
   const isZip = buffer.length >= 2 && buffer[0] === 0x50 && buffer[1] === 0x4b;
-  if (!isZip) return buffer.toString('utf8');
+  if (!isZip) {
+    if (buffer.length > MAX_MUSICXML_BYTES) throw withStatus(413, 'That MusicXML file is larger than this app accepts.');
+    return buffer.toString('utf8');
+  }
 
   const zip = await JSZip.loadAsync(buffer).catch(() => { throw withStatus(422, "That .mxl file doesn't look like a valid compressed score."); });
   const container = await zip.file('META-INF/container.xml')?.async('string');
@@ -123,7 +178,32 @@ export async function extractMusicXmlText(buffer) {
   const entry = (rootPath && zip.file(rootPath))
     || Object.values(zip.files).find(f => !f.dir && /\.(musicxml|xml)$/i.test(f.name) && !f.name.includes('META-INF'));
   if (!entry) throw withStatus(422, "Couldn't find a MusicXML file inside this .mxl archive.");
-  return entry.async('string');
+  // Zip-bomb guard (ML-192). First the size the archive declares for this entry (JSZip keeps it on
+  // the internal _data - no public accessor), which refuses an honest oversized file without
+  // inflating anything. But that header is the sender's to write, so the entry is then inflated as
+  // a stream and abandoned the moment it passes the cap - a forged small size can't get past that.
+  const tooBig = () => withStatus(413, 'That .mxl file unpacks to more than this app accepts.');
+  const declaredSize = entry._data?.uncompressedSize;
+  if (typeof declaredSize === 'number' && declaredSize > MAX_MUSICXML_BYTES) throw tooBig();
+  const bytes = await new Promise((resolve, reject) => {
+    const chunks = [];
+    let total = 0;
+    const stream = entry.internalStream('uint8array');
+    stream
+      .on('data', (chunk) => {
+        total += chunk.length;
+        if (total > MAX_MUSICXML_BYTES) {
+          stream.pause();
+          reject(tooBig());
+          return;
+        }
+        chunks.push(chunk);
+      })
+      .on('error', () => reject(withStatus(422, "That .mxl file doesn't look like a valid compressed score.")))
+      .on('end', () => resolve(Buffer.concat(chunks)))
+      .resume();
+  });
+  return bytes.toString('utf8');
 }
 
 // Resolves each block's {numerator, denominator} into the timeSignatureId/accountTimeSignatureId

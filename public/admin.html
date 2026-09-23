@@ -43,6 +43,8 @@
         <!-- ML-170: the untriaged count rides on the nav item itself - the whole value of this tab
              is noticing there's something waiting without having to go and look. -->
         <button class="admin-nav-item" data-section="feedback" type="button">Feedback <span id="feedbackNavCount" class="admin-nav-count hidden-group"></span></button>
+        <!-- ML-192: repeatable security review of the OMR service behind PDF import. -->
+        <button class="admin-nav-item" data-section="security" type="button">Security</button>
         <!-- ML-198: read-only visual catalogue of the design system (public/admin-design.js). -->
         <button class="admin-nav-item" data-section="design" type="button">Design</button>
     </nav>
@@ -217,6 +219,18 @@
         <!-- ML-170: triage. Two independent filter rows rather than one combined list of options -
              status and category answer different questions ("what still needs doing" vs "what kind
              of thing is it") and are routinely used together, e.g. untriaged + under review. -->
+        <!-- ML-192: security review of third-party services - checks, latest results, run history.
+             Automated checks re-run from here ("Run now"); the deep review is done by Claude Code
+             in a session and recorded in server/securityReviews/ (docs/omr-security-review.md). -->
+        <section id="security-section" class="admin-section hidden-group">
+            <h1>Security</h1>
+            <p class="admin-intro">Security review of <strong>solfascribe-omr</strong>, the third-party OMR service behind "Create from file" PDF import (ML-192). <strong>Run now</strong> repeats the automated checks. The deep review (code read, secret scan, dependency scans) is done by Claude Code in a session: ask it to "re-run the ML-192 OMR security review". Full write-up: <code>docs/omr-security-review.md</code>.</p>
+            <div class="admin-security-toolbar">
+                <button class="btn-submit no-margin" id="securityRunBtn" type="button">Run automated checks now</button>
+                <span id="securityRunStatus" class="admin-test-case-meta" role="status" aria-live="polite"></span>
+            </div>
+            <div id="securityReview"><p class="admin-intro">Loading&hellip;</p></div>
+        </section>
         <section id="design-section" class="admin-section hidden-group">
             <h1>Design</h1>
             <p class="admin-intro">Read-only catalogue of every design element in the app, rendered with the real stylesheets. Each example lists the tokens it resolves to (spacing, radius, type, colour). A <strong>⚠</strong> marks a value that isn't a token. The rules behind each example are in <code>specs/</code>. This page updates with every release: a new component can't reach sandbox without an entry here (<code>npm run design-gate</code>).</p>

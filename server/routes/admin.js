@@ -22,6 +22,7 @@ import { getFlowAuthoringStats, setFlowAuthoringSessionExcluded, currentAppVersi
 import { listFeedbackForAdmin, updateFeedbackAdmin } from '../services/feedback.js';
 import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitImport, MAX_IMPORT_BYTES } from '../services/flowTransfer.js';
 import { listNotificationsForAdmin, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
+import { getSecurityReview, runSecurityReviewNow } from '../services/securityReview.js';
 
 const router = express.Router();
 
@@ -620,6 +621,28 @@ router.post('/flows/import/preview', requireAuth, resolveAccount, requireSuperAd
 router.post('/flows/import', requireAuth, resolveAccount, requireSuperAdmin, rawImportBody, async (req, res) => {
   try {
     res.json(await commitImport(req.accountId, req.body, String(req.query.fileName || 'upload.musicxml')));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ========================================
+// SECURITY (ML-192) - repeatable review of the OMR service (solfascribe-omr). GET is the whole
+// page (checks, latest results, verdict, history); POST runs the automated checks now and records
+// them. The deep review's results come from the repo, not these routes - see securityReview.js.
+// ========================================
+router.get('/security-review', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await getSecurityReview());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/security-review/run', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const runId = await runSecurityReviewNow(req.accountId);
+    res.json({ runId, ...(await getSecurityReview()) });
   } catch (error) {
     sendError(res, error);
   }

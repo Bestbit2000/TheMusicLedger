@@ -4,7 +4,7 @@
 - **Name:** Utilities and state modifiers
   - Layout utilities: `.container`, `.flex-row`, `.flex-col`, `.flex-1`, `.gap-sm`, `.gap-md`, `.text-center`, `.text-muted`, `.no-margin`, `.hidden-group`, `.hidden-btn`, `.tools-title`, `.material-symbols-outlined`, `.drag-reorder-highlight`, `.custom-option`, `.visually-hidden` (screen-reader-only text, ML-210)
   - State modifiers: `.active`, `.selected`, `.show`, `.lit`, `.accent`, `.dragging`, `.disabled`, `.expanded`, `.is-expanded`, `.is-muted`, `.invalid`, `.has-errors`, `.unread`, `.clickable`, `.compact`, `.blank`, `.below`, `.left`, `.right`, `.in-tune`, `.out-of-tune`, `.lead-in`, `.fermata-holding`, `.fermata-done`
-  - Variant modifiers: `.success`, `.warning`, `.info`, `.undo`, `.pass`, `.fail`, `.skipped`, `.never`, `.cat`, `.type-audio`, `.type-metronome`, `.type-youtube`
+  - Variant modifiers: `.success`, `.warning`, `.info`, `.undo`, `.pass`, `.fail`, `.warn`, `.skipped`, `.never`, `.cat`, `.type-audio`, `.type-metronome`, `.type-youtube`
   - Environment classes: `.dark-mode` (on `<body>`), `.installed-app` (on `<html>`, standalone PWA), `.admin-body`
 - **Category:** Foundations
 - **Status:** Stable

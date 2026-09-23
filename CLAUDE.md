@@ -32,7 +32,7 @@ by the admin panel's Flows page (export/import between environments),
 "Import from MusicXML" and "Export to MusicXML" for
 every user (feature-gated), and PDF/OMR import; read
 [`docs/flow-musicxml.md`](docs/flow-musicxml.md) before touching any of them
-(`ML-204`). The in-app notification centre (red dot on ☰, admin announcements,
+(`ML-204`). The OMR service behind PDF import (solfascribe-omr, a third-party repo) has a repeatable security review - Admin → Security, with the write-up and verdict in [`docs/omr-security-review.md`](docs/omr-security-review.md) (`ML-192`); read it before touching `scoreImport.js`/`runOmr` or enabling `flow_import_from_file`. The in-app notification centre (red dot on ☰, admin announcements,
 automatic "update available - reload" notice) is described in
 [`docs/notifications.md`](docs/notifications.md) (`ML-201`). The rest of the schema (practice lists, scales, technique,
 monetization) remains provisioned but not wired up to any endpoint. The full

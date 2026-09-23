@@ -15,6 +15,7 @@ A small non-interactive label for a count, status or tag. `--radius-pill` is res
 | Count | `--danger-color` + `--text-on-accent` | Unread counts |
 | Accent count | `--primary-action` + `--primary-action-text` | Active-filter count |
 | Status (admin) | `--success-color` / `--danger-color` / `--nav-action` / `--input-border` | pass / fail / skipped / never |
+| Status (admin, security review) | `--status-amber-bg`/`-fg` (`.admin-badge.warn`), `--status-blue-bg`/`-fg` (`.admin-badge.info`) | warn / info - ML-192 check results that are neither a pass nor a failure |
 | Chip (admin) | `--secondary-color` | Feature/account tags |
 
 ## 3. Anatomy

@@ -183,6 +183,20 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-flows-import-error { color: var(--danger-text); }
 .admin-flows-import-note { color: var(--label-color); }
 
+/* ML-192 - Security (review of the OMR service). Cards, tiles, run rows and badges are the shared
+   admin ones; these add the two statuses a security check has that a back-test doesn't (warn, info),
+   the check row's title/badge line (not clickable - unlike .admin-test-case-head), and the native
+   <details> disclosure used for evidence and history (keyboard/screen-reader behaviour for free). */
+.admin-badge.warn { background: var(--status-amber-bg); color: var(--status-amber-fg); }
+.admin-badge.info { background: var(--status-blue-bg); color: var(--status-blue-fg); }
+.admin-security-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-5); }
+.admin-security-toolbar .btn-submit { width: auto; flex: 0 0 auto; padding-left: var(--space-5); padding-right: var(--space-5); }
+.admin-security-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+/* display: list-item (the default) keeps the disclosure triangle - display:flex would drop it. */
+.admin-security-details summary { display: list-item; min-height: var(--touch-target); box-sizing: border-box; padding: var(--space-3) 0; cursor: pointer; font-size: var(--font-sm); font-weight: var(--font-weight-semibold); color: var(--info-text); }
+.admin-security-evidence { margin: var(--space-1) 0 var(--space-2) 0; padding-left: var(--space-5); font-size: var(--font-xs); color: var(--text-color); word-break: break-word; }
+.admin-security-evidence li { margin-bottom: var(--space-1); }
+
 /* ML-198 - Design (read-only design-system catalogue, admin-design.js). Page chrome only - every
    example inside .admin-design-stage is rendered with the real app classes, untouched. */
 .admin-design-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-4); }
