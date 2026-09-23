@@ -18,6 +18,8 @@ import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption
 import { listTimeSignatureOptionsForAdmin, createTimeSignatureOption, updateTimeSignatureOption, deleteOrArchiveTimeSignatureOption, listNoteValueUsage } from '../services/timeSignatures.js';
 import { listPlaybackSpeedsForAdmin, createPlaybackSpeedOption, updatePlaybackSpeedOption, deletePlaybackSpeedOption } from '../services/playbackSpeeds.js';
 import { getConfigValue, setConfigValue } from '../services/appConfig.js';
+import { getFlowAuthoringStats, setFlowAuthoringSessionExcluded } from '../services/flowAuthoringStats.js';
+import { listFeedbackForAdmin, updateFeedbackAdmin } from '../services/feedback.js';
 
 const router = express.Router();
 
@@ -417,6 +419,51 @@ router.get('/usage/note-values', requireAuth, resolveAccount, requireSuperAdmin,
 router.get('/usage/durations', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     res.json({ durationUsage: await listDurationUsageStats() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ========================================
+// FEEDBACK TRIAGE (ML-170) - reading and acting on what users submitted via POST /api/feedback.
+// Super-admin-only like everything else in this file, which matters more here than most: these rows
+// are attributed prose written by named users, not aggregate numbers.
+// ========================================
+router.get('/feedback', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await listFeedbackForAdmin({ status: req.query.status, category: req.query.category }));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// PUT rather than the PATCH the ticket names - every other update route in this app is a PUT that
+// merges only the fields present (see /flows/:id, /features/:id), and the behaviour asked for is
+// exactly that. Matching the house convention beats matching the verb in the ticket text.
+router.put('/feedback/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const { status, category, adminResponse } = req.body || {};
+    res.json(await updateFeedbackAdmin(req.params.id, { status, category, adminResponse }));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// Flow authoring time (ML-199) - the baseline for how long building a Flow by hand actually takes.
+// Super-admin-only like everything in this file, which is also what the ticket asked for: these
+// rows are per-user timings, not aggregate product analytics.
+router.get('/usage/flow-authoring', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await getFlowAuthoringStats());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// Drop a run from the statistics without destroying it - see setFlowAuthoringSessionExcluded.
+router.put('/usage/flow-authoring/:id/excluded', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await setFlowAuthoringSessionExcluded(req.params.id, req.body?.isExcluded, req.body?.reason));
   } catch (error) {
     sendError(res, error);
   }

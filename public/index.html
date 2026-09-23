@@ -91,6 +91,10 @@
                          hidden for everyone else (see syncAdminLinkVisibility) so it isn't
                          dangled in front of accounts that would just bounce off a notice. -->
                     <a class="dropdown-item hidden-group" id="adminNavLink" href="/admin.html">Administration</a>
+                    <!-- ML-170: deliberately here rather than on a view of its own - the point is to
+                         be reachable from wherever the problem was just noticed, without navigating
+                         away from it first. Gated by the `feedback` feature (renderFeatureGates). -->
+                    <div class="dropdown-item" id="feedbackNavItem" onclick="closeMenu(); openFeedbackModal();">Send feedback</div>
                     <div class="dropdown-item" onclick="switchView('aboutView'); closeMenu();">About</div>
                     <div class="dropdown-item" onclick="closeMenu(); logoutUser();">Log out</div>
                 </div>
@@ -2726,6 +2730,24 @@
 
 <div class="modal" id="confirmModal">
     <div class="modal-content"><h2 id="confirmTitle">Confirm</h2><p id="confirmMessage" style="margin-bottom: 25px; line-height: 1.4;"></p><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" id="confirmCancelBtn" onclick="closeConfirmModal()">Cancel</button><button class="btn-submit no-margin" id="confirmActionBtn">Confirm</button></div></div>
+</div>
+
+<!-- ML-170: the whole capture form. A text box and a button, nothing else - no category picker, no
+     subject line, no "steps to reproduce". Categorising happens at triage (see
+     db/migrations/045_feedback.sql); anything standing between noticing a problem and writing it
+     down is a reason not to bother. The current screen, device and app version are attached
+     silently on submit, which is what lets a note written in five seconds still make sense later. -->
+<div class="modal" id="feedbackModal">
+    <div class="modal-content">
+        <h2>Send feedback</h2>
+        <p class="text-muted" style="margin: -10px 0 15px 0; font-size: 0.85rem;">Spotted a bug or thought of something? Jot it down here. The screen you were on, your device and the app version are included automatically.</p>
+        <textarea id="feedbackInput" rows="6" placeholder="What's on your mind?" style="margin-bottom: 10px; width: 100%; box-sizing: border-box;"></textarea>
+        <div class="text-muted" id="feedbackCharCount" style="font-size: 0.8rem; margin-bottom: 15px;"></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" type="button" id="feedbackCancelBtn">Cancel</button>
+            <button class="btn-submit no-margin" type="button" id="feedbackSubmitBtn">Send</button>
+        </div>
+    </div>
 </div>
 
 <div class="modal" id="promptModal">

@@ -734,6 +734,313 @@
         renderDurationUsageList(durationUsage);
     }
 
+    // ---- Flow authoring time (ML-199) - the baseline for how long building a Flow by hand takes.
+    // Every table here shows median first with min-max beside it, never a bare mean: at baseline
+    // sample sizes a single interrupted run moves a mean visibly, and a wide min-max is the signal
+    // that the median isn't describing anything stable yet. See server/services/flowAuthoringStats.js
+    // for what counts as eligible/stale and why per-bar is blank on edit rows. ----
+
+    // Seconds are the storage unit but not a readable one past a minute or so - a bare "847" is
+    // hard to feel, "14m 7s" isn't. Sub-minute values stay in seconds rather than becoming "0m 42s".
+    function fmtSeconds(s) {
+        if (s === null || s === undefined) return '–';
+        if (s < 60) return `${s}s`;
+        const m = Math.floor(s / 60);
+        const rem = Math.round(s % 60);
+        return rem ? `${m}m ${rem}s` : `${m}m`;
+    }
+    // Per-bar/per-block figures stay in raw seconds with one decimal: they're small numbers where
+    // the decimal is the whole signal (4.2s vs 4.9s per bar is a real difference worth seeing).
+    function fmtRate(v) {
+        return (v === null || v === undefined) ? '–' : `${v}s`;
+    }
+    function fmtSpread(min, max, fmt) {
+        if (min === null || min === undefined || max === null || max === undefined) return '–';
+        return `${fmt(min)} – ${fmt(max)}`;
+    }
+
+    // One <td> trio per measure: median, then the min-max spread beneath it in the same cell, so a
+    // reader can't pick up the headline number without also seeing how much it's moving around.
+    function statCells(s) {
+        return `
+            <td>${s.n}</td>
+            <td>${fmtSeconds(s.active.median)}<div class="admin-stat-tile-sub">${fmtSpread(s.active.min, s.active.max, fmtSeconds)}</div></td>
+            <td>${fmtSeconds(s.bars.median)}<div class="admin-stat-tile-sub">${fmtSpread(s.bars.min, s.bars.max, fmtSeconds)}</div></td>
+            <td>${fmtRate(s.perBar.median)}<div class="admin-stat-tile-sub">${fmtSpread(s.perBar.min, s.perBar.max, fmtRate)}</div></td>
+            <td>${fmtRate(s.perBlock.median)}<div class="admin-stat-tile-sub">${fmtSpread(s.perBlock.min, s.perBlock.max, fmtRate)}</div></td>
+            <td>${s.meanBars ?? '–'}</td>`;
+    }
+    const STAT_HEADERS = `
+        <th>Runs</th><th>Active time</th><th>Bars time</th><th>Per bar</th><th>Per block</th><th>Avg bars</th>`;
+
+    function statTable(title, rows, firstColHeader, firstColFn, note) {
+        const body = rows.length
+            ? rows.map(r => `<tr><td>${escapeHtml(String(firstColFn(r)))}</td>${statCells(r)}</tr>`).join('')
+            : `<tr><td colspan="7" class="admin-stat-empty">No completed sessions yet.</td></tr>`;
+        return `
+            <div class="admin-stat-section-title">${escapeHtml(title)}</div>
+            ${note ? `<p class="admin-intro">${note}</p>` : ''}
+            <div class="admin-stat-table-wrap">
+                <table class="admin-stat-table">
+                    <thead><tr><th>${escapeHtml(firstColHeader)}</th>${STAT_HEADERS}</tr></thead>
+                    <tbody>${body}</tbody>
+                </table>
+            </div>`;
+    }
+
+    function renderFlowAuthoringStats(data) {
+        const el = document.getElementById('flowAuthoringStats');
+        const h = data.headline;
+        const o = data.outcomes;
+
+        if (!h.n) {
+            el.innerHTML = `<p class="admin-stat-empty">No completed manual Flow builds recorded yet.${
+                o.live || o.stale ? ` (${o.live} in progress, ${o.stale} never finished.)` : ''
+            } Build a Flow from &ldquo;Create your own&rdquo; through to Open player and it'll appear here.</p>`;
+            return;
+        }
+
+        const tiles = `
+            <div class="admin-stat-tiles">
+                <div class="admin-stat-tile">
+                    <div class="admin-stat-tile-label">Median time per flow</div>
+                    <div class="admin-stat-tile-value">${fmtSeconds(h.active.median)}</div>
+                    <div class="admin-stat-tile-sub">${fmtSpread(h.active.min, h.active.max, fmtSeconds)} &bull; ${h.n} run${h.n === 1 ? '' : 's'}</div>
+                </div>
+                <div class="admin-stat-tile">
+                    <div class="admin-stat-tile-label">Median on the Bars tab</div>
+                    <div class="admin-stat-tile-value">${fmtSeconds(h.bars.median)}</div>
+                    <div class="admin-stat-tile-sub">${fmtSpread(h.bars.min, h.bars.max, fmtSeconds)}</div>
+                </div>
+                <div class="admin-stat-tile">
+                    <div class="admin-stat-tile-label">Median per bar</div>
+                    <div class="admin-stat-tile-value">${fmtRate(h.perBar.median)}</div>
+                    <div class="admin-stat-tile-sub">${fmtSpread(h.perBar.min, h.perBar.max, fmtRate)}</div>
+                </div>
+                <div class="admin-stat-tile">
+                    <div class="admin-stat-tile-label">Median per block</div>
+                    <div class="admin-stat-tile-value">${fmtRate(h.perBlock.median)}</div>
+                    <div class="admin-stat-tile-sub">${fmtSpread(h.perBlock.min, h.perBlock.max, fmtRate)}</div>
+                </div>
+            </div>
+            <p class="admin-intro">Mean time per flow is ${fmtSeconds(h.active.mean)} against a median of ${fmtSeconds(h.active.median)}${
+                h.active.mean > h.active.median * 1.3
+                    ? ' &ndash; the mean sitting well above the median means at least one long run is pulling it up, so trust the median.'
+                    : '.'
+            } Raw wall clock (idle included) has a median of ${fmtSeconds(h.medianElapsedSeconds)}. Outcomes: ${o.completed} completed, ${o.abandoned} abandoned, ${o.stale} never finished${
+                o.live ? `, ${o.live} in progress` : ''
+            }${o.excluded ? `, ${o.excluded} excluded from these figures` : ''}${
+                o.abandonRate !== null ? ` &ndash; a ${o.abandonRate}% abandonment rate` : ''
+            }.</p>`;
+
+        const recentRows = data.recent.length
+            ? data.recent.map(r => `
+                <tr class="${r.isExcluded ? 'admin-stat-row-excluded' : ''}">
+                    <td>${escapeHtml(r.flowTitle || 'Untitled')}${r.flowDeleted ? ' <span class="admin-stat-pill">deleted</span>' : ''}</td>
+                    <td>${escapeHtml(r.email)}</td>
+                    <td>${r.kind}${r.creationSource === 'from_file' ? ' (import)' : ''}</td>
+                    <td>${r.outcome}</td>
+                    <td>${fmtSeconds(r.activeSeconds)}</td>
+                    <td>${fmtSeconds(r.barsActiveSeconds)}</td>
+                    <td>${r.totalBarsEnd}</td>
+                    <td>${r.blockCountEnd}</td>
+                    <td>+${r.blocksAdded}/~${r.blocksEdited}/-${r.blocksDeleted}</td>
+                    <td>${escapeHtml(r.deviceKind || '–')}</td>
+                    <td>${escapeHtml(r.appVersion || '–')}</td>
+                    <td><button class="admin-stat-exclude-btn" data-exclude-id="${r.id}" data-excluded="${r.isExcluded}" type="button">${r.isExcluded ? 'Include' : 'Exclude'}</button></td>
+                </tr>`).join('')
+            : `<tr><td colspan="12" class="admin-stat-empty">Nothing recorded yet.</td></tr>`;
+
+        el.innerHTML = `
+            ${tiles}
+            ${statTable('By app version', data.byVersion, 'Version', r => r.appVersion || 'unknown',
+                'The before/after comparison. Cut a release, keep building flows the same way, and compare the rows &ndash; anything else (a different device, a much longer piece) is a confound, which is what the two tables below are for.')}
+            ${statTable('Create vs edit', data.byKind, 'Session', r => `${r.kind}${r.creationSource === 'from_file' ? ' (import)' : ''}`,
+                'Initial creation against later editing stints, per ML-199. Per bar is blank for edits &ndash; see the note above.')}
+            ${statTable('By length of music', data.bySize, 'Flow length', r => r.bucket,
+                'Whether a longer piece costs proportionally more or there&rsquo;s a fixed overhead. If per-bar holds steady across the buckets, the cost is genuinely per bar and the redesign should attack bar entry; if it falls as flows get longer, the overhead is in the setup around it.')}
+            ${statTable('By device', data.byDevice, 'Device', r => r.deviceKind,
+                'Thumbing a phone and typing on a desktop are different activities &ndash; worth checking a change in the headline figure isn&rsquo;t just a change in which device was used.')}
+            <div class="admin-stat-section-title">Recent sessions</div>
+            <p class="admin-intro">The raw runs behind the figures above, newest first (100 max), so a surprising median can be traced to the run that caused it. Bar changes are shown as added/edited/deleted. Excluding a run drops it from every statistic above but keeps the row &ndash; use it for a run you know was interrupted, not one you simply dislike. A session with no heartbeat for ${data.staleAfterMinutes} minutes counts as abandoned.</p>
+            <div class="admin-stat-table-wrap">
+                <table class="admin-stat-table">
+                    <thead><tr>
+                        <th>Flow</th><th>Who</th><th>Type</th><th>Outcome</th><th>Active</th><th>Bars time</th>
+                        <th>Bars</th><th>Blocks</th><th>Changes</th><th>Device</th><th>Version</th><th></th>
+                    </tr></thead>
+                    <tbody>${recentRows}</tbody>
+                </table>
+            </div>`;
+
+        el.querySelectorAll('[data-exclude-id]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.dataset.excludeId;
+                const nowExcluded = btn.dataset.excluded !== 'true';
+                try {
+                    await apiCall(`/api/admin/usage/flow-authoring/${id}/excluded`, 'PUT', {
+                        isExcluded: nowExcluded,
+                        reason: nowExcluded ? 'Excluded from the admin panel' : null
+                    });
+                    await reloadFlowAuthoring();
+                } catch (error) {
+                    showToast(error.message);
+                }
+            });
+        });
+    }
+
+    async function reloadFlowAuthoring() {
+        renderFlowAuthoringStats(await apiCall('/api/admin/usage/flow-authoring'));
+    }
+
+    // ---- Feedback triage (ML-170). Filtering is server-side (see listFeedbackForAdmin): the list
+    // only grows, and the counts must be over everything rather than over the current filter, or
+    // "3 untriaged" would vanish the moment you filtered to something else. ----
+    const FEEDBACK_STATUS_LABELS = {
+        under_review: 'Under review', planned: 'Planned', in_progress: 'In progress',
+        not_progressing: 'Not progressing', resolved: 'Resolved'
+    };
+    const FEEDBACK_CATEGORY_LABELS = { bug: 'Bug', suggestion: 'Suggestion', comment: 'Comment' };
+
+    let feedbackFilterStatus = 'all';
+    let feedbackFilterCategory = 'all';
+    let feedbackById = new Map();
+    let editingFeedbackId = null;
+
+    function formatFeedbackDate(iso) {
+        const d = new Date(iso);
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}, ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+    // Enough to recognise an entry without opening it; the row is a handle, not the content.
+    function feedbackSnippet(message) {
+        const flat = message.replace(/\s+/g, ' ').trim();
+        return flat.length > 140 ? `${flat.slice(0, 140)}…` : flat;
+    }
+
+    function renderFeedbackList(data) {
+        const el = document.getElementById('feedbackList');
+        feedbackById = new Map(data.feedback.map(f => [f.id, f]));
+
+        // The untriaged count on the sidebar item, so a waiting item is visible without opening the
+        // tab at all - hidden entirely at zero rather than showing a "0" badge that reads as a
+        // notification when there's nothing to notify about.
+        const navCount = document.getElementById('feedbackNavCount');
+        if (navCount) {
+            navCount.innerText = String(data.counts.untriaged);
+            navCount.classList.toggle('hidden-group', !data.counts.untriaged);
+        }
+
+        if (!data.feedback.length) {
+            el.innerHTML = data.counts.total
+                ? '<p>Nothing matches these filters.</p>'
+                : '<p>No feedback yet. It arrives here from the app\'s hamburger menu &rarr; Send feedback.</p>';
+            return;
+        }
+
+        el.innerHTML = data.feedback.map(f => `
+            <div class="admin-feature" data-feedback-row="${f.id}" style="cursor:pointer;">
+                <div class="admin-feature-header">
+                    <div class="admin-feature-header-text">
+                        <h2>${escapeHtml(f.email)}</h2>
+                        <p class="admin-test-case-meta">${escapeHtml(formatFeedbackDate(f.createdAt))}${
+                            f.route ? ` &bull; ${escapeHtml(f.route)}` : ''
+                        }${f.appVersion ? ` &bull; v${escapeHtml(f.appVersion)}` : ''}${
+                            f.deviceKind ? ` &bull; ${escapeHtml(f.deviceKind)}` : ''
+                        }</p>
+                        <p class="admin-feedback-snippet">${escapeHtml(feedbackSnippet(f.message))}</p>
+                        <div class="admin-feedback-badges">
+                            <span class="admin-feedback-badge status-${f.status}">${escapeHtml(FEEDBACK_STATUS_LABELS[f.status] || f.status)}</span>
+                            <span class="admin-feedback-badge cat">${f.category ? escapeHtml(FEEDBACK_CATEGORY_LABELS[f.category]) : 'Untriaged'}</span>
+                            ${f.adminResponse ? '<span class="admin-feedback-badge cat">Replied</span>' : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        el.querySelectorAll('[data-feedback-row]').forEach(row => {
+            row.addEventListener('click', () => openFeedbackReview(Number(row.dataset.feedbackRow)));
+        });
+    }
+
+    function openFeedbackReview(id) {
+        const f = feedbackById.get(id);
+        if (!f) return;
+        editingFeedbackId = id;
+        document.getElementById('feedbackReviewMeta').innerText =
+            `${f.email} • ${formatFeedbackDate(f.createdAt)}`;
+        // innerText, not innerHTML - this is somebody else's prose going onto an admin page, and the
+        // CSS (.admin-feedback-message, white-space: pre-wrap) already preserves its line breaks.
+        document.getElementById('feedbackReviewMessage').innerText = f.message;
+        document.getElementById('feedbackReviewContext').innerText = [
+            f.route ? `Screen: ${f.route}` : null,
+            f.appVersion ? `Version: ${f.appVersion}` : null,
+            f.deviceKind ? `Device: ${f.deviceKind}` : null,
+            f.userAgent ? `UA: ${f.userAgent}` : null,
+            f.updatedAt !== f.createdAt ? `Last reviewed: ${formatFeedbackDate(f.updatedAt)}` : null
+        ].filter(Boolean).join('\n');
+        document.getElementById('feedbackReviewCategory').value = f.category || '';
+        document.getElementById('feedbackReviewStatus').value = f.status;
+        document.getElementById('feedbackReviewResponse').value = f.adminResponse || '';
+        document.getElementById('feedbackReviewModal').style.display = 'flex';
+    }
+    function closeFeedbackReview() {
+        document.getElementById('feedbackReviewModal').style.display = 'none';
+        editingFeedbackId = null;
+    }
+
+    async function saveFeedbackReview() {
+        if (editingFeedbackId === null) return;
+        const btn = document.getElementById('feedbackReviewSaveBtn');
+        btn.disabled = true;
+        btn.innerText = 'Saving...';
+        try {
+            await apiCall(`/api/admin/feedback/${editingFeedbackId}`, 'PUT', {
+                // '' is a real value here (back to untriaged), so it's sent as null rather than
+                // omitted - omitting would mean "leave it alone", which is a different intent.
+                category: document.getElementById('feedbackReviewCategory').value || null,
+                status: document.getElementById('feedbackReviewStatus').value,
+                adminResponse: document.getElementById('feedbackReviewResponse').value
+            });
+            closeFeedbackReview();
+            await reloadFeedback();
+            showToast('Feedback updated', 'success');
+        } catch (error) {
+            showToast(error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'Save';
+        }
+    }
+
+    function initFeedback() {
+        document.querySelectorAll('[data-feedback-status]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-feedback-status]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                feedbackFilterStatus = btn.dataset.feedbackStatus;
+                reloadFeedback().catch(e => showToast(e.message));
+            });
+        });
+        document.querySelectorAll('[data-feedback-category]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-feedback-category]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                feedbackFilterCategory = btn.dataset.feedbackCategory;
+                reloadFeedback().catch(e => showToast(e.message));
+            });
+        });
+        document.getElementById('feedbackReviewCancelBtn')?.addEventListener('click', closeFeedbackReview);
+        document.getElementById('feedbackReviewSaveBtn')?.addEventListener('click', saveFeedbackReview);
+    }
+
+    async function reloadFeedback() {
+        const params = new URLSearchParams({ status: feedbackFilterStatus, category: feedbackFilterCategory });
+        renderFeedbackList(await apiCall(`/api/admin/feedback?${params}`));
+    }
+
     // ---- App config (ML-47) - small admin-editable settings, e.g. the PostHog dashboard link,
     // stored in the app_config table so they can change without a release. Generic by key so
     // every other config value (the Flow defaults below included) reuses this one modal rather
@@ -778,6 +1085,8 @@
     function initConfigForm() {
         document.getElementById('editPosthogLinkBtn')?.addEventListener('click', () =>
             openConfigForm('posthog_dashboard_url', 'Edit PostHog dashboard link', lastPosthogLinkValue, 'URL', reloadPosthogLink));
+        document.getElementById('editFlowDefaultNameBtn')?.addEventListener('click', () =>
+            openConfigForm('flow_default_name', 'Edit default flow name', lastFlowDefaultName, 'Default name', reloadFlowDefaultName));
         document.getElementById('editFlowDefaultTimeSigBtn')?.addEventListener('click', () =>
             openConfigForm('flow_default_time_signature', 'Edit default time signature', lastFlowDefaultTimeSig, 'Time signature label (e.g. 4/4)', reloadFlowDefaultTimeSig));
         document.getElementById('editFlowDefaultBpmBtn')?.addEventListener('click', () =>
@@ -802,7 +1111,15 @@
 
     // ---- Flow defaults (ML-179 follow-up) - a brand new flow's first block, see
     // getFlowDefaultBlockSettings on the server for the fallback values used if any of these are
-    // missing or don't resolve (e.g. a time signature label that no longer matches the catalog). ----
+    // missing or don't resolve (e.g. a time signature label that no longer matches the catalog).
+    // Default name is a separate concern (getUniqueDefaultFlowName) - it can collide with an
+    // existing personal flow, where the others can't, so it gets its own resolution logic there. ----
+    let lastFlowDefaultName = '';
+    async function reloadFlowDefaultName() {
+        const { value } = await apiCall('/api/admin/config/flow_default_name');
+        lastFlowDefaultName = value || '';
+        document.getElementById('flowDefaultNameText').textContent = lastFlowDefaultName || 'Not set.';
+    }
     let lastFlowDefaultTimeSig = '';
     let lastFlowDefaultBpm = '';
     let lastFlowDefaultBarCount = '';
@@ -920,6 +1237,7 @@
         initTimeSigForm();
         initSpeedForm();
         initConfigForm();
+        initFeedback();
         document.getElementById('adminShell').classList.remove('hidden-group');
         try {
             const [backtest, featuresRes] = await Promise.all([
@@ -930,8 +1248,8 @@
             renderFeatures(backtest);
             renderFeaturesCatalog(featuresRes.features);
             await Promise.all([
-                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadPosthogLink(),
-                reloadFlowDefaultTimeSig(), reloadFlowDefaultBpm(), reloadFlowDefaultBarCount(), reloadFlowDefaultNoteValue()
+                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadFlowAuthoring(), reloadFeedback(), reloadPosthogLink(),
+                reloadFlowDefaultName(), reloadFlowDefaultTimeSig(), reloadFlowDefaultBpm(), reloadFlowDefaultBarCount(), reloadFlowDefaultNoteValue()
             ]);
         } catch (error) {
             document.getElementById('featuresCatalog').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`;

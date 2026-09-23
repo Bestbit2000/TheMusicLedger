@@ -37,6 +37,9 @@
         <button class="admin-nav-item" data-section="bands" type="button">Bands</button>
         <button class="admin-nav-item" data-section="metadata" type="button">Metadata lists</button>
         <button class="admin-nav-item" data-section="usage" type="button">Usage</button>
+        <!-- ML-170: the untriaged count rides on the nav item itself - the whole value of this tab
+             is noticing there's something waiting without having to go and look. -->
+        <button class="admin-nav-item" data-section="feedback" type="button">Feedback <span id="feedbackNavCount" class="admin-nav-count hidden-group"></span></button>
     </nav>
     <main class="admin-content">
         <section id="features-section" class="admin-section">
@@ -93,7 +96,18 @@
                 <div id="speedsList" class="admin-feature-list">Loading&hellip;</div>
             </div>
             <div id="flowdefaults-subtab" class="admin-subtab-panel hidden-group">
-                <p class="admin-intro">What a brand new Flow's very first block starts out as (ML-179 follow-up) - every "Create your own" always gets exactly one block, seeded with these values, same idea as Quick Play's own single default bar. Time signature must match a label in the Time signatures list above; note value must be one of quaver, crotchet, dotted-crotchet, minim, semibreve. An invalid or missing value here falls back to 4/4, 100bpm, 1 bar, crotchet rather than breaking flow creation.</p>
+                <p class="admin-intro">What a brand new Flow starts out as (ML-179 follow-up) - every "Create your own" gets this name pre-filled (a collision with an existing personal flow of the same name gets an incrementing number appended, e.g. "Untitled 1") and always gets exactly one block, seeded with the values below, same idea as Quick Play's own single default bar. Time signature must match a label in the Time signatures list above; note value must be one of semiquaver, quaver, dotted-quaver, crotchet, dotted-crotchet, minim, dotted-minim, semibreve. An invalid or missing value here falls back to 4/4, 100bpm, 1 bar, crotchet rather than breaking flow creation.</p>
+                <div class="admin-feature">
+                    <div class="admin-feature-header">
+                        <div class="admin-feature-header-text">
+                            <h2>Default name</h2>
+                            <p id="flowDefaultNameText">Loading&hellip;</p>
+                        </div>
+                        <div class="admin-feature-actions">
+                            <button class="btn-icon-edit" id="editFlowDefaultNameBtn" aria-label="Edit default flow name" type="button"><span class="material-symbols-outlined">edit</span></button>
+                        </div>
+                    </div>
+                </div>
                 <div class="admin-feature">
                     <div class="admin-feature-header">
                         <div class="admin-feature-header-text">
@@ -130,7 +144,7 @@
                 <div class="admin-feature">
                     <div class="admin-feature-header">
                         <div class="admin-feature-header-text">
-                            <h2>Note value (beat unit)</h2>
+                            <h2>Note value (beat note)</h2>
                             <p id="flowDefaultNoteValueText">Loading&hellip;</p>
                         </div>
                         <div class="admin-feature-actions">
@@ -157,6 +171,7 @@
             <div class="admin-subtabs">
                 <button class="admin-subtab-item active" data-subtab="usage-durations" type="button">Durations</button>
                 <button class="admin-subtab-item" data-subtab="usage-notevalues" type="button">Note values</button>
+                <button class="admin-subtab-item" data-subtab="usage-flowauthoring" type="button">Flow authoring time</button>
             </div>
             <div id="usage-durations-subtab" class="admin-subtab-panel">
                 <p class="admin-intro">Matched by value against <code>sessions.total_duration_minutes</code>, not a real reference (a session just stores whatever number of minutes was entered) - so this counts sessions whose duration happens to equal a preset, which is almost always because that preset was actually picked rather than typed by coincidence.</p>
@@ -166,8 +181,75 @@
                 <p class="admin-intro">Read-only - these five values are fixed by musical notation itself, not app data, so there's nothing to add/edit/delete here, just how many saved blocks currently use each. A block only counts once it's actually been opened and saved since this was added - see ML-109 for the historic-data caveat.</p>
                 <div id="noteValuesList" class="admin-feature-list">Loading&hellip;</div>
             </div>
+            <div id="usage-flowauthoring-subtab" class="admin-subtab-panel hidden-group">
+                <p class="admin-intro">ML-199 - how long building a Flow by hand actually takes, so a redesigned Bars tab has something measured to be compared against rather than an impression that it feels quicker. <strong>Active time</strong> is wall clock with idle trimmed out: the stopwatch stops after <span id="flowAuthIdleNote">60s</span> without input and whenever the page is hidden, so a session left open while the phone rang doesn't inflate the figure. <strong>Bars time</strong> is the part of that spent on the Bars tab (including the per-block inspector) - the bit the redesign is aimed at.</p>
+                <p class="admin-intro"><strong>Per bar and per block are both shown because they answer different questions.</strong> One 16-bar block and sixteen 1-bar blocks are the same music but very different data entry: per block measures the cost of the card UI, per bar measures the cost per unit of actual music, which is the only fair way to compare flows of different lengths. Per bar is blank for edit sessions on purpose - an edit touches an unknown subset of the flow's bars, so any per-bar figure there would be arithmetic rather than a measurement.</p>
+                <p class="admin-intro"><strong>Median leads, with min/max beside it.</strong> One interrupted run visibly moves a mean at this sample size. If min and max are miles apart, the median isn't describing anything stable yet - collect more runs before drawing a conclusion. Statistics cover completed, non-excluded sessions only; import-assisted (&ldquo;Create from file&rdquo;) runs are kept out of the headline and the breakdowns, and shown separately under Create vs edit.</p>
+                <div id="flowAuthoringStats">Loading&hellip;</div>
+            </div>
+        </section>
+        <!-- ML-170: triage. Two independent filter rows rather than one combined list of options -
+             status and category answer different questions ("what still needs doing" vs "what kind
+             of thing is it") and are routinely used together, e.g. untriaged + under review. -->
+        <section id="feedback-section" class="admin-section hidden-group">
+            <h1>Feedback</h1>
+            <p class="admin-intro">Submitted from the app's hamburger menu (ML-170). The form is a plain text box on purpose - <strong>category is set here, at triage</strong>, not by whoever sent it, so nothing stands between spotting a problem and writing it down. The screen, device and app version are captured automatically, which is what makes a one-line note still actionable a fortnight later.</p>
+            <div class="admin-subtabs">
+                <button class="admin-subtab-item active" data-feedback-status="all" type="button">All</button>
+                <button class="admin-subtab-item" data-feedback-status="under_review" type="button">Under review</button>
+                <button class="admin-subtab-item" data-feedback-status="planned" type="button">Planned</button>
+                <button class="admin-subtab-item" data-feedback-status="in_progress" type="button">In progress</button>
+                <button class="admin-subtab-item" data-feedback-status="not_progressing" type="button">Not progressing</button>
+                <button class="admin-subtab-item" data-feedback-status="resolved" type="button">Resolved</button>
+            </div>
+            <div class="admin-subtabs">
+                <button class="admin-subtab-item active" data-feedback-category="all" type="button">Any category</button>
+                <button class="admin-subtab-item" data-feedback-category="none" type="button">Untriaged</button>
+                <button class="admin-subtab-item" data-feedback-category="bug" type="button">Bug</button>
+                <button class="admin-subtab-item" data-feedback-category="suggestion" type="button">Suggestion</button>
+                <button class="admin-subtab-item" data-feedback-category="comment" type="button">Comment</button>
+            </div>
+            <div id="feedbackList" class="admin-feature-list">Loading&hellip;</div>
         </section>
     </main>
+</div>
+
+<!-- ML-170's review drawer. Shows the full submission plus the captured context, which the list
+     rows only summarise - a status decision usually depends on knowing which screen it came from. -->
+<div class="modal" id="feedbackReviewModal">
+    <div class="modal-content">
+        <h2>Review feedback</h2>
+        <p class="admin-test-case-meta" id="feedbackReviewMeta"></p>
+        <div class="admin-feedback-message" id="feedbackReviewMessage"></div>
+        <p class="admin-test-case-meta" id="feedbackReviewContext"></p>
+        <div class="form-group">
+            <label for="feedbackReviewCategory">Category</label>
+            <select id="feedbackReviewCategory">
+                <option value="">Untriaged</option>
+                <option value="bug">Bug</option>
+                <option value="suggestion">Suggestion</option>
+                <option value="comment">Comment</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="feedbackReviewStatus">Status</label>
+            <select id="feedbackReviewStatus">
+                <option value="under_review">Under review</option>
+                <option value="planned">Planned</option>
+                <option value="in_progress">In progress</option>
+                <option value="not_progressing">Not progressing</option>
+                <option value="resolved">Resolved</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="feedbackReviewResponse">Your response</label>
+            <textarea id="feedbackReviewResponse" rows="4" placeholder="Shown back to whoever sent this, once the My Feedback view ships."></textarea>
+        </div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="feedbackReviewCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="feedbackReviewSaveBtn" type="button">Save</button>
+        </div>
+    </div>
 </div>
 
 <div id="adminToast" class="toast"><span id="adminToastMsg"></span><button type="button" onclick="document.getElementById('adminToast').style.display='none';">X</button></div>

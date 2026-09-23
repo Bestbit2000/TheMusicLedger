@@ -96,3 +96,68 @@ body.admin-body { display: block; background: var(--bg-color); }
   .admin-run-row { flex-direction: column; }
   .admin-run-when { width: auto; }
 }
+
+/* ML-199 - Flow authoring time. Plain tables rather than the .admin-feature card stack the rest of
+   this panel uses: these are dense numeric comparisons (median/mean/min/max across several
+   groupings), and the whole point is reading DOWN a column to compare one app version against
+   another, which a stack of cards makes impossible. */
+.admin-stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); margin-bottom: var(--space-6); }
+.admin-stat-tile { border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-4); background: var(--input-bg); }
+.admin-stat-tile-label { font-size: var(--font-sm); color: var(--label-color); margin-bottom: 4px; }
+.admin-stat-tile-value { font-size: var(--font-lg); font-weight: 700; color: var(--text-color); }
+/* The spread (min-max) sits under every headline number deliberately - a median with no sense of
+   its spread invites a conclusion the sample can't support. */
+.admin-stat-tile-sub { font-size: var(--font-sm); color: var(--label-color); margin-top: 4px; }
+
+.admin-stat-section-title { font-size: var(--font-md); font-weight: 700; color: var(--text-color); margin: var(--space-6) 0 var(--space-2) 0; }
+.admin-stat-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: var(--space-5); }
+.admin-stat-table { border-collapse: collapse; width: 100%; font-size: var(--font-sm); }
+.admin-stat-table th, .admin-stat-table td { padding: var(--space-2) var(--space-3); text-align: right; border-bottom: 1px solid var(--input-border); white-space: nowrap; }
+.admin-stat-table th { color: var(--label-color); font-weight: 600; text-align: right; }
+.admin-stat-table th:first-child, .admin-stat-table td:first-child { text-align: left; }
+.admin-stat-table tbody tr:hover { background: var(--input-bg); }
+/* An excluded run stays visible and readable, just visibly not counted - the point of excluding is
+   to keep the evidence, so hiding the row would defeat it. */
+.admin-stat-row-excluded td { opacity: 0.45; text-decoration: line-through; }
+.admin-stat-empty { color: var(--label-color); font-size: var(--font-sm); padding: var(--space-4) 0; }
+.admin-stat-pill { display: inline-block; font-size: var(--font-sm); padding: 1px 7px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--label-color); }
+.admin-stat-exclude-btn { background: none; border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: 2px 8px; font-size: var(--font-sm); font-family: var(--font-sans); color: var(--label-color); cursor: pointer; }
+.admin-stat-exclude-btn:hover { color: var(--text-color); }
+
+/* ML-170 - Feedback triage. */
+.admin-nav-count { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--primary-action); color: #fff; font-size: var(--font-sm); text-align: center; }
+/* white-space: pre-wrap so a submission's own line breaks survive - people write bug reports as
+   short lists, and collapsing those into a paragraph makes them harder to act on. */
+.admin-feedback-message { white-space: pre-wrap; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4); color: var(--text-color); }
+.admin-feedback-snippet { color: var(--text-color); margin: 4px 0 0 0; }
+.admin-feedback-badges { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.admin-feedback-badge { font-size: var(--font-sm); padding: 1px 8px; border-radius: 10px; border: 1px solid transparent; }
+/* The colours ML-170 asks for, extended to the two statuses its own dropdown mentions but never
+   gave a colour to (in progress, resolved) - see 045_feedback.sql on reconciling the three lists.
+   Each pairs a tinted background with a readable foreground rather than relying on hue alone, so
+   the status is still distinguishable without colour vision. */
+.admin-feedback-badge.status-under_review { background: #fdf3d0; color: #7a5c00; }
+.admin-feedback-badge.status-planned { background: #d9f2df; color: #1c5c2e; }
+.admin-feedback-badge.status-in_progress { background: #d6e8fb; color: #14457a; }
+.admin-feedback-badge.status-not_progressing { background: #e6e6e6; color: #555; }
+.admin-feedback-badge.status-resolved { background: #dfd9f5; color: #3e2f7a; }
+.admin-feedback-badge.cat { background: var(--input-bg); color: var(--label-color); border-color: var(--input-border); }
+/* body.dark-mode, NOT a prefers-color-scheme media query: this app drives dark mode from a class
+   (see style.css and admin.js's own toggle), so a media query here would ignore the user's actual
+   choice and follow the OS instead. Same hues, darkened so they sit on a dark surface without
+   glowing - the light-mode tints are near-white and would be the brightest thing on the page. */
+body.dark-mode .admin-feedback-badge.status-under_review { background: #4a3c0c; color: #f2dd90; }
+body.dark-mode .admin-feedback-badge.status-planned { background: #17431f; color: #a7dcb5; }
+body.dark-mode .admin-feedback-badge.status-in_progress { background: #123a63; color: #a6cdf2; }
+body.dark-mode .admin-feedback-badge.status-not_progressing { background: #3a3a3a; color: #c4c4c4; }
+body.dark-mode .admin-feedback-badge.status-resolved { background: #2f2557; color: #c3b6f0; }
+
+/* Must come AFTER the base rules above, not folded into the existing max-width:700px block near the
+   top of this file - these have the same specificity, so whichever is declared last wins and a
+   narrow-screen override placed above the base rule would simply never apply.
+   Four stat tiles don't fit a phone once the fixed 220px sidebar has taken its share, and the
+   tables carry more columns than that leaves room for - they scroll sideways inside their own
+   wrapper (.admin-stat-table-wrap) rather than crushing every column to unreadable width. */
+@media (max-width: 700px) {
+  .admin-stat-tiles { grid-template-columns: repeat(2, 1fr); }
+}

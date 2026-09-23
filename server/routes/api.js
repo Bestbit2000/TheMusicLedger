@@ -23,6 +23,8 @@ import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, dupl
 import { importScoreFromFile } from '../services/scoreImport.js';
 import { isFeatureEnabled, listEnabledFeatureKeys } from '../services/features.js';
 import { getActiveTimerSession, upsertActiveTimerSession, clearActiveTimerSession } from '../services/timerSessions.js';
+import { startAuthoringSession, updateAuthoringSession } from '../services/flowAuthoringStats.js';
+import { submitFeedback } from '../services/feedback.js';
 
 const router = express.Router();
 
@@ -1222,6 +1224,67 @@ router.delete('/flows/blocks/:blockId', requireAuth, resolveAccount, async (req,
 router.post('/flows/blocks/:blockId/duplicate', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await duplicateFlowBlock(req.accountId, req.params.blockId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ========================================
+// FLOW AUTHORING STATS (Jira ML-199) - how long building a Flow actually takes, so manual bar
+// entry has a measured baseline to compare a redesigned Bars tab against. See
+// server/services/flowAuthoringStats.js for why the client owns the clock, and
+// db/migrations/044_flow_authoring_stats.sql for the table's own reasoning.
+//
+// These two routes are the only ones in this file whose failure is deliberately invisible to the
+// user: the client never surfaces an error from them (see flowStatsRequest in public/app.js).
+// Losing a measurement is an acceptable outcome; interrupting someone mid-flow to tell them a
+// stopwatch failed is not.
+// ========================================
+router.post('/flows/:id/authoring-sessions', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    // Gated at START only - see the migration's note on why an already-running session is still
+    // allowed to finalise after the feature is switched off. 204 rather than 403: "not recording"
+    // is a normal configuration, not an error the client did anything wrong to cause.
+    if (!(await isFeatureEnabled('flow_authoring_stats'))) return res.status(204).end();
+    const { kind, creationSource, deviceKind, idleThresholdSeconds, blockCountStart } = req.body || {};
+    res.json(await startAuthoringSession(req.accountId, req.params.id, {
+      kind, creationSource, deviceKind, idleThresholdSeconds, blockCountStart
+    }));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// Both the periodic heartbeat and the final write (the latter carries `outcome`) - one route, so a
+// session whose final write never arrives is still a correctly-shaped row. Not scoped under
+// /flows/:id: the session id alone identifies the row, and it deliberately outlives the flow it
+// measured (score_id is ON DELETE SET NULL), so requiring a still-existing flow id here would make
+// it impossible to finalise a session for a flow that was just deleted.
+router.put('/flows/authoring-sessions/:sessionId', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await updateAuthoringSession(req.accountId, req.params.sessionId, req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ========================================
+// FEEDBACK (Jira ML-170) - the capture half. Triage lives in server/routes/admin.js; the user's own
+// "My Feedback" list is a deliberate follow-up, not part of this.
+// ========================================
+router.post('/feedback', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    if (!(await isFeatureEnabled('feedback'))) {
+      return res.status(403).json({ error: 'Feedback is currently switched off.' });
+    }
+    // Only `message` is taken from the body. route/deviceKind come from the client too but are
+    // context, not content - and user_agent is read from the request header rather than the body,
+    // since the body's version is whatever a client chose to type. Everything else on the row
+    // (status, category, admin_response, app_version) is set by the server or by an admin later.
+    const { message, route, deviceKind } = req.body || {};
+    res.json(await submitFeedback(req.accountId, {
+      message, route, deviceKind, userAgent: req.get('user-agent')
+    }));
   } catch (error) {
     sendError(res, error);
   }

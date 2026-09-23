@@ -238,6 +238,10 @@
                 reorder: (flowId, orderedIds) => apiCall(`/api/flows/${flowId}/blocks/reorder`, 'PUT', { orderedIds })
             }
         },
+        // ML-170 - capture only. Triage is admin-panel-side (public/admin.js).
+        feedback: {
+            submit: (data) => apiCall('/api/feedback', 'POST', data)
+        },
         account: {
             get: () => apiCall('/api/account'),
             update: (data) => apiCall('/api/account', 'PUT', data),
@@ -599,6 +603,7 @@
     // than scattering ad-hoc appData.enabledFeatures checks around the file.
     function renderFeatureGates() {
         document.getElementById('metroBlkEntryFromFileBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('flow_import_from_file'));
+        document.getElementById('feedbackNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('feedback'));
     }
 
     // Archived organisations/teachers are hidden from pickers used for new
@@ -770,6 +775,100 @@
     });
 
     let promptCallback = null;
+    // ========================================
+    // FEEDBACK (Jira ML-170) - capture half. See db/migrations/045_feedback.sql for why this is a
+    // bare text box: categorisation is a triage decision, and a form that asks questions at the
+    // moment something goes wrong is a form people stop using.
+    //
+    // The draft is deliberately kept in memory across a cancel (feedbackDraft below). Typing out a
+    // bug, realising you want to check something first, and losing the text is exactly the failure
+    // this feature exists to prevent.
+    // ========================================
+    const FEEDBACK_MAX_LENGTH = 5000; // keep in sync with MAX_MESSAGE_LENGTH in server/services/feedback.js
+    let feedbackDraft = '';
+
+    // Same short-edge classification as ML-199's own flowStatsDeviceKind, so "mobile" means the
+    // same thing in a feedback row as it does in an authoring session and the two can be read
+    // together. Rotating a phone can't reclassify it mid-session.
+    function feedbackDeviceKind() {
+        const shortEdge = Math.min(window.innerWidth, window.innerHeight);
+        if (shortEdge < 600) return 'mobile';
+        if (shortEdge < 900) return 'tablet';
+        return 'desktop';
+    }
+
+    // The view name, not location.pathname: this is a single-page app where the URL barely changes,
+    // so the path would say "/" for every report ever filed. viewStack's top is the screen actually
+    // being looked at, which is the thing a reader of the report needs to know.
+    function feedbackCurrentRoute() {
+        const view = viewStack[viewStack.length - 1] || 'mainView';
+        return `${view} (${window.location.pathname})`;
+    }
+
+    function updateFeedbackCharCount() {
+        const el = document.getElementById('feedbackCharCount');
+        const input = document.getElementById('feedbackInput');
+        if (!el || !input) return;
+        const used = input.value.trim().length;
+        // Silent until it's close to mattering - a character counter on an empty box is just noise
+        // on a form whose whole point is being unceremonious.
+        el.innerText = used > FEEDBACK_MAX_LENGTH * 0.8 ? `${used} / ${FEEDBACK_MAX_LENGTH} characters` : '';
+    }
+
+    window.openFeedbackModal = function() {
+        if (!isFeatureEnabled('feedback')) return;
+        const input = document.getElementById('feedbackInput');
+        if (input) input.value = feedbackDraft;
+        updateFeedbackCharCount();
+        document.getElementById('feedbackModal').style.display = 'flex';
+        input?.focus();
+    };
+    function closeFeedbackModal() {
+        // Stash rather than clear - see the draft note above. Only a successful send empties it.
+        feedbackDraft = document.getElementById('feedbackInput')?.value || '';
+        document.getElementById('feedbackModal').style.display = 'none';
+    }
+    document.getElementById('feedbackCancelBtn')?.addEventListener('click', closeFeedbackModal);
+    document.getElementById('feedbackModal')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeFeedbackModal();
+    });
+    document.getElementById('feedbackInput')?.addEventListener('input', updateFeedbackCharCount);
+
+    document.getElementById('feedbackSubmitBtn')?.addEventListener('click', async () => {
+        const input = document.getElementById('feedbackInput');
+        const message = (input?.value || '').trim();
+        if (!message) {
+            showWarningToast('Enter some feedback first.');
+            input?.focus();
+            return;
+        }
+        if (message.length > FEEDBACK_MAX_LENGTH) {
+            showWarningToast(`Feedback is limited to ${FEEDBACK_MAX_LENGTH} characters - yours is ${message.length}.`);
+            return;
+        }
+        const btn = document.getElementById('feedbackSubmitBtn');
+        btn.disabled = true;
+        btn.innerText = 'Sending...';
+        try {
+            await API.feedback.submit({
+                message,
+                route: feedbackCurrentRoute(),
+                deviceKind: feedbackDeviceKind()
+            });
+            // Cleared only now that the server has it - a failed send leaves the text exactly where
+            // it was so it can be retried rather than retyped.
+            feedbackDraft = '';
+            if (input) input.value = '';
+            document.getElementById('feedbackModal').style.display = 'none';
+            showSuccessToast('Thanks - feedback sent');
+        } catch (error) {
+            showWarningToast('Error sending feedback: ' + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'Send';
+        }
+    });
+
     function showPromptModal(title, defaultVal, callback) {
         document.getElementById('promptTitle').innerText = title;
         const input = document.getElementById('promptInput');
@@ -847,6 +946,21 @@
         // carousel now (ML-166), not just the metronome - whichever slide was playing.
         if (viewStack[viewStack.length - 1] === 'flowPlayView' && viewName !== 'flowPlayView') {
             pauseAllFlowMedia();
+        }
+
+        // ML-199: leaving the Hub any way other than the two explicit success paths (Create's
+        // "Open player", Edit's Save - both finalise themselves just before navigating) is an
+        // abandoned attempt, and gets recorded as one rather than discarded. flowStatsFinish is
+        // idempotent, so this is a no-op whenever one of those already fired.
+        //
+        // Deliberately NOT the `viewStack[viewStack.length - 1] === ...` test the leave-checks above
+        // use: goBack() pops the stack BEFORE calling switchView, so on back navigation that test
+        // is already looking at the destination rather than the view being left, and never fires -
+        // which is precisely the case an abandoned attempt usually arrives by. The rendered display
+        // state is the one thing that's accurate however this view was reached.
+        const hubEl = document.getElementById('flowDetailsHubView');
+        if (hubEl && hubEl.style.display === 'block' && viewName !== 'flowDetailsHubView') {
+            flowStatsFinish('abandoned');
         }
 
         if (!isBack && viewStack[viewStack.length - 1] !== viewName) viewStack.push(viewName);
@@ -945,6 +1059,10 @@
         // tab; every other entry point falls back to Details.
         if (viewName === 'flowDetailsHubView') {
             document.getElementById('topTitle').innerText = flowEditMode === 'create' ? 'Create flow' : 'Edit flow';
+            // ML-199: the clock starts here, before setFlowEditTab (which reports the starting tab
+            // to it) and before the Hub's own async load - see flowStatsBegin for why the server
+            // row is created later than the clock.
+            flowStatsBegin();
             setFlowEditTab(flowEditRequestedTab || 'details');
             flowEditRequestedTab = null;
             loadAndRenderFlowDetailsHub();
@@ -4083,11 +4201,203 @@
             const created = await API.flows.create({});
             currentFlowId = created.id;
             flowEditMode = 'create';
+            flowStatsPendingKind = 'create';
             switchView('flowDetailsHubView');
         } catch (error) {
             showWarningToast('Error creating flow: ' + error.message);
         }
     }
+
+    // ========================================
+    // FLOW AUTHORING STATS (Jira ML-199) - measures how long building a Flow actually takes, so
+    // manual bar entry has a real baseline to compare a redesigned Bars tab against instead of an
+    // after-the-fact impression that it feels quicker. Server side:
+    // server/services/flowAuthoringStats.js; table reasoning: db/migrations/044_flow_authoring_stats.sql.
+    //
+    // Two rules this whole section is built around:
+    //
+    // 1. It measures ACTIVE time, not wall clock. The ticker below only counts a second if the page
+    //    is visible AND there's been some input within the last FLOW_STATS_IDLE_THRESHOLD_SECONDS.
+    //    Raw wall clock is kept too (elapsedSeconds) but it's a sanity check, never the headline -
+    //    one session where the phone rang would otherwise wreck an average built from a handful of
+    //    runs. Using a 1s interval rather than differencing timestamps also means a laptop suspend
+    //    simply doesn't tick, which is exactly the desired behaviour and awkward to get any other way.
+    //
+    // 2. It must never interfere with authoring. Every request here is fire-and-forget and silent -
+    //    no toasts, no thrown errors reaching a caller, no awaiting before a navigation. Losing a
+    //    measurement is fine; blocking or interrupting someone building a flow is not.
+    // ========================================
+    const FLOW_STATS_IDLE_THRESHOLD_SECONDS = 60;
+    const FLOW_STATS_HEARTBEAT_SECONDS = 15;
+
+    // Consumed-once handoffs, same pattern as flowEditRequestedTab above: an entry point sets these
+    // immediately before switchView, and the Hub's own switchView case reads and clears them. That
+    // keeps "which session is this" at the entry points that actually know the answer, rather than
+    // re-deriving it from flowEditMode - which stays 'create' even after you've come back from the
+    // player, and would otherwise log a second 'create' row for a flow that already exists.
+    let flowStatsPendingKind = null;
+    let flowStatsPendingSource = null;
+    let flowStats = null;
+
+    // Classified off the short edge so rotating a phone can't reclassify it as a tablet mid-session.
+    function flowStatsDeviceKind() {
+        const shortEdge = Math.min(window.innerWidth, window.innerHeight);
+        if (shortEdge < 600) return 'mobile';
+        if (shortEdge < 900) return 'tablet';
+        return 'desktop';
+    }
+
+    // Deliberately not apiCall(): that shows a "Not authenticated" toast and throws, both of which
+    // are exactly wrong for a background stopwatch. Also needs `keepalive`, so the last write can
+    // still go out as the page is being torn down. Swallows everything - see rule 2 above.
+    async function flowStatsRequest(endpoint, method, body, keepalive = false) {
+        try {
+            if (!auth.isAuthenticated) return null;
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method,
+                keepalive,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(auth.token ? { 'Authorization': `Bearer ${auth.token}` } : {})
+                },
+                body: JSON.stringify(body || {})
+            });
+            // 204 = the flow_authoring_stats feature gate is off. No body to parse, and nothing to
+            // report: not recording is a valid configuration, not a failure.
+            if (!response.ok || response.status === 204) return null;
+            return await response.json().catch(() => null);
+        } catch {
+            return null;
+        }
+    }
+
+    // Starts the client-side clock immediately, before the server row exists. The row is created a
+    // moment later by flowStatsRegister, once the block list has loaded and blockCountStart is
+    // actually knowable - but every duration reported is computed here, so that round trip costs
+    // nothing in accuracy. It only means started_at lags the "Create your own" tap by the length of
+    // one fetch, which nothing reads a duration from.
+    function flowStatsBegin() {
+        // Defensive: the Hub re-entered while a session is somehow still live shouldn't silently
+        // run two clocks. The old one is closed honestly rather than dropped.
+        if (flowStats) flowStatsFinish('abandoned');
+        const kind = flowStatsPendingKind || 'edit';
+        const creationSource = flowStatsPendingSource || 'manual';
+        flowStatsPendingKind = null;
+        flowStatsPendingSource = null;
+        flowStats = {
+            sessionId: null,
+            flowId: currentFlowId,
+            kind,
+            creationSource,
+            startedAtMs: Date.now(),
+            lastInputAtMs: Date.now(),
+            activeSeconds: 0,
+            barsActiveSeconds: 0,
+            blocksAdded: 0,
+            // A Set, not a counter: "average seconds per block" wants the number of distinct blocks
+            // touched, not the number of individual field tweaks (one block can easily take a dozen
+            // - bpm, bar count, time signature, a repeat flag), which would make the per-block
+            // figure meaningless.
+            blocksEditedIds: new Set(),
+            blocksDeleted: 0,
+            onBarsTab: false,
+            tickHandle: null,
+            heartbeatHandle: null
+        };
+        flowStats.tickHandle = setInterval(flowStatsTick, 1000);
+        flowStats.heartbeatHandle = setInterval(() => flowStatsSync(null, false), FLOW_STATS_HEARTBEAT_SECONDS * 1000);
+    }
+
+    function flowStatsTick() {
+        const s = flowStats;
+        if (!s) return;
+        if (document.visibilityState !== 'visible') return;
+        if (Date.now() - s.lastInputAtMs > FLOW_STATS_IDLE_THRESHOLD_SECONDS * 1000) return;
+        s.activeSeconds += 1;
+        if (s.onBarsTab) s.barsActiveSeconds += 1;
+    }
+
+    // Capture phase, so a handler that stops propagation (the block tiles do, for swipe/drag) can't
+    // make real input look like idleness. Registered once for the life of the page rather than
+    // per-session - cheap, and there's no teardown to get wrong.
+    ['pointerdown', 'keydown', 'wheel', 'input', 'change'].forEach(evt => {
+        document.addEventListener(evt, () => {
+            if (flowStats) flowStats.lastInputAtMs = Date.now();
+        }, { capture: true, passive: true });
+    });
+
+    function flowStatsPayload() {
+        const s = flowStats;
+        return {
+            activeSeconds: s.activeSeconds,
+            barsActiveSeconds: s.barsActiveSeconds,
+            elapsedSeconds: Math.round((Date.now() - s.startedAtMs) / 1000),
+            blockCountEnd: currentFlowBlocks.length,
+            totalBarsEnd: currentFlowBlocks.reduce((sum, b) => sum + (b.barCount || 0), 0),
+            blocksAdded: s.blocksAdded,
+            blocksEdited: s.blocksEditedIds.size,
+            blocksDeleted: s.blocksDeleted
+        };
+    }
+
+    // Called at the end of loadAndRenderFlowDetailsHub, i.e. once the real block list is in hand.
+    // A failure (or the feature being switched off) leaves sessionId null, and every later write
+    // quietly no-ops - the clock keeps running harmlessly and nothing is ever reported.
+    async function flowStatsRegister() {
+        const s = flowStats;
+        if (!s || s.sessionId) return;
+        const created = await flowStatsRequest(`/api/flows/${s.flowId}/authoring-sessions`, 'POST', {
+            kind: s.kind,
+            creationSource: s.creationSource,
+            deviceKind: flowStatsDeviceKind(),
+            idleThresholdSeconds: FLOW_STATS_IDLE_THRESHOLD_SECONDS,
+            blockCountStart: currentFlowBlocks.length
+        });
+        // Guard against the session having been finished/replaced while that request was in flight.
+        if (created && flowStats === s) s.sessionId = created.id;
+    }
+
+    function flowStatsSync(outcome, keepalive) {
+        const s = flowStats;
+        if (!s || !s.sessionId) return;
+        const body = flowStatsPayload();
+        if (outcome) body.outcome = outcome;
+        flowStatsRequest(`/api/flows/authoring-sessions/${s.sessionId}`, 'PUT', body, keepalive);
+    }
+
+    // Idempotent and synchronous up to the fire-and-forget write: the first call wins. That's what
+    // lets the two success paths (Create's "Open player", Edit's Save) mark themselves completed
+    // just before navigating, while switchView's generic leave-the-Hub hook marks everything else
+    // abandoned without having to know which case it's in.
+    function flowStatsFinish(outcome) {
+        const s = flowStats;
+        if (!s) return;
+        clearInterval(s.tickHandle);
+        clearInterval(s.heartbeatHandle);
+        flowStatsSync(outcome, false);
+        flowStats = null;
+    }
+
+    function flowStatsSetTab(tab) {
+        if (flowStats) flowStats.onBarsTab = tab === 'blocks';
+    }
+
+    function flowStatsNoteBlockAdded() {
+        if (flowStats) flowStats.blocksAdded += 1;
+    }
+    function flowStatsNoteBlockEdited(blockId) {
+        if (flowStats) flowStats.blocksEditedIds.add(String(blockId));
+    }
+    function flowStatsNoteBlockDeleted() {
+        if (flowStats) flowStats.blocksDeleted += 1;
+    }
+
+    // A closed tab or a backgrounded-then-killed mobile app has no reliable end event, so this
+    // deliberately sends the numbers WITHOUT an outcome rather than guessing 'abandoned' - the user
+    // may well be coming straight back (mobile fires pagehide on any app switch). The row stays
+    // 'in_progress' with its seconds intact; the admin view treats a stale in_progress row as
+    // abandoned, which is a reporting decision rather than a claim made here.
+    window.addEventListener('pagehide', () => flowStatsSync(null, true));
 
     // --- ML-79 Phase 1: "Create from file" (MusicXML/.mxl) - one upload-then-parse path shared by
     // both the real dropzone and the demo-score shortcut below (handleFromFileUpload), since they
@@ -4195,6 +4505,11 @@
         flowEditMode = 'edit';
         flowEditRequestedTab = 'blocks';
         flowFromFilePendingId = null;
+        // ML-199: still the flow's initial creation, just import-assisted rather than typed - so
+        // kind stays 'create' and creationSource carries the difference. Keeping these in one
+        // bucket would quietly drag the manual-entry baseline down towards import speed.
+        flowStatsPendingKind = 'create';
+        flowStatsPendingSource = 'from_file';
         switchView('flowDetailsHubView');
     });
 
@@ -4213,6 +4528,9 @@
     let flowEditActiveTab = 'details';
     function setFlowEditTab(tab) {
         flowEditActiveTab = tab;
+        // ML-199: bars_active_seconds only accumulates while this is the Bars tab - see the stats
+        // section above for why bar entry is measured separately from the journey as a whole.
+        flowStatsSetTab(tab);
         document.getElementById('flowEditTabDetailsBtn')?.classList.toggle('active', tab === 'details');
         document.getElementById('flowEditTabMediaBtn')?.classList.toggle('active', tab === 'media');
         document.getElementById('flowEditTabBlocksBtn')?.classList.toggle('active', tab === 'blocks');
@@ -4291,6 +4609,10 @@
         if (flowEditActiveTab === 'details') {
             if (flowNameRequiredToLeaveDetails()) setFlowEditTab('blocks');
         } else if (currentFlowId) {
+            // ML-199: this is the "through to the Play option" end point the ticket asks for -
+            // marked completed BEFORE switchView, so the leave-the-Hub hook in there finds the
+            // session already closed rather than recording it as abandoned.
+            flowStatsFinish('completed');
             switchView('flowPlayView');
         }
     });
@@ -4353,6 +4675,10 @@
             } : null;
             renderFlowDetailsHub();
             renderFlowBlocksStudio();
+            // ML-199: deliberately after the block list has landed - block_count_start is only
+            // knowable now, and an edit session that starts from 8 bars is a different measurement
+            // from one that starts from 1.
+            flowStatsRegister();
         } catch (error) {
             showWarningToast('Error loading flow: ' + error.message);
         }
@@ -4810,6 +5136,10 @@
     }
 
     async function flowUpdateBlock(blockId, data) {
+        // ML-199: recorded here rather than at each of the many callers - this is the single funnel
+        // every block field edit goes through, in both modes. Counted as a distinct block touched,
+        // not per field change: see flowStatsBegin's note on why.
+        flowStatsNoteBlockEdited(blockId);
         // Edit mode: merge the partial update straight onto the local object (same "merge only
         // what's present" shape the server's own updateFlowBlock does) - no API call until Save.
         if (flowEditMode === 'edit') {
@@ -5331,12 +5661,14 @@
         showConfirmModal('Delete bar', "Delete this bar? This can't be undone.", async () => {
             if (flowEditMode === 'edit') {
                 currentFlowBlocks = currentFlowBlocks.filter(b => b.id !== blockId);
+                flowStatsNoteBlockDeleted();
                 renderFlowBlocksStudio();
                 return;
             }
             try {
                 await API.flows.blocks.delete(blockId);
                 currentFlowBlocks = currentFlowBlocks.filter(b => b.id !== blockId);
+                flowStatsNoteBlockDeleted();
                 renderFlowBlocksStudio(); // not just renderFlowBlocksList - the total bars/runtime summary needs refreshing too
             } catch (error) {
                 showWarningToast('Error deleting bar: ' + error.message);
@@ -6928,12 +7260,14 @@
             const source = currentFlowBlocks[idx];
             const dup = { ...source, id: `tmp${++flowTempBlockCounter}`, fermatas: [...(source.fermatas || [])], rehearsalMarks: [...(source.rehearsalMarks || [])] };
             currentFlowBlocks.splice(idx + 1, 0, dup);
+            flowStatsNoteBlockAdded();
             renderFlowBlocksStudio();
             return;
         }
         try {
             const dup = await API.flows.blocks.duplicate(blockId);
             currentFlowBlocks.splice(idx + 1, 0, dup);
+            flowStatsNoteBlockAdded();
             renderFlowBlocksStudio(); // not just renderFlowBlocksList - the total bars/runtime summary needs refreshing too
         } catch (error) {
             showWarningToast('Error duplicating bar: ' + error.message);
@@ -6983,12 +7317,14 @@
         };
         if (flowEditMode === 'edit') {
             currentFlowBlocks.push(buildLocalFlowBlockDto(data));
+            flowStatsNoteBlockAdded();
             renderFlowBlocksStudio();
             return;
         }
         try {
             const newBlock = await API.flows.blocks.create(currentFlowId, data);
             currentFlowBlocks.push(newBlock);
+            flowStatsNoteBlockAdded();
             renderFlowBlocksStudio(); // not just renderFlowBlocksList - the total bars/runtime summary needs refreshing too
         } catch (error) {
             showWarningToast('Error adding bar: ' + error.message);
@@ -7092,6 +7428,12 @@
             currentFlowBlocks = freshBlocks.filter(b => !b.isLeadIn);
             flowEditSnapshot = null;
             showSuccessToast('Flow saved');
+            // ML-199: an edit session has no "Play" to end on - Edit mode replaces the whole
+            // Next-chain with Cancel/Save - so a successful Save is its completion. Cancel and the
+            // back button fall through to switchView's abandoned hook, which is the right reading:
+            // time was spent, nothing was kept. Finalised after the block sync above so the block
+            // counts reported are the ones that actually landed.
+            flowStatsFinish('completed');
             goBack();
         } catch (error) {
             showWarningToast('Error saving flow: ' + error.message);

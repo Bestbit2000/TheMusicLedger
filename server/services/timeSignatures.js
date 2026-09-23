@@ -169,16 +169,20 @@ export async function deleteOrArchiveTimeSignatureOption(id) {
   return inUse;
 }
 
-// ---- Note values (ML-109) - read-only: metronome_segments.note_value is a fixed 5-value CHECK
-// constraint (db/migrations/023_segment_note_value.sql), not a separate table, so there's nothing to
-// add/edit/delete here - just the ticket's own "identify usage" ask, one row per known value
-// (including ones with zero current usage) rather than only values that happen to appear already. ----
+// ---- Note values (ML-109) - read-only: metronome_segments.note_value is a fixed CHECK constraint
+// (db/migrations/023_segment_note_value.sql, widened to 8 values by 040_note_value_extended.sql),
+// not a separate table, so there's nothing to add/edit/delete here - just the ticket's own "identify
+// usage" ask, one row per known value (including ones with zero current usage) rather than only
+// values that happen to appear already. ----
 
 const NOTE_VALUE_LABELS = [
+  ['semiquaver', 'Semiquaver'],
   ['quaver', 'Quaver'],
+  ['dotted-quaver', 'Dotted quaver'],
   ['crotchet', 'Crotchet'],
   ['dotted-crotchet', 'Dotted crotchet'],
   ['minim', 'Minim'],
+  ['dotted-minim', 'Dotted minim'],
   ['semibreve', 'Semibreve']
 ];
 

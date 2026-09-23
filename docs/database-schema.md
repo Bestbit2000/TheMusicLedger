@@ -384,6 +384,109 @@ the running app itself. `features` is the exception as of `enabled`
 (ML-190, `042_features_enabled.sql`, see above) - the running app reads that
 one column, for whichever features opt into checking it.
 
+### Flow authoring stats (`ML-199`)
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `flow_authoring_sessions` | One row per Flow authoring attempt — how long it took to build or edit, so manual bar entry has a measured baseline to compare a redesigned UI against | id, account_id, score_id, flow_title, kind (create/edit), creation_source (manual/from_file), outcome (in_progress/completed/abandoned), started_at, ended_at, last_heartbeat_at, elapsed_seconds, active_seconds, bars_active_seconds, idle_threshold_seconds, block_count_start, block_count_end, total_bars_end, blocks_added, blocks_edited, blocks_deleted, device_kind, app_version, is_excluded, exclusion_reason |
+
+This exists to answer one question — *did the UI change actually make bar entry
+faster* — which is why almost every column here is about keeping numbers
+**comparable** rather than merely recording them:
+
+- **Two durations, deliberately.** `elapsed_seconds` is raw wall clock;
+  `active_seconds` is the same span with idle trimmed out (the client stops
+  counting after `idle_threshold_seconds` with no input, and whenever the page is
+  hidden). `active_seconds` is the headline figure — a single interrupted session
+  would otherwise wreck an average built from a handful of runs — and `elapsed`
+  sits beside it purely as a sanity check. **`idle_threshold_seconds` is stored
+  per row** so retuning that rule later makes the change visible in the data
+  instead of silently making new rows incomparable with old ones.
+- **`bars_active_seconds`** narrows to the Bars tab (including the per-block
+  inspector). ML-199 originally asked for a whole-journey figure, but Details and
+  Media are a few optional text fields by comparison, so bar entry is measured as
+  its own number rather than averaged in with them.
+- **`app_version`** (stamped server-side from `public/releases.json`, never sent
+  by the client) makes before/after a `GROUP BY` rather than a guess at which side
+  of a date a row falls on. Without it the whole table is much harder to use.
+- **The client owns the clock**, unlike `active_timer_sessions` (ML-197) where the
+  server projects forward from an anchor. Only the browser can see the
+  pointer/keyboard/visibility events that separate "entering bars" from "app left
+  open", so a server-side projection would measure the wrong thing very precisely.
+  The cost is that every value is clamped server-side rather than trusted.
+- **`score_id` is `ON DELETE SET NULL`, not `CASCADE`**, with `flow_title`
+  denormalised alongside it. Building a baseline means creating and binning a lot
+  of throwaway flows, and deleting the flow must not delete the measurement of how
+  long it took to build.
+- **Abandoned attempts are kept.** A create that never reached Play is a strong
+  signal about the UI; writing the row only on success would discard exactly that.
+  A row stays `in_progress` when there's no reliable end event (closed tab, killed
+  mobile app) — reporting treats a stale `in_progress` row as abandoned rather
+  than this table claiming it was.
+- **`blocks_edited` counts distinct blocks touched**, not individual field changes
+  — one block easily takes a dozen (bpm, bar count, time signature, a repeat
+  flag), which would make "seconds per block" meaningless. Lead-in blocks are
+  excluded from all the counts, same convention as `blockCount` everywhere else.
+
+Reported in the admin panel under **Usage → Flow authoring time**
+(`GET /api/admin/usage/flow-authoring`). Three reporting rules live in
+`server/services/flowAuthoringStats.js` and are stated on that page rather than
+left implicit: statistics cover **completed, non-excluded** sessions only; an
+`in_progress` row with no heartbeat for 10 minutes counts as **abandoned** (it
+has no end event, so its seconds are a lower bound, never averaged); and every
+figure leads with the **median plus min/max**, because at baseline sample sizes
+a single interrupted run visibly moves a mean and a wide min–max is the signal
+that the median isn't yet describing anything stable. Per-bar and per-block are
+both reported — one 16-bar block and sixteen 1-bar blocks are the same music but
+very different data entry, so per-block measures the cost of the card UI while
+per-bar measures cost per unit of actual music, which is the only fair way to
+compare flows of different lengths. Per-bar is deliberately NULL for edit
+sessions: an edit touches an unknown subset of the flow's bars, so a per-bar
+figure there would be arithmetic rather than measurement.
+
+Gated by the `flow_authoring_stats` feature row (checked when a session
+*starts*; one already running still finalises), and visible only to super admins.
+Deliberately not a PostHog concern (`public/analytics.js`) — that's autocapture,
+i.e. click counts with no notion of a session that starts here, ends there, and
+has a duration.
+
+### Feedback (`ML-170`)
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `feedback` | In-app feedback, submitted from the hamburger menu and triaged by super admins | id, account_id, message, category, status, admin_response, route, user_agent, device_kind, app_version, created_at, updated_at |
+
+- **The capture form is a bare text box.** `category` is NULL until an admin sets
+  it at triage — categorisation is a triage decision, and anything standing
+  between noticing a problem and recording it is a reason not to bother. NULL is
+  a real state ("untriaged", the admin list's own filter and the count badge on
+  the sidebar), not missing data, hence nullable rather than a `'none'` member of
+  the CHECK.
+- **The status set reconciles three inconsistent lists in the ticket.** ML-170
+  gives user badges (Planned/Under Review/Not progressing), admin filters (the
+  same three) and an admin dropdown that alone mentions `in_progress` and
+  `resolved` — neither of which had a badge colour or a filter anywhere. All five
+  are canonical here, each with a colour and a filter, so the lists can't drift
+  apart again.
+- **Context is captured silently at submit**, which is what lets a note written
+  in five seconds still be actionable a fortnight later. `route` stores the *view
+  name*, not `location.pathname` — this is a single-page app, so the path would
+  read `/` for every report ever filed. `device_kind` and `app_version` reuse
+  exactly what ML-199 established (short-edge classification; version read
+  server-side from `public/releases.json`, never client-supplied).
+- **Only `message` is accepted from the client.** Status, category,
+  `admin_response` and `app_version` are set by the server or by an admin, so a
+  submission can't choose its own priority or claim a version it isn't running.
+- **`updated_at` means "when was this last looked at"**, moved to `now()` by the
+  admin save (ML-170's own requirement), as distinct from `created_at`'s "when
+  was it written".
+
+Gated by the `feedback` feature row (client hides the menu entry, server refuses
+the POST). The user-facing **"My Feedback"** view — past submissions with status
+badges and the admin's reply — is a deliberate follow-up, not built yet;
+`admin_response` and `idx_feedback_account` exist now so it needs no migration of
+its own.
+
 ### Monetization
 
 | Table | Purpose | Key columns |

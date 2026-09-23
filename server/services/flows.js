@@ -145,11 +145,30 @@ export async function getFlowDefaultBlockSettings() {
   return { timeSignatureId: timeSignatureId !== null ? Number(timeSignatureId) : null, bpm, barCount, noteValue };
 }
 
+// Admin-editable default name for a brand new flow, same app_config pattern as the block settings
+// above (db/migrations/035_flow_default_name.sql, admin UI's "Flow defaults" subtab). Unlike the
+// block settings, this one can collide with an existing name, so it's resolved here rather than
+// just read verbatim: scoped to the account's own PERSONAL flows only (a same-named band or public
+// flow doesn't block reusing the name - "Untitled" is unique per personal library, not globally) -
+// "Untitled" if free, else the lowest-numbered "Untitled N" that isn't already taken.
+export async function getUniqueDefaultFlowName(accountId) {
+  const base = ((await getConfigValue('flow_default_name').catch(() => 'Untitled')) || '').trim() || 'Untitled';
+  const { rows } = await pool.query(
+    'SELECT title FROM scores WHERE owner_account_id = $1 AND owner_band_id IS NULL AND is_public = false AND title LIKE $2',
+    [accountId, `${base}%`]
+  );
+  const taken = new Set(rows.map(r => r.title));
+  if (!taken.has(base)) return base;
+  let n = 1;
+  while (taken.has(`${base} ${n}`)) n++;
+  return `${base} ${n}`;
+}
+
 // No name required up front, same "start playing immediately" feel as
 // createAdhocSetup - personal is the default/no-friction path; pass bandId to
 // create band-owned directly instead (equivalent to moveFlowToBand right after).
 export async function createFlow(accountId, { name, bandId } = {}) {
-  const effectiveName = (name && name.trim()) || 'Untitled flow';
+  const effectiveName = (name && name.trim()) || await getUniqueDefaultFlowName(accountId);
   if (bandId) {
     await assertBandMembership(accountId, bandId);
     const { rows } = await pool.query('INSERT INTO scores (title, owner_band_id) VALUES ($1, $2) RETURNING id', [effectiveName, bandId]);
