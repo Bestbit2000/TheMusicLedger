@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.23.0",
+    "date": "2026-09-23",
+    "changes": [
+      {
+        "key": "ML-199",
+        "type": "New",
+        "summary": "Record stats on flow for creation time"
+      },
+      {
+        "key": "ML-170",
+        "type": "New",
+        "summary": "Feedback option"
+      },
+      {
+        "key": "ML-132",
+        "type": "Fixes",
+        "summary": "switcing the tuner on in the metronoe basic screen reduces the volume of the beeps instantly"
+      }
+    ]
+  },
+  {
     "version": "0.22.0",
     "date": "2026-09-22",
     "changes": [
