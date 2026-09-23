@@ -5,13 +5,13 @@
 
 body.admin-body { display: block; background: var(--bg-color); }
 
-.admin-logged-out { max-width: var(--app-max-width); margin: 80px auto; text-align: center; padding: 0 var(--space-5); }
+.admin-logged-out { max-width: var(--app-max-width); margin: var(--space-10) auto; text-align: center; padding: 0 var(--space-5); }
 
 .admin-shell { display: flex; min-height: 100vh; }
 
 .admin-sidebar { width: 220px; flex-shrink: 0; background: var(--container-bg); border-right: 1px solid var(--input-border); padding: var(--space-5) 0; box-sizing: border-box; }
-.admin-sidebar-title { font-weight: bold; font-size: var(--font-lg); padding: 0 var(--space-5) var(--space-5) var(--space-5); color: var(--text-color); }
-.admin-nav-item { display: block; width: 100%; text-align: left; background: none; border: none; border-left: 3px solid transparent; padding: var(--space-3) var(--space-5); font-size: var(--font-base); font-weight: 600; font-family: var(--font-sans); color: var(--text-color); cursor: pointer; }
+.admin-sidebar-title { font-weight: var(--font-weight-bold); font-size: var(--font-lg); padding: 0 var(--space-5) var(--space-5) var(--space-5); color: var(--text-color); }
+.admin-nav-item { display: block; width: 100%; text-align: left; background: none; border: none; border-left: 3px solid transparent; padding: var(--space-3) var(--space-5); font-size: var(--font-base); font-weight: var(--font-weight-semibold); font-family: var(--font-sans); color: var(--text-color); cursor: pointer; }
 .admin-nav-item:disabled { color: var(--label-color); cursor: default; }
 .admin-nav-item.active { background: var(--secondary-color); border-left-color: var(--primary-action); }
 /* ML-110: the sidebar's own <a> (not <button>) needs its default link colour/underline reset to
@@ -22,10 +22,10 @@ body.admin-body { display: block; background: var(--bg-color); }
 
 .admin-content { flex: 1; min-width: 0; padding: var(--space-6) var(--space-7); box-sizing: border-box; max-width: 900px; } /* min-width: 0 lets wide tables scroll inside .admin-stat-table-wrap instead of widening the page (ML-204) */
 .admin-content h1 { margin-top: 0; color: var(--text-color); }
-.admin-intro { color: var(--label-color); font-size: var(--font-sm); margin-top: -10px; }
-.admin-intro code { background: var(--input-bg); padding: 1px 5px; border-radius: 4px; }
+.admin-intro { color: var(--label-color); font-size: var(--font-sm); margin: calc(-1 * var(--space-2)) 0 var(--space-3); }
+.admin-intro code { background: var(--input-bg); padding: var(--space-0-5) var(--space-1); border-radius: var(--radius-xs); }
 
-.admin-link { display: inline-block; color: var(--primary-action); font-weight: 700; font-size: var(--font-base); text-decoration: none; margin-bottom: var(--space-5); }
+.admin-link { display: inline-block; color: var(--primary-action-strong); font-weight: var(--font-weight-bold); font-size: var(--font-base); text-decoration: none; margin-bottom: var(--space-5); }
 .admin-link:hover { text-decoration: underline; }
 
 .admin-summary-grid { grid-template-columns: repeat(4, 1fr); margin-bottom: var(--space-7); }
@@ -36,7 +36,7 @@ body.admin-body { display: block; background: var(--bg-color); }
    Playback speeds) - a horizontal counterpart to .admin-nav-item's vertical sidebar tabs, since these
    four live inside one section rather than as separate top-level sidebar entries. */
 .admin-subtabs { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-5); border-bottom: 1px solid var(--input-border); }
-.admin-subtab-item { background: none; border: none; border-bottom: 3px solid transparent; padding: var(--space-3) var(--space-4); margin-bottom: -1px; font-size: var(--font-base); font-weight: 600; font-family: var(--font-sans); color: var(--label-color); cursor: pointer; }
+.admin-subtab-item { background: none; border: none; border-bottom: 3px solid transparent; padding: var(--space-3) var(--space-4); margin-bottom: -1px; /* token-audit-ignore: overlaps the row border so the active underline sits on it */ font-size: var(--font-base); font-weight: var(--font-weight-semibold); font-family: var(--font-sans); color: var(--label-color); cursor: pointer; }
 .admin-subtab-item.active { color: var(--text-color); border-bottom-color: var(--primary-action); }
 
 .admin-feature { border: 1px solid var(--input-border); border-radius: var(--radius-md); margin-bottom: var(--space-5); overflow: hidden; }
@@ -46,28 +46,28 @@ body.admin-body { display: block; background: var(--bg-color); }
    width screen, and a plain no-wrap flex row has nowhere else to put a sibling that doesn't fit. */
 .admin-feature-header { background: var(--input-bg); padding: var(--space-4); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: var(--space-3); }
 .admin-feature-header-text { flex: 1; min-width: 0; }
-.admin-feature-header h2 { margin: 0 0 4px 0; font-size: var(--font-md); color: var(--text-color); }
+.admin-feature-header h2 { margin: 0 0 var(--space-1) 0; font-size: var(--font-md); color: var(--text-color); }
 .admin-feature-header p { margin: 0; color: var(--label-color); font-size: var(--font-sm); }
 /* Bare <a> tags (band website links) otherwise fall back to the browser's default link blue/purple,
    which is very low-contrast against a dark background - every other in-app link already sets an
    explicit colour (e.g. .admin-test-case-meta a below), this one just hadn't yet. */
-.admin-feature-header p a { color: var(--info-color); }
+.admin-feature-header p a { color: var(--info-text); }
 .admin-feature-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
 .admin-feature-actions .btn-icon-edit,
 .admin-feature-actions .btn-icon-delete { width: 30px; height: 30px; }
-.admin-feature-actions .material-symbols-outlined { font-size: 16px; }
+.admin-feature-actions .material-symbols-outlined { font-size: var(--icon-sm); }
 
-.admin-level-select { flex-shrink: 0; max-width: 100%; box-sizing: border-box; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: var(--font-sm); }
+.admin-level-select { flex-shrink: 0; max-width: 100%; box-sizing: border-box; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--control-border); background: var(--input-bg); color: var(--text-color); font-size: var(--font-sm); }
 
 .admin-test-case { padding: var(--space-4); border-top: 1px solid var(--input-border); }
 .admin-test-case-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; gap: var(--space-3); }
-.admin-test-case-title { font-weight: 600; color: var(--text-color); }
-.admin-test-case-meta { font-size: var(--font-sm); color: var(--label-color); margin-top: 2px; }
-.admin-test-case-meta a { color: var(--info-color); }
+.admin-test-case-title { font-weight: var(--font-weight-semibold); color: var(--text-color); }
+.admin-test-case-meta { font-size: var(--font-sm); color: var(--label-color); margin-top: var(--space-0-5); }
+.admin-test-case-meta a { color: var(--info-text); }
 
-.admin-badge { display: inline-block; padding: 2px 10px; border-radius: var(--radius-pill); font-size: var(--font-xs); font-weight: bold; text-transform: uppercase; white-space: nowrap; }
-.admin-badge.pass { background: var(--success-color); color: #fff; }
-.admin-badge.fail { background: var(--danger-color); color: #fff; }
+.admin-badge { display: inline-block; padding: var(--space-0-5) var(--space-3); border-radius: var(--radius-pill); font-size: var(--font-xs); font-weight: var(--font-weight-bold); text-transform: uppercase; white-space: nowrap; }
+.admin-badge.pass { background: var(--success-color); color: var(--text-on-accent); }
+.admin-badge.fail { background: var(--danger-color); color: var(--text-on-accent); }
 .admin-badge.skipped { background: var(--nav-action); color: var(--nav-action-text); }
 .admin-badge.never { background: var(--input-border); color: var(--label-color); }
 
@@ -78,12 +78,12 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-run-when { color: var(--label-color); white-space: nowrap; width: 150px; flex-shrink: 0; }
 .admin-run-detail { flex: 1; min-width: 0; }
 .admin-run-duration { color: var(--label-color); font-size: var(--font-xs); margin-left: var(--space-2); }
-.admin-run-error { color: var(--danger-color); margin: 4px 0 0 0; font-family: monospace; font-size: var(--font-xs); white-space: pre-wrap; word-break: break-word; }
-.admin-run-notes { margin: 4px 0 0 0; font-size: var(--font-xs); color: var(--text-color); }
+.admin-run-error { color: var(--danger-text); margin: var(--space-1) 0 0 0; font-family: var(--font-mono); font-size: var(--font-xs); white-space: pre-wrap; word-break: break-word; }
+.admin-run-notes { margin: var(--space-1) 0 0 0; font-size: var(--font-xs); color: var(--text-color); }
 
 .admin-feature-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-2); }
-.admin-chip { background: var(--secondary-color); color: var(--text-color); border-radius: var(--radius-pill); padding: 2px 10px; font-size: var(--font-xs); font-weight: 600; }
-.admin-chip-empty { background: var(--input-border); color: var(--label-color); font-weight: normal; }
+.admin-chip { background: var(--secondary-color); color: var(--text-color); border-radius: var(--radius-pill); padding: var(--space-0-5) var(--space-3); font-size: var(--font-xs); font-weight: var(--font-weight-semibold); }
+.admin-chip-empty { background: var(--input-border); color: var(--label-color); font-weight: var(--font-weight-normal); }
 
 @media (max-width: 700px) {
   .admin-shell { flex-direction: column; }
@@ -102,55 +102,51 @@ body.admin-body { display: block; background: var(--bg-color); }
    groupings), and the whole point is reading DOWN a column to compare one app version against
    another, which a stack of cards makes impossible. */
 .admin-stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); margin-bottom: var(--space-6); }
-.admin-stat-tile { border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-4); background: var(--input-bg); }
-.admin-stat-tile-label { font-size: var(--font-sm); color: var(--label-color); margin-bottom: 4px; }
-.admin-stat-tile-value { font-size: var(--font-lg); font-weight: 700; color: var(--text-color); }
+/* ML-203: number first, then its spread, then the label - same value-over-caption order as the app's
+   stat cards and tiles (flex order only, so the markup still reads label-first). */
+.admin-stat-tile { display: flex; flex-direction: column; border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-4); background: var(--input-bg); }
+.admin-stat-tile-value { order: 1; }
+.admin-stat-tile-sub { order: 2; }
+.admin-stat-tile-label { order: 3; font-size: var(--font-sm); color: var(--label-color); margin-top: var(--space-1); }
+.admin-stat-tile-value { font-size: var(--font-lg); font-weight: var(--font-weight-bold); color: var(--text-color); }
 /* The spread (min-max) sits under every headline number deliberately - a median with no sense of
    its spread invites a conclusion the sample can't support. */
-.admin-stat-tile-sub { font-size: var(--font-sm); color: var(--label-color); margin-top: 4px; }
+.admin-stat-tile-sub { font-size: var(--font-sm); color: var(--label-color); margin-top: var(--space-1); }
 
-.admin-stat-section-title { font-size: var(--font-md); font-weight: 700; color: var(--text-color); margin: var(--space-6) 0 var(--space-2) 0; }
+.admin-stat-section-title { font-size: var(--font-md); font-weight: var(--font-weight-bold); color: var(--text-color); margin: var(--space-6) 0 var(--space-2) 0; }
 .admin-stat-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: var(--space-5); }
 .admin-stat-table { border-collapse: collapse; width: 100%; font-size: var(--font-sm); }
 .admin-stat-table th, .admin-stat-table td { padding: var(--space-2) var(--space-3); text-align: right; border-bottom: 1px solid var(--input-border); white-space: nowrap; }
-.admin-stat-table th { color: var(--label-color); font-weight: 600; text-align: right; }
+.admin-stat-table th { color: var(--label-color); font-weight: var(--font-weight-semibold); text-align: right; }
 .admin-stat-table th:first-child, .admin-stat-table td:first-child { text-align: left; }
 .admin-stat-table tbody tr:hover { background: var(--input-bg); }
 /* An excluded run stays visible and readable, just visibly not counted - the point of excluding is
    to keep the evidence, so hiding the row would defeat it. */
 .admin-stat-row-excluded td { opacity: 0.45; text-decoration: line-through; }
 .admin-stat-empty { color: var(--label-color); font-size: var(--font-sm); padding: var(--space-4) 0; }
-.admin-stat-pill { display: inline-block; font-size: var(--font-sm); padding: 1px 7px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--label-color); }
-.admin-stat-exclude-btn { background: none; border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: 2px 8px; font-size: var(--font-sm); font-family: var(--font-sans); color: var(--label-color); cursor: pointer; }
+.admin-stat-pill { display: inline-block; font-size: var(--font-sm); padding: var(--space-0-5) var(--space-2); border-radius: var(--radius-md); background: var(--input-bg); border: 1px solid var(--input-border); color: var(--label-color); }
+.admin-stat-exclude-btn { background: none; border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-0-5) var(--space-2); font-size: var(--font-sm); font-family: var(--font-sans); color: var(--label-color); cursor: pointer; }
 .admin-stat-exclude-btn:hover { color: var(--text-color); }
 
 /* ML-170 - Feedback triage. */
-.admin-nav-count { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--primary-action); color: #fff; font-size: var(--font-sm); text-align: center; }
+.admin-nav-count { display: inline-block; min-width: 18px; padding: 0 var(--space-1); border-radius: var(--radius-sm); background: var(--primary-action); color: var(--text-on-accent); font-size: var(--font-sm); text-align: center; }
 /* white-space: pre-wrap so a submission's own line breaks survive - people write bug reports as
    short lists, and collapsing those into a paragraph makes them harder to act on. */
 .admin-feedback-message { white-space: pre-wrap; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4); color: var(--text-color); }
-.admin-feedback-snippet { color: var(--text-color); margin: 4px 0 0 0; }
+.admin-feedback-snippet { color: var(--text-color); margin: var(--space-1) 0 0 0; }
 .admin-feedback-badges { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
-.admin-feedback-badge { font-size: var(--font-sm); padding: 1px 8px; border-radius: 10px; border: 1px solid transparent; }
+.admin-feedback-badge { font-size: var(--font-sm); padding: var(--space-0-5) var(--space-2); border-radius: var(--radius-md); border: 1px solid transparent; }
 /* The colours ML-170 asks for, extended to the two statuses its own dropdown mentions but never
    gave a colour to (in progress, resolved) - see 045_feedback.sql on reconciling the three lists.
    Each pairs a tinted background with a readable foreground rather than relying on hue alone, so
    the status is still distinguishable without colour vision. */
-.admin-feedback-badge.status-under_review { background: #fdf3d0; color: #7a5c00; }
-.admin-feedback-badge.status-planned { background: #d9f2df; color: #1c5c2e; }
-.admin-feedback-badge.status-in_progress { background: #d6e8fb; color: #14457a; }
-.admin-feedback-badge.status-not_progressing { background: #e6e6e6; color: #555; }
-.admin-feedback-badge.status-resolved { background: #dfd9f5; color: #3e2f7a; }
+.admin-feedback-badge.status-under_review { background: var(--status-amber-bg); color: var(--status-amber-fg); }
+.admin-feedback-badge.status-planned { background: var(--status-green-bg); color: var(--status-green-fg); }
+.admin-feedback-badge.status-in_progress { background: var(--status-blue-bg); color: var(--status-blue-fg); }
+.admin-feedback-badge.status-not_progressing { background: var(--status-grey-bg); color: var(--status-grey-fg); }
+.admin-feedback-badge.status-resolved { background: var(--status-purple-bg); color: var(--status-purple-fg); }
 .admin-feedback-badge.cat { background: var(--input-bg); color: var(--label-color); border-color: var(--input-border); }
-/* body.dark-mode, NOT a prefers-color-scheme media query: this app drives dark mode from a class
-   (see style.css and admin.js's own toggle), so a media query here would ignore the user's actual
-   choice and follow the OS instead. Same hues, darkened so they sit on a dark surface without
-   glowing - the light-mode tints are near-white and would be the brightest thing on the page. */
-body.dark-mode .admin-feedback-badge.status-under_review { background: #4a3c0c; color: #f2dd90; }
-body.dark-mode .admin-feedback-badge.status-planned { background: #17431f; color: #a7dcb5; }
-body.dark-mode .admin-feedback-badge.status-in_progress { background: #123a63; color: #a6cdf2; }
-body.dark-mode .admin-feedback-badge.status-not_progressing { background: #3a3a3a; color: #c4c4c4; }
-body.dark-mode .admin-feedback-badge.status-resolved { background: #2f2557; color: #c3b6f0; }
+/* Dark-mode variants come from tokens.css - body.dark-mode remaps the --status-* aliases (ML-198). */
 
 /* Must come AFTER the base rules above, not folded into the existing max-width:700px block near the
    top of this file - these have the same specificity, so whichever is declared last wins and a
@@ -165,15 +161,15 @@ body.dark-mode .admin-feedback-badge.status-resolved { background: #2f2557; colo
 /* ML-201 - Notifications */
 .admin-notification-body { white-space: pre-wrap; margin: var(--space-2) 0 0 !important; color: var(--text-color) !important; }
 .admin-feature-actions .btn-edit, .admin-feature-actions .btn-delete { min-height: 36px; padding: var(--space-1) var(--space-3); }
-.admin-feedback-badge.notification-status-live { background: #d9f2df; color: #1c5c2e; }
-.admin-feedback-badge.notification-status-scheduled { background: #d6e8fb; color: #14457a; }
-.admin-feedback-badge.notification-status-expired, .admin-feedback-badge.notification-status-withdrawn { background: #eee; color: #555; }
+.admin-feedback-badge.notification-status-live { background: var(--status-green-bg); color: var(--status-green-fg); }
+.admin-feedback-badge.notification-status-scheduled { background: var(--status-blue-bg); color: var(--status-blue-fg); }
+.admin-feedback-badge.notification-status-expired, .admin-feedback-badge.notification-status-withdrawn { background: var(--status-grey-bg); color: var(--status-grey-fg); }
 
 /* ML-204 - Flows (export/import between environments). Reuses .admin-stat-table for the list; the
    import preview is a scrolling list inside the standard modal, one card per flow in the file. */
 .admin-flows-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-bottom: var(--space-5); }
 .admin-flows-toolbar .btn-submit { width: auto; flex: 0 0 auto; padding-left: var(--space-5); padding-right: var(--space-5); }
-.admin-flows-filter { flex: 1 1 240px; min-width: 0; padding: var(--space-3); border: 1px solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font-family: var(--font-sans); font-size: var(--font-base); }
+.admin-flows-filter { flex: 1 1 240px; min-width: 0; padding: var(--space-3); border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font-family: var(--font-sans); font-size: var(--font-base); }
 .admin-flows-table td { vertical-align: top; }
 .admin-flows-table td:nth-child(2), .admin-flows-table th:nth-child(2), .admin-flows-table td:nth-child(3), .admin-flows-table th:nth-child(3) { text-align: left; white-space: normal; min-width: 110px; }
 .admin-flows-table td:nth-child(6), .admin-flows-table td:nth-child(7) { white-space: normal; }
@@ -181,8 +177,74 @@ body.dark-mode .admin-feedback-badge.status-resolved { background: #2f2557; colo
 .admin-flows-table .btn-edit { min-height: 36px; padding: var(--space-1) var(--space-3); }
 .admin-flows-import-modal { max-width: 640px; }
 #flowsImportList { max-height: 50vh; overflow-y: auto; margin: var(--space-4) 0; }
-.admin-flows-import-item { border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-3); display: flex; flex-direction: column; gap: 4px; }
-.admin-flows-import-item.has-errors { border-color: var(--danger-color); }
+.admin-flows-import-item { border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); }
+.admin-flows-import-item.has-errors { border-color: var(--danger-text); }
 .admin-flows-import-item p { margin: 0; font-size: var(--font-sm); }
-.admin-flows-import-error { color: var(--danger-color); }
+.admin-flows-import-error { color: var(--danger-text); }
 .admin-flows-import-note { color: var(--label-color); }
+
+/* ML-198 - Design (read-only design-system catalogue, admin-design.js). Page chrome only - every
+   example inside .admin-design-stage is rendered with the real app classes, untouched. */
+.admin-design-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-4); }
+.admin-design-theme { margin-bottom: 0; min-width: 200px; }
+.admin-design-toggle { display: flex; align-items: center; gap: var(--space-3); margin: 0; font-weight: var(--font-weight-semibold); }
+.admin-design-jumps { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-bottom: var(--space-5); }
+.admin-design-jump { margin-bottom: 0; }
+.admin-design-group { margin: var(--space-8) 0 var(--space-3); padding-bottom: var(--space-2); border-bottom: 2px solid var(--primary-action-strong); color: var(--text-color); }
+.admin-design-subhead { margin: var(--space-7) 0 var(--space-3); color: var(--text-color); }
+.admin-design-minihead { margin: var(--space-5) 0 var(--space-2); color: var(--label-color); font-size: var(--font-sm); }
+.admin-design-section { border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-5); margin-bottom: var(--space-5); background: var(--container-bg); }
+.admin-design-section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-3); }
+.admin-design-section-head h3 { margin: 0; color: var(--text-color); }
+.admin-design-section-head code, .admin-design-annotation code { font-family: var(--font-mono); font-size: var(--font-xs); color: var(--label-color); }
+.admin-design-example { padding: var(--space-4) 0; border-top: 1px dashed var(--input-border); }
+.admin-design-example:first-of-type { border-top: none; }
+.admin-design-example-label { font-size: var(--font-sm); font-weight: var(--font-weight-semibold); color: var(--label-color); margin-bottom: var(--space-2); }
+/* App components are built for the 500px app column - show them at that width. */
+.admin-design-stage { max-width: var(--app-max-width); padding: var(--space-4); border-radius: var(--radius-sm); background: var(--bg-color); color: var(--text-color); }
+.admin-design-stage-wide { max-width: none; }
+.admin-design-annotations { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-2); }
+.admin-design-annotation { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.admin-design-chip { font-size: var(--font-xs); padding: var(--space-0-5) var(--space-2); border-radius: var(--radius-pill); background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-color); }
+.admin-design-chip b { color: var(--label-color); font-weight: var(--font-weight-semibold); }
+.admin-design-chip-warn { background: var(--danger-tint); border-color: var(--danger-text); }
+.admin-design-show-spacing .admin-design-measured { outline: 1px dashed var(--info-text); outline-offset: 0; }
+.admin-design-show-spacing .admin-design-stage * { outline: 1px dotted var(--info-tint); }
+
+/* ML-210 overlays: every tap target (and its invisible 44px hit area), and the keyboard focus ring. */
+.admin-design-show-targets .admin-design-stage :is(button, a[href], input, select, textarea, [role="button"], [role="slider"]) { outline: 1px dashed var(--info-text); }
+.admin-design-show-targets .admin-design-stage :is(button, [role="button"])::before { outline: 1px dashed var(--danger-text); }
+.admin-design-show-focus .admin-design-stage :is(button, a[href], input, select, textarea, [role="button"], [role="slider"]) { box-shadow: var(--focus-ring); }
+
+/* Overlays render in place here rather than floating over the page. */
+.admin-design-static .modal { position: relative; inset: auto; display: flex; z-index: auto; padding: var(--space-6) var(--space-4); border-radius: var(--radius-sm); }
+.admin-design-static .toast { position: relative; left: auto; bottom: auto; transform: none; display: inline-flex; z-index: auto; }
+.admin-design-static .dropdown-menu { position: relative; top: auto; right: auto; z-index: auto; max-width: 240px; }
+.admin-design-static .anchored-popup { position: relative; display: inline-block; z-index: auto; }
+.admin-design-static .splash-screen { position: relative; inset: auto; z-index: auto; min-height: 260px; border-radius: var(--radius-sm); }
+.admin-design-static .splash-login-btn { display: block; }
+.admin-design-static .top-bar-sticky-group { position: relative; z-index: auto; }
+.admin-design-relative { position: relative; min-height: var(--touch-target); }
+.admin-design-badge-host { display: inline-block; min-height: 0; width: var(--space-6); height: var(--space-6); }
+.admin-design-sidebar { max-width: 220px; background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-sm); }
+.admin-design-dots .metro-tier { margin-left: var(--space-4); margin-right: var(--space-4); }
+.admin-design-bars { display: flex; align-items: flex-end; gap: var(--space-2); height: 120px; }
+.admin-design-bars .chart-bar { width: var(--space-7); }
+
+/* Foundations */
+.admin-design-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--space-3); }
+.admin-design-swatch { border: 1px solid var(--input-border); border-radius: var(--radius-sm); overflow: hidden; background: var(--container-bg); }
+.admin-design-swatch-color { height: 56px; border-bottom: 1px solid var(--input-border); }
+.admin-design-swatch-label { display: flex; flex-direction: column; gap: var(--space-0-5); padding: var(--space-2); font-size: var(--font-xs); color: var(--text-color); }
+.admin-design-swatch-label code { font-family: var(--font-mono); font-weight: var(--font-weight-bold); }
+.admin-design-swatch-label small, .admin-design-shadow small { color: var(--label-color); }
+.admin-design-token-value { font-family: var(--font-mono); font-size: var(--font-xs); color: var(--label-color); }
+.admin-design-table td { text-align: left; white-space: normal; vertical-align: middle; }
+.admin-design-table code { font-family: var(--font-mono); }
+.admin-design-space-bar { display: inline-block; height: var(--space-3); background: var(--primary-action); border-radius: var(--radius-2xs); }
+.admin-design-leading { display: inline-block; font-size: var(--font-sm); background: var(--primary-action-tint); }
+.admin-design-shape { display: flex; flex-direction: column; justify-content: center; gap: var(--space-1); min-height: 90px; padding: var(--space-3); background: var(--input-bg); border: 2px solid var(--primary-action-strong); font-size: var(--font-xs); }
+.admin-design-shadow { display: flex; flex-direction: column; justify-content: center; gap: var(--space-1); min-height: 90px; padding: var(--space-3); background: var(--container-bg); border-radius: var(--radius-sm); font-size: var(--font-xs); }
+.admin-design-motion-track { position: relative; display: inline-block; width: 160px; height: var(--space-4); border-radius: var(--radius-pill); background: var(--input-bg); border: 1px solid var(--input-border); }
+.admin-design-motion-dot { position: absolute; top: 50%; left: 0; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-circle); background: var(--primary-action); transform: translate(0, -50%); transition-property: left; transition-timing-function: var(--ease-standard); }
+.admin-design-table tr:hover .admin-design-motion-dot, .admin-design-table tr:active .admin-design-motion-dot { left: calc(100% - var(--space-3)); }

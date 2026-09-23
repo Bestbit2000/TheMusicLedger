@@ -1,0 +1,402 @@
+/* =============================================================================
+   The Music Ledger - design tokens (ML-198)
+
+   The single source of truth for every visual value in the app. Loaded before
+   style.css / admin.css on every page (index.html, admin.html, styleguide.html).
+
+   Three layers:
+     Layer 1 - primitives (--ds-*). Raw palette/scale values. Never referenced
+               directly by component CSS - only by Layer 2 below.
+     Layer 2 - project aliases (everything else in this file). Semantic names
+               that reference a Layer 1 primitive WITH a literal fallback, e.g.
+               --text-color: var(--ds-neutral-750, #333333). Dark mode remaps
+               Layer 2 onto different primitives (body.dark-mode below).
+     Layer 3 - components (style.css, admin.css, inline styles). Reference Layer 2
+               aliases ONLY - never a --ds-* primitive, never a raw value.
+
+   Full reference: specs/tokens/token-reference.md. Enforced by
+   `npm run token-audit` (scripts/token-audit.mjs).
+   ============================================================================= */
+
+:root {
+    /* -------------------------------------------------------------------------
+       LAYER 1 - primitives
+       ------------------------------------------------------------------------- */
+
+    /* Neutrals, light to dark */
+    --ds-neutral-0: #ffffff;
+    --ds-neutral-25: #fafafa;
+    --ds-neutral-50: #f4f7f6;
+    --ds-neutral-75: #ebedf0;
+    --ds-neutral-100: #e0e0e0;
+    --ds-neutral-150: #cfcfcf;
+    --ds-neutral-200: #cccccc;
+    --ds-neutral-300: #bbbbbb;
+    --ds-neutral-400: #aaaaaa;
+    --ds-neutral-500: #888888;
+    --ds-neutral-600: #777777;
+    --ds-neutral-650: #666666;
+    --ds-neutral-700: #444444;
+    --ds-neutral-750: #333333;
+    --ds-neutral-775: #2d333b;
+    --ds-neutral-800: #2c2c2c;
+    --ds-neutral-850: #1e1e1e;
+    --ds-neutral-875: #1a1a1a;
+    --ds-neutral-900: #121212;
+    --ds-neutral-950: #0a0a0a;
+    --ds-neutral-1000: #000000;
+
+    /* Brand */
+    --ds-gold-300: #f5d78e;
+    --ds-gold-500: #d4af37;
+    --ds-gold-950: #1a1400;
+    --ds-silver-300: #c0c0c8;
+    --ds-sage-50: #f1f8e9;
+
+    /* Hues */
+    --ds-blue-500: #2196f3;
+    --ds-orange-500: #ff9800;
+    --ds-amber-400: #ffca28;
+    --ds-amber-500: #ffc107;
+    --ds-red-500: #f44336;
+    --ds-green-400: #2ecc71;
+    --ds-green-500: #4caf50;
+    --ds-purple-500: #9c27b0;
+
+    /* Accessible text variants (ML-210) - the same hues, darkened for light surfaces / lightened for
+       dark ones until they pass 4.5:1 as text. Fills keep the -500 values above. */
+    --ds-gold-700: #7a6214;
+    --ds-red-700: #c62828;   --ds-red-300: #f7746a;
+    --ds-orange-800: #9a5b00;
+    --ds-blue-800: #1565c0;  --ds-blue-300: #6ab7f7;
+    --ds-green-800: #2e7d32; --ds-green-300: #66bb6a;
+    --ds-amber-800: #7a5c00;
+    --ds-purple-300: #ce93d8;
+    --ds-tuner-green-800: #1d7e46;
+    --ds-neutral-625: #6b6b6b;
+    --ds-neutral-550: #858585;
+    --ds-neutral-500b: #808080;
+
+    /* Heatmap ramps (data viz) */
+    --ds-heat-green-1: #9be9a8; --ds-heat-green-2: #40c463; --ds-heat-green-3: #30a14e; --ds-heat-green-4: #216e39;
+    --ds-heat-green-dark-1: #0e4429; --ds-heat-green-dark-2: #006d32; --ds-heat-green-dark-3: #26a641; --ds-heat-green-dark-4: #39d353;
+    --ds-heat-purple-1: #e1bee7; --ds-heat-purple-2: #ba68c8; --ds-heat-purple-3: #9c27b0; --ds-heat-purple-4: #6a1b9a;
+    --ds-heat-purple-dark-1: #4a148c; --ds-heat-purple-dark-2: #6a1b9a; --ds-heat-purple-dark-3: #8e24aa; --ds-heat-purple-dark-4: #ab47bc;
+
+    /* Translucent */
+    --ds-black-a20: rgba(0, 0, 0, 0.2);
+    --ds-black-a10: rgba(0, 0, 0, 0.1);
+    --ds-black-a30: rgba(0, 0, 0, 0.3);
+    --ds-black-a60: rgba(0, 0, 0, 0.6);
+    --ds-black-a85: rgba(0, 0, 0, 0.85);
+    --ds-white-a30: rgba(255, 255, 255, 0.3);
+    --ds-gold-a12: rgba(212, 175, 55, 0.12);
+    --ds-gold-a25: rgba(212, 175, 55, 0.25);
+    --ds-gold-a55: rgba(212, 175, 55, 0.55);
+    --ds-blue-a40: rgba(33, 150, 243, 0.4);
+    --ds-gold-a40: rgba(212, 175, 55, 0.4);
+    --ds-orange-a12: rgba(255, 152, 0, 0.12);
+    --ds-red-a12: rgba(244, 67, 54, 0.12);
+    --ds-blue-a12: rgba(33, 150, 243, 0.12);
+    --ds-green-a15: rgba(46, 204, 113, 0.15);
+    --ds-green-a28: rgba(46, 204, 113, 0.28);
+    --ds-green-a45: rgba(46, 204, 113, 0.45);
+
+    /* Status chip pairs (admin feedback/notification status) - light bg/fg, then dark bg/fg */
+    --ds-status-amber-bg: #fdf3d0; --ds-status-amber-fg: #7a5c00; --ds-status-amber-bg-dark: #4a3c0c; --ds-status-amber-fg-dark: #f2dd90;
+    --ds-status-green-bg: #d9f2df; --ds-status-green-fg: #1c5c2e; --ds-status-green-bg-dark: #17431f; --ds-status-green-fg-dark: #a7dcb5;
+    --ds-status-blue-bg: #d6e8fb; --ds-status-blue-fg: #14457a; --ds-status-blue-bg-dark: #123a63; --ds-status-blue-fg-dark: #a6cdf2;
+    --ds-status-grey-bg: #e6e6e6; --ds-status-grey-fg: #555555; --ds-status-grey-bg-dark: #3a3a3a; --ds-status-grey-fg-dark: #c4c4c4;
+    --ds-status-purple-bg: #dfd9f5; --ds-status-purple-fg: #3e2f7a; --ds-status-purple-bg-dark: #2f2557; --ds-status-purple-fg-dark: #c3b6f0;
+
+    /* Spacing - 4px grid */
+    --ds-size-0: 0;
+    --ds-size-2: 2px;
+    --ds-size-4: 4px;
+    --ds-size-8: 8px;
+    --ds-size-12: 12px;
+    --ds-size-16: 16px;
+    --ds-size-20: 20px;
+    --ds-size-24: 24px;
+    --ds-size-32: 32px;
+    --ds-size-40: 40px;
+    --ds-size-48: 48px;
+    --ds-size-64: 64px;
+
+    /* Type */
+    --ds-font-inter: 'Inter', 'Segoe UI', Tahoma, sans-serif;
+    --ds-font-mono: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+    --ds-font-music: 'Noto Music', serif;
+    --ds-text-0-6: 0.6rem;
+    --ds-text-0-65: 0.65rem;
+    --ds-text-0-8: 0.8rem;
+    --ds-text-0-95: 0.95rem;
+    --ds-text-1-1: 1.1rem;
+    --ds-text-1-3: 1.3rem;
+    --ds-text-1-6: 1.6rem;
+    --ds-text-2: 2rem;
+    --ds-text-3: 3rem;
+    --ds-weight-400: 400;
+    --ds-weight-600: 600;
+    --ds-weight-700: 700;
+    --ds-leading-1: 1;
+    --ds-leading-1-2: 1.2;
+    --ds-leading-1-45: 1.45;
+    --ds-leading-1-6: 1.6;
+
+    /* Radius */
+    --ds-radius-2: 2px;
+    --ds-radius-4: 4px;
+    --ds-radius-8: 8px;
+    --ds-radius-12: 12px;
+    --ds-radius-16: 16px;
+    --ds-radius-20: 20px;
+    --ds-radius-full: 999px;
+    --ds-radius-50pct: 50%;
+
+    /* Motion */
+    --ds-duration-80: 80ms;
+    --ds-duration-150: 150ms;
+    --ds-duration-250: 250ms;
+    --ds-duration-400: 400ms;
+    --ds-duration-1000: 1000ms;
+
+    /* -------------------------------------------------------------------------
+       LAYER 2 - project aliases (the only tokens components may use)
+       ------------------------------------------------------------------------- */
+
+    /* Surfaces */
+    --bg-color: var(--ds-neutral-50, #f4f7f6);            /* page background */
+    --container-bg: var(--ds-neutral-0, #ffffff);         /* main column, cards, modals, menus */
+    --secondary-color: var(--ds-sage-50, #f1f8e9);        /* quiet tinted panel (month nav, active admin tab) */
+    --input-bg: var(--ds-neutral-25, #fafafa);            /* inputs + tappable surfaces */
+    --surface-inverse: var(--ds-neutral-750, #333333);    /* dark toast / snackbar */
+    --overlay-bg: var(--ds-black-a85, rgba(0, 0, 0, 0.85)); /* modal scrim */
+    --media-bg: var(--ds-neutral-1000, #000000);              /* letterbox behind embedded video */
+    --splash-bg: var(--ds-neutral-950, #0a0a0a);                 /* login splash backdrop only */
+
+    /* Text */
+    --text-color: var(--ds-neutral-750, #333333);         /* body text */
+    --label-color: var(--ds-neutral-625, #6b6b6b);        /* secondary / muted text, labels, captions */
+    --text-on-accent: var(--ds-neutral-875, #1a1a1a);     /* text/icon on a saturated fill (danger, info, edit, pass) - dark, not white, for contrast (ML-210) */
+    --text-on-inverse: var(--ds-neutral-0, #ffffff);      /* text/icon on --surface-inverse (dark toasts) */
+    --text-on-warning: var(--ds-neutral-1000, #000000);   /* text on amber */
+    --splash-title-color: var(--ds-gold-300, #f5d78e);           /* login splash title only */
+    --splash-subtitle-color: var(--ds-neutral-150, #cfcfcf);     /* login splash subtitle only */
+
+    /* Borders */
+    --input-border: var(--ds-neutral-100, #e0e0e0);       /* every hairline/outline border and divider */
+    --control-off-bg: var(--ds-neutral-550, #858585);     /* toggle track off, neutral accent stripe (3:1 against the page, ML-210) */
+    --control-border: var(--ds-neutral-550, #858585);     /* edge of a TAPPABLE surface (tile, input, value box) - 3:1 against the page so "lighter = clickable" is visible (ML-210). Display cards keep --input-border */
+    --control-knob: var(--ds-neutral-0, #ffffff);             /* toggle knob - white in both themes */
+
+    /* Actions & interactive states */
+    --primary-action: var(--ds-gold-500, #d4af37);        /* primary buttons, selected outlines, accents */
+    --primary-action-text: var(--ds-gold-950, #1a1400);   /* text on --primary-action */
+    --primary-action-strong: var(--ds-gold-700, #7a6214);  /* gold TEXT and thin gold outlines (selected tiles, links, focus ring) - passes 4.5:1; fills keep --primary-action (ML-210) */
+    --primary-action-tint: var(--ds-gold-a12, rgba(212, 175, 55, 0.12)); /* selected/hover wash */
+    --primary-action-border-soft: var(--ds-gold-a40, rgba(212, 175, 55, 0.4)); /* quiet gold outline around a featured card */
+    --selection-tint: var(--ds-orange-a12, rgba(255, 152, 0, 0.12)); /* wash behind a --selection-color outline (lead-in) */
+    --danger-tint: var(--ds-red-a12, rgba(244, 67, 54, 0.12));  /* wash behind a danger/warning tile or icon */
+    --info-tint: var(--ds-blue-a12, rgba(33, 150, 243, 0.12));  /* wash behind an info-coloured icon */
+    --primary-action-glow: var(--ds-gold-a55, rgba(212, 175, 55, 0.55)); /* pulsing glow on a live/active element (fermata hold) */
+    --primary-action-glow-soft: var(--ds-gold-a25, rgba(212, 175, 55, 0.25)); /* resting glow around a highlighted element */
+    --primary-action-gradient-end: var(--ds-gold-300, #f5d78e);  /* second stop of the gold gradient (splash sign-in button) */
+    --nav-action: var(--ds-silver-300, #c0c0c8);          /* navigation / neutral buttons */
+    --nav-action-text: var(--ds-neutral-875, #1a1a1a);           /* text on --nav-action */
+    --link-color: var(--ds-gold-700, #7a6214);                   /* inline text links */
+    --selection-color: var(--ds-orange-500, #ff9800);     /* toggles on, edit buttons */
+    --button-overlay: var(--ds-white-a30, rgba(255, 255, 255, 0.3)); /* button sitting on a coloured toast */
+    --opacity-disabled: 0.5;                                     /* any disabled control */
+    --opacity-muted: 0.6;                                        /* de-emphasised text/content */
+
+    /* Feedback */
+    --info-color: var(--ds-blue-500, #2196f3);                   /* info toasts, informational highlights */
+    --warning-color: var(--ds-amber-500, #ffc107);               /* warning toasts, caution icons */
+    --danger-color: var(--ds-red-500, #f44336);                  /* destructive actions, errors, unread dots */
+    --success-color: var(--ds-green-500, #4caf50);               /* success states, completed status */
+    --danger-text: var(--ds-red-700, #c62828);             /* red text/icons (destructive text buttons, delete icons) */
+    --selection-text: var(--ds-orange-800, #9a5b00);       /* orange text/icons/outlines (edit icon, lead-in) */
+    --info-text: var(--ds-blue-800, #1565c0);              /* blue text/icons */
+    --success-text: var(--ds-green-800, #2e7d32);          /* green text/icons */
+    --warning-text: var(--ds-amber-800, #7a5c00);          /* amber text/icons */
+    --tuner-in-tune-text: var(--ds-tuner-green-800, #1d7e46); /* tuner in-tune state as text/outline */
+    --tuner-in-tune-green: var(--ds-green-400, #2ecc71);         /* tuner in-tune state only (brighter than --success-color) */
+    --tuner-in-tune-tint: var(--ds-green-a28, rgba(46, 204, 113, 0.28)); /* tuner card background while in tune */
+    --tuner-in-tune-zone: var(--ds-green-a45, rgba(46, 204, 113, 0.45)); /* in-tune band on the needle track */
+    --tuner-in-tune-zone-soft: var(--ds-green-a15, rgba(46, 204, 113, 0.15)); /* in-tune band on the pitch graph */
+
+    /* Status chips (admin feedback / notification status) */
+    --status-amber-bg: var(--ds-status-amber-bg, #fdf3d0);   /* under review */
+    --status-amber-fg: var(--ds-status-amber-fg, #7a5c00); /* text on --status-amber-bg */
+    --status-green-bg: var(--ds-status-green-bg, #d9f2df);   /* planned, live */
+    --status-green-fg: var(--ds-status-green-fg, #1c5c2e); /* text on --status-green-bg */
+    --status-blue-bg: var(--ds-status-blue-bg, #d6e8fb);     /* in progress, scheduled */
+    --status-blue-fg: var(--ds-status-blue-fg, #14457a); /* text on --status-blue-bg */
+    --status-grey-bg: var(--ds-status-grey-bg, #e6e6e6);     /* not progressing, expired, withdrawn */
+    --status-grey-fg: var(--ds-status-grey-fg, #555555); /* text on --status-grey-bg */
+    --status-purple-bg: var(--ds-status-purple-bg, #dfd9f5); /* resolved */
+    --status-purple-fg: var(--ds-status-purple-fg, #3e2f7a); /* text on --status-purple-bg */
+
+    /* Data viz */
+    --cat-practise: var(--ds-green-500, #4caf50);                /* Practise category - chips, chart bars, history stripe */
+    --cat-rehearsal: var(--ds-blue-500, #2196f3);                /* Rehearsal category */
+    --cat-lesson: var(--ds-purple-500, #9c27b0);                 /* Lesson category */
+    --cat-performance: var(--ds-orange-500, #ff9800);            /* Performance category */
+    --cat-practise-text: var(--ds-green-800, #2e7d32);     /* category colour as TEXT (history rows, active filter pill) */
+    --cat-rehearsal-text: var(--ds-blue-800, #1565c0);     /* category colour as text */
+    --cat-lesson-text: var(--ds-purple-500, #9c27b0);      /* category colour as text */
+    --cat-performance-text: var(--ds-orange-800, #9a5b00); /* category colour as text */
+    --chart-hours: var(--ds-green-500, #4caf50);                 /* "Hours" streak histogram bars */
+    --chart-days: var(--ds-amber-500, #ffc107);                  /* "Days" streak histogram bars */
+    --chart-sessions: var(--ds-purple-500, #9c27b0);             /* "Sessions" streak histogram bars */
+    --heat-time-0: var(--ds-neutral-75, #ebedf0);                /* practice-time heatmap, empty day (0-4 = intensity ramp) */
+    --heat-time-1: var(--ds-heat-green-1, #9be9a8);              /* intensity step 1 */
+    --heat-time-2: var(--ds-heat-green-2, #40c463);              /* intensity step 2 */
+    --heat-time-3: var(--ds-heat-green-3, #30a14e);              /* intensity step 3 */
+    --heat-time-4: var(--ds-heat-green-4, #216e39);              /* intensity step 4 (max) */
+    --heat-sess-0: var(--ds-neutral-75, #ebedf0);                /* session-count heatmap, empty day (0-4 = intensity ramp) */
+    --heat-sess-1: var(--ds-heat-purple-1, #e1bee7);             /* intensity step 1 */
+    --heat-sess-2: var(--ds-heat-purple-2, #ba68c8);             /* intensity step 2 */
+    --heat-sess-3: var(--ds-heat-purple-3, #9c27b0);             /* intensity step 3 */
+    --heat-sess-4: var(--ds-heat-purple-4, #6a1b9a);             /* intensity step 4 (max) */
+
+    /* Spacing */
+    --space-0: var(--ds-size-0, 0);                              /* reset only */
+    --space-0-5: var(--ds-size-2, 2px);   /* hairline gaps (heatmap cells, stacked labels) */
+    --space-1: var(--ds-size-4, 4px);                            /* icon-to-label gaps, tight stacks */
+    --space-2: var(--ds-size-8, 8px);                            /* default gap between related items; label-to-input */
+    --space-3: var(--ds-size-12, 12px);                          /* inner padding of compact controls; list row padding */
+    --space-4: var(--ds-size-16, 16px);                          /* standard button padding; gap between stacked blocks */
+    --space-5: var(--ds-size-20, 20px);                          /* container padding; gap between form groups */
+    --space-6: var(--ds-size-24, 24px);                          /* modal/card padding; space before a new group */
+    --space-7: var(--ds-size-32, 32px);                          /* section separation */
+    --space-8: var(--ds-size-40, 40px);                          /* large section separation */
+    --space-9: var(--ds-size-48, 48px);                          /* touch-target-sized offsets */
+    --space-10: var(--ds-size-64, 64px);                         /* page-level whitespace (empty states, logged-out screens) */
+
+    /* Typography */
+    --font-sans: var(--ds-font-inter, 'Inter', 'Segoe UI', Tahoma, sans-serif); /* all UI text */
+    --font-mono: var(--ds-font-mono, monospace);                 /* code, IDs, timestamps in admin */
+    --font-music: var(--ds-font-music, 'Noto Music', serif);     /* Unicode musical symbols (segno, coda) */
+    --font-2xs: var(--ds-text-0-6, 0.6rem);                      /* heatmap day labels only */
+    --font-xs: var(--ds-text-0-65, 0.65rem);                     /* micro labels, badges, chart axes */
+    --font-sm: var(--ds-text-0-8, 0.8rem);                       /* secondary text, captions, chips, metadata */
+    --font-base: var(--ds-text-0-95, 0.95rem);                   /* body text, list rows, inputs */
+    --font-md: var(--ds-text-1-1, 1.1rem);                       /* buttons, card titles, top-bar title */
+    --font-lg: var(--ds-text-1-3, 1.3rem);                       /* large buttons, modal titles, stat values */
+    --font-xl: var(--ds-text-1-6, 1.6rem);                       /* hero values (current piece, tuner octave) */
+    --font-2xl: var(--ds-text-2, 2rem);                          /* page titles, splash title */
+    --font-3xl: var(--ds-text-3, 3rem);                          /* giant readouts (tuner note) */
+    --font-weight-normal: var(--ds-weight-400, 400);             /* body text */
+    --font-weight-semibold: var(--ds-weight-600, 600);           /* form labels, nav/tab items, modal titles */
+    --font-weight-bold: var(--ds-weight-700, 700);               /* buttons, titles, emphasised values */
+    --line-height-tight: var(--ds-leading-1, 1);                 /* icon glyphs, single-line numeric readouts */
+    --line-height-snug: var(--ds-leading-1-2, 1.2);              /* multi-line button labels, chart labels */
+    --line-height-base: var(--ds-leading-1-45, 1.45);            /* body paragraphs, notifications */
+    --line-height-relaxed: var(--ds-leading-1-6, 1.6);           /* long-form reading text (release notes) */
+
+    /* Icon glyph sizes (Material Symbols font-size) */
+    --icon-sm: var(--ds-size-16, 16px);                          /* inline icons inside text or chips */
+    --icon-md: var(--ds-size-20, 20px);                          /* default Material Symbols size */
+    --icon-lg: var(--ds-size-24, 24px);                          /* icon-only buttons */
+    --icon-xl: var(--ds-size-32, 32px);                          /* tool tiles, hero icons */
+
+    /* Radius - see specs/foundations/radius.md. --radius-md is THE button radius. */
+    --radius-2xs: var(--ds-radius-2, 2px);                       /* heatmap cells, chart bar tops */
+    --radius-xs: var(--ds-radius-4, 4px);                        /* inline code, tiny tags, toast buttons */
+    --radius-sm: var(--ds-radius-8, 8px);                        /* menus, toasts, popups, small inset boxes */
+    --radius-md: var(--ds-radius-12, 12px);                      /* EVERY button and tile, list rows, stat cards */
+    --radius-lg: var(--ds-radius-16, 16px);                      /* inputs, choice options, picker tiles, feature cards */
+    --radius-xl: var(--ds-radius-20, 20px);                      /* modals, flow cards, block boxes */
+    --radius-pill: var(--ds-radius-full, 999px);                 /* badges, chips, filter pills, toggle tracks - never a button */
+    --radius-circle: var(--ds-radius-50pct, 50%);                /* icon-only circular buttons, dots, avatars */
+
+    /* Elevation */
+    --shadow-sm: 0 2px 4px var(--ds-black-a20, rgba(0, 0, 0, 0.2)); /* small raised controls (toggle knob, scroll buttons) */
+    --shadow-md: 0 2px 8px var(--ds-black-a10, rgba(0, 0, 0, 0.1)); /* top bar, slider thumb */
+    --shadow-lg: 0 4px 12px var(--ds-black-a20, rgba(0, 0, 0, 0.2)); /* item being dragged */
+    --shadow-xl: 0 4px 12px var(--ds-black-a30, rgba(0, 0, 0, 0.3)); /* menus, modals, popups */
+    --shadow-2xl: 0 10px 40px var(--ds-black-a60, rgba(0, 0, 0, 0.6)); /* splash artwork only */
+    --shadow-top: 0 -2px 8px var(--ds-black-a10, rgba(0, 0, 0, 0.1));   /* bars docked to the bottom edge */
+    --shadow-info: 0 4px 12px var(--ds-blue-a40, rgba(33, 150, 243, 0.4)); /* info toast only */
+    --focus-ring: 0 0 0 2px var(--container-bg), 0 0 0 4px var(--primary-action-strong);               /* keyboard focus outline, selected-swatch ring */
+    --shadow-ring-surface: 0 0 0 2px var(--container-bg);           /* separates a dot/badge from whatever it overlaps */
+    --shadow-glow: 0 0 10px 5px var(--ds-gold-a55, rgba(212, 175, 55, 0.55)); /* peak of the pulsing gold glow */
+    --shadow-glow-rest: 0 0 0 0 var(--ds-gold-a55, rgba(212, 175, 55, 0.55)); /* rest frame of the pulsing gold glow */
+    --shadow-glow-soft: 0 0 14px var(--ds-gold-a25, rgba(212, 175, 55, 0.25)); /* static halo on a selected featured option */
+
+    /* Z-index - one ladder, low to high. Never invent a number in a component. */
+    --z-base: 1;          /* lift above a sibling in the same stacking context */
+    --z-raised: 2;                                               /* second layer inside the same component */
+    --z-sticky: 10;       /* sticky axis/column inside a scroller */
+    --z-float: 30;        /* floating scroll buttons over content */
+    --z-header: 50;       /* sticky top bar group */
+    --z-header-overlay: 60;                                      /* element that must sit over the sticky header (timer dropdown) */
+    --z-dropdown: 100;    /* menus, and the base modal layer */
+    --z-modal: 100;                                              /* modal scrim + dialog */
+    --z-modal-stacked: 200; /* a modal opened from inside another modal */
+    --z-toast: 1000;      /* toasts, anchored popups */
+    --z-splash: 9999;     /* login splash - always on top */
+
+    /* Motion */
+    --duration-instant: var(--ds-duration-80, 80ms);   /* press feedback */
+    --duration-fast: var(--ds-duration-150, 150ms);    /* colour/border state changes */
+    --duration-base: var(--ds-duration-250, 250ms);    /* slides, fades, toggles, expanding panels */
+    --duration-slow: var(--ds-duration-400, 400ms);    /* chart bar growth */
+    --duration-pulse: var(--ds-duration-1000, 1000ms); /* looping attention animations */
+    --ease-standard: ease;                                       /* default easing for UI transitions */
+    --ease-in-out: ease-in-out;                                  /* looping/pulsing animations */
+    --ease-linear: linear;                                       /* colour/opacity tracking a live value (meters, metronome dots) */
+
+    /* Layout */
+    --app-max-width: 500px;   /* single source of truth for the centred app column (ML-53) */
+    --touch-target: var(--ds-size-48, 48px); /* minimum tap target for any button */
+    --bottom-bar-clearance: 110px;       /* scroll room so content can clear the docked block-editor bar */
+    --bottom-bar-clearance-lg: 150px;    /* scroll room above the taller Flow details sticky bar */
+}
+
+body.dark-mode {
+    --bg-color: var(--ds-neutral-900, #121212);
+    --container-bg: var(--ds-neutral-850, #1e1e1e);
+    --secondary-color: var(--ds-neutral-800, #2c2c2c);
+    --input-bg: var(--ds-neutral-750, #333333);
+    --input-border: var(--ds-neutral-700, #444444);
+    --text-color: var(--ds-neutral-100, #e0e0e0);
+    --label-color: var(--ds-neutral-300, #bbbbbb); /* #aaa failed AA against --input-bg - lightened */
+    --warning-color: var(--ds-amber-400, #ffca28);
+    --control-off-bg: var(--ds-neutral-500b, #808080);
+    --control-border: var(--ds-neutral-500b, #808080);
+    --primary-action-strong: var(--ds-gold-500, #d4af37);
+    --link-color: var(--ds-gold-500, #d4af37);
+    --danger-text: var(--ds-red-300, #f7746a);
+    --selection-text: var(--ds-orange-500, #ff9800);
+    --info-text: var(--ds-blue-300, #6ab7f7);
+    --success-text: var(--ds-green-300, #66bb6a);
+    --warning-text: var(--ds-amber-400, #ffca28);
+    --tuner-in-tune-text: var(--ds-green-400, #2ecc71);
+    --cat-practise-text: var(--ds-green-300, #66bb6a);
+    --cat-rehearsal-text: var(--ds-blue-300, #6ab7f7);
+    --cat-lesson-text: var(--ds-purple-300, #ce93d8);
+    --cat-performance-text: var(--ds-orange-500, #ff9800);
+    --heat-time-0: var(--ds-neutral-775, #2d333b);
+    --heat-time-1: var(--ds-heat-green-dark-1, #0e4429);
+    --heat-time-2: var(--ds-heat-green-dark-2, #006d32);
+    --heat-time-3: var(--ds-heat-green-dark-3, #26a641);
+    --heat-time-4: var(--ds-heat-green-dark-4, #39d353);
+    --heat-sess-0: var(--ds-neutral-775, #2d333b);
+    --heat-sess-1: var(--ds-heat-purple-dark-1, #4a148c);
+    --heat-sess-2: var(--ds-heat-purple-dark-2, #6a1b9a);
+    --heat-sess-3: var(--ds-heat-purple-dark-3, #8e24aa);
+    --heat-sess-4: var(--ds-heat-purple-dark-4, #ab47bc);
+    --status-amber-bg: var(--ds-status-amber-bg-dark, #4a3c0c);
+    --status-amber-fg: var(--ds-status-amber-fg-dark, #f2dd90);
+    --status-green-bg: var(--ds-status-green-bg-dark, #17431f);
+    --status-green-fg: var(--ds-status-green-fg-dark, #a7dcb5);
+    --status-blue-bg: var(--ds-status-blue-bg-dark, #123a63);
+    --status-blue-fg: var(--ds-status-blue-fg-dark, #a6cdf2);
+    --status-grey-bg: var(--ds-status-grey-bg-dark, #3a3a3a);
+    --status-grey-fg: var(--ds-status-grey-fg-dark, #c4c4c4);
+    --status-purple-bg: var(--ds-status-purple-bg-dark, #2f2557);
+    --status-purple-fg: var(--ds-status-purple-fg-dark, #c3b6f0);
+}

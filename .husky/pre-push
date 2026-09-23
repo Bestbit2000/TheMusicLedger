@@ -8,17 +8,56 @@
 #
 # Deliberate non-release pushes to main (rare) can bypass with:
 #   SKIP_RELEASE_CHECK=1 git push
+#
+# ML-198 design gate (scripts/design-gate.mjs), run against the exact commit being pushed:
+#   - push to `sandbox` (the dev -> sandbox release): hard checks + the list of everything new to
+#     the design system since origin/sandbox, which must be approved by the product owner first.
+#     After approval: DESIGN_APPROVED=1 git push origin sandbox
+#   - push to `main`: hard checks only (sign-off already happened on the way to sandbox).
+# Production-incident hotfixes only: DESIGN_GATE_SKIP=1 (then fix it properly in the next release).
 
 zero_sha="0000000000000000000000000000000000000000"
 blocked=0
+design_blocked=0
+
+# Runs the design gate inside a temporary worktree of the pushed commit, so uncommitted local
+# changes can't make it pass (or fail) for the wrong reason.
+run_design_gate() {
+  gate_sha="$1"; gate_base="$2"; gate_mode="$3"
+  if ! git cat-file -e "$gate_sha:scripts/design-gate.mjs" 2>/dev/null; then
+    return 0 # commit predates the design gate
+  fi
+  gate_dir=$(mktemp -d)
+  if ! git worktree add --detach -q "$gate_dir" "$gate_sha" >/dev/null 2>&1; then
+    echo "pre-push: couldn't create a worktree to run the design gate - run 'npm run design-gate' by hand."
+    rm -rf "$gate_dir"
+    return 1
+  fi
+  (cd "$gate_dir" && node scripts/design-gate.mjs --base "$gate_base" $gate_mode)
+  gate_rc=$?
+  git worktree remove --force "$gate_dir" >/dev/null 2>&1
+  return $gate_rc
+}
 
 while read -r local_ref local_sha remote_ref remote_sha; do
   case "$remote_ref" in
-    refs/heads/main) ;;
+    refs/heads/main|refs/heads/sandbox) ;;
     *) continue ;;
   esac
 
   [ "$local_sha" = "$zero_sha" ] && continue
+
+  if [ -z "$DESIGN_GATE_SKIP" ]; then
+    if [ "$remote_ref" = "refs/heads/sandbox" ]; then
+      gate_base="$remote_sha"
+      [ "$gate_base" = "$zero_sha" ] && gate_base="origin/main"
+      echo ""
+      echo "pre-push: running the design gate for this sandbox release (docs/release-process.md)..."
+      run_design_gate "$local_sha" "$gate_base" "" </dev/null || design_blocked=1
+      continue
+    fi
+    run_design_gate "$local_sha" "origin/main" "--no-signoff" </dev/null || design_blocked=1
+  fi
 
   new_version=$(git show "$local_sha:package.json" 2>/dev/null | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null)
 
@@ -50,6 +89,15 @@ while read -r local_ref local_sha remote_ref remote_sha; do
 done
 
 if [ "$blocked" = "1" ] && [ -z "$SKIP_RELEASE_CHECK" ]; then
+  exit 1
+fi
+
+# Not covered by SKIP_RELEASE_CHECK on purpose - a non-release push still can't bring in stray styling.
+if [ "$design_blocked" = "1" ]; then
+  echo ""
+  echo "pre-push: blocked by the design gate (see above). Fix any FAILED items; for a"
+  echo "DESIGN SIGN-OFF list, get the product owner's approval, then push with DESIGN_APPROVED=1."
+  echo ""
   exit 1
 fi
 

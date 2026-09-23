@@ -9,6 +9,7 @@
 
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="tokens.css">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="admin.css">
 </head>
@@ -42,6 +43,8 @@
         <!-- ML-170: the untriaged count rides on the nav item itself - the whole value of this tab
              is noticing there's something waiting without having to go and look. -->
         <button class="admin-nav-item" data-section="feedback" type="button">Feedback <span id="feedbackNavCount" class="admin-nav-count hidden-group"></span></button>
+        <!-- ML-198: read-only visual catalogue of the design system (public/admin-design.js). -->
+        <button class="admin-nav-item" data-section="design" type="button">Design</button>
     </nav>
     <main class="admin-content">
         <section id="features-section" class="admin-section">
@@ -214,6 +217,11 @@
         <!-- ML-170: triage. Two independent filter rows rather than one combined list of options -
              status and category answer different questions ("what still needs doing" vs "what kind
              of thing is it") and are routinely used together, e.g. untriaged + under review. -->
+        <section id="design-section" class="admin-section hidden-group">
+            <h1>Design</h1>
+            <p class="admin-intro">Read-only catalogue of every design element in the app, rendered with the real stylesheets. Each example lists the tokens it resolves to (spacing, radius, type, colour). A <strong>⚠</strong> marks a value that isn't a token. The rules behind each example are in <code>specs/</code>. This page updates with every release: a new component can't reach sandbox without an entry here (<code>npm run design-gate</code>).</p>
+            <div id="designCatalogue"><p class="admin-intro">Loading…</p></div>
+        </section>
         <section id="feedback-section" class="admin-section hidden-group">
             <h1>Feedback</h1>
             <p class="admin-intro">Submitted from the app's hamburger menu (ML-170). The form is a plain text box on purpose - <strong>category is set here, at triage</strong>, not by whoever sent it, so nothing stands between spotting a problem and writing it down. The screen, device and app version are captured automatically, which is what makes a one-line note still actionable a fortnight later.</p>
@@ -239,9 +247,9 @@
 
 <!-- ML-170's review drawer. Shows the full submission plus the captured context, which the list
      rows only summarise - a status decision usually depends on knowing which screen it came from. -->
-<div class="modal" id="feedbackReviewModal">
+<div class="modal" id="feedbackReviewModal" role="dialog" aria-modal="true" aria-labelledby="feedbackReviewModalTitle">
     <div class="modal-content">
-        <h2>Review feedback</h2>
+        <h2 id="feedbackReviewModalTitle">Review feedback</h2>
         <p class="admin-test-case-meta" id="feedbackReviewMeta"></p>
         <div class="admin-feedback-message" id="feedbackReviewMessage"></div>
         <p class="admin-test-case-meta" id="feedbackReviewContext"></p>
@@ -277,7 +285,7 @@
 
 <!-- ML-201: create/edit a notification. Times are entered in this browser's local time and stored as
      absolute timestamps. -->
-<div class="modal" id="notificationFormModal">
+<div class="modal" id="notificationFormModal" role="dialog" aria-modal="true" aria-labelledby="notificationFormTitle">
     <div class="modal-content">
         <h2 id="notificationFormTitle">New notification</h2>
         <div class="form-group"><label for="notificationTitleInput">Title</label><input type="text" id="notificationTitleInput" maxlength="120" placeholder="e.g. New: export flows to MusicXML"></div>
@@ -300,9 +308,9 @@
 
 <!-- ML-204: import preview - everything in the chosen file is parsed and validated server-side
      before anything is written, and the import is all-or-nothing. -->
-<div class="modal" id="flowsImportModal">
+<div class="modal" id="flowsImportModal" role="dialog" aria-modal="true" aria-labelledby="flowsImportModalTitle">
     <div class="modal-content admin-flows-import-modal">
-        <h2>Import flows</h2>
+        <h2 id="flowsImportModalTitle">Import flows</h2>
         <p class="admin-test-case-meta" id="flowsImportSummary"></p>
         <div id="flowsImportList"></div>
         <div class="flex-row gap-md">
@@ -312,12 +320,12 @@
     </div>
 </div>
 
-<div id="adminToast" class="toast"><span id="adminToastMsg"></span><button type="button" onclick="document.getElementById('adminToast').style.display='none';">X</button></div>
+<div id="adminToast" class="toast" role="status" aria-live="polite"><span id="adminToastMsg"></span><button type="button" onclick="document.getElementById('adminToast').style.display='none';">X</button></div>
 
-<div class="modal" id="adminConfirmModal">
+<div class="modal" id="adminConfirmModal" role="dialog" aria-modal="true" aria-labelledby="adminConfirmTitle">
     <div class="modal-content">
         <h2 id="adminConfirmTitle">Confirm</h2>
-        <p id="adminConfirmMessage" style="margin-bottom: 25px; line-height: 1.4; white-space: pre-line;"></p>
+        <p id="adminConfirmMessage" style="margin-bottom: var(--space-6); line-height: var(--line-height-base); white-space: pre-line;"></p>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="adminConfirmCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="adminConfirmActionBtn" type="button">Confirm</button>
@@ -325,7 +333,7 @@
     </div>
 </div>
 
-<div class="modal" id="featureFormModal">
+<div class="modal" id="featureFormModal" role="dialog" aria-modal="true" aria-labelledby="featureFormTitle">
     <div class="modal-content">
         <h2 id="featureFormTitle">Add feature</h2>
         <div class="form-group"><label for="featureKeyInput">Feature key</label><input type="text" id="featureKeyInput" placeholder="e.g. metronome"></div>
@@ -338,8 +346,8 @@
              (index.html), not the switch-then-label order the duration/time signature/speed forms
              above use. -->
         <div style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); margin-bottom:var(--space-5);">
-            <span>Enabled (live for every user - only code that actually checks this feature's key is gated by it)</span>
-            <label class="toggle-switch"><input type="checkbox" id="featureEnabledInput" checked><span class="toggle-slider"></span></label>
+            <span id="featureEnabledInputLabel">Enabled (live for every user - only code that actually checks this feature's key is gated by it)</span>
+            <label class="toggle-switch"><input type="checkbox" id="featureEnabledInput" checked aria-labelledby="featureEnabledInputLabel"><span class="toggle-slider"></span></label>
         </div>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="featureFormCancelBtn" type="button">Cancel</button>
@@ -348,7 +356,7 @@
     </div>
 </div>
 
-<div class="modal" id="bandFormModal">
+<div class="modal" id="bandFormModal" role="dialog" aria-modal="true" aria-labelledby="bandFormTitle">
     <div class="modal-content">
         <h2 id="bandFormTitle">Add band</h2>
         <div class="form-group"><label for="bandNameInput">Name</label><input type="text" id="bandNameInput" placeholder="e.g. Bourne Concert Band"></div>
@@ -361,13 +369,13 @@
     </div>
 </div>
 
-<div class="modal" id="durationFormModal">
+<div class="modal" id="durationFormModal" role="dialog" aria-modal="true" aria-labelledby="durationFormTitle">
     <div class="modal-content">
         <h2 id="durationFormTitle">Add duration</h2>
         <div class="form-group"><label for="durationMinutesInput">Minutes</label><input type="number" id="durationMinutesInput" min="1" step="1"></div>
         <div class="hidden-group" id="durationActiveRow" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); margin-bottom:var(--space-5);">
-            <span>Active (offered as a preset)</span>
-            <label class="toggle-switch"><input type="checkbox" id="durationActiveInput" checked><span class="toggle-slider"></span></label>
+            <span id="durationActiveInputLabel">Active (offered as a preset)</span>
+            <label class="toggle-switch"><input type="checkbox" id="durationActiveInput" checked aria-labelledby="durationActiveInputLabel"><span class="toggle-slider"></span></label>
         </div>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="durationFormCancelBtn" type="button">Cancel</button>
@@ -376,15 +384,15 @@
     </div>
 </div>
 
-<div class="modal" id="timeSigFormModal">
+<div class="modal" id="timeSigFormModal" role="dialog" aria-modal="true" aria-labelledby="timeSigFormTitle">
     <div class="modal-content">
         <h2 id="timeSigFormTitle">Add time signature</h2>
         <div class="form-group"><label for="timeSigNumeratorInput">Numerator</label><input type="number" id="timeSigNumeratorInput" min="1" step="1"></div>
         <div class="form-group"><label for="timeSigDenominatorInput">Denominator</label><input type="number" id="timeSigDenominatorInput" min="1" step="1"></div>
         <div class="form-group"><label for="timeSigLabelInput">Label</label><input type="text" id="timeSigLabelInput" placeholder="e.g. 4/4"></div>
         <div class="hidden-group" id="timeSigActiveRow" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); margin-bottom:var(--space-5);">
-            <span>Active (offered when picking a signature)</span>
-            <label class="toggle-switch"><input type="checkbox" id="timeSigActiveInput" checked><span class="toggle-slider"></span></label>
+            <span id="timeSigActiveInputLabel">Active (offered when picking a signature)</span>
+            <label class="toggle-switch"><input type="checkbox" id="timeSigActiveInput" checked aria-labelledby="timeSigActiveInputLabel"><span class="toggle-slider"></span></label>
         </div>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="timeSigFormCancelBtn" type="button">Cancel</button>
@@ -393,13 +401,13 @@
     </div>
 </div>
 
-<div class="modal" id="speedFormModal">
+<div class="modal" id="speedFormModal" role="dialog" aria-modal="true" aria-labelledby="speedFormTitle">
     <div class="modal-content">
         <h2 id="speedFormTitle">Add playback speed</h2>
         <div class="form-group"><label for="speedPercentInput">Percent</label><input type="number" id="speedPercentInput" min="1" step="1"></div>
         <div class="hidden-group" id="speedActiveRow" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); margin-bottom:var(--space-5);">
-            <span>Active (offered as a preset)</span>
-            <label class="toggle-switch"><input type="checkbox" id="speedActiveInput" checked><span class="toggle-slider"></span></label>
+            <span id="speedActiveInputLabel">Active (offered as a preset)</span>
+            <label class="toggle-switch"><input type="checkbox" id="speedActiveInput" checked aria-labelledby="speedActiveInputLabel"><span class="toggle-slider"></span></label>
         </div>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="speedFormCancelBtn" type="button">Cancel</button>
@@ -408,7 +416,7 @@
     </div>
 </div>
 
-<div class="modal" id="configFormModal">
+<div class="modal" id="configFormModal" role="dialog" aria-modal="true" aria-labelledby="configFormTitle">
     <div class="modal-content">
         <h2 id="configFormTitle">Edit link</h2>
         <div class="form-group"><label id="configValueLabel" for="configValueInput">URL</label><input type="text" id="configValueInput" placeholder="https://..."></div>
@@ -420,5 +428,7 @@
 </div>
 
 <script src="admin.js"></script>
+<script src="admin-design.js"></script>
+<script src="a11y.js"></script>
 </body>
 </html>

@@ -6,13 +6,14 @@
 <title>The Music Ledger — Style Guide</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+<link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="style.css">
 <style>
-    .sg-page { width: 100%; max-width: 900px; margin: 0 auto; padding: 40px 20px 80px; box-sizing: border-box; }
-    .sg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+    .sg-page { width: 100%; max-width: 900px; margin: 0 auto; padding: var(--space-8) var(--space-5) var(--space-10); box-sizing: border-box; }
+    .sg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-8); }
     .sg-header h1 { font-size: var(--font-2xl); margin: 0; }
-    .sg-toggle { background: var(--nav-action); color: var(--nav-action-text); border: none; border-radius: var(--radius-pill); padding: var(--space-3) var(--space-5); font-weight: bold; cursor: pointer; }
-    .sg-section { margin-bottom: 50px; }
+    .sg-toggle { background: var(--nav-action); color: var(--nav-action-text); border: none; border-radius: var(--radius-pill); padding: var(--space-3) var(--space-5); font-weight: var(--font-weight-bold); cursor: pointer; }
+    .sg-section { margin-bottom: var(--space-9); }
     .sg-section h2 { font-size: var(--font-lg); border-bottom: 2px solid var(--input-border); padding-bottom: var(--space-2); margin-bottom: var(--space-5); }
     .sg-section h3 { font-size: var(--font-md); margin: var(--space-6) 0 var(--space-3); color: var(--label-color); }
     .sg-note { font-size: var(--font-sm); color: var(--label-color); margin: -var(--space-3) 0 var(--space-5); }
@@ -21,19 +22,19 @@
     .sg-swatch-color { height: 60px; }
     .sg-swatch-label { padding: var(--space-2) var(--space-3); background: var(--container-bg); }
     .sg-swatch-label strong { display: block; font-size: var(--font-sm); }
-    .sg-swatch-label span { display: block; font-size: var(--font-xs); color: var(--label-color); font-family: monospace; }
+    .sg-swatch-label span { display: block; font-size: var(--font-xs); color: var(--label-color); font-family: var(--font-mono); }
     .sg-type-row { display: flex; align-items: baseline; gap: var(--space-5); padding: var(--space-3) 0; border-bottom: 1px solid var(--input-border); }
-    .sg-type-row .sg-label { width: 90px; flex-shrink: 0; font-size: var(--font-xs); color: var(--label-color); font-family: monospace; }
+    .sg-type-row .sg-label { width: 90px; flex-shrink: 0; font-size: var(--font-xs); color: var(--label-color); font-family: var(--font-mono); }
     .sg-space-row { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-2); }
-    .sg-space-row .sg-label { width: 90px; flex-shrink: 0; font-size: var(--font-xs); color: var(--label-color); font-family: monospace; }
-    .sg-space-bar { background: var(--primary-action); height: 18px; border-radius: 3px; }
+    .sg-space-row .sg-label { width: 90px; flex-shrink: 0; font-size: var(--font-xs); color: var(--label-color); font-family: var(--font-mono); }
+    .sg-space-bar { background: var(--primary-action); height: 18px; border-radius: var(--radius-xs); }
     .sg-shape-row { display: flex; align-items: center; gap: var(--space-6); flex-wrap: wrap; margin-bottom: var(--space-4); }
     .sg-shape { width: 70px; height: 70px; background: var(--input-bg); border: 1px solid var(--input-border); display: flex; align-items: center; justify-content: center; font-size: var(--font-xs); color: var(--label-color); text-align: center; }
     .sg-shadow { width: 120px; height: 70px; background: var(--container-bg); display: flex; align-items: center; justify-content: center; font-size: var(--font-xs); color: var(--label-color); }
     .sg-component-block { background: var(--secondary-color); border-radius: var(--radius-md); padding: var(--space-5); margin-bottom: var(--space-4); }
     .sg-component-block > * + * { margin-top: var(--space-3); }
     .sg-inline-demo { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center; }
-    .sg-modal-preview { position: static; background: rgba(0,0,0,0.85); display: flex; padding: var(--space-6); border-radius: var(--radius-md); }
+    .sg-modal-preview { position: static; background: var(--overlay-bg); display: flex; padding: var(--space-6); border-radius: var(--radius-md); }
 </style>
 </head>
 <body>
@@ -46,7 +47,7 @@
 
     <div class="sg-section">
         <h2>Colors</h2>
-        <p class="sg-note">CSS custom properties defined in <code>:root</code> / <code>body.dark-mode</code> in style.css. Toggle dark mode above to preview overrides.</p>
+        <p class="sg-note">CSS custom properties defined in <code>:root</code> / <code>body.dark-mode</code> in tokens.css (see specs/tokens/token-reference.md). Toggle dark mode above to preview overrides.</p>
 
         <h3>Base</h3>
         <div class="sg-grid" id="sgColorsBase"></div>
@@ -115,9 +116,9 @@
             <div class="sg-inline-demo">
                 <button class="btn-edit">.btn-edit</button>
                 <button class="btn-delete">.btn-delete</button>
-                <button class="btn-icon-edit"><span class="material-symbols-outlined">edit</span></button>
-                <button class="btn-icon-delete"><span class="material-symbols-outlined">delete</span></button>
-                <button class="list-item-menu-btn"><span class="material-symbols-outlined">more_vert</span></button>
+                <button class="btn-icon-edit" aria-label="Edit"><span class="material-symbols-outlined">edit</span></button>
+                <button class="btn-icon-delete" aria-label="Delete"><span class="material-symbols-outlined">delete</span></button>
+                <button class="list-item-menu-btn" aria-label="More options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
             </div>
         </div>
         <p class="sg-note">Touch targets: every interactive element (buttons, icon buttons, steppers, slider thumbs) is at least 48x48px, even where the visible glyph is smaller - a slider thumb's hit area extends past its visible circle via an invisible <code>::before</code> rather than being drawn larger.</p>
@@ -125,11 +126,11 @@
         <div class="sg-component-block" style="position: relative;">
             <div class="history-item">
                 <div class="history-details"><strong>Practise</strong>30 minutes — 5 Sep 2026</div>
-                <button class="list-item-menu-btn"><span class="material-symbols-outlined">more_vert</span></button>
+                <button class="list-item-menu-btn" aria-label="More options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
             </div>
             <div class="dropdown-menu metroBlk-tile-menu show" style="position: static; margin-top: var(--space-2); min-width: 160px;">
-                <div class="dropdown-item">Edit</div>
-                <div class="dropdown-item metroBlk-tile-menu-delete">Delete</div>
+                <button type="button" class="dropdown-item">Edit</button>
+                <button type="button" class="dropdown-item metroBlk-tile-menu-delete">Delete</button>
             </div>
         </div>
 
@@ -149,7 +150,7 @@
         <div class="sg-component-block">
             <div class="form-group no-margin">
                 <label class="no-margin">Text input</label>
-                <input type="text" placeholder="e.g., Alfie">
+                <input type="text" placeholder="e.g., Alfie" aria-label="Piece">
             </div>
         </div>
         <div class="radio-group compact">
@@ -159,8 +160,8 @@
             <input type="radio" id="sgR4" name="sgRadio"><label for="sgR4">Custom</label>
         </div>
 
-        <h3>Toggle switch</h3>
-        <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+        <h3 id="toggle15Label">Toggle switch</h3>
+        <label class="toggle-switch"><input type="checkbox" checked aria-labelledby="toggle15Label"><span class="toggle-slider"></span></label>
 
         <h3>Slider</h3>
         <p class="sg-note">Draggable track + thumb + fill, with an optional min/max scale caption. Static preview here (drag it live on the Metronome's target-speed or volume controls). Standard pattern: pair every slider with a numeric readout that's <em>also</em> a tap target - clicking/tapping it swaps in a real number input so a value can be typed directly, not just dragged or stepped to. Wire this with <code>makeSliderReadoutEditable(displayElId, getValue, setValue, opts)</code> in app.js rather than reimplementing it per control.</p>
@@ -203,10 +204,10 @@
             <div class="history-item flow-media-item">
                 <div class="flow-media-item-top">
                     <div class="history-details">
-                        <span class="flow-media-icon type-audio"><span class="material-symbols-outlined" style="font-size:18px;">music_note</span></span>
+                        <span class="flow-media-icon type-audio"><span class="material-symbols-outlined" style="font-size:var(--icon-md);">music_note</span></span>
                         <div><strong>Rehearsal_Take3.mp3</strong><span>audio/mpeg</span></div>
                     </div>
-                    <button type="button" class="flow-delete-btn"><span class="material-symbols-outlined">delete</span></button>
+                    <button type="button" class="flow-delete-btn" aria-label="Delete"><span class="material-symbols-outlined">delete</span></button>
                 </div>
                 <audio class="flow-media-player-audio" controls></audio>
             </div>
@@ -218,9 +219,9 @@
 
         <h3>Toasts</h3>
         <div class="sg-component-block">
-            <div class="toast show" style="position: static; transform: none; display: inline-flex;"><span>Saved!</span></div><br>
-            <div class="toast show warning" style="position: static; transform: none; display: inline-flex;"><span>Warning message</span></div><br>
-            <div class="toast show info" style="position: static; transform: none; display: inline-flex;"><span>Info message</span></div>
+            <div class="toast show" style="position: static; transform: none; display: inline-flex;" role="status" aria-live="polite"><span>Saved!</span></div><br>
+            <div class="toast show warning" style="position: static; transform: none; display: inline-flex;" role="status" aria-live="polite"><span>Warning message</span></div><br>
+            <div class="toast show info" style="position: static; transform: none; display: inline-flex;" role="status" aria-live="polite"><span>Info message</span></div>
         </div>
 
         <h3>Modal (static preview)</h3>
@@ -241,7 +242,7 @@
 <script>
     const colorGroups = {
         sgColorsBase: ['--bg-color', '--container-bg', '--text-color', '--secondary-color', '--input-bg', '--input-border', '--label-color'],
-        sgColorsBrand: ['--primary-action', '--nav-action', '--radio-highlight', '--selection-color'],
+        sgColorsBrand: ['--primary-action', '--primary-action-strong', '--nav-action', '--selection-color'],
         sgColorsSemantic: ['--success-color', '--danger-color', '--warning-color', '--info-color'],
         sgColorsCategory: ['--cat-practise', '--cat-rehearsal', '--cat-lesson', '--cat-performance'],
         sgColorsHeatTime: ['--heat-time-0', '--heat-time-1', '--heat-time-2', '--heat-time-3', '--heat-time-4'],
@@ -262,17 +263,16 @@
         }
     }
 
-    const typeScale = [
-        ['--font-xs', '0.65rem'], ['--font-sm', '0.8rem'], ['--font-base', '0.95rem'],
-        ['--font-md', '1.1rem'], ['--font-lg', '1.3rem'], ['--font-xl', '1.6rem'], ['--font-2xl', '2rem']
-    ];
-    document.getElementById('sgType').innerHTML = typeScale.map(([t, v]) =>
-        `<div class="sg-type-row"><span class="sg-label">${t}</span><span style="font-size: var(${t});">The quick brown fox (${v})</span></div>`
+    // Labels read the live value from tokens.css so this page can't drift from it (ML-198).
+    const tokenValue = (t) => getComputedStyle(document.documentElement).getPropertyValue(t).trim();
+    const typeScale = ['--font-2xs', '--font-xs', '--font-sm', '--font-base', '--font-md', '--font-lg', '--font-xl', '--font-2xl', '--font-3xl'];
+    document.getElementById('sgType').innerHTML = typeScale.map(t =>
+        `<div class="sg-type-row"><span class="sg-label">${t}</span><span style="font-size: var(${t});">The quick brown fox (${tokenValue(t)})</span></div>`
     ).join('');
 
-    const spaceScale = [1,2,3,4,5,6,7,8].map(n => [`--space-${n}`, [4,8,12,15,20,25,30,40][n-1]]);
-    document.getElementById('sgSpace').innerHTML = spaceScale.map(([t, px]) =>
-        `<div class="sg-space-row"><span class="sg-label">${t}</span><div class="sg-space-bar" style="width: var(${t});"></div><span>${px}px</span></div>`
+    const spaceScale = ['--space-0-5', '--space-1', '--space-2', '--space-3', '--space-4', '--space-5', '--space-6', '--space-7', '--space-8', '--space-9', '--space-10'];
+    document.getElementById('sgSpace').innerHTML = spaceScale.map(t =>
+        `<div class="sg-space-row"><span class="sg-label">${t}</span><div class="sg-space-bar" style="width: var(${t});"></div><span>${tokenValue(t)}</span></div>`
     ).join('');
 
     document.getElementById('sgDarkToggle').addEventListener('click', () => {

@@ -31,7 +31,7 @@ export async function listFlowsForAdmin() {
     `SELECT s.id, s.title, s.composer, s.is_public, s.owner_account_id, s.owner_band_id, s.created_at,
             a.first_name, a.surname, a.email, b.name AS band_name,
             (SELECT COUNT(*) FROM metronome_segments ms WHERE ms.parent_score_id = s.id) AS block_count,
-            (SELECT COALESCE(SUM(ms.bar_count), 0) FROM metronome_segments ms WHERE ms.parent_score_id = s.id) AS total_bars,
+            (SELECT COALESCE(SUM(ms.bar_count), 0) FROM metronome_segments ms WHERE ms.parent_score_id = s.id AND NOT ms.is_lead_in) AS total_bars, -- lead-in excluded from bar counts
             (SELECT COUNT(*) FROM score_recordings r WHERE r.score_id = s.id AND r.type = 'youtube') AS youtube_count,
             (SELECT COUNT(*) FROM score_recordings r WHERE r.score_id = s.id AND r.type <> 'youtube')
               + (SELECT COUNT(*) FROM score_documents d WHERE d.score_id = s.id) AS file_media_count
@@ -207,7 +207,7 @@ export async function previewImport(accountId, buffer, fileName) {
         errors: validateParsedFlow(parsed),
         warnings: parsed.warnings,
         blockCount: parsed.blocks.length,
-        totalBars: parsed.blocks.reduce((s, b) => s + b.barCount, 0),
+        totalBars: parsed.blocks.filter(b => !b.isLeadIn).reduce((s, b) => s + b.barCount, 0), // lead-in excluded from bar counts
         ownFormat: parsed.ownFormat,
         youtubeCount: parsed.recordings.length,
         skippedMediaCount: (parsed.skippedMedia.recordings || 0) + (parsed.skippedMedia.documents || 0)

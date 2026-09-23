@@ -1,0 +1,315 @@
+{
+  "note": "ML-210 rules A1/A2: every foreground/background token pair the app actually uses, checked in both themes by scripts/a11y-audit.mjs. kind=text needs 4.5:1 (min overrides, e.g. 3 for large text); kind=non-text (control edges, state indicators, focus ring) needs 3:1. A background with transparency is composited over `over` (default --container-bg). Add a pair whenever a component puts a new token combination on screen.",
+  "pairs": [
+    {
+      "kind": "text",
+      "fg": "--text-color",
+      "bg": "--container-bg",
+      "use": "body text on the page"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-color",
+      "bg": "--input-bg",
+      "use": "text on tappable surfaces"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-color",
+      "bg": "--bg-color",
+      "use": "text on the outer page"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-color",
+      "bg": "--secondary-color",
+      "use": "text on tinted panels (month nav, mini bar)"
+    },
+    {
+      "kind": "text",
+      "fg": "--label-color",
+      "bg": "--container-bg",
+      "use": "labels/captions on the page"
+    },
+    {
+      "kind": "text",
+      "fg": "--label-color",
+      "bg": "--input-bg",
+      "use": "captions inside tappable tiles"
+    },
+    {
+      "kind": "text",
+      "fg": "--label-color",
+      "bg": "--secondary-color",
+      "use": "captions on tinted panels"
+    },
+    {
+      "kind": "text",
+      "fg": "--label-color",
+      "bg": "--bg-color",
+      "use": "captions on the outer page"
+    },
+    {
+      "kind": "text",
+      "fg": "--primary-action-text",
+      "bg": "--primary-action",
+      "use": "text on gold buttons"
+    },
+    {
+      "kind": "text",
+      "fg": "--nav-action-text",
+      "bg": "--nav-action",
+      "use": "text on silver buttons"
+    },
+    {
+      "kind": "text",
+      "fg": "--primary-action-strong",
+      "bg": "--container-bg",
+      "use": "gold text: links, tertiary buttons, gold captions"
+    },
+    {
+      "kind": "text",
+      "fg": "--primary-action-strong",
+      "bg": "--input-bg",
+      "use": "gold text on tappable tiles"
+    },
+    {
+      "kind": "text",
+      "fg": "--primary-action-strong",
+      "bg": "--primary-action-tint",
+      "use": "gold text on a selected tile",
+      "over": "--input-bg"
+    },
+    {
+      "kind": "text",
+      "fg": "--link-color",
+      "bg": "--container-bg",
+      "use": "inline links"
+    },
+    {
+      "kind": "text",
+      "fg": "--danger-text",
+      "bg": "--container-bg",
+      "use": "red text: destructive text buttons/menu items, errors"
+    },
+    {
+      "kind": "text",
+      "fg": "--danger-text",
+      "bg": "--input-bg",
+      "use": "red text/icons on tappable surfaces"
+    },
+    {
+      "kind": "text",
+      "fg": "--selection-text",
+      "bg": "--container-bg",
+      "use": "orange text/icons (edit)"
+    },
+    {
+      "kind": "text",
+      "fg": "--info-text",
+      "bg": "--container-bg",
+      "use": "blue text/icons"
+    },
+    {
+      "kind": "text",
+      "fg": "--info-text",
+      "bg": "--info-tint",
+      "use": "blue text on its own tint (document icon)",
+      "over": "--input-bg"
+    },
+    {
+      "kind": "text",
+      "fg": "--success-text",
+      "bg": "--container-bg",
+      "use": "green text/icons"
+    },
+    {
+      "kind": "text",
+      "fg": "--warning-text",
+      "bg": "--container-bg",
+      "use": "amber text/icons"
+    },
+    {
+      "kind": "text",
+      "fg": "--tuner-in-tune-text",
+      "bg": "--container-bg",
+      "use": "tuner in-tune state as text"
+    },
+    {
+      "kind": "text",
+      "fg": "--cat-practise-text",
+      "bg": "--container-bg",
+      "use": "category text (history rows)"
+    },
+    {
+      "kind": "text",
+      "fg": "--cat-rehearsal-text",
+      "bg": "--container-bg",
+      "use": "category text"
+    },
+    {
+      "kind": "text",
+      "fg": "--cat-lesson-text",
+      "bg": "--container-bg",
+      "use": "category text"
+    },
+    {
+      "kind": "text",
+      "fg": "--cat-performance-text",
+      "bg": "--container-bg",
+      "use": "category text"
+    },
+    {
+      "kind": "text",
+      "fg": "--cat-practise-text",
+      "bg": "--input-bg",
+      "use": "active filter pill text (tint over input-bg is close to input-bg)"
+    },
+    {
+      "kind": "text",
+      "fg": "--cat-performance-text",
+      "bg": "--input-bg",
+      "use": "active filter pill text"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-on-accent",
+      "bg": "--danger-color",
+      "use": "text on red fills (delete)"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-on-accent",
+      "bg": "--selection-color",
+      "use": "text on orange fills (edit)"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-on-accent",
+      "bg": "--info-color",
+      "use": "text on blue fills (info toast)"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-on-accent",
+      "bg": "--success-color",
+      "use": "text on green fills (pass badge)"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-on-accent",
+      "bg": "--primary-action",
+      "use": "text on gold count badges"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-on-inverse",
+      "bg": "--surface-inverse",
+      "use": "text on dark toasts"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-on-warning",
+      "bg": "--warning-color",
+      "use": "text on amber (warning toast)"
+    },
+    {
+      "kind": "text",
+      "fg": "--status-amber-fg",
+      "bg": "--status-amber-bg",
+      "use": "status chip"
+    },
+    {
+      "kind": "text",
+      "fg": "--status-green-fg",
+      "bg": "--status-green-bg",
+      "use": "status chip"
+    },
+    {
+      "kind": "text",
+      "fg": "--status-blue-fg",
+      "bg": "--status-blue-bg",
+      "use": "status chip"
+    },
+    {
+      "kind": "text",
+      "fg": "--status-grey-fg",
+      "bg": "--status-grey-bg",
+      "use": "status chip"
+    },
+    {
+      "kind": "text",
+      "fg": "--status-purple-fg",
+      "bg": "--status-purple-bg",
+      "use": "status chip"
+    },
+    {
+      "kind": "text",
+      "fg": "--splash-title-color",
+      "bg": "--splash-bg",
+      "use": "splash title (splash is always dark)",
+      "themes": [
+        "light"
+      ]
+    },
+    {
+      "kind": "text",
+      "fg": "--splash-subtitle-color",
+      "bg": "--splash-bg",
+      "use": "splash subtitle",
+      "themes": [
+        "light"
+      ]
+    },
+    {
+      "kind": "non-text",
+      "fg": "--control-border",
+      "bg": "--container-bg",
+      "use": "edge of a tappable control against the page"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--control-border",
+      "bg": "--bg-color",
+      "use": "edge of a tappable control against the outer page"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--control-border",
+      "bg": "--secondary-color",
+      "use": "edge of a tappable control on a tinted panel"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--control-off-bg",
+      "bg": "--container-bg",
+      "use": "toggle track (off) against the page"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--selection-text",
+      "bg": "--container-bg",
+      "use": "toggle track (on) against the page"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--primary-action-strong",
+      "bg": "--container-bg",
+      "use": "selected outline / focus ring against the page"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--primary-action-strong",
+      "bg": "--input-bg",
+      "use": "selected outline / focus ring on a tappable surface"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--primary-action-strong",
+      "bg": "--primary-action",
+      "use": "focus ring around a gold button (the ring sits on a page-coloured gap)",
+      "min": 1,
+      "note": "ring is separated from the gold by a 2px --container-bg gap, so it is judged against the page"
+    }
+  ]
+}

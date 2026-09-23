@@ -1,0 +1,50 @@
+{
+  "note": "ML-210 rule A8 (WCAG 2.5.1 / 2.5.7): every swipe or drag gesture in the app must have a single-tap alternative. scripts/a11y-audit.mjs fails on any wire*Swipe/*GrabHandle/*Drag function (or draggable=\"true\" list) not listed here, or listed with no alternative.",
+  "gestures": [
+    {
+      "id": "wireQpBarSwipe",
+      "gesture": "swipe a Quick-play / metronome bar left to reveal Delete",
+      "alternative": "Bar ⋮ menu > Delete (qpBarMenu)"
+    },
+    {
+      "id": "wireQpBarGrabHandle",
+      "gesture": "drag a bar's grab handle up/down to reorder",
+      "alternative": "Bar ⋮ menu > Move up / Move down (qpBarMenu)"
+    },
+    {
+      "id": "wireFlowBlockSwipe",
+      "gesture": "swipe a Flow block left to reveal Delete",
+      "alternative": "Block ⋮ menu > Delete (flowBlockMenu)"
+    },
+    {
+      "id": "wireFlowBlockGrabHandle",
+      "gesture": "drag a Flow block's grab handle to reorder",
+      "alternative": "Block ⋮ menu > Move up / Move down (flowBlockMenu)"
+    },
+    {
+      "id": "wireVerticalDragHandle",
+      "gesture": "shared helper behind both grab handles above",
+      "alternative": "see wireQpBarGrabHandle / wireFlowBlockGrabHandle"
+    },
+    {
+      "id": "wireFlowMediaSwipe",
+      "gesture": "swipe the recordings/documents carousel",
+      "alternative": "carousel dot buttons (.flow-media-dot)"
+    },
+    {
+      "id": "wireFlowPauseSwipe",
+      "gesture": "swipe a fermata/pause row left to reveal Delete",
+      "alternative": "Fermata row ⋮ menu > Delete (flowFermataRowMenu)"
+    },
+    {
+      "id": "wireFlowRampSwipe",
+      "gesture": "swipe a tempo ramp row left to reveal Delete",
+      "alternative": "Ramp row ⋮ menu > Delete (flowRampRowMenu)"
+    },
+    {
+      "id": "draggable-list",
+      "gesture": "drag the ☰ handle to reorder challenges and practice-list items",
+      "alternative": "tap the ☰ handle > Move up / Move down (reorderMenu); arrow keys on the handle"
+    }
+  ]
+}

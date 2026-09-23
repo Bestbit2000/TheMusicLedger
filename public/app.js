@@ -279,6 +279,8 @@
     let currentHistDate = new Date();
     let activeFilters = { 'Practise': true, 'Rehearsal': true, 'Lesson': true, 'Performance': true };
     const colorMap = { 'Practise': 'var(--cat-practise)', 'Rehearsal': 'var(--cat-rehearsal)', 'Lesson': 'var(--cat-lesson)', 'Performance': 'var(--cat-performance)' };
+    // ML-210: the same category colours as TEXT - the fills above fail 4.5:1 as text in light mode.
+    const colorTextMap = { 'Practise': 'var(--cat-practise-text)', 'Rehearsal': 'var(--cat-rehearsal-text)', 'Lesson': 'var(--cat-lesson-text)', 'Performance': 'var(--cat-performance-text)' };
 
     // Challenge Data
     let allChallenges = [];
@@ -418,7 +420,7 @@
             if (elLongPDate) elLongPDate.innerText = data.longestPractise ? `ended ${formatStreakEndDate(data.longestPractise.endDateStr)}` : '';
             if (elLongPlDate) elLongPlDate.innerText = data.longestPlaying ? `ended ${formatStreakEndDate(data.longestPlaying.endDateStr)}` : '';
 
-            renderStreakHistogram('streakChartPractise', data.practiseStreaks, '#4CAF50');
+            renderStreakHistogram('streakChartPractise', data.practiseStreaks, 'var(--cat-practise)');
             renderStreakHistogram('streakChartPlaying', data.playingStreaks, 'var(--primary-action)');
         } catch (err) { showWarningToast("Streak stats error: " + err.message); }
     }
@@ -428,7 +430,7 @@
         if (!cont) return;
         cont.innerHTML = '';
         if (!streaks.length) {
-            cont.innerHTML = '<div style="text-align:center; color:#888; width:100%;">No streak data yet.</div>';
+            cont.innerHTML = '<div style="text-align:center; color:var(--label-color); width:100%;">No streak data yet.</div>';
             return;
         }
 
@@ -1172,6 +1174,15 @@
         // The timer itself is NOT stopped when navigating away (ML-7: "shrink to a
         // bar") - only the top-bar indicator's visibility changes.
         updateTopTimerIndicator(viewName);
+
+        // ML-210: a screen change in this single-page app is otherwise silent to screen readers and
+        // leaves keyboard focus on a control that has just disappeared - name the page and move focus
+        // to its heading (tabindex=-1, so it gets no visible ring and isn't in the Tab order).
+        const titleEl = document.getElementById('topTitle');
+        const screenName = titleEl ? titleEl.innerText.trim() : '';
+        document.title = screenName && screenName !== 'The Music Ledger' ? `${screenName} - The Music Ledger` : 'The Music Ledger';
+        if (titleEl && window.__a11yViewReady) titleEl.focus({ preventScroll: true });
+        window.__a11yViewReady = true;
     }
 
     window.goBack = function() {
@@ -1199,10 +1210,10 @@
             { label: '🐛 Fixes', items: changes.filter(c => c.type === 'Fixes') }
         ];
         return groups.filter(g => g.items.length).map(g => `
-            <div style="margin-bottom:10px;">
-                <strong style="font-size:0.85rem;">${g.label}</strong>
-                <ul style="margin:5px 0 0 0; padding-left:20px;">
-                    ${g.items.map(c => `<li style="margin-bottom:4px;">${c.summary}</li>`).join('')}
+            <div style="margin-bottom:var(--space-2);">
+                <strong style="font-size:var(--font-sm);">${g.label}</strong>
+                <ul style="margin:var(--space-1) 0 0 0; padding-left:var(--space-5);">
+                    ${g.items.map(c => `<li style="margin-bottom:var(--space-1);">${c.summary}</li>`).join('')}
                 </ul>
             </div>`).join('');
     }
@@ -1231,9 +1242,9 @@
                 : '';
             currentEl.innerHTML = staleNote + `
                 <div class="play-card" style="text-align:left;">
-                    <div style="font-size:0.85rem; color:#888; margin-bottom:5px;">Current version</div>
+                    <div style="font-size:var(--font-sm); color:var(--label-color); margin-bottom:var(--space-1);">Current version</div>
                     <div class="play-piece">v${current.version}</div>
-                    <div class="text-muted" style="margin-bottom:15px;">Released ${formatReleaseDate(current.date)}</div>
+                    <div class="text-muted" style="margin-bottom:var(--space-4);">Released ${formatReleaseDate(current.date)}</div>
                     ${renderChangeList(current.changes)}
                 </div>`;
 
@@ -1241,12 +1252,12 @@
                 ? older.map(r => `
                     <div class="history-item" style="flex-direction:column; align-items:flex-start;">
                         <strong>v${r.version}</strong>
-                        <div class="text-muted" style="font-size:0.85rem; margin-bottom:8px;">${formatReleaseDate(r.date)}</div>
+                        <div class="text-muted" style="font-size:var(--font-sm); margin-bottom:var(--space-2);">${formatReleaseDate(r.date)}</div>
                         ${renderChangeList(r.changes)}
                     </div>`).join('')
                 : '<div class="text-muted">This is the first recorded release.</div>';
         } catch (err) {
-            currentEl.innerHTML = `<div style="color:var(--danger-color);">Error loading releases: ${err.message}</div>`;
+            currentEl.innerHTML = `<div style="color:var(--danger-text);">Error loading releases: ${err.message}</div>`;
         }
     }
 
@@ -1594,14 +1605,14 @@
                 let typeColor = g.type === 'Performance' ? 'var(--cat-performance)' : 'var(--cat-lesson)';
                 let typeIcon = g.type === 'Performance' ? '🎭' : '🛠️';
 
-                ui.innerHTML += `<div class="history-item draggable-item" draggable="true" data-id="${g.id}" style="align-items:center; border-left-color: ${typeColor}; padding-left:5px;">
-                    <span class="drag-handle" title="Drag to reorder">☰</span>
-                    <div style="flex-grow:1; cursor:pointer;" onclick="openEditChallenge('${g.id}')">
-                        <div style="display:flex; justify-content:space-between; width:100%; margin-bottom:8px;">
+                ui.innerHTML += `<div class="history-item draggable-item" draggable="true" data-id="${g.id}" style="align-items:center; border-left-color: ${typeColor}; padding-left:var(--space-1);">
+                    <button type="button" class="drag-handle" aria-label="Reorder ${g.name} - drag, or tap for Move up / Move down" aria-haspopup="menu" aria-expanded="false">☰</button>
+                    <div role="button" tabindex="0" style="flex-grow:1; cursor:pointer;" onclick="openEditChallenge('${g.id}')">
+                        <div style="display:flex; justify-content:space-between; width:100%; margin-bottom:var(--space-2);">
                             <strong>${typeIcon} ${g.name}</strong>
-                            <span style="font-weight:bold; color:${pct===100?'var(--success-color)':'inherit'}">${pct}%</span>
+                            <span style="font-weight:var(--font-weight-bold); color:${pct===100?'var(--success-color)':'inherit'}">${pct}%</span>
                         </div>
-                        <div style="font-size:0.85rem; color:#666;">
+                        <div style="font-size:var(--font-sm); color:var(--label-color);">
                             ${g.complete} / ${g.total} tasks complete | ${formatMins(g.time)} total time
                         </div>
                     </div>
@@ -1634,9 +1645,9 @@
                 if (g.incomplete > 0) {
                     const typeIcon = g.type === 'Performance' ? '🎭' : '🛠️';
                     const typeColor = g.type === 'Performance' ? 'var(--cat-performance)' : 'var(--cat-lesson)';
-                    ui.innerHTML += `<button class="history-item" style="border-left-color: ${typeColor}; padding-left:5px; width:100%; text-align:left; cursor:pointer; flex-direction: column; align-items: flex-start; gap:4px;" onclick="startChallenge('${g.id}')">
+                    ui.innerHTML += `<button class="history-item" style="border-left-color: ${typeColor}; padding-left:var(--space-1); width:100%; text-align:left; cursor:pointer; flex-direction: column; align-items: flex-start; gap:var(--space-1);" onclick="startChallenge('${g.id}')">
                         <div style="width:100%;"><strong>${typeIcon} ${g.name}</strong></div>
-                        <div class="text-muted" style="font-size:0.85rem;">${g.incomplete} remaining</div>
+                        <div class="text-muted" style="font-size:var(--font-sm);">${g.incomplete} remaining</div>
                     </button>`;
                 }
             });
@@ -1741,18 +1752,18 @@
                 let refStr = item.ref || '';
                 if (item.barFrom || item.barTo) refStr += ` (Bars ${item.barFrom || '?'} - ${item.barTo || '?'})`;
                 let safePiece = String(item.piece).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                let borderColor = item.status === 'Complete' ? 'var(--success-color)' : (item.status === 'Closed' ? '#999' : 'var(--primary-action)');
+                let borderColor = item.status === 'Complete' ? 'var(--success-color)' : (item.status === 'Closed' ? 'var(--control-off-bg)' : 'var(--primary-action)');
 
                 ecItemsList.innerHTML += `
-                <div class="history-item draggable-item" draggable="true" data-id="${item.row}" style="align-items:center; border-left: 4px solid ${borderColor}; padding-left:5px;">
-                    <span class="drag-handle" title="Drag to reorder">☰</span>
+                <div class="history-item draggable-item" draggable="true" data-id="${item.row}" style="align-items:center; border-left: 4px solid ${borderColor}; padding-left:var(--space-1);">
+                    <button type="button" class="drag-handle" aria-label="Reorder ${item.piece} - drag, or tap for Move up / Move down" aria-haspopup="menu" aria-expanded="false">☰</button>
                     <div style="flex-grow:1;">
                         <div style="display:flex; justify-content:space-between; width:100%;">
                             <strong>${item.piece}</strong>
-                            <span style="font-size:0.85rem; color:#888;">${item.status}</span>
+                            <span style="font-size:var(--font-sm); color:var(--label-color);">${item.status}</span>
                         </div>
-                        <div style="font-size:0.85rem; color:#666; margin-bottom:10px;">${refStr} ${item.bpm ? '| '+item.bpm+' bpm' : ''}</div>
-                        <div style="display:flex; gap:5px; width:100%;">
+                        <div style="font-size:var(--font-sm); color:var(--label-color); margin-bottom:var(--space-2);">${refStr} ${item.bpm ? '| '+item.bpm+' bpm' : ''}</div>
+                        <div style="display:flex; gap:var(--space-1); width:100%;">
                             <button class="btn-edit" style="flex:1" onclick="openItemDetailModal('${item.row}')">Edit</button>
                             <button class="btn-delete" style="flex:1" onclick="deleteChallengeItem('${item.row}', '${safePiece}')">Delete</button>
                         </div>
@@ -1833,9 +1844,66 @@
         });
     }
 
+    // Saves a reordered challenge/practice list - shared by drag-and-drop and the tap/keyboard
+    // alternative below, so both paths persist exactly the same way.
+    async function saveListOrder(container, type) {
+        const allIds = Array.from(container.querySelectorAll('.draggable-item')).map(el => el.getAttribute('data-id'));
+        try {
+            showInfoToast("Updating order...");
+            await Promise.all(allIds.map((id, idx) => type === 'challenge'
+                ? API.challenges.updateGroup(id, { priority: idx })
+                : API.challenges.update(id, { priority: idx })));
+            closeToast('toastInfo');
+            showSuccessToast("Order updated");
+        } catch (error) {
+            showWarningToast("Error updating order: " + error.message);
+        }
+    }
+
+    // ML-210 (WCAG 2.5.7): dragging must never be the only way to reorder. The ☰ handle is a button:
+    // tapping it offers Move up / Move down (one shared floating menu, same pattern as the account
+    // band menu), and with a keyboard the arrow keys move the item directly.
+    let reorderMenuItem = null, reorderMenuContainer = null, reorderMenuType = null;
+    function moveListItem(item, container, type, dir) {
+        const sibling = dir < 0 ? item.previousElementSibling : item.nextElementSibling;
+        if (!sibling || !sibling.classList.contains('draggable-item')) return false;
+        if (dir < 0) container.insertBefore(item, sibling); else container.insertBefore(sibling, item);
+        saveListOrder(container, type);
+        return true;
+    }
+    function openReorderMenu(handle, container, type) {
+        const menu = document.getElementById('reorderMenu');
+        if (!menu) return;
+        reorderMenuItem = handle.closest('.draggable-item');
+        reorderMenuContainer = container;
+        reorderMenuType = type;
+        const prev = reorderMenuItem.previousElementSibling, next = reorderMenuItem.nextElementSibling;
+        document.getElementById('reorderMenuUp').classList.toggle('hidden-group', !(prev && prev.classList.contains('draggable-item')));
+        document.getElementById('reorderMenuDown').classList.toggle('hidden-group', !(next && next.classList.contains('draggable-item')));
+        menu.classList.add('show');
+        const r = handle.getBoundingClientRect();
+        menu.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8))}px`;
+        menu.style.top = `${Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8)}px`;
+    }
+    document.addEventListener('click', () => document.getElementById('reorderMenu')?.classList.remove('show'));
+    ['reorderMenuUp', 'reorderMenuDown'].forEach((id, i) => document.getElementById(id)?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('reorderMenu').classList.remove('show');
+        if (reorderMenuItem) moveListItem(reorderMenuItem, reorderMenuContainer, reorderMenuType, i === 0 ? -1 : 1);
+    }));
+
     function setupDragAndDrop(container, type) {
         let draggedEl = null;
         const items = container.querySelectorAll('.draggable-item');
+
+        container.querySelectorAll('.drag-handle').forEach(handle => {
+            handle.addEventListener('click', (e) => { e.stopPropagation(); openReorderMenu(handle, container, type); });
+            handle.addEventListener('keydown', (e) => {
+                if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+                e.preventDefault();
+                if (moveListItem(handle.closest('.draggable-item'), container, type, e.key === 'ArrowUp' ? -1 : 1)) handle.focus();
+            });
+        });
 
         items.forEach(item => {
             item.addEventListener('dragstart', (e) => {
@@ -1853,30 +1921,7 @@
 
             item.addEventListener('dragend', async () => {
                 if (draggedEl) {
-                    const allIds = Array.from(container.querySelectorAll('.draggable-item')).map(el => el.getAttribute('data-id'));
-                    if (type === 'challenge') {
-                        try {
-                            showInfoToast("Updating order...");
-                            await Promise.all(allIds.map((id, idx) =>
-                                API.challenges.updateGroup(id, { priority: idx })
-                            ));
-                            closeToast('toastInfo');
-                            showSuccessToast("Order updated");
-                        } catch (error) {
-                            showWarningToast("Error updating order: " + error.message);
-                        }
-                    } else if (type === 'item') {
-                        try {
-                            showInfoToast("Updating order...");
-                            await Promise.all(allIds.map((id, idx) =>
-                                API.challenges.update(id, { priority: idx })
-                            ));
-                            closeToast('toastInfo');
-                            showSuccessToast("Order updated");
-                        } catch (error) {
-                            showWarningToast("Error updating order: " + error.message);
-                        }
-                    }
+                    await saveListOrder(container, type);
                     draggedEl = null;
                 }
             });
@@ -1951,6 +1996,7 @@
         const el = document.getElementById('challengePlayView');
         if (!el) return;
         let startX = 0, startY = 0;
+        // a11y: only records where a swipe/drag gesture starts - nothing activates on press (WCAG 2.5.2)
         el.addEventListener('touchstart', (e) => {
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
@@ -2039,7 +2085,7 @@
             ul.innerHTML = '';
             currentSessionLog.items.forEach(i => {
                 let color = i.status === 'Complete' ? 'var(--success-color)' : 'var(--selection-color)';
-                ul.innerHTML += `<div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;"><span><strong>${i.piece}</strong> ${i.ref}</span><span style="color:${color}; font-weight:bold;">${i.status} (${i.time}m)</span></div>`;
+                ul.innerHTML += `<div style="padding:var(--space-3); border-bottom:1px solid var(--input-border); display:flex; justify-content:space-between;"><span><strong>${i.piece}</strong> ${i.ref}</span><span style="color:${color}; font-weight:var(--font-weight-bold);">${i.status} (${i.time}m)</span></div>`;
             });
         }
         fetchDataAndRender();
@@ -2154,7 +2200,7 @@
         pillsEl.innerHTML = `
             <button type="button" class="filter-pill${allActive ? ' active' : ''}" data-filter-all>All <span class="filter-pill-count">${totalCount}</span></button>
             ${FILTER_CATEGORIES.map(cat => `
-                <button type="button" class="filter-pill${activeFilters[cat] ? ' active' : ''}" data-filter-cat="${cat}" style="${activeFilters[cat] ? `--filter-pill-accent:${colorMap[cat]}` : ''}">${cat} <span class="filter-pill-count">${counts[cat] || 0}</span></button>
+                <button type="button" class="filter-pill${activeFilters[cat] ? ' active' : ''}" data-filter-cat="${cat}" style="${activeFilters[cat] ? `--filter-pill-accent:${colorMap[cat]}; --filter-pill-accent-text:${colorTextMap[cat]}` : ''}">${cat} <span class="filter-pill-count">${counts[cat] || 0}</span></button>
             `).join('')}
         `;
         pillsEl.querySelector('[data-filter-all]').addEventListener('click', () => {
@@ -2191,6 +2237,7 @@
     // plain tap still toggles the pill exactly as before.
     function enableDragScroll(el) {
         let isDown = false, dragged = false, startX = 0, startScrollLeft = 0;
+        // a11y: only records where a swipe/drag gesture starts - nothing activates on press (WCAG 2.5.2)
         el.addEventListener('mousedown', (e) => {
             isDown = true;
             dragged = false;
@@ -2501,9 +2548,9 @@
             let bar = document.createElement('div');
             bar.className = 'chart-bar';
             bar.style.height = `${pct}%`;
-            if(type === 'hours') bar.style.background = '#4CAF50';
-            if(type === 'days') bar.style.background = '#FFC107';
-            if(type === 'sess') bar.style.background = '#9C27B0';
+            if(type === 'hours') bar.style.background = 'var(--chart-hours)';
+            if(type === 'days') bar.style.background = 'var(--chart-days)';
+            if(type === 'sess') bar.style.background = 'var(--chart-sessions)';
             barCont.appendChild(bar);
 
             let [y, m] = k.split('-');
@@ -2519,7 +2566,7 @@
                 let lbl = document.createElement('span');
                 lbl.className = 'chart-x-label';
                 if (showYear) {
-                    lbl.innerHTML = `${mName}<br><span style="font-size:0.6rem;opacity:0.8;">${y}</span>`;
+                    lbl.innerHTML = `${mName}<br><span style="font-size:var(--font-2xs);opacity:0.8;">${y}</span>`;
                 } else {
                     lbl.innerHTML = mName;
                 }
@@ -2554,7 +2601,7 @@
             const monthData = monthDataAll.filter(d => activeFilters[d.category]);
 
             if(monthData.length === 0) {
-                list.innerHTML = '<div style="text-align:center; padding: 20px;">No entries.</div>';
+                list.innerHTML = '<div style="text-align:center; padding: var(--space-5);">No entries.</div>';
                 const historySummary = document.getElementById('historySummary');
                 if(historySummary) historySummary.innerText = `0h 0m (0)`;
                 return;
@@ -2574,10 +2621,10 @@
 
                 div.innerHTML = `
                     <div class="history-details">
-                        <strong style="color: ${colorMap[item.category]}">${item.category} ${item.who ? '('+item.who+')' : ''}</strong>
+                        <strong style="color: ${colorTextMap[item.category]}">${item.category} ${item.who ? '('+item.who+')' : ''}</strong>
                         ${dObj.getDate() || '?'} ${mNames[dObj.getMonth()] || '?'} ${dObj.getFullYear() || '?'} | ${Math.round(item.duration)} mins
                     </div>
-                    <button type="button" class="list-item-menu-btn" data-session-history-menu-btn aria-label="Options for ${item.category} entry"><span class="material-symbols-outlined">more_vert</span></button>
+                    <button type="button" class="list-item-menu-btn" data-session-history-menu-btn aria-label="Options for ${item.category} entry" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 `;
                 list.appendChild(div);
             });
@@ -2593,7 +2640,7 @@
             if(historySummary) historySummary.innerText = `${formatMins(totalMins)} (${monthData.length})`;
         } catch (err) {
             const historyList = document.getElementById('historyList');
-            if(historyList) historyList.innerHTML = `<div style="color:var(--danger-color); text-align:center; padding: 20px;">Error rendering history:<br>${err.message}</div>`;
+            if(historyList) historyList.innerHTML = `<div style="color:var(--danger-text); text-align:center; padding: var(--space-5);">Error rendering history:<br>${err.message}</div>`;
             showWarningToast("History error: " + err.message);
         }
     }
@@ -2632,7 +2679,7 @@
             if (item.archived && !showArchived) return;
             const safe = String(item.name).replace(/'/g, "\\'").replace(/"/g, "&quot;");
             const label = item.archived
-                ? `${item.name} <span class="text-muted" style="font-size:0.8rem;">(archived)</span>`
+                ? `${item.name} <span class="text-muted" style="font-size:var(--font-sm);">(archived)</span>`
                 : item.name;
 
             container.innerHTML += `<div class="history-item" style="${item.archived ? 'opacity:0.6;' : ''}">
@@ -2678,12 +2725,12 @@
         const actionBtn = document.getElementById('liActionBtn');
         if (item.archived) {
             actionBtn.className = 'btn-nav no-margin';
-            actionBtn.style.cssText = 'margin-top:10px;';
+            actionBtn.style.cssText = 'margin-top:var(--space-2);';
             actionBtn.innerHTML = 'Restore';
             actionBtn.setAttribute('aria-label', 'Restore');
         } else {
             actionBtn.className = 'btn-icon-delete';
-            actionBtn.style.cssText = 'margin:10px auto 0 auto;';
+            actionBtn.style.cssText = 'margin:var(--space-2) auto 0 auto;';
             actionBtn.innerHTML = '<span class="material-symbols-outlined">delete</span>';
             actionBtn.setAttribute('aria-label', item.usedInHistory ? 'Archive' : 'Remove');
         }
@@ -3076,7 +3123,12 @@
     // no transition, forces that to actually paint (the rAF), then transitions it to 0 width over
     // durationMs - the shrink itself IS the countdown, no ticking number to keep in sync separately.
     // Returns the matching dismiss timer so callers can track/clear it alongside the bar.
+    // ML-210: every running countdown, by toast id, so hovering/focusing a toast can pause it (WCAG
+    // 2.2.1 - enough time to reach its Undo button) and leaving resumes it with the time it had left.
+    const toastCountdowns = {};
     function startToastCountdownBar(barId, durationMs, onComplete) {
+        const toastId = barId.replace(/Bar$/, '');
+        toastCountdowns[toastId] = { barId, onComplete, deadline: Date.now() + durationMs, paused: null };
         const bar = document.getElementById(barId);
         if (bar) {
             bar.style.transition = 'none';
@@ -3173,8 +3225,36 @@
         const t = document.getElementById(id);
         if(t) t.style.display = 'none';
         clearTimeout(toastDismissTimers[id]);
+        delete toastCountdowns[id];
     }
     window.closeToast = closeToast;
+
+    function pauseToast(id) {
+        const c = toastCountdowns[id];
+        if (!c || c.paused !== null) return;
+        clearTimeout(toastDismissTimers[id]);
+        c.paused = Math.max(0, c.deadline - Date.now());
+        const bar = document.getElementById(c.barId);
+        if (bar) { const w = getComputedStyle(bar).width; bar.style.transition = 'none'; bar.style.width = w; }
+    }
+    function resumeToast(id) {
+        const c = toastCountdowns[id];
+        if (!c || c.paused === null) return;
+        const remaining = c.paused;
+        c.paused = null;
+        c.deadline = Date.now() + remaining;
+        const bar = document.getElementById(c.barId);
+        if (bar) { void bar.offsetWidth; bar.style.transition = `width ${remaining}ms linear`; bar.style.width = '0%'; }
+        toastDismissTimers[id] = setTimeout(c.onComplete, remaining);
+    }
+    ['toastSuccess', 'toastWarning', 'toastInfo', 'toastUndo'].forEach(id => {
+        const t = document.getElementById(id);
+        if (!t) return;
+        t.addEventListener('mouseenter', () => pauseToast(id));
+        t.addEventListener('mouseleave', () => { if (!t.contains(document.activeElement)) resumeToast(id); });
+        t.addEventListener('focusin', () => pauseToast(id));
+        t.addEventListener('focusout', (e) => { if (!t.contains(e.relatedTarget)) resumeToast(id); });
+    });
 
     // ML-75: a small popup anchored right next to the bar/heatmap square that was just clicked,
     // showing that one square's/bar's own value in context - replaces the old showInfoToast (bottom
@@ -3629,8 +3709,10 @@
             setSubdivisionFactor(n) { subdivisionFactor = n; },
             setLowPitch(v) { lowPitch = v; },
             setSpeedPercent(p) { speedPercent = p; },
-            setVolume(v) { volume = v; if (masterGain && !muted) masterGain.gain.value = v; },
-            setMuted(m) { muted = m; if (masterGain) masterGain.gain.value = m ? 0 : volume; },
+            // ML-210: glide to the new level (~20ms) rather than jumping - an instant gain change
+            // clicks, and scrubbing the volume slider fires dozens of them.
+            setVolume(v) { volume = v; if (masterGain && !muted) masterGain.gain.setTargetAtTime(v, masterGain.context.currentTime, 0.02); },
+            setMuted(m) { muted = m; if (masterGain) masterGain.gain.setTargetAtTime(m ? 0 : volume, masterGain.context.currentTime, 0.02); },
             setVisualLatencyMs(ms) { visualLatencyMs = ms; },
             getEffectiveConductorBpm: effectiveConductorBpm,
             onBeat(cb) { beatListeners.push(cb); },
@@ -3927,24 +4009,27 @@
             onRelease?.();
         }
 
+        // a11y: only records where a swipe/drag gesture starts - nothing activates on press (WCAG 2.5.2)
         thumb.addEventListener('pointerdown', (e) => {
             e.preventDefault();
             document.addEventListener('pointermove', onMove);
             document.addEventListener('pointerup', onUp);
         });
 
+        // a11y: tapping the track jumps the value on press - reversible (drag or tap again), allowed by WCAG 2.5.2
         track.addEventListener('pointerdown', (e) => {
             if (e.target === thumb) return;
             onDragRatio(ratioFromClientX(e.clientX));
             onRelease?.();
         });
 
-        if (onArrowStep) {
-            thumb.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { onArrowStep(1); onRelease?.(); }
-                if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { onArrowStep(-1); onRelease?.(); }
-            });
-        }
+        // ML-210: full slider keyboard support - arrows step (without also scrolling the page),
+        // Home/End jump to the minimum/maximum.
+        thumb.addEventListener('keydown', (e) => {
+            const step = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
+            if (step && onArrowStep) { e.preventDefault(); onArrowStep(step); onRelease?.(); }
+            else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); onDragRatio(e.key === 'Home' ? 0 : 1); onRelease?.(); }
+        });
     }
 
     // Design system: any slider's numeric readout doubles as a tap target - clicking/tapping it
@@ -4177,10 +4262,10 @@
         if (!ui) return;
         if (!metroBlkSetups.length) { ui.innerHTML = '<p>No saved setups yet - go back and choose "Create your own" to make one.</p>'; return; }
         ui.innerHTML = metroBlkSetups.map(s => `
-            <div class="history-item" style="align-items:center;">
-                <div style="flex-grow:1; cursor:pointer;" onclick="openMetroBlkSetup(${s.id})">
+            <div class="history-item clickable" style="align-items:center;">
+                <div role="button" tabindex="0" style="flex-grow:1; cursor:pointer;" onclick="openMetroBlkSetup(${s.id})">
                     <strong>${escapeHtml(s.name)}</strong>
-                    <div style="font-size:0.85rem; color:#666;">${s.blockCount} block${s.blockCount === 1 ? '' : 's'}${s.hasLeadIn ? ' + lead-in' : ''} &middot; ${formatMetroBlkDuration(s.totalSeconds)}</div>
+                    <div style="font-size:var(--font-sm); color:var(--label-color);">${s.blockCount} block${s.blockCount === 1 ? '' : 's'}${s.hasLeadIn ? ' + lead-in' : ''} &middot; ${formatMetroBlkDuration(s.totalSeconds)}</div>
                 </div>
                 <div class="metroBlk-setup-row-actions">
                     <button class="btn-icon-copy" aria-label="Copy" onclick="duplicateMetroBlkSetup(${s.id})"><span class="material-symbols-outlined">content_copy</span></button>
@@ -4313,12 +4398,12 @@
         if (!ui) return;
         if (!flowsListCache.length) { ui.innerHTML = '<p>No flows yet - go back and choose "Create your own" to make one.</p>'; return; }
         ui.innerHTML = flowsListCache.map(f => `
-            <div class="history-item" data-flow-library-id="${f.id}">
-                <div style="flex-grow:1; cursor:pointer;" onclick="openFlow(${f.id})">
+            <div class="history-item clickable" data-flow-library-id="${f.id}">
+                <div role="button" tabindex="0" style="flex-grow:1; cursor:pointer;" onclick="openFlow(${f.id})">
                     <strong>${escapeHtml(f.title)}</strong>
-                    <div style="font-size:0.85rem; color:#666;">${f.blockCount} bar${f.blockCount === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}</div>
+                    <div style="font-size:var(--font-sm); color:var(--label-color);">${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}</div>
                 </div>
-                ${flowLibraryMenuItemsFor(f).length ? `<button type="button" class="list-item-menu-btn" data-flow-library-menu-btn aria-label="Options for ${escapeHtml(f.title)}"><span class="material-symbols-outlined">more_vert</span></button>` : ''}
+                ${flowLibraryMenuItemsFor(f).length ? `<button type="button" class="list-item-menu-btn" data-flow-library-menu-btn aria-label="Options for ${escapeHtml(f.title)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>` : ''}
             </div>
         `).join('');
         ui.querySelectorAll('[data-flow-library-menu-btn]').forEach(btn => {
@@ -5057,7 +5142,7 @@
             <div class="history-item flow-media-item">
                 <div class="flow-media-item-top">
                     <div class="history-details">
-                        <span class="flow-media-icon ${isYoutube ? 'type-youtube' : 'type-audio'}"><span class="material-symbols-outlined" style="font-size:18px;">${icon}</span></span>
+                        <span class="flow-media-icon ${isYoutube ? 'type-youtube' : 'type-audio'}"><span class="material-symbols-outlined" style="font-size:var(--icon-md);">${icon}</span></span>
                         <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(meta)}</span></div>
                     </div>
                     <button type="button" class="flow-delete-btn" onclick="deleteFlowRecording('${r.id}')" aria-label="Delete ${escapeHtml(r.title)}"><span class="material-symbols-outlined">delete</span></button>
@@ -5389,7 +5474,9 @@
 
     function renderFlowBlocksStudio() {
         const all = flowLeadInBlock ? [flowLeadInBlock, ...currentFlowBlocks] : currentFlowBlocks;
-        const totalBars = all.reduce((sum, b) => sum + (b.barCount || 0), 0);
+        // Bar count excludes the lead-in (a count-in, not part of the piece); the runtime estimate
+        // still includes it, since it does play.
+        const totalBars = currentFlowBlocks.reduce((sum, b) => sum + (b.barCount || 0), 0);
         const totalSeconds = flowTotalRuntimeSeconds(all);
         const mins = Math.floor(totalSeconds / 60);
         const secs = Math.round(totalSeconds % 60);
@@ -5792,8 +5879,8 @@
     function flowBlockCardHtml(b, idx, nextBlock) {
         const timeSig = b.timeSignatureLabel || `${b.numerator}/${b.denominator}`;
         const markBox = b.rehearsalMark
-            ? `<button type="button" class="flow-block-mark-box" data-block-tile="rehearsalMark">${escapeHtml(b.rehearsalMark)}</button>`
-            : `<button type="button" class="flow-block-mark-empty" data-block-tile="rehearsalMark" aria-label="Add rehearsal mark">+</button>`;
+            ? `<button type="button" class="flow-block-mark-box" data-block-tile="rehearsalMark" aria-label="Rehearsal mark: ${escapeHtml(b.rehearsalMark)} - tap to change" title="${escapeHtml(b.rehearsalMark)}">${escapeHtml(b.rehearsalMark)}</button>`
+            : `<button type="button" class="flow-block-mark-empty" data-block-tile="rehearsalMark" aria-label="Add rehearsal mark">+ RM</button>`;
         // Grab handle/delete-underlay only render once there's more than one block to reorder/delete -
         // same "hide, don't just no-op" precedent as the 3-dot menu's own Move up/down/Delete
         // (openFlowBlockMenu) and Quick Play's own qp-bar-grab-handle/qp-block-delete-underlay.
@@ -5802,7 +5889,7 @@
             ? `<button type="button" class="flow-block-grab-handle" data-block-grab-handle aria-label="Drag to reorder ${flowBarRangeLabel(idx)}"><span class="material-symbols-outlined">drag_indicator</span></button>`
             : '';
         const deleteUnderlay = canReorderOrDelete
-            ? `<div class="flow-block-delete-underlay" data-block-delete-btn aria-label="Delete ${flowBarRangeLabel(idx)}">
+            ? `<div role="button" tabindex="0" class="flow-block-delete-underlay" data-block-delete-btn aria-label="Delete ${flowBarRangeLabel(idx)}">
                 <span class="material-symbols-outlined">delete</span>
                 <span>Delete</span>
             </div>`
@@ -5821,7 +5908,7 @@
                         ${markBox}
                         <span class="flow-block-name">${flowBarRangeLabel(idx)}</span>
                     </div>
-                    <button type="button" class="list-item-menu-btn" data-block-menu-btn aria-label="${flowBarRangeLabel(idx)} options"><span class="material-symbols-outlined">more_vert</span></button>
+                    <button type="button" class="list-item-menu-btn" data-block-menu-btn aria-label="${flowBarRangeLabel(idx)} options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 </div>
                 <div class="flow-tile-section">
                     <span class="flow-tile-section-label">Core</span>
@@ -5865,7 +5952,7 @@
         const container = document.getElementById('flowBlocksList');
         if (!container) return;
         if (!currentFlowBlocks.length) {
-            container.innerHTML = '<p class="text-muted" style="text-align:center; padding: 20px;">No bars yet - add your first one below.</p>';
+            container.innerHTML = '<p class="text-muted" style="text-align:center; padding: var(--space-5);">No bars yet - add your first one below.</p>';
             return;
         }
         container.innerHTML = currentFlowBlocks.map((b, idx) => flowBlockCardHtml(b, idx, currentFlowBlocks[idx + 1])).join('');
@@ -5966,6 +6053,7 @@
     }
     // Tapping anywhere outside an open card snaps it back - a document-level listener rather than a
     // per-card blur/outside-click check, same pattern as closeQpBarMenu/qpOpenSwipeIndex's own.
+    // a11y: closes an open swipe card when tapping elsewhere - harmless and reversible, not an activation (WCAG 2.5.2)
     document.addEventListener('pointerdown', (e) => {
         if (flowOpenSwipeBlockId === null) return;
         const openBoxEl = document.querySelector(`.flow-block-box[data-block-id="${flowOpenSwipeBlockId}"]`);
@@ -6027,6 +6115,7 @@
                 if (flowOpenSwipeBlockId === blockId) flowOpenSwipeBlockId = null;
             }
         }
+        // a11y: only records where a swipe/drag gesture starts - nothing activates on press (WCAG 2.5.2)
         boxEl.addEventListener('pointerdown', (e) => {
             if (e.target.closest(FLOW_BLOCK_SWIPE_EXCLUDE_SELECTOR)) return;
             startX = e.clientX;
@@ -6746,7 +6835,7 @@
             // too, this is just a second way to reach the same delete.
             return `
                 <div class="flow-fermata-box" data-pause-index="${i}">
-                    <div class="flow-fermata-delete-underlay" data-pause-swipe-delete aria-label="Delete pause">
+                    <div role="button" tabindex="0" class="flow-fermata-delete-underlay" data-pause-swipe-delete aria-label="Delete pause">
                         <span class="material-symbols-outlined">delete</span>
                         <span>Delete</span>
                     </div>
@@ -6755,7 +6844,7 @@
                             ${invalid ? flowWarningIconSvg('flow-warning-icon') : flowPauseIconSvg(kind, true)}
                             <span>Bar ${(f.barOffset || 0) + 1}, beat ${f.beatOffset} &middot; <span class="flow-fermata-row-tag">${durationTag}</span></span>
                         </span>
-                        <button type="button" class="list-item-menu-btn" data-pause-menu aria-label="Pause options"><span class="material-symbols-outlined">more_vert</span></button>
+                        <button type="button" class="list-item-menu-btn" data-pause-menu aria-label="Pause options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                     </div>
                 </div>
             `;
@@ -6799,6 +6888,7 @@
         flowSetPauseSwipeOffset(flowOpenSwipePauseIndex, 0, animate);
         flowOpenSwipePauseIndex = null;
     }
+    // a11y: closes an open swipe card when tapping elsewhere - harmless and reversible, not an activation (WCAG 2.5.2)
     document.addEventListener('pointerdown', (e) => {
         if (flowOpenSwipePauseIndex === null) return;
         const openBoxEl = document.querySelector(`#flowFermataList [data-pause-index="${flowOpenSwipePauseIndex}"]`);
@@ -6844,6 +6934,7 @@
                 if (flowOpenSwipePauseIndex === index) flowOpenSwipePauseIndex = null;
             }
         }
+        // a11y: only records where a swipe/drag gesture starts - nothing activates on press (WCAG 2.5.2)
         boxEl.addEventListener('pointerdown', (e) => {
             if (e.target.closest(FLOW_PAUSE_SWIPE_EXCLUDE_SELECTOR)) return;
             startX = e.clientX;
@@ -7125,7 +7216,7 @@
             const invalid = flowRampRowInvalid(r, maxBar, nextBlock);
             return `
                 <div class="flow-ramp-box" data-ramp-index="${i}">
-                    <div class="flow-ramp-delete-underlay" data-ramp-swipe-delete aria-label="Delete ramp">
+                    <div role="button" tabindex="0" class="flow-ramp-delete-underlay" data-ramp-swipe-delete aria-label="Delete ramp">
                         <span class="material-symbols-outlined">delete</span>
                         <span>Delete</span>
                     </div>
@@ -7137,7 +7228,7 @@
                                 <span class="flow-ramp-row-tag">Tempo change &middot; To ${flowRampTargetLabel(r, nextBlock)}</span>
                             </span>
                         </span>
-                        <button type="button" class="list-item-menu-btn" data-ramp-menu aria-label="Ramp options"><span class="material-symbols-outlined">more_vert</span></button>
+                        <button type="button" class="list-item-menu-btn" data-ramp-menu aria-label="Ramp options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                     </div>
                 </div>
             `;
@@ -7179,6 +7270,7 @@
         flowSetRampSwipeOffset(flowOpenSwipeRampIndex, 0, animate);
         flowOpenSwipeRampIndex = null;
     }
+    // a11y: closes an open swipe card when tapping elsewhere - harmless and reversible, not an activation (WCAG 2.5.2)
     document.addEventListener('pointerdown', (e) => {
         if (flowOpenSwipeRampIndex === null) return;
         const openBoxEl = document.querySelector(`#flowRampList [data-ramp-index="${flowOpenSwipeRampIndex}"]`);
@@ -7224,6 +7316,7 @@
                 if (flowOpenSwipeRampIndex === index) flowOpenSwipeRampIndex = null;
             }
         }
+        // a11y: only records where a swipe/drag gesture starts - nothing activates on press (WCAG 2.5.2)
         boxEl.addEventListener('pointerdown', (e) => {
             if (e.target.closest(FLOW_RAMP_SWIPE_EXCLUDE_SELECTOR)) return;
             startX = e.clientX;
@@ -7970,7 +8063,7 @@
                 <div class="flow-media-slide" data-slide-key="${flowMediaSlideKey(slide)}">
                     <div class="metroBlk-row">
                         <div class="flow-media-slide-header">
-                            <span class="flow-media-icon type-audio"><span class="material-symbols-outlined" style="font-size:18px;">music_note</span></span>
+                            <span class="flow-media-icon type-audio"><span class="material-symbols-outlined" style="font-size:var(--icon-md);">music_note</span></span>
                             <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(r.mimeType || 'Audio file')}</span></div>
                         </div>
                         <audio class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}" data-flow-media-key="${flowMediaSlideKey(slide)}"></audio>
@@ -7985,7 +8078,7 @@
                 <div class="flow-media-slide" data-slide-key="${flowMediaSlideKey(slide)}">
                     <div class="metroBlk-row">
                         <div class="flow-media-slide-header">
-                            <span class="flow-media-icon type-youtube"><span class="material-symbols-outlined" style="font-size:18px;">smart_display</span></span>
+                            <span class="flow-media-icon type-youtube"><span class="material-symbols-outlined" style="font-size:var(--icon-md);">smart_display</span></span>
                             <div><strong>${escapeHtml(r.title)}</strong><span>YouTube video</span></div>
                         </div>
                         <div class="flow-media-player-video"><iframe id="flowYtFrame-${r.id}" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}?enablejsapi=1&amp;origin=${origin}" title="${escapeHtml(r.title)}" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
@@ -8011,8 +8104,8 @@
         } else {
             const r = slide.data;
             iconHtml = slide.type === 'audio'
-                ? '<span class="flow-media-icon type-audio"><span class="material-symbols-outlined" style="font-size:18px;">music_note</span></span>'
-                : '<span class="flow-media-icon type-youtube"><span class="material-symbols-outlined" style="font-size:18px;">smart_display</span></span>';
+                ? '<span class="flow-media-icon type-audio"><span class="material-symbols-outlined" style="font-size:var(--icon-md);">music_note</span></span>'
+                : '<span class="flow-media-icon type-youtube"><span class="material-symbols-outlined" style="font-size:var(--icon-md);">smart_display</span></span>';
             title = r.title;
             subtitle = slide.type === 'audio' ? (r.mimeType || 'Audio file') : 'YouTube video';
         }
@@ -8212,6 +8305,7 @@
                 goToFlowMediaSlide(flowMediaActiveIndex);
             }
         }
+        // a11y: only records where a swipe/drag gesture starts - nothing activates on press (WCAG 2.5.2)
         viewport.addEventListener('pointerdown', (e) => {
             if (e.target.closest('audio, iframe, button, input')) return;
             startX = e.clientX;
@@ -8287,7 +8381,7 @@
                 const b = flowLeadInBlock;
                 const countStr = `${b.barCount} bar${b.barCount === 1 ? '' : 's'}`;
                 const repeatStr = b.repeatLeadIn ? ', repeating' : ', first time only';
-                leadInSlot.innerHTML = `<div class="metroBlk-leadin-row metroBlk-leadin-row-filled${b.id === currentId ? ' metroBlk-tile-active' : ''}" onclick="jumpFlowToPlayIndex(${b.id})">
+                leadInSlot.innerHTML = `<div role="button" tabindex="0" class="metroBlk-leadin-row metroBlk-leadin-row-filled${b.id === currentId ? ' metroBlk-tile-active' : ''}" onclick="jumpFlowToPlayIndex(${b.id})">
                     <span class="metroBlk-tile-badge">Lead-in</span><span>${countStr}${repeatStr}</span>
                 </div>`;
             } else {
@@ -8301,11 +8395,17 @@
             // bar count drop down to supporting lines below, smallest last, same as before.
             let startBar = 1;
             tilesUi.innerHTML = currentFlowBlocks.map(s => {
-                const headline = s.rehearsalMark
-                    ? `<div class="metroBlk-tile-mark-box">${escapeHtml(s.rehearsalMark)}</div>`
+                // Rehearsal-mark follow-up to ML-219: a short mark ("A", "B2") keeps the big boxed
+                // headline; a longer one drops to a smaller size and wraps to at most 2 lines (then "…")
+                // so it can never spill out of a narrow tile in the 4-column grid. The full name is on
+                // the tile's tooltip/accessible name and leads the now-playing line (metroBlkBlockLabel).
+                const mark = s.rehearsalMark;
+                const headline = mark
+                    ? `<div class="metroBlk-tile-mark-box${mark.length > 3 ? ' metroBlk-tile-mark-box-long' : ''}">${escapeHtml(mark)}</div>`
                     : `<div class="metroBlk-tile-sig">${startBar}</div>`;
+                const tileName = `${mark ? escapeHtml(mark) : `Bar ${startBar}`}, ${s.bpm} bpm, ${s.barCount} bar${s.barCount === 1 ? '' : 's'}`;
                 startBar += s.barCount || 0;
-                return `<div class="metroBlk-tile${s.id === currentId ? ' metroBlk-tile-active' : ''}" onclick="jumpFlowToPlayIndex(${s.id})">
+                return `<div role="button" tabindex="0" class="metroBlk-tile${s.id === currentId ? ' metroBlk-tile-active' : ''}" title="${tileName}" aria-label="Jump to ${tileName}" onclick="jumpFlowToPlayIndex(${s.id})">
                     ${headline}
                     <div class="metroBlk-tile-bpm">${s.bpm} bpm</div>
                     <div class="metroBlk-tile-bars">${s.barCount} bar${s.barCount === 1 ? '' : 's'}</div>
@@ -8521,7 +8621,7 @@
     });
     renderFlowVolumeSlider();
 
-    // --- Play Flow's own 3-dot menu (Edit details / Edit flow) - replaces Quick Play's static
+    // --- Play Flow's own 3-dot menu (Edit details / Edit bars - ML-217: it opens the Bars tab) - replaces Quick Play's static
     // "Bars" title's Show history/Create flow links. Bare .dropdown-menu, same "only ever one
     // instance on screen" precedent as elsewhere in the app (e.g. the burger menu). Both items land
     // on the same Edit Flow view (Details/Media/Blocks tabs) now, just on a different starting tab -
@@ -8889,7 +8989,8 @@
     // Returns HTML (the fermata suffix embeds a real glyph span, not plain text) - every caller must
     // assign this via innerHTML, not innerText.
     function metroBlkBlockLabel(block, beatsPlayedInBlock) {
-        const prefix = block.isLeadIn ? 'Lead-in · ' : '';
+        // The rehearsal mark leads, in full - the tiles may have had to clamp it (see renderFlowPlaybackTiles).
+        const prefix = (block.isLeadIn ? 'Lead-in · ' : '') + (block.rehearsalMark ? `${escapeHtml(block.rehearsalMark)} · ` : '');
         const fermataSuffix = metroBlkFermataLabelSuffix(block);
         // A lead-in only ever plays once, so an "x of y beats" progress count is meaningless - only
         // a repeating block's bar count needs that. (Already identification-first as-is here - a
@@ -8924,9 +9025,9 @@
         const idArg = metroBlkIdArg(s.id);
         const onclick = metroBlkEditMode ? `openMetroSegmentModal(${idArg})` : `jumpMetroBlkToPlayIndex(${idArg})`;
         const menuBtn = metroBlkEditMode
-            ? `<button type="button" class="metroBlk-tile-menu-btn" aria-label="Block options" onclick="event.stopPropagation(); openMetroBlkTileMenu(event, ${idArg})"><span class="material-symbols-outlined">more_vert</span></button>`
+            ? `<button type="button" class="metroBlk-tile-menu-btn" aria-label="Block options" aria-haspopup="menu" aria-expanded="false" onclick="event.stopPropagation(); openMetroBlkTileMenu(event, ${idArg})"><span class="material-symbols-outlined">more_vert</span></button>`
             : '';
-        return `<div class="metroBlk-tile${s.isLeadIn ? ' lead-in' : ''}" draggable="${metroBlkEditMode}" data-id="${escapeHtml(String(s.id))}" onclick="${onclick}">
+        return `<div role="button" tabindex="0" class="metroBlk-tile${s.isLeadIn ? ' lead-in' : ''}" draggable="${metroBlkEditMode}" data-id="${escapeHtml(String(s.id))}" onclick="${onclick}">
             ${menuBtn}
             ${s.isLeadIn ? '<div class="metroBlk-tile-badge">Lead-in</div>' : ''}
             <div class="metroBlk-tile-sig">${escapeHtml(s.timeSignatureLabel)}</div>
@@ -8962,7 +9063,7 @@
     function metroBlkLeadInSlotHtml(leadIn) {
         if (!leadIn) {
             if (!metroBlkEditMode) return '';
-            return `<button type="button" class="metroBlk-leadin-row metroBlk-leadin-row-add" aria-label="Add lead-in" onclick="openMetroLeadInModal()">
+            return `<button type="button" class="metroBlk-leadin-row metroBlk-leadin-row-add" aria-label="Add lead-in" aria-haspopup="dialog" onclick="openMetroLeadInModal()">
                 <span class="metroBlk-leadin-plus">+</span><span>Lead-in</span>
             </button>`;
         }
@@ -8974,7 +9075,7 @@
         const repeatStr = leadIn.repeatLeadIn ? ', repeating' : ', first time only';
         const idArg = metroBlkIdArg(leadIn.id);
         const onclick = metroBlkEditMode ? `openMetroLeadInModal(${idArg})` : `jumpMetroBlkToPlayIndex(${idArg})`;
-        return `<div class="metroBlk-leadin-row metroBlk-leadin-row-filled" data-id="${escapeHtml(String(leadIn.id))}" onclick="${onclick}">
+        return `<div role="button" tabindex="0" class="metroBlk-leadin-row metroBlk-leadin-row-filled" data-id="${escapeHtml(String(leadIn.id))}" onclick="${onclick}">
             <span class="metroBlk-tile-badge">Lead-in</span>
             <span>${countStr}${afterStr}${repeatStr}</span>
         </div>`;
@@ -8990,7 +9091,7 @@
 
         if (leadInSlot) leadInSlot.innerHTML = metroBlkLeadInSlotHtml(leadIn);
         // The "+" add-block tile only makes sense in Edit Mode (ML-97) - Play Mode has nothing to add.
-        const addTile = metroBlkEditMode ? '<button class="metroBlk-add-tile" aria-label="Add block" onclick="openMetroSegmentModal()">+</button>' : '';
+        const addTile = metroBlkEditMode ? '<button class="metroBlk-add-tile" aria-label="Add block" aria-haspopup="dialog" onclick="openMetroSegmentModal()">+</button>' : '';
         ui.innerHTML = loopBlocks.map(metroBlkTileHtml).join('') + addTile;
 
         // Dragging to reorder is Edit-Mode-only now too - no listeners bound at all in Play Mode.
@@ -9077,6 +9178,7 @@
         }
 
         container.querySelectorAll('.metroBlk-tile').forEach(tile => {
+            // a11y: only records where a swipe/drag gesture starts - nothing activates on press (WCAG 2.5.2)
             tile.addEventListener('pointerdown', (e) => {
                 if (e.pointerType === 'mouse') return; // native dragstart/dragover/dragend own this gesture
                 dragEl = tile;
@@ -9251,10 +9353,10 @@
                 if (t.usageCount === 0) {
                     actionHtml = `<button class="btn-icon-delete" aria-label="Delete ${escapeHtml(t.label)}" onclick="deleteMetroSegCustomTimeSig(${t.id})"><span class="material-symbols-outlined">delete</span></button>`;
                 } else if (t.active) {
-                    actionHtml = `<button class="btn-edit" style="width:auto; padding:6px 12px;" onclick="archiveMetroSegCustomTimeSig(${t.id})">Archive</button>`;
+                    actionHtml = `<button class="btn-edit" style="width:auto; padding:var(--space-2) var(--space-3);" onclick="archiveMetroSegCustomTimeSig(${t.id})">Archive</button>`;
                 }
                 return `<div class="history-item" style="align-items:center;">
-                    <div style="flex-grow:1;"><strong>${escapeHtml(t.label)}</strong>${archivedTag}<div style="font-size:0.85rem; color:#888;">${usageText}</div></div>
+                    <div style="flex-grow:1;"><strong>${escapeHtml(t.label)}</strong>${archivedTag}<div style="font-size:var(--font-sm); color:var(--label-color);">${usageText}</div></div>
                     ${actionHtml}
                 </div>`;
             }).join('');
@@ -9462,6 +9564,7 @@
             clearInterval(repeatTimer);
             unitStepsTaken = 0;
         }
+        // a11y: press-and-hold repeats the step - each step is reversible with the opposite stepper (WCAG 2.5.2)
         btn.addEventListener('pointerdown', begin);
         btn.addEventListener('pointerup', end);
         btn.addEventListener('pointerleave', end);
@@ -9491,6 +9594,7 @@
         function cancelHold() {
             clearTimeout(holdTimer);
         }
+        // a11y: only starts the press-and-hold timer; the tap action itself runs on click (WCAG 2.5.2)
         btn.addEventListener('pointerdown', begin);
         btn.addEventListener('pointerup', cancelHold);
         btn.addEventListener('pointerleave', cancelHold);
@@ -9853,7 +9957,7 @@
                 <div style="flex-grow:1;">
                     <strong>${m.barOffset === 0 ? 'At start (bar 1)' : `After ${m.barOffset} bar${m.barOffset === 1 ? '' : 's'} (bar ${m.barOffset + 1})`}</strong>
                 </div>
-                <button type="button" class="metroSeg-icon-btn" aria-label="Edit rehearsal mark" onclick="openMetroSegRehearsalModal(${i})"><span class="material-symbols-outlined">edit</span></button>
+                <button type="button" class="metroSeg-icon-btn" aria-label="Edit rehearsal mark" aria-haspopup="dialog" onclick="openMetroSegRehearsalModal(${i})"><span class="material-symbols-outlined">edit</span></button>
             </div>
         `).join('');
     }
@@ -9989,9 +10093,9 @@
                 <span class="metroSeg-list-row-badge">&#119136;</span>
                 <div style="flex-grow:1;">
                     <strong>${metroSegBarCount > 1 ? `Bar ${f.barOffset + 1}, beat` : 'On beat'} ${f.beatOffset}</strong>
-                    <span style="font-size:0.75rem; margin-left:6px; color:var(--primary-action);">Hold ${f.holdBeats} beat${f.holdBeats === 1 ? '' : 's'}</span>
+                    <span style="font-size:var(--font-sm); margin-left:var(--space-1); color:var(--primary-action-strong);">Hold ${f.holdBeats} beat${f.holdBeats === 1 ? '' : 's'}</span>
                 </div>
-                <button type="button" class="metroSeg-icon-btn" aria-label="Edit fermata" onclick="openMetroSegFermataModal(${i})"><span class="material-symbols-outlined">edit</span></button>
+                <button type="button" class="metroSeg-icon-btn" aria-label="Edit fermata" aria-haspopup="dialog" onclick="openMetroSegFermataModal(${i})"><span class="material-symbols-outlined">edit</span></button>
             </div>
         `).join('');
     }
@@ -11319,11 +11423,11 @@
         // instead, so the gesture has a real effect; with more than one bar, Bar 1 deletes normally.
         const isDeadEndDelete = index === 0 && qpBlocks.length <= 1;
         const deleteUnderlay = isDeadEndDelete
-            ? `<div class="qp-block-delete-underlay" data-qp-reset-all-btn aria-label="Delete all and reset">
+            ? `<div role="button" tabindex="0" class="qp-block-delete-underlay" data-qp-reset-all-btn aria-label="Delete all and reset">
                 <span class="material-symbols-outlined">restart_alt</span>
                 <span>Reset</span>
             </div>`
-            : `<div class="qp-block-delete-underlay" data-qp-delete-btn aria-label="Delete Bar ${index + 1}">
+            : `<div role="button" tabindex="0" class="qp-block-delete-underlay" data-qp-delete-btn aria-label="Delete Bar ${index + 1}">
                 <span class="material-symbols-outlined">delete</span>
                 <span>Delete</span>
             </div>`;
@@ -11335,14 +11439,14 @@
                         ${grabHandle}
                         <span class="qp-block-title">Bar ${index + 1}</span>
                     </div>
-                    <button type="button" class="qp-bar-menu-btn" data-qp-menu-btn aria-label="Bar ${index + 1} options"><span class="material-symbols-outlined">more_vert</span></button>
+                    <button type="button" class="qp-bar-menu-btn" data-qp-menu-btn aria-label="Bar ${index + 1} options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 </div>
                 <div class="qp-bar-fields-grid">
-                    <button type="button" class="metroBlk-ctrl-value-btn qp-timesig-cell" data-qp-timesig-btn aria-label="Time signature - tap to change">
+                    <button type="button" class="metroBlk-ctrl-value-btn qp-timesig-cell" data-qp-timesig-btn aria-label="Time signature - tap to change" aria-haspopup="dialog" aria-expanded="false">
                         <strong>${escapeHtml(qpBlockTimeSigLabel(block))}</strong>
                         <span class="metroBlk-ctrl-value-label">time</span>
                     </button>
-                    <button type="button" class="metroBlk-ctrl-value-btn qp-notelen-cell" data-qp-note-btn aria-label="Beat note - tap to change">
+                    <button type="button" class="metroBlk-ctrl-value-btn qp-notelen-cell" data-qp-note-btn aria-label="Beat note - tap to change" aria-haspopup="dialog" aria-expanded="false">
                         <span class="qp-note-btn-icon">${metroNoteIconSvg(block.noteSelected)}</span>
                         <span class="metroBlk-ctrl-value-label">beat note</span>
                     </button>
@@ -11535,11 +11639,12 @@
             if (Math.abs(dy) > thresholdPx) {
                 if (dy < 0) onMoveUp(); else onMoveDown();
             } else {
-                boxEl.style.transition = 'transform 0.2s ease';
+                boxEl.style.transition = 'transform var(--duration-base) ease';
                 boxEl.style.transform = '';
                 boxEl.querySelector(surfaceSelector)?.classList.remove('drag-reorder-highlight');
             }
         }
+        // a11y: only records where a swipe/drag gesture starts - nothing activates on press (WCAG 2.5.2)
         handleEl.addEventListener('pointerdown', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -11584,7 +11689,7 @@
             const uid = el.getAttribute(itemAttr);
             const prev = before.get(uid);
             if (raiseUid !== undefined && String(raiseUid) === uid) {
-                el.style.zIndex = '2';
+                el.style.zIndex = 'var(--z-raised)';
                 el.querySelector(surfaceSelector)?.classList.add('drag-reorder-highlight');
             }
             if (prev) {
@@ -11738,6 +11843,7 @@
     }
     // "Tapping anywhere outside an open card... snaps the card back" - a document-level listener
     // rather than a per-card blur/outside-click check, same pattern as closeQpBarMenu below.
+    // a11y: closes an open swipe card when tapping elsewhere - harmless and reversible, not an activation (WCAG 2.5.2)
     document.addEventListener('pointerdown', (e) => {
         if (qpOpenSwipeIndex === null) return;
         const openBoxEl = document.querySelector(`#qpBlocks [data-qp-block-index="${qpOpenSwipeIndex}"]`);
@@ -11801,6 +11907,7 @@
                 if (qpOpenSwipeIndex === index) qpOpenSwipeIndex = null;
             }
         }
+        // a11y: only records where a swipe/drag gesture starts - nothing activates on press (WCAG 2.5.2)
         boxEl.addEventListener('pointerdown', (e) => {
             if (e.target.closest(QP_SWIPE_EXCLUDE_SELECTOR)) return;
             startX = e.clientX;
@@ -12420,15 +12527,15 @@
             list.innerHTML = `<p class="text-muted">${qpHistoryFilter === 'favorites' ? 'No favourites yet.' : 'No history yet - play something for a couple of seconds and it\'ll show up here.'}</p>`;
         } else {
             list.innerHTML = rows.map(r => `
-                <div class="history-item qp-history-item${r.id === qpHistorySelectedId ? ' qp-history-item-selected' : ''}" data-qp-history-id="${r.id}">
-                    <div class="qp-history-item-body" data-qp-history-select>
+                <div class="history-item clickable qp-history-item${r.id === qpHistorySelectedId ? ' qp-history-item-selected' : ''}" data-qp-history-id="${r.id}">
+                    <div role="button" tabindex="0" class="qp-history-item-body" data-qp-history-select>
                         ${r.isFavorite ? '<span class="material-symbols-outlined qp-history-star" aria-hidden="true">star</span>' : ''}
                         <div>
                             <strong>${escapeHtml(qpFormatHistoryLabel(r.name))}</strong>
-                            <div style="font-size:0.85rem; color:#666;">${r.blockCount} bar${r.blockCount === 1 ? '' : 's'}</div>
+                            <div style="font-size:var(--font-sm); color:var(--label-color);">${r.blockCount} bar${r.blockCount === 1 ? '' : 's'}</div>
                         </div>
                     </div>
-                    <button type="button" class="list-item-menu-btn" data-qp-history-menu-btn aria-label="Options for ${escapeHtml(qpFormatHistoryLabel(r.name))}"><span class="material-symbols-outlined">more_vert</span></button>
+                    <button type="button" class="list-item-menu-btn" data-qp-history-menu-btn aria-label="Options for ${escapeHtml(qpFormatHistoryLabel(r.name))}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 </div>
             `).join('');
         }
@@ -13118,6 +13225,10 @@
         document.getElementById('tunerNeedle').style.left = '50%';
         document.getElementById('tunerNeedle').classList.remove('in-tune');
         document.getElementById('tunerCard').classList.remove('in-tune', 'out-of-tune');
+        const tuneEl = document.getElementById('tunerTuneState');
+        if (tuneEl) tuneEl.innerText = 'Play a note';
+        const announceEl = document.getElementById('tunerTuneAnnounce');
+        if (announceEl) { announceEl.dataset.state = ''; announceEl.innerText = ''; }
         // ML-181: fresh history every time the tuner (re)opens - a previous session's trace lingering
         // on screen while nothing's been played yet this time would misrepresent what's live.
         tunerHistory = [];
@@ -13354,6 +13465,13 @@
         document.getElementById('tunerNeedle').classList.toggle('in-tune', inTune);
         document.getElementById('tunerCard').classList.toggle('in-tune', inTune);
         document.getElementById('tunerCard').classList.toggle('out-of-tune', !inTune);
+        // ML-210: the same state as text for anyone who can't rely on the colour. The visible line
+        // updates every frame; the screen-reader announcement only when the state category changes.
+        const tuneWord = inTune ? 'In tune' : (centsOff < 0 ? 'flat' : 'sharp');
+        const tuneEl = document.getElementById('tunerTuneState');
+        if (tuneEl) tuneEl.innerText = inTune ? 'In tune' : `${Math.round(Math.abs(centsOff))}¢ ${tuneWord}`;
+        const announceEl = document.getElementById('tunerTuneAnnounce');
+        if (announceEl && announceEl.dataset.state !== tuneWord) { announceEl.dataset.state = tuneWord; announceEl.innerText = inTune ? 'In tune' : tuneWord === 'flat' ? 'Flat' : 'Sharp'; }
 
         if (dueForHistorySample) {
             tunerHistoryLastSampleAt = now;

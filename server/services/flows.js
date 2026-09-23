@@ -184,7 +184,9 @@ export async function createFlow(accountId, { name, bandId } = {}) {
 export async function listFlows(accountId) {
   const { rows } = await pool.query(
     `SELECT s.id, s.title, s.owner_band_id, s.owner_account_id, s.is_public, s.created_at,
-            COUNT(ms.id) AS block_count, COALESCE(SUM(ms.bar_count), 0) AS total_bars
+            COUNT(ms.id) AS block_count,
+            -- Bar counts exclude the lead-in: it's a count-in, not part of the piece.
+            COALESCE(SUM(ms.bar_count) FILTER (WHERE NOT ms.is_lead_in), 0) AS total_bars
      FROM scores s
      LEFT JOIN metronome_segments ms ON ms.parent_score_id = s.id
      LEFT JOIN band_members bm ON bm.band_id = s.owner_band_id AND bm.account_id = $1
@@ -205,8 +207,9 @@ export async function getFlowDetail(accountId, scoreId) {
     // client's own flowTotalRuntimeSeconds, just computed here too so the Flow Details Hub can show
     // it without loading every block's full detail.
     pool.query(
-      `SELECT COUNT(*) AS block_count, COALESCE(SUM(ms.bar_count), 0) AS total_bars,
-              COALESCE(SUM(ms.bar_count * COALESCE(tso.numerator, ats.numerator) * 60.0 / ms.bpm), 0) AS total_seconds
+      `SELECT COUNT(*) AS block_count,
+              COALESCE(SUM(ms.bar_count) FILTER (WHERE NOT ms.is_lead_in), 0) AS total_bars, -- lead-in excluded from bar counts
+              COALESCE(SUM(ms.bar_count * COALESCE(tso.numerator, ats.numerator) * 60.0 / ms.bpm), 0) AS total_seconds -- runtime still includes it (it does play)
        FROM metronome_segments ms
        LEFT JOIN time_signature_options tso ON tso.id = ms.time_signature_id
        LEFT JOIN account_time_signatures ats ON ats.id = ms.account_time_signature_id

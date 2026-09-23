@@ -1,5 +1,5 @@
 const CACHE_NAME = 'music-ledger-v1';
-const APP_SHELL = ['/', '/index.html', '/style.css', '/app.js'];
+const APP_SHELL = ['/', '/index.html', '/tokens.css', '/style.css', '/app.js', '/a11y.js'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
