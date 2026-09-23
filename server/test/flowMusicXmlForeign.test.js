@@ -73,8 +73,8 @@ test('OMR style: playback-only jumps, bare <sound tempo>, composite metre, barli
   ]);
 });
 
-test('the existing demo score still imports the same way it did before the new reader', () => {
-  const xml = fs.readFileSync(new URL('../../public/demo-scores/simple-test-tune.musicxml', import.meta.url), 'utf8');
+test('the old demo score (formerly public/demo-scores) still imports the same way it did before the new reader', () => {
+  const xml = fs.readFileSync(new URL('./fixtures/musicxml-foreign/simple-test-tune.musicxml', import.meta.url), 'utf8');
   const parsed = musicXmlToFlow(xml);
   assert.equal(parsed.title, 'Simple Test Tune');
   assert.deepEqual(parsed.blocks.map(brief), [

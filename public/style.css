@@ -1471,12 +1471,6 @@
     .flow-from-file-dropzone .material-symbols-outlined { font-size: 36px; color: var(--primary-action); }
     .flow-from-file-dropzone strong { font-size: var(--font-md); }
     .flow-from-file-chip-row { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
-    .flow-from-file-demo-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4); }
-    .flow-from-file-demo-row .material-symbols-outlined { color: var(--primary-action); font-size: 24px; flex-shrink: 0; }
-    .flow-from-file-demo-info { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    /* Overrides .btn-nav's own width:100%/display:block (sized for a full-width stacked button
-       elsewhere) - here it's one flex item alongside the icon/text, not the whole row's own width. */
-    .flow-from-file-demo-row .btn-nav { width: auto; display: inline-block; flex-shrink: 0; }
     .flow-from-file-result { background: var(--secondary-color); border-radius: var(--radius-md); padding: var(--space-5); margin-top: var(--space-4); }
     .flow-from-file-result-head { display: flex; align-items: center; gap: var(--space-2); font-weight: bold; margin-bottom: var(--space-4); }
     .flow-from-file-result-head .material-symbols-outlined { color: var(--success-color); }
@@ -1484,11 +1478,10 @@
     .flow-from-file-result-row:last-of-type { border-bottom: none; }
     .flow-from-file-result-ok { color: var(--success-color); font-weight: bold; }
     .flow-from-file-result .btn-submit { margin-top: var(--space-4); }
-    /* ML-204: import warnings on the result card, and hiding the (MusicXML) demo score when only PDF import is on */
+    /* ML-204: import warnings on the result card */
     .flow-from-file-warnings { margin-top: var(--space-4); padding: var(--space-3) var(--space-4); border-left: 3px solid var(--warning-color); background: var(--input-bg); border-radius: var(--radius-md); font-size: var(--font-sm); }
     .flow-from-file-warnings ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); }
     .flow-from-file-warnings li { margin-bottom: var(--space-1); line-height: 1.4; }
-    .flow-from-file-no-demo .section-title, .flow-from-file-no-demo .flow-from-file-demo-row { display: none !important; }
     /* Extra breathing room below specifically - it was sitting right on top of the first block
        card below it with only the button's own margin-top for separation. */
     #flowAddLeadInBtn { margin-bottom: var(--space-4); }

@@ -770,12 +770,12 @@
          the /flows/from-file step (scoreImport.js's runOmr) rather than failing silently or
          pretending PDF isn't accepted. Reuses the Media tab's own upload-progress markup/classes
          (flow-upload-progress*) rather than inventing a second version of the same thing.
-         handleFromFileUpload (app.js) drives both the real dropzone and the demo-score button below
-         through one shared path. -->
+         handleFromFileUpload (app.js) drives the upload + parse. "Continue to flow" then hands over
+         to the exact same Create flow journey as "Create your own" (ML-204). -->
     <div id="flowFromFileView" style="display:none;">
         <div class="flow-from-file-banner">
             <span class="material-symbols-outlined" aria-hidden="true">lightbulb</span>
-            <p><strong>How file import works:</strong> your score is saved into the <strong>Media</strong> section, while title, composer, tempo, and measure blocks are read into the flow. You'll review and amend everything on the next screen.</p>
+            <p><strong>How file import works:</strong> your score is saved as a document into the <strong>Media</strong> section, while title, composer, tempo, and measure blocks are read into the flow. You can review and amend everything on the next screen.</p>
         </div>
 
         <button type="button" class="flow-from-file-dropzone" id="flowFromFileDropBtn">
@@ -789,16 +789,6 @@
             </div>
         </button>
         <input type="file" id="flowFromFileInput" class="hidden-group" accept=".pdf,.musicxml,.mxl,application/pdf,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml">
-
-        <div class="section-title"><span>Or test with demo score</span></div>
-        <div class="flow-card flow-from-file-demo-row">
-            <span class="material-symbols-outlined" aria-hidden="true">music_note</span>
-            <div class="flow-from-file-demo-info">
-                <strong>Simple Test Tune</strong>
-                <span class="metro-help-text">Traditional, arr. Test</span>
-            </div>
-            <button type="button" class="btn-cancel btn-nav no-margin" id="flowFromFileDemoBtn">Test scan</button>
-        </div>
 
         <div class="flow-upload-progress hidden-group" id="flowFromFileProgress">
             <div class="flow-upload-progress-text"><span id="flowFromFileProgressLabel">Uploading&hellip;</span><span id="flowFromFileProgressPercent">0%</span></div>
@@ -989,9 +979,6 @@
                 <div class="flow-edit-sticky-bar-actions hidden-group" id="flowEditSaveBarActions">
                     <button type="button" class="btn-cancel btn-nav no-margin" id="flowEditCancelBtn">Cancel</button>
                     <button type="button" class="btn-submit no-margin" id="flowEditSaveBtn">Save</button>
-                    <!-- ML-204: only when reviewing a just-imported flow (flowEditFromImport) - the same
-                         "straight on to the player" ending the create journey's "Open player" has. -->
-                    <button type="button" class="btn-submit no-margin hidden-group" id="flowEditSavePlayBtn">Save and play</button>
                 </div>
                 <!-- Edit mode only - nothing worth deleting on a flow you've never saved-and-reopened,
                      which is the only time Create mode is ever showing. Low priority on purpose (plain

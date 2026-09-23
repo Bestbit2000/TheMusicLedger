@@ -120,9 +120,11 @@ marking at all (100 bpm).
   and screen title follow whichever import gates are on (`applyFlowImportFormats`, `app.js`), so
   it never offers a format the server would refuse - and the server enforces the same split by
   file *content* (a PDF is detected by its `%PDF` header, not its name). Any reader warnings are
-  listed on the result card under "Worth checking". "Continue to flow" opens it for review in Edit mode with a **Save and play** button
-  (straight on to the player, like the create journey's "Open player"), and takes the import screen
-  off the back stack - so Save, Cancel and Back land on the Flow start screen, not the import page.
+  listed on the result card under "Worth checking". "Continue to flow" then hands over to **exactly the same Create flow
+  journey as "Create your own"** - Create mode, Details tab first, the same sticky-bar buttons ("Add
+  media" / "Open player >" on Bars) - the only difference being "Review bars >" instead of "Add bars >"
+  on Details when the file brought bars with it. The import screen is taken off the back stack, so
+  Back lands on the Flow start screen, as it does from "Create your own".
 - **Export to MusicXML** (library ⋮ menu): **personal and band flows** only - not public library
   flows, the content most likely to be commercialised (`exportFlowForUser`, `flowTransfer.js`).
   Band flows get a ⋮ menu with just this item; Edit/Duplicate/Delete stay personal-only.

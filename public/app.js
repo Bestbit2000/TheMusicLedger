@@ -640,8 +640,6 @@
                 ...(musicxml ? ['.musicxml', '.mxl', 'application/vnd.recordare.musicxml+xml', 'application/vnd.recordare.musicxml'] : [])
             ].join(',');
         }
-        // The demo score is a MusicXML file - hidden when only PDF import is on (the server would refuse it).
-        document.getElementById('flowFromFileView')?.classList.toggle('flow-from-file-no-demo', !musicxml);
     }
 
     // Archived organisations/teachers are hidden from pickers used for new
@@ -947,12 +945,12 @@
     // flowEditSnapshot below) - a real Cancel only makes sense once there's something to cancel
     // back to, which a brand-new flow doesn't have yet.
     let flowEditMode = 'create';
-    // ML-204: set when the Hub is showing a flow that "Import from MusicXML" just created - it opens
-    // in Edit mode (review what was read, then commit), but gets a "Save and play" ending like the
-    // create journey's "Open player", instead of Save alone landing back on the import screen.
-    // Requested by the import's Continue button; consumed on arrival, like flowEditRequestedTab.
-    let flowEditFromImport = false;
-    let flowEditFromImportRequested = false;
+    // ML-204: a Create flow journey that started from "Import from MusicXML" rather than "Create your
+    // own" - identical except the Details tab's "Add bars >" reads "Review bars >" when the file
+    // brought bars with it. Requested by the import's Continue button, consumed on arrival at the
+    // Hub (same pattern as flowEditRequestedTab), so any other way into the Hub clears it.
+    let flowCreateFromImport = false;
+    let flowCreateFromImportRequested = false;
     // Snapshot of everything editable, taken once on entering Edit mode (loadAndRenderFlowDetailsHub)
     // - null in Create mode, where there's nothing to stage/revert. Cancel needs no revert logic at
     // all: every Edit-mode mutation below stays purely local (no API calls) until Save, so Cancel is
@@ -1107,8 +1105,10 @@
             // to it) and before the Hub's own async load - see flowStatsBegin for why the server
             // row is created later than the clock.
             flowStatsBegin();
-            flowEditFromImport = flowEditFromImportRequested;
-            flowEditFromImportRequested = false;
+            // Coming BACK to the Hub (e.g. from Open player) is still the same journey - only a fresh
+            // arrival decides whether this is an import.
+            if (!isBack) flowCreateFromImport = flowCreateFromImportRequested;
+            flowCreateFromImportRequested = false;
             setFlowEditTab(flowEditRequestedTab || 'details');
             flowEditRequestedTab = null;
             loadAndRenderFlowDetailsHub();
@@ -4492,9 +4492,8 @@
     // abandoned, which is a reporting decision rather than a claim made here.
     window.addEventListener('pagehide', () => flowStatsSync(null, true));
 
-    // --- ML-79 Phase 1: "Create from file" (MusicXML/.mxl) - one upload-then-parse path shared by
-    // both the real dropzone and the demo-score shortcut below (handleFromFileUpload), since they
-    // only differ in where the File object comes from. The heavy lifting (parsing, creating the
+    // --- ML-79 Phase 1: "Create from file" (MusicXML/.mxl) - one upload-then-parse path
+    // (handleFromFileUpload) behind the dropzone. The heavy lifting (parsing, creating the
     // flow/blocks, attaching the file to Media) all happens server-side in one call
     // (API.flows.fromFile.create) - see server/routes/api.js's /flows/from-file and
     // server/services/scoreImport.js. ---
@@ -4507,8 +4506,6 @@
         document.getElementById('flowFromFileResult')?.classList.add('hidden-group');
         document.getElementById('flowFromFileResultWarnings')?.classList.add('hidden-group');
         document.getElementById('flowFromFileDropBtn')?.classList.remove('hidden-group');
-        document.querySelector('#flowFromFileView .section-title')?.classList.remove('hidden-group');
-        document.querySelector('#flowFromFileView .flow-from-file-demo-row')?.classList.remove('hidden-group');
     }
 
     async function handleFromFileUpload(file) {
@@ -4516,11 +4513,9 @@
         const labelEl = document.getElementById('flowFromFileProgressLabel');
         const percentEl = document.getElementById('flowFromFileProgressPercent');
         const fillEl = document.getElementById('flowFromFileProgressFill');
-        // Hides the picker/demo-score choices while a file's in flight - nothing sensible happens if
-        // you tap either again mid-upload, so they're out of the way rather than merely disabled.
+        // Hides the picker while a file's in flight - nothing sensible happens if you tap it again
+        // mid-upload, so it's out of the way rather than merely disabled.
         document.getElementById('flowFromFileDropBtn')?.classList.add('hidden-group');
-        document.querySelector('#flowFromFileView .section-title')?.classList.add('hidden-group');
-        document.querySelector('#flowFromFileView .flow-from-file-demo-row')?.classList.add('hidden-group');
         document.getElementById('flowFromFileResult')?.classList.add('hidden-group');
         labelEl.innerText = 'Uploading…';
         percentEl.innerText = '0%';
@@ -4565,8 +4560,6 @@
         } catch (error) {
             progressBox.classList.add('hidden-group');
             document.getElementById('flowFromFileDropBtn')?.classList.remove('hidden-group');
-            document.querySelector('#flowFromFileView .section-title')?.classList.remove('hidden-group');
-            document.querySelector('#flowFromFileView .flow-from-file-demo-row')?.classList.remove('hidden-group');
             showWarningToast('Error importing score: ' + error.message);
         }
     }
@@ -4579,34 +4572,18 @@
         e.target.value = '';
         if (file) handleFromFileUpload(file);
     });
-    // One-tap path for trying the feature without a real file of your own - fetches the same static
-    // fixture from public/demo-scores, wraps it as a File, and runs it through the exact same
-    // upload+parse path a real pick would (nothing about the server knows this came from a button
-    // instead of a file picker).
-    document.getElementById('flowFromFileDemoBtn')?.addEventListener('click', async (e) => {
-        const btn = e.currentTarget;
-        btn.disabled = true;
-        try {
-            const response = await fetch('/demo-scores/simple-test-tune.musicxml');
-            if (!response.ok) throw new Error('Could not load the demo score.');
-            const text = await response.text();
-            const file = new File([text], 'simple-test-tune.musicxml', { type: 'application/vnd.recordare.musicxml+xml' });
-            await handleFromFileUpload(file);
-        } catch (error) {
-            showWarningToast('Error loading demo score: ' + error.message);
-        } finally {
-            btn.disabled = false;
-        }
-    });
+    // ML-204: from here on an import IS a Create flow journey - the same Create mode, tabs and
+    // sticky-bar buttons as "Create your own" (createAndOpenFlow), landing on Details first. The file
+    // has only pre-filled the flow; the one visible difference is "Review bars >" instead of
+    // "Add bars >" when the import found bars (flowCreateFromImport, updateFlowEditStickyBar).
     document.getElementById('flowFromFileContinueBtn')?.addEventListener('click', () => {
         if (!flowFromFilePendingId) return;
         currentFlowId = flowFromFilePendingId;
-        flowEditMode = 'edit';
-        flowEditRequestedTab = 'blocks';
-        flowEditFromImportRequested = true;
+        flowEditMode = 'create';
+        flowCreateFromImportRequested = true;
         flowFromFilePendingId = null;
-        // ML-204: the import screen has done its job - taken off the back stack so Save, Cancel and
-        // Back from the flow land on the Flow start screen, not back on "Import from MusicXML".
+        // The import screen has done its job - taken off the back stack so Back from the flow lands
+        // on the Flow start screen, the same place Back from "Create your own" does.
         if (viewStack[viewStack.length - 1] === 'flowFromFileView') viewStack.pop();
         // ML-199: still the flow's initial creation, just import-assisted rather than typed - so
         // kind stays 'create' and creationSource carries the difference. Keeping these in one
@@ -4683,8 +4660,6 @@
             createBarActions.classList.add('hidden-group');
             saveBarActions.classList.remove('hidden-group');
             deleteLink.classList.remove('hidden-group');
-            // Same "nothing to play yet" gate as the create journey's Open player.
-            document.getElementById('flowEditSavePlayBtn')?.classList.toggle('hidden-group', !flowEditFromImport || currentFlowBlocks.length === 0);
             return;
         }
 
@@ -4693,7 +4668,8 @@
         deleteLink.classList.add('hidden-group');
         if (flowEditActiveTab === 'details') {
             secondaryBtn.classList.add('hidden-group');
-            primaryBtn.innerHTML = 'Add bars <span class="btn-nav-arrow">&gt;</span>';
+            const reviewing = flowCreateFromImport && (currentFlowBlocks.length > 0 || !!flowLeadInBlock);
+            primaryBtn.innerHTML = `${reviewing ? 'Review bars' : 'Add bars'} <span class="btn-nav-arrow">&gt;</span>`;
             primaryBtn.classList.remove('hidden-group');
         } else if (flowEditActiveTab === 'blocks') {
             secondaryBtn.classList.remove('hidden-group');
@@ -7496,9 +7472,7 @@
         if (currentFlowBlocks.length) await API.flows.blocks.reorder(currentFlowId, currentFlowBlocks.map(b => b.id));
     }
 
-    // { play: true } is "Save and play" (ML-204, import review) - same save, then on to the player
-    // instead of back.
-    async function saveFlowEdit({ play = false } = {}) {
+    async function saveFlowEdit() {
         if (!currentFlowId || !flowEditSnapshot) return;
         const nameEl = document.getElementById('flowTitleInput');
         if (!nameEl?.value.trim()) {
@@ -7507,8 +7481,7 @@
             nameEl?.focus();
             return;
         }
-        const btn = document.getElementById(play ? 'flowEditSavePlayBtn' : 'flowEditSaveBtn');
-        const btnLabel = btn ? btn.innerText : '';
+        const btn = document.getElementById('flowEditSaveBtn');
         if (btn) { btn.disabled = true; btn.innerText = 'Saving...'; }
         // Captured before the Details PATCH below reassigns currentFlowDetail - see
         // saveFlowMediaEdits's own comment on why reading them fresh off currentFlowDetail there
@@ -7542,16 +7515,14 @@
             // time was spent, nothing was kept. Finalised after the block sync above so the block
             // counts reported are the ones that actually landed.
             flowStatsFinish('completed');
-            if (play && currentFlowBlocks.length) switchView('flowPlayView');
-            else goBack();
+            goBack();
         } catch (error) {
             showWarningToast('Error saving flow: ' + error.message);
         } finally {
-            if (btn) { btn.disabled = false; btn.innerText = btnLabel; }
+            if (btn) { btn.disabled = false; btn.innerText = 'Save'; }
         }
     }
-    document.getElementById('flowEditSaveBtn')?.addEventListener('click', () => saveFlowEdit());
-    document.getElementById('flowEditSavePlayBtn')?.addEventListener('click', () => saveFlowEdit({ play: true }));
+    document.getElementById('flowEditSaveBtn')?.addEventListener('click', saveFlowEdit);
 
     // ========================================
     // PLAY FLOW (Jira ML-179 follow-up) - the actual playback screen, requested separately from
