@@ -1,5 +1,61 @@
 [
   {
+    "version": "0.25.0",
+    "date": "2026-09-23",
+    "changes": [
+      {
+        "key": "ML-219",
+        "type": "New",
+        "summary": "Rehearsal mark box needs to be expanded to fit text if longer than square"
+      },
+      {
+        "key": "ML-218",
+        "type": "Fixes",
+        "summary": "Remove the blue radio buttons"
+      },
+      {
+        "key": "ML-217",
+        "type": "Fixes",
+        "summary": "Edit flow from the play menu should be \"Edit bars\""
+      },
+      {
+        "key": "ML-212",
+        "type": "New",
+        "summary": "Flow library shows number of bars which is actually a block"
+      },
+      {
+        "key": "ML-211",
+        "type": "New",
+        "summary": "Full area click for yes no pills "
+      },
+      {
+        "key": "ML-210",
+        "type": "New",
+        "summary": "Accessibility baseline (WCAG 2.2 AA) and a release gate that keeps it"
+      },
+      {
+        "key": "ML-205",
+        "type": "New",
+        "summary": "Remove dropdown arrows"
+      },
+      {
+        "key": "ML-203",
+        "type": "New",
+        "summary": "Consistency of titles below in boxes"
+      },
+      {
+        "key": "ML-200",
+        "type": "New",
+        "summary": "Change colouring on boxes on stats areas"
+      },
+      {
+        "key": "ML-198",
+        "type": "New",
+        "summary": "Create repeatable design system"
+      }
+    ]
+  },
+  {
     "version": "0.24.0",
     "date": "2026-09-23",
     "changes": [
