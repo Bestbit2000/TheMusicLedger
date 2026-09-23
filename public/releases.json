@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.24.0",
+    "date": "2026-09-23",
+    "changes": [
+      {
+        "key": "ML-204",
+        "type": "New",
+        "summary": "Extract and upload of flows, single at a time and multiple, available from admin"
+      },
+      {
+        "key": "ML-201",
+        "type": "New",
+        "summary": "Notification of new release to open & close app"
+      }
+    ]
+  },
+  {
     "version": "0.23.0",
     "date": "2026-09-23",
     "changes": [
