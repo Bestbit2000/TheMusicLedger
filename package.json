@@ -1,6 +1,6 @@
 {
   "name": "the-music-ledger",
-  "version": "0.25.1",
+  "version": "0.25.2",
   "description": "Music practice tracking app with Google Sheets",
   "main": "server/server.js",
   "type": "module",

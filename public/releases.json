@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.25.2",
+    "date": "2026-09-24",
+    "changes": [
+      {
+        "key": "ML-227",
+        "type": "Fixes",
+        "summary": "Vulnerable production dependencies (qs, undici, uuid)"
+      }
+    ]
+  },
+  {
     "version": "0.25.1",
     "date": "2026-09-24",
     "changes": [
