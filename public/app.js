@@ -13857,7 +13857,9 @@
     const TUNER_SHOW_HZ_KEY = 'tunerShowHz';
     const TUNER_SHOW_OCTAVE_KEY = 'tunerShowOctave';
     let tunerShowConcert = true;
-    let tunerNoteStyle = 'letters';
+    // Read at load, not only when the tuner opens (startTuner) - ML-257: the transposition names on the
+    // Settings screen follow it too, before the tuner has ever been opened this session.
+    let tunerNoteStyle = (() => { try { return localStorage.getItem(TUNER_NOTE_STYLE_KEY) || 'letters'; } catch (e) { return 'letters'; } })();
     let tunerShowHz = false;
     let tunerShowOctave = false;
     // ML-181: pitch/dynamics history strips (full Tuner view only) - a fixed-length ring buffer of
@@ -13920,12 +13922,16 @@
     // ML-225: a transposition is stored as how far written sits ABOVE concert (written = concert +
     // offset), so the instrument's key - the concert pitch its written C sounds - is that offset
     // counted DOWN from C (B♭ = 2, E♭ = 9, F = 7). Every label used to name the offset itself as the
-    // key, which showed a B♭ instrument as "D instrument". Letter names only (instrument keys aren't
-    // said in solfège), but following the sharps/flats setting (ML-224), with a proper ♯ to match ♭.
+    // key, which showed a B♭ instrument as "D instrument". Follows the sharps/flats setting (ML-224),
+    // with a proper ♯ to match ♭, and - ML-257 - the note-name setting too: in solfège the instrument
+    // is named in solfège ("Te instrument", "Concert pitch (Do)"), matching the notes the tuner shows.
     function tunerInstrumentKeyName(offset) {
         const useFlats = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
         const key = (((12 - offset) % 12) + 12) % 12;
-        return (useFlats ? NOTE_NAMES_FLAT : NOTE_NAMES_SHARP)[key].replace('#', '♯');
+        const names = tunerNoteStyle === 'solfege'
+            ? (useFlats ? NOTE_NAMES_SOLFEGE_FLAT : NOTE_NAMES_SOLFEGE_SHARP)
+            : (useFlats ? NOTE_NAMES_FLAT : NOTE_NAMES_SHARP);
+        return names[key].replace('#', '♯');
     }
     // All 12 transpositions as stored offsets, in instrument-key order (C, C♯/D♭, D...) - the one
     // list the Settings select, the Tuner's Transposition popup and the Flow/Metronome mini tuner's
@@ -13934,7 +13940,7 @@
         return Array.from({ length: 12 }, (_, key) => (12 - key) % 12);
     }
     function tunerTranspositionLabel(offset) {
-        return offset === 0 ? 'Concert pitch (C)' : `${tunerInstrumentKeyName(offset)} instrument`;
+        return offset === 0 ? `Concert pitch (${tunerInstrumentKeyName(0)})` : `${tunerInstrumentKeyName(offset)} instrument`;
     }
     // Rebuilt rather than static HTML so the names follow the sharps/flats setting (ML-224) - called
     // on startup, on opening Settings, and whenever sharps/flats changes (renderTunerSettingsModal).

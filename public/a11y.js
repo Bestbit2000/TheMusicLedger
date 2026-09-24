@@ -160,7 +160,9 @@
     const MUTE_STATE = { volume_up: false, volume_off: true };
     function syncIconButton(icon) {
         const btn = icon.closest('button');
-        if (!btn) return;
+        // A button whose pressed state doesn't follow the play/pause icon (the tuner's history pause:
+        // pressed = paused, which shows ▶) sets aria-pressed itself - ML-258.
+        if (!btn || btn.hasAttribute('data-pressed-managed')) return;
         const name = icon.textContent.trim();
         if (name in ICON_STATE) btn.setAttribute('aria-pressed', String(ICON_STATE[name]));
         else if (name in MUTE_STATE && btn.hasAttribute('aria-pressed')) btn.setAttribute('aria-pressed', String(MUTE_STATE[name]));

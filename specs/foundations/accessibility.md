@@ -31,7 +31,7 @@ backed by an axe-core scan and a manual checklist at release time (see
 
 Loaded on the app and the admin panel. It keys off markup conventions, so new components get it
 automatically: role="button" keyboard activation; dialog focus/trap/Esc/return; menu Esc/arrows/
-return; `aria-expanded` sync; `aria-pressed` mirrored from play/pause and mute icons.
+return; `aria-expanded` sync; `aria-pressed` mirrored from play/pause and mute icons (a button marked `data-pressed-managed` sets its own, e.g. the tuner history pause, where pressed = paused - ML-258).
 
 ## Adding something new
 
