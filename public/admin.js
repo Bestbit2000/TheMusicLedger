@@ -444,7 +444,7 @@
                     <div class="admin-feature-header-text">
                         <h2>${escapeHtml(b.displayName)}${b.active ? '' : ' (archived)'}</h2>
                         <p>${b.website ? `<a href="${escapeHtml(b.website)}" target="_blank" rel="noopener">${escapeHtml(b.website)}</a>` : 'No website'}</p>
-                        <p class="admin-test-case-meta">${b.memberCount} member${b.memberCount === 1 ? '' : 's'}</p>
+                        <p class="admin-test-case-meta">${b.memberCount} member${b.memberCount === 1 ? '' : 's'} &middot; ${b.sessionCount} session${b.sessionCount === 1 ? '' : 's'}</p>
                     </div>
                     <div class="admin-feature-actions">
                         <button class="btn-icon-edit" data-edit-id="${b.id}" aria-label="Edit ${escapeHtml(b.displayName)}" type="button"><span class="material-symbols-outlined">edit</span></button>

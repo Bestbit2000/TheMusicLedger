@@ -251,12 +251,15 @@ export async function createSharedBand(accountId, name, website, { joinCreator =
 export async function listBandsForAdmin() {
   const { rows } = await pool.query(
     `SELECT b.id, b.name, b.website, b.contact_email, b.active,
-            COUNT(DISTINCT bm.account_id) AS member_count
+            COUNT(DISTINCT bm.account_id) AS member_count,
+            (SELECT COUNT(*) FROM sessions s WHERE s.band_id = b.id) AS session_count
      FROM bands b LEFT JOIN band_members bm ON bm.band_id = b.id
      GROUP BY b.id
      ORDER BY b.name`
   );
-  return sortByDisplayName(rows.map(r => ({ ...toDirectoryBand(r), contactEmail: r.contact_email, active: r.active })));
+  // sessionCount (ML-247): a band with 0 members can still be "in use" - sessions recorded against
+  // it (mostly the old Sheet's per-account "who" labels) - so the admin list shows both.
+  return sortByDisplayName(rows.map(r => ({ ...toDirectoryBand(r), contactEmail: r.contact_email, active: r.active, sessionCount: Number(r.session_count) })));
 }
 
 export async function updateBandAdmin(id, { name, website, contactEmail }) {
@@ -271,16 +274,20 @@ export async function updateBandAdmin(id, { name, website, contactEmail }) {
 // history would silently orphan that data, so it's archived instead - same
 // archive-if-used pattern as archiveOrDeleteBand above, just checking real
 // membership too, not just session history.
+// Returns the counts too (ML-247) so the admin panel can say WHY a band was archived rather than
+// just "still in use" - usually sessions, which the list didn't used to show.
 export async function deleteOrArchiveBandAdmin(id) {
   const [{ rows: memberRows }, { rows: sessionRows }] = await Promise.all([
-    pool.query('SELECT 1 FROM band_members WHERE band_id = $1 LIMIT 1', [id]),
-    pool.query('SELECT 1 FROM sessions WHERE band_id = $1 LIMIT 1', [id])
+    pool.query('SELECT COUNT(*) AS n FROM band_members WHERE band_id = $1', [id]),
+    pool.query('SELECT COUNT(*) AS n FROM sessions WHERE band_id = $1', [id])
   ]);
-  const inUse = memberRows.length > 0 || sessionRows.length > 0;
-  if (inUse) {
+  const memberCount = Number(memberRows[0].n);
+  const sessionCount = Number(sessionRows[0].n);
+  const archived = memberCount > 0 || sessionCount > 0;
+  if (archived) {
     await pool.query('UPDATE bands SET active = false WHERE id = $1', [id]);
   } else {
     await pool.query('DELETE FROM bands WHERE id = $1', [id]);
   }
-  return inUse;
+  return { archived, memberCount, sessionCount };
 }

@@ -318,8 +318,13 @@ router.put('/bands/:id', requireAuth, resolveAccount, requireSuperAdmin, async (
 // session history) - see deleteOrArchiveBandAdmin.
 router.delete('/bands/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
-    const archived = await deleteOrArchiveBandAdmin(req.params.id);
-    res.json({ message: archived ? 'Band archived (still in use)' : 'Band deleted', archived });
+    const { archived, memberCount, sessionCount } = await deleteOrArchiveBandAdmin(req.params.id);
+    // ML-247: say what's still using it, not just "still in use".
+    const reasons = [
+      sessionCount ? `${sessionCount} session${sessionCount === 1 ? '' : 's'} still use${sessionCount === 1 ? 's' : ''} it` : null,
+      memberCount ? `${memberCount} member${memberCount === 1 ? '' : 's'} still belong${memberCount === 1 ? 's' : ''} to it` : null
+    ].filter(Boolean).join(' and ');
+    res.json({ message: archived ? `Band archived - ${reasons}` : 'Band deleted', archived });
   } catch (error) {
     console.error('Admin band delete error:', error);
     sendError(res, error);
