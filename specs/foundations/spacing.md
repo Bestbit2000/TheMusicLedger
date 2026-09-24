@@ -25,6 +25,10 @@ A 4px grid. Every `padding`, `margin` and `gap` uses one of these:
 - **Related things are closer than unrelated things.** Inside a group use `--space-2`/`--space-3`.
   Between groups use `--space-5`+. If two gaps on a screen are "almost the same", they should *be*
   the same token.
+- **Grids share a gutter.** Tile grids that sit on the same screen use the same gap, `--space-3`
+  (`.tool-icon-row`, `.dashboard-grid`), so their columns line up. Use one gap for rows and columns.
+  A multi-row set of tiles is a single grid with equal-height rows, never several grids stacked
+  (see [stat-card](../components/stat-card.md)).
 - **Negative margins** use `calc(-1 * var(--space-N))`.
 - **Component geometry isn't spacing.** Fixed widths/heights (a 48px button, a 10px heatmap cell)
   aren't in scope of the spacing scale. Use `--touch-target` where the size is a tap target.

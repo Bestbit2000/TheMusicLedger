@@ -22,6 +22,11 @@
       "alternative": "Block ⋮ menu > Move up / Move down (flowBlockMenu)"
     },
     {
+      "id": "flowBarGridStartHold",
+      "gesture": "press and hold a bar tile in the Bars tab's 2- or 4-column layout, then drag it to any slot (ML-206, ML-208)",
+      "alternative": "tap the tile > bar popup > Move earlier / Move later"
+    },
+    {
       "id": "wireVerticalDragHandle",
       "gesture": "shared helper behind both grab handles above",
       "alternative": "see wireQpBarGrabHandle / wireFlowBlockGrabHandle"

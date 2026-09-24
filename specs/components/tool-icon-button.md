@@ -13,12 +13,14 @@ play, Flow…). **Don't use** for in-page actions. They always navigate to a too
 `.tool-icon-row` (flex row) › `.tool-icon-btn` (1:1 square) › icon (Material Symbol or inline `.tool-icon-svg`) › `.tool-icon-label`
 
 ## 4. Tokens used
-`--nav-action`, `--nav-action-text`, `--radius-md`, `--space-1` (icon↔label), `--space-2` (padding),
+`--nav-action`, `--nav-action-text`, `--radius-md`, `--space-1` (icon↔label), `--space-2` / `--space-1` (padding, vertical / horizontal: narrow sides so "Metronome" fits and all tiles stay equal width on a phone),
 `--space-3` (row gap), `--space-4` (row margin), `--icon-xl`, `--font-sm`, `--font-weight-bold`.
 
 ## 5. Props / API
 - Custom SVG glyphs are inlined (not `<img>`) so `fill: currentColor` follows the theme. JS adds the `viewBox`.
 - Tiles share the row equally (`flex: 1 1 0`). Keep 3-4 per row.
+- The `--space-3` row gap is the home screen's gutter. The Progress [stat-card](stat-card.md) grid
+  below uses the same gap, so its middle gap lines up with this row's centre gap. Change both together or neither.
 
 ## 6. States
 Default / Active (native press) / Focus (`--focus-ring`). No disabled or error state: hide a tool rather than disable it.

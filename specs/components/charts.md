@@ -27,10 +27,18 @@ Section header: `.section-title` (title + optional action, bottom rule).
 - **Colour rule (ML-235):** a chart that counts every session type (both heatmaps, the Hours/Days/Sessions bar charts, both streak histograms) uses the brand gold - the `--heat-*` gold ramp or `--chart-*` gold - never a `--cat-*` hue, since those mean "this session type only" everywhere else (filter pills, history rows). `--cat-*` is only for a chart split by type.
 - Bar colours come from tokens: set `bar.style.background = 'var(--chart-hours)'`, never a hex.
 - Tapping a bar/cell calls `showAnchoredPopup`.
+- **Projected month (ML-186):** on the detailed stats page's Hours, Days of activity and Monthly session count charts, the **current month** also gets a "carry on at this rate" projection: the figure so far × days in the month ÷ days gone so far (today counts as gone).
+  - It's drawn as `.chart-bar-projection`, a **hollow, outline-only** bar in the chart's own `--chart-*` colour (set as `borderColor` from JS). It's stacked directly on top of the real bar, with no bottom edge. The real bar takes `.chart-bar-under-projection`, which squares off its top so the two read as one bar.
+  - It's shown only while the projection is higher than the figure so far, so on the last day of the month, or with nothing logged yet, there's no outline.
+  - It counts towards the chart's scale, so it never runs off the top.
+  - The tap popup reads e.g. "Sep 2026: 14.8 hours so far, on track for 18.4 hours".
+  - It's not used on any other chart.
+  - **Key:** while a chart draws a projection, a `.chart-legend` sits under it, right-aligned like `.heatmap-legend`. It has a solid swatch labelled "Actual" and an outline swatch (`.chart-legend-swatch-projected`, a full border) labelled "Projected", both in that chart's `--chart-*` colour. `renderBarChart` hides it (`hidden-group`) whenever there's no projection: setting off, last day of the month, or nothing logged yet.
+  - People can turn it off at **Settings → Stats → "Show this month's projection on charts"**. It's on by default and saved on that device only (`localStorage` key `statsShowProjection`, checked by `statsShowProjection()`), like dark mode and the tuner's display options. Changing it redraws the charts straight away.
 - Scroll buttons appear on hover-capable devices only.
 
 ## 6. States
-Cell/bar default · Tapped (popup shown) · Blank cell (`.blank`, transparent).
+Cell/bar default · Tapped (popup shown) · Blank cell (`.blank`, transparent) · Current month with projection (`.chart-bar-projection` over `.chart-bar-under-projection`).
 
 ## 7. Code example
 ```js
@@ -41,7 +49,7 @@ bar.style.background = 'var(--chart-days)';
 [anchored-popup](anchored-popup.md) · [stat-card](stat-card.md) · [filter-strip](filter-strip.md) · [color](../foundations/color.md)
 
 ## 9. Accessibility
-- Charts are visual summaries - every value must also be reachable as text (stat cards, history list, tap popup).
+- Charts are visual summaries - every value must also be reachable as text (stat cards, history list, tap popup). The projected figure is in the current month's tap popup.
 - Heatmap/bar colours are data-viz tokens; the legend explains the scale in words ("Less … More").
 
 See [accessibility foundation](../foundations/accessibility.md).

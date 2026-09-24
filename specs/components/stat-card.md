@@ -12,11 +12,22 @@ short caption. Use a [card](card.md).
 
 ## 3. Anatomy
 `.dashboard-grid` (2 cols) › `.stat-card`, displayed **number first** (ML-203): `.value` (tabular numbers) › optional `.sess-count` detail › `.label` (fixed two-line height so rows align, ML-134).
+
+**Grid alignment.** Put a set of related cards in **one** `.dashboard-grid` and let it wrap onto
+new rows. Don't stack one grid per row. The grid has:
+- `grid-auto-rows: 1fr`, so every row is as tall as the tallest card and the rows always match.
+- one `--space-3` gap for both rows and columns, the same gutter as the [tool icon row](tool-icon-button.md).
+  On the home screen this lines the middle Progress gap up with the Flow/Tuner gap above it, and the
+  gap between rows matches.
+
+Stacked grids get a `--space-4` gap between rows (the grid margin) and size each row separately, so they drift
+out of line. Only start a new grid for a different kind of stat (e.g. Streaks' "Longest" row, whose
+cards carry a date line). The gap stays `--space-3` at every breakpoint, with no smaller gap on mobile.
 The markup stays label-first (`.label`, `.value`, `.sess-count`) for screen readers; CSS `order` puts the number on top. Admin `.admin-stat-tile` follows the same order: value › sub › label.
 
 ## 4. Tokens used
 `--container-bg` (display card), `--input-bg` (`.clickable` card only), `--input-border`, `--text-color`, `--label-color`, `--radius-md`, `--space-1`,
-`--space-2`, `--space-3`, `--space-4`, `--font-sm`, `--font-md`, `--font-weight-bold`,
+`--space-2`, `--space-3` (grid gap, rows and columns: matches `.tool-icon-row`), `--space-4` (grid margin), `--font-sm`, `--font-md`, `--font-weight-bold`,
 `--font-weight-normal`, `--duration-fast`.
 
 ## 5. Props / API
@@ -29,8 +40,12 @@ Display (`--container-bg`) · Clickable (`--input-bg`) · Clickable active (`tra
 
 ## 7. Code example
 ```html
+<!-- One grid for all four cards: two equal-height rows, with a --space-3 gap in both directions -->
 <div class="dashboard-grid">
-  <div class="stat-card clickable"><div class="label">Total time</div><div class="value">12h 30m</div></div>
+  <button type="button" class="stat-card clickable"><span class="label">Total time</span><span class="value">12h 30m</span></button>
+  <button type="button" class="stat-card clickable"><span class="label">Total sessions</span><span class="value">128</span></button>
+  <button type="button" class="stat-card clickable"><span class="label">Current practise streak</span><span class="value">5 days</span></button>
+  <button type="button" class="stat-card clickable"><span class="label">Current playing streak</span><span class="value">9 days</span></button>
 </div>
 ```
 

@@ -1054,6 +1054,7 @@
             document.getElementById('tunerShowHzSetting').checked = localStorage.getItem(TUNER_SHOW_HZ_KEY) === 'true';
             document.getElementById('tunerShowOctaveSetting').checked = localStorage.getItem(TUNER_SHOW_OCTAVE_KEY) === 'true';
             document.getElementById('fermataPlaybackModeSetting').value = localStorage.getItem(FERMATA_PLAYBACK_MODE_KEY) || 'tone';
+            document.getElementById('statsProjectionToggle').checked = statsShowProjection();
         }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
         if (viewName === 'notificationsView') { document.getElementById('topTitle').innerText = 'Notifications'; renderNotificationsView(); checkNotifications(true); }
@@ -2546,6 +2547,18 @@
         } catch(err) { showWarningToast("Heatmap Error: " + err.message); }
     }
 
+    // ML-186: Settings > Stats "Show this month's projection on charts". On by default; a per-device
+    // display preference (like dark mode and the tuner's display options), so it lives in
+    // localStorage and falls back to on if that's unavailable.
+    const STATS_SHOW_PROJECTION_KEY = 'statsShowProjection';
+    function statsShowProjection() {
+        try { return localStorage.getItem(STATS_SHOW_PROJECTION_KEY) !== 'false'; } catch (e) { return true; }
+    }
+    document.getElementById('statsProjectionToggle')?.addEventListener('change', (e) => {
+        try { localStorage.setItem(STATS_SHOW_PROJECTION_KEY, String(e.target.checked)); } catch (err) { /* not remembered - fine */ }
+        renderFilteredVisuals(); // so the stats page is already up to date when you go back to it
+    });
+
     function buildCharts(filtered) {
         try {
             const contDays = document.getElementById('chartDays');
@@ -2582,11 +2595,24 @@
                 }
             });
 
+            // ML-186: "carry on at this rate" projection for the current (last) month - each figure so
+            // far x days in the month / days gone so far (today counts as gone). Drawn by renderBarChart
+            // as a hollow bar stacked on the real one, so it's included in each chart's scale below.
+            const thisKey = order[order.length - 1];
+            const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+            const daysGone = today.getDate();
+            if (thisKey && daysGone < daysInMonth && statsShowProjection()) {
+                const rate = daysInMonth / daysGone;
+                const m = monthMap[thisKey];
+                m.projected = { hours: m.hours * rate, days: m.days.size * rate, sess: m.sess * rate };
+            }
+
             let maxDays=0, maxHrs=0, maxSess=0;
             order.forEach(k => {
-                if(monthMap[k].days.size > maxDays) maxDays = monthMap[k].days.size;
-                if(monthMap[k].hours > maxHrs) maxHrs = monthMap[k].hours;
-                if(monthMap[k].sess > maxSess) maxSess = monthMap[k].sess;
+                const p = monthMap[k].projected || { days: 0, hours: 0, sess: 0 };
+                maxDays = Math.max(maxDays, monthMap[k].days.size, p.days);
+                maxHrs = Math.max(maxHrs, monthMap[k].hours, p.hours);
+                maxSess = Math.max(maxSess, monthMap[k].sess, p.sess);
             });
 
             renderBarChart(contHrs, order, monthMap, maxHrs, 'hours');
@@ -2636,22 +2662,37 @@
             let pct = (val / chartMax) * 100;
             let barCont = document.createElement('div');
             barCont.className = 'chart-bar-container';
-            let vStr = type === 'hours' ? val.toFixed(1) + ' hours' : Math.round(val) + (type === 'days' ? ' active days' : ' sessions');
+            const fmt = (v) => type === 'hours' ? v.toFixed(1) + ' hours' : Math.round(v) + (type === 'days' ? ' active days' : ' sessions');
+            let vStr = fmt(val);
+            // ML-186: projected end-of-month figure (current month only - see buildCharts).
+            const projected = dataMap[k].projected ? dataMap[k].projected[type] : 0;
+            const showProjection = projected > val;
+            if (showProjection) vStr += ` so far, on track for ${fmt(projected)}`;
             // Anchored to the bar itself (assigned below, read lazily on click), not barCont - barCont
             // spans the container's full height regardless of the bar's actual height, which otherwise
             // lands the popup at the top of the chart instead of next to the bar that was clicked.
             barCont.addEventListener('click', function() {
                 let [y, m] = k.split('-');
                 let mNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                showAnchoredPopup(bar, `${mNames[parseInt(m, 10)-1]} ${y}: ${vStr}`);
+                showAnchoredPopup(showProjection ? projection : bar, `${mNames[parseInt(m, 10)-1]} ${y}: ${vStr}`);
             });
 
+            const colour = { hours: 'var(--chart-hours)', days: 'var(--chart-days)', sess: 'var(--chart-sessions)' }[type];
             let bar = document.createElement('div');
             bar.className = 'chart-bar';
             bar.style.height = `${pct}%`;
-            if(type === 'hours') bar.style.background = 'var(--chart-hours)';
-            if(type === 'days') bar.style.background = 'var(--chart-days)';
-            if(type === 'sess') bar.style.background = 'var(--chart-sessions)';
+            bar.style.background = colour;
+            // The projection sits on top of the real bar as a hollow, outline-only extension in the
+            // same colour - the real bar keeps its fill, the outline shows how far "this rate" reaches.
+            let projection = null;
+            if (showProjection) {
+                projection = document.createElement('div');
+                projection.className = 'chart-bar-projection';
+                projection.style.height = `${((projected - val) / chartMax) * 100}%`;
+                projection.style.borderColor = colour;
+                barCont.appendChild(projection);
+                bar.classList.add('chart-bar-under-projection');
+            }
             barCont.appendChild(bar);
 
             let [y, m] = k.split('-');
@@ -2676,6 +2717,9 @@
             scroll.appendChild(barCont);
         });
         cont.appendChild(scroll);
+        // ML-186: the Actual / Projected key under this chart only makes sense while a projection is drawn.
+        const hasProjection = order.some(k => dataMap[k].projected && dataMap[k].projected[type] > ((type === 'days') ? dataMap[k].days.size : dataMap[k][type]));
+        document.querySelector(`[data-chart-legend="${cont.id}"]`)?.classList.toggle('hidden-group', !hasProjection);
     }
 
     // ML-176: takes the full, unfiltered rawData (every call site used to pre-filter by
@@ -5467,6 +5511,19 @@
     let currentFlowBlocks = [];
     let flowLeadInBlock = null;
     let flowBlockMenuTargetId = null;
+    // ML-206/ML-208: Bars tab layout - '1' (full cards), '2' (detail tiles) or '4' (compact tiles);
+    // 2 and 4 both open the bar popup. A per-device convenience, so it's remembered in localStorage
+    // and falls back to '1' if that's unavailable.
+    const FLOW_BAR_LAYOUT_KEY = 'flowBarLayout';
+    const FLOW_BAR_LAYOUTS = ['1', '2', '4'];
+    let flowBarLayout = (() => {
+        try {
+            const saved = localStorage.getItem(FLOW_BAR_LAYOUT_KEY);
+            return FLOW_BAR_LAYOUTS.includes(saved) ? saved : '1';
+        } catch (e) { return '1'; }
+    })();
+    let flowBarPopupBlockId = null; // the bar the popup is showing, or null when it's closed
+    let flowBarDrag = null; // the 4-column grid's press-and-hold drag in progress (flowBarGridStartHold)
     let flowFermataTargetBlockId = null;
     // Which block (if any) currently has its swipe-to-delete underlay revealed - at most one at a
     // time, same as Quick Play's own qpOpenSwipeIndex. Tracked by id rather than a DOM reference
@@ -5988,40 +6045,12 @@
         return `<span class="flow-barline-value-row">${inner}</span>`;
     }
 
-    function flowBlockCardHtml(b, idx, nextBlock) {
+    // The 12 setting tiles (Core / Repeats+Intro / Tempo+Jumps) - shared by the 1-column card
+    // (flowBlockCardHtml) and the 4-column layout's bar popup (renderFlowBarPopup, ML-206), so a change
+    // to a tile shows up in both. Every tile carries data-block-tile; the caller wires the clicks.
+    function flowBlockTileSectionsHtml(b, nextBlock) {
         const timeSig = b.timeSignatureLabel || `${b.numerator}/${b.denominator}`;
-        const markBox = b.rehearsalMark
-            ? `<button type="button" class="flow-block-mark-box" data-block-tile="rehearsalMark" aria-label="Rehearsal mark: ${escapeHtml(b.rehearsalMark)} - tap to change" title="${escapeHtml(b.rehearsalMark)}">${escapeHtml(b.rehearsalMark)}</button>`
-            : `<button type="button" class="flow-block-mark-empty" data-block-tile="rehearsalMark" aria-label="Add rehearsal mark">+ RM</button>`;
-        // Grab handle/delete-underlay only render once there's more than one block to reorder/delete -
-        // same "hide, don't just no-op" precedent as the 3-dot menu's own Move up/down/Delete
-        // (openFlowBlockMenu) and Quick Play's own qp-bar-grab-handle/qp-block-delete-underlay.
-        const canReorderOrDelete = currentFlowBlocks.length > 1;
-        const grabHandle = canReorderOrDelete
-            ? `<button type="button" class="flow-block-grab-handle" data-block-grab-handle aria-label="Drag to reorder ${flowBarRangeLabel(idx)}"><span class="material-symbols-outlined">drag_indicator</span></button>`
-            : '';
-        const deleteUnderlay = canReorderOrDelete
-            ? `<div role="button" tabindex="0" class="flow-block-delete-underlay" data-block-delete-btn aria-label="Delete ${flowBarRangeLabel(idx)}">
-                <span class="material-symbols-outlined">delete</span>
-                <span>Delete</span>
-            </div>`
-            : '';
-        // .flow-block-box is a plain clipping wrapper (delete underlay behind, the actual card in
-        // front and sliding) - same split as Quick Play's own qp-block-box/qp-block-surface
-        // (wireQpBarSwipe), which this mirrors so scrolling from anywhere on a bar card works exactly
-        // the same way here as it does there (see wireFlowBlockSwipe/wireFlowBlockGrabHandle below).
         return `
-            <div class="flow-block-box" data-block-index="${idx}" data-block-id="${b.id}">
-                ${deleteUnderlay}
-                <div class="flow-block-card">
-                <div class="flow-block-card-header">
-                    <div class="flow-block-card-title">
-                        ${grabHandle}
-                        ${markBox}
-                        <span class="flow-block-name">${flowBarRangeLabel(idx)}</span>
-                    </div>
-                    <button type="button" class="list-item-menu-btn" data-block-menu-btn aria-label="${flowBarRangeLabel(idx)} options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
-                </div>
                 <div class="flow-tile-section">
                     <span class="flow-tile-section-label">Core</span>
                     <div class="flow-tile-grid flow-tile-grid-4">
@@ -6055,6 +6084,48 @@
                         <button type="button" class="flow-tile" data-block-tile="jump"><span class="flow-tile-value">${flowJumpLabel(b)}</span><span class="flow-tile-label">jump</span></button>
                     </div>
                 </div>
+        `;
+    }
+
+    // Rehearsal-mark box in a bar's header (card and popup) - "+ RM" when there isn't one (ML-219).
+    function flowBlockMarkBoxHtml(b) {
+        return b.rehearsalMark
+            ? `<button type="button" class="flow-block-mark-box" data-block-tile="rehearsalMark" aria-label="Rehearsal mark: ${escapeHtml(b.rehearsalMark)} - tap to change" title="${escapeHtml(b.rehearsalMark)}">${escapeHtml(b.rehearsalMark)}</button>`
+            : `<button type="button" class="flow-block-mark-empty" data-block-tile="rehearsalMark" aria-label="Add rehearsal mark">+ RM</button>`;
+    }
+
+    function flowBlockCardHtml(b, idx, nextBlock) {
+        const markBox = flowBlockMarkBoxHtml(b);
+        // Grab handle/delete-underlay only render once there's more than one block to reorder/delete -
+        // same "hide, don't just no-op" precedent as the 3-dot menu's own Move up/down/Delete
+        // (openFlowBlockMenu) and Quick Play's own qp-bar-grab-handle/qp-block-delete-underlay.
+        const canReorderOrDelete = currentFlowBlocks.length > 1;
+        const grabHandle = canReorderOrDelete
+            ? `<button type="button" class="flow-block-grab-handle" data-block-grab-handle aria-label="Drag to reorder ${flowBarRangeLabel(idx)}"><span class="material-symbols-outlined">drag_indicator</span></button>`
+            : '';
+        const deleteUnderlay = canReorderOrDelete
+            ? `<div role="button" tabindex="0" class="flow-block-delete-underlay" data-block-delete-btn aria-label="Delete ${flowBarRangeLabel(idx)}">
+                <span class="material-symbols-outlined">delete</span>
+                <span>Delete</span>
+            </div>`
+            : '';
+        // .flow-block-box is a plain clipping wrapper (delete underlay behind, the actual card in
+        // front and sliding) - same split as Quick Play's own qp-block-box/qp-block-surface
+        // (wireQpBarSwipe), which this mirrors so scrolling from anywhere on a bar card works exactly
+        // the same way here as it does there (see wireFlowBlockSwipe/wireFlowBlockGrabHandle below).
+        return `
+            <div class="flow-block-box" data-block-index="${idx}" data-block-id="${b.id}">
+                ${deleteUnderlay}
+                <div class="flow-block-card">
+                <div class="flow-block-card-header">
+                    <div class="flow-block-card-title">
+                        ${grabHandle}
+                        ${markBox}
+                        <span class="flow-block-name">${flowBarRangeLabel(idx)}</span>
+                    </div>
+                    <button type="button" class="list-item-menu-btn" data-block-menu-btn aria-label="${flowBarRangeLabel(idx)} options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
+                </div>
+                ${flowBlockTileSectionsHtml(b, nextBlock)}
                 </div>
             </div>
         `;
@@ -6063,8 +6134,21 @@
     function renderFlowBlocksList() {
         const container = document.getElementById('flowBlocksList');
         if (!container) return;
+        const grid = flowBarLayout !== '1';
+        const hasBars = currentFlowBlocks.length > 0;
+        container.classList.toggle('metroBlk-tile-strip', flowBarLayout === '4' && hasBars);
+        container.classList.toggle('flow-bar-grid-2', flowBarLayout === '2' && hasBars);
+        container.classList.toggle('flow-bar-grid', grid && hasBars);
+        renderFlowBarLayoutToggle();
+        // The popup mirrors whatever the list shows, so it refreshes on every list render - an edit
+        // made from inside it (tile picker, move, duplicate) lands here via renderFlowBlocksStudio.
+        renderFlowBarPopup();
         if (!currentFlowBlocks.length) {
             container.innerHTML = '<p class="text-muted" style="text-align:center; padding: var(--space-5);">No bars yet - add your first one below.</p>';
+            return;
+        }
+        if (grid) {
+            renderFlowBarGrid(container);
             return;
         }
         container.innerHTML = currentFlowBlocks.map((b, idx) => flowBlockCardHtml(b, idx, currentFlowBlocks[idx + 1])).join('');
@@ -6091,6 +6175,389 @@
                 openFlowBlockMenu(e.currentTarget, flowBlockIdFromDataset(btn.closest('.flow-block-box').dataset.blockId));
             });
         });
+    }
+
+    // ========================================
+    // ML-206: Bars tab 4-column layout. Each bar is a Play Flow tile (flowBarSummaryTile). Tapping one
+    // opens the bar popup (the 1-column card's tiles plus previous/next, move, duplicate and delete);
+    // pressing and holding picks it up to drag anywhere in the grid, the other tiles sliding along and
+    // up to make room. No swipe-to-delete here - Delete lives in the popup.
+    // ========================================
+    function setFlowBarLayout(layout) {
+        if (layout === flowBarLayout) return;
+        flowBarLayout = layout;
+        try { localStorage.setItem(FLOW_BAR_LAYOUT_KEY, layout); } catch (e) { /* not remembered - fine */ }
+        renderFlowBlocksList();
+    }
+    function renderFlowBarLayoutToggle() {
+        document.querySelectorAll('[data-flow-layout]').forEach(btn => {
+            btn.setAttribute('aria-pressed', String(btn.dataset.flowLayout === flowBarLayout));
+        });
+    }
+    document.querySelectorAll('[data-flow-layout]').forEach(btn => {
+        btn.addEventListener('click', () => setFlowBarLayout(btn.dataset.flowLayout));
+    });
+
+    function renderFlowBarGrid(container) {
+        let startBar = 1;
+        // data-block-id is what flowAnimateBlocksChange's FLIP matches on, so moves made from the popup
+        // (flowMoveBlockUp/Down) slide the tiles here exactly as they slide the cards in 1-column.
+        // Both grid layouts share .flow-bar-grid-tile, so the tap/hold/drag wiring below is identical.
+        container.innerHTML = currentFlowBlocks.map((b, idx) => {
+            if (flowBarLayout === '2') return flowBarDetailTileHtml(b, idx, currentFlowBlocks[idx + 1]);
+            const tile = flowBarSummaryTile(b, startBar);
+            startBar += b.barCount || 0;
+            return `<button type="button" class="metroBlk-tile flow-bar-grid-tile" data-block-id="${b.id}" title="${tile.name}" aria-label="Edit ${tile.name}" aria-haspopup="dialog">${tile.inner}</button>`;
+        }).join('');
+        container.querySelectorAll('.flow-bar-grid-tile').forEach(tile => {
+            const blockId = flowBlockIdFromDataset(tile.dataset.blockId);
+            tile.addEventListener('click', () => openFlowBarPopup(blockId));
+            // a11y: only records where a press starts - dragging needs a hold first (WCAG 2.5.2); the
+            // popup's Move earlier/later is the single-tap alternative (gestures.json)
+            tile.addEventListener('pointerdown', (e) => {
+                if (e.button !== 0 || currentFlowBlocks.length < 2) return;
+                flowBarGridStartHold(container, tile, e);
+            });
+            tile.addEventListener('contextmenu', (e) => e.preventDefault()); // Android long-press menu
+        });
+        // Once per container, not per render: swallows the click that follows a drag so dropping a
+        // tile doesn't also open its popup (same guard as setupMetroBlkDragAndDrop).
+        if (!container.dataset.dragClickGuardBound) {
+            container.dataset.dragClickGuardBound = '1';
+            container.addEventListener('click', (e) => {
+                if (container.dataset.suppressNextClick === '1') {
+                    delete container.dataset.suppressNextClick;
+                    e.stopPropagation();
+                    e.preventDefault();
+                }
+            }, true);
+        }
+    }
+
+    // The pieces of a bar "read like music" - shared by the 2-column tile (flowBarDetailTileHtml) and
+    // Play Flow's 1-column bar (flowBarFullTileHtml), so the two can't drift apart. Each piece is ready
+    // HTML, or '' when the bar doesn't have it; ramps is a list (one chip per direction).
+    function flowBarReadingParts(b, nextBlock) {
+        const sign = b.isSegno ? flowSignIconSvg('segno', true) : b.isCoda ? flowSignIconSvg('coda', true) : '';
+        const startLine = b.isRepeatStart
+            ? flowBarlineIconSvg('repeatStart', 'flow-bar-detail-barline')
+            : flowBarlineIconSvg('plain', 'flow-bar-detail-barline', true);
+        // Same end-of-bar precedence as flowEndLabel; 2x is the implicit default and never shown.
+        let endLine = flowBarlineIconSvg('plain', 'flow-bar-detail-barline', true);
+        let endExtra = '';
+        if (b.isRepeatEnd) {
+            endLine = flowBarlineIconSvg('repeatEnd', 'flow-bar-detail-barline');
+            endExtra = flowRepeatCountLabel(b.repeatPlayCount || 2);
+        } else if (b.isFinalBarline) {
+            endLine = flowBarlineIconSvg('fine', 'flow-bar-detail-barline');
+        } else if (b.isFine) {
+            endLine = flowBarlineIconSvg('section', 'flow-bar-detail-barline');
+            endExtra = 'Fine';
+        } else if (b.isSectionBoundary) {
+            endLine = flowBarlineIconSvg('section', 'flow-bar-detail-barline');
+        }
+
+        const passes = b.repeatEndingNumbers || [];
+        const volta = passes.length
+            ? `<span class="flow-volta-bracket"><span class="flow-volta-bracket-numbers">${escapeHtml(flowFormatRepeatPasses(passes))}</span></span>`
+            : '';
+        let intro = '';
+        const hasIntroStart = b.introStartBarOffset !== null && b.introStartBarOffset !== undefined;
+        const hasIntroEnd = b.introEndBarOffset !== null && b.introEndBarOffset !== undefined;
+        if (hasIntroStart || hasIntroEnd) {
+            const from = hasIntroStart ? b.introStartBarOffset : b.introEndBarOffset;
+            const to = hasIntroEnd ? b.introEndBarOffset : from;
+            intro = `<span class="flow-intro-bracket${hasIntroEnd ? '' : ' flow-intro-bracket-open-end'}"><span class="flow-intro-bracket-text">Intro ${from === to ? from : `${from}–${to}`}</span></span>`;
+        }
+        let pauses = '';
+        const pauseList = b.fermatas || [];
+        const fermatas = pauseList.filter(p => (p.kind || 'fermata') === 'fermata').length;
+        const caesuras = pauseList.filter(p => p.kind === 'caesura').length;
+        if (fermatas || caesuras) {
+            let inner = '';
+            if (fermatas) inner += `${flowPauseIconSvg('fermata', true)}<span class="flow-bar-detail-times">×${fermatas}</span>`;
+            if (caesuras) inner += `${flowPauseIconSvg('caesura', true)}<span class="flow-bar-detail-times">×${caesuras}</span>`;
+            pauses = `<span class="flow-bar-detail-chip">${inner}</span>`;
+        }
+        const rampCounts = { up: 0, down: 0, flat: 0 };
+        (b.ramps || []).forEach(r => { rampCounts[flowRampDirection(r, b, nextBlock) || 'flat']++; });
+        const rampWords = { up: 'accel.', down: 'rit.', flat: '' };
+        const ramps = ['up', 'down', 'flat'].filter(dir => rampCounts[dir]).map(dir => {
+            const times = rampCounts[dir] > 1 ? `<span class="flow-bar-detail-times">×${rampCounts[dir]}</span>` : '';
+            return `<span class="flow-bar-detail-chip">${rampWords[dir]}${flowRampIconSvg(dir, 'flow-bar-detail-ramp')}${times}</span>`;
+        });
+        const jump = (b.gotoSegno || b.gotoStartDc || b.gotoCoda || b.gotoSegnoThenCoda || b.gotoStartDcThenCoda)
+            ? `<span class="flow-bar-detail-chip">${flowJumpLabel(b)}</span>`
+            : '';
+        return { sign, startLine, endLine, endExtra, volta, intro, pauses, ramps, jump };
+    }
+
+    // ML-207: one bar on Play Flow's 1-column view - read-only, all 12 settings, each roughly where it
+    // sits on a score:
+    //   header:          rehearsal mark, "Bars 1–8" ................................ "8 bars"
+    //   top of the bar:  sign (left) · pauses (centre) · alternate ending, jump (right)
+    //   the bar:         start barline | time signature  ♩ = 100 bpm | end barline (+ count / Fine)
+    //   under the bar:   intro, ramps (type and count only)
+    // Both "on the music" rows are always there, even when empty, so every bar is the same height. No
+    // needs-updating state - Play only reads the bar. Tap jumps playback, like the other Play views.
+    function flowBarFullTileHtml(b, idx, nextBlock, { active = false } = {}) {
+        const name = flowBarPopupRangeLabel(idx);
+        const mark = b.rehearsalMark ? `<span class="flow-bar-detail-mark" title="${escapeHtml(b.rehearsalMark)}">${escapeHtml(b.rehearsalMark)}</span>` : '';
+        const label = `${b.rehearsalMark ? `${escapeHtml(b.rehearsalMark)}, ` : ''}${name}`;
+        const bars = `${b.barCount} bar${b.barCount === 1 ? '' : 's'}`;
+        const { sign, startLine, endLine, endExtra, volta, intro, pauses, ramps, jump } = flowBarReadingParts(b, nextBlock);
+        const noteKey = b.noteValue || 'crotchet';
+        const noteLabel = (METRO_NOTE_TYPES.find(t => t.key === noteKey) || {}).label || noteKey;
+        return `<button type="button" class="flow-bar-full-tile${active ? ' metroBlk-tile-active' : ''}" data-block-id="${b.id}" aria-label="Jump to ${label}"${active ? ' aria-current="true"' : ''} onclick="jumpFlowToPlayIndex(${b.id})">
+            <span class="flow-bar-full-head">${mark}<span class="flow-bar-detail-name">${name}</span><span class="flow-bar-full-bars">${bars}</span></span>
+            <span class="flow-bar-full-row flow-bar-full-top">
+                <span class="flow-bar-full-zone">${sign ? `<span class="flow-bar-full-sign">${sign}</span>` : ''}</span>
+                <span class="flow-bar-full-zone flow-bar-full-zone-mid">${pauses}</span>
+                <span class="flow-bar-full-zone flow-bar-full-zone-end">${volta}${jump}</span>
+            </span>
+            <span class="flow-bar-full-mid">
+                <span class="flow-bar-detail-edge">${startLine}</span>
+                <span class="flow-bar-full-meter">
+                    <span class="flow-bar-full-time">${escapeHtml(b.timeSignatureLabel || `${b.numerator}/${b.denominator}`)}</span>
+                    <span class="flow-bar-full-tempo"><span class="flow-bar-full-note" role="img" aria-label="${escapeHtml(noteLabel)}">${metroNoteIconSvg(noteKey)}</span><span class="flow-bar-full-eq">=</span><span class="flow-bar-full-bpm">${b.bpm}</span><span class="flow-bar-full-unit">bpm</span></span>
+                </span>
+                <span class="flow-bar-detail-edge flow-bar-full-edge-end">${endLine}${endExtra ? `<span class="flow-bar-full-count">${endExtra}</span>` : ''}</span>
+            </span>
+            <span class="flow-bar-full-row flow-bar-full-bottom">${intro}${ramps.join('')}</span>
+        </button>`;
+    }
+
+    // ML-208: one bar as a 2-column detail tile - a reading of the bar rather than a list of settings.
+    //   header: segno/coda sign, rehearsal mark, "Bars 1–8" (fixed height, so every row's middles line up)
+    //   middle: start barline | time signature over bpm | end barline (+ repeat count / Fine)
+    //   strip:  alt ending, intro, pauses, ramps, jump - blank (but still there) when the bar has none
+    // A bar with a stale setting (the same checks that turn a card tile red) shows only its mark and
+    // range, a large ⚠ Update in the middle and a blank strip. Beat note is deliberately left out.
+    // ML-209: Play Flow uses the very same tile ({ play: true }) - a button that jumps playback to the
+    // bar (jumpFlowToPlayIndex, same as a 4-column Play tile), gold-edged while it's the bar sounding
+    // (`active`), and none of the Bars tab's popup/drag wiring (.flow-bar-grid-tile).
+    function flowBarDetailTileHtml(b, idx, nextBlock, { play = false, active = false } = {}) {
+        const name = flowBarPopupRangeLabel(idx);
+        const mark = b.rehearsalMark ? `<span class="flow-bar-detail-mark" title="${escapeHtml(b.rehearsalMark)}">${escapeHtml(b.rehearsalMark)}</span>` : '';
+        const label = `${b.rehearsalMark ? `${escapeHtml(b.rehearsalMark)}, ` : ''}${name}`;
+        const open = play
+            ? `<button type="button" class="flow-bar-detail-tile{CLS}${active ? ' metroBlk-tile-active' : ''}" data-block-id="${b.id}" aria-label="Jump to ${label}{ARIA}"${active ? ' aria-current="true"' : ''} onclick="jumpFlowToPlayIndex(${b.id})">`
+            : `<button type="button" class="flow-bar-grid-tile flow-bar-detail-tile{CLS}" data-block-id="${b.id}" aria-label="Edit ${label}{ARIA}" aria-haspopup="dialog">`;
+        const warning = flowRepeatBarInvalid(b) || flowIntroInvalid(b) || flowPauseInvalid(b) || flowRampInvalid(b, nextBlock);
+        if (warning) {
+            return `${open.replace('{CLS}', ' flow-bar-detail-tile-warning').replace('{ARIA}', ' - needs updating')}
+                <span class="flow-bar-detail-head">${mark}<span class="flow-bar-detail-name">${name}</span></span>
+                <span class="flow-bar-detail-mid flow-bar-detail-mid-warning">${flowWarningIconSvg('flow-bar-detail-warning-icon')}<span class="flow-bar-detail-warning-text">Update</span></span>
+                <span class="flow-bar-detail-strip"></span>
+            </button>`;
+        }
+        const { sign, startLine, endLine, endExtra, volta, intro, pauses, ramps, jump } = flowBarReadingParts(b, nextBlock);
+        const strip = [volta, intro, pauses, ...ramps, jump].filter(Boolean);
+
+        return `${open.replace('{CLS}', '').replace('{ARIA}', '')}
+            <span class="flow-bar-detail-head">${sign ? `<span class="flow-bar-detail-sign">${sign}</span>` : ''}${mark}<span class="flow-bar-detail-name">${name}</span></span>
+            <span class="flow-bar-detail-mid">
+                <span class="flow-bar-detail-edge">${startLine}</span>
+                <span class="flow-bar-detail-meter"><span class="flow-bar-detail-time">${escapeHtml(b.timeSignatureLabel || `${b.numerator}/${b.denominator}`)}</span><span class="flow-bar-detail-bpm">${b.bpm} bpm</span></span>
+                <span class="flow-bar-detail-edge">${endLine}${endExtra ? `<span class="flow-bar-detail-count">${endExtra}</span>` : ''}</span>
+            </span>
+            <span class="flow-bar-detail-strip">${strip.join('')}</span>
+        </button>`;
+    }
+
+    // --- Press-and-hold drag. The held tile stays in the DOM the whole time (moved with insertBefore,
+    // never re-rendered) so the touch keeps its target and the page's scroll stays blocked; slot
+    // positions are measured once when the drag starts, so a tile sliding under the finger can't
+    // flip the order back and forth. On drop the array is reordered and flowAnimateBlocksChange
+    // re-renders, sliding the held tile from wherever it was let go into its new slot. ---
+    const FLOW_BAR_GRID_HOLD_MS = 350;
+    const FLOW_BAR_GRID_HOLD_SLOP_PX = 8;
+    const FLOW_BAR_GRID_EDGE_PX = 64; // auto-scroll zone at the top/bottom of the screen while dragging
+
+    function flowBarGridStartHold(container, tile, e) {
+        const rect = tile.getBoundingClientRect();
+        const d = flowBarDrag = {
+            container, pointerId: e.pointerId, blockId: tile.dataset.blockId,
+            startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY,
+            grabDX: e.clientX - rect.left, grabDY: e.clientY - rect.top,
+            active: false, slots: [], scrollY0: 0, timer: null
+        };
+        d.timer = setTimeout(() => flowBarGridBeginDrag(d), FLOW_BAR_GRID_HOLD_MS);
+        document.addEventListener('pointermove', flowBarGridOnMove, { passive: false });
+        document.addEventListener('pointerup', flowBarGridEnd);
+        document.addEventListener('pointercancel', flowBarGridEnd);
+        document.addEventListener('touchmove', flowBarGridBlockScroll, { passive: false });
+    }
+    function flowBarGridBlockScroll(e) {
+        if (flowBarDrag && flowBarDrag.active) e.preventDefault();
+    }
+    function flowBarGridTiles(d) { return [...d.container.querySelectorAll('.flow-bar-grid-tile')]; }
+    function flowBarGridHeld(d) { return d.container.querySelector(`.flow-bar-grid-tile[data-block-id="${d.blockId}"]`); }
+
+    function flowBarGridBeginDrag(d) {
+        if (flowBarDrag !== d) return;
+        const held = flowBarGridHeld(d);
+        if (!held) return;
+        d.active = true;
+        d.scrollY0 = window.scrollY;
+        d.slots = flowBarGridTiles(d).map(t => t.getBoundingClientRect());
+        held.classList.add('flow-bar-grid-tile-held');
+        flowBarGridUpdate(d);
+        requestAnimationFrame(() => flowBarGridAutoScroll(d));
+    }
+    function flowBarGridOnMove(e) {
+        const d = flowBarDrag;
+        if (!d || e.pointerId !== d.pointerId) return;
+        d.x = e.clientX;
+        d.y = e.clientY;
+        if (!d.active) {
+            // Moved before the hold finished - a scroll or a tap, never a drag.
+            if (Math.hypot(d.x - d.startX, d.y - d.startY) > FLOW_BAR_GRID_HOLD_SLOP_PX) flowBarGridEnd();
+            return;
+        }
+        e.preventDefault();
+        flowBarGridUpdate(d);
+    }
+    // Keeps the held tile under the finger and moves it to whichever slot the finger is over.
+    function flowBarGridUpdate(d) {
+        const held = flowBarGridHeld(d);
+        if (!held) return;
+        const scrolled = window.scrollY - d.scrollY0;
+        const slotAt = (i) => { const r = d.slots[i]; return { left: r.left, top: r.top - scrolled, right: r.right, bottom: r.bottom - scrolled }; };
+        const target = d.slots.findIndex((_, i) => {
+            const r = slotAt(i);
+            return d.x >= r.left && d.x <= r.right && d.y >= r.top && d.y <= r.bottom;
+        });
+        const tiles = flowBarGridTiles(d);
+        const from = tiles.indexOf(held);
+        if (target >= 0 && target !== from) {
+            const others = tiles.filter(t => t !== held);
+            const before = new Map(others.map(t => [t, t.getBoundingClientRect()]));
+            d.container.insertBefore(held, others[target] || null);
+            // FLIP the tiles that shifted: jump back to where they were, then slide to the new slot.
+            others.forEach(t => {
+                t.classList.remove('flow-bar-grid-tile-shuffling');
+                t.style.transform = '';
+                const prev = before.get(t);
+                const now = t.getBoundingClientRect();
+                if (prev.left === now.left && prev.top === now.top) return;
+                t.style.transform = `translate(${prev.left - now.left}px, ${prev.top - now.top}px)`;
+                void t.offsetWidth; // commit the inverted position before transitioning away from it
+                t.classList.add('flow-bar-grid-tile-shuffling');
+                t.style.transform = '';
+            });
+        }
+        // Measure the held tile's real slot rather than reusing d.slots: in 2 columns rows can change
+        // height as tiles move, so the recorded positions (still right for choosing a target) drift.
+        held.style.transform = '';
+        const slot = held.getBoundingClientRect();
+        held.style.transform = `translate(${d.x - d.grabDX - slot.left}px, ${d.y - d.grabDY - slot.top}px)`;
+    }
+    function flowBarGridAutoScroll(d) {
+        if (flowBarDrag !== d || !d.active) return;
+        const edge = FLOW_BAR_GRID_EDGE_PX;
+        let step = 0;
+        if (d.y < edge) step = -(edge - d.y) / 4;
+        else if (d.y > window.innerHeight - edge) step = (d.y - (window.innerHeight - edge)) / 4;
+        if (step) {
+            window.scrollBy(0, step);
+            flowBarGridUpdate(d);
+        }
+        requestAnimationFrame(() => flowBarGridAutoScroll(d));
+    }
+    function flowBarGridEnd() {
+        const d = flowBarDrag;
+        if (!d) return;
+        clearTimeout(d.timer);
+        flowBarDrag = null;
+        document.removeEventListener('pointermove', flowBarGridOnMove);
+        document.removeEventListener('pointerup', flowBarGridEnd);
+        document.removeEventListener('pointercancel', flowBarGridEnd);
+        document.removeEventListener('touchmove', flowBarGridBlockScroll);
+        if (!d.active) return;
+        d.container.dataset.suppressNextClick = '1';
+        // Fallback: not every browser fires a click after a long drag, so the flag can't wait for one.
+        setTimeout(() => { delete d.container.dataset.suppressNextClick; }, 400);
+        const domIds = flowBarGridTiles(d).map(t => t.dataset.blockId);
+        const changed = domIds.some((id, i) => String(currentFlowBlocks[i]?.id) !== id);
+        flowAnimateBlocksChange(() => {
+            if (!changed) return;
+            const byId = new Map(currentFlowBlocks.map(b => [String(b.id), b]));
+            currentFlowBlocks = domIds.map(id => byId.get(id)).filter(Boolean);
+        }, { raiseUid: d.blockId });
+        if (changed) flowPersistBlockOrder();
+    }
+
+    // --- Bar popup ---
+    function openFlowBarPopup(blockId) {
+        flowBarPopupBlockId = blockId;
+        renderFlowBarPopup();
+        document.getElementById('flowBarPopupModal').style.display = 'flex';
+    }
+    function closeFlowBarPopup() {
+        flowBarPopupBlockId = null;
+        const modal = document.getElementById('flowBarPopupModal');
+        if (modal) modal.style.display = 'none';
+    }
+    function renderFlowBarPopup() {
+        const content = document.getElementById('flowBarPopupContent');
+        if (!content || flowBarPopupBlockId === null) return;
+        const idx = currentFlowBlocks.findIndex(b => b.id === flowBarPopupBlockId);
+        // Deleted, or a different Flow loaded underneath - nothing left to show.
+        if (idx < 0 || flowBarLayout === '1') { closeFlowBarPopup(); return; }
+        const b = currentFlowBlocks[idx];
+        const first = idx === 0;
+        const last = idx === currentFlowBlocks.length - 1;
+        // Re-rendering replaces every button, so put keyboard focus back on the one that was used.
+        const focusedAction = content.contains(document.activeElement) ? document.activeElement.dataset.barPopup : null;
+        const icon = (name) => `<span class="material-symbols-outlined">${name}</span>`;
+        content.innerHTML = `
+            <div class="flow-bar-popup-header">
+                <button type="button" class="flow-bar-popup-icon-btn" data-bar-popup="prev" aria-label="Previous bar"${first ? ' disabled' : ''}>${icon('chevron_left')}</button>
+                ${flowBlockMarkBoxHtml(b)}
+                <div class="flow-bar-popup-title">
+                    <span class="flow-block-name" id="flowBarPopupTitle">${flowBarPopupRangeLabel(idx)}</span>
+                    <span class="flow-bar-popup-pos">${idx + 1} of ${currentFlowBlocks.length}</span>
+                </div>
+                <button type="button" class="flow-bar-popup-icon-btn" data-bar-popup="next" aria-label="Next bar"${last ? ' disabled' : ''}>${icon('chevron_right')}</button>
+                <button type="button" class="flow-bar-popup-icon-btn flow-bar-popup-close" data-bar-popup="close" data-modal-close aria-label="Close">${icon('close')}</button>
+            </div>
+            ${flowBlockTileSectionsHtml(b, currentFlowBlocks[idx + 1])}
+            <div class="flow-tile-grid flow-tile-grid-3-centered flow-bar-popup-actions">
+                <button type="button" class="flow-bar-popup-action" data-bar-popup="earlier"${first ? ' disabled' : ''}>Move earlier</button>
+                <button type="button" class="flow-bar-popup-action" data-bar-popup="duplicate">Duplicate</button>
+                <button type="button" class="flow-bar-popup-action" data-bar-popup="later"${last ? ' disabled' : ''}>Move later</button>
+            </div>
+            ${currentFlowBlocks.length > 1 ? '<button type="button" class="btn-text btn-text-danger flow-bar-popup-delete" data-bar-popup="delete">Delete this bar</button>' : ''}
+        `;
+        content.querySelectorAll('[data-block-tile]').forEach(btn => {
+            btn.addEventListener('click', () => handleFlowBlockTileClick(b.id, btn.dataset.blockTile));
+        });
+        content.querySelectorAll('[data-bar-popup]').forEach(btn => {
+            btn.addEventListener('click', () => flowBarPopupAction(btn.dataset.barPopup));
+        });
+        if (focusedAction) {
+            const again = content.querySelector(`[data-bar-popup="${focusedAction}"]:not([disabled])`);
+            (again || content).focus({ preventScroll: true });
+        }
+    }
+    // "Bars 9–14" rather than the card's "Bars 9 to 14" - the popup header also holds ‹, › and ✕, and
+    // the shorter form is what keeps "+ RM" from being squeezed on a 390px phone.
+    function flowBarPopupRangeLabel(index) {
+        const { start, end } = flowBlockBarRange(index);
+        return start === end ? `Bar ${start}` : `Bars ${start}–${end}`;
+    }
+    function flowBarPopupAction(action) {
+        const blockId = flowBarPopupBlockId;
+        const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
+        if (idx < 0) return;
+        if (action === 'close') closeFlowBarPopup();
+        else if (action === 'prev' && idx > 0) { flowBarPopupBlockId = currentFlowBlocks[idx - 1].id; renderFlowBarPopup(); }
+        else if (action === 'next' && idx < currentFlowBlocks.length - 1) { flowBarPopupBlockId = currentFlowBlocks[idx + 1].id; renderFlowBarPopup(); }
+        else if (action === 'earlier') flowMoveBlockUp(blockId);
+        else if (action === 'later') flowMoveBlockDown(blockId);
+        else if (action === 'duplicate') flowDuplicateBlock(blockId);
+        else if (action === 'delete') flowDeleteBlockConfirm(blockId); // the popup closes itself once the bar's gone
     }
 
     // --- Block card reorder/delete gestures - directly mirrors Quick Play's own bar-box gestures
@@ -7722,10 +8189,15 @@
     }
     document.addEventListener('click', closeFlowBlockMenu);
 
-    document.getElementById('flowBlockMenuDuplicate')?.addEventListener('click', async (e) => {
+    document.getElementById('flowBlockMenuDuplicate')?.addEventListener('click', (e) => {
         e.stopPropagation();
         const blockId = flowBlockMenuTargetId;
         closeFlowBlockMenu();
+        flowDuplicateBlock(blockId);
+    });
+    // Shared by the ⋮ menu above and the 4-column layout's bar popup (ML-206). The copy goes straight
+    // after the original.
+    async function flowDuplicateBlock(blockId) {
         const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
         if (idx < 0) return;
         if (flowEditMode === 'edit') {
@@ -7744,7 +8216,7 @@
         } catch (error) {
             showWarningToast('Error duplicating bar: ' + error.message);
         }
-    });
+    }
 
     async function flowPersistBlockOrder() {
         // Edit mode: the local splice already happened at each call site - saveFlowEdit does one
@@ -8505,25 +8977,74 @@
             // with whichever of the two actually distinguishes it: its rehearsal mark in a square box,
             // or (when there isn't one) its starting bar number within the flow, plain, no box. bpm and
             // bar count drop down to supporting lines below, smallest last, same as before.
+            renderFlowPlayLayoutToggle();
+            const twoCol = flowPlayLayout === '2';
+            const oneCol = flowPlayLayout === '1';
+            tilesUi.classList.toggle('metroBlk-tile-strip', flowPlayLayout === '4');
+            tilesUi.classList.toggle('flow-bar-grid-2', twoCol);
+            tilesUi.classList.toggle('flow-bar-list-1', oneCol);
+            if (oneCol) {
+                tilesUi.innerHTML = currentFlowBlocks.map((s, idx) =>
+                    flowBarFullTileHtml(s, idx, currentFlowBlocks[idx + 1], { active: s.id === currentId })).join('');
+                return;
+            }
+            if (twoCol) {
+                tilesUi.innerHTML = currentFlowBlocks.map((s, idx) =>
+                    flowBarDetailTileHtml(s, idx, currentFlowBlocks[idx + 1], { play: true, active: s.id === currentId })).join('');
+                return;
+            }
             let startBar = 1;
             tilesUi.innerHTML = currentFlowBlocks.map(s => {
-                // Rehearsal-mark follow-up to ML-219: a short mark ("A", "B2") keeps the big boxed
-                // headline; a longer one drops to a smaller size and wraps to at most 2 lines (then "…")
-                // so it can never spill out of a narrow tile in the 4-column grid. The full name is on
-                // the tile's tooltip/accessible name and leads the now-playing line (metroBlkBlockLabel).
-                const mark = s.rehearsalMark;
-                const headline = mark
-                    ? `<div class="metroBlk-tile-mark-box${mark.length > 3 ? ' metroBlk-tile-mark-box-long' : ''}">${escapeHtml(mark)}</div>`
-                    : `<div class="metroBlk-tile-sig">${startBar}</div>`;
-                const tileName = `${mark ? escapeHtml(mark) : `Bar ${startBar}`}, ${s.bpm} bpm, ${s.barCount} bar${s.barCount === 1 ? '' : 's'}`;
+                const tile = flowBarSummaryTile(s, startBar);
                 startBar += s.barCount || 0;
-                return `<div role="button" tabindex="0" class="metroBlk-tile${s.id === currentId ? ' metroBlk-tile-active' : ''}" title="${tileName}" aria-label="Jump to ${tileName}" onclick="jumpFlowToPlayIndex(${s.id})">
-                    ${headline}
-                    <div class="metroBlk-tile-bpm">${s.bpm} bpm</div>
-                    <div class="metroBlk-tile-bars">${s.barCount} bar${s.barCount === 1 ? '' : 's'}</div>
-                </div>`;
+                return `<div role="button" tabindex="0" class="metroBlk-tile${s.id === currentId ? ' metroBlk-tile-active' : ''}" title="${tile.name}" aria-label="Jump to ${tile.name}" onclick="jumpFlowToPlayIndex(${s.id})">${tile.inner}</div>`;
             }).join('');
         }
+    }
+
+    // ML-209/ML-207: Play Flow's own layout switch - 1 column (every setting, flowBarFullTileHtml),
+    // 2 columns (flowBarDetailTileHtml) or 4 columns (the default). Kept apart from the Bars tab's
+    // flowBarLayout - the two screens show different things - and remembered per device the same way.
+    const FLOW_PLAY_LAYOUT_KEY = 'flowPlayLayout';
+    const FLOW_PLAY_LAYOUTS = ['1', '2', '4'];
+    let flowPlayLayout = (() => {
+        try {
+            const saved = localStorage.getItem(FLOW_PLAY_LAYOUT_KEY);
+            return FLOW_PLAY_LAYOUTS.includes(saved) ? saved : '4';
+        } catch (e) { return '4'; }
+    })();
+    function renderFlowPlayLayoutToggle() {
+        document.querySelectorAll('[data-flow-play-layout]').forEach(btn => {
+            btn.setAttribute('aria-pressed', String(btn.dataset.flowPlayLayout === flowPlayLayout));
+        });
+    }
+    document.querySelectorAll('[data-flow-play-layout]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (btn.dataset.flowPlayLayout === flowPlayLayout) return;
+            flowPlayLayout = btn.dataset.flowPlayLayout;
+            try { localStorage.setItem(FLOW_PLAY_LAYOUT_KEY, flowPlayLayout); } catch (e) { /* not remembered - fine */ }
+            renderFlowPlaybackTiles();
+        });
+    });
+
+    // One bar as a compact tile: its rehearsal mark (boxed) or starting bar number, then bpm, then bar
+    // count. Shared by Play Flow's tile strip (above) and the Bars tab's 4-column layout
+    // (flowBarGridTileHtml, ML-206), so the two always look identical. Returns the inner markup plus
+    // a plain-text name for the tile's title/aria-label.
+    function flowBarSummaryTile(s, startBar) {
+        // Rehearsal-mark follow-up to ML-219: a short mark ("A", "B2") keeps the big boxed
+        // headline; a longer one drops to a smaller size and wraps to at most 2 lines (then "…")
+        // so it can never spill out of a narrow tile in the 4-column grid. The full name is on
+        // the tile's tooltip/accessible name and leads the now-playing line (metroBlkBlockLabel).
+        const mark = s.rehearsalMark;
+        const headline = mark
+            ? `<div class="metroBlk-tile-mark-box${mark.length > 3 ? ' metroBlk-tile-mark-box-long' : ''}">${escapeHtml(mark)}</div>`
+            : `<div class="metroBlk-tile-sig">${startBar}</div>`;
+        const bars = `${s.barCount} bar${s.barCount === 1 ? '' : 's'}`;
+        return {
+            name: `${mark ? escapeHtml(mark) : `Bar ${startBar}`}, ${s.bpm} bpm, ${bars}`,
+            inner: `${headline}<div class="metroBlk-tile-bpm">${s.bpm} bpm</div><div class="metroBlk-tile-bars">${bars}</div>`
+        };
     }
 
     function renderFlowPlaybackRow() {
