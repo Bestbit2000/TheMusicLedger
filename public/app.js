@@ -420,8 +420,9 @@
             if (elLongPDate) elLongPDate.innerText = data.longestPractise ? `ended ${formatStreakEndDate(data.longestPractise.endDateStr)}` : '';
             if (elLongPlDate) elLongPlDate.innerText = data.longestPlaying ? `ended ${formatStreakEndDate(data.longestPlaying.endDateStr)}` : '';
 
-            renderStreakHistogram('streakChartPractise', data.practiseStreaks, 'var(--cat-practise)');
-            renderStreakHistogram('streakChartPlaying', data.playingStreaks, 'var(--primary-action)');
+            // ML-235: both streak charts in the stats gold, not a category hue.
+            renderStreakHistogram('streakChartPractise', data.practiseStreaks, 'var(--chart-streak)');
+            renderStreakHistogram('streakChartPlaying', data.playingStreaks, 'var(--chart-streak)');
         } catch (err) { showWarningToast("Streak stats error: " + err.message); }
     }
 
@@ -1128,6 +1129,7 @@
         if (viewName === 'flowPlayView') {
             document.getElementById('topTitle').innerText = 'Play flow';
             document.getElementById('flowPlayTitleLabel').innerText = currentFlowDetail?.title || 'Flow';
+            renderFlowPlaySummary();
             flowPlayer.prewarm();
             loadFlowPlaybackSpeeds();
             // currentFlowBlocks/flowLeadInBlock were just re-fetched by goToFlowPlayView (or by
@@ -2389,10 +2391,15 @@
             container.appendChild(firstYs);
             let col = document.createElement('div');
             col.className = 'heat-col';
-            let firstMl = document.createElement('div');
-            firstMl.className = 'month-label';
-            firstMl.innerText = current.toLocaleString('default', { month: 'short' });
-            col.appendChild(firstMl);
+            // Skip the first month's label when the next month starts within 2 weeks - there'd be no
+            // room for it before the next label ("NovDec").
+            const nextMonthStart = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+            if ((nextMonthStart - current) / 86400000 >= 14) {
+                let firstMl = document.createElement('div');
+                firstMl.className = 'month-label';
+                firstMl.innerText = current.toLocaleString('default', { month: 'short' });
+                col.appendChild(firstMl);
+            }
 
             while (current <= today) {
                 let dow = (current.getDay() + 6) % 7;
@@ -5482,15 +5489,26 @@
         return start === end ? `Bar ${start}` : `Bars ${start} to ${end}`;
     }
 
-    function renderFlowBlocksStudio() {
+    // Shared by the Blocks studio summary and the Play screen's subtitle (ML-237), so the two always
+    // agree. Bar count excludes the lead-in (a count-in, not part of the piece); the runtime estimate
+    // still includes it, since it does play. Like the studio's figure it's one pass through - repeats
+    // and jumps aren't counted.
+    function flowSummaryFigures() {
         const all = flowLeadInBlock ? [flowLeadInBlock, ...currentFlowBlocks] : currentFlowBlocks;
-        // Bar count excludes the lead-in (a count-in, not part of the piece); the runtime estimate
-        // still includes it, since it does play.
         const totalBars = currentFlowBlocks.reduce((sum, b) => sum + (b.barCount || 0), 0);
-        const totalSeconds = flowTotalRuntimeSeconds(all);
-        const mins = Math.floor(totalSeconds / 60);
-        const secs = Math.round(totalSeconds % 60);
-        document.getElementById('flowStudioSummaryText').innerText = `${totalBars} bar${totalBars === 1 ? '' : 's'} • ~${mins}m ${secs}s total`;
+        const totalSeconds = Math.round(flowTotalRuntimeSeconds(all));
+        return { totalBars, mins: Math.floor(totalSeconds / 60), secs: totalSeconds % 60, barsLabel: `${totalBars} bar${totalBars === 1 ? '' : 's'}` };
+    }
+    function renderFlowPlaySummary() {
+        const el = document.getElementById('flowPlaySummary');
+        if (!el) return;
+        const { totalBars, mins, secs, barsLabel } = flowSummaryFigures();
+        el.innerText = totalBars ? `~${mins}m ${secs}s • ${barsLabel}` : '';
+    }
+
+    function renderFlowBlocksStudio() {
+        const { mins, secs, barsLabel } = flowSummaryFigures();
+        document.getElementById('flowStudioSummaryText').innerText = `${barsLabel} • ~${mins}m ${secs}s total`;
         // The sticky bar's "Use flow" state (hidden-group when there's nothing to play yet) depends
         // on currentFlowBlocks, which just changed - refresh it here too, not only on tab switch.
         updateFlowEditStickyBar();

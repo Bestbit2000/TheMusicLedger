@@ -113,7 +113,7 @@
                 { spec: 'charts', title: 'Charts', examples: [
                     { label: 'Section title (.section-title)', html: '<div class="section-title">Daily time</div>' },
                     { label: 'Heatmap cells, intensity 0-4, and legend', html: `<div><div class="heatmap-container">${[[0, 1, 2, 0, 3, 4, 1], [2, 0, 1, 4, 3, 2, 0], [1, 1, 0, 2, 4, 3, 2], [0, 3, 2, 1, 0, 1, 4]].map(heatCol).join('')}</div><div class="heatmap-legend">Less <div class="heat-cell h-time-0"></div><div class="heat-cell h-time-1"></div><div class="heat-cell h-time-2"></div><div class="heat-cell h-time-3"></div><div class="heat-cell h-time-4"></div> More</div></div>`, measure: '.heatmap-container, .heat-cell, .heatmap-legend' },
-                    { label: 'Bar colours: hours / days / sessions / category', html: `<div class="admin-design-bars">${[['--chart-hours', 70], ['--chart-days', 45], ['--chart-sessions', 85], ['--cat-rehearsal', 30], ['--cat-performance', 55]].map(([t, h]) => `<div class="chart-bar" style="height:${h}%; background: var(${t})"></div>`).join('')}</div>`, measure: '.chart-bar' },
+                    { label: 'Bar colours: hours / days / sessions / streak (all gold, ML-235) / category (only for a chart split by session type)', html: `<div class="admin-design-bars">${[['--chart-hours', 70], ['--chart-days', 45], ['--chart-sessions', 85], ['--chart-streak', 60], ['--cat-rehearsal', 30], ['--cat-performance', 55]].map(([t, h]) => `<div class="chart-bar" style="height:${h}%; background: var(${t})"></div>`).join('')}</div>`, measure: '.chart-bar' },
                 ] },
             ],
         },

@@ -1056,7 +1056,12 @@
         </div>
 
         <div class="section-title">
-            <span id="flowPlayTitleLabel">Flow</span>
+            <!-- ML-237: expected play time + bar count under the title - same figures as the Blocks
+                 studio summary (flowSummaryFigures, app.js). -->
+            <div class="flex-col">
+                <span id="flowPlayTitleLabel">Flow</span>
+                <span class="text-muted" id="flowPlaySummary" style="font-size: var(--font-sm); font-weight: var(--font-weight-normal);"></span>
+            </div>
             <!-- position:relative wrapper anchors the dropdown under the button - same pattern as the
                  burger menu, needed because .section-title itself isn't positioned and
                  .dropdown-menu's top:100%/right:0 resolve against the nearest positioned ancestor. -->

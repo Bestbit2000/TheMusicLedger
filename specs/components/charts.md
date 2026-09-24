@@ -15,7 +15,7 @@ Bar chart: `.chart-wrapper` › `.chart-y-axis` (sticky) + `.chart-grid-lines` +
 Section header: `.section-title` (title + optional action, bottom rule).
 
 ## 4. Tokens used
-`--heat-time-0..4`, `--heat-sess-0..4`, `--cat-*`, `--chart-hours`, `--chart-days`, `--chart-sessions`,
+`--heat-time-0..4`, `--heat-sess-0..4`, `--cat-*`, `--chart-hours`, `--chart-days`, `--chart-sessions`, `--chart-streak`,
 `--label-color` (axes, legends), `--input-border` (grid lines, section rule), `--container-bg`
 (scroll buttons), `--secondary-color` (month nav), `--radius-2xs` (cells, bar tops), `--radius-md`,
 `--radius-circle`, `--shadow-sm`, `--z-base`, `--z-raised`, `--z-sticky`, `--z-float`,
@@ -24,6 +24,7 @@ Section header: `.section-title` (title + optional action, bottom rule).
 
 ## 5. Props / API
 - Bar heights/widths and cell positions are data-driven geometry set by JS. Those are fine as raw values.
+- **Colour rule (ML-235):** a chart that counts every session type (both heatmaps, the Hours/Days/Sessions bar charts, both streak histograms) uses the brand gold - the `--heat-*` gold ramp or `--chart-*` gold - never a `--cat-*` hue, since those mean "this session type only" everywhere else (filter pills, history rows). `--cat-*` is only for a chart split by type.
 - Bar colours come from tokens: set `bar.style.background = 'var(--chart-hours)'`, never a hex.
 - Tapping a bar/cell calls `showAnchoredPopup`.
 - Scroll buttons appear on hover-capable devices only.

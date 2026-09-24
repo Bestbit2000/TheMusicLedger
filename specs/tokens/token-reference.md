@@ -115,19 +115,20 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 | `--cat-rehearsal-text` | `#1565c0` | `#6ab7f7` | category colour as text |
 | `--cat-lesson-text` | `#9c27b0` | `#ce93d8` | category colour as text |
 | `--cat-performance-text` | `#9a5b00` | `#ff9800` | category colour as text |
-| `--chart-hours` | `#4caf50` | (same) | "Hours" streak histogram bars |
-| `--chart-days` | `#ffc107` | (same) | "Days" streak histogram bars |
-| `--chart-sessions` | `#9c27b0` | (same) | "Sessions" streak histogram bars |
+| `--chart-hours` | `#d4af37` | (same) | stats "Hours" bar chart - gold, since it counts every session type (ML-235) |
+| `--chart-days` | `#d4af37` | (same) | stats "Days" bar chart - gold (ML-235) |
+| `--chart-sessions` | `#d4af37` | (same) | stats "Sessions" bar chart - gold (ML-235) |
+| `--chart-streak` | `#d4af37` | (same) | practise and playing streak histogram bars (ML-235) |
 | `--heat-time-0` | `#ebedf0` | `#2d333b` | practice-time heatmap, empty day (0-4 = intensity ramp) |
-| `--heat-time-1` | `#9be9a8` | `#0e4429` | intensity step 1 |
-| `--heat-time-2` | `#40c463` | `#006d32` | intensity step 2 |
-| `--heat-time-3` | `#30a14e` | `#26a641` | intensity step 3 |
-| `--heat-time-4` | `#216e39` | `#39d353` | intensity step 4 (max) |
+| `--heat-time-1` | `#f3e3a8` | `#4a3b0b` | intensity step 1 - gold ramp (ML-235) |
+| `--heat-time-2` | `#e2c355` | `#7d6415` | intensity step 2 |
+| `--heat-time-3` | `#c9a22c` | `#b8952b` | intensity step 3 |
+| `--heat-time-4` | `#8f7114` | `#f5d78e` | intensity step 4 (max) |
 | `--heat-sess-0` | `#ebedf0` | `#2d333b` | session-count heatmap, empty day (0-4 = intensity ramp) |
-| `--heat-sess-1` | `#e1bee7` | `#4a148c` | intensity step 1 |
-| `--heat-sess-2` | `#ba68c8` | `#6a1b9a` | intensity step 2 |
-| `--heat-sess-3` | `#9c27b0` | `#8e24aa` | intensity step 3 |
-| `--heat-sess-4` | `#6a1b9a` | `#ab47bc` | intensity step 4 (max) |
+| `--heat-sess-1` | `#f3e3a8` | `#4a3b0b` | intensity step 1 - same gold ramp as time (ML-235) |
+| `--heat-sess-2` | `#e2c355` | `#7d6415` | intensity step 2 |
+| `--heat-sess-3` | `#c9a22c` | `#b8952b` | intensity step 3 |
+| `--heat-sess-4` | `#8f7114` | `#f5d78e` | intensity step 4 (max) |
 
 ## Spacing
 
@@ -303,22 +304,14 @@ one ladder, low to high. Never invent a number in a component.
 | `--ds-neutral-625` | `#6b6b6b` |
 | `--ds-neutral-550` | `#858585` |
 | `--ds-neutral-500b` | `#808080` |
-| `--ds-heat-green-1` | `#9be9a8` |
-| `--ds-heat-green-2` | `#40c463` |
-| `--ds-heat-green-3` | `#30a14e` |
-| `--ds-heat-green-4` | `#216e39` |
-| `--ds-heat-green-dark-1` | `#0e4429` |
-| `--ds-heat-green-dark-2` | `#006d32` |
-| `--ds-heat-green-dark-3` | `#26a641` |
-| `--ds-heat-green-dark-4` | `#39d353` |
-| `--ds-heat-purple-1` | `#e1bee7` |
-| `--ds-heat-purple-2` | `#ba68c8` |
-| `--ds-heat-purple-3` | `#9c27b0` |
-| `--ds-heat-purple-4` | `#6a1b9a` |
-| `--ds-heat-purple-dark-1` | `#4a148c` |
-| `--ds-heat-purple-dark-2` | `#6a1b9a` |
-| `--ds-heat-purple-dark-3` | `#8e24aa` |
-| `--ds-heat-purple-dark-4` | `#ab47bc` |
+| `--ds-heat-gold-1` | `#f3e3a8` |
+| `--ds-heat-gold-2` | `#e2c355` |
+| `--ds-heat-gold-3` | `#c9a22c` |
+| `--ds-heat-gold-4` | `#8f7114` |
+| `--ds-heat-gold-dark-1` | `#4a3b0b` |
+| `--ds-heat-gold-dark-2` | `#7d6415` |
+| `--ds-heat-gold-dark-3` | `#b8952b` |
+| `--ds-heat-gold-dark-4` | `#f5d78e` |
 | `--ds-black-a20` | `rgba(0, 0, 0, 0.2)` |
 | `--ds-black-a10` | `rgba(0, 0, 0, 0.1)` |
 | `--ds-black-a30` | `rgba(0, 0, 0, 0.3)` |

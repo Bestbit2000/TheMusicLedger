@@ -78,10 +78,10 @@
     --ds-neutral-500b: #808080;
 
     /* Heatmap ramps (data viz) */
-    --ds-heat-green-1: #9be9a8; --ds-heat-green-2: #40c463; --ds-heat-green-3: #30a14e; --ds-heat-green-4: #216e39;
-    --ds-heat-green-dark-1: #0e4429; --ds-heat-green-dark-2: #006d32; --ds-heat-green-dark-3: #26a641; --ds-heat-green-dark-4: #39d353;
-    --ds-heat-purple-1: #e1bee7; --ds-heat-purple-2: #ba68c8; --ds-heat-purple-3: #9c27b0; --ds-heat-purple-4: #6a1b9a;
-    --ds-heat-purple-dark-1: #4a148c; --ds-heat-purple-dark-2: #6a1b9a; --ds-heat-purple-dark-3: #8e24aa; --ds-heat-purple-dark-4: #ab47bc;
+    /* ML-235: gold ramp - the stats charts show every session type at once, so they use the brand
+       gold rather than a category hue (green/purple read as "practise only"/"lesson only"). */
+    --ds-heat-gold-1: #f3e3a8; --ds-heat-gold-2: #e2c355; --ds-heat-gold-3: #c9a22c; --ds-heat-gold-4: #8f7114;
+    --ds-heat-gold-dark-1: #4a3b0b; --ds-heat-gold-dark-2: #7d6415; --ds-heat-gold-dark-3: #b8952b; --ds-heat-gold-dark-4: #f5d78e;
 
     /* Translucent */
     --ds-black-a20: rgba(0, 0, 0, 0.2);
@@ -247,19 +247,20 @@
     --cat-rehearsal-text: var(--ds-blue-800, #1565c0);     /* category colour as text */
     --cat-lesson-text: var(--ds-purple-500, #9c27b0);      /* category colour as text */
     --cat-performance-text: var(--ds-orange-800, #9a5b00); /* category colour as text */
-    --chart-hours: var(--ds-green-500, #4caf50);                 /* "Hours" streak histogram bars */
-    --chart-days: var(--ds-amber-500, #ffc107);                  /* "Days" streak histogram bars */
-    --chart-sessions: var(--ds-purple-500, #9c27b0);             /* "Sessions" streak histogram bars */
+    --chart-hours: var(--ds-gold-500, #d4af37);                  /* stats "Hours" bar chart - gold, since it counts every session type (ML-235) */
+    --chart-days: var(--ds-gold-500, #d4af37);                   /* stats "Days" bar chart - gold (ML-235) */
+    --chart-sessions: var(--ds-gold-500, #d4af37);               /* stats "Sessions" bar chart - gold (ML-235) */
+    --chart-streak: var(--ds-gold-500, #d4af37);                 /* practise and playing streak histogram bars (ML-235) */
     --heat-time-0: var(--ds-neutral-75, #ebedf0);                /* practice-time heatmap, empty day (0-4 = intensity ramp) */
-    --heat-time-1: var(--ds-heat-green-1, #9be9a8);              /* intensity step 1 */
-    --heat-time-2: var(--ds-heat-green-2, #40c463);              /* intensity step 2 */
-    --heat-time-3: var(--ds-heat-green-3, #30a14e);              /* intensity step 3 */
-    --heat-time-4: var(--ds-heat-green-4, #216e39);              /* intensity step 4 (max) */
+    --heat-time-1: var(--ds-heat-gold-1, #f3e3a8);               /* intensity step 1 - gold ramp (ML-235) */
+    --heat-time-2: var(--ds-heat-gold-2, #e2c355);               /* intensity step 2 */
+    --heat-time-3: var(--ds-heat-gold-3, #c9a22c);               /* intensity step 3 */
+    --heat-time-4: var(--ds-heat-gold-4, #8f7114);               /* intensity step 4 (max) */
     --heat-sess-0: var(--ds-neutral-75, #ebedf0);                /* session-count heatmap, empty day (0-4 = intensity ramp) */
-    --heat-sess-1: var(--ds-heat-purple-1, #e1bee7);             /* intensity step 1 */
-    --heat-sess-2: var(--ds-heat-purple-2, #ba68c8);             /* intensity step 2 */
-    --heat-sess-3: var(--ds-heat-purple-3, #9c27b0);             /* intensity step 3 */
-    --heat-sess-4: var(--ds-heat-purple-4, #6a1b9a);             /* intensity step 4 (max) */
+    --heat-sess-1: var(--ds-heat-gold-1, #f3e3a8);               /* intensity step 1 - same gold ramp as time (ML-235) */
+    --heat-sess-2: var(--ds-heat-gold-2, #e2c355);               /* intensity step 2 */
+    --heat-sess-3: var(--ds-heat-gold-3, #c9a22c);               /* intensity step 3 */
+    --heat-sess-4: var(--ds-heat-gold-4, #8f7114);               /* intensity step 4 (max) */
 
     /* Spacing */
     --space-0: var(--ds-size-0, 0);                              /* reset only */
@@ -380,15 +381,15 @@ body.dark-mode {
     --cat-lesson-text: var(--ds-purple-300, #ce93d8);
     --cat-performance-text: var(--ds-orange-500, #ff9800);
     --heat-time-0: var(--ds-neutral-775, #2d333b);
-    --heat-time-1: var(--ds-heat-green-dark-1, #0e4429);
-    --heat-time-2: var(--ds-heat-green-dark-2, #006d32);
-    --heat-time-3: var(--ds-heat-green-dark-3, #26a641);
-    --heat-time-4: var(--ds-heat-green-dark-4, #39d353);
+    --heat-time-1: var(--ds-heat-gold-dark-1, #4a3b0b);
+    --heat-time-2: var(--ds-heat-gold-dark-2, #7d6415);
+    --heat-time-3: var(--ds-heat-gold-dark-3, #b8952b);
+    --heat-time-4: var(--ds-heat-gold-dark-4, #f5d78e);
     --heat-sess-0: var(--ds-neutral-775, #2d333b);
-    --heat-sess-1: var(--ds-heat-purple-dark-1, #4a148c);
-    --heat-sess-2: var(--ds-heat-purple-dark-2, #6a1b9a);
-    --heat-sess-3: var(--ds-heat-purple-dark-3, #8e24aa);
-    --heat-sess-4: var(--ds-heat-purple-dark-4, #ab47bc);
+    --heat-sess-1: var(--ds-heat-gold-dark-1, #4a3b0b);
+    --heat-sess-2: var(--ds-heat-gold-dark-2, #7d6415);
+    --heat-sess-3: var(--ds-heat-gold-dark-3, #b8952b);
+    --heat-sess-4: var(--ds-heat-gold-dark-4, #f5d78e);
     --status-amber-bg: var(--ds-status-amber-bg-dark, #4a3c0c);
     --status-amber-fg: var(--ds-status-amber-fg-dark, #f2dd90);
     --status-green-bg: var(--ds-status-green-bg-dark, #17431f);
