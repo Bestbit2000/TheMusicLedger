@@ -46,6 +46,31 @@ export async function updateAccountProfile(accountId, { firstName, surname }) {
   await pool.query('UPDATE accounts SET first_name = $1, surname = $2 WHERE id = $3', [firstName, surname, accountId]);
 }
 
+// ML-234: the account's own "practice year" for the stats time-period list (051_practice_year_
+// setting.sql). Off by default; when on, the year starts on startDay/startMonth.
+export async function getPracticeYearSetting(accountId) {
+  const { rows } = await pool.query(
+    'SELECT practice_year_enabled, practice_year_start_month, practice_year_start_day FROM accounts WHERE id = $1',
+    [accountId]
+  );
+  if (!rows.length) return { enabled: false, startMonth: 9, startDay: 1 };
+  return { enabled: rows[0].practice_year_enabled, startMonth: rows[0].practice_year_start_month, startDay: rows[0].practice_year_start_day };
+}
+
+export async function updatePracticeYearSetting(accountId, { enabled, startMonth, startDay }) {
+  const month = Number(startMonth);
+  const day = Number(startDay);
+  // 29 Feb is allowed (the stats treat it as 28 Feb in a non-leap year); 31 Apr etc. isn't.
+  const daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(day) || day < 1 || day > daysInMonth[month - 1]) {
+    const e = new Error('Choose a real day and month for the start of your practice year.'); e.status = 400; throw e;
+  }
+  await pool.query(
+    'UPDATE accounts SET practice_year_enabled = $1, practice_year_start_month = $2, practice_year_start_day = $3 WHERE id = $4',
+    [!!enabled, month, day, accountId]
+  );
+}
+
 export async function isSuperAdmin(accountId) {
   const { rows } = await pool.query('SELECT account_level FROM accounts WHERE id = $1', [accountId]);
   return rows.length > 0 && rows[0].account_level === 'super_admin';

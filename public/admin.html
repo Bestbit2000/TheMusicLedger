@@ -398,6 +398,12 @@
             <span id="durationActiveInputLabel">Active (offered as a preset)</span>
             <label class="toggle-switch"><input type="checkbox" id="durationActiveInput" checked aria-labelledby="durationActiveInputLabel"><span class="toggle-slider"></span></label>
         </div>
+        <!-- ML-236: the quick timer starts on this when a user has no practise history in the last
+             90 days. Only one preset can be the default; turning it on here moves it from the old one. -->
+        <div class="hidden-group" id="durationDefaultRow" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); margin-bottom:var(--space-5);">
+            <span id="durationDefaultInputLabel">Timer default (when there's no practise history)</span>
+            <label class="toggle-switch"><input type="checkbox" id="durationDefaultInput" aria-labelledby="durationDefaultInputLabel"><span class="toggle-slider"></span></label>
+        </div>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="durationFormCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="durationFormSaveBtn" type="button">Save</button>

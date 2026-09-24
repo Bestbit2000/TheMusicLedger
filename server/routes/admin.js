@@ -349,8 +349,8 @@ router.post('/durations', requireAuth, resolveAccount, requireSuperAdmin, async 
 
 router.put('/durations/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
-    const { minutes, sortOrder, active } = req.body;
-    await updateDurationOption(req.params.id, { minutes, sortOrder, active });
+    const { minutes, sortOrder, active, isDefault } = req.body;
+    await updateDurationOption(req.params.id, { minutes, sortOrder, active, isDefault });
     res.json({ message: 'Duration updated' });
   } catch (error) {
     sendError(res, error);

@@ -57,7 +57,7 @@ and `public/analytics.js`.
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `accounts` | A person with a login | id, first_name, surname, email, account_level |
+| `accounts` | A person with a login | id, first_name, surname, email, account_level, practice_year_enabled/_start_month/_start_day (`ML-234`) |
 | `bands` | An ensemble | id, name, website, contact_email, created_by_account_id, active |
 | `band_members` | Standing membership | band_id, account_id, role |
 | `tutors` | Soft lookup, no login required | id, display_name, first_name, surname, email, active |
@@ -330,7 +330,7 @@ Notes on fields that took a few passes to nail down:
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `duration_options` | Shared preset duration list (minutes) for the save-session screen and the practice timer (`ML-7`) | id, minutes, sort_order, active |
+| `duration_options` | Shared preset duration list (minutes) for the save-session screen and the practice timer (`ML-7`). One row can be `is_default` - the quick timer's starting length when a user has no practise sessions in the last 90 days (`ML-236`) | id, minutes, sort_order, active, is_default |
 | `playback_speed_options` | Metronome Blocks' play-speed presets (`ML-109`) | id, percent, active |
 
 Neither is per-account - each is a single tool-wide list, deliberately moved out

@@ -566,7 +566,7 @@
             <div class="admin-feature">
                 <div class="admin-feature-header">
                     <div class="admin-feature-header-text">
-                        <h2>${d.minutes} minutes${d.active ? '' : ' (inactive)'}</h2>
+                        <h2>${d.minutes} minutes${d.active ? '' : ' (inactive)'}${d.isDefault ? ' (timer default)' : ''}</h2>
                     </div>
                     <div class="admin-feature-actions">
                         <button class="btn-icon-edit" data-edit-id="${d.id}" aria-label="Edit ${d.minutes} minutes" type="button"><span class="material-symbols-outlined">edit</span></button>
@@ -593,6 +593,8 @@
         document.getElementById('durationMinutesInput').value = duration ? duration.minutes : '';
         document.getElementById('durationActiveInput').checked = duration ? duration.active : true;
         document.getElementById('durationActiveRow').classList.toggle('hidden-group', !duration);
+        document.getElementById('durationDefaultInput').checked = !!duration?.isDefault;
+        document.getElementById('durationDefaultRow').classList.toggle('hidden-group', !duration);
         document.getElementById('durationFormModal').style.display = 'flex';
         document.getElementById('durationMinutesInput').focus();
     }
@@ -608,7 +610,8 @@
         try {
             if (editingDurationId) {
                 const d = durationsById.get(editingDurationId);
-                await apiCall(`/api/admin/durations/${editingDurationId}`, 'PUT', { minutes, sortOrder: d.sortOrder, active });
+                const isDefault = document.getElementById('durationDefaultInput').checked;
+                await apiCall(`/api/admin/durations/${editingDurationId}`, 'PUT', { minutes, sortOrder: d.sortOrder, active, isDefault });
             } else {
                 await apiCall('/api/admin/durations', 'POST', { minutes });
             }

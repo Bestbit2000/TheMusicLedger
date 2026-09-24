@@ -9,9 +9,9 @@ import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader } from '../mi
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, joinBand, leaveBand, createSharedBand, deleteBandIfSoleMember } from '../services/bands.js';
-import { getAccountProfile, updateAccountProfile } from '../services/accounts.js';
+import { getAccountProfile, updateAccountProfile, getPracticeYearSetting, updatePracticeYearSetting } from '../services/accounts.js';
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
-import { listDurationOptions } from '../services/durationOptions.js';
+import { listDurationOptions, getDefaultDurationMinutes } from '../services/durationOptions.js';
 import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSignaturesWithUsage, setCustomTimeSignatureActive, deleteCustomTimeSignature } from '../services/timeSignatures.js';
 import { listAdhocSetups, createAdhocSetup, renameAdhocSetup, saveAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, getOrCreateScratchSetup, createNamedAdhocSetup, duplicateAdhocSetup, createQuickPlaySetup, listQuickPlayHistory, setAdhocSetupFavorite, overwriteQuickPlayHistorySegments, duplicateQuickPlayHistory } from '../services/metronomeSetups.js';
 import { createSegment, updateSegment, deleteSegment } from '../services/metronomeSegments.js';
@@ -126,15 +126,19 @@ router.post('/notifications/:id/read', requireAuth, resolveAccount, async (req, 
 // ========================================
 router.get('/dropdown-options', requireAuth, resolveAccount, async (req, res) => {
   try {
-    const [organisations, teachers, durations, enabledFeatures] = await Promise.all([
+    const [organisations, teachers, durations, enabledFeatures, defaultDuration, practiceYear] = await Promise.all([
       listBands(req.accountId),
       listTutors(),
       listDurationOptions(),
       // ML-190: every enabled feature_key in one list, so the client can gate UI at app-load time
       // without a request per feature - see server/services/features.js.
-      listEnabledFeatureKeys()
+      listEnabledFeatureKeys(),
+      // ML-236: the quick timer's fallback length when there's no practise history to go on.
+      getDefaultDurationMinutes(),
+      // ML-234: loaded with the rest of the app's startup data since the stats screen needs it.
+      getPracticeYearSetting(req.accountId)
     ]);
-    res.json({ organisations, teachers, durations, enabledFeatures });
+    res.json({ organisations, teachers, durations, enabledFeatures, defaultDuration, practiceYear });
   } catch (error) {
     console.error('Dropdown options error:', error);
     sendError(res, error);
@@ -390,6 +394,17 @@ router.post('/settings/teachers/:name/unarchive', requireAuth, resolveAccount, a
 router.get('/account', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await getAccountProfile(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-234: Settings -> Stats "Use my own practice year" (on/off + start day and month).
+router.put('/account/practice-year', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { enabled, startMonth, startDay } = req.body;
+    await updatePracticeYearSetting(req.accountId, { enabled, startMonth, startDay });
+    res.json({ practiceYear: await getPracticeYearSetting(req.accountId) });
   } catch (error) {
     sendError(res, error);
   }

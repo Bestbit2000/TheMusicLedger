@@ -11,6 +11,15 @@ export async function listDurationOptions() {
   return rows.map(r => r.minutes);
 }
 
+// ML-236: the quick timer's fallback when a user has no recent practise history to pick a length
+// from (050_duration_default.sql). null if no active preset is flagged - the client then uses 30.
+export async function getDefaultDurationMinutes() {
+  const { rows } = await pool.query(
+    'SELECT minutes FROM duration_options WHERE is_default AND active LIMIT 1'
+  );
+  return rows.length ? rows[0].minutes : null;
+}
+
 // Admin panel "Usage" stats (ML-109 follow-up) - sessions.total_duration_minutes isn't a real
 // reference to duration_options (a session just stores whatever number of minutes was entered,
 // custom or preset), so this counts by VALUE match, not a join on a foreign key. A session's minutes
@@ -35,9 +44,9 @@ export async function listDurationUsageStats() {
 
 export async function listDurationOptionsForAdmin() {
   const { rows } = await pool.query(
-    'SELECT id, minutes, sort_order, active FROM duration_options ORDER BY sort_order'
+    'SELECT id, minutes, sort_order, active, is_default FROM duration_options ORDER BY sort_order'
   );
-  return rows.map(r => ({ id: Number(r.id), minutes: r.minutes, sortOrder: r.sort_order, active: r.active }));
+  return rows.map(r => ({ id: Number(r.id), minutes: r.minutes, sortOrder: r.sort_order, active: r.active, isDefault: r.is_default }));
 }
 
 export async function createDurationOption(minutes) {
@@ -56,18 +65,31 @@ export async function createDurationOption(minutes) {
   }
 }
 
-export async function updateDurationOption(id, { minutes, sortOrder, active }) {
+// isDefault (ML-236): making one preset the default clears it from whichever had it, in the same
+// transaction, so the one-default unique index never trips. Omitted leaves it as it was.
+export async function updateDurationOption(id, { minutes, sortOrder, active, isDefault }) {
   const m = Number(minutes);
   if (!Number.isInteger(m) || m <= 0) throw withStatus(400, 'Enter a whole number of minutes greater than 0.');
+  const client = await pool.connect();
   try {
-    const { rows } = await pool.query(
-      'UPDATE duration_options SET minutes = $1, sort_order = $2, active = $3 WHERE id = $4 RETURNING id',
-      [m, Number(sortOrder) || 0, !!active, id]
+    await client.query('BEGIN');
+    if (isDefault === true) {
+      await client.query('UPDATE duration_options SET is_default = false WHERE is_default AND id <> $1', [id]);
+    }
+    const { rows } = await client.query(
+      `UPDATE duration_options SET minutes = $1, sort_order = $2, active = $3,
+         is_default = COALESCE($5, is_default)
+       WHERE id = $4 RETURNING id`,
+      [m, Number(sortOrder) || 0, !!active, id, typeof isDefault === 'boolean' ? isDefault : null]
     );
     if (!rows.length) throw withStatus(404, 'Duration not found');
+    await client.query('COMMIT');
   } catch (error) {
+    await client.query('ROLLBACK');
     if (error.code === '23505') throw withStatus(409, `${m} minutes is already in the list.`);
     throw error;
+  } finally {
+    client.release();
   }
 }
 

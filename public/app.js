@@ -600,10 +600,13 @@
             populateWhoDropdowns();
             renderDurationRadios();
             renderFeatureGates();
+            renderPracticeYearOptions();
+            syncPracticeYearSettings();
         } catch (error) {
             console.warn('Failed to load settings:', error);
             appData = { organisations: [], teachers: [], durations: [], enabledFeatures: [] };
             renderFeatureGates();
+            renderPracticeYearOptions();
         }
     }
 
@@ -1042,6 +1045,7 @@
         if (viewName === 'accountView') { document.getElementById('topTitle').innerText = 'My account'; loadAccountView(); }
         if (viewName === 'settingsView') {
             document.getElementById('topTitle').innerText = 'Settings';
+            syncPracticeYearSettings();
             // Re-sync from storage in case these were last changed on the Tuner page itself.
             renderTunerTranspositionSetting();
             document.getElementById('tunerUseFlatsToggle').checked = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
@@ -2119,13 +2123,93 @@
     document.getElementById('customStartDate')?.addEventListener('change', renderStatsBoxes);
     document.getElementById('customEndDate')?.addEventListener('change', renderStatsBoxes);
 
+    // ML-234: the account's own practice year (Settings -> Stats), replacing the old hard-coded
+    // 1 November. Start of the practice year that `date` falls in - a 29 Feb start counts as 28 Feb
+    // in a non-leap year.
+    function practiceYearStartFor(date) {
+        const py = appData.practiceYear || {};
+        const month = (py.startMonth || 9) - 1;
+        const startIn = (year) => new Date(year, month, Math.min(py.startDay || 1, new Date(year, month + 1, 0).getDate()));
+        const thisYears = startIn(date.getFullYear());
+        return thisYears <= date ? thisYears : startIn(date.getFullYear() - 1);
+    }
+    function practiceYearEnabled() {
+        return !!appData.practiceYear?.enabled;
+    }
+    // Only offer "This/Last practise year" when the account has turned its practice year on - removed
+    // rather than hidden, since iOS Safari still shows a hidden <option>.
+    function renderPracticeYearOptions() {
+        const select = document.getElementById('statsTimeframe');
+        if (!select) return;
+        const selected = select.value;
+        select.querySelectorAll('option[value="this_prac_year"], option[value="last_prac_year"]').forEach(o => o.remove());
+        if (practiceYearEnabled()) {
+            const after = select.querySelector('option[value="this_cal_year"]');
+            after.insertAdjacentHTML('afterend', '<option value="this_prac_year">This practise year</option><option value="last_prac_year">Last practise year</option>');
+            select.value = selected;
+        } else if (selected === 'this_prac_year' || selected === 'last_prac_year') {
+            select.value = 'all';
+        } else {
+            select.value = selected;
+        }
+    }
+
+    // Settings -> Stats (ML-234): fills the controls from appData.practiceYear, and saves any change
+    // straight to the account. The day list follows the chosen month (no 31 April).
+    function renderPracticeYearDayOptions() {
+        const daySel = document.getElementById('practiceYearStartDay');
+        const month = Number(document.getElementById('practiceYearStartMonth')?.value) || 9;
+        if (!daySel) return;
+        const current = Number(daySel.value) || appData.practiceYear?.startDay || 1;
+        const maxDay = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+        daySel.innerHTML = Array.from({ length: maxDay }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
+        daySel.value = String(Math.min(current, maxDay));
+    }
+    function syncPracticeYearSettings() {
+        const py = appData.practiceYear || { enabled: false, startMonth: 9, startDay: 1 };
+        const toggle = document.getElementById('practiceYearToggle');
+        if (!toggle) return;
+        toggle.checked = !!py.enabled;
+        document.getElementById('practiceYearStartMonth').value = String(py.startMonth || 9);
+        document.getElementById('practiceYearStartDay').value = '';
+        renderPracticeYearDayOptions();
+        document.getElementById('practiceYearStartDay').value = String(py.startDay || 1);
+        document.getElementById('practiceYearDates').classList.toggle('hidden-group', !py.enabled);
+    }
+    async function savePracticeYearSettings() {
+        const enabled = document.getElementById('practiceYearToggle').checked;
+        const startMonth = Number(document.getElementById('practiceYearStartMonth').value);
+        const startDay = Number(document.getElementById('practiceYearStartDay').value);
+        document.getElementById('practiceYearDates').classList.toggle('hidden-group', !enabled);
+        try {
+            const { practiceYear } = await apiCall('/api/account/practice-year', 'PUT', { enabled, startMonth, startDay });
+            appData.practiceYear = practiceYear;
+            renderPracticeYearOptions();
+        } catch (error) {
+            showWarningToast('Could not save your practice year: ' + error.message);
+            syncPracticeYearSettings();
+        }
+    }
+    document.getElementById('practiceYearToggle')?.addEventListener('change', savePracticeYearSettings);
+    document.getElementById('practiceYearStartMonth')?.addEventListener('change', () => {
+        renderPracticeYearDayOptions();
+        savePracticeYearSettings();
+    });
+    document.getElementById('practiceYearStartDay')?.addEventListener('change', savePracticeYearSettings);
+
     function getDateRange(tf) {
         const today = new Date();
         let start = new Date(0);
         let end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
 
         if (tf === 'this_cal_year') start = new Date(today.getFullYear(), 0, 1);
-        else if (tf === 'this_prac_year') start = new Date((today.getMonth() >= 10) ? today.getFullYear() : today.getFullYear() - 1, 10, 1);
+        else if (tf === 'this_prac_year') start = practiceYearStartFor(today);
+        else if (tf === 'last_prac_year') {
+            const thisStart = practiceYearStartFor(today);
+            const dayBefore = new Date(thisStart.getFullYear(), thisStart.getMonth(), thisStart.getDate() - 1);
+            start = practiceYearStartFor(dayBefore);
+            end = new Date(dayBefore.getFullYear(), dayBefore.getMonth(), dayBefore.getDate(), 23, 59, 59);
+        }
         else if (tf === 'this_month') start = new Date(today.getFullYear(), today.getMonth(), 1);
         else if (tf === 'last_3_months') start = new Date(today.getFullYear(), today.getMonth() - 2, 1);
         else if (tf === 'last_6_months') start = new Date(today.getFullYear(), today.getMonth() - 5, 1);
@@ -14156,7 +14240,36 @@
         if (running) updateTimerDisplays();
     }
 
+    // ML-236: the quick timer starts on the user's usual practise length instead of "Pick" - the
+    // most common Practise session length over the last 90 days, each snapped to the nearest preset
+    // first (saved times are noisy: 23 and 27 minutes both count as 25). Ties go to the more recent.
+    // No practise in that window: the admin-set default (duration_options.is_default), else 30.
+    function suggestedTimerMinutes() {
+        const presets = (appData.durations || []).filter(m => m > 0);
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 90);
+        const counts = new Map();
+        const lastSeen = new Map();
+        (rawData || []).forEach(d => {
+            if (d.category !== 'Practise' || !(d.duration > 0)) return;
+            const when = parseDateSafely(d.dateStr);
+            if (!when || when < cutoff) return;
+            const mins = presets.length
+                ? presets.reduce((best, p) => Math.abs(p - d.duration) < Math.abs(best - d.duration) ? p : best, presets[0])
+                : Math.round(d.duration);
+            counts.set(mins, (counts.get(mins) || 0) + 1);
+            if (!lastSeen.has(mins) || when > lastSeen.get(mins)) lastSeen.set(mins, when);
+        });
+        let best = null;
+        counts.forEach((count, mins) => {
+            if (best === null || count > counts.get(best) || (count === counts.get(best) && lastSeen.get(mins) > lastSeen.get(best))) best = mins;
+        });
+        return best ?? appData.defaultDuration ?? 30;
+    }
+
     function openTimerInlineBox() {
+        // Only seeds an idle timer nobody has picked a length for yet - never overrides a choice.
+        if (!timerState && timerPickedMinutes === null) timerPickedMinutes = suggestedTimerMinutes();
         timerInlineBoxOpen = true;
         document.getElementById('timerInlineBox').style.display = 'flex';
         updateTopTimerIndicator(viewStack[viewStack.length - 1]);

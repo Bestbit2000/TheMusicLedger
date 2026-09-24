@@ -230,7 +230,11 @@
             <select id="statsTimeframe">
                 <option value="all" selected>All time</option>
                 <option value="this_cal_year">This calendar year</option>
+                <!-- ML-234: both practise-year options are only offered when the account has turned
+                     on its own practice year in Settings (renderPracticeYearOptions, app.js removes
+                     them otherwise - a hidden <option> still shows on iOS Safari). -->
                 <option value="this_prac_year">This practise year</option>
+                <option value="last_prac_year">Last practise year</option>
                 <option value="this_month">This month</option>
                 <option value="last_3_months">Last 3 calendar months</option>
                 <option value="last_6_months">Last 6 calendar months</option>
@@ -423,6 +427,28 @@
         <div class="section-title">App settings</div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-5); font-size: var(--font-md); padding: var(--space-4); background: var(--input-bg); border-radius: var(--radius-md); border: 1px solid var(--control-border);">
             <span id="darkModeToggleLabel">Dark mode</span><label class="toggle-switch"><input type="checkbox" id="darkModeToggle" aria-labelledby="darkModeToggleLabel"><span class="toggle-slider"></span></label>
+        </div>
+
+        <!-- ML-234: an account's own practice year, for the stats "This/Last practise year" options.
+             Saved to the account (not this browser), so it follows you to other devices. -->
+        <div class="section-title">Stats</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); font-size: var(--font-md); padding: var(--space-4); background: var(--input-bg); border-radius: var(--radius-md); border: 1px solid var(--control-border);">
+            <span id="practiceYearToggleLabel">Show stats for my own practice year</span><label class="toggle-switch"><input type="checkbox" id="practiceYearToggle" aria-labelledby="practiceYearToggleLabel"><span class="toggle-slider"></span></label>
+        </div>
+        <div id="practiceYearDates" class="hidden-group" style="display: flex; gap: var(--space-3); margin-bottom: var(--space-5);">
+            <div class="form-group flex-1">
+                <label for="practiceYearStartDay">Starts on day</label>
+                <select id="practiceYearStartDay"></select>
+            </div>
+            <div class="form-group flex-1">
+                <label for="practiceYearStartMonth">Month</label>
+                <select id="practiceYearStartMonth">
+                    <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+                    <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+                    <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+                    <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+                </select>
+            </div>
         </div>
 
         <div class="section-title">Tuner</div>
