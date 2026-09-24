@@ -1,5 +1,71 @@
 [
   {
+    "version": "0.26.0",
+    "date": "2026-09-24",
+    "changes": [
+      {
+        "key": "ML-247",
+        "type": "Fixes",
+        "summary": "Deleting a band that's just been added thinks it has a member"
+      },
+      {
+        "key": "ML-240",
+        "type": "New",
+        "summary": "Make admin section work on mobile"
+      },
+      {
+        "key": "ML-237",
+        "type": "New",
+        "summary": "Add play time expected under title bar for the flow loaded"
+      },
+      {
+        "key": "ML-236",
+        "type": "New",
+        "summary": "Improve quick timer start"
+      },
+      {
+        "key": "ML-235",
+        "type": "New",
+        "summary": "Colour confusion on stats page"
+      },
+      {
+        "key": "ML-234",
+        "type": "New",
+        "summary": "Add previous practise year to stats list "
+      },
+      {
+        "key": "ML-233",
+        "type": "New",
+        "summary": "Year required at start of heat map charts"
+      },
+      {
+        "key": "ML-228",
+        "type": "Fixes",
+        "summary": "Can't delete a band in admin on mobile"
+      },
+      {
+        "key": "ML-226",
+        "type": "New",
+        "summary": "Keep sandbox identical to production on every release"
+      },
+      {
+        "key": "ML-225",
+        "type": "Fixes",
+        "summary": "Default transposition isn't carrying through"
+      },
+      {
+        "key": "ML-224",
+        "type": "New",
+        "summary": "Transposition list name should change to go with sharp / flat option"
+      },
+      {
+        "key": "ML-223",
+        "type": "Fixes",
+        "summary": "Create flow boxes should be same size"
+      }
+    ]
+  },
+  {
     "version": "0.25.2",
     "date": "2026-09-24",
     "changes": [
