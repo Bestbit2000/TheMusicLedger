@@ -3511,6 +3511,21 @@
         const SCHEDULE_AHEAD_S = 0.12;
         const beatListeners = [];
 
+        // --- ML-193: sequence mode (opt-in - Play Flow uses it, Quick Play/Metronome Blocks don't).
+        // The caller hands over one "passage" at a time (a run of bars with its own metre, tempo per
+        // click, fermatas and caesura gaps) plus an onBoundary callback, and the SCHEDULER itself asks
+        // for the next passage the moment the current one's last click has been scheduled. Moving on
+        // therefore happens exactly on the beat, never late because of the audio lookahead or the
+        // Bluetooth visual delay (the old block-advance ran in the deferred beat callback). Every
+        // click's beat info carries the passage `tag` and its `clickIndex` within it, so the screen
+        // can always say exactly where it is. onBoundary returning null ends the piece. ---
+        let sequence = null;       // { onBoundary, boundaryClicks, tag, tempoAt(idx), gapAfter(idx) }
+        let sequenceEnded = false;
+        // --- ML-193: test clock (local development only - see flowTestHook). No AudioContext, no
+        // timers: testStep() schedules exactly one click on a virtual clock and delivers its beat
+        // info synchronously, so a Playwright test can walk a Flow click by click. ---
+        let testClock = false;
+
         // Returns a promise that resolves once the context is actually running. On a cold start,
         // resume() is asynchronous - scheduling clicks against audioCtx.currentTime before it
         // resolves reads a currentTime that hasn't started advancing at real speed yet, which is
@@ -3656,7 +3671,10 @@
             if (fermataMode === 'silent') kind = isLast ? 'prep-cue' : 'silent';
             else if (fermataMode === 'count') kind = 'count-through';
             else kind = isFirst ? 'tone-start' : (isLast ? 'tone-end-with-cue' : 'tone-continue');
-            return { kind, holding: true, remaining, holdBeats, isFirst, isLast, freezePosition: true };
+            // ML-256: the hold's LAST pulse lets the position move on (to the next beat - see endOfHold in
+            // scheduleOneClick), so a hold of N beats is exactly N pulses long. It used to freeze on the
+            // last pulse too, which re-struck the held beat once more afterwards (N+1 pulses).
+            return { kind, holding: true, remaining, holdBeats, isFirst, isLast, freezePosition: !isLast, endOfHold: isLast };
         }
 
         // Carries out whatever resolveFermataPulse decided, in place of (or alongside) the click's own
@@ -3685,16 +3703,65 @@
             return Math.max(1, notesPerBeat) * Math.max(1, subdivisionFactor);
         }
 
-        function secondsPerBaseClick() {
-            const baseClickBpm = effectiveConductorBpm() * clicksPerConductorBeat();
+        function secondsPerBaseClick(bpmOverride) {
+            const conductor = (bpmOverride === undefined ? conductorBpm : bpmOverride) * (speedPercent / 100);
+            const baseClickBpm = conductor * clicksPerConductorBeat();
             return 60 / baseClickBpm;
         }
 
-        function scheduler() {
+        // ML-193: installs one passage's settings (sequence mode). Doesn't touch an in-progress
+        // fermata's pending fade-out: a hold on a passage's very last beat still ends gracefully on
+        // the next passage's first click.
+        function applySequenceConfig(cfg) {
+            conductorBpm = cfg.bpm;
+            conductorBeatsPerBar = cfg.beatsPerBar;
+            notesPerBeat = cfg.notesPerBeat;
+            subdivisionFactor = 1;
+            lowPitch = !!cfg.lowPitch;
+            clickIndex = cfg.startClick || 0;
+            lastTotalPerBar = null;
+            fermataSchedule = cfg.fermatas || [];
+            if (cfg.fermataMode) fermataMode = cfg.fermataMode;
+            activeFermata = null;
+            sequence.boundaryClicks = cfg.boundaryClicks;
+            sequence.tag = cfg.tag;
+            sequence.tempoAt = cfg.tempoAt || null;
+            sequence.gapAfter = cfg.gapAfter || null;
+        }
+
+        // Hands a click's beat info to the listeners - straight away on the test clock, otherwise
+        // timed to when it's heard (plus the Bluetooth visual delay).
+        function deliver(info, fireTime, sync) {
+            if (sync) { beatListeners.forEach(cb => cb(info)); return; }
+            const delayMs = Math.max(0, (fireTime - audioCtx.currentTime) * 1000 + visualLatencyMs);
+            setTimeout(() => {
+                // stop() only halts future scheduling - up to SCHEDULE_AHEAD_S worth of clicks may
+                // already be queued here, so without this guard a straggler can fire its UI
+                // notification just after stop() and leave the baton stranded mid-bar instead of
+                // at the reset position.
+                if (!playing) return;
+                beatListeners.forEach(cb => cb(info));
+            }, delayMs);
+        }
+
+        // Schedules exactly one click at nextClickTime (audio + beat info) and moves the clock on.
+        // Returns false once a sequence has run out (nothing more to schedule).
+        function scheduleOneClick(sync) {
+            // ML-193: sequence mode - at the end of a passage, ask for the next one right here, before
+            // this click is worked out, so it's already in the new passage's metre and tempo.
+            if (sequence && !activeFermata && clickIndex >= sequence.boundaryClicks) {
+                const next = sequence.onBoundary();
+                if (!next) {
+                    sequenceEnded = true;
+                    deliver({ ended: true, tag: sequence.tag, time: nextClickTime }, nextClickTime, sync);
+                    return false;
+                }
+                applySequenceConfig(next);
+            }
+
             const zeroBar = conductorBeatsPerBar <= 0;
             const groupSize = clicksPerConductorBeat();
             const totalPerBar = zeroBar ? 1 : conductorBeatsPerBar * groupSize;
-            const secondsPerConductorBeat = secondsPerBaseClick() * groupSize;
 
             // A live beats/conduct-in/subdivide edit changes the shape of the bar (totalPerBar) out
             // from under an in-progress clickIndex count - without this, the accent could land
@@ -3704,13 +3771,13 @@
             // sustaining forever with nothing left to ever fade it out would be a real bug.
             if (lastTotalPerBar !== null && totalPerBar !== lastTotalPerBar) {
                 clickIndex = 0;
-                stopFermataToneImmediately();
+                if (!testClock) stopFermataToneImmediately();
                 activeFermata = null;
                 fermataPendingEndKind = null;
             }
             lastTotalPerBar = totalPerBar;
 
-            while (nextClickTime < audioCtx.currentTime + SCHEDULE_AHEAD_S) {
+            {
                 const idxInBar = clickIndex % totalPerBar;
                 let kind, conductorBeatIndex, noteIndex, isConductorBeat, isNoteBoundary;
                 if (zeroBar) {
@@ -3733,37 +3800,56 @@
                 // below), so idx never itself changes mid-hold; resolveFermataPulse's own internal
                 // clicksRemaining is what actually advances the hold along.
                 const fermataResult = resolveFermataPulse(clickIndex);
-                applyFermataAudio(fermataResult, kind, nextClickTime);
+                if (!testClock) applyFermataAudio(fermataResult, kind, nextClickTime);
 
-                const fireTime = nextClickTime;
+                // ML-193: in sequence mode the tempo can change click by click (tempo ramps) - each
+                // click's own length follows its own tempo, so a ramp has no one-beat lag.
+                const clickBpm = (sequence && sequence.tempoAt) ? sequence.tempoAt(clickIndex) : conductorBpm;
+                const interval = secondsPerBaseClick(clickBpm);
+                const secondsPerConductorBeat = interval * groupSize;
                 // The click itself always fires bang on schedule - visualLatencyMs only holds back the
                 // UI notification, so the baton/dots land in step with a click that's arriving late
                 // through Bluetooth (a fixed pipeline delay the page has no way to detect or avoid).
-                const delayMs = Math.max(0, (fireTime - audioCtx.currentTime) * 1000 + visualLatencyMs);
-                setTimeout(() => {
-                    // stop() only halts future scheduling - up to SCHEDULE_AHEAD_S worth of clicks may
-                    // already be queued here, so without this guard a straggler can fire its UI
-                    // notification just after stop() and leave the baton stranded mid-bar instead of
-                    // at the reset position.
-                    if (!playing) return;
-                    beatListeners.forEach(cb => cb({
-                        kind, clickIndexInBar: idxInBar, clicksPerBar: totalPerBar,
-                        isConductorBeat, isNoteBoundary,
-                        conductorBeatIndex, conductorBeatsPerBar: zeroBar ? 1 : conductorBeatsPerBar,
-                        noteIndex, notesPerBar: zeroBar ? 1 : conductorBeatsPerBar * Math.max(1, notesPerBeat),
-                        secondsPerConductorBeat,
-                        fermataHold: fermataResult.holding
-                            ? { remaining: fermataResult.remaining, holdBeats: fermataResult.holdBeats, isFirst: fermataResult.isFirst, isLast: fermataResult.isLast }
-                            : null
-                    }));
-                }, delayMs);
+                deliver({
+                    kind, clickIndexInBar: idxInBar, clicksPerBar: totalPerBar,
+                    isConductorBeat, isNoteBoundary,
+                    conductorBeatIndex, conductorBeatsPerBar: zeroBar ? 1 : conductorBeatsPerBar,
+                    noteIndex, notesPerBar: zeroBar ? 1 : conductorBeatsPerBar * Math.max(1, notesPerBeat),
+                    secondsPerConductorBeat,
+                    fermataHold: fermataResult.holding
+                        ? { remaining: fermataResult.remaining, holdBeats: fermataResult.holdBeats, isFirst: fermataResult.isFirst, isLast: fermataResult.isLast }
+                        : null,
+                    // ML-193 (sequence mode): which passage, and which click of it, this is - plus the
+                    // tempo it's played at (before play speed %) and how long until the next click.
+                    tag: sequence ? sequence.tag : null,
+                    clickIndex,
+                    bpm: clickBpm,
+                    intervalSeconds: interval,
+                    time: nextClickTime
+                }, nextClickTime, sync);
 
-                nextClickTime += secondsPerBaseClick();
+                nextClickTime += interval;
                 // A held pulse repeats the SAME beat/bar position rather than advancing to the next -
                 // clickIndex only moves on once the hold (and its one dedicated "ending" pulse for
                 // Tone+Cue's fade-out) has fully played out. See onFlowBeat/onMetroBlkBeat's matching
                 // "don't count a repeat pulse as a new beat" gate on the UI side.
-                if (!fermataResult.freezePosition) clickIndex++;
+                if (fermataResult.endOfHold) {
+                    // ML-256: after a hold, carry on from the start of the next conducted beat (skipping the
+                    // held beat's own sub-clicks - the hold has already filled that time).
+                    clickIndex = (Math.floor(clickIndex / groupSize) + 1) * groupSize;
+                } else if (!fermataResult.freezePosition) {
+                    // ML-253: a caesura - silence for its length after this click, before the next.
+                    const gapBeats = (sequence && sequence.gapAfter) ? sequence.gapAfter(clickIndex) : 0;
+                    if (gapBeats) nextClickTime += gapBeats * secondsPerConductorBeat;
+                    clickIndex++;
+                }
+            }
+            return true;
+        }
+
+        function scheduler() {
+            while (nextClickTime < audioCtx.currentTime + SCHEDULE_AHEAD_S) {
+                if (!scheduleOneClick(false)) return; // the sequence has ended - nothing left to schedule
             }
             schedulerId = setTimeout(scheduler, LOOKAHEAD_MS);
         }
@@ -3775,7 +3861,7 @@
             // call this as soon as the metronome view opens (itself a valid user gesture) to absorb
             // that one-time cost while the user is still looking at the controls, well before they
             // actually press Play.
-            prewarm() { ensureAudio(); },
+            prewarm() { if (!testClock) ensureAudio(); },
             // Resumes from wherever clickIndex currently is (0 the first time, or wherever pause() left
             // it) - use stop() first if you want a fresh bar from the beginning. leadingSilenceSeconds
             // (ML-92, Metronome Blocks' lead-in "quiet space") delays the very first scheduled click by
@@ -3785,6 +3871,7 @@
             play(leadingSilenceSeconds = 0) {
                 if (playing) return;
                 playing = true;
+                if (testClock) { nextClickTime += leadingSilenceSeconds; return; } // ML-193: testStep() drives it
                 ensureAudio().then(() => {
                     if (!playing) return; // paused/stopped again before the context finished resuming
                     nextClickTime = audioCtx.currentTime + 0.05 + leadingSilenceSeconds;
@@ -3848,6 +3935,30 @@
             // not a real beat.
             playTestClick() { ensureAudio().then(() => playClick('tick', audioCtx.currentTime)); },
             isPlaying() { return playing; },
+            // ML-193 sequence mode - see the note at the top of this player. `first` is the opening
+            // passage's settings; onBoundary() returns each next one, or null at the end of the piece
+            // (the listeners then get a single { ended: true } beat, timed to when the last beat
+            // finishes). Replaces any sequence already set, and positions at the new passage's start.
+            setSequence(first, onBoundary) {
+                sequence = { onBoundary };
+                sequenceEnded = false;
+                if (!testClock) stopFermataToneImmediately();
+                fermataPendingEndKind = null;
+                applySequenceConfig(first);
+            },
+            clearSequence() { sequence = null; sequenceEnded = false; },
+            // ML-193 test clock (local development only - flowTestHook). While on, nothing touches
+            // audio or timers; testStep() plays exactly one click and returns its beat info.
+            setTestClock(on) { testClock = !!on; nextClickTime = 0; },
+            isTestClock() { return testClock; },
+            testStep() {
+                if (!testClock || !playing || sequenceEnded) return null;
+                let delivered = null;
+                const capture = (info) => { delivered = info; };
+                beatListeners.push(capture);
+                try { scheduleOneClick(true); } finally { beatListeners.splice(beatListeners.indexOf(capture), 1); }
+                return delivered;
+            },
             setConductorBpm(v) { conductorBpm = v; },
             setConductorBeatsPerBar(n) { conductorBeatsPerBar = n; },
             setNotesPerBeat(n) { notesPerBeat = n; },
@@ -4117,15 +4228,19 @@
         // dot from an earlier bar.
         row.querySelectorAll('.metro-dot.fermata-done').forEach(dot => dot.classList.remove('fermata-done'));
         const viewport = document.getElementById(rowId.replace(/Dots$/, 'Viewport'));
-        const matches = (block?.fermatas || []).filter(f => f.kind !== 'caesura' && (f.barOffset || 0) === currentBarIndex);
+        // ML-255: written beats ("beat 4 of 6" in 6/8) mapped to this row's own clicks by the journey
+        // engine, not read as conducted beats. ML-253: caesuras get their glyph too.
+        const clicksPerBar = block && !block.isLeadIn ? metroBlkBeatsPerBarFor(block) * subFactor : 0;
+        const matches = clicksPerBar ? FlowJourney.pausesInBar(block, currentBarIndex, clicksPerBar) : [];
         viewport?.classList.toggle('metro-has-fermata-marker', matches.length > 0);
-        matches.forEach(f => {
-            const dot = row.querySelector(`.metro-dot[data-index="${(f.beatOffset - 1) * subFactor}"]`);
+        matches.forEach(p => {
+            const dot = row.querySelector(`.metro-dot[data-index="${p.click}"]`);
             if (!dot) return;
             const marker = document.createElement('span');
             marker.className = 'metro-fermata-marker';
+            marker.dataset.kind = p.kind;
             marker.style.left = dot.style.left;
-            marker.innerHTML = flowPauseIconSvg('fermata', false);
+            marker.innerHTML = flowPauseIconSvg(p.kind, false);
             row.appendChild(marker);
         });
     }
@@ -4289,25 +4404,9 @@
     // irregular ones (5/8, 7/8, 10/8, 11/8, 5/4, 7/4, 5/16, 7/16) have unequal-length beats the
     // scheduler can't express yet (every conductor beat assumes the same wall-clock duration) and keep
     // today's behaviour via METRO_BLK_METER_FALLBACK - tracked as a follow-up, not built here.
-    const METRO_BLK_METER_TABLE = {
-        '2/2': { macroBeatsPerBar: 2, subdivisionFactor: 2 },
-        '3/2': { macroBeatsPerBar: 3, subdivisionFactor: 2 },
-        '4/2': { macroBeatsPerBar: 4, subdivisionFactor: 2 },
-        '1/4': { macroBeatsPerBar: 1, subdivisionFactor: 2 },
-        '2/4': { macroBeatsPerBar: 2, subdivisionFactor: 2 },
-        '3/4': { macroBeatsPerBar: 3, subdivisionFactor: 2 },
-        '4/4': { macroBeatsPerBar: 4, subdivisionFactor: 2 },
-        '6/4': { macroBeatsPerBar: 2, subdivisionFactor: 3 },
-        '8/4': { macroBeatsPerBar: 4, subdivisionFactor: 2 },
-        '1/8': { macroBeatsPerBar: 1, subdivisionFactor: 2 },
-        '2/8': { macroBeatsPerBar: 2, subdivisionFactor: 2 },
-        '3/8': { macroBeatsPerBar: 3, subdivisionFactor: 2 },
-        '4/8': { macroBeatsPerBar: 4, subdivisionFactor: 2 },
-        '6/8': { macroBeatsPerBar: 2, subdivisionFactor: 3 },
-        '9/8': { macroBeatsPerBar: 3, subdivisionFactor: 3 },
-        '12/8': { macroBeatsPerBar: 4, subdivisionFactor: 3 },
-        '3/16': { macroBeatsPerBar: 3, subdivisionFactor: 2 }
-    };
+    // ML-193: one table, shared with the Flow journey engine (public/flowJourney.js) so playback and
+    // the engine's beat/click maths can never disagree about how a metre is conducted.
+    const METRO_BLK_METER_TABLE = FlowJourney.METER_TABLE;
     // macroBeatsPerBar null here means "not in the table" - resolved to the block's own raw
     // numerator below, i.e. exactly today's un-grouped behaviour.
     const METRO_BLK_METER_FALLBACK = { macroBeatsPerBar: null, subdivisionFactor: 2 };
@@ -5109,8 +5208,10 @@
             // ML-199: this is the "through to the Play option" end point the ticket asks for -
             // marked completed BEFORE switchView, so the leave-the-Hub hook in there finds the
             // session already closed rather than recording it as abandoned.
-            flowStatsFinish('completed');
-            switchView('flowPlayView');
+            flowReviewBeforeLeaving(() => {
+                flowStatsFinish('completed');
+                switchView('flowPlayView');
+            }, 'Open player anyway');
         }
     });
     // Cancel needs no *server* revert - in Edit mode nothing is written to the server until Save
@@ -5157,6 +5258,7 @@
             currentFlowDetail = detail;
             flowLeadInBlock = blocks.find(b => b.isLeadIn) || null;
             currentFlowBlocks = blocks.filter(b => !b.isLeadIn);
+            flowCheckActive = false; // ML-248: a fresh editing session starts without the review's outlines
             // Edit mode only - Create mode has no Cancel to revert to, so nothing to stage. Shallow
             // clone per item (not a deep JSON clone) is enough: every mutation below reassigns
             // fields/arrays rather than mutating one in place, so the snapshot's own references never
@@ -5930,19 +6032,9 @@
     // small inline warning icon next to otherwise-stale content, the whole tile flags this: a big
     // triangle + "Update" replaces the tile's normal value, and .flow-tile-warning reddens the tile
     // itself (flowBlockCardHtml) - same treatment for the alt-ending tile and the intro tile.
-    function flowRepeatBarInvalid(b) {
-        return !!(b.repeatEndingStartBar && b.barCount && b.repeatEndingStartBar > b.barCount);
-    }
-    function flowIntroInvalid(b) {
-        const maxBar = b.barCount || 1;
-        const startBad = b.introStartBarOffset !== null && b.introStartBarOffset !== undefined && b.introStartBarOffset > maxBar;
-        const endBad = b.introEndBarOffset !== null && b.introEndBarOffset !== undefined && b.introEndBarOffset > maxBar;
-        return startBad || endBad;
-    }
-    function flowPauseInvalid(b) {
-        const maxBar = b.barCount || 1;
-        return (b.fermatas || []).some(f => ((f.barOffset || 0) + 1) > maxBar);
-    }
+    function flowRepeatBarInvalid(b) { return FlowJourney.repeatBarInvalid(b); } // ML-193: one rule, shared with the ML-248 checker
+    function flowIntroInvalid(b) { return FlowJourney.introInvalid(b); }
+    function flowPauseInvalid(b) { return FlowJourney.pauseInvalid(b); }
     function flowTileUpdateWarning() {
         return `<span class="flow-tile-value-warning">${flowWarningIconSvg('flow-tile-warning-icon')}<span class="flow-tile-value-warning-text">Update</span></span>`;
     }
@@ -5982,15 +6074,7 @@
     // Stale start/end bars mean the block shrank after the ramp was set; a "next block" target with
     // no next block (this is the last block in the flow) can't resolve to anything, per the user's
     // own request that this be surfaced before Saving rather than silently ignored at playback time.
-    function flowRampInvalid(b, nextBlock) {
-        const maxBar = b.barCount || 1;
-        return (b.ramps || []).some(r => {
-            if (((r.startBarOffset || 0) + 1) > maxBar) return true;
-            if (r.endMode === 'specific' && ((r.endBarOffset || 0) + 1) > maxBar) return true;
-            if (r.targetMode === 'next_block' && !nextBlock) return true;
-            return false;
-        });
-    }
+    function flowRampInvalid(b, nextBlock) { return FlowJourney.rampInvalid(b, nextBlock); }
     function flowChangeLabel(b, nextBlock) {
         if (flowRampInvalid(b, nextBlock)) return flowTileUpdateWarning();
         const ramps = b.ramps || [];
@@ -6132,6 +6216,7 @@
     }
 
     function renderFlowBlocksList() {
+        queueMicrotask(flowRefreshIssueHighlights); // ML-248: once whichever layout below has rendered
         const container = document.getElementById('flowBlocksList');
         if (!container) return;
         const grid = flowBarLayout !== '1';
@@ -8385,36 +8470,99 @@
             if (btn) { btn.disabled = false; btn.innerText = 'Save'; }
         }
     }
-    document.getElementById('flowEditSaveBtn')?.addEventListener('click', saveFlowEdit);
+    document.getElementById('flowEditSaveBtn')?.addEventListener('click', () => flowReviewBeforeLeaving(saveFlowEdit, 'Save anyway'));
 
     // ========================================
-    // PLAY FLOW (Jira ML-179 follow-up) - the actual playback screen, requested separately from
-    // Blocks Studio (which is edit-only). Reuses the exact same now-playing dot-display/transport
-    // mechanism as Quick Play/Metronome Blocks (own player instance, own element ids - same
-    // reasoning as those two already having their own rather than sharing one), now including
-    // sub-beats/speed%/volume (own state/modals, "ported" from Quick Play's own - see the index.html
-    // comment above flowSubdivideModal). Still deliberately simplified vs. the Metronome Blocks engine
-    // it's modeled on: no intro-pickup-start-offset handling on the very first jump - flagged as a
-    // follow-up if wanted, not silently dropped. Repeats (isRepeatStart/isRepeatEnd/repeatPlayCount)
-    // are NOT simplified away, though - see advanceFlow/flowRepeatStartIndexFor below - this screen
-    // just has no control to create one, same as it never gets a control to create a lead-in.
+    // ML-248: a final review of the bar settings when a Flow is finished (Save in Edit mode, Open
+    // player in Create mode). FlowJourney.checkFlow lists what doesn't make sense together - errors
+    // (it won't play as written) and warnings (something is ignored or never reached). With nothing
+    // to report it carries straight on. Otherwise a review lists them, the bars involved are outlined
+    // in the Bars tab (whichever layout), and the user chooses: go back and fix, or carry on anyway.
+    // The outlines stay (updated live as things are fixed) for the rest of that editing session.
+    // ========================================
+    let flowCheckActive = false;
+    let flowCheckContinue = null;
+    function flowRunCheck() {
+        return FlowJourney.checkFlow(currentFlowBlocks, { leadIn: flowLeadInBlock });
+    }
+    // Outlines every bar an issue mentions - called at the end of every Bars tab render.
+    function flowRefreshIssueHighlights() {
+        const flagged = new Set();
+        if (flowCheckActive) flowRunCheck().forEach(i => i.blockIds.forEach(id => flagged.add(String(id))));
+        document.querySelectorAll('#flowBlocksList [data-block-id]').forEach(el => {
+            el.classList.toggle('flow-block-has-issue', flagged.has(el.dataset.blockId));
+        });
+    }
+    function flowReviewBeforeLeaving(onContinue, continueLabel) {
+        const issues = flowRunCheck();
+        if (!issues.length) { onContinue(); return; }
+        flowCheckActive = true;
+        renderFlowBlocksList();
+        flowShowCheckReview(issues, onContinue, continueLabel);
+    }
+    function flowShowCheckReview(issues, onContinue, continueLabel) {
+        const errors = issues.filter(i => i.severity === 'error');
+        const warnings = issues.filter(i => i.severity !== 'error');
+        const item = (i) => `<li><button type="button" class="flow-check-item" data-check-block="${i.blockIds[0] ?? ''}">${escapeHtml(i.message)}</button></li>`;
+        const group = (title, list) => (list.length ? `<h3 class="flow-check-group-title">${title}</h3><ul class="flow-check-list">${list.map(item).join('')}</ul>` : '');
+        document.getElementById('flowCheckIntro').innerText = errors.length
+            ? "Some bar settings don't fit together, so this Flow won't play the way it's written. The bars involved are outlined in red."
+            : 'A few things are worth a look before you go on. The bars involved are outlined in red.';
+        document.getElementById('flowCheckList').innerHTML = group("Won't play as written", errors) + group('Worth checking', warnings);
+        document.getElementById('flowCheckContinueBtn').innerText = continueLabel;
+        flowCheckContinue = onContinue;
+        document.getElementById('flowCheckModal').style.display = 'flex';
+    }
+    function closeFlowCheckReview() {
+        document.getElementById('flowCheckModal').style.display = 'none';
+        flowCheckContinue = null;
+    }
+    // Go back and fix: the Bars tab, scrolled to the bar the item is about (or the first outlined one).
+    function flowCheckGoToBlock(blockId) {
+        closeFlowCheckReview();
+        setFlowEditTab('blocks');
+        const target = blockId ? document.querySelector(`#flowBlocksList [data-block-id="${blockId}"]`) : null;
+        (target || document.querySelector('#flowBlocksList .flow-block-has-issue'))?.scrollIntoView({ block: 'center' });
+    }
+    document.getElementById('flowCheckFixBtn')?.addEventListener('click', () => flowCheckGoToBlock(''));
+    document.getElementById('flowCheckCloseBtn')?.addEventListener('click', closeFlowCheckReview);
+    document.getElementById('flowCheckContinueBtn')?.addEventListener('click', () => {
+        const go = flowCheckContinue;
+        closeFlowCheckReview();
+        if (go) go();
+    });
+    document.getElementById('flowCheckList')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-check-block]');
+        if (btn) flowCheckGoToBlock(btn.dataset.checkBlock);
+    });
+
+    // ========================================
+    // PLAY FLOW (Jira ML-179 follow-up, rebuilt on the journey engine for ML-193) - the playback
+    // screen. Reuses the same now-playing dot display/transport as Quick Play/Metronome Blocks (own
+    // player instance, own element ids), with sub-beats/speed%/volume.
+    //
+    // What plays, in what order and at what tempo, comes from public/flowJourney.js: the Flow is
+    // turned into a journey (lead-in, intro, every bar with its repeat pass, jumps) and merged into
+    // passages - runs of bars the metronome plays in one go. The player runs in sequence mode
+    // (createMetronomePlayer): its scheduler asks for the next passage exactly when the current one
+    // ends, and tags every click with its passage and position, so this screen reads where it is from
+    // each click rather than counting (ML-254). Reaching the end of the piece stops and resets to the
+    // start (ML-250). Repeats, alternate endings, intro, jumps, Fine, ramps and caesuras all play
+    // (ML-249..253).
     // ========================================
     const flowPlayer = createMetronomePlayer();
     flowPlayerRef = flowPlayer;
     flowPlayer.setVisualLatencyMs(metroState.latencyMs);
+    let flowJourney = { steps: [], end: 'end' };
+    // Passages: { kind: 'leadIn'|'intro'|'main', blockIndex, blockId, block, fromBar, toBar, pass, via }
     let flowPlayQueue = [];
-    let flowPlayIndex = 0;
-    let flowLoopBackIndex = 0;
-    let flowBeatsPlayedInBlock = 0;
-    let flowClicksPlayedInBlock = 0;
+    let flowPlayIndex = 0;      // the passage on screen: the last click heard, or where Reset/a tap put it
+    let flowSchedIndex = 0;     // the passage the scheduler is on - can be a click ahead of the screen
+    let flowPosClick = -1;      // the last click heard within flowPlayIndex's passage (-1: none yet)
+    let flowCurrentBpm = null;  // the tempo of the last click heard (ramps change it beat by beat)
     let flowPendingLeadInSilence = 0;
     let flowQuietGapActive = false;
-    let flowRepeatCounts = {};
-
-    function flowFirstRegularIndex() {
-        const idx = flowPlayQueue.findIndex(s => !s.isLeadIn);
-        return idx === -1 ? 0 : idx;
-    }
+    let flowRepeatedBlockIds = new Set(); // blocks the journey plays more than once - their label shows "1st time"/"2nd time"
 
     // Sub-beats mode is a playback-only overlay, same idea as Quick Play's own qpSubBeatsMode/
     // qpSubdivideOverride - one setting applies across the whole sequence, not stored per block. The
@@ -8432,128 +8580,171 @@
         return metroBlkMeterInfo(block).subdivisionFactor;
     }
 
-    function flowApplyToPlayer(block) {
-        flowPlayer.setConductorBpm(block.bpm);
-        flowPlayer.setConductorBeatsPerBar(metroBlkBeatsPerBarFor(block));
-        flowPlayer.setNotesPerBeat(block.isLeadIn ? 1 : flowSubFactorFor(block));
-        flowPlayer.setSubdivisionFactor(1);
-        flowPlayer.setLowPitch(!!block.isLeadIn);
+    // The block a passage plays as - a lead-in borrows the first regular block's metre and tempo.
+    function flowPassageBlock(p) {
+        if (!p) return null;
+        return p.kind === 'leadIn' ? metroBlkEffectiveBlock(p.block, [p.block, ...currentFlowBlocks]) : p.block;
     }
-
-    // Mirrors metroBlkRealignPlayer (app.js, Metronome Blocks) minus the intro-pickup-start-offset
-    // branch - lead-in quiet-gap and partial-bar pickup handling are both still faithfully copied.
-    // The pickup beat index is scaled by the sub-beat factor (clickIndex counts sub-clicks, not
-    // conductor beats, once subdivision is more than 1) - same reasoning as metroBlkRealignPlayer's.
-    function flowRealignPlayer(block) {
-        if (block.pickupBeats) flowPlayer.setBeatIndex((block.numerator - block.pickupBeats) * flowSubFactorFor(block));
-        else flowPlayer.resetToBarStart();
-
-        if (block.isLeadIn && block.quietSecondsBeforeLeadIn) {
-            flowQuietGapActive = true;
-            if (flowPlayer.isPlaying()) flowPlayer.delayNextClick(block.quietSecondsBeforeLeadIn);
-            else flowPendingLeadInSilence = block.quietSecondsBeforeLeadIn;
-        } else {
-            flowQuietGapActive = false;
-            flowPendingLeadInSilence = 0;
+    function flowClicksPerBar(p) {
+        const b = flowPassageBlock(p);
+        return p.kind === 'leadIn' ? b.numerator : metroBlkBeatsPerBarFor(b) * flowSubFactorFor(b);
+    }
+    // The player settings for passage `index`, optionally starting part-way in (from bar
+    // `startBarInPassage`, used when sub-beats change mid-play).
+    function flowPassageConfig(index, startBarInPassage = 0) {
+        const p = flowPlayQueue[index];
+        const b = flowPassageBlock(p);
+        const sub = p.kind === 'leadIn' ? 1 : flowSubFactorFor(b);
+        const cpb = flowClicksPerBar(p);
+        const bars = p.toBar - p.fromBar + 1;
+        let startClick = startBarInPassage * cpb;
+        let boundaryClicks = bars * cpb;
+        if (p.kind === 'leadIn' && b.pickupBeats) { startClick = b.numerator - b.pickupBeats; boundaryClicks = b.numerator; }
+        const fermatas = [];
+        const gaps = new Map();
+        if (p.kind !== 'leadIn') {
+            for (let bar = p.fromBar; bar <= p.toBar; bar++) {
+                const base = (bar - p.fromBar) * cpb;
+                FlowJourney.pausesInBar(p.block, bar, cpb).forEach(pause => {
+                    if (pause.kind === 'fermata') {
+                        fermatas.push({ triggerClick: base + pause.click, holdBeats: pause.holdBeats, holdClicks: pause.holdBeats * sub });
+                    } else {
+                        // A caesura's silence comes after the last click of its written beat.
+                        const f = p.block.fermatas.find(x => x.kind === 'caesura' && (x.barOffset || 0) === bar && FlowJourney.writtenBeatToClick(p.block, x.beatOffset, cpb) === pause.click);
+                        const w = FlowJourney.writtenBeatsPerBar(p.block);
+                        const lastClick = f && f.beatOffset < w ? FlowJourney.writtenBeatToClick(p.block, f.beatOffset + 1, cpb) - 1 : cpb - 1;
+                        gaps.set(base + Math.max(pause.click, lastClick), pause.holdBeats);
+                    }
+                });
+            }
         }
+        const tempoAt = p.kind === 'leadIn'
+            ? () => b.bpm
+            : (idx) => FlowJourney.tempoAt(currentFlowBlocks, p.blockIndex, (p.fromBar + idx / cpb) * FlowJourney.writtenBeatsPerBar(p.block));
+        return {
+            bpm: tempoAt(startClick),
+            beatsPerBar: p.kind === 'leadIn' ? b.numerator : metroBlkBeatsPerBarFor(b),
+            notesPerBeat: sub,
+            lowPitch: p.kind === 'leadIn',
+            startClick, boundaryClicks, fermatas,
+            fermataMode: fermataPlaybackModeSetting(),
+            gapAfter: (idx) => gaps.get(idx) || 0,
+            tempoAt,
+            tag: index
+        };
     }
-
-    function jumpFlowToIndex(index) {
-        flowPlayIndex = index;
-        flowBeatsPlayedInBlock = 0;
-        flowClicksPlayedInBlock = 0;
+    function flowNextPassageConfig() {
+        flowSchedIndex++;
+        return flowSchedIndex < flowPlayQueue.length ? flowPassageConfig(flowSchedIndex) : null;
+    }
+    // Puts both the scheduler and the screen at passage `index` (bar `startBarInPassage` of it).
+    function flowStartSequenceAt(index, startBarInPassage = 0) {
         if (!flowPlayQueue.length) return;
-        const block = metroBlkEffectiveBlock(flowPlayQueue[index], flowPlayQueue);
-        flowApplyToPlayer(block);
-        flowRealignPlayer(block);
-        // ML-130: fermata positions are static per block, so the whole schedule is handed over once
-        // here rather than resolved click-by-click.
-        flowPlayer.setFermataSchedule(buildFermataSchedule(block, flowSubFactorFor(block)), fermataPlaybackModeSetting());
+        flowPlayIndex = flowSchedIndex = index;
+        const cfg = flowPassageConfig(index, startBarInPassage);
+        flowPosClick = cfg.startClick - 1;
+        flowCurrentBpm = cfg.bpm;
+        flowPlayer.setSequence(cfg, flowNextPassageConfig);
+        // The lead-in's quiet space (ML-92) before its first click.
+        const p = flowPlayQueue[index];
+        const quiet = p.kind === 'leadIn' && index === 0 ? (p.block.quietSecondsBeforeLeadIn || 0) : 0;
+        flowQuietGapActive = quiet > 0;
+        if (flowPlayer.isPlaying()) { if (quiet) flowPlayer.delayNextClick(quiet); flowPendingLeadInSilence = 0; }
+        else flowPendingLeadInSilence = quiet;
     }
-
-    function flowStartIndex() {
-        return (flowPlayQueue.length && flowPlayQueue[0].isLeadIn) ? 0 : flowFirstRegularIndex();
-    }
-
     function jumpFlowToStart() {
-        jumpFlowToIndex(flowStartIndex());
+        flowStartSequenceAt(0);
     }
 
     // currentFlowBlocks/flowLeadInBlock are the same arrays Blocks Studio edits directly - rebuilt
     // fresh every time this view is entered (see the switchView case) rather than cached, so an
     // edit made there is never stale here.
     function buildFlowPlayQueue() {
-        flowPlayQueue = flowLeadInBlock ? [flowLeadInBlock, ...currentFlowBlocks] : currentFlowBlocks.slice();
-        flowLoopBackIndex = (flowLeadInBlock && flowLeadInBlock.repeatLeadIn) ? 0 : flowFirstRegularIndex();
-        flowRepeatCounts = {};
+        flowJourney = FlowJourney.buildJourney(currentFlowBlocks, { leadIn: flowLeadInBlock });
+        flowPlayQueue = FlowJourney.passagesOf(flowJourney.steps).map(p => ({
+            ...p, block: p.kind === 'leadIn' ? flowLeadInBlock : currentFlowBlocks[p.blockIndex]
+        }));
+        const seen = new Map();
+        flowJourney.steps.forEach(s => { if (s.kind === 'main' && s.pass > 1) seen.set(s.blockId, true); });
+        flowRepeatedBlockIds = new Set(seen.keys());
+        if (flowPlayer.isPlaying()) flowPlayer.pause();
         jumpFlowToStart();
     }
 
+    // Tapping a tile jumps playback to that bar's first appearance in the piece proper (not the intro).
     window.jumpFlowToPlayIndex = function(id) {
-        const index = flowPlayQueue.findIndex(s => s.id === id);
+        let index = flowPlayQueue.findIndex(p => p.blockId === id && p.kind === 'main');
+        if (index === -1) index = flowPlayQueue.findIndex(p => p.blockId === id);
         if (index === -1) return;
-        jumpFlowToIndex(index);
+        flowStartSequenceAt(index);
         renderFlowPlaybackRow();
     };
 
-    function flowRepeatStartIndexFor(endIndex) {
-        const firstIdx = flowFirstRegularIndex();
-        for (let i = endIndex - 1; i >= firstIdx; i--) {
-            if (flowPlayQueue[i].isRepeatStart) return i;
-        }
-        return firstIdx;
+    // Where the screen is: passage, 0-based bar within its block, and click within that bar.
+    function flowScreenPosition() {
+        const p = flowPlayQueue[flowPlayIndex];
+        if (!p) return null;
+        const cpb = flowClicksPerBar(p);
+        const click = Math.max(0, flowPosClick);
+        const barInPassage = p.kind === 'leadIn' ? 0 : Math.floor(click / cpb);
+        return { p, cpb, bar: p.fromBar + barInPassage, clickInBar: click % cpb };
     }
 
-    function advanceFlow() {
-        const finishedIndex = flowPlayIndex;
-        const finishedBlock = flowPlayQueue[finishedIndex];
-        if (finishedBlock && finishedBlock.isRepeatEnd) {
-            const timesSoFar = flowRepeatCounts[finishedBlock.id] || 0;
-            const totalPlays = finishedBlock.repeatPlayCount || 2;
-            if (timesSoFar < totalPlays - 1) {
-                flowRepeatCounts[finishedBlock.id] = timesSoFar + 1;
-                jumpFlowToIndex(flowRepeatStartIndexFor(finishedIndex));
-                setTimeout(renderFlowPlaybackRow, 130);
-                return;
-            }
-            delete flowRepeatCounts[finishedBlock.id];
+    const FLOW_ORDINALS = ['1st', '2nd', '3rd'];
+    // "Intro · A · 3 of 8 bars · 2nd time · 3/4 · 96 bpm · 𝄐" - HTML (the fermata suffix is a glyph).
+    function flowNowPlayingLabel() {
+        const pos = flowScreenPosition();
+        if (!pos) return '';
+        const { p } = pos;
+        const block = flowPassageBlock(p);
+        const bpm = Math.round(flowCurrentBpm ?? block.bpm);
+        if (p.kind === 'leadIn') {
+            const countStr = block.pickupBeats ? `${block.pickupBeats} beat${block.pickupBeats === 1 ? '' : 's'}` : `${block.barCount} bar${block.barCount === 1 ? '' : 's'}`;
+            return `Lead-in · ${countStr} · ${block.timeSignatureLabel} · ${bpm} bpm`;
         }
-        let next = finishedIndex + 1;
-        if (next >= flowPlayQueue.length) {
-            flowRepeatCounts = {};
-            next = flowLoopBackIndex;
-        }
-        jumpFlowToIndex(next);
-        // Deferred, same reason as advanceMetroBlk's own comment - lets the final beat's flash
-        // actually paint before the dot row is torn down and rebuilt.
-        setTimeout(renderFlowPlaybackRow, 130);
+        const parts = [];
+        if (p.kind === 'intro') parts.push('Intro');
+        if (block.rehearsalMark) parts.push(escapeHtml(block.rehearsalMark));
+        parts.push(`${pos.bar + 1} of ${block.barCount} bar${block.barCount === 1 ? '' : 's'}`);
+        if (p.kind === 'main' && flowRepeatedBlockIds.has(p.blockId)) parts.push(`${FLOW_ORDINALS[p.pass - 1] || `${p.pass}th`} time`);
+        parts.push(block.timeSignatureLabel || `${block.numerator}/${block.denominator}`, `${bpm} bpm`);
+        return parts.join(' · ') + metroBlkFermataLabelSuffix(block);
     }
 
     function onFlowBeat(beatInfo) {
-        if (flowQuietGapActive) {
-            flowQuietGapActive = false;
+        if (beatInfo.ended) {
+            // ML-250: the end of the piece - stop and go back to the start, ready to play again.
+            flowPlayer.stop();
+            jumpFlowToStart();
+            updateFlowPlayIcon();
             renderFlowPlaybackRow();
+            return;
         }
-        const block = metroBlkEffectiveBlock(flowPlayQueue[flowPlayIndex], flowPlayQueue);
-        if (!block) return;
+        if (flowQuietGapActive) flowQuietGapActive = false;
+        const passageChanged = beatInfo.tag !== flowPlayIndex;
+        const isFermataRepeat = !!(beatInfo.fermataHold && !beatInfo.fermataHold.isFirst);
+        const prevBar = flowScreenPosition()?.bar;
+        flowPlayIndex = beatInfo.tag;
+        flowPosClick = beatInfo.clickIndex;
+        flowCurrentBpm = beatInfo.bpm;
+        const pos = flowScreenPosition();
+        if (!pos) return;
+        const block = flowPassageBlock(pos.p);
+        const subFactor = pos.p.kind === 'leadIn' ? 1 : flowSubFactorFor(block);
 
-        const subFactor = flowSubFactorFor(block);
+        // A new passage (a new block, a repeat, a jump) redraws the whole row; a new bar within the same
+        // passage only refreshes its label and fermata/caesura glyphs - at the new bar's first click,
+        // not at the start of the previous bar's last beat (ML-254).
+        if (passageChanged) renderFlowPlaybackRow();
+        else if (!isFermataRepeat && pos.bar !== prevBar) {
+            renderFermataMarkers('flowPlayRowDots', block, pos.bar, subFactor);
+        }
+        const labelEl = document.getElementById('flowPlayRowLabel');
+        if (labelEl && beatInfo.isConductorBeat) labelEl.innerHTML = flowNowPlayingLabel();
+
         flashTierDot('flowPlayRowDots', beatInfo.clickIndexInBar);
         updateFermataDotState('flowPlayRowDots', beatInfo);
-
-        // ML-130: every pulse of a fermata hold except its own first one is a repeat of the SAME
-        // beat (the player froze clickIndex for the whole hold - see resolveFermataPulse), not a new
-        // beat - it must not count towards "a beat/bar has now played" bookkeeping below, or the
-        // block would advance early and "Bar X of Y" would overcount.
-        const isFermataRepeat = !!(beatInfo.fermataHold && !beatInfo.fermataHold.isFirst);
         if (isFermataRepeat) return;
-
-        // Advancing has to wait for every click of the target's last beat, sub-beats included, not
-        // just that beat's own main click - same reasoning as onMetroBlkBeat's own targetClicks.
-        flowClicksPlayedInBlock++;
-        const targetBeats = block.pickupBeats || (block.barCount * metroBlkBeatsPerBarFor(block));
-        const targetClicks = targetBeats * subFactor;
-        const isFinalClickOfBlock = flowClicksPlayedInBlock >= targetClicks;
 
         if (beatInfo.isConductorBeat) {
             const totalBaseClicks = beatInfo.conductorBeatsPerBar * subFactor;
@@ -8561,22 +8752,7 @@
             const trackUnit = 100 / (totalBaseClicks + 1);
             const trackLeftPct = (k) => k * trackUnit + trackUnit / 2;
             metroScrollFollow('flowPlayRowViewport', 'flowPlayRowContent', trackLeftPct(beatInfo.conductorBeatIndex * subFactor), trackLeftPct(nextIndex * subFactor), beatInfo.secondsPerConductorBeat);
-
-            flowBeatsPlayedInBlock++;
-            const justCompletedABar = !block.pickupBeats && flowBeatsPlayedInBlock % metroBlkBeatsPerBarFor(block) === 0;
-            if (block.pickupBeats || justCompletedABar) {
-                const labelEl = document.getElementById('flowPlayRowLabel');
-                if (labelEl) labelEl.innerHTML = metroBlkBlockLabel(block, flowBeatsPlayedInBlock); // ML-130: label carries a real fermata glyph now, not plain text
-            }
-            // ML-130: a new bar just started (or this is a partial lead-in, which has no "bars" of its
-            // own to speak of) - refresh which fermata glyph(s), if any, sit above this bar's own dots.
-            if (justCompletedABar && !block.pickupBeats) {
-                const newBarIndex = Math.floor(flowBeatsPlayedInBlock / metroBlkBeatsPerBarFor(block));
-                renderFermataMarkers('flowPlayRowDots', block, newBarIndex, subFactor);
-            }
         }
-
-        if (isFinalClickOfBlock) advanceFlow();
     }
     flowPlayer.onBeat(onFlowBeat);
 
@@ -8959,13 +9135,13 @@
     function renderFlowPlaybackTiles() {
         const leadInSlot = document.getElementById('flowPlayLeadInSlot');
         const tilesUi = document.getElementById('flowPlayTiles');
-        const currentId = flowPlayQueue[flowPlayIndex] ? flowPlayQueue[flowPlayIndex].id : null;
+        const currentId = flowPlayQueue[flowPlayIndex] ? flowPlayQueue[flowPlayIndex].blockId : null;
         if (leadInSlot) {
             if (flowLeadInBlock) {
                 const b = flowLeadInBlock;
                 const countStr = `${b.barCount} bar${b.barCount === 1 ? '' : 's'}`;
                 const repeatStr = b.repeatLeadIn ? ', repeating' : ', first time only';
-                leadInSlot.innerHTML = `<div role="button" tabindex="0" class="metroBlk-leadin-row metroBlk-leadin-row-filled${b.id === currentId ? ' metroBlk-tile-active' : ''}" onclick="jumpFlowToPlayIndex(${b.id})">
+                leadInSlot.innerHTML = `<div role="button" tabindex="0" class="metroBlk-leadin-row metroBlk-leadin-row-filled${b.id === currentId ? ' metroBlk-tile-active' : ''}" data-block-id="${b.id}" onclick="jumpFlowToPlayIndex(${b.id})">
                     <span class="metroBlk-tile-badge">Lead-in</span><span>${countStr}${repeatStr}</span>
                 </div>`;
             } else {
@@ -8997,7 +9173,7 @@
             tilesUi.innerHTML = currentFlowBlocks.map(s => {
                 const tile = flowBarSummaryTile(s, startBar);
                 startBar += s.barCount || 0;
-                return `<div role="button" tabindex="0" class="metroBlk-tile${s.id === currentId ? ' metroBlk-tile-active' : ''}" title="${tile.name}" aria-label="Jump to ${tile.name}" onclick="jumpFlowToPlayIndex(${s.id})">${tile.inner}</div>`;
+                return `<div role="button" tabindex="0" class="metroBlk-tile${s.id === currentId ? ' metroBlk-tile-active' : ''}" data-block-id="${s.id}" title="${tile.name}" aria-label="Jump to ${tile.name}" onclick="jumpFlowToPlayIndex(${s.id})">${tile.inner}</div>`;
             }).join('');
         }
     }
@@ -9052,10 +9228,11 @@
             renderFlowPlaybackTiles();
             return;
         }
-        const block = metroBlkEffectiveBlock(flowPlayQueue[flowPlayIndex], flowPlayQueue);
+        const pos = flowScreenPosition();
+        const block = flowPassageBlock(pos.p);
         const subFactor = flowSubFactorFor(block);
         const labelEl = document.getElementById('flowPlayRowLabel');
-        if (labelEl) labelEl.innerHTML = block ? metroBlkBlockLabel(block, flowBeatsPlayedInBlock) : ''; // ML-130: label carries a real fermata glyph now, not plain text
+        if (labelEl) labelEl.innerHTML = flowNowPlayingLabel(); // ML-130: label carries a real fermata glyph, not plain text
 
         const beatsPerBar = block ? metroBlkBeatsPerBarFor(block) : 4;
         const totalBaseClicks = beatsPerBar * subFactor;
@@ -9065,10 +9242,9 @@
         metroApplyDisplayWidth('flowPlayRowViewport', 'flowPlayRowContent', totalBaseClicks + 1);
         connectMetroBlkDotsWithTrack('flowPlayRowDots', endLeftStyle);
         greyOutSkippedDots('flowPlayRowDots', block, subFactor);
-        // ML-130: NOT always bar 0 - a sub-beats/play-speed change mid-block re-renders this row from
-        // wherever playback currently sits (flowSubdivideSaveBtn/setFlowSpeedPercent), not just on a
-        // fresh block entry, so this has to derive the real current bar rather than assume the start.
-        renderFermataMarkers('flowPlayRowDots', block, metroBlkCurrentBarIndex(block, flowBeatsPlayedInBlock), subFactor);
+        // ML-130: NOT always the passage's first bar - a sub-beats/play-speed change mid-block
+        // re-renders this row from wherever playback currently sits, so it uses the real current bar.
+        renderFermataMarkers('flowPlayRowDots', block, pos.bar, subFactor);
         if (!flowPlayer.isPlaying()) resetMetroScrollPosition('flowPlayRowContent');
         const inQuietGap = flowQuietGapActive && flowPlayer.isPlaying() && block && block.isLeadIn;
         document.getElementById('flowPlayRowContent')?.classList.toggle('metroBlk-quiet-gap', inQuietGap);
@@ -9102,6 +9278,82 @@
     setupPlayButtonHoldReset('flowPlayBtn', () => { if (flowPlayer.isPlaying()) pauseFlow(); else playFlow(); }, resetFlow);
     document.getElementById('flowResetBtn')?.addEventListener('click', resetFlow);
 
+    // ML-193 test hook - LOCAL DEVELOPMENT ONLY. Switched on by the back-test suite setting
+    // localStorage 'tml.testClock' = '1' before the app loads, and only ever on localhost/127.0.0.1,
+    // so it can never be active on sandbox or production. It puts Play Flow's player on the test
+    // clock (silent, no timers) and exposes window.__flowTest to step through a Flow one click at a
+    // time and read exactly what the screen shows at each step.
+    (function flowTestHook() {
+        let on = false;
+        try { on = ['localhost', '127.0.0.1'].includes(location.hostname) && localStorage.getItem('tml.testClock') === '1'; } catch (e) { on = false; }
+        if (!on) return;
+        flowPlayer.setTestClock(true);
+        let last = null;
+        flowPlayer.onBeat(info => { last = info; });
+        const text = (id) => (document.getElementById(id)?.textContent || '').replace(/\s+/g, ' ').trim();
+        function snapshot() {
+            const pos = flowScreenPosition();
+            const p = pos && pos.p;
+            const row = document.getElementById('flowPlayRowDots');
+            return {
+                ended: !!(last && last.ended),
+                playing: flowPlayer.isPlaying(),
+                passage: flowPlayIndex,
+                kind: p ? p.kind : null,
+                blockId: p ? p.blockId : null,
+                blockIndex: p ? p.blockIndex : null,
+                bar: pos ? pos.bar + 1 : null,             // 1-based bar within its block
+                click: pos ? pos.clickInBar : null,        // 0-based click within that bar
+                pass: p ? p.pass : null,
+                via: p ? p.via : null,
+                bpm: flowCurrentBpm === null ? null : Math.round(flowCurrentBpm * 100) / 100,
+                time: last && typeof last.time === 'number' ? Math.round(last.time * 1000) / 1000 : null,
+                intervalMs: last && last.intervalSeconds ? Math.round(last.intervalSeconds * 100000) / 100 : null,
+                holding: !!(last && last.fermataHold),
+                holdRemaining: last && last.fermataHold ? last.fermataHold.remaining : null,
+                label: text('flowPlayRowLabel'),
+                activeTiles: [...document.querySelectorAll('#flowPlayTiles .metroBlk-tile-active, #flowPlayLeadInSlot .metroBlk-tile-active')].map(el => Number(el.dataset.blockId)),
+                markers: row ? [...row.querySelectorAll('.metro-fermata-marker')].map(m => m.dataset.kind) : [],
+                dotCount: row ? row.querySelectorAll('.metro-dot').length : 0
+            };
+        }
+        window.__flowTest = {
+            // For the back-tests' own setup: the app's API client (seeding Flows as the logged-in test
+            // account, through the same validation as the editor), and the two screens they drive.
+            api: API,
+            openPlay: (id) => goToFlowPlayView(id),
+            // The bars as the editor currently holds them (staged, in Edit mode) - what a picker just set.
+            blocks: () => JSON.parse(JSON.stringify({ leadIn: flowLeadInBlock, blocks: currentFlowBlocks })),
+            openBars: (id, mode = 'edit') => { currentFlowId = id; flowEditMode = mode; flowEditRequestedTab = 'blocks'; switchView('flowDetailsHubView'); },
+            journey: () => JSON.parse(JSON.stringify({ end: flowJourney.end, steps: flowJourney.steps, passages: flowPlayQueue.map(({ block, ...rest }) => rest) })),
+            issues: () => JSON.parse(JSON.stringify(FlowJourney.checkFlow(currentFlowBlocks, { leadIn: flowLeadInBlock }))),
+            play: () => { if (!flowPlayer.isPlaying()) playFlow(); return snapshot(); },
+            state: snapshot,
+            step(n = 1) {
+                const out = [];
+                for (let k = 0; k < n; k++) {
+                    const info = flowPlayer.testStep();
+                    if (!info) break;
+                    out.push(snapshot());
+                    if (info.ended) break;
+                }
+                return out;
+            },
+            // Every click to the end of the piece, as compact rows (capped so a runaway can't hang a test).
+            runToEnd(max = 20000) {
+                const out = [];
+                for (let k = 0; k < max; k++) {
+                    const info = flowPlayer.testStep();
+                    if (!info) break;
+                    const s = snapshot();
+                    out.push({ passage: s.passage, kind: s.kind, blockId: s.blockId, bar: s.bar, click: s.click, pass: s.pass, bpm: s.bpm, time: s.time, holding: s.holding, ended: s.ended });
+                    if (info.ended) break;
+                }
+                return out;
+            }
+        };
+    })();
+
     // --- Sub-beats popup ("ported" from Quick Play's own qpSubdivideModal - own state, own modal,
     // same reasoning as flowPlayer being its own player instance) ---
     const FLOW_SUBDIVIDE_MIN = 2;
@@ -9109,7 +9361,7 @@
     let flowSubdividePopupValue = FLOW_SUBDIVIDE_MIN;
 
     function flowSubdivideCurrentBlock() {
-        return flowPlayQueue.length ? metroBlkEffectiveBlock(flowPlayQueue[flowPlayIndex], flowPlayQueue) : null;
+        return flowPlayQueue.length ? flowPassageBlock(flowPlayQueue[flowPlayIndex]) : null;
     }
     function renderFlowSubdivideLabel() {
         const block = flowSubdivideCurrentBlock();
@@ -9160,8 +9412,10 @@
         flowSubBeatsMode = document.querySelector('input[name="flowSubdivideOnOff"]:checked')?.value || 'off';
         flowSubdivideOverride = flowSubBeatsMode === 'fixed' ? flowSubdividePopupValue : null;
         document.getElementById('flowSubdivideModal').style.display = 'none';
-        const block = flowSubdivideCurrentBlock();
-        if (block) flowApplyToPlayer(block);
+        // ML-193: sub-beats change how many clicks each bar has, so the current passage is restarted
+        // from the bar it's on, in the new click grid.
+        const pos = flowScreenPosition();
+        if (pos) flowStartSequenceAt(flowPlayIndex, pos.bar - pos.p.fromBar);
         renderFlowPlaybackRow();
     });
 
@@ -9173,9 +9427,7 @@
     function setFlowSpeedPercent(p) {
         flowSpeedPercent = Math.min(1000, Math.max(1, p));
         flowPlayer.setSpeedPercent(flowSpeedPercent);
-        renderFlowSpeedLabel();
-        const block = flowSubdivideCurrentBlock();
-        if (block) flowApplyToPlayer(block);
+        renderFlowSpeedLabel(); // the player applies play speed to every click's own tempo - nothing to reconfigure
         renderFlowPlaybackRow();
     }
     async function loadFlowPlaybackSpeeds() {

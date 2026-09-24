@@ -1651,6 +1651,17 @@
     /* Play Flow's 1 / 2 / 4-column switch: its own row under the title, on the right like the Bars tab's. */
     .flow-play-layout-bar { justify-content: flex-end; margin-bottom: var(--space-2); }
 
+    /* ML-248: bars the save-time review found a problem with - outlined (an outline, not a border, so
+       nothing shifts) in whichever Bars layout is showing, until the problem is fixed. */
+    .flow-bar-grid-tile.flow-block-has-issue { outline: 3px solid var(--danger-text); outline-offset: 2px; }
+    /* The 1-column card sits in a clipping box (swipe-to-delete), so its ring is drawn inside it. */
+    .flow-block-box.flow-block-has-issue .flow-block-card { border-color: var(--danger-text); outline: 3px solid var(--danger-text); outline-offset: -3px; }
+    /* The review list (#flowCheckModal): one tappable row per problem, grouped "Won't play as written"
+       then "Worth checking". Tapping a row goes to that bar. */
+    .flow-check-group-title { font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: var(--label-color); margin: var(--space-4) 0 var(--space-2) 0; }
+    .flow-check-list { list-style: none; margin: 0 0 var(--space-4) 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+    .flow-check-item { width: 100%; min-height: var(--touch-target); padding: var(--space-3); text-align: left; font: inherit; font-size: var(--font-sm); line-height: var(--line-height-snug); color: var(--text-color); background: var(--input-bg); border: 1px solid var(--control-border); border-left: 4px solid var(--danger-text); border-radius: var(--radius-md); cursor: pointer; }
+
     /* ML-206: bar popup (#flowBarPopupModal). One header row: ‹, rehearsal mark, name with "n of N"
        under it, ›, then ✕. The title takes the spare width so › stays put whatever the name's length,
        and the ✕ gets extra space so it isn't hit instead of ›. */

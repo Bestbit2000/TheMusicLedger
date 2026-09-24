@@ -1,7 +1,7 @@
 # Flow editor
 
 ## 1. Metadata
-- **Name:** Flow editor (`.flow-card`, `.flow-edit-tabs`, `.flow-block-box`, `.flow-tile-grid`, `.flow-tile-value`, `.flow-picker-tile`, `.flow-choice-option`, `.flow-multiselect-grid`, `.flow-volta-bracket`, `.flow-intro-bracket`, `.flow-fermata-box`, `.flow-ramp-box`, `.flow-pause-*`, `.flow-media-item`, `.flow-doc-item`, `.flow-upload-progress`, `.flow-from-file-banner`, `.flow-sign-svg`, `.flow-bars-toolbar`, `.flow-play-layout-bar`, `.flow-layout-toggle`, `.flow-bar-grid-tile`, `.flow-bar-grid-2`, `.flow-bar-detail-*`, `.flow-bar-list-1`, `.flow-bar-full-*`, `.flow-bar-popup*`, `.flow-action-row`, `.flow-help-text`, `.flow-required`, `.flow-pill`, and every other `.flow-*` sub-part)
+- **Name:** Flow editor (`.flow-card`, `.flow-edit-tabs`, `.flow-block-box`, `.flow-tile-grid`, `.flow-tile-value`, `.flow-picker-tile`, `.flow-choice-option`, `.flow-multiselect-grid`, `.flow-volta-bracket`, `.flow-intro-bracket`, `.flow-fermata-box`, `.flow-ramp-box`, `.flow-pause-*`, `.flow-media-item`, `.flow-doc-item`, `.flow-upload-progress`, `.flow-from-file-banner`, `.flow-sign-svg`, `.flow-check-*`, `.flow-block-has-issue`, `.flow-bars-toolbar`, `.flow-play-layout-bar`, `.flow-layout-toggle`, `.flow-bar-grid-tile`, `.flow-bar-grid-2`, `.flow-bar-detail-*`, `.flow-bar-list-1`, `.flow-bar-full-*`, `.flow-bar-popup*`, `.flow-action-row`, `.flow-help-text`, `.flow-required`, `.flow-pill`, and every other `.flow-*` sub-part)
 - **Category:** Feature area
 - **Status:** Stable (ML-179, ML-204). Read [docs/flow-musicxml.md](../../docs/flow-musicxml.md) before touching import/export
 
@@ -54,10 +54,18 @@ The rehearsal-mark box in each block header (`.flow-block-mark-box` / `.flow-blo
 - **Popup actions** (Move earlier / Duplicate / Move later) are each one 4-column tile wide and centred as a group (`.flow-tile-grid-3-centered`). Never stretch them across the row or left-align them. They're text only, `--touch-target` tall and use `--radius-md`, so they read as actions rather than three more settings. They sit on the standard tappable surface (`--input-bg`, `--control-border`). Delete is a `.btn-text-danger` link underneath, hidden when there's only one bar.
 - **Disabled** controls (‹ and Move earlier on the first bar, › and Move later on the last) lose the tappable cues instead of fading: no fill, `--input-border`, `--label-color` text. That keeps the text above 4.5:1 in both themes (8.7:1 dark, 5.3:1 light). Fading with `--opacity-disabled` took it to 2:1 in light mode.
 
+**Consistency review (ML-248).** When a Flow is finished (Save in Edit mode, Open player in Create mode), `FlowJourney.checkFlow` (`public/flowJourney.js`) checks the bar settings against each other: a start repeat with no end, an alternate ending with no repeat or for a pass that never comes, D.S. with no segno, al Coda with no To Coda or coda, a Fine or To Coda that's never reached, two segnos/codas/jumps, an intro end with no start, overlapping or backwards ramps, stale settings, and bars that never play.
+- With nothing to report, it carries straight on.
+- Otherwise `#flowCheckModal` lists the problems in two groups, `.flow-check-group-title` "Won't play as written" (errors) then "Worth checking" (warnings). Each problem is a `.flow-check-item` row in a `.flow-check-list`: `--input-bg` surface, with a 4px `--danger-text` left edge. Tapping a row goes to that bar in the Bars tab.
+- The buttons are "Go back and fix" (`.btn-submit`) and a `.btn-text` "Save anyway" / "Open player anyway". ✕ just closes the review.
+- The bars involved get `.flow-block-has-issue`, a 3px `--danger-text` outline, in whichever layout is showing. The 1-column card draws it inside its clipping box (negative `outline-offset`). The outlines update live as problems are fixed, for the rest of that editing session.
+
+**Play Flow playback (ML-193, ML-249 to ML-256).** What plays and when comes from the journey engine, `public/flowJourney.js`; see [docs/flow-journey.md](../../docs/flow-journey.md) for the rules. The screen reads its position from every click, so "Bar X of Y", the highlighted bar and the fermata/caesura glyphs move on at the next bar's first beat, never early. The label reads e.g. "Intro · A · 2 of 8 bars · 2nd time · 3/4 · 96 bpm". During a ramp the bpm updates beat by beat. Reaching the end of the piece stops playback and resets to the start.
+
 Block colours and volta/intro bracket geometry are computed in JS. Geometry may be inline, but colours must reference tokens.
 
 ## 6. States
-Tiles: default / selected (see [selectable-tile](selectable-tile.md)). Blocks: default / animating (`.flow-block-animating`). 2- and 4-column tiles: default / held (`.flow-bar-grid-tile-held`: gold edge and `--shadow-lg`) / shuffling (`.flow-bar-grid-tile-shuffling`). 2-column tiles also have needs-updating (`.flow-bar-detail-tile-warning`). Popup buttons: default / disabled (see above) / warning (`.flow-warning-icon`, `--warning-color`). Upload: idle / in progress / error.
+Tiles: default / selected (see [selectable-tile](selectable-tile.md)). Blocks: default / animating (`.flow-block-animating`). 2- and 4-column tiles: default / held (`.flow-bar-grid-tile-held`: gold edge and `--shadow-lg`) / shuffling (`.flow-bar-grid-tile-shuffling`). 2-column tiles also have needs-updating (`.flow-bar-detail-tile-warning`). Any Bars-tab bar: has a review issue (`.flow-block-has-issue`). Popup buttons: default / disabled (see above) / warning (`.flow-warning-icon`, `--warning-color`). Upload: idle / in progress / error.
 
 ## 7. Code example
 ```html
@@ -76,5 +84,6 @@ Tiles: default / selected (see [selectable-tile](selectable-tile.md)). Blocks: d
 - Every block/fermata/ramp gesture has a ⋮ menu alternative (Delete, Move up/down). In 2 and 4 columns, the alternative to press-and-hold drag is the bar popup's Move earlier / Move later. A 2-column tile's accessible name is "Edit [mark,] Bars 1–8", with " - needs updating" added when it's red.
 - The layout switch is two `aria-pressed` buttons in a labelled group. The popup is a `role="dialog"` labelled by the bar name. Its ✕ carries `data-modal-close`, so Escape closes it. When the popup re-renders, focus returns to the ‹, › or Move button you used.
 - Picker tiles and choice options follow selectable-tile; value boxes declare `aria-haspopup="dialog"`.
+- The consistency review is a `role="dialog"`. Its ✕ is the `.modal-close-x` that Escape uses, so Escape just closes it and doesn't navigate. Each problem is a real `<button>` with its full sentence as its name. Problems are told apart by their words, not only by the outline colour.
 
 See [accessibility foundation](../foundations/accessibility.md).

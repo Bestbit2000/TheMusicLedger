@@ -46,6 +46,20 @@ tests) to see every test case and which features it's linked to.
    `local-dev@themusicledger.local` account, then assert against the UI as
    normal. Always clear before seeding and again after asserting, so state
    doesn't accumulate across repeat runs.
+   **Flows and Play Flow (ML-193):** use `tests/helpers/flowPlayback.ts` rather than clicking a Flow
+   together. It has three parts:
+   - `enableTestClock(page)` goes before login. It puts Play Flow's metronome on a silent,
+     step-by-step clock, active on localhost only.
+   - `seedFlow(page, { title, blocks })` creates a Flow through the app's own API, as the test
+     account. Blocks use the ML-204 fixture shape. Pair it with `deleteTestFlows(page)` in an
+     `afterEach`.
+   - `openPlayFlow` / `openBarsTab` open those screens, and `T.step`/`T.runToEnd`/`T.state` read
+     exactly what the screen shows click by click.
+
+   Cases #12-17 are the worked examples, and [docs/flow-journey.md](../../../docs/flow-journey.md)
+   has the rules. For screenshots, use `toHaveScreenshot('name.png')`. Baselines live in
+   `tests/visual-baselines/` (committed). Write a new one with `--update-snapshots` and check it by
+   eye before committing.
 4. **Write the Playwright spec yourself** - this is the step the original
    blueprint had an API call do; here it's just you, writing TypeScript.
    Guidelines (carried over from the blueprint, still good advice):
@@ -87,6 +101,12 @@ tests) to see every test case and which features it's linked to.
    into `tests/generated/`, runs the Playwright suite, records the run in
    `test_runs`/`test_run_results`). Requires the local server running (or let
    Playwright's `webServer` config start it) and `DATABASE_URL` pointed at `dev`.
+   The simplest way to get `DATABASE_URL` from `.env` into it is
+   `node --env-file=.env scripts/run-backtest.mjs`. For one spec, use
+   `node --env-file=.env node_modules/@playwright/test/cli.js test tests/generated/<file>`.
+   `node_modules/.bin/playwright` is a shell shim, so `node` can't run it. Traces go to the system temp
+   folder (`outputDir` in `playwright.config.ts`), because OneDrive locking files in the repo used to
+   fail tests with EBUSY.
 7. **Report the result** back in chat - don't just leave it in the database.
 
 ## When asked to run/check the back-test suite

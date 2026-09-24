@@ -2800,6 +2800,21 @@
     </div>
 </div>
 
+<!-- ML-248: the review shown on Save (Edit mode) or Open player (Create mode) when a Flow's bar
+     settings don't make sense together - rendered by flowShowCheckReview (app.js) from
+     FlowJourney.checkFlow. Errors ("won't play as written") first, then warnings ("worth checking").
+     Tapping an item goes to its bar in the Bars tab. -->
+<div class="modal" id="flowCheckModal" role="dialog" aria-modal="true" aria-labelledby="flowCheckTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" id="flowCheckCloseBtn" aria-label="Close">&times;</button>
+        <h2 id="flowCheckTitle">Check your bars</h2>
+        <p class="flow-help-text" id="flowCheckIntro"></p>
+        <div id="flowCheckList"></div>
+        <button type="button" class="btn-submit" id="flowCheckFixBtn">Go back and fix</button>
+        <button type="button" class="btn-text" id="flowCheckContinueBtn">Save anyway</button>
+    </div>
+</div>
+
 <div class="modal" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
     <div class="modal-content"><h2 id="confirmTitle">Confirm</h2><p id="confirmMessage" style="margin-bottom: var(--space-6); line-height: var(--line-height-base);"></p><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" id="confirmCancelBtn" onclick="closeConfirmModal()">Cancel</button><button class="btn-submit no-margin" id="confirmActionBtn">Confirm</button></div></div>
 </div>
@@ -2868,6 +2883,8 @@
     import { upload } from 'https://cdn.jsdelivr.net/npm/@vercel/blob@2.8.0/client/+esm';
     window.vercelBlobUpload = upload;
 </script>
+<!-- ML-193: the Flow journey engine (play order, tempo ramps, consistency checks) - app.js uses it. -->
+<script src="flowJourney.js"></script>
 <script src="app.js"></script>
 <script src="a11y.js"></script>
 
