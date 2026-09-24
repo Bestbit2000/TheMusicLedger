@@ -12,7 +12,7 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
 **Don't** redefine tokens or re-implement app components in `admin.css`.
 
 ## 3. Anatomy
-`body.admin-body` › `.admin-shell` › `.admin-sidebar` (`.admin-sidebar-title`, `.admin-back-link`, `.admin-nav-item` × n with `.admin-nav-count`) › `.admin-content` (`h1`, `.admin-intro`, section content).
+`body.admin-body` › `.admin-shell` › `.admin-sidebar` (`.admin-sidebar-head` › `.admin-sidebar-title` (+ `.admin-sidebar-current`) and `.admin-nav-toggle`; `.admin-nav-items` › `.admin-back-link`, `.admin-nav-item` × n with `.admin-nav-count`) › `.admin-content` (`h1`, `.admin-intro`, section content).
 
 ## 4. Tokens used
 `--bg-color`, `--container-bg`, `--secondary-color`, `--input-bg`, `--input-border`, `--text-color`,
@@ -21,13 +21,14 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
 `--space-*`, `--font-xs`…`--font-lg`, `--font-weight-semibold`, `--font-weight-bold`, `--app-max-width`.
 
 ## 5. Props / API
+- **Phone width (≤700px, ML-240):** the sidebar becomes a head row - "Admin" + the open section's name (`.admin-sidebar-current`, `--label-color`) and a ☰ `<button class="admin-nav-toggle">` (48px, `--touch-target`, `aria-expanded`/`aria-controls`). Tapping it adds `.expanded` to `.admin-sidebar`, which shows `.admin-nav-items` as a vertical list (each item at least `--touch-target` tall); picking a section or pressing Esc closes it. On wider screens the toggle and current-section label are hidden and the list is the fixed sidebar. Nothing in the panel may make the page wider than the screen: grids use `minmax(0, 1fr)` columns and `.admin-content` wraps long words.
 - Tables: wrap in `.admin-stat-table-wrap` so wide tables scroll inside the column (`.admin-content` has `min-width: 0`).
 - Status badges: see [pill-badge](pill-badge.md).
 - Security review (ML-192, Admin → Security): `.admin-security-toolbar` (run button + live status text), `.admin-security-head` (a check's title and status badge on one line - **not** clickable, unlike `.admin-test-case-head`), `.admin-security-details` (a native `<details>`/`<summary>` disclosure for evidence and run history - the summary is a 48px (`--touch-target`) row in `--info-text`, keeping the browser's disclosure triangle), `.admin-security-evidence` (the evidence list, `--font-xs`).
 - The Design page (`.admin-design-*`, `public/admin-design.js`) is page chrome around the design-system specimens. Its own classes are admin-only and never used in the app.
 
 ## 6. States
-Nav item: default / active (`--secondary-color` + gold left border) / disabled. Table row: hover (`--input-bg`) / excluded (`.admin-stat-row-excluded`, `--opacity-muted`).
+Nav item: default / active (`--secondary-color` + gold left border) / disabled. Phone menu: closed (only the head row) / open (`.admin-sidebar.expanded`). Table row: hover (`--input-bg`) / excluded (`.admin-stat-row-excluded`, `--opacity-muted`).
 
 ## 7. Code example
 ```html
@@ -42,6 +43,7 @@ Nav item: default / active (`--secondary-color` + gold left border) / disabled. 
 [tabs](tabs.md) · [stat-card](stat-card.md) · [pill-badge](pill-badge.md) · [modal](modal.md)
 
 ## 9. Accessibility
+- The ☰ toggle is a real `<button>` with an accessible name that says what it does ("Show admin sections" / "Hide admin sections") and `aria-expanded`; Esc closes the open list and returns focus to the toggle.
 - Admin uses the same `a11y.js`, focus ring and dialog rules. Tables use `<th>` headers; status chips carry their status as text.
 
 See [accessibility foundation](../foundations/accessibility.md).

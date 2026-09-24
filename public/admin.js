@@ -308,14 +308,44 @@
     function showSection(sectionName) {
         document.querySelectorAll('.admin-nav-item[data-section]').forEach((b) => b.classList.remove('active'));
         document.querySelectorAll('.admin-section').forEach((s) => s.classList.add('hidden-group'));
-        document.querySelector(`.admin-nav-item[data-section="${sectionName}"]`)?.classList.add('active');
+        const navBtn = document.querySelector(`.admin-nav-item[data-section="${sectionName}"]`);
+        navBtn?.classList.add('active');
         document.getElementById(`${sectionName}-section`).classList.remove('hidden-group');
+        // ML-240: the phone-width head row names the open section, since the list itself is folded
+        // away behind ☰ there - and picking a section closes that list again.
+        const current = document.getElementById('adminCurrentSection');
+        if (current && navBtn) current.textContent = navBtn.firstChild.textContent.trim();
+        setAdminNavOpen(false);
+    }
+
+    // ML-240: ☰ toggle for the section list on a phone-width screen (admin.css hides the toggle and
+    // always shows the list on wider screens, so this is a no-op there).
+    function setAdminNavOpen(open) {
+        const sidebar = document.getElementById('adminSidebar');
+        const toggle = document.getElementById('adminNavToggle');
+        if (!sidebar || !toggle) return;
+        sidebar.classList.toggle('expanded', open);
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggle.setAttribute('aria-label', open ? 'Hide admin sections' : 'Show admin sections');
+    }
+    function initNavToggle() {
+        const toggle = document.getElementById('adminNavToggle');
+        toggle?.addEventListener('click', () => {
+            setAdminNavOpen(toggle.getAttribute('aria-expanded') !== 'true');
+        });
+        document.getElementById('adminSidebar')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && toggle?.getAttribute('aria-expanded') === 'true') {
+                setAdminNavOpen(false);
+                toggle.focus();
+            }
+        });
     }
 
     // Section switching - all sidebar items ("Features", "Release tests",
     // "Accounts", "Bands", "Metadata lists", "Usage") toggle a section by
     // data-section. "Test cases" is a sub-view reached via a link, not the sidebar.
     function initNav() {
+        initNavToggle();
         document.querySelectorAll('.admin-nav-item[data-section]').forEach((btn) => {
             btn.addEventListener('click', () => showSection(btn.dataset.section));
         });

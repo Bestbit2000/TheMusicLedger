@@ -29,8 +29,14 @@
 </div>
 
 <div id="adminShell" class="admin-shell hidden-group">
-    <nav class="admin-sidebar">
-        <div class="admin-sidebar-title">Admin</div>
+    <!-- ML-240: on a phone (max-width 700px) the section list folds away behind the ☰ toggle and
+         the head row shows which section is open; on wider screens it's the fixed sidebar as before. -->
+    <nav class="admin-sidebar" id="adminSidebar" aria-label="Admin sections">
+        <div class="admin-sidebar-head">
+            <div class="admin-sidebar-title">Admin<span class="admin-sidebar-current" id="adminCurrentSection">Features</span></div>
+            <button type="button" class="admin-nav-toggle" id="adminNavToggle" aria-expanded="false" aria-controls="adminNavItems" aria-label="Show admin sections"><span class="material-symbols-outlined" aria-hidden="true">menu</span></button>
+        </div>
+        <div class="admin-nav-items" id="adminNavItems">
         <a class="admin-nav-item admin-back-link" href="/">&larr; Back to app</a>
         <button class="admin-nav-item active" data-section="features" type="button">Features</button>
         <button class="admin-nav-item" data-section="release-tests" type="button">Release tests</button>
@@ -47,6 +53,7 @@
         <button class="admin-nav-item" data-section="security" type="button">Security</button>
         <!-- ML-198: read-only visual catalogue of the design system (public/admin-design.js). -->
         <button class="admin-nav-item" data-section="design" type="button">Design</button>
+        </div>
     </nav>
     <main class="admin-content">
         <section id="features-section" class="admin-section">

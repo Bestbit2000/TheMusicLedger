@@ -11,7 +11,7 @@ body.admin-body { display: block; background: var(--bg-color); }
 
 .admin-sidebar { width: 220px; flex-shrink: 0; background: var(--container-bg); border-right: 1px solid var(--input-border); padding: var(--space-5) 0; box-sizing: border-box; }
 .admin-sidebar-title { font-weight: var(--font-weight-bold); font-size: var(--font-lg); padding: 0 var(--space-5) var(--space-5) var(--space-5); color: var(--text-color); }
-.admin-nav-item { display: block; width: 100%; text-align: left; background: none; border: none; border-left: 3px solid transparent; padding: var(--space-3) var(--space-5); font-size: var(--font-base); font-weight: var(--font-weight-semibold); font-family: var(--font-sans); color: var(--text-color); cursor: pointer; }
+.admin-nav-item { display: block; width: 100%; box-sizing: border-box; text-align: left; background: none; border: none; border-left: 3px solid transparent; padding: var(--space-3) var(--space-5); font-size: var(--font-base); font-weight: var(--font-weight-semibold); font-family: var(--font-sans); color: var(--text-color); cursor: pointer; }
 .admin-nav-item:disabled { color: var(--label-color); cursor: default; }
 .admin-nav-item.active { background: var(--secondary-color); border-left-color: var(--primary-action); }
 /* ML-110: the sidebar's own <a> (not <button>) needs its default link colour/underline reset to
@@ -20,7 +20,7 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-back-link { text-decoration: none; color: var(--label-color); border-bottom: 1px solid var(--input-border); margin-bottom: var(--space-2); padding-bottom: var(--space-4); }
 .admin-back-link:hover { color: var(--text-color); }
 
-.admin-content { flex: 1; min-width: 0; padding: var(--space-6) var(--space-7); box-sizing: border-box; max-width: 900px; } /* min-width: 0 lets wide tables scroll inside .admin-stat-table-wrap instead of widening the page (ML-204) */
+.admin-content { flex: 1; min-width: 0; padding: var(--space-6) var(--space-7); box-sizing: border-box; max-width: 900px; overflow-wrap: break-word; } /* min-width: 0 lets wide tables scroll inside .admin-stat-table-wrap instead of widening the page (ML-204) */
 .admin-content h1 { margin-top: 0; color: var(--text-color); }
 .admin-intro { color: var(--label-color); font-size: var(--font-sm); margin: calc(-1 * var(--space-2)) 0 var(--space-3); }
 .admin-intro code { background: var(--input-bg); padding: var(--space-0-5) var(--space-1); border-radius: var(--radius-xs); }
@@ -85,14 +85,29 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-chip { background: var(--secondary-color); color: var(--text-color); border-radius: var(--radius-pill); padding: var(--space-0-5) var(--space-3); font-size: var(--font-xs); font-weight: var(--font-weight-semibold); }
 .admin-chip-empty { background: var(--input-border); color: var(--label-color); font-weight: var(--font-weight-normal); }
 
+/* ML-240: phone-width menu. The head row (title + current section + ☰ toggle) only shows as a row
+   on a phone; on wider screens the toggle and current-section label are hidden and the list is the
+   plain sidebar as before. */
+.admin-sidebar-current { display: none; margin-left: var(--space-2); color: var(--label-color); font-weight: var(--font-weight-semibold); font-size: var(--font-base); }
+.admin-nav-toggle { display: none; align-items: center; justify-content: center; flex-shrink: 0; width: var(--touch-target); height: var(--touch-target); background: none; border: none; border-radius: var(--radius-sm); color: var(--text-color); cursor: pointer; }
+
 @media (max-width: 700px) {
   .admin-shell { flex-direction: column; }
-  .admin-sidebar { width: 100%; display: flex; padding: var(--space-3); border-right: none; border-bottom: 1px solid var(--input-border); }
-  .admin-sidebar-title { display: none; }
-  .admin-nav-item { border-left: none; border-bottom: 3px solid transparent; }
-  .admin-nav-item.active { border-left-color: transparent; border-bottom-color: var(--primary-action); }
+  /* The section list used to become one long horizontal row here, which pushed the whole page to
+     ~1200px wide - everything else (cards, stat tiles, pop-ups centred on the page) then sat
+     partly off-screen. Now it folds away behind the ☰ toggle and opens as a vertical list. */
+  .admin-sidebar { width: 100%; padding: var(--space-2) var(--space-4); border-right: none; border-bottom: 1px solid var(--input-border); }
+  .admin-sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+  .admin-sidebar-title { padding: 0; min-width: 0; overflow-wrap: anywhere; }
+  .admin-sidebar-current { display: inline; }
+  .admin-nav-toggle { display: flex; }
+  .admin-nav-items { display: none; padding: var(--space-2) 0; }
+  .admin-sidebar.expanded .admin-nav-items { display: block; }
+  .admin-nav-item { min-height: var(--touch-target); padding: var(--space-3) var(--space-4); }
   .admin-content { padding: var(--space-4); }
-  .admin-summary-grid { grid-template-columns: repeat(2, 1fr); }
+  /* minmax(0, 1fr), not plain 1fr, so a long number or label can't stretch a column past the
+     screen edge - it wraps inside its tile instead. */
+  .admin-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-run-row { flex-direction: column; }
   .admin-run-when { width: auto; }
 }
@@ -155,7 +170,7 @@ body.admin-body { display: block; background: var(--bg-color); }
    tables carry more columns than that leaves room for - they scroll sideways inside their own
    wrapper (.admin-stat-table-wrap) rather than crushing every column to unreadable width. */
 @media (max-width: 700px) {
-  .admin-stat-tiles { grid-template-columns: repeat(2, 1fr); }
+  .admin-stat-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* ML-201 - Notifications */
