@@ -548,7 +548,7 @@
                 document.body.classList.add('dark-mode');
                 document.getElementById('darkModeToggle').checked = true;
             }
-            document.getElementById('tunerTranspositionSetting').value = String(parseInt(localStorage.getItem(TUNER_TRANSPOSITION_KEY), 10) || 0);
+            renderTunerTranspositionSetting();
             document.getElementById('tunerUseFlatsToggle').checked = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
             document.getElementById('tunerNoteStyleSetting').value = localStorage.getItem(TUNER_NOTE_STYLE_KEY) || 'letters';
             document.getElementById('tunerShowConcertSetting').checked = localStorage.getItem(TUNER_SHOW_CONCERT_KEY) !== 'false';
@@ -1042,7 +1042,7 @@
         if (viewName === 'settingsView') {
             document.getElementById('topTitle').innerText = 'Settings';
             // Re-sync from storage in case these were last changed on the Tuner page itself.
-            document.getElementById('tunerTranspositionSetting').value = String(parseInt(localStorage.getItem(TUNER_TRANSPOSITION_KEY), 10) || 0);
+            renderTunerTranspositionSetting();
             document.getElementById('tunerUseFlatsToggle').checked = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
             document.getElementById('tunerNoteStyleSetting').value = localStorage.getItem(TUNER_NOTE_STYLE_KEY) || 'letters';
             document.getElementById('tunerShowConcertSetting').checked = localStorage.getItem(TUNER_SHOW_CONCERT_KEY) !== 'false';
@@ -2381,12 +2381,22 @@
             const day = minDateObj.getDay();
             const diff = minDateObj.getDate() - day + (day === 0 ? -6 : 1);
             let current = new Date(minDateObj.getFullYear(), minDateObj.getMonth(), diff);
+            // ML-233: the first column gets the same year + month labels a
+            // January boundary gets below, so the chart doesn't start unlabelled.
+            let firstYs = document.createElement('div');
+            firstYs.className = 'year-spacer';
+            firstYs.innerHTML = `<span>${current.getFullYear()}</span>`;
+            container.appendChild(firstYs);
             let col = document.createElement('div');
             col.className = 'heat-col';
+            let firstMl = document.createElement('div');
+            firstMl.className = 'month-label';
+            firstMl.innerText = current.toLocaleString('default', { month: 'short' });
+            col.appendChild(firstMl);
 
             while (current <= today) {
                 let dow = (current.getDay() + 6) % 7;
-                if (current.getDate() === 1 && col.children.length > 0) {
+                if (current.getDate() === 1 && col.querySelector('.heat-cell')) {
                     container.appendChild(col);
                     if (current.getMonth() === 0) {
                         let ys = document.createElement('div');
@@ -2409,7 +2419,7 @@
                         b.className = 'heat-cell blank';
                         col.appendChild(b);
                     }
-                } else if (dow === 0 && col.children.length > 0) {
+                } else if (dow === 0 && col.querySelector('.heat-cell')) {
                     container.appendChild(col);
                     col = document.createElement('div');
                     col.className = 'heat-col';
@@ -12947,12 +12957,9 @@
     let tunerA4Freq = parseInt(localStorage.getItem(TUNER_A4_KEY), 10) || 440;
 
     // written = concert + offset semitones (mod 12) - the standard band transposition conventions
-    // (Bb: clarinet/trumpet/tenor sax..., Eb: alto/bari sax..., F: horn). Octave isn't tracked, only
-    // the pitch class, since that's all a tuner readout needs. Only the Flow/Metronome mini tuner
-    // (metroBlkMiniTunerInstrument) still uses this fixed 4-preset map - the full Tuner view's own
-    // Transposition setting (tunerTransposition, below) generalizes this to all 12 semitone offsets,
-    // stored directly as that offset rather than looked up through a name.
-    const TUNER_TRANSPOSITIONS = { C: 0, Bb: 2, Eb: 9, F: 7 };
+    // (Bb = 2: clarinet/trumpet/tenor sax..., Eb = 9: alto/bari sax..., F = 7: horn). Octave isn't
+    // tracked, only the pitch class, since that's all a tuner readout needs. Both the full Tuner view
+    // and (since ML-225) the Flow/Metronome mini tuner store this as the offset itself.
     const TUNER_ZONE_CENTS = 15; // "in tune" green-zone half-width
     const TUNER_USE_FLATS_KEY = 'tunerUseFlats';
     // The full Tuner view's transposition, as a semitone offset (0-11, C=0) rather than one of only 4
@@ -13033,6 +13040,35 @@
             ? (useFlats ? NOTE_NAMES_SOLFEGE_FLAT : NOTE_NAMES_SOLFEGE_SHARP)
             : (useFlats ? NOTE_NAMES_FLAT : NOTE_NAMES_SHARP);
         return names[((rounded % 12) + 12) % 12];
+    }
+
+    // ML-225: a transposition is stored as how far written sits ABOVE concert (written = concert +
+    // offset), so the instrument's key - the concert pitch its written C sounds - is that offset
+    // counted DOWN from C (B♭ = 2, E♭ = 9, F = 7). Every label used to name the offset itself as the
+    // key, which showed a B♭ instrument as "D instrument". Letter names only (instrument keys aren't
+    // said in solfège), but following the sharps/flats setting (ML-224), with a proper ♯ to match ♭.
+    function tunerInstrumentKeyName(offset) {
+        const useFlats = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
+        const key = (((12 - offset) % 12) + 12) % 12;
+        return (useFlats ? NOTE_NAMES_FLAT : NOTE_NAMES_SHARP)[key].replace('#', '♯');
+    }
+    // All 12 transpositions as stored offsets, in instrument-key order (C, C♯/D♭, D...) - the one
+    // list the Settings select, the Tuner's Transposition popup and the Flow/Metronome mini tuner's
+    // Instrument popup all show, so the three can't drift apart again.
+    function tunerTranspositionOffsetsByKey() {
+        return Array.from({ length: 12 }, (_, key) => (12 - key) % 12);
+    }
+    function tunerTranspositionLabel(offset) {
+        return offset === 0 ? 'Concert pitch (C)' : `${tunerInstrumentKeyName(offset)} instrument`;
+    }
+    // Rebuilt rather than static HTML so the names follow the sharps/flats setting (ML-224) - called
+    // on startup, on opening Settings, and whenever sharps/flats changes (renderTunerSettingsModal).
+    function renderTunerTranspositionSetting() {
+        const select = document.getElementById('tunerTranspositionSetting');
+        if (!select) return;
+        select.innerHTML = tunerTranspositionOffsetsByKey()
+            .map(o => `<option value="${o}">${tunerTranspositionLabel(o)}</option>`).join('');
+        select.value = String(parseInt(localStorage.getItem(TUNER_TRANSPOSITION_KEY), 10) || 0);
     }
 
     // Autocorrelation-based pitch detection (ACF2+ style): far more stable than zero-crossing for a
@@ -13197,7 +13233,7 @@
         // Top card keeps saying "Concert" (not the bare note letter a non-zero transposition gets) -
         // "Concert" reads better than a bare "C" sitting above another "C" in the other column.
         document.getElementById('tunerInstrumentLabel').innerText =
-            isConcert ? 'Concert' : `${tunerMidiToName(tunerTransposition)} instrument`;
+            isConcert ? 'Concert' : `${tunerInstrumentKeyName(tunerTransposition)} instrument`;
         const concertCol = document.getElementById('tunerConcertCol');
         if (concertCol) concertCol.classList.toggle('hidden-group', isConcert || !tunerShowConcert);
     }
@@ -13504,7 +13540,7 @@
     // now" card itself shows (updateTunerTranspositionLabel).
     function updateTunerTranspositionRowValue() {
         const rowValue = document.getElementById('tunerTranspositionRowValue');
-        if (rowValue) rowValue.innerText = `${tunerMidiToName(tunerTransposition)} ›`;
+        if (rowValue) rowValue.innerText = `${tunerInstrumentKeyName(tunerTransposition)} ›`;
     }
     function renderTunerSettingsModal() {
         const useFlats = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
@@ -13531,6 +13567,7 @@
 
         updateTunerTranspositionLabel();
         updateTunerTranspositionRowValue();
+        renderTunerTranspositionSetting();
 
         const a4RowValue = document.getElementById('tunerA4RowValue');
         if (a4RowValue) a4RowValue.innerText = `${tunerA4Freq}Hz ›`;
@@ -13559,8 +13596,8 @@
     // just re-render" shape the groups still inline in that popup use.
     function openTunerTranspositionPicker() {
         closeTunerSettingsModal();
-        const options = Array.from({ length: 12 }, (_, i) => ({
-            icon: tunerMidiToName(i), caption: '', ariaLabel: tunerMidiToName(i), selected: tunerTransposition === i, value: i
+        const options = tunerTranspositionOffsetsByKey().map(o => ({
+            icon: tunerInstrumentKeyName(o), caption: '', ariaLabel: tunerTranspositionLabel(o), selected: tunerTransposition === o, value: o
         }));
         openFlowGlyphPicker('tunerTranspositionModal', 'tunerTranspositionOptions', options, (opt) => {
             tunerTransposition = opt.value;
@@ -13742,7 +13779,9 @@
     // Which instrument the mini tuner is currently reading as - seeded from the persisted Settings
     // default each time it opens, but changing it here (ML-84) only ever updates this in-memory copy,
     // never localStorage: it's a "just for this session" override, not a new default.
-    let metroBlkMiniTunerInstrument = 'C';
+    // ML-225: a semitone offset like tunerTransposition, not one of the old 4 named presets - the
+    // Settings default can be any of the 12, and anything outside those 4 used to fall back to Concert.
+    let metroBlkMiniTunerInstrument = 0;
 
     // One big note only, for whichever instrument is currently selected (ML-84) - showing concert AND
     // instrument readings side by side left nothing to actually read the note against without already
@@ -13760,7 +13799,7 @@
         const concertMidi = tunerFreqToMidi(freq);
         const nearestConcertMidi = Math.round(concertMidi);
         const centsOff = (concertMidi - nearestConcertMidi) * 100;
-        const writtenMidi = nearestConcertMidi + (TUNER_TRANSPOSITIONS[metroBlkMiniTunerInstrument] || 0);
+        const writtenMidi = nearestConcertMidi + metroBlkMiniTunerInstrument;
 
         document.getElementById('metroBlkMiniTunerNote').innerText = tunerMidiToName(writtenMidi);
         const clampedCents = Math.max(-50, Math.min(50, centsOff));
@@ -13772,24 +13811,30 @@
     }
     tunerEngine.onPitch(renderMetroBlkMiniTunerPitch);
 
-    // Short codes now, matching the picker's own button style elsewhere (B♭/E♭/F instruments,
-    // C for concert pitch) - the full-name text row underneath the bar is gone (removed for height),
-    // so this button is the only place the current instrument shows at all.
-    const METRO_BLK_MINI_TUNER_INSTRUMENT_LABELS = { C: 'C', Bb: 'B♭', Eb: 'E♭', F: 'F' };
+    // Short codes (B♭/E♭/F instruments, C for concert pitch) - the full-name text row underneath the
+    // bar is gone (removed for height), so this button is the only place the current instrument shows.
+    // Same 12 options, order and names as the Settings default (tunerTranspositionOffsetsByKey).
+    function renderMetroBlkMiniTunerInstrumentOptions() {
+        const grid = document.getElementById('metroBlkMiniTunerInstrumentOptions');
+        if (!grid) return;
+        grid.innerHTML = tunerTranspositionOffsetsByKey().map(o =>
+            `<button type="button" class="metroBlk-timesig-opt" data-value="${o}" aria-label="${tunerTranspositionLabel(o)}">${o === 0 ? 'Concert' : tunerInstrumentKeyName(o)}</button>`
+        ).join('');
+    }
 
     // Keeps the instrument button's own text, and the popup's own "currently selected" highlight, in
     // sync with metroBlkMiniTunerInstrument - called on open and on every pick.
     function renderMetroBlkMiniTunerInstrumentBtn() {
-        const label = METRO_BLK_MINI_TUNER_INSTRUMENT_LABELS[metroBlkMiniTunerInstrument] || metroBlkMiniTunerInstrument;
-        document.getElementById('metroBlkMiniTunerInstrumentBtnLbl').innerText = label;
+        document.getElementById('metroBlkMiniTunerInstrumentBtnLbl').innerText = tunerInstrumentKeyName(metroBlkMiniTunerInstrument);
         document.querySelectorAll('#metroBlkMiniTunerInstrumentOptions .metroBlk-timesig-opt').forEach(btn => {
-            btn.classList.toggle('selected', btn.dataset.value === metroBlkMiniTunerInstrument);
+            btn.classList.toggle('selected', parseInt(btn.dataset.value, 10) === metroBlkMiniTunerInstrument);
         });
     }
 
     // The instrument button opens this popup directly now (no more 3-dot menu in between - Close is
     // its own dedicated icon button beside it instead, see metroBlkMiniTunerCloseBtn below).
     function openMetroBlkMiniTunerInstrumentPicker() {
+        renderMetroBlkMiniTunerInstrumentOptions();
         renderMetroBlkMiniTunerInstrumentBtn();
         document.getElementById('metroBlkMiniTunerInstrumentModal').style.display = 'flex';
     }
@@ -13797,7 +13842,7 @@
     document.getElementById('metroBlkMiniTunerInstrumentOptions')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.metroBlk-timesig-opt');
         if (!btn) return;
-        metroBlkMiniTunerInstrument = btn.dataset.value;
+        metroBlkMiniTunerInstrument = parseInt(btn.dataset.value, 10) || 0;
         renderMetroBlkMiniTunerInstrumentBtn();
         document.getElementById('metroBlkMiniTunerInstrumentModal').style.display = 'none';
     });
@@ -13817,12 +13862,9 @@
     }
 
     function openMetroBlkMiniTuner() {
-        // Inherits the full Tuner view's own transposition default when it happens to match one of
-        // this widget's own 4 presets (all this mini popup offers) - falls back to Concert otherwise,
-        // since it can't represent an arbitrary semitone offset the way the full view's own 12-tile
-        // Transposition picker can.
-        const offset = parseInt(localStorage.getItem(TUNER_TRANSPOSITION_KEY), 10) || 0;
-        metroBlkMiniTunerInstrument = Object.keys(TUNER_TRANSPOSITIONS).find(k => TUNER_TRANSPOSITIONS[k] === offset) || 'C';
+        // Starts from the Settings default transposition every time it opens (ML-225: all 12 offsets
+        // carry through now, not just the 4 this popup used to offer).
+        metroBlkMiniTunerInstrument = parseInt(localStorage.getItem(TUNER_TRANSPOSITION_KEY), 10) || 0;
         renderMetroBlkMiniTunerInstrumentBtn();
         renderMetroBlkMiniTunerIdle();
         // .metroBlk-mini-tuner-open (not hidden-group) so opening/closing animates - see the CSS.

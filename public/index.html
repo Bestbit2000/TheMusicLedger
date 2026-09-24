@@ -427,25 +427,14 @@
 
         <div class="section-title">Tuner</div>
         <div class="form-group">
-            <!-- 12 options (every semitone offset), not just the 4 common band families - matches
-                 #tunerTranspositionOptions in the Tuner settings popup. Labels are fixed sharp spelling
-                 regardless of the Show flats setting - a native <select>'s own option text can't
-                 retranslate live the way that popup's tiles do, and this is the secondary "default for
-                 next time" screen, not the primary control. -->
+            <!-- 12 options (every semitone offset), not just the 4 common band families - the same list
+                 as #tunerTranspositionOptions in the Tuner settings popup and the Flow/Metronome mini
+                 tuner's Instrument popup. Filled in by renderTunerTranspositionSetting (app.js) so the
+                 instrument names follow the Show flats setting (ML-224) and name the instrument's key,
+                 not the raw offset (ML-225). -->
             <label for="tunerTranspositionSetting">Default transposition</label>
             <select id="tunerTranspositionSetting">
                 <option value="0">Concert pitch (C)</option>
-                <option value="1">C&sharp; instrument</option>
-                <option value="2">D instrument</option>
-                <option value="3">D&sharp; instrument</option>
-                <option value="4">E instrument</option>
-                <option value="5">F instrument</option>
-                <option value="6">F&sharp; instrument</option>
-                <option value="7">G instrument</option>
-                <option value="8">G&sharp; instrument</option>
-                <option value="9">A instrument</option>
-                <option value="10">A&sharp; instrument</option>
-                <option value="11">B instrument</option>
             </select>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-5); font-size: var(--font-md); padding: var(--space-4); background: var(--input-bg); border-radius: var(--radius-md); border: 1px solid var(--control-border);">
@@ -2400,12 +2389,8 @@
         <button type="button" class="modal-close-x" onclick="document.getElementById('metroBlkMiniTunerInstrumentModal').style.display='none'" aria-label="Close">&times;</button>
         <h2 id="metroBlkMiniTunerInstrumentModalTitle">Instrument</h2>
         <p class="metro-help-text">Changes the reading for this session only - your Settings default is unchanged.</p>
-        <div class="metroBlk-instrument-options" id="metroBlkMiniTunerInstrumentOptions">
-            <button type="button" class="metroBlk-timesig-opt" data-value="C">Concert</button>
-            <button type="button" class="metroBlk-timesig-opt" data-value="Bb">B&flat;</button>
-            <button type="button" class="metroBlk-timesig-opt" data-value="Eb">E&flat;</button>
-            <button type="button" class="metroBlk-timesig-opt" data-value="F">F</button>
-        </div>
+        <!-- ML-225: all 12 transpositions, filled in by renderMetroBlkMiniTunerInstrumentOptions (app.js). -->
+        <div class="metroBlk-instrument-options" id="metroBlkMiniTunerInstrumentOptions"></div>
     </div>
 </div>
 

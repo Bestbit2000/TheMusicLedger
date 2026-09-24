@@ -835,7 +835,8 @@
        follow-up: replaces the native <select>, which wasn't the "pop up with a set of buttons" asked
        for). Reuses .metroBlk-timesig-opt's look (same "pick one of a small fixed set" pattern already
        used for time signatures) rather than inventing a new button style. */
-    .metroBlk-instrument-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); }
+    /* ML-225: 3 across now it holds all 12 transpositions (4 rows), not just Concert/B♭/E♭/F. */
+    .metroBlk-instrument-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
     /* Same height as the cog icon next to it (36px) rather than a thin strip - the two read as one
        row of matched controls instead of a slim bar dwarfed by a much taller button beside it. */
     .metroBlk-mini-tuner-bar-track { position: relative; height: 36px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); overflow: hidden; }
@@ -1151,7 +1152,9 @@
        an editor with an explicit "new or open?" choice. Two large tap targets, same tap-target
        language as .metroBlk-timesig-opt/.metro-beats-option, just bigger to read as the primary
        destination of the page rather than one option among many. */
-    .metroBlk-entry-choices { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); margin-top: var(--space-4); }
+    /* ML-223: grid-auto-rows keeps every row the same height, so a tile whose help text wraps
+       further (the import tile, alone on row 2) no longer grows taller than the other two. */
+    .metroBlk-entry-choices { display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: 1fr; gap: var(--space-3); margin-top: var(--space-4); }
     .metroBlk-entry-choice { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); min-height: 140px; padding: var(--space-4); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); cursor: pointer; text-align: center; box-sizing: border-box; }
     .metroBlk-entry-choice .material-symbols-outlined { font-size: var(--icon-xl); color: var(--primary-action-strong); }
     .metroBlk-entry-choice strong { font-size: var(--font-md); }
