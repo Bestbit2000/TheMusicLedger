@@ -184,7 +184,7 @@ export default {
           details: [
             'FIXED (medium) SSRF: /flows/from-file fetched any blobUrl from the request body. Now only this app\'s Blob store, at the uploaded pathname, with redirects refused.',
             'FIXED (medium) No size caps: the Blob upload token had no maximumSizeInBytes and the route read any body in full. Now 40 MB at upload and on read.',
-            'FIXED (medium) .mxl zip bomb: an entry was inflated with no size check. Now refused past 20 MB - by the declared size, and by a streaming inflate that stops at the cap (so a forged header can't get past it).',
+            'FIXED (medium) .mxl zip bomb: an entry was inflated with no size check. Now refused past 20 MB - by the declared size, and by a streaming inflate that stops at the cap (so a forged header cannot get past it).',
             'FIXED (functional) OMR output: the service returns compressed .mxl, but runOmr read it as text - PDF import could never have worked. Now unzipped through the same capped path.',
             'FIXED (low) The OMR job id from the service is now URL-encoded before it goes into request paths.',
             'OK: fast-xml-parser 5.11.1 - no known advisories; entity bombs aren\'t expanded and external entities are refused (tested with our reader\'s options).',
