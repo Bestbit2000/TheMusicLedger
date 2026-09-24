@@ -297,7 +297,8 @@ router.get('/bands', requireAuth, resolveAccount, requireSuperAdmin, async (req,
 router.post('/bands', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     const { name, website } = req.body;
-    res.json({ band: await createSharedBand(req.accountId, name, website) });
+    // ML-247: adding a band to the directory doesn't make the admin a member of it.
+    res.json({ band: await createSharedBand(req.accountId, name, website, { joinCreator: false }) });
   } catch (error) {
     sendError(res, error);
   }

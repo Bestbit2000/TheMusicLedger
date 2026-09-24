@@ -194,7 +194,10 @@ function hostnameOf(url) {
 // reachability (a plain GET resolves, decision: reachability only - no
 // attempt to judge "is this actually band-like") and duplicate-by-domain
 // against every other active band's own website.
-export async function createSharedBand(accountId, name, website) {
+// joinCreator: false (ML-247) for the admin panel - a super admin adding a band to the directory
+// isn't joining it, and the phantom membership made an immediate delete archive the band instead
+// ("it has a member"). The account page's own "add a band" still joins, since that's the point there.
+export async function createSharedBand(accountId, name, website, { joinCreator = true } = {}) {
   const trimmedName = (name || '').trim();
   if (!trimmedName) {
     const e = new Error('Band name is required.'); e.status = 400; throw e;
@@ -232,11 +235,13 @@ export async function createSharedBand(accountId, name, website) {
     'INSERT INTO bands (name, website, created_by_account_id) VALUES ($1, $2, $3) RETURNING id, name, website',
     [trimmedName, url.toString(), accountId]
   );
-  await pool.query(
-    `INSERT INTO band_members (band_id, account_id, role) VALUES ($1, $2, 'admin')
-     ON CONFLICT (band_id, account_id) DO NOTHING`,
-    [inserted.rows[0].id, accountId]
-  );
+  if (joinCreator) {
+    await pool.query(
+      `INSERT INTO band_members (band_id, account_id, role) VALUES ($1, $2, 'admin')
+       ON CONFLICT (band_id, account_id) DO NOTHING`,
+      [inserted.rows[0].id, accountId]
+    );
+  }
   return toDirectoryBand(inserted.rows[0]);
 }
 
