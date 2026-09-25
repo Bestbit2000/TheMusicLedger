@@ -1,7 +1,7 @@
 # List row
 
 ## 1. Metadata
-- **Name:** List row (`.history-item`, `.history-details`, `.qp-loaded-history-row`, `.metroSeg-list-row`, `.metroBlk-setup-row-actions`, `.draggable-item`, `.drag-handle`)
+- **Name:** List row (`.history-item`, `.history-details`, `.qp-loaded-history-row`, `.metroSeg-list-row`, `.metroBlk-setup-row-actions`, `.draggable-item`, `.drag-handle`, `.settings-link`, `.settings-link-icon`, `.settings-link-text`, `.settings-link-title`, `.settings-link-sub`, `.settings-link-chevron`, `.settings-subview`, `.flow-list-row-body`)
 - **Category:** Data display
 - **Status:** Stable
 
@@ -21,6 +21,8 @@ Container (left accent stripe) › optional `.drag-handle` › `.history-details
 ## 5. Props / API
 - **Display by default (ML-200).** A `div.history-item` whose only interactive parts are the buttons inside it (⋮ menu, edit, delete) sits on `--container-bg` with a 1px `--input-border` outline, the same surface as the page.
 - **Tappable rows** (the row itself, or its main body, opens something) are a `<button class="history-item">` or carry `.clickable`, which gives them the `--input-bg` "tap me" surface. Current `.clickable` rows: saved metronome setups, the Flow library and Quick-play history.
+- **Settings groups (ML-282):** `button.history-item.settings-link` - icon (`.settings-link-icon`: a Material Symbol, or the home screen's own tool SVG copied in by `fillSettingsToolIcons`), title and a one-line summary of the group's current values (`.settings-link-title` / `.settings-link-sub`, truncates with …), and a › (`.settings-link-chevron`). Neutral stripe. Each opens its own screen (`.settings-subview`, hidden until `switchView` shows it).
+- **Row body button (ML-286):** in the Flow Pauses and Ramps pop-ups the row's text is a `button.flow-list-row-body` filling the row, so a tap anywhere but the ⋮ opens the item to edit. A swipe to delete may still start on it; the click that ends a swipe is ignored.
 - Stripe colour: `style="border-left-color: var(--cat-lesson)"` (inline category token, never a hex).
 - Drag to reorder: `.draggable-item` + `.drag-handle`. `.dragging` while moving.
 

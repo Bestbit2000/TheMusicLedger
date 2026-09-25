@@ -758,6 +758,42 @@
     // sub-screens). Each time it opens: the tools row is rebuilt from the home screen's own tool tiles
     // (same icons, same order, and a tile hidden on home - Theory behind its feature gate - is hidden
     // here too), the screen you're on is marked, and the account name/email and version are filled in.
+    // ML-282: the Settings screen's own controls, re-read from storage each time a Settings screen opens.
+    function syncSettingsControls() {
+        syncPracticeYearSettings();
+        renderTunerTranspositionSetting();
+        document.getElementById('tunerUseFlatsToggle').checked = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
+        document.getElementById('tunerNoteStyleSetting').value = localStorage.getItem(TUNER_NOTE_STYLE_KEY) || 'letters';
+        document.getElementById('tunerShowConcertSetting').checked = localStorage.getItem(TUNER_SHOW_CONCERT_KEY) !== 'false';
+        document.getElementById('tunerShowHzSetting').checked = localStorage.getItem(TUNER_SHOW_HZ_KEY) === 'true';
+        document.getElementById('tunerShowOctaveSetting').checked = localStorage.getItem(TUNER_SHOW_OCTAVE_KEY) === 'true';
+        document.getElementById('fermataPlaybackModeSetting').value = localStorage.getItem(FERMATA_PLAYBACK_MODE_KEY) || 'tone';
+        document.getElementById('statsProjectionToggle').checked = statsShowProjection();
+    }
+    // One line under each Settings group saying what it's set to now, read back from the controls
+    // syncSettingsControls has just filled in.
+    function renderSettingsSummaries() {
+        const val = id => document.getElementById(id);
+        const selText = id => { const el = val(id); return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : ''; };
+        val('settingsDisplaySummary').textContent = 'Dark mode ' + (val('darkModeToggle').checked ? 'on' : 'off');
+        const year = val('practiceYearToggle').checked
+            ? 'Practice year from ' + val('practiceYearStartDay').value + ' ' + selText('practiceYearStartMonth')
+            : 'Calendar year';
+        val('settingsStatsSummary').textContent = year + ' · projection ' + (val('statsProjectionToggle').checked ? 'shown' : 'hidden');
+        val('settingsTunerSummary').textContent = [selText('tunerTranspositionSetting'),
+            val('tunerNoteStyleSetting').value === 'solfege' ? 'solfège' : 'letters',
+            val('tunerUseFlatsToggle').checked ? 'flats' : 'sharps'].join(' · ');
+        const fermata = { tone: 'tone + cue', silent: 'silent hold + cue', count: 'count through' };
+        val('settingsPlaybackSummary').textContent = 'Fermata: ' + (fermata[val('fermataPlaybackModeSetting').value] || fermata.tone);
+    }
+    // The Tuner and Metronome rows use the home screen's own tool icons, copied once.
+    function fillSettingsToolIcons() {
+        document.querySelectorAll('#settingsView [data-tool-icon]').forEach(slot => {
+            if (slot.firstChild) return;
+            const tile = document.querySelector('#mainView .tool-icon-btn[onclick*="' + slot.dataset.toolIcon + '"] .tool-icon-svg');
+            if (tile) { const c = tile.cloneNode(true); c.removeAttribute('id'); slot.appendChild(c); }
+        });
+    }
     function renderNavToolsRow() {
         const row = document.getElementById('navToolsRow');
         if (!row) return;
@@ -781,6 +817,7 @@
     // The current screen: its own item, or for a screen the menu doesn't list directly (a tool's inner
     // screens, Flow's editor...), the item it belongs under.
     const NAV_PARENT_VIEW = { flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'metroBuilderView',
+        settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
         challengeSelectView: 'manageChallengesView', challengePlayView: 'manageChallengesView', challengeSummaryView: 'manageChallengesView', editChallengeView: 'manageChallengesView' };
     function markNavCurrent() {
@@ -993,7 +1030,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView'];
@@ -1108,18 +1145,13 @@
         if (viewName === 'statsView') { document.getElementById('topTitle').innerText = 'Detailed stats'; scrollStatsToRight(); }
         if (viewName === 'entryForm') { document.getElementById('topTitle').innerText = 'Add record'; }
         if (viewName === 'accountView') { document.getElementById('topTitle').innerText = 'My account'; loadAccountView(); }
-        if (viewName === 'settingsView') {
-            document.getElementById('topTitle').innerText = 'Settings';
-            syncPracticeYearSettings();
-            // Re-sync from storage in case these were last changed on the Tuner page itself.
-            renderTunerTranspositionSetting();
-            document.getElementById('tunerUseFlatsToggle').checked = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
-            document.getElementById('tunerNoteStyleSetting').value = localStorage.getItem(TUNER_NOTE_STYLE_KEY) || 'letters';
-            document.getElementById('tunerShowConcertSetting').checked = localStorage.getItem(TUNER_SHOW_CONCERT_KEY) !== 'false';
-            document.getElementById('tunerShowHzSetting').checked = localStorage.getItem(TUNER_SHOW_HZ_KEY) === 'true';
-            document.getElementById('tunerShowOctaveSetting').checked = localStorage.getItem(TUNER_SHOW_OCTAVE_KEY) === 'true';
-            document.getElementById('fermataPlaybackModeSetting').value = localStorage.getItem(FERMATA_PLAYBACK_MODE_KEY) || 'tone';
-            document.getElementById('statsProjectionToggle').checked = statsShowProjection();
+        // ML-282: Settings is a list of groups, each its own screen. Every screen re-syncs its
+        // controls from storage in case they were last changed elsewhere (the Tuner page itself).
+        const SETTINGS_TITLES = { settingsView: 'Settings', settingsDisplayView: 'Display settings', settingsStatsView: 'Stats settings', settingsTunerView: 'Tuner settings', settingsPlaybackView: 'Metronome & playback' };
+        if (SETTINGS_TITLES[viewName]) {
+            document.getElementById('topTitle').innerText = SETTINGS_TITLES[viewName];
+            syncSettingsControls();
+            if (viewName === 'settingsView') { fillSettingsToolIcons(); renderSettingsSummaries(); }
         }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
         if (viewName === 'theoryView') { document.getElementById('topTitle').innerText = 'Theory'; renderTheoryList(); }
@@ -7584,10 +7616,10 @@
                         <span>Delete</span>
                     </div>
                     <div class="flow-fermata-row">
-                        <span class="flow-fermata-row-text${invalid ? ' flow-fermata-row-text-invalid' : ''}">
+                        <button type="button" class="flow-list-row-body flow-fermata-row-text${invalid ? ' flow-fermata-row-text-invalid' : ''}" data-pause-edit>
                             ${invalid ? flowWarningIconSvg('flow-warning-icon') : flowPauseIconSvg(kind, true)}
                             <span>Bar ${(f.barOffset || 0) + 1}, beat ${f.beatOffset} &middot; <span class="flow-fermata-row-tag">${durationTag}</span></span>
-                        </span>
+                        </button>
                         <button type="button" class="list-item-menu-btn" data-pause-menu aria-label="Pause options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                     </div>
                 </div>
@@ -7597,6 +7629,16 @@
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 openFlowFermataRowMenu(btn, sorted[i]);
+            });
+        });
+        // ML-286: the whole row is the tappable surface - a tap opens the pause for editing (the ⋮ menu
+        // still has Edit and Delete). A tap on a row slid open to Delete just closes it.
+        list.querySelectorAll('[data-pause-edit]').forEach((body, i) => {
+            body.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (Date.now() - flowPauseSwipeEndedAt < 400) return;
+                if (flowOpenSwipePauseIndex !== null) { flowCloseOpenPauseSwipe(); return; }
+                flowEditPause(sorted[i]);
             });
         });
         list.querySelectorAll('.flow-fermata-box').forEach((boxEl, i) => {
@@ -7617,7 +7659,9 @@
     const FLOW_PAUSE_SWIPE_LOCK_Y_MAX_PX = 15;
     const FLOW_PAUSE_SWIPE_OPEN_PX = 96; // keep in sync with .flow-fermata-delete-underlay's width in style.css
     const FLOW_PAUSE_SWIPE_SNAP_THRESHOLD_PX = 48;
-    const FLOW_PAUSE_SWIPE_EXCLUDE_SELECTOR = 'button, input, [role="slider"], [role="button"]';
+    // The row body (data-pause-edit) is a button too (ML-286: tap the row to edit it), but a swipe may start on it.
+    const FLOW_PAUSE_SWIPE_EXCLUDE_SELECTOR = 'button:not([data-pause-edit]), input, [role="slider"], [role="button"]';
+    let flowPauseSwipeEndedAt = 0; // a swipe's own pointerup is followed by a click on the body - that click isn't a tap
     function flowPauseSurfaceFor(index) {
         return document.querySelector(`#flowFermataList [data-pause-index="${index}"] .flow-fermata-row`);
     }
@@ -7668,6 +7712,7 @@
             document.removeEventListener('pointermove', onMove);
             document.removeEventListener('pointerup', onUp);
             if (!locked) return;
+            flowPauseSwipeEndedAt = Date.now();
             const dx = e.clientX - startX;
             const finalOffset = Math.min(0, Math.max(-FLOW_PAUSE_SWIPE_OPEN_PX, currentBaseOffset() + dx));
             if (Math.abs(finalOffset) > FLOW_PAUSE_SWIPE_SNAP_THRESHOLD_PX) {
@@ -7812,7 +7857,9 @@
         e.stopPropagation();
         const target = flowFermataRowMenuTarget;
         closeFlowFermataRowMenu();
-        if (!target) return;
+        if (target) flowEditPause(target);
+    });
+    function flowEditPause(target) {
         flowFermataEditTarget = target;
         const kind = target.kind || 'fermata';
         flowFermataResetDraft(kind);
@@ -7822,7 +7869,7 @@
         flowFermataFormOpen = true;
         renderFlowFermataAddSection();
         renderFlowFermataFormState();
-    });
+    }
     document.getElementById('flowFermataRowMenuDelete')?.addEventListener('click', async (e) => {
         e.stopPropagation();
         const target = flowFermataRowMenuTarget;
@@ -7965,13 +8012,13 @@
                         <span>Delete</span>
                     </div>
                     <div class="flow-ramp-row">
-                        <span class="flow-ramp-row-text${invalid ? ' flow-ramp-row-text-invalid' : ''}">
+                        <button type="button" class="flow-list-row-body flow-ramp-row-text${invalid ? ' flow-ramp-row-text-invalid' : ''}" data-ramp-edit>
                             <span class="flow-ramp-row-icon${invalid ? ' invalid' : ''}">${invalid ? flowWarningIconSvg() : flowRampIconSvg(flowRampDirection(r, b, nextBlock))}</span>
                             <span class="flow-ramp-row-lines">
                                 <span class="flow-ramp-row-title">Bar ${(r.startBarOffset || 0) + 1}, beat ${r.startBeatOffset} &rarr; ${flowRampEndLabel(r)}</span>
                                 <span class="flow-ramp-row-tag">Tempo change &middot; To ${flowRampTargetLabel(r, nextBlock)}</span>
                             </span>
-                        </span>
+                        </button>
                         <button type="button" class="list-item-menu-btn" data-ramp-menu aria-label="Ramp options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                     </div>
                 </div>
@@ -7981,6 +8028,15 @@
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 openFlowRampRowMenu(btn, sorted[i]);
+            });
+        });
+        // ML-286: tap the row to edit the ramp - same as the pause rows above.
+        list.querySelectorAll('[data-ramp-edit]').forEach((body, i) => {
+            body.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (Date.now() - flowRampSwipeEndedAt < 400) return;
+                if (flowOpenSwipeRampIndex !== null) { flowCloseOpenRampSwipe(); return; }
+                flowEditRamp(sorted[i]);
             });
         });
         list.querySelectorAll('.flow-ramp-box').forEach((boxEl, i) => {
@@ -7999,7 +8055,9 @@
     const FLOW_RAMP_SWIPE_LOCK_Y_MAX_PX = 15;
     const FLOW_RAMP_SWIPE_OPEN_PX = 96; // keep in sync with .flow-ramp-delete-underlay's width in style.css
     const FLOW_RAMP_SWIPE_SNAP_THRESHOLD_PX = 48;
-    const FLOW_RAMP_SWIPE_EXCLUDE_SELECTOR = 'button, input, [role="slider"], [role="button"]';
+    // The row body (data-ramp-edit) is a button too (ML-286: tap the row to edit it), but a swipe may start on it.
+    const FLOW_RAMP_SWIPE_EXCLUDE_SELECTOR = 'button:not([data-ramp-edit]), input, [role="slider"], [role="button"]';
+    let flowRampSwipeEndedAt = 0; // a swipe's own pointerup is followed by a click on the body - that click isn't a tap
     function flowRampSurfaceFor(index) {
         return document.querySelector(`#flowRampList [data-ramp-index="${index}"] .flow-ramp-row`);
     }
@@ -8050,6 +8108,7 @@
             document.removeEventListener('pointermove', onMove);
             document.removeEventListener('pointerup', onUp);
             if (!locked) return;
+            flowRampSwipeEndedAt = Date.now();
             const dx = e.clientX - startX;
             const finalOffset = Math.min(0, Math.max(-FLOW_RAMP_SWIPE_OPEN_PX, currentBaseOffset() + dx));
             if (Math.abs(finalOffset) > FLOW_RAMP_SWIPE_SNAP_THRESHOLD_PX) {
@@ -8203,7 +8262,9 @@
         e.stopPropagation();
         const target = flowRampRowMenuTarget;
         closeFlowRampRowMenu();
-        if (!target) return;
+        if (target) flowEditRamp(target);
+    });
+    function flowEditRamp(target) {
         flowRampEditTarget = target;
         flowRampResetDraft();
         flowRampDraft.bar = (target.startBarOffset || 0) + 1;
@@ -8216,7 +8277,7 @@
         flowRampFormOpen = true;
         renderFlowRampAddSection();
         renderFlowRampFormState();
-    });
+    }
     document.getElementById('flowRampRowMenuDelete')?.addEventListener('click', async (e) => {
         e.stopPropagation();
         const target = flowRampRowMenuTarget;

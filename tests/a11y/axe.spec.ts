@@ -20,6 +20,8 @@ const SCREENS: { view: string; name: string }[] = [
     { view: 'timerView', name: 'Timer' },
     { view: 'accountView', name: 'My account' },
     { view: 'settingsView', name: 'Settings' },
+    { view: 'settingsStatsView', name: 'Stats settings' },
+    { view: 'settingsTunerView', name: 'Tuner settings' },
     { view: 'aboutView', name: 'About' },
 ];
 

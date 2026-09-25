@@ -522,6 +522,18 @@
     .setting-row-grouped { margin-bottom: var(--space-3); }
     .info-row { margin-bottom: var(--space-3); padding: var(--space-3) var(--space-4); }
     .info-row-end { margin-bottom: var(--space-5); }
+    /* ML-282: Settings is a list of groups (.settings-link, a tappable list row with the neutral
+       stripe), each opening its own screen (.settings-subview - hidden until switchView shows it).
+       .setting-field-pair: two fields side by side (practice year start day + month). */
+    .settings-subview { display: none; }
+    .history-item.settings-link { gap: var(--space-3); min-height: var(--touch-target); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
+    .settings-link-icon { font-size: var(--icon-md); width: var(--icon-md); height: var(--icon-md); color: var(--label-color); flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+    .settings-link-icon .tool-icon-svg { width: var(--icon-md); height: var(--icon-md); }
+    .settings-link-text { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+    .settings-link-title { font-weight: var(--font-weight-semibold); }
+    .settings-link-sub { font-size: var(--font-sm); color: var(--label-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .settings-link-chevron { color: var(--label-color); flex: 0 0 auto; }
+    .setting-field-pair { display: flex; gap: var(--space-3); margin-bottom: var(--space-5); }
     .tuner-display-toggle-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-5); font-size: var(--font-md); padding: var(--space-4); background: var(--container-bg); border-radius: var(--radius-md); border: 1px solid var(--input-border); }
     .tuner-display-toggle-row:last-child { margin-bottom: 0; }
 
@@ -2105,6 +2117,8 @@
        Flow library and session history: the thick left bar marks a row you can tap, where a plain
        bordered box read as just another button. Red when the row needs fixing. */
     .flow-fermata-row, .flow-ramp-row { border-left-width: 6px; }
+    /* ML-286: the row's text is a button filling the row, so a tap anywhere but the ⋮ opens it to edit. */
+    .flow-list-row-body { flex: 1 1 auto; min-height: var(--touch-target); padding: 0; background: transparent; border: none; color: inherit; font: inherit; text-align: left; }
     .flow-fermata-row:has(.flow-fermata-row-text-invalid), .flow-ramp-row:has(.flow-ramp-row-text-invalid) { border-left-color: var(--danger-text); }
     #flowRampAddBox .btn-submit, #flowRampAddBox .btn-cancel { margin-top: var(--space-2); }
     /* "Ramp ends at" toggle - a compact two-option segmented pill (End of block/Specific beat)
