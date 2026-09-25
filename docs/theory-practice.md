@@ -12,6 +12,7 @@ Related tickets:
 - **ML-264:** the screens.
 - **ML-265:** saving results.
 - **ML-266:** back-tests and docs.
+- **ML-269:** Smart learn (weak questions dealt first; gated for the paid tier).
 
 ## Files
 
@@ -126,6 +127,44 @@ own questions the same way. A small selection still repeats in a long round, but
 - **Seeded:** `questionSource(quiz, options, { seed })` - the same seed deals the same round.
 - **Options** are remembered per quiz on the device (`localStorage` `tml.theory.<quiz>`).
 
+## Smart learn (ML-269)
+
+Behind its own gate, **`theory_smart_learn`** (intended for the paid tier; on for now). Without it, rounds
+are the plain shuffle above, with no memory.
+
+- **Weights:** every question has a weight per person, 0-10, starting at 0. Wrong **+2** (up to 10, so
+  5 misses reach the top), right **−1** (down to 0, so it takes two rights to undo each wrong). Stored in
+  `theory_question_weights` (migration 053) under the question id, so the same question shares one
+  weight whichever quiz asked it (Note names and Mixed, say).
+- **Updated** by the server from every **finished** round's answers, in order, in the same transaction
+  as the round (`applySmartLearn`, using the engine's `nextWeight`). Abandoned rounds don't count.
+- **Used** at round start: the app loads the account's weights (`GET /api/theory/weights`, 3 s timeout,
+  falling back to the plain shuffle) and passes them to `questionSource(..., { weights })`. `record()` updates
+  them as the round goes, so a later deal in the same round already knows.
+- **What it changes: the order, not what's asked.** Every question still comes once per deal. Each deal is
+  a weighted random shuffle (Efraimidis-Spirakis sampling): key = `random ^ (1 / (1 + weight × 0.5))`,
+  dealt from the highest key down. So each next question is exactly (1 + weight × 0.5) times as likely
+  as one you know: 3× at weight 4, 6× at 10. With no weights in a deal it's exactly the plain shuffle.
+  (The first idea, 0.75 × random + 0.25 × random × weight/10, caps the boost at a quarter of the range:
+  in simulation a weight-10 question in 30 moved only from 15th to 11th on average, against 5th here.)
+  Tune with `SMART.strength`.
+- **On screen:** the options screen says Smart learn is on; the results screen says how many of the
+  round's questions it will bring back.
+- **Retry in the round:** a missed question comes back `SMART.retryGap` (3) questions later in the same
+  round (the 3rd question after), and again if it's missed again. Retries count like any answer.
+- **Review:** a question not asked for a week gets a temporary boost when weights are loaded: +1, then
+  +1 more each further week, up to +3 (`reviewBoost`, `effectiveWeight`). So things you knew a while ago
+  come back to be checked. Every answered question is stored (weight 0 included), and `updated_at` is
+  when it was last asked. The stored weight itself only moves with answers.
+- **Slow right answers:** a right answer slower than 2 × its question's par time (`SMART.slowFactor`)
+  leaves the weight where it is: you got there, but it isn't known yet.
+- **Your weak spots:** with Smart learn on, the quiz list ends with a "Your weak spots" row (`WEAK_SPOTS`,
+  quiz id `weakSpots`). Its options screen lists every question with a stored weight above 0, weakest
+  first (`describeQuestion`: "B♭4 on the treble staff", "Needs work: 6 of 10 · missed 3, right 0"), and
+  its round asks only those, dealt by their stored weights (a review boost isn't a weak spot). Any
+  question can be rebuilt from its id (`itemFromId`), whichever quiz first asked it. With nothing to
+  work on it says so and offers no Start.
+
 ## Rounds and scoring (confirmed on ML-260)
 
 **Round types:**
@@ -207,6 +246,9 @@ The limits live in `TheoryEngine` (`PAR`, `GRADE_LIMITS`, `TIMING`).
 | `state()` | Right, wrong, answered, and whether it's waiting. |
 | `advance(ms)` | Moves the round's clock on. |
 | `result()` | The finished round's result. |
+
+The back-test helpers `setWeights` / `getWeights` (`tests/helpers/theory.ts`) read and write Smart learn
+weights directly; `clearTheoryAttempts` clears them too.
 
 **Back-test:** case #18 in the Neon `test_cases` table. It covers each quiz on screen, right and wrong
 feedback, both round types, Mixed, rhythm and terms, saving, and screenshot baselines.

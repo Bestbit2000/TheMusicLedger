@@ -243,7 +243,8 @@
         theory: {
             summary: () => apiCall('/api/theory/summary'),
             history: (settingsKey) => apiCall(`/api/theory/attempts?settingsKey=${encodeURIComponent(settingsKey)}`),
-            save: (data) => apiCall('/api/theory/attempts', 'POST', data)
+            save: (data) => apiCall('/api/theory/attempts', 'POST', data),
+            weights: () => apiCall('/api/theory/weights')
         },
         notifications: {
             list: () => apiCall('/api/notifications'),
@@ -15418,12 +15419,25 @@
                 <span class="history-details"><strong>${escapeHtml(q.title)}</strong>${q.subtitle ? `${escapeHtml(q.subtitle)}<br>` : ''}${last ? `Last grade ${last.grade} · ${theoryWhen(last.startedAt)}` : 'Not tried yet'}</span>
                 ${last ? theoryGradeHtml(last.grade, `Last grade ${last.grade} of 5`) : ''}
             </button>`;
-        const draw = (summary) => {
-            list.innerHTML = TheoryEngine.QUIZZES.map(q => row(q, summary[q.id])).join('');
+        // Smart learn adds "Your weak spots" at the end: a round of only the questions you've been missing.
+        const weakRow = (weak) => {
+            const n = weak.length, q = TheoryEngine.WEAK_SPOTS;
+            return `
+            <button type="button" class="history-item clickable theory-quiz-row" data-quiz="${q.id}">
+                <span class="theory-quiz-icon">${theoryScaleSvg(Notation.symbol(q.icon), 0.8)}</span>
+                <span class="history-details"><strong>${escapeHtml(q.title)}</strong>${n ? `${n} ${n === 1 ? 'question' : 'questions'} to work on` : 'Questions you miss collect here'}</span>
+            </button>`;
+        };
+        let summary = {}, weak = null;
+        const draw = () => {
+            list.innerHTML = TheoryEngine.QUIZZES.map(q => row(q, summary[q.id])).join('') + (weak ? weakRow(weak) : '');
             list.querySelectorAll('[data-quiz]').forEach(b => b.addEventListener('click', () => openTheoryOptions(b.dataset.quiz)));
         };
-        draw({});
-        try { draw((await API.theory.summary()).quizzes || {}); } catch (e) { /* list still works without grades */ }
+        draw();
+        const [s, w] = await Promise.all([API.theory.summary().catch(() => null), theoryLoadSmart()]);
+        if (s) summary = s.quizzes || {};
+        if (w) weak = w.weak;
+        draw();
     }
     function openTheoryOptions(quizId) {
         theoryQuizId = quizId;
@@ -15470,6 +15484,8 @@
             else renderTheoryOptionsBest();
         }));
         renderTheoryOptionsBest();
+        renderTheorySmartLearnNote();
+        renderTheoryWeakList();
     }
     async function renderTheoryOptionsBest() {
         const el = document.getElementById('theoryOptionsBest');
@@ -15483,15 +15499,61 @@
     }
     document.getElementById('theoryStartBtn')?.addEventListener('click', () => theoryStartRound());
 
+    // --- Smart learn (ML-269, theory_smart_learn): the questions you get wrong are dealt first and more
+    // often. The weights come from the server at the start of each round (it updates them from every
+    // finished round); null = a plain shuffle with no memory - also the fallback if loading fails.
+    const theorySmartLearnOn = () => isFeatureEnabled('theory_smart_learn');
+    // { weights (what rounds deal by, review boost included), weak (the weak spots list) }, or null.
+    async function theoryLoadSmart() {
+        if (!theorySmartLearnOn()) return null;
+        try {
+            const res = await Promise.race([API.theory.weights(), new Promise((_, no) => setTimeout(() => no(new Error('slow')), 3000))]);
+            return res && res.enabled ? res : null;
+        } catch (e) { return null; }
+    }
+    // A weak spots round deals by the stored weights only (a review boost isn't a weak spot).
+    async function theoryLoadWeights() {
+        const smart = await theoryLoadSmart();
+        if (!smart) return null;
+        return theoryQuizId === TheoryEngine.WEAK_SPOTS.id ? Object.fromEntries(smart.weak.map(x => [x.id, x.weight])) : smart.weights;
+    }
+    // The weak spots options screen lists what's in the round, weakest first.
+    async function renderTheoryWeakList() {
+        const el = document.getElementById('theoryWeakList');
+        if (!el) return;
+        if (theoryQuizId !== TheoryEngine.WEAK_SPOTS.id) { el.innerHTML = ''; document.getElementById('theoryStartBtn').classList.remove('hidden-group'); return; }
+        const smart = await theoryLoadSmart();
+        const weak = smart ? smart.weak : [];
+        const naming = theoryNaming();
+        el.innerHTML = weak.length
+            ? `<div class="section-title">To work on</div>` + weak.map(x => `
+                <div class="history-item"><span class="history-details"><strong>${escapeHtml(TheoryEngine.describeQuestion(x.id, naming))}</strong>Needs work: ${x.weight} of 10 · missed ${x.wrong}, right ${x.right}</span></div>`).join('')
+            : '<p class="theory-intro">Nothing to work on yet. Questions you get wrong in any quiz collect here, and leave once you\'ve got them right twice for every miss.</p>';
+        document.getElementById('theoryStartBtn').classList.toggle('hidden-group', !weak.length);
+    }
+    function renderTheorySmartLearnNote() {
+        const el = document.getElementById('theoryOptionsSmart');
+        if (!el) return;
+        el.classList.toggle('hidden-group', !theorySmartLearnOn());
+        el.textContent = 'Smart learn is on: anything you get wrong comes back sooner and more often, until you get it right.';
+    }
+
     // --- The round ---
     function theoryRoundInProgress() { return !!(theoryRound && !theoryRound.ended); }
     function theoryElapsedMs(r) { return r.accumulatedMs + (r.runningSince === null ? 0 : theoryNow() - r.runningSince); }
 
-    function theoryStartRound(seed) {
+    let theoryStarting = false;
+    async function theoryStartRound(seed) {
+        if (theoryStarting) return;
+        theoryStarting = true;
+        let weights;
+        try { weights = await theoryLoadWeights(); } finally { theoryStarting = false; }
         const round = TheoryEngine.round(theoryRoundId);
+        const source = TheoryEngine.questionSource(theoryQuizId, theoryOptions, { seed: seed ?? (Date.now() % 2147483647), naming: theoryNaming(), weights });
+        if (!source.size) { showWarningToast('Nothing to work on yet - questions you get wrong collect here.'); return; } // an empty weak spots round
         theoryRound = {
             quizId: theoryQuizId, options: theoryOptions, roundId: round.value, seconds: round.seconds || null, questions: round.questions || null,
-            naming: theoryNaming(), source: TheoryEngine.questionSource(theoryQuizId, theoryOptions, { seed: seed ?? (Date.now() % 2147483647), naming: theoryNaming() }),
+            naming: theoryNaming(), source,
             startedAt: new Date().toISOString(), accumulatedMs: 0, runningSince: theoryNow(),
             right: 0, wrong: 0, answers: [], question: null, shownAt: 0, locked: false, ended: false
         };
@@ -15570,6 +15632,8 @@
         const q = r.question;
         const correct = id === q.correct;
         r.answers.push({ questionId: q.id, answerId: id, correct, ms: Math.round(theoryNow() - r.shownAt) });
+        // Smart learn: a later deal in this same round already knows, and a miss comes back 3 questions on.
+        r.source.record(q.id, correct, r.answers[r.answers.length - 1].ms);
         r.locked = true;
         if (correct) {
             r.right++;
@@ -15647,6 +15711,11 @@
         else if (saved.isFirst) best.textContent = `Grade ${grade} of 5 · your first round with these options`;
         else if (saved.isNewBest) best.textContent = `Grade ${grade} of 5 · new personal best (was ${saved.previousBest.score})`;
         else best.textContent = `Grade ${grade} of 5 · your best is ${saved.best.score} (grade ${saved.best.grade})`;
+        const smart = document.getElementById('theoryResultSmart');
+        const learning = saved && saved.smartLearn ? saved.smartLearn.learning : null;
+        smart.classList.toggle('hidden-group', learning === null || learning === undefined);
+        smart.textContent = learning ? `Smart learn will bring back ${learning} ${learning === 1 ? 'question' : 'questions'} from this round sooner, until you've got ${learning === 1 ? 'it' : 'them'} right.`
+            : 'Smart learn: nothing from this round left to work on.';
         renderTheoryTrend(saved ? saved.recent : []);
     }
     // The last rounds with these options, oldest first - reuses the stats bar-chart pieces.
@@ -15672,13 +15741,13 @@
         try { on = ['localhost', '127.0.0.1'].includes(location.hostname) && localStorage.getItem('tml.testClock') === '1'; } catch (e) { on = false; }
         if (!on) return;
         window.__theoryTest = {
-            start: (quizId, options, roundId, seed) => {
+            start: async (quizId, options, roundId, seed) => {
                 theoryStopRound(); // a round still running is simply dropped, not asked about
                 theoryQuizId = quizId;
                 theoryOptions = TheoryEngine.normaliseOptions(quizId, options);
                 theoryRoundId = TheoryEngine.round(roundId).value;
                 switchView('theoryOptionsView');
-                theoryStartRound(seed);
+                await theoryStartRound(seed);
             },
             question: () => theoryRound && JSON.parse(JSON.stringify(theoryRound.question)),
             state: () => theoryRound ? { right: theoryRound.right, wrong: theoryRound.wrong, answered: theoryRound.answers.length, locked: theoryRound.locked } : null,

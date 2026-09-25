@@ -27,7 +27,7 @@ import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from
 import { exportFlowForUser } from '../services/flowTransfer.js';
 import { submitFeedback } from '../services/feedback.js';
 import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead } from '../services/notifications.js';
-import { saveTheoryAttempt, getTheoryHistory, getTheorySummary } from '../services/theoryPractice.js';
+import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryWeights } from '../services/theoryPractice.js';
 
 const router = express.Router();
 
@@ -135,6 +135,17 @@ router.get('/theory/summary', requireAuth, resolveAccount, async (req, res) => {
   try {
     await assertTheoryEnabled();
     res.json(await getTheorySummary(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-269 Smart learn: this account's weak questions, loaded at the start of each round. Behind its own
+// theory_smart_learn gate (returns enabled: false, and nothing is recorded, when it's off).
+router.get('/theory/weights', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertTheoryEnabled();
+    res.json(await getTheoryWeights(req.accountId));
   } catch (error) {
     sendError(res, error);
   }

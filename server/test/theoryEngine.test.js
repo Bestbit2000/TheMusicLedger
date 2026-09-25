@@ -279,3 +279,109 @@ describe('scoring', () => {
         assert.deepEqual([100, 90, 89, 70, 69, 50, 49, 30, 29, 0].map(s => T.gradeFor(s)), [5, 5, 4, 4, 3, 3, 2, 2, 1, 1]);
     });
 });
+
+describe('smart learn (ML-269)', () => {
+    test('weights: wrong +2, right -1, from 0 to 10 (5 wrongs to the top, 2 rights undo a wrong)', () => {
+        let w = 0;
+        for (let i = 0; i < 5; i++) w = T.nextWeight(w, false);
+        assert.equal(w, 10);
+        assert.equal(T.nextWeight(10, false), 10);
+        assert.equal(T.nextWeight(T.nextWeight(4, true), true), 2);
+        assert.equal(T.nextWeight(0, true), 0);
+        assert.equal(T.nextWeight(undefined, false), 2);
+    });
+    test('without weights nothing changes: the same seed deals the same round as before', () => {
+        const plain = take(source('noteNames', {}, { seed: 21 }), 22).map(q => q.id);
+        const again = take(source('noteNames', {}, { seed: 21, weights: null }), 22).map(q => q.id);
+        assert.deepEqual(plain, again);
+    });
+    test('still every question once per deal - weights change the order, not what is asked', () => {
+        const src = source('symbols', { set: 'basics' }, { seed: 5, weights: { 'symbolName:fermata': 10, 'symbolMeaning:tie': 6 } });
+        const ids = take(src, src.size).map(q => q.id);
+        assert.equal(new Set(ids).size, src.size);
+    });
+    test('a weak question comes early: weight 10 among 11 known notes lands near the front', () => {
+        let pos = 0, first = 0;
+        const runs = 400;
+        for (let seed = 1; seed <= runs; seed++) {
+            const ids = take(source('noteNames', {}, { seed, weights: { 'note:treble:B4': 10 } }), 11).map(q => q.id);
+            const p = ids.indexOf('note:treble:B4');
+            pos += p + 1;
+            if (p === 0) first++;
+        }
+        // 11 questions, one 6x as likely at each pick: first about 6/16 = 37% of the time, 2nd-3rd on average
+        assert.ok(pos / runs < 3.5, `average position ${pos / runs}`);
+        assert.ok(first / runs > 0.28 && first / runs < 0.47, `first ${first / runs}`);
+    });
+    test('record() updates the round\'s weights, so the next deal in the same round uses them', () => {
+        const src = source('noteNames', {}, { seed: 3, weights: {} });
+        assert.equal(src.smart, true);
+        for (let i = 0; i < 5; i++) src.record('note:treble:E4', false);
+        take(src, 11); // finish the first deal
+        let early = 0;
+        for (let d = 0; d < 20; d++) { const ids = take(src, 11).map(q => q.id); if (ids.indexOf('note:treble:E4') < 3) early++; }
+        assert.ok(early >= 10, `E4 early in only ${early} of 20 deals`);
+    });
+    test('question ids are the weight keys, for every question type', () => {
+        const src = source('mixed', { level: 'advanced', clefs: ['treble', 'bass'] }, { seed: 1 });
+        for (const q of take(src, 30)) assert.match(q.id, /^(note|keySignature|scale|symbolName|symbolMeaning):/);
+    });
+});
+
+describe('smart learn refinements (ML-269)', () => {
+    test('a slow right answer (over 2x par) leaves the weight alone; a quick one lowers it', () => {
+        assert.equal(T.nextWeight(4, true, { questionId: 'note:treble:B4', ms: 2000 }), 3);  // par 1.5 s: 2 s is fine
+        assert.equal(T.nextWeight(4, true, { questionId: 'note:treble:B4', ms: 3500 }), 4);  // over 3 s: slow
+        assert.equal(T.nextWeight(4, true, { questionId: 'scale:treble:D major', ms: 7000 }), 3); // par 4 s: 7 s is fine
+        assert.equal(T.nextWeight(4, false, { questionId: 'note:treble:B4', ms: 9000 }), 6);
+    });
+    test('review: not asked for a week adds 1, then 1 more a week, up to 3, on top of the stored weight', () => {
+        assert.deepEqual([0, 6, 7, 13, 14, 21, 100].map(d => T.reviewBoost(d)), [0, 0, 1, 1, 2, 3, 3]);
+        assert.equal(T.effectiveWeight(0, 30), 3);
+        assert.equal(T.effectiveWeight(9, 30), 10);
+        assert.equal(T.effectiveWeight(4, 2), 4);
+    });
+    test('a missed question comes back 3 questions later in the same round (and again if missed again)', () => {
+        const src = source('noteNames', { range: 6 }, { seed: 4, weights: {} });
+        const q1 = clone(src.next());
+        src.record(q1.id, false, 1000);
+        const next3 = take(src, 3).map(q => q.id);
+        assert.equal(next3.indexOf(q1.id), 2, `came back at ${next3.indexOf(q1.id) + 1}`);
+        src.record(q1.id, false, 1000);
+        assert.equal(take(src, 3).map(q => q.id).indexOf(q1.id), 2);
+        // Right the second time round: no more retries.
+        src.record(q1.id, true, 1000);
+        assert.ok(!take(src, 4).map(q => q.id).includes(q1.id));
+    });
+    test('no retries without Smart learn', () => {
+        const src = source('noteNames', { range: 6 }, { seed: 4 });
+        const q1 = clone(src.next());
+        src.record(q1.id, false, 1000);
+        assert.ok(!take(src, 3).map(q => q.id).includes(q1.id));
+    });
+    test('every question can be rebuilt from its id (what weak spots relies on)', () => {
+        const ids = new Set();
+        for (const level of ['advanced']) for (const q of take(source('mixed', { level, clefs: ['treble', 'bass'] }, { seed: 2 }), 300)) ids.add(q.id);
+        for (const q of take(source('noteNames', { range: 6, accidentals: 'flats', clefs: ['treble', 'bass'] }, { seed: 2 }), 120)) ids.add(q.id);
+        for (const q of take(source('symbols', { set: 'everything' }, { seed: 2 }), 130)) ids.add(q.id);
+        for (const id of ids) {
+            const src = source('weakSpots', {}, { seed: 1, weights: { [id]: 4 } });
+            assert.equal(src.size, 1, id);
+            assert.equal(clone(src.next()).id, id);
+            assert.ok(T.describeQuestion(id), id);
+        }
+        assert.equal(T.itemFromId('note:alto:C4'), null);
+        assert.equal(T.itemFromId('symbolName:noSuchSymbol'), null);
+    });
+    test('weak spots: only the weighted questions, weakest first more often, and nothing without weights', () => {
+        const weights = { 'note:treble:B4': 10, 'keySignature:bass:D major': 2, 'symbolMeaning:fermata': 6, 'note:treble:C5': 0 };
+        const src = source('weakSpots', {}, { seed: 3, weights });
+        assert.equal(src.size, 3);
+        assert.deepEqual(new Set(take(src, 3).map(q => q.id)), new Set(['note:treble:B4', 'keySignature:bass:D major', 'symbolMeaning:fermata']));
+        assert.equal(source('weakSpots', {}, { seed: 3 }).size, 0);
+        assert.equal(source('weakSpots', {}, { seed: 3 }).next(), null);
+        assert.equal(T.describeQuestion('note:treble:Bb4'), 'B♭4 on the treble staff');
+        assert.equal(T.describeQuestion('scale:bass:A minor:melodic'), 'A minor (melodic) scale, bass clef');
+        assert.equal(T.describeQuestion('symbolName:allegro'), 'Allegro: what it means');
+    });
+});

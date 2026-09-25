@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import pool from '../config/db.js';
 import { withStatus } from './flows.js';
+import { isFeatureEnabled } from './features.js';
 
 const sandbox = { self: {} };
 for (const f of ['notation.js', 'theoryEngine.js']) {
@@ -72,9 +73,69 @@ export async function getTheorySummary(accountId) {
   return { quizzes: byQuiz };
 }
 
+// ML-269 Smart learn: the questions this account is still learning (weight above 0), for the engine to
+// deal first. `enabled` false (feature off) means a plain shuffle and nothing recorded.
+//  - weights: what rounds deal by - the stored weight plus the review boost for anything not asked for
+//    a week or more (Theory.effectiveWeight), only those above 0.
+//  - weak: the "Your weak spots" list - stored weight above 0 only (a review boost isn't a weak spot),
+//    weakest first, with lifetime right/wrong counts.
+export async function getTheoryWeights(accountId) {
+  if (!(await isFeatureEnabled('theory_smart_learn'))) return { enabled: false, weights: {}, weak: [] };
+  const { rows } = await pool.query(
+    `SELECT question_id, weight, wrong_count, right_count, updated_at,
+            EXTRACT(EPOCH FROM (now() - updated_at)) / 86400 AS days_since
+     FROM theory_question_weights WHERE account_id = $1`,
+    [accountId]
+  );
+  const weights = {};
+  for (const r of rows) {
+    const w = Theory.effectiveWeight(r.weight, Number(r.days_since));
+    if (w > 0) weights[r.question_id] = w;
+  }
+  const weak = rows.filter(r => r.weight > 0 && Theory.itemFromId(r.question_id))
+    .sort((a, b) => b.weight - a.weight || b.wrong_count - a.wrong_count)
+    .map(r => ({ id: r.question_id, weight: r.weight, wrong: r.wrong_count, right: r.right_count, lastSeen: r.updated_at }));
+  return { enabled: true, weights, weak };
+}
+
+// Applies a finished round's answers, in order, to the weights (wrong +2, right -1, 0-10 - the engine's
+// nextWeight, so client and server can't disagree). Inside the round's own transaction.
+async function applySmartLearn(client, accountId, answers) {
+  const ids = [...new Set(answers.map(a => a.questionId))];
+  const { rows } = await client.query(
+    'SELECT question_id, weight FROM theory_question_weights WHERE account_id = $1 AND question_id = ANY($2)',
+    [accountId, ids]
+  );
+  const state = new Map(ids.map(id => [id, { weight: 0, right: 0, wrong: 0 }]));
+  for (const r of rows) state.get(r.question_id).weight = r.weight;
+  for (const a of answers) {
+    const s = state.get(a.questionId);
+    s.weight = Theory.nextWeight(s.weight, a.correct, a); // a slow right answer (over 2x par) leaves it be
+    if (a.correct) s.right++; else s.wrong++;
+  }
+  const values = [];
+  const params = [accountId];
+  [...state.entries()].forEach(([id, s], i) => {
+    const o = 2 + i * 4;
+    values.push(`($1, $${o}, $${o + 1}, $${o + 2}, $${o + 3})`);
+    params.push(id, s.weight, s.wrong, s.right);
+  });
+  await client.query(
+    `INSERT INTO theory_question_weights (account_id, question_id, weight, wrong_count, right_count)
+     VALUES ${values.join(', ')}
+     ON CONFLICT (account_id, question_id) DO UPDATE SET
+       weight = EXCLUDED.weight,
+       wrong_count = theory_question_weights.wrong_count + EXCLUDED.wrong_count,
+       right_count = theory_question_weights.right_count + EXCLUDED.right_count,
+       updated_at = now()`,
+    params
+  );
+  return [...state.values()].filter(s => s.weight > 0).length;
+}
+
 export async function saveTheoryAttempt(accountId, body) {
   const b = body || {};
-  const quizIds = plain(Theory.QUIZZES).map(q => q.id);
+  const quizIds = [...plain(Theory.QUIZZES).map(q => q.id), Theory.WEAK_SPOTS.id];
   if (!quizIds.includes(b.quizId)) throw withStatus(400, 'Unknown quiz.');
   const round = plain(Theory.ROUNDS).find(r => r.value === b.roundType);
   if (!round) throw withStatus(400, 'Unknown round type.');
@@ -98,6 +159,8 @@ export async function saveTheoryAttempt(accountId, body) {
   const options = plain(Theory.normaliseOptions(b.quizId, b.options));
   const settingsKey = Theory.settingsKey(b.quizId, options, round.value);
   const { right, wrong, score, grade } = plain(Theory.scoreRound(round.value, answers));
+  const smartLearn = await isFeatureEnabled('theory_smart_learn');
+  let learning = null; // Smart learn: how many of this round's questions are still being learned
 
   const client = await pool.connect();
   try {
@@ -120,12 +183,14 @@ export async function saveTheoryAttempt(accountId, body) {
         params.push(a.seq, a.q, a.a, a.c, a.ms);
       });
       await client.query(`INSERT INTO theory_quiz_answers (attempt_id, seq, question_id, answer_id, correct, ms) VALUES ${values.join(', ')}`, params);
+      if (smartLearn) learning = await applySmartLearn(client, accountId, answers);
     }
     const after = await historyFor(client, accountId, settingsKey);
     await client.query('COMMIT');
     return {
       attempt,
       // A new best only when it beats one there already - the very first round is just "first".
+      smartLearn: smartLearn ? { learning } : null,
       isFirst: !before.best,
       isNewBest: !!before.best && after.best && after.best.id === attempt.id,
       previousBest: before.best,

@@ -82,8 +82,11 @@
         advanced: { range: 4, accidentals: ['sharps', 'flats'], upTo: 7, modes: 'both', minorForm: 'both', sets: ['everything'] },
     };
 
+    // Smart learn only (ML-269): a round of just the questions you've been missing, from any quiz. Not in
+    // QUIZZES - the list screen adds it when Smart learn is on.
+    const WEAK_SPOTS = { id: 'weakSpots', title: 'Your weak spots', icon: 'coda', smartOnly: true, options: [] };
     function quiz(id) {
-        const q = QUIZZES.find(x => x.id === id);
+        const q = QUIZZES.find(x => x.id === id) || (id === WEAK_SPOTS.id ? WEAK_SPOTS : null);
         if (!q) throw new Error(`Unknown quiz: ${id}`);
         return q;
     }
@@ -149,13 +152,16 @@
     }
     // Deals every item once, in a shuffled order, then reshuffles - never the same item twice running
     // (across a reshuffle too), unless there's only one.
-    function makeDeck(items, rng, idOf) {
+    // With weightOf (Smart learn, ML-269) each deal is a weighted shuffle instead: see smartOrder.
+    function makeDeck(items, rng, idOf, weightOf) {
         let deck = [], last = null;
         return {
             size: items.length,
             next() {
                 if (!deck.length) {
-                    deck = rng.shuffle(items);
+                    // Nothing weighted (yet) is exactly the plain shuffle.
+                    const weighted = weightOf && items.some(it => weightOf(idOf(it)) > 0);
+                    deck = weighted ? smartOrder(items, rng, (it) => weightOf(idOf(it))).reverse() : rng.shuffle(items);
                     const top = deck.length - 1;
                     if (deck.length > 1 && idOf(deck[top]) === last) [deck[0], deck[top]] = [deck[top], deck[0]];
                 }
@@ -164,6 +170,49 @@
                 return it;
             },
         };
+    }
+
+    // ---------------------------------------------------------------- Smart learn (ML-269)
+
+    // Every question has a weight from 0 (known) to 10, per person: wrong +2, right -1, never below 0 or
+    // above 10 - so 5 wrongs reach the top, and it takes 2 rights to undo each wrong. Smart learn doesn't
+    // change WHAT a round asks, only the ORDER each deal comes in: every question still comes round once
+    // per deal, but the ones you get wrong come early - and in a timed round, early is what gets asked.
+    //
+    // The order is a weighted random shuffle (Efraimidis-Spirakis weighted sampling): each question gets
+    // the key random^(1 / (1 + weight x strength)) and the deal runs from the highest key down. That makes
+    // each next question exactly (1 + weight x strength) times as likely to be picked as one you know:
+    // 6x at a weight of 10, 3x at 4. All weights 0 is a plain shuffle. (This replaced the first idea,
+    // 0.75 x random + 0.25 x random x weight/10, which caps the boost at a quarter of the range: in
+    // simulation a weight-10 question in 30 moved only from 15th to 11th on average, against 5th here.)
+    //
+    // Four refinements (ML-269, agreed 2026-09-25):
+    //  1. A missed question comes back later in the SAME round, retryGap questions on (again if it's
+    //     missed again) - a quick correction instead of waiting for the next deal.
+    //  2. Review: a question not asked for reviewAfterDays gets a temporary boost (+1 per reviewStepDays
+    //     after that, up to reviewMax), so things you knew a while ago come back to be checked. Applied
+    //     when the weights are loaded (effectiveWeight) - the stored weight itself only moves with answers.
+    //  3. A right answer slower than slowFactor x the question's par time doesn't lower the weight: you
+    //     got there, but it isn't known yet.
+    //  4. "Your weak spots": a round of only the questions with a weight (see the weakSpots quiz below).
+    const SMART = { max: 10, wrongStep: 2, rightStep: 1, strength: 0.5, retryGap: 3, slowFactor: 2, reviewAfterDays: 7, reviewStepDays: 7, reviewMax: 3 };
+    // answer (optional): { questionId, ms } - a right answer slower than slowFactor x par leaves it be.
+    function nextWeight(weight, correct, answer) {
+        const w = Number(weight) || 0;
+        if (!correct) return Math.min(SMART.max, w + SMART.wrongStep);
+        const slow = answer && answer.ms > SMART.slowFactor * parOf(answer.questionId) * 1000;
+        return slow ? w : Math.max(0, w - SMART.rightStep);
+    }
+    function reviewBoost(daysSinceSeen) {
+        if (!(daysSinceSeen >= SMART.reviewAfterDays)) return 0;
+        return Math.min(SMART.reviewMax, 1 + Math.floor((daysSinceSeen - SMART.reviewAfterDays) / SMART.reviewStepDays));
+    }
+    const effectiveWeight = (stored, daysSinceSeen) => Math.min(SMART.max, (Number(stored) || 0) + reviewBoost(daysSinceSeen));
+    function smartOrder(items, rng, weightOf) {
+        return items
+            .map(it => ({ it, key: Math.pow(rng() || Number.MIN_VALUE, 1 / (1 + SMART.strength * (weightOf(it) || 0))) }))
+            .sort((a, b) => b.key - a.key)
+            .map(x => x.it);
     }
 
     // ---------------------------------------------------------------- note names
@@ -452,8 +501,50 @@
 
     // ---------------------------------------------------------------- question source
 
-    // Every distinct question a quiz can ask with these options.
-    function itemsFor(quizId, opts) {
+    // Rebuilds a question from its id (the key its Smart learn weight is stored under) - how "Your weak
+    // spots" asks exactly the questions you've missed, whichever quiz first asked them. null if the id
+    // isn't a question this version knows (a renamed symbol, say).
+    function itemFromId(id) {
+        const [type, a, b, c] = String(id).split(':');
+        if (type === 'note') {
+            const m = /^([A-G][#b]?)(-?\d+)$/.exec(b || '');
+            if (!Notation.CLEFS[a] || !m) return null;
+            const st = Notation.staffStep(b, a);
+            const range = [0, 2, 4, 6].find(r => st >= RANGE_STEPS[r][0] && st <= RANGE_STEPS[r][1]);
+            if (range === undefined) return null;
+            const acc = m[1].includes('#') ? 'sharps' : m[1].includes('b') ? 'flats' : 'none';
+            return { type, clef: a, name: m[1], pitch: b, acc, range };
+        }
+        if (type === 'keySignature' || type === 'scale') {
+            const key = ALL_KEYS.find(k => k.id === b);
+            if (!Notation.CLEFS[a] || !key) return null;
+            if (type === 'keySignature') return { type, key, clef: a };
+            const form = key.mode === 'minor' ? (c === 'melodic' ? 'melodic' : 'harmonic') : null;
+            return { type, key, clef: a, form, includeRelative: true };
+        }
+        if (type === 'symbolName' || type === 'symbolMeaning') {
+            const sym = SYMBOLS.find(s => s.id === a);
+            return sym ? { type, sym, sets: [sym.set] } : null;
+        }
+        return null;
+    }
+    // A plain-words name for a question, for the weak spots list ("B♭4 on the treble staff").
+    function describeQuestion(id, naming) {
+        const it = itemFromId(id);
+        if (!it) return null;
+        if (it.type === 'note') { const m = /^([A-G][#b]?)(-?\d+)$/.exec(it.pitch); return `${spellName(m[1], naming)}${m[2]} on the ${it.clef} staff`; }
+        if (it.type === 'keySignature') return `${keyLabel(it.key, naming)} key signature, ${it.clef} clef`;
+        if (it.type === 'scale') return `${keyLabel(it.key, naming)}${it.form ? ` (${it.form})` : ''} scale, ${it.clef} clef`;
+        const term = it.sym.set === 'terms';
+        return it.type === 'symbolName' ? `${it.sym.name}: ${term ? 'what it means' : 'its name'}` : `${it.sym.name}: from its meaning`;
+    }
+
+    // Every distinct question a quiz can ask with these options. weakSpots asks the questions that have
+    // a Smart learn weight (from the weights passed in), nothing else.
+    function itemsFor(quizId, opts, weights) {
+        if (quizId === 'weakSpots') {
+            return { weak: Object.keys(weights || {}).filter(id => weights[id] > 0).map(itemFromId).filter(Boolean) };
+        }
         if (quizId === 'noteNames') return { note: noteItems(opts.clefs, opts.range, [opts.accidentals]) };
         if (quizId === 'keys') return { keys: keyItems(opts.clefs, opts) };
         if (quizId === 'symbols') return { symbols: symbolItems(opts.set === 'everything' ? ['everything'] : [opts.set], opts.ask) };
@@ -470,8 +561,12 @@
         }
         return quiz(quizId); // throws
     }
-    const itemKey = (it) => it.type === 'note' ? `${it.clef}:${it.pitch}` : it.type === 'keySignature' ? `${it.clef}:${it.key.id}`
-        : it.type === 'scale' ? `${it.clef}:${it.key.id}:${it.form}` : `${it.type}:${it.sym.id}`;
+    // The question id each item becomes (the same as the question builders') - what Smart learn weights
+    // are stored under.
+    const itemKey = (it) => it.type === 'note' ? `note:${it.clef}:${it.pitch}`
+        : it.type === 'keySignature' ? `keySignature:${it.clef}:${it.key.id}`
+        : it.type === 'scale' ? `scale:${it.clef}:${it.key.id}${it.key.mode === 'minor' ? `:${it.form}` : ''}`
+        : `${it.type}:${it.sym.id}`;
     function build(item, rng, naming) {
         if (item.type === 'note') return noteQuestion(item, naming);
         if (item.type === 'keySignature') return keySignatureQuestion(item, rng, naming);
@@ -482,16 +577,40 @@
     // Deals the quiz's questions in a shuffled order, each once before any repeats. Mixed takes the
     // question types in turn (shuffled, each type once per turn) so no one type swamps the round, and
     // each type deals its own questions the same way. `size` is how many different questions there are.
-    function questionSource(quizId, rawOptions, { seed = Date.now(), naming = 'letters' } = {}) {
+    // weights ({ questionId: 0-10 }, Smart learn only): each deal is weighted to put your weak questions
+    // first, and record() updates them as the round goes, so a later deal in the same round uses them
+    // too. Without weights it's a plain shuffle with no memory.
+    // With Smart learn, a missed question is also queued to come back retryGap questions later in the
+    // same round (and again if it's missed again).
+    function questionSource(quizId, rawOptions, { seed = Date.now(), naming = 'letters', weights = null } = {}) {
         const opts = normaliseOptions(quizId, rawOptions);
         const rng = makeRng(seed);
-        const groups = Object.entries(itemsFor(quizId, opts)).filter(([, items]) => items.length);
-        const decks = groups.map(([type, items]) => ({ type, deck: makeDeck(items, rng, itemKey) }));
-        const typeDeck = makeDeck(decks, rng, (d) => d.type);
+        const w = weights ? { ...weights } : null;
+        const weightOf = w ? (id) => w[id] || 0 : null;
+        const groups = Object.entries(itemsFor(quizId, opts, w)).filter(([, items]) => items.length);
+        const decks = groups.map(([type, items]) => ({ type, deck: makeDeck(items, rng, itemKey, weightOf) }));
+        const typeDeck = decks.length ? makeDeck(decks, rng, (d) => d.type) : null;
+        const byId = new Map(groups.flatMap(([, items]) => items.map(it => [itemKey(it), it])));
+        const retries = []; // [{ id, due }] - due counts down one per question dealt
+        let lastId = null;
         return {
             options: opts,
-            size: decks.reduce((sum, d) => sum + d.deck.size, 0),
-            next() { return build(typeDeck.next().deck.next(), rng, naming); },
+            smart: !!w,
+            size: byId.size,
+            next() {
+                if (!typeDeck) return null;
+                for (const r of retries) r.due--;
+                const i = retries.findIndex(r => r.due <= 0 && r.id !== lastId);
+                const item = i >= 0 ? byId.get(retries.splice(i, 1)[0].id) : typeDeck.next().deck.next();
+                lastId = itemKey(item);
+                return build(item, rng, naming);
+            },
+            // ms: how long the answer took (a slow right answer doesn't lower the weight).
+            record(questionId, correct, ms) {
+                if (!w) return;
+                w[questionId] = nextWeight(w[questionId], correct, { questionId, ms });
+                if (!correct && byId.has(questionId) && !retries.some(r => r.id === questionId)) retries.push({ id: questionId, due: SMART.retryGap });
+            },
         };
     }
 
@@ -527,7 +646,7 @@
     return {
         QUIZZES, ROUNDS, DEFAULT_ROUND, SYMBOLS, SET_IDS, KEY_TABLE, RANGE_STEPS, NOTE_BUTTONS, MIXED_LEVELS, TIMING, GRADE_LIMITS, PAR,
         quiz, round, normaliseOptions, optionVisible, settingsKey, describeOptions,
-        makeRng, questionSource, itemsFor, scalePitches, keyPool, keyAlters, noteItems, parOf,
+        makeRng, questionSource, itemsFor, SMART, nextWeight, smartOrder, reviewBoost, effectiveWeight, itemFromId, describeQuestion, WEAK_SPOTS, scalePitches, keyPool, keyAlters, noteItems, parOf,
         spell, spellName, scoreRound, gradeFor, ALL_KEYS
     };
 }));
