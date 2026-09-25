@@ -334,6 +334,13 @@
       "fg": "--danger-text",
       "bg": "--input-bg",
       "use": "Theory: the wrong answer button (text, cross and border) - ML-260"
+    },
+    {
+      "kind": "text",
+      "fg": "--primary-action-strong",
+      "bg": "--primary-action-tint",
+      "over": "--container-bg",
+      "use": "Menu: the current screen's row (text and icon) on its gold wash - ML-259"
     }
   ]
 }

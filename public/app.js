@@ -627,7 +627,6 @@
         renderNotificationIndicators();
         document.getElementById('feedbackNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('feedback'));
         document.getElementById('theoryToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('theory_practice'));
-        document.getElementById('theoryNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('theory_practice'));
     }
 
     // ML-204: one start-screen option and one import screen, shared by two gates - MusicXML
@@ -755,26 +754,59 @@
     // ========================================
     // BURGER MENU LOGIC
     // ========================================
-    // ML-135: Tools/Progress are staged sub-screens of the same dropdown (see the HTML comment above
-    // #burgerDropdown) rather than a hover flyout - resetBurgerMenu always puts it back at the main
-    // level before it opens, so leaving it mid-submenu one time doesn't strand it there next time.
-    function resetBurgerMenu() {
-        document.getElementById('burgerMenuTools')?.classList.add('hidden-group');
-        document.getElementById('burgerMenuProgress')?.classList.add('hidden-group');
-        document.getElementById('burgerMenuMain')?.classList.remove('hidden-group');
+    // ML-259 (also ML-222): one grouped menu, no sub-screens (they replaced ML-135's Tools/Progress
+    // sub-screens). Each time it opens: the tools row is rebuilt from the home screen's own tool tiles
+    // (same icons, same order, and a tile hidden on home - Theory behind its feature gate - is hidden
+    // here too), the screen you're on is marked, and the account name/email and version are filled in.
+    function renderNavToolsRow() {
+        const row = document.getElementById('navToolsRow');
+        if (!row) return;
+        row.innerHTML = '';
+        document.querySelectorAll('#mainView .tool-icon-row .tool-icon-btn').forEach(tile => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'nav-tool' + (tile.classList.contains('hidden-group') ? ' hidden-group' : '');
+            const view = (/switchView\('([^']+)'\)/.exec(tile.getAttribute('onclick') || '') || [])[1];
+            if (view) b.dataset.view = view;
+            const icon = tile.querySelector('.tool-icon-svg, .material-symbols-outlined');
+            if (icon) { const c = icon.cloneNode(true); c.removeAttribute('id'); c.setAttribute('aria-hidden', 'true'); b.appendChild(c); }
+            const label = document.createElement('span');
+            label.className = 'nav-tool-label';
+            label.textContent = tile.querySelector('.tool-icon-label')?.textContent || tile.getAttribute('aria-label') || '';
+            b.appendChild(label);
+            b.addEventListener('click', () => { if (view) switchView(view); closeMenu(); });
+            row.appendChild(b);
+        });
     }
-    window.openBurgerSubmenu = function(id, e) {
-        // Without this, the click bubbles up to the document-level listener just below (which closes
-        // the whole dropdown on any outside click) and undoes the submenu switch in the same tick.
-        e?.stopPropagation();
-        document.getElementById('burgerMenuMain')?.classList.add('hidden-group');
-        document.getElementById('burgerMenuTools')?.classList.add('hidden-group');
-        document.getElementById('burgerMenuProgress')?.classList.add('hidden-group');
-        document.getElementById(id)?.classList.remove('hidden-group');
+    // The current screen: its own item, or for a screen the menu doesn't list directly (a tool's inner
+    // screens, Flow's editor...), the item it belongs under.
+    const NAV_PARENT_VIEW = { flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'metroBuilderView',
+        theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
+        challengeSelectView: 'manageChallengesView', challengePlayView: 'manageChallengesView', challengeSummaryView: 'manageChallengesView', editChallengeView: 'manageChallengesView' };
+    function markNavCurrent() {
+        const top = viewStack[viewStack.length - 1] || 'mainView';
+        const current = NAV_PARENT_VIEW[top] || top;
+        document.querySelectorAll('#burgerDropdown [data-view]').forEach(el => {
+            if (el.dataset.view === current) el.setAttribute('aria-current', 'page');
+            else el.removeAttribute('aria-current');
+        });
     }
-    window.closeBurgerSubmenu = function(e) {
-        e?.stopPropagation();
-        resetBurgerMenu();
+    // Who you're signed in as (name by My account, email under Log out) - fetched once, and refreshed
+    // whenever My account loads the profile (loadAccountView calls setNavAccount).
+    let navAccountLoaded = false;
+    function setNavAccount(profile) {
+        navAccountLoaded = true;
+        document.getElementById('navAccountName').textContent = profile.firstName || '';
+        document.getElementById('navAccountEmail').textContent = profile.email || '';
+    }
+    async function renderNavMenu() {
+        renderNavToolsRow();
+        markNavCurrent();
+        const version = runningAppVersion || latestAppVersion;
+        document.getElementById('navAppVersion').textContent = version ? `v${version}` : '';
+        if (!navAccountLoaded) {
+            try { setNavAccount(await API.account.get()); } catch (e) { /* the menu works without it */ }
+        }
     }
     // ML-162: every popup menu on the metronome pages (this burger menu, Blocks' per-tile 3-dot menu,
     // Quick Play's per-bar 3-dot menu, the mini tuner's 3-dot menu) stops propagation on its own
@@ -796,12 +828,16 @@
         closeAllMetroPopupMenus();
         if (opening) {
             dropdown.classList.add('show');
-            resetBurgerMenu();
+            renderNavMenu();
         }
     });
     document.addEventListener('click', () => {
         const dropdown = document.getElementById('burgerDropdown');
         if(dropdown) dropdown.classList.remove('show');
+    });
+    // A tap on a section title, a divider or the menu's padding isn't a choice - keep the menu open.
+    document.getElementById('burgerDropdown')?.addEventListener('click', (e) => {
+        if (!e.target.closest('button, a')) e.stopPropagation();
     });
     function closeMenu() {
         const dropdown = document.getElementById('burgerDropdown');
@@ -3102,6 +3138,7 @@
             document.getElementById('accountFirstNameInput').value = profile.firstName || '';
             document.getElementById('accountSurnameInput').value = profile.surname || '';
             document.getElementById('accountEmailReadout').innerText = profile.email;
+            setNavAccount(profile); // ML-259: keep the menu's name and email in step
             document.getElementById('accountLevelReadout').innerText = ACCOUNT_LEVEL_LABELS[profile.accountLevel] || profile.accountLevel;
             document.getElementById('accountJoinedReadout').innerText = profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : '-';
         } catch (error) {

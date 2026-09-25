@@ -1,7 +1,7 @@
 # Dropdown menu
 
 ## 1. Metadata
-- **Name:** Dropdown menu (`.dropdown-menu`, `.dropdown-item`, `.burger-submenu-back`, `.account-band-menu`)
+- **Name:** Dropdown menu (`.dropdown-menu`, `.dropdown-item`, `.account-band-menu`) and the ☰ navigation menu (`.nav-menu`, `.nav-item`, `.nav-item-icon`, `.nav-item-text`, `.nav-item-meta`, `.nav-item-sub`, `.nav-divider`, `.nav-section-title`, `.nav-tools`, `.nav-tool`, `.nav-tool-label`)
 - **Category:** Navigation / overlays
 - **Status:** Stable
 
@@ -11,19 +11,31 @@ per-row "more" menus (`.account-band-menu`, positioned by JS next to the ⋮ but
 **Don't use** for choosing a value. Use [selectable-tile](selectable-tile.md) or a `<select>`.
 
 ## 3. Anatomy
-`.dropdown-menu` (add `.show` to open) › `.dropdown-item` × n (optionally `.burger-submenu-back` first, destructive item last)
+`.dropdown-menu` (add `.show` to open) › `.dropdown-item` × n (destructive item last)
+
+**Navigation menu (☰, ML-259 / ML-222):** `.dropdown-menu.nav-menu` › groups, each after a `.nav-divider` line and most with a `.nav-section-title`:
+
+1. Home, Notifications (with its `.notif-count`).
+2. Tools: `.nav-tools`, a 5-column row of `.nav-tool` tiles (icon › `.nav-tool-label`). It is **built from the home screen's own tool tiles** each time the menu opens (`renderNavToolsRow`), so the icons, the order and any hidden tool (Theory behind its feature gate) always match home.
+3. Progress: Stats, Streaks, Session history, Challenges.
+4. You: My account (first name as `.nav-item-meta`), Settings, Administration (super admins).
+5. Send feedback, About (version as `.nav-item-meta`).
+6. Log out on its own, last, with the signed-in email under it as a `.nav-item-sub` line.
+
+Each row is a `.dropdown-item.nav-item`: `.nav-item-icon` (a Material Symbol) › `.nav-item-text` (the label, optionally with a `.nav-item-sub` line under it) › optional `.nav-item-meta` at the right. There's no line between rows, only between groups. No sub-screens: they replaced ML-135's Tools/Progress sub-screens, so every destination is one tap.
 
 ## 4. Tokens used
 `--container-bg`, `--input-border` (outline + separators), `--input-bg` (hover), `--text-color`,
-`--label-color` (back row), `--danger-color` (delete item), `--radius-sm`, `--shadow-xl`, `--z-dropdown`,
-`--space-3`, `--space-4`, `--font-weight-bold`, `--font-weight-normal`.
+`--label-color` (icons, meta and sub text, section titles), `--danger-color` (delete item), `--radius-sm`, `--shadow-xl`, `--z-dropdown`,
+`--space-1`…`--space-4`, `--space-6`, `--font-weight-bold`, `--font-weight-semibold`, `--font-weight-normal`.
+Navigation menu: `--touch-target` (row and tile height), `--icon-md` (row icons), `--icon-lg` (tile icons), `--font-xs` (section titles, tile labels, sub line), `--font-sm` (meta), `--input-bg` (tiles), `--radius-md` (tiles), `--primary-action-tint` + `--primary-action-strong` (current screen).
 
 ## 5. Props / API
 - Hide an inapplicable item with `.hidden-group`. Don't disable it. Separators are drawn only between *visible* items.
 - Row menus: one shared `.dropdown-menu.account-band-menu` element, `position: fixed`, placed by JS.
 
 ## 6. States
-Default · Hover (`--input-bg`) · Focus (`--focus-ring`) · Destructive item (`--danger-color` text, top border).
+Default · Hover (`--input-bg`) · Focus (`--focus-ring`) · Destructive item (`--danger-color` text, top border) · **Current screen** (navigation menu: `aria-current="page"`, the selected gold: `--primary-action-tint` wash, `--primary-action-strong` text and icon). A screen the menu doesn't list marks the item it belongs under (Flow's editor marks Flow; see `NAV_PARENT_VIEW`).
 
 ## 7. Code example
 ```html
@@ -40,5 +52,6 @@ Default · Hover (`--input-bg`) · Focus (`--focus-ring`) · Destructive item (`
 - Items are `<button type="button" class="dropdown-item">` (or `<a href>` for real links).
 - a11y.js: Escape closes and returns focus to the opener; ↑/↓ move between items; opened from the keyboard, focus lands on the first item.
 - Hide inapplicable items with `.hidden-group` (removes them from the Tab order too).
+- Navigation menu: section titles and dividers aren't focusable (`role="separator"` on dividers); the tools row is a `role="group"` named by its title; the current screen is `aria-current="page"`, which is announced, and never colour alone (the icon and text change too). Tapping a title or divider leaves the menu open. It scrolls inside itself on a short screen.
 
 See [accessibility foundation](../foundations/accessibility.md).

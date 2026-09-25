@@ -79,44 +79,45 @@
                  Notifications is unread, or this device is running an older release than the server
                  (renderNotificationIndicators). -->
             <button class="top-btn" id="navBurgerMenuBtn" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">☰<span class="notif-dot hidden-group" id="navNotifDot" aria-hidden="true"></span></button>
-            <!-- ML-135: Tools and Progress are staged sub-screens of the same dropdown rather than a
-                 hover flyout - this is a touch app first, and hover has no mobile equivalent. Only one
-                 of #burgerMenuMain/-Tools/-Progress is ever shown at once (see openBurgerSubmenu/
-                 closeBurgerSubmenu); the menu always reopens at the main level (resetBurgerMenu). -->
-            <div id="burgerDropdown" class="dropdown-menu">
-                <div id="burgerMenuMain">
-                    <button type="button" class="dropdown-item" onclick="switchView('mainView'); closeMenu();">Home</button>
-                    <!-- ML-201: gated by the `notifications` feature (renderFeatureGates). -->
-                    <button type="button" class="dropdown-item hidden-group" id="notificationsNavItem" onclick="switchView('notificationsView'); closeMenu();">Notifications <span class="notif-count hidden-group" id="notificationsNavCount"></span></button>
-                    <button type="button" class="dropdown-item" onclick="openBurgerSubmenu('burgerMenuTools', event)">Tools&hellip;</button>
-                    <button type="button" class="dropdown-item" onclick="openBurgerSubmenu('burgerMenuProgress', event)">Progress&hellip;</button>
-                    <button type="button" class="dropdown-item" onclick="switchView('manageChallengesView'); closeMenu();">Manage challenges</button>
-                    <button type="button" class="dropdown-item" onclick="switchView('accountView'); closeMenu();">My account</button>
-                    <button type="button" class="dropdown-item" onclick="switchView('settingsView'); closeMenu();">Settings</button>
-                    <!-- ML-77: admin.html itself gates to Super admin accounts - this link is
-                         hidden for everyone else (see syncAdminLinkVisibility) so it isn't
-                         dangled in front of accounts that would just bounce off a notice. -->
-                    <a class="dropdown-item hidden-group" id="adminNavLink" href="/admin.html">Administration</a>
-                    <!-- ML-170: deliberately here rather than on a view of its own - the point is to
-                         be reachable from wherever the problem was just noticed, without navigating
-                         away from it first. Gated by the `feedback` feature (renderFeatureGates). -->
-                    <button type="button" class="dropdown-item" id="feedbackNavItem" aria-haspopup="dialog" onclick="closeMenu(); openFeedbackModal();">Send feedback</button>
-                    <button type="button" class="dropdown-item" onclick="switchView('aboutView'); closeMenu();">About</button>
-                    <button type="button" class="dropdown-item" onclick="closeMenu(); logoutUser();">Log out</button>
-                </div>
-                <div id="burgerMenuTools" class="hidden-group">
-                    <button type="button" class="dropdown-item burger-submenu-back" onclick="closeBurgerSubmenu(event)">&larr; Back</button>
-                    <button type="button" class="dropdown-item" onclick="switchView('quickPlayView'); closeMenu();">Metronome</button>
-                    <button type="button" class="dropdown-item" onclick="switchView('metroBuilderView'); closeMenu();">Flow</button>
-                    <button type="button" class="dropdown-item" onclick="switchView('tunerView'); closeMenu();">Tuner</button>
-                    <button type="button" class="dropdown-item" onclick="switchView('timerView'); closeMenu();">Timer</button>
-                    <button type="button" class="dropdown-item hidden-group" id="theoryNavItem" onclick="switchView('theoryView'); closeMenu();">Theory</button>
-                </div>
-                <div id="burgerMenuProgress" class="hidden-group">
-                    <button type="button" class="dropdown-item burger-submenu-back" onclick="closeBurgerSubmenu(event)">&larr; Back</button>
-                    <button type="button" class="dropdown-item" onclick="switchView('historyView'); closeMenu();">View session history</button>
-                    <button type="button" class="dropdown-item" onclick="switchView('statsView'); closeMenu();">View stats</button>
-                </div>
+            <!-- ML-259 (also ML-222): one grouped menu - no sub-screens. Groups are split by
+                 .nav-divider lines, each item has an icon, the tools are a row of tiles copied from the
+                 home screen's own (renderNavToolsRow, so the icons, order and Theory's feature gate
+                 always match), and the screen you're on is marked aria-current (markNavCurrent). -->
+            <div id="burgerDropdown" class="dropdown-menu nav-menu">
+                <button type="button" class="dropdown-item nav-item" data-view="mainView" onclick="switchView('mainView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">home</span><span class="nav-item-text">Home</span></button>
+                <!-- ML-201: gated by the `notifications` feature (renderFeatureGates). -->
+                <button type="button" class="dropdown-item nav-item hidden-group" id="notificationsNavItem" data-view="notificationsView" onclick="switchView('notificationsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">notifications</span><span class="nav-item-text">Notifications</span><span class="notif-count hidden-group" id="notificationsNavCount"></span></button>
+
+                <div class="nav-divider" role="separator"></div>
+                <div class="nav-section-title" id="navToolsTitle">Tools</div>
+                <div class="nav-tools" id="navToolsRow" role="group" aria-labelledby="navToolsTitle"></div>
+
+                <div class="nav-divider" role="separator"></div>
+                <div class="nav-section-title">Progress</div>
+                <button type="button" class="dropdown-item nav-item" data-view="statsView" onclick="switchView('statsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">bar_chart</span><span class="nav-item-text">Stats</span></button>
+                <button type="button" class="dropdown-item nav-item" data-view="streakStatsView" onclick="switchView('streakStatsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">local_fire_department</span><span class="nav-item-text">Streaks</span></button>
+                <button type="button" class="dropdown-item nav-item" data-view="historyView" onclick="switchView('historyView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">history</span><span class="nav-item-text">Session history</span></button>
+                <button type="button" class="dropdown-item nav-item" data-view="manageChallengesView" onclick="switchView('manageChallengesView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">emoji_events</span><span class="nav-item-text">Challenges</span></button>
+
+                <div class="nav-divider" role="separator"></div>
+                <div class="nav-section-title">You</div>
+                <button type="button" class="dropdown-item nav-item" data-view="accountView" onclick="switchView('accountView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">person</span><span class="nav-item-text">My account</span><span class="nav-item-meta" id="navAccountName"></span></button>
+                <button type="button" class="dropdown-item nav-item" data-view="settingsView" onclick="switchView('settingsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">settings</span><span class="nav-item-text">Settings</span></button>
+                <!-- ML-77: admin.html itself gates to Super admin accounts - this link is
+                     hidden for everyone else (see syncAdminLinkVisibility) so it isn't
+                     dangled in front of accounts that would just bounce off a notice. -->
+                <a class="dropdown-item nav-item hidden-group" id="adminNavLink" href="/admin.html"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">admin_panel_settings</span><span class="nav-item-text">Administration</span></a>
+
+                <div class="nav-divider" role="separator"></div>
+                <!-- ML-170: deliberately here rather than on a view of its own - the point is to
+                     be reachable from wherever the problem was just noticed, without navigating
+                     away from it first. Gated by the `feedback` feature (renderFeatureGates). -->
+                <button type="button" class="dropdown-item nav-item" id="feedbackNavItem" aria-haspopup="dialog" onclick="closeMenu(); openFeedbackModal();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">chat</span><span class="nav-item-text">Send feedback</span></button>
+                <button type="button" class="dropdown-item nav-item" data-view="aboutView" onclick="switchView('aboutView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">info</span><span class="nav-item-text">About</span><span class="nav-item-meta" id="navAppVersion"></span></button>
+
+                <div class="nav-divider" role="separator"></div>
+                <!-- Log out on its own at the bottom, with the account it signs out of underneath. -->
+                <button type="button" class="dropdown-item nav-item" onclick="closeMenu(); logoutUser();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">logout</span><span class="nav-item-text">Log out<span class="nav-item-sub" id="navAccountEmail"></span></span></button>
             </div>
         </div>
     </div>

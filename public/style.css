@@ -90,9 +90,26 @@
        one, regardless of how many hidden rows follow it in the DOM. */
     .dropdown-item:not(.hidden-group):has(~ .dropdown-item:not(.hidden-group)) { border-bottom: 1px solid var(--input-border); }
     .dropdown-item:hover { background: var(--input-bg); }
-    /* ML-135: Tools/Progress sub-screens' own "Back" row - lighter weight than a real destination
-       item so it doesn't compete with the actual menu choices below it. */
-    .burger-submenu-back { font-weight: var(--font-weight-normal); color: var(--label-color); }
+    /* ML-259 (also ML-222): the ☰ menu - grouped, an icon on every row, lines between groups (not
+       between every row), the tools as a row of tiles, the current screen marked. See
+       specs/components/dropdown-menu.md ("Navigation menu"). The ID keeps these rules above the
+       generic per-row separator above. */
+    .nav-menu { min-width: 320px; max-width: calc(100vw - var(--space-6)); max-height: calc(100dvh - var(--touch-target) - var(--space-6)); overflow-y: auto; padding: var(--space-1) 0; }
+    #burgerDropdown .dropdown-item { border-bottom: none; }
+    .nav-item { display: flex; align-items: center; gap: var(--space-3); min-height: var(--touch-target); font-weight: var(--font-weight-semibold); }
+    .nav-item-icon { font-size: var(--icon-md); color: var(--label-color); flex: 0 0 auto; }
+    .nav-item-text { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+    .nav-item-meta { flex: 0 0 auto; font-size: var(--font-sm); font-weight: var(--font-weight-normal); color: var(--label-color); }
+    .nav-item-sub { font-size: var(--font-xs); font-weight: var(--font-weight-normal); color: var(--label-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nav-item[aria-current="page"], .nav-tool[aria-current="page"] { background: var(--primary-action-tint); color: var(--primary-action-strong); }
+    .nav-item[aria-current="page"] .nav-item-icon { color: var(--primary-action-strong); }
+    .nav-divider { border-top: 1px solid var(--input-border); margin: var(--space-1) 0; }
+    .nav-section-title { font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--label-color); padding: var(--space-1) var(--space-4) 0; }
+    .nav-tools { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-2); }
+    .nav-tool { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); min-height: var(--touch-target); padding: var(--space-2) 0; background: var(--input-bg); color: var(--text-color); border: none; border-radius: var(--radius-md); font: inherit; cursor: pointer; }
+    .nav-tool .tool-icon-svg { width: var(--icon-lg); height: var(--icon-lg); }
+    .nav-tool .material-symbols-outlined { font-size: var(--icon-lg); }
+    .nav-tool-label { font-size: var(--font-xs); font-weight: var(--font-weight-semibold); }
     /* One shared floating menu, repositioned via JS against whichever row's own "more" button opened
        it (same pattern as .metroBlk-tile-menu) - overrides .dropdown-menu's own absolute/top:100%/
        right:20px (built for the single fixed-position burger menu) so JS can freely set left/top. */
