@@ -1,5 +1,131 @@
 [
   {
+    "version": "0.27.0",
+    "date": "2026-09-25",
+    "changes": [
+      {
+        "key": "ML-286",
+        "type": "Fixes",
+        "summary": "Site-wide: make every screen follow \"lighter = tappable\""
+      },
+      {
+        "key": "ML-284",
+        "type": "New",
+        "summary": "Update the icons for the 1, 2 and 4 col options"
+      },
+      {
+        "key": "ML-283",
+        "type": "New",
+        "summary": "Need the tuner on the play flow top menu bar "
+      },
+      {
+        "key": "ML-282",
+        "type": "New",
+        "summary": "Settings area to have sub menu buttons"
+      },
+      {
+        "key": "ML-281",
+        "type": "Fixes",
+        "summary": "Flow Pauses and Ramps pop-ups break the \"lighter = tappable\" rule"
+      },
+      {
+        "key": "ML-280",
+        "type": "Fixes",
+        "summary": "Metronome box changes height bar by bar when some bars have fermatas or caesuras"
+      },
+      {
+        "key": "ML-271",
+        "type": "New",
+        "summary": "Left align top titles as centreing is off when icons show"
+      },
+      {
+        "key": "ML-269",
+        "type": "New",
+        "summary": "Theory smart learn: focus practice on the questions you get wrong"
+      },
+      {
+        "key": "ML-260",
+        "type": "New",
+        "summary": "Create a theory practise section"
+      },
+      {
+        "key": "ML-259",
+        "type": "New",
+        "summary": "Menu options need to have icons next to them and be better grouped together with lines"
+      },
+      {
+        "key": "ML-258",
+        "type": "Fixes",
+        "summary": "Tuner: history pause button announces the wrong pressed state to screen readers"
+      },
+      {
+        "key": "ML-257",
+        "type": "Fixes",
+        "summary": "Tuner: instrument/transposition names ignore the solfège note-name setting"
+      },
+      {
+        "key": "ML-256",
+        "type": "Fixes",
+        "summary": "Play Flow: a fermata is held one beat longer than its set length"
+      },
+      {
+        "key": "ML-255",
+        "type": "Fixes",
+        "summary": "Play Flow: fermata lands on the wrong beat in compound metres (6/8, 9/8, 12/8, 6/4)"
+      },
+      {
+        "key": "ML-254",
+        "type": "Fixes",
+        "summary": "Play Flow: fermata glyph and \"Bar X of Y\" move on to the next bar one beat early"
+      },
+      {
+        "key": "ML-253",
+        "type": "New",
+        "summary": "Play Flow: play caesuras as a silent break"
+      },
+      {
+        "key": "ML-252",
+        "type": "New",
+        "summary": "Play Flow: play the intro bar range before bar 1"
+      },
+      {
+        "key": "ML-251",
+        "type": "New",
+        "summary": "Play Flow: play tempo ramps (rit./accel.)"
+      },
+      {
+        "key": "ML-250",
+        "type": "New",
+        "summary": "Play Flow: play D.S./D.C./coda jumps and Fine, and stop at the end"
+      },
+      {
+        "key": "ML-249",
+        "type": "New",
+        "summary": "Play Flow: play alternate endings (1st/2nd-time bars)"
+      },
+      {
+        "key": "ML-248",
+        "type": "New",
+        "summary": "Create checker for consistency on block entry"
+      },
+      {
+        "key": "ML-193",
+        "type": "New",
+        "summary": "Ensure full bar 12x boxes functionality is fully working"
+      },
+      {
+        "key": "ML-186",
+        "type": "New",
+        "summary": "Projected hours per month bar"
+      },
+      {
+        "key": "ML-144",
+        "type": "New",
+        "summary": "Flow edit and play views"
+      }
+    ]
+  },
+  {
     "version": "0.26.0",
     "date": "2026-09-24",
     "changes": [
