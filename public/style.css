@@ -176,7 +176,8 @@
     .theory-answer-wrong { border-color: var(--danger-text); color: var(--danger-text); }
     .theory-results-options { color: var(--label-color); font-size: var(--font-sm); text-align: center; margin: 0 0 var(--space-3); }
     .theory-grade-block { display: flex; flex-direction: column; align-items: center; margin-bottom: var(--space-3); }
-    .theory-trend { margin-bottom: var(--space-4); }
+    /* The bar labels (.chart-x-label) hang below the bars absolutely, so reserve their line here, then the usual gap before the buttons. */
+    .theory-trend { padding: var(--space-2) 0 var(--space-5); margin-bottom: var(--space-4); }
     /* Eight fixed slots (the last 8 rounds), so one round is one bar-width, not the whole row. */
     .theory-trend-bars { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: var(--space-2); align-items: end; height: calc(var(--touch-target) * 2); }
     .theory-trend-bars .chart-bar-container { margin-right: 0; min-width: 0; cursor: default; }
