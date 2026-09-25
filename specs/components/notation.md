@@ -1,14 +1,15 @@
 # Notation
 
 ## 1. Metadata
-- **Name:** Notation (`.notation`, `.notation-glyph`, `.notation-text`, `.notation-text-italic`) - SVG from `public/notation.js`
+- **Name:** Notation (`.notation`, `.notation-glyph`, `.notation-text`, `.notation-text-italic`, `.notation-text-bold`) - SVG from `public/notation.js`
 - **Category:** Data display
 - **Status:** New (ML-262, for ML-260 Theory practice)
 
 ## 2. Overview
 Every piece of real music notation the app shows: staves, clefs, notes, ledger lines, sharps/flats/
 naturals, key signatures, barlines and repeats, articulations, fermatas, breath marks, caesuras,
-dynamics, segno/coda, D.C./D.S., 1st-time-bar and intro brackets, hairpins. **It must look like
+note values with flags and dots, rests, time signatures, ties and slurs, dynamics, segno/coda,
+D.C./D.S., 1st-time-bar and intro brackets, hairpins, and words printed in music. **It must look like
 printed music, so it's always drawn by `Notation` with the Bravura font** (Steinberg's SMuFL reference
 font, SIL OFL - `public/fonts/bravura.woff2`). **Don't** hand-draw notation paths, and don't use
 Unicode music characters (𝄞 𝄐 ♯) for notation - they depend on the phone's fonts. (Plain ♯/♭ in a
@@ -17,11 +18,13 @@ button *label*, like "C♯" or "B♭ major", is text, not notation, and stays in
 ## 3. Anatomy
 `<svg class="notation">` › staff/ledger/bracket/hairpin `<line>`s (stroke `currentColor`, Bravura's
 engraving thicknesses) + `<text class="notation-glyph">` per glyph (Bravura, 1 em = 4 staff spaces)
-+ `<text class="notation-text">` for the few words printed in music (Fine, "1.").
++ `<text class="notation-text">` for words printed in music: expression words italic
+(`.notation-text-italic`: Fine, rit., legato), tempo words bold and upright (`.notation-text-bold`:
+Allegro), time-bar numbers plain. Ties and slurs are a filled `<path>` (thin ends, thick middle).
 
 ## 4. Tokens used
 `--font-notation` (Bravura), `--font-notation-text` (serif, for Fine / time-bar numbers),
-`--font-weight-bold` (italic Fine). Colour is `currentColor` - it takes the surrounding text colour,
+`--font-weight-bold` (italic and bold words). Colour is `currentColor` - it takes the surrounding text colour,
 so it needs no colour token and follows dark mode automatically. Geometry is in SVG user units
 (10 per staff space), not CSS - size the `<svg>` from the caller.
 

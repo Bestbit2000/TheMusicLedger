@@ -6,7 +6,7 @@
 - **Status:** New (ML-260 / ML-264)
 
 ## 2. Overview
-The Theory tool's four screens: quiz list → options → question → results. Everything reuses the
+The Theory tool's four screens: quiz list (Note names, Keys, Symbols, Mixed) → options → question → results. Everything reuses the
 shared components where one fits - list rows ([list-row](list-row.md)) for the quiz list, the
 [radio-group](radio-group.md) pills (and their multi-select variant) for options, primary/secondary
 [buttons](button.md), [stat cards](stat-card.md) and the stats [bar chart](charts.md) pieces on the
@@ -14,9 +14,9 @@ results screen. Notation is always [notation](notation.md). The classes here onl
 particular to a timed quiz.
 
 ## 3. Anatomy
-- **Quiz list:** `.theory-intro` › `.history-item.clickable.theory-quiz-row` × 5 (`.theory-quiz-icon` (a Bravura glyph) › `.history-details` › `.theory-grade` last grade).
+- **Quiz list:** `.theory-intro` › `.history-item.clickable.theory-quiz-row` × 4 (`.theory-quiz-icon` (a Bravura glyph) › `.history-details` (title, subtitle line, last grade) › `.theory-grade` last grade).
 - **Question:** `.theory-status` (clock left, tally right) › `.theory-countdown` › `.theory-countdown-fill` (timed rounds only) › `.theory-question` › `.theory-prompt` (a staff, a symbol, or `.theory-meaning` text) › `.theory-feedback` (always takes its line) › `.theory-answers` › `.theory-answer` × n.
-- **Answer grids:** `.theory-answers` is 2 across (key/scale/symbol names); `.theory-answers-notes` 4 across (7 or 12 note buttons, keyboard order); `.theory-answers-symbols` 2 across, taller, each button drawing a symbol.
+- **Answer grids:** `.theory-answers` is 2 across (keys, symbol names, term meanings); `.theory-answers-notes` 4 across (7 or 12 note buttons, keyboard order); `.theory-answers-symbols` 2 across, taller, each button drawing a symbol or term. The layout follows each question, so a Mixed round changes it question by question.
 - **Results:** `.theory-results-options` › `.theory-grade-block` (`.theory-grade.theory-grade-lg` + `.theory-best-line`) › `.dashboard-grid` of 4 `.stat-card`s › `.section-title` › `.theory-trend` › `.theory-trend-bars` (8 fixed slots of `.chart-bar-container`/`.chart-bar`) › Again (`.btn-submit`) / Change options (`.btn-nav`).
 
 ## 4. Tokens used

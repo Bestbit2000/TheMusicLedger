@@ -22,7 +22,7 @@
     const S = 10;                 // user units per staff space
     const FONT_SIZE = 4 * S;      // SMuFL: 1 em = 4 staff spaces
     // Bravura's engravingDefaults (staff spaces).
-    const ENGRAVING = { staffLine: 0.13, ledgerLine: 0.16, ledgerExtension: 0.4, bracketLine: 0.16, hairpin: 0.16 };
+    const ENGRAVING = { staffLine: 0.13, ledgerLine: 0.16, ledgerExtension: 0.4, bracketLine: 0.16, hairpin: 0.16, tieEnd: 0.1, tieMid: 0.22 };
 
     // SMuFL name -> [codepoint, advance width, top, bottom] (staff spaces, measured from the font;
     // top/bottom are relative to the glyph's baseline, up positive).
@@ -37,6 +37,9 @@
         noteHalfUp: ['E1D3', 1.364, 3.5, -0.6],
         noteQuarterUp: ['E1D5', 1.328, 3.5, -0.6],
         noteQuarterDown: ['E1D6', 1.328, 0.6, -3.5],
+        note8thUp: ['E1D7', 2.264, 3.5, -0.6],
+        note16thUp: ['E1D9', 2.324, 3.5, -0.6],
+        augmentationDot: ['E1E7', 0.4, 0.2, -0.2],
         accidentalFlat: ['E260', 0.904, 1.8, -0.7],
         accidentalNatural: ['E261', 0.672, 1.4, -1.4],
         accidentalSharp: ['E262', 0.996, 1.4, -1.4],
@@ -67,8 +70,18 @@
         dynamicMF: ['E52D', 3.188, 1.8, -0.7],
         dynamicFF: ['E52F', 2.436, 1.8, -0.6],
         dynamicSforzato: ['E539', 2.928, 1.8, -0.6],
+        restWhole: ['E4E3', 1.132, 0.1, -0.6],
+        restHalf: ['E4E4', 1.132, 0.6, 0],
         restQuarter: ['E4E5', 1.08, 1.5, -1.5],
+        rest8th: ['E4E6', 1, 0.7, -1],
+        rest16th: ['E4E7', 1.28, 0.8, -2],
         timeSigCommon: ['E08A', 1.696, 1.1, -1],
+        timeSigCutCommon: ['E08B', 1.668, 1.5, -1.5],
+        timeSig2: ['E082', 1.784, 1.1, -1.1],
+        timeSig3: ['E083', 1.684, 1, -1],
+        timeSig4: ['E084', 1.88, 1, -1],
+        timeSig6: ['E086', 1.736, 1, -1],
+        timeSig8: ['E088', 1.744, 1.1, -1.1],
     };
     const ACCIDENTAL_GLYPH = { '-2': 'accidentalDoubleFlat', '-1': 'accidentalFlat', 0: 'accidentalNatural', 1: 'accidentalSharp', 2: 'accidentalDoubleSharp' };
 
@@ -145,15 +158,18 @@
 
     // A staff with a clef, optional key signature and a row of items. Items, in order:
     //   { type: 'note', pitch, head?: 'noteheadWhole'|..., accidental?: true|false (default: shown when
-    //     the pitch has one), above?: glyph, below?: glyph }
+    //     the pitch has one), above?: glyph, below?: glyph, dots?: 1 }
     //   { type: 'barline', glyph: 'barlineSingle'|'barlineDouble'|'barlineFinal'|'repeatLeft'|'repeatRight' }
-    //   { type: 'mark', glyph, step }        e.g. a breath mark or caesura at a staff position
+    //   { type: 'mark', glyph, step }        a breath mark, caesura or rest at a staff position (rests:
+    //                                        whole rest step 6 - hangs from the 4th line - the rest step 4)
+    //   { type: 'timeSig', top, bottom } or { type: 'timeSig', glyph: 'timeSigCommon'|'timeSigCutCommon' }
     //   { type: 'text', text, step, italic } right-aligned under/over the previous item (Fine)
     //   { type: 'space', width }             in staff spaces
     // spans (drawn over the items, from/to are item indexes, inclusive):
     //   { kind: 'volta', from, to, text }    1st/2nd time bar bracket
     //   { kind: 'intro', from, to }          hymn/carol intro corner brackets
     //   { kind: 'hairpin', from, to, dir: 'cresc'|'dim' }
+    //   { kind: 'tie' | 'slur', from, to }  curve under stem-up noteheads (from/to must be notes)
     // stepRange [lo, hi] fixes the drawn height (at least that much; allow a step past the lowest/highest
     // note for its notehead), so a run of questions doesn't jump
     // about as notes go above or below the staff. hideClef leaves the clef off (pitches still sit where
@@ -212,7 +228,7 @@
                 const hm = metrics(head);
                 const hx = x, hw = hm.advance * S;
                 // Marks centre on the notehead itself - a stemmed note's advance also covers its stem.
-                const headW = (/^note(Half|Quarter)/.test(head) ? metrics('noteheadBlack').advance : hm.advance) * S;
+                const headW = (/^note(Half|Quarter|8th|16th)/.test(head) ? metrics('noteheadBlack').advance : hm.advance) * S;
                 const ext = ENGRAVING.ledgerExtension * S;
                 for (const ls of ledgerSteps(st)) parts.push((y) => lineEl(hx - ext, y(ls), hx + hw + ext, y(ls), ENGRAVING.ledgerLine));
                 parts.push((y) => glyphEl(head, hx, y(st)));
@@ -234,6 +250,22 @@
                     grow(base + m.top * 2, base + m.bottom * 2);
                 }
                 x += hw;
+                // Augmentation dots sit in a space: a note on a line puts its dot in the space above.
+                for (let d = 0; d < (it.dots || 0); d++) {
+                    const dotStep = st % 2 === 0 ? st + 1 : st;
+                    const dx = x + 0.35 * S;
+                    parts.push((y) => glyphEl('augmentationDot', dx, y(dotStep)));
+                    x = dx + metrics('augmentationDot').advance * S;
+                }
+                positions.push({ start, end: x, step: st, headX: hx, headW });
+                x += noteGap;
+            } else if (it.type === 'timeSig') {
+                // Digits centred on the 4th and 2nd lines' spaces (steps 6 and 2), as printed; C / ¢ on the middle line.
+                const glyphs = it.glyph ? [[it.glyph, 4]] : [['timeSig' + it.top, 6], ['timeSig' + it.bottom, 2]];
+                const w = Math.max(...glyphs.map(([g]) => metrics(g).advance)) * S;
+                const tx = x;
+                for (const [g, st] of glyphs) parts.push((y) => glyphEl(g, tx + (w - metrics(g).advance * S) / 2, y(st)));
+                x += w;
                 positions.push({ start, end: x });
                 x += noteGap;
             } else if (it.type === 'barline') {
@@ -289,6 +321,21 @@
                         + lineEl(b.end - arm, y(st), b.end, y(st), ENGRAVING.bracketLine) + lineEl(b.end, y(st), b.end, y(st) + arm, ENGRAVING.bracketLine));
                     grow(st, st + 1);
                 }
+            } else if (sp.kind === 'tie' || sp.kind === 'slur') {
+                if (a.step === undefined || b.step === undefined) throw new Error(sp.kind + ' must join two notes');
+                // Under stem-up noteheads, as engraved: a filled crescent, thin at the ends, thickest mid-way.
+                const lowStep = Math.min(a.step, b.step);
+                const depth = (sp.kind === 'tie' ? 0.9 : 1.4) * S;
+                parts.push((y) => {
+                    const x1 = a.headX + a.headW * 0.5, x2 = b.headX + b.headW * 0.5;
+                    const y1 = y(a.step) + 0.75 * S, y2 = y(b.step) + 0.75 * S;
+                    const yb = Math.max(y1, y2, y(lowStep) + 0.75 * S);
+                    const w = x2 - x1, t = (ENGRAVING.tieMid - ENGRAVING.tieEnd) * S * 1.33;
+                    const c1x = x1 + w * 0.25, c2x = x2 - w * 0.25, cy = yb + depth * 1.33;
+                    return '<path d="M' + r(x1) + ' ' + r(y1) + ' C' + r(c1x) + ' ' + r(cy) + ' ' + r(c2x) + ' ' + r(cy) + ' ' + r(x2) + ' ' + r(y2)
+                        + ' C' + r(c2x) + ' ' + r(cy - t) + ' ' + r(c1x) + ' ' + r(cy - t) + ' ' + r(x1) + ' ' + r(y1) + ' Z" stroke="currentColor" stroke-width="' + r(ENGRAVING.tieEnd * S) + '"/>';
+                });
+                grow(lowStep - 5, lowStep);
             } else if (sp.kind === 'hairpin') {
                 const st = Math.min(lo - 2, -4);
                 const open = 0.9 * S;
@@ -332,7 +379,9 @@
     }
     function textMark(text, opts = {}) {
         const w = Math.max(3, text.length * 1.1) * S, h = 2.4 * S;
-        const body = `<text class="notation-text${opts.italic ? ' notation-text-italic' : ''}" x="${r(w / 2)}" y="${r(h * 0.72)}" font-size="${r(1.8 * S)}" text-anchor="middle">${esc(text)}</text>`;
+        // Expression words (legato, rit., Fine) print italic; tempo words (Allegro) bold and upright.
+        const cls = opts.italic ? ' notation-text-italic' : opts.bold ? ' notation-text-bold' : '';
+        const body = `<text class="notation-text${cls}" x="${r(w / 2)}" y="${r(h * 0.72)}" font-size="${r(1.8 * S)}" text-anchor="middle">${esc(text)}</text>`;
         return svgWrap(w, h, body, opts.label);
     }
 

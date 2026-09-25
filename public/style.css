@@ -9,6 +9,7 @@
     .notation-glyph { font-family: var(--font-notation); }
     .notation-text { font-family: var(--font-notation-text); }
     .notation-text-italic { font-style: italic; font-weight: var(--font-weight-bold); }
+    .notation-text-bold { font-weight: var(--font-weight-bold); }
 
     /* Anything you can click shows the hand on a desktop - the default for every enabled button, so a
        new component can't forget it. A component's own cursor (grab, not-allowed...) still wins: this is

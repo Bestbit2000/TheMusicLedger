@@ -78,21 +78,26 @@ export async function saveTheoryAttempt(accountId, body) {
   if (!quizIds.includes(b.quizId)) throw withStatus(400, 'Unknown quiz.');
   const round = plain(Theory.ROUNDS).find(r => r.value === b.roundType);
   if (!round) throw withStatus(400, 'Unknown round type.');
-  const right = Number(b.right), wrong = Number(b.wrong);
-  if (!Number.isInteger(right) || !Number.isInteger(wrong) || right < 0 || wrong < 0 || right + wrong > MAX_ANSWERS) {
-    throw withStatus(400, 'Right and wrong must be whole numbers.');
-  }
-  if (round.questions && right + wrong !== round.questions) throw withStatus(400, `A ${round.questions}-question round has ${round.questions} answers.`);
+  // The round is scored from its answers: a timed round weighs each one by its question type's par
+  // time (Mixed rounds mix types), so right/wrong counts alone aren't enough.
+  if (!Array.isArray(b.answers) || b.answers.length > MAX_ANSWERS) throw withStatus(400, 'Missing answers.');
+  const answers = b.answers.map(a => ({
+    questionId: String(a && a.questionId || '').slice(0, 80),
+    answerId: String(a && a.answerId || '').slice(0, 40),
+    correct: !!(a && a.correct),
+    ms: Math.max(0, Math.min(3600000, Math.round(Number(a && a.ms) || 0)))
+  }));
+  if (answers.some(a => !a.questionId || !a.answerId)) throw withStatus(400, 'Every answer needs a question and an answer.');
+  if (round.questions && answers.length !== round.questions) throw withStatus(400, `A ${round.questions}-question round has ${round.questions} answers.`);
   const durationMs = Number(b.durationMs);
   if (!Number.isInteger(durationMs) || durationMs < 0 || durationMs > 60 * 60 * 1000) throw withStatus(400, 'Invalid duration.');
   const startedAt = new Date(b.startedAt);
   if (Number.isNaN(startedAt.getTime())) throw withStatus(400, 'Invalid start time.');
   const naming = b.naming === 'solfege' ? 'solfege' : 'letters';
-  const answers = Array.isArray(b.answers) ? b.answers.slice(0, MAX_ANSWERS) : [];
 
   const options = plain(Theory.normaliseOptions(b.quizId, b.options));
   const settingsKey = Theory.settingsKey(b.quizId, options, round.value);
-  const { score, grade } = plain(Theory.scoreRound(b.quizId, round.value, { right, wrong }));
+  const { right, wrong, score, grade } = plain(Theory.scoreRound(round.value, answers));
 
   const client = await pool.connect();
   try {
@@ -105,9 +110,7 @@ export async function saveTheoryAttempt(accountId, body) {
       [accountId, b.quizId, round.value, JSON.stringify(options), settingsKey, naming, right, wrong, score, grade, durationMs, startedAt]
     );
     const attempt = toDto(rows[0]);
-    const clean = answers
-      .map((a, i) => ({ seq: i + 1, q: String(a && a.questionId || '').slice(0, 80), a: String(a && a.answerId || '').slice(0, 40), c: !!(a && a.correct), ms: Math.max(0, Math.min(3600000, Math.round(Number(a && a.ms) || 0))) }))
-      .filter(a => a.q && a.a);
+    const clean = answers.map((a, i) => ({ seq: i + 1, q: a.questionId, a: a.answerId, c: a.correct, ms: a.ms }));
     if (clean.length) {
       const values = [];
       const params = [attempt.id];

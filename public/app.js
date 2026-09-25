@@ -15362,7 +15362,7 @@
     let theoryTicker = null;
     let theoryTestOffsetMs = 0;    // test hook's virtual clock (always 0 outside local tests)
     const THEORY_PROMPT_SCALE = 1.6;   // SVG user units -> px: a staff space is 16px on screen
-    const THEORY_SYMBOL_SCALE = 1.0;   // symbols inside answer buttons
+    const THEORY_SYMBOL_SCALE = 1.4;   // symbols inside answer buttons (capped by the button, style.css)
 
     const theoryNow = () => performance.now() + theoryTestOffsetMs;
     function theoryNaming() {
@@ -15387,7 +15387,7 @@
         if (render.type === 'symbol') svg = Notation.symbol(render.glyph, { label });
         else if (render.type === 'staff') svg = Notation.staff({ ...render.staff, label });
         else if (render.type === 'hairpin') svg = Notation.hairpin(render.dir, { label });
-        else svg = Notation.textMark(render.text, { italic: render.italic, label });
+        else svg = Notation.textMark(render.text, { italic: render.italic, bold: render.bold, label });
         return theoryScaleSvg(svg, k);
     }
     function theoryGradeHtml(grade, label) {
@@ -15415,7 +15415,7 @@
         const row = (q, last) => `
             <button type="button" class="history-item clickable theory-quiz-row" data-quiz="${q.id}">
                 <span class="theory-quiz-icon">${theoryScaleSvg(Notation.symbol(q.icon), 0.8)}</span>
-                <span class="history-details"><strong>${escapeHtml(q.title)}</strong>${last ? `Last grade ${last.grade} · ${theoryWhen(last.startedAt)}` : 'Not tried yet'}</span>
+                <span class="history-details"><strong>${escapeHtml(q.title)}</strong>${q.subtitle ? `${escapeHtml(q.subtitle)}<br>` : ''}${last ? `Last grade ${last.grade} · ${theoryWhen(last.startedAt)}` : 'Not tried yet'}</span>
                 ${last ? theoryGradeHtml(last.grade, `Last grade ${last.grade} of 5`) : ''}
             </button>`;
         const draw = (summary) => {
@@ -15607,7 +15607,7 @@
         r.ended = true;
         const elapsed = theoryElapsedMs(r);
         const durationMs = r.seconds ? r.seconds * 1000 : Math.round(elapsed);
-        const local = TheoryEngine.scoreRound(r.quizId, r.roundId, { right: r.right, wrong: r.wrong });
+        const local = TheoryEngine.scoreRound(r.roundId, r.answers);
         theoryLastResult = { round: r, durationMs, score: local.score, grade: local.grade, saved: null, saving: true };
         theoryRound = null;
         // Results replaces Play in the back history: Back from Results goes to the options.

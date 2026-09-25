@@ -12,7 +12,7 @@
 CREATE TABLE theory_quiz_attempts (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     account_id BIGINT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    quiz_id TEXT NOT NULL CHECK (quiz_id IN ('noteNames', 'keySignatures', 'symbolNames', 'symbolMeanings', 'scales')),
+    quiz_id TEXT NOT NULL CHECK (quiz_id IN ('noteNames', 'keys', 'symbols', 'mixed')),
     round_type TEXT NOT NULL CHECK (round_type IN ('t30', 't60', 'q10', 'q20')),
     options JSONB NOT NULL,
     settings_key TEXT NOT NULL,
@@ -35,7 +35,8 @@ CREATE INDEX idx_theory_attempts_account_quiz ON theory_quiz_attempts (account_i
 
 -- Every answer, in order. Not needed for grades - kept so a later "practise your weakest notes"
 -- mode can find what someone gets wrong or slow. question_id is the engine's stable question id
--- (e.g. 'treble:F#5', 'bass:D major', 'fermata').
+-- (e.g. 'note:treble:F#5', 'keySignature:bass:D major', 'symbolMeaning:fermata') - its first part is the
+-- question type, which sets the par time a timed round is scored against.
 CREATE TABLE theory_quiz_answers (
     attempt_id BIGINT NOT NULL REFERENCES theory_quiz_attempts(id) ON DELETE CASCADE,
     seq SMALLINT NOT NULL CHECK (seq >= 1),

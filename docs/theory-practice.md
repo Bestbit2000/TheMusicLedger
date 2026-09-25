@@ -19,9 +19,9 @@ Related tickets:
 |---|---|
 | `public/notation.js` | **Notation**: the app's one notation renderer (SVG, Bravura glyphs). Pure, no DOM. |
 | `public/fonts/bravura.woff2` + `Bravura-LICENSE.txt` | Bravura 1.x (Steinberg, SMuFL, SIL OFL 1.1), from npm `@vexflow-fonts/bravura@1.0.2`. Self-hosted, in the service-worker app shell. |
-| `public/theoryEngine.js` | **TheoryEngine**: quizzes, options, question generation, scoring. Pure, no DOM. |
+| `public/theoryEngine.js` | **TheoryEngine**: quizzes, options, question dealing, scoring. Pure, no DOM. |
 | `public/app.js`, THEORY PRACTICE section | The four screens: the round's clock, taps, feedback, saving, history. |
-| `server/services/theoryPractice.js` | Saves rounds (re-scoring them with the same engine), history, bests. |
+| `server/services/theoryPractice.js` | Saves rounds (re-scoring them from their answers with the same engine), history, bests. |
 | `db/migrations/052_theory_quiz.sql` | `theory_quiz_attempts`, `theory_quiz_answers`, the `theory_practice` feature flag. |
 | `server/test/notation.test.js`, `server/test/theoryEngine.test.js` | Unit tests. |
 | `specs/components/notation.md`, `specs/components/theory-quiz.md` | Design specs. Admin → Design shows both, and the Notation entry is a live reference sheet. |
@@ -32,9 +32,10 @@ because this package is ESM and they're browser scripts. That's the same approac
 ## Notation
 
 **Rule: all notation is drawn by `Notation` in Bravura.** Never hand-drawn paths, and never Unicode music
-characters, which depend on the phone's fonts. Only the things every notation program draws as lines are
-lines: staff and ledger lines, time-bar and intro brackets, and hairpins. They're drawn at Bravura's
-engraving thicknesses. Plain ♯/♭ in a button label ("C♯", "B♭ major") is text, not notation.
+characters, which depend on the phone's fonts. Only the things every notation program draws itself are
+lines or curves here: staff and ledger lines, time-bar and intro brackets, hairpins, and ties and slurs
+(a filled crescent at Bravura's tie thicknesses). Plain ♯/♭ in a button label ("C♯", "B♭ major") is
+text, not notation.
 
 - **Units:** 10 SVG units per staff space, glyphs at 1 em = 4 staff spaces (SMuFL). Colour is
   `currentColor`.
@@ -46,26 +47,47 @@ engraving thicknesses. Plain ♯/♭ in a button label ("C♯", "B♭ major") is
 - **Clefs:** treble and bass. Alto and tenor go in `CLEFS` when they're needed.
 - **Drawing:**
   - `staff({ clef, keySignature, items, spans, stepRange, hideClef, noteGap, minWidth, label })`
-    - items: `note`, `barline`, `mark` (breath mark, caesura), `text` (Fine), `space`.
-    - spans: `volta`, `intro`, `hairpin`.
-  - `symbol(glyph)`, `hairpin(dir)`, `textMark(text)`.
+    - items: `note` (with `head`, `above`/`below` marks and `dots`), `barline`, `mark` (breath mark,
+      caesura, rests), `timeSig`, `text` (Fine), `space`.
+    - spans: `volta`, `intro`, `hairpin`, `tie`, `slur`.
+  - `symbol(glyph)`, `hairpin(dir)`, `textMark(text, { italic | bold })`.
 - **Engraving:**
-  - Articulations are centred on the notehead, in the nearest space outside it.
-  - A fermata sits above the staff.
-  - A caesura sits on the top line.
+  - Articulations are centred on the notehead, in the nearest space outside it. Augmentation dots
+    sit in a space.
+  - A fermata sits above the staff. A caesura sits on the top line.
+  - A semibreve rest hangs from the 4th line; every other rest is centred on the middle line.
+  - Time-signature digits sit centred on steps 6 and 2; C and ¢ on the middle line.
+  - Words: tempo words (Allegro) bold and upright; expression words (rit., legato, Fine) italic.
 - **Labels:** a `label` makes the SVG `role="img"`. Without one it's `aria-hidden`.
 
 ## The quizzes
 
-All answers are **one tap on a button**.
+All answers are **one tap on a button**. Four quizzes (confirmed on ML-260, 2026-09-25):
 
-| Quiz | Shown | Answers | Options |
+| Quiz | Asks | Options |
+|---|---|---|
+| **Note names** | A whole note on a staff → 7 letters, or 12 notes spelled one way (sharps **or** flats) | Clef (multi-select), range (on the staff / 2 / 4 / 6 ledger lines, above and below), sharps and flats (none / sharps / flats) |
+| **Keys** | A key signature → "Which major/minor key?"; or a scale written out with accidentals → "Which scale is this?". 4 keys each | Clef, show (key signatures / scales / both), up to 3 / 5 / 7 ♯/♭ (C major and A minor always in), sharp / flat keys / both, major or major + minor, minor scales: harmonic / melodic / both (only with minor keys and scales) |
+| **Symbols** | A symbol → its name, or a meaning → the symbol (terms: the word → its meaning, or a meaning → the word). 4 choices | Set: Basics / Dynamics / Rhythm / Structure / Terms / Everything; ask: names / meanings / both |
+| **Mixed** | Every question type in turn: a note, a key signature, a scale, a symbol name, a symbol meaning | Clef, level (beginner / intermediate / advanced) |
+
+**Symbol sets:**
+
+| Set | Count | What's in it |
+|---|---|---|
+| Basics | 13 | Clefs, sharp, flat, natural, fermata, breath mark, caesura, staccato, accent, tenuto, tie, slur |
+| Dynamics | 9 | pp, p, mp, mf, f, ff, sfz, crescendo, diminuendo |
+| Rhythm | 17 | Semibreve to semiquaver and the dotted minim; their rests; 4/4, 3/4, 2/4, 6/8, common and cut time |
+| Structure | 11 | Repeats, double and final bar lines, segno, coda, D.C., D.S., Fine, 1st-time bar, intro brackets |
+| Terms | 15 | Largo, Adagio, Andante, Moderato, Allegro, Presto, rit., accel., a tempo, legato, dolce, cantabile, sempre, poco a poco, molto |
+
+**Mixed levels:**
+
+| Level | Notes | Keys | Symbols |
 |---|---|---|---|
-| Note names | A whole note on a staff | 7 letters, or 12 notes spelled one way (sharps **or** flats) | Clef (multi-select), range (on the staff / 2 / 4 / 6 ledger lines, above and below), sharps and flats (none / sharps / flats) |
-| Key signatures | A key signature; the question says "Which major key?" or "Which minor key?" | 4 keys, same mode | Clef, up to 1/3/5/7 ♯/♭ (C major/A minor always in), sharp/flat keys/both, major or major + minor |
-| Symbol names | A symbol, alone or on a scrap of staff with no clef | 4 names | Set: Basics / Dynamics / Structure / Everything |
-| Symbol meanings | A meaning | 4 drawn symbols | Same sets |
-| Scales by their notes | One octave ascending, with accidentals, no key signature | 4 keys (the relative major/minor is always one when minor is on) | Same as key signatures, plus minor form: harmonic / melodic (ascending) / both |
+| Beginner | On the staff, no sharps or flats | Up to 3, major | Basics, Dynamics, Rhythm |
+| Intermediate | 2 ledger lines, no sharps or flats | Up to 5, major and minor (harmonic) | + Structure |
+| Advanced | 4 ledger lines, sharps and flats | Up to 7, major and minor (both forms) | Everything |
 
 **Ranges**, lowest to highest note:
 
@@ -78,17 +100,30 @@ All answers are **one tap on a button**.
 
 The staff stays the same height for the whole round.
 
+**How many different questions** (`questionSource(...).size`), for one clef - double for both clefs,
+except Symbols:
+
+| Quiz | Smallest | Default | Largest |
+|---|---|---|---|
+| Note names | 11 (on the staff, none) | 11 | 57 (6 ledger lines, sharps or flats) |
+| Keys | 4 (key signatures only, up to 3, sharp or flat keys only) | 14 (up to 3, both, major; both shown) | 75 (up to 7, major and minor, both forms, both shown) |
+| Symbols | 9 (Dynamics, one direction) | 26 (Basics, both directions) | 130 (Everything, both directions) |
+
+**Dealing:** every quiz deals each of its questions **once, in a shuffled order, before any comes
+round again** (and never the same one twice running, across a reshuffle too). Mixed takes the five
+question types in turn (a shuffled order each turn) so none swamps the round, and each type deals its
+own questions the same way. A small selection still repeats in a long round, but evenly.
+
 **Other rules:**
-- **Wrong answers** are plausible: the nearest keys round the circle of fifths, and symbols from the
-  chosen set first.
+- **Wrong answers** are plausible: the nearest keys round the circle of fifths (plus the relative
+  major/minor for scales when minor is on), and symbols from the right answer's own set first.
 - **Minor scales** are shown harmonic or melodic, because a natural minor scale has exactly its relative
   major's notes.
 - **Scale placement:** a scale starts at staff step -2 to 4, so it sits on the staff.
 - **Naming:** letters, or solfège if that's the tuner's note-name setting. Solfège uses Do Re Mi Fa Sol
   La Ti, spelled with the sharp or flat (Do♯, Ti♭). That differs from the tuner's chromatic Di/Te,
   because here the spelling matters.
-- **No repeats:** the same question never comes twice in a row.
-- **Seeded:** questions use a seeded random order (`questionSource(quiz, options, { seed })`).
+- **Seeded:** `questionSource(quiz, options, { seed })` - the same seed deals the same round.
 - **Options** are remembered per quiz on the device (`localStorage` `tml.theory.<quiz>`).
 
 ## Rounds and scoring (confirmed on ML-260)
@@ -107,18 +142,21 @@ The staff stays the same height for the whole round.
 - **Taps in the first 0.3 s** of a question are ignored, so a double tap can't answer two questions.
 
 **Scores:**
-- **Timed:** score = 100 × (right − wrong) ÷ (top pace × minutes), kept between 0 and 100.
+- **Timed:** each question type has a **par time** - how long it should take. The score is
+  100 × (the par of the right answers − the par of the wrong ones) ÷ the round's length, kept between
+  0 and 100. So answering every question in its par time scores 100, and faster can't score more.
+  A Mixed round simply adds up the pars of whatever it asked.
 - **Fixed:** score = 100 × (right − wrong) ÷ questions. Time is recorded, but doesn't count.
 
-**Top pace**, in right answers per minute, is the perfect-score limit:
+**Par times** (`PAR`) - the confirmed top paces, per question:
 
-| Quiz | Top pace (per minute) |
-|---|---|
-| Note names | 40 |
-| Symbol names | 30 |
-| Key signatures | 24 |
-| Symbol meanings | 24 |
-| Scales | 15 |
+| Question type | Par | = per minute |
+|---|---|---|
+| Note name | 1.5 s | 40 |
+| Symbol name | 2 s | 30 |
+| Key signature | 2.5 s | 24 |
+| Symbol meaning | 2.5 s | 24 |
+| Scale | 4 s | 15 |
 
 **Grade:**
 
@@ -130,20 +168,21 @@ The staff stays the same height for the whole round.
 | 30-49 | 2 |
 | Below 30 | 1 |
 
-The limits live in `TheoryEngine` (`QUIZZES[].topPace`, `GRADE_LIMITS`, `TIMING`).
+The limits live in `TheoryEngine` (`PAR`, `GRADE_LIMITS`, `TIMING`).
 
 ## Saving and history
 
 - **Only finished rounds are saved.** Leaving part-way asks first.
-- **Saving:** `POST /api/theory/attempts` with the quiz, round type, options, naming, right, wrong,
-  duration, start time and every answer.
-  - The server re-scores the round with the engine and stores it.
+- **Saving:** `POST /api/theory/attempts` with the quiz, round type, options, naming, duration, start
+  time and every answer (`questionId`, `answerId`, `correct`, `ms`).
+  - The server scores the round **from its answers** with the engine (the question id's first part is
+    its type, which sets its par), and stores it.
   - It returns: `isFirst`, `isNewBest`, `previousBest`, `best`, and `recent` (the last 8 rounds, oldest
     first).
 - **History:** `GET /api/theory/attempts?settingsKey=` returns the recent rounds and the best.
 - **Quiz list:** `GET /api/theory/summary` returns the last round per quiz.
 - **The settings key** groups comparable rounds: quiz, round type, and every visible option. Hidden
-  options, like minor form when minor is off, don't count, and neither does letters/solfège.
+  options, like minor scales when minor is off, don't count, and neither does letters/solfège.
 - **Best** is the highest score. A tie goes to the quicker round, then the earlier one.
 - **All endpoints** are behind the `theory_practice` feature flag. So are the home tile and the ☰ menu
   entry.
@@ -155,18 +194,19 @@ The limits live in `TheoryEngine` (`QUIZZES[].topPace`, `GRADE_LIMITS`, `TIMING`
 **Unit tests** (`node --test "server/test/**/*.test.js"`):
 - **Notation:** pitch to staff position, ledger lines for every range, and key-signature order.
 - **Engine:** every quiz with every option combination (the answer buttons, right answer included,
-  no repeats), every scale's step pattern in both clefs, key tables, and scoring.
+  no repeats); every question dealt once before any repeat; Mixed takes each type in turn; every
+  scale's step pattern in both clefs; key tables; symbol sets; par scoring.
 
 **Test hook (local only):** with `localStorage['tml.testClock'] = '1'` on localhost,
 `window.__theoryTest` offers:
 
 | Call | Does |
 |---|---|
-| `start(quiz, options, round, seed)` | Starts a round with a fixed seed. |
+| `start(quiz, options, round, seed)` | Starts a round with a fixed seed (a round already running is dropped). |
 | `question()` | The current question. |
 | `state()` | Right, wrong, answered, and whether it's waiting. |
 | `advance(ms)` | Moves the round's clock on. |
 | `result()` | The finished round's result. |
 
-**Back-test:** case #18 in the Neon `test_cases` table. It covers each quiz type on screen, right and
-wrong feedback, both round types, saving, and screenshot baselines.
+**Back-test:** case #18 in the Neon `test_cases` table. It covers each quiz on screen, right and wrong
+feedback, both round types, Mixed, rhythm and terms, saving, and screenshot baselines.
