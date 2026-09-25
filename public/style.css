@@ -2007,7 +2007,7 @@
     /* Add/edit pause form - each field is its OWN bordered card (label left, control right), not one
        big box wrapping everything - matches the design's individually-boxed fields, each with a bold
        title + a smaller grey subtitle explaining what it's for. */
-    .flow-pause-field-card { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
+    .flow-pause-field-card { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
     .flow-pause-field-label { display: flex; flex-direction: column; gap: var(--space-0-5); }
     .flow-pause-field-title { font-weight: var(--font-weight-bold); font-size: var(--font-sm); }
     .flow-pause-field-subtitle { font-size: var(--font-xs); color: var(--label-color); }
@@ -2032,7 +2032,7 @@
        before the term. Fixed width so it sits compactly on the field card's right side rather than
        stretching to fill the remaining space. */
     .flow-pause-kind-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); width: 190px; flex-shrink: 0; }
-    .flow-pause-kind-btn { display: flex; flex-direction: column; align-items: center; gap: var(--space-0-5); padding: var(--space-2) var(--space-1); border-radius: var(--radius-md); border: 2px solid var(--input-border); background: var(--container-bg); cursor: pointer; color: var(--text-color); }
+    .flow-pause-kind-btn { display: flex; flex-direction: column; align-items: center; gap: var(--space-0-5); padding: var(--space-2) var(--space-1); border-radius: var(--radius-md); border: 2px solid var(--control-border); background: var(--input-bg); cursor: pointer; color: var(--text-color); }
     .flow-pause-kind-btn.selected { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
     .flow-pause-kind-btn .flow-sign-svg { font-size: var(--font-lg); }
     .flow-pause-kind-title { font-weight: var(--font-weight-bold); font-size: var(--font-xs); }

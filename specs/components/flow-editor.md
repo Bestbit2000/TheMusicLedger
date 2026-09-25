@@ -64,6 +64,8 @@ The rehearsal-mark box in each block header (`.flow-block-mark-box` / `.flow-blo
 
 Block colours and volta/intro bracket geometry are computed in JS. Geometry may be inline, but colours must reference tokens.
 
+**Pauses and Ramps pop-ups (ML-281):** each field is a `.flow-pause-field-card` - a display box, so `--container-bg` with an `--input-border` outline. Only what you tap is lighter: the − / + circles (`.metro-bpm-step`) and the choice buttons (`.flow-pause-kind-btn`: `--input-bg` with a 2px `--control-border` edge, gold when selected). Never give the card itself `--input-bg` - that's the "you can tap this" surface ([color](../foundations/color.md)).
+
 ## 6. States
 Tiles: default / selected (see [selectable-tile](selectable-tile.md)). Blocks: default / animating (`.flow-block-animating`). 2- and 4-column tiles: default / held (`.flow-bar-grid-tile-held`: gold edge and `--shadow-lg`) / shuffling (`.flow-bar-grid-tile-shuffling`). 2-column tiles also have needs-updating (`.flow-bar-detail-tile-warning`). Any Bars-tab bar: has a review issue (`.flow-block-has-issue`). Popup buttons: default / disabled (see above) / warning (`.flow-warning-icon`, `--warning-color`). Upload: idle / in progress / error.
 
