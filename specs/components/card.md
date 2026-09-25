@@ -8,12 +8,16 @@
 ## 2. Overview
 A bordered surface that groups related content inside the app column. Cards are flat (no shadow).
 **Don't** nest a card inside a card more than one level deep. Use an inset box
-(`.metroSeg-inset-box`, `--input-bg`, one radius step smaller) for the inner level.
+(`.metroSeg-inset-box`, `--container-bg` with an `--input-border` outline, one radius step smaller) for the inner level.
+
+**Info rows** (`.info-row`, `.info-row-end` on the last of a group): a label and its read-only value, e.g. My account's Email / Account level / Member since - `--container-bg`, `--input-border` outline, label left, value right.
+
+**A card is never `--input-bg` (ML-286).** Cards are display surfaces; the lighter `--input-bg` means *you can tap this* ([color](../foundations/color.md)), so it belongs on the buttons and inputs inside a card, not on the card.
 
 | Variant | Surface | Radius | Use |
 |---|---|---|---|
 | `.flow-card` | `--container-bg`, 1px `--input-border` | `--radius-xl` | Sections of the Flow editor/detail |
-| `.play-card` | `--input-bg`, 2px `--primary-action` | `--radius-lg` | The current piece in Quick play (slides left/right between items) |
+| `.play-card` | `--container-bg`, 2px `--primary-action-strong` | `--radius-lg` | The current piece in Quick play (slides left/right between items) |
 | `.tuner-card` | `--container-bg`, 2px state border | `--radius-lg` | Live tuner readout (see [tuner](tuner.md)) |
 | `.about-running-note` | `--input-bg`, 1px `--primary-action` | `--radius-md` | Highlighted informational note |
 

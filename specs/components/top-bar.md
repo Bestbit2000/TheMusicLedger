@@ -6,7 +6,7 @@
 - **Status:** Stable
 
 ## 2. Overview
-The sticky header on every app screen: back (‹), centred title, then the tuner toggle, a
+The sticky header on every app screen: back (‹), left-aligned title (ML-271 - centred, it drifted whenever the icons on the right showed), then the tuner toggle, a
 running-timer pill when a timer is active, and the ☰ burger menu. The metronome mini bar docks
 directly beneath it inside `.top-bar-sticky-group`. **Don't** add screen-specific actions here.
 Put them in the screen body.
@@ -20,7 +20,7 @@ Put them in the screen body.
 `--space-2`, `--space-5`, `--font-md`, `--font-lg`, `--font-weight-bold`, `--radius-pill`, `--radius-circle`.
 
 ## 5. Props / API
-- `.hidden-btn` keeps a slot's width but hides it, so the title stays centred when there's no back button.
+- With nothing to go back to (Home), the back button is removed (`.top-btn-back.hidden-btn` is `display: none`), so the title starts at the left edge. Elsewhere `.hidden-btn` still hides a control without moving its neighbours.
 - Timer pill: `.top-bar-timer-pill-running` while counting (gold tint + gold text).
 
 ## 6. States

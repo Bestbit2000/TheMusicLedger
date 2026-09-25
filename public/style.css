@@ -47,7 +47,8 @@
 
     .top-bar-sticky-group { width: 100%; display: flex; flex-direction: column; align-items: center; position: sticky; top: 0; z-index: var(--z-header); }
     .top-bar { width: 100%; max-width: var(--app-max-width); background: var(--container-bg); padding: var(--space-2) var(--space-5); box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-md); }
-    .top-bar-title { font-size: var(--font-md); font-weight: var(--font-weight-bold); flex-grow: 1; text-align: center; margin: 0; } /* an <h1> since ML-210 - the page heading focus moves to on view change */
+    /* ML-271: left-aligned - centred, it drifted off-centre whenever the tuner/timer icons showed on the right. */
+    .top-bar-title { font-size: var(--font-md); font-weight: var(--font-weight-bold); flex-grow: 1; text-align: left; margin: 0; } /* an <h1> since ML-210 - the page heading focus moves to on view change */
     .top-btn { background: none; border: none; font-size: var(--font-xl); cursor: pointer; color: var(--text-color); padding: var(--space-1) var(--space-3); font-weight: var(--font-weight-bold); }
     /* Plain icon button, same visual weight as the burger menu next to it (no filled-circle "active"
        treatment) - it only ever offers to open the tuner (it disappears entirely once open, see
@@ -58,6 +59,9 @@
     .top-tuner-toggle-icon { height: 20px; width: auto; }
     .top-btn-back { background: transparent; border: none; color: var(--text-color); padding: var(--space-2) var(--space-5) var(--space-2) var(--space-1); font-size: var(--font-xl); font-weight: var(--font-weight-bold); cursor: pointer; display: flex; align-items: center; }
     .hidden-btn { visibility: hidden; pointer-events: none; }
+    /* The back button no longer holds its place to keep a centred title centred (ML-271): with nothing to go
+       back to (Home), it's gone, and the left-aligned title starts at the edge. */
+    .top-btn-back.hidden-btn { display: none; }
 
     .dropdown-menu { display: none; position: absolute; top: 100%; right: 20px; background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-sm); box-shadow: var(--shadow-xl); z-index: var(--z-dropdown); min-width: 200px; overflow: hidden; }
     .dropdown-menu.show { display: flex; flex-direction: column; }
@@ -254,7 +258,7 @@
     .radio-group { display: flex; gap: var(--space-2); flex-wrap: wrap; }
     /* ML-260: the checkbox version is the multi-select variant (Theory clefs) - same look, several on. */
     .radio-group input[type="radio"], .radio-group input[type="checkbox"] { display: none; }
-    .radio-group label { flex: 1 1 40%; text-align: center; padding: var(--space-3); border: 2px solid var(--control-border); border-radius: var(--radius-md); cursor: pointer; font-weight: var(--font-weight-bold); transition: var(--duration-base); }
+    .radio-group label { flex: 1 1 40%; text-align: center; padding: var(--space-3); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); cursor: pointer; font-weight: var(--font-weight-bold); transition: var(--duration-base); }
     /* ML-218: the app's one "selected" look (strong-gold outline + gold tint + strong-gold text), same as
        every selectable tile - the old blue fill was a second, competing selected style. */
     .radio-group input[type="radio"]:checked + label, .radio-group input[type="checkbox"]:checked + label { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
@@ -303,7 +307,7 @@
     .draggable-item.dragging { opacity: 0.5; box-shadow: var(--shadow-lg); }
 
     .scroll-wrapper { position: relative; width: 100%; display: flex; align-items: center; margin-bottom: var(--space-1); }
-    .scroll-btn { position: absolute; z-index: var(--z-float); background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-circle); width: 30px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-color); font-weight: var(--font-weight-bold); box-shadow: var(--shadow-sm); }
+    .scroll-btn { position: absolute; z-index: var(--z-float); background: var(--input-bg); border: 2px solid var(--control-border); border-radius: var(--radius-circle); width: 30px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-color); font-weight: var(--font-weight-bold); box-shadow: var(--shadow-sm); }
     .scroll-btn.left { left: 45px; } .scroll-btn.right { right: 5px; } .heatmap-scroll-wrapper .scroll-btn.left { left: 5px; }
     @media (hover: none) { .scroll-btn { display: none !important; } }
     @media (hover: hover) { .scroll-btn { opacity: 0; pointer-events: none; transition: opacity var(--duration-base); } .scroll-wrapper:hover .scroll-btn { opacity: 0.8; pointer-events: auto; } .scroll-wrapper:hover .scroll-btn:hover { opacity: 1; } }
@@ -377,7 +381,7 @@
     .metroBlk-setup-row-actions .btn-icon-copy { background: transparent; border: none; color: var(--label-color); }
     .metroBlk-setup-row-actions .btn-icon-delete { background: transparent; color: var(--danger-text); }
 
-    .play-card { background: var(--input-bg); padding: var(--space-6) var(--space-5); border-radius: var(--radius-lg); border: 2px solid var(--primary-action-strong); text-align: center; margin-bottom: var(--space-6); transition: transform var(--duration-base) ease, opacity var(--duration-base) ease; }
+    .play-card { background: var(--container-bg); padding: var(--space-6) var(--space-5); border-radius: var(--radius-lg); border: 2px solid var(--primary-action-strong); text-align: center; margin-bottom: var(--space-6); transition: transform var(--duration-base) ease, opacity var(--duration-base) ease; }
     .play-card.slide-out-left, .play-card.slide-in-left { transform: translateX(-40px); opacity: 0; }
     .play-card.slide-out-right, .play-card.slide-in-right { transform: translateX(40px); opacity: 0; }
     .play-piece { font-size: var(--font-xl); font-weight: var(--font-weight-bold); margin-bottom: var(--space-1); color: var(--primary-action-strong); }
@@ -511,7 +515,14 @@
 
     /* #tunerSettingsModal's 3 toggle rows - same look as the equivalent rows on the main Settings
        screen (inline-styled there; a real class here since there are 3 of them in the same popup). */
-    .tuner-display-toggle-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-5); font-size: var(--font-md); padding: var(--space-4); background: var(--input-bg); border-radius: var(--radius-md); border: 1px solid var(--control-border); }
+    /* ML-286: Settings' switch rows and My account's read-only rows (were inline styles). Both are display
+       rows - only the switch inside a setting row is tappable - so the plain surface, never --input-bg. */
+    .setting-row, .info-row { display: flex; justify-content: space-between; align-items: center; background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); }
+    .setting-row { margin-bottom: var(--space-5); font-size: var(--font-md); padding: var(--space-4); }
+    .setting-row-grouped { margin-bottom: var(--space-3); }
+    .info-row { margin-bottom: var(--space-3); padding: var(--space-3) var(--space-4); }
+    .info-row-end { margin-bottom: var(--space-5); }
+    .tuner-display-toggle-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-5); font-size: var(--font-md); padding: var(--space-4); background: var(--container-bg); border-radius: var(--radius-md); border: 1px solid var(--input-border); }
     .tuner-display-toggle-row:last-child { margin-bottom: 0; }
 
     /* Bipolar (+50c to -50c, 0 in the middle) - same 1cent=1% mapping .tuner-bar-needle's own left:
@@ -1079,7 +1090,7 @@
        separate compact "note = bpm" row (.metroBlk-note-select-btn/-eq/-bpm-row); ML-103 replaced it
        with the qp-timesig-cell/qp-notelen-cell/qp-bpm-cell card layout below instead (still opens
        this same picker), so those three rules were removed as dead weight. */
-    .metroBlk-bpm-box { flex: 1; min-width: 0; background: var(--input-bg); border: 1px solid var(--control-border); border-radius: var(--radius-md); padding: var(--space-3); }
+    .metroBlk-bpm-box { flex: 1; min-width: 0; background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3); }
     /* .slider-thumb's border defaults to var(--container-bg) so it reads as a gap against the
        page background it normally sits on - inside this box the surrounding surface is
        var(--input-bg) instead (a shade lighter), so the ring needs to match that here specifically
@@ -1207,7 +1218,7 @@
 
     /* Speed change: helper text + the two "cycle" tiles (Change at beat / Over duration), nested one
        level inside the card for visual separation, matching the reference's own inset box. */
-    .metroSeg-inset-box { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3); }
+    .metroSeg-inset-box { background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3); }
     .metroSeg-cycle-tile { background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); }
     .metroSeg-cycle-row { display: flex; align-items: center; justify-content: space-between; margin-top: var(--space-0-5); }
     .metroSeg-cycle-row strong { font-size: var(--font-md); }
@@ -2090,6 +2101,11 @@
     .flow-ramp-row-title { font-weight: var(--font-weight-bold); font-size: var(--font-sm); }
     .flow-ramp-row-tag { font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--label-color); }
     .flow-ramp-row-text-invalid .flow-ramp-row-title, .flow-ramp-row-text-invalid .flow-ramp-row-tag { color: var(--danger-text); }
+    /* ML-286: the existing pauses and ramps are a list you open - so they're list rows, like the
+       Flow library and session history: the thick left bar marks a row you can tap, where a plain
+       bordered box read as just another button. Red when the row needs fixing. */
+    .flow-fermata-row, .flow-ramp-row { border-left-width: 6px; }
+    .flow-fermata-row:has(.flow-fermata-row-text-invalid), .flow-ramp-row:has(.flow-ramp-row-text-invalid) { border-left-color: var(--danger-text); }
     #flowRampAddBox .btn-submit, #flowRampAddBox .btn-cancel { margin-top: var(--space-2); }
     /* "Ramp ends at" toggle - a compact two-option segmented pill (End of block/Specific beat)
        rather than the Pause-type grid's larger glyph+title+subtitle cards, since there's no glyph

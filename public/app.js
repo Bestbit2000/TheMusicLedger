@@ -994,6 +994,9 @@
     // VIEW NAVIGATION
     // ========================================
     const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView'];
+    // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
+    // added in ML-283). One shared widget, moved into whichever of these is showing.
+    const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView'];
     let viewStack = ['mainView'];
     // Which tab flowDetailsHubView should open on next - set by a caller just before switchView,
     // read/cleared by that view's own switchView case. null means the default (Details).
@@ -1219,7 +1222,7 @@
         // "Metronome Blocks mini tuner" below) physically relocated into whichever of Flow/Metronome
         // is the active view, rather than a copy living in each - moved before either view's own
         // dispatch above runs, so it's already in place if that view's setup code expects it there.
-        if (viewName === 'metroBuilderView' || viewName === 'quickPlayView') {
+        if (MINI_TUNER_VIEWS.includes(viewName)) {
             const hostView = document.getElementById(viewName);
             const tuner = document.getElementById('metroBlkMiniTuner');
             if (hostView && tuner && tuner.parentElement !== hostView) hostView.insertBefore(tuner, hostView.firstChild);
@@ -1228,7 +1231,7 @@
         // elsewhere) - leaving both always closes it.
         updateMetroBlkMiniTunerVisibility(viewName);
         // The toggle that owns the tuner's on/off state (ML-91) only exists on these two screens.
-        document.getElementById('topTunerToggleBtn')?.classList.toggle('hidden-group', viewName !== 'metroBuilderView' && viewName !== 'quickPlayView');
+        document.getElementById('topTunerToggleBtn')?.classList.toggle('hidden-group', !MINI_TUNER_VIEWS.includes(viewName));
 
         if (viewName === 'tunerView') {
             document.getElementById('topTitle').innerText = 'Tuner';
@@ -14815,7 +14818,7 @@
         const btn = document.getElementById('topTunerToggleBtn');
         if (!btn) return;
         const currentView = viewStack[viewStack.length - 1];
-        const onTunerCapableView = currentView === 'metroBuilderView' || currentView === 'quickPlayView';
+        const onTunerCapableView = MINI_TUNER_VIEWS.includes(currentView);
         btn.classList.toggle('hidden-group', !onTunerCapableView || metroBlkMiniTunerActive);
     }
 
@@ -14837,6 +14840,7 @@
         const currentView = viewStack[viewStack.length - 1];
         if (currentView === 'quickPlayView') return qpPlayer;
         if (currentView === 'metroBuilderView') return metroBlkPlayer;
+        if (currentView === 'flowPlayView') return flowPlayer;
         return null;
     }
 
@@ -14863,7 +14867,7 @@
     document.getElementById('topTunerToggleBtn')?.addEventListener('click', startMetroBlkMiniTuner);
 
     function updateMetroBlkMiniTunerVisibility(viewName) {
-        if (viewName !== 'metroBuilderView' && viewName !== 'quickPlayView') {
+        if (!MINI_TUNER_VIEWS.includes(viewName)) {
             metroBlkMiniTunerActive = false;
             document.getElementById('metroBlkMiniTuner')?.classList.remove('metroBlk-mini-tuner-open');
         }

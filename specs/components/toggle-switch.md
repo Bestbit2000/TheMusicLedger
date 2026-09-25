@@ -1,7 +1,7 @@
 # Toggle switch
 
 ## 1. Metadata
-- **Name:** Toggle switch (`.toggle-switch`, `.toggle-slider`, `.tuner-display-toggle-row`, `.flow-volta-toggle-row`)
+- **Name:** Toggle switch (`.toggle-switch`, `.toggle-slider`, the rows it sits in: `.setting-row` (+ `.setting-row-grouped`), `.tuner-display-toggle-row`, `.flow-volta-toggle-row`)
 - **Category:** Inputs
 - **Status:** Stable
 
@@ -11,6 +11,8 @@ button (use a checkbox-style [radio-group](radio-group.md) there), or for choice
 
 ## 3. Anatomy
 `label.toggle-switch` (50×28) › hidden `input[type=checkbox]` › `.toggle-slider` (track, with a `::before` knob). Put it in a flex row with its text label.
+
+**The row is a display surface (ML-286):** `.setting-row` (Settings), `.tuner-display-toggle-row` (tuner settings) and `.flow-volta-toggle-row` (Flow pop-ups) are `--container-bg` with an `--input-border` outline - only the switch in them is tappable, so the row is never the lighter `--input-bg`. `.setting-row-grouped` tightens the gap below a row that belongs with the next one. Style rows with these classes, never inline styles.
 
 ## 4. Tokens used
 `--control-off-bg` (track off), `--selection-color` (track on), `--container-bg` (knob),
