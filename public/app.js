@@ -4282,9 +4282,16 @@
     // block.fermatas' own barOffset. The row's own viewport (rowId with "Dots" swapped for
     // "Viewport" - true of every dot row in this app: flowPlayRowDots/flowPlayRowViewport,
     // metroBlkRow0Dots/metroBlkRow0Viewport, metroBlkMiniDots/metroBlkMiniViewport) clips overflow,
-    // so it only gets extra top padding (metro-has-fermata-marker) while a marker actually needs the
-    // room - permanently reserving that space on every row, fermata or not, would nudge every
+    // so it only gets extra top padding (metro-has-fermata-marker) when the piece needs the room: for
+    // the WHOLE piece if any bar has a fermata or caesura, so the box never changes height bar to bar,
+    // and not at all otherwise - reserving that space on every row, fermata or not, would nudge every
     // metronome-family screen down a little for a feature most blocks never use.
+    // Whether the piece this dot row belongs to has a fermata or caesura in any bar: Play Flow's rows
+    // look at the open Flow, Metronome Blocks' rows (full and mini) at the setup being played.
+    function pieceHasPauses(rowId) {
+        const blocks = rowId.startsWith('flowPlay') ? currentFlowBlocks : rowId.startsWith('metroBlk') ? metroBlkPlayQueue : [];
+        return (blocks || []).some(b => b && !b.isLeadIn && (b.fermatas || []).length > 0);
+    }
     function renderFermataMarkers(rowId, block, currentBarIndex, subFactor) {
         const row = document.getElementById(rowId);
         if (!row) return;
@@ -4299,7 +4306,10 @@
         // engine, not read as conducted beats. ML-253: caesuras get their glyph too.
         const clicksPerBar = block && !block.isLeadIn ? metroBlkBeatsPerBarFor(block) * subFactor : 0;
         const matches = clicksPerBar ? FlowJourney.pausesInBar(block, currentBarIndex, clicksPerBar) : [];
-        viewport?.classList.toggle('metro-has-fermata-marker', matches.length > 0);
+        // The room above the dots is decided for the whole piece, not bar by bar: if ANY bar has a
+        // fermata or caesura the box keeps that height throughout, so it doesn't jump as bars change;
+        // with none anywhere it stays at the smaller size.
+        viewport?.classList.toggle('metro-has-fermata-marker', matches.length > 0 || pieceHasPauses(rowId));
         matches.forEach(p => {
             const dot = row.querySelector(`.metro-dot[data-index="${p.click}"]`);
             if (!dot) return;
