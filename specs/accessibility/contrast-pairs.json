@@ -310,6 +310,30 @@
       "use": "focus ring around a gold button (the ring sits on a page-coloured gap)",
       "min": 1,
       "note": "ring is separated from the gold by a 2px --container-bg gap, so it is judged against the page"
+    },
+    {
+      "kind": "text",
+      "fg": "--success-text",
+      "bg": "--input-bg",
+      "use": "Theory: the right answer button (text, tick and border) - ML-260"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--primary-action-strong",
+      "bg": "--container-bg",
+      "use": "Theory: filled grade dots and the countdown bar - ML-260"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--control-border",
+      "bg": "--container-bg",
+      "use": "Theory: empty grade dots (outline) - ML-260"
+    },
+    {
+      "kind": "text",
+      "fg": "--danger-text",
+      "bg": "--input-bg",
+      "use": "Theory: the wrong answer button (text, cross and border) - ML-260"
     }
   ]
 }

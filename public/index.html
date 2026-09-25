@@ -110,6 +110,7 @@
                     <button type="button" class="dropdown-item" onclick="switchView('metroBuilderView'); closeMenu();">Flow</button>
                     <button type="button" class="dropdown-item" onclick="switchView('tunerView'); closeMenu();">Tuner</button>
                     <button type="button" class="dropdown-item" onclick="switchView('timerView'); closeMenu();">Timer</button>
+                    <button type="button" class="dropdown-item hidden-group" id="theoryNavItem" onclick="switchView('theoryView'); closeMenu();">Theory</button>
                 </div>
                 <div id="burgerMenuProgress" class="hidden-group">
                     <button type="button" class="dropdown-item burger-submenu-back" onclick="closeBurgerSubmenu(event)">&larr; Back</button>
@@ -210,6 +211,12 @@
             <button class="tool-icon-btn" onclick="switchView('timerView')" aria-label="Timer">
                 <span class="material-symbols-outlined">timer</span>
                 <span class="tool-icon-label">Timer</span>
+            </button>
+            <!-- ML-260: 5th tool - starts a second row of the same 4-column grid, so every tile keeps
+                 lining up with the Progress grid. Its icon is a Bravura treble clef (renderTheoryToolIcon). -->
+            <button class="tool-icon-btn hidden-group" id="theoryToolBtn" onclick="switchView('theoryView')" aria-label="Theory">
+                <span id="theoryToolIcon" aria-hidden="true"></span>
+                <span class="tool-icon-label">Theory</span>
             </button>
         </div>
 
@@ -1717,6 +1724,47 @@
         </div>
     </div>
 
+    <!-- ML-260 Theory practice: list -> options -> play -> results, one view each so the top bar's
+         back button works as everywhere else. Quiz logic is public/theoryEngine.js, notation is
+         public/notation.js, the glue is the THEORY PRACTICE section of app.js. -->
+    <div id="theoryView" style="display:none;">
+        <p class="theory-intro">Short quizzes to learn music theory. Pick one, choose how hard, and see how many you can get right.</p>
+        <div class="theory-quiz-list" id="theoryQuizList"></div>
+    </div>
+
+    <div id="theoryOptionsView" style="display:none;">
+        <div id="theoryOptionsForm"></div>
+        <p class="theory-best-line" id="theoryOptionsBest"></p>
+        <button type="button" class="btn-submit" id="theoryStartBtn">Start</button>
+    </div>
+
+    <div id="theoryPlayView" style="display:none;">
+        <div class="theory-status"><span id="theoryClock"></span><span id="theoryTally"></span></div>
+        <div class="theory-countdown" id="theoryCountdown" role="progressbar" aria-label="Time left" aria-valuemin="0" aria-valuemax="100"><div class="theory-countdown-fill" id="theoryCountdownFill"></div></div>
+        <p class="theory-question" id="theoryQuestionText"></p>
+        <div class="theory-prompt" id="theoryPrompt"></div>
+        <p class="theory-feedback" id="theoryFeedback" role="status" aria-live="polite"></p>
+        <div class="theory-answers" id="theoryAnswers"></div>
+    </div>
+
+    <div id="theoryResultsView" style="display:none;">
+        <p class="theory-results-options" id="theoryResultsOptions"></p>
+        <div class="theory-grade-block">
+            <div class="theory-grade theory-grade-lg" id="theoryResultGrade" role="img"></div>
+            <p class="theory-best-line" id="theoryResultBest"></p>
+        </div>
+        <div class="dashboard-grid">
+            <div class="stat-card"><span class="label">Score</span><span class="value" id="theoryResultScore"></span></div>
+            <div class="stat-card"><span class="label" id="theoryResultRightLabel">Right</span><span class="value" id="theoryResultRight"></span></div>
+            <div class="stat-card"><span class="label">Accuracy</span><span class="value" id="theoryResultAccuracy"></span></div>
+            <div class="stat-card"><span class="label" id="theoryResultTimeLabel">Time</span><span class="value" id="theoryResultTime"></span></div>
+        </div>
+        <div class="section-title">Your last rounds</div>
+        <div class="theory-trend" id="theoryTrend"></div>
+        <button type="button" class="btn-submit" id="theoryAgainBtn">Again</button>
+        <button type="button" class="btn-nav" id="theoryChangeBtn">Change options</button>
+    </div>
+
     <div id="entryForm" style="display:none;">
         <div class="form-group"><label>What did you do?</label>
             <div class="radio-group" id="categoryRadios">
@@ -2885,6 +2933,8 @@
 </script>
 <!-- ML-193: the Flow journey engine (play order, tempo ramps, consistency checks) - app.js uses it. -->
 <script src="flowJourney.js"></script>
+<script src="notation.js"></script>
+<script src="theoryEngine.js"></script>
 <script src="app.js"></script>
 <script src="a11y.js"></script>
 

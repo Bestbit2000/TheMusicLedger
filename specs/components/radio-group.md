@@ -11,7 +11,9 @@ duration). **Don't use** for options that need an icon/illustration or a second 
 [selectable-tile](selectable-tile.md) for those.
 
 ## 3. Anatomy
-`.radio-group` (wrapping flex) › (`input[type=radio]` hidden + `label`) × n. `.compact` fits four per row.
+`.radio-group` (wrapping flex) › (`input[type=radio]` hidden + `label`) × n. `.compact` is four per row on a wide screen, three on a phone - so it suits exactly three options there; use the standard (two per row) for two or four options rather than wrapping 3 + 1.
+
+**Multi-select variant (ML-260):** the same markup with `input[type=checkbox]` - identical look, several can be on (Theory's Clef option). Keep at least one on when the choice needs one: re-check the last box if it's unticked.
 
 ## 4. Tokens used
 `--control-border` (unselected edge), `--primary-action-strong` (selected outline + text), `--primary-action-tint` (selected wash),

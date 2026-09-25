@@ -10,7 +10,7 @@ Square launcher tiles on the home screen for the practice tools (Timer, Metronom
 play, Flow…). **Don't use** for in-page actions. They always navigate to a tool.
 
 ## 3. Anatomy
-`.tool-icon-row` (flex row) › `.tool-icon-btn` (1:1 square) › icon (Material Symbol or inline `.tool-icon-svg`) › `.tool-icon-label`
+`.tool-icon-row` (4-column grid) › `.tool-icon-btn` (1:1 square) › icon (Material Symbol, inline `.tool-icon-svg`, or a Bravura glyph from [notation](notation.md) given the `.tool-icon-svg` class, like Theory's treble clef) › `.tool-icon-label`
 
 ## 4. Tokens used
 `--nav-action`, `--nav-action-text`, `--radius-md`, `--space-1` (icon↔label), `--space-2` / `--space-1` (padding, vertical / horizontal: narrow sides so "Metronome" fits and all tiles stay equal width on a phone),
@@ -18,7 +18,7 @@ play, Flow…). **Don't use** for in-page actions. They always navigate to a too
 
 ## 5. Props / API
 - Custom SVG glyphs are inlined (not `<img>`) so `fill: currentColor` follows the theme. JS adds the `viewBox`.
-- Tiles share the row equally (`flex: 1 1 0`). Keep 3-4 per row.
+- The row is a 4-column grid (`repeat(4, minmax(0, 1fr))`, ML-260): a 5th tool (Theory) starts a second row in the same columns, so every tile keeps lining up with the Progress grid. Never make a row of 5 narrower tiles.
 - The `--space-3` row gap is the home screen's gutter. The Progress [stat-card](stat-card.md) grid
   below uses the same gap, so its middle gap lines up with this row's centre gap. Change both together or neither.
 

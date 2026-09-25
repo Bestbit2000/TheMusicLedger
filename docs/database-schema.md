@@ -311,6 +311,15 @@ Notes on fields that took a few passes to nail down:
 | `scale_definitions` | Shared reference list (not per-account) | id, name, type |
 | `scale_practice_logs` | History per account | id, account_id, scale_id, session_segment_id, logged_at, bpm_achieved, status |
 
+### Theory practice (ML-260, wired up)
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `theory_quiz_attempts` | One finished quiz round (the Theory tool). Score/grade recomputed by the server with `public/theoryEngine.js`; `settings_key` = quiz + round type + visible options, what history and personal bests group by. Counts as practice time, but not linked to sessions yet (`session_segment_id` nullable, for later) | id, account_id, quiz_id, round_type, options (JSONB), settings_key, naming, right_count, wrong_count, score, grade, duration_ms, started_at, session_segment_id |
+| `theory_quiz_answers` | Every answer in a round, in order - for a later "practise your weakest notes" mode | attempt_id, seq, question_id, answer_id, correct, ms |
+
+See `docs/theory-practice.md`.
+
 ### Technique exercises
 
 | Table | Purpose | Key columns |

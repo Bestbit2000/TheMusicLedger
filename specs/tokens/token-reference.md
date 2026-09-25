@@ -154,6 +154,8 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 | `--font-sans` | `'Inter', 'Segoe UI', Tahoma, sans-serif` | all UI text |
 | `--font-mono` | `ui-monospace, 'SFMono-Regular', Consolas, monospace` | code, IDs, timestamps in admin |
 | `--font-music` | `'Noto Music', serif` | Unicode musical symbols (segno, coda) |
+| `--font-notation` | `'Bravura'` | music notation glyphs (notes, clefs, symbols) - Bravura via public/notation.js (ML-262) |
+| `--font-notation-text` | `Georgia, 'Times New Roman', serif` | words printed in music: Fine, 1./2. time-bar numbers (ML-262) |
 | `--font-2xs` | `0.6rem` | heatmap day labels only |
 | `--font-xs` | `0.65rem` | micro labels, badges, chart axes |
 | `--font-sm` | `0.8rem` | secondary text, captions, chips, metadata |
@@ -364,6 +366,8 @@ one ladder, low to high. Never invent a number in a component.
 | `--ds-font-inter` | `'Inter', 'Segoe UI', Tahoma, sans-serif` |
 | `--ds-font-mono` | `ui-monospace, 'SFMono-Regular', Consolas, monospace` |
 | `--ds-font-music` | `'Noto Music', serif` |
+| `--ds-font-bravura` | `'Bravura'` |
+| `--ds-font-serif` | `Georgia, 'Times New Roman', serif` |
 | `--ds-text-0-6` | `0.6rem` |
 | `--ds-text-0-65` | `0.65rem` |
 | `--ds-text-0-8` | `0.8rem` |

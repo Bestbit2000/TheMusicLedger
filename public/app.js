@@ -239,6 +239,12 @@
             }
         },
         // ML-201 - every response also carries appVersion (the server's running release).
+        // ML-260/ML-265 Theory practice - finished rounds and their history (THEORY PRACTICE section).
+        theory: {
+            summary: () => apiCall('/api/theory/summary'),
+            history: (settingsKey) => apiCall(`/api/theory/attempts?settingsKey=${encodeURIComponent(settingsKey)}`),
+            save: (data) => apiCall('/api/theory/attempts', 'POST', data)
+        },
         notifications: {
             list: () => apiCall('/api/notifications'),
             read: (id) => apiCall(`/api/notifications/${id}/read`, 'POST'),
@@ -619,6 +625,8 @@
         document.getElementById('notificationsNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('notifications'));
         renderNotificationIndicators();
         document.getElementById('feedbackNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('feedback'));
+        document.getElementById('theoryToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('theory_practice'));
+        document.getElementById('theoryNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('theory_practice'));
     }
 
     // ML-204: one start-screen option and one import screen, shared by two gates - MusicXML
@@ -948,7 +956,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView'];
     let viewStack = ['mainView'];
     // Which tab flowDetailsHubView should open on next - set by a caller just before switchView,
     // read/cleared by that view's own switchView case. null means the default (Details).
@@ -983,6 +991,23 @@
 
     window.switchView = function(viewName, isBack = false) {
         if (viewAliasMap[viewName]) viewName = viewAliasMap[viewName];
+
+        // ML-260: leaving a Theory round part-way asks first - only finished rounds are saved. The
+        // clock keeps running while the question is up (it's a timed round). goBack() has already
+        // popped the play view by now, so it's put back until the answer is known.
+        if (theoryRoundInProgress() && viewName !== 'theoryPlayView') {
+            if (isBack) viewStack.push('theoryPlayView');
+            showConfirmModal('Stop this round?', "Only finished rounds are saved, so this one won't count.", () => {
+                theoryStopRound();
+                if (isBack) viewStack.pop();
+                switchView(viewName, isBack);
+            }, true, 'Stop round', 'Keep going');
+            return;
+        }
+        // Coming back to Play or Results with nothing to show (e.g. Back from another tool) lands on
+        // the step before instead of an empty screen.
+        if (viewName === 'theoryPlayView' && !theoryRound) { if (isBack) viewStack.pop(); viewName = theoryQuizId ? 'theoryOptionsView' : 'theoryView'; if (isBack && viewStack[viewStack.length - 1] !== viewName) viewStack.push(viewName); }
+        if (viewName === 'theoryResultsView' && !theoryLastResult) { if (isBack) viewStack.pop(); viewName = 'theoryView'; if (isBack && viewStack[viewStack.length - 1] !== viewName) viewStack.push(viewName); }
 
         // Leaving the Blocks builder mid-edit (ML-97) discards the draft rather than stranding it -
         // there's no other hook for back-button/menu navigation away from the view.
@@ -1057,6 +1082,10 @@
             document.getElementById('statsProjectionToggle').checked = statsShowProjection();
         }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
+        if (viewName === 'theoryView') { document.getElementById('topTitle').innerText = 'Theory'; renderTheoryList(); }
+        if (viewName === 'theoryOptionsView') { document.getElementById('topTitle').innerText = TheoryEngine.quiz(theoryQuizId).title; renderTheoryOptions(); }
+        if (viewName === 'theoryPlayView') { document.getElementById('topTitle').innerText = TheoryEngine.quiz(theoryQuizId).title; }
+        if (viewName === 'theoryResultsView') { document.getElementById('topTitle').innerText = 'Results'; }
         if (viewName === 'notificationsView') { document.getElementById('topTitle').innerText = 'Notifications'; renderNotificationsView(); checkNotifications(true); }
         if (viewName === 'flowFromFileView') { document.getElementById('topTitle').innerText = flowImportTitle(); resetFlowFromFileScreen(); }
         if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
@@ -15314,6 +15343,349 @@
             localStorage.setItem('darkMode', 'false');
         }
     });
+
+    // ========================================
+    // THEORY PRACTICE (ML-260, screens ML-264, saving ML-265)
+    // ========================================
+    // Four views: theoryView (quiz list) -> theoryOptionsView -> theoryPlayView -> theoryResultsView.
+    // Everything musical comes from elsewhere: questions, answers and scoring from TheoryEngine
+    // (public/theoryEngine.js), every note/symbol drawn by Notation (public/notation.js, Bravura).
+    // This section only runs the round: the clock, taps, feedback, saving and history.
+    // docs/theory-practice.md has the rules.
+    // var, not let: switchView (defined much earlier) reads these, and must never hit the temporal dead
+    // zone if it runs before this part of the script has.
+    var theoryQuizId = null;
+    let theoryOptions = null;      // normalised options for theoryQuizId
+    let theoryRoundId = TheoryEngine.DEFAULT_ROUND;
+    var theoryRound = null;        // the round in progress, or null
+    var theoryLastResult = null;   // what the results screen shows
+    let theoryTicker = null;
+    let theoryTestOffsetMs = 0;    // test hook's virtual clock (always 0 outside local tests)
+    const THEORY_PROMPT_SCALE = 1.6;   // SVG user units -> px: a staff space is 16px on screen
+    const THEORY_SYMBOL_SCALE = 1.0;   // symbols inside answer buttons
+
+    const theoryNow = () => performance.now() + theoryTestOffsetMs;
+    function theoryNaming() {
+        try { return localStorage.getItem(TUNER_NOTE_STYLE_KEY) === 'solfege' ? 'solfege' : 'letters'; } catch (e) { return 'letters'; }
+    }
+    function theoryStoredChoice(quizId) {
+        try {
+            const raw = JSON.parse(localStorage.getItem(`tml.theory.${quizId}`) || 'null');
+            return raw && typeof raw === 'object' ? raw : {};
+        } catch (e) { return {}; }
+    }
+    function theoryStoreChoice() {
+        try { localStorage.setItem(`tml.theory.${theoryQuizId}`, JSON.stringify({ options: theoryOptions, round: theoryRoundId })); } catch (e) { /* per-device convenience only */ }
+    }
+    // Notation draws at 1 unit per px; scale its width/height (the viewBox keeps the drawing) so a
+    // staff space is the same size on every question. CSS max-width shrinks it on a narrow phone.
+    function theoryScaleSvg(svg, k) {
+        return svg.replace(/width="([\d.]+)" height="([\d.]+)"/, (m, w, h) => `width="${Math.round(w * k)}" height="${Math.round(h * k)}"`);
+    }
+    function theoryVisual(render, label, k) {
+        let svg;
+        if (render.type === 'symbol') svg = Notation.symbol(render.glyph, { label });
+        else if (render.type === 'staff') svg = Notation.staff({ ...render.staff, label });
+        else if (render.type === 'hairpin') svg = Notation.hairpin(render.dir, { label });
+        else svg = Notation.textMark(render.text, { italic: render.italic, label });
+        return theoryScaleSvg(svg, k);
+    }
+    function theoryGradeHtml(grade, label) {
+        const dots = [1, 2, 3, 4, 5].map(i => `<span class="theory-grade-dot${i <= grade ? ' theory-grade-dot-on' : ''}"></span>`).join('');
+        return `<span class="theory-grade" role="img" aria-label="${escapeHtml(label || `Grade ${grade} of 5`)}">${dots}</span>`;
+    }
+    function theoryWhen(iso) {
+        const d = new Date(iso);
+        const days = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(d).setHours(0, 0, 0, 0)) / 86400000);
+        if (days <= 0) return 'today';
+        if (days === 1) return 'yesterday';
+        if (days < 7) return `${days} days ago`;
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    }
+
+    // --- The home tile's icon: a Bravura treble clef, like every other piece of notation. ---
+    (function renderTheoryToolIcon() {
+        const el = document.getElementById('theoryToolIcon');
+        if (el) el.outerHTML = Notation.symbol('gClef').replace('class="notation"', 'class="notation tool-icon-svg"');
+    })();
+
+    // --- Quiz list ---
+    async function renderTheoryList() {
+        const list = document.getElementById('theoryQuizList');
+        const row = (q, last) => `
+            <button type="button" class="history-item clickable theory-quiz-row" data-quiz="${q.id}">
+                <span class="theory-quiz-icon">${theoryScaleSvg(Notation.symbol(q.icon), 0.8)}</span>
+                <span class="history-details"><strong>${escapeHtml(q.title)}</strong>${last ? `Last grade ${last.grade} · ${theoryWhen(last.startedAt)}` : 'Not tried yet'}</span>
+                ${last ? theoryGradeHtml(last.grade, `Last grade ${last.grade} of 5`) : ''}
+            </button>`;
+        const draw = (summary) => {
+            list.innerHTML = TheoryEngine.QUIZZES.map(q => row(q, summary[q.id])).join('');
+            list.querySelectorAll('[data-quiz]').forEach(b => b.addEventListener('click', () => openTheoryOptions(b.dataset.quiz)));
+        };
+        draw({});
+        try { draw((await API.theory.summary()).quizzes || {}); } catch (e) { /* list still works without grades */ }
+    }
+    function openTheoryOptions(quizId) {
+        theoryQuizId = quizId;
+        const stored = theoryStoredChoice(quizId);
+        theoryOptions = TheoryEngine.normaliseOptions(quizId, stored.options);
+        theoryRoundId = TheoryEngine.round(stored.round).value;
+        switchView('theoryOptionsView');
+    }
+
+    // --- Options: the standard radio-group pills; clef is the checkbox (multi-select) version. ---
+    // .compact shows three to a row on a phone, so it suits exactly three choices; two or four go two
+    // to a row (2 x 2) rather than wrapping 3 + 1.
+    const theoryPillsCompact = (choices) => choices.length === 3;
+    function renderTheoryOptions() {
+        const quiz = TheoryEngine.quiz(theoryQuizId);
+        const groups = quiz.options.filter(d => TheoryEngine.optionVisible(d, theoryOptions)).map(d => ({
+            key: d.key, label: d.label, multi: !!d.multi, choices: d.choices,
+            isOn: (v) => (d.multi ? theoryOptions[d.key].includes(v) : theoryOptions[d.key] === v)
+        }));
+        groups.push({ key: 'round', label: 'Round', multi: false, choices: TheoryEngine.ROUNDS.map(r => ({ value: r.value, label: r.label })), isOn: (v) => theoryRoundId === v });
+        const form = document.getElementById('theoryOptionsForm');
+        form.innerHTML = groups.map(g => `
+            <div class="form-group" role="group" aria-labelledby="theoryOptLabel-${g.key}"><label id="theoryOptLabel-${g.key}">${escapeHtml(g.label)}</label>
+                <div class="radio-group${theoryPillsCompact(g.choices) ? ' compact' : ''}">
+                    ${g.choices.map((c, i) => `<input type="${g.multi ? 'checkbox' : 'radio'}" id="theoryOpt-${g.key}-${i}" name="theoryOpt-${g.key}" data-key="${g.key}" data-index="${i}"${g.isOn(c.value) ? ' checked' : ''}><label for="theoryOpt-${g.key}-${i}">${escapeHtml(c.label)}</label>`).join('')}
+                </div>
+            </div>`).join('');
+        form.querySelectorAll('input').forEach(input => input.addEventListener('change', () => {
+            const key = input.dataset.key;
+            const g = groups.find(x => x.key === key);
+            const value = g.choices[Number(input.dataset.index)].value;
+            if (key === 'round') theoryRoundId = value;
+            else if (g.multi) {
+                const now = g.choices.filter((c, i) => form.querySelector(`#theoryOpt-${key}-${i}`).checked).map(c => c.value);
+                if (!now.length) { input.checked = true; return; } // at least one clef
+                theoryOptions = TheoryEngine.normaliseOptions(theoryQuizId, { ...theoryOptions, [key]: now });
+            } else {
+                theoryOptions = TheoryEngine.normaliseOptions(theoryQuizId, { ...theoryOptions, [key]: value });
+            }
+            theoryStoreChoice();
+            // Showing/hiding a dependent option (minor form) needs a redraw; otherwise just the best line.
+            const visibleNow = quiz.options.filter(d => TheoryEngine.optionVisible(d, theoryOptions)).length + 1;
+            if (visibleNow !== groups.length) renderTheoryOptions();
+            else renderTheoryOptionsBest();
+        }));
+        renderTheoryOptionsBest();
+    }
+    async function renderTheoryOptionsBest() {
+        const el = document.getElementById('theoryOptionsBest');
+        const key = TheoryEngine.settingsKey(theoryQuizId, theoryOptions, theoryRoundId);
+        el.textContent = '';
+        try {
+            const h = await API.theory.history(key);
+            if (key !== TheoryEngine.settingsKey(theoryQuizId, theoryOptions, theoryRoundId)) return; // options changed meanwhile
+            el.textContent = h.best ? `Your best with these options: ${h.best.score} (grade ${h.best.grade})` : "You haven't tried these options yet.";
+        } catch (e) { /* not essential */ }
+    }
+    document.getElementById('theoryStartBtn')?.addEventListener('click', () => theoryStartRound());
+
+    // --- The round ---
+    function theoryRoundInProgress() { return !!(theoryRound && !theoryRound.ended); }
+    function theoryElapsedMs(r) { return r.accumulatedMs + (r.runningSince === null ? 0 : theoryNow() - r.runningSince); }
+
+    function theoryStartRound(seed) {
+        const round = TheoryEngine.round(theoryRoundId);
+        theoryRound = {
+            quizId: theoryQuizId, options: theoryOptions, roundId: round.value, seconds: round.seconds || null, questions: round.questions || null,
+            naming: theoryNaming(), source: TheoryEngine.questionSource(theoryQuizId, theoryOptions, { seed: seed ?? (Date.now() % 2147483647), naming: theoryNaming() }),
+            startedAt: new Date().toISOString(), accumulatedMs: 0, runningSince: theoryNow(),
+            right: 0, wrong: 0, answers: [], question: null, shownAt: 0, locked: false, ended: false
+        };
+        document.getElementById('theoryCountdown').classList.toggle('hidden-group', !theoryRound.seconds);
+        // Replace the options screen's place in history? No - Back from Play (after the confirm) should
+        // land on the options, so Play simply goes on top.
+        switchView('theoryPlayView');
+        theoryNextQuestion();
+        clearInterval(theoryTicker);
+        theoryTicker = setInterval(theoryTick, 100);
+        theoryTick();
+    }
+    function theoryStopRound() {
+        clearInterval(theoryTicker);
+        theoryTicker = null;
+        if (theoryRound) theoryRound.ended = true;
+        theoryRound = null;
+    }
+    function theoryTick() {
+        const r = theoryRound;
+        if (!r || r.ended) return;
+        const elapsed = theoryElapsedMs(r);
+        const clock = document.getElementById('theoryClock');
+        if (r.seconds) {
+            const left = Math.max(0, r.seconds * 1000 - elapsed);
+            const secs = Math.ceil(left / 1000);
+            clock.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+            const fill = document.getElementById('theoryCountdownFill');
+            fill.style.transform = `scaleX(${left / (r.seconds * 1000)})`;
+            document.getElementById('theoryCountdown').setAttribute('aria-valuenow', String(Math.round(100 * left / (r.seconds * 1000))));
+            if (left <= 0) theoryEndRound();
+        } else {
+            const s = Math.floor(elapsed / 1000);
+            clock.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+        }
+    }
+    function theoryUpdateTally() {
+        const r = theoryRound;
+        document.getElementById('theoryTally').textContent = r.questions
+            ? `${Math.min(r.answers.length + 1, r.questions)} of ${r.questions}`
+            : `${r.right} right${r.wrong ? ` · ${r.wrong} wrong` : ''}`;
+    }
+    function theoryNextQuestion() {
+        const r = theoryRound;
+        if (!r || r.ended) return;
+        const q = r.source.next();
+        r.question = q;
+        r.locked = false;
+        document.getElementById('theoryQuestionText').textContent = q.prompt.text;
+        const prompt = document.getElementById('theoryPrompt');
+        if (q.prompt.staff) prompt.innerHTML = theoryScaleSvg(Notation.staff({ ...q.prompt.staff, label: q.prompt.label }), THEORY_PROMPT_SCALE);
+        else if (q.prompt.render) prompt.innerHTML = theoryVisual(q.prompt.render, q.prompt.label, THEORY_PROMPT_SCALE * 1.4);
+        else prompt.innerHTML = `<p class="theory-meaning">${escapeHtml(q.prompt.meaning)}</p>`;
+        document.getElementById('theoryFeedback').textContent = '';
+        const answers = document.getElementById('theoryAnswers');
+        answers.className = `theory-answers theory-answers-${q.layout}`;
+        answers.innerHTML = q.answers.map(a => q.layout === 'symbols'
+            ? `<button type="button" class="theory-answer" data-id="${escapeHtml(a.id)}" aria-label="${escapeHtml(a.label)}">${theoryVisual(a.render, null, THEORY_SYMBOL_SCALE)}</button>`
+            : `<button type="button" class="theory-answer" data-id="${escapeHtml(a.id)}">${escapeHtml(a.label)}</button>`).join('');
+        answers.querySelectorAll('.theory-answer').forEach(b => b.addEventListener('click', () => theoryAnswer(b.dataset.id)));
+        theoryUpdateTally();
+        r.shownAt = theoryNow();
+    }
+    function theoryMarkAnswer(id, state) {
+        const b = document.querySelector(`#theoryAnswers .theory-answer[data-id="${CSS.escape(id)}"]`);
+        if (!b) return;
+        b.classList.add(state === 'right' ? 'theory-answer-right' : 'theory-answer-wrong');
+        b.insertAdjacentHTML('afterbegin', `<span class="material-symbols-outlined" aria-hidden="true">${state === 'right' ? 'check' : 'close'}</span>`);
+    }
+    function theoryAnswer(id) {
+        const r = theoryRound;
+        if (!r || r.ended || r.locked) return;
+        // A tap in the first moment after a question appears is the tail end of the last one (a
+        // double tap), not an answer to this one.
+        if (theoryNow() - r.shownAt < TheoryEngine.TIMING.minAnswerMs) return;
+        const q = r.question;
+        const correct = id === q.correct;
+        r.answers.push({ questionId: q.id, answerId: id, correct, ms: Math.round(theoryNow() - r.shownAt) });
+        r.locked = true;
+        if (correct) {
+            r.right++;
+            theoryMarkAnswer(id, 'right');
+        } else {
+            r.wrong++;
+            theoryMarkAnswer(id, 'wrong');
+            theoryMarkAnswer(q.correct, 'right');
+            const label = q.answers.find(a => a.id === q.correct).label;
+            document.getElementById('theoryFeedback').textContent = `Not quite: it's ${label}`;
+        }
+        theoryUpdateTally();
+        const finished = r.questions && r.answers.length >= r.questions;
+        // A right answer moves on almost at once (speed counts); a wrong one leaves the right answer
+        // up long enough to learn it - which also costs time, so guessing doesn't pay.
+        setTimeout(() => {
+            if (theoryRound !== r || r.ended) return;
+            if (finished) theoryEndRound();
+            else theoryNextQuestion();
+        }, correct ? 150 : TheoryEngine.TIMING.wrongRevealMs);
+    }
+    // The clock stops while the app is in the background (a phone call, switching apps).
+    document.addEventListener('visibilitychange', () => {
+        const r = theoryRound;
+        if (!r || r.ended) return;
+        if (document.hidden && r.runningSince !== null) { r.accumulatedMs += theoryNow() - r.runningSince; r.runningSince = null; }
+        else if (!document.hidden && r.runningSince === null) { r.runningSince = theoryNow(); theoryTick(); }
+    });
+
+    async function theoryEndRound() {
+        const r = theoryRound;
+        if (!r || r.ended) return;
+        clearInterval(theoryTicker);
+        theoryTicker = null;
+        r.ended = true;
+        const elapsed = theoryElapsedMs(r);
+        const durationMs = r.seconds ? r.seconds * 1000 : Math.round(elapsed);
+        const local = TheoryEngine.scoreRound(r.quizId, r.roundId, { right: r.right, wrong: r.wrong });
+        theoryLastResult = { round: r, durationMs, score: local.score, grade: local.grade, saved: null, saving: true };
+        theoryRound = null;
+        // Results replaces Play in the back history: Back from Results goes to the options.
+        if (viewStack[viewStack.length - 1] === 'theoryPlayView') viewStack.pop();
+        switchView('theoryResultsView');
+        renderTheoryResults();
+        try {
+            theoryLastResult.saved = await API.theory.save({
+                quizId: r.quizId, roundType: r.roundId, options: r.options, naming: r.naming,
+                right: r.right, wrong: r.wrong, durationMs, startedAt: r.startedAt, answers: r.answers
+            });
+        } catch (e) {
+            showWarningToast("Couldn't save this round. Your result is below, but it won't be in your history.");
+        }
+        theoryLastResult.saving = false;
+        renderTheoryResults();
+    }
+    function renderTheoryResults() {
+        const res = theoryLastResult;
+        if (!res) return;
+        const r = res.round;
+        const saved = res.saved;
+        const score = saved ? saved.attempt.score : res.score;
+        const grade = saved ? saved.attempt.grade : res.grade;
+        const answered = r.right + r.wrong;
+        document.getElementById('theoryResultsOptions').textContent = `${TheoryEngine.quiz(r.quizId).title} · ${TheoryEngine.describeOptions(r.quizId, r.options, r.roundId)}`;
+        const gradeEl = document.getElementById('theoryResultGrade');
+        gradeEl.outerHTML = theoryGradeHtml(grade).replace('class="theory-grade"', 'class="theory-grade theory-grade-lg" id="theoryResultGrade"');
+        document.getElementById('theoryResultScore').textContent = `${score}`;
+        document.getElementById('theoryResultRight').textContent = r.wrong ? `${r.right} (${r.wrong} wrong)` : `${r.right}`;
+        document.getElementById('theoryResultAccuracy').textContent = answered ? `${Math.round(100 * r.right / answered)}%` : '-';
+        const secs = Math.round(res.durationMs / 1000);
+        document.getElementById('theoryResultTime').textContent = r.seconds ? `${r.seconds} s` : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+        const best = document.getElementById('theoryResultBest');
+        if (res.saving) best.textContent = `Grade ${grade} of 5`;
+        else if (!saved) best.textContent = `Grade ${grade} of 5 (not saved)`;
+        else if (saved.isFirst) best.textContent = `Grade ${grade} of 5 · your first round with these options`;
+        else if (saved.isNewBest) best.textContent = `Grade ${grade} of 5 · new personal best (was ${saved.previousBest.score})`;
+        else best.textContent = `Grade ${grade} of 5 · your best is ${saved.best.score} (grade ${saved.best.grade})`;
+        renderTheoryTrend(saved ? saved.recent : []);
+    }
+    // The last rounds with these options, oldest first - reuses the stats bar-chart pieces.
+    function renderTheoryTrend(recent) {
+        const el = document.getElementById('theoryTrend');
+        if (!recent.length) { el.innerHTML = '<p class="text-muted">Your rounds with these options will show here.</p>'; return; }
+        el.innerHTML = `<div class="theory-trend-bars" role="img" aria-label="Scores of your last ${recent.length} rounds: ${recent.map(a => a.score).join(', ')}">${recent.map((a, i) => `
+            <div class="chart-bar-container"><div class="chart-bar" style="height:${Math.max(2, a.score)}%; background: var(--chart-hours);"></div>
+            <span class="chart-x-label">${i === recent.length - 1 ? 'Now' : a.score}</span></div>`).join('')}</div>`;
+    }
+    document.getElementById('theoryAgainBtn')?.addEventListener('click', () => {
+        // Results is replaced by the new round, so Back still goes to the options.
+        if (viewStack[viewStack.length - 1] === 'theoryResultsView') viewStack.pop();
+        theoryStartRound();
+    });
+    document.getElementById('theoryChangeBtn')?.addEventListener('click', () => goBack());
+
+    // Theory test hook - LOCAL DEVELOPMENT ONLY, same switch as the Flow one above (localhost +
+    // localStorage 'tml.testClock' = '1'). Lets the back-tests start a round with a fixed seed, read the
+    // right answer, and move the round's clock on without waiting.
+    (function theoryTestHook() {
+        let on = false;
+        try { on = ['localhost', '127.0.0.1'].includes(location.hostname) && localStorage.getItem('tml.testClock') === '1'; } catch (e) { on = false; }
+        if (!on) return;
+        window.__theoryTest = {
+            start: (quizId, options, roundId, seed) => {
+                theoryStopRound(); // a round still running is simply dropped, not asked about
+                theoryQuizId = quizId;
+                theoryOptions = TheoryEngine.normaliseOptions(quizId, options);
+                theoryRoundId = TheoryEngine.round(roundId).value;
+                switchView('theoryOptionsView');
+                theoryStartRound(seed);
+            },
+            question: () => theoryRound && JSON.parse(JSON.stringify(theoryRound.question)),
+            state: () => theoryRound ? { right: theoryRound.right, wrong: theoryRound.wrong, answered: theoryRound.answers.length, locked: theoryRound.locked } : null,
+            advance: (ms) => { theoryTestOffsetMs += ms; theoryTick(); },
+            result: () => theoryLastResult && JSON.parse(JSON.stringify({ score: theoryLastResult.score, grade: theoryLastResult.grade, saving: theoryLastResult.saving, saved: theoryLastResult.saved }))
+        };
+    })();
 
     // Initialize app on page load
     window.addEventListener('load', initializeApp);

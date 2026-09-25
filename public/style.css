@@ -2,6 +2,14 @@
     /* Design tokens (colours, spacing, type, radius, shadow, z-index, motion) live in tokens.css,
        loaded before this file - see specs/ and specs/tokens/token-reference.md (ML-198). */
 
+    /* ML-262: Bravura (SMuFL, SIL OFL - public/fonts/Bravura-LICENSE.txt), self-hosted so notation never
+       falls back to a phone font. font-display: block - a note in the wrong font is worse than a
+       brief blank. Everything drawn with it comes from public/notation.js. */
+    @font-face { font-family: 'Bravura'; src: url('/fonts/bravura.woff2') format('woff2'); font-display: block; }
+    .notation-glyph { font-family: var(--font-notation); }
+    .notation-text { font-family: var(--font-notation-text); }
+    .notation-text-italic { font-style: italic; font-weight: var(--font-weight-bold); }
+
     input, select { color-scheme: light; }
     body.dark-mode input, body.dark-mode select { color-scheme: dark; }
 
@@ -120,7 +128,9 @@
     .btn-text-danger { color: var(--danger-text); }
 
     .tools-title { margin-top: 0; }
-    .tool-icon-row { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); }
+    /* A 4-column grid (ML-260): a 5th tool starts a second row of the same columns, so every tile still
+       lines up with the Progress grid below. */
+    .tool-icon-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
     /* min-width: 0 + the narrow side padding keep all four tiles exactly equal on a phone - otherwise
        "Metronome" (the longest label) props its tile a few px wider than the rest and the row stops
        lining up with the Progress .dashboard-grid below (see specs/components/stat-card.md). */
@@ -132,6 +142,44 @@
        do) with a JS-added viewBox and preserveAspectRatio so any source aspect ratio scales to fit
        this same 32px box the material icons use, rather than stretching or overflowing the button. */
     .tool-icon-svg { width: 32px; height: 32px; fill: currentColor; }
+
+    /* ML-260 Theory practice (specs/components/theory-quiz.md). Notation itself is Notation's SVG in
+       currentColor; these only lay it out. */
+    .theory-intro { color: var(--label-color); font-size: var(--font-sm); margin: 0 0 var(--space-3); }
+    .theory-quiz-row { gap: var(--space-3); justify-content: flex-start; }
+    .theory-quiz-row .history-details { flex: 1 1 auto; }
+    .theory-quiz-icon { flex: 0 0 var(--icon-xl); display: flex; justify-content: center; align-items: center; }
+    .theory-quiz-icon svg { max-width: var(--icon-xl); max-height: var(--icon-xl); width: auto; height: auto; }
+    .theory-grade { display: inline-flex; gap: var(--space-1); flex: 0 0 auto; }
+    .theory-grade-dot { width: var(--space-2); height: var(--space-2); border-radius: var(--radius-circle); border: 2px solid var(--control-border); box-sizing: border-box; }
+    .theory-grade-dot-on { background: var(--primary-action-strong); border-color: var(--primary-action-strong); }
+    .theory-grade-lg { gap: var(--space-2); }
+    .theory-grade-lg .theory-grade-dot { width: var(--space-5); height: var(--space-5); }
+    .theory-best-line { color: var(--label-color); font-size: var(--font-sm); text-align: center; margin: var(--space-2) 0 var(--space-3); }
+    .theory-status { display: flex; justify-content: space-between; font-size: var(--font-md); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; margin-bottom: var(--space-2); }
+    .theory-countdown { height: var(--space-1); background: var(--input-border); border-radius: var(--radius-circle); overflow: hidden; }
+    .theory-countdown-fill { height: 100%; background: var(--primary-action-strong); transform-origin: left center; transition: transform var(--duration-fast) linear; }
+    .theory-question { text-align: center; color: var(--label-color); font-size: var(--font-base); margin: var(--space-3) 0 var(--space-2); }
+    .theory-prompt { display: flex; justify-content: center; align-items: center; color: var(--text-color); min-height: calc(var(--touch-target) * 2); }
+    .theory-prompt svg { max-width: 100%; height: auto; }
+    .theory-meaning { font-size: var(--font-lg); font-weight: var(--font-weight-bold); text-align: center; margin: 0; }
+    /* Always takes its line, so the answer buttons don't jump down when "Not quite" appears. */
+    .theory-feedback { min-height: calc(var(--font-base) * 1.5); text-align: center; color: var(--danger-text); font-weight: var(--font-weight-bold); margin: var(--space-2) 0; }
+    .theory-answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+    .theory-answers-notes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .theory-answer { min-height: var(--touch-target); display: flex; align-items: center; justify-content: center; gap: var(--space-1); padding: var(--space-2); background: var(--input-bg); color: var(--text-color); border: 2px solid var(--control-border); border-radius: var(--radius-md); font: inherit; font-size: var(--font-md); font-weight: var(--font-weight-bold); cursor: pointer; }
+    .theory-answer .material-symbols-outlined { font-size: var(--icon-md); }
+    .theory-answers-symbols .theory-answer { min-height: calc(var(--touch-target) * 2); }
+    .theory-answers-symbols .theory-answer svg { max-width: 100%; max-height: calc(var(--touch-target) * 1.5); width: auto; height: auto; }
+    /* Right/wrong is never colour alone: a tick or cross icon goes in too, and "Not quite: it's X" is announced. */
+    .theory-answer-right { border-color: var(--success-text); color: var(--success-text); }
+    .theory-answer-wrong { border-color: var(--danger-text); color: var(--danger-text); }
+    .theory-results-options { color: var(--label-color); font-size: var(--font-sm); text-align: center; margin: 0 0 var(--space-3); }
+    .theory-grade-block { display: flex; flex-direction: column; align-items: center; margin-bottom: var(--space-3); }
+    .theory-trend { margin-bottom: var(--space-4); }
+    /* Eight fixed slots (the last 8 rounds), so one round is one bar-width, not the whole row. */
+    .theory-trend-bars { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: var(--space-2); align-items: end; height: calc(var(--touch-target) * 2); }
+    .theory-trend-bars .chart-bar-container { margin-right: 0; min-width: 0; cursor: default; }
 
     /* ML-176: inline filter strip (design system component - see styleguide.html "Filter strip"),
        replacing the old full-width .btn-filter button + blocking checkbox modal on both the Detailed
@@ -180,11 +228,12 @@
     input:checked + .toggle-slider:before { transform: translateX(22px); }
 
     .radio-group { display: flex; gap: var(--space-2); flex-wrap: wrap; }
-    .radio-group input[type="radio"] { display: none; }
+    /* ML-260: the checkbox version is the multi-select variant (Theory clefs) - same look, several on. */
+    .radio-group input[type="radio"], .radio-group input[type="checkbox"] { display: none; }
     .radio-group label { flex: 1 1 40%; text-align: center; padding: var(--space-3); border: 2px solid var(--control-border); border-radius: var(--radius-md); cursor: pointer; font-weight: var(--font-weight-bold); transition: var(--duration-base); }
     /* ML-218: the app's one "selected" look (strong-gold outline + gold tint + strong-gold text), same as
        every selectable tile - the old blue fill was a second, competing selected style. */
-    .radio-group input[type="radio"]:checked + label { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
+    .radio-group input[type="radio"]:checked + label, .radio-group input[type="checkbox"]:checked + label { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
     .radio-group.compact label { flex: 1 1 calc(25% - 6px); padding: var(--space-3) var(--space-1); font-size: var(--font-base); }
 
     /* One grid per set of cards, never one grid per row: grid-auto-rows: 1fr makes every row the
@@ -2092,7 +2141,7 @@
        :focus-visible, so a mouse/touch tap never leaves a ring behind. */
     :where(button, a[href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"]), [role="button"], [role="slider"], [role="switch"], [role="menuitem"]):focus-visible { outline: none; box-shadow: var(--focus-ring); }
     /* Controls whose real input is visually hidden show the ring on the part you can see. */
-    .toggle-switch input:focus-visible + .toggle-slider, .radio-group input[type="radio"]:focus-visible + label { box-shadow: var(--focus-ring); }
+    .toggle-switch input:focus-visible + .toggle-slider, .radio-group input[type="radio"]:focus-visible + label, .radio-group input[type="checkbox"]:focus-visible + label { box-shadow: var(--focus-ring); }
 
     /* A6 - 44x44 minimum hit area (house rule; WCAG 2.5.8 minimum is 24). The visible control keeps
        its size; an invisible ::before centred on it catches taps out to var(--touch-target). The

@@ -57,6 +57,11 @@ tests) to see every test case and which features it's linked to.
      exactly what the screen shows click by click.
 
    Cases #12-17 are the worked examples, and [docs/flow-journey.md](../../../docs/flow-journey.md)
+   has the rules.
+   **Theory practice (ML-260):** `tests/helpers/theory.ts`. `enableTestClock` switches on
+   `window.__theoryTest` too. `startRound(page, quiz, options, round, seed)` starts a round with a fixed
+   seed, `answer(page, right)` taps an answer on screen, and `clearTheoryAttempts()` resets the test
+   account's saved rounds. Case #18 is the example; [docs/theory-practice.md](../../../docs/theory-practice.md)
    has the rules. For screenshots, use `toHaveScreenshot('name.png')`. Baselines live in
    `tests/visual-baselines/` (committed). Write a new one with `--update-snapshots` and check it by
    eye before committing.

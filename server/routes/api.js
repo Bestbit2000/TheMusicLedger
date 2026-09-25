@@ -27,6 +27,7 @@ import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from
 import { exportFlowForUser } from '../services/flowTransfer.js';
 import { submitFeedback } from '../services/feedback.js';
 import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead } from '../services/notifications.js';
+import { saveTheoryAttempt, getTheoryHistory, getTheorySummary } from '../services/theoryPractice.js';
 
 const router = express.Router();
 
@@ -116,6 +117,42 @@ router.post('/notifications/:id/read', requireAuth, resolveAccount, async (req, 
   try {
     await assertNotificationsEnabled();
     res.json({ ...(await markNotificationRead(req.accountId, req.params.id)), appVersion: currentAppVersion() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ========================================
+// THEORY PRACTICE (ML-260/ML-265) - quiz rounds, history and personal bests. The quizzes themselves
+// run entirely in the browser (public/theoryEngine.js); only finished rounds come here. See
+// db/migrations/052_theory_quiz.sql and docs/theory-practice.md.
+// ========================================
+async function assertTheoryEnabled() {
+  if (!(await isFeatureEnabled('theory_practice'))) throw withStatus(403, "This feature isn't available right now.");
+}
+
+router.get('/theory/summary', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertTheoryEnabled();
+    res.json(await getTheorySummary(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.get('/theory/attempts', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertTheoryEnabled();
+    res.json(await getTheoryHistory(req.accountId, req.query.settingsKey));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/theory/attempts', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertTheoryEnabled();
+    res.json(await saveTheoryAttempt(req.accountId, req.body));
   } catch (error) {
     sendError(res, error);
   }
