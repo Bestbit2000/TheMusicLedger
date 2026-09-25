@@ -37,7 +37,7 @@ Full-width, text-labelled buttons. The app has **three levels** and one corner r
 | State | Treatment |
 |---|---|
 | Default | As above |
-| Hover | No change (touch-first app). Don't add hover-only affordances |
+| Hover | No change (touch-first app). Don't add hover-only affordances. The one exception is the cursor: every enabled `<button>` / `[role=button]` shows the hand (a global rule at the top of style.css), and a disabled one keeps its own `not-allowed`. A component only sets `cursor` when it needs something else (grab, default) |
 | Active | Native press |
 | Focus | Browser focus ring. If restyled, use `box-shadow: var(--focus-ring)` |
 | Disabled | `opacity: var(--opacity-disabled); cursor: not-allowed` |

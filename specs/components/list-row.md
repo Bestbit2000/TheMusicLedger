@@ -25,7 +25,7 @@ Container (left accent stripe) › optional `.drag-handle` › `.history-details
 - Drag to reorder: `.draggable-item` + `.drag-handle`. `.dragging` while moving.
 
 ## 6. States
-Display (`--container-bg`) · Tappable (`button` / `.clickable`: `--input-bg`) · Pressed (tappable rows) · Dragging (`opacity: var(--opacity-disabled)`, `--shadow-lg`) · Focus (`--focus-ring`).
+Display (`--container-bg`) · Tappable (`button` / `.clickable`: `--input-bg`, and the hand cursor on a desktop) · Pressed (tappable rows) · Dragging (`opacity: var(--opacity-disabled)`, `--shadow-lg`) · Focus (`--focus-ring`).
 
 ## 7. Code example
 ```html

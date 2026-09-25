@@ -10,6 +10,11 @@
     .notation-text { font-family: var(--font-notation-text); }
     .notation-text-italic { font-style: italic; font-weight: var(--font-weight-bold); }
 
+    /* Anything you can click shows the hand on a desktop - the default for every enabled button, so a
+       new component can't forget it. A component's own cursor (grab, not-allowed...) still wins: this is
+       an element selector, so any class rule overrides it. */
+    button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; }
+
     input, select { color-scheme: light; }
     body.dark-mode input, body.dark-mode select { color-scheme: dark; }
 
@@ -328,7 +333,7 @@
        inside it are tappable. A row that is itself tappable is a <button> or carries .clickable. */
     .history-item { background: var(--container-bg); border: 1px solid var(--input-border); padding: var(--space-3); border-radius: var(--radius-md); margin-bottom: var(--space-2); display: flex; justify-content: space-between; align-items: center; border-left: 6px solid var(--control-off-bg); width:100%; box-sizing:border-box;}
     button.history-item { color: var(--text-color); font: inherit; text-align: left; }
-    button.history-item, .history-item.clickable { background: var(--input-bg); border-color: var(--control-border); }
+    button.history-item, .history-item.clickable { background: var(--input-bg); border-color: var(--control-border); cursor: pointer; }
     .text-muted { color: var(--label-color); } /* ML-210: was --text-color at 60% opacity, which faded below 4.5:1 - see color.md "Don't" */
     .history-details { font-size: var(--font-base); flex-grow:1;} .history-details strong { display: block; font-size: var(--font-base); margin-bottom: var(--space-1); }
     .btn-edit { background: var(--selection-color); color: var(--text-on-accent); border: none; padding: var(--space-2) var(--space-4); min-height: 48px; border-radius: var(--radius-md); font-weight: var(--font-weight-bold); cursor: pointer; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
