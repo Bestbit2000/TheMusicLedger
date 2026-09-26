@@ -21,6 +21,7 @@
 
     const S = 10;                 // user units per staff space
     const FONT_SIZE = 4 * S;      // SMuFL: 1 em = 4 staff spaces
+    const TIME_SIG_DIGIT_SCALE = 0.8; // ML-294: time-signature digits, so the top and bottom don't merge on a phone
     // Bravura's engravingDefaults (staff spaces).
     const ENGRAVING = { staffLine: 0.13, ledgerLine: 0.16, ledgerExtension: 0.4, bracketLine: 0.16, hairpin: 0.16, tieEnd: 0.1, tieMid: 0.22 };
 
@@ -35,9 +36,11 @@
         noteheadBlack: ['E0A4', 1.18, 0.5, -0.5],
         noteWhole: ['E1D2', 1.836, 0.6, -0.6],
         noteHalfUp: ['E1D3', 1.364, 3.5, -0.6],
+        noteHalfDown: ['E1D4', 1.364, 0.6, -3.5], // ML-294 (measured like the rest)
         noteQuarterUp: ['E1D5', 1.328, 3.5, -0.6],
         noteQuarterDown: ['E1D6', 1.328, 0.6, -3.5],
         note8thUp: ['E1D7', 2.264, 3.5, -0.6],
+        note8thDown: ['E1D8', 1.328, 0.6, -3.6], // ML-294
         note16thUp: ['E1D9', 2.324, 3.5, -0.6],
         augmentationDot: ['E1E7', 0.4, 0.2, -0.2],
         accidentalFlat: ['E260', 0.904, 1.8, -0.7],
@@ -145,8 +148,8 @@
     // --- SVG building ---
     const r = (v) => Math.round(v * 100) / 100;
     const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    function glyphEl(name, x, y) {
-        return `<text class="notation-glyph" x="${r(x)}" y="${r(y)}" font-size="${FONT_SIZE}">${glyphChar(name)}</text>`;
+    function glyphEl(name, x, y, cls, scale = 1) {
+        return `<text class="notation-glyph${cls ? ' ' + esc(cls) : ''}" x="${r(x)}" y="${r(y)}" font-size="${r(FONT_SIZE * scale)}">${glyphChar(name)}</text>`;
     }
     function lineEl(x1, y1, x2, y2, thickness) {
         return `<line x1="${r(x1)}" y1="${r(y1)}" x2="${r(x2)}" y2="${r(y2)}" stroke="currentColor" stroke-width="${r(thickness * S)}"/>`;
@@ -158,13 +161,15 @@
 
     // A staff with a clef, optional key signature and a row of items. Items, in order:
     //   { type: 'note', pitch, head?: 'noteheadWhole'|..., accidental?: true|false (default: shown when
-    //     the pitch has one), above?: glyph, below?: glyph, dots?: 1 }
+    //     the pitch has one), above?: glyph, below?: glyph, dots?: 1, cls?: 'class names' }
+    //     cls (ML-9) goes on the note's own glyphs (accidental and head/stem), so a caller can colour one
+    //     note - the Scales tool's playing note - without redrawing.
     //   { type: 'barline', glyph: 'barlineSingle'|'barlineDouble'|'barlineFinal'|'repeatLeft'|'repeatRight' }
     //   { type: 'mark', glyph, step }        a breath mark, caesura or rest at a staff position (rests:
     //                                        whole rest step 6 - hangs from the 4th line - the rest step 4)
     //   { type: 'timeSig', top, bottom } or { type: 'timeSig', glyph: 'timeSigCommon'|'timeSigCutCommon' }
     //   { type: 'text', text, step, italic } right-aligned under/over the previous item (Fine)
-    //   { type: 'space', width }             in staff spaces
+    //   { type: 'space', width, grow? }      in staff spaces; grow also takes a note's share of the spacing
     // spans (drawn over the items, from/to are item indexes, inclusive):
     //   { kind: 'volta', from, to, text }    1st/2nd time bar bracket
     //   { kind: 'intro', from, to }          hymn/carol intro corner brackets
@@ -174,8 +179,20 @@
     // note for its notehead), so a run of questions doesn't jump
     // about as notes go above or below the staff. hideClef leaves the clef off (pitches still sit where
     // that clef puts them) - for a symbol shown on a scrap of staff, where a visible clef would be a
-    // second symbol competing for attention. Returns the SVG string.
+    // second symbol competing for attention. justify (ML-9, in staff spaces) spreads the items out to
+    // that width - more space between notes - as a printed exercise fills its line; a row that's
+    // already wider is left alone. Returns the SVG string.
     function staff(opts) {
+        const first = staffLayout(opts);
+        if (!opts.justify || first.width >= opts.justify * S) return first.svg;
+        const items = opts.items || [];
+        const lastIsBarline = items.length && items[items.length - 1].type === 'barline';
+        const gaps = items.filter(it => it.type === 'note' || it.type === 'timeSig' || it.type === 'mark' || (it.type === 'space' && it.grow)).length - (lastIsBarline ? 0 : 1);
+        if (gaps < 1) return first.svg;
+        const noteGap = (opts.noteGap ?? 1.6) + (opts.justify * S - first.width) / S / gaps;
+        return staffLayout({ ...opts, noteGap }).svg;
+    }
+    function staffLayout(opts) {
         const clef = opts.clef || 'treble';
         const c = clefInfo(clef);
         const items = opts.items || [];
@@ -220,7 +237,7 @@
                     if (!name) throw new Error(`No single accidental glyph for ${it.pitch}`);
                     const m = metrics(name);
                     const ax = x;
-                    parts.push((y) => glyphEl(name, ax, y(st)));
+                    parts.push((y) => glyphEl(name, ax, y(st), it.cls));
                     grow(st + m.top * 2, st + m.bottom * 2);
                     x += m.advance * S + 0.3 * S;
                 }
@@ -231,7 +248,7 @@
                 const headW = (/^note(Half|Quarter|8th|16th)/.test(head) ? metrics('noteheadBlack').advance : hm.advance) * S;
                 const ext = ENGRAVING.ledgerExtension * S;
                 for (const ls of ledgerSteps(st)) parts.push((y) => lineEl(hx - ext, y(ls), hx + hw + ext, y(ls), ENGRAVING.ledgerLine));
-                parts.push((y) => glyphEl(head, hx, y(st)));
+                parts.push((y) => glyphEl(head, hx, y(st), it.cls));
                 grow(st + hm.top * 2, st + hm.bottom * 2);
                 // Articulations/fermatas centred on the notehead, clear of the staff.
                 if (it.above) {
@@ -261,10 +278,14 @@
                 x += noteGap;
             } else if (it.type === 'timeSig') {
                 // Digits centred on the 4th and 2nd lines' spaces (steps 6 and 2), as printed; C / ¢ on the middle line.
+                // ML-294: the digits are drawn at 80% (TIME_SIG_DIGIT_SCALE) - full size, the two meet on the
+                // middle line and read as one shape on a phone; smaller, each stays centred in its half with a
+                // clear gap between them. Each glyph is centred on its baseline, so scaling keeps it in place.
+                const k = it.glyph ? 1 : TIME_SIG_DIGIT_SCALE;
                 const glyphs = it.glyph ? [[it.glyph, 4]] : [['timeSig' + it.top, 6], ['timeSig' + it.bottom, 2]];
-                const w = Math.max(...glyphs.map(([g]) => metrics(g).advance)) * S;
+                const w = Math.max(...glyphs.map(([g]) => metrics(g).advance)) * S * k;
                 const tx = x;
-                for (const [g, st] of glyphs) parts.push((y) => glyphEl(g, tx + (w - metrics(g).advance * S) / 2, y(st)));
+                for (const [g, st] of glyphs) parts.push((y) => glyphEl(g, tx + (w - metrics(g).advance * S * k) / 2, y(st), null, k));
                 x += w;
                 positions.push({ start, end: x });
                 x += noteGap;
@@ -278,7 +299,7 @@
             } else if (it.type === 'mark') {
                 const m = metrics(it.glyph);
                 const mx = x, st = it.step;
-                parts.push((y) => glyphEl(it.glyph, mx, y(st)));
+                parts.push((y) => glyphEl(it.glyph, mx, y(st), it.cls));
                 grow(st + m.top * 2, st + m.bottom * 2);
                 x += m.advance * S;
                 positions.push({ start, end: x });
@@ -291,7 +312,9 @@
                 grow(st, st + 3);
                 positions.push({ start: tx, end: tx });
             } else if (it.type === 'space') {
-                x += (it.width || 1) * S;
+                // grow (ML-294): also takes a note's share of the spacing, so justify spreads it too - a
+                // whole-bar rest with one in front sits in the middle of its bar.
+                x += (it.width ?? 1) * S + (it.grow ? noteGap : 0);
                 positions.push({ start, end: x });
             } else {
                 throw new Error(`Unknown staff item type: ${it.type}`);
@@ -357,7 +380,7 @@
         let body = '';
         for (let i = 0; i <= 8; i += 2) body += lineEl(0, yOf(i), width, yOf(i), ENGRAVING.staffLine);
         body += parts.map((f) => f(yOf)).join('');
-        return svgWrap(width, height, body, opts.label);
+        return { svg: svgWrap(width, height, body, opts.label), width };
     }
 
     // One glyph on its own, trimmed to its own box (dynamics, segno, coda, D.C./D.S., clefs...).
@@ -377,6 +400,19 @@
         const body = lineEl(xPoint, mid, xWide, mid - h / 2, ENGRAVING.hairpin) + lineEl(xPoint, mid, xWide, mid + h / 2, ENGRAVING.hairpin);
         return svgWrap(w + 2 * pad, h + 2 * pad, body, opts.label);
     }
+    // A metronome mark, "♩ = 108" (ML-297): a Bravura crotchet (smaller than on a staff, as printed
+    // over the music) then "= 108" in the tempo-word style.
+    const TEMPO_NOTE_SCALE = 0.7;
+    function tempoMark(bpm, opts = {}) {
+        const m = metrics('noteQuarterUp');
+        const k = TEMPO_NOTE_SCALE, pad = 0.4 * S, fs = 1.8 * S;
+        const text = `= ${bpm}`;
+        const noteW = m.advance * S * k, gap = 0.5 * S, textW = text.length * 1.05 * S;
+        const base = pad + m.top * S * k;
+        const body = glyphEl('noteQuarterUp', pad, base, null, k) +
+            `<text class="notation-text notation-text-bold" x="${r(pad + noteW + gap)}" y="${r(base)}" font-size="${r(fs)}">${esc(text)}</text>`;
+        return svgWrap(pad * 2 + noteW + gap + textW, base + (-m.bottom * S * k) + pad, body, opts.label);
+    }
     function textMark(text, opts = {}) {
         const w = Math.max(3, text.length * 1.1) * S, h = 2.4 * S;
         // Expression words (legato, rit., Fine) print italic; tempo words (Allegro) bold and upright.
@@ -388,6 +424,6 @@
     return {
         S, GLYPHS, CLEFS, ENGRAVING,
         glyphChar, metrics, parsePitch, diatonic, staffStep, pitchAtStep, ledgerSteps, keySignatureSteps,
-        staff, symbol, hairpin, textMark
+        staff, symbol, hairpin, textMark, tempoMark
     };
 }));

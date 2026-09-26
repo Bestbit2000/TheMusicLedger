@@ -6,6 +6,10 @@
         ? 'http://localhost:3000'
         : `https://${window.location.hostname}`;
 
+    // ML-288: pop-ups open with .show and close without it - never style.display (same as app.js).
+    const showModal = (id) => document.getElementById(id)?.classList.add('show');
+    const hideModal = (id) => document.getElementById(id)?.classList.remove('show');
+
     if (localStorage.getItem('darkMode') === 'true') {
         document.body.classList.add('dark-mode');
     }
@@ -62,14 +66,14 @@
         document.getElementById('adminConfirmTitle').textContent = title;
         document.getElementById('adminConfirmMessage').textContent = message;
         const btn = document.getElementById('adminConfirmActionBtn');
-        btn.style.background = isDanger ? 'var(--danger-color)' : 'var(--primary-action)';
+        btn.classList.toggle('is-danger', isDanger);
         btn.textContent = isDanger ? 'Delete' : 'Confirm';
         confirmCallback = callback;
-        document.getElementById('adminConfirmModal').style.display = 'flex';
+        showModal('adminConfirmModal');
     }
 
     function closeConfirmModal() {
-        document.getElementById('adminConfirmModal').style.display = 'none';
+        hideModal('adminConfirmModal');
         confirmCallback = null;
     }
 
@@ -77,11 +81,10 @@
     function showToast(message, type = 'warning') {
         const t = document.getElementById('adminToast');
         if (!t) return;
-        t.className = `toast ${type}`;
+        t.className = `toast ${type} show`;
         document.getElementById('adminToastMsg').textContent = message;
-        t.style.display = 'flex';
         clearTimeout(toastTimeout);
-        toastTimeout = setTimeout(() => { t.style.display = 'none'; }, 5000);
+        toastTimeout = setTimeout(() => { t.classList.remove('show'); }, 5000);
     }
 
     function renderSummary(data) {
@@ -197,12 +200,12 @@
         document.getElementById('featureNameInput').value = feature ? feature.name : '';
         document.getElementById('featureDescInput').value = feature ? (feature.description || '') : '';
         document.getElementById('featureEnabledInput').checked = feature ? feature.enabled : true;
-        document.getElementById('featureFormModal').style.display = 'flex';
+        showModal('featureFormModal');
         document.getElementById('featureKeyInput').focus();
     }
 
     function closeFeatureForm() {
-        document.getElementById('featureFormModal').style.display = 'none';
+        hideModal('featureFormModal');
         editingFeatureId = null;
     }
 
@@ -474,12 +477,12 @@
         document.getElementById('bandNameInput').value = band ? band.name : '';
         document.getElementById('bandWebsiteInput').value = band ? (band.website || '') : '';
         document.getElementById('bandContactEmailInput').value = band ? (band.contactEmail || '') : '';
-        document.getElementById('bandFormModal').style.display = 'flex';
+        showModal('bandFormModal');
         document.getElementById('bandNameInput').focus();
     }
 
     function closeBandForm() {
-        document.getElementById('bandFormModal').style.display = 'none';
+        hideModal('bandFormModal');
         editingBandId = null;
     }
 
@@ -595,11 +598,11 @@
         document.getElementById('durationActiveRow').classList.toggle('hidden-group', !duration);
         document.getElementById('durationDefaultInput').checked = !!duration?.isDefault;
         document.getElementById('durationDefaultRow').classList.toggle('hidden-group', !duration);
-        document.getElementById('durationFormModal').style.display = 'flex';
+        showModal('durationFormModal');
         document.getElementById('durationMinutesInput').focus();
     }
     function closeDurationForm() {
-        document.getElementById('durationFormModal').style.display = 'none';
+        hideModal('durationFormModal');
         editingDurationId = null;
     }
     async function saveDurationForm() {
@@ -682,11 +685,11 @@
         document.getElementById('timeSigLabelInput').value = timeSig ? timeSig.label : '';
         document.getElementById('timeSigActiveInput').checked = timeSig ? timeSig.active : true;
         document.getElementById('timeSigActiveRow').classList.toggle('hidden-group', !timeSig);
-        document.getElementById('timeSigFormModal').style.display = 'flex';
+        showModal('timeSigFormModal');
         document.getElementById('timeSigNumeratorInput').focus();
     }
     function closeTimeSigForm() {
-        document.getElementById('timeSigFormModal').style.display = 'none';
+        hideModal('timeSigFormModal');
         editingTimeSigId = null;
     }
     async function saveTimeSigForm() {
@@ -973,7 +976,7 @@
         }
 
         el.innerHTML = data.feedback.map(f => `
-            <div class="admin-feature" data-feedback-row="${f.id}" style="cursor:pointer;">
+            <div class="admin-feature" data-feedback-row="${f.id}">
                 <div class="admin-feature-header">
                     <div class="admin-feature-header-text">
                         <h2>${escapeHtml(f.email)}</h2>
@@ -1017,10 +1020,10 @@
         document.getElementById('feedbackReviewCategory').value = f.category || '';
         document.getElementById('feedbackReviewStatus').value = f.status;
         document.getElementById('feedbackReviewResponse').value = f.adminResponse || '';
-        document.getElementById('feedbackReviewModal').style.display = 'flex';
+        showModal('feedbackReviewModal');
     }
     function closeFeedbackReview() {
-        document.getElementById('feedbackReviewModal').style.display = 'none';
+        hideModal('feedbackReviewModal');
         editingFeedbackId = null;
     }
 
@@ -1089,12 +1092,12 @@
         document.getElementById('configFormTitle').textContent = title;
         document.getElementById('configValueLabel').textContent = label;
         document.getElementById('configValueInput').value = currentValue || '';
-        document.getElementById('configFormModal').style.display = 'flex';
+        showModal('configFormModal');
         document.getElementById('configValueInput').focus();
     }
 
     function closeConfigForm() {
-        document.getElementById('configFormModal').style.display = 'none';
+        hideModal('configFormModal');
         editingConfigKey = null;
         editingConfigReload = null;
     }
@@ -1215,11 +1218,11 @@
         document.getElementById('speedPercentInput').value = speed ? speed.percent : '';
         document.getElementById('speedActiveInput').checked = speed ? speed.active : true;
         document.getElementById('speedActiveRow').classList.toggle('hidden-group', !speed);
-        document.getElementById('speedFormModal').style.display = 'flex';
+        showModal('speedFormModal');
         document.getElementById('speedPercentInput').focus();
     }
     function closeSpeedForm() {
-        document.getElementById('speedFormModal').style.display = 'none';
+        hideModal('speedFormModal');
         editingSpeedId = null;
     }
     async function saveSpeedForm() {
@@ -1443,7 +1446,7 @@
     }
 
     function closeImportModal() {
-        document.getElementById('flowsImportModal').style.display = 'none';
+        hideModal('flowsImportModal');
         pendingImportFile = null;
         document.getElementById('flowsImportFile').value = '';
     }
@@ -1456,7 +1459,7 @@
         btn.innerText = 'Reading...';
         try {
             renderImportPreview(await postImportFile('/api/admin/flows/import/preview', file));
-            document.getElementById('flowsImportModal').style.display = 'flex';
+            showModal('flowsImportModal');
         } catch (error) {
             showToast(error.message);
             pendingImportFile = null;
@@ -1494,6 +1497,227 @@
         document.getElementById('flowsImportCancelBtn')?.addEventListener('click', closeImportModal);
         document.getElementById('flowsImportConfirmBtn')?.addEventListener('click', confirmImport);
     }
+
+    // ========================================
+    // Warm-ups (ML-294) - the Warm-ups tool's exercises: list (in play order, grouped by kind), add /
+    // edit with a tap-to-build note editor, switch on/off, move up/down, delete. Checked as you go
+    // with public/warmups.js - the same engine the server checks every save with.
+    // ========================================
+    const W = window.Warmups;
+    let warmupsAdmin = [];
+    let warmupEditing = null;   // { id|null, notes: [...], selected: index|null, undo: [] }
+    const warmupKindLabel = (id) => (W.KINDS.find(k => k.id === id) || {}).label || id;
+    const WARMUP_KEYS = ['C#', 'D#', 'F#', 'G#', 'A#', 'C', 'D', 'E', 'F', 'G', 'A', 'B', 'Db', 'Eb', 'Gb', 'Ab', 'Bb'];
+    const warmupKeyLabel = (n) => n.replace('#', '♯').replace(/^([A-G])b$/, '$1♭');
+
+    function warmupStaveHtml(ex, clef, { firstRowOnly = false, label } = {}) {
+        const rows = W.rows(ex, clef);
+        const stepRange = W.stepRange(ex, clef);
+        return (firstRowOnly ? rows.slice(0, 1) : rows)
+            .map(r => Notation.staff({ clef, items: r.items, stepRange, noteGap: 2.2, justify: 60, label: label ? `${label}, notes ${r.from + 1} to ${r.to + 1}` : undefined }))
+            .join('');
+    }
+
+    function renderWarmupsAdmin() {
+        const el = document.getElementById('warmupsAdminList');
+        if (!warmupsAdmin.length) { el.innerHTML = '<p>No exercises yet.</p>'; return; }
+        let html = '', lastKind = null;
+        warmupsAdmin.forEach((ex, i) => {
+            if (ex.kind !== lastKind) {
+                const n = warmupsAdmin.filter(x => x.kind === ex.kind).length;
+                html += `<h2 class="admin-warmup-kind">${escapeHtml(warmupKindLabel(ex.kind))} (${n})</h2>`;
+                lastKind = ex.kind;
+            }
+            const bars = W.check(ex).bars.length;
+            html += `
+            <div class="admin-feature${ex.isActive ? '' : ' admin-warmup-off'}">
+                <div class="admin-feature-header">
+                    <div class="admin-feature-header-text">
+                        <h2>${escapeHtml(ex.title)}</h2>
+                        <p class="admin-test-case-meta">${ex.bpm} bpm &bull; ${bars} bar${bars === 1 ? '' : 's'} in ${ex.beatsPerBar}/4${ex.isActive ? '' : ' &bull; switched off'}</p>
+                        ${ex.tip ? `<p>${escapeHtml(ex.tip)}</p>` : ''}
+                        <div class="admin-warmup-row-preview">${warmupStaveHtml(ex, 'treble', { firstRowOnly: true, label: ex.title })}</div>
+                    </div>
+                    <div class="admin-feature-actions">
+                        <button class="btn-edit" type="button" data-warmup-up="${ex.id}" aria-label="Move ${escapeHtml(ex.title)} earlier"${i === 0 ? ' disabled' : ''}>&uarr;</button>
+                        <button class="btn-edit" type="button" data-warmup-down="${ex.id}" aria-label="Move ${escapeHtml(ex.title)} later"${i === warmupsAdmin.length - 1 ? ' disabled' : ''}>&darr;</button>
+                        <button class="btn-edit" type="button" data-warmup-edit="${ex.id}">Edit</button>
+                        <button class="btn-edit" type="button" data-warmup-active="${ex.id}">${ex.isActive ? 'Switch off' : 'Switch on'}</button>
+                        <button class="btn-delete" type="button" data-warmup-delete="${ex.id}">Delete</button>
+                    </div>
+                </div>
+            </div>`;
+        });
+        el.innerHTML = html;
+        const byId = (id) => warmupsAdmin.find(x => x.id === Number(id));
+        el.querySelectorAll('[data-warmup-edit]').forEach(b => b.addEventListener('click', () => openWarmupForm(byId(b.dataset.warmupEdit))));
+        el.querySelectorAll('[data-warmup-up]').forEach(b => b.addEventListener('click', () => moveWarmupAdmin(b.dataset.warmupUp, -1)));
+        el.querySelectorAll('[data-warmup-down]').forEach(b => b.addEventListener('click', () => moveWarmupAdmin(b.dataset.warmupDown, 1)));
+        el.querySelectorAll('[data-warmup-active]').forEach(b => b.addEventListener('click', async () => {
+            const ex = byId(b.dataset.warmupActive);
+            try { await apiCall(`/api/admin/warmups/${ex.id}/active`, 'PUT', { isActive: !ex.isActive }); await reloadWarmupsAdmin(); }
+            catch (error) { showToast('Error: ' + error.message); }
+        }));
+        el.querySelectorAll('[data-warmup-delete]').forEach(b => b.addEventListener('click', () => {
+            const ex = byId(b.dataset.warmupDelete);
+            showConfirmModal('Delete exercise?', `"${ex.title}" will be removed from the Warm-ups tool. Switch it off instead to keep it.`, async () => {
+                try { await apiCall(`/api/admin/warmups/${ex.id}`, 'DELETE'); await reloadWarmupsAdmin(); showToast('Exercise deleted', 'success'); }
+                catch (error) { showToast('Error: ' + error.message); }
+            });
+        }));
+    }
+    async function reloadWarmupsAdmin() {
+        try {
+            warmupsAdmin = (await apiCall('/api/admin/warmups')).exercises;
+            renderWarmupsAdmin();
+        } catch (error) {
+            document.getElementById('warmupsAdminList').innerHTML = `<p>Error loading warm-ups: ${escapeHtml(error.message)}</p>`;
+        }
+    }
+    async function moveWarmupAdmin(id, direction) {
+        try { warmupsAdmin = (await apiCall(`/api/admin/warmups/${id}/move`, 'PUT', { direction })).exercises; renderWarmupsAdmin(); }
+        catch (error) { showToast('Error: ' + error.message); }
+    }
+
+    // --- The editor ---
+    const warmupRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value;
+    function warmupSetRadio(name, value) { const el = document.getElementById(`${name}-${value}`); if (el) el.checked = true; }
+    function warmupDraft() {
+        return {
+            title: document.getElementById('warmupTitleInput').value,
+            kind: document.getElementById('warmupKindInput').value,
+            tip: document.getElementById('warmupTipInput').value,
+            bpm: Number(document.getElementById('warmupBpmInput').value),
+            beatsPerBar: Number(document.getElementById('warmupBeatsInput').value),
+            isActive: document.getElementById('warmupActiveInput').checked,
+            notes: warmupEditing.notes,
+        };
+    }
+    // Selecting a note shows its own length, so tapping another length changes it.
+    function warmupSyncLength() {
+        const n = warmupEditing.selected !== null ? warmupEditing.notes[warmupEditing.selected] : null;
+        if (!n) return;
+        warmupSetRadio('warmupLength', n.d);
+        document.getElementById('warmupDotInput').checked = !!n.dot;
+    }
+    function renderWarmupEditor() {
+        const draft = warmupDraft();
+        const clef = warmupRadio('warmupPreviewClef') || 'treble';
+        const preview = document.getElementById('warmupPreview');
+        const check = W.check(draft);
+        preview.innerHTML = draft.notes.length && draft.beatsPerBar ? warmupStaveHtml(draft, clef) : '<p class="text-muted">No notes yet - choose a length, then tap a note below.</p>';
+        const sel = warmupEditing.selected;
+        if (sel !== null) preview.querySelectorAll(`.warmup-note-${sel}`).forEach(el => el.classList.add('is-selected'));
+        preview.querySelectorAll('.warmup-note').forEach(el => el.addEventListener('click', () => {
+            const i = Number((/warmup-note-(\d+)/.exec(el.getAttribute('class')) || [])[1]);
+            warmupEditing.selected = warmupEditing.selected === i ? null : i;
+            warmupSyncLength();
+            renderWarmupEditor();
+        }));
+        const status = document.getElementById('warmupStatus');
+        const bars = check.bars.length;
+        status.textContent = check.ok
+            ? `${draft.notes.length} note${draft.notes.length === 1 ? '' : 's'}, ${bars} bar${bars === 1 ? '' : 's'}${check.shortLast ? ' (the last bar is short - fine to end on)' : ''}.${sel !== null ? ` Note ${sel + 1} selected: a tap on a note replaces it.` : ''}`
+            : check.errors.join(' ');
+        status.classList.toggle('has-errors', !check.ok);
+        document.getElementById('warmupFormSaveBtn').disabled = !check.ok;
+        document.getElementById('warmupDeleteNoteBtn').disabled = sel === null;
+        document.getElementById('warmupAddEndBtn').disabled = sel === null;
+        document.getElementById('warmupUndoBtn').disabled = !warmupEditing.undo.length;
+    }
+    function warmupChangeNotes(fn) {
+        warmupEditing.undo.push(JSON.stringify(warmupEditing.notes));
+        if (warmupEditing.undo.length > 100) warmupEditing.undo.shift();
+        fn(warmupEditing.notes);
+        renderWarmupEditor();
+    }
+    // Tap a key (or Rest): with a note selected, replace it (and move on to the next); otherwise add at the end.
+    function warmupPut(pitch) {
+        const note = { p: pitch, d: warmupRadio('warmupLength') || 'q' };
+        if (document.getElementById('warmupDotInput').checked && note.d !== 'e') note.dot = true;
+        warmupChangeNotes((notes) => {
+            const sel = warmupEditing.selected;
+            if (sel === null) notes.push(note);
+            else { notes[sel] = note; warmupEditing.selected = sel + 1 < notes.length ? sel + 1 : null; }
+        });
+    }
+    function openWarmupForm(ex) {
+        warmupEditing = { id: ex ? ex.id : null, notes: ex ? JSON.parse(JSON.stringify(ex.notes)) : [], selected: null, undo: [] };
+        document.getElementById('warmupFormTitle').innerText = ex ? 'Edit exercise' : 'New exercise';
+        const kind = document.getElementById('warmupKindInput');
+        kind.innerHTML = W.KINDS.map(k => `<option value="${k.id}">${escapeHtml(k.label)}</option>`).join('');
+        kind.value = ex ? ex.kind : W.KINDS[0].id;
+        document.getElementById('warmupTitleInput').value = ex ? ex.title : '';
+        document.getElementById('warmupTipInput').value = ex ? ex.tip : '';
+        document.getElementById('warmupBpmInput').value = ex ? ex.bpm : 72;
+        document.getElementById('warmupBeatsInput').value = String(ex ? ex.beatsPerBar : 4);
+        document.getElementById('warmupActiveInput').checked = ex ? ex.isActive : true;
+        warmupSetRadio('warmupPreviewClef', 'treble');
+        warmupSetRadio('warmupLength', 'q');
+        warmupSetRadio('warmupOctave', '4');
+        document.getElementById('warmupDotInput').checked = false;
+        document.getElementById('warmupKeyboard').innerHTML = WARMUP_KEYS.map(n => `<button type="button" class="flow-picker-tile" data-id="${n}"><span class="flow-picker-tile-icon-row">${warmupKeyLabel(n)}</span></button>`).join('');
+        document.querySelectorAll('#warmupKeyboard .flow-picker-tile').forEach(b => b.addEventListener('click', () => warmupPut(b.dataset.id + (warmupRadio('warmupOctave') || '4'))));
+        renderWarmupEditor();
+        showModal('warmupFormModal');
+    }
+    function closeWarmupForm() { hideModal('warmupFormModal'); warmupEditing = null; }
+    async function saveWarmupForm() {
+        const body = warmupDraft();
+        const btn = document.getElementById('warmupFormSaveBtn');
+        btn.disabled = true;
+        btn.innerText = 'Saving...';
+        try {
+            if (warmupEditing.id) await apiCall(`/api/admin/warmups/${warmupEditing.id}`, 'PUT', body);
+            else await apiCall('/api/admin/warmups', 'POST', body);
+            closeWarmupForm();
+            await reloadWarmupsAdmin();
+            showToast('Exercise saved', 'success');
+        } catch (error) {
+            showToast('Error saving: ' + error.message);
+        } finally {
+            btn.innerText = 'Save';
+            if (warmupEditing) renderWarmupEditor();
+        }
+    }
+    document.getElementById('addWarmupBtn')?.addEventListener('click', () => openWarmupForm(null));
+    document.getElementById('warmupFormCancelBtn')?.addEventListener('click', closeWarmupForm);
+    document.getElementById('warmupFormSaveBtn')?.addEventListener('click', saveWarmupForm);
+    document.getElementById('warmupRestBtn')?.addEventListener('click', () => warmupPut(null));
+    document.getElementById('warmupDeleteNoteBtn')?.addEventListener('click', () => {
+        const sel = warmupEditing.selected;
+        if (sel === null) return;
+        warmupChangeNotes((notes) => { notes.splice(sel, 1); warmupEditing.selected = notes.length ? Math.min(sel, notes.length - 1) : null; });
+    });
+    document.getElementById('warmupAddEndBtn')?.addEventListener('click', () => { warmupEditing.selected = null; renderWarmupEditor(); });
+    document.getElementById('warmupUndoBtn')?.addEventListener('click', () => {
+        const prev = warmupEditing.undo.pop();
+        if (prev === undefined) return;
+        warmupEditing.notes = JSON.parse(prev);
+        warmupEditing.selected = null;
+        renderWarmupEditor();
+    });
+    const warmupStep = (d) => {
+        const n = warmupEditing.notes.length;
+        if (!n) return;
+        const sel = warmupEditing.selected;
+        warmupEditing.selected = sel === null ? (d < 0 ? n - 1 : 0) : Math.max(0, Math.min(n - 1, sel + d));
+        warmupSyncLength();
+        renderWarmupEditor();
+    };
+    document.getElementById('warmupPrevNoteBtn')?.addEventListener('click', () => warmupStep(-1));
+    document.getElementById('warmupNextNoteBtn')?.addEventListener('click', () => warmupStep(1));
+    ['warmupTitleInput', 'warmupTipInput', 'warmupBpmInput', 'warmupBeatsInput', 'warmupActiveInput'].forEach(id => document.getElementById(id)?.addEventListener('input', () => warmupEditing && renderWarmupEditor()));
+    document.querySelectorAll('input[name="warmupPreviewClef"]').forEach(r => r.addEventListener('change', () => warmupEditing && renderWarmupEditor()));
+    // A different length re-lengthens the selected note straight away.
+    document.querySelectorAll('input[name="warmupLength"], #warmupDotInput').forEach(r => r.addEventListener('change', () => {
+        const sel = warmupEditing && warmupEditing.selected;
+        if (sel === null || sel === undefined) return;
+        const d = warmupRadio('warmupLength');
+        const dot = document.getElementById('warmupDotInput').checked && d !== 'e';
+        warmupChangeNotes((notes) => { notes[sel] = { p: notes[sel].p, d, ...(dot ? { dot: true } : {}) }; });
+    }));
+    document.getElementById('warmupFormModal')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeWarmupForm(); });
 
     // ========================================
     // Notifications (ML-201) - announcements for every account's ☰ -> Notifications. "Live" is
@@ -1571,10 +1795,10 @@
         document.getElementById('notificationPublishAtInput').value = n ? toLocalInputValue(n.publishAt) : '';
         document.getElementById('notificationExpiresAtInput').value = n ? toLocalInputValue(n.expiresAt) : '';
         syncNotificationPublishMode();
-        document.getElementById('notificationFormModal').style.display = 'flex';
+        showModal('notificationFormModal');
     }
     function closeNotificationForm() {
-        document.getElementById('notificationFormModal').style.display = 'none';
+        hideModal('notificationFormModal');
         editingNotificationId = null;
     }
 
@@ -1805,7 +2029,7 @@
             renderFeatures(backtest);
             renderFeaturesCatalog(featuresRes.features);
             await Promise.all([
-                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadNotificationsAdmin(), reloadPosthogLink(),
+                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadNotificationsAdmin(), reloadWarmupsAdmin(), reloadPosthogLink(),
                 reloadSecurityReview().catch((error) => { document.getElementById('securityReview').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`; }),
                 reloadFlowDefaultName(), reloadFlowDefaultTimeSig(), reloadFlowDefaultBpm(), reloadFlowDefaultBarCount(), reloadFlowDefaultNoteValue()
             ]);

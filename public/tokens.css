@@ -159,6 +159,7 @@
     /* Motion */
     --ds-duration-80: 80ms;
     --ds-duration-150: 150ms;
+    --ds-duration-200: 200ms;
     --ds-duration-250: 250ms;
     --ds-duration-400: 400ms;
     --ds-duration-1000: 1000ms;
@@ -174,6 +175,7 @@
     --input-bg: var(--ds-neutral-25, #fafafa);            /* inputs + tappable surfaces */
     --surface-inverse: var(--ds-neutral-750, #333333);    /* dark toast / snackbar */
     --overlay-bg: var(--ds-black-a85, rgba(0, 0, 0, 0.85)); /* modal scrim */
+    --menu-backdrop-bg: var(--ds-black-a30, rgba(0, 0, 0, 0.3)); /* dims the page behind the open ☰ menu on a phone (ML-291) - lighter than a modal scrim */
     --media-bg: var(--ds-neutral-1000, #000000);              /* letterbox behind embedded video */
     --splash-bg: var(--ds-neutral-950, #0a0a0a);                 /* login splash backdrop only */
 
@@ -337,6 +339,7 @@
     --z-sticky: 10;       /* sticky axis/column inside a scroller */
     --z-float: 30;        /* floating scroll buttons over content */
     --z-header: 50;       /* sticky top bar group */
+    --z-menu-backdrop: 40;                                       /* ☰ menu backdrop: over the page and its floating buttons, under the top bar that holds the menu */
     --z-header-overlay: 60;                                      /* element that must sit over the sticky header (timer dropdown) */
     --z-dropdown: 100;    /* menus, and the base modal layer */
     --z-modal: 100;                                              /* modal scrim + dialog */
@@ -347,6 +350,7 @@
     /* Motion */
     --duration-instant: var(--ds-duration-80, 80ms);   /* press feedback */
     --duration-fast: var(--ds-duration-150, 150ms);    /* colour/border state changes */
+    --duration-swipe: var(--ds-duration-200, 200ms);  /* a swiped row settling open or shut (swipeTo, app.js) */
     --duration-base: var(--ds-duration-250, 250ms);    /* slides, fades, toggles, expanding panels */
     --duration-slow: var(--ds-duration-400, 400ms);    /* chart bar growth */
     --duration-pulse: var(--ds-duration-1000, 1000ms); /* looping attention animations */
@@ -362,6 +366,7 @@
 }
 
 body.dark-mode {
+    --menu-backdrop-bg: var(--ds-black-a60, rgba(0, 0, 0, 0.6)); /* a dark page needs a heavier dim to read as dimmed */
     --bg-color: var(--ds-neutral-900, #121212);
     --container-bg: var(--ds-neutral-850, #1e1e1e);
     --secondary-color: var(--ds-neutral-800, #2c2c2c);

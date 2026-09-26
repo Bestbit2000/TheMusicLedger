@@ -1,7 +1,7 @@
 # Card
 
 ## 1. Metadata
-- **Name:** Card (`.flow-card`, `.flow-blocks-card`, `.play-card`, `.tuner-card`, `.about-running-note`, `.metro-section-box`, `.metroSeg-inset-box`, `.play-*`, `.slide-in-*`, `.slide-out-*`)
+- **Name:** Card (`.flow-card`, `.flow-blocks-card`, `.play-card`, `.tuner-card`, `.about-running-note`, `.metro-section-box`, `.metroSeg-inset-box`, `.play-*`, `.slide-in-*`, `.slide-out-*`, `.summary-title`, `.challenge-edit-stats`, `.release-change-list`)
 - **Category:** Layout / surfaces
 - **Status:** Stable
 
@@ -29,6 +29,9 @@ Container › optional header row (title + `.flow-pill` / actions) › content.
 `--space-3`…`--space-6`, `--font-sm`…`--font-xl`, `--duration-base` (play-card slide).
 
 ## 5. Props / API
+- `.summary-title` is the challenge session summary's heading - gold, green (`.is-complete`) once every challenge is done.
+- `.challenge-edit-stats` is the progress line under a challenge's name on Edit challenge.
+- `.release-change-list` is the bulleted change list under each release on About.
 `.play-card.slide-out-left/-right/.slide-in-left/-right` drive the swipe animation (JS toggles them).
 
 ## 6. States

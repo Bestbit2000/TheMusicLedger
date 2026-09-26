@@ -5,6 +5,7 @@
 // left in this file that needs a Google token at all.
 
 import express from 'express';
+import { assertWarmupsEnabled, listActiveWarmups } from '../services/warmups.js';
 import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader } from '../middleware/auth.js';
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
@@ -28,6 +29,7 @@ import { exportFlowForUser } from '../services/flowTransfer.js';
 import { submitFeedback } from '../services/feedback.js';
 import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead } from '../services/notifications.js';
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryWeights } from '../services/theoryPractice.js';
+import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary } from '../services/drills.js';
 
 const router = express.Router();
 
@@ -123,6 +125,19 @@ router.post('/notifications/:id/read', requireAuth, resolveAccount, async (req, 
 });
 
 // ========================================
+// WARM-UPS (ML-294) - the switched-on exercises for the Warm-ups tool. Editing is admin-only
+// (routes/admin.js). See db/migrations/055_warmups.sql and public/warmups.js.
+// ========================================
+router.get('/warmups', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertWarmupsEnabled();
+    res.json({ exercises: await listActiveWarmups() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ========================================
 // THEORY PRACTICE (ML-260/ML-265) - quiz rounds, history and personal bests. The quizzes themselves
 // run entirely in the browser (public/theoryEngine.js); only finished rounds come here. See
 // db/migrations/052_theory_quiz.sql and docs/theory-practice.md.
@@ -164,6 +179,38 @@ router.post('/theory/attempts', requireAuth, resolveAccount, async (req, res) =>
   try {
     await assertTheoryEnabled();
     res.json(await saveTheoryAttempt(req.accountId, req.body));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ========================================
+// DRILLS (ML-298 Tap tempo, ML-295 Gap trainer, ML-296 Ear) - finished rounds, history and bests. The
+// drills run in the browser (public/drills.js); the server re-scores each round from its taps/answers.
+// See db/migrations/057_drills.sql and docs/drills.md.
+// ========================================
+router.get('/drills/:tool/summary', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertDrillEnabled(req.params.tool);
+    res.json(await getDrillSummary(req.accountId, req.params.tool));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.get('/drills/:tool/attempts', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertDrillEnabled(req.params.tool);
+    res.json(await getDrillHistory(req.accountId, req.params.tool, req.query.level));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/drills/:tool/attempts', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertDrillEnabled(req.params.tool);
+    res.json(await saveDrillAttempt(req.accountId, { ...req.body, tool: req.params.tool }));
   } catch (error) {
     sendError(res, error);
   }

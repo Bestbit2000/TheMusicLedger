@@ -30,6 +30,21 @@ Related tickets:
 Both browser files load before `app.js` (notation first). Node and the server load them with `vm`,
 because this package is ESM and they're browser scripts. That's the same approach as `flowJourney.js`.
 
+## Scales practice (ML-9)
+
+The Scales tool (home tile, behind the `scales_practice` feature) shares this engine and renderer:
+
+- `TheoryEngine.buildScale({ keyId, form, type, octaves, direction, clef })`: any of the 30 keys, as a
+  scale or an arpeggio (tonic, 3rd, 5th), 1-3 octaves, up / down / up and down. Minor forms: harmonic
+  (raised 7th both ways), melodic (raised 6th and 7th going up, natural coming down) and natural. The
+  bottom note sits on the staff or just under it (two ledger lines at most for 2-3 octaves).
+- `TheoryEngine.writeScale(scale, barLength)`: which notes need an accidental written against the key
+  signature. An accidental lasts to the end of its bar, and a note going back to plain gets a natural.
+- `TheoryEngine.scalePool({ maxSharps, maxFlats, forms, types })`: "My scales" - sharp and flat limits
+  set separately.
+- `Notation.staff` gained `note.cls` (to colour the playing note) and `justify` (spread a row to a width).
+- Tests: `server/test/theoryEngine.test.js`, "scales practice (ML-9)". The screen: `specs/components/scales.md`.
+
 ## Notation
 
 **Rule: all notation is drawn by `Notation` in Bravura.** Never hand-drawn paths, and never Unicode music
@@ -57,7 +72,7 @@ text, not notation.
     sit in a space.
   - A fermata sits above the staff. A caesura sits on the top line.
   - A semibreve rest hangs from the 4th line; every other rest is centred on the middle line.
-  - Time-signature digits sit centred on steps 6 and 2; C and ¢ on the middle line.
+  - Time-signature digits sit centred on steps 6 and 2, drawn at 80% so the two don't merge on the middle line on a phone (ML-294); C and ¢ on the middle line, full size.
   - Words: tempo words (Allegro) bold and upright; expression words (rit., legato, Fine) italic.
 - **Labels:** a `label` makes the SVG `role="img"`. Without one it's `aria-hidden`.
 
@@ -67,9 +82,9 @@ All answers are **one tap on a button**. Four quizzes (confirmed on ML-260, 2026
 
 | Quiz | Asks | Options |
 |---|---|---|
-| **Note names** | A whole note on a staff → 7 letters, or 12 notes spelled one way (sharps **or** flats) | Clef (multi-select), range (on the staff / 2 / 4 / 6 ledger lines, above and below), sharps and flats (none / sharps / flats) |
+| **Note names** | A whole note on a staff → 7 letters, or with sharps/flats on the keyboard: 5 sharps above the 7 naturals and 5 flats below, in their keys' columns (ML-292 - no E♯/B♯/C♭/F♭; the written note shows which spelling is right) | Clef (multi-select), range (on the staff / 2 / 4 / 6 ledger lines, above and below), sharps and flats (none / sharps / flats) |
 | **Keys** | A key signature → "Which major/minor key?"; or a scale written out with accidentals → "Which scale is this?". 4 keys each | Clef, show (key signatures / scales / both), up to 3 / 5 / 7 ♯/♭ (C major and A minor always in), sharp / flat keys / both, major or major + minor, minor scales: harmonic / melodic / both (only with minor keys and scales) |
-| **Symbols** | A symbol → its name, or a meaning → the symbol (terms: the word → its meaning, or a meaning → the word). 4 choices | Set: Basics / Dynamics / Rhythm / Structure / Terms / Everything; ask: names / meanings / both |
+| **Notation** (id `symbols`; "Symbols and speeds", ML-301) | A symbol → its name, or a meaning → the symbol (terms: the word → its meaning, or a meaning → the word). 4 choices | Set: Basics / Dynamics / Rhythm / Structure / Terms / Speeds / Everything; ask: names / meanings / both |
 | **Mixed** | Every question type in turn: a note, a key signature, a scale, a symbol name, a symbol meaning | Clef, level (beginner / intermediate / advanced) |
 
 **Symbol sets:**
@@ -81,6 +96,7 @@ All answers are **one tap on a button**. Four quizzes (confirmed on ML-260, 2026
 | Rhythm | 17 | Semibreve to semiquaver and the dotted minim; their rests; 4/4, 3/4, 2/4, 6/8, common and cut time |
 | Structure | 11 | Repeats, double and final bar lines, segno, coda, D.C., D.S., Fine, 1st-time bar, intro brackets |
 | Terms | 15 | Largo, Adagio, Andante, Moderato, Allegro, Presto, rit., accel., a tempo, legato, dolce, cantabile, sempre, poco a poco, molto |
+| Speeds (ML-297) | 7 bands | A metronome mark (♩ = 108) → its speed name, or a speed name → its bpm band. Grave / Largo 15-55, Adagio / Lento 56-75, Andante 76-107, Moderato 108-119, Allegro 120-155, Vivace 156-175, Presto / Prestissimo 176-200+ |
 
 **Mixed levels:**
 
@@ -108,7 +124,7 @@ except Symbols:
 |---|---|---|---|
 | Note names | 11 (on the staff, none) | 11 | 57 (6 ledger lines, sharps or flats) |
 | Keys | 4 (key signatures only, up to 3, sharp or flat keys only) | 14 (up to 3, both, major; both shown) | 75 (up to 7, major and minor, both forms, both shown) |
-| Symbols | 9 (Dynamics, one direction) | 26 (Basics, both directions) | 130 (Everything, both directions) |
+| Symbols | 7 (Speeds, one direction) | 26 (Basics, both directions) | 144 (Everything, both directions) |
 
 **Dealing:** every quiz deals each of its questions **once, in a shuffled order, before any comes
 round again** (and never the same one twice running, across a reshuffle too). Mixed takes the five
@@ -118,6 +134,13 @@ own questions the same way. A small selection still repeats in a long round, but
 **Other rules:**
 - **Wrong answers** are plausible: the nearest keys round the circle of fifths (plus the relative
   major/minor for scales when minor is on), and symbols from the right answer's own set first.
+- **Speeds (ML-297):** `TheoryEngine.SPEEDS` is seven bands of the 15-200 bpm range. Three have two names
+  for much the same speed (Grave / Largo, Adagio / Lento, Presto / Prestissimo): each question picks one,
+  so either name counts as right and a question never shows both. A mark's bpm is a round number (a
+  multiple of 5) inside the band, different each time. Wrong answers are the neighbouring bands, listed
+  slow to fast. Question ids are per band (`speedName:moderato`, `speedBpm:moderato`), so Smart learn
+  weighs the band, not the number. The same bands give every tempo box its speed name
+  (`speedLabel`, see specs/components/metronome.md). Mixed's Advanced level (Everything) includes them.
 - **Minor scales** are shown harmonic or melodic, because a natural minor scale has exactly its relative
   major's notes.
 - **Scale placement:** a scale starts at staff step -2 to 4, so it sits on the staff.

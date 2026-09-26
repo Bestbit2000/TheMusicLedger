@@ -29,8 +29,10 @@ so it needs no colour token and follows dark mode automatically. Geometry is in 
 (10 per staff space), not CSS - size the `<svg>` from the caller.
 
 ## 5. Props / API
+- **ML-9:** a note item can take `cls` (classes on its own glyphs - accidental and head/stem - so a caller can colour one note, e.g. Scales' playing note), and `staff()` takes `justify` (staff spaces) to spread the items out to that width, as a printed exercise fills its line.
 - `Notation.staff({ clef, keySignature, items, spans, stepRange, hideClef, noteGap, minWidth, label })`,
-  `Notation.symbol(glyphName, { label })`, `Notation.hairpin('cresc'|'dim')`, `Notation.textMark(text, { italic })`.
+  `Notation.symbol(glyphName, { label })`, `Notation.hairpin('cresc'|'dim')`, `Notation.textMark(text, { italic })`,
+  `Notation.tempoMark(bpm, { label })` (ML-297: a metronome mark, "♩ = 108" - the crotchet at 70%, the number in the tempo-word style).
   Full reference and the pitch/step helpers: `docs/theory-practice.md` ("Notation").
 - Clefs: treble and bass (alto/tenor slot into `CLEFS` when needed). Key signatures in the standard
   order and positions for each clef.

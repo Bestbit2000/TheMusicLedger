@@ -45,6 +45,7 @@
         <button class="admin-nav-item" data-section="metadata" type="button">Metadata lists</button>
         <button class="admin-nav-item" data-section="usage" type="button">Usage</button>
         <button class="admin-nav-item" data-section="flows" type="button">Flows</button>
+        <button class="admin-nav-item" data-section="warmups" type="button">Warm-ups</button>
         <button class="admin-nav-item" data-section="notifications" type="button">Notifications</button>
         <!-- ML-170: the untriaged count rides on the nav item itself - the whole value of this tab
              is noticing there's something waiting without having to go and look. -->
@@ -203,6 +204,13 @@
             </div>
         </section>
         <!-- ML-201: announcements for every account's ☰ -> Notifications (red dot on ☰ until read). -->
+        <!-- ML-294: the Warm-ups tool's exercises. Super admins only (every /api/admin route is). -->
+        <section id="warmups-section" class="admin-section hidden-group">
+            <h1>Warm-ups</h1>
+            <p class="admin-intro">The exercises in the Warm-ups tool, in the order it plays them. Written for treble-clef brass (brass band parts); the tool shows bass clef by moving the same notes down a major 9th, so lip slurs stay on the same harmonics. Switched-off exercises stay here but aren't shown in the tool.</p>
+            <button class="btn-submit no-margin admin-add-btn" id="addWarmupBtn" type="button">+ New exercise</button>
+            <div id="warmupsAdminList">Loading&hellip;</div>
+        </section>
         <section id="notifications-section" class="admin-section hidden-group">
             <h1>Notifications</h1>
             <p class="admin-intro">Announcements shown to <strong>every account</strong> under ☰ &rarr; Notifications, with a red dot on ☰ until they've read it. Publish now or schedule a time - anyone with the app open sees it within about 5 minutes, everyone else next time they open it. Optional expiry hides it from everyone afterwards. Plain text; line breaks are kept. The "update available - reload" notice after a release is automatic and doesn't need a notification here.</p>
@@ -306,6 +314,57 @@
 
 <!-- ML-201: create/edit a notification. Times are entered in this browser's local time and stored as
      absolute timestamps. -->
+<!-- ML-294: add / edit a warm-up exercise. Notes are built by tapping: pick a length, then a key (or
+     Rest). Nothing selected adds at the end; a selected note (tap it on the stave) is replaced. -->
+<div class="modal" id="warmupFormModal" role="dialog" aria-modal="true" aria-labelledby="warmupFormTitle">
+    <div class="modal-content admin-modal-wide">
+        <h2 id="warmupFormTitle">New exercise</h2>
+        <div class="admin-warmup-fields">
+            <div class="form-group"><label for="warmupTitleInput">Title</label><input type="text" id="warmupTitleInput" maxlength="80" placeholder="e.g. Long tones down from G"></div>
+            <div class="form-group"><label for="warmupKindInput">Kind</label><select id="warmupKindInput"></select></div>
+            <div class="form-group"><label for="warmupBpmInput">Tempo (bpm)</label><input type="number" id="warmupBpmInput" min="30" max="200"></div>
+            <div class="form-group"><label for="warmupBeatsInput">Beats in a bar</label><select id="warmupBeatsInput"><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option></select></div>
+        </div>
+        <div class="form-group"><label for="warmupTipInput">Tip (shown with the exercise)</label><textarea id="warmupTipInput" rows="2" maxlength="200"></textarea></div>
+        <div class="setting-row setting-row-grouped">
+            <span id="warmupActiveLabel">Switched on (shown in the tool)</span><label class="toggle-switch"><input type="checkbox" id="warmupActiveInput" aria-labelledby="warmupActiveLabel"><span class="toggle-slider"></span></label>
+        </div>
+
+        <div class="admin-warmup-preview-head">
+            <strong>Notes</strong>
+            <div class="radio-group"><input type="radio" id="warmupPreviewClef-treble" name="warmupPreviewClef" value="treble"><label for="warmupPreviewClef-treble">Treble</label><input type="radio" id="warmupPreviewClef-bass" name="warmupPreviewClef" value="bass"><label for="warmupPreviewClef-bass">Bass</label></div>
+        </div>
+        <div class="admin-warmup-preview" id="warmupPreview"></div>
+        <p class="admin-warmup-status" id="warmupStatus" aria-live="polite"></p>
+
+        <div class="form-group">
+            <label>Length</label>
+            <div class="radio-group"><input type="radio" id="warmupLength-w" name="warmupLength" value="w"><label for="warmupLength-w">Semibreve</label><input type="radio" id="warmupLength-h" name="warmupLength" value="h"><label for="warmupLength-h">Minim</label><input type="radio" id="warmupLength-q" name="warmupLength" value="q"><label for="warmupLength-q">Crotchet</label><input type="radio" id="warmupLength-e" name="warmupLength" value="e"><label for="warmupLength-e">Quaver</label></div>
+            <div class="admin-warmup-inline"><label class="text-sm fw-normal flex-row items-center gap-xs no-margin"><input type="checkbox" id="warmupDotInput" class="check-sm"> Dotted</label></div>
+        </div>
+        <div class="form-group">
+            <label>Octave</label>
+            <div class="radio-group compact"><input type="radio" id="warmupOctave-3" name="warmupOctave" value="3"><label for="warmupOctave-3">3 (low)</label><input type="radio" id="warmupOctave-4" name="warmupOctave" value="4"><label for="warmupOctave-4">4 (middle)</label><input type="radio" id="warmupOctave-5" name="warmupOctave" value="5"><label for="warmupOctave-5">5 (high)</label></div>
+        </div>
+        <div class="form-group">
+            <label>Note (or a rest)</label>
+            <div class="note-keyboard" id="warmupKeyboard"></div>
+            <button type="button" class="btn-edit mt-2" id="warmupRestBtn">Rest</button>
+        </div>
+        <div class="admin-warmup-tools">
+            <button type="button" class="btn-edit" id="warmupPrevNoteBtn" aria-label="Select the note before">&larr;</button>
+            <button type="button" class="btn-edit" id="warmupNextNoteBtn" aria-label="Select the note after">&rarr;</button>
+            <button type="button" class="btn-edit" id="warmupAddEndBtn">Add at end</button>
+            <button type="button" class="btn-edit" id="warmupUndoBtn">Undo</button>
+            <button type="button" class="btn-delete" id="warmupDeleteNoteBtn">Delete note</button>
+        </div>
+
+        <div class="flex-row gap-md mt-4">
+            <button class="btn-cancel btn-nav no-margin" id="warmupFormCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="warmupFormSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
 <div class="modal" id="notificationFormModal" role="dialog" aria-modal="true" aria-labelledby="notificationFormTitle">
     <div class="modal-content">
         <h2 id="notificationFormTitle">New notification</h2>
@@ -341,12 +400,12 @@
     </div>
 </div>
 
-<div id="adminToast" class="toast" role="status" aria-live="polite"><span id="adminToastMsg"></span><button type="button" onclick="document.getElementById('adminToast').style.display='none';">X</button></div>
+<div id="adminToast" class="toast" role="status" aria-live="polite"><span id="adminToastMsg"></span><button type="button" onclick="document.getElementById('adminToast').classList.remove('show');">X</button></div>
 
 <div class="modal" id="adminConfirmModal" role="dialog" aria-modal="true" aria-labelledby="adminConfirmTitle">
     <div class="modal-content">
         <h2 id="adminConfirmTitle">Confirm</h2>
-        <p id="adminConfirmMessage" style="margin-bottom: var(--space-6); line-height: var(--line-height-base); white-space: pre-line;"></p>
+        <p id="adminConfirmMessage" class="mb-6 leading-base pre-line"></p>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="adminConfirmCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="adminConfirmActionBtn" type="button">Confirm</button>
@@ -366,7 +425,7 @@
              space-between - same convention as Settings' own Dark mode/Show flats toggles
              (index.html), not the switch-then-label order the duration/time signature/speed forms
              above use. -->
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); margin-bottom:var(--space-5);">
+        <div class="flex-row justify-between items-center gap-md mb-5">
             <span id="featureEnabledInputLabel">Enabled (live for every user - only code that actually checks this feature's key is gated by it)</span>
             <label class="toggle-switch"><input type="checkbox" id="featureEnabledInput" checked aria-labelledby="featureEnabledInputLabel"><span class="toggle-slider"></span></label>
         </div>
@@ -394,13 +453,13 @@
     <div class="modal-content">
         <h2 id="durationFormTitle">Add duration</h2>
         <div class="form-group"><label for="durationMinutesInput">Minutes</label><input type="number" id="durationMinutesInput" min="1" step="1"></div>
-        <div class="hidden-group" id="durationActiveRow" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); margin-bottom:var(--space-5);">
+        <div class="hidden-group flex-row justify-between items-center gap-md mb-5" id="durationActiveRow">
             <span id="durationActiveInputLabel">Active (offered as a preset)</span>
             <label class="toggle-switch"><input type="checkbox" id="durationActiveInput" checked aria-labelledby="durationActiveInputLabel"><span class="toggle-slider"></span></label>
         </div>
         <!-- ML-236: the quick timer starts on this when a user has no practise history in the last
              90 days. Only one preset can be the default; turning it on here moves it from the old one. -->
-        <div class="hidden-group" id="durationDefaultRow" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); margin-bottom:var(--space-5);">
+        <div class="hidden-group flex-row justify-between items-center gap-md mb-5" id="durationDefaultRow">
             <span id="durationDefaultInputLabel">Timer default (when there's no practise history)</span>
             <label class="toggle-switch"><input type="checkbox" id="durationDefaultInput" aria-labelledby="durationDefaultInputLabel"><span class="toggle-slider"></span></label>
         </div>
@@ -417,7 +476,7 @@
         <div class="form-group"><label for="timeSigNumeratorInput">Numerator</label><input type="number" id="timeSigNumeratorInput" min="1" step="1"></div>
         <div class="form-group"><label for="timeSigDenominatorInput">Denominator</label><input type="number" id="timeSigDenominatorInput" min="1" step="1"></div>
         <div class="form-group"><label for="timeSigLabelInput">Label</label><input type="text" id="timeSigLabelInput" placeholder="e.g. 4/4"></div>
-        <div class="hidden-group" id="timeSigActiveRow" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); margin-bottom:var(--space-5);">
+        <div class="hidden-group flex-row justify-between items-center gap-md mb-5" id="timeSigActiveRow">
             <span id="timeSigActiveInputLabel">Active (offered when picking a signature)</span>
             <label class="toggle-switch"><input type="checkbox" id="timeSigActiveInput" checked aria-labelledby="timeSigActiveInputLabel"><span class="toggle-slider"></span></label>
         </div>
@@ -432,7 +491,7 @@
     <div class="modal-content">
         <h2 id="speedFormTitle">Add playback speed</h2>
         <div class="form-group"><label for="speedPercentInput">Percent</label><input type="number" id="speedPercentInput" min="1" step="1"></div>
-        <div class="hidden-group" id="speedActiveRow" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); margin-bottom:var(--space-5);">
+        <div class="hidden-group flex-row justify-between items-center gap-md mb-5" id="speedActiveRow">
             <span id="speedActiveInputLabel">Active (offered as a preset)</span>
             <label class="toggle-switch"><input type="checkbox" id="speedActiveInput" checked aria-labelledby="speedActiveInputLabel"><span class="toggle-slider"></span></label>
         </div>
@@ -454,8 +513,10 @@
     </div>
 </div>
 
-<script src="admin.js"></script>
+<!-- notation.js and warmups.js first: admin.js's Warm-ups editor draws with them (ML-294). -->
 <script src="notation.js"></script>
+<script src="warmups.js"></script>
+<script src="admin.js"></script>
 <script src="admin-design.js"></script>
 <script src="a11y.js"></script>
 </body>

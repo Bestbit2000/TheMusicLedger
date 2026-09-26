@@ -7,8 +7,8 @@
 // hands those to public/notation.js. Every answer is one tap on a button (confirmed on ML-260), so every
 // question carries its full, fixed list of answer buttons.
 //
-// Four quizzes: Note names, Keys (key signatures + written-out scales), Symbols (name <-> meaning, both
-// ways, incl. rhythm and Italian terms) and Mixed (all of them in turn). Every quiz deals each of its
+// Four quizzes: Note names, Keys (key signatures + written-out scales), Notation (id 'symbols': name <->
+// meaning, both ways, incl. rhythm, Italian terms and speeds - ML-297/301) and Mixed (all of them in turn). Every quiz deals each of its
 // questions once, in a shuffled order, before any comes round again.
 //
 // Read docs/theory-practice.md before changing the scoring or grade limits.
@@ -39,7 +39,7 @@
     // How long a question of each type "should" take - a timed round's perfect score is answering every
     // question in its par time (confirmed on ML-260 as a top pace per quiz: 40 note names, 24 key
     // signatures, 30 symbol names, 24 symbol meanings, 15 scales a minute). Mixed rounds add them up.
-    const PAR = { note: 1.5, keySignature: 2.5, scale: 4, symbolName: 2, symbolMeaning: 2.5 };
+    const PAR = { note: 1.5, keySignature: 2.5, scale: 4, symbolName: 2, symbolMeaning: 2.5, speedName: 2.5, speedBpm: 2.5 };
     const typeOf = (questionId) => String(questionId).split(':')[0];
     const parOf = (questionId) => PAR[typeOf(questionId)] || 2;
 
@@ -64,15 +64,15 @@
         keyTypes: { key: 'keyTypes', label: 'Keys', default: 'both', choices: [{ value: 'sharp', label: 'Sharp keys' }, { value: 'flat', label: 'Flat keys' }, { value: 'both', label: 'Both' }] },
         modes: { key: 'modes', label: 'Major and minor', default: 'major', choices: [{ value: 'major', label: 'Major' }, { value: 'both', label: 'Major and minor' }] },
         minorForm: { key: 'minorForm', label: 'Minor scales', default: 'harmonic', showIf: { modes: 'both', show: ['scales', 'both'] }, choices: [{ value: 'harmonic', label: 'Harmonic' }, { value: 'melodic', label: 'Melodic' }, { value: 'both', label: 'Both' }] },
-        set: { key: 'set', label: 'Symbols', default: 'basics', choices: [{ value: 'basics', label: 'Basics' }, { value: 'dynamics', label: 'Dynamics' }, { value: 'rhythm', label: 'Rhythm' }, { value: 'structure', label: 'Structure' }, { value: 'terms', label: 'Terms' }, { value: 'everything', label: 'Everything' }] },
+        set: { key: 'set', label: 'Symbols', default: 'basics', choices: [{ value: 'basics', label: 'Basics' }, { value: 'dynamics', label: 'Dynamics' }, { value: 'rhythm', label: 'Rhythm' }, { value: 'structure', label: 'Structure' }, { value: 'terms', label: 'Terms' }, { value: 'speeds', label: 'Speeds' }, { value: 'everything', label: 'Everything' }] },
         ask: { key: 'ask', label: 'Ask', default: 'both', choices: [{ value: 'names', label: 'Names' }, { value: 'meanings', label: 'Meanings' }, { value: 'both', label: 'Both' }] },
         level: { key: 'level', label: 'Level', default: 'beginner', choices: [{ value: 'beginner', label: 'Beginner' }, { value: 'intermediate', label: 'Intermediate' }, { value: 'advanced', label: 'Advanced' }] },
     };
 
     const QUIZZES = [
-        { id: 'noteNames', title: 'Note names', icon: 'noteheadWhole', options: [OPT.clefs, OPT.range, OPT.accidentals] },
+        { id: 'noteNames', title: 'Note names', subtitle: 'Identify the note on a stave', icon: 'noteheadWhole', options: [OPT.clefs, OPT.range, OPT.accidentals] },
         { id: 'keys', title: 'Keys', subtitle: 'Key signatures and scales', icon: 'accidentalSharp', options: [OPT.clefs, OPT.show, OPT.upTo, OPT.keyTypes, OPT.modes, OPT.minorForm] },
-        { id: 'symbols', title: 'Symbols', subtitle: 'Names, meanings, rhythm and terms', icon: 'fermataAbove', options: [OPT.set, OPT.ask] },
+        { id: 'symbols', title: 'Notation', subtitle: 'Symbols and speeds', icon: 'fermataAbove', options: [OPT.set, OPT.ask] },
         { id: 'mixed', title: 'Mixed', subtitle: 'A bit of everything', icon: 'segno', options: [OPT.clefs, OPT.level] },
     ];
     // What each Mixed level asks, from each quiz.
@@ -225,6 +225,11 @@
         sharps: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'],
         flats: ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'],
     };
+    // ML-292: with sharps or flats on, every question shows the whole keyboard as three rows of 7
+    // columns - the black keys spelled as sharps above the naturals and as flats below, each in its
+    // key's column (style.css places them), with gaps where there's no black key. E#, B#, Cb and Fb
+    // aren't offered: they're white keys, and never asked. The written note says which spelling is right.
+    const KEYBOARD_BUTTONS = ['C#', 'D#', 'F#', 'G#', 'A#', ...NOTE_BUTTONS.none, 'Db', 'Eb', 'Gb', 'Ab', 'Bb'];
     // accidentals: one or more of none/sharps/flats (Mixed advanced asks both sharps and flats; each
     // question then shows that spelling's 12 buttons).
     function noteItems(clefs, range, accidentals) {
@@ -250,8 +255,8 @@
                 staff: { clef: item.clef, items: [{ type: 'note', pitch: item.pitch }], stepRange: [lo - 1, hi + 1] },
                 label: `A note on the ${item.clef} staff`,
             },
-            layout: 'notes',
-            answers: NOTE_BUTTONS[item.acc].map(n => ({ id: n, label: spellName(n, naming) })),
+            layout: item.acc === 'none' ? 'notes' : 'keyboard',
+            answers: (item.acc === 'none' ? NOTE_BUTTONS.none : KEYBOARD_BUTTONS).map(n => ({ id: n, label: spellName(n, naming) })),
             correct: item.name,
         };
     }
@@ -356,6 +361,85 @@
         }
         return out;
     }
+
+    // ---------------------------------------------------------------- scales practice (ML-9)
+
+    // The Scales tool's own scales: any key, 1-3 octaves, up / down / up and down, a scale or its
+    // arpeggio. form is 'major' for a major key, and 'harmonic' | 'melodic' | 'natural' for a minor
+    // one. Melodic minor comes down as the natural minor, as it's played. Written with the key
+    // signature (writeScale works out which notes still need an accidental).
+    const SCALE_FORMS = ['major', 'harmonic', 'melodic', 'natural'];
+    const SCALE_FORM_LABEL = { major: 'major', harmonic: 'harmonic minor', melodic: 'melodic minor', natural: 'natural minor' };
+    const ACC_SUFFIX_ASCII = { '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: 'x' };
+    function scaleKey(keyId) { return ALL_KEYS.find(k => k.id === keyId) || null; }
+    function buildScale({ keyId, form, type = 'scale', octaves = 1, direction = 'up', clef = 'treble' }) {
+        const key = scaleKey(keyId);
+        if (!key) throw new Error('Unknown key ' + keyId);
+        const minor = key.mode === 'minor';
+        if (!minor) form = 'major'; else if (!['harmonic', 'melodic', 'natural'].includes(form)) form = 'harmonic';
+        const alters = keyAlters(key);
+        const t = parseName(key.tonic);
+        const letters = 'CDEFGAB';
+        const start = letters.indexOf(t.letter);
+        // The bottom note sits on the staff or just under it: at step -2 or above for one octave,
+        // -4 or above (two ledger lines) for more, so the top doesn't climb too far.
+        const floor = octaves > 1 ? -4 : -2;
+        let octave = 0;
+        while (Notation.staffStep(t.letter + octave, clef) < floor) octave++;
+        const degrees = type === 'arpeggio' ? [0, 2, 4] : [0, 1, 2, 3, 4, 5, 6];
+        const pitch = (deg, ascending) => {
+            const i = ((deg % 7) + 7) % 7, o = Math.floor(deg / 7);
+            const letter = letters[(start + i) % 7];
+            const oct = octave + o + Math.floor((start + i) / 7);
+            let alter = alters[letter];
+            if (minor && i === 6 && (form === 'harmonic' || (form === 'melodic' && ascending))) alter += 1;
+            if (minor && i === 5 && form === 'melodic' && ascending) alter += 1;
+            return letter + ACC_SUFFIX_ASCII[alter] + oct;
+        };
+        const up = [];
+        for (let o = 0; o < octaves; o++) for (const d of degrees) up.push(o * 7 + d);
+        up.push(octaves * 7);
+        const asc = up.map(d => pitch(d, true));
+        const desc = up.slice().reverse().map(d => pitch(d, false));
+        const pitches = direction === 'down' ? desc : direction === 'both' ? asc.concat(desc.slice(1)) : asc;
+        return {
+            key, form, type, octaves, direction, clef, pitches,
+            keySignature: key.count ? { type: key.type, count: key.count } : null,
+            title: `${key.tonic.replace('#', '♯').replace(/^([A-G])b$/, '$1♭')} ${SCALE_FORM_LABEL[form]} ${type === 'arpeggio' ? 'arpeggio' : 'scale'}`,
+        };
+    }
+    // Which notes need an accidental written, given the key signature: one that differs from the key
+    // signature (or from an earlier accidental on the same line or space in this bar) gets one - a
+    // natural sign where it goes back to plain. barLength = notes per bar (accidentals last a bar).
+    function writeScale(scale, barLength) {
+        const keyAlter = keyAlters(scale.key);
+        let inBar = {};
+        return scale.pitches.map((p, i) => {
+            if (i % barLength === 0) inBar = {};
+            const m = /^([A-G])(bb|b|#|x)?(-?\d+)$/.exec(p);
+            const alter = { bb: -2, b: -1, '#': 1, x: 2 }[m[2]] || 0;
+            const slot = m[1] + m[3];
+            const current = slot in inBar ? inBar[slot] : keyAlter[m[1]];
+            const show = alter !== current;
+            inBar[slot] = alter;
+            // A natural sign needs the pitch written with an explicit 'n'.
+            return { pitch: show && alter === 0 ? m[1] + 'n' + m[3] : p, accidental: show };
+        });
+    }
+    // "My scales": every key with up to maxSharps sharps / maxFlats flats (set separately), in the
+    // chosen forms (major and/or the minor forms) and types (scale and/or arpeggio) - what Next scale
+    // picks from.
+    function scalePool({ maxSharps = 7, maxFlats = 7, forms = SCALE_FORMS, types = ['scale'] }) {
+        const out = [];
+        for (const key of ALL_KEYS) {
+            if (key.type === 'sharp' && key.count > maxSharps) continue;
+            if (key.type === 'flat' && key.count > maxFlats) continue;
+            const keyForms = key.mode === 'major' ? ['major'] : ['harmonic', 'melodic', 'natural'];
+            for (const form of keyForms.filter(f => forms.includes(f))) for (const type of types) out.push({ keyId: key.id, form, type });
+        }
+        return out;
+    }
+
     function scaleQuestion(item, rng, naming) {
         const { key, clef, form } = item;
         return {
@@ -455,7 +539,7 @@
         { id: 'pocoAPoco', set: 'terms', name: 'poco a poco', meaning: 'Little by little', render: word('poco a poco') },
         { id: 'molto', set: 'terms', name: 'molto', meaning: 'Very, much', render: word('molto') },
     ];
-    const SET_IDS = ['basics', 'dynamics', 'rhythm', 'structure', 'terms'];
+    const SET_IDS = ['basics', 'dynamics', 'rhythm', 'structure', 'terms', 'speeds'];
     const symbolsIn = (sets) => SYMBOLS.filter(s => sets.includes('everything') || sets.includes(s.set));
     function symbolItems(sets, ask) {
         const out = [];
@@ -463,7 +547,68 @@
             if (ask !== 'meanings') out.push({ type: 'symbolName', sym, sets });
             if (ask !== 'names') out.push({ type: 'symbolMeaning', sym, sets });
         }
+        // Speeds (ML-297): "names" is a bpm -> its speed name, "meanings" a speed name -> its bpm band.
+        if (sets.includes('everything') || sets.includes('speeds')) {
+            for (const speed of SPEEDS) {
+                if (ask !== 'meanings') out.push({ type: 'speedName', speed });
+                if (ask !== 'names') out.push({ type: 'speedBpm', speed });
+            }
+        }
         return out;
+    }
+
+    // ---------------------------------------------------------------- speeds (ML-297)
+
+    // The Italian speed names, each a band of the app's 15-200 bpm range. Some bands have two names
+    // for much the same speed (Grave or Largo): either is right, and a question never shows both.
+    // speedFor(bpm) is also what every tempo box shows under its bpm.
+    const SPEEDS = [
+        { id: 'grave', names: ['Grave', 'Largo'], min: 15, max: 55, meaning: 'Very slow, solemn' },
+        { id: 'adagio', names: ['Adagio', 'Lento'], min: 56, max: 75, meaning: 'Slow, at ease' },
+        { id: 'andante', names: ['Andante'], min: 76, max: 107, meaning: 'At a walking pace' },
+        { id: 'moderato', names: ['Moderato'], min: 108, max: 119, meaning: 'At a moderate speed' },
+        { id: 'allegro', names: ['Allegro'], min: 120, max: 155, meaning: 'Fast, lively' },
+        { id: 'vivace', names: ['Vivace'], min: 156, max: 175, meaning: 'Quick and spirited' },
+        { id: 'presto', names: ['Presto', 'Prestissimo'], min: 176, max: 200, meaning: 'Very fast' },
+    ];
+    const speedFor = (bpm) => SPEEDS.find(s => bpm <= s.max) || SPEEDS[SPEEDS.length - 1];
+    const speedLabel = (bpm) => speedFor(Number(bpm) || 0).names.join(' / ');
+    const bandLabel = (s) => `${s.min}-${s.max}${s.max === 200 ? '+' : ''} bpm`;
+    // Wrong answers are the neighbouring bands first (Moderato is confused with Andante and Allegro,
+    // not with Grave), then the next ones out.
+    function speedChoices(correct, rng) {
+        const i = SPEEDS.indexOf(correct);
+        const others = rng.shuffle(SPEEDS.filter(s => s !== correct)).sort((a, b) => Math.abs(SPEEDS.indexOf(a) - i) - Math.abs(SPEEDS.indexOf(b) - i));
+        return [correct, ...others.slice(0, 3)].sort((x, y) => SPEEDS.indexOf(x) - SPEEDS.indexOf(y)); // slow to fast, like a scale
+    }
+    // A bpm inside the band, a round number where the band allows (it's what a score would print).
+    function speedBpmIn(s, rng) {
+        const round5 = [];
+        for (let b = Math.ceil(s.min / 5) * 5; b <= s.max; b += 5) round5.push(b);
+        return round5.length ? rng.pick(round5) : s.min + rng.int(s.max - s.min + 1);
+    }
+    const pickName = (s, rng) => rng.pick(s.names);
+    function speedNameQuestion(item, rng) {
+        const { speed } = item;
+        const bpm = speedBpmIn(speed, rng);
+        return {
+            id: `speedName:${speed.id}`,
+            prompt: { text: 'Which speed is this?', render: { type: 'tempo', bpm }, label: `Crotchet equals ${bpm}` },
+            layout: 'choices',
+            answers: speedChoices(speed, rng).map(s => ({ id: s.id, label: pickName(s, rng) })),
+            correct: speed.id,
+        };
+    }
+    function speedBpmQuestion(item, rng) {
+        const { speed } = item;
+        const name = pickName(speed, rng);
+        return {
+            id: `speedBpm:${speed.id}`,
+            prompt: { text: 'About how fast is this?', render: word(name, true), label: name },
+            layout: 'choices',
+            answers: speedChoices(speed, rng).map(s => ({ id: s.id, label: bandLabel(s) })),
+            correct: speed.id,
+        };
     }
     // Wrong answers from the same set as the right one first (terms with terms, rests with rests...),
     // then the rest of the chosen sets, then anything.
@@ -526,6 +671,10 @@
             const sym = SYMBOLS.find(s => s.id === a);
             return sym ? { type, sym, sets: [sym.set] } : null;
         }
+        if (type === 'speedName' || type === 'speedBpm') {
+            const speed = SPEEDS.find(s => s.id === a);
+            return speed ? { type, speed } : null;
+        }
         return null;
     }
     // A plain-words name for a question, for the weak spots list ("B♭4 on the treble staff").
@@ -535,6 +684,8 @@
         if (it.type === 'note') { const m = /^([A-G][#b]?)(-?\d+)$/.exec(it.pitch); return `${spellName(m[1], naming)}${m[2]} on the ${it.clef} staff`; }
         if (it.type === 'keySignature') return `${keyLabel(it.key, naming)} key signature, ${it.clef} clef`;
         if (it.type === 'scale') return `${keyLabel(it.key, naming)}${it.form ? ` (${it.form})` : ''} scale, ${it.clef} clef`;
+        if (it.type === 'speedName') return `${it.speed.names.join(' / ')}: from its bpm`;
+        if (it.type === 'speedBpm') return `${it.speed.names.join(' / ')}: how fast`;
         const term = it.sym.set === 'terms';
         return it.type === 'symbolName' ? `${it.sym.name}: ${term ? 'what it means' : 'its name'}` : `${it.sym.name}: from its meaning`;
     }
@@ -566,12 +717,15 @@
     const itemKey = (it) => it.type === 'note' ? `note:${it.clef}:${it.pitch}`
         : it.type === 'keySignature' ? `keySignature:${it.clef}:${it.key.id}`
         : it.type === 'scale' ? `scale:${it.clef}:${it.key.id}${it.key.mode === 'minor' ? `:${it.form}` : ''}`
+        : it.speed ? `${it.type}:${it.speed.id}`
         : `${it.type}:${it.sym.id}`;
     function build(item, rng, naming) {
         if (item.type === 'note') return noteQuestion(item, naming);
         if (item.type === 'keySignature') return keySignatureQuestion(item, rng, naming);
         if (item.type === 'scale') return scaleQuestion(item, rng, naming);
         if (item.type === 'symbolName') return symbolNameQuestion(item, rng);
+        if (item.type === 'speedName') return speedNameQuestion(item, rng);
+        if (item.type === 'speedBpm') return speedBpmQuestion(item, rng);
         return symbolMeaningQuestion(item, rng);
     }
     // Deals the quiz's questions in a shuffled order, each once before any repeats. Mixed takes the
@@ -644,7 +798,7 @@
     }
 
     return {
-        QUIZZES, ROUNDS, DEFAULT_ROUND, SYMBOLS, SET_IDS, KEY_TABLE, RANGE_STEPS, NOTE_BUTTONS, MIXED_LEVELS, TIMING, GRADE_LIMITS, PAR,
+        QUIZZES, ROUNDS, DEFAULT_ROUND, SYMBOLS, SET_IDS, SPEEDS, speedFor, speedLabel, KEY_TABLE, RANGE_STEPS, NOTE_BUTTONS, KEYBOARD_BUTTONS, MIXED_LEVELS, SCALE_FORMS, SCALE_FORM_LABEL, buildScale, writeScale, scalePool, TIMING, GRADE_LIMITS, PAR,
         quiz, round, normaliseOptions, optionVisible, settingsKey, describeOptions,
         makeRng, questionSource, itemsFor, SMART, nextWeight, smartOrder, reviewBoost, effectiveWeight, itemFromId, describeQuestion, WEAK_SPOTS, scalePitches, keyPool, keyAlters, noteItems, parOf,
         spell, spellName, scoreRound, gradeFor, ALL_KEYS

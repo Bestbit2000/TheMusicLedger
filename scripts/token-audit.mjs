@@ -9,6 +9,12 @@
 //
 // Errors:   raw colours, spacing, font sizes, font weights, radii, z-index, shadows, and any
 //           component use of a Layer 1 (--ds-*) primitive.
+//           ML-288: any inline style - a style="" attribute (in HTML or JS-built markup), or a
+//           style set from JS (el.style.x = ..., style.cssText, style.setProperty('color', ...)).
+//           Every style goes through a class in style.css/admin.css. The one exception is a
+//           custom property carrying a run-time value (style="--bar-h:40%",
+//           el.style.setProperty('--pct', ...)) that a class reads - see
+//           specs/components/utilities-and-states.md "Run-time values".
 // Warnings: raw transition/animation durations, line heights, font families, letter spacing,
 //           relative (em/%) font sizes.
 // Escape hatch for a genuine one-off (data-driven geometry, a third-party quirk): put
@@ -213,19 +219,33 @@ function scanFile(abs) {
     const ext = path.extname(abs);
     if (ext === '.css') scanCss(text, text, 0, file, out);
     if (ext === '.html') for (const m of text.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)) scanCss(m[1], text, m.index + m[0].indexOf(m[1]), file, out);
+    const inline = (idx, decl, suggestion) => out.push({ file, line: lineAt(text, idx), severity: 'error', category: 'inline-style', decl: decl.replace(/\s+/g, ' ').trim().slice(0, 140), suggestion });
+    const CLASS_HINT = 'move it to a class in style.css/admin.css (a utility or component class - specs/components/utilities-and-states.md)';
     if (ext === '.html' || ext === '.js') {
         // style="..." / style='...' / style=\"...\" attributes (HTML markup and JS-built markup)
         for (const m of text.matchAll(/\bstyle\s*=\s*(\\?["'])([\s\S]*?)\1/g)) {
             if (m[2].includes('\n') && m[2].length > 400) continue; // unbalanced quote - not an attribute
+            // ML-288: only custom properties (a run-time value a class reads) may be set inline.
+            const decls = m[2].replace(/\$\{[^}]*\}/g, 'X').split(';').map(d => d.trim()).filter(Boolean);
+            const bad = decls.filter(d => !/^--[\w-]+\s*:/.test(d));
+            if (bad.length) inline(m.index, `style="${m[2]}"`, CLASS_HINT);
             scanCss(m[2], text, m.index + m[0].indexOf(m[2]), file, out);
+        }
+        // Inline event handlers that set a style (onclick="...style.display='none'").
+        for (const m of text.matchAll(/\.style\.([a-zA-Z]+)\s*=(?!=)/g)) {
+            if (ext === '.js') continue; // reported below
+            inline(m.index, m[0], 'use the class toggle instead (showModal/hideModal, setShown - app.js)');
         }
     }
     if (ext === '.js') {
-        for (const m of text.matchAll(/\.style\.([a-zA-Z]+)\s*=\s*(["'`])((?:(?!\2).)*)\2/g)) {
-            const prop = m[1] === 'cssText' ? null : m[1].replace(/[A-Z]/g, c => '-' + c.toLowerCase());
-            if (!prop) { scanCss(m[3], text, m.index + m[0].indexOf(m[3]), file, out); continue; }
-            const line = lineAt(text, m.index);
-            checkDecl(prop, m[3], (severity, category, decl, suggestion) => out.push({ file, line, severity, category, decl, suggestion }));
+        // ML-288: any style property set from JS is an inline style.
+        for (const m of text.matchAll(/\.style\.([a-zA-Z]+)\s*=(?!=)/g)) {
+            inline(m.index, text.slice(m.index, text.indexOf('\n', m.index)).trim(), m[1] === 'display'
+                ? 'show/hide with a class: setShown(el, on) / showModal / hideModal (app.js)'
+                : 'set a custom property the element\'s class reads (el.style.setProperty(\'--x\', ...)), or toggle a class');
+        }
+        for (const m of text.matchAll(/\.style\.setProperty\(\s*(["'])([\w-]+)\1/g)) {
+            if (!m[2].startsWith('--')) inline(m.index, m[0], 'only custom properties (--name) may be set from JS; a class reads them');
         }
         for (const m of text.matchAll(/\.style\.setProperty\(\s*(["'])([\w-]+)\1\s*,\s*(["'`])((?:(?!\3).)*)\3/g)) {
             const line = lineAt(text, m.index);

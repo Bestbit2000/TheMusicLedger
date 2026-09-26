@@ -15,7 +15,11 @@ const SCREENS: { view: string; name: string }[] = [
     { view: 'historyView', name: 'Session history' },
     { view: 'statsView', name: 'Detailed stats' },
     { view: 'streakStatsView', name: 'Streaks' },
-    { view: 'metroBuilderView', name: 'Flow' },
+    { view: 'metroBuilderView', name: 'My music' }, // ML-299 (was Flow)
+    { view: 'rehearseView', name: 'Rehearse' }, // ML-299
+    { view: 'tapTempoView', name: 'Tempo' }, // ML-298
+    { view: 'gapTrainerView', name: 'Pulse' }, // ML-295
+    { view: 'earView', name: 'Pitch' }, // ML-296
     { view: 'manageChallengesView', name: 'Manage challenges' },
     { view: 'timerView', name: 'Timer' },
     { view: 'accountView', name: 'My account' },
@@ -23,6 +27,8 @@ const SCREENS: { view: string; name: string }[] = [
     { view: 'settingsStatsView', name: 'Stats settings' },
     { view: 'settingsTunerView', name: 'Tuner settings' },
     { view: 'aboutView', name: 'About' },
+    { view: 'scalesView', name: 'Scales' }, // ML-9
+    { view: 'warmupsView', name: 'Warm-ups' }, // ML-294
 ];
 
 async function show(page: Page, view: string, dark: boolean) {

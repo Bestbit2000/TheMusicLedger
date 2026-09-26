@@ -10,6 +10,13 @@ The beat display (lit dots per beat/subdivision), transport controls, tempo/volu
 the Metronome Blocks editor (`metroSeg-*`/`metroBlk-*`), Quick play (`qp-*`), and the
 persistent mini bar docked under the top bar while a metronome runs elsewhere in the app.
 
+**Speed names (ML-297):** every bpm readout (`.metro-speed-readout` whose sub-label is "bpm") shows the
+Italian speed name under it (`.metro-speed-name`, `--font-xs` semibold, `--label-color`, one line):
+Grave / Largo 15-55, Adagio / Lento 56-75, Andante 76-107, Moderato 108-119, Allegro 120-155, Vivace 156-175,
+Presto / Prestissimo 176-200. The bands are `TheoryEngine.SPEEDS` - the same ones the Theory quiz's Speeds set
+teaches. `attachSpeedNames()` in app.js adds it and keeps it in step with the number, so a new tempo box
+gets it for free.
+
 ## 3. Anatomy
 `.metro-display` › `.metro-display-viewport` › `.metro-tier` × n › `.metro-dot` (`.lit`, `.metro-dot-note`, `.metro-dot-sub`, `.fermata-holding`, `.fermata-done`) ·
 `.metro-transport-row` › `.metro-transport-btn.metro-play-btn` / `.metro-stop-btn` ·

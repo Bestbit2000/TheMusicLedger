@@ -66,8 +66,23 @@ rendered page, so also:
 last sandbox release: new CSS classes, new/changed/removed tokens, new/changed specs. Anything
 on that list isn't yet part of the agreed style instructions, so:
 
-1. Show the whole list to the product owner. Point them at **Admin → Design** on the
-   dev environment, where every new element is rendered with its tokens annotated.
+1. **Show it, don't just list it.** Class names mean little on their own, so every sign-off
+   request comes with pictures. With the local server running:
+   ```bash
+   npm run design-signoff
+   ```
+   It runs the gate, which writes the list to `public/design-new.json` (gitignored). It then opens
+   **Admin → Design** with **Only what's new** switched on and saves light and dark screenshots
+   to `design-signoff/` (gitignored). Send those pictures in the chat along with the list. In that view:
+   - A panel at the top lists the new and changed tokens, each with a swatch. It also lists every
+     new class that **no example shows yet**, grouped by spec.
+   - Every example that uses a new class is marked **NEW**, with the new classes it uses under its
+     label. Each section also says whether its spec is new or changed.
+   - Everything else is hidden.
+
+   The owner can also switch **Only what's new** on themselves, on Admin → Design on the local dev
+   server. If something they need to judge isn't in any example, add one to `public/admin-design.js`
+   (or send a screenshot of the real screen) before asking.
 2. **Wait for explicit approval of each item.** Claude never approves on the owner's behalf and
    never sets `DESIGN_APPROVED` without being told to in this conversation.
 3. Anything rejected gets reworked with existing components/tokens, and the gate is run again.

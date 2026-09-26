@@ -22,6 +22,7 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 | `--input-bg` | `#fafafa` | `#333333` | inputs + tappable surfaces |
 | `--surface-inverse` | `#333333` | (same) | dark toast / snackbar |
 | `--overlay-bg` | `rgba(0, 0, 0, 0.85)` | (same) | modal scrim |
+| `--menu-backdrop-bg` | `rgba(0, 0, 0, 0.3)` | `rgba(0, 0, 0, 0.6)` | dims the page behind the open ☰ menu on a phone (ML-291) - lighter than a modal scrim |
 | `--media-bg` | `#000000` | (same) | letterbox behind embedded video |
 | `--splash-bg` | `#0a0a0a` | (same) | login splash backdrop only |
 
@@ -225,6 +226,7 @@ one ladder, low to high. Never invent a number in a component.
 | `--z-sticky` | `10` | sticky axis/column inside a scroller |
 | `--z-float` | `30` | floating scroll buttons over content |
 | `--z-header` | `50` | sticky top bar group |
+| `--z-menu-backdrop` | `40` | ☰ menu backdrop: over the page and its floating buttons, under the top bar that holds the menu |
 | `--z-header-overlay` | `60` | element that must sit over the sticky header (timer dropdown) |
 | `--z-dropdown` | `100` | menus, and the base modal layer |
 | `--z-modal` | `100` | modal scrim + dialog |
@@ -238,6 +240,7 @@ one ladder, low to high. Never invent a number in a component.
 |---|---|---|
 | `--duration-instant` | `80ms` | press feedback |
 | `--duration-fast` | `150ms` | colour/border state changes |
+| `--duration-swipe` | `200ms` | a swiped row settling open or shut (swipeTo, app.js) |
 | `--duration-base` | `250ms` | slides, fades, toggles, expanding panels |
 | `--duration-slow` | `400ms` | chart bar growth |
 | `--duration-pulse` | `1000ms` | looping attention animations |
@@ -394,6 +397,7 @@ one ladder, low to high. Never invent a number in a component.
 | `--ds-radius-50pct` | `50%` |
 | `--ds-duration-80` | `80ms` |
 | `--ds-duration-150` | `150ms` |
+| `--ds-duration-200` | `200ms` |
 | `--ds-duration-250` | `250ms` |
 | `--ds-duration-400` | `400ms` |
 | `--ds-duration-1000` | `1000ms` |

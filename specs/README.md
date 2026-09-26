@@ -16,8 +16,18 @@ modifying any UI code, read the relevant spec here.**
 ```
 Layer 1  --ds-gold-500: #d4af37;                          primitives - tokens.css only
 Layer 2  --primary-action: var(--ds-gold-500, #d4af37);   aliases - the only names components use
-Layer 3  .btn-submit { background: var(--primary-action); }   components - style.css, admin.css, inline styles
+Layer 3  .btn-submit { background: var(--primary-action); }   components - style.css, admin.css
 ```
+
+**No inline styles (ML-288).** Nothing is styled with `style=""` (in HTML or in markup built from
+JS) or with `el.style.x = ...` from JS. Every style is a class in `style.css` / `admin.css`,
+described in a spec, so a new layout (tablet, landscape, desktop) or a new colour scheme can reach
+all of it from the stylesheet. For a one-off nudge use a utility class (`.mt-4`, `.text-sm`,
+`.fw-bold` - see [utilities-and-states](components/utilities-and-states.md)). The only exception
+is a value that's only known at run time (a chart bar's height, a slider position, a drag offset):
+JS sets it as a custom property and a class reads it -
+`el.style.setProperty('--bar-h', '40%')` with `.chart-bar { height: var(--bar-h); }`.
+`npm run token-audit` reports any other inline style as an error.
 
 Dark mode is Layer 2 only: `body.dark-mode` in `tokens.css` points an alias at a different primitive.
 A component never needs its own `body.dark-mode` colour override, so if you find yourself writing

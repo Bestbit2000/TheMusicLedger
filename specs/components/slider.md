@@ -19,6 +19,7 @@ ring), `--shadow-md` (thumb), `--label-color`, `--input-bg`, `--radius-xs` (trac
 (thumb), `--radius-sm` (readout), `--space-2`, `--space-5`, `--font-sm`, `--touch-target`.
 
 ## 5. Props / API
+- **Value (ML-288):** the slider's value as a percentage is the custom property `--pct`, set on `.slider-fill` (its width) and `.slider-thumb` (its left) by the slider's update function. Static examples set it inline: `style="--pct:45%"`.
 - `.slider-wrap.no-margin` inside compact rows (`.metro-volume-row`, `.tuner-rewind-row`).
 - `touch-action: none` on track and thumb, since the drag is handled in JS with pointer events.
 

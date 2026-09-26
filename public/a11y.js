@@ -83,7 +83,7 @@
         // Use the dialog's own close control so its cleanup code runs; hide it directly only as a fallback.
         const btns = [...modal.querySelectorAll('button')].filter(visible);
         const close = modal.querySelector('.modal-close-x, [data-modal-close]') || btns.find(b => /^(cancel|close|done|not now|back|no)$/i.test(b.textContent.trim()));
-        if (close) close.click(); else modal.style.display = 'none';
+        if (close) close.click(); else modal.classList.remove('show');
     }
 
     // ------------------------------------------------------------------ dropdown menus

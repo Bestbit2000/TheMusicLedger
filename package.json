@@ -16,6 +16,7 @@
     "token-audit": "node scripts/token-audit.mjs",
     "token-reference": "node scripts/build-token-reference.mjs",
     "design-gate": "node scripts/design-gate.mjs",
+    "design-signoff": "node --env-file=.env scripts/design-signoff-shots.mjs",
     "a11y-audit": "node scripts/a11y-audit.mjs",
     "a11y-scan": "playwright test --config playwright.a11y.config.ts"
   },

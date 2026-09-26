@@ -40,8 +40,11 @@
 </div>
 
 <!-- MAIN APP CONTAINER -->
-<div id="mainContainer" style="display: none;">
+<div id="mainContainer" class="hidden-group">
 
+<!-- ML-291: behind the open ☰ menu - dims the page on a phone, and a tap on it closes the menu
+     without also pressing whatever is underneath. Shown by CSS whenever #burgerDropdown is open. -->
+<div class="nav-menu-backdrop" id="navMenuBackdrop" aria-hidden="true"></div>
 <div class="top-bar-sticky-group">
     <div class="top-bar">
         <button class="top-btn-back hidden-btn" id="topBackBtn" onclick="goBack()">&lt;</button>
@@ -74,11 +77,11 @@
         <button type="button" class="top-btn hidden-group" id="topTimerIconBtn" aria-label="Timer">
             <span class="material-symbols-outlined">timer</span>
         </button>
-        <div style="position: relative;">
+        <div class="pos-relative">
             <!-- ML-201: the red dot rides on ☰ itself - no extra top-row icon. Shown while anything in
                  Notifications is unread, or this device is running an older release than the server
                  (renderNotificationIndicators). -->
-            <button class="top-btn" id="navBurgerMenuBtn" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">☰<span class="notif-dot hidden-group" id="navNotifDot" aria-hidden="true"></span></button>
+            <button class="top-btn top-btn-burger" id="navBurgerMenuBtn" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">☰<span class="notif-dot hidden-group" id="navNotifDot" aria-hidden="true"></span></button>
             <!-- ML-259 (also ML-222): one grouped menu - no sub-screens. Groups are split by
                  .nav-divider lines, each item has an icon, the tools are a row of tiles copied from the
                  home screen's own (renderNavToolsRow, so the icons, order and Theory's feature gate
@@ -89,8 +92,8 @@
                 <button type="button" class="dropdown-item nav-item hidden-group" id="notificationsNavItem" data-view="notificationsView" onclick="switchView('notificationsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">notifications</span><span class="nav-item-text">Notifications</span><span class="notif-count hidden-group" id="notificationsNavCount"></span></button>
 
                 <div class="nav-divider" role="separator"></div>
-                <div class="nav-section-title" id="navToolsTitle">Tools</div>
-                <div class="nav-tools" id="navToolsRow" role="group" aria-labelledby="navToolsTitle"></div>
+                <!-- Tool groups: one labelled row per tool group (Everyday / Practise / Learn), built from the home tiles. -->
+                <div id="navToolsRow"></div>
 
                 <div class="nav-divider" role="separator"></div>
                 <div class="nav-section-title">Progress</div>
@@ -101,7 +104,9 @@
 
                 <div class="nav-divider" role="separator"></div>
                 <div class="nav-section-title">You</div>
-                <button type="button" class="dropdown-item nav-item" data-view="accountView" onclick="switchView('accountView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">person</span><span class="nav-item-text">My account</span><span class="nav-item-meta" id="navAccountName"></span></button>
+                <!-- ML-299: create, import, library and edit pieces (the old Flow start screen). Gated by flow_manage. -->
+                <button type="button" class="dropdown-item nav-item hidden-group" id="myMusicNavItem" data-view="metroBuilderView" onclick="switchView('metroBuilderView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">library_music</span><span class="nav-item-text">My music</span></button>
+                <button type="button" class="dropdown-item nav-item" data-view="accountView" onclick="switchView('accountView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">person</span><span class="nav-item-text">My account</span></button>
                 <button type="button" class="dropdown-item nav-item" data-view="settingsView" onclick="switchView('settingsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">settings</span><span class="nav-item-text">Settings</span></button>
                 <!-- ML-77: admin.html itself gates to Super admin accounts - this link is
                      hidden for everyone else (see syncAdminLinkVisibility) so it isn't
@@ -196,29 +201,70 @@
         <button class="btn-nav" onclick="switchView('entryForm')">Add session time</button>
 
         <div class="section-title tools-title">Tools</div>
-        <div class="tool-icon-row">
-            <button class="tool-icon-btn" onclick="switchView('quickPlayView')" aria-label="Metronome">
-                <svg class="tool-icon-svg" viewBox="0 0 883 1025" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><g transform="translate(-2956 -1363)"><path d="M3299.02 1831.86 3528.57 1965.12 3299.02 2098.38ZM3329.89 1454.01 3064.12 2264.42 3731.24 2264.42 3465.47 1454.01ZM3297.05 1363 3499.94 1363C3518.77 1363 3534.93 1374.46 3541.83 1390.79L3544.05 1401.79 3839 2301.17 3837.74 2301.58 3839 2309.93C3839 2328.77 3827.55 2344.95 3811.23 2351.86L3795.05 2355.12 3795.05 2355.43 3793.53 2355.43 3793.53 2355.43 3793.53 2355.43 3702.53 2355.43 3701.57 2360.21C3694.67 2376.54 3678.51 2388 3659.68 2388 3640.84 2388 3624.68 2376.54 3617.78 2360.21L3616.82 2355.43 3186.33 2355.43 3185.37 2360.21C3178.47 2376.54 3162.31 2388 3143.47 2388 3124.64 2388 3108.48 2376.54 3101.58 2360.21L3100.62 2355.43 3008.1 2355.43 3008.1 2354.09 3001.47 2355.43C2976.36 2355.43 2956 2335.06 2956 2309.93L2957.68 2301.6 2956.37 2301.17 3254.77 1391.26 3255.04 1391.35 3255.16 1390.79C3262.06 1374.46 3278.22 1363 3297.05 1363Z" fill-rule="evenodd"/></g></svg>
-                <span class="tool-icon-label">Metronome</span>
-            </button>
-            <button class="tool-icon-btn" onclick="switchView('metroBuilderView')" aria-label="Flow">
-                <svg class="tool-icon-svg" viewBox="0 0 1247 1246" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><defs><clipPath id="clipFrontpageFlow"><rect x="2535" y="380" width="1247" height="1246"/></clipPath></defs><g clip-path="url(#clipFrontpageFlow)" transform="translate(-2535 -380)"><rect x="3006" y="1338" width="351" height="82.0001"/><rect x="2782" y="962" width="788" height="81.9998"/><rect x="2742" y="1001" width="81.9998" height="187"/><rect x="3525" y="834" width="81.9998" height="167"/><path d="M2742 1003C2742 980.356 2760.36 962 2783 962 2805.64 962 2824 980.356 2824 1003 2824 1025.64 2805.64 1044 2783 1044 2760.36 1044 2742 1025.64 2742 1003Z" fill-rule="evenodd"/><path d="M3524 1002.5C3524 979.58 3542.58 961 3565.5 961 3588.42 961 3607 979.58 3607 1002.5 3607 1025.42 3588.42 1044 3565.5 1044 3542.58 1044 3524 1025.42 3524 1002.5Z" fill-rule="evenodd"/><path d="M3363.38 1208.22 3363.38 1547.78 3703.62 1547.78 3703.62 1208.22ZM3324.21 1130 3742.79 1130C3764.44 1130 3782 1147.52 3782 1169.13L3782 1586.87C3782 1608.48 3764.44 1626 3742.79 1626L3324.21 1626C3302.56 1626 3285 1608.48 3285 1586.87L3285 1169.13C3285 1147.52 3302.56 1130 3324.21 1130Z" fill-rule="evenodd"/><rect x="3006" y="588" width="351" height="80.9998"/><path d="M3363.38 458.378 3363.38 798.622 3703.62 798.622 3703.62 458.378ZM3324.21 380 3742.79 380C3764.44 380 3782 397.556 3782 419.213L3782 837.787C3782 859.443 3764.44 877 3742.79 877L3324.21 877C3302.56 877 3285 859.443 3285 837.787L3285 419.213C3285 397.556 3302.56 380 3324.21 380Z" fill-rule="evenodd"/><path d="M2613.22 458.378 2613.22 798.622 2952.78 798.622 2952.78 458.378ZM2574.13 380 2991.87 380C3013.48 380 3031 397.556 3031 419.213L3031 837.787C3031 859.443 3013.48 877 2991.87 877L2574.13 877C2552.52 877 2535 859.443 2535 837.787L2535 419.213C2535 397.556 2552.52 380 2574.13 380Z" fill-rule="evenodd"/><path d="M2613.22 1208.22 2613.22 1547.78 2952.78 1547.78 2952.78 1208.22ZM2574.13 1130 2991.87 1130C3013.48 1130 3031 1147.52 3031 1169.13L3031 1586.87C3031 1608.48 3013.48 1626 2991.87 1626L2574.13 1626C2552.52 1626 2535 1608.48 2535 1586.87L2535 1169.13C2535 1147.52 2552.52 1130 2574.13 1130Z" fill-rule="evenodd"/></g></svg>
-                <span class="tool-icon-label">Flow</span>
-            </button>
-            <button class="tool-icon-btn" onclick="switchView('tunerView')" aria-label="Tuner">
-                <svg class="tool-icon-svg" viewBox="0 0 521 902" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><defs><clipPath id="clipFrontpageTuner"><rect x="1753" y="271" width="521" height="902"/></clipPath></defs><g clip-path="url(#clipFrontpageTuner)" transform="translate(-1753 -271)"><rect x="0" y="0" width="101" height="278" transform="matrix(1 0 0 -1 1963 1123)"/><path d="M0 50C-6.42931e-15 22.3858 22.6096-6.36567e-15 50.4999-1.27313e-14 78.3902-2.54627e-14 101 22.3858 101 50 101 77.6143 78.3902 100 50.4999 100 22.6096 100-3.21465e-14 77.6143 0 50Z" fill-rule="evenodd" transform="matrix(1 0 0 -1 1963 1173)"/><path d="M1753 594 1853.77 594C1853.77 682.384 1925.29 754.034 2013.5 754.034 2101.71 754.034 2173.23 682.384 2173.23 594L2274 594C2274 738.146 2157.37 855 2013.5 855 1869.63 855 1753 738.146 1753 594Z" fill-rule="evenodd"/><rect x="1753" y="321" width="100" height="278"/><path d="M1753 321C1753 293.386 1775.39 271 1803 271 1830.61 271 1853 293.386 1853 321 1853 348.614 1830.61 371 1803 371 1775.39 371 1753 348.614 1753 321Z" fill-rule="evenodd"/><rect x="2174" y="321" width="100" height="278"/><path d="M2174 321C2174 293.386 2196.39 271 2224 271 2251.61 271 2274 293.386 2274 321 2274 348.614 2251.61 371 2224 371 2196.39 371 2174 348.614 2174 321Z" fill-rule="evenodd"/></g></svg>
-                <span class="tool-icon-label">Tuner</span>
-            </button>
-            <button class="tool-icon-btn" onclick="switchView('timerView')" aria-label="Timer">
-                <span class="material-symbols-outlined">timer</span>
-                <span class="tool-icon-label">Timer</span>
-            </button>
-            <!-- ML-260: 5th tool - starts a second row of the same 4-column grid, so every tile keeps
-                 lining up with the Progress grid. Its icon is a Bravura treble clef (renderTheoryToolIcon). -->
-            <button class="tool-icon-btn hidden-group" id="theoryToolBtn" onclick="switchView('theoryView')" aria-label="Theory">
-                <span id="theoryToolIcon" aria-hidden="true"></span>
-                <span class="tool-icon-label">Theory</span>
-            </button>
+        <!-- Tool groups: the tools in three groups - Everyday (used alongside everything else), Practise (pieces and
+             routines) and Learn (scored drills and quizzes). A group hides when none of its tools are on
+             (renderToolGroups); the ☰ menu's Tools rows are built from these (renderNavToolsRow). -->
+        <div class="tool-group" id="toolGroup-everyday" role="group" aria-labelledby="toolGroupTitle-everyday">
+            <div class="tool-group-title" id="toolGroupTitle-everyday">Everyday</div>
+            <div class="tool-icon-row">
+                <button class="tool-icon-btn" onclick="switchView('quickPlayView')" aria-label="Metronome">
+                    <svg class="tool-icon-svg" viewBox="0 0 883 1025" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><g transform="translate(-2956 -1363)"><path d="M3299.02 1831.86 3528.57 1965.12 3299.02 2098.38ZM3329.89 1454.01 3064.12 2264.42 3731.24 2264.42 3465.47 1454.01ZM3297.05 1363 3499.94 1363C3518.77 1363 3534.93 1374.46 3541.83 1390.79L3544.05 1401.79 3839 2301.17 3837.74 2301.58 3839 2309.93C3839 2328.77 3827.55 2344.95 3811.23 2351.86L3795.05 2355.12 3795.05 2355.43 3793.53 2355.43 3793.53 2355.43 3793.53 2355.43 3702.53 2355.43 3701.57 2360.21C3694.67 2376.54 3678.51 2388 3659.68 2388 3640.84 2388 3624.68 2376.54 3617.78 2360.21L3616.82 2355.43 3186.33 2355.43 3185.37 2360.21C3178.47 2376.54 3162.31 2388 3143.47 2388 3124.64 2388 3108.48 2376.54 3101.58 2360.21L3100.62 2355.43 3008.1 2355.43 3008.1 2354.09 3001.47 2355.43C2976.36 2355.43 2956 2335.06 2956 2309.93L2957.68 2301.6 2956.37 2301.17 3254.77 1391.26 3255.04 1391.35 3255.16 1390.79C3262.06 1374.46 3278.22 1363 3297.05 1363Z" fill-rule="evenodd"/></g></svg>
+                    <span class="tool-icon-label">Metronome</span>
+                </button>
+                <button class="tool-icon-btn" onclick="switchView('tunerView')" aria-label="Tuner">
+                    <svg class="tool-icon-svg" viewBox="0 0 521 902" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><defs><clipPath id="clipFrontpageTuner"><rect x="1753" y="271" width="521" height="902"/></clipPath></defs><g clip-path="url(#clipFrontpageTuner)" transform="translate(-1753 -271)"><rect x="0" y="0" width="101" height="278" transform="matrix(1 0 0 -1 1963 1123)"/><path d="M0 50C-6.42931e-15 22.3858 22.6096-6.36567e-15 50.4999-1.27313e-14 78.3902-2.54627e-14 101 22.3858 101 50 101 77.6143 78.3902 100 50.4999 100 22.6096 100-3.21465e-14 77.6143 0 50Z" fill-rule="evenodd" transform="matrix(1 0 0 -1 1963 1173)"/><path d="M1753 594 1853.77 594C1853.77 682.384 1925.29 754.034 2013.5 754.034 2101.71 754.034 2173.23 682.384 2173.23 594L2274 594C2274 738.146 2157.37 855 2013.5 855 1869.63 855 1753 738.146 1753 594Z" fill-rule="evenodd"/><rect x="1753" y="321" width="100" height="278"/><path d="M1753 321C1753 293.386 1775.39 271 1803 271 1830.61 271 1853 293.386 1853 321 1853 348.614 1830.61 371 1803 371 1775.39 371 1753 348.614 1753 321Z" fill-rule="evenodd"/><rect x="2174" y="321" width="100" height="278"/><path d="M2174 321C2174 293.386 2196.39 271 2224 271 2251.61 271 2274 293.386 2274 321 2274 348.614 2251.61 371 2224 371 2196.39 371 2174 348.614 2174 321Z" fill-rule="evenodd"/></g></svg>
+                    <span class="tool-icon-label">Tuner</span>
+                </button>
+                <button class="tool-icon-btn" onclick="switchView('timerView')" aria-label="Timer">
+                    <span class="material-symbols-outlined">timer</span>
+                    <span class="tool-icon-label">Timer</span>
+                </button>
+            </div>
+        </div>
+        <div class="tool-group" id="toolGroup-practise" role="group" aria-labelledby="toolGroupTitle-practise">
+            <div class="tool-group-title" id="toolGroupTitle-practise">Practise</div>
+            <div class="tool-icon-row">
+                <!-- ML-299: was "Flow". Play a piece you can see - shown only once there is one (rehearseRefresh).
+                     Creating, importing and editing pieces moved to the ☰ menu's My music. -->
+                <button class="tool-icon-btn hidden-group" id="rehearseToolBtn" onclick="switchView('rehearseView')" aria-label="Rehearse">
+                    <svg class="tool-icon-svg" viewBox="0 0 1247 1246" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><defs><clipPath id="clipFrontpageFlow"><rect x="2535" y="380" width="1247" height="1246"/></clipPath></defs><g clip-path="url(#clipFrontpageFlow)" transform="translate(-2535 -380)"><rect x="3006" y="1338" width="351" height="82.0001"/><rect x="2782" y="962" width="788" height="81.9998"/><rect x="2742" y="1001" width="81.9998" height="187"/><rect x="3525" y="834" width="81.9998" height="167"/><path d="M2742 1003C2742 980.356 2760.36 962 2783 962 2805.64 962 2824 980.356 2824 1003 2824 1025.64 2805.64 1044 2783 1044 2760.36 1044 2742 1025.64 2742 1003Z" fill-rule="evenodd"/><path d="M3524 1002.5C3524 979.58 3542.58 961 3565.5 961 3588.42 961 3607 979.58 3607 1002.5 3607 1025.42 3588.42 1044 3565.5 1044 3542.58 1044 3524 1025.42 3524 1002.5Z" fill-rule="evenodd"/><path d="M3363.38 1208.22 3363.38 1547.78 3703.62 1547.78 3703.62 1208.22ZM3324.21 1130 3742.79 1130C3764.44 1130 3782 1147.52 3782 1169.13L3782 1586.87C3782 1608.48 3764.44 1626 3742.79 1626L3324.21 1626C3302.56 1626 3285 1608.48 3285 1586.87L3285 1169.13C3285 1147.52 3302.56 1130 3324.21 1130Z" fill-rule="evenodd"/><rect x="3006" y="588" width="351" height="80.9998"/><path d="M3363.38 458.378 3363.38 798.622 3703.62 798.622 3703.62 458.378ZM3324.21 380 3742.79 380C3764.44 380 3782 397.556 3782 419.213L3782 837.787C3782 859.443 3764.44 877 3742.79 877L3324.21 877C3302.56 877 3285 859.443 3285 837.787L3285 419.213C3285 397.556 3302.56 380 3324.21 380Z" fill-rule="evenodd"/><path d="M2613.22 458.378 2613.22 798.622 2952.78 798.622 2952.78 458.378ZM2574.13 380 2991.87 380C3013.48 380 3031 397.556 3031 419.213L3031 837.787C3031 859.443 3013.48 877 2991.87 877L2574.13 877C2552.52 877 2535 859.443 2535 837.787L2535 419.213C2535 397.556 2552.52 380 2574.13 380Z" fill-rule="evenodd"/><path d="M2613.22 1208.22 2613.22 1547.78 2952.78 1547.78 2952.78 1208.22ZM2574.13 1130 2991.87 1130C3013.48 1130 3031 1147.52 3031 1169.13L3031 1586.87C3031 1608.48 3013.48 1626 2991.87 1626L2574.13 1626C2552.52 1626 2535 1608.48 2535 1586.87L2535 1169.13C2535 1147.52 2552.52 1130 2574.13 1130Z" fill-rule="evenodd"/></g></svg>
+                    <span class="tool-icon-label">Rehearse</span>
+                </button>
+                <!-- ML-294: Warm-ups - a rising sun: the first few minutes of the day's playing. -->
+                <button class="tool-icon-btn hidden-group" id="warmupsToolBtn" onclick="switchView('warmupsView')" aria-label="Warm-ups">
+                    <span class="material-symbols-outlined">wb_twilight</span>
+                    <span class="tool-icon-label">Warm-ups</span>
+                </button>
+                <!-- ML-9: Scales - its icon is three rising Bravura noteheads on a scrap of staff (renderScalesToolIcon). -->
+                <button class="tool-icon-btn hidden-group" id="scalesToolBtn" onclick="switchView('scalesView')" aria-label="Scales">
+                    <span id="scalesToolIcon" aria-hidden="true"></span>
+                    <span class="tool-icon-label">Scales</span>
+                </button>
+            </div>
+        </div>
+        <div class="tool-group" id="toolGroup-learn" role="group" aria-labelledby="toolGroupTitle-learn">
+            <div class="tool-group-title" id="toolGroupTitle-learn">Learn</div>
+            <div class="tool-icon-row">
+                <!-- ML-260: Theory - its icon is a Bravura treble clef (renderTheoryToolIcon). -->
+                <button class="tool-icon-btn hidden-group" id="theoryToolBtn" onclick="switchView('theoryView')" aria-label="Theory">
+                    <span id="theoryToolIcon" aria-hidden="true"></span>
+                    <span class="tool-icon-label">Theory</span>
+                </button>
+                <button class="tool-icon-btn hidden-group" id="earToolBtn" onclick="switchView('earView')" aria-label="Pitch">
+                    <span class="material-symbols-outlined" aria-hidden="true">hearing</span>
+                    <span class="tool-icon-label">Pitch</span>
+                </button>
+                <!-- ML-298 / ML-295 / ML-296: the drill tools Pitch (above), Tempo and Pulse - Ear, Tap tempo and
+                     Gap trainer in the code and features (ear_training, tap_tempo, gap_trainer). docs/drills.md. -->
+                <button class="tool-icon-btn hidden-group" id="tapTempoToolBtn" onclick="switchView('tapTempoView')" aria-label="Tempo">
+                    <span class="material-symbols-outlined" aria-hidden="true">touch_app</span>
+                    <span class="tool-icon-label">Tempo</span>
+                </button>
+                <button class="tool-icon-btn hidden-group" id="gapTrainerToolBtn" onclick="switchView('gapTrainerView')" aria-label="Pulse">
+                    <span class="material-symbols-outlined" aria-hidden="true">graphic_eq</span>
+                    <span class="tool-icon-label">Pulse</span>
+                </button>
+            </div>
         </div>
 
         <div class="section-title progress-title">Progress</div>
@@ -230,8 +276,8 @@
         </div>
     </div>
 
-    <div id="statsView" style="display:none;">
-        <div class="form-group" style="margin-bottom: var(--space-3);">
+    <div id="statsView" class="hidden-group">
+        <div class="form-group mb-3">
             <label for="statsTimeframe">Time period</label>
             <select id="statsTimeframe">
                 <option value="all" selected>All time</option>
@@ -251,23 +297,23 @@
             </select>
         </div>
 
-        <div id="customDateRange" class="hidden-group" style="display: flex; gap: var(--space-2); margin-bottom: var(--space-4);">
-            <div class="flex-1"><label for="customStartDate" style="font-size:var(--font-sm);">From</label><input type="date" id="customStartDate"></div>
-            <div class="flex-1"><label for="customEndDate" style="font-size:var(--font-sm);">To</label><input type="date" id="customEndDate"></div>
+        <div id="customDateRange" class="hidden-group flex-row gap-sm mb-4">
+            <div class="flex-1"><label for="customStartDate" class="text-sm">From</label><input type="date" id="customStartDate"></div>
+            <div class="flex-1"><label for="customEndDate" class="text-sm">To</label><input type="date" id="customEndDate"></div>
         </div>
 
-        <div class="dashboard-grid" style="grid-template-columns: 1fr; margin-bottom: var(--space-2);">
-            <div class="stat-card" style="border-left: 4px solid var(--text-color);">
+        <div class="dashboard-grid single-col mb-2">
+            <div class="stat-card edge-total">
                 <div class="label">Overall total</div>
                 <div class="value" id="statOverall">-</div>
             </div>
         </div>
 
         <div class="dashboard-grid">
-            <div class="stat-card" style="border-left: 4px solid var(--cat-practise);"><div class="label">Practise</div><div class="value" id="statPrac">-</div></div>
-            <div class="stat-card" style="border-left: 4px solid var(--cat-rehearsal);"><div class="label">Rehearsals</div><div class="value" id="statReh">-</div></div>
-            <div class="stat-card" style="border-left: 4px solid var(--cat-performance);"><div class="label">Performances</div><div class="value" id="statPerf">-</div></div>
-            <div class="stat-card" style="border-left: 4px solid var(--cat-lesson);"><div class="label">Lessons</div><div class="value" id="statLess">-</div></div>
+            <div class="stat-card edge-practise"><div class="label">Practise</div><div class="value" id="statPrac">-</div></div>
+            <div class="stat-card edge-rehearsal"><div class="label">Rehearsals</div><div class="value" id="statReh">-</div></div>
+            <div class="stat-card edge-performance"><div class="label">Performances</div><div class="value" id="statPerf">-</div></div>
+            <div class="stat-card edge-lesson"><div class="label">Lessons</div><div class="value" id="statLess">-</div></div>
         </div>
 
         <!-- ML-176: inline filter strip (design system component, see styleguide.html) - replaces
@@ -286,11 +332,11 @@
              only while that chart is drawing a projection (renderBarChart). -->
         <div class="section-title">Total hours per month</div>
         <div class="scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="chart-wrapper" id="chartHours"></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
-        <div class="chart-legend hidden-group" data-chart-legend="chartHours"><span class="chart-legend-item"><span class="chart-legend-swatch" style="background: var(--chart-hours);"></span>Actual</span><span class="chart-legend-item"><span class="chart-legend-swatch chart-legend-swatch-projected" style="border-color: var(--chart-hours);"></span>Projected</span></div>
+        <div class="chart-legend hidden-group" data-chart-legend="chartHours"><span class="chart-legend-item"><span class="chart-legend-swatch series-hours"></span>Actual</span><span class="chart-legend-item"><span class="chart-legend-swatch chart-legend-swatch-projected series-hours"></span>Projected</span></div>
 
         <div class="section-title">Days of activity</div>
         <div class="scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="chart-wrapper" id="chartDays"></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
-        <div class="chart-legend hidden-group" data-chart-legend="chartDays"><span class="chart-legend-item"><span class="chart-legend-swatch" style="background: var(--chart-days);"></span>Actual</span><span class="chart-legend-item"><span class="chart-legend-swatch chart-legend-swatch-projected" style="border-color: var(--chart-days);"></span>Projected</span></div>
+        <div class="chart-legend hidden-group" data-chart-legend="chartDays"><span class="chart-legend-item"><span class="chart-legend-swatch series-days"></span>Actual</span><span class="chart-legend-item"><span class="chart-legend-swatch chart-legend-swatch-projected series-days"></span>Projected</span></div>
 
         <div class="section-title">Daily session count</div>
         <div class="scroll-wrapper heatmap-scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="heatmap-wrapper"><div class="heatmap-container" id="sessHeatmap"></div></div><div class="heatmap-daylabels"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
@@ -298,13 +344,13 @@
 
         <div class="section-title">Monthly session count</div>
         <div class="scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="chart-wrapper" id="chartSess"></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
-        <div class="chart-legend hidden-group" data-chart-legend="chartSess"><span class="chart-legend-item"><span class="chart-legend-swatch" style="background: var(--chart-sessions);"></span>Actual</span><span class="chart-legend-item"><span class="chart-legend-swatch chart-legend-swatch-projected" style="border-color: var(--chart-sessions);"></span>Projected</span></div>
+        <div class="chart-legend hidden-group" data-chart-legend="chartSess"><span class="chart-legend-item"><span class="chart-legend-swatch series-sessions"></span>Actual</span><span class="chart-legend-item"><span class="chart-legend-swatch chart-legend-swatch-projected series-sessions"></span>Projected</span></div>
         <br>
     </div>
 
-    <div id="historyView" style="display:none;">
-        <button class="btn-submit" onclick="switchView('entryForm')" style="margin-bottom: var(--space-4);">Add session time</button>
-        <div class="month-nav"><button id="prevMonthBtn">&lt;</button><span id="currentMonthDisplay" style="font-weight:var(--font-weight-bold);">Loading...</span><button id="nextMonthBtn">&gt;</button></div>
+    <div id="historyView" class="hidden-group">
+        <button class="btn-submit mb-4" onclick="switchView('entryForm')">Add session time</button>
+        <div class="month-nav"><button id="prevMonthBtn">&lt;</button><span id="currentMonthDisplay" class="fw-bold">Loading...</span><button id="nextMonthBtn">&gt;</button></div>
         <!-- ML-176: inline filter strip (design system component, see styleguide.html) - replaces
              the old "Filter history (All)" button + blocking checkbox modal, moved below the month
              selector and above the summary/log area per the ticket's own layout. -->
@@ -312,11 +358,11 @@
             <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span><span class="filter-strip-badge hidden-group" id="historyFilterBadge"></span></span>
             <div class="filter-strip-pills" id="historyFilterPills"></div>
         </div>
-        <div id="historySummary" style="text-align:center; margin-bottom:var(--space-4); font-weight:var(--font-weight-bold);"></div>
-        <div id="historyList"><div style="text-align:center; color:var(--label-color);">Loading entries...</div></div>
+        <div id="historySummary" class="text-center mb-4 fw-bold"></div>
+        <div id="historyList"><div class="text-center text-muted">Loading entries...</div></div>
     </div>
 
-    <div id="streakStatsView" style="display:none;">
+    <div id="streakStatsView" class="hidden-group">
         <div class="dashboard-grid">
             <div class="stat-card"><div class="label">Current practise streak</div><div class="value" id="streakCurrentPractise">0 days</div></div>
             <div class="stat-card"><div class="label">Current playing streak</div><div class="value" id="streakCurrentPlaying">0 days</div></div>
@@ -346,14 +392,14 @@
         <div class="chart-wrapper" id="streakChartPlaying"></div>
     </div>
 
-    <div id="challengeSelectView" style="display:none;">
+    <div id="challengeSelectView" class="hidden-group">
         <div class="section-title">Select a challenge</div>
         <div id="selectChallengesList">Loading active challenges...</div>
     </div>
 
-    <div id="challengePlayView" style="display:none;">
+    <div id="challengePlayView" class="hidden-group">
         <div class="play-card">
-            <div id="playStatus" style="font-weight:var(--font-weight-bold); color:var(--label-color); margin-bottom:var(--space-1); font-size:var(--font-base);"></div>
+            <div id="playStatus" class="fw-bold text-muted mb-1 text-base"></div>
             <div id="playPiece" class="play-piece">Loading...</div>
             <div id="playRef" class="play-ref"></div>
             <div class="play-stats" id="playBpm"></div>
@@ -372,7 +418,7 @@
         </div>
         <div class="form-group hidden-group" id="customTimeGroup"><input type="number" id="playCustomTime" aria-label="Custom minutes" placeholder="Enter minutes"></div>
 
-        <div class="form-group" style="margin-top:var(--space-6);">
+        <div class="form-group mt-6">
             <label>Current status</label>
             <div class="radio-group">
                 <input type="radio" id="stat-attempted" name="playStatus" value="Attempted" checked><label for="stat-attempted">Attempted</label>
@@ -380,53 +426,53 @@
             </div>
         </div>
 
-        <div style="display:flex; flex-direction:column; gap:var(--space-2); margin-top:var(--space-7);">
+        <div class="flex-col gap-sm mt-7">
             <button class="btn-submit no-margin" id="saveNextBtn">Save and next</button>
             <button class="btn-cancel btn-nav no-margin" id="saveEndBtn">Save and end session</button>
         </div>
     </div>
 
-    <div id="challengeSummaryView" style="display:none; text-align:center;">
-        <h2 style="margin-top:var(--space-7); font-size:var(--font-2xl);" id="summaryTitle">Session complete!</h2>
-        <div class="dashboard-grid" style="margin-top:var(--space-5);">
+    <div id="challengeSummaryView" class="hidden-group text-center">
+        <h2 class="summary-title mt-7 text-2xl" id="summaryTitle">Session complete!</h2>
+        <div class="dashboard-grid mt-5">
             <div class="stat-card"><div class="label">Time logged</div><div class="value" id="sumTime"></div></div>
             <div class="stat-card"><div class="label">Tasks played</div><div class="value" id="sumItems"></div></div>
         </div>
-        <div id="sumCompletedItems" style="text-align:left; margin-top:var(--space-5);"></div>
-        <button class="btn-submit" style="margin-top:var(--space-7);" onclick="switchView('mainView', true)">Back to home</button>
+        <div id="sumCompletedItems" class="text-left mt-5"></div>
+        <button class="btn-submit mt-7" onclick="switchView('mainView', true)">Back to home</button>
     </div>
 
-    <div id="manageChallengesView" style="display:none;">
-        <button class="btn-submit" onclick="document.getElementById('addChallengeModal').style.display='flex'">Create new challenge</button>
-        <div class="section-title" style="margin-top:var(--space-4);">Active challenges</div>
+    <div id="manageChallengesView" class="hidden-group">
+        <button class="btn-submit" onclick="showModal('addChallengeModal')">Create new challenge</button>
+        <div class="section-title mt-4">Active challenges</div>
         
-        <div style="display:flex; flex-wrap:wrap; gap:var(--space-2); margin-bottom:var(--space-4); background:var(--input-bg); padding:var(--space-3); border-radius:var(--radius-md); border:1px solid var(--input-border);">
-            <label style="font-size:var(--font-sm); display:flex; align-items:center; gap:var(--space-1);"><input type="checkbox" id="toggleShowCompletedChallenges" style="width:16px; height:16px;"> Show completed</label>
-            <label style="font-size:var(--font-sm); display:flex; align-items:center; gap:var(--space-1);"><input type="checkbox" id="filterChallPerf" checked style="width:16px; height:16px;"> Performance</label>
-            <label style="font-size:var(--font-sm); display:flex; align-items:center; gap:var(--space-1);"><input type="checkbox" id="filterChallTech" checked style="width:16px; height:16px;"> Technique</label>
+        <div class="challenge-filter-box">
+            <label class="text-sm flex-row items-center gap-xs"><input type="checkbox" id="toggleShowCompletedChallenges" class="check-sm"> Show completed</label>
+            <label class="text-sm flex-row items-center gap-xs"><input type="checkbox" id="filterChallPerf" checked class="check-sm"> Performance</label>
+            <label class="text-sm flex-row items-center gap-xs"><input type="checkbox" id="filterChallTech" checked class="check-sm"> Technique</label>
         </div>
         
         <div id="challengesListUI">Loading...</div>
     </div>
     
-    <div id="editChallengeView" style="display:none;">
-        <div class="play-card" style="margin-bottom:var(--space-5); padding:var(--space-4);">
-            <div id="ecName" class="play-piece" style="margin:0; margin-bottom:var(--space-1);"></div>
-            <div id="ecWhoType" style="color:var(--label-color); font-size:var(--font-base);"></div>
-            <div id="ecStats" style="font-weight:var(--font-weight-bold); margin-top:var(--space-2); margin-bottom:var(--space-4); font-size:var(--font-base); color:var(--primary-action-strong);"></div>
+    <div id="editChallengeView" class="hidden-group">
+        <div class="play-card mb-5 p-4">
+            <div id="ecName" class="play-piece no-margin mb-1"></div>
+            <div id="ecWhoType" class="text-muted text-base"></div>
+            <div id="ecStats" class="challenge-edit-stats"></div>
             
-            <div style="display:flex; gap:var(--space-2); justify-content:center; flex-wrap:wrap;">
-                <button class="btn-edit" style="width:auto; padding:var(--space-2) var(--space-4); margin:0;" onclick="editEntireChallenge()">Edit name</button>
-                <button class="btn-nav" style="width:auto; padding:var(--space-2) var(--space-4); margin:0;" onclick="closeEntireChallenge()">Close challenge</button>
-                <button class="btn-delete" style="width:auto; padding:var(--space-2) var(--space-4); margin:0;" onclick="deleteEntireChallenge()">Delete</button>
+            <div class="flex-row gap-sm justify-center flex-wrap">
+                <button class="btn-edit btn-inline-sm no-margin" onclick="editEntireChallenge()">Edit name</button>
+                <button class="btn-nav btn-inline-sm no-margin" onclick="closeEntireChallenge()">Close challenge</button>
+                <button class="btn-delete btn-inline-sm no-margin" onclick="deleteEntireChallenge()">Delete</button>
             </div>
         </div>
         
         <button class="btn-submit" aria-haspopup="dialog" onclick="openItemDetailModal()">Add new task</button>
-        <div class="section-title" style="margin-top:var(--space-4);">
+        <div class="section-title mt-4">
             <span>Challenge tasks</span>
-            <label style="font-size:var(--font-sm); font-weight:var(--font-weight-normal); display:flex; align-items:center; gap:var(--space-1); margin:0;">
-                <input type="checkbox" id="toggleShowCompletedItems" checked style="width:16px; height:16px;"> Show completed
+            <label class="text-sm fw-normal flex-row items-center gap-xs no-margin">
+                <input type="checkbox" id="toggleShowCompletedItems" checked class="check-sm"> Show completed
             </label>
         </div>
         <div id="ecItemsList"></div>
@@ -436,20 +482,20 @@
          pattern), instead of every control on one long screen. Each row shows a one-line summary of
          its current values (renderSettingsSummaries). The Tuner and Metronome rows reuse the home
          screen's tool icons (fillSettingsToolIcons). -->
-    <div id="settingsView" class="settings-subview">
+    <div id="settingsView" class="settings-subview hidden-group">
         <button type="button" class="history-item settings-link" onclick="switchView('settingsDisplayView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">contrast</span><span class="settings-link-text"><span class="settings-link-title">Display</span><span class="settings-link-sub" id="settingsDisplaySummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" onclick="switchView('settingsStatsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">bar_chart</span><span class="settings-link-text"><span class="settings-link-title">Stats</span><span class="settings-link-sub" id="settingsStatsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" onclick="switchView('settingsTunerView')"><span class="settings-link-icon" data-tool-icon="tunerView" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">Tuner</span><span class="settings-link-sub" id="settingsTunerSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" onclick="switchView('settingsPlaybackView')"><span class="settings-link-icon" data-tool-icon="quickPlayView" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">Metronome &amp; playback</span><span class="settings-link-sub" id="settingsPlaybackSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
     </div>
 
-    <div id="settingsDisplayView" class="settings-subview">
+    <div id="settingsDisplayView" class="settings-subview hidden-group">
         <div class="setting-row">
             <span id="darkModeToggleLabel">Dark mode</span><label class="toggle-switch"><input type="checkbox" id="darkModeToggle" aria-labelledby="darkModeToggleLabel"><span class="toggle-slider"></span></label>
         </div>
     </div>
 
-    <div id="settingsStatsView" class="settings-subview">
+    <div id="settingsStatsView" class="settings-subview hidden-group">
         <!-- ML-234: an account's own practice year, for the stats "This/Last practise year" options.
              Saved to the account (not this browser), so it follows you to other devices. -->
         <div class="setting-row setting-row-grouped">
@@ -477,7 +523,7 @@
         </div>
     </div>
 
-    <div id="settingsTunerView" class="settings-subview">
+    <div id="settingsTunerView" class="settings-subview hidden-group">
         <div class="form-group">
             <!-- 12 options (every semitone offset), not just the 4 common band families - the same list
                  as #tunerTranspositionOptions in the Tuner settings popup and the Flow/Metronome mini
@@ -510,7 +556,7 @@
         </div>
     </div>
 
-    <div id="settingsPlaybackView" class="settings-subview">
+    <div id="settingsPlaybackView" class="settings-subview hidden-group">
         <!-- ML-103 follow-up: how a fermata sustained hold sounds is a playback preference, not a
              per-block/per-fermata setting (it doesn't vary block to block) - moved out of the block
              editor's Articulation card into here instead, same "one place, applies everywhere"
@@ -528,8 +574,16 @@
     <!-- ML-77: name/email/level/signup date + real band membership. Also carries the Teachers list
          (ML-135) - the private per-account "who was this session for" label list, distinct from the
          real band membership above it despite living in the same view now. -->
-    <div id="accountView" style="display:none;">
-        <div class="section-title">Your details</div>
+    <!-- ML-289: My account is a list of groups like Settings (ML-282), each opening its own screen,
+         rather than everything on one long page. The summaries under each row are filled in by
+         renderAccountSummaries (app.js). -->
+    <div id="accountView" class="hidden-group">
+        <button type="button" class="history-item settings-link" onclick="switchView('accountDetailsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">badge</span><span class="settings-link-text"><span class="settings-link-title">Your details</span><span class="settings-link-sub" id="accountDetailsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" onclick="switchView('accountBandsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">groups</span><span class="settings-link-text"><span class="settings-link-title">Your bands</span><span class="settings-link-sub" id="accountBandsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" onclick="switchView('accountTeachersView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">school</span><span class="settings-link-text"><span class="settings-link-title">Teachers</span><span class="settings-link-sub" id="accountTeachersSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+    </div>
+
+    <div id="accountDetailsView" class="hidden-group">
         <div class="form-group">
             <label for="accountFirstNameInput">First name</label>
             <input type="text" id="accountFirstNameInput" placeholder="First name">
@@ -538,9 +592,9 @@
             <label for="accountSurnameInput">Last name</label>
             <input type="text" id="accountSurnameInput" placeholder="Last name">
         </div>
-        <button class="btn-submit" style="width:auto; padding:var(--space-3) var(--space-5);" id="accountSaveNameBtn">Save</button>
+        <button class="btn-submit btn-inline" id="accountSaveNameBtn">Save</button>
 
-        <div class="section-title" style="margin-top:var(--space-6);">Account</div>
+        <div class="section-title mt-6">Account</div>
         <div class="info-row">
             <span>Email</span><strong id="accountEmailReadout"></strong>
         </div>
@@ -550,12 +604,13 @@
         <div class="info-row info-row-end">
             <span>Member since</span><strong id="accountJoinedReadout"></strong>
         </div>
+    </div>
 
-        <div class="section-title" style="margin-top:var(--space-6);">Your bands</div>
+    <div id="accountBandsView" class="hidden-group">
         <div id="accountBandsList"></div>
-        <div style="display:flex; gap:var(--space-2); margin-top:var(--space-2);">
-            <select id="accountBandPicker" aria-label="Band to join" style="flex:1;"><option value="">Choose a band to join&hellip;</option></select>
-            <button class="btn-submit" style="width:auto; padding:var(--space-3) var(--space-5);" id="accountJoinBandBtn">Join</button>
+        <div class="flex-row gap-sm mt-2">
+            <select id="accountBandPicker" aria-label="Band to join" class="flex-1"><option value="">Choose a band to join&hellip;</option></select>
+            <button class="btn-submit btn-inline" id="accountJoinBandBtn">Join</button>
         </div>
         <button type="button" class="btn-text" id="accountAddBandToggleBtn">Can't find your band? Add it</button>
         <div class="hidden-group" id="accountAddBandSection">
@@ -567,34 +622,35 @@
                 <label for="accountNewBandWebsiteInput">Website</label>
                 <input type="text" id="accountNewBandWebsiteInput" placeholder="https://...">
             </div>
-            <button class="btn-submit" style="width:auto; padding:var(--space-3) var(--space-5);" id="accountAddBandBtn">Add &amp; join</button>
+            <button class="btn-submit btn-inline" id="accountAddBandBtn">Add &amp; join</button>
         </div>
+    </div>
 
-        <!-- ML-135: relocated from the retired "Manage lists" page - the private per-account "who was
-             this session for" label list used by the Lesson category's "who" dropdown, distinct from
-             the real band membership above. -->
-        <div class="section-title" style="margin-top:var(--space-6);">
-            <span>Teachers</span>
-            <label style="font-size:var(--font-sm); font-weight:var(--font-weight-normal); display:flex; align-items:center; gap:var(--space-1); margin:0;">
-                <input type="checkbox" id="showArchivedTeachers" style="width:16px; height:16px;"> Show archived
+    <!-- ML-135: relocated from the retired "Manage lists" page - the private per-account "who was
+         this session for" label list used by the Lesson category's "who" dropdown, distinct from
+         the real band membership. -->
+    <div id="accountTeachersView" class="hidden-group">
+        <div class="flex-row justify-end mb-2">
+            <label class="text-sm fw-normal flex-row items-center gap-xs no-margin">
+                <input type="checkbox" id="showArchivedTeachers" class="check-sm"> Show archived
             </label>
         </div>
         <div id="teacherList"></div>
-        <div style="display:flex; gap:var(--space-2); margin-top:var(--space-2);"><input type="text" id="newTeacherInput" aria-label="New teacher name" placeholder="New teacher"><button class="btn-submit" style="width:auto; padding:var(--space-3) var(--space-5);" onclick="addListItem('teachers')">Add</button></div>
+        <div class="flex-row gap-sm mt-2"><input type="text" id="newTeacherInput" aria-label="New teacher name" placeholder="New teacher"><button class="btn-submit btn-inline" onclick="addListItem('teachers')">Add</button></div>
     </div>
 
     <!-- One shared floating menu for every band row (ML-89 follow-up), repositioned against whichever
          row's "more" button was tapped - mirrors Metronome Blocks' own per-tile menu pattern. Delete is
          only shown when the currently-targeted band's canDelete says so (see openAccountBandMenu). -->
     <div class="dropdown-menu account-band-menu" id="accountBandMenu">
-        <button type="button" class="dropdown-item" id="accountBandMenuLeave">Leave band</button>
-        <button type="button" class="dropdown-item account-band-menu-delete hidden-group" id="accountBandMenuDelete">Delete band</button>
+        <button type="button" class="dropdown-item" id="accountBandMenuLeave"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="3.5"/><path d="M2 20.5a6 6 0 0 1 12 0"/><path d="M15 12.5h6.5"/><path d="M18.5 9.5l3 3-3 3"/></svg><span class="dropdown-item-text">Leave band</span></button>
+        <button type="button" class="dropdown-item account-band-menu-delete hidden-group" id="accountBandMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete band</span></button>
     </div>
 
     <!-- ML-201: notification centre. The update card (only when this device is running an older
          release than the server) always sits first; admin-written notifications below, newest first.
          Tapping a notification opens it in full and marks it read. -->
-    <div id="notificationsView" style="display:none;">
+    <div id="notificationsView" class="hidden-group">
         <div id="notificationsUpdateCard" class="hidden-group"></div>
         <div class="notifications-toolbar hidden-group" id="notificationsToolbar">
             <button type="button" class="btn-cancel btn-nav no-margin" id="notificationsMarkAllBtn">Mark all as read</button>
@@ -602,7 +658,7 @@
         <div id="notificationsList"></div>
     </div>
 
-    <div id="aboutView" style="display:none;">
+    <div id="aboutView" class="hidden-group">
         <div id="aboutCurrentRelease"></div>
         <div class="section-title">Release history</div>
         <div id="aboutReleaseHistory"></div>
@@ -615,7 +671,7 @@
          ids, own player instance - qpPlayer - same reasoning as Blocks having its own player rather
          than sharing the old single-bar tool's). Every Play press writes the current blocks in as a
          timestamped history row (see saveQuickPlayHistory) - not a saved setup. -->
-    <div id="quickPlayView" style="display:none;">
+    <div id="quickPlayView" class="hidden-group">
         <div class="metroBlk-rows">
             <div class="metroBlk-row metroBlk-row-current">
                 <div class="metroBlk-row-head">
@@ -678,18 +734,29 @@
              #metroBlkTileMenu. Move up/down/Delete are hidden rather than disabled when they don't
              apply (first/last bar, or only one bar in the list) - see openQpBarMenu. -->
         <div class="dropdown-menu metroBlk-tile-menu" id="qpBarMenu">
-            <button type="button" class="dropdown-item" id="qpBarMenuMoveUp">Move up</button>
-            <button type="button" class="dropdown-item" id="qpBarMenuMoveDown">Move down</button>
-            <button type="button" class="dropdown-item" id="qpBarMenuDuplicate">Duplicate</button>
-            <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="qpBarMenuDelete">Delete</button>
+            <button type="button" class="dropdown-item" id="qpBarMenuMoveUp"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">arrow_upward</span><span class="dropdown-item-text">Move up</span></button>
+            <button type="button" class="dropdown-item" id="qpBarMenuMoveDown"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">arrow_downward</span><span class="dropdown-item-text">Move down</span></button>
+            <button type="button" class="dropdown-item" id="qpBarMenuDuplicate"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">content_copy</span><span class="dropdown-item-text">Duplicate</span></button>
+            <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="qpBarMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete</span></button>
             <!-- ML-80: only shown for Bar 1 (openQpBarMenu toggles this on index===0, regardless of
                  how many bars exist) - a fresh, generic single-bar session, same as first landing on
                  Quick Play. -->
-            <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="qpBarMenuResetAll">Delete all and reset</button>
+            <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="qpBarMenuResetAll"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3 3v5h5"/><path d="M10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3A1.5 1.5 0 0 1 10.5 9z"/></svg><span class="dropdown-item-text">Delete all and reset</span></button>
         </div>
     </div>
 
-    <div id="metroBuilderView" style="display:none;">
+    <!-- ML-299: Rehearse - the pieces you can see (with bars to play), one tap to Play Flow. Nothing to
+         create or import here: that's My music (☰ menu). Rows are the library's list rows. -->
+    <div id="rehearseView" class="hidden-group">
+        <p class="metro-help-text">Pick a piece to play along with.</p>
+        <div id="rehearseList">Loading...</div>
+        <div class="hidden-group mt-4" id="rehearseEmpty">
+            <p>No pieces to play yet.</p>
+            <button type="button" class="btn-nav no-margin hidden-group" id="rehearseAddBtn">Add one in My music</button>
+        </div>
+    </div>
+
+    <div id="metroBuilderView" class="hidden-group">
         <!-- Sits first in the view (ML-91: "appear at the top of the page if it's turned on") - shown/
              hidden entirely via the top-bar toggle button now, so there's no close button of its own
              here any more (see topTunerToggleBtn in the top bar). -->
@@ -716,18 +783,18 @@
              explicit "new or open?" moment. This entry screen replaces that auto-resolve - see
              switchView's metroBuilderView branch, metroBlkShowEntryScreen/metroBlkShowEditorScreen. -->
         <div id="metroBlkEntryScreen">
-            <div class="section-title"><span id="metroBlkEntryTitle">Flow</span></div>
-            <p class="metro-help-text">Set up a custom practice run, or open one you've already made.</p>
+            <div class="section-title"><span id="metroBlkEntryTitle">My music</span></div>
+            <p class="metro-help-text">Add a piece, import one, or open one you've already made. To play one, use Rehearse.</p>
             <div class="metroBlk-entry-choices">
-                <button type="button" class="metroBlk-entry-choice" id="metroBlkEntryCreateBtn" aria-label="Create your own - build a new practice flow from scratch">
+                <button type="button" class="metroBlk-entry-choice" id="metroBlkEntryCreateBtn" aria-label="Create your own - build a new piece from scratch">
                     <span class="material-symbols-outlined" aria-hidden="true">add_circle</span>
                     <strong>Create your own</strong>
-                    <span class="metro-help-text">Build a new practice flow from scratch</span>
+                    <span class="metro-help-text">Build a new piece from scratch</span>
                 </button>
-                <button type="button" class="metroBlk-entry-choice" id="metroBlkEntryLoadBtn" aria-label="Load from library - open one of your saved flows">
+                <button type="button" class="metroBlk-entry-choice" id="metroBlkEntryLoadBtn" aria-label="Load from library - open one of your saved pieces">
                     <span class="material-symbols-outlined" aria-hidden="true">folder_open</span>
                     <strong>Load from library</strong>
-                    <span class="metro-help-text">Open one of your saved flows</span>
+                    <span class="metro-help-text">Open one of your saved pieces</span>
                 </button>
                 <!-- ML-79: wired up - see flowFromFileView below (PDF/MusicXML/.mxl, Phase 2 added PDF
                      via OMR). ML-190: starts hidden - the flow_import_from_file feature gate
@@ -753,11 +820,11 @@
         <!-- One shared floating menu for every flow-library row (only shown for a personal flow, for
              now) - same pattern as flowBlockMenu/sessionHistoryItemMenu. -->
         <div class="dropdown-menu metroBlk-tile-menu" id="flowLibraryItemMenu">
-            <button type="button" class="dropdown-item" id="flowLibraryItemMenuEdit">Edit</button>
-            <button type="button" class="dropdown-item" id="flowLibraryItemMenuDuplicate">Duplicate</button>
+            <button type="button" class="dropdown-item" id="flowLibraryItemMenuEdit"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">edit</span><span class="dropdown-item-text">Edit</span></button>
+            <button type="button" class="dropdown-item" id="flowLibraryItemMenuDuplicate"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">content_copy</span><span class="dropdown-item-text">Duplicate</span></button>
             <!-- ML-204: personal + band flows, gated by flow_export_musicxml (openFlowLibraryItemMenu) -->
-            <button type="button" class="dropdown-item" id="flowLibraryItemMenuExport">Export to MusicXML</button>
-            <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowLibraryItemMenuDelete">Delete flow</button>
+            <button type="button" class="dropdown-item" id="flowLibraryItemMenuExport"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-7"/><path d="M9 13.5l3-3 3 3"/></svg><span class="dropdown-item-text">Export to MusicXML</span></button>
+            <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowLibraryItemMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete flow</span></button>
         </div>
 
         <div id="metroBlkEditorScreen" class="hidden-group">
@@ -806,9 +873,9 @@
         <div id="metroBlkLeadInSlot" class="metroBlk-leadin-slot"></div>
         <div id="metroBlockTiles" class="metroBlk-tile-strip"></div>
         <div class="dropdown-menu metroBlk-tile-menu" id="metroBlkTileMenu">
-            <button type="button" class="dropdown-item" id="metroBlkTileMenuCopyEnd">Copy to end</button>
-            <button type="button" class="dropdown-item" id="metroBlkTileMenuCopyHere">Copy here</button>
-            <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="metroBlkTileMenuDelete">Delete</button>
+            <button type="button" class="dropdown-item" id="metroBlkTileMenuCopyEnd"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><circle cx="5.5" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="5.5" cy="14" r="1.1" fill="currentColor" stroke="none"/><path d="M11 12h3.8"/><path d="M12.8 9.8l2.2 2.2-2.2 2.2"/><path d="M17.3 4v16"/><rect x="19.3" y="3" width="2.6" height="18" rx="0.6" fill="currentColor" stroke="none"/></svg><span class="dropdown-item-text">Copy to end</span></button>
+            <button type="button" class="dropdown-item" id="metroBlkTileMenuCopyHere"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15.5V5a2 2 0 0 1 2-2h9.5"/><path d="M10 7h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/><path d="M14 10.5v7M10.5 14h7"/></svg><span class="dropdown-item-text">Copy here</span></button>
+            <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="metroBlkTileMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete</span></button>
         </div>
 
         <div class="metroBlk-edit-bar hidden-group" id="metroBlkEditBar">
@@ -831,7 +898,7 @@
          (flow-upload-progress*) rather than inventing a second version of the same thing.
          handleFromFileUpload (app.js) drives the upload + parse. "Continue to flow" then hands over
          to the exact same Create flow journey as "Create your own" (ML-204). -->
-    <div id="flowFromFileView" style="display:none;">
+    <div id="flowFromFileView" class="hidden-group">
         <div class="flow-from-file-banner">
             <span class="material-symbols-outlined" aria-hidden="true">lightbulb</span>
             <p><strong>How file import works:</strong> your score is saved as a document into the <strong>Media</strong> section, while title, composer, tempo, and measure blocks are read into the flow. You can review and amend everything on the next screen.</p>
@@ -851,7 +918,7 @@
 
         <div class="flow-upload-progress hidden-group" id="flowFromFileProgress">
             <div class="flow-upload-progress-text"><span id="flowFromFileProgressLabel">Uploading&hellip;</span><span id="flowFromFileProgressPercent">0%</span></div>
-            <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="flowFromFileProgressFill" style="width:0%;"></div></div>
+            <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="flowFromFileProgressFill"></div></div>
         </div>
 
         <div class="flow-from-file-result hidden-group" id="flowFromFileResult">
@@ -878,7 +945,7 @@
          the back button and every existing entry point (openFlow/createAndOpenFlow/the Play Flow
          3-dot menu) keep working unchanged; only which panel is visible on arrival differs
          (flowEditRequestedTab). -->
-    <div id="flowDetailsHubView" style="display:none;">
+    <div id="flowDetailsHubView" class="hidden-group">
         <!-- No more 3-dot "Flow options" menu here - Move to a band/Publish (Visibility card, Details
              tab, below) and Delete (sticky bar text link, Edit mode only) now live inline instead of
              behind a popup. -->
@@ -941,7 +1008,7 @@
         </div>
 
         <!-- MEDIA tab -->
-        <div id="flowEditMediaTab" class="flow-edit-tab-panel" style="display:none;">
+        <div id="flowEditMediaTab" class="flow-edit-tab-panel hidden-group">
             <section class="flow-card">
                 <div class="flow-card-header">
                     <div>
@@ -955,7 +1022,7 @@
                 <input type="file" id="flowRecordingFileInput" class="hidden-group" accept="audio/*,video/mp4">
                 <div class="flow-upload-progress hidden-group" id="flowRecordingUploadProgress">
                     <div class="flow-upload-progress-text"><span id="flowRecordingUploadName">Uploading&hellip;</span><span id="flowRecordingUploadPercent">0%</span></div>
-                    <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="flowRecordingUploadFill" style="width:0%;"></div></div>
+                    <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="flowRecordingUploadFill"></div></div>
                 </div>
             </section>
 
@@ -984,7 +1051,7 @@
                 <input type="file" id="flowDocumentFileInput" class="hidden-group" accept=".pdf,.musicxml,.mxl,.sib,.musx,application/pdf">
                 <div class="flow-upload-progress hidden-group" id="flowDocumentUploadProgress">
                     <div class="flow-upload-progress-text"><span id="flowDocumentUploadName">Uploading&hellip;</span><span id="flowDocumentUploadPercent">0%</span></div>
-                    <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="flowDocumentUploadFill" style="width:0%;"></div></div>
+                    <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="flowDocumentUploadFill"></div></div>
                 </div>
             </section>
 
@@ -994,7 +1061,7 @@
              now, density switcher/2-col/4-col compact views are a follow-up - see the plan doc).
              Editing reuses one generic choice-list modal (#flowChoiceModal) for every discrete-option
              tile rather than a bespoke picker per parameter. -->
-        <div id="flowEditBlocksTab" class="flow-edit-tab-panel" style="display:none;">
+        <div id="flowEditBlocksTab" class="flow-edit-tab-panel hidden-group">
             <!-- ML-206/ML-208: summary + the 1 / 2 / 4-column layout switch (flowBarLayout). 4 columns shows each
                  bar as a Play Flow tile (flowBarSummaryTile), 2 columns as a detail tile (flowBarDetailTileHtml);
                  tapping either opens #flowBarPopupModal. -->
@@ -1050,7 +1117,7 @@
                 <!-- Edit mode only - nothing worth deleting on a flow you've never saved-and-reopened,
                      which is the only time Create mode is ever showing. Low priority on purpose (plain
                      text link, not a button) - this is a rare, destructive action, not a primary one. -->
-                <button type="button" class="btn-text btn-text-danger no-margin hidden-group" id="flowDeleteLink" style="margin-top:var(--space-2);">Delete flow</button>
+                <button type="button" class="btn-text btn-text-danger no-margin hidden-group mt-2" id="flowDeleteLink">Delete flow</button>
             </div>
         </div>
     </div>
@@ -1069,7 +1136,7 @@
          (advanceFlow/flowRepeatStartIndexFor) even though this UI has no control to set them - they're
          edited in Blocks Studio, same "engine supports it, this screen just doesn't expose creating
          it" relationship sub-beats/speed/volume no longer have now that this follow-up adds them. -->
-    <div id="flowPlayView" style="display:none;">
+    <div id="flowPlayView" class="hidden-group">
         <!-- ML-166: swipeable media carousel - Metronome (always first, existing markup unchanged
              below) plus one slide per attached audio track/video link (built by JS from
              currentFlowDetail.recordings, same split Edit Flow's own Media tab uses - see
@@ -1121,18 +1188,18 @@
                  studio summary (flowSummaryFigures, app.js). -->
             <div class="flex-col">
                 <span id="flowPlayTitleLabel">Flow</span>
-                <span class="text-muted" id="flowPlaySummary" style="font-size: var(--font-sm); font-weight: var(--font-weight-normal);"></span>
+                <span class="text-muted text-sm fw-normal" id="flowPlaySummary"></span>
             </div>
             <!-- position:relative wrapper anchors the dropdown under the button - same pattern as the
                  burger menu, needed because .section-title itself isn't positioned and
                  .dropdown-menu's top:100%/right:0 resolve against the nearest positioned ancestor. -->
-            <div style="position:relative;">
+            <div class="pos-relative">
                 <button type="button" class="list-item-menu-btn" id="flowPlayMenuBtn" aria-label="Flow options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
-                <div class="dropdown-menu" id="flowPlayMenu" style="right:0;">
-                    <button type="button" class="dropdown-item" id="flowPlayMenuEditDetails">Edit details</button>
-                    <button type="button" class="dropdown-item" id="flowPlayMenuEditFlow">Edit bars</button>
-                    <button type="button" class="dropdown-item" id="flowPlayMenuLoadLibrary">Load from library</button>
-                    <button type="button" class="dropdown-item" id="flowPlayMenuCreateNew">Create new</button>
+                <div class="dropdown-menu align-edge" id="flowPlayMenu">
+                    <button type="button" class="dropdown-item" id="flowPlayMenuEditDetails"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">edit_note</span><span class="dropdown-item-text">Edit details</span></button>
+                    <button type="button" class="dropdown-item" id="flowPlayMenuEditFlow"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M11 13.5v-2.7l6.6-6.6a1.5 1.5 0 0 1 2.1 0l1.1 1.1a1.5 1.5 0 0 1 0 2.1L14.2 13.5z"/><circle cx="7.5" cy="16.5" r="1" fill="currentColor" stroke="none"/><circle cx="11" cy="16.5" r="1" fill="currentColor" stroke="none"/><circle cx="14.5" cy="16.5" r="1" fill="currentColor" stroke="none"/><circle cx="7.5" cy="13" r="1" fill="currentColor" stroke="none"/></svg><span class="dropdown-item-text">Edit bars</span></button>
+                    <button type="button" class="dropdown-item" id="flowPlayMenuLoadLibrary"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h12a2 2 0 0 1 2 2v12"/><path d="M5 7h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/><path d="M10 10.5v6.5"/><path d="M7 14.5l3 3 3-3"/></svg><span class="dropdown-item-text">Load from library</span></button>
+                    <button type="button" class="dropdown-item" id="flowPlayMenuCreateNew"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">add</span><span class="dropdown-item-text">Create new</span></button>
                 </div>
             </div>
         </div>
@@ -1151,26 +1218,26 @@
 
     <!-- One shared floating menu, repositioned via JS - same pattern as metroBlkTileMenu/qpBarMenu. -->
     <div class="dropdown-menu metroBlk-tile-menu" id="flowBlockMenu">
-        <button type="button" class="dropdown-item" id="flowBlockMenuDuplicate">Duplicate</button>
-        <button type="button" class="dropdown-item" id="flowBlockMenuMoveUp">Move up</button>
-        <button type="button" class="dropdown-item" id="flowBlockMenuMoveDown">Move down</button>
-        <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowBlockMenuDelete">Delete bar</button>
+        <button type="button" class="dropdown-item" id="flowBlockMenuDuplicate"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">content_copy</span><span class="dropdown-item-text">Duplicate</span></button>
+        <button type="button" class="dropdown-item" id="flowBlockMenuMoveUp"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">arrow_upward</span><span class="dropdown-item-text">Move up</span></button>
+        <button type="button" class="dropdown-item" id="flowBlockMenuMoveDown"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">arrow_downward</span><span class="dropdown-item-text">Move down</span></button>
+        <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowBlockMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete bar</span></button>
     </div>
     <div class="dropdown-menu metroBlk-tile-menu" id="flowLeadInMenu">
-        <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowLeadInMenuDelete">Delete lead-in</button>
+        <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowLeadInMenuDelete"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 9h2A1.5 1.5 0 0 1 8 10.5v3A1.5 1.5 0 0 1 6.5 15h-2A1.5 1.5 0 0 1 3 13.5v-3A1.5 1.5 0 0 1 4.5 9z"/><path d="M2 17.5l7.5-11"/><path d="M15 5h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><circle cx="16.5" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="14" r="1.1" fill="currentColor" stroke="none"/></svg><span class="dropdown-item-text">Delete lead-in</span></button>
     </div>
     <!-- ML-210: tap alternative to drag-to-reorder on the challenge / practice lists (openReorderMenu). -->
     <div class="dropdown-menu account-band-menu" id="reorderMenu">
-        <button type="button" class="dropdown-item" id="reorderMenuUp">Move up</button>
-        <button type="button" class="dropdown-item" id="reorderMenuDown">Move down</button>
+        <button type="button" class="dropdown-item" id="reorderMenuUp"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">arrow_upward</span><span class="dropdown-item-text">Move up</span></button>
+        <button type="button" class="dropdown-item" id="reorderMenuDown"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">arrow_downward</span><span class="dropdown-item-text">Move down</span></button>
     </div>
     <div class="dropdown-menu metroBlk-tile-menu" id="flowFermataRowMenu">
-        <button type="button" class="dropdown-item" id="flowFermataRowMenuEdit">Edit</button>
-        <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowFermataRowMenuDelete">Delete</button>
+        <button type="button" class="dropdown-item" id="flowFermataRowMenuEdit"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">edit</span><span class="dropdown-item-text">Edit</span></button>
+        <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowFermataRowMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete</span></button>
     </div>
     <div class="dropdown-menu metroBlk-tile-menu" id="flowRampRowMenu">
-        <button type="button" class="dropdown-item" id="flowRampRowMenuEdit">Edit</button>
-        <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowRampRowMenuDelete">Delete</button>
+        <button type="button" class="dropdown-item" id="flowRampRowMenuEdit"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">edit</span><span class="dropdown-item-text">Edit</span></button>
+        <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowRampRowMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete</span></button>
     </div>
 
     <!-- ML-206: one bar's full editor, opened from a tile in the Bars tab's 4-column layout. Rendered by
@@ -1241,7 +1308,7 @@
             <!-- Extra inline UI shown below the choice list itself once a choice needs more detail
                  (the "end of bar" repeat count slider) - never a second popup stacked on top. -->
             <div id="flowChoiceInlineExtra" class="flow-choice-inline-extra hidden-group"></div>
-            <button class="btn-cancel btn-nav" onclick="document.getElementById('flowChoiceModal').style.display='none'">Cancel</button>
+            <button class="btn-cancel btn-nav" onclick="hideModal('flowChoiceModal')">Cancel</button>
         </div>
     </div>
 
@@ -1416,7 +1483,7 @@
                 <select id="flowBandPickerSelect"></select>
             </div>
             <button class="btn-submit" id="flowBandPickerConfirmBtn">Move</button>
-            <button class="btn-cancel btn-nav" onclick="document.getElementById('flowBandPickerModal').style.display='none'">Cancel</button>
+            <button class="btn-cancel btn-nav" onclick="hideModal('flowBandPickerModal')">Cancel</button>
         </div>
     </div>
 
@@ -1434,11 +1501,11 @@
                 <input type="text" id="flowYouTubeTitleInput" placeholder="e.g. National finals performance">
             </div>
             <button class="btn-submit" id="flowYouTubeSaveBtn">Add video to flow</button>
-            <button class="btn-cancel btn-nav" onclick="document.getElementById('flowYouTubeModal').style.display='none'">Cancel</button>
+            <button class="btn-cancel btn-nav" onclick="hideModal('flowYouTubeModal')">Cancel</button>
         </div>
     </div>
 
-    <div id="tunerView" style="display:none;">
+    <div id="tunerView" class="hidden-group">
         <!-- Box 1: "right now" only - live note/needle reading, no history. Kept separate from the
              history box below it: this reflects the current instant, the history box reflects a span
              of time, and pausing/rewinding the latter shouldn't freeze this one (see renderTunerPitch,
@@ -1522,8 +1589,8 @@
                     <div class="tuner-pitch-graph-zone"></div>
                     <!-- Exactly 3 lines: dashed top/bottom edges, one solid line at 0 (the strip's own
                          centre, not both a dashed and solid line stacked there). -->
-                    <div class="tuner-pitch-graph-gridline" style="top:0;"></div>
-                    <div class="tuner-pitch-graph-gridline" style="bottom:0;"></div>
+                    <div class="tuner-pitch-graph-gridline at-top"></div>
+                    <div class="tuner-pitch-graph-gridline at-bottom"></div>
                     <div class="tuner-pitch-graph-zero"></div>
                     <div class="tuner-pitch-graph-bars" id="tunerPitchGraphBars"></div>
                 </div>
@@ -1539,8 +1606,8 @@
                 <div class="tuner-dynamics-graph">
                     <!-- Exactly 3 lines: solid baseline the bars actually grow up from, dashed halfway
                          up, dashed at the very top. -->
-                    <div class="tuner-dynamics-gridline" style="bottom:50%;"></div>
-                    <div class="tuner-dynamics-gridline" style="top:0;"></div>
+                    <div class="tuner-dynamics-gridline at-middle"></div>
+                    <div class="tuner-dynamics-gridline at-top"></div>
                     <div class="tuner-dynamics-graph-zero"></div>
                     <div class="tuner-dynamics-bars" id="tunerDynamicsBars"></div>
                 </div>
@@ -1674,7 +1741,7 @@
         </div>
     </div>
 
-    <div id="timerView" style="display:none;">
+    <div id="timerView" class="hidden-group">
         <div id="timerSetupGroup">
             <div class="form-group"><label for="timerCustomDuration">How long do you want to practise for (minutes)?</label>
                 <div class="radio-group compact" id="timerDurationRadios"><!-- populated from GET /api/dropdown-options (duration_options table, ML-7) --></div>
@@ -1688,14 +1755,31 @@
                  nothing left to show separately from elapsed, so this card would just be showing the
                  same number as "This session" below it twice. That card's own label doubles as "Time
                  done" instead when hidden here - see updateTimerDisplays. -->
-            <div class="stat-card" id="timerRemainingCard" style="margin-bottom: var(--space-4);"><div class="label" id="timerRemainingLabel">Time left in session</div><div class="value" id="timerRemainingDisplay">00:00</div></div>
-            <div class="dashboard-grid">
-                <div class="stat-card"><div class="label" id="timerElapsedLabel">This session</div><div class="value" id="timerElapsedDisplay">00:00</div></div>
-                <div class="stat-card"><div class="label">Today</div><div class="value" id="timerTodayDisplay">00:00</div></div>
+            <!-- ML-293: the countdown ring. The gold arc is the time left and unwinds as it runs out; the
+                 dot at its tip pulses once a second while running. Over an hour, a thin outer ring holds
+                 the part over the hour and unwinds first, and "Hour N of M" shows which hour you're in.
+                 updateTimerDisplays sets --ring-left / --lap-left (0-1). -->
+            <div class="timer-ring" id="timerRemainingCard">
+                <svg class="timer-ring-svg" viewBox="0 0 120 120" aria-hidden="true">
+                    <circle class="timer-ring-track" cx="60" cy="60" r="50"/>
+                    <circle class="timer-ring-arc" cx="60" cy="60" r="50" pathLength="100"/>
+                    <circle class="timer-ring-lap-track" cx="60" cy="60" r="57"/>
+                    <circle class="timer-ring-lap" cx="60" cy="60" r="57" pathLength="100"/>
+                    <g class="timer-ring-tip"><circle cx="60" cy="10" r="5"/></g>
+                </svg>
+                <div class="timer-ring-readout">
+                    <div class="timer-ring-time" id="timerRemainingDisplay">00:00</div>
+                    <div class="timer-ring-label" id="timerRemainingLabel">Time left in session</div>
+                    <div class="timer-ring-hour hidden-group" id="timerRingHour"></div>
+                </div>
             </div>
             <div class="metro-transport-row">
                 <button class="metro-transport-btn metro-play-btn" id="timerPlayBtn" aria-label="Pause"><span class="material-symbols-outlined" id="timerPlayIcon">pause</span></button>
                 <button class="metro-transport-btn metro-stop-btn" id="timerStopBtn" aria-label="Stop"><span class="material-symbols-outlined">stop</span></button>
+            </div>
+            <div class="dashboard-grid">
+                <div class="stat-card"><div class="label" id="timerElapsedLabel">This session</div><div class="value" id="timerElapsedDisplay">00:00</div></div>
+                <div class="stat-card"><div class="label">Today</div><div class="value" id="timerTodayDisplay">00:00</div></div>
             </div>
         </div>
     </div>
@@ -1715,7 +1799,7 @@
                 <div class="radio-group compact" id="timerPickerDurationRadios"><!-- populated from GET /api/dropdown-options (duration_options table, ML-7) --></div>
             </div>
             <div class="form-group hidden-group" id="timerPickerCustomDurationGroup"><input type="number" id="timerPickerCustomDuration" placeholder="Enter minutes" min="1"></div>
-            <div style="display:flex; gap:var(--space-2);">
+            <div class="flex-row gap-sm">
                 <button class="btn-cancel btn-nav no-margin" id="timerDurationPickerCancelBtn">Cancel</button>
                 <button class="btn-submit no-margin" id="timerDurationPickerSaveBtn">Save</button>
             </div>
@@ -1728,25 +1812,410 @@
          bolted onto it. Reopens on itself every time the extended 5 minutes also runs out (or Stop is
          pressed again), any number of times - see timerPendingFinish/finishTimerSession for how the
          elapsed time survives each round trip so the eventual save always reflects the full total. -->
+<div class="modal" id="scalesKeyModal" role="dialog" aria-modal="true" aria-labelledby="scalesKeyModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="scalesKeyModalTitle">Key</h2>
+            <div class="form-group">
+                <label>Major or minor</label>
+            <div class="radio-group"><input type="radio" id="scalesMode-major" name="scalesMode" value="major"><label for="scalesMode-major">Major</label><input type="radio" id="scalesMode-minor" name="scalesMode" value="minor"><label for="scalesMode-minor">Minor</label></div>
+            </div>
+            <div class="form-group hidden-group" id="scalesFormGroup">
+                <label>Minor form</label>
+            <div class="radio-group compact"><input type="radio" id="scalesForm-harmonic" name="scalesForm" value="harmonic"><label for="scalesForm-harmonic">Harmonic</label><input type="radio" id="scalesForm-melodic" name="scalesForm" value="melodic"><label for="scalesForm-melodic">Melodic</label><input type="radio" id="scalesForm-natural" name="scalesForm" value="natural"><label for="scalesForm-natural">Natural</label></div>
+            </div>
+            <div class="form-group">
+                <label>Key note</label>
+                <div class="note-keyboard" id="scalesRootGrid"></div>
+            </div>
+            <button type="button" class="btn-submit no-margin mt-4" data-modal-close>Done</button>
+        </div>
+    </div>
+
+    <div class="modal" id="scalesTypeModal" role="dialog" aria-modal="true" aria-labelledby="scalesTypeModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="scalesTypeModalTitle">Scale or arpeggio</h2>
+            <div class="flow-tile-grid flow-tile-grid-2-centered" id="scalesTypeGrid"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="scalesRangeModal" role="dialog" aria-modal="true" aria-labelledby="scalesRangeModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="scalesRangeModalTitle">Octaves and clef</h2>
+            <div class="form-group">
+                <label>Octaves</label>
+                <div class="flow-tile-grid flow-tile-grid-3" id="scalesOctavesGrid"></div>
+            </div>
+            <div class="form-group">
+                <label>Clef</label>
+                <div class="flow-tile-grid flow-tile-grid-2-centered" id="scalesClefGrid"></div>
+            </div>
+            <button type="button" class="btn-submit no-margin mt-4" data-modal-close>Done</button>
+        </div>
+    </div>
+
+    <div class="modal" id="scalesDirModal" role="dialog" aria-modal="true" aria-labelledby="scalesDirModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="scalesDirModalTitle">Direction</h2>
+            <div class="flow-tile-grid flow-tile-grid-3" id="scalesDirGrid"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="scalesNpbModal" role="dialog" aria-modal="true" aria-labelledby="scalesNpbModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="scalesNpbModalTitle">Notes a beat</h2>
+            <p class="text-muted modal-intro">How many notes of the scale to each metronome beat - 1 plays crotchets, 2 quavers.</p>
+            <div class="flow-tile-grid flow-tile-grid-4" id="scalesNpbGrid"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="scalesCountInModal" role="dialog" aria-modal="true" aria-labelledby="scalesCountInModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="scalesCountInModalTitle">Count-in</h2>
+            <p class="text-muted modal-intro">Beats before the first note, to get ready. Only at the start - the repeats run straight on.</p>
+            <div class="flow-tile-grid flow-tile-grid-2-centered" id="scalesCountInGrid"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="warmupsSettingsModal" role="dialog" aria-modal="true" aria-labelledby="warmupsSettingsModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="warmupsSettingsModalTitle">My warm-ups</h2>
+            <p class="text-muted modal-intro">Next and Previous go through the kinds you choose, in order.</p>
+            <div class="form-group">
+                <label>Kinds of warm-up</label>
+            <div class="radio-group"><input type="checkbox" id="warmupsKinds-long-tones" name="warmupsKinds" value="long-tones"><label for="warmupsKinds-long-tones">Long tones</label><input type="checkbox" id="warmupsKinds-lip-slurs" name="warmupsKinds" value="lip-slurs"><label for="warmupsKinds-lip-slurs">Lip slurs</label><input type="checkbox" id="warmupsKinds-flexibility" name="warmupsKinds" value="flexibility"><label for="warmupsKinds-flexibility">Flexibility</label><input type="checkbox" id="warmupsKinds-articulation" name="warmupsKinds" value="articulation"><label for="warmupsKinds-articulation">Articulation</label><input type="checkbox" id="warmupsKinds-fingers" name="warmupsKinds" value="fingers"><label for="warmupsKinds-fingers">Finger patterns</label><input type="checkbox" id="warmupsKinds-melodic" name="warmupsKinds" value="melodic"><label for="warmupsKinds-melodic">Easy melodies</label></div>
+            </div>
+            <div class="form-group">
+                <label>Clef</label>
+            <div class="radio-group"><input type="radio" id="warmupsClef-treble" name="warmupsClef" value="treble"><label for="warmupsClef-treble">Treble</label><input type="radio" id="warmupsClef-bass" name="warmupsClef" value="bass"><label for="warmupsClef-bass">Bass</label></div>
+            </div>
+            <p class="scales-pool-count" id="warmupsCount" aria-live="polite"></p>
+            <button type="button" class="btn-submit no-margin mt-4" data-modal-close>Done</button>
+        </div>
+    </div>
+    <div class="modal" id="warmupsRepeatModal" role="dialog" aria-modal="true" aria-labelledby="warmupsRepeatModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="warmupsRepeatModalTitle">Repeat</h2>
+            <div class="flow-tile-grid flow-tile-grid-3" id="warmupsRepeatGrid"></div>
+        </div>
+    </div>
+    <div class="modal" id="warmupsCountInModal" role="dialog" aria-modal="true" aria-labelledby="warmupsCountInModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="warmupsCountInModalTitle">Count-in</h2>
+            <p class="text-muted modal-intro">Beats before the first note, to get ready.</p>
+            <div class="flow-tile-grid flow-tile-grid-2-centered" id="warmupsCountInGrid"></div>
+        </div>
+    </div>
+    <div class="modal" id="warmupsVolumeModal" role="dialog" aria-modal="true" aria-labelledby="warmupsVolumeModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="warmupsVolumeModalTitle">Volume</h2>
+            <div class="metro-speed-row no-margin">
+                <button class="metro-bpm-step" id="warmupsVolumeMinus" type="button" aria-label="Decrease volume">&minus;</button>
+                <div class="metro-speed-readout">
+                    <div id="warmupsVolumeValue">80%</div>
+                    <div class="metro-speed-sub">volume</div>
+                </div>
+                <button class="metro-bpm-step" id="warmupsVolumePlus" type="button" aria-label="Increase volume">+</button>
+            </div>
+            <div class="metro-volume-row" id="warmupsVolumeRow">
+                <button class="metro-mute-btn" id="warmupsMuteBtn" aria-label="Mute" aria-pressed="false"><span class="material-symbols-outlined" id="warmupsMuteIcon">volume_up</span></button>
+                <div class="slider-wrap no-margin">
+                    <div class="slider-track" id="warmupsVolumeTrack">
+                        <div class="slider-fill" id="warmupsVolumeFill"></div>
+                        <div class="slider-thumb" id="warmupsVolumeThumb" tabindex="0" role="slider" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="80"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="scalesVolumeModal" role="dialog" aria-modal="true" aria-labelledby="scalesVolumeModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="scalesVolumeModalTitle">Volume</h2>
+            <div class="metro-speed-row no-margin">
+                <button class="metro-bpm-step" id="scalesVolumeMinus" type="button" aria-label="Decrease volume">&minus;</button>
+                <div class="metro-speed-readout">
+                    <div id="scalesVolumeValue">80%</div>
+                    <div class="metro-speed-sub">volume</div>
+                </div>
+                <button class="metro-bpm-step" id="scalesVolumePlus" type="button" aria-label="Increase volume">+</button>
+            </div>
+            <div class="metro-volume-row" id="scalesVolumeRow">
+                <button class="metro-mute-btn" id="scalesMuteBtn" aria-label="Mute" aria-pressed="false"><span class="material-symbols-outlined" id="scalesMuteIcon">volume_up</span></button>
+                <div class="slider-wrap no-margin">
+                    <div class="slider-track" id="scalesVolumeTrack">
+                        <div class="slider-fill" id="scalesVolumeFill"></div>
+                        <div class="slider-thumb" id="scalesVolumeThumb" tabindex="0" role="slider" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="80"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="scalesPoolModal" role="dialog" aria-modal="true" aria-labelledby="scalesPoolModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="scalesPoolModalTitle">My scales</h2>
+            <p class="text-muted modal-intro">The scales you can play. Next and Previous go through them in order (majors round the circle of fifths, then minors); Shuffle picks one at random.</p>
+            <div class="form-group">
+                <label>Up to how many sharps</label>
+            <div class="radio-group"><input type="radio" id="scalesMaxSharps-0" name="scalesMaxSharps" value="0"><label for="scalesMaxSharps-0">0</label><input type="radio" id="scalesMaxSharps-1" name="scalesMaxSharps" value="1"><label for="scalesMaxSharps-1">1</label><input type="radio" id="scalesMaxSharps-2" name="scalesMaxSharps" value="2"><label for="scalesMaxSharps-2">2</label><input type="radio" id="scalesMaxSharps-3" name="scalesMaxSharps" value="3"><label for="scalesMaxSharps-3">3</label><input type="radio" id="scalesMaxSharps-4" name="scalesMaxSharps" value="4"><label for="scalesMaxSharps-4">4</label><input type="radio" id="scalesMaxSharps-5" name="scalesMaxSharps" value="5"><label for="scalesMaxSharps-5">5</label><input type="radio" id="scalesMaxSharps-6" name="scalesMaxSharps" value="6"><label for="scalesMaxSharps-6">6</label><input type="radio" id="scalesMaxSharps-7" name="scalesMaxSharps" value="7"><label for="scalesMaxSharps-7">7</label></div>
+            </div>
+            <div class="form-group">
+                <label>Up to how many flats</label>
+            <div class="radio-group"><input type="radio" id="scalesMaxFlats-0" name="scalesMaxFlats" value="0"><label for="scalesMaxFlats-0">0</label><input type="radio" id="scalesMaxFlats-1" name="scalesMaxFlats" value="1"><label for="scalesMaxFlats-1">1</label><input type="radio" id="scalesMaxFlats-2" name="scalesMaxFlats" value="2"><label for="scalesMaxFlats-2">2</label><input type="radio" id="scalesMaxFlats-3" name="scalesMaxFlats" value="3"><label for="scalesMaxFlats-3">3</label><input type="radio" id="scalesMaxFlats-4" name="scalesMaxFlats" value="4"><label for="scalesMaxFlats-4">4</label><input type="radio" id="scalesMaxFlats-5" name="scalesMaxFlats" value="5"><label for="scalesMaxFlats-5">5</label><input type="radio" id="scalesMaxFlats-6" name="scalesMaxFlats" value="6"><label for="scalesMaxFlats-6">6</label><input type="radio" id="scalesMaxFlats-7" name="scalesMaxFlats" value="7"><label for="scalesMaxFlats-7">7</label></div>
+            </div>
+            <div class="form-group">
+                <label>Kinds of scale</label>
+            <div class="radio-group"><input type="checkbox" id="scalesPoolForms-major" name="scalesPoolForms" value="major"><label for="scalesPoolForms-major">Major</label><input type="checkbox" id="scalesPoolForms-harmonic" name="scalesPoolForms" value="harmonic"><label for="scalesPoolForms-harmonic">Harmonic minor</label><input type="checkbox" id="scalesPoolForms-melodic" name="scalesPoolForms" value="melodic"><label for="scalesPoolForms-melodic">Melodic minor</label><input type="checkbox" id="scalesPoolForms-natural" name="scalesPoolForms" value="natural"><label for="scalesPoolForms-natural">Natural minor</label></div>
+            </div>
+            <div class="form-group">
+                <label>Scales and arpeggios</label>
+            <div class="radio-group"><input type="checkbox" id="scalesPoolTypes-scale" name="scalesPoolTypes" value="scale"><label for="scalesPoolTypes-scale">Scales</label><input type="checkbox" id="scalesPoolTypes-arpeggio" name="scalesPoolTypes" value="arpeggio"><label for="scalesPoolTypes-arpeggio">Arpeggios</label></div>
+            </div>
+            <p class="scales-pool-count" id="scalesPoolCount" aria-live="polite"></p>
+            <button type="button" class="btn-submit no-margin mt-4" data-modal-close>Done</button>
+        </div>
+    </div>
+
     <div class="modal" id="timerFinishedModal" role="dialog" aria-modal="true" aria-labelledby="timerFinishedModalTitle">
         <div class="modal-content">
             <h2 id="timerFinishedModalTitle">Session finished!</h2>
-            <p id="timerFinishedMessage" style="margin-bottom: var(--space-6); line-height: var(--line-height-base);"></p>
+            <p id="timerFinishedMessage" class="mb-6 leading-base"></p>
             <button class="btn-submit" id="timerFinishedYesBtn">Yes, save it</button>
             <button class="btn-cancel btn-nav" id="timerFinishedExtendBtn">Just another 5 minutes</button>
             <button type="button" class="btn-text" id="timerFinishedNoBtn">No</button>
         </div>
     </div>
 
+
+    <!-- ML-9: Scales practice. Four setup tiles (each opens its own small picker), Previous / Next / Shuffle /
+         My scales (in order, or at random, from the keys you can play), the scale written on the stave in rows that fit the
+         screen - the note to play lights gold while the metronome runs - then the same transport and
+         tempo box as the Metronome tool. Glue: the SCALES PRACTICE section of app.js; scales are built
+         by TheoryEngine.buildScale / writeScale, drawn by Notation.staff. See specs/components/scales.md. -->
+    <div id="scalesView" class="hidden-group">
+        <div class="flow-tile-grid flow-tile-grid-4">
+            <button type="button" class="flow-tile" id="scalesKeyBtn" aria-haspopup="dialog" aria-label="Key - tap to change"><span class="flow-tile-value" id="scalesKeyVal">C</span><span class="flow-tile-label" id="scalesKeyLbl">major</span></button>
+            <button type="button" class="flow-tile" id="scalesTypeBtn" aria-haspopup="dialog" aria-label="Scale or arpeggio - tap to change"><span class="flow-tile-value" id="scalesTypeVal">Scale</span><span class="flow-tile-label">type</span></button>
+            <button type="button" class="flow-tile" id="scalesRangeBtn" aria-haspopup="dialog" aria-label="Octaves and clef - tap to change"><span class="flow-tile-value" id="scalesOctavesVal">1</span><span class="flow-tile-label" id="scalesOctavesLbl">octave</span></button>
+            <button type="button" class="flow-tile" id="scalesDirBtn" aria-haspopup="dialog" aria-label="Direction - tap to change"><span class="flow-tile-value"><span class="material-symbols-outlined" id="scalesDirIcon" aria-hidden="true">swap_vert</span></span><span class="flow-tile-label" id="scalesDirLbl">up &amp; down</span></button>
+        </div>
+        <div class="scales-pick-row">
+            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesPrevBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><span class="metroBlk-ctrl-value-label">previous</span></button>
+            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesNextBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><span class="metroBlk-ctrl-value-label">next</span></button>
+            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesShuffleBtn"><span class="material-symbols-outlined" aria-hidden="true">shuffle</span><span class="metroBlk-ctrl-value-label">shuffle</span></button>
+            <button type="button" class="metro-play-grid-btn scales-pick-mine" id="scalesPoolBtn" aria-haspopup="dialog"><span class="material-symbols-outlined" aria-hidden="true">playlist_add_check</span><span class="metroBlk-ctrl-value-label">my scales</span></button>
+        </div>
+        <section class="flow-card scales-staff-card" aria-labelledby="scalesTitle">
+            <div class="scales-staff-head">
+                <div class="scales-staff-heading">
+                    <h2 class="scales-staff-title" id="scalesTitle">C major scale</h2>
+                    <span class="scales-staff-sub" id="scalesSub"></span>
+                </div>
+                <!-- Play from memory: the name only, no notes - harder, you play it from memory. -->
+                <!-- The metronome's volume - same button and pop-up as the Metronome tool's (qpVolumeBtn). -->
+                <button type="button" class="metroBlk-row-volume-btn" id="scalesVolumeBtn" aria-label="Volume - tap to change" aria-haspopup="dialog" aria-expanded="false"><span class="material-symbols-outlined" id="scalesVolumeIcon">volume_up</span></button>
+                <div class="scales-memory-toggle">
+                    <span id="scalesMemoryLbl">From memory</span><label class="toggle-switch"><input type="checkbox" id="scalesMemoryToggle" aria-labelledby="scalesMemoryLbl"><span class="toggle-slider"></span></label>
+                </div>
+            </div>
+            <div class="scales-staff" id="scalesStaff"></div>
+            <div class="scales-memory hidden-group" id="scalesMemory">
+                <div class="scales-memory-name" id="scalesMemoryName">C major</div>
+                <div class="scales-memory-detail" id="scalesMemoryDetail"></div>
+                <div class="scales-memory-progress" id="scalesMemoryProgress" aria-live="off"></div>
+            </div>
+        </section>
+        <div class="metro-transport-grid mt-3">
+            <button type="button" class="metro-play-grid-btn" id="scalesPlayBtn" aria-label="Play - press and hold to go back to the start" aria-pressed="false">
+                <span class="material-symbols-outlined" id="scalesPlayIcon">play_arrow</span>
+                <span class="metroBlk-ctrl-value-label" id="scalesPlayLbl">play</span>
+            </button>
+            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesResetBtn" aria-label="Back to the start">
+                <span class="material-symbols-outlined">restart_alt</span>
+                <span class="metroBlk-ctrl-value-label">reset</span>
+            </button>
+            <button type="button" class="metroBlk-ctrl-value-btn" id="scalesNpbBtn" aria-label="Notes a beat - tap to change" aria-haspopup="dialog">
+                <strong id="scalesNpbVal">1</strong>
+                <span class="metroBlk-ctrl-value-label">notes / beat</span>
+            </button>
+            <button type="button" class="metroBlk-ctrl-value-btn" id="scalesCountInBtn" aria-label="Count-in - tap to change" aria-haspopup="dialog">
+                <strong id="scalesCountInVal">1 bar</strong>
+                <span class="metroBlk-ctrl-value-label">count-in</span>
+            </button>
+        </div>
+        <div class="metroBlk-bpm-box mt-3">
+            <div class="metro-speed-row no-margin">
+                <button class="metro-bpm-step" type="button" id="scalesBpmMinus" aria-label="Decrease beats per minute">&minus;</button>
+                <div class="metro-speed-readout">
+                    <div id="scalesBpmVal">72</div>
+                    <div class="metro-speed-sub">bpm</div>
+                </div>
+                <button class="metro-bpm-step" type="button" id="scalesBpmPlus" aria-label="Increase beats per minute">+</button>
+            </div>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="scalesBpmTrack">
+                    <div class="slider-fill" id="scalesBpmFill"></div>
+                    <div class="slider-thumb" id="scalesBpmThumb" tabindex="0" role="slider" aria-label="Beats per minute" aria-valuemin="15" aria-valuemax="200" aria-valuenow="72"></div>
+                </div>
+                <div class="slider-scale"><span>15</span><span>200</span></div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ML-294: Warm-ups. The same layout as Scales (it shares its classes): Previous / Next exercise /
+         Shuffle (a random one) / My warm-ups (which kinds, and treble or bass clef), the exercise on the stave - the note to play
+         lights gold, following each note's length - then the transport and tempo box. Exercises come
+         from /api/warmups (edited in Admin -> Warm-ups); drawn by public/warmups.js + Notation.staff.
+         See specs/components/warmups.md. -->
+    <div id="warmupsView" class="hidden-group">
+        <div class="scales-pick-row">
+            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsPrevBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><span class="metroBlk-ctrl-value-label">previous</span></button>
+            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsNextBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><span class="metroBlk-ctrl-value-label">next</span></button>
+            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsShuffleBtn"><span class="material-symbols-outlined" aria-hidden="true">shuffle</span><span class="metroBlk-ctrl-value-label">shuffle</span></button>
+            <button type="button" class="metro-play-grid-btn scales-pick-mine" id="warmupsSettingsBtn" aria-haspopup="dialog"><span class="material-symbols-outlined" aria-hidden="true">playlist_add_check</span><span class="metroBlk-ctrl-value-label">my warm-ups</span></button>
+        </div>
+        <section class="flow-card scales-staff-card" aria-labelledby="warmupsTitle">
+            <div class="scales-staff-head">
+                <div class="scales-staff-heading">
+                    <h2 class="scales-staff-title" id="warmupsTitle">Warm-ups</h2>
+                    <span class="scales-staff-sub" id="warmupsSub"></span>
+                </div>
+                <button type="button" class="metroBlk-row-volume-btn" id="warmupsVolumeBtn" aria-label="Volume - tap to change" aria-haspopup="dialog" aria-expanded="false"><span class="material-symbols-outlined" id="warmupsVolumeIcon">volume_up</span></button>
+            </div>
+            <p class="warmups-tip" id="warmupsTip"></p>
+            <div class="scales-staff" id="warmupsStaff"></div>
+        </section>
+        <div class="metro-transport-grid mt-3">
+            <button type="button" class="metro-play-grid-btn" id="warmupsPlayBtn" aria-label="Play - press and hold to go back to the start" aria-pressed="false">
+                <span class="material-symbols-outlined" id="warmupsPlayIcon">play_arrow</span>
+                <span class="metroBlk-ctrl-value-label" id="warmupsPlayLbl">play</span>
+            </button>
+            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsResetBtn" aria-label="Back to the start">
+                <span class="material-symbols-outlined">restart_alt</span>
+                <span class="metroBlk-ctrl-value-label">reset</span>
+            </button>
+            <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsRepeatBtn" aria-label="Repeat - tap to change" aria-haspopup="dialog">
+                <strong id="warmupsRepeatVal">once</strong>
+                <span class="metroBlk-ctrl-value-label">repeat</span>
+            </button>
+            <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsCountInBtn" aria-label="Count-in - tap to change" aria-haspopup="dialog">
+                <strong id="warmupsCountInVal">1 bar</strong>
+                <span class="metroBlk-ctrl-value-label">count-in</span>
+            </button>
+        </div>
+        <div class="metroBlk-bpm-box mt-3">
+            <div class="metro-speed-row no-margin">
+                <button class="metro-bpm-step" type="button" id="warmupsBpmMinus" aria-label="Decrease beats per minute">&minus;</button>
+                <div class="metro-speed-readout">
+                    <div id="warmupsBpmVal">72</div>
+                    <div class="metro-speed-sub">bpm</div>
+                </div>
+                <button class="metro-bpm-step" type="button" id="warmupsBpmPlus" aria-label="Increase beats per minute">+</button>
+            </div>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="warmupsBpmTrack">
+                    <div class="slider-fill" id="warmupsBpmFill"></div>
+                    <div class="slider-thumb" id="warmupsBpmThumb" tabindex="0" role="slider" aria-label="Beats per minute" aria-valuemin="15" aria-valuemax="200" aria-valuenow="72"></div>
+                </div>
+                <div class="slider-scale"><span>15</span><span>200</span></div>
+            </div>
+        </div>
+    </div>
+
     <!-- ML-260 Theory practice: list -> options -> play -> results, one view each so the top bar's
          back button works as everywhere else. Quiz logic is public/theoryEngine.js, notation is
          public/notation.js, the glue is the THEORY PRACTICE section of app.js. -->
-    <div id="theoryView" style="display:none;">
+    <div id="theoryView" class="hidden-group">
         <p class="theory-intro">Short quizzes to learn music theory. Pick one, choose how hard, and see how many you can get right.</p>
         <div class="theory-quiz-list" id="theoryQuizList"></div>
     </div>
 
-    <div id="theoryOptionsView" style="display:none;">
+    <!-- ML-298 / ML-295 / ML-296: the drill tools. Each has a setup screen (level pills, your best,
+         Start), its own play screen, and they share the results screen (drillResultsView). Glue: the
+         DRILLS section of app.js; levels, rounds and scoring: public/drills.js. See docs/drills.md and
+         specs/components/drills.md. -->
+    <div id="tapTempoView" class="hidden-group">
+        <p class="theory-intro">You're given a speed - a metronome mark, or just its Italian name - and tap it on the pad. Five speeds a round.</p>
+        <div id="tapTempoOptions"></div>
+        <p class="theory-best-line" id="tapTempoBest"></p>
+        <button type="button" class="btn-submit" id="tapTempoStartBtn">Start</button>
+    </div>
+    <div id="tapTempoPlayView" class="hidden-group">
+        <div class="theory-status"><span id="tapTempoStep"></span><span id="tapTempoCount"></span></div>
+        <p class="theory-question" id="tapTempoAsk"></p>
+        <div class="theory-prompt" id="tapTempoPrompt"></div>
+        <div class="drill-meter hidden-group" id="tapTempoMeter" aria-hidden="true">
+            <div class="drill-meter-track"><span class="drill-meter-mark"></span><span class="drill-meter-needle" id="tapTempoNeedle"></span></div>
+            <div class="drill-meter-labels"><span>slower</span><span>on it</span><span>faster</span></div>
+        </div>
+        <p class="drill-feedback" id="tapTempoFeedback" role="status" aria-live="polite"></p>
+        <button type="button" class="drill-pad" id="tapTempoPad">Tap</button>
+        <button type="button" class="btn-submit hidden-group" id="tapTempoNextBtn">Next speed</button>
+    </div>
+
+    <div id="gapTrainerView" class="hidden-group">
+        <p class="theory-intro">The click goes silent and you keep the beat going by tapping every beat - heard or not. When it comes back, see if you were still with it.</p>
+        <div id="gapTrainerOptions"></div>
+        <p class="theory-best-line" id="gapTrainerBest"></p>
+        <button type="button" class="btn-submit" id="gapTrainerStartBtn">Start</button>
+    </div>
+    <div id="gapTrainerPlayView" class="hidden-group">
+        <div class="theory-status"><span id="gapTrainerBar"></span><span id="gapTrainerState"></span></div>
+        <div class="drill-beats" id="gapTrainerBeats" aria-hidden="true"></div>
+        <p class="drill-feedback" id="gapTrainerFeedback" role="status" aria-live="polite"></p>
+        <button type="button" class="drill-pad" id="gapTrainerPad">Tap the beat</button>
+        <button type="button" class="btn-nav" id="gapTrainerStopBtn">Stop</button>
+    </div>
+
+    <div id="earView" class="hidden-group">
+        <p class="theory-intro">A note plays and you name it. Ten notes a round.</p>
+        <div id="earOptions"></div>
+        <p class="metro-help-text hidden-group" id="earTransposeNote"></p>
+        <p class="theory-best-line" id="earBest"></p>
+        <button type="button" class="btn-submit" id="earStartBtn">Start</button>
+    </div>
+    <div id="earPlayView" class="hidden-group">
+        <div class="theory-status"><span id="earStep"></span><span id="earTally"></span></div>
+        <p class="theory-question" id="earAsk"></p>
+        <div class="theory-prompt" id="earPrompt"></div>
+        <p class="drill-feedback" id="earFeedback" role="status" aria-live="polite"></p>
+        <div class="theory-answers" id="earAnswers"></div>
+        <p class="drill-listen hidden-group" id="earListen">Listening… <strong id="earHeard"></strong></p>
+        <div class="flex-row gap-md mt-3">
+            <button type="button" class="btn-nav no-margin grow" id="earReplayBtn"><span class="material-symbols-outlined" aria-hidden="true">replay</span> Play again</button>
+            <button type="button" class="btn-nav no-margin grow hidden-group" id="earSkipBtn">Skip</button>
+        </div>
+        <button type="button" class="btn-submit hidden-group mt-3" id="earNextBtn">Next note</button>
+    </div>
+
+    <div id="drillResultsView" class="hidden-group">
+        <p class="theory-results-options" id="drillResultsLevel"></p>
+        <div class="theory-grade-block">
+            <div class="theory-grade theory-grade-lg" id="drillResultGrade" role="img"></div>
+            <p class="theory-best-line" id="drillResultBest"></p>
+        </div>
+        <div class="dashboard-grid" id="drillResultStats"></div>
+        <ul class="drill-result-list" id="drillResultDetail"></ul>
+        <div class="section-title">Your last rounds</div>
+        <div class="theory-trend" id="drillTrend"></div>
+        <button type="button" class="btn-submit" id="drillAgainBtn">Again</button>
+        <button type="button" class="btn-nav" id="drillChangeBtn">Change level</button>
+    </div>
+
+    <div id="theoryOptionsView" class="hidden-group">
         <div id="theoryOptionsForm"></div>
         <p class="theory-best-line" id="theoryOptionsBest"></p>
         <p class="theory-best-line hidden-group" id="theoryOptionsSmart"></p>
@@ -1754,7 +2223,7 @@
         <div id="theoryWeakList"></div>
     </div>
 
-    <div id="theoryPlayView" style="display:none;">
+    <div id="theoryPlayView" class="hidden-group">
         <div class="theory-status"><span id="theoryClock"></span><span id="theoryTally"></span></div>
         <div class="theory-countdown" id="theoryCountdown" role="progressbar" aria-label="Time left" aria-valuemin="0" aria-valuemax="100"><div class="theory-countdown-fill" id="theoryCountdownFill"></div></div>
         <p class="theory-question" id="theoryQuestionText"></p>
@@ -1763,7 +2232,7 @@
         <div class="theory-answers" id="theoryAnswers"></div>
     </div>
 
-    <div id="theoryResultsView" style="display:none;">
+    <div id="theoryResultsView" class="hidden-group">
         <p class="theory-results-options" id="theoryResultsOptions"></p>
         <div class="theory-grade-block">
             <div class="theory-grade theory-grade-lg" id="theoryResultGrade" role="img"></div>
@@ -1782,7 +2251,7 @@
         <button type="button" class="btn-nav" id="theoryChangeBtn">Change options</button>
     </div>
 
-    <div id="entryForm" style="display:none;">
+    <div id="entryForm" class="hidden-group">
         <div class="form-group"><label>What did you do?</label>
             <div class="radio-group" id="categoryRadios">
                 <input type="radio" id="cat-practise" name="category" value="Practise" checked><label for="cat-practise">Practise</label>
@@ -1797,7 +2266,7 @@
         </div>
         <div class="form-group hidden-group" id="customDurationGroup"><input type="number" id="duration" placeholder="Enter minutes" min="1"></div>
         <div class="form-group"><label for="date">When?</label><input type="date" id="date"></div>
-        <button class="btn-submit" id="submitBtn" style="margin-top: var(--space-2);">Save session</button>
+        <button class="btn-submit mt-2" id="submitBtn">Save session</button>
         <button class="btn-cancel btn-nav" id="cancelAddBtn" onclick="goBack()">Cancel</button>
     </div>
 
@@ -1815,38 +2284,38 @@
         <div class="form-group" id="cWhoGroup"><label for="cWho">Who for?</label><select id="cWho"></select></div>
         <div class="form-group"><label for="cName">Challenge name</label><input type="text" id="cName" placeholder="e.g., Summer programme"></div>
         
-        <hr style="border:0; border-top:1px dashed var(--input-border); margin: var(--space-6) 0 var(--space-4) 0;">
-        <h3 style="margin-top:0; margin-bottom:var(--space-4); font-size:var(--font-md); color:var(--text-color);">Tasks</h3>
+        <hr class="divider-dashed">
+        <h3 class="form-subheading">Tasks</h3>
 
         <div class="form-group"><label for="cPiece" id="cPieceLabel">First piece/exercise</label><input type="text" id="cPiece" placeholder="e.g., Alfie"></div>
         
         <div id="cPerformanceFields">
             <div class="form-group"><label for="cRef">Reference / section</label><input type="text" id="cRef" placeholder="e.g., Intro or A"></div>
             <div class="flex-row gap-md">
-                <div class="form-group" style="flex:1;"><label for="cBarFrom">Bar from</label><input type="number" id="cBarFrom"></div>
-                <div class="form-group" style="flex:1;"><label for="cBarTo">Bar to</label><input type="number" id="cBarTo"></div>
+                <div class="form-group flex-1"><label for="cBarFrom">Bar from</label><input type="number" id="cBarFrom"></div>
+                <div class="form-group flex-1"><label for="cBarTo">Bar to</label><input type="number" id="cBarTo"></div>
             </div>
             <div class="form-group"><label for="cBPM">Target BPM</label><input type="number" id="cBPM"></div>
         </div>
 
         <div id="cTechniqueFields" class="hidden-group">
             
-            <div class="form-group" style="display:flex; justify-content:space-between; align-items:center; background:var(--secondary-color); padding:var(--space-3) var(--space-4); border-radius:var(--radius-md);">
+            <div class="form-group inset-panel inset-panel-row">
                 <label id="cTechAutoGenToggleLabel" class="no-margin">Auto-generate list?</label>
                 <label class="toggle-switch"><input type="checkbox" id="cTechAutoGenToggle" checked aria-labelledby="cTechAutoGenToggleLabel"><span class="toggle-slider"></span></label>
             </div>
 
-            <div id="cTechAutoGenYes" style="background:var(--secondary-color); padding:var(--space-4); border-radius:var(--radius-md); margin-bottom:var(--space-4);">
-                <div style="display:flex; gap:var(--space-2); margin-bottom:var(--space-4);">
-                    <div style="flex:1;"><label for="cTechPrefix" style="font-size:var(--font-sm);">Prefix</label><input type="text" id="cTechPrefix" placeholder="e.g., Ex"></div>
-                    <div style="flex:1;"><label for="cTechFrom" style="font-size:var(--font-sm);">From no.</label><input type="number" id="cTechFrom"></div>
-                    <div style="flex:1;"><label for="cTechTo" style="font-size:var(--font-sm);">To no.</label><input type="number" id="cTechTo"></div>
+            <div id="cTechAutoGenYes" class="inset-panel mb-4">
+                <div class="flex-row gap-sm mb-4">
+                    <div class="flex-1"><label for="cTechPrefix" class="text-sm">Prefix</label><input type="text" id="cTechPrefix" placeholder="e.g., Ex"></div>
+                    <div class="flex-1"><label for="cTechFrom" class="text-sm">From no.</label><input type="number" id="cTechFrom"></div>
+                    <div class="flex-1"><label for="cTechTo" class="text-sm">To no.</label><input type="number" id="cTechTo"></div>
                 </div>
                 
-                <label style="font-size:var(--font-sm); margin-bottom:var(--space-2);">Target BPM generation</label>
-                <div class="radio-group" style="margin-bottom:var(--space-2);">
-                    <input type="radio" id="bpm-fixed" name="techBpmMode" value="fixed" checked><label for="bpm-fixed" style="padding:var(--space-2);">Fixed</label>
-                    <input type="radio" id="bpm-random" name="techBpmMode" value="random"><label for="bpm-random" style="padding:var(--space-2);">Random</label>
+                <label class="text-sm mb-2">Target BPM generation</label>
+                <div class="radio-group mb-2">
+                    <input type="radio" id="bpm-fixed" name="techBpmMode" value="fixed" checked><label for="bpm-fixed" class="p-2">Fixed</label>
+                    <input type="radio" id="bpm-random" name="techBpmMode" value="random"><label for="bpm-random" class="p-2">Random</label>
                 </div>
                 
                 <div id="cTechBpmFixedGroup">
@@ -1854,9 +2323,9 @@
                 </div>
                 
                 <div id="cTechBpmRandomGroup" class="hidden-group flex-row gap-md">
-                    <div style="flex:1;"><label for="cTechBpmMin" style="font-size:var(--font-sm);">Min BPM</label><input type="number" id="cTechBpmMin" placeholder="e.g. 60"></div>
-                    <div style="flex:1;"><label for="cTechBpmMax" style="font-size:var(--font-sm);">Max BPM</label><input type="number" id="cTechBpmMax" placeholder="e.g. 120"></div>
-                    <div style="flex:1;"><label for="cTechBpmInterval" style="font-size:var(--font-sm);">Interval</label><input type="number" id="cTechBpmInterval" placeholder="e.g. 5"></div>
+                    <div class="flex-1"><label for="cTechBpmMin" class="text-sm">Min BPM</label><input type="number" id="cTechBpmMin" placeholder="e.g. 60"></div>
+                    <div class="flex-1"><label for="cTechBpmMax" class="text-sm">Max BPM</label><input type="number" id="cTechBpmMax" placeholder="e.g. 120"></div>
+                    <div class="flex-1"><label for="cTechBpmInterval" class="text-sm">Interval</label><input type="number" id="cTechBpmInterval" placeholder="e.g. 5"></div>
                 </div>
             </div>
 
@@ -1866,8 +2335,8 @@
             </div>
         </div>
 
-        <div style="display:flex; gap:var(--space-2); margin-top:var(--space-5);">
-            <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('addChallengeModal').style.display='none'">Cancel</button>
+        <div class="flex-row gap-sm mt-5">
+            <button class="btn-cancel btn-nav no-margin" onclick="hideModal('addChallengeModal')">Cancel</button>
             <button class="btn-submit no-margin" id="saveNewChallBtn">Create & add tasks</button>
         </div>
     </div>
@@ -1880,12 +2349,12 @@
         <div class="form-group"><label for="iPiece">Piece / exercise name</label><input type="text" id="iPiece"></div>
         <div class="form-group"><label for="iRef">Reference / section</label><input type="text" id="iRef"></div>
         <div class="flex-row gap-md">
-            <div class="form-group" style="flex:1;"><label for="iBarFrom">Bar from</label><input type="number" id="iBarFrom"></div>
-            <div class="form-group" style="flex:1;"><label for="iBarTo">Bar to</label><input type="number" id="iBarTo"></div>
+            <div class="form-group flex-1"><label for="iBarFrom">Bar from</label><input type="number" id="iBarFrom"></div>
+            <div class="form-group flex-1"><label for="iBarTo">Bar to</label><input type="number" id="iBarTo"></div>
         </div>
         <div class="form-group"><label for="iBPM">Target BPM</label><input type="number" id="iBPM"></div>
-        <div style="display:flex; gap:var(--space-2); margin-top:var(--space-2);">
-            <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('itemDetailModal').style.display='none'">Cancel</button>
+        <div class="flex-row gap-sm mt-2">
+            <button class="btn-cancel btn-nav no-margin" onclick="hideModal('itemDetailModal')">Cancel</button>
             <button class="btn-submit no-margin" id="saveItemBtn">Save task</button>
         </div>
     </div>
@@ -1893,7 +2362,7 @@
 
 <div class="modal" id="metroSegmentModal" role="dialog" aria-modal="true" aria-labelledby="metroSegmentModalTitle">
     <div class="modal-content modal-content-sticky-footer">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegmentModal').style.display='none'" aria-label="Close without saving">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('metroSegmentModal')" aria-label="Close without saving">&times;</button>
         <div class="metroSeg-scroll-area">
         <div class="metroSeg-modal-heading">
             <h2 id="metroSegmentModalTitle">Edit block</h2>
@@ -2051,7 +2520,7 @@
                                 </div>
                             </button>
 
-                            <div class="metroSeg-micro-label metroSeg-micro-label-row" style="margin-top:var(--space-4);">
+                            <div class="metroSeg-micro-label metroSeg-micro-label-row mt-4">
                                 <span>Rehearsal letters / numbers</span>
                                 <span class="metroSeg-count-badge" id="metroSegRehearsalCountBadge">0 marks</span>
                             </div>
@@ -2072,7 +2541,7 @@
                         <div class="metroSeg-card-body">
                             <div class="metroSeg-inset-box">
                                 <p class="metro-help-text no-margin">Gradually transitions tempo to the next block's tempo. The app automatically calculates whether this is an accelerando or ritardando.</p>
-                                <div class="metroSeg-tile-grid metroSeg-tile-grid-2" style="margin-top:var(--space-3);">
+                                <div class="metroSeg-tile-grid metroSeg-tile-grid-2 mt-3">
                                     <div class="metroSeg-cycle-tile">
                                         <span class="metroSeg-micro-label">Change at beat</span>
                                         <div class="metroSeg-cycle-row">
@@ -2145,7 +2614,7 @@
                                 </button>
                             </div>
 
-                            <div class="metroSeg-micro-label" style="margin-top:var(--space-4);">Jump instructions (triggered at end of bar)</div>
+                            <div class="metroSeg-micro-label mt-4">Jump instructions (triggered at end of bar)</div>
                             <div class="metroSeg-tile-grid metroSeg-tile-grid-4">
                                 <button type="button" class="metroSeg-tap-btn" id="metroSegGotoSegnoBtn" title="Dal Segno - go to sign">
                                     <strong>D.S.</strong>
@@ -2156,7 +2625,7 @@
                                     <span class="metroSeg-tap-label">Sign to coda</span>
                                 </button>
                                 <button type="button" class="metroSeg-tap-btn" id="metroSegGotoCodaBtn" title="To Coda jump mark">
-                                    <span class="metroSeg-row-tile-glyph" id="metroSegGotoCodaIcon" style="width:20px; height:20px; margin:0 auto;"></span>
+                                    <span class="metroSeg-row-tile-glyph metroSeg-row-tile-glyph-sm" id="metroSegGotoCodaIcon"></span>
                                     <span class="metroSeg-tap-label">To coda</span>
                                 </button>
                                 <button type="button" class="metroSeg-tap-btn" id="metroSegGotoStartBtn" title="Da Capo - go to start">
@@ -2190,13 +2659,13 @@
 
         </div>
 
-        <div class="hidden-group" id="metroSegOtherActionsSection" style="margin-top:var(--space-6);">
-            <div class="metro-help-text" style="font-weight:var(--font-weight-bold); margin-bottom:var(--space-1);">Other actions</div>
+        <div class="hidden-group mt-6" id="metroSegOtherActionsSection">
+            <div class="metro-help-text fw-bold mb-1">Other actions</div>
             <button type="button" class="btn-text btn-text-danger" id="metroSegDeleteBtn">Delete block</button>
         </div>
         </div>
         <div class="metroSeg-sticky-footer">
-            <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('metroSegmentModal').style.display='none'">Cancel</button>
+            <button class="btn-cancel btn-nav no-margin" onclick="hideModal('metroSegmentModal')">Cancel</button>
             <button class="btn-submit no-margin" id="metroSegSaveBtn">Save</button>
         </div>
     </div>
@@ -2204,7 +2673,7 @@
 
 <div class="modal" id="metroBlkSubdivideModal" role="dialog" aria-modal="true" aria-labelledby="metroBlkSubdivideModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('metroBlkSubdivideModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('metroBlkSubdivideModal')" aria-label="Close">&times;</button>
         <h2 id="metroBlkSubdivideModalTitle">Sub beats</h2>
         <div class="form-group no-margin">
             <label>Use sub beats</label>
@@ -2218,7 +2687,7 @@
             </div>
             <p class="metro-help-text">Auto always shows sub-beats, using the number that fits the time signature. Fixed lets you set your own number.</p>
         </div>
-        <div class="metroBlk-bpm-box hidden-group" id="metroBlkSubdivideBpmBox" style="margin-top:var(--space-4);">
+        <div class="metroBlk-bpm-box hidden-group mt-4" id="metroBlkSubdivideBpmBox">
             <div class="metro-speed-row no-margin">
                 <button class="metro-bpm-step" id="metroBlkSubdivideMinus" type="button" aria-label="Decrease sub beats">&minus;</button>
                 <div class="metro-speed-readout">
@@ -2235,7 +2704,7 @@
                 <div class="slider-scale"><span>2</span><span id="metroBlkSubdivideSliderMaxLbl">16</span></div>
             </div>
         </div>
-        <div style="display:flex; gap:var(--space-2); margin-top:var(--space-5);">
+        <div class="flex-row gap-sm mt-5">
             <button class="btn-cancel btn-nav no-margin" id="metroBlkSubdivideCancelBtn">Cancel</button>
             <button class="btn-submit no-margin" id="metroBlkSubdivideSaveBtn">Save</button>
         </div>
@@ -2244,7 +2713,7 @@
 
 <div class="modal" id="metroBlkSpeedModal" role="dialog" aria-modal="true" aria-labelledby="metroBlkSpeedModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('metroBlkSpeedModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('metroBlkSpeedModal')" aria-label="Close">&times;</button>
         <h2 id="metroBlkSpeedModalTitle">Play speed</h2>
         <p class="metro-help-text">Tap a speed to apply it straight away.</p>
         <!-- ML-109: populated from /api/metronome/playback-speeds (admin-managed) rather than a fixed
@@ -2301,7 +2770,7 @@
      shared value (metroState.latencyMs) already adjustable from Flow, no need to duplicate that UI. -->
 <div class="modal" id="qpSubdivideModal" role="dialog" aria-modal="true" aria-labelledby="qpSubdivideModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('qpSubdivideModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('qpSubdivideModal')" aria-label="Close">&times;</button>
         <h2 id="qpSubdivideModalTitle">Sub beats</h2>
         <div class="form-group no-margin">
             <label>Use sub beats</label>
@@ -2315,7 +2784,7 @@
             </div>
             <p class="metro-help-text">Auto always shows sub-beats, using the number that fits the time signature. Fixed lets you set your own number.</p>
         </div>
-        <div class="metroBlk-bpm-box hidden-group" id="qpSubdivideBpmBox" style="margin-top:var(--space-4);">
+        <div class="metroBlk-bpm-box hidden-group mt-4" id="qpSubdivideBpmBox">
             <div class="metro-speed-row no-margin">
                 <button class="metro-bpm-step" id="qpSubdivideMinus" type="button" aria-label="Decrease sub beats">&minus;</button>
                 <div class="metro-speed-readout">
@@ -2332,7 +2801,7 @@
                 <div class="slider-scale"><span>2</span><span id="qpSubdivideSliderMaxLbl">16</span></div>
             </div>
         </div>
-        <div style="display:flex; gap:var(--space-2); margin-top:var(--space-5);">
+        <div class="flex-row gap-sm mt-5">
             <button class="btn-cancel btn-nav no-margin" id="qpSubdivideCancelBtn">Cancel</button>
             <button class="btn-submit no-margin" id="qpSubdivideSaveBtn">Save</button>
         </div>
@@ -2341,7 +2810,7 @@
 
 <div class="modal" id="qpSpeedModal" role="dialog" aria-modal="true" aria-labelledby="qpSpeedModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('qpSpeedModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('qpSpeedModal')" aria-label="Close">&times;</button>
         <h2 id="qpSpeedModalTitle">Play speed</h2>
         <p class="metro-help-text">Tap a speed to apply it straight away.</p>
         <div class="metroBlk-speed-options" id="qpSpeedOptions"></div>
@@ -2377,7 +2846,7 @@
      precedent as Quick Play's own copy of Blocks' originals. -->
 <div class="modal" id="flowSubdivideModal" role="dialog" aria-modal="true" aria-labelledby="flowSubdivideModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('flowSubdivideModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('flowSubdivideModal')" aria-label="Close">&times;</button>
         <h2 id="flowSubdivideModalTitle">Sub beats</h2>
         <div class="form-group no-margin">
             <label>Use sub beats</label>
@@ -2391,7 +2860,7 @@
             </div>
             <p class="metro-help-text">Auto always shows sub-beats, using the number that fits the time signature. Fixed lets you set your own number.</p>
         </div>
-        <div class="metroBlk-bpm-box hidden-group" id="flowSubdivideBpmBox" style="margin-top:var(--space-4);">
+        <div class="metroBlk-bpm-box hidden-group mt-4" id="flowSubdivideBpmBox">
             <div class="metro-speed-row no-margin">
                 <button class="metro-bpm-step" id="flowSubdivideMinus" type="button" aria-label="Decrease sub beats">&minus;</button>
                 <div class="metro-speed-readout">
@@ -2408,7 +2877,7 @@
                 <div class="slider-scale"><span>2</span><span id="flowSubdivideSliderMaxLbl">16</span></div>
             </div>
         </div>
-        <div style="display:flex; gap:var(--space-2); margin-top:var(--space-5);">
+        <div class="flex-row gap-sm mt-5">
             <button class="btn-cancel btn-nav no-margin" id="flowSubdivideCancelBtn">Cancel</button>
             <button class="btn-submit no-margin" id="flowSubdivideSaveBtn">Save</button>
         </div>
@@ -2417,7 +2886,7 @@
 
 <div class="modal" id="flowSpeedModal" role="dialog" aria-modal="true" aria-labelledby="flowSpeedModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('flowSpeedModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('flowSpeedModal')" aria-label="Close">&times;</button>
         <h2 id="flowSpeedModalTitle">Play speed</h2>
         <p class="metro-help-text">Tap a speed to apply it straight away.</p>
         <div class="metroBlk-speed-options" id="flowSpeedOptions"></div>
@@ -2456,7 +2925,7 @@
     <div class="modal-content modal-content-sticky-footer">
         <div class="metroSeg-scroll-area">
             <h2 id="qpHistoryModalTitle">History</h2>
-            <div class="radio-group compact" id="qpHistoryFilterRadios" style="margin-bottom:var(--space-4);">
+            <div class="radio-group compact mb-4" id="qpHistoryFilterRadios">
                 <input type="radio" name="qpHistoryFilter" id="qpHistoryFilterAll" value="all" checked>
                 <label for="qpHistoryFilterAll">All</label>
                 <input type="radio" name="qpHistoryFilter" id="qpHistoryFilterFavorites" value="favorites">
@@ -2504,15 +2973,15 @@
 <!-- One shared floating menu for every history row (same pattern as accountBandMenu/qpBarMenu),
      repositioned against whichever row's own 3-dot button was tapped - see openQpHistoryItemMenu. -->
 <div class="dropdown-menu metroBlk-tile-menu" id="qpHistoryItemMenu">
-    <button type="button" class="dropdown-item" id="qpHistoryItemRename">Rename</button>
-    <button type="button" class="dropdown-item" id="qpHistoryItemDuplicate">Duplicate</button>
-    <button type="button" class="dropdown-item" id="qpHistoryItemFavoriteToggle">Set as favourite</button>
-    <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="qpHistoryItemDelete">Delete</button>
+    <button type="button" class="dropdown-item" id="qpHistoryItemRename"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">drive_file_rename_outline</span><span class="dropdown-item-text">Rename</span></button>
+    <button type="button" class="dropdown-item" id="qpHistoryItemDuplicate"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">content_copy</span><span class="dropdown-item-text">Duplicate</span></button>
+    <button type="button" class="dropdown-item" id="qpHistoryItemFavoriteToggle"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">star</span><span class="dropdown-item-text" id="qpHistoryItemFavoriteText">Set as favourite</span></button>
+    <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="qpHistoryItemDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete</span></button>
 </div>
 
 <div class="modal" id="metroBlkMiniTunerInstrumentModal" role="dialog" aria-modal="true" aria-labelledby="metroBlkMiniTunerInstrumentModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('metroBlkMiniTunerInstrumentModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('metroBlkMiniTunerInstrumentModal')" aria-label="Close">&times;</button>
         <h2 id="metroBlkMiniTunerInstrumentModalTitle">Instrument</h2>
         <p class="metro-help-text">Changes the reading for this session only - your Settings default is unchanged.</p>
         <!-- ML-225: all 12 transpositions, filled in by renderMetroBlkMiniTunerInstrumentOptions (app.js). -->
@@ -2525,7 +2994,7 @@
      stepper, defaulting to 2x, matching the attached reference. -->
 <div class="modal" id="metroSegRepeatCountModal" role="dialog" aria-modal="true" aria-labelledby="metroSegRepeatCountModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegRepeatCountModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('metroSegRepeatCountModal')" aria-label="Close">&times;</button>
         <h2 id="metroSegRepeatCountModalTitle">End repeat &amp; count</h2>
         <p class="metro-help-text">Select how many times to repeat this section.</p>
         <div class="metroSeg-quickpick-grid" id="metroSegRepeatCountOptions">
@@ -2545,7 +3014,7 @@
      ending), not just picking one. -->
 <div class="modal" id="metroSegEndingModal" role="dialog" aria-modal="true" aria-labelledby="metroSegEndingModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegEndingModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('metroSegEndingModal')" aria-label="Close">&times;</button>
         <h2 id="metroSegEndingModalTitle">1st / 2nd time bar</h2>
         <p class="metro-help-text">Set repeat brackets (voltas).</p>
         <div class="metroSeg-option-list" id="metroSegEndingOptions">
@@ -2574,7 +3043,7 @@
      "edit an existing one" (index into metroSegRehearsalMarks). -->
 <div class="modal" id="metroSegRehearsalModal" role="dialog" aria-modal="true" aria-labelledby="metroSegRehearsalModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegRehearsalModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('metroSegRehearsalModal')" aria-label="Close">&times;</button>
         <h2 id="metroSegRehearsalModalTitle">Add rehearsal mark</h2>
         <p class="metro-help-text">Specify letter/number and bar location.</p>
         <div class="form-group">
@@ -2585,11 +3054,11 @@
             <label for="metroSegRehearsalBarSelect">Bar position in block</label>
             <select id="metroSegRehearsalBarSelect"></select>
         </div>
-        <div style="display:flex; gap:var(--space-2);">
-            <button class="btn-cancel btn-nav no-margin" type="button" onclick="document.getElementById('metroSegRehearsalModal').style.display='none'">Cancel</button>
+        <div class="flex-row gap-sm">
+            <button class="btn-cancel btn-nav no-margin" type="button" onclick="hideModal('metroSegRehearsalModal')">Cancel</button>
             <button class="btn-submit no-margin" type="button" id="metroSegRehearsalSaveBtn">Save mark</button>
         </div>
-        <div class="hidden-group" id="metroSegRehearsalDeleteSection" style="margin-top:var(--space-4);">
+        <div class="hidden-group mt-4" id="metroSegRehearsalDeleteSection">
             <button type="button" class="btn-text btn-text-danger no-margin" id="metroSegRehearsalDeleteBtn">Delete mark</button>
         </div>
     </div>
@@ -2601,7 +3070,7 @@
      option (including None) applies and closes immediately, same as the other quick-pick popups. -->
 <div class="modal" id="metroSegIntroModal" role="dialog" aria-modal="true" aria-labelledby="metroSegIntroModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegIntroModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('metroSegIntroModal')" aria-label="Close">&times;</button>
         <h2 id="metroSegIntroModalTitle">Start intro (pickup)</h2>
         <p class="metro-help-text" id="metroSegIntroModalHelp">Starts on beat 1 (standard downbeat)</p>
         <div class="metroSeg-tile-grid metroSeg-tile-grid-4" id="metroSegIntroBeatOptions"></div>
@@ -2614,7 +3083,7 @@
      preference, not something that varies block to block - moved to Settings instead. -->
 <div class="modal" id="metroSegFermataModal" role="dialog" aria-modal="true" aria-labelledby="metroSegFermataModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegFermataModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('metroSegFermataModal')" aria-label="Close">&times;</button>
         <h2 id="metroSegFermataModalTitle">Add another fermata</h2>
         <p class="metro-help-text">Multiple pauses can be placed in this measure.</p>
         <div class="form-group hidden-group" id="metroSegFermataBarGroup">
@@ -2636,11 +3105,11 @@
                 <button type="button" class="metroSeg-tap-btn" data-value="4"><strong>4</strong><span class="metroSeg-tap-label">beats</span></button>
             </div>
         </div>
-        <div style="display:flex; gap:var(--space-2);">
-            <button class="btn-cancel btn-nav no-margin" type="button" onclick="document.getElementById('metroSegFermataModal').style.display='none'">Cancel</button>
+        <div class="flex-row gap-sm">
+            <button class="btn-cancel btn-nav no-margin" type="button" onclick="hideModal('metroSegFermataModal')">Cancel</button>
             <button class="btn-submit no-margin" type="button" id="metroSegFermataSaveBtn">Save fermata</button>
         </div>
-        <div class="hidden-group" id="metroSegFermataDeleteSection" style="margin-top:var(--space-4);">
+        <div class="hidden-group mt-4" id="metroSegFermataDeleteSection">
             <button type="button" class="btn-text btn-text-danger no-margin" id="metroSegFermataDeleteBtn">Delete fermata</button>
         </div>
     </div>
@@ -2648,7 +3117,7 @@
 
 <div class="modal" id="metroSegNoteModal" role="dialog" aria-modal="true" aria-labelledby="metroSegNoteModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegNoteModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('metroSegNoteModal')" aria-label="Close">&times;</button>
         <h2 id="metroSegNoteModalTitle">Beat note</h2>
         <p class="metro-help-text">Choose the note value for the tempo (e.g. &#9833; = 120).</p>
         <div class="metroBlk-note-picker" id="metroSegNotePicker"></div>
@@ -2660,7 +3129,7 @@
      text-list picker's "|"/"|:" characters. -->
 <div class="modal" id="flowBarStartModal" role="dialog" aria-modal="true" aria-labelledby="flowBarStartModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('flowBarStartModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('flowBarStartModal')" aria-label="Close">&times;</button>
         <h2 id="flowBarStartModalTitle">Start of bar</h2>
         <p class="metro-help-text">Whether this bar starts a repeated section.</p>
         <div class="metroBlk-note-picker" id="flowBarStartPicker"></div>
@@ -2673,7 +3142,7 @@
      single option list. -->
 <div class="modal" id="flowBarEndModal" role="dialog" aria-modal="true" aria-labelledby="flowBarEndModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('flowBarEndModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('flowBarEndModal')" aria-label="Close">&times;</button>
         <h2 id="flowBarEndModalTitle">End of bar</h2>
         <div class="flow-tile-section">
             <span class="flow-tile-section-label">Structure</span>
@@ -2809,7 +3278,7 @@
      is the same "padded scrollable body + flush footer bar" split metroSegmentModal already uses. -->
 <div class="modal" id="metroSegTimeSigModal" role="dialog" aria-modal="true" aria-labelledby="metroSegTimeSigModalTitle">
     <div class="modal-content modal-content-sticky-footer">
-        <button type="button" class="modal-close-x" onclick="document.getElementById('metroSegTimeSigModal').style.display='none'" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" onclick="hideModal('metroSegTimeSigModal')" aria-label="Close">&times;</button>
         <div class="metroSeg-scroll-area">
         <h2 id="metroSegTimeSigModalTitle">Time signature</h2>
 
@@ -2846,7 +3315,7 @@
         </div>
         </div>
         <div class="metroSeg-sticky-footer metroSeg-timesig-footer">
-            <button type="button" class="btn-text no-margin" onclick="document.getElementById('metroSegTimeSigModal').style.display='none'">Done</button>
+            <button type="button" class="btn-text no-margin" onclick="hideModal('metroSegTimeSigModal')">Done</button>
         </div>
     </div>
 </div>
@@ -2858,10 +3327,10 @@
         <input type="hidden" id="liOriginalName">
         <div class="form-group"><label for="liName">Name</label><input type="text" id="liName"></div>
         <div class="flex-row gap-md">
-            <button class="btn-cancel btn-nav no-margin" onclick="document.getElementById('listItemModal').style.display='none'">Cancel</button>
+            <button class="btn-cancel btn-nav no-margin" onclick="hideModal('listItemModal')">Cancel</button>
             <button class="btn-submit no-margin" id="liSaveBtn">Save</button>
         </div>
-        <button class="btn-icon-delete" id="liActionBtn" style="margin:var(--space-2) auto 0 auto;" aria-label="Remove"><span class="material-symbols-outlined">delete</span></button>
+        <button class="btn-icon-delete centered-action" id="liActionBtn" aria-label="Remove"><span class="material-symbols-outlined">delete</span></button>
     </div>
 </div>
 
@@ -2881,7 +3350,7 @@
 </div>
 
 <div class="modal" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
-    <div class="modal-content"><h2 id="confirmTitle">Confirm</h2><p id="confirmMessage" style="margin-bottom: var(--space-6); line-height: var(--line-height-base);"></p><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" id="confirmCancelBtn" onclick="closeConfirmModal()">Cancel</button><button class="btn-submit no-margin" id="confirmActionBtn">Confirm</button></div></div>
+    <div class="modal-content"><h2 id="confirmTitle">Confirm</h2><p id="confirmMessage" class="mb-6 leading-base"></p><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" id="confirmCancelBtn" onclick="closeConfirmModal()">Cancel</button><button class="btn-submit no-margin" id="confirmActionBtn">Confirm</button></div></div>
 </div>
 
 <!-- ML-170: the whole capture form. A text box and a button, nothing else - no category picker, no
@@ -2892,9 +3361,9 @@
 <div class="modal" id="feedbackModal" role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
     <div class="modal-content">
         <h2 id="feedbackModalTitle">Send feedback</h2>
-        <p class="text-muted" style="margin: calc(-1 * var(--space-2)) 0 var(--space-4) 0; font-size: var(--font-sm);">Spotted a bug or thought of something? Jot it down here. The screen you were on, your device and the app version are included automatically.</p>
-        <textarea id="feedbackInput" aria-labelledby="feedbackModalTitle" rows="6" placeholder="What's on your mind?" style="margin-bottom: var(--space-2); width: 100%; box-sizing: border-box;"></textarea>
-        <div class="text-muted" id="feedbackCharCount" style="font-size: var(--font-sm); margin-bottom: var(--space-4);"></div>
+        <p class="text-muted modal-intro">Spotted a bug or thought of something? Jot it down here. The screen you were on, your device and the app version are included automatically.</p>
+        <textarea id="feedbackInput" class="w-full mb-2" aria-labelledby="feedbackModalTitle" rows="6" placeholder="What's on your mind?"></textarea>
+        <div class="text-muted text-sm mb-4" id="feedbackCharCount"></div>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" type="button" id="feedbackCancelBtn">Cancel</button>
             <button class="btn-submit no-margin" type="button" id="feedbackSubmitBtn">Send</button>
@@ -2903,7 +3372,7 @@
 </div>
 
 <div class="modal" id="promptModal" role="dialog" aria-modal="true" aria-labelledby="promptTitle">
-    <div class="modal-content"><h2 id="promptTitle">Enter value</h2><input type="text" id="promptInput" aria-labelledby="promptTitle" style="margin-bottom: var(--space-6);"><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" onclick="closePromptModal()">Cancel</button><button class="btn-submit no-margin" id="promptActionBtn">Save</button></div></div>
+    <div class="modal-content"><h2 id="promptTitle">Enter value</h2><input type="text" id="promptInput" aria-labelledby="promptTitle" class="mb-6"><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" onclick="closePromptModal()">Cancel</button><button class="btn-submit no-margin" id="promptActionBtn">Save</button></div></div>
 </div>
 
 <!-- ML-175: one shared floating menu for every session history row (same pattern as
@@ -2911,25 +3380,25 @@
      tapped - see openSessionHistoryItemMenu. Delete lives here now instead of inside editModal, so
      it no longer needs its own delete button there. -->
 <div class="dropdown-menu metroBlk-tile-menu" id="sessionHistoryItemMenu">
-    <button type="button" class="dropdown-item" id="sessionHistoryItemEdit">Edit</button>
-    <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="sessionHistoryItemDelete">Delete</button>
+    <button type="button" class="dropdown-item" id="sessionHistoryItemEdit"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">edit</span><span class="dropdown-item-text">Edit</span></button>
+    <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="sessionHistoryItemDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete</span></button>
 </div>
 
 <div class="modal" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
     <div class="modal-content">
-        <h2 class="no-margin" style="margin-bottom:var(--space-5);" id="editModalTitle">Edit record</h2>
+        <h2 class="no-margin mb-5" id="editModalTitle">Edit record</h2>
         <input type="hidden" id="editRow"><input type="hidden" id="editCat">
         <div class="form-group"><label for="editDuration">Duration (mins)</label><input type="number" id="editDuration"></div>
         <div class="form-group hidden-group" id="editWhoGroup"><label for="editWho">Who with?</label><select id="editWho"></select></div>
         <div class="form-group"><label for="editDate">Date</label><input type="date" id="editDate"></div>
         <button class="btn-submit" id="saveEditBtn">Update record</button>
-        <button class="btn-cancel btn-nav" onclick="document.getElementById('editModal').style.display='none'">Cancel</button>
+        <button class="btn-cancel btn-nav" onclick="hideModal('editModal')">Cancel</button>
     </div>
 </div>
 
-<div id="toastSuccess" class="toast success" role="status" aria-live="polite"><span id="toastMsg">Saved!</span><button id="toastUndoBtn" style="display:none;">Undo</button><button onclick="closeToast('toastSuccess')">X</button><div class="toast-countdown-bar" id="toastSuccessBar" role="status" aria-live="polite"></div></div>
+<div id="toastSuccess" class="toast success" role="status" aria-live="polite"><span id="toastMsg">Saved!</span><button id="toastUndoBtn" class="hidden-group">Undo</button><button onclick="closeToast('toastSuccess')">X</button><div class="toast-countdown-bar" id="toastSuccessBar" role="status" aria-live="polite"></div></div>
 <div id="toastWarning" class="toast warning" role="status" aria-live="polite"><span><span id="toastWarningMsg">Error</span></span><button onclick="closeToast('toastWarning')">X</button><div class="toast-countdown-bar" id="toastWarningBar" role="status" aria-live="polite"></div></div>
-<div id="toastInfo" class="toast info" role="status" aria-live="polite"><span id="toastInfoMsg"></span><button onclick="closeToast('toastInfo')" style="background:var(--button-overlay);">X</button><div class="toast-countdown-bar" id="toastInfoBar" role="status" aria-live="polite"></div></div>
+<div id="toastInfo" class="toast info" role="status" aria-live="polite"><span id="toastInfoMsg"></span><button onclick="closeToast('toastInfo')">X</button><div class="toast-countdown-bar" id="toastInfoBar" role="status" aria-live="polite"></div></div>
 <!-- Generic "action + undo" toast (ML-... Quick Play bar delete/move) - reusable for anything that
      needs a "X happened [Undo]" moment rather than the session-history-specific undo already wired
      into #toastSuccess above. -->
@@ -2952,6 +3421,8 @@
 <script src="flowJourney.js"></script>
 <script src="notation.js"></script>
 <script src="theoryEngine.js"></script>
+<script src="warmups.js"></script>
+<script src="drills.js"></script>
 <script src="app.js"></script>
 <script src="a11y.js"></script>
 

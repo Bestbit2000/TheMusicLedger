@@ -40,6 +40,25 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-subtab-item.active { color: var(--text-color); border-bottom-color: var(--primary-action); }
 
 .admin-feature { border: 1px solid var(--input-border); border-radius: var(--radius-md); margin-bottom: var(--space-5); overflow: hidden; }
+.admin-feature[data-feedback-row] { cursor: pointer; } /* a Feedback card opens its review pop-up */
+/* ML-294: Warm-ups - the list and the tap-to-build editor (see specs/components/admin-shell.md). */
+.admin-warmup-kind { margin: var(--space-5) 0 var(--space-2) 0; font-size: var(--font-md); }
+.admin-warmup-row-preview svg { display: block; width: 100%; max-width: 480px; height: auto; margin-top: var(--space-2); }
+.admin-warmup-off { opacity: var(--opacity-muted); }
+.modal-content.admin-modal-wide { max-width: 720px; }
+.admin-warmup-fields { display: grid; grid-template-columns: 2fr 1.4fr 1fr 1fr; gap: var(--space-3); }
+.admin-warmup-preview-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-3); }
+.admin-warmup-preview-head .radio-group { margin: 0; width: 240px; flex-shrink: 0; }
+.admin-warmup-preview { background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-2); min-height: calc(var(--touch-target) * 2); margin-top: var(--space-2); }
+.admin-warmup-preview svg { display: block; width: 100%; height: auto; }
+.admin-warmup-preview .warmup-note { cursor: pointer; }
+.admin-warmup-preview .is-selected { fill: var(--primary-action-strong); }
+.admin-warmup-status { font-size: var(--font-sm); color: var(--label-color); min-height: 1.4em; margin: var(--space-2) 0; }
+.admin-warmup-status.has-errors { color: var(--danger-text); }
+.admin-warmup-inline { margin-top: var(--space-2); }
+.admin-warmup-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.admin-warmup-tools .btn-edit, .admin-warmup-tools .btn-delete { width: auto; min-width: var(--touch-target); }
+@media (max-width: 700px) { .admin-warmup-fields { grid-template-columns: 1fr 1fr; } }
 /* flex-wrap (plus the text side's own min-width:0 below) lets a wide sibling - the level <select>,
    or actions - drop to its own line under the text on a narrow viewport instead of overlapping it:
    the admin sidebar (.admin-sidebar, 220px fixed) leaves very little width for content on a phone-
@@ -237,6 +256,16 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-design-chip { font-size: var(--font-xs); padding: var(--space-0-5) var(--space-2); border-radius: var(--radius-pill); background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-color); }
 .admin-design-chip b { color: var(--label-color); font-weight: var(--font-weight-semibold); }
 .admin-design-chip-warn { background: var(--danger-tint); border-color: var(--danger-text); }
+/* What's new (design sign-off): public/design-new.json from npm run design-gate marks every example
+   that uses a new class; "Only what's new" hides the rest, so the owner reviews pictures. */
+.admin-design-new-panel { border: 2px solid var(--primary-action-strong); border-radius: var(--radius-md); padding: var(--space-5); margin-bottom: var(--space-5); background: var(--container-bg); }
+.admin-design-new-title { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); color: var(--text-color); }
+.admin-design-new-badge { display: inline-block; padding: var(--space-0-5) var(--space-2); margin-right: var(--space-1); border-radius: var(--radius-pill); background: var(--primary-action); color: var(--primary-action-text); font-size: var(--font-xs); font-weight: var(--font-weight-bold); vertical-align: middle; }
+.admin-design-new-classes { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-2); }
+.admin-design-new-classes code { font-family: var(--font-mono); font-size: var(--font-xs); padding: var(--space-0-5) var(--space-2); border-radius: var(--radius-pill); background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-color); }
+.admin-design-new-swatch { display: inline-block; width: var(--space-6); height: var(--space-6); border-radius: var(--radius-sm); border: 1px solid var(--input-border); background: var(--sample); }
+.admin-design-example.admin-design-is-new { border-left: 3px solid var(--primary-action-strong); padding-left: var(--space-3); }
+.admin-design-only-new :is(.admin-design-foundations, .admin-design-jumps, .admin-design-group-wrap:not(.admin-design-is-new), .admin-design-section:not(.admin-design-is-new), .admin-design-example:not(.admin-design-is-new)) { display: none; }
 .admin-design-show-spacing .admin-design-measured { outline: 1px dashed var(--info-text); outline-offset: 0; }
 .admin-design-show-spacing .admin-design-stage * { outline: 1px dotted var(--info-tint); }
 
@@ -249,6 +278,12 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-design-static .modal { position: relative; inset: auto; display: flex; z-index: auto; padding: var(--space-6) var(--space-4); border-radius: var(--radius-sm); }
 .admin-design-static .toast { position: relative; left: auto; bottom: auto; transform: none; display: inline-flex; z-index: auto; }
 .admin-design-static .dropdown-menu { position: relative; top: auto; right: auto; z-index: auto; max-width: 240px; }
+.admin-design-static .dropdown-menu.nav-menu { position: static; }
+/* The phone-width admin head row, shown at desktop width - the same rules as the 700px media query. */
+.admin-design-phone .admin-sidebar-head { display: flex; align-items: center; justify-content: space-between; }
+.admin-design-phone .admin-sidebar-title { padding: 0; }
+.admin-design-phone .admin-sidebar-current { display: inline; }
+.admin-design-phone .admin-nav-toggle { display: flex; }
 .admin-design-static .anchored-popup { position: relative; display: inline-block; z-index: auto; }
 .admin-design-static .splash-screen { position: relative; inset: auto; z-index: auto; min-height: 260px; border-radius: var(--radius-sm); }
 .admin-design-static .splash-login-btn { display: block; }
@@ -259,21 +294,27 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-design-dots .metro-tier { margin-left: var(--space-4); margin-right: var(--space-4); }
 .admin-design-bars { display: flex; align-items: flex-end; gap: var(--space-2); height: 120px; }
 .admin-design-bars .chart-bar { width: var(--space-7); }
+.admin-design-bars .admin-design-bar-slot { height: 100%; min-width: 0; width: var(--space-7); margin: 0; cursor: default; } /* a stacked projected bar in the bar-colour row */
 
 /* Foundations */
 .admin-design-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--space-3); }
 .admin-design-swatch { border: 1px solid var(--input-border); border-radius: var(--radius-sm); overflow: hidden; background: var(--container-bg); }
-.admin-design-swatch-color { height: 56px; border-bottom: 1px solid var(--input-border); }
+/* Token tables: each row's token arrives as --sample (admin-design.js) and the sample class applies it. */
+.admin-design-swatch-color { background: var(--sample); height: 56px; border-bottom: 1px solid var(--input-border); }
 .admin-design-swatch-label { display: flex; flex-direction: column; gap: var(--space-0-5); padding: var(--space-2); font-size: var(--font-xs); color: var(--text-color); }
 .admin-design-swatch-label code { font-family: var(--font-mono); font-weight: var(--font-weight-bold); }
 .admin-design-swatch-label small, .admin-design-shadow small { color: var(--label-color); }
 .admin-design-token-value { font-family: var(--font-mono); font-size: var(--font-xs); color: var(--label-color); }
 .admin-design-table td { text-align: left; white-space: normal; vertical-align: middle; }
 .admin-design-table code { font-family: var(--font-mono); }
-.admin-design-space-bar { display: inline-block; height: var(--space-3); background: var(--primary-action); border-radius: var(--radius-2xs); }
-.admin-design-leading { display: inline-block; font-size: var(--font-sm); background: var(--primary-action-tint); }
-.admin-design-shape { display: flex; flex-direction: column; justify-content: center; gap: var(--space-1); min-height: 90px; padding: var(--space-3); background: var(--input-bg); border: 2px solid var(--primary-action-strong); font-size: var(--font-xs); }
-.admin-design-shadow { display: flex; flex-direction: column; justify-content: center; gap: var(--space-1); min-height: 90px; padding: var(--space-3); background: var(--container-bg); border-radius: var(--radius-sm); font-size: var(--font-xs); }
+.admin-design-sample-size { font-size: var(--sample); }
+.admin-design-sample-weight { font-weight: var(--sample); }
+.admin-design-sample-family { font-family: var(--sample); }
+.admin-design-space-bar { width: var(--sample); display: inline-block; height: var(--space-3); background: var(--primary-action); border-radius: var(--radius-2xs); }
+.admin-design-leading { line-height: var(--sample); display: inline-block; font-size: var(--font-sm); background: var(--primary-action-tint); }
+.admin-design-shape { border-radius: var(--sample); display: flex; flex-direction: column; justify-content: center; gap: var(--space-1); min-height: 90px; padding: var(--space-3); background: var(--input-bg); border: 2px solid var(--primary-action-strong); font-size: var(--font-xs); }
+.admin-design-shadow { box-shadow: var(--sample); display: flex; flex-direction: column; justify-content: center; gap: var(--space-1); min-height: 90px; padding: var(--space-3); background: var(--container-bg); border-radius: var(--radius-sm); font-size: var(--font-xs); }
 .admin-design-motion-track { position: relative; display: inline-block; width: 160px; height: var(--space-4); border-radius: var(--radius-pill); background: var(--input-bg); border: 1px solid var(--input-border); }
-.admin-design-motion-dot { position: absolute; top: 50%; left: 0; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-circle); background: var(--primary-action); transform: translate(0, -50%); transition-property: left; transition-timing-function: var(--ease-standard); }
+.admin-design-motion-dot { transition-duration: var(--sample); position: absolute; top: 50%; left: 0; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-circle); background: var(--primary-action); transform: translate(0, -50%); transition-property: left; transition-timing-function: var(--ease-standard); }
 .admin-design-table tr:hover .admin-design-motion-dot, .admin-design-table tr:active .admin-design-motion-dot { left: calc(100% - var(--space-3)); }
+.admin-design-probe { color: var(--probe-color); box-shadow: var(--probe-shadow); } /* hidden; resolves token values for the annotations */

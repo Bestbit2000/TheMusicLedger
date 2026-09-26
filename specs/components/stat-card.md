@@ -1,7 +1,7 @@
 # Stat card
 
 ## 1. Metadata
-- **Name:** Stat card (`.dashboard-grid`, `.stat-card`, `.stat-card.clickable`, `.label`, `.value`, `.sess-count`; admin: `.admin-stat-tiles`, `.admin-stat-tile*`)
+- **Name:** Stat card (`.dashboard-grid`, `.stat-card`, `.stat-card.clickable`, `.label`, `.value`, `.sess-count`; admin: `.admin-stat-tiles`, `.admin-stat-tile*`, `.edge-*` (`.edge-total`, `.edge-practise`, `.edge-rehearsal`, `.edge-performance`, `.edge-lesson`), `.single-col`)
 - **Category:** Data display
 - **Status:** Stable
 
@@ -31,6 +31,8 @@ The markup stays label-first (`.label`, `.value`, `.sess-count`) for screen read
 `--font-weight-normal`, `--duration-fast`.
 
 ## 5. Props / API
+- `.stat-card.edge-*` gives a Detailed stats card a thick left edge in its category's colour (`.edge-total` uses the text colour).
+- `.dashboard-grid.single-col` is a one-column grid (the total card on its own row).
 - **Display by default.** A plain `.stat-card` sits on `--container-bg` (the same surface as the page) with a 1px `--input-border` outline, so it never looks tappable (ML-200).
 - `.clickable` for cards that drill into detail. It switches to the tappable `--input-bg` surface and adds the press scale. Never give a card `.clickable` unless it actually has a click handler.
 - Labels are written in sentence case in HTML. `::first-letter` can't be used inside the flex label.

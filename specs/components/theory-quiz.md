@@ -6,7 +6,7 @@
 - **Status:** New (ML-260 / ML-264)
 
 ## 2. Overview
-The Theory tool's four screens: quiz list (Note names, Keys, Symbols, Mixed) → options → question → results. Everything reuses the
+The Theory tool's four screens: quiz list (Note names, Keys, Notation, Mixed - each with a subtitle so the rows match; one not tried yet has a "New" pill, `.flow-pill.flow-pill-accent`, where the grade dots go, ML-301) → options → question → results. Everything reuses the
 shared components where one fits - list rows ([list-row](list-row.md)) for the quiz list, the
 [radio-group](radio-group.md) pills (and their multi-select variant) for options, primary/secondary
 [buttons](button.md), [stat cards](stat-card.md) and the stats [bar chart](charts.md) pieces on the
@@ -16,7 +16,7 @@ particular to a timed quiz.
 ## 3. Anatomy
 - **Quiz list:** `.theory-intro` › `.history-item.clickable.theory-quiz-row` × 4 (`.theory-quiz-icon` (a Bravura glyph) › `.history-details` (title, subtitle line, last grade) › `.theory-grade` last grade).
 - **Question:** `.theory-status` (clock left, tally right) › `.theory-countdown` › `.theory-countdown-fill` (timed rounds only) › `.theory-question` › `.theory-prompt` (a staff, a symbol, or `.theory-meaning` text) › `.theory-feedback` (always takes its line) › `.theory-answers` › `.theory-answer` × n.
-- **Answer grids:** `.theory-answers` is 2 across (keys, symbol names, term meanings); `.theory-answers-notes` 4 across (7 or 12 note buttons, keyboard order); `.theory-answers-symbols` 2 across, taller, each button drawing a symbol or term. The layout follows each question, so a Mixed round changes it question by question.
+- **Answer grids:** `.theory-answers` is 2 across (keys, symbol names, term meanings); `.theory-answers-notes` 7 across on the 8-column width, centred (the 7 naturals, ML-292); `.theory-answers-keyboard` the same 7 columns in three rows - sharps above, naturals, flats below, each placed in its black key's column by `data-id` (17 buttons, ML-292); `.theory-answers-symbols` 2 across, taller, each button drawing a symbol or term. The layout follows each question, so a Mixed round changes it question by question.
 - **Results:** `.theory-results-options` › `.theory-grade-block` (`.theory-grade.theory-grade-lg` + `.theory-best-line`) › `.dashboard-grid` of 4 `.stat-card`s › `.section-title` › `.theory-trend` › `.theory-trend-bars` (8 fixed slots of `.chart-bar-container`/`.chart-bar`) › Again (`.btn-submit`) / Change options (`.btn-nav`).
 
 ## 4. Tokens used
@@ -28,7 +28,8 @@ particular to a timed quiz.
 
 ## 5. Props / API
 - **One tap per answer**, always (ML-260): every answer is a button. Note names show one button per
-  note (7, or 12 spelled one way when sharps or flats are on).
+  note: the 7 naturals, or with sharps or flats on the whole keyboard - 5 sharps, 7 naturals, 5 flats
+  (no E♯, B♯, C♭ or F♭: they're white keys, and never asked). The written note says which spelling is right.
 - A right answer marks green with a tick and moves on after 150 ms; a wrong one marks the tapped button
   red with a cross, the right one green with a tick, says "Not quite: it's X", and moves on after
   1.5 s. Taps in the first 0.3 s of a question are ignored (double taps).

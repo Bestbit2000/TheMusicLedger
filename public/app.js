@@ -13,6 +13,30 @@
         return (appData.enabledFeatures || []).includes(featureKey);
     }
 
+    // ML-288: showing and hiding goes through classes, never style.display, so every rule about how
+    // a thing looks (including its display) stays in the stylesheet. A screen, panel or control is
+    // hidden with .hidden-group; a pop-up (.modal) is opened with .show. Each takes an element or id.
+    const byIdOrEl = (el) => (typeof el === 'string' ? document.getElementById(el) : el);
+    function setShown(el, on) { byIdOrEl(el)?.classList.toggle('hidden-group', !on); }
+    function isShown(el) { el = byIdOrEl(el); return !!el && !el.classList.contains('hidden-group'); }
+    function showModal(el) { byIdOrEl(el)?.classList.add('show'); }
+    function hideModal(el) { byIdOrEl(el)?.classList.remove('show'); }
+    // Values only known at run time (a menu's position, a drag offset) reach the stylesheet as custom
+    // properties that a class reads - the one kind of inline style there is. placeAt puts a fixed menu
+    // or popup at a viewport position (.is-placed); setMove/clearMove shift an element for a drag, a
+    // swipe or a FLIP animation (.is-moved). A number is px; a string is used as it is ('-100%').
+    function placeAt(el, left, top) { el.style.setProperty('--place-x', `${left}px`); el.style.setProperty('--place-y', `${top}px`); el.classList.add('is-placed'); }
+    const asLength = (v) => (typeof v === 'number' ? `${v}px` : v);
+    function setMove(el, x, y = 0) { el.style.setProperty('--move-x', asLength(x)); el.style.setProperty('--move-y', asLength(y)); el.classList.add('is-moved'); }
+    function clearMove(el) { el.classList.remove('is-moved'); el.style.removeProperty('--move-x'); el.style.removeProperty('--move-y'); }
+    // Swipe-to-reveal rows: the surface follows the finger with no transition, then settles open or
+    // shut with one (.transition-swipe). offset 0 clears the move unless the finger is still down.
+    function swipeTo(el, offset, animate, tracking = false) {
+        el.classList.toggle('transition-swipe', animate);
+        el.classList.toggle('no-transition', !animate);
+        if (offset || tracking) setMove(el, offset); else clearMove(el);
+    }
+
     // ========================================
     // AUTHENTICATION & TOKEN MANAGEMENT
     // ========================================
@@ -240,6 +264,15 @@
         },
         // ML-201 - every response also carries appVersion (the server's running release).
         // ML-260/ML-265 Theory practice - finished rounds and their history (THEORY PRACTICE section).
+        warmups: {
+            list: () => apiCall('/api/warmups')
+        },
+        // ML-298/295/296: the drill tools - tool is tapTempo | gapTrainer | ear
+        drills: {
+            summary: (tool) => apiCall(`/api/drills/${tool}/summary`),
+            history: (tool, level) => apiCall(`/api/drills/${tool}/attempts?level=${encodeURIComponent(level)}`),
+            save: (tool, data) => apiCall(`/api/drills/${tool}/attempts`, 'POST', data)
+        },
         theory: {
             summary: () => apiCall('/api/theory/summary'),
             history: (settingsKey) => apiCall(`/api/theory/attempts?settingsKey=${encodeURIComponent(settingsKey)}`),
@@ -285,9 +318,10 @@
     let appData = { organisations: [], teachers: [], durations: [], enabledFeatures: [] };
     let currentHistDate = new Date();
     let activeFilters = { 'Practise': true, 'Rehearsal': true, 'Lesson': true, 'Performance': true };
-    const colorMap = { 'Practise': 'var(--cat-practise)', 'Rehearsal': 'var(--cat-rehearsal)', 'Lesson': 'var(--cat-lesson)', 'Performance': 'var(--cat-performance)' };
-    // ML-210: the same category colours as TEXT - the fills above fail 4.5:1 as text in light mode.
-    const colorTextMap = { 'Practise': 'var(--cat-practise-text)', 'Rehearsal': 'var(--cat-rehearsal-text)', 'Lesson': 'var(--cat-lesson-text)', 'Performance': 'var(--cat-performance-text)' };
+    // ML-288: a session category's colours come from a class (.category-practise etc., style.css), which
+    // sets --category-accent (the fill) and --category-accent-text (the same hue as text - ML-210, the
+    // fill fails 4.5:1 as text in light mode). .category-edge / .category-text / .filter-pill read them.
+    const categoryClass = (cat) => `category-${String(cat).toLowerCase()}`;
 
     // Challenge Data
     let allChallenges = [];
@@ -428,17 +462,17 @@
             if (elLongPlDate) elLongPlDate.innerText = data.longestPlaying ? `ended ${formatStreakEndDate(data.longestPlaying.endDateStr)}` : '';
 
             // ML-235: both streak charts in the stats gold, not a category hue.
-            renderStreakHistogram('streakChartPractise', data.practiseStreaks, 'var(--chart-streak)');
-            renderStreakHistogram('streakChartPlaying', data.playingStreaks, 'var(--chart-streak)');
+            renderStreakHistogram('streakChartPractise', data.practiseStreaks, 'series-streak');
+            renderStreakHistogram('streakChartPlaying', data.playingStreaks, 'series-streak');
         } catch (err) { showWarningToast("Streak stats error: " + err.message); }
     }
 
-    function renderStreakHistogram(containerId, streaks, color) {
+    function renderStreakHistogram(containerId, streaks, seriesClass) {
         const cont = document.getElementById(containerId);
         if (!cont) return;
         cont.innerHTML = '';
         if (!streaks.length) {
-            cont.innerHTML = '<div style="text-align:center; color:var(--label-color); width:100%;">No streak data yet.</div>';
+            cont.innerHTML = '<div class="text-center text-muted w-full">No streak data yet.</div>';
             return;
         }
 
@@ -465,14 +499,12 @@
             let pct = (val / chartMax) * 100;
             let gl = document.createElement('div');
             gl.className = 'grid-line';
-            gl.style.bottom = `${pct}%`;
-            if (i === 0) gl.style.opacity = '0';
+            gl.style.setProperty('--line-pos', `${pct}%`);
+            if (i === 0) gl.classList.add('is-baseline');
             gridLines.appendChild(gl);
             let yl = document.createElement('span');
-            yl.style.position = 'absolute';
-            yl.style.bottom = `${pct}%`;
-            yl.style.right = '0px';
-            yl.style.transform = 'translateY(50%)';
+            yl.className = 'chart-y-label';
+            yl.style.setProperty('--line-pos', `${pct}%`);
             yl.innerText = Math.round(val);
             yAxisCont.appendChild(yl);
         });
@@ -496,9 +528,8 @@
             });
 
             let bar = document.createElement('div');
-            bar.className = 'chart-bar';
-            bar.style.height = `${pct}%`;
-            bar.style.background = color;
+            bar.className = `chart-bar ${seriesClass}`;
+            bar.style.setProperty('--bar-h', `${pct}%`);
             barCont.appendChild(bar);
 
             // Labelling every bar gets unreadable once streaks run long, so
@@ -583,17 +614,17 @@
     }
 
     function displayLoginScreen() {
-        document.getElementById('mainContainer').style.display = 'none';
-        document.getElementById('loginScreen').style.display = 'flex';
+        setShown('mainContainer', false);
+        setShown('loginScreen', true);
         const statusText = document.getElementById('loginStatusText');
         if (statusText) statusText.textContent = 'Please log in to continue';
         const btn = document.getElementById('loginBtn');
-        if (btn) btn.style.display = 'inline-block';
+        if (btn) btn.classList.add('show');
     }
 
     function displayMainApp() {
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('mainContainer').style.display = 'block';
+        setShown('loginScreen', false);
+        setShown('mainContainer', true);
     }
 
     document.getElementById('loginBtn')?.addEventListener('click', () => auth.login());
@@ -627,6 +658,22 @@
         renderNotificationIndicators();
         document.getElementById('feedbackNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('feedback'));
         document.getElementById('theoryToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('theory_practice'));
+        document.getElementById('scalesToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('scales_practice'));
+        document.getElementById('warmupsToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('warmups'));
+        // ML-299: My music (create / import / library / edit) and Play Flow's "Create new".
+        document.getElementById('tapTempoToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('tap_tempo'));
+        document.getElementById('gapTrainerToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('gap_trainer'));
+        document.getElementById('earToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('ear_training'));
+        const manage = isFeatureEnabled('flow_manage');
+        document.getElementById('myMusicNavItem')?.classList.toggle('hidden-group', !manage);
+        document.getElementById('flowPlayMenuCreateNew')?.classList.toggle('hidden-group', !manage);
+        document.getElementById('rehearseAddBtn')?.classList.toggle('hidden-group', !manage);
+        rehearseRefresh();
+        renderToolGroups();
+    }
+    // Tool groups: a home tool group shows only while at least one of its tools does.
+    function renderToolGroups() {
+        document.querySelectorAll('#mainView .tool-group').forEach(g => setShown(g, [...g.querySelectorAll('.tool-icon-btn')].some(t => !t.classList.contains('hidden-group'))));
     }
 
     // ML-204: one start-screen option and one import screen, shared by two gates - MusicXML
@@ -794,11 +841,29 @@
             if (tile) { const c = tile.cloneNode(true); c.removeAttribute('id'); slot.appendChild(c); }
         });
     }
+    // Tool groups: one labelled row per home tool group (Everyday / Practise / Learn); a group with nothing
+    // switched on is left out.
     function renderNavToolsRow() {
-        const row = document.getElementById('navToolsRow');
-        if (!row) return;
-        row.innerHTML = '';
-        document.querySelectorAll('#mainView .tool-icon-row .tool-icon-btn').forEach(tile => {
+        const host = document.getElementById('navToolsRow');
+        if (!host) return;
+        host.innerHTML = '';
+        document.querySelectorAll('#mainView .tool-group').forEach(group => {
+            const tiles = [...group.querySelectorAll('.tool-icon-btn')];
+            if (!tiles.some(t => !t.classList.contains('hidden-group'))) return;
+            const title = document.createElement('div');
+            title.className = 'nav-section-title';
+            title.id = 'nav' + group.id;
+            title.textContent = group.querySelector('.tool-group-title')?.textContent || '';
+            const row = document.createElement('div');
+            row.className = 'nav-tools';
+            row.setAttribute('role', 'group');
+            row.setAttribute('aria-labelledby', title.id);
+            host.append(title, row);
+            renderNavToolTiles(row, tiles);
+        });
+    }
+    function renderNavToolTiles(row, tiles) {
+        tiles.forEach(tile => {
             const b = document.createElement('button');
             b.type = 'button';
             b.className = 'nav-tool' + (tile.classList.contains('hidden-group') ? ' hidden-group' : '');
@@ -816,9 +881,11 @@
     }
     // The current screen: its own item, or for a screen the menu doesn't list directly (a tool's inner
     // screens, Flow's editor...), the item it belongs under.
-    const NAV_PARENT_VIEW = { flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'metroBuilderView',
+    const NAV_PARENT_VIEW = { flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView',
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
+        accountDetailsView: 'accountView', accountBandsView: 'accountView', accountTeachersView: 'accountView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
+        tapTempoPlayView: 'tapTempoView', gapTrainerPlayView: 'gapTrainerView', earPlayView: 'earView',
         challengeSelectView: 'manageChallengesView', challengePlayView: 'manageChallengesView', challengeSummaryView: 'manageChallengesView', editChallengeView: 'manageChallengesView' };
     function markNavCurrent() {
         const top = viewStack[viewStack.length - 1] || 'mainView';
@@ -828,12 +895,11 @@
             else el.removeAttribute('aria-current');
         });
     }
-    // Who you're signed in as (name by My account, email under Log out) - fetched once, and refreshed
+    // Who you're signed in as (the email under Log out - ML-289 dropped the name by My account) - fetched once, and refreshed
     // whenever My account loads the profile (loadAccountView calls setNavAccount).
     let navAccountLoaded = false;
     function setNavAccount(profile) {
         navAccountLoaded = true;
-        document.getElementById('navAccountName').textContent = profile.firstName || '';
         document.getElementById('navAccountEmail').textContent = profile.email || '';
     }
     async function renderNavMenu() {
@@ -863,6 +929,7 @@
         const dropdown = document.getElementById('burgerDropdown');
         const opening = !dropdown.classList.contains('show');
         closeAllMetroPopupMenus();
+        if (opening) rehearseRefresh(); // ML-299: Rehearse appears in Tools as soon as there's a piece
         if (opening) {
             dropdown.classList.add('show');
             renderNavMenu();
@@ -892,14 +959,14 @@
         document.getElementById('confirmTitle').innerText = title;
         document.getElementById('confirmMessage').innerText = msg;
         const btn = document.getElementById('confirmActionBtn');
-        btn.style.background = isDanger ? 'var(--danger-color)' : 'var(--primary-action)';
+        btn.classList.toggle('is-danger', isDanger);
         btn.innerText = actionLabel || (isDanger ? 'Delete' : 'Confirm');
         document.getElementById('confirmCancelBtn').innerText = cancelLabel;
         confirmCallback = callback;
-        document.getElementById('confirmModal').style.display = 'flex';
+        showModal('confirmModal');
     }
     window.closeConfirmModal = function() {
-        document.getElementById('confirmModal').style.display = 'none';
+        hideModal('confirmModal');
         confirmCallback = null;
     }
     document.getElementById('confirmActionBtn')?.addEventListener('click', () => {
@@ -953,13 +1020,13 @@
         const input = document.getElementById('feedbackInput');
         if (input) input.value = feedbackDraft;
         updateFeedbackCharCount();
-        document.getElementById('feedbackModal').style.display = 'flex';
+        showModal('feedbackModal');
         input?.focus();
     };
     function closeFeedbackModal() {
         // Stash rather than clear - see the draft note above. Only a successful send empties it.
         feedbackDraft = document.getElementById('feedbackInput')?.value || '';
-        document.getElementById('feedbackModal').style.display = 'none';
+        hideModal('feedbackModal');
     }
     document.getElementById('feedbackCancelBtn')?.addEventListener('click', closeFeedbackModal);
     document.getElementById('feedbackModal')?.addEventListener('click', (e) => {
@@ -992,7 +1059,7 @@
             // it was so it can be retried rather than retyped.
             feedbackDraft = '';
             if (input) input.value = '';
-            document.getElementById('feedbackModal').style.display = 'none';
+            hideModal('feedbackModal');
             showSuccessToast('Thanks - feedback sent');
         } catch (error) {
             showWarningToast('Error sending feedback: ' + error.message);
@@ -1007,11 +1074,11 @@
         const input = document.getElementById('promptInput');
         input.value = defaultVal || '';
         promptCallback = callback;
-        document.getElementById('promptModal').style.display = 'flex';
+        showModal('promptModal');
         input.focus();
     }
     window.closePromptModal = function() {
-        document.getElementById('promptModal').style.display = 'none';
+        hideModal('promptModal');
         promptCallback = null;
     }
     document.getElementById('promptActionBtn')?.addEventListener('click', () => {
@@ -1030,10 +1097,10 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
-    const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView'];
+    const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
     let viewStack = ['mainView'];
     // Which tab flowDetailsHubView should open on next - set by a caller just before switchView,
     // read/cleared by that view's own switchView case. null means the default (Details).
@@ -1095,6 +1162,15 @@
         // Quick Play has no mini bar (unlike the single-bar tool it replaced/Metronome Blocks) - it's
         // always fully editable, so there's nothing sensible to keep "playing in the background"
         // without a visible transport. Leaving the view just pauses it in place.
+        // ML-9: the Scales metronome pauses in place when you leave (no mini bar to keep it going).
+        // isShown, not the view stack: goBack pops the stack before calling switchView.
+        if (isShown('scalesView') && viewName !== 'scalesView' && scalesPlayer.isPlaying()) scalesPause();
+        if (isShown('warmupsView') && viewName !== 'warmupsView' && warmupsPlayer.isPlaying()) warmupsPause();
+        // ML-298/295/296: leaving a drill mid-round stops its sound (and the mic) - the round isn't saved.
+        if (isShown('tapTempoPlayView') && viewName !== 'tapTempoPlayView') tapStop();
+        if (isShown('gapTrainerPlayView') && viewName !== 'gapTrainerPlayView') gapStop();
+        if (isShown('earPlayView') && viewName !== 'earPlayView') earStop();
+
         if (viewStack[viewStack.length - 1] === 'quickPlayView' && viewName !== 'quickPlayView' && qpPlayer.isPlaying()) {
             qpPlayer.pause();
             updateQPPlayIcon();
@@ -1118,7 +1194,7 @@
         // which is precisely the case an abandoned attempt usually arrives by. The rendered display
         // state is the one thing that's accurate however this view was reached.
         const hubEl = document.getElementById('flowDetailsHubView');
-        if (hubEl && hubEl.style.display === 'block' && viewName !== 'flowDetailsHubView') {
+        if (isShown(hubEl) && viewName !== 'flowDetailsHubView') {
             flowStatsFinish('abandoned');
         }
 
@@ -1126,14 +1202,15 @@
 
         views.forEach(v => {
             const el = document.getElementById(v);
-            if(el) el.style.display = 'none';
+            setShown(el, false);
         });
 
         const targetEl = document.getElementById(viewName);
-        if(targetEl) targetEl.style.display = 'block';
+        setShown(targetEl, true);
 
         const topBackBtn = document.getElementById('topBackBtn');
         if (viewName === 'mainView') {
+            rehearseRefresh(); // ML-299: the Rehearse tile shows once there's a piece to play
             topBackBtn.classList.add('hidden-btn');
             document.getElementById('topTitle').innerText = 'The Music Ledger';
         } else {
@@ -1145,6 +1222,10 @@
         if (viewName === 'statsView') { document.getElementById('topTitle').innerText = 'Detailed stats'; scrollStatsToRight(); }
         if (viewName === 'entryForm') { document.getElementById('topTitle').innerText = 'Add record'; }
         if (viewName === 'accountView') { document.getElementById('topTitle').innerText = 'My account'; loadAccountView(); }
+        // ML-289: My account's groups, each its own screen (the data was loaded by the list above).
+        if (viewName === 'accountDetailsView') { document.getElementById('topTitle').innerText = 'Your details'; }
+        if (viewName === 'accountBandsView') { document.getElementById('topTitle').innerText = 'Your bands'; loadAccountBands(); }
+        if (viewName === 'accountTeachersView') { document.getElementById('topTitle').innerText = 'Teachers'; loadTeacherList(); }
         // ML-282: Settings is a list of groups, each its own screen. Every screen re-syncs its
         // controls from storage in case they were last changed elsewhere (the Tuner page itself).
         const SETTINGS_TITLES = { settingsView: 'Settings', settingsDisplayView: 'Display settings', settingsStatsView: 'Stats settings', settingsTunerView: 'Tuner settings', settingsPlaybackView: 'Metronome & playback' };
@@ -1155,6 +1236,15 @@
         }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
         if (viewName === 'theoryView') { document.getElementById('topTitle').innerText = 'Theory'; renderTheoryList(); }
+        if (viewName === 'scalesView') { document.getElementById('topTitle').innerText = 'Scales'; renderScales(); scalesRenderBpm(); scalesRenderVolume(); scalesUpdatePlayUi(); scalesPlayer.prewarm(); }
+        if (viewName === 'warmupsView') { document.getElementById('topTitle').innerText = 'Warm-ups'; openWarmupsView(); }
+        if (viewName === 'tapTempoView') { document.getElementById('topTitle').innerText = 'Tempo'; renderTapTempoSetup(); tapPlayer.prewarm(); }
+        if (viewName === 'gapTrainerView') { document.getElementById('topTitle').innerText = 'Pulse'; renderGapTrainerSetup(); gapPlayer.prewarm(); }
+        if (viewName === 'earView') { document.getElementById('topTitle').innerText = 'Pitch'; renderEarSetup(); }
+        if (viewName === 'tapTempoPlayView') document.getElementById('topTitle').innerText = DRILL_TITLES.tapTempo;
+        if (viewName === 'gapTrainerPlayView') document.getElementById('topTitle').innerText = DRILL_TITLES.gapTrainer;
+        if (viewName === 'earPlayView') document.getElementById('topTitle').innerText = DRILL_TITLES.ear;
+        if (viewName === 'drillResultsView') document.getElementById('topTitle').innerText = DRILL_TITLES[drillLast ? drillLast.tool : ''] || '';
         if (viewName === 'theoryOptionsView') { document.getElementById('topTitle').innerText = TheoryEngine.quiz(theoryQuizId).title; renderTheoryOptions(); }
         if (viewName === 'theoryPlayView') { document.getElementById('topTitle').innerText = TheoryEngine.quiz(theoryQuizId).title; }
         if (viewName === 'theoryResultsView') { document.getElementById('topTitle').innerText = 'Results'; }
@@ -1186,6 +1276,7 @@
             }
         }
 
+        if (viewName === 'rehearseView') { document.getElementById('topTitle').innerText = 'Rehearse'; renderRehearseList(); rehearseRefresh(); }
         if (viewName === 'metroBuilderView') {
             // No title text here any more (ML-91) - the tuner toggle takes that spot in the top bar
             // instead, and the view is unambiguous from its content anyway.
@@ -1318,10 +1409,10 @@
             { label: '🐛 Fixes', items: changes.filter(c => c.type === 'Fixes') }
         ];
         return groups.filter(g => g.items.length).map(g => `
-            <div style="margin-bottom:var(--space-2);">
-                <strong style="font-size:var(--font-sm);">${g.label}</strong>
-                <ul style="margin:var(--space-1) 0 0 0; padding-left:var(--space-5);">
-                    ${g.items.map(c => `<li style="margin-bottom:var(--space-1);">${c.summary}</li>`).join('')}
+            <div class="mb-2">
+                <strong class="text-sm">${g.label}</strong>
+                <ul class="release-change-list">
+                    ${g.items.map(c => `<li class="mb-1">${c.summary}</li>`).join('')}
                 </ul>
             </div>`).join('');
     }
@@ -1349,23 +1440,23 @@
                 ? `<div class="about-running-note">This device is running v${escapeHtml(runningAppVersion)}. Close and reopen the app (or <a href="#" onclick="event.preventDefault(); location.reload();">reload now</a>) to get v${escapeHtml(current.version)}.</div>`
                 : '';
             currentEl.innerHTML = staleNote + `
-                <div class="play-card" style="text-align:left;">
-                    <div style="font-size:var(--font-sm); color:var(--label-color); margin-bottom:var(--space-1);">Current version</div>
+                <div class="play-card text-left">
+                    <div class="text-sm text-muted mb-1">Current version</div>
                     <div class="play-piece">v${current.version}</div>
-                    <div class="text-muted" style="margin-bottom:var(--space-4);">Released ${formatReleaseDate(current.date)}</div>
+                    <div class="text-muted mb-4">Released ${formatReleaseDate(current.date)}</div>
                     ${renderChangeList(current.changes)}
                 </div>`;
 
             historyEl.innerHTML = older.length
                 ? older.map(r => `
-                    <div class="history-item" style="flex-direction:column; align-items:flex-start;">
+                    <div class="history-item flex-col items-start">
                         <strong>v${r.version}</strong>
-                        <div class="text-muted" style="font-size:var(--font-sm); margin-bottom:var(--space-2);">${formatReleaseDate(r.date)}</div>
+                        <div class="text-muted text-sm mb-2">${formatReleaseDate(r.date)}</div>
                         ${renderChangeList(r.changes)}
                     </div>`).join('')
                 : '<div class="text-muted">This is the first recorded release.</div>';
         } catch (err) {
-            currentEl.innerHTML = `<div style="color:var(--danger-text);">Error loading releases: ${err.message}</div>`;
+            currentEl.innerHTML = `<div class="text-danger">Error loading releases: ${err.message}</div>`;
         }
     }
 
@@ -1433,7 +1524,7 @@
         notificationsUnreadCount = res.unreadCount || 0;
         if (res.appVersion) latestAppVersion = res.appVersion;
         renderNotificationIndicators();
-        if (document.getElementById('notificationsView')?.style.display === 'block') renderNotificationsView();
+        if (isShown('notificationsView')) renderNotificationsView();
     }
 
     // Quiet by design - a failed poll (offline, flag switched off) never toasts; the next one retries.
@@ -1546,9 +1637,9 @@
     async function loadChallenges(token) {
         try {
             allChallenges = await API.challenges.get(token);
-            if(document.getElementById('editChallengeView').style.display === 'block') renderEditChallengeItems();
-            if(document.getElementById('manageChallengesView').style.display === 'block') renderChallengesList();
-            if(document.getElementById('challengeSelectView').style.display === 'block') renderChallengeSelect();
+            if(isShown('editChallengeView')) renderEditChallengeItems();
+            if(isShown('manageChallengesView')) renderChallengesList();
+            if(isShown('challengeSelectView')) renderChallengeSelect();
         } catch (error) {
             showWarningToast('Error loading challenges: ' + error.message);
         }
@@ -1658,7 +1749,7 @@
             showSuccessToast("Challenge created!");
             btn.innerText = "Create & add tasks";
             btn.disabled = false;
-            document.getElementById('addChallengeModal').style.display = 'none';
+            hideModal('addChallengeModal');
             ['cName','cPiece','cRef','cBarFrom','cBarTo','cBPM','cTechFrom','cTechTo'].forEach(id => {
                 let el = document.getElementById(id);
                 if(el) el.value = '';
@@ -1710,17 +1801,17 @@
                 let pct = Math.round((g.complete / g.total) * 100) || 0;
                 if(!showCompleted && pct === 100) return;
 
-                let typeColor = g.type === 'Performance' ? 'var(--cat-performance)' : 'var(--cat-lesson)';
+                const typeClass = g.type === 'Performance' ? 'category-performance' : 'category-lesson';
                 let typeIcon = g.type === 'Performance' ? '🎭' : '🛠️';
 
-                ui.innerHTML += `<div class="history-item draggable-item" draggable="true" data-id="${g.id}" style="align-items:center; border-left-color: ${typeColor}; padding-left:var(--space-1);">
+                ui.innerHTML += `<div class="history-item draggable-item items-center pl-1 category-edge ${typeClass}" draggable="true" data-id="${g.id}">
                     <button type="button" class="drag-handle" aria-label="Reorder ${g.name} - drag, or tap for Move up / Move down" aria-haspopup="menu" aria-expanded="false">☰</button>
-                    <div role="button" tabindex="0" style="flex-grow:1; cursor:pointer;" onclick="openEditChallenge('${g.id}')">
-                        <div style="display:flex; justify-content:space-between; width:100%; margin-bottom:var(--space-2);">
+                    <div role="button" tabindex="0" class="grow" onclick="openEditChallenge('${g.id}')">
+                        <div class="flex-row justify-between w-full mb-2">
                             <strong>${typeIcon} ${g.name}</strong>
-                            <span style="font-weight:var(--font-weight-bold); color:${pct===100?'var(--success-color)':'inherit'}">${pct}%</span>
+                            <span class="fw-bold${pct === 100 ? ' text-success' : ''}">${pct}%</span>
                         </div>
-                        <div style="font-size:var(--font-sm); color:var(--label-color);">
+                        <div class="text-sm text-muted">
                             ${g.complete} / ${g.total} tasks complete | ${formatMins(g.time)} total time
                         </div>
                     </div>
@@ -1752,10 +1843,10 @@
             Object.values(groups).forEach(g => {
                 if (g.incomplete > 0) {
                     const typeIcon = g.type === 'Performance' ? '🎭' : '🛠️';
-                    const typeColor = g.type === 'Performance' ? 'var(--cat-performance)' : 'var(--cat-lesson)';
-                    ui.innerHTML += `<button class="history-item" style="border-left-color: ${typeColor}; padding-left:var(--space-1); width:100%; text-align:left; cursor:pointer; flex-direction: column; align-items: flex-start; gap:var(--space-1);" onclick="startChallenge('${g.id}')">
-                        <div style="width:100%;"><strong>${typeIcon} ${g.name}</strong></div>
-                        <div class="text-muted" style="font-size:var(--font-sm);">${g.incomplete} remaining</div>
+                    const typeClass = g.type === 'Performance' ? 'category-performance' : 'category-lesson';
+                    ui.innerHTML += `<button class="history-item category-edge ${typeClass} pl-1 w-full text-left flex-col items-start gap-xs" onclick="startChallenge('${g.id}')">
+                        <div class="w-full"><strong>${typeIcon} ${g.name}</strong></div>
+                        <div class="text-muted text-sm">${g.incomplete} remaining</div>
                     </button>`;
                 }
             });
@@ -1860,20 +1951,20 @@
                 let refStr = item.ref || '';
                 if (item.barFrom || item.barTo) refStr += ` (Bars ${item.barFrom || '?'} - ${item.barTo || '?'})`;
                 let safePiece = String(item.piece).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                let borderColor = item.status === 'Complete' ? 'var(--success-color)' : (item.status === 'Closed' ? 'var(--control-off-bg)' : 'var(--primary-action)');
+                const edgeState = item.status === 'Complete' ? ' is-complete' : (item.status === 'Closed' ? ' is-closed' : '');
 
                 ecItemsList.innerHTML += `
-                <div class="history-item draggable-item" draggable="true" data-id="${item.row}" style="align-items:center; border-left: 4px solid ${borderColor}; padding-left:var(--space-1);">
+                <div class="history-item draggable-item items-center pl-1 challenge-item-edge${edgeState}" draggable="true" data-id="${item.row}">
                     <button type="button" class="drag-handle" aria-label="Reorder ${item.piece} - drag, or tap for Move up / Move down" aria-haspopup="menu" aria-expanded="false">☰</button>
-                    <div style="flex-grow:1;">
-                        <div style="display:flex; justify-content:space-between; width:100%;">
+                    <div class="grow">
+                        <div class="flex-row justify-between w-full">
                             <strong>${item.piece}</strong>
-                            <span style="font-size:var(--font-sm); color:var(--label-color);">${item.status}</span>
+                            <span class="text-sm text-muted">${item.status}</span>
                         </div>
-                        <div style="font-size:var(--font-sm); color:var(--label-color); margin-bottom:var(--space-2);">${refStr} ${item.bpm ? '| '+item.bpm+' bpm' : ''}</div>
-                        <div style="display:flex; gap:var(--space-1); width:100%;">
-                            <button class="btn-edit" style="flex:1" onclick="openItemDetailModal('${item.row}')">Edit</button>
-                            <button class="btn-delete" style="flex:1" onclick="deleteChallengeItem('${item.row}', '${safePiece}')">Delete</button>
+                        <div class="text-sm text-muted mb-2">${refStr} ${item.bpm ? '| '+item.bpm+' bpm' : ''}</div>
+                        <div class="flex-row gap-xs w-full">
+                            <button class="btn-edit flex-1" onclick="openItemDetailModal('${item.row}')">Edit</button>
+                            <button class="btn-delete flex-1" onclick="deleteChallengeItem('${item.row}', '${safePiece}')">Delete</button>
                         </div>
                     </div>
                 </div>`;
@@ -1903,7 +1994,7 @@
                 if(el) el.value = '';
             });
         }
-        if(modal) modal.style.display = 'flex';
+        showModal(modal);
     }
 
     document.getElementById('saveItemBtn')?.addEventListener('click', async () => {
@@ -1929,7 +2020,7 @@
             }
             btn.innerText = "Save task";
             btn.disabled = false;
-            document.getElementById('itemDetailModal').style.display = 'none';
+            hideModal('itemDetailModal');
             await loadChallenges();
             showSuccessToast("Task saved!");
         } catch (error) {
@@ -1990,8 +2081,7 @@
         document.getElementById('reorderMenuDown').classList.toggle('hidden-group', !(next && next.classList.contains('draggable-item')));
         menu.classList.add('show');
         const r = handle.getBoundingClientRect();
-        menu.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8))}px`;
-        menu.style.top = `${Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8)}px`;
+        placeAt(menu, Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)), Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8));
     }
     document.addEventListener('click', () => document.getElementById('reorderMenu')?.classList.remove('show'));
     ['reorderMenuUp', 'reorderMenuDown'].forEach((id, i) => document.getElementById(id)?.addEventListener('click', (e) => {
@@ -2179,10 +2269,10 @@
         const title = document.getElementById('summaryTitle');
         if (allCompleted) {
             title.innerText = "All challenges complete! 🎉";
-            title.style.color = "var(--success-color)";
+            title.classList.add('is-complete');
         } else {
             title.innerText = "Session complete!";
-            title.style.color = "var(--primary-action)";
+            title.classList.remove('is-complete');
         }
 
         document.getElementById('sumTime').innerText = formatMins(currentSessionLog.time);
@@ -2192,8 +2282,8 @@
         if(ul) {
             ul.innerHTML = '';
             currentSessionLog.items.forEach(i => {
-                let color = i.status === 'Complete' ? 'var(--success-color)' : 'var(--selection-color)';
-                ul.innerHTML += `<div style="padding:var(--space-3); border-bottom:1px solid var(--input-border); display:flex; justify-content:space-between;"><span><strong>${i.piece}</strong> ${i.ref}</span><span style="color:${color}; font-weight:var(--font-weight-bold);">${i.status} (${i.time}m)</span></div>`;
+                const statusClass = i.status === 'Complete' ? 'text-success' : 'text-selection';
+                ul.innerHTML += `<div class="summary-item-row"><span><strong>${i.piece}</strong> ${i.ref}</span><span class="fw-bold ${statusClass}">${i.status} (${i.time}m)</span></div>`;
             });
         }
         fetchDataAndRender();
@@ -2388,7 +2478,7 @@
         pillsEl.innerHTML = `
             <button type="button" class="filter-pill${allActive ? ' active' : ''}" data-filter-all>All <span class="filter-pill-count">${totalCount}</span></button>
             ${FILTER_CATEGORIES.map(cat => `
-                <button type="button" class="filter-pill${activeFilters[cat] ? ' active' : ''}" data-filter-cat="${cat}" style="${activeFilters[cat] ? `--filter-pill-accent:${colorMap[cat]}; --filter-pill-accent-text:${colorTextMap[cat]}` : ''}">${cat} <span class="filter-pill-count">${counts[cat] || 0}</span></button>
+                <button type="button" class="filter-pill ${categoryClass(cat)}${activeFilters[cat] ? ' active' : ''}" data-filter-cat="${cat}">${cat} <span class="filter-pill-count">${counts[cat] || 0}</span></button>
             `).join('')}
         `;
         pillsEl.querySelector('[data-filter-all]').addEventListener('click', () => {
@@ -2741,14 +2831,12 @@
             let pct = (val / chartMax) * 100;
             let gl = document.createElement('div');
             gl.className = 'grid-line';
-            gl.style.bottom = `${pct}%`;
-            if(i===0) gl.style.opacity = '0';
+            gl.style.setProperty('--line-pos', `${pct}%`);
+            if(i===0) gl.classList.add('is-baseline');
             gridLines.appendChild(gl);
             let yl = document.createElement('span');
-            yl.style.position = 'absolute';
-            yl.style.bottom = `${pct}%`;
-            yl.style.right = `0px`;
-            yl.style.transform = 'translateY(50%)';
+            yl.className = 'chart-y-label';
+            yl.style.setProperty('--line-pos', `${pct}%`);
             yl.innerText = val;
             yAxisCont.appendChild(yl);
         });
@@ -2778,19 +2866,17 @@
                 showAnchoredPopup(showProjection ? projection : bar, `${mNames[parseInt(m, 10)-1]} ${y}: ${vStr}`);
             });
 
-            const colour = { hours: 'var(--chart-hours)', days: 'var(--chart-days)', sess: 'var(--chart-sessions)' }[type];
+            const seriesClass = { hours: 'series-hours', days: 'series-days', sess: 'series-sessions' }[type];
             let bar = document.createElement('div');
-            bar.className = 'chart-bar';
-            bar.style.height = `${pct}%`;
-            bar.style.background = colour;
+            bar.className = `chart-bar ${seriesClass}`;
+            bar.style.setProperty('--bar-h', `${pct}%`);
             // The projection sits on top of the real bar as a hollow, outline-only extension in the
             // same colour - the real bar keeps its fill, the outline shows how far "this rate" reaches.
             let projection = null;
             if (showProjection) {
                 projection = document.createElement('div');
-                projection.className = 'chart-bar-projection';
-                projection.style.height = `${((projected - val) / chartMax) * 100}%`;
-                projection.style.borderColor = colour;
+                projection.className = `chart-bar-projection ${seriesClass}`;
+                projection.style.setProperty('--bar-h', `${((projected - val) / chartMax) * 100}%`);
                 barCont.appendChild(projection);
                 bar.classList.add('chart-bar-under-projection');
             }
@@ -2809,7 +2895,7 @@
                 let lbl = document.createElement('span');
                 lbl.className = 'chart-x-label';
                 if (showYear) {
-                    lbl.innerHTML = `${mName}<br><span style="font-size:var(--font-2xs);opacity:0.8;">${y}</span>`;
+                    lbl.innerHTML = `${mName}<br><span class="chart-x-year">${y}</span>`;
                 } else {
                     lbl.innerHTML = mName;
                 }
@@ -2847,7 +2933,7 @@
             const monthData = monthDataAll.filter(d => activeFilters[d.category]);
 
             if(monthData.length === 0) {
-                list.innerHTML = '<div style="text-align:center; padding: var(--space-5);">No entries.</div>';
+                list.innerHTML = '<div class="text-center p-5">No entries.</div>';
                 const historySummary = document.getElementById('historySummary');
                 if(historySummary) historySummary.innerText = `0h 0m (0)`;
                 return;
@@ -2857,8 +2943,7 @@
             monthData.forEach(item => {
                 totalMins += item.duration;
                 const div = document.createElement('div');
-                div.className = 'history-item';
-                div.style.borderLeftColor = colorMap[item.category];
+                div.className = `history-item category-edge ${categoryClass(item.category)}`;
                 div.dataset.historyRow = item.row;
                 div.dataset.historyCat = item.category;
 
@@ -2867,7 +2952,7 @@
 
                 div.innerHTML = `
                     <div class="history-details">
-                        <strong style="color: ${colorTextMap[item.category]}">${item.category} ${item.who ? '('+item.who+')' : ''}</strong>
+                        <strong class="category-text">${item.category} ${item.who ? '('+item.who+')' : ''}</strong>
                         ${dObj.getDate() || '?'} ${mNames[dObj.getMonth()] || '?'} ${dObj.getFullYear() || '?'} | ${Math.round(item.duration)} mins
                     </div>
                     <button type="button" class="list-item-menu-btn" data-session-history-menu-btn aria-label="Options for ${item.category} entry" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
@@ -2886,7 +2971,7 @@
             if(historySummary) historySummary.innerText = `${formatMins(totalMins)} (${monthData.length})`;
         } catch (err) {
             const historyList = document.getElementById('historyList');
-            if(historyList) historyList.innerHTML = `<div style="color:var(--danger-text); text-align:center; padding: var(--space-5);">Error rendering history:<br>${err.message}</div>`;
+            if(historyList) historyList.innerHTML = `<div class="text-danger text-center p-5">Error rendering history:<br>${err.message}</div>`;
             showWarningToast("History error: " + err.message);
         }
     }
@@ -2925,10 +3010,10 @@
             if (item.archived && !showArchived) return;
             const safe = String(item.name).replace(/'/g, "\\'").replace(/"/g, "&quot;");
             const label = item.archived
-                ? `${item.name} <span class="text-muted" style="font-size:var(--font-sm);">(archived)</span>`
+                ? `${item.name} <span class="text-muted text-sm">(archived)</span>`
                 : item.name;
 
-            container.innerHTML += `<div class="history-item" style="${item.archived ? 'opacity:0.6;' : ''}">
+            container.innerHTML += `<div class="history-item${item.archived ? ' is-muted' : ''}">
                 <span>${label}</span>
                 <button class="btn-icon-edit" onclick="editListItem('${type}', '${safe}')" aria-label="Edit"><span class="material-symbols-outlined">edit</span></button>
             </div>`;
@@ -2970,19 +3055,17 @@
 
         const actionBtn = document.getElementById('liActionBtn');
         if (item.archived) {
-            actionBtn.className = 'btn-nav no-margin';
-            actionBtn.style.cssText = 'margin-top:var(--space-2);';
+            actionBtn.className = 'btn-nav no-margin mt-2';
             actionBtn.innerHTML = 'Restore';
             actionBtn.setAttribute('aria-label', 'Restore');
         } else {
-            actionBtn.className = 'btn-icon-delete';
-            actionBtn.style.cssText = 'margin:var(--space-2) auto 0 auto;';
+            actionBtn.className = 'btn-icon-delete centered-action';
             actionBtn.innerHTML = '<span class="material-symbols-outlined">delete</span>';
             actionBtn.setAttribute('aria-label', item.usedInHistory ? 'Archive' : 'Remove');
         }
         actionBtn.onclick = () => handleListItemAction(type, name, item);
 
-        document.getElementById('listItemModal').style.display = 'flex';
+        showModal('listItemModal');
     }
 
     document.getElementById('liSaveBtn')?.addEventListener('click', async () => {
@@ -2990,7 +3073,7 @@
         const oldName = document.getElementById('liOriginalName').value;
         const newName = document.getElementById('liName')?.value.trim();
         if (!newName || newName === oldName) {
-            document.getElementById('listItemModal').style.display = 'none';
+            hideModal('listItemModal');
             return;
         }
 
@@ -3001,7 +3084,7 @@
             } else {
                 await API.settings.renameOrganisation(oldName, newName);
             }
-            document.getElementById('listItemModal').style.display = 'none';
+            hideModal('listItemModal');
             await loadTeacherList();
             fetchDataAndRender();
             showSuccessToast('Name updated');
@@ -3023,7 +3106,7 @@
                         : await API.settings.deleteOrganisation(name);
                     showSuccessToast(result.archived ? `${name} is still used in history, so it was archived instead of removed` : 'Removed successfully');
                 }
-                document.getElementById('listItemModal').style.display = 'none';
+                hideModal('listItemModal');
                 await loadTeacherList();
             } catch (error) {
                 showWarningToast("Error: " + error.message);
@@ -3120,8 +3203,7 @@
         left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
         let top = btnRect.bottom + 4;
         top = Math.min(top, window.innerHeight - menuHeight - 8);
-        menu.style.left = `${left}px`;
-        menu.style.top = `${top}px`;
+        placeAt(menu, left, top);
     }
     function closeAccountBandMenu() {
         document.getElementById('accountBandMenu')?.classList.remove('show');
@@ -3180,6 +3262,18 @@
             showWarningToast('Error loading account: ' + error.message);
         }
         await Promise.all([loadAccountBands(), loadTeacherList()]);
+        renderAccountSummaries();
+    }
+
+    // ML-289: one line under each My account row, like Settings' summaries.
+    function renderAccountSummaries() {
+        const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+        const name = [document.getElementById('accountFirstNameInput')?.value.trim(), document.getElementById('accountSurnameInput')?.value.trim()].filter(Boolean).join(' ');
+        set('accountDetailsSummary', name || document.getElementById('accountEmailReadout')?.textContent || 'Add your name');
+        const bands = accountBandsData.myBands.length;
+        set('accountBandsSummary', bands ? `${bands} band${bands === 1 ? '' : 's'}` : 'Not in a band yet');
+        const teachers = (appData.teachers || []).filter(t => !t.archived).length;
+        set('accountTeachersSummary', teachers ? `${teachers} teacher${teachers === 1 ? '' : 's'}` : 'None added yet');
     }
 
     document.getElementById('accountSaveNameBtn')?.addEventListener('click', async () => {
@@ -3280,7 +3374,7 @@
             if(session.who) sel.value = session.who;
         }
 
-        document.getElementById('editModal').style.display = 'flex';
+        showModal('editModal');
     }
 
     // ML-175: one shared floating menu for every session history row (Edit/Delete), same
@@ -3300,8 +3394,7 @@
         left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
         let top = btnRect.bottom + 4;
         top = Math.min(top, window.innerHeight - menuHeight - 8);
-        menu.style.left = `${left}px`;
-        menu.style.top = `${top}px`;
+        placeAt(menu, left, top);
     }
     function closeSessionHistoryItemMenu() {
         document.getElementById('sessionHistoryItemMenu')?.classList.remove('show');
@@ -3344,7 +3437,7 @@
                 who: who || null,
                 date: dStr
             });
-            document.getElementById('editModal').style.display = 'none';
+            hideModal('editModal');
             btn.innerText = 'Update record';
             btn.disabled = false;
             showSuccessToast('Record updated');
@@ -3378,11 +3471,11 @@
         toastCountdowns[toastId] = { barId, onComplete, deadline: Date.now() + durationMs, paused: null };
         const bar = document.getElementById(barId);
         if (bar) {
-            bar.style.transition = 'none';
-            bar.style.width = '100%';
+            // .is-running shrinks it to nothing over --countdown-ms (style.css). Back to full first.
+            bar.classList.remove('is-running', 'is-paused');
             void bar.offsetWidth; // force the 100% state to actually commit before animating away from it
-            bar.style.transition = `width ${durationMs}ms linear`;
-            bar.style.width = '0%';
+            bar.style.setProperty('--countdown-ms', `${durationMs}ms`);
+            bar.classList.add('is-running');
         }
         return setTimeout(onComplete, durationMs);
     }
@@ -3398,7 +3491,7 @@
         const undoBtn = document.getElementById('toastUndoBtn');
         if (cat && sessionId) {
             if (undoBtn) {
-                undoBtn.style.display = '';
+                setShown(undoBtn, true);
                 undoBtn.onclick = async () => {
                     closeToast('toastSuccess');
                     showInfoToast("Undoing...");
@@ -3413,13 +3506,13 @@
                 };
             }
         } else if (undoBtn) {
-            undoBtn.style.display = 'none';
+            setShown(undoBtn, false);
         }
         // display has to flip to visible BEFORE the bar's width dance starts, not after - a transition
         // begun while the toast is still display:none never actually animates (there's nothing
         // rendered yet for the browser to animate from), it just snaps straight to the end state the
         // instant display:flex reveals it.
-        t.style.display = 'flex';
+        t.classList.add('show');
         toastDismissTimers.toastSuccess = startToastCountdownBar('toastSuccessBar', TOAST_DURATIONS_MS.success, () => closeToast('toastSuccess'));
     }
 
@@ -3431,7 +3524,7 @@
         const msgEl = document.getElementById('toastWarningMsg');
         if(msgEl) msgEl.innerText = msg;
         clearTimeout(toastDismissTimers.toastWarning);
-        t.style.display = 'flex';
+        t.classList.add('show');
         toastDismissTimers.toastWarning = startToastCountdownBar('toastWarningBar', TOAST_DURATIONS_MS.warning, () => closeToast('toastWarning'));
     }
 
@@ -3441,7 +3534,7 @@
         const msgEl = document.getElementById('toastInfoMsg');
         if(msgEl) msgEl.innerText = msg;
         clearTimeout(toastDismissTimers.toastInfo);
-        t.style.display = 'flex';
+        t.classList.add('show');
         toastDismissTimers.toastInfo = startToastCountdownBar('toastInfoBar', TOAST_DURATIONS_MS.info, () => closeToast('toastInfo'));
     }
 
@@ -3464,13 +3557,13 @@
             closeToast('toastUndo');
             onUndo();
         };
-        t.style.display = 'flex';
+        t.classList.add('show');
         toastDismissTimers.toastUndo = startToastCountdownBar('toastUndoBar', TOAST_DURATIONS_MS.undo, () => closeToast('toastUndo'));
     }
 
     function closeToast(id) {
         const t = document.getElementById(id);
-        if(t) t.style.display = 'none';
+        if(t) t.classList.remove('show');
         clearTimeout(toastDismissTimers[id]);
         delete toastCountdowns[id];
     }
@@ -3482,7 +3575,7 @@
         clearTimeout(toastDismissTimers[id]);
         c.paused = Math.max(0, c.deadline - Date.now());
         const bar = document.getElementById(c.barId);
-        if (bar) { const w = getComputedStyle(bar).width; bar.style.transition = 'none'; bar.style.width = w; }
+        if (bar) { bar.style.setProperty('--frozen-w', getComputedStyle(bar).width); bar.classList.add('is-paused'); }
     }
     function resumeToast(id) {
         const c = toastCountdowns[id];
@@ -3491,7 +3584,7 @@
         c.paused = null;
         c.deadline = Date.now() + remaining;
         const bar = document.getElementById(c.barId);
-        if (bar) { void bar.offsetWidth; bar.style.transition = `width ${remaining}ms linear`; bar.style.width = '0%'; }
+        if (bar) { void bar.offsetWidth; bar.style.setProperty('--countdown-ms', `${remaining}ms`); bar.classList.remove('is-paused'); }
         toastDismissTimers[id] = setTimeout(c.onComplete, remaining);
     }
     ['toastSuccess', 'toastWarning', 'toastInfo', 'toastUndo'].forEach(id => {
@@ -3532,8 +3625,7 @@
         let top = anchorRect.top - popupRect.height - 8;
         if (top < 4) top = anchorRect.bottom + 8; // not enough room above - show it below instead
         top = Math.max(4, Math.min(top, window.innerHeight - popupRect.height - 4));
-        popup.style.left = `${left}px`;
-        popup.style.top = `${top}px`;
+        placeAt(popup, left, top);
         anchoredPopupEl = popup;
 
         // Dismissed by the next click anywhere, or a scroll of the page/chart underneath it - the
@@ -3585,6 +3677,7 @@
         let speedPercent = 100;
         let volume = 0.8;
         let muted = false;
+        let clickFilter = null; // ML-295 - see setClickFilter
         let visualLatencyMs = 0; // extra delay applied to the beat callback only, to match Bluetooth output lag
 
         // --- ML-130: fermata (held-beat pause) playback. A block's fermata positions are fully known
@@ -3902,7 +3995,10 @@
                 // below), so idx never itself changes mid-hold; resolveFermataPulse's own internal
                 // clicksRemaining is what actually advances the hold along.
                 const fermataResult = resolveFermataPulse(clickIndex);
-                if (!testClock) applyFermataAudio(fermataResult, kind, nextClickTime);
+                // ML-295: a drill (the Gap trainer) can silence chosen clicks - the beat is still counted,
+                // delivered and timed, just not heard. Nothing else sets a filter.
+                const heard = !clickFilter || clickFilter(clickIndex, totalPerBar);
+                if (!testClock && heard) applyFermataAudio(fermataResult, kind, nextClickTime);
 
                 // ML-193: in sequence mode the tempo can change click by click (tempo ramps) - each
                 // click's own length follows its own tempo, so a ramp has no one-beat lag.
@@ -3927,7 +4023,8 @@
                     clickIndex,
                     bpm: clickBpm,
                     intervalSeconds: interval,
-                    time: nextClickTime
+                    time: nextClickTime,
+                    heard
                 }, nextClickTime, sync);
 
                 nextClickTime += interval;
@@ -3964,6 +4061,11 @@
             // that one-time cost while the user is still looking at the controls, well before they
             // actually press Play.
             prewarm() { if (!testClock) ensureAudio(); },
+            // ML-295: drills. setClickFilter((clickIndex, clicksPerBar) => heard?) silences chosen clicks
+            // (null for none); audioNow() is the audio clock a tap is timed against - a delivered beat's
+            // `time` is on the same clock. null before any sound has started.
+            setClickFilter(fn) { clickFilter = typeof fn === 'function' ? fn : null; },
+            audioNow() { return audioCtx ? audioCtx.currentTime : null; },
             // Resumes from wherever clickIndex currently is (0 the first time, or wherever pause() left
             // it) - use stop() first if you want a fresh bar from the beginning. leadingSilenceSeconds
             // (ML-92, Metronome Blocks' lead-in "quiet space") delays the very first scheduled click by
@@ -4165,7 +4267,7 @@
         // correctly the moment it's shown, without needing a fixed px value at all.
         if (viewportWidthPx === 0) return;
         const neededWidthPx = totalBaseClicks * METRO_SLOT_PX + METRO_EDGE_PAD_PX * 2;
-        content.style.width = neededWidthPx > viewportWidthPx ? `${neededWidthPx}px` : '100%';
+        content.style.setProperty('--content-w', neededWidthPx > viewportWidthPx ? `${neededWidthPx}px` : '100%');
     }
 
     // Converts a 0-100 logical position (from metroTierGeometry's leftPct) into a CSS left value that
@@ -4198,14 +4300,14 @@
             dot.className = 'metro-dot ' + (isNoteBoundary ? 'metro-dot-note' : 'metro-dot-sub') +
                 (isNoteBoundary && k === 0 && !zeroBar ? ' accent' : '');
             dot.dataset.index = k;
-            dot.style.left = metroLeftStyle(leftPct(k));
+            dot.style.setProperty('--dot-x', metroLeftStyle(leftPct(k)));
             row.appendChild(dot);
         }
     }
 
     function resetMetroScrollPosition(contentId) {
         const content = document.getElementById(contentId);
-        if (content) { content.style.transitionDuration = '0s'; content.style.transform = 'translateX(0px)'; }
+        if (content) { content.style.setProperty('--scroll-dur', '0s'); content.style.setProperty('--scroll-x', '0px'); }
     }
 
     // When there are too many clicks to fit, keeps the current beat in view: the content track stays
@@ -4227,11 +4329,11 @@
 
         const scrollForPct = (pct) => Math.min(maxScrollPx, Math.max(0, (pct / 100) * contentWidthPx - viewportWidthPx / 2));
 
-        content.style.transitionDuration = '0s';
-        content.style.transform = `translateX(${-scrollForPct(arrivedPct)}px)`;
+        content.style.setProperty('--scroll-dur', '0s');
+        content.style.setProperty('--scroll-x', `${-scrollForPct(arrivedPct)}px`);
         void content.offsetWidth; // force the instant snap to commit before animating, see flashMetroBeat
-        content.style.transitionDuration = `${durationSeconds}s`;
-        content.style.transform = `translateX(${-scrollForPct(nextPct)}px)`;
+        content.style.setProperty('--scroll-dur', `${durationSeconds}s`);
+        content.style.setProperty('--scroll-x', `${-scrollForPct(nextPct)}px`);
     }
 
     function flashTierDot(rowId, index) {
@@ -4351,7 +4453,7 @@
             const marker = document.createElement('span');
             marker.className = 'metro-fermata-marker';
             marker.dataset.kind = p.kind;
-            marker.style.left = dot.style.left;
+            marker.style.setProperty('--dot-x', dot.style.getPropertyValue('--dot-x'));
             marker.innerHTML = flowPauseIconSvg(p.kind, false);
             row.appendChild(marker);
         });
@@ -4413,7 +4515,6 @@
     function makeSliderReadoutEditable(displayElOrId, getValue, setValue, opts = {}) {
         const displayEl = typeof displayElOrId === 'string' ? document.getElementById(displayElOrId) : displayElOrId;
         if (!displayEl) return;
-        displayEl.style.cursor = 'pointer';
         displayEl.tabIndex = 0;
         displayEl.setAttribute('role', 'button');
         displayEl.setAttribute('aria-label', (opts.label || 'Value') + ', tap to type a number');
@@ -4618,10 +4719,10 @@
         if (!ui) return;
         if (!metroBlkSetups.length) { ui.innerHTML = '<p>No saved setups yet - go back and choose "Create your own" to make one.</p>'; return; }
         ui.innerHTML = metroBlkSetups.map(s => `
-            <div class="history-item clickable" style="align-items:center;">
-                <div role="button" tabindex="0" style="flex-grow:1; cursor:pointer;" onclick="openMetroBlkSetup(${s.id})">
+            <div class="history-item clickable items-center">
+                <div role="button" tabindex="0" class="grow" onclick="openMetroBlkSetup(${s.id})">
                     <strong>${escapeHtml(s.name)}</strong>
-                    <div style="font-size:var(--font-sm); color:var(--label-color);">${s.blockCount} block${s.blockCount === 1 ? '' : 's'}${s.hasLeadIn ? ' + lead-in' : ''} &middot; ${formatMetroBlkDuration(s.totalSeconds)}</div>
+                    <div class="text-sm text-muted">${s.blockCount} block${s.blockCount === 1 ? '' : 's'}${s.hasLeadIn ? ' + lead-in' : ''} &middot; ${formatMetroBlkDuration(s.totalSeconds)}</div>
                 </div>
                 <div class="metroBlk-setup-row-actions">
                     <button class="btn-icon-copy" aria-label="Copy" onclick="duplicateMetroBlkSetup(${s.id})"><span class="material-symbols-outlined">content_copy</span></button>
@@ -4674,7 +4775,7 @@
         // from a previous visit.
         document.getElementById('metroBlkEntryLibrary')?.classList.add('hidden-group');
         document.querySelector('.metroBlk-entry-choices')?.classList.remove('hidden-group');
-        document.getElementById('metroBlkEntryTitle').innerText = 'Flow';
+        document.getElementById('metroBlkEntryTitle').innerText = 'My music';
     }
 
     // Shared by metroBlkEntryLoadBtn's own click and every other "jump straight to the library"
@@ -4683,7 +4784,7 @@
     function showFlowLibraryList() {
         document.querySelector('.metroBlk-entry-choices')?.classList.add('hidden-group');
         document.getElementById('metroBlkEntryLibrary')?.classList.remove('hidden-group');
-        document.getElementById('metroBlkEntryTitle').innerText = 'Flow library';
+        document.getElementById('metroBlkEntryTitle').innerText = 'Library';
     }
     function metroBlkShowEditorScreen() {
         document.getElementById('metroBlkEntryScreen')?.classList.add('hidden-group');
@@ -4733,10 +4834,53 @@
         try {
             flowsListCache = await API.flows.list();
             renderFlowsList();
+            rehearseLoaded = true;
+            rehearseShowTile();
         } catch (error) {
             showWarningToast('Error loading flows: ' + error.message);
         }
     }
+
+    // ---------------------------------------------------------------- Rehearse (ML-299)
+    // The home screen tool that used to be "Flow": only the pieces you can see that have bars to play,
+    // one tap to Play Flow (openFlow). Its tile (and ☰ Tools entry) shows only once there is one.
+    // Everything else - create, import, library, edit - is My music (metroBuilderView, flow_manage).
+    const rehearsePlayable = () => (flowsListCache || []).filter(f => f.blockCount > 0);
+    function rehearseShowTile() {
+        const tile = document.getElementById('rehearseToolBtn');
+        if (!tile) return;
+        const hidden = !rehearsePlayable().length;
+        if (tile.classList.contains('hidden-group') === hidden) return;
+        tile.classList.toggle('hidden-group', hidden);
+        renderToolGroups();
+        renderNavToolsRow();
+    }
+    var rehearseLoading = null, rehearseLoaded = false; // var: switchView can call rehearseRefresh before this line has run
+    function rehearseRefresh() {
+        if (rehearseLoading) return rehearseLoading;
+        rehearseLoading = API.flows.list()
+            .then(list => { flowsListCache = list; rehearseLoaded = true; rehearseShowTile(); if (viewStack[viewStack.length - 1] === 'rehearseView') renderRehearseList(); })
+            .catch(() => { /* offline - the tile keeps its last state */ })
+            .finally(() => { rehearseLoading = null; });
+        return rehearseLoading;
+    }
+    function renderRehearseList() {
+        const ui = document.getElementById('rehearseList');
+        if (!ui) return;
+        const pieces = rehearsePlayable();
+        setShown('rehearseEmpty', !pieces.length && rehearseLoaded);
+        if (!pieces.length) { ui.innerHTML = rehearseLoaded ? '' : 'Loading...'; return; }
+        ui.innerHTML = pieces.map(f => `
+            <button type="button" class="history-item clickable" data-rehearse-id="${f.id}">
+                <span class="grow">
+                    <strong>${escapeHtml(f.title)}</strong>
+                    <br><span class="text-sm text-muted">${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}</span>
+                </span>
+                <span class="material-symbols-outlined" aria-hidden="true">play_arrow</span>
+            </button>`).join('');
+        ui.querySelectorAll('[data-rehearse-id]').forEach(b => b.addEventListener('click', () => openFlow(Number(b.dataset.rehearseId))));
+    }
+    document.getElementById('rehearseAddBtn')?.addEventListener('click', () => switchView('metroBuilderView'));
 
     function flowOwnershipLabel(flow) {
         if (flow.isPublic) return 'Public';
@@ -4755,9 +4899,9 @@
         if (!flowsListCache.length) { ui.innerHTML = '<p>No flows yet - go back and choose "Create your own" to make one.</p>'; return; }
         ui.innerHTML = flowsListCache.map(f => `
             <div class="history-item clickable" data-flow-library-id="${f.id}">
-                <div role="button" tabindex="0" style="flex-grow:1; cursor:pointer;" onclick="openFlow(${f.id})">
+                <div role="button" tabindex="0" class="grow" onclick="openFlow(${f.id})">
                     <strong>${escapeHtml(f.title)}</strong>
-                    <div style="font-size:var(--font-sm); color:var(--label-color);">${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}</div>
+                    <div class="text-sm text-muted">${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}</div>
                 </div>
                 ${flowLibraryMenuItemsFor(f).length ? `<button type="button" class="list-item-menu-btn" data-flow-library-menu-btn aria-label="Options for ${escapeHtml(f.title)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>` : ''}
             </div>
@@ -4799,8 +4943,7 @@
         left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
         let top = btnRect.bottom + 4;
         top = Math.min(top, window.innerHeight - menuHeight - 8);
-        menu.style.left = `${left}px`;
-        menu.style.top = `${top}px`;
+        placeAt(menu, left, top);
     }
     function closeFlowLibraryItemMenu() {
         document.getElementById('flowLibraryItemMenu')?.classList.remove('show');
@@ -5146,7 +5289,7 @@
         document.getElementById('flowFromFileResult')?.classList.add('hidden-group');
         labelEl.innerText = 'Uploading…';
         percentEl.innerText = '0%';
-        fillEl.style.width = '0%';
+        fillEl.style.setProperty('--progress', '0%');
         progressBox.classList.remove('hidden-group');
 
         try {
@@ -5156,7 +5299,7 @@
                 onUploadProgress: (progress) => {
                     const pct = Math.round(progress.percentage);
                     percentEl.innerText = `${pct}%`;
-                    fillEl.style.width = `${pct}%`;
+                    fillEl.style.setProperty('--progress', `${pct}%`);
                 }
             });
             // The upload's own progress has nothing to report during the parse itself (one request,
@@ -5166,7 +5309,7 @@
             // formats skip straight to - "Scanning" sets that expectation rather than looking stuck.
             labelEl.innerText = file.type === 'application/pdf' || /\.pdf$/i.test(file.name) ? 'Scanning score…' : 'Parsing score…';
             percentEl.innerText = '100%';
-            fillEl.style.width = '100%';
+            fillEl.style.setProperty('--progress', '100%');
 
             const flow = await API.flows.fromFile.create({
                 blobUrl: blob.url, blobPathname: blob.pathname,
@@ -5247,9 +5390,9 @@
         const detailsPanel = document.getElementById('flowEditDetailsTab');
         const mediaPanel = document.getElementById('flowEditMediaTab');
         const blocksPanel = document.getElementById('flowEditBlocksTab');
-        if (detailsPanel) detailsPanel.style.display = tab === 'details' ? 'block' : 'none';
-        if (mediaPanel) mediaPanel.style.display = tab === 'media' ? 'block' : 'none';
-        if (blocksPanel) blocksPanel.style.display = tab === 'blocks' ? 'block' : 'none';
+        setShown(detailsPanel, tab === 'details');
+        setShown(mediaPanel, tab === 'media');
+        setShown(blocksPanel, tab === 'blocks');
         updateFlowEditStickyBar();
     }
     // Guards leaving the Details tab (via a tab click or the sticky bar button) on an empty flow
@@ -5501,7 +5644,7 @@
             <div class="history-item flow-media-item">
                 <div class="flow-media-item-top">
                     <div class="history-details">
-                        <span class="flow-media-icon ${isYoutube ? 'type-youtube' : 'type-audio'}"><span class="material-symbols-outlined" style="font-size:var(--icon-md);">${icon}</span></span>
+                        <span class="flow-media-icon ${isYoutube ? 'type-youtube' : 'type-audio'}"><span class="material-symbols-outlined icon-md">${icon}</span></span>
                         <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(meta)}</span></div>
                     </div>
                     <button type="button" class="flow-delete-btn" onclick="deleteFlowRecording('${r.id}')" aria-label="Delete ${escapeHtml(r.title)}"><span class="material-symbols-outlined">delete</span></button>
@@ -5560,7 +5703,7 @@
         const fillEl = document.getElementById('flowRecordingUploadFill');
         nameEl.innerText = file.name;
         percentEl.innerText = '0%';
-        fillEl.style.width = '0%';
+        fillEl.style.setProperty('--progress', '0%');
         progressBox.classList.remove('hidden-group');
         try {
             // Goes straight from this browser to Blob storage (window.vercelBlobUpload, loaded via
@@ -5576,7 +5719,7 @@
                 onUploadProgress: (progress) => {
                     const pct = Math.round(progress.percentage);
                     percentEl.innerText = `${pct}%`;
-                    fillEl.style.width = `${pct}%`;
+                    fillEl.style.setProperty('--progress', `${pct}%`);
                 }
             });
             // The blob upload itself always happens immediately either way (it's just getting the
@@ -5599,7 +5742,7 @@
     document.getElementById('flowAddYouTubeBtn')?.addEventListener('click', () => {
         document.getElementById('flowYouTubeUrlInput').value = '';
         document.getElementById('flowYouTubeTitleInput').value = '';
-        document.getElementById('flowYouTubeModal').style.display = 'flex';
+        showModal('flowYouTubeModal');
     });
     document.getElementById('flowYouTubeSaveBtn')?.addEventListener('click', async () => {
         const url = document.getElementById('flowYouTubeUrlInput').value.trim();
@@ -5616,7 +5759,7 @@
             } else {
                 currentFlowDetail = await API.flows.recordings.addYouTube(currentFlowId, { url, title });
             }
-            document.getElementById('flowYouTubeModal').style.display = 'none';
+            hideModal('flowYouTubeModal');
             renderFlowRecordingsList();
             showSuccessToast('YouTube video added');
         } catch (error) {
@@ -5681,7 +5824,7 @@
         const fillEl = document.getElementById('flowDocumentUploadFill');
         nameEl.innerText = file.name;
         percentEl.innerText = '0%';
-        fillEl.style.width = '0%';
+        fillEl.style.setProperty('--progress', '0%');
         progressBox.classList.remove('hidden-group');
         try {
             const blob = await window.vercelBlobUpload(`flows/${currentFlowId}/documents/${file.name}`, file, {
@@ -5691,7 +5834,7 @@
                 onUploadProgress: (progress) => {
                     const pct = Math.round(progress.percentage);
                     percentEl.innerText = `${pct}%`;
-                    fillEl.style.width = `${pct}%`;
+                    fillEl.style.setProperty('--progress', `${pct}%`);
                 }
             });
             const uploaded = { blobUrl: blob.url, blobPathname: blob.pathname, fileName: file.name, fileSizeBytes: file.size, mimeType: blob.contentType || file.type };
@@ -6341,7 +6484,7 @@
         // made from inside it (tile picker, move, duplicate) lands here via renderFlowBlocksStudio.
         renderFlowBarPopup();
         if (!currentFlowBlocks.length) {
-            container.innerHTML = '<p class="text-muted" style="text-align:center; padding: var(--space-5);">No bars yet - add your first one below.</p>';
+            container.innerHTML = '<p class="text-muted text-center p-5">No bars yet - add your first one below.</p>';
             return;
         }
         if (grid) {
@@ -6634,21 +6777,21 @@
             // FLIP the tiles that shifted: jump back to where they were, then slide to the new slot.
             others.forEach(t => {
                 t.classList.remove('flow-bar-grid-tile-shuffling');
-                t.style.transform = '';
+                clearMove(t);
                 const prev = before.get(t);
                 const now = t.getBoundingClientRect();
                 if (prev.left === now.left && prev.top === now.top) return;
-                t.style.transform = `translate(${prev.left - now.left}px, ${prev.top - now.top}px)`;
+                setMove(t, prev.left - now.left, prev.top - now.top);
                 void t.offsetWidth; // commit the inverted position before transitioning away from it
                 t.classList.add('flow-bar-grid-tile-shuffling');
-                t.style.transform = '';
+                clearMove(t);
             });
         }
         // Measure the held tile's real slot rather than reusing d.slots: in 2 columns rows can change
         // height as tiles move, so the recorded positions (still right for choosing a target) drift.
-        held.style.transform = '';
+        clearMove(held);
         const slot = held.getBoundingClientRect();
-        held.style.transform = `translate(${d.x - d.grabDX - slot.left}px, ${d.y - d.grabDY - slot.top}px)`;
+        setMove(held, d.x - d.grabDX - slot.left, d.y - d.grabDY - slot.top);
     }
     function flowBarGridAutoScroll(d) {
         if (flowBarDrag !== d || !d.active) return;
@@ -6689,12 +6832,12 @@
     function openFlowBarPopup(blockId) {
         flowBarPopupBlockId = blockId;
         renderFlowBarPopup();
-        document.getElementById('flowBarPopupModal').style.display = 'flex';
+        showModal('flowBarPopupModal');
     }
     function closeFlowBarPopup() {
         flowBarPopupBlockId = null;
         const modal = document.getElementById('flowBarPopupModal');
-        if (modal) modal.style.display = 'none';
+        hideModal(modal);
     }
     function renderFlowBarPopup() {
         const content = document.getElementById('flowBarPopupContent');
@@ -6819,8 +6962,7 @@
     function flowSetSwipeOffset(blockId, offset, animate) {
         const surface = flowBlockSurfaceFor(blockId);
         if (!surface) return;
-        surface.style.transition = animate ? 'transform 0.2s ease' : 'none';
-        surface.style.transform = offset ? `translateX(${offset}px)` : '';
+        swipeTo(surface, offset, animate);
     }
     function flowCloseOpenSwipe(animate = true) {
         if (flowOpenSwipeBlockId === null) return;
@@ -6872,8 +7014,7 @@
             }
             e.preventDefault();
             const offset = Math.min(0, Math.max(-FLOW_BLOCK_SWIPE_OPEN_PX, currentBaseOffset() + dx));
-            surfaceEl.style.transition = 'none';
-            surfaceEl.style.transform = `translateX(${offset}px)`;
+            swipeTo(surfaceEl, offset, false, true);
         }
         function onUp(e) {
             if (!tracking) return;
@@ -6926,14 +7067,14 @@
         `).join('');
         container.querySelectorAll('[data-choice-idx]').forEach(el => {
             el.addEventListener('click', () => {
-                document.getElementById('flowChoiceModal').style.display = 'none';
+                hideModal('flowChoiceModal');
                 onSelect(options[Number(el.dataset.choiceIdx)]);
             });
         });
-        document.getElementById('flowChoiceModal').style.display = 'flex';
+        showModal('flowChoiceModal');
     }
     function closeFlowChoiceModal() {
-        document.getElementById('flowChoiceModal').style.display = 'none';
+        hideModal('flowChoiceModal');
     }
 
     // --- Repeat bar / volta - which repeat pass(es) (1-9) this bar plays on, multi-select rather
@@ -6989,10 +7130,10 @@
             numbers: new Set(b.repeatEndingNumbers || [])
         };
         renderFlowRepeatBarModal();
-        document.getElementById('flowRepeatBarModal').style.display = 'flex';
+        showModal('flowRepeatBarModal');
     }
     function closeFlowRepeatBarModal() {
-        document.getElementById('flowRepeatBarModal').style.display = 'none';
+        hideModal('flowRepeatBarModal');
         flowRepeatBarTargetId = null;
         flowRepeatBarDraft = null;
     }
@@ -7083,10 +7224,10 @@
             maxBar
         };
         renderFlowIntroModal();
-        document.getElementById('flowIntroModal').style.display = 'flex';
+        showModal('flowIntroModal');
     }
     function closeFlowIntroModal() {
-        document.getElementById('flowIntroModal').style.display = 'none';
+        hideModal('flowIntroModal');
         flowIntroTargetId = null;
         flowIntroDraft = null;
     }
@@ -7158,7 +7299,7 @@
                 : { timeSignatureId: null, accountTimeSignatureId: Number(id) });
         };
         renderMetroSegTimeSigPicker();
-        document.getElementById('metroSegTimeSigModal').style.display = 'flex';
+        showModal('metroSegTimeSigModal');
     }
     function flowOpenNotePicker(blockId) {
         const b = flowFindBlockById(blockId);
@@ -7173,10 +7314,10 @@
         el.querySelectorAll('.metroBlk-note-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 flowUpdateBlock(blockId, { noteValue: btn.dataset.note });
-                document.getElementById('metroSegNoteModal').style.display = 'none';
+                hideModal('metroSegNoteModal');
             }, { once: true });
         });
-        document.getElementById('metroSegNoteModal').style.display = 'flex';
+        showModal('metroSegNoteModal');
     }
 
     // Start-of-bar picker - same "Beat unit" modal format (title/help text/close-x, a row of
@@ -7200,10 +7341,10 @@
             btn.addEventListener('click', () => {
                 const opt = options.find(o => o.key === btn.dataset.startOption);
                 flowUpdateBlock(blockId, opt.apply);
-                document.getElementById('flowBarStartModal').style.display = 'none';
+                hideModal('flowBarStartModal');
             }, { once: true });
         });
-        document.getElementById('flowBarStartModal').style.display = 'flex';
+        showModal('flowBarStartModal');
     }
 
     // Shared option-card markup for the End-of-bar picker below - icon (+ a repeat count next to
@@ -7254,13 +7395,13 @@
             el.querySelectorAll('.flow-picker-tile').forEach((btn, i) => {
                 btn.addEventListener('click', () => {
                     flowUpdateBlock(blockId, options[i].apply);
-                    document.getElementById('flowBarEndModal').style.display = 'none';
+                    hideModal('flowBarEndModal');
                 }, { once: true });
             });
         }
         render('flowBarEndStructureGrid', structureOptions);
         render('flowBarEndRepeatsGrid', repeatOptions);
-        document.getElementById('flowBarEndModal').style.display = 'flex';
+        showModal('flowBarEndModal');
     }
 
     // --- Shared "tap a glyph tile to select & close, no Save/Cancel" picker shape, used by both the
@@ -7285,10 +7426,10 @@
         grid.querySelectorAll('.flow-picker-tile').forEach((btn, i) => {
             btn.addEventListener('click', () => {
                 onSelect(options[i]);
-                document.getElementById(modalId).style.display = 'none';
+                hideModal(modalId);
             }, { once: true });
         });
-        document.getElementById(modalId).style.display = 'flex';
+        showModal(modalId);
     }
     function openFlowSignPicker(blockId) {
         const b = flowFindBlockById(blockId);
@@ -7301,7 +7442,7 @@
         openFlowGlyphPicker('flowSignModal', 'flowSignOptions', options, (opt) => flowUpdateBlock(blockId, opt.apply));
     }
     document.getElementById('flowSignCloseBtn')?.addEventListener('click', () => {
-        document.getElementById('flowSignModal').style.display = 'none';
+        hideModal('flowSignModal');
     });
 
     // --- Jump instruction picker (#flowJumpModal) - None, then the 5 core jump instructions, a clean
@@ -7337,7 +7478,7 @@
         openFlowGlyphPicker('flowJumpModal', 'flowJumpOptions', options, (opt) => flowUpdateBlock(blockId, opt.apply));
     }
     document.getElementById('flowJumpCloseBtn')?.addEventListener('click', () => {
-        document.getElementById('flowJumpModal').style.display = 'none';
+        hideModal('flowJumpModal');
     });
 
     // --- BPM popup - same tiered-slider mechanic as the ad-hoc/Quick Play BPM controls
@@ -7368,9 +7509,9 @@
     }
     function renderFlowBpmSlider(value) {
         const pct = ((value - METRO_MIN_BPM) / (flowBpmSliderMax - METRO_MIN_BPM)) * 100;
-        document.getElementById('flowBpmSliderFill').style.width = `${pct}%`;
+        document.getElementById('flowBpmSliderFill').style.setProperty('--pct', `${pct}%`);
         const thumb = document.getElementById('flowBpmSliderThumb');
-        thumb.style.left = `${pct}%`;
+        thumb.style.setProperty('--pct', `${pct}%`);
         thumb.setAttribute('aria-valuenow', value);
         thumb.setAttribute('aria-valuemax', flowBpmSliderMax);
         document.getElementById('flowBpmSliderMaxLbl').innerText = flowBpmSliderMax;
@@ -7392,7 +7533,7 @@
         flowBpmOriginalValue = value;
         flowBpmSliderMax = metroBestFitTier(value);
         renderFlowBpmSlider(value);
-        document.getElementById('flowBpmModal').style.display = 'flex';
+        showModal('flowBpmModal');
     }
     setupHoldStepper(document.getElementById('flowBpmMinus'), -1, (amount) => setFlowBpmFromDisplayed(Number(document.getElementById('flowBpmPopupValue').innerText) + amount, { dragging: true }));
     setupHoldStepper(document.getElementById('flowBpmPlus'), 1, (amount) => setFlowBpmFromDisplayed(Number(document.getElementById('flowBpmPopupValue').innerText) + amount, { dragging: true }));
@@ -7405,7 +7546,7 @@
     // If it's unchanged from what the block already had (opened and closed without touching it,
     // or dragged back to the start), there's nothing to write.
     function closeFlowBpmModal() {
-        document.getElementById('flowBpmModal').style.display = 'none';
+        hideModal('flowBpmModal');
         const finalValue = Number(document.getElementById('flowBpmPopupValue').innerText);
         if (finalValue === flowBpmOriginalValue) return;
         if (flowBpmOnApply) flowBpmOnApply(finalValue);
@@ -7440,9 +7581,9 @@
     }
     function renderFlowBarsSlider(value) {
         const pct = ((value - FLOW_BARS_MIN) / (flowBarsSliderMax - FLOW_BARS_MIN)) * 100;
-        document.getElementById('flowBarsSliderFill').style.width = `${pct}%`;
+        document.getElementById('flowBarsSliderFill').style.setProperty('--pct', `${pct}%`);
         const thumb = document.getElementById('flowBarsSliderThumb');
-        thumb.style.left = `${pct}%`;
+        thumb.style.setProperty('--pct', `${pct}%`);
         thumb.setAttribute('aria-valuenow', value);
         thumb.setAttribute('aria-valuemax', flowBarsSliderMax);
         document.getElementById('flowBarsSliderMaxLbl').innerText = flowBarsSliderMax;
@@ -7460,7 +7601,7 @@
         flowBarsOriginalValue = b.barCount;
         flowBarsSliderMax = flowBarsBestFitTier(b.barCount);
         renderFlowBarsSlider(b.barCount);
-        document.getElementById('flowBarsModal').style.display = 'flex';
+        showModal('flowBarsModal');
     }
     setupHoldStepper(document.getElementById('flowBarsMinus'), -1, (amount) => setFlowBarsFromDisplayed(Number(document.getElementById('flowBarsPopupValue').innerText) + amount, { dragging: true }));
     setupHoldStepper(document.getElementById('flowBarsPlus'), 1, (amount) => setFlowBarsFromDisplayed(Number(document.getElementById('flowBarsPopupValue').innerText) + amount, { dragging: true }));
@@ -7470,7 +7611,7 @@
     });
     makeSliderReadoutEditable('flowBarsPopupValue', () => Number(document.getElementById('flowBarsPopupValue').innerText), (v) => setFlowBarsFromDisplayed(v), { label: 'Number of bars', min: FLOW_BARS_MIN, max: FLOW_BARS_MAX });
     function closeFlowBarsModal() {
-        document.getElementById('flowBarsModal').style.display = 'none';
+        hideModal('flowBarsModal');
         const finalValue = Number(document.getElementById('flowBarsPopupValue').innerText);
         if (flowBarsModalTargetId && finalValue !== flowBarsOriginalValue) flowUpdateBlock(flowBarsModalTargetId, { barCount: finalValue });
     }
@@ -7668,8 +7809,7 @@
     function flowSetPauseSwipeOffset(index, offset, animate) {
         const surface = flowPauseSurfaceFor(index);
         if (!surface) return;
-        surface.style.transition = animate ? 'transform 0.2s ease' : 'none';
-        surface.style.transform = offset ? `translateX(${offset}px)` : '';
+        swipeTo(surface, offset, animate);
     }
     function flowCloseOpenPauseSwipe(animate = true) {
         if (flowOpenSwipePauseIndex === null) return;
@@ -7703,8 +7843,7 @@
             }
             e.preventDefault();
             const offset = Math.min(0, Math.max(-FLOW_PAUSE_SWIPE_OPEN_PX, currentBaseOffset() + dx));
-            surfaceEl.style.transition = 'none';
-            surfaceEl.style.transform = `translateX(${offset}px)`;
+            swipeTo(surfaceEl, offset, false, true);
         }
         function onUp(e) {
             if (!tracking) return;
@@ -7818,10 +7957,10 @@
         renderFlowFermataList();
         renderFlowFermataAddSection();
         renderFlowFermataFormState();
-        document.getElementById('flowFermataModal').style.display = 'flex';
+        showModal('flowFermataModal');
     }
     function closeFlowFermataModal() {
-        document.getElementById('flowFermataModal').style.display = 'none';
+        hideModal('flowFermataModal');
         flowFermataTargetBlockId = null;
         flowFermataDraft = null;
         flowFermataEditTarget = null;
@@ -7846,8 +7985,7 @@
         left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
         let top = btnRect.bottom + 4;
         top = Math.min(top, window.innerHeight - menuHeight - 8);
-        menu.style.left = `${left}px`;
-        menu.style.top = `${top}px`;
+        placeAt(menu, left, top);
     }
     function closeFlowFermataRowMenu() {
         document.getElementById('flowFermataRowMenu')?.classList.remove('show');
@@ -8064,8 +8202,7 @@
     function flowSetRampSwipeOffset(index, offset, animate) {
         const surface = flowRampSurfaceFor(index);
         if (!surface) return;
-        surface.style.transition = animate ? 'transform 0.2s ease' : 'none';
-        surface.style.transform = offset ? `translateX(${offset}px)` : '';
+        swipeTo(surface, offset, animate);
     }
     function flowCloseOpenRampSwipe(animate = true) {
         if (flowOpenSwipeRampIndex === null) return;
@@ -8099,8 +8236,7 @@
             }
             e.preventDefault();
             const offset = Math.min(0, Math.max(-FLOW_RAMP_SWIPE_OPEN_PX, currentBaseOffset() + dx));
-            surfaceEl.style.transition = 'none';
-            surfaceEl.style.transform = `translateX(${offset}px)`;
+            swipeTo(surfaceEl, offset, false, true);
         }
         function onUp(e) {
             if (!tracking) return;
@@ -8225,10 +8361,10 @@
         renderFlowRampList();
         renderFlowRampAddSection();
         renderFlowRampFormState();
-        document.getElementById('flowRampModal').style.display = 'flex';
+        showModal('flowRampModal');
     }
     function closeFlowRampModal() {
-        document.getElementById('flowRampModal').style.display = 'none';
+        hideModal('flowRampModal');
         flowRampTargetBlockId = null;
         flowRampDraft = null;
         flowRampEditTarget = null;
@@ -8251,8 +8387,7 @@
         left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
         let top = btnRect.bottom + 4;
         top = Math.min(top, window.innerHeight - menuHeight - 8);
-        menu.style.left = `${left}px`;
-        menu.style.top = `${top}px`;
+        placeAt(menu, left, top);
     }
     function closeFlowRampRowMenu() {
         document.getElementById('flowRampRowMenu')?.classList.remove('show');
@@ -8407,8 +8542,7 @@
         left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
         let top = btnRect.bottom + 4;
         top = Math.min(top, window.innerHeight - menuHeight - 8);
-        menu.style.left = `${left}px`;
-        menu.style.top = `${top}px`;
+        placeAt(menu, left, top);
     }
     function closeFlowBlockMenu() {
         document.getElementById('flowBlockMenu')?.classList.remove('show');
@@ -8652,10 +8786,10 @@
         document.getElementById('flowCheckList').innerHTML = group("Won't play as written", errors) + group('Worth checking', warnings);
         document.getElementById('flowCheckContinueBtn').innerText = continueLabel;
         flowCheckContinue = onContinue;
-        document.getElementById('flowCheckModal').style.display = 'flex';
+        showModal('flowCheckModal');
     }
     function closeFlowCheckReview() {
-        document.getElementById('flowCheckModal').style.display = 'none';
+        hideModal('flowCheckModal');
         flowCheckContinue = null;
     }
     // Go back and fix: the Bars tab, scrolled to the bar the item is about (or the first outlined one).
@@ -8964,7 +9098,7 @@
                 <div class="flow-media-slide" data-slide-key="${flowMediaSlideKey(slide)}">
                     <div class="metroBlk-row">
                         <div class="flow-media-slide-header">
-                            <span class="flow-media-icon type-audio"><span class="material-symbols-outlined" style="font-size:var(--icon-md);">music_note</span></span>
+                            <span class="flow-media-icon type-audio"><span class="material-symbols-outlined icon-md">music_note</span></span>
                             <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(r.mimeType || 'Audio file')}</span></div>
                         </div>
                         <audio class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}" data-flow-media-key="${flowMediaSlideKey(slide)}"></audio>
@@ -8979,7 +9113,7 @@
                 <div class="flow-media-slide" data-slide-key="${flowMediaSlideKey(slide)}">
                     <div class="metroBlk-row">
                         <div class="flow-media-slide-header">
-                            <span class="flow-media-icon type-youtube"><span class="material-symbols-outlined" style="font-size:var(--icon-md);">smart_display</span></span>
+                            <span class="flow-media-icon type-youtube"><span class="material-symbols-outlined icon-md">smart_display</span></span>
                             <div><strong>${escapeHtml(r.title)}</strong><span>YouTube video</span></div>
                         </div>
                         <div class="flow-media-player-video"><iframe id="flowYtFrame-${r.id}" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}?enablejsapi=1&amp;origin=${origin}" title="${escapeHtml(r.title)}" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
@@ -9005,8 +9139,8 @@
         } else {
             const r = slide.data;
             iconHtml = slide.type === 'audio'
-                ? '<span class="flow-media-icon type-audio"><span class="material-symbols-outlined" style="font-size:var(--icon-md);">music_note</span></span>'
-                : '<span class="flow-media-icon type-youtube"><span class="material-symbols-outlined" style="font-size:var(--icon-md);">smart_display</span></span>';
+                ? '<span class="flow-media-icon type-audio"><span class="material-symbols-outlined icon-md">music_note</span></span>'
+                : '<span class="flow-media-icon type-youtube"><span class="material-symbols-outlined icon-md">smart_display</span></span>';
             title = r.title;
             subtitle = slide.type === 'audio' ? (r.mimeType || 'Audio file') : 'YouTube video';
         }
@@ -9080,7 +9214,7 @@
         if (!viewport || !track) return;
         if (slot === undefined) slot = flowMediaActiveIndex + flowMediaTrackOffset();
         const width = viewport.getBoundingClientRect().width;
-        track.style.transform = `translateX(-${slot * width}px)`;
+        setMove(track, -(slot * width));
     }
 
     function updateFlowMediaViewportHeight() {
@@ -9088,7 +9222,7 @@
         const track = document.getElementById('flowMediaTrack');
         if (!viewport || !track) return;
         const activeEl = track.children[flowMediaActiveIndex + flowMediaTrackOffset()];
-        if (activeEl) viewport.style.height = `${activeEl.scrollHeight}px`;
+        if (activeEl) viewport.style.setProperty('--viewport-h', `${activeEl.scrollHeight}px`);
     }
 
     function renderFlowMediaDots() {
@@ -9139,10 +9273,10 @@
             track.addEventListener('transitionend', function onFlowMediaWrapEnd(e) {
                 if (e.propertyName && e.propertyName !== 'transform') return;
                 track.removeEventListener('transitionend', onFlowMediaWrapEnd);
-                track.style.transition = 'none';
+                track.classList.add('no-transition');
                 applyFlowMediaTrackPosition(realSlot);
                 void track.offsetWidth; // force reflow so the transition below doesn't apply to this jump
-                track.style.transition = '';
+                track.classList.remove('no-transition');
             }, { once: true });
         } else {
             applyFlowMediaTrackPosition();
@@ -9173,7 +9307,7 @@
             if (!locked) {
                 if (Math.abs(dx) > FLOW_MEDIA_SWIPE_LOCK_X_PX && Math.abs(dy) < FLOW_MEDIA_SWIPE_LOCK_Y_MAX_PX) {
                     locked = true;
-                    track.style.transition = 'none';
+                    track.classList.add('no-transition');
                 } else if (Math.abs(dy) >= FLOW_MEDIA_SWIPE_LOCK_Y_MAX_PX) {
                     abandoned = true;
                     return;
@@ -9189,14 +9323,14 @@
             const rightmostSlot = flowMediaSlides.length - 1 + 2 * slotOffset;
             const min = -rightmostSlot * width;
             const posPx = Math.min(0, Math.max(min, baseOffsetPx + dx));
-            track.style.transform = `translateX(${posPx}px)`;
+            setMove(track, posPx);
         }
         function onUp(e) {
             if (!tracking) return;
             tracking = false;
             document.removeEventListener('pointermove', onMove);
             document.removeEventListener('pointerup', onUp);
-            track.style.transition = '';
+            track.classList.remove('no-transition');
             if (!locked) return;
             const dx = e.clientX - startX;
             const width = viewport.getBoundingClientRect().width;
@@ -9513,9 +9647,9 @@
     }
     function renderFlowSubdividePopupSlider() {
         const pct = ((flowSubdividePopupValue - FLOW_SUBDIVIDE_MIN) / (FLOW_SUBDIVIDE_MAX - FLOW_SUBDIVIDE_MIN)) * 100;
-        document.getElementById('flowSubdivideSliderFill').style.width = `${pct}%`;
+        document.getElementById('flowSubdivideSliderFill').style.setProperty('--pct', `${pct}%`);
         const thumb = document.getElementById('flowSubdivideSliderThumb');
-        thumb.style.left = `${pct}%`;
+        thumb.style.setProperty('--pct', `${pct}%`);
         thumb.setAttribute('aria-valuenow', flowSubdividePopupValue);
         thumb.setAttribute('aria-valuemax', FLOW_SUBDIVIDE_MAX);
         document.getElementById('flowSubdivideSliderMaxLbl').innerText = FLOW_SUBDIVIDE_MAX;
@@ -9539,7 +9673,7 @@
         document.getElementById('flowSubdivideFixed').checked = flowSubBeatsMode === 'fixed';
         document.getElementById('flowSubdivideBpmBox').classList.toggle('hidden-group', flowSubBeatsMode !== 'fixed');
         setFlowSubdividePopupValue(flowSubdivideOverride || FLOW_SUBDIVIDE_MIN);
-        document.getElementById('flowSubdivideModal').style.display = 'flex';
+        showModal('flowSubdivideModal');
     });
     document.querySelectorAll('input[name="flowSubdivideOnOff"]').forEach(radio => {
         radio.addEventListener('change', () => {
@@ -9547,12 +9681,12 @@
         });
     });
     document.getElementById('flowSubdivideCancelBtn')?.addEventListener('click', () => {
-        document.getElementById('flowSubdivideModal').style.display = 'none';
+        hideModal('flowSubdivideModal');
     });
     document.getElementById('flowSubdivideSaveBtn')?.addEventListener('click', () => {
         flowSubBeatsMode = document.querySelector('input[name="flowSubdivideOnOff"]:checked')?.value || 'off';
         flowSubdivideOverride = flowSubBeatsMode === 'fixed' ? flowSubdividePopupValue : null;
-        document.getElementById('flowSubdivideModal').style.display = 'none';
+        hideModal('flowSubdivideModal');
         // ML-193: sub-beats change how many clicks each bar has, so the current passage is restarted
         // from the bar it's on, in the new click grid.
         const pos = flowScreenPosition();
@@ -9587,13 +9721,13 @@
         document.querySelectorAll('#flowSpeedOptions .metroBlk-timesig-opt').forEach(btn => {
             btn.classList.toggle('selected', Number(btn.dataset.value) === flowSpeedPercent);
         });
-        document.getElementById('flowSpeedModal').style.display = 'flex';
+        showModal('flowSpeedModal');
     });
     document.getElementById('flowSpeedOptions')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.metroBlk-timesig-opt');
         if (!btn) return;
         setFlowSpeedPercent(Number(btn.dataset.value));
-        document.getElementById('flowSpeedModal').style.display = 'none';
+        hideModal('flowSpeedModal');
     });
     renderFlowSpeedLabel();
 
@@ -9606,8 +9740,8 @@
         const fill = document.getElementById('flowVolumeFill');
         const thumb = document.getElementById('flowVolumeThumb');
         if (!fill || !thumb) return;
-        fill.style.width = `${flowVolume}%`;
-        thumb.style.left = `${flowVolume}%`;
+        fill.style.setProperty('--pct', `${flowVolume}%`);
+        thumb.style.setProperty('--pct', `${flowVolume}%`);
         thumb.setAttribute('aria-valuenow', flowVolume);
         const valueEl = document.getElementById('flowVolumeValue');
         if (valueEl) valueEl.innerText = `${flowVolume}%`;
@@ -9636,10 +9770,10 @@
     });
     document.getElementById('flowVolumeBtn')?.addEventListener('click', () => {
         renderFlowVolumeSlider();
-        document.getElementById('flowVolumeModal').style.display = 'flex';
+        showModal('flowVolumeModal');
     });
     function closeFlowVolumePopup() {
-        document.getElementById('flowVolumeModal').style.display = 'none';
+        hideModal('flowVolumeModal');
     }
     document.getElementById('flowVolumeCloseBtn')?.addEventListener('click', closeFlowVolumePopup);
     document.getElementById('flowVolumeModal')?.addEventListener('click', (e) => {
@@ -9676,12 +9810,11 @@
         flowEditMode = 'edit';
         switchView('flowDetailsHubView');
     });
-    // Lands straight on the library list, not the create/load choice screen.
+    // ML-299: the pieces to play are Rehearse's list now (the library with create/import is My music).
     document.getElementById('flowPlayMenuLoadLibrary')?.addEventListener('click', (e) => {
         e.stopPropagation();
         closeFlowPlayMenu();
-        switchView('metroBuilderView');
-        showFlowLibraryList();
+        switchView('rehearseView');
     });
     document.getElementById('flowPlayMenuCreateNew')?.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -10345,7 +10478,7 @@
     function selectMetroSegTimeSig(value) {
         metroSegTimeSigValue = value;
         metroSegTimeSigOnSelect?.(value);
-        document.getElementById('metroSegTimeSigModal').style.display = 'none';
+        hideModal('metroSegTimeSigModal');
     }
     document.getElementById('metroSegTimeSigBtn')?.addEventListener('click', () => {
         metroSegTimeSigOnSelect = () => {
@@ -10353,12 +10486,12 @@
             refreshMetroSegBpmDisplay();
         };
         renderMetroSegTimeSigPicker();
-        document.getElementById('metroSegTimeSigModal').style.display = 'flex';
+        showModal('metroSegTimeSigModal');
     });
     // ML-148-style scrim dismissal - tapping the dark backdrop outside the card closes it, same as
     // Done/[x] (every change already applies live, there's no separate "save" step to lose).
     document.getElementById('metroSegTimeSigModal')?.addEventListener('click', (e) => {
-        if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
+        if (e.target === e.currentTarget) hideModal(e.currentTarget);
     });
 
     // "Your custom time signatures" - every one the account has, active or archived, with how many
@@ -10379,10 +10512,10 @@
                 if (t.usageCount === 0) {
                     actionHtml = `<button class="btn-icon-delete" aria-label="Delete ${escapeHtml(t.label)}" onclick="deleteMetroSegCustomTimeSig(${t.id})"><span class="material-symbols-outlined">delete</span></button>`;
                 } else if (t.active) {
-                    actionHtml = `<button class="btn-edit" style="width:auto; padding:var(--space-2) var(--space-3);" onclick="archiveMetroSegCustomTimeSig(${t.id})">Archive</button>`;
+                    actionHtml = `<button class="btn-edit btn-inline-xs" onclick="archiveMetroSegCustomTimeSig(${t.id})">Archive</button>`;
                 }
-                return `<div class="history-item" style="align-items:center;">
-                    <div style="flex-grow:1;"><strong>${escapeHtml(t.label)}</strong>${archivedTag}<div style="font-size:var(--font-sm); color:var(--label-color);">${usageText}</div></div>
+                return `<div class="history-item items-center">
+                    <div class="grow"><strong>${escapeHtml(t.label)}</strong>${archivedTag}<div class="text-sm text-muted">${usageText}</div></div>
                     ${actionHtml}
                 </div>`;
             }).join('');
@@ -10440,7 +10573,7 @@
         // instead when editing a partial-beat lead-in (pickupBeats applies there instead).
         document.getElementById('metroSegBarsCard').classList.toggle('hidden-group', isPartial);
         document.querySelector('#metroSegBarsHeader .toggle-switch').classList.toggle('hidden-group', metroSegEditingLeadIn);
-        document.getElementById('metroSegBarsHeader').style.pointerEvents = metroSegEditingLeadIn ? 'none' : '';
+        document.getElementById('metroSegBarsHeader').classList.toggle('pointer-none', metroSegEditingLeadIn);
         document.querySelector('#metroSegBarsCard .metroSeg-card-title').innerText = metroSegEditingLeadIn ? 'Number of bars' : 'Multiple bars';
         if (metroSegEditingLeadIn) document.getElementById('metroSegBarsExpand').classList.add('is-expanded');
 
@@ -10478,9 +10611,9 @@
         if (!track) return;
         const displayed = Math.round(metroSegDisplayedBpm());
         const pct = ((displayed - METRO_MIN_BPM) / (metroSegBpmSliderMax - METRO_MIN_BPM)) * 100;
-        document.getElementById('metroSegBpmSliderFill').style.width = `${pct}%`;
+        document.getElementById('metroSegBpmSliderFill').style.setProperty('--pct', `${pct}%`);
         const thumb = document.getElementById('metroSegBpmSliderThumb');
-        thumb.style.left = `${pct}%`;
+        thumb.style.setProperty('--pct', `${pct}%`);
         thumb.setAttribute('aria-valuenow', displayed);
         thumb.setAttribute('aria-valuemax', metroSegBpmSliderMax);
         document.getElementById('metroSegBpmSliderMaxLbl').innerText = metroSegBpmSliderMax;
@@ -10546,9 +10679,9 @@
         if (!track) return;
         const min = metroSegBarsMin();
         const pct = ((metroSegBarCount - min) / (metroSegBarsSliderMax - min)) * 100;
-        document.getElementById('metroSegBarsSliderFill').style.width = `${pct}%`;
+        document.getElementById('metroSegBarsSliderFill').style.setProperty('--pct', `${pct}%`);
         const thumb = document.getElementById('metroSegBarsSliderThumb');
-        thumb.style.left = `${pct}%`;
+        thumb.style.setProperty('--pct', `${pct}%`);
         thumb.setAttribute('aria-valuemin', min);
         thumb.setAttribute('aria-valuenow', metroSegBarCount);
         thumb.setAttribute('aria-valuemax', metroSegBarsSliderMax);
@@ -10729,7 +10862,7 @@
                 metroSegNoteSelected = btn.dataset.note;
                 refreshMetroSegBpmDisplay();
                 renderMetroSegNoteSelectBtn();
-                document.getElementById('metroSegNoteModal').style.display = 'none';
+                hideModal('metroSegNoteModal');
             });
         });
     }
@@ -10757,7 +10890,7 @@
 
     document.getElementById('metroSegNoteSelectBtn')?.addEventListener('click', () => {
         renderMetroSegNotePicker();
-        document.getElementById('metroSegNoteModal').style.display = 'flex';
+        showModal('metroSegNoteModal');
     });
 
     // --- ML-103 follow-up: block editor reworked into expandable cards (Standard/Multiple bars/
@@ -10925,7 +11058,7 @@
             const val = Number(btn.dataset.value);
             btn.classList.toggle('selected', metroSegIsRepeatEnd ? val === (metroSegRepeatPlayCount || 2) : val === 2);
         });
-        document.getElementById('metroSegRepeatCountModal').style.display = 'flex';
+        showModal('metroSegRepeatCountModal');
     });
     document.getElementById('metroSegRepeatCountOptions')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.metroSeg-quickpick-opt');
@@ -10933,7 +11066,7 @@
         const val = Number(btn.dataset.value);
         metroSegIsRepeatEnd = val > 0;
         metroSegRepeatPlayCount = val > 0 ? val : null;
-        document.getElementById('metroSegRepeatCountModal').style.display = 'none';
+        hideModal('metroSegRepeatCountModal');
         renderMetroSegNavigationSummary();
     });
 
@@ -10941,13 +11074,13 @@
         document.querySelectorAll('#metroSegEndingOptions .metroSeg-option-row').forEach(btn => {
             btn.classList.toggle('selected', btn.dataset.value === metroSegEnding);
         });
-        document.getElementById('metroSegEndingModal').style.display = 'flex';
+        showModal('metroSegEndingModal');
     });
     document.getElementById('metroSegEndingOptions')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.metroSeg-option-row');
         if (!btn) return;
         metroSegEnding = btn.dataset.value;
-        document.getElementById('metroSegEndingModal').style.display = 'none';
+        hideModal('metroSegEndingModal');
         renderMetroSegNavigationSummary();
     });
 
@@ -10980,7 +11113,7 @@
         ui.innerHTML = metroSegRehearsalMarks.map((m, i) => `
             <div class="history-item metroSeg-list-row">
                 <span class="metroSeg-list-row-badge">${escapeHtml(m.mark)}</span>
-                <div style="flex-grow:1;">
+                <div class="grow">
                     <strong>${m.barOffset === 0 ? 'At start (bar 1)' : `After ${m.barOffset} bar${m.barOffset === 1 ? '' : 's'} (bar ${m.barOffset + 1})`}</strong>
                 </div>
                 <button type="button" class="metroSeg-icon-btn" aria-label="Edit rehearsal mark" aria-haspopup="dialog" onclick="openMetroSegRehearsalModal(${i})"><span class="material-symbols-outlined">edit</span></button>
@@ -10999,7 +11132,7 @@
         document.getElementById('metroSegRehearsalMarkInput').value = existing ? existing.mark : String.fromCharCode(65 + metroSegRehearsalMarks.length % 26);
         metroSegPopulateBarSelect(document.getElementById('metroSegRehearsalBarSelect'), existing ? existing.barOffset : 0);
         document.getElementById('metroSegRehearsalDeleteSection').classList.toggle('hidden-group', index < 0);
-        document.getElementById('metroSegRehearsalModal').style.display = 'flex';
+        showModal('metroSegRehearsalModal');
     };
     document.getElementById('metroSegRehearsalAddBtn')?.addEventListener('click', () => openMetroSegRehearsalModal(-1));
     document.getElementById('metroSegRehearsalSaveBtn')?.addEventListener('click', () => {
@@ -11013,13 +11146,13 @@
             metroSegRehearsalMarks = [...metroSegRehearsalMarks, entry];
         }
         metroSegRehearsalMarks.sort((a, b) => a.barOffset - b.barOffset);
-        document.getElementById('metroSegRehearsalModal').style.display = 'none';
+        hideModal('metroSegRehearsalModal');
         renderMetroSegRehearsalList();
         renderMetroSegNavigationSummary();
     });
     document.getElementById('metroSegRehearsalDeleteBtn')?.addEventListener('click', () => {
         if (metroSegRehearsalEditIndex >= 0) removeMetroSegRehearsalMark(metroSegRehearsalEditIndex);
-        document.getElementById('metroSegRehearsalModal').style.display = 'none';
+        hideModal('metroSegRehearsalModal');
     });
 
     // --- Speed change: no popup - "Change at beat"/"Over duration" cycle inline on the card itself,
@@ -11069,7 +11202,7 @@
         document.getElementById('metroSegIntroModalHelp').innerText = !on ? 'Not used in this block'
             : target === 'start' ? `Pickup starts on beat ${beat} of ${numerator}` : `Intro ends on beat ${beat} of ${numerator}`;
         document.getElementById('metroSegIntroBeatOptions').innerHTML = metroSegIntroTilesHtml(numerator, on, beat);
-        document.getElementById('metroSegIntroModal').style.display = 'flex';
+        showModal('metroSegIntroModal');
     };
     document.getElementById('metroSegStartIntroBtn')?.addEventListener('click', () => openMetroSegIntroModal('start'));
     document.getElementById('metroSegEndIntroBtn')?.addEventListener('click', () => openMetroSegIntroModal('end'));
@@ -11084,7 +11217,7 @@
             metroSegIntroEndOn = val !== 'none';
             if (metroSegIntroEndOn) metroSegIntroEndBeatOffset = Number(val);
         }
-        document.getElementById('metroSegIntroModal').style.display = 'none';
+        hideModal('metroSegIntroModal');
         renderMetroSegNavigationSummary();
     });
 
@@ -11117,9 +11250,9 @@
         ui.innerHTML = metroSegFermatas.map((f, i) => `
             <div class="history-item metroSeg-list-row">
                 <span class="metroSeg-list-row-badge">&#119136;</span>
-                <div style="flex-grow:1;">
+                <div class="grow">
                     <strong>${metroSegBarCount > 1 ? `Bar ${f.barOffset + 1}, beat` : 'On beat'} ${f.beatOffset}</strong>
-                    <span style="font-size:var(--font-sm); margin-left:var(--space-1); color:var(--primary-action-strong);">Hold ${f.holdBeats} beat${f.holdBeats === 1 ? '' : 's'}</span>
+                    <span class="text-sm ml-1 text-accent-strong">Hold ${f.holdBeats} beat${f.holdBeats === 1 ? '' : 's'}</span>
                 </div>
                 <button type="button" class="metroSeg-icon-btn" aria-label="Edit fermata" aria-haspopup="dialog" onclick="openMetroSegFermataModal(${i})"><span class="material-symbols-outlined">edit</span></button>
             </div>
@@ -11142,7 +11275,7 @@
         const hold = existing ? existing.holdBeats : 2;
         document.querySelectorAll('#metroSegFermataHoldOptions .metroSeg-tap-btn').forEach(b => b.classList.toggle('selected', Number(b.dataset.value) === hold));
         document.getElementById('metroSegFermataDeleteSection').classList.toggle('hidden-group', index < 0);
-        document.getElementById('metroSegFermataModal').style.display = 'flex';
+        showModal('metroSegFermataModal');
     };
     document.getElementById('metroSegFermataAddOpenBtn')?.addEventListener('click', () => openMetroSegFermataModal(-1));
     document.getElementById('metroSegFermataBeatOptions')?.addEventListener('click', (e) => {
@@ -11171,13 +11304,13 @@
             metroSegFermatas = [...metroSegFermatas, entry];
         }
         metroSegFermatas.sort((a, b) => a.barOffset - b.barOffset || a.beatOffset - b.beatOffset);
-        document.getElementById('metroSegFermataModal').style.display = 'none';
+        hideModal('metroSegFermataModal');
         renderMetroSegFermataList();
         renderMetroSegNavigationSummary();
     });
     document.getElementById('metroSegFermataDeleteBtn')?.addEventListener('click', () => {
         if (metroSegFermataEditIndex >= 0) removeMetroSegFermata(metroSegFermataEditIndex);
-        document.getElementById('metroSegFermataModal').style.display = 'none';
+        hideModal('metroSegFermataModal');
     });
 
     window.openMetroSegmentModal = function(segId = null) {
@@ -11264,7 +11397,7 @@
         renderMetroSegNavigationSummary();
 
         syncMetroSegFieldVisibility();
-        document.getElementById('metroSegmentModal').style.display = 'flex';
+        showModal('metroSegmentModal');
     }
 
     // The lead-in editor (ML-35 follow-up): a lead-in is now a single fixed slot that always plays
@@ -11293,7 +11426,7 @@
         document.getElementById('metroSegPickupBeats').value = leadIn && leadIn.pickupBeats ? leadIn.pickupBeats : '';
 
         syncMetroSegFieldVisibility();
-        document.getElementById('metroSegmentModal').style.display = 'flex';
+        showModal('metroSegmentModal');
     }
 
     document.getElementById('metroSegCustomSigAddBtn')?.addEventListener('click', async () => {
@@ -11426,7 +11559,7 @@
             const dto = buildLocalSegmentDto(data);
             metroBlkCurrentSetup.segments = dto.isLeadIn ? [dto, ...metroBlkCurrentSetup.segments] : [...metroBlkCurrentSetup.segments, dto];
         }
-        document.getElementById('metroSegmentModal').style.display = 'none';
+        hideModal('metroSegmentModal');
         renderMetroBlockTiles();
     });
 
@@ -11435,7 +11568,7 @@
         if (!id) return;
         showConfirmModal('Delete block', 'Delete this block?', () => {
             metroBlkCurrentSetup.segments = metroBlkCurrentSetup.segments.filter(s => String(s.id) !== id);
-            document.getElementById('metroSegmentModal').style.display = 'none';
+            hideModal('metroSegmentModal');
             renderMetroBlockTiles();
         });
     });
@@ -11457,7 +11590,6 @@
         closeAllMetroPopupMenus();
         metroBlkTileMenuTargetId = id;
         const btnRect = e.currentTarget.getBoundingClientRect();
-        menu.style.right = 'auto';
         menu.classList.add('show');
         const menuWidth = menu.offsetWidth;
         const menuHeight = menu.offsetHeight;
@@ -11465,8 +11597,7 @@
         left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
         let top = btnRect.bottom + 4;
         top = Math.min(top, window.innerHeight - menuHeight - 8);
-        menu.style.left = `${left}px`;
-        menu.style.top = `${top}px`;
+        placeAt(menu, left, top);
     };
     function closeMetroBlkTileMenu() {
         document.getElementById('metroBlkTileMenu')?.classList.remove('show');
@@ -11681,9 +11812,9 @@
     function renderMetroBlkSubdividePopup() {
         document.getElementById('metroBlkSubdividePopupValue').innerText = metroBlkSubdivideDisplayValue(metroBlkSubdividePopupValue);
         const pct = ((metroBlkSubdividePopupValue - METRO_BLK_SUBDIVIDE_MIN) / (metroBlkSubdivideSliderMax - METRO_BLK_SUBDIVIDE_MIN)) * 100;
-        document.getElementById('metroBlkSubdivideSliderFill').style.width = `${pct}%`;
+        document.getElementById('metroBlkSubdivideSliderFill').style.setProperty('--pct', `${pct}%`);
         const thumb = document.getElementById('metroBlkSubdivideSliderThumb');
-        thumb.style.left = `${pct}%`;
+        thumb.style.setProperty('--pct', `${pct}%`);
         thumb.setAttribute('aria-valuenow', metroBlkSubdividePopupValue);
         thumb.setAttribute('aria-valuemax', metroBlkSubdivideSliderMax);
         document.getElementById('metroBlkSubdivideSliderMaxLbl').innerText = metroBlkSubdivideSliderMax;
@@ -11742,12 +11873,12 @@
         renderMetroBlkSubdivideOnOffUI(mode);
         if (mode === 'fixed') setMetroBlkSubdividePopupValue(metroBlkSubdivideOverride || metroBlkSubdivideMetricDefault());
         else setMetroBlkSubdividePopupValue(metroBlkSubdivideMetricDefault());
-        document.getElementById('metroBlkSubdivideModal').style.display = 'flex';
+        showModal('metroBlkSubdivideModal');
     }
     document.getElementById('metroBlkSubdivideBtn')?.addEventListener('click', openMetroBlkSubdividePopup);
     document.getElementById('metroBlkMiniSubdivideBtn')?.addEventListener('click', openMetroBlkSubdividePopup);
     document.getElementById('metroBlkSubdivideCancelBtn')?.addEventListener('click', () => {
-        document.getElementById('metroBlkSubdivideModal').style.display = 'none';
+        hideModal('metroBlkSubdivideModal');
     });
     document.getElementById('metroBlkSubdivideSaveBtn')?.addEventListener('click', () => {
         const mode = document.querySelector('input[name="metroBlkSubdivideOnOff"]:checked')?.value || 'off';
@@ -11756,7 +11887,7 @@
         const overrideValue = (mode === 'fixed' && metroBlkSubdividePopupValue !== metroBlkSubdivideMetricDefault())
             ? metroBlkSubdividePopupValue : null;
         setMetroBlkSubBeatsMode(mode, overrideValue);
-        document.getElementById('metroBlkSubdivideModal').style.display = 'none';
+        hideModal('metroBlkSubdivideModal');
     });
 
     // First non-lead-in segment's index - the default "start of the actual piece" position, used as
@@ -12000,12 +12131,12 @@
             row.insertBefore(endTick, row.firstChild);
         }
         const dots = row.querySelectorAll('.metro-dot');
-        if (dots.length < 2) { track.style.display = 'none'; endTick.style.display = 'none'; return; }
-        track.style.display = 'block';
-        endTick.style.display = 'block';
-        track.style.left = dots[0].style.left;
-        track.style.right = `calc(100% - (${endLeftStyle}))`;
-        endTick.style.left = endLeftStyle;
+        if (dots.length < 2) { setShown(track, false); setShown(endTick, false); return; }
+        setShown(track, true);
+        setShown(endTick, true);
+        track.style.setProperty('--track-start', dots[0].style.getPropertyValue('--dot-x'));
+        track.style.setProperty('--track-end', endLeftStyle);
+        endTick.style.setProperty('--track-end', endLeftStyle);
     }
 
     // A partial lead-in plays the LAST pickupBeats beats of the bar, not the first - a pickup/
@@ -12092,7 +12223,7 @@
 
     window.addEventListener('resize', () => {
         const view = document.getElementById('metroBuilderView');
-        if (view && view.style.display !== 'none') renderMetroBlkRows();
+        if (isShown(view)) renderMetroBlkRows();
     });
 
     // --- Transport ---
@@ -12222,7 +12353,7 @@
     }
     function openMetroBlkSpeedPopup() {
         renderMetroBlkSpeedOptions();
-        document.getElementById('metroBlkSpeedModal').style.display = 'flex';
+        showModal('metroBlkSpeedModal');
     }
     document.getElementById('metroBlkSpeedBtn')?.addEventListener('click', openMetroBlkSpeedPopup);
     document.getElementById('metroBlkMiniSpeedBtn')?.addEventListener('click', openMetroBlkSpeedPopup);
@@ -12230,7 +12361,7 @@
         const btn = e.target.closest('.metroBlk-timesig-opt');
         if (!btn) return;
         setMetroBlkSpeedPercent(Number(btn.dataset.value));
-        document.getElementById('metroBlkSpeedModal').style.display = 'none';
+        hideModal('metroBlkSpeedModal');
     });
     renderMetroBlkSpeedLabels();
 
@@ -12246,8 +12377,8 @@
         const fill = document.getElementById('metroBlkVolumeFill');
         const thumb = document.getElementById('metroBlkVolumeThumb');
         if (!fill || !thumb) return;
-        fill.style.width = `${metroBlkVolume}%`;
-        thumb.style.left = `${metroBlkVolume}%`;
+        fill.style.setProperty('--pct', `${metroBlkVolume}%`);
+        thumb.style.setProperty('--pct', `${metroBlkVolume}%`);
         thumb.setAttribute('aria-valuenow', metroBlkVolume);
         const valueEl = document.getElementById('metroBlkVolumeValue');
         if (valueEl) valueEl.innerText = `${metroBlkVolume}%`;
@@ -12317,11 +12448,11 @@
 
     function openMetroBlkVolumePopup() {
         renderMetroBlkVolumeSlider();
-        document.getElementById('metroBlkVolumeModal').style.display = 'flex';
+        showModal('metroBlkVolumeModal');
     }
     function closeMetroBlkVolumePopup() {
         setMetroBlkCalibPlaying(false);
-        document.getElementById('metroBlkVolumeModal').style.display = 'none';
+        hideModal('metroBlkVolumeModal');
     }
     document.getElementById('metroBlkVolumeCloseBtn')?.addEventListener('click', closeMetroBlkVolumePopup);
     // ML-148: tapping the dark scrim outside the card dismisses it too - every change already
@@ -12501,6 +12632,7 @@
     // Wires one block box's interactive controls, reading/writing straight into qpBlocks[index] -
     // called once per box right after it's inserted into the DOM (renderQuickPlayBlocks).
     function wireQpBlockBox(boxEl, index) {
+        attachSpeedNames(boxEl);
         const block = qpBlocks[index];
         let bpmSliderMax = metroBestFitTier(Math.round(block.bpm / (qpBlockNoteFraction(block.noteSelected) * qpBlockDenominator(block))));
 
@@ -12516,8 +12648,8 @@
         function renderBpmSlider() {
             const displayed = Math.round(displayedBpm());
             const pct = ((displayed - METRO_MIN_BPM) / (bpmSliderMax - METRO_MIN_BPM)) * 100;
-            bpmFill.style.width = `${pct}%`;
-            bpmThumb.style.left = `${pct}%`;
+            bpmFill.style.setProperty('--pct', `${pct}%`);
+            bpmThumb.style.setProperty('--pct', `${pct}%`);
             bpmThumb.setAttribute('aria-valuenow', displayed);
             bpmThumb.setAttribute('aria-valuemax', bpmSliderMax);
             bpmMaxLbl.innerText = bpmSliderMax;
@@ -12604,12 +12736,12 @@
             btn.addEventListener('click', () => {
                 qpBlocks[index].noteSelected = btn.dataset.note;
                 anchorBtn.innerHTML = metroNoteIconSvg(btn.dataset.note);
-                document.getElementById('metroSegNoteModal').style.display = 'none';
+                hideModal('metroSegNoteModal');
                 qpMarkUnsaved();
                 onPicked();
             }, { once: true });
         });
-        document.getElementById('metroSegNoteModal').style.display = 'flex';
+        showModal('metroSegNoteModal');
     }
 
     // Shared time-signature modal (#metroSegTimeSigModal) - see metroSegTimeSigOnSelect above for how
@@ -12622,7 +12754,7 @@
             onPicked();
         };
         renderMetroSegTimeSigPicker();
-        document.getElementById('metroSegTimeSigModal').style.display = 'flex';
+        showModal('metroSegTimeSigModal');
     }
 
     function renderQuickPlayBlocks() {
@@ -12654,7 +12786,7 @@
         let startY = 0, dragging = false;
         function onMove(e) {
             if (!dragging) return;
-            boxEl.style.transform = `translateY(${e.clientY - startY}px)`;
+            setMove(boxEl, 0, e.clientY - startY);
         }
         function onUp(e) {
             if (!dragging) return;
@@ -12665,8 +12797,9 @@
             if (Math.abs(dy) > thresholdPx) {
                 if (dy < 0) onMoveUp(); else onMoveDown();
             } else {
-                boxEl.style.transition = 'transform var(--duration-base) ease';
-                boxEl.style.transform = '';
+                boxEl.classList.remove('no-transition');
+                boxEl.classList.add('transition-transform');
+                clearMove(boxEl);
                 boxEl.querySelector(surfaceSelector)?.classList.remove('drag-reorder-highlight');
             }
         }
@@ -12677,7 +12810,8 @@
             boxEl.querySelector(surfaceSelector)?.classList.add('drag-reorder-highlight');
             startY = e.clientY;
             dragging = true;
-            boxEl.style.transition = 'none';
+            boxEl.classList.remove('transition-transform');
+            boxEl.classList.add('no-transition');
             document.addEventListener('pointermove', onMove);
             document.addEventListener('pointerup', onUp);
         });
@@ -12715,16 +12849,16 @@
             const uid = el.getAttribute(itemAttr);
             const prev = before.get(uid);
             if (raiseUid !== undefined && String(raiseUid) === uid) {
-                el.style.zIndex = 'var(--z-raised)';
+                el.classList.add('is-raised');
                 el.querySelector(surfaceSelector)?.classList.add('drag-reorder-highlight');
             }
             if (prev) {
                 const now = el.getBoundingClientRect();
                 const dx = prev.left - now.left;
                 const dy = prev.top - now.top;
-                if (dx || dy) el.style.transform = `translate(${dx}px, ${dy}px)`;
+                if (dx || dy) setMove(el, dx, dy);
             } else {
-                el.style.opacity = '0';
+                el.classList.add('is-faded');
             }
         });
         // Two nested rAFs, not one - a single frame can still coalesce with the "before" styles just
@@ -12735,11 +12869,11 @@
             requestAnimationFrame(() => {
                 afterEls.forEach(el => {
                     el.classList.add(animatingClass);
-                    el.style.transform = '';
-                    el.style.opacity = '';
+                    clearMove(el);
+                    el.classList.remove('is-faded');
                     el.addEventListener('transitionend', () => {
                         el.classList.remove(animatingClass);
-                        el.style.zIndex = '';
+                        el.classList.remove('is-raised');
                         el.querySelector(surfaceSelector)?.classList.remove('drag-reorder-highlight');
                     }, { once: true });
                 });
@@ -12810,8 +12944,8 @@
         };
         if (!el) { finish(); return; }
         el.classList.add('qp-block-animating');
-        el.style.transform = 'translateX(-100%)';
-        el.style.opacity = '0';
+        setMove(el, '-100%');
+        el.classList.add('is-faded');
         el.addEventListener('transitionend', finish, { once: true });
     }
 
@@ -12859,8 +12993,7 @@
     function qpSetSwipeOffset(index, offset, animate) {
         const surface = qpSwipeSurfaceFor(index);
         if (!surface) return;
-        surface.style.transition = animate ? 'transform 0.2s ease' : 'none';
-        surface.style.transform = offset ? `translateX(${offset}px)` : '';
+        swipeTo(surface, offset, animate);
     }
     function qpCloseOpenSwipe(animate = true) {
         if (qpOpenSwipeIndex === null) return;
@@ -12914,8 +13047,7 @@
             }
             e.preventDefault();
             const offset = Math.min(0, Math.max(-QP_SWIPE_OPEN_PX, currentBaseOffset() + dx));
-            surfaceEl.style.transition = 'none';
-            surfaceEl.style.transform = `translateX(${offset}px)`;
+            swipeTo(surfaceEl, offset, false, true);
         }
         function onUp(e) {
             if (!tracking) return;
@@ -12994,7 +13126,6 @@
         document.getElementById('qpBarMenuResetAll')?.classList.toggle('hidden-group', index !== 0);
 
         const btnRect = btnEl.getBoundingClientRect();
-        menu.style.right = 'auto';
         menu.classList.add('show');
         const menuWidth = menu.offsetWidth;
         const menuHeight = menu.offsetHeight;
@@ -13002,8 +13133,7 @@
         left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
         let top = btnRect.bottom + 4;
         top = Math.min(top, window.innerHeight - menuHeight - 8);
-        menu.style.left = `${left}px`;
-        menu.style.top = `${top}px`;
+        placeAt(menu, left, top);
     };
     function closeQpBarMenu() {
         document.getElementById('qpBarMenu')?.classList.remove('show');
@@ -13188,7 +13318,7 @@
 
     window.addEventListener('resize', () => {
         const view = document.getElementById('quickPlayView');
-        if (view && view.style.display !== 'none') renderQuickPlayRows();
+        if (isShown(view)) renderQuickPlayRows();
     });
 
     // --- Transport ---
@@ -13327,7 +13457,7 @@
         qpMergeFlatMode = !qpMergeBlocks.some(g => g.bars.length > 1);
         qpMergeOpenMenuKey = null;
         renderQpMergeBarsModal();
-        document.getElementById('qpMergeBarsModal').style.display = 'flex';
+        showModal('qpMergeBarsModal');
     }
 
     // Peels one specific bar out of a multi-bar block into a new block of its own, right where it
@@ -13478,7 +13608,7 @@
                     accountTimeSignatureId: bar.timeSigValue?.startsWith('custom:') ? Number(bar.timeSigValue.split(':')[1]) : null
                 });
             }
-            document.getElementById('qpMergeBarsModal').style.display = 'none';
+            hideModal('qpMergeBarsModal');
             if (document.getElementById('qpMergeGoToFlowsToggle').checked) {
                 currentFlowId = flow.id;
                 flowEditMode = 'edit';
@@ -13495,7 +13625,7 @@
 
     document.getElementById('qpSaveToFlowBtn')?.addEventListener('click', openQpMergeBarsModal);
     document.getElementById('qpMergeBarsCancelBtn')?.addEventListener('click', () => {
-        document.getElementById('qpMergeBarsModal').style.display = 'none';
+        hideModal('qpMergeBarsModal');
     });
     document.getElementById('qpMergeBarsSaveBtn')?.addEventListener('click', qpMergeSaveToFlow);
 
@@ -13558,7 +13688,7 @@
                         ${r.isFavorite ? '<span class="material-symbols-outlined qp-history-star" aria-hidden="true">star</span>' : ''}
                         <div>
                             <strong>${escapeHtml(qpFormatHistoryLabel(r.name))}</strong>
-                            <div style="font-size:var(--font-sm); color:var(--label-color);">${r.blockCount} bar${r.blockCount === 1 ? '' : 's'}</div>
+                            <div class="text-sm text-muted">${r.blockCount} bar${r.blockCount === 1 ? '' : 's'}</div>
                         </div>
                     </div>
                     <button type="button" class="list-item-menu-btn" data-qp-history-menu-btn aria-label="Options for ${escapeHtml(qpFormatHistoryLabel(r.name))}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
@@ -13589,11 +13719,11 @@
         closeAllMetroPopupMenus();
         qpHistoryMenuTargetId = id;
         const entry = qpHistoryData.find(r => r.id === id);
-        const favBtn = document.getElementById('qpHistoryItemFavoriteToggle');
-        if (favBtn) favBtn.innerText = entry?.isFavorite ? 'Remove from favourites' : 'Set as favourite';
+        // Only the label changes - the item's icon (ML-285) sits beside it in the same button.
+        const favText = document.getElementById('qpHistoryItemFavoriteText');
+        if (favText) favText.textContent = entry?.isFavorite ? 'Remove from favourites' : 'Set as favourite';
 
         const btnRect = btnEl.getBoundingClientRect();
-        menu.style.right = 'auto';
         menu.classList.add('show');
         const menuWidth = menu.offsetWidth;
         const menuHeight = menu.offsetHeight;
@@ -13601,8 +13731,7 @@
         left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
         let top = btnRect.bottom + 4;
         top = Math.min(top, window.innerHeight - menuHeight - 8);
-        menu.style.left = `${left}px`;
-        menu.style.top = `${top}px`;
+        placeAt(menu, left, top);
     }
     function closeQpHistoryItemMenu() {
         document.getElementById('qpHistoryItemMenu')?.classList.remove('show');
@@ -13682,12 +13811,12 @@
         qpHistorySelectedId = null;
         qpHistoryFilter = 'all';
         document.getElementById('qpHistoryFilterAll').checked = true;
-        document.getElementById('qpHistoryModal').style.display = 'flex';
+        showModal('qpHistoryModal');
         loadQpHistory();
     }
     document.getElementById('qpShowHistoryBtn')?.addEventListener('click', openQpHistoryModal);
     document.getElementById('qpHistoryCloseBtn')?.addEventListener('click', () => {
-        document.getElementById('qpHistoryModal').style.display = 'none';
+        hideModal('qpHistoryModal');
     });
 
     // Maps a saved setup's full segment DTOs (server shape - see toSegmentDto) back into qpBlocks'
@@ -13722,7 +13851,7 @@
             qpSavedThisRun = false;
             qpSyncAfterBlocksChanged();
             renderQuickPlayBlocks();
-            document.getElementById('qpHistoryModal').style.display = 'none';
+            hideModal('qpHistoryModal');
             showSuccessToast('Loaded from history');
         } catch (error) {
             showWarningToast('Error loading history entry: ' + error.message);
@@ -13816,9 +13945,9 @@
 
     function renderQpSubdividePopupSlider() {
         const pct = ((qpSubdividePopupValue - QP_SUBDIVIDE_MIN) / (QP_SUBDIVIDE_MAX - QP_SUBDIVIDE_MIN)) * 100;
-        document.getElementById('qpSubdivideSliderFill').style.width = `${pct}%`;
+        document.getElementById('qpSubdivideSliderFill').style.setProperty('--pct', `${pct}%`);
         const thumb = document.getElementById('qpSubdivideSliderThumb');
-        thumb.style.left = `${pct}%`;
+        thumb.style.setProperty('--pct', `${pct}%`);
         thumb.setAttribute('aria-valuenow', qpSubdividePopupValue);
         thumb.setAttribute('aria-valuemax', QP_SUBDIVIDE_MAX);
         document.getElementById('qpSubdivideSliderMaxLbl').innerText = QP_SUBDIVIDE_MAX;
@@ -13842,7 +13971,7 @@
         document.getElementById('qpSubdivideFixed').checked = qpSubBeatsMode === 'fixed';
         document.getElementById('qpSubdivideBpmBox').classList.toggle('hidden-group', qpSubBeatsMode !== 'fixed');
         setQpSubdividePopupValue(qpSubdivideOverride || QP_SUBDIVIDE_MIN);
-        document.getElementById('qpSubdivideModal').style.display = 'flex';
+        showModal('qpSubdivideModal');
     });
     document.querySelectorAll('input[name="qpSubdivideOnOff"]').forEach(radio => {
         radio.addEventListener('change', () => {
@@ -13850,12 +13979,12 @@
         });
     });
     document.getElementById('qpSubdivideCancelBtn')?.addEventListener('click', () => {
-        document.getElementById('qpSubdivideModal').style.display = 'none';
+        hideModal('qpSubdivideModal');
     });
     document.getElementById('qpSubdivideSaveBtn')?.addEventListener('click', () => {
         qpSubBeatsMode = document.querySelector('input[name="qpSubdivideOnOff"]:checked')?.value || 'off';
         qpSubdivideOverride = qpSubBeatsMode === 'fixed' ? qpSubdividePopupValue : null;
-        document.getElementById('qpSubdivideModal').style.display = 'none';
+        hideModal('qpSubdivideModal');
         const block = qpBlocks[qpPlayIndex];
         if (block) applyQpBlockToPlayer(block);
         renderQuickPlayRows();
@@ -13890,13 +14019,13 @@
         document.querySelectorAll('#qpSpeedOptions .metroBlk-timesig-opt').forEach(btn => {
             btn.classList.toggle('selected', Number(btn.dataset.value) === qpSpeedPercent);
         });
-        document.getElementById('qpSpeedModal').style.display = 'flex';
+        showModal('qpSpeedModal');
     });
     document.getElementById('qpSpeedOptions')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.metroBlk-timesig-opt');
         if (!btn) return;
         setQpSpeedPercent(Number(btn.dataset.value));
-        document.getElementById('qpSpeedModal').style.display = 'none';
+        hideModal('qpSpeedModal');
     });
     renderQpSpeedLabel();
 
@@ -13909,8 +14038,8 @@
         const fill = document.getElementById('qpVolumeFill');
         const thumb = document.getElementById('qpVolumeThumb');
         if (!fill || !thumb) return;
-        fill.style.width = `${qpVolume}%`;
-        thumb.style.left = `${qpVolume}%`;
+        fill.style.setProperty('--pct', `${qpVolume}%`);
+        thumb.style.setProperty('--pct', `${qpVolume}%`);
         thumb.setAttribute('aria-valuenow', qpVolume);
         const valueEl = document.getElementById('qpVolumeValue');
         if (valueEl) valueEl.innerText = `${qpVolume}%`;
@@ -13940,10 +14069,10 @@
     });
     document.getElementById('qpVolumeBtn')?.addEventListener('click', () => {
         renderQpVolumeSlider();
-        document.getElementById('qpVolumeModal').style.display = 'flex';
+        showModal('qpVolumeModal');
     });
     function closeQpVolumePopup() {
-        document.getElementById('qpVolumeModal').style.display = 'none';
+        hideModal('qpVolumeModal');
     }
     document.getElementById('qpVolumeCloseBtn')?.addEventListener('click', closeQpVolumePopup);
     // ML-148: tapping the dark scrim outside the card dismisses it too - see the matching Blocks
@@ -14280,7 +14409,7 @@
         document.getElementById('tunerConcertOctave').classList.add('hidden-group');
         document.getElementById('tunerNoteHz').classList.add('hidden-group');
         document.getElementById('tunerConcertHz').classList.add('hidden-group');
-        document.getElementById('tunerNeedle').style.left = '50%';
+        document.getElementById('tunerNeedle').style.setProperty('--needle-pos', '50%');
         document.getElementById('tunerNeedle').classList.remove('in-tune');
         document.getElementById('tunerCard').classList.remove('in-tune', 'out-of-tune');
         const tuneEl = document.getElementById('tunerTuneState');
@@ -14365,8 +14494,8 @@
         const minLbl = document.getElementById('tunerScrubSliderMinLbl');
         if (!fill || !thumb) return;
         const pct = maxOffsetSamples > 0 ? ((maxOffsetSamples - tunerScrubOffsetSamples) / maxOffsetSamples) * 100 : 100;
-        fill.style.width = `${pct}%`;
-        thumb.style.left = `${pct}%`;
+        fill.style.setProperty('--pct', `${pct}%`);
+        thumb.style.setProperty('--pct', `${pct}%`);
         const offsetSec = Math.round((tunerScrubOffsetSamples * TUNER_HISTORY_SAMPLE_MS) / 1000);
         thumb.setAttribute('aria-valuenow', String(offsetSec));
         const maxOffsetSec = Math.round((maxOffsetSamples * TUNER_HISTORY_SAMPLE_MS) / 1000);
@@ -14406,7 +14535,7 @@
         // at all (no bar, no gap-dot - those mean "silence", not "no data yet").
         const padCount = Math.max(0, viewSamples - visible.length);
         const pitchPad = '<div class="tuner-history-bar-slot"></div>'.repeat(padCount);
-        const dynamicsPad = '<div class="tuner-dynamics-bar" style="height:0%;"></div>'.repeat(padCount);
+        const dynamicsPad = '<div class="tuner-dynamics-bar"></div>'.repeat(padCount);
 
         // Note-attack labels sit above their bar by default, but two attacks close together in time
         // would stack their labels on top of each other there - alternate below whenever a label lands
@@ -14432,7 +14561,7 @@
             const top = Math.min(50, centerPct);
             const height = Math.max(Math.abs(centerPct - 50), 1.5); // floor so an exact 0c sample still shows a sliver
             const label = s.note ? `<span class="tuner-history-bar-label${labelSides[i] === 'below' ? ' below' : ''}">${escapeHtml(s.note)}</span>` : '';
-            return `<div class="tuner-history-bar-slot"><div class="tuner-history-bar${s.inTune ? ' in-tune' : ''}" style="top:${top}%; height:${height}%;">${label}</div></div>`;
+            return `<div class="tuner-history-bar-slot"><div class="tuner-history-bar${s.inTune ? ' in-tune' : ''}" style="--bar-top:${top}%; --bar-h:${height}%;">${label}</div></div>`;
         }).join('');
 
         dynamicsEl.innerHTML = dynamicsPad + visible.map((s) => {
@@ -14441,9 +14570,9 @@
             // the ~33%-height bar TUNER_QUIET_RMS's cutoff (-40dBFS) would otherwise floor-map to. A
             // loud-but-untracked moment (breath attack, key click) still has a real s.db and still
             // shows its true height - only true silence flatlines both strips together.
-            if (s.db === null) return `<div class="tuner-dynamics-bar" style="height:0%;"></div>`;
+            if (s.db === null) return `<div class="tuner-dynamics-bar"></div>`;
             const norm = Math.max(0, Math.min(1, (s.db + 60) / 60));
-            return `<div class="tuner-dynamics-bar" style="height:${Math.max(norm * 100, 1)}%;"></div>`;
+            return `<div class="tuner-dynamics-bar" style="--bar-h:${Math.max(norm * 100, 1)}%;"></div>`;
         }).join('');
 
         // Shared horizontal time axis (#tunerGraphTimeAxis) - always TUNER_HISTORY_VIEW_MS wide, but
@@ -14519,7 +14648,7 @@
 
         const clampedCents = Math.max(-50, Math.min(50, centsOff));
         const inTune = Math.abs(centsOff) <= TUNER_ZONE_CENTS;
-        document.getElementById('tunerNeedle').style.left = `${50 + clampedCents}%`;
+        document.getElementById('tunerNeedle').style.setProperty('--needle-pos', `${50 + clampedCents}%`);
         document.getElementById('tunerNeedle').classList.toggle('in-tune', inTune);
         document.getElementById('tunerCard').classList.toggle('in-tune', inTune);
         document.getElementById('tunerCard').classList.toggle('out-of-tune', !inTune);
@@ -14632,7 +14761,7 @@
     }
     document.getElementById('tunerTranspositionBtn')?.addEventListener('click', openTunerTranspositionPicker);
     document.getElementById('tunerTranspositionCloseBtn')?.addEventListener('click', () => {
-        document.getElementById('tunerTranspositionModal').style.display = 'none';
+        hideModal('tunerTranspositionModal');
     });
 
     // Settings-screen toggle for the "right now" card's Concert column (updateTunerTranspositionLabel
@@ -14654,10 +14783,10 @@
     // Cancel/Save, it's just live picks/toggles.
     function openTunerSettingsModal() {
         renderTunerSettingsModal();
-        document.getElementById('tunerSettingsModal').style.display = 'flex';
+        showModal('tunerSettingsModal');
     }
     function closeTunerSettingsModal() {
-        document.getElementById('tunerSettingsModal').style.display = 'none';
+        hideModal('tunerSettingsModal');
     }
     document.getElementById('tunerSettingsBtn')?.addEventListener('click', openTunerSettingsModal);
     document.getElementById('tunerSettingsCloseBtn')?.addEventListener('click', closeTunerSettingsModal);
@@ -14707,8 +14836,8 @@
         const pct = ((tunerA4Freq - TUNER_A4_MIN) / (TUNER_A4_MAX - TUNER_A4_MIN)) * 100;
         const fill = document.getElementById('tunerA4SliderFill');
         const thumb = document.getElementById('tunerA4SliderThumb');
-        if (fill) fill.style.width = `${pct}%`;
-        if (thumb) { thumb.style.left = `${pct}%`; thumb.setAttribute('aria-valuenow', String(tunerA4Freq)); }
+        if (fill) fill.style.setProperty('--pct', `${pct}%`);
+        if (thumb) { thumb.style.setProperty('--pct', `${pct}%`); thumb.setAttribute('aria-valuenow', String(tunerA4Freq)); }
         const valueEl = document.getElementById('tunerA4PopupValue');
         if (valueEl) valueEl.innerText = String(tunerA4Freq);
         const rowValue = document.getElementById('tunerA4RowValue');
@@ -14721,10 +14850,10 @@
     }
     function openTunerA4Modal() {
         renderTunerA4Slider();
-        document.getElementById('tunerA4Modal').style.display = 'flex';
+        showModal('tunerA4Modal');
     }
     function closeTunerA4Modal() {
-        document.getElementById('tunerA4Modal').style.display = 'none';
+        hideModal('tunerA4Modal');
     }
     // Tuning opens its own popup (a slider needs more room than a tile grid) - closes the Settings
     // popup first rather than stacking two dark-backdrop modals on top of each other.
@@ -14811,7 +14940,7 @@
     // and go.
     function renderMetroBlkMiniTunerIdle() {
         document.getElementById('metroBlkMiniTunerNote').innerText = '–';
-        document.getElementById('metroBlkMiniTunerNeedle').style.left = '50%';
+        document.getElementById('metroBlkMiniTunerNeedle').style.setProperty('--needle-pos', '50%');
         document.getElementById('metroBlkMiniTunerNeedle').classList.remove('in-tune');
         document.getElementById('metroBlkMiniTuner').classList.remove('in-tune');
     }
@@ -14827,7 +14956,7 @@
         const clampedCents = Math.max(-50, Math.min(50, centsOff));
         const inTune = Math.abs(centsOff) <= TUNER_ZONE_CENTS;
         const needle = document.getElementById('metroBlkMiniTunerNeedle');
-        needle.style.left = `${50 + clampedCents}%`;
+        needle.style.setProperty('--needle-pos', `${50 + clampedCents}%`);
         needle.classList.toggle('in-tune', inTune);
         document.getElementById('metroBlkMiniTuner').classList.toggle('in-tune', inTune);
     }
@@ -14858,7 +14987,7 @@
     function openMetroBlkMiniTunerInstrumentPicker() {
         renderMetroBlkMiniTunerInstrumentOptions();
         renderMetroBlkMiniTunerInstrumentBtn();
-        document.getElementById('metroBlkMiniTunerInstrumentModal').style.display = 'flex';
+        showModal('metroBlkMiniTunerInstrumentModal');
     }
     document.getElementById('metroBlkMiniTunerInstrumentBtn')?.addEventListener('click', openMetroBlkMiniTunerInstrumentPicker);
     document.getElementById('metroBlkMiniTunerInstrumentOptions')?.addEventListener('click', (e) => {
@@ -14866,7 +14995,7 @@
         if (!btn) return;
         metroBlkMiniTunerInstrument = parseInt(btn.dataset.value, 10) || 0;
         renderMetroBlkMiniTunerInstrumentBtn();
-        document.getElementById('metroBlkMiniTunerInstrumentModal').style.display = 'none';
+        hideModal('metroBlkMiniTunerInstrumentModal');
     });
     document.getElementById('metroBlkMiniTunerCloseBtn')?.addEventListener('click', closeMetroBlkMiniTuner);
 
@@ -14902,6 +15031,8 @@
         if (currentView === 'quickPlayView') return qpPlayer;
         if (currentView === 'metroBuilderView') return metroBlkPlayer;
         if (currentView === 'flowPlayView') return flowPlayer;
+        if (currentView === 'scalesView') return scalesPlayer;
+        if (currentView === 'warmupsView') return warmupsPlayer;
         return null;
     }
 
@@ -15088,8 +15219,33 @@
         document.getElementById('topTimerIconBtn')?.classList.toggle('hidden-group', !showIcon);
     }
 
+    // ML-293: the countdown ring on the Timer screen. Up to an hour, the full ring is the whole session.
+    // Over an hour, the main ring is the last hour and the thin outer ring the part over it (up to a
+    // second hour), which unwinds first; the badge says which hour you're in, counting down.
+    const TIMER_RING_HOUR = 3600;
+    function renderTimerRing() {
+        const ring = document.getElementById('timerRemainingCard');
+        if (!ring || !timerState || timerState.openEnded) return;
+        const target = timerState.targetSeconds || 1;
+        const left = Math.max(0, timerState.remainingSeconds);
+        const overAnHour = target > TIMER_RING_HOUR;
+        const main = overAnHour ? Math.min(left, TIMER_RING_HOUR) / TIMER_RING_HOUR : left / target;
+        const lap = overAnHour ? Math.min(Math.max(left - TIMER_RING_HOUR, 0), TIMER_RING_HOUR) / TIMER_RING_HOUR : 0;
+        ring.style.setProperty('--ring-left', main.toFixed(4));
+        ring.style.setProperty('--lap-left', lap.toFixed(4));
+        ring.classList.toggle('has-lap', lap > 0);
+        ring.classList.toggle('is-running', !!timerState.running);
+        ring.classList.toggle('is-long', left >= TIMER_RING_HOUR);
+        const hour = document.getElementById('timerRingHour');
+        if (hour) {
+            setShown(hour, overAnHour);
+            if (overAnHour) hour.textContent = `Hour ${Math.max(1, Math.ceil(left / TIMER_RING_HOUR))} of ${Math.ceil(target / TIMER_RING_HOUR)}`;
+        }
+    }
+
     function updateTimerPlayIcons() {
         const running = !!(timerState && timerState.running);
+        document.getElementById('timerRemainingCard')?.classList.toggle('is-running', running);
         const label = running ? 'Pause' : 'Play';
         const icon = running ? 'pause' : 'play_arrow';
         const fullIcon = document.getElementById('timerPlayIcon');
@@ -15127,6 +15283,7 @@
         if (remainingLabelEl) remainingLabelEl.innerText = openEnded ? 'Time done' : 'Time left in session';
         const elapsedLabelEl = document.getElementById('timerElapsedLabel');
         if (elapsedLabelEl) elapsedLabelEl.innerText = openEnded ? 'Time done' : 'This session';
+        renderTimerRing();
 
         // The pill only has room for one figure, per the request ("has the time remaining") -
         // elapsed/"today" stay full-screen-only (timerElapsedDisplay/timerTodayDisplay above).
@@ -15192,7 +15349,7 @@
         // Only seeds an idle timer nobody has picked a length for yet - never overrides a choice.
         if (!timerState && timerPickedMinutes === null) timerPickedMinutes = suggestedTimerMinutes();
         timerInlineBoxOpen = true;
-        document.getElementById('timerInlineBox').style.display = 'flex';
+        showModal('timerInlineBox');
         updateTopTimerIndicator(viewStack[viewStack.length - 1]);
         renderTimerInlineBox();
     }
@@ -15200,7 +15357,7 @@
     // kept open, and the timer will keep going... you can continue to use the screen as normal").
     function closeTimerInlineBox() {
         timerInlineBoxOpen = false;
-        document.getElementById('timerInlineBox').style.display = 'none';
+        hideModal('timerInlineBox');
         updateTopTimerIndicator(viewStack[viewStack.length - 1]);
     }
     document.getElementById('topTimerPill')?.addEventListener('click', openTimerInlineBox);
@@ -15242,7 +15399,7 @@
                 if (customInput) customInput.value = timerPickedMinutes;
             }
         }
-        document.getElementById('timerDurationPickerModal').style.display = 'flex';
+        showModal('timerDurationPickerModal');
     });
     document.getElementById('timerPickerDurationRadios')?.addEventListener('change', (e) => {
         if (e.target.name !== 'timerPickerDurationOption') return;
@@ -15255,7 +15412,7 @@
         }
     });
     function closeTimerDurationPickerModal() {
-        document.getElementById('timerDurationPickerModal').style.display = 'none';
+        hideModal('timerDurationPickerModal');
     }
     document.getElementById('timerDurationPickerXBtn')?.addEventListener('click', closeTimerDurationPickerModal);
     document.getElementById('timerDurationPickerCancelBtn')?.addEventListener('click', closeTimerDurationPickerModal);
@@ -15360,10 +15517,10 @@
     function openTimerFinishedModal() {
         const minutes = Math.max(1, Math.round(timerPendingFinish.elapsedSeconds / 60));
         document.getElementById('timerFinishedMessage').innerText = `Would you like to store this ${minutes} minute session as a practice session?`;
-        document.getElementById('timerFinishedModal').style.display = 'flex';
+        showModal('timerFinishedModal');
     }
     function closeTimerFinishedModal() {
-        document.getElementById('timerFinishedModal').style.display = 'none';
+        hideModal('timerFinishedModal');
     }
     document.getElementById('timerFinishedYesBtn')?.addEventListener('click', () => {
         if (!timerPendingFinish) return closeTimerFinishedModal();
@@ -15500,6 +15657,7 @@
         if (render.type === 'symbol') svg = Notation.symbol(render.glyph, { label });
         else if (render.type === 'staff') svg = Notation.staff({ ...render.staff, label });
         else if (render.type === 'hairpin') svg = Notation.hairpin(render.dir, { label });
+        else if (render.type === 'tempo') svg = Notation.tempoMark(render.bpm, { label });
         else svg = Notation.textMark(render.text, { italic: render.italic, bold: render.bold, label });
         return theoryScaleSvg(svg, k);
     }
@@ -15525,11 +15683,13 @@
     // --- Quiz list ---
     async function renderTheoryList() {
         const list = document.getElementById('theoryQuizList');
+        // ML-301: every quiz has a subtitle (so the rows are the same height); one you haven't tried has
+        // a "New" pill where the grade dots go.
         const row = (q, last) => `
             <button type="button" class="history-item clickable theory-quiz-row" data-quiz="${q.id}">
                 <span class="theory-quiz-icon">${theoryScaleSvg(Notation.symbol(q.icon), 0.8)}</span>
-                <span class="history-details"><strong>${escapeHtml(q.title)}</strong>${q.subtitle ? `${escapeHtml(q.subtitle)}<br>` : ''}${last ? `Last grade ${last.grade} · ${theoryWhen(last.startedAt)}` : 'Not tried yet'}</span>
-                ${last ? theoryGradeHtml(last.grade, `Last grade ${last.grade} of 5`) : ''}
+                <span class="history-details"><strong>${escapeHtml(q.title)}</strong>${escapeHtml(q.subtitle || '')}${last ? `<br>Last grade ${last.grade} · ${theoryWhen(last.startedAt)}` : ''}</span>
+                ${last ? theoryGradeHtml(last.grade, `Last grade ${last.grade} of 5`) : loaded ? '<span class="flow-pill flow-pill-accent">New</span>' : ''}
             </button>`;
         // Smart learn adds "Your weak spots" at the end: a round of only the questions you've been missing.
         const weakRow = (weak) => {
@@ -15540,14 +15700,14 @@
                 <span class="history-details"><strong>${escapeHtml(q.title)}</strong>${n ? `${n} ${n === 1 ? 'question' : 'questions'} to work on` : 'Questions you miss collect here'}</span>
             </button>`;
         };
-        let summary = {}, weak = null;
+        let summary = {}, weak = null, loaded = false;
         const draw = () => {
             list.innerHTML = TheoryEngine.QUIZZES.map(q => row(q, summary[q.id])).join('') + (weak ? weakRow(weak) : '');
             list.querySelectorAll('[data-quiz]').forEach(b => b.addEventListener('click', () => openTheoryOptions(b.dataset.quiz)));
         };
         draw();
         const [s, w] = await Promise.all([API.theory.summary().catch(() => null), theoryLoadSmart()]);
-        if (s) summary = s.quizzes || {};
+        if (s) { summary = s.quizzes || {}; loaded = true; }
         if (w) weak = w.weak;
         draw();
     }
@@ -15694,7 +15854,7 @@
             const secs = Math.ceil(left / 1000);
             clock.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
             const fill = document.getElementById('theoryCountdownFill');
-            fill.style.transform = `scaleX(${left / (r.seconds * 1000)})`;
+            fill.style.setProperty('--remaining', left / (r.seconds * 1000));
             document.getElementById('theoryCountdown').setAttribute('aria-valuenow', String(Math.round(100 * left / (r.seconds * 1000))));
             if (left <= 0) theoryEndRound();
         } else {
@@ -15835,7 +15995,7 @@
         const el = document.getElementById('theoryTrend');
         if (!recent.length) { el.innerHTML = '<p class="text-muted">Your rounds with these options will show here.</p>'; return; }
         el.innerHTML = `<div class="theory-trend-bars" role="img" aria-label="Scores of your last ${recent.length} rounds: ${recent.map(a => a.score).join(', ')}">${recent.map((a, i) => `
-            <div class="chart-bar-container"><div class="chart-bar" style="height:${Math.max(2, a.score)}%; background: var(--chart-hours);"></div>
+            <div class="chart-bar-container"><div class="chart-bar series-hours" style="--bar-h:${Math.max(2, a.score)}%;"></div>
             <span class="chart-x-label">${i === recent.length - 1 ? 'Now' : a.score}</span></div>`).join('')}</div>`;
     }
     document.getElementById('theoryAgainBtn')?.addEventListener('click', () => {
@@ -15844,6 +16004,1234 @@
         theoryStartRound();
     });
     document.getElementById('theoryChangeBtn')?.addEventListener('click', () => goBack());
+
+    // ========================================
+    // DRILLS (Jira ML-298 Tap tempo, ML-295 Gap trainer, ML-296 Ear - on screen Tempo, Pulse, Pitch)
+    // ========================================
+    // Three home-screen tools on one engine (public/drills.js: levels, rounds, scoring - the server
+    // re-scores every saved round from the same details). Each has a setup screen (level pills, your
+    // best, Start), its own play screen, and they share the results screen (drillResultsView). The
+    // chosen level is remembered on the device (localStorage tml.drills.<tool>). See docs/drills.md and
+    // specs/components/drills.md.
+    // On screen they're Tempo, Pulse and Pitch (tool groups, 2026-09-26); the ids stay tapTempo / gapTrainer / ear.
+    const DRILL_TITLES = { tapTempo: 'Tempo', gapTrainer: 'Pulse', ear: 'Pitch' };
+    function drillStored(tool) { try { return JSON.parse(localStorage.getItem(`tml.drills.${tool}`) || '{}') || {}; } catch (e) { return {}; } }
+    function drillStore(tool, v) { try { localStorage.setItem(`tml.drills.${tool}`, JSON.stringify(v)); } catch (e) { /* per-device convenience only */ } }
+    const drillNow = () => performance.now();
+    const drillSeed = () => (window.__drillTest && window.__drillTest.seed) || (Date.now() % 2147483647);
+
+    // Option groups as one-tap pills (the Theory options look), each with an optional line under it.
+    function renderDrillOptions(tool, groups, onChange) {
+        const form = document.getElementById(`${tool}Options`);
+        form.innerHTML = groups.map(g => `
+            <div class="form-group" role="group" aria-labelledby="${tool}OptLabel-${g.key}"><label id="${tool}OptLabel-${g.key}">${escapeHtml(g.label)}</label>
+                <div class="radio-group${g.choices.length > 4 ? ' compact' : ''}">
+                    ${g.choices.map((c, i) => `<input type="radio" id="${tool}Opt-${g.key}-${i}" name="${tool}Opt-${g.key}" data-key="${g.key}" data-index="${i}"${c.value === g.value ? ' checked' : ''}><label for="${tool}Opt-${g.key}-${i}">${escapeHtml(c.label)}</label>`).join('')}
+                </div>
+                ${g.help ? `<p class="metro-help-text">${escapeHtml(g.help)}</p>` : ''}
+            </div>`).join('');
+        form.querySelectorAll('input').forEach(input => input.addEventListener('change', () => {
+            const g = groups.find(x => x.key === input.dataset.key);
+            onChange(g.key, g.choices[Number(input.dataset.index)].value);
+        }));
+    }
+    async function renderDrillBest(tool, level, elId, stillCurrent) {
+        const el = document.getElementById(elId);
+        el.textContent = '';
+        try {
+            const h = await API.drills.history(tool, level);
+            if (stillCurrent && !stillCurrent()) return;
+            el.textContent = h.best ? `Your best at this level: ${h.best.score} (grade ${h.best.grade})` : "You haven't tried this level yet.";
+        } catch (e) { /* not essential */ }
+    }
+    async function saveDrill(tool, level, startedAt, t0, details) {
+        try {
+            return await API.drills.save(tool, { level, startedAt, durationMs: Math.round(drillNow() - t0), details });
+        } catch (e) {
+            showWarningToast('Round not saved: ' + e.message);
+            return null;
+        }
+    }
+    const drillPadFlash = (pad) => { pad.classList.add('is-hit'); setTimeout(() => pad.classList.remove('is-hit'), 90); };
+    // A pad is played on pointerdown (a click fires too late to time a beat by); a click with no pointer
+    // behind it (keyboard, switch access, a screen reader) counts too.
+    function wireDrillPad(id, onHit) {
+        const pad = document.getElementById(id);
+        if (!pad) return;
+        // a11y: pointerdown is essential here (WCAG 2.5.2 exception) - a tap IS the moment the finger lands,
+        // like a drum; timing it on release would make every beat late. Keyboard/AT taps use click below.
+        pad.addEventListener('pointerdown', (e) => { if (e.button > 0) return; e.preventDefault(); drillPadFlash(pad); onHit(); });
+        pad.addEventListener('click', (e) => { if (e.detail === 0) { drillPadFlash(pad); onHit(); } });
+    }
+
+    // --- The shared results screen ---
+    let drillLast = null; // { tool, again }
+    function showDrillResults({ tool, levelLabel, result, saved, stats, rows, again, playView }) {
+        drillLast = { tool, again };
+        document.getElementById('drillResultsLevel').textContent = `${DRILL_TITLES[tool]} · ${levelLabel}`;
+        const grade = result.grade;
+        const g = document.getElementById('drillResultGrade');
+        g.setAttribute('aria-label', `Grade ${grade} of 5`);
+        g.innerHTML = [1, 2, 3, 4, 5].map(i => `<span class="theory-grade-dot${i <= grade ? ' theory-grade-dot-on' : ''}"></span>`).join('');
+        const best = document.getElementById('drillResultBest');
+        if (!saved) best.textContent = `Grade ${grade} of 5 · not saved`;
+        else if (saved.previousBest === null) best.textContent = `Grade ${grade} of 5 · your first round at this level`;
+        else if (saved.newBest) best.textContent = `Grade ${grade} of 5 · new personal best (was ${saved.previousBest})`;
+        else best.textContent = `Grade ${grade} of 5 · your best is ${saved.best ? saved.best.score : saved.previousBest}`;
+        document.getElementById('drillResultStats').innerHTML = stats.map(([label, value]) => `<div class="stat-card"><span class="label">${escapeHtml(label)}</span><span class="value">${escapeHtml(String(value))}</span></div>`).join('');
+        document.getElementById('drillResultDetail').innerHTML = rows.map(([a, b]) => `<li><span>${escapeHtml(a)}</span><strong>${escapeHtml(b)}</strong></li>`).join('');
+        const recent = saved ? saved.recent : [];
+        const trend = document.getElementById('drillTrend');
+        trend.innerHTML = !recent.length ? '<p class="text-muted">Your rounds at this level will show here.</p>'
+            : `<div class="theory-trend-bars" role="img" aria-label="Scores of your last ${recent.length} rounds: ${recent.map(a => a.score).join(', ')}">${recent.map((a, i) => `
+                <div class="chart-bar-container"><div class="chart-bar series-hours" style="--bar-h:${Math.max(2, a.score)}%;"></div>
+                <span class="chart-x-label">${i === recent.length - 1 ? 'Now' : a.score}</span></div>`).join('')}</div>`;
+        // Results replaces the play screen, so Back (and "Change level") lands on the setup screen.
+        if (viewStack[viewStack.length - 1] === playView) viewStack.pop();
+        switchView('drillResultsView');
+    }
+    document.getElementById('drillAgainBtn')?.addEventListener('click', () => {
+        if (viewStack[viewStack.length - 1] === 'drillResultsView') viewStack.pop();
+        drillLast?.again();
+    });
+    document.getElementById('drillChangeBtn')?.addEventListener('click', () => goBack());
+
+    // ---------------------------------------- Tap tempo (ML-298)
+    const tapState = (() => {
+        const s = drillStored('tapTempo');
+        return { level: Drills.TAP.LEVELS.some(l => l.id === s.level) ? s.level : 'listen' };
+    })();
+    function renderTapTempoSetup() {
+        const level = Drills.tapLevel(tapState.level);
+        renderDrillOptions('tapTempo', [{ key: 'level', label: 'Level', value: tapState.level, choices: Drills.TAP.LEVELS.map(l => ({ value: l.id, label: l.label })), help: level.desc }],
+            (k, v) => { tapState.level = v; drillStore('tapTempo', tapState); renderTapTempoSetup(); });
+        const lv = tapState.level;
+        renderDrillBest('tapTempo', lv, 'tapTempoBest', () => tapState.level === lv);
+    }
+    document.getElementById('tapTempoStartBtn')?.addEventListener('click', () => tapStart());
+
+    // Listen first: one bar of the speed, then silence while you carry on.
+    const tapPlayer = createMetronomePlayer();
+    tapPlayer.setVisualLatencyMs(metroState.latencyMs);
+    let tapCountIn = 0;
+    tapPlayer.onBeat(() => {
+        if (tapCountIn <= 0) return;
+        tapCountIn--;
+        if (tapCountIn === 0) { tapPlayer.pause(); tapPlayer.setClickFilter(null); if (tapRound && !tapRound.locked) document.getElementById('tapTempoFeedback').textContent = 'Keep it going'; }
+    });
+    let tapRound = null;
+    function tapStart(seed) {
+        const level = Drills.tapLevel(tapState.level);
+        seed = seed ?? drillSeed();
+        tapRound = { level, seed, targets: Drills.tapTargets(level.id, seed), taps: [], i: 0, current: [], locked: false, startedAt: new Date().toISOString(), t0: drillNow() };
+        switchView('tapTempoPlayView');
+        tapShowTarget();
+    }
+    function tapStop() {
+        tapCountIn = 0;
+        if (tapPlayer.isPlaying()) tapPlayer.pause();
+        tapPlayer.setClickFilter(null);
+        tapRound = null;
+    }
+    const tapRel = (list) => list.map(x => Math.round((x - list[0]) * 10) / 10);
+    const tapTargetText = (t) => (t.band ? t.name : `${t.bpm} bpm`);
+    function tapShowTarget() {
+        const r = tapRound, t = r.targets[r.i];
+        r.current = [];
+        r.locked = false;
+        document.getElementById('tapTempoStep').textContent = `Speed ${r.i + 1} of ${r.targets.length}`;
+        document.getElementById('tapTempoCount').textContent = `0 of ${Drills.TAP.TAPS} taps`;
+        document.getElementById('tapTempoAsk').textContent = t.band ? 'Tap anywhere in this speed' : 'Tap at this speed';
+        document.getElementById('tapTempoPrompt').innerHTML = t.band
+            ? theoryVisual({ type: 'text', text: t.name, bold: true }, t.name, THEORY_PROMPT_SCALE * 1.4)
+            : theoryScaleSvg(Notation.tempoMark(t.bpm, { label: `Crotchet equals ${t.bpm}` }), THEORY_PROMPT_SCALE * 1.4);
+        setShown('tapTempoMeter', r.level.live);
+        document.getElementById('tapTempoNeedle').style.setProperty('--pos', '0');
+        document.getElementById('tapTempoFeedback').textContent = '';
+        setShown('tapTempoNextBtn', false);
+        document.getElementById('tapTempoPad').disabled = false;
+        if (r.level.countIn && !t.band) {
+            // One bar at the speed; a click filter keeps anything after it silent while it stops.
+            tapCountIn = 4;
+            tapPlayer.setConductorBpm(t.bpm);
+            tapPlayer.setConductorBeatsPerBar(4);
+            tapPlayer.setNotesPerBeat(1);
+            tapPlayer.setSubdivisionFactor(1);
+            tapPlayer.setClickFilter((ci) => ci < 4);
+            tapPlayer.resetToBarStart();
+            tapPlayer.play();
+            document.getElementById('tapTempoFeedback').textContent = 'Listen - join in when you like';
+        }
+    }
+    function tapHit() {
+        const r = tapRound;
+        if (!r || r.locked) return;
+        r.current.push(drillNow());
+        const n = r.current.length;
+        document.getElementById('tapTempoCount').textContent = `${n} of ${Drills.TAP.TAPS} taps`;
+        const t = r.targets[r.i];
+        if (r.level.live && !t.band && tapCountIn <= 0) {
+            const live = Drills.tapLive(t.bpm, tapRel(r.current));
+            if (live) {
+                document.getElementById('tapTempoNeedle').style.setProperty('--pos', live.pos.toFixed(3));
+                document.getElementById('tapTempoFeedback').textContent = live.verdict === 'on' ? 'On it' : live.verdict === 'slow' ? 'A bit faster' : 'A bit slower';
+            }
+        }
+        if (n >= Drills.TAP.TAPS) tapFinishTarget();
+    }
+    wireDrillPad('tapTempoPad', tapHit);
+    function tapFinishTarget() {
+        const r = tapRound, t = r.targets[r.i];
+        r.locked = true;
+        tapCountIn = 0;
+        if (tapPlayer.isPlaying()) tapPlayer.pause();
+        r.taps[r.i] = tapRel(r.current);
+        const res = Drills.tapScoreOne(t, r.taps[r.i]);
+        const bpm = Math.round(res.bpm);
+        const verdict = t.band
+            ? (res.error === 0 ? `in ${t.name}'s range (${t.min}-${t.max}${t.max === 200 ? '+' : ''})` : `too ${res.direction} for ${t.name} (${t.min}-${t.max}${t.max === 200 ? '+' : ''})`)
+            : (res.direction === 'on' ? 'spot on' : `${res.error}% too ${res.direction}`);
+        document.getElementById('tapTempoFeedback').textContent = `You tapped ${bpm} bpm - ${verdict}. ${res.points} points.`;
+        document.getElementById('tapTempoPad').disabled = true;
+        const next = document.getElementById('tapTempoNextBtn');
+        next.textContent = r.i === r.targets.length - 1 ? 'See your score' : 'Next speed';
+        setShown(next, true);
+        next.focus();
+    }
+    document.getElementById('tapTempoNextBtn')?.addEventListener('click', () => {
+        const r = tapRound;
+        if (!r) return;
+        r.i++;
+        if (r.i < r.targets.length) tapShowTarget(); else tapEnd();
+    });
+    async function tapEnd() {
+        const r = tapRound;
+        const details = { targets: r.targets.map(t => (t.band ? { band: t.band } : { bpm: t.bpm })), taps: r.taps };
+        const local = Drills.tapScoreRound(r.level.id, details);
+        const saved = await saveDrill('tapTempo', r.level.id, r.startedAt, r.t0, details);
+        const result = saved ? saved.result : local;
+        const errs = result.results.filter(x => x.error !== null).map(x => x.error);
+        tapStop();
+        showDrillResults({
+            tool: 'tapTempo', levelLabel: r.level.label, result, saved, playView: 'tapTempoPlayView',
+            stats: [['Score', result.score], ['Average miss', errs.length ? `${(errs.reduce((a, b) => a + b, 0) / errs.length).toFixed(1)}%` : '-'],
+                ['Spot on', `${result.results.filter(x => x.error !== null && x.error <= 2).length} of ${r.targets.length}`], ['Steadiness', errs.length ? `${Math.round(100 - result.results.reduce((a, x) => a + (x.spread || 0), 0) / r.targets.length)}%` : '-']],
+            rows: r.targets.map((t, i) => [`${tapTargetText(t)}${t.band ? ` (${t.min}-${t.max}${t.max === 200 ? '+' : ''})` : ''}`, result.results[i].bpm === null ? 'not finished' : `${Math.round(result.results[i].bpm)} bpm · ${result.results[i].points}`]),
+            again: () => tapStart(),
+        });
+    }
+
+    // ---------------------------------------- Gap trainer (ML-295)
+    const gapState = (() => {
+        const s = drillStored('gapTrainer');
+        return {
+            pattern: Drills.GAP.PATTERNS.some(p => p.id === s.pattern) ? s.pattern : 'bars3on1off',
+            bpm: Drills.GAP.BPMS.includes(s.bpm) ? s.bpm : Drills.GAP.DEFAULT_BPM,
+        };
+    })();
+    function renderGapTrainerSetup() {
+        const p = Drills.gapPattern(gapState.pattern);
+        renderDrillOptions('gapTrainer', [
+            { key: 'pattern', label: 'Drill', value: gapState.pattern, choices: Drills.GAP.PATTERNS.map(x => ({ value: x.id, label: x.label })), help: `${p.group}: ${p.desc}` },
+            { key: 'bpm', label: 'Speed (bpm)', value: gapState.bpm, choices: Drills.GAP.BPMS.map(b => ({ value: b, label: String(b) })), help: TheoryEngine.speedLabel(gapState.bpm) },
+        ], (k, v) => { gapState[k] = v; drillStore('gapTrainer', gapState); renderGapTrainerSetup(); });
+        const pat = gapState.pattern;
+        renderDrillBest('gapTrainer', pat, 'gapTrainerBest', () => gapState.pattern === pat);
+    }
+    document.getElementById('gapTrainerStartBtn')?.addEventListener('click', () => gapStart());
+
+    const gapPlayer = createMetronomePlayer();
+    gapPlayer.setVisualLatencyMs(metroState.latencyMs);
+    let gapRound = null;
+    function gapStart(seed) {
+        seed = seed ?? drillSeed();
+        const sched = Drills.gapSchedule(gapState.pattern, seed);
+        const G = Drills.GAP;
+        gapRound = { pattern: Drills.gapPattern(gapState.pattern), bpm: gapState.bpm, seed, sched, taps: [], t0: null, done: false, startedAt: new Date().toISOString(), started: drillNow() };
+        switchView('gapTrainerPlayView');
+        document.getElementById('gapTrainerBeats').innerHTML = Array.from({ length: G.BARS }, (_, bar) =>
+            `<div class="drill-bar">${sched.beats.filter(b => b.bar === bar).map(b => `<span class="drill-beat${b.silent ? ' is-silent' : ''}" data-k="${bar * G.BEATS + b.beat}"></span>`).join('')}</div>`).join('');
+        document.getElementById('gapTrainerBar').textContent = 'Get ready';
+        document.getElementById('gapTrainerState').textContent = `${gapRound.bpm} bpm`;
+        document.getElementById('gapTrainerFeedback').textContent = 'A bar to count you in - tap every beat from bar 1';
+        gapPlayer.setConductorBpm(gapRound.bpm);
+        gapPlayer.setConductorBeatsPerBar(G.BEATS);
+        gapPlayer.setNotesPerBeat(sched.clicksPerBeat);
+        gapPlayer.setSubdivisionFactor(1);
+        gapPlayer.setClickFilter((ci, perBar) => {
+            const bar = Math.floor(ci / perBar) - G.COUNT_IN_BARS;
+            return bar < G.BARS && sched.heard(bar, ci % perBar);
+        });
+        gapPlayer.resetToBarStart();
+        gapPlayer.play();
+    }
+    function gapStop() {
+        if (gapPlayer.isPlaying()) gapPlayer.pause();
+        gapPlayer.setClickFilter(null);
+        gapPlayer.resetToBarStart();
+        if (gapRound) gapRound.done = true;
+        gapRound = null;
+    }
+    gapPlayer.onBeat((info) => {
+        const r = gapRound;
+        if (!r || r.done || info.ended) return;
+        const G = Drills.GAP, cpb = r.sched.clicksPerBeat, perBar = G.BEATS * cpb;
+        const ci = info.clickIndex;
+        if (r.t0 === null) r.t0 = info.time - (ci * 60 / r.bpm / cpb) + G.COUNT_IN_BARS * G.BEATS * 60 / r.bpm;
+        const bar = Math.floor(ci / perBar) - G.COUNT_IN_BARS, click = ci % perBar;
+        if (bar >= G.BARS) { gapFinish(); return; }
+        if (click % cpb) return; // the "and" between beats (Offbeats)
+        const beat = click / cpb;
+        document.querySelectorAll('#gapTrainerBeats .is-now').forEach(el => el.classList.remove('is-now'));
+        if (bar < 0) {
+            document.getElementById('gapTrainerBar').textContent = `Count-in ${beat + 1}`;
+            return;
+        }
+        document.querySelector(`#gapTrainerBeats [data-k="${bar * G.BEATS + beat}"]`)?.classList.add('is-now');
+        document.getElementById('gapTrainerBar').textContent = `Bar ${bar + 1} of ${G.BARS}`;
+        if (beat === 0) document.getElementById('gapTrainerFeedback').textContent = r.sched.silentBars.includes(bar) ? 'Silent - keep going' : '';
+    });
+    wireDrillPad('gapTrainerPad', () => {
+        const r = gapRound;
+        if (!r || r.done) return;
+        const now = gapPlayer.audioNow();
+        if (now !== null) r.taps.push(now);
+    });
+    document.getElementById('gapTrainerStopBtn')?.addEventListener('click', () => { gapStop(); goBack(); });
+    // Taps go in as seconds from bar 1 beat 1, less the output delay set in Settings (a click is heard
+    // that much after it's scheduled, and you tap to what you hear).
+    function gapTapsRelative(r) {
+        const lag = (metroState.latencyMs || 0) / 1000;
+        return r.taps.map(t => Math.round((t - r.t0 - lag) * 1000) / 1000).filter(t => t > -5 && t < 120);
+    }
+    async function gapFinish(tapsOverride) {
+        const r = gapRound;
+        if (!r || r.done) return;
+        r.done = true;
+        if (gapPlayer.isPlaying()) gapPlayer.pause();
+        gapPlayer.setClickFilter(null);
+        gapPlayer.resetToBarStart();
+        const details = { bpm: r.bpm, seed: r.seed, taps: tapsOverride || (r.t0 === null ? [] : gapTapsRelative(r)) };
+        const local = Drills.gapScoreRound(r.pattern.id, details);
+        const saved = await saveDrill('gapTrainer', r.pattern.id, r.startedAt, r.started, details);
+        const result = saved ? saved.result : local;
+        gapRound = null;
+        const ms = (v) => (v === null ? '-' : Math.abs(v) <= result.onTimeMs ? 'on the beat' : `${Math.abs(v)} ms ${v < 0 ? 'early' : 'late'}`);
+        showDrillResults({
+            tool: 'gapTrainer', levelLabel: `${r.pattern.label} · ${r.bpm} bpm`, result, saved, playView: 'gapTrainerPlayView',
+            stats: [['Score', result.score], ['In the silence', result.silentScore === null ? '-' : result.silentScore], ['Drift in the gaps', ms(result.drift)], ['Beats missed', result.missed]],
+            rows: result.landings.length
+                ? result.landings.map((v, i) => [`Back in after gap ${i + 1}`, v === null ? 'no tap' : ms(v)])
+                : [['Silent beats', `${result.results.filter(x => x.silent).length} of ${result.results.length}`]],
+            again: () => gapStart(),
+        });
+    }
+
+    // ---------------------------------------- Ear (ML-296)
+    const earState = (() => {
+        const s = drillStored('ear');
+        const sets = { reference: 'root5', single: 'naturals', playback: 'naturals', ...(s.sets || {}) };
+        Object.keys(sets).forEach(m => { try { Drills.earSet(m, sets[m]); } catch (e) { sets[m] = m === 'reference' ? 'root5' : 'naturals'; } });
+        return { mode: Drills.EAR.MODES.some(m => m.id === s.mode) ? s.mode : 'reference', sets };
+    })();
+    const earSpell = (name) => TheoryEngine.spellName(name, theoryNaming());
+    function renderEarSetup() {
+        const mode = Drills.earMode(earState.mode);
+        const setId = earState.sets[earState.mode];
+        const list = earState.mode === 'reference' ? Drills.EAR.LEVELS : Drills.EAR.NOTE_SETS;
+        const set = Drills.earSet(earState.mode, setId);
+        renderDrillOptions('ear', [
+            { key: 'mode', label: 'How', value: earState.mode, choices: Drills.EAR.MODES.map(m => ({ value: m.id, label: m.label })), help: mode.desc },
+            { key: 'set', label: earState.mode === 'reference' ? 'Level' : 'Notes', value: setId, choices: list.map(x => ({ value: x.id, label: x.label })), help: set.desc || '' },
+        ], (k, v) => { if (k === 'mode') earState.mode = v; else earState.sets[earState.mode] = v; drillStore('ear', earState); renderEarSetup(); });
+        // Notes are named in written pitch for the tuner's instrument (a B-flat cornet's C sounds B-flat).
+        const tr = ((tunerTransposition % 12) + 12) % 12;
+        const note = document.getElementById('earTransposeNote');
+        setShown(note, tr !== 0);
+        note.textContent = tr ? `Notes are named for your ${earSpell(Drills.NAME_OF[(12 - tr) % 12])} instrument (the tuner's setting), so your home note C sounds concert ${earSpell(Drills.NAME_OF[(12 - tr) % 12])}.` : '';
+        const key = Drills.earLevelKey(earState.mode, setId);
+        renderDrillBest('ear', key, 'earBest', () => Drills.earLevelKey(earState.mode, earState.sets[earState.mode]) === key);
+    }
+    document.getElementById('earStartBtn')?.addEventListener('click', () => earStart());
+
+    // A brass-like note, synthesised: two slightly detuned sawtooths through a low-pass filter that opens
+    // on the attack, with a soft start and end.
+    let earCtx = null;
+    function earAudio() {
+        if (!earCtx) { const Ctx = window.AudioContext || window.webkitAudioContext; earCtx = new Ctx(); }
+        if (earCtx.state === 'suspended') earCtx.resume();
+        return earCtx;
+    }
+    function earPlayTone(freq, when, dur) {
+        const ctx = earAudio();
+        const t = ctx.currentTime + when, vol = 0.22;
+        const out = ctx.createGain();
+        out.gain.setValueAtTime(0.0001, t);
+        out.gain.exponentialRampToValueAtTime(vol, t + 0.05);
+        out.gain.setValueAtTime(vol, t + dur - 0.15);
+        out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.Q.value = 1;
+        lp.frequency.setValueAtTime(freq * 1.5, t);
+        lp.frequency.exponentialRampToValueAtTime(freq * 5, t + 0.08);
+        lp.frequency.exponentialRampToValueAtTime(freq * 3, t + dur);
+        [0, 5].forEach(cents => {
+            const o = ctx.createOscillator();
+            o.type = 'sawtooth';
+            o.frequency.value = freq;
+            o.detune.value = cents;
+            o.connect(lp);
+            o.start(t);
+            o.stop(t + dur + 0.05);
+        });
+        lp.connect(out);
+        out.connect(ctx.destination);
+    }
+    let earRound = null, earTuner = null;
+    async function earStart(seed) {
+        const mode = earState.mode, setId = earState.sets[mode];
+        seed = seed ?? drillSeed();
+        earRound = {
+            mode, setId, key: Drills.earLevelKey(mode, setId), label: `${Drills.earMode(mode).label} · ${Drills.earSet(mode, setId).label}`,
+            qs: Drills.earQuestions(mode, setId, seed), i: 0, answers: [], right: 0, transposition: ((tunerTransposition % 12) + 12) % 12,
+            startedAt: new Date().toISOString(), t0: drillNow(), locked: false,
+        };
+        switchView('earPlayView');
+        if (mode === 'playback') {
+            if (!earTuner) { earTuner = createTunerEngine(); earTuner.onPitch(earOnPitch); }
+            const ok = await earTuner.start();
+            if (!ok) { showWarningToast('Play it back needs the microphone - allow it and try again.'); earStop(); goBack(); return; }
+        }
+        earShowQuestion();
+    }
+    function earStop() {
+        if (earRound) clearTimeout(earRound.timer);
+        earRound = null;
+        if (earTuner && earTuner.isActive()) earTuner.stop();
+    }
+    function earShowQuestion() {
+        const r = earRound;
+        if (!r) return;
+        const playback = r.mode === 'playback';
+        r.locked = false;
+        r.stable = 0;
+        r.lastPc = null;
+        document.getElementById('earStep').textContent = `${r.i + 1} of ${r.qs.length}`;
+        document.getElementById('earTally').textContent = `${r.right} right`;
+        document.getElementById('earAsk').textContent = r.mode === 'reference' ? 'Home note, then the mystery note. Which is it?' : playback ? 'Listen, then play or sing it back' : 'Which note is this?';
+        document.getElementById('earPrompt').innerHTML = '<span class="material-symbols-outlined drill-ear-icon" aria-hidden="true">hearing</span>';
+        document.getElementById('earFeedback').textContent = '';
+        setShown('earNextBtn', false);
+        setShown('earSkipBtn', playback);
+        setShown('earListen', false);
+        document.getElementById('earHeard').textContent = '';
+        const answers = document.getElementById('earAnswers');
+        if (playback) {
+            answers.innerHTML = '';
+            answers.className = 'theory-answers hidden-group';
+        } else {
+            const names = Drills.earAnswers(r.mode, r.setId);
+            const layout = names.length === 12 ? 'keyboard' : names.length === 7 ? 'notes' : 'choices';
+            const buttons = names.length === 12 ? TheoryEngine.KEYBOARD_BUTTONS : names;
+            answers.className = `theory-answers theory-answers-${layout}`;
+            answers.innerHTML = buttons.map(n => `<button type="button" class="theory-answer" data-id="${escapeHtml(n)}">${escapeHtml(earSpell(n))}</button>`).join('');
+            answers.querySelectorAll('.theory-answer').forEach(b => b.addEventListener('click', () => earAnswer(b.dataset.id)));
+        }
+        earPlayQuestion();
+    }
+    function earPlayQuestion() {
+        const r = earRound;
+        if (!r) return;
+        const q = r.qs[r.i];
+        const f = (m) => Drills.midiToFreq(Drills.earConcertMidi(m, r.transposition), tunerA4Freq);
+        let at = 0.05;
+        if (r.mode === 'reference') { earPlayTone(f(Drills.EAR.HOME_MIDI), at, 0.9); at += 1.2; }
+        earPlayTone(f(q.midi), at, 1.2);
+        if (r.mode === 'playback' && !r.locked) {
+            // Don't listen to the phone's own note - only once it has finished.
+            r.listenFrom = drillNow() + (at + 1.4) * 1000;
+            clearTimeout(r.timer);
+            r.timer = setTimeout(() => earPlaybackAnswer(null), (at + 1.4) * 1000 + 8000);
+            setTimeout(() => { if (earRound === r && !r.locked) { setShown('earListen', true); document.getElementById('earHeard').textContent = ''; } }, (at + 1.4) * 1000);
+        }
+    }
+    document.getElementById('earReplayBtn')?.addEventListener('click', () => earPlayQuestion());
+    document.getElementById('earSkipBtn')?.addEventListener('click', () => earPlaybackAnswer(null));
+    const earPitchName = (q) => `${q.name}${Math.floor(q.midi / 12) - 1}`;
+    function earReveal(correct, youText) {
+        const r = earRound, q = r.qs[r.i];
+        r.locked = true;
+        clearTimeout(r.timer);
+        if (correct) r.right++;
+        document.getElementById('earTally').textContent = `${r.right} right`;
+        document.getElementById('earPrompt').innerHTML = theoryScaleSvg(Notation.staff({ clef: 'treble', items: [{ type: 'note', pitch: earPitchName(q) }], label: `${earSpell(q.name)} on the treble staff` }), THEORY_PROMPT_SCALE);
+        document.getElementById('earFeedback').textContent = correct ? `Yes - ${earSpell(q.name)}` : `It was ${earSpell(q.name)}${youText ? ` - ${youText}` : ''}`;
+        setShown('earSkipBtn', false);
+        setShown('earListen', false);
+        const next = document.getElementById('earNextBtn');
+        next.textContent = r.i === r.qs.length - 1 ? 'See your score' : 'Next note';
+        setShown(next, true);
+    }
+    function earMark(id, state) {
+        const b = document.querySelector(`#earAnswers .theory-answer[data-id="${CSS.escape(id)}"]`);
+        if (!b || b.classList.contains('theory-answer-right')) return;
+        b.classList.add(state === 'right' ? 'theory-answer-right' : 'theory-answer-wrong');
+        b.insertAdjacentHTML('afterbegin', `<span class="material-symbols-outlined" aria-hidden="true">${state === 'right' ? 'check' : 'close'}</span>`);
+    }
+    function earAnswer(name) {
+        const r = earRound;
+        if (!r || r.locked) return;
+        const q = r.qs[r.i];
+        const pc = ((q.midi % 12) + 12) % 12;
+        const correct = Drills.pcOf(name) === pc;
+        r.answers.push({ midi: q.midi, answer: name });
+        if (!correct) earMark(name, 'wrong');
+        // The right button: the note's own spelling, or its other name on the keyboard (C# for Db).
+        const rightId = [...document.querySelectorAll('#earAnswers .theory-answer')].map(b => b.dataset.id).find(id => id === q.name) ||
+            [...document.querySelectorAll('#earAnswers .theory-answer')].map(b => b.dataset.id).find(id => Drills.pcOf(id) === pc);
+        if (correct) earMark(name, 'right'); else if (rightId) earMark(rightId, 'right');
+        earReveal(correct);
+    }
+    function earOnPitch(freq, rms) {
+        const r = earRound;
+        if (!r || r.mode !== 'playback' || r.locked || drillNow() < (r.listenFrom || Infinity)) return;
+        const h = freq > 0 && rms > 0.01 ? Drills.earHeard(freq, r.transposition, tunerA4Freq) : null;
+        if (!h) { r.stable = 0; return; }
+        const pc = ((h.writtenMidi % 12) + 12) % 12;
+        document.getElementById('earHeard').textContent = earSpell(Drills.NAME_OF[pc]);
+        if (pc === r.lastPc) r.stable++; else { r.lastPc = pc; r.stable = 1; }
+        if (r.stable >= 12) earPlaybackAnswer(h.writtenMidi); // held for about a fifth of a second
+    }
+    function earPlaybackAnswer(writtenMidi) {
+        const r = earRound;
+        if (!r || r.locked) return;
+        const q = r.qs[r.i];
+        r.answers.push({ midi: q.midi, answer: writtenMidi });
+        const correct = writtenMidi !== null && ((writtenMidi % 12) + 12) % 12 === ((q.midi % 12) + 12) % 12;
+        earReveal(correct, writtenMidi === null ? 'nothing heard' : `you played ${earSpell(Drills.NAME_OF[((writtenMidi % 12) + 12) % 12])}`);
+    }
+    document.getElementById('earNextBtn')?.addEventListener('click', () => {
+        const r = earRound;
+        if (!r) return;
+        r.i++;
+        if (r.i < r.qs.length) earShowQuestion(); else earEnd();
+    });
+    async function earEnd() {
+        const r = earRound;
+        if (earTuner && earTuner.isActive()) earTuner.stop();
+        const details = { questions: r.answers };
+        const local = Drills.earScoreRound(r.key, details);
+        const saved = await saveDrill('ear', r.key, r.startedAt, r.t0, details);
+        const result = saved ? saved.result : local;
+        earRound = null;
+        const answerText = (a) => (a.answer === null ? 'nothing heard' : typeof a.answer === 'number' ? earSpell(Drills.NAME_OF[((a.answer % 12) + 12) % 12]) : earSpell(a.answer));
+        showDrillResults({
+            tool: 'ear', levelLabel: r.label, result, saved, playView: 'earPlayView',
+            stats: [['Score', result.score], ['Right', `${result.right} of ${r.qs.length}`]],
+            rows: r.answers.map((a, i) => [`${i + 1}. ${earSpell(r.qs[i].name)}`, result.results[i].correct ? 'right' : `you: ${answerText(a)}`]),
+            again: () => earStart(),
+        });
+    }
+
+    // Local testing only (localhost): back-tests start rounds with a fixed seed and feed taps directly,
+    // since real taps can't be timed from a script. Never present on a deployed site.
+    if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+        window.__drillTest = {
+            seed: null,
+            tap: {
+                start: (level, seed) => { tapState.level = level; tapStart(seed); },
+                round: () => tapRound && JSON.parse(JSON.stringify({ targets: tapRound.targets, i: tapRound.i })),
+                // taps: ms timestamps for the current speed (replaces the pad)
+                feed: (taps) => { const r = tapRound; if (!r || r.locked) return; r.current = []; taps.forEach(ms => { r.current.push(ms); }); document.getElementById('tapTempoCount').textContent = `${r.current.length} of ${Drills.TAP.TAPS} taps`; tapFinishTarget(); },
+            },
+            gap: {
+                start: (pattern, bpm, seed) => { gapState.pattern = pattern; gapState.bpm = bpm; gapStart(seed); },
+                schedule: () => gapRound && JSON.parse(JSON.stringify({ silentBars: gapRound.sched.silentBars, beats: gapRound.sched.beats })),
+                finish: (taps) => gapFinish(taps),
+            },
+            ear: {
+                start: (mode, set, seed) => { earState.mode = mode; earState.sets[mode] = set; return earStart(seed); },
+                question: () => earRound && JSON.parse(JSON.stringify(earRound.qs[earRound.i])),
+            },
+        };
+    }
+
+    // ========================================
+    // SPEED NAMES (Jira ML-297)
+    // ========================================
+    // The Italian speed name under every bpm readout ("Moderato"), from TheoryEngine.speedLabel - the
+    // same bands the Theory quiz's Speeds set teaches. A band with two names shows both ("Adagio /
+    // Lento"). It watches the number, so no tempo control needs its own code; readouts built later
+    // (Quick Play's bar boxes) call attachSpeedNames on their own box.
+    function attachSpeedNames(root = document) {
+        root.querySelectorAll('.metro-speed-readout').forEach(readout => {
+            if (readout.querySelector('.metro-speed-name')) return;
+            if (readout.querySelector('.metro-speed-sub')?.textContent.trim() !== 'bpm') return;
+            const value = readout.firstElementChild;
+            const name = document.createElement('div');
+            name.className = 'metro-speed-name';
+            readout.appendChild(name);
+            const update = () => { name.textContent = TheoryEngine.speedLabel(parseInt(value.textContent, 10)); };
+            new MutationObserver(update).observe(value, { childList: true, characterData: true, subtree: true });
+            update();
+        });
+    }
+    attachSpeedNames();
+
+    // ========================================
+    // SCALES PRACTICE (Jira ML-9)
+    // ========================================
+    // Pick a scale or arpeggio (key, type, octaves + clef, direction), see it written on the stave in
+    // rows that fit the screen, and play along to a repeating metronome that lights the note to play.
+    // "My scales" is the set of keys and kinds you can play; Previous / Next go through it in order, Shuffle picks one at random. Settings
+    // are kept on this device (localStorage 'tml.scales', like Theory's options). Scales are built and
+    // spelled by TheoryEngine.buildScale / writeScale and drawn by Notation.staff. See
+    // specs/components/scales.md.
+    const SCALES_STORE = 'tml.scales';
+    const SCALES_DEFAULTS = { keyId: 'C major', form: 'major', minorForm: 'harmonic', type: 'scale', octaves: 1, direction: 'both', clef: 'treble', npb: 1, countIn: 1, bpm: 72, memory: false, volume: 80,
+        pool: { maxSharps: 3, maxFlats: 3, forms: ['major', 'harmonic'], types: ['scale'] } };
+    const SCALES_BEATS_PER_BAR = 4;
+    const SCALES_BPM_MAX = 200;
+    const SCALES_NPB = [[1, 'crotchets'], [2, 'quavers'], [3, 'triplets'], [4, 'semiquavers']];
+    const SCALES_DIRECTIONS = { up: ['arrow_upward', 'up'], down: ['arrow_downward', 'down'], both: ['swap_vert', 'up & down'] };
+    // A tonic the other mode doesn't have as a key (no D# major, no Db minor) switches to its other spelling.
+    const SCALES_ENHARMONIC = { 'D#': 'Eb', 'Eb': 'D#', 'G#': 'Ab', 'Ab': 'G#', 'A#': 'Bb', 'Bb': 'A#', 'Db': 'C#', 'C#': 'Db', 'Gb': 'F#', 'F#': 'Gb', 'Cb': 'B' };
+    const scalesClone = (o) => ({ ...o, pool: { ...o.pool, forms: [...o.pool.forms], types: [...o.pool.types] } });
+    let scales = (() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem(SCALES_STORE) || 'null');
+            if (saved) return scalesClone({ ...SCALES_DEFAULTS, ...saved, pool: { ...SCALES_DEFAULTS.pool, ...(saved.pool || {}) } });
+        } catch (e) { /* unreadable - start from the defaults */ }
+        return scalesClone(SCALES_DEFAULTS);
+    })();
+    if (!TheoryEngine.ALL_KEYS.some(k => k.id === scales.keyId)) scales.keyId = SCALES_DEFAULTS.keyId;
+    function scalesSave() {
+        try { localStorage.setItem(SCALES_STORE, JSON.stringify(scales)); } catch (e) { /* private browsing - still works for this visit */ }
+    }
+    const scalesMode = () => (scales.keyId.endsWith(' minor') ? 'minor' : 'major');
+    const scalesTonic = () => scales.keyId.split(' ')[0];
+    const scalesName = (tonic) => TheoryEngine.spellName(tonic, theoryNaming());
+    let scalesWritten = null; // { scale, notes, barLength } - what's on the stave now
+
+    // --- The stave ---
+    function renderScales() {
+        const scale = TheoryEngine.buildScale(scales);
+        const barLength = SCALES_BEATS_PER_BAR * scales.npb;
+        const notes = TheoryEngine.writeScale(scale, barLength);
+        scalesWritten = { scale, notes, barLength };
+
+        // Setup tiles
+        const minor = scalesMode() === 'minor';
+        document.getElementById('scalesKeyVal').textContent = scalesName(scalesTonic());
+        document.getElementById('scalesKeyLbl').textContent = minor ? `${scale.form} minor` : 'major';
+        document.getElementById('scalesTypeVal').textContent = scales.type === 'arpeggio' ? 'Arpeggio' : 'Scale';
+        document.getElementById('scalesOctavesVal').textContent = scales.octaves;
+        document.getElementById('scalesOctavesLbl').textContent = scales.octaves === 1 ? 'octave' : 'octaves';
+        const [dirIcon, dirLabel] = SCALES_DIRECTIONS[scales.direction] || SCALES_DIRECTIONS.both;
+        document.getElementById('scalesDirIcon').textContent = dirIcon;
+        document.getElementById('scalesDirLbl').textContent = dirLabel;
+        document.getElementById('scalesNpbVal').textContent = scales.npb;
+        document.getElementById('scalesCountInVal').textContent = scales.countIn ? '1 bar' : 'none';
+        document.getElementById('scalesTitle').textContent = scale.title.replace(/^\S+/, scalesName(scalesTonic()));
+        scalesShowSub();
+        // Play from memory: the name only ("B♭ minor" / "harmonic · scale · 2 octaves · up & down") in place of the notes.
+        document.getElementById('scalesMemoryToggle').checked = !!scales.memory;
+        setShown('scalesStaff', !scales.memory);
+        setShown('scalesMemory', !!scales.memory);
+        document.getElementById('scalesMemoryName').textContent = `${scalesName(scalesTonic())} ${scalesMode()}`;
+        document.getElementById('scalesMemoryDetail').textContent = [minor ? scale.form : null, scales.type, `${scales.octaves} octave${scales.octaves === 1 ? '' : 's'}`, SCALES_DIRECTIONS[scales.direction][1]].filter(Boolean).join(' · ');
+
+        // Rows of 8 notes (6 at 3 a beat, so a bar splits evenly), all the same height, spread to one
+        // width so the notes line up down the page. Stems go down from the middle line up.
+        const perRow = scales.npb === 3 ? 6 : 8;
+        const steps = notes.map(n => Notation.staffStep(n.pitch, scales.clef));
+        const stepRange = [Math.min(-3, ...steps) - 1, Math.max(10, ...steps) + 1];
+        const rows = [];
+        for (let i = 0; i < notes.length; i += perRow) {
+            const last = i + perRow >= notes.length;
+            const items = [];
+            if (i === 0 && scales.npb === 1) items.push({ type: 'timeSig', top: 4, bottom: 4 });
+            notes.slice(i, i + perRow).forEach((n, j) => {
+                const idx = i + j;
+                items.push({ type: 'note', pitch: n.pitch, accidental: n.accidental, head: steps[idx] >= 4 ? 'noteQuarterDown' : 'noteQuarterUp', cls: `scales-note scales-note-${idx}` });
+                const endOfBar = (idx + 1) % barLength === 0;
+                if (idx === notes.length - 1) items.push({ type: 'barline', glyph: 'barlineFinal' });
+                else if (endOfBar) items.push({ type: 'barline', glyph: 'barlineSingle' });
+            });
+            rows.push({ items, last, from: i + 1, to: Math.min(i + perRow, notes.length) });
+        }
+        const opts = (r, extra) => ({ clef: scales.clef, keySignature: scale.keySignature || undefined, items: r.items, stepRange, noteGap: 2.4, label: `${scale.title}, notes ${r.from} to ${r.to}`, ...extra });
+        const naturalWidth = (svg) => parseFloat(/width="([\d.]+)"/.exec(svg)[1]) / 10;
+        const full = Math.max(...rows.filter(r => !r.last || rows.length === 1).map(r => naturalWidth(Notation.staff(opts(r)))));
+        // A short last row keeps the full rows' spacing and stops at its final bar line: drawn at its own
+        // width, and given that share of the card (--row-frac) so it's to the same scale as the rows above.
+        document.getElementById('scalesStaff').innerHTML = rows.map(r => {
+            if (!r.last || rows.length === 1) return Notation.staff(opts(r, { justify: full }));
+            const svg = Notation.staff(opts(r));
+            return `<div class="scales-staff-row-short" style="--row-frac:${Math.min(1, naturalWidth(svg) / full).toFixed(4)}">${svg}</div>`;
+        }).join('');
+        scalesLight(scalesLitIndex);
+    }
+    let scalesLitIndex = -1;
+    function scalesLight(i) {
+        scalesLitIndex = i;
+        document.querySelectorAll('#scalesStaff .is-now').forEach(el => el.classList.remove('is-now'));
+        if (i >= 0) document.querySelectorAll(`#scalesStaff .scales-note-${i}`).forEach(el => el.classList.add('is-now'));
+        const progress = document.getElementById('scalesMemoryProgress');
+        if (progress) progress.textContent = i >= 0 && scalesWritten ? `Note ${i + 1} of ${scalesWritten.notes.length}` : '';
+    }
+    let scalesCountdown = 0;
+    function scalesShowSub() {
+        const sub = document.getElementById('scalesSub');
+        if (!sub) return;
+        sub.textContent = scalesCountdown > 0 ? `Get ready… ${scalesCountdown}`
+            : `${scales.octaves} octave${scales.octaves === 1 ? '' : 's'} · ${scales.clef}`;
+    }
+
+    // --- Playing: one click per note (notes / beat clicks each beat); a count-in bar at the start only ---
+    const scalesPlayer = createMetronomePlayer();
+    scalesPlayer.setVisualLatencyMs(metroState.latencyMs);
+    let scalesTick = 0, scalesCountInClicks = 0;
+    scalesPlayer.onBeat(() => {
+        const w = scalesWritten;
+        if (!w) return;
+        const k = scalesTick++ - scalesCountInClicks;
+        if (k < 0) {
+            const remaining = Math.ceil(-k / scales.npb);
+            if (remaining !== scalesCountdown) { scalesCountdown = remaining; scalesShowSub(); }
+            scalesLight(-1);
+            return;
+        }
+        if (scalesCountdown) { scalesCountdown = 0; scalesShowSub(); }
+        // The last note holds to the end of its bar, then round again from the first.
+        const pass = Math.ceil(w.notes.length / w.barLength) * w.barLength;
+        const pos = k % pass;
+        scalesLight(pos < w.notes.length ? pos : w.notes.length - 1);
+    });
+    function scalesUpdatePlayUi() {
+        const playing = scalesPlayer.isPlaying();
+        document.getElementById('scalesPlayIcon').textContent = playing ? 'pause' : 'play_arrow';
+        document.getElementById('scalesPlayLbl').textContent = playing ? 'pause' : 'play';
+        document.getElementById('scalesPlayBtn').setAttribute('aria-pressed', String(playing));
+    }
+    function scalesPlay() {
+        if (!scalesWritten) renderScales();
+        if (scalesTick === 0) scalesCountInClicks = scales.countIn ? SCALES_BEATS_PER_BAR * scales.npb : 0;
+        scalesPlayer.setConductorBpm(scales.bpm);
+        scalesPlayer.setConductorBeatsPerBar(SCALES_BEATS_PER_BAR);
+        scalesPlayer.setNotesPerBeat(scales.npb);
+        scalesPlayer.setSubdivisionFactor(1);
+        scalesPlayer.play();
+        scalesUpdatePlayUi();
+    }
+    function scalesPause() {
+        scalesPlayer.pause();
+        scalesUpdatePlayUi();
+    }
+    // Back to the start: the next Play counts in again (if the count-in is on).
+    function scalesReset() {
+        const wasPlaying = scalesPlayer.isPlaying();
+        if (wasPlaying) scalesPlayer.pause();
+        scalesPlayer.resetToBarStart();
+        scalesTick = 0;
+        scalesCountdown = 0;
+        scalesLight(-1);
+        scalesShowSub();
+        if (wasPlaying) scalesPlay(); else scalesUpdatePlayUi();
+    }
+    setupPlayButtonHoldReset('scalesPlayBtn', () => { if (scalesPlayer.isPlaying()) scalesPause(); else scalesPlay(); }, scalesReset);
+    document.getElementById('scalesResetBtn')?.addEventListener('click', scalesReset);
+    // A different scale (or rhythm) starts again from the top.
+    function scalesChanged() {
+        scalesSave();
+        renderScales();
+        scalesReset();
+    }
+
+    // --- Tempo box (the same pieces as the Metronome's) ---
+    function scalesRenderBpm() {
+        const pct = ((scales.bpm - METRO_MIN_BPM) / (SCALES_BPM_MAX - METRO_MIN_BPM)) * 100;
+        document.getElementById('scalesBpmFill')?.style.setProperty('--pct', `${pct}%`);
+        const thumb = document.getElementById('scalesBpmThumb');
+        thumb?.style.setProperty('--pct', `${pct}%`);
+        thumb?.setAttribute('aria-valuenow', String(scales.bpm));
+        const val = document.getElementById('scalesBpmVal');
+        if (val) val.textContent = scales.bpm;
+    }
+    function scalesSetBpm(v) {
+        scales.bpm = Math.round(Math.min(SCALES_BPM_MAX, Math.max(METRO_MIN_BPM, v)));
+        scalesPlayer.setConductorBpm(scales.bpm);
+        scalesRenderBpm();
+        scalesSave();
+    }
+    setupHoldStepper('scalesBpmMinus', -1, (amount) => scalesSetBpm(scales.bpm + amount));
+    setupHoldStepper('scalesBpmPlus', 1, (amount) => scalesSetBpm(scales.bpm + amount));
+    setupSliderInteraction(document.getElementById('scalesBpmTrack'), document.getElementById('scalesBpmThumb'), {
+        onDragRatio: (ratio) => scalesSetBpm(METRO_MIN_BPM + ratio * (SCALES_BPM_MAX - METRO_MIN_BPM)),
+        onArrowStep: (dir) => scalesSetBpm(scales.bpm + dir),
+    });
+    makeSliderReadoutEditable('scalesBpmVal', () => scales.bpm, (v) => scalesSetBpm(v), { label: 'Beats per minute', min: METRO_MIN_BPM, max: SCALES_BPM_MAX });
+
+    // --- Volume (the Metronome tool's pop-up: -/+, slider, mute; a test click while stopped) ---
+    let scalesVolumeBeforeMute = scales.volume || 80;
+    function scalesRenderVolume() {
+        const v = scales.volume;
+        document.getElementById('scalesVolumeFill')?.style.setProperty('--pct', `${v}%`);
+        const thumb = document.getElementById('scalesVolumeThumb');
+        thumb?.style.setProperty('--pct', `${v}%`);
+        thumb?.setAttribute('aria-valuenow', String(v));
+        const val = document.getElementById('scalesVolumeValue');
+        if (val) val.textContent = `${v}%`;
+        const muted = v === 0;
+        document.getElementById('scalesMuteIcon').textContent = muted ? 'volume_off' : 'volume_up';
+        document.getElementById('scalesVolumeIcon').textContent = muted ? 'volume_off' : 'volume_up';
+        document.getElementById('scalesMuteBtn')?.setAttribute('aria-pressed', String(muted));
+        document.getElementById('scalesVolumeRow')?.classList.toggle('is-muted', muted);
+    }
+    function scalesSetVolume(v, force = false) {
+        scales.volume = Math.round(Math.min(100, Math.max(0, v)));
+        if (scales.volume > 0) scalesVolumeBeforeMute = scales.volume;
+        scalesPlayer.setVolume(scales.volume / 100);
+        scalesRenderVolume();
+        scalesSave();
+        playVolumeTestClick(scalesPlayer, force);
+    }
+    scalesPlayer.setVolume((scales.volume ?? 80) / 100);
+    setupSliderInteraction(document.getElementById('scalesVolumeTrack'), document.getElementById('scalesVolumeThumb'), {
+        onDragRatio: (ratio) => scalesSetVolume(ratio * 100),
+        onArrowStep: (dir) => scalesSetVolume(scales.volume + dir * 5),
+        onRelease: () => playVolumeTestClick(scalesPlayer, true),
+    });
+    setupHoldStepper('scalesVolumeMinus', -1, (amount) => scalesSetVolume(scales.volume + amount, true));
+    setupHoldStepper('scalesVolumePlus', 1, (amount) => scalesSetVolume(scales.volume + amount, true));
+    makeSliderReadoutEditable('scalesVolumeValue', () => scales.volume, (v) => scalesSetVolume(v, true), { label: 'Volume', min: 0, max: 100 });
+    document.getElementById('scalesMuteBtn')?.addEventListener('click', () => scalesSetVolume(scales.volume > 0 ? 0 : scalesVolumeBeforeMute, true));
+    document.getElementById('scalesVolumeBtn')?.addEventListener('click', () => { scalesRenderVolume(); showModal('scalesVolumeModal'); });
+
+    // --- Pickers: tap a tile to choose (the key picker and My scales stay open - several choices) ---
+    const scalesTile = (value, caption, selected, attrs = '') =>
+        `<button type="button" class="flow-picker-tile${selected ? ' selected' : ''}" aria-pressed="${selected}" ${attrs}><span class="flow-picker-tile-icon-row">${value}</span>${caption ? `<span class="flow-picker-tile-label">${escapeHtml(caption)}</span>` : ''}</button>`;
+    function scalesFillGrid(gridId, options, onPick) {
+        const grid = document.getElementById(gridId);
+        if (!grid) return;
+        grid.innerHTML = options.map(o => scalesTile(o.value, o.caption, o.selected, o.attrs || '')).join('');
+        grid.querySelectorAll('.flow-picker-tile').forEach((btn, i) => btn.addEventListener('click', () => onPick(options[i])));
+    }
+    function scalesRenderKeyPicker() {
+        const mode = scalesMode();
+        const modeInput = document.getElementById(`scalesMode-${mode}`);
+        if (modeInput) modeInput.checked = true;
+        setShown('scalesFormGroup', mode === 'minor');
+        const formInput = document.getElementById(`scalesForm-${scales.minorForm}`);
+        if (formInput) formInput.checked = true;
+        const valid = TheoryEngine.ALL_KEYS.filter(k => k.mode === mode).map(k => k.tonic);
+        const grid = document.getElementById('scalesRootGrid');
+        grid.innerHTML = TheoryEngine.KEYBOARD_BUTTONS.map(n => {
+            const on = n === scalesTonic();
+            return `<button type="button" class="flow-picker-tile${on ? ' selected' : ''}${valid.includes(n) ? '' : ' hidden-group'}" data-id="${n}" aria-pressed="${on}" aria-label="${escapeHtml(scalesName(n))} ${mode}"><span class="flow-picker-tile-icon-row">${escapeHtml(scalesName(n))}</span></button>`;
+        }).join('');
+        grid.querySelectorAll('.flow-picker-tile').forEach(btn => btn.addEventListener('click', () => {
+            scales.keyId = `${btn.dataset.id} ${scalesMode()}`;
+            hideModal('scalesKeyModal');
+            scalesChanged();
+        }));
+    }
+    document.querySelectorAll('input[name="scalesMode"]').forEach(input => input.addEventListener('change', () => {
+        const mode = input.value;
+        const valid = TheoryEngine.ALL_KEYS.filter(k => k.mode === mode).map(k => k.tonic);
+        let tonic = scalesTonic();
+        if (!valid.includes(tonic)) tonic = valid.includes(SCALES_ENHARMONIC[tonic]) ? SCALES_ENHARMONIC[tonic] : valid[0];
+        scales.keyId = `${tonic} ${mode}`;
+        scales.form = mode === 'minor' ? scales.minorForm : 'major';
+        scalesRenderKeyPicker();
+        scalesChanged();
+    }));
+    document.querySelectorAll('input[name="scalesForm"]').forEach(input => input.addEventListener('change', () => {
+        scales.minorForm = input.value;
+        if (scalesMode() === 'minor') scales.form = input.value;
+        scalesChanged();
+    }));
+    document.getElementById('scalesKeyBtn')?.addEventListener('click', () => { scalesRenderKeyPicker(); showModal('scalesKeyModal'); });
+    document.getElementById('scalesTypeBtn')?.addEventListener('click', () => {
+        scalesFillGrid('scalesTypeGrid', [['scale', 'Scale'], ['arpeggio', 'Arpeggio']].map(([v, l]) => ({ value: l, caption: '', selected: scales.type === v, v })),
+            (o) => { scales.type = o.v; hideModal('scalesTypeModal'); scalesChanged(); });
+        showModal('scalesTypeModal');
+    });
+    function scalesRenderRangePicker() {
+        scalesFillGrid('scalesOctavesGrid', [1, 2, 3].map(n => ({ value: n, caption: n === 1 ? 'octave' : 'octaves', selected: scales.octaves === n, v: n })),
+            (o) => { scales.octaves = o.v; scalesRenderRangePicker(); scalesChanged(); });
+        scalesFillGrid('scalesClefGrid', [['treble', 'Treble'], ['bass', 'Bass']].map(([v, l]) => ({ value: l, caption: 'clef', selected: scales.clef === v, v })),
+            (o) => { scales.clef = o.v; scalesRenderRangePicker(); scalesChanged(); });
+    }
+    document.getElementById('scalesRangeBtn')?.addEventListener('click', () => { scalesRenderRangePicker(); showModal('scalesRangeModal'); });
+    document.getElementById('scalesDirBtn')?.addEventListener('click', () => {
+        scalesFillGrid('scalesDirGrid', Object.entries(SCALES_DIRECTIONS).map(([v, [icon, l]]) => ({ value: `<span class="material-symbols-outlined" aria-hidden="true">${icon}</span>`, caption: l, selected: scales.direction === v, v, attrs: `aria-label="${l}"` })),
+            (o) => { scales.direction = o.v; hideModal('scalesDirModal'); scalesChanged(); });
+        showModal('scalesDirModal');
+    });
+    document.getElementById('scalesNpbBtn')?.addEventListener('click', () => {
+        scalesFillGrid('scalesNpbGrid', SCALES_NPB.map(([n, l]) => ({ value: n, caption: l, selected: scales.npb === n, v: n })),
+            (o) => { scales.npb = o.v; hideModal('scalesNpbModal'); scalesChanged(); });
+        showModal('scalesNpbModal');
+    });
+    document.getElementById('scalesCountInBtn')?.addEventListener('click', () => {
+        scalesFillGrid('scalesCountInGrid', [[0, 'None'], [1, '1 bar']].map(([n, l]) => ({ value: l, caption: '', selected: scales.countIn === n, v: n })),
+            (o) => { scales.countIn = o.v; hideModal('scalesCountInModal'); scalesChanged(); });
+        showModal('scalesCountInModal');
+    });
+
+    // --- My scales, and Previous / Next / Shuffle ---
+    function scalesRenderPool() {
+        const p = scales.pool;
+        const check = (id, on) => { const el = document.getElementById(id); if (el) el.checked = on; };
+        check(`scalesMaxSharps-${p.maxSharps}`, true);
+        check(`scalesMaxFlats-${p.maxFlats}`, true);
+        TheoryEngine.SCALE_FORMS.forEach(f => check(`scalesPoolForms-${f}`, p.forms.includes(f)));
+        ['scale', 'arpeggio'].forEach(t => check(`scalesPoolTypes-${t}`, p.types.includes(t)));
+        const n = TheoryEngine.scalePool(p).length;
+        document.getElementById('scalesPoolCount').textContent = `${n} scale${n === 1 ? '' : 's'} to choose from`;
+    }
+    function scalesPoolChanged(e) {
+        const p = scales.pool;
+        const input = e.target;
+        if (input.name === 'scalesMaxSharps') p.maxSharps = Number(input.value);
+        if (input.name === 'scalesMaxFlats') p.maxFlats = Number(input.value);
+        if (input.name === 'scalesPoolForms' || input.name === 'scalesPoolTypes') {
+            const listName = input.name === 'scalesPoolForms' ? 'forms' : 'types';
+            const picked = [...document.querySelectorAll(`input[name="${input.name}"]:checked`)].map(x => x.value);
+            if (!picked.length) { input.checked = true; return; } // always keep at least one
+            p[listName] = picked;
+        }
+        scalesSave();
+        scalesRenderPool();
+    }
+    document.querySelectorAll('#scalesPoolModal input').forEach(input => input.addEventListener('change', scalesPoolChanged));
+    document.getElementById('scalesPoolBtn')?.addEventListener('click', () => { scalesRenderPool(); showModal('scalesPoolModal'); });
+    // Previous / Next go through My scales in order (majors round the circle of fifths, then minors),
+    // wrapping round; Shuffle picks any other one at random. The same three as Warm-ups.
+    const scalesSame = (s) => s.keyId === scales.keyId && s.form === scales.form && s.type === scales.type;
+    function scalesGo(pick) {
+        if (!pick) { showWarningToast('No scales match My scales - open it to choose some.'); return; }
+        scales.keyId = pick.keyId;
+        scales.form = pick.form;
+        if (pick.form !== 'major') scales.minorForm = pick.form;
+        scales.type = pick.type;
+        scalesChanged();
+    }
+    function scalesStep(dir) {
+        const pool = TheoryEngine.scalePool(scales.pool);
+        const i = pool.findIndex(scalesSame);
+        // Not one of My scales (picked on the tiles): Next starts at the first, Previous at the last
+        scalesGo(pool[i < 0 ? (dir > 0 ? 0 : pool.length - 1) : (i + dir + pool.length) % pool.length]);
+    }
+    document.getElementById('scalesNextBtn')?.addEventListener('click', () => scalesStep(1));
+    document.getElementById('scalesPrevBtn')?.addEventListener('click', () => scalesStep(-1));
+    document.getElementById('scalesShuffleBtn')?.addEventListener('click', () => {
+        const pool = TheoryEngine.scalePool(scales.pool);
+        const others = pool.filter(p => !scalesSame(p));
+        const choices = others.length ? others : pool;
+        scalesGo(choices[Math.floor(Math.random() * choices.length)]);
+    });
+    document.getElementById('scalesMemoryToggle')?.addEventListener('change', (e) => {
+        scales.memory = e.target.checked;
+        scalesSave();
+        renderScales();
+    });
+
+    // Every Scales pop-up closes on its × / Done, or a tap on the backdrop.
+    ['scalesKeyModal', 'scalesTypeModal', 'scalesRangeModal', 'scalesDirModal', 'scalesNpbModal', 'scalesCountInModal', 'scalesPoolModal', 'scalesVolumeModal'].forEach(id => {
+        const modal = document.getElementById(id);
+        if (!modal) return;
+        modal.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', () => hideModal(modal)));
+        modal.addEventListener('click', (e) => { if (e.target === e.currentTarget) hideModal(modal); });
+    });
+
+    // Home tile icon: three rising crotchets on a scrap of staff, drawn in Bravura like Theory's clef.
+    (function renderScalesToolIcon() {
+        const el = document.getElementById('scalesToolIcon');
+        if (!el) return;
+        const svg = Notation.staff({ clef: 'treble', hideClef: true, noteGap: 0.6, items: ['E4', 'G4', 'B4'].map(pitch => ({ type: 'note', pitch, head: 'noteQuarterUp' })) });
+        el.outerHTML = svg.replace('class="notation"', 'class="notation tool-icon-svg"');
+    })();
+
+    // ========================================
+    // WARM-UPS (Jira ML-294)
+    // ========================================
+    // Brass warm-up exercises, one at a time: Previous / Next go through the kinds chosen in My
+    // warm-ups, in order (Admin -> Warm-ups sets the order and the notes). Written for treble-clef
+    // brass; bass clef is the same exercise down a major 9th (Warmups.pitchFor). The gold note follows
+    // each note's own length (Warmups.timeline). Settings are kept on this device (localStorage
+    // 'tml.warmups'). Same layout and controls as Scales. See specs/components/warmups.md.
+    const WARMUPS_STORE = 'tml.warmups';
+    const WARMUPS_DEFAULTS = { kinds: Warmups.KIND_IDS.slice(), clef: 'treble', repeat: 1, countIn: 1, volume: 80, currentId: null };
+    const WARMUPS_REPEATS = [[1, 'once', 'once'], [2, 'twice', 'twice'], [0, 'loop', 'until stopped']];
+    let warmups = (() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem(WARMUPS_STORE) || 'null');
+            if (saved) return { ...WARMUPS_DEFAULTS, ...saved, kinds: Array.isArray(saved.kinds) && saved.kinds.length ? saved.kinds : WARMUPS_DEFAULTS.kinds.slice() };
+        } catch (e) { /* unreadable - defaults */ }
+        return { ...WARMUPS_DEFAULTS, kinds: WARMUPS_DEFAULTS.kinds.slice() };
+    })();
+    function warmupsSave() {
+        try { localStorage.setItem(WARMUPS_STORE, JSON.stringify(warmups)); } catch (e) { /* private browsing */ }
+    }
+    let warmupsAll = null;      // every switched-on exercise, from the server (loaded once a visit)
+    let warmupsBpm = 72;        // this exercise's tempo - starts at the exercise's own each time
+    const warmupsList = () => (warmupsAll || []).filter(ex => warmups.kinds.includes(ex.kind));
+    function warmupsCurrent() {
+        const list = warmupsList();
+        return list.find(ex => ex.id === warmups.currentId) || list[0] || null;
+    }
+    async function warmupsLoad() {
+        if (warmupsAll) return;
+        try {
+            warmupsAll = (await API.warmups.list()).exercises;
+        } catch (error) {
+            warmupsAll = null;
+            showWarningToast('Error loading warm-ups: ' + error.message);
+        }
+    }
+
+    // --- The exercise ---
+    let warmupsTimeline = null;
+    function renderWarmups() {
+        const ex = warmupsCurrent();
+        const list = warmupsList();
+        const staff = document.getElementById('warmupsStaff');
+        document.getElementById('warmupsPrevBtn').disabled = list.length < 2;
+        document.getElementById('warmupsNextBtn').disabled = list.length < 2;
+        document.getElementById('warmupsShuffleBtn').disabled = list.length < 2;
+        document.getElementById('warmupsRepeatVal').textContent = (WARMUPS_REPEATS.find(r => r[0] === warmups.repeat) || WARMUPS_REPEATS[0])[1];
+        document.getElementById('warmupsCountInVal').textContent = warmups.countIn ? '1 bar' : 'none';
+        if (!ex) {
+            warmupsTimeline = null;
+            document.getElementById('warmupsTitle').textContent = warmupsAll ? 'No warm-ups to show' : 'Warm-ups';
+            document.getElementById('warmupsSub').textContent = warmupsAll ? 'Choose some kinds in My warm-ups.' : '';
+            document.getElementById('warmupsTip').textContent = '';
+            staff.innerHTML = '';
+            return;
+        }
+        warmups.currentId = ex.id;
+        const kindList = list.filter(x => x.kind === ex.kind);
+        const kindLabel = (Warmups.KINDS.find(k => k.id === ex.kind) || {}).label || ex.kind;
+        document.getElementById('warmupsTitle').textContent = ex.title;
+        warmupsShowSub(`${kindLabel} · ${kindList.indexOf(ex) + 1} of ${kindList.length}`);
+        document.getElementById('warmupsTip').textContent = ex.tip || '';
+        warmupsTimeline = Warmups.timeline(ex);
+        const clef = warmups.clef;
+        const stepRange = Warmups.stepRange(ex, clef);
+        const rows = Warmups.rows(ex, clef);
+        const naturalWidth = (svg) => parseFloat(/width="([\d.]+)"/.exec(svg)[1]) / 10;
+        const opts = (r, extra) => ({ clef, items: r.items, stepRange, noteGap: 2.4, label: `${ex.title}, notes ${r.from + 1} to ${r.to + 1}`, ...extra });
+        const full = Math.max(...rows.filter((r, i) => i < rows.length - 1 || rows.length === 1).map(r => naturalWidth(Notation.staff(opts(r)))));
+        staff.innerHTML = rows.map((r, i) => {
+            if (i < rows.length - 1 || rows.length === 1) return Notation.staff(opts(r, { justify: full }));
+            const svg = Notation.staff(opts(r));
+            return `<div class="scales-staff-row-short" style="--row-frac:${Math.min(1, naturalWidth(svg) / full).toFixed(4)}">${svg}</div>`;
+        }).join('');
+        warmupsLight(warmupsLitIndex);
+    }
+    let warmupsLitIndex = -1;
+    function warmupsLight(i) {
+        warmupsLitIndex = i;
+        document.querySelectorAll('#warmupsStaff .is-now').forEach(el => el.classList.remove('is-now'));
+        if (i >= 0) document.querySelectorAll(`#warmupsStaff .warmup-note-${i}`).forEach(el => el.classList.add('is-now'));
+    }
+    let warmupsSubText = '';
+    function warmupsShowSub(text) {
+        if (text !== undefined) warmupsSubText = text;
+        document.getElementById('warmupsSub').textContent = warmupsCountdown > 0 ? `Get ready… ${warmupsCountdown}` : warmupsSubText;
+    }
+
+    // --- Playing: one click per crotchet (per quaver when there are quavers); a count-in bar at the start ---
+    const warmupsPlayer = createMetronomePlayer();
+    warmupsPlayer.setVisualLatencyMs(metroState.latencyMs);
+    warmupsPlayer.setVolume((warmups.volume ?? 80) / 100);
+    let warmupsTick = 0, warmupsCountInClicks = 0, warmupsCountdown = 0;
+    warmupsPlayer.onBeat(() => {
+        const tl = warmupsTimeline;
+        if (!tl) return;
+        const k = warmupsTick++ - warmupsCountInClicks;
+        if (k < 0) {
+            const remaining = Math.ceil(-k / tl.notesPerBeat);
+            if (remaining !== warmupsCountdown) { warmupsCountdown = remaining; warmupsShowSub(); }
+            warmupsLight(-1);
+            return;
+        }
+        if (warmupsCountdown) { warmupsCountdown = 0; warmupsShowSub(); }
+        const pass = Math.floor(k / tl.totalClicks);
+        if (warmups.repeat && pass >= warmups.repeat) { warmupsReset(); return; } // played it the chosen number of times
+        warmupsLight(Warmups.noteAt(tl, k % tl.totalClicks));
+    });
+    function warmupsUpdatePlayUi() {
+        const playing = warmupsPlayer.isPlaying();
+        document.getElementById('warmupsPlayIcon').textContent = playing ? 'pause' : 'play_arrow';
+        document.getElementById('warmupsPlayLbl').textContent = playing ? 'pause' : 'play';
+        document.getElementById('warmupsPlayBtn').setAttribute('aria-pressed', String(playing));
+    }
+    function warmupsPlay() {
+        const ex = warmupsCurrent();
+        if (!ex || !warmupsTimeline) return;
+        if (warmupsTick === 0) warmupsCountInClicks = warmups.countIn ? ex.beatsPerBar * warmupsTimeline.notesPerBeat : 0;
+        warmupsPlayer.setConductorBpm(warmupsBpm);
+        warmupsPlayer.setConductorBeatsPerBar(ex.beatsPerBar);
+        warmupsPlayer.setNotesPerBeat(warmupsTimeline.notesPerBeat);
+        warmupsPlayer.setSubdivisionFactor(1);
+        warmupsPlayer.play();
+        warmupsUpdatePlayUi();
+    }
+    function warmupsPause() {
+        warmupsPlayer.pause();
+        warmupsUpdatePlayUi();
+    }
+    function warmupsReset() {
+        if (warmupsPlayer.isPlaying()) warmupsPlayer.pause();
+        warmupsPlayer.resetToBarStart();
+        warmupsTick = 0;
+        warmupsCountdown = 0;
+        warmupsLight(-1);
+        warmupsShowSub();
+        warmupsUpdatePlayUi();
+    }
+    setupPlayButtonHoldReset('warmupsPlayBtn', () => { if (warmupsPlayer.isPlaying()) warmupsPause(); else warmupsPlay(); }, warmupsReset);
+    document.getElementById('warmupsResetBtn')?.addEventListener('click', warmupsReset);
+    // Another exercise: back to the start, at its own tempo.
+    function warmupsShow(ex) {
+        if (!ex) return;
+        warmups.currentId = ex.id;
+        warmupsBpm = ex.bpm;
+        warmupsSave();
+        warmupsReset();
+        renderWarmups();
+        warmupsRenderBpm();
+    }
+    function warmupsStep(dir) {
+        const list = warmupsList();
+        if (!list.length) return;
+        const i = list.indexOf(warmupsCurrent());
+        warmupsShow(list[(i + dir + list.length) % list.length]);
+    }
+    document.getElementById('warmupsNextBtn')?.addEventListener('click', () => warmupsStep(1));
+    document.getElementById('warmupsPrevBtn')?.addEventListener('click', () => warmupsStep(-1));
+    // Shuffle: any other exercise of the chosen kinds, at random.
+    document.getElementById('warmupsShuffleBtn')?.addEventListener('click', () => {
+        const others = warmupsList().filter(ex => ex !== warmupsCurrent());
+        if (others.length) warmupsShow(others[Math.floor(Math.random() * others.length)]);
+    });
+
+    // --- Tempo box ---
+    function warmupsRenderBpm() {
+        const pct = ((warmupsBpm - METRO_MIN_BPM) / (SCALES_BPM_MAX - METRO_MIN_BPM)) * 100;
+        document.getElementById('warmupsBpmFill')?.style.setProperty('--pct', `${pct}%`);
+        const thumb = document.getElementById('warmupsBpmThumb');
+        thumb?.style.setProperty('--pct', `${pct}%`);
+        thumb?.setAttribute('aria-valuenow', String(warmupsBpm));
+        const val = document.getElementById('warmupsBpmVal');
+        if (val) val.textContent = warmupsBpm;
+    }
+    function warmupsSetBpm(v) {
+        warmupsBpm = Math.round(Math.min(SCALES_BPM_MAX, Math.max(METRO_MIN_BPM, v)));
+        warmupsPlayer.setConductorBpm(warmupsBpm);
+        warmupsRenderBpm();
+    }
+    setupHoldStepper('warmupsBpmMinus', -1, (amount) => warmupsSetBpm(warmupsBpm + amount));
+    setupHoldStepper('warmupsBpmPlus', 1, (amount) => warmupsSetBpm(warmupsBpm + amount));
+    setupSliderInteraction(document.getElementById('warmupsBpmTrack'), document.getElementById('warmupsBpmThumb'), {
+        onDragRatio: (ratio) => warmupsSetBpm(METRO_MIN_BPM + ratio * (SCALES_BPM_MAX - METRO_MIN_BPM)),
+        onArrowStep: (dir) => warmupsSetBpm(warmupsBpm + dir),
+    });
+    makeSliderReadoutEditable('warmupsBpmVal', () => warmupsBpm, (v) => warmupsSetBpm(v), { label: 'Beats per minute', min: METRO_MIN_BPM, max: SCALES_BPM_MAX });
+
+    // --- Volume ---
+    let warmupsVolumeBeforeMute = warmups.volume || 80;
+    function warmupsRenderVolume() {
+        const v = warmups.volume;
+        document.getElementById('warmupsVolumeFill')?.style.setProperty('--pct', `${v}%`);
+        const thumb = document.getElementById('warmupsVolumeThumb');
+        thumb?.style.setProperty('--pct', `${v}%`);
+        thumb?.setAttribute('aria-valuenow', String(v));
+        document.getElementById('warmupsVolumeValue').textContent = `${v}%`;
+        const muted = v === 0;
+        document.getElementById('warmupsMuteIcon').textContent = muted ? 'volume_off' : 'volume_up';
+        document.getElementById('warmupsVolumeIcon').textContent = muted ? 'volume_off' : 'volume_up';
+        document.getElementById('warmupsMuteBtn')?.setAttribute('aria-pressed', String(muted));
+        document.getElementById('warmupsVolumeRow')?.classList.toggle('is-muted', muted);
+    }
+    function warmupsSetVolume(v, force = false) {
+        warmups.volume = Math.round(Math.min(100, Math.max(0, v)));
+        if (warmups.volume > 0) warmupsVolumeBeforeMute = warmups.volume;
+        warmupsPlayer.setVolume(warmups.volume / 100);
+        warmupsRenderVolume();
+        warmupsSave();
+        playVolumeTestClick(warmupsPlayer, force);
+    }
+    setupSliderInteraction(document.getElementById('warmupsVolumeTrack'), document.getElementById('warmupsVolumeThumb'), {
+        onDragRatio: (ratio) => warmupsSetVolume(ratio * 100),
+        onArrowStep: (dir) => warmupsSetVolume(warmups.volume + dir * 5),
+        onRelease: () => playVolumeTestClick(warmupsPlayer, true),
+    });
+    setupHoldStepper('warmupsVolumeMinus', -1, (amount) => warmupsSetVolume(warmups.volume + amount, true));
+    setupHoldStepper('warmupsVolumePlus', 1, (amount) => warmupsSetVolume(warmups.volume + amount, true));
+    makeSliderReadoutEditable('warmupsVolumeValue', () => warmups.volume, (v) => warmupsSetVolume(v, true), { label: 'Volume', min: 0, max: 100 });
+    document.getElementById('warmupsMuteBtn')?.addEventListener('click', () => warmupsSetVolume(warmups.volume > 0 ? 0 : warmupsVolumeBeforeMute, true));
+    document.getElementById('warmupsVolumeBtn')?.addEventListener('click', () => { warmupsRenderVolume(); showModal('warmupsVolumeModal'); });
+
+    // --- My warm-ups, repeat, count-in ---
+    function warmupsRenderSettings() {
+        Warmups.KIND_IDS.forEach(k => { const el = document.getElementById(`warmupsKinds-${k}`); if (el) el.checked = warmups.kinds.includes(k); });
+        const clef = document.getElementById(`warmupsClef-${warmups.clef}`);
+        if (clef) clef.checked = true;
+        const n = warmupsList().length;
+        document.getElementById('warmupsCount').textContent = warmupsAll ? `${n} warm-up${n === 1 ? '' : 's'} to go through` : '';
+    }
+    document.querySelectorAll('input[name="warmupsKinds"]').forEach(input => input.addEventListener('change', () => {
+        const picked = [...document.querySelectorAll('input[name="warmupsKinds"]:checked')].map(x => x.value);
+        if (!picked.length) { input.checked = true; return; } // always keep at least one
+        warmups.kinds = picked;
+        warmupsSave();
+        warmupsRenderSettings();
+        warmupsReset();
+        renderWarmups();
+    }));
+    document.querySelectorAll('input[name="warmupsClef"]').forEach(input => input.addEventListener('change', () => {
+        warmups.clef = input.value;
+        warmupsSave();
+        renderWarmups();
+    }));
+    document.getElementById('warmupsSettingsBtn')?.addEventListener('click', () => { warmupsRenderSettings(); showModal('warmupsSettingsModal'); });
+    document.getElementById('warmupsRepeatBtn')?.addEventListener('click', () => {
+        scalesFillGrid('warmupsRepeatGrid', WARMUPS_REPEATS.map(([n, l, caption]) => ({ value: n ? n + '×' : '<span class="material-symbols-outlined" aria-hidden="true">repeat</span>', caption, selected: warmups.repeat === n, v: n, attrs: `aria-label="${n ? 'Play it ' + l : 'Loop until stopped'}"` })),
+            (o) => { warmups.repeat = o.v; warmupsSave(); hideModal('warmupsRepeatModal'); renderWarmups(); });
+        showModal('warmupsRepeatModal');
+    });
+    document.getElementById('warmupsCountInBtn')?.addEventListener('click', () => {
+        scalesFillGrid('warmupsCountInGrid', [[0, 'None'], [1, '1 bar']].map(([n, l]) => ({ value: l, caption: '', selected: warmups.countIn === n, v: n })),
+            (o) => { warmups.countIn = o.v; warmupsSave(); hideModal('warmupsCountInModal'); warmupsReset(); renderWarmups(); });
+        showModal('warmupsCountInModal');
+    });
+    ['warmupsSettingsModal', 'warmupsRepeatModal', 'warmupsCountInModal', 'warmupsVolumeModal'].forEach(id => {
+        const modal = document.getElementById(id);
+        if (!modal) return;
+        modal.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', () => hideModal(modal)));
+        modal.addEventListener('click', (e) => { if (e.target === e.currentTarget) hideModal(modal); });
+    });
+
+    // Opening the screen: load the exercises (once a visit), show the one you were on at its own tempo.
+    async function openWarmupsView() {
+        warmupsRenderVolume();
+        warmupsUpdatePlayUi();
+        renderWarmups();
+        warmupsPlayer.prewarm();
+        const first = !warmupsAll;
+        await warmupsLoad();
+        if (first) {
+            const ex = warmupsCurrent();
+            if (ex) warmupsBpm = ex.bpm;
+            renderWarmups();
+            warmupsRenderBpm();
+        }
+    }
 
     // Theory test hook - LOCAL DEVELOPMENT ONLY, same switch as the Flow one above (localhost +
     // localStorage 'tml.testClock' = '1'). Lets the back-tests start a round with a fixed seed, read the

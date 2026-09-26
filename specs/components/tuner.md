@@ -1,7 +1,7 @@
 # Tuner
 
 ## 1. Metadata
-- **Name:** Tuner (`.tuner-card`, `.tuner-pitch-*`, `.tuner-note*`, `.tuner-bar-*`, `.tuner-status`, `.tuner-pause-btn`, `.tuner-rewind-*`, `.tuner-graph-*`, `.tuner-pitch-graph*`, `.tuner-dynamics-*`, `.tuner-history-bar*`, `.tuner-settings-*`, `.tuner-*`)
+- **Name:** Tuner (`.tuner-card`, `.tuner-pitch-*`, `.tuner-note*`, `.tuner-bar-*`, `.tuner-status`, `.tuner-pause-btn`, `.tuner-rewind-*`, `.tuner-graph-*`, `.tuner-pitch-graph*`, `.tuner-dynamics-*`, `.tuner-history-bar*`, `.tuner-settings-*`, `.tuner-*`, `.at-top`, `.at-bottom`, `.at-middle`)
 - **Category:** Tool
 - **Status:** Stable (ML-181 graphs)
 
@@ -20,6 +20,7 @@ dynamics history graphs, plus the tuner settings sheet.
 `--duration-fast` + `--ease-linear` (card state, needle).
 
 ## 5. Props / API
+- The dashed reference lines on the history strips are placed with `.at-top` / `.at-bottom` / `.at-middle` on `.tuner-pitch-graph-gridline` / `.tuner-dynamics-gridline`. The needle position (`--needle-pos`) and each history bar's height (`--bar-h`, `--bar-top`) are custom properties set from JS.
 `renderTunerPitch` / `renderTunerIdle` (app.js) set the card state classes. The needle's `left` and graph bar heights are data-driven geometry.
 
 ## 6. States

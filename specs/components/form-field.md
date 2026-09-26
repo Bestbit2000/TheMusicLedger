@@ -1,7 +1,7 @@
 # Form field
 
 ## 1. Metadata
-- **Name:** Form field (`.form-group`, `label`, `input`, `select`, `textarea`, `.hidden-group`, `.flow-help-text`, `.flow-required`)
+- **Name:** Form field (`.form-group`, `label`, `input`, `select`, `textarea`, `.hidden-group`, `.flow-help-text`, `.flow-required`, `.inset-panel`, `.inset-panel-row`, `.form-subheading`, `.divider-dashed`, `.challenge-filter-box`, `.check-sm`)
 - **Category:** Inputs
 - **Status:** Stable
 
@@ -19,6 +19,9 @@ short fixed list. Use [radio-group](radio-group.md) or [selectable-tile](selecta
 (padding), `--space-5` (group spacing), `--font-base`, `--font-xs`, `--font-weight-semibold` (labels).
 
 ## 5. Props / API
+- `.inset-panel` is a tinted block grouping related fields inside a form (the challenge task generator); `.inset-panel.inset-panel-row` lays a label and its control out either side of one line.
+- `.divider-dashed` then `.form-subheading` starts a new part of a long form (the challenge editor's Tasks).
+- `.challenge-filter-box` holds Manage challenges' filter checkboxes in a bordered box; `.check-sm` is a small native checkbox inside a label row.
 - `.hidden-group` hides a whole group conditionally (`display: none !important`). It's used app-wide for every conditional section.
 - `color-scheme` is set per theme so native date/number pickers match.
 - Number spinners are removed globally. Use steppers (`.metro-bpm-step`) where increments matter.

@@ -1,7 +1,7 @@
 # Charts (heatmap + bar chart)
 
 ## 1. Metadata
-- **Name:** Charts (`.heatmap-*`, `.heat-col`, `.heat-cell`, `.h-time-0..4`, `.h-sess-0..4`, `.chart-wrapper`, `.chart-bar*`, `.chart-y-axis*`, `.chart-x-label`, `.grid-line`, `.scroll-wrapper`, `.scroll-btn`, `.month-nav`, `.section-title`, `.h-time-*`, `.h-sess-*`, `.month-*`, `.year-spacer`, `.chart-*`)
+- **Name:** Charts (`.heatmap-*`, `.heat-col`, `.heat-cell`, `.h-time-0..4`, `.h-sess-0..4`, `.chart-wrapper`, `.chart-bar*`, `.chart-y-axis*`, `.chart-x-label`, `.grid-line`, `.scroll-wrapper`, `.scroll-btn`, `.month-nav`, `.section-title`, `.h-time-*`, `.h-sess-*`, `.month-*`, `.year-spacer`, `.chart-*`, `.series-*` (`.series-hours`, `.series-days`, `.series-sessions`, `.series-streak`))
 - **Category:** Data visualisation
 - **Status:** Stable
 
@@ -23,6 +23,7 @@ Section header: `.section-title` (title + optional action, bottom rule).
 `--font-xs`, `--font-sm`, `--font-md`, `--duration-slow`, `--duration-base`.
 
 ## 5. Props / API
+- **Colour and geometry (ML-288):** a chart's colour is a `.series-*` class on the bar, projection or legend swatch (it sets `--series`). Heights and positions are custom properties set by the renderer: `--bar-h` on `.chart-bar` / `.chart-bar-projection`, `--line-pos` on `.grid-line` / `.chart-y-label`. `.grid-line.is-baseline` hides the 0 line. The year under a January label is `.chart-x-year`.
 - Bar heights/widths and cell positions are data-driven geometry set by JS. Those are fine as raw values.
 - **Colour rule (ML-235):** a chart that counts every session type (both heatmaps, the Hours/Days/Sessions bar charts, both streak histograms) uses the brand gold - the `--heat-*` gold ramp or `--chart-*` gold - never a `--cat-*` hue, since those mean "this session type only" everywhere else (filter pills, history rows). `--cat-*` is only for a chart split by type.
 - Bar colours come from tokens: set `bar.style.background = 'var(--chart-hours)'`, never a hex.

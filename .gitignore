@@ -40,3 +40,7 @@ tests/generated/
 playwright-report.json
 test-results/
 playwright-report/
+
+# ML-198 design sign-off: written by npm run design-gate / design-signoff (local only)
+public/design-new.json
+design-signoff/

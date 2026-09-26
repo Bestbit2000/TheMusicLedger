@@ -1,7 +1,7 @@
 # Top bar
 
 ## 1. Metadata
-- **Name:** Top bar (`.top-bar-sticky-group`, `.top-bar`, `.top-bar-title`, `.top-btn`, `.top-btn-back`, `.top-tuner-toggle`, `.top-bar-timer-pill`, `.hidden-btn`, `.top-bar-*`, `.top-tuner-*`)
+- **Name:** Top bar (`.top-bar-sticky-group`, `.top-bar`, `.top-bar-title`, `.top-btn`, `.top-btn-back`, `.top-btn-burger`, `.top-tuner-toggle`, `.top-bar-timer-pill`, `.hidden-btn`, `.top-bar-*`, `.top-tuner-*`)
 - **Category:** Navigation
 - **Status:** Stable
 
@@ -22,6 +22,7 @@ Put them in the screen body.
 ## 5. Props / API
 - With nothing to go back to (Home), the back button is removed (`.top-btn-back.hidden-btn` is `display: none`), so the title starts at the left edge. Elsewhere `.hidden-btn` still hides a control without moving its neighbours.
 - Timer pill: `.top-bar-timer-pill-running` while counting (gold tint + gold text).
+- `.top-btn-burger` on the ☰ button nudges the glyph up 2px so its middle lines up with the timer pill and tuner toggle (ML-270).
 
 ## 6. States
 | Element | States |

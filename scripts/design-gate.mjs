@@ -20,6 +20,9 @@
 //   anything that's new to the design system since <base>: new CSS classes, new or changed
 //   tokens, new or changed component/foundation specs. Once approved, push with
 //   DESIGN_APPROVED=1. Nothing here is ever approved on the owner's behalf.
+//   The list is also written to public/design-new.json (gitignored), which Admin -> Design reads for
+//   its "Only what's new" view - the owner reviews pictures, not class names
+//   (npm run design-signoff screenshots it).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -115,6 +118,7 @@ if (orphanOnPage.length) failures.push(['Design page sections pointing at a spec
 // ---------------------------------------------------------------- sign-off list
 
 const signoff = [];
+const whatsNew = {};
 if (!NO_SIGNOFF) {
     const baseOk = readAt(BASE, 'package.json') !== null;
     if (!baseOk) {
@@ -146,7 +150,19 @@ if (!NO_SIGNOFF) {
             const changedSpecs = nowFiles.filter(f => baseFiles.has(f) && (readAt(BASE, `${dir}/${f}`) || '').replace(/\r\n/g, '\n') !== read(`${dir}/${f}`).replace(/\r\n/g, '\n'));
             if (newSpecs.length) signoff.push([`New specs (${dir})`, newSpecs]);
             if (changedSpecs.length) signoff.push([`Changed specs (${dir})`, changedSpecs]);
+            if (dir === 'specs/components') Object.assign(whatsNew, { specsNew: newSpecs.map(f => f.replace(/\.md$/, '')), specsChanged: changedSpecs.map(f => f.replace(/\.md$/, '')) });
         }
+        // The same list for Admin -> Design's "Only what's new" view (and scripts/design-signoff-shots.mjs,
+        // which screenshots it for the owner). Local only - public/design-new.json is gitignored.
+        Object.assign(whatsNew, {
+            base: BASE,
+            generatedAt: new Date().toISOString(),
+            classes: newClasses,
+            classSpecs: Object.fromEntries(newClasses.map(c => [c, (covering(pats, c)?.spec || 'none').replace(/\.md$/, '')])),
+            tokens: [...addedAliases.map(([k, v]) => ({ name: k, value: v, was: null })), ...changed.filter(([k]) => !k.startsWith('--ds-')).map(([k, v]) => ({ name: k, value: v, was: tBase.get(k) }))],
+            tokensRemoved: removed,
+        });
+        try { fs.writeFileSync(path.join(ROOT, 'public/design-new.json'), JSON.stringify(whatsNew, null, 2) + '\n'); } catch { /* read-only checkout - the list above still stands */ }
     }
 }
 
@@ -165,7 +181,8 @@ if (!NO_SIGNOFF) {
     if (signoff.length) {
         console.log(`\nDESIGN SIGN-OFF NEEDED - new to the design system since ${BASE}.`);
         console.log('Show this list to the product owner and get explicit approval before pushing.');
-        console.log('Check each item on Admin -> Design first. Once approved: DESIGN_APPROVED=1 git push origin sandbox');
+        console.log('Show it, don\'t just list it: npm run design-signoff screenshots Admin -> Design\'s "Only what\'s new" view');
+        console.log('(needs the local server) - send those pictures with this list. Once approved: DESIGN_APPROVED=1 git push origin sandbox');
         signoff.forEach(([t, i]) => section(t, i));
     } else {
         console.log(`\nNothing new to the design system since ${BASE} - no sign-off needed.`);

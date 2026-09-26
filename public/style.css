@@ -49,6 +49,9 @@
     .top-bar { width: 100%; max-width: var(--app-max-width); background: var(--container-bg); padding: var(--space-2) var(--space-5); box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-md); }
     /* ML-271: left-aligned - centred, it drifted off-centre whenever the tuner/timer icons showed on the right. */
     .top-bar-title { font-size: var(--font-md); font-weight: var(--font-weight-bold); flex-grow: 1; text-align: left; margin: 0; } /* an <h1> since ML-210 - the page heading focus moves to on view change */
+    /* ML-270: the ☰ character sits 2px below the middle of its box, so it read as lower than the timer
+       pill and tuner toggle next to it. Nudged up so its three lines centre on the bar like they do. */
+    .top-btn-burger { transform: translateY(calc(-1 * var(--space-0-5))); }
     .top-btn { background: none; border: none; font-size: var(--font-xl); cursor: pointer; color: var(--text-color); padding: var(--space-1) var(--space-3); font-weight: var(--font-weight-bold); }
     /* Plain icon button, same visual weight as the burger menu next to it (no filled-circle "active"
        treatment) - it only ever offers to open the tuner (it disappears entirely once open, see
@@ -65,6 +68,11 @@
 
     .dropdown-menu { display: none; position: absolute; top: 100%; right: 20px; background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-sm); box-shadow: var(--shadow-xl); z-index: var(--z-dropdown); min-width: 200px; overflow: hidden; }
     .dropdown-menu.show { display: flex; flex-direction: column; }
+    .dropdown-menu.align-edge { right: 0; }
+    /* ML-291: the ☰ menu's backdrop. Always catches a tap outside the open menu (closing it, not pressing
+       what's underneath); on a phone it also dims the page so the long menu keeps the focus. */
+    .nav-menu-backdrop { position: fixed; inset: 0; z-index: var(--z-menu-backdrop); background: transparent; opacity: 0; visibility: hidden; transition: opacity var(--duration-fast) ease, visibility var(--duration-fast); }
+    body:has(#burgerDropdown.show) .nav-menu-backdrop { opacity: 1; visibility: visible; } /* flush with its anchor's right edge instead of the default 20px in */
     /* ML-201: notification centre - red dot on ☰, count badge in the menu, the Notifications list */
     #navBurgerMenuBtn { position: relative; }
     .notif-dot { position: absolute; top: 4px; right: 4px; width: 10px; height: 10px; border-radius: var(--radius-circle); background: var(--danger-color); box-shadow: var(--shadow-ring-surface); }
@@ -94,11 +102,19 @@
        one, regardless of how many hidden rows follow it in the DOM. */
     .dropdown-item:not(.hidden-group):has(~ .dropdown-item:not(.hidden-group)) { border-bottom: 1px solid var(--input-border); }
     .dropdown-item:hover { background: var(--input-bg); }
+    /* ML-285: every ⋮ menu item has an icon before its label, like the ☰ menu - a Material Symbol, or
+       one of the custom SVGs from public/icons/menu/ inlined so it takes currentColor. Grey like the
+       ☰ menu's icons; a delete item's icon is red with its text. */
+    .dropdown-item:has(> .dropdown-item-icon) { display: flex; align-items: center; gap: var(--space-3); }
+    .dropdown-item-icon { flex: 0 0 auto; width: var(--icon-md); height: var(--icon-md); font-size: var(--icon-md); color: var(--label-color); }
+    .metroBlk-tile-menu-delete .dropdown-item-icon, .account-band-menu-delete .dropdown-item-icon { color: inherit; }
+    .dropdown-item-text { flex: 1 1 auto; min-width: 0; }
     /* ML-259 (also ML-222): the ☰ menu - grouped, an icon on every row, lines between groups (not
        between every row), the tools as a row of tiles, the current screen marked. See
        specs/components/dropdown-menu.md ("Navigation menu"). The ID keeps these rules above the
        generic per-row separator above. */
-    .nav-menu { min-width: 320px; max-width: calc(100vw - var(--space-6)); max-height: calc(100dvh - var(--touch-target) - var(--space-6)); overflow-y: auto; padding: var(--space-1) 0; }
+    /* ML-291: right edge flush with the ☰ button, i.e. the top bar's own right margin. */
+    .nav-menu { right: 0; min-width: 320px; max-width: calc(100vw - var(--space-6)); max-height: calc(100dvh - var(--touch-target) - var(--space-6)); overflow-y: auto; padding: var(--space-1) 0; }
     #burgerDropdown .dropdown-item { border-bottom: none; }
     .nav-item { display: flex; align-items: center; gap: var(--space-3); min-height: var(--touch-target); font-weight: var(--font-weight-semibold); }
     .nav-item-icon { font-size: var(--icon-md); color: var(--label-color); flex: 0 0 auto; }
@@ -109,7 +125,7 @@
     .nav-item[aria-current="page"] .nav-item-icon { color: var(--primary-action-strong); }
     .nav-divider { border-top: 1px solid var(--input-border); margin: var(--space-1) 0; }
     .nav-section-title { font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--label-color); padding: var(--space-1) var(--space-4) 0; }
-    .nav-tools { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-2); }
+    .nav-tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-2); }
     .nav-tool { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); min-height: var(--touch-target); padding: var(--space-2) 0; background: var(--input-bg); color: var(--text-color); border: none; border-radius: var(--radius-md); font: inherit; cursor: pointer; }
     .nav-tool .tool-icon-svg { width: var(--icon-lg); height: var(--icon-lg); }
     .nav-tool .material-symbols-outlined { font-size: var(--icon-lg); }
@@ -130,6 +146,7 @@
     .btn-submit { background: var(--primary-action); color: var(--primary-action-text); }
     .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-nav { background: var(--nav-action); color: var(--nav-action-text); }
+    .btn-submit.is-danger { background: var(--danger-color); } /* the confirm pop-up's action button for a destructive action */
     /* Design system: three button levels, one corner radius.
        1. Primary (.btn-submit/.btn-large) - filled, var(--primary-action).
        2. Secondary/cancel (.btn-cancel, paired with .btn-nav for sizing) - hollow, same border
@@ -157,6 +174,8 @@
     .tools-title { margin-top: 0; }
     /* A 4-column grid (ML-260): a 5th tool starts a second row of the same columns, so every tile still
        lines up with the Progress grid below. */
+    /* Tool groups: Everyday / Practise / Learn - a small label over each group's row, under the Tools heading. */
+    .tool-group-title { font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: var(--label-color); margin: var(--space-3) 0 var(--space-2); }
     .tool-icon-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
     /* min-width: 0 + the narrow side padding keep all four tiles exactly equal on a phone - otherwise
        "Metronome" (the longest label) props its tile a few px wider than the rest and the row stops
@@ -185,7 +204,7 @@
     .theory-best-line { color: var(--label-color); font-size: var(--font-sm); text-align: center; margin: var(--space-2) 0 var(--space-3); }
     .theory-status { display: flex; justify-content: space-between; font-size: var(--font-md); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; margin-bottom: var(--space-2); }
     .theory-countdown { height: var(--space-1); background: var(--input-border); border-radius: var(--radius-circle); overflow: hidden; }
-    .theory-countdown-fill { height: 100%; background: var(--primary-action-strong); transform-origin: left center; transition: transform var(--duration-fast) linear; }
+    .theory-countdown-fill { transform: scaleX(var(--remaining)); height: 100%; background: var(--primary-action-strong); transform-origin: left center; transition: transform var(--duration-fast) linear; }
     .theory-question { text-align: center; color: var(--label-color); font-size: var(--font-base); margin: var(--space-3) 0 var(--space-2); }
     .theory-prompt { display: flex; justify-content: center; align-items: center; color: var(--text-color); min-height: calc(var(--touch-target) * 2); }
     .theory-prompt svg { max-width: 100%; height: auto; }
@@ -193,7 +212,29 @@
     /* Always takes its line, so the answer buttons don't jump down when "Not quite" appears. */
     .theory-feedback { min-height: calc(var(--font-base) * 1.5); text-align: center; color: var(--danger-text); font-weight: var(--font-weight-bold); margin: var(--space-2) 0; }
     .theory-answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
-    .theory-answers-notes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    /* ML-292: note names are 7 columns, C to B, on the 8-column grid's column width and centred (the
+       way 3 tiles sit on a 4-column grid) - (full width - 7 gaps) x 7/8 + 6 gaps. The tighter gap keeps
+       each button 44px+ wide on a phone. With sharps and flats on (-keyboard) it's the keyboard: sharps
+       above the naturals and flats below, each in its black key's column, gaps where there isn't one.
+       .note-keyboard (ML-9, the Scales key-note picker) uses the same placement. */
+    .theory-answers-notes, .theory-answers-keyboard { --theory-note-gap: var(--space-1); gap: var(--theory-note-gap); grid-template-columns: repeat(7, minmax(0, 1fr)); width: calc((100% - 7 * var(--theory-note-gap)) * 7 / 8 + 6 * var(--theory-note-gap)); margin-inline: auto; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="C#"] { grid-area: 1 / 1; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="D#"] { grid-area: 1 / 2; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="F#"] { grid-area: 1 / 4; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="G#"] { grid-area: 1 / 5; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="A#"] { grid-area: 1 / 6; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="C"] { grid-area: 2 / 1; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="D"] { grid-area: 2 / 2; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="E"] { grid-area: 2 / 3; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="F"] { grid-area: 2 / 4; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="G"] { grid-area: 2 / 5; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="A"] { grid-area: 2 / 6; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="B"] { grid-area: 2 / 7; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="Db"] { grid-area: 3 / 2; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="Eb"] { grid-area: 3 / 3; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="Gb"] { grid-area: 3 / 5; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="Ab"] { grid-area: 3 / 6; }
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="Bb"] { grid-area: 3 / 7; }
     .theory-answer { min-height: var(--touch-target); display: flex; align-items: center; justify-content: center; gap: var(--space-1); padding: var(--space-2); background: var(--input-bg); color: var(--text-color); border: 2px solid var(--control-border); border-radius: var(--radius-md); font: inherit; font-size: var(--font-md); font-weight: var(--font-weight-bold); cursor: pointer; }
     .theory-answer .material-symbols-outlined { font-size: var(--icon-md); }
     .theory-answers-symbols .theory-answer { min-height: calc(var(--touch-target) * 2); }
@@ -271,6 +312,7 @@
        between the two Progress rows matches it. Stacking two grids instead gives a --space-4 row gap
        (the margin) and lets each row size itself. */
     .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: var(--space-3); margin-bottom: var(--space-4); }
+    .dashboard-grid.single-col { grid-template-columns: 1fr; }
     /* ML-200: a stat card is a display by default (--container-bg, same as the page) - only a
        .clickable one gets the tappable --input-bg surface (color.md: --input-bg means "you can tap this"). */
     /* ML-203: number first, label underneath - same order as every value/selection tile (value over
@@ -278,6 +320,12 @@
        "Total time, 12h 30m" label-first. Detail line (.sess-count, e.g. a streak's end date) stays
        directly under its number. */
     .stat-card { display: flex; flex-direction: column; background: var(--container-bg); padding: var(--space-2) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--input-border); text-align: center; }
+    /* Detailed stats: a thick left edge in the category's colour (the total card uses the text colour). */
+    .stat-card.edge-total { border-left: 4px solid var(--text-color); }
+    .stat-card.edge-practise { border-left: 4px solid var(--cat-practise); }
+    .stat-card.edge-rehearsal { border-left: 4px solid var(--cat-rehearsal); }
+    .stat-card.edge-performance { border-left: 4px solid var(--cat-performance); }
+    .stat-card.edge-lesson { border-left: 4px solid var(--cat-lesson); }
     .stat-card > .value { order: 1; }
     .stat-card > .sess-count { order: 2; }
     .stat-card > .label { order: 3; }
@@ -327,27 +375,37 @@
 
     .chart-wrapper { display: flex; height: 190px; width: 100%; position: relative; overflow: hidden; background: transparent; margin-bottom: var(--space-2); }
     .chart-grid-lines { position: absolute; top: 10px; bottom: 36px; left: 42px; right: 0; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; z-index: var(--z-base); }
-    .grid-line { position: absolute; width: 100%; border-bottom: 1px dashed var(--input-border); opacity: 0.5; left: 0; }
+    /* ML-288: chart geometry arrives as custom properties set by the renderer - --line-pos (a grid
+       line / y-axis label's height up the chart) and --bar-h (a bar's height) - and colour as a
+       .series-* class (sets --series). Never an inline height or background. */
+    .grid-line { position: absolute; width: 100%; border-bottom: 1px dashed var(--input-border); opacity: 0.5; left: 0; bottom: var(--line-pos); }
+    .grid-line.is-baseline { opacity: 0; } /* the 0 line - the bars' own bottom edge already marks it */
+    .series-hours { --series: var(--chart-hours); }
+    .series-days { --series: var(--chart-days); }
+    .series-sessions { --series: var(--chart-sessions); }
+    .series-streak { --series: var(--chart-streak); }
     .chart-y-axis { width: 42px; min-width: 42px; position: sticky; left: 0; z-index: var(--z-sticky); background: transparent; }
     .chart-y-axis-container { position: absolute; top: 10px; bottom: 36px; left: 0; right: 6px; } .chart-y-axis-container span { font-size: var(--font-sm); color: var(--label-color); }
+    .chart-y-label { position: absolute; bottom: var(--line-pos); right: 0; transform: translateY(50%); }
     .chart-scroll-area { display: flex; overflow-x: auto; overflow-y: hidden; flex-grow: 1; align-items: flex-end; padding: var(--space-3) var(--space-3) var(--space-8) var(--space-3); height: 100%; box-sizing: border-box; -ms-overflow-style: none; scrollbar-width: none; z-index: var(--z-raised); position: relative; }
     .chart-scroll-area::-webkit-scrollbar { display: none; }
     .chart-bar-container { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; min-width: 14px; margin-right: var(--space-0-5); position: relative; cursor: pointer; }
-    .chart-bar { width: 100%; border-radius: var(--radius-xs) var(--radius-xs) 0 0; transition: height var(--duration-base) ease; pointer-events: none; }
+    .chart-bar { width: 100%; height: var(--bar-h); background: var(--series); border-radius: var(--radius-xs) var(--radius-xs) 0 0; transition: height var(--duration-base) ease; pointer-events: none; }
     /* ML-186: the current month's "at this rate" projection - a hollow bar, outline only, in the chart's
-       own colour (border-color set from JS with the same --chart-* token as the fill), stacked on top
+       own colour (the same .series-* class as the fill), stacked on top
        of the real bar. No bottom edge: it continues straight on from the filled bar, whose own top
        corners square off to meet it. */
-    .chart-bar-projection { width: 100%; box-sizing: border-box; border: 2px solid; border-bottom: none; border-radius: var(--radius-xs) var(--radius-xs) 0 0; background: transparent; transition: height var(--duration-base) ease; pointer-events: none; }
+    .chart-bar-projection { width: 100%; height: var(--bar-h); box-sizing: border-box; border: 2px solid; border-bottom: none; border-color: var(--series); border-radius: var(--radius-xs) var(--radius-xs) 0 0; background: transparent; transition: height var(--duration-base) ease; pointer-events: none; }
     .chart-bar-under-projection { border-radius: 0; }
     /* ML-186: key under each monthly chart while it shows a projection - solid swatch "Actual", outline
-       swatch "Projected", both in that chart's --chart-* colour (set inline in index.html). Same right-
+       swatch "Projected", both in that chart's colour (a .series-* class in index.html). Same right-
        aligned, small label-colour line as .heatmap-legend. */
     .chart-legend { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-4); font-size: var(--font-sm); color: var(--label-color); margin-bottom: var(--space-2); }
     .chart-legend-item { display: inline-flex; align-items: center; gap: var(--space-1); }
-    .chart-legend-swatch { width: var(--icon-sm); height: var(--icon-sm); box-sizing: border-box; border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
-    .chart-legend-swatch-projected { border: 2px solid; background: transparent; } /* full outline - in the key it isn't sitting on a solid bar */
+    .chart-legend-swatch { background: var(--series); width: var(--icon-sm); height: var(--icon-sm); box-sizing: border-box; border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
+    .chart-legend-swatch-projected { border: 2px solid var(--series); background: transparent; } /* full outline - in the key it isn't sitting on a solid bar */
     .chart-x-label { position: absolute; top: 100%; margin-top: var(--space-1); font-size: var(--font-xs); color: var(--label-color); text-align: center; width: 40px; left: 50%; transform: translateX(-50%); line-height: var(--line-height-snug); white-space: normal; pointer-events: none; }
+    .chart-x-year { font-size: var(--font-2xs); opacity: 0.8; } /* the year under a January (or first) month label */
 
     .month-nav { display: flex; justify-content: space-between; align-items: center; background: var(--secondary-color); padding: var(--space-2); border-radius: var(--radius-md); margin-bottom: var(--space-4); }
     .month-nav button { background: none; border: none; font-size: var(--font-md); cursor: pointer; color: var(--text-color); font-weight: var(--font-weight-bold); }
@@ -370,6 +428,8 @@
        shared class (admin Features/Accounts/Bands, Manage lists, the band menu's "more" button,
        session history). */
     .btn-icon-edit { padding: 0; background: transparent; color: var(--selection-text); border: 2px solid var(--selection-text); width: 48px; height: 48px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    /* Centred under the content above it (the list-item pop-up's Remove button). */
+    .btn-icon-delete.centered-action { margin: var(--space-2) auto 0 auto; }
     .btn-icon-delete { padding: 0; background: var(--danger-color); color: var(--text-on-accent); border: none; width: 48px; height: 48px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .btn-icon-copy { padding: 0; background: transparent; color: var(--text-color); border: 2px solid var(--control-border); width: 48px; height: 48px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     /* Deliberate gap so Copy and Delete (a destructive action right next to a harmless one) aren't
@@ -421,7 +481,7 @@
     .tuner-bar-track { position: relative; height: 28px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); overflow: hidden; }
     .tuner-bar-zone { position: absolute; top: 0; bottom: 0; left: 35%; right: 35%; background: var(--tuner-in-tune-zone); }
     .tuner-bar-center-mark { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--input-border); transform: translateX(-50%); }
-    .tuner-bar-needle { position: absolute; top: 2px; bottom: 2px; left: 50%; width: 4px; border-radius: var(--radius-2xs); background: var(--danger-color); transform: translateX(-50%); transition: left var(--duration-instant) linear, background var(--duration-instant) linear; }
+    .tuner-bar-needle { position: absolute; top: 2px; bottom: 2px; left: var(--needle-pos, 50%); width: 4px; border-radius: var(--radius-2xs); background: var(--danger-color); transform: translateX(-50%); transition: left var(--duration-instant) linear, background var(--duration-instant) linear; }
     .tuner-bar-needle.in-tune { background: var(--tuner-in-tune-green); }
     .tuner-bar-scale { display: flex; justify-content: space-between; font-size: var(--font-xs); color: var(--label-color); margin-top: var(--space-1); }
 
@@ -447,7 +507,12 @@
     .tuner-pause-btn .material-symbols-outlined { font-size: var(--icon-md); }
 
     .tuner-rewind-label { font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: var(--label-color); margin: var(--space-4) 0 var(--space-2) 0; }
-    .tuner-rewind-row { display: flex; align-items: center; gap: var(--space-3); }
+    /* ML-290: the pause button lines up with the slider's track line, not with the track + scale labels
+       as a block (which put it visibly below the line). Top-aligned, then pushed down so its middle
+       meets the track's middle: track margin-top (--space-5) + half the track (4px) - half the button
+       (18px) = 6px = --space-1 + --space-0-5. */
+    .tuner-rewind-row { display: flex; align-items: flex-start; gap: var(--space-3); }
+    .tuner-rewind-row .tuner-pause-btn { margin-top: calc(var(--space-1) + var(--space-0-5)); }
     .tuner-rewind-row .slider-wrap { flex: 1; min-width: 0; }
     /* No border-color override needed here (unlike .metroBlk-bpm-box .slider-thumb, which sits on
        --input-bg and overrides accordingly) - .slider-thumb's own default border already targets
@@ -523,9 +588,9 @@
     .info-row { margin-bottom: var(--space-3); padding: var(--space-3) var(--space-4); }
     .info-row-end { margin-bottom: var(--space-5); }
     /* ML-282: Settings is a list of groups (.settings-link, a tappable list row with the neutral
-       stripe), each opening its own screen (.settings-subview - hidden until switchView shows it).
-       .setting-field-pair: two fields side by side (practice year start day + month). */
-    .settings-subview { display: none; }
+       stripe), each opening its own screen (.settings-subview - starts .hidden-group like every other
+       screen, and switchView shows it). .setting-field-pair: two fields side by side (practice year
+       start day + month). */
     .history-item.settings-link { gap: var(--space-3); min-height: var(--touch-target); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
     .settings-link-icon { font-size: var(--icon-md); width: var(--icon-md); height: var(--icon-md); color: var(--label-color); flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
     .settings-link-icon .tool-icon-svg { width: var(--icon-md); height: var(--icon-md); }
@@ -544,15 +609,17 @@
        vertical top/height, which a single flex-item-is-also-the-bar element can't do at once. */
     .tuner-pitch-graph { position: relative; height: 90px; flex: 1; min-width: 0; }
     .tuner-pitch-graph-zone { position: absolute; left: 0; right: 0; top: 35%; height: 30%; background: var(--tuner-in-tune-zone-soft); }
-    /* Dashed top/bottom edges - positioned via inline top:0/bottom:0 (index.html) rather than a fixed
-       class each, same "one class, per-use inline position" convention .tuner-dynamics-gridline
-       already uses. Exactly 3 lines on this strip total, these 2 plus .tuner-pitch-graph-zero's own
+    /* Dashed top/bottom edges - .at-top / .at-bottom place each one (shared with
+       .tuner-dynamics-gridline, which also has .at-middle). Exactly 3 lines on this strip total, these 2 plus .tuner-pitch-graph-zero's own
        solid one at the centre - not a 4th dashed line doubling up at 0 alongside the solid one. */
     .tuner-pitch-graph-gridline { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--input-border); }
+    :is(.tuner-pitch-graph-gridline, .tuner-dynamics-gridline).at-top { top: 0; }
+    :is(.tuner-pitch-graph-gridline, .tuner-dynamics-gridline).at-bottom { bottom: 0; }
+    :is(.tuner-pitch-graph-gridline, .tuner-dynamics-gridline).at-middle { bottom: 50%; }
     .tuner-pitch-graph-zero { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--input-border); }
     .tuner-pitch-graph-bars { position: absolute; inset: 0; display: flex; align-items: stretch; gap: var(--space-0-5); }
     .tuner-history-bar-slot { position: relative; flex: 1; min-width: 3px; }
-    .tuner-history-bar { position: absolute; left: 0; right: 0; border-radius: var(--radius-2xs); background: var(--warning-color); }
+    .tuner-history-bar { position: absolute; left: 0; right: 0; top: var(--bar-top); height: var(--bar-h); border-radius: var(--radius-2xs); background: var(--warning-color); } /* --bar-top/--bar-h set per sample by renderTunerHistoryGraphs */
     .tuner-history-bar.in-tune { background: var(--tuner-in-tune-green); }
     /* A "no signal" gap in the timeline (see pushTunerHistorySample) - a faint dot at the zero line
        rather than nothing at all, so a silent beat still reads as "a moment passed" in the timeline. */
@@ -580,15 +647,19 @@
        zero, not just a reference tick. */
     .tuner-dynamics-graph-zero { position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--input-border); }
     .tuner-dynamics-bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: var(--space-0-5); }
-    .tuner-dynamics-bar { flex: 1; min-width: 3px; background: var(--primary-action); border-radius: var(--radius-2xs) var(--radius-2xs) 0 0; }
+    .tuner-dynamics-bar { flex: 1; min-width: 3px; height: var(--bar-h, 0%); background: var(--primary-action); border-radius: var(--radius-2xs) var(--radius-2xs) 0 0; }
 
     /* padding (not modal-content's own width) is what guarantees the gap either side of the card -
        a fixed design-system space rather than a percentage, so it stays a real, constant gap on a
        narrow phone instead of shrinking proportionally with the viewport (previously 90%/95% width,
        which read as nearly edge-to-edge on a typical phone screen). box-sizing so the padding doesn't
        itself widen the fixed inset:0 box past the viewport. */
+    /* Hidden by default; .show opens it (showModal/hideModal, app.js - ML-288). */
     .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--overlay-bg); z-index: var(--z-modal); justify-content: center; align-items: center; padding: 0 var(--space-5); box-sizing: border-box; }
+    .modal.show { display: flex; }
     .modal-content { background: var(--container-bg); width: 100%; max-width: 400px; padding: var(--space-6); border-radius: var(--radius-xl); box-shadow: var(--shadow-xl); max-height: 90vh; overflow-y: auto;}
+    /* A short explanatory line straight under a pop-up's title - pulled up into the title's bottom margin. */
+    .modal-content .modal-intro { margin: calc(-1 * var(--space-2)) 0 var(--space-4) 0; font-size: var(--font-sm); }
     .modal-content h2 { margin-top: 0; margin-bottom: var(--space-5); font-size: var(--font-lg); font-weight: var(--font-weight-semibold); }
 
 
@@ -596,15 +667,11 @@
        reported together - ML-97 follow-up) actually breaks onto its own line instead of running
        into the next sentence with no separator; no effect on the plain single-line messages every
        other toast already uses. */
-    /* Shown/hidden purely via style.display (see showSuccessToast/showWarningToast/showInfoToast/
-       closeToast, same on/off-by-default pattern as .modal above) - bottom is the toast's one resting
-       position, not an animated-in state. (A .toast.show variant with bottom:-100px used to exist here
-       for a slide-up transition, but no code ever toggled that class, so every toast rendered 100px
-       below the viewport - entirely invisible - regardless of display. Fixing the position alone still
-       left display:flex as this rule's own default, with nothing to hide a toast until the first time
-       it's explicitly closed - exposed as all three toasts sitting on screen from page load. display:
-       none is the real default; showXToast is what reveals one.) */
+    /* Hidden by default; .show (showSuccessToast/showWarningToast/showInfoToast/showUndoToast add it,
+       closeToast removes it) reveals one. bottom is the toast's one resting position, not an
+       animated-in state. */
     .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); color: var(--text-on-inverse); padding: var(--space-3) var(--space-5); border-radius: var(--radius-sm); display: none; align-items: center; gap: var(--space-4); z-index: var(--z-toast); font-size: var(--font-base); white-space: pre-line; overflow: hidden; }
+    .toast.show { display: flex; }
     .toast.success { background-color: var(--surface-inverse); }
     .toast.warning { background-color: var(--warning-color); color: var(--text-on-warning); font-weight: var(--font-weight-bold); }
     .toast.info { background-color: var(--info-color); color: var(--text-on-accent); font-weight: var(--font-weight-bold); box-shadow: var(--shadow-info); }
@@ -616,6 +683,10 @@
        without needing to be read, and works identically for every toast type since it's just an
        inline width transition driven by one shared helper. */
     .toast-countdown-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: currentColor; opacity: 0.35; }
+    /* Counting down: shrinks to nothing over --countdown-ms (startToastCountdownBar/resumeToast). While
+       the toast is hovered or focused it's frozen where it got to (--frozen-w, pauseToast). */
+    .toast-countdown-bar.is-running { width: 0%; transition: width var(--countdown-ms) linear; }
+    .toast-countdown-bar.is-paused { width: var(--frozen-w); transition: none; }
 
     /* ML-75: small popup anchored right next to whatever bar/heatmap square was just clicked, instead
        of a toast at the bottom of the screen - position:fixed and placed via getBoundingClientRect()
@@ -630,6 +701,7 @@
     .splash-title { color: var(--splash-title-color); margin: 0 0 var(--space-2) 0; font-size: var(--font-2xl); letter-spacing: 1px; }
     .splash-subtitle { color: var(--splash-subtitle-color); font-size: var(--font-md); margin: 0 0 var(--space-6) 0; }
     .splash-login-btn { display: none; width: 100%; padding: var(--space-4) var(--space-5); font-size: var(--font-md); font-weight: var(--font-weight-bold); cursor: pointer; background: linear-gradient(135deg, var(--primary-action), var(--primary-action-gradient-end)); color: var(--primary-action-text); border: none; border-radius: var(--radius-sm); }
+    .splash-login-btn.show { display: inline-block; } /* revealed by displayLoginScreen once the silent sign-in has failed */
 
     /* Slider - shared design-system component (see style guide). A draggable track + thumb + fill,
        with an optional min/max scale caption underneath. Used for any single numeric value dragged
@@ -640,12 +712,14 @@
        track) extends ~12px below the track's own bottom edge, which was overlapping the scale
        numbers directly beneath it at the old 6px gap. */
     .slider-track { position: relative; height: 8px; border-radius: var(--radius-xs); background: var(--input-border); margin: var(--space-5) var(--space-2) var(--space-4) var(--space-2); cursor: pointer; touch-action: none; }
-    .slider-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--radius-xs); background: var(--primary-action); pointer-events: none; }
+    /* ML-288: --pct (set by each slider's own update function) is the value as a percentage - the
+       fill's width and the thumb's position. */
+    .slider-fill { position: absolute; left: 0; top: 0; bottom: 0; width: var(--pct); border-radius: var(--radius-xs); background: var(--primary-action); pointer-events: none; }
     /* Visual size stays 26px (a 48px dot here would look oversized against an 8px track), but the
        ::before extends the actual clickable/draggable area to the 48x48 touch-target minimum -
        a click anywhere in that invisible area still targets .slider-thumb itself (pseudo-elements
        aren't separately addressable), so the existing pointerdown handler needs no changes. */
-    .slider-thumb { position: absolute; top: 50%; width: 26px; height: 26px; border-radius: var(--radius-circle); background: var(--primary-action); border: 3px solid var(--primary-action-strong); box-shadow: var(--shadow-md); transform: translate(-50%, -50%); cursor: grab; touch-action: none; }
+    .slider-thumb { position: absolute; top: 50%; left: var(--pct); width: 26px; height: 26px; border-radius: var(--radius-circle); background: var(--primary-action); border: 3px solid var(--primary-action-strong); box-shadow: var(--shadow-md); transform: translate(-50%, -50%); cursor: grab; touch-action: none; }
     .slider-thumb::before { content: ''; position: absolute; top: 50%; left: 50%; width: 48px; height: 48px; transform: translate(-50%, -50%); }
     .slider-thumb:active { cursor: grabbing; }
     .slider-scale { display: flex; justify-content: space-between; font-size: var(--font-sm); color: var(--label-color); padding: 0 var(--space-2); }
@@ -673,11 +747,13 @@
        animates the scroll - without a transition-property declared here, setting transitionDuration
        alone does nothing and the scroll teleports instantly to the next beat's centred position
        instead of gliding smoothly along with the beat. */
-    .metro-display-content { width: 100%; transition: transform linear; }
+    /* ML-288: --content-w (metroApplyDisplayWidth - wider than the viewport when the dots don't fit),
+       --scroll-x / --scroll-dur (metroScrollFollow - the follow-the-beat pan) are set from JS. */
+    .metro-display-content { width: var(--content-w, 100%); transform: translateX(var(--scroll-x)); transition: transform var(--scroll-dur, 0s) linear; }
 
     .metro-tier { position: relative; height: 24px; margin-bottom: var(--space-1); }
 
-    .metro-dot { position: absolute; top: 50%; border-radius: var(--radius-circle); transform: translate(-50%, -50%); transition: background var(--duration-instant), border-color var(--duration-instant), opacity var(--duration-instant), transform var(--duration-instant); }
+    .metro-dot { position: absolute; top: 50%; left: var(--dot-x); /* --dot-x: its slot along the row (buildMetroDotRow) */ border-radius: var(--radius-circle); transform: translate(-50%, -50%); transition: background var(--duration-instant), border-color var(--duration-instant), opacity var(--duration-instant), transform var(--duration-instant); }
 
     /* Every base click (beat or subdivision) lives in one row now (ML-66): a note-boundary click gets
        the larger "note" dot below, everything in between gets the smaller "sub" dot. Only the very
@@ -728,7 +804,7 @@
     /* The small fermata glyph shown above a beat's dot for as long as that beat's own bar is playing
        (renderFermataMarkers) - a sibling of the dots in the same scrolling row, so it pans with them
        for free rather than needing its own scroll-follow logic. */
-    .metro-fermata-marker { position: absolute; top: -16px; transform: translateX(-50%); color: var(--primary-action-strong); pointer-events: none; }
+    .metro-fermata-marker { position: absolute; top: -16px; left: var(--dot-x); /* copied from the dot it sits over */ transform: translateX(-50%); color: var(--primary-action-strong); pointer-events: none; }
     /* Scaled down from flowSignIconSvg's default 32px picker-tile size - proportionate to the 15px
        beat dot it sits above, not the much bigger context it was originally sized for. */
     .metro-fermata-marker .flow-sign-svg { font-size: var(--font-md); }
@@ -764,6 +840,8 @@
     .metro-speed-readout { text-align: center; min-width: 90px; }
     .metro-speed-readout > div:first-child { font-size: var(--font-lg); font-weight: var(--font-weight-bold); }
     .metro-speed-sub { font-size: var(--font-sm); color: var(--label-color); }
+    /* ML-297: the Italian speed name under the bpm (Moderato), kept to one line in a narrow box. */
+    .metro-speed-name { font-size: var(--font-xs); font-weight: var(--font-weight-semibold); color: var(--label-color); white-space: nowrap; }
     .metro-speed-reset { display: block; margin: 0 auto var(--space-4) auto; background: none; border: none; color: var(--info-text); font-weight: var(--font-weight-bold); font-size: var(--font-sm); cursor: pointer; padding: var(--space-1) var(--space-2); }
     .metro-help-text { font-size: var(--font-sm); color: var(--label-color); margin: 0 0 var(--space-3) 0; line-height: var(--line-height-base); }
 
@@ -775,6 +853,28 @@
        margins instead, or it renders visibly lower than the mute button beside it. */
     .metro-volume-row .slider-track { margin: 0 var(--space-2); }
 
+    /* ML-293: Timer screen countdown ring - see specs/components/timer-ring.md. --ring-left / --lap-left
+       (0-1, the time left on the main ring and the outer hour ring) are set by renderTimerRing. */
+    .timer-ring { position: relative; width: min(100%, 260px); aspect-ratio: 1; margin: var(--space-2) auto var(--space-4) auto; }
+    .timer-ring-svg { width: 100%; height: 100%; display: block; }
+    .timer-ring-track, .timer-ring-arc, .timer-ring-lap-track, .timer-ring-lap { fill: none; }
+    .timer-ring-track { stroke: var(--input-border); stroke-width: 8; }
+    .timer-ring-arc, .timer-ring-lap { transform: rotate(-90deg); transform-origin: 60px 60px; stroke-dasharray: 100 100; transition: stroke-dashoffset var(--duration-pulse) linear; }
+    .timer-ring-arc { stroke: var(--primary-action); stroke-width: 8; stroke-linecap: round; stroke-dashoffset: calc(100 - var(--ring-left, 1) * 100); }
+    .timer-ring-lap-track, .timer-ring-lap { stroke-width: 3; opacity: 0; transition: opacity var(--duration-base) ease, stroke-dashoffset var(--duration-pulse) linear; }
+    .timer-ring-lap-track { stroke: var(--input-border); }
+    .timer-ring-lap { stroke: var(--primary-action-strong); stroke-linecap: round; stroke-dashoffset: calc(100 - var(--lap-left, 0) * 100); }
+    .timer-ring.has-lap .timer-ring-lap-track, .timer-ring.has-lap .timer-ring-lap { opacity: 1; }
+    /* The dot rides the arc's end: rotated round the centre by the fraction left. */
+    .timer-ring-tip { transform: rotate(calc(var(--ring-left, 1) * 1turn)); transform-origin: 60px 60px; transition: transform var(--duration-pulse) linear; fill: var(--primary-action-strong); }
+    .timer-ring-tip circle { transform-box: fill-box; transform-origin: center; }
+    .timer-ring.is-running .timer-ring-tip circle { animation: timer-ring-pulse var(--duration-pulse) ease-in-out infinite; }
+    @keyframes timer-ring-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.4); } }
+    .timer-ring-readout { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); }
+    .timer-ring-time { font-size: var(--font-3xl); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; color: var(--text-color); }
+    .timer-ring.is-long .timer-ring-time { font-size: var(--font-2xl); } /* with hours in it (1:29:57) - keeps it inside the ring */
+    .timer-ring-label { font-size: var(--font-sm); color: var(--label-color); }
+    .timer-ring-hour { font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--primary-action-strong); background: var(--primary-action-tint); border-radius: var(--radius-pill); padding: var(--space-0-5) var(--space-2); }
     .metro-transport-row { display: flex; align-items: center; justify-content: center; gap: var(--space-4); margin: var(--space-2) 0 var(--space-4) 0; }
     .metro-transport-btn { padding: 0; width: 60px; height: 60px; border: none; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .metro-transport-btn .material-symbols-outlined { font-size: var(--icon-lg); }
@@ -868,7 +968,7 @@
        mini bar's row can pan too once there are too many beats to fit its (much narrower) box (ML-64
        feedback: it needs to pan just like the full view, not just cram everything in). */
     .metro-mini-viewport { width: 100%; overflow: hidden; padding-top: var(--space-2); margin-bottom: var(--space-1); }
-    .metro-mini-content { width: 100%; transition: transform linear; }
+    .metro-mini-content { width: var(--content-w, 100%); transform: translateX(var(--scroll-x)); transition: transform var(--scroll-dur, 0s) linear; } /* same custom properties as .metro-display-content */
     .metro-mini-dots { margin-bottom: 0; }
     .metro-mini-controls { display: flex; align-items: center; gap: var(--space-2); }
     .metro-mini-ctrl-btn { flex: 1 1 0; min-width: 0; min-height: 48px; background: var(--nav-action); color: var(--nav-action-text); border: none; border-radius: var(--radius-sm); padding: var(--space-2) var(--space-1); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: var(--line-height-snug); box-sizing: border-box; }
@@ -960,7 +1060,7 @@
     .metroBlk-mini-tuner-bar-track { position: relative; height: 36px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); overflow: hidden; }
     .metroBlk-mini-tuner-bar-zone { position: absolute; top: 0; bottom: 0; left: 35%; right: 35%; background: var(--tuner-in-tune-zone); }
     .metroBlk-mini-tuner-bar-center { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--input-border); transform: translateX(-50%); }
-    .metroBlk-mini-tuner-needle { position: absolute; top: 1px; bottom: 1px; left: 50%; width: 4px; border-radius: var(--radius-2xs); background: var(--danger-color); transform: translateX(-50%); transition: left var(--duration-instant) linear, background var(--duration-instant) linear; }
+    .metroBlk-mini-tuner-needle { position: absolute; top: 1px; bottom: 1px; left: var(--needle-pos, 50%); width: 4px; border-radius: var(--radius-2xs); background: var(--danger-color); transform: translateX(-50%); transition: left var(--duration-instant) linear, background var(--duration-instant) linear; }
     .metroBlk-mini-tuner-needle.in-tune { background: var(--tuner-in-tune-green); }
 
     /* Sub beats / play speed controls (ML-91 follow-up): collapsed buttons showing a big current
@@ -1072,10 +1172,10 @@
        left/right are set in JS from the dots' own already-computed positions (see
        connectMetroBlkDotsWithTrack), not recalculated here, so it can never drift out of step with
        where the dots actually are. */
-    .metroBlk-row-track { position: absolute; top: 50%; height: 2px; background: var(--input-border); transform: translateY(-50%); }
+    .metroBlk-row-track { position: absolute; top: 50%; left: var(--track-start); right: calc(100% - (var(--track-end))); /* first dot to the bar's end (connectMetroBlkDotsWithTrack) */ height: 2px; background: var(--input-border); transform: translateY(-50%); }
     /* Marks where the line's extra one-slot extension (past the last dot) ends - the loop-back point
        time still has to pass through before returning to beat 1, not a hard stop. */
-    .metroBlk-row-track-end { position: absolute; top: 50%; width: 2px; height: 14px; background: var(--input-border); transform: translate(-50%, -50%); }
+    .metroBlk-row-track-end { position: absolute; top: 50%; left: var(--track-end); width: 2px; height: 14px; background: var(--input-border); transform: translate(-50%, -50%); }
 
     /* Note-value picker ("Set by note value" in the block editor) - real vector glyphs (drawn in JS,
        see metroNoteIconSvg) rather than relying on unicode musical symbols, which render as missing-
@@ -1203,6 +1303,7 @@
     .metroSeg-row-tile.selected { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
     .metroSeg-row-tile-glyph { flex-shrink: 0; width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--container-bg); border: 1px solid var(--input-border); display: flex; align-items: center; justify-content: center; font-weight: var(--font-weight-bold); font-size: var(--font-md); }
     .metroSeg-row-tile-glyph svg { width: 18px; height: 18px; }
+    .metroSeg-row-tile-glyph.metroSeg-row-tile-glyph-sm { width: var(--icon-md); height: var(--icon-md); margin: 0 auto; } /* centred glyph inside a jump tile (Coda) */
     .metroSeg-row-tile.selected .metroSeg-row-tile-glyph { border-color: var(--primary-action-strong); color: var(--primary-action-strong); }
     .metroSeg-row-tile-text { display: flex; flex-direction: column; gap: var(--space-0-5); min-width: 0; }
     .metroSeg-row-tile-text strong { font-size: var(--font-sm); }
@@ -1432,6 +1533,13 @@
     /* ML-34: "Show history" list rows - .history-item's own flex row plus a clickable body (selects
        the row) and a trailing 3-dot menu button. */
     .qp-history-item-body { flex-grow: 1; cursor: pointer; display: flex; align-items: center; gap: var(--space-3); }
+    /* ML-288: a row's left edge in its session category's colour (.category-* sets --category-accent). */
+    .history-item.category-edge { border-left-color: var(--category-accent); }
+    /* Challenge editor: an item's left edge shows its status - open (gold), complete, closed. */
+    .history-item.challenge-item-edge { border-left: 4px solid var(--primary-action); }
+    .history-item.challenge-item-edge.is-complete { border-left-color: var(--success-color); }
+    .history-item.challenge-item-edge.is-closed { border-left-color: var(--control-off-bg); }
+    .history-item.is-muted { opacity: var(--opacity-muted); } /* an archived teacher/organisation */
     .history-item.qp-history-item-selected { border-left-color: var(--primary-action); background: var(--primary-action-tint); }
     .qp-history-star { color: var(--primary-action-strong); font-variation-settings: 'FILL' 1; font-size: var(--font-lg); }
     /* ML-175: generic 3-dot menu trigger for any list row (first used by Quick Play history, now
@@ -1589,7 +1697,7 @@
     .flow-upload-progress-text { display: flex; justify-content: space-between; font-size: var(--font-sm); font-weight: var(--font-weight-bold); margin-bottom: var(--space-2); }
     .flow-upload-progress-text span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; }
     .flow-upload-progress-track { background: var(--input-border); height: 8px; border-radius: var(--radius-pill); overflow: hidden; }
-    .flow-upload-progress-fill { background: var(--primary-action); height: 100%; border-radius: var(--radius-pill); transition: width var(--duration-fast); }
+    .flow-upload-progress-fill { background: var(--primary-action); height: 100%; width: var(--progress, 0%); border-radius: var(--radius-pill); transition: width var(--duration-fast); }
 
     /* Recording/document rows reuse .history-item's own row shape (icon + text +
        action), just with a type glyph instead of a category colour. Recording rows
@@ -1637,7 +1745,7 @@
     /* Height is set inline by JS (renderFlowMediaCarousel/goToFlowMediaSlide) to the active
        slide's own measured scrollHeight - the transition here is what makes that change smooth
        rather than an instant jump, same "measure, don't hardcode per type" reasoning as the plan. */
-    .flow-media-carousel-viewport { overflow: hidden; transition: height var(--duration-base) ease; }
+    .flow-media-carousel-viewport { overflow: hidden; height: var(--viewport-h); transition: height var(--duration-base) ease; } /* --viewport-h: the showing slide's height (updateFlowMediaViewportHeight) */
     /* touch-action:pan-y (not none) - vertical page scroll still works natively; only horizontal
        drag is captured by JS (wireFlowMediaSwipe), same split Quick Play's own swipe-to-delete
        relies on for its own gesture. */
@@ -1929,6 +2037,57 @@
     .flow-picker-tile-icon-row { flex: 1; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: var(--space-1); font-size: var(--font-md); font-weight: var(--font-weight-bold); }
     .flow-picker-tile-count { font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: inherit; }
     .flow-picker-tile .metroBlk-note-svg { width: 22px; height: 38px; margin: var(--space-0-5) 0; }
+    /* ML-298 / ML-295 / ML-296: the drill tools - see specs/components/drills.md. The pad is the one big
+       target a drill is played on: gold like Play, round, and it gives under the finger. */
+    .drill-pad { display: flex; align-items: center; justify-content: center; width: calc(var(--touch-target) * 4); aspect-ratio: 1 / 1; margin: var(--space-4) auto; border: none; border-radius: var(--radius-circle); background: var(--primary-action); color: var(--primary-action-text); font: inherit; font-size: var(--font-lg); font-weight: var(--font-weight-bold); cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; transition: transform var(--duration-instant) var(--ease-standard); }
+    .drill-pad.is-hit { transform: scale(0.94); }
+    .drill-pad:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+    .drill-feedback { min-height: calc(var(--font-base) * 1.5); text-align: center; color: var(--text-color); font-weight: var(--font-weight-bold); margin: var(--space-2) 0; }
+    /* Tap tempo's live meter: the needle sits at --pos (-1 much too slow ... +1 much too fast). */
+    .drill-meter { margin: var(--space-3) auto 0; max-width: calc(var(--touch-target) * 7); }
+    .drill-meter-track { position: relative; height: var(--space-2); border-radius: var(--radius-pill); background: var(--control-off-bg); }
+    .drill-meter-mark { position: absolute; left: 50%; top: calc(var(--space-2) * -0.5); bottom: calc(var(--space-2) * -0.5); width: var(--space-0-5); background: var(--label-color); }
+    .drill-meter-needle { position: absolute; top: calc(var(--space-3) * -0.5); left: calc(50% + var(--pos, 0) * 50%); width: var(--space-3); height: calc(var(--space-3) * 2); margin-left: calc(var(--space-3) * -0.5); border-radius: var(--radius-pill); background: var(--primary-action-strong); transition: left var(--duration-fast) var(--ease-standard); }
+    .drill-meter-labels { display: flex; justify-content: space-between; margin-top: var(--space-2); font-size: var(--font-xs); color: var(--label-color); }
+    /* Gap trainer: the 8 bars, 4 beats each; a silent beat is an empty ring, the beat now is gold. */
+    .drill-beats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); margin: var(--space-3) 0; }
+    .drill-bar { display: flex; justify-content: space-around; padding: var(--space-2) var(--space-1); border-radius: var(--radius-md); background: var(--container-bg); border: 1px solid var(--input-border); }
+    .drill-beat { width: var(--space-3); height: var(--space-3); border-radius: var(--radius-circle); background: var(--label-color); border: 2px solid var(--label-color); box-sizing: border-box; }
+    .drill-beat.is-silent { background: transparent; }
+    .drill-beat.is-now { background: var(--primary-action-strong); border-color: var(--primary-action-strong); }
+    .drill-ear-icon { font-size: calc(var(--icon-xl) * 2); color: var(--label-color); }
+    .drill-listen { text-align: center; color: var(--label-color); font-size: var(--font-md); }
+    .drill-result-list { list-style: none; margin: var(--space-4) 0; padding: 0; }
+    .drill-result-list li { display: flex; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--input-border); font-size: var(--font-sm); }
+    .drill-result-list li:last-child { border-bottom: none; }
+    /* ML-9: Scales practice - see specs/components/scales.md. */
+    /* Previous / Next / My ... : the same icon-over-label buttons as the transport row below
+       (.metro-play-grid-btn, grey), so the two rows match: previous, next, shuffle, my ... */
+    .scales-pick-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin: var(--space-3) 0; }
+    /* "My scales" / "My warm-ups" open a pop-up: outlined, like .btn-cancel, rather than filled grey. */
+    .scales-pick-mine { background: transparent; border: 2px solid var(--primary-action-strong); color: var(--primary-action-strong); }
+    .scales-staff-card { padding: var(--space-3) var(--space-2); }
+    .scales-staff-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 0 var(--space-2) var(--space-2); }
+    .scales-staff-heading { display: flex; flex-direction: column; gap: var(--space-0-5); min-width: 0; }
+    .scales-memory-toggle { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; font-size: var(--font-sm); color: var(--label-color); }
+    /* Play from memory (ML-9): the scale's name in place of the notes. */
+    .scales-memory { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-7) var(--space-3); text-align: center; }
+    .scales-memory-name { font-size: var(--font-2xl); font-weight: var(--font-weight-bold); color: var(--text-color); }
+    .scales-memory-detail { font-size: var(--font-md); color: var(--label-color); }
+    .scales-memory-progress { min-height: 1.5em; font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: var(--primary-action-strong); }
+    .scales-staff-title { margin: 0; font-size: var(--font-md); font-weight: var(--font-weight-bold); }
+    .scales-staff-sub { font-size: var(--font-sm); color: var(--label-color); }
+    .scales-staff svg { display: block; width: 100%; height: auto; }
+    .scales-staff-row-short { width: calc(var(--row-frac, 1) * 100%); } /* the last, shorter row - same scale as the full rows */
+    /* The note to play, while the metronome runs (Notation note cls). */
+    .scales-staff .is-now { fill: var(--primary-action-strong); }
+    /* The key-note picker: the keyboard layout - 7 columns, sharps above, flats below (placement shared with .theory-answers-keyboard). */
+    .note-keyboard { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-1); }
+    .note-keyboard .flow-picker-tile { min-height: var(--touch-target); padding: var(--space-2) 0; }
+    /* ML-294: Warm-ups shares the Scales layout classes; its own bit is the exercise's tip under the title. */
+    .warmups-tip { margin: 0 var(--space-2) var(--space-2); font-size: var(--font-sm); color: var(--label-color); }
+    .scales-pool-count { margin: var(--space-2) 0 0 0; font-size: var(--font-sm); color: var(--label-color); }
+
     .flow-picker-tile-label { display: block; font-size: var(--font-xs); color: var(--label-color); min-height: 1em; }
     .flow-picker-tile.selected .flow-picker-tile-label { color: var(--primary-action-strong); }
 
@@ -2137,6 +2296,7 @@
 
     /* Mobile responsive - remove max-width and adjust spacing */
     @media (max-width: 768px) {
+        .nav-menu-backdrop { background: var(--menu-backdrop-bg); }
         body { align-items: stretch; }
         .top-bar { max-width: 100%; padding: var(--space-2) var(--space-4); }
         .top-bar-title { font-size: var(--font-md); }
@@ -2212,3 +2372,113 @@
         *, *::before, *::after { animation-duration: 0.01ms !important; /* token-audit-ignore: reduced-motion override */ animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; /* token-audit-ignore: reduced-motion override */ scroll-behavior: auto !important; }
         .metro-dot-note.lit, .metro-dot-note.accent.lit, .metro-dot-sub.lit { transform: translate(-50%, -50%); }
     }
+
+    /* =========================================================================================
+       ML-288: layout and type utilities - the replacement for inline style="". One class, one job,
+       one token, so a tablet/landscape/desktop layout or a new colour scheme can reach every style
+       from the stylesheet. Kept last in the file so a utility beats the single-class component rule
+       it adjusts (the job the inline style used to do). Reach for a component class first; a utility
+       is for a one-off nudge. The older .flex-row/.gap-sm/.no-margin set stays where it is (further
+       up) - existing component rules are written to override it. See
+       specs/components/utilities-and-states.md.
+       ========================================================================================= */
+    .flex-wrap { flex-wrap: wrap; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .justify-center { justify-content: center; }
+    .justify-end { justify-content: flex-end; }
+    .gap-xs { gap: var(--space-1); }
+    .pos-relative { position: relative; }
+    .text-left { text-align: left; }
+    .text-sm { font-size: var(--font-sm); }
+    .text-base { font-size: var(--font-base); }
+    .text-md { font-size: var(--font-md); }
+    .text-2xl { font-size: var(--font-2xl); }
+    .fw-normal { font-weight: var(--font-weight-normal); }
+    .fw-bold { font-weight: var(--font-weight-bold); }
+    .leading-base { line-height: var(--line-height-base); }
+    .pre-line { white-space: pre-line; } /* a message with line breaks in it */
+    .p-2 { padding: var(--space-2); }
+    .p-4 { padding: var(--space-4); }
+    .mt-0 { margin-top: 0; }
+    .mt-1 { margin-top: var(--space-1); }
+    .mt-2 { margin-top: var(--space-2); }
+    .mt-3 { margin-top: var(--space-3); }
+    .mt-4 { margin-top: var(--space-4); }
+    .mt-5 { margin-top: var(--space-5); }
+    .mt-6 { margin-top: var(--space-6); }
+    .mt-7 { margin-top: var(--space-7); }
+    .mb-1 { margin-bottom: var(--space-1); }
+    .mb-2 { margin-bottom: var(--space-2); }
+    .mb-3 { margin-bottom: var(--space-3); }
+    .mb-4 { margin-bottom: var(--space-4); }
+    .mb-5 { margin-bottom: var(--space-5); }
+    .mb-6 { margin-bottom: var(--space-6); }
+    /* An inline (content-width) button, e.g. Save/Join beside an input. -sm is the tighter row of
+       challenge actions, which sits in a flex row so never takes the stacked-button margin. */
+    .btn-inline { width: auto; padding: var(--space-3) var(--space-5); }
+    .btn-inline-sm { width: auto; padding: var(--space-2) var(--space-4); margin: 0; }
+    /* A small native checkbox inside a filter/label row. */
+    .check-sm { width: var(--icon-sm); height: var(--icon-sm); }
+    .pointer-none { pointer-events: none; }
+    .btn-inline-xs { width: auto; padding: var(--space-2) var(--space-3); }
+    .grow { flex-grow: 1; }
+    .items-start { align-items: flex-start; }
+    .ml-1 { margin-left: var(--space-1); }
+    .pl-1 { padding-left: var(--space-1); }
+    .p-3 { padding: var(--space-3); }
+    .p-5 { padding: var(--space-5); }
+    .text-2xs { font-size: var(--font-2xs); }
+    .icon-md { font-size: var(--icon-md); } /* a Material Symbols glyph at the default icon size */
+    .text-danger { color: var(--danger-text); }
+    .text-success { color: var(--success-text); }
+    .text-selection { color: var(--selection-text); }
+    .w-full { width: 100%; }
+    .text-accent-strong { color: var(--primary-action-strong); }
+
+    /* ML-288: session categories. One class per category sets its two colours; components read them. */
+    .category-practise { --category-accent: var(--cat-practise); --category-accent-text: var(--cat-practise-text); }
+    .category-rehearsal { --category-accent: var(--cat-rehearsal); --category-accent-text: var(--cat-rehearsal-text); }
+    .category-lesson { --category-accent: var(--cat-lesson); --category-accent-text: var(--cat-lesson-text); }
+    .category-performance { --category-accent: var(--cat-performance); --category-accent-text: var(--cat-performance-text); }
+    .category-text { color: var(--category-accent-text); }
+    /* Stats filter pills: an active category pill takes that category's colour (see .filter-pill.active). */
+    .filter-pill[data-filter-cat] { --filter-pill-accent: var(--category-accent); --filter-pill-accent-text: var(--category-accent-text); }
+
+    /* ML-288: small form/section patterns that used to be inline styles. */
+    /* A tinted block that groups related fields inside a form (challenge task options). -row lays out
+       a label and its control either side of one line. */
+    .inset-panel { background: var(--secondary-color); padding: var(--space-4); border-radius: var(--radius-md); }
+    .inset-panel.inset-panel-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-3) var(--space-4); }
+    /* Manage challenges: the filter checkboxes in a bordered box. */
+    .challenge-filter-box { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); background: var(--input-bg); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--input-border); }
+    /* Edit challenge: the progress summary line under the name. */
+    /* Challenge session summary: one row per task worked on - name and ref left, status right. */
+    .summary-item-row { padding: var(--space-3); border-bottom: 1px solid var(--input-border); display: flex; justify-content: space-between; }
+    /* Challenge session summary title - gold, or green once every challenge is complete. */
+    .summary-title { color: var(--primary-action-strong); }
+    .summary-title.is-complete { color: var(--success-text); }
+    /* About: the bulleted change list under each release. */
+    .release-change-list { margin: var(--space-1) 0 0 0; padding-left: var(--space-5); }
+    .challenge-edit-stats { font-weight: var(--font-weight-bold); margin-top: var(--space-2); margin-bottom: var(--space-4); font-size: var(--font-base); color: var(--primary-action-strong); }
+    /* A sub-heading inside a form, after a .divider-dashed (the challenge editor's Tasks). */
+    .form-subheading { margin-top: 0; margin-bottom: var(--space-4); font-size: var(--font-md); color: var(--text-color); }
+    .divider-dashed { border: 0; border-top: 1px dashed var(--input-border); margin: var(--space-6) 0 var(--space-4) 0; }
+
+    /* =========================================================================================
+       ML-288: run-time placement and motion. Where something is, or how far it's been dragged, is
+       only known while the app runs, so JS sets it as a custom property and one of these classes
+       reads it (app.js: placeAt, setMove/clearMove, swipeTo). Last in the file on purpose: while it
+       applies, it has to win over the component's own resting position, the way an inline style did.
+       ========================================================================================= */
+    /* A fixed menu or popup put next to whatever opened it. */
+    .is-placed { left: var(--place-x); top: var(--place-y); }
+    /* Dragged, swiped, or part-way through a FLIP reorder. */
+    .is-moved { transform: translate(var(--move-x), var(--move-y)); }
+    .is-faded { opacity: 0; }
+    .is-raised { z-index: var(--z-raised); }
+    /* Transitions: off while a finger is moving something (or for a one-frame jump), a swipe settling
+       open/shut, or a dragged box springing back. */
+    .no-transition { transition: none; }
+    .transition-swipe { transition: transform var(--duration-swipe) ease; }
+    .transition-transform { transition: transform var(--duration-base) ease; }

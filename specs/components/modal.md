@@ -20,6 +20,7 @@ Long bodies: `.modal-content.modal-content-sticky-footer` › `.metroSeg-scroll-
 `--space-6`, `--font-lg`, `--font-weight-semibold`, `--touch-target`.
 
 ## 5. Props / API
+- **Open and close (ML-288):** a `.modal` is hidden until it has `.show` - `showModal(id)` / `hideModal(id)` (app.js; admin.js has its own pair), never `style.display`. `.modal-intro` is a short explanatory line straight under the title.
 - Confirmations: `showConfirmModal(title, msg, callback, isDanger, actionLabel, cancelLabel)` (app.js). Don't build a one-off.
 - Max width 400px, max height 90vh, scrolls internally.
 - A modal opened from inside another modal uses `--z-modal-stacked`.

@@ -84,7 +84,7 @@ describe('every quiz, every option combination', () => {
                     const ids = qn.answers.map(a => a.id);
                     assert.equal(new Set(ids).size, ids.length, `duplicate answers ${qn.id}`);
                     assert.ok(ids.includes(qn.correct), `right answer missing ${qn.id}`);
-                    if (typeOf(qn.id) === 'note') assert.ok(ids.length === 7 || ids.length === 12);
+                    if (typeOf(qn.id) === 'note') assert.ok(ids.length === 7 || ids.length === 17);
                     else assert.equal(ids.length, 4, `${qn.id} ${JSON.stringify(opts)}`);
                     if (i && src.size > 1) assert.notEqual(qn.id, qs[i - 1].id, 'same question twice in a row');
                     if (qn.prompt.staff) N.staff(qn.prompt.staff);
@@ -149,7 +149,16 @@ describe('note names', () => {
     });
     test('solfège labels are spelled syllables', () => {
         const q = clone(source('noteNames', { accidentals: 'flats' }, { seed: 1, naming: 'solfege' }).next());
-        assert.deepEqual(q.answers.map(a => a.label), ['Do', 'Re♭', 'Re', 'Mi♭', 'Mi', 'Fa', 'Sol♭', 'Sol', 'La♭', 'La', 'Ti♭', 'Ti']);
+        assert.deepEqual(q.answers.map(a => a.label), ['Do♯', 'Re♯', 'Fa♯', 'Sol♯', 'La♯', 'Do', 'Re', 'Mi', 'Fa', 'Sol', 'La', 'Ti', 'Re♭', 'Mi♭', 'Sol♭', 'La♭', 'Ti♭']);
+    });
+    test('ML-292: sharps/flats questions show the keyboard - 5 sharps, 7 naturals, 5 flats, no E#/B#/Cb/Fb', () => {
+        for (const acc of ['sharps', 'flats']) {
+            const q = clone(source('noteNames', { accidentals: acc }, { seed: 3 }).next());
+            assert.equal(q.layout, 'keyboard');
+            assert.deepEqual(q.answers.map(a => a.id), T.KEYBOARD_BUTTONS);
+            for (const x of ['E#', 'B#', 'Cb', 'Fb']) assert.ok(!q.answers.some(a => a.id === x));
+        }
+        assert.equal(clone(source('noteNames', { accidentals: 'none' }, { seed: 3 }).next()).layout, 'notes');
     });
 });
 
@@ -210,7 +219,7 @@ describe('scales', () => {
 describe('symbols', () => {
     test('the sets and their sizes', () => {
         const count = (set) => T.SYMBOLS.filter(s => s.set === set).length;
-        assert.deepEqual(T.SET_IDS.map(count), [13, 9, 17, 11, 15]);
+        assert.deepEqual(T.SET_IDS.map(count), [13, 9, 17, 11, 15, 0]); // speeds are T.SPEEDS, not symbols
         assert.equal(T.SYMBOLS.length, 65);
     });
     test('unique, with a name and meaning, and every one draws', () => {
@@ -232,13 +241,13 @@ describe('symbols', () => {
         assert.equal(source('symbols', { set: 'basics', ask: 'names' }, { seed: 1 }).size, 13);
         assert.equal(source('symbols', { set: 'basics', ask: 'meanings' }, { seed: 1 }).size, 13);
         assert.equal(source('symbols', { set: 'basics' }, { seed: 1 }).size, 26);
-        assert.equal(source('symbols', { set: 'everything' }, { seed: 1 }).size, 130);
+        assert.equal(source('symbols', { set: 'everything' }, { seed: 1 }).size, 144); // 65 symbols x 2 + 7 speeds x 2
     });
     test('wrong answers come from the same set', () => {
         for (const q of take(source('symbols', { set: 'dynamics' }, { seed: 9 }), 30)) {
             assert.ok(q.answers.every(a => T.SYMBOLS.find(s => s.id === a.id).set === 'dynamics'));
         }
-        for (const q of take(source('symbols', { set: 'everything' }, { seed: 4 }), 60)) {
+        for (const q of take(source('symbols', { set: 'everything' }, { seed: 4 }), 60).filter(q => !q.id.startsWith('speed'))) { // speeds: their own test (ML-297)
             const set = T.SYMBOLS.find(s => s.id === q.correct).set;
             assert.ok(q.answers.every(a => T.SYMBOLS.find(s => s.id === a.id).set === set), `${q.id} mixes sets`);
         }
@@ -324,7 +333,7 @@ describe('smart learn (ML-269)', () => {
     });
     test('question ids are the weight keys, for every question type', () => {
         const src = source('mixed', { level: 'advanced', clefs: ['treble', 'bass'] }, { seed: 1 });
-        for (const q of take(src, 30)) assert.match(q.id, /^(note|keySignature|scale|symbolName|symbolMeaning):/);
+        for (const q of take(src, 30)) assert.match(q.id, /^(note|keySignature|scale|symbolName|symbolMeaning|speedName|speedBpm):/);
     });
 });
 
@@ -363,7 +372,7 @@ describe('smart learn refinements (ML-269)', () => {
         const ids = new Set();
         for (const level of ['advanced']) for (const q of take(source('mixed', { level, clefs: ['treble', 'bass'] }, { seed: 2 }), 300)) ids.add(q.id);
         for (const q of take(source('noteNames', { range: 6, accidentals: 'flats', clefs: ['treble', 'bass'] }, { seed: 2 }), 120)) ids.add(q.id);
-        for (const q of take(source('symbols', { set: 'everything' }, { seed: 2 }), 130)) ids.add(q.id);
+        for (const q of take(source('symbols', { set: 'everything' }, { seed: 2 }), 144)) ids.add(q.id);
         for (const id of ids) {
             const src = source('weakSpots', {}, { seed: 1, weights: { [id]: 4 } });
             assert.equal(src.size, 1, id);
@@ -383,5 +392,123 @@ describe('smart learn refinements (ML-269)', () => {
         assert.equal(T.describeQuestion('note:treble:Bb4'), 'B♭4 on the treble staff');
         assert.equal(T.describeQuestion('scale:bass:A minor:melodic'), 'A minor (melodic) scale, bass clef');
         assert.equal(T.describeQuestion('symbolName:allegro'), 'Allegro: what it means');
+    });
+});
+
+describe('scales practice (ML-9)', () => {
+    const b = (o) => T.buildScale(o);
+    test('C major, 1 octave up: C4 to C5', () => {
+        assert.deepEqual([...b({ keyId: 'C major', octaves: 1 }).pitches], ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5']);
+    });
+    test('D major, 2 octaves up and down: 29 notes, spelled from the key, turning at D6', () => {
+        const s = b({ keyId: 'D major', octaves: 2, direction: 'both' });
+        assert.equal(s.pitches.length, 29);
+        assert.equal(s.pitches[14], 'D6');
+        assert.equal(s.pitches[2], 'F#4');
+        assert.deepEqual({ ...s.keySignature }, { type: 'sharp', count: 2 });
+        assert.equal(s.title, 'D major scale');
+    });
+    test('minor forms: harmonic raises the 7th both ways; melodic raises 6th and 7th going up, natural coming down', () => {
+        const h = b({ keyId: 'A minor', form: 'harmonic', direction: 'both' }).pitches;
+        assert.equal(h[6], 'G#5'); assert.equal(h[8], 'G#5');
+        const m = b({ keyId: 'A minor', form: 'melodic', direction: 'both' }).pitches;
+        assert.deepEqual([m[5], m[6]], ['F#5', 'G#5']);
+        assert.deepEqual([m[8], m[9]], ['G5', 'F5']);
+        const n = b({ keyId: 'A minor', form: 'natural' }).pitches;
+        assert.ok(!n.some(p => p.includes('#')));
+    });
+    test('arpeggio: tonic, 3rd, 5th per octave, then the top tonic', () => {
+        assert.deepEqual([...b({ keyId: 'G major', type: 'arpeggio', octaves: 2 }).pitches], ['G4', 'B4', 'D5', 'G5', 'B5', 'D6', 'G6']);
+    });
+    test('a major key ignores a minor form; an unknown key throws', () => {
+        assert.equal(b({ keyId: 'F major', form: 'melodic' }).form, 'major');
+        assert.throws(() => b({ keyId: 'H major' }));
+    });
+    test('bass clef starts low enough to sit on the staff', () => {
+        const s = b({ keyId: 'C major', clef: 'bass' });
+        assert.ok(N.staffStep(s.pitches[0], 'bass') >= -2 && N.staffStep(s.pitches[0], 'bass') <= 4);
+    });
+    test('writeScale: accidentals only where the key signature does not cover them, naturals back, lasting a bar', () => {
+        const w = T.writeScale(b({ keyId: 'A minor', form: 'melodic', direction: 'both' }), 16);
+        // A minor has no key signature: raised F#/G# get sharps; coming down (next bar) G and F get naturals
+        assert.equal(w[5].accidental, true); assert.equal(w[6].accidental, true);
+        assert.equal(w[0].accidental, false);
+        assert.equal(w[8].pitch, 'Gn5'); assert.equal(w[8].accidental, true);
+        // ...but in a new bar the G is plain again (accidentals last a bar)
+        assert.equal(T.writeScale(b({ keyId: 'A minor', form: 'melodic', direction: 'both' }), 8)[8].accidental, false);
+        const d = T.writeScale(b({ keyId: 'D major', octaves: 1 }), 8);
+        assert.ok(d.every(n => !n.accidental)); // all covered by the key signature
+        for (const n of T.writeScale(b({ keyId: 'E minor', form: 'harmonic', octaves: 2, direction: 'both' }), 4)) N.staff({ clef: 'treble', items: [{ type: 'note', ...n }] });
+    });
+    test('scalePool: separate sharp and flat limits, forms and types', () => {
+        const p = T.scalePool({ maxSharps: 2, maxFlats: 3, forms: ['major'], types: ['scale', 'arpeggio'] });
+        const keys = new Set(p.map(x => x.keyId));
+        assert.deepEqual([...keys].sort(), ['Bb major', 'C major', 'D major', 'Eb major', 'F major', 'G major']);
+        assert.equal(p.length, 12);
+        assert.ok(T.scalePool({ maxSharps: 0, maxFlats: 0, forms: ['harmonic', 'natural'], types: ['scale'] }).every(x => x.keyId === 'A minor'));
+    });
+    test('every key in every form builds, and every note draws', () => {
+        for (const k of T.ALL_KEYS) for (const form of ['major', 'harmonic', 'melodic', 'natural']) for (const octaves of [1, 3]) {
+            const s = b({ keyId: k.id, form, octaves, direction: 'both' });
+            N.staff({ clef: 'treble', keySignature: s.keySignature || undefined, items: T.writeScale(s, 8).map(n => ({ type: 'note', head: 'noteQuarterUp', ...n })) });
+        }
+    });
+});
+
+describe('speeds (ML-297)', () => {
+    test('seven bands cover 15-200 bpm with no gaps, three with two names', () => {
+        assert.equal(T.SPEEDS.length, 7);
+        assert.equal(T.SPEEDS[0].min, 15);
+        assert.equal(T.SPEEDS[6].max, 200);
+        for (let i = 1; i < 7; i++) assert.equal(T.SPEEDS[i].min, T.SPEEDS[i - 1].max + 1);
+        assert.deepEqual(T.SPEEDS.filter(s => s.names.length === 2).map(s => s.names.join('/')), ['Grave/Largo', 'Adagio/Lento', 'Presto/Prestissimo']);
+    });
+    test('speedLabel: what a tempo box shows, both names where there are two', () => {
+        assert.equal(T.speedLabel(15), 'Grave / Largo');
+        assert.equal(T.speedLabel(55), 'Grave / Largo');
+        assert.equal(T.speedLabel(56), 'Adagio / Lento');
+        assert.equal(T.speedLabel(108), 'Moderato');
+        assert.equal(T.speedLabel(119), 'Moderato');
+        assert.equal(T.speedLabel(120), 'Allegro');
+        assert.equal(T.speedLabel(200), 'Presto / Prestissimo');
+        assert.equal(T.speedLabel(240), 'Presto / Prestissimo'); // Play Flow can go over 200
+    });
+    test('names / meanings / both: 7 or 14 questions', () => {
+        assert.equal(source('symbols', { set: 'speeds', ask: 'names' }, { seed: 1 }).size, 7);
+        assert.equal(source('symbols', { set: 'speeds', ask: 'meanings' }, { seed: 1 }).size, 7);
+        assert.equal(source('symbols', { set: 'speeds' }, { seed: 1 }).size, 14);
+    });
+    test('a metronome mark is a round bpm inside its band; one name per answer; neighbours, slow to fast', () => {
+        for (const q of take(source('symbols', { set: 'speeds', ask: 'names' }, { seed: 4 }), 70)) {
+            const band = T.SPEEDS.find(s => s.id === q.correct);
+            assert.equal(q.prompt.render.type, 'tempo');
+            assert.ok(q.prompt.render.bpm >= band.min && q.prompt.render.bpm <= band.max, q.id);
+            assert.equal(q.prompt.render.bpm % 5, 0);
+            assert.equal(q.answers.length, 4);
+            const idx = q.answers.map(a => T.SPEEDS.findIndex(s => s.id === a.id));
+            assert.deepEqual(idx, idx.slice().sort((a, b) => a - b));
+            assert.ok(Math.max(...idx) - Math.min(...idx) <= 4, 'wrong answers are the nearby bands');
+            for (const a of q.answers) assert.ok(T.SPEEDS.find(s => s.id === a.id).names.includes(a.label), a.label);
+        }
+    });
+    test('a speed name -> its bpm band; either of two names is asked', () => {
+        const asked = new Set();
+        for (const q of take(source('symbols', { set: 'speeds', ask: 'meanings' }, { seed: 5 }), 140)) {
+            assert.equal(q.prompt.render.type, 'text');
+            asked.add(q.prompt.render.text);
+            assert.match(q.answers.find(a => a.id === q.correct).label, /^\d+-\d+\+? bpm$/);
+        }
+        for (const n of ['Grave', 'Largo', 'Adagio', 'Lento', 'Presto', 'Prestissimo']) assert.ok(asked.has(n), n);
+    });
+    test('the metronome mark draws in Bravura', () => {
+        const svg = N.tempoMark(108, { label: 'Crotchet equals 108' });
+        assert.ok(svg.includes(N.glyphChar('noteQuarterUp')));
+        assert.ok(svg.includes('= 108'));
+        assert.ok(svg.includes('role="img"'));
+    });
+    test('Mixed Advanced (Everything) asks them; Beginner does not', () => {
+        const ids = (level) => new Set(take(source('mixed', { level }, { seed: 3 }), 600).map(q => q.id.split(':')[0]));
+        assert.ok(ids('advanced').has('speedName'));
+        assert.ok(!ids('beginner').has('speedName'));
     });
 });

@@ -1,7 +1,7 @@
 # Button
 
 ## 1. Metadata
-- **Name:** Button (`.btn-large`, `.btn-submit`, `.btn-nav`, `.btn-cancel`, `.btn-text`, `.btn-text-danger`, `.btn-edit`, `.btn-delete`)
+- **Name:** Button (`.btn-large`, `.btn-submit`, `.btn-nav`, `.btn-cancel`, `.btn-text`, `.btn-text-danger`, `.btn-edit`, `.btn-delete`, `.btn-inline`, `.btn-inline-sm`, `.btn-inline-xs`, `.centered-action`)
 - **Category:** Actions
 - **Status:** Stable
 
@@ -28,6 +28,9 @@ Full-width, text-labelled buttons. The app has **three levels** and one corner r
 `--font-base`, `--font-weight-bold`, `--touch-target`, `--opacity-disabled`.
 
 ## 5. Props / API
+- **Inline (content-width) buttons (ML-288):** `.btn-inline` (a Save/Join beside an input), `.btn-inline-sm` (the tighter row of challenge actions, no stacked-button margin), `.btn-inline-xs` (an Archive button inside a list row). Each is `width: auto` with its own padding.
+- `.btn-icon-delete.centered-action` centres the round delete button under the content above it (the teacher/organisation pop-up).
+- `.btn-submit.is-danger` is the red action button in a destructive confirm pop-up (`showConfirmModal(..., isDanger)` toggles it).
 - Full width by default. Put side-by-side pairs in `.flex-row.gap-md` (`--space-3` gap).
 - `.flow-action-btn` is **not** one of these levels. It's the Flow editor's own icon + label action tile (see [flow-editor](flow-editor.md)). Never mix it into a Cancel/Save pair.
 - Cancel + Save pair: `<button class="btn-nav btn-cancel">Cancel</button><button class="btn-submit">Save</button>`.

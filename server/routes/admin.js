@@ -12,6 +12,7 @@ import express from 'express';
 import { requireAuth, resolveAccount, requireSuperAdmin } from '../middleware/auth.js';
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
+import { listWarmupsForAdmin, createWarmup, updateWarmup, setWarmupActive, moveWarmup, deleteWarmup } from '../services/warmups.js';
 import { listAccountsForAdmin, setAccountLevel } from '../services/accounts.js';
 import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin } from '../services/bands.js';
 import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption, deleteDurationOption, listDurationUsageStats } from '../services/durationOptions.js';
@@ -254,6 +255,55 @@ router.delete('/features/:id', requireAuth, resolveAccount, requireSuperAdmin, a
     res.json({ message: 'Feature deleted' });
   } catch (error) {
     console.error('Admin feature delete error:', error);
+    sendError(res, error);
+  }
+});
+
+// ========================================
+// WARM-UPS (ML-294) - super admins add, edit, reorder, switch on/off and delete the Warm-ups tool's
+// exercises. Every save is checked by services/warmups.js (bars add up, pitches in range).
+// ========================================
+router.get('/warmups', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ exercises: await listWarmupsForAdmin() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/warmups', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ exercise: await createWarmup(req.body || {}) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.put('/warmups/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ exercise: await updateWarmup(req.params.id, req.body || {}) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.put('/warmups/:id/active', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ exercise: await setWarmupActive(req.params.id, req.body && req.body.isActive) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.put('/warmups/:id/move', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await moveWarmup(req.params.id, Number(req.body && req.body.direction));
+    res.json({ exercises: await listWarmupsForAdmin() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.delete('/warmups/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await deleteWarmup(req.params.id);
+    res.json({ message: 'Exercise deleted' });
+  } catch (error) {
     sendError(res, error);
   }
 });
