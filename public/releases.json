@@ -1,5 +1,91 @@
 [
   {
+    "version": "0.28.0",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "key": "ML-301",
+        "type": "New",
+        "summary": "Use \"New!\" rather than Not tried yet on theory test"
+      },
+      {
+        "key": "ML-299",
+        "type": "New",
+        "summary": "Change location in menu of flow"
+      },
+      {
+        "key": "ML-298",
+        "type": "New",
+        "summary": "Tap tempo"
+      },
+      {
+        "key": "ML-297",
+        "type": "New",
+        "summary": "Add speed names to theory test"
+      },
+      {
+        "key": "ML-296",
+        "type": "New",
+        "summary": "Ear note - listen to say what note is this?"
+      },
+      {
+        "key": "ML-295",
+        "type": "New",
+        "summary": "Speed trainer tool"
+      },
+      {
+        "key": "ML-294",
+        "type": "New",
+        "summary": "Warm up exercises"
+      },
+      {
+        "key": "ML-293",
+        "type": "New",
+        "summary": "Put in a countdown clock animation on timer screen"
+      },
+      {
+        "key": "ML-292",
+        "type": "Fixes",
+        "summary": "Improve music theory display of notes"
+      },
+      {
+        "key": "ML-291",
+        "type": "Fixes",
+        "summary": "Right align main menu"
+      },
+      {
+        "key": "ML-290",
+        "type": "Fixes",
+        "summary": "Vertically recentre rewind history play button"
+      },
+      {
+        "key": "ML-289",
+        "type": "New",
+        "summary": "\"My account\" menu option to use same layout as settings"
+      },
+      {
+        "key": "ML-288",
+        "type": "New",
+        "summary": "Remove inline styles: move every style into the stylesheet via design-system classes"
+      },
+      {
+        "key": "ML-285",
+        "type": "New",
+        "summary": "Sub menus should all have icons on them like the main menu"
+      },
+      {
+        "key": "ML-270",
+        "type": "Fixes",
+        "summary": "Vertically align timer in top bar with burger menu"
+      },
+      {
+        "key": "ML-9",
+        "type": "New",
+        "summary": "Scales practise tool"
+      }
+    ]
+  },
+  {
     "version": "0.27.0",
     "date": "2026-09-25",
     "changes": [
