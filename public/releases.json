@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.29.0",
+    "date": "2026-09-27",
+    "changes": [
+      {
+        "key": "ML-311",
+        "type": "Fixes",
+        "summary": "Repeat bars 1 and 2 are showing correctly but caught by check"
+      },
+      {
+        "key": "ML-310",
+        "type": "New",
+        "summary": "Be able to make library public"
+      },
+      {
+        "key": "ML-309",
+        "type": "New",
+        "summary": "Theory test to be linked to grades 1 to 8??"
+      },
+      {
+        "key": "ML-302",
+        "type": "New",
+        "summary": "Create repeat section for rehearse area"
+      },
+      {
+        "key": "ML-113",
+        "type": "New",
+        "summary": "Update the leadin timing and layout"
+      }
+    ]
+  },
+  {
     "version": "0.28.0",
     "date": "2026-09-26",
     "changes": [
