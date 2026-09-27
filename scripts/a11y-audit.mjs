@@ -183,7 +183,7 @@ function checkMarkup() {
             }
             const onclick = attrVal(attrs, 'onclick') || '';
             const opensPopup = /\bopen\w*(Modal|Picker|Popup|Menu|Sheet)\s*\(/.test(onclick)
-                || /class="[^"]*\b(list-item-menu-btn|qp-bar-menu-btn|metroBlk-tile-menu-btn|metroBlk-ctrl-value-btn|metroBlk-mini-ctrl-value-btn|metroBlk-mini-tuner-instrument-btn|top-bar-timer-pill)\b/.test(attrs) && !/window\.open/.test(attrs);
+                || /class="[^"]*\b(list-item-menu-btn|qp-bar-menu-btn|metroBlk-ctrl-value-btn|metroBlk-mini-tuner-instrument-btn|top-bar-timer-pill)\b/.test(attrs) && !/window\.open/.test(attrs);
             if (opensPopup && !attr(attrs, 'aria-haspopup')) add('S1', f, full.slice(0, 140), 'opens a picker/modal/menu - add aria-haspopup (and aria-expanded while open)');
         }
         // A4: form fields

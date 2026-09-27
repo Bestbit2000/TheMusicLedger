@@ -39,7 +39,7 @@ test('notation-app style: multi-part, chords, pickup, words-only jumps, one-staf
   const q = base('3/4', 120, 'crotchet');
   assert.deepEqual(parsed.blocks.map(brief), [
     // the pickup takes bar 1's tempo ("c. 120", no <sound tempo>)
-    { ...q, barCount: 1, isLeadIn: true, pickupBeats: 1 },
+    { ...q, barCount: 1, isLeadIn: true }, // ML-113: a pickup is read as a one-bar lead-in
     // rehearsal mark A printed on both parts - read once
     { ...q, barCount: 1, rehearsalMarks: [{ mark: 'A', barOffset: 0 }], isRepeatStart: true },
     // fermata on the piano part only, bar 2 of the block, beat 2
@@ -101,7 +101,7 @@ test('own exports with the extension data stripped still carry every standard ma
   assert.deepEqual(a.warnings, []);
   const c = base('4/4', 100, 'crotchet');
   assert.deepEqual(a.blocks.map(brief), [
-    { ...c, barCount: 1, isLeadIn: true, pickupBeats: 2 },
+    { ...c, barCount: 1, isLeadIn: true },
     { ...c, barCount: 4, rehearsalMarks: [{ mark: 'A', barOffset: 0 }], isRepeatStart: true },
     { ...c, barCount: 4, rehearsalMarks: [{ mark: 'A2', barOffset: 0 }], isSectionBoundary: true },
     // the volta starts at bar 2 of the original block, so bar 1 joins the block before it
@@ -118,11 +118,12 @@ test('own exports with the extension data stripped still carry every standard ma
   const e = parse(byTitle('E - pauses, tempo ramps, intro, D.C. al Fine'));
   const t = base('3/4', 90, 'crotchet');
   assert.deepEqual(e.blocks.map(brief), [
-    // the whole-bar lead-in is app-only, so it merges into the first block
-    { ...t, barCount: 9,
-      fermatas: [pause({ barOffset: 4, beatOffset: 3 }), pause({ kind: 'caesura', barOffset: 6, beatOffset: 3, playbackMode: 'silent' })],
+    // ML-113: the lead-in is written as an implicit bar 0, so it's still a lead-in without the extension
+    { ...t, barCount: 1, isLeadIn: true },
+    { ...t, barCount: 8,
+      fermatas: [pause({ barOffset: 3, beatOffset: 3 }), pause({ kind: 'caesura', barOffset: 5, beatOffset: 3, playbackMode: 'silent' })],
       // 'next_block' is app-only; the printed target is the next block's actual speed
-      ramps: [ramp({ startBarOffset: 7, startBeatOffset: 1, targetMode: 'custom', targetBpm: 120 })] },
+      ramps: [ramp({ startBarOffset: 6, startBeatOffset: 1, targetMode: 'custom', targetBpm: 120 })] },
     { ...base('3/4', 120, 'crotchet'), barCount: 6, isFine: true,
       fermatas: [pause({ barOffset: 1, beatOffset: 1 }), pause({ barOffset: 4, beatOffset: 2 })],
       ramps: [

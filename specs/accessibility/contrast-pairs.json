@@ -23,7 +23,7 @@
       "kind": "text",
       "fg": "--text-color",
       "bg": "--secondary-color",
-      "use": "text on tinted panels (month nav, mini bar)"
+      "use": "text on tinted panels (month nav)"
     },
     {
       "kind": "text",

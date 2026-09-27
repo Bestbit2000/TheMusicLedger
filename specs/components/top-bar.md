@@ -12,7 +12,7 @@ directly beneath it inside `.top-bar-sticky-group`. **Don't** add screen-specifi
 Put them in the screen body.
 
 ## 3. Anatomy
-`.top-bar-sticky-group` (sticky, `--z-header`) › `.top-bar` › [`.top-btn-back`] [`.top-bar-title`] [`.top-tuner-toggle`] [`.top-bar-timer-pill`] [`#navBurgerMenuBtn.top-btn` + `.notif-dot`] › optional `.metro-mini-bar`
+`.top-bar-sticky-group` (sticky, `--z-header`) › `.top-bar` › [`.top-btn-back`] [`.top-bar-title`] [`.top-tuner-toggle`] [`.top-bar-timer-pill`] [`#navBurgerMenuBtn.top-btn` + `.notif-dot`]
 
 ## 4. Tokens used
 `--container-bg`, `--text-color`, `--label-color`, `--input-border`, `--primary-action`,

@@ -60,7 +60,7 @@ That's the only inline style allowed, and the audit lets it through. The propert
 | `--remaining` | Theory round clock | `.theory-countdown-fill` (scaleX) |
 | `--needle-pos` | tuner | `.tuner-bar-needle`, `.metroBlk-mini-tuner-needle` |
 | `--dot-x`, `--track-start`, `--track-end` | metronome dot row | `.metro-dot`, `.metro-fermata-marker`, `.metroBlk-row-track(-end)` |
-| `--content-w`, `--scroll-x`, `--scroll-dur` | metronome follow-the-beat scroll | `.metro-display-content`, `.metro-mini-content` |
+| `--content-w`, `--scroll-x`, `--scroll-dur` | metronome follow-the-beat scroll | `.metro-display-content` |
 | `--viewport-h` | Play Flow media carousel | `.flow-media-carousel-viewport` |
 | `--countdown-ms`, `--frozen-w` | toast countdown | `.toast-countdown-bar.is-running` / `.is-paused` |
 | `--place-x`, `--place-y` | `placeAt(el, left, top)` | `.is-placed` |

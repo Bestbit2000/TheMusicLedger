@@ -11,7 +11,8 @@ Related tickets:
 - **ML-193:** engine and back-tests.
 - **ML-248:** consistency check.
 - **Playback features:** ML-249 alternate endings, ML-250 jumps/Fine/stop at end, ML-251 ramps,
-  ML-252 intro, ML-253 caesura.
+  ML-252 intro, ML-253 caesura, ML-302 repeat bars.
+- **Lead-in:** ML-113 (always one bar).
 - **Bugs:** ML-254 glyph/label one beat early, ML-255 compound-metre beats, ML-256 fermata one pulse
   too long.
 
@@ -20,7 +21,7 @@ Related tickets:
 Blocks are the regular bars-blocks in written order. The lead-in is separate.
 
 **Order**
-1. **Lead-in** first: its bars, or one partial bar when it's a pickup.
+1. **Lead-in** first: always one whole bar (ML-113), in bar 1's time signature and tempo.
 2. **Intro**, if a block has "Start intro": from that bar straight through to the "End intro early" bar,
    or to the first final barline or the end of the piece. It plays once, with no repeats or jumps, and
    only the final alternate ending. Then the piece starts from bar 1.
@@ -44,8 +45,8 @@ Blocks are the regular bars-blocks in written order. The lead-in is separate.
 5. Final barline: ends the piece.
 
 **The end.** Running out of blocks, a Fine or a final barline **stops playback and resets to the start**.
-There's no looping (decided 2026-09-24). Looping will come with the practice features. `repeatLeadIn`
-only matters once looping exists.
+The piece itself never loops (decided 2026-09-24); practising a passage over and over is the repeat
+bars control below.
 
 **Tempo.** Each block plays at its bpm, in its beat unit. A ramp goes linearly from the tempo in force
 where it starts to its target: the next block's bpm or a custom one. It lands at the end of the block,
@@ -63,12 +64,40 @@ length in beats of silence, then the next beat.
 the next bar's first beat. "Bar X of Y", the highlighted bar and the bpm update from each click's own
 position, never early.
 
+## Repeat bars (ML-302)
+
+Rehearse's **repeat** control plays a start..end bar range over and over. It's a playback setting, not
+part of the piece: remembered per piece on the device (`localStorage['tml.rehearseRepeat']`, keyed by
+piece id, on or off), never saved to the database. `loopPlan(blocks, { startBar, endBar, restBars, leadIn })`
+works it out:
+
+- **Bar numbers** are the piece's own (1-based, lead-in excluded) - what the tiles show.
+- **It follows the piece's order.** The loop is the journey from the first time the start bar plays
+  (in the piece proper, never the intro) to the next time the end bar plays. So repeats, endings,
+  jumps, ramps and pauses inside it behave as in the piece, and each bar keeps its pass ("2nd time").
+- **The end bar can be before the start bar** when a repeat or jump goes back there: 7 → 2 with a
+  repeat at bar 8 plays 7 8 1 2. No way back → `endNotReached`; a start bar the piece never plays →
+  `startNeverPlays`; a bar outside the piece → `range`.
+- **Rest bars** (0-5) are clicking bars (the quieter lead-in click, no sub-beats, no pauses) in the
+  start bar's time signature at the tempo in force there; play speed % still applies. They count in
+  before the first pass and sit between every pass after it.
+- **The lead-in** plays on the first pass only, and only when the loop starts where the piece does.
+
+It returns `countIn` (first pass: rest bars, lead-in if any, the loop), `between` (every pass after:
+rest bars, the loop) and `runs` (the loop as bar-number stretches, for "Plays 7–8, then 1–2"). Rest
+bars are steps of `kind: 'rest'` on the start bar's block. Play Flow queues `countIn` and, each time
+the scheduler reaches the end of the queue, appends another `between` - so it never stops. Passages
+carry `loopPass` ("Repeat 3") and `restIndex`. Tapping a tile jumps within the current pass; a bar
+outside the loop gets a "turn repeat off to play from there" note.
+
 ## The engine's API
 
 | Function | What for |
 |---|---|
 | `buildJourney(blocks, { leadIn })` | Every bar in play order: `{ kind: 'leadIn'\|'intro'\|'main', blockIndex, blockId, bar, pass, via }`. `via` marks the first bar after a jump (`repeat`/`ds`/`dc`/`coda`/`start`). Also returns `end`: `end`/`fine`/`finalBarline`/`loopGuard`. |
 | `passagesOf(steps)` | Consecutive bars merged into passages, which the metronome plays in one go. |
+| `loopPlan(blocks, { startBar, endBar, restBars, leadIn })` | Repeat bars (ML-302) - see above. |
+| `barNumberOf(blocks, i, bar)`, `totalBars(blocks)` | The piece's bar number of a block's bar; bars in the piece. |
 | `tempoAt(blocks, i, pos)` | bpm at a written-beat position in block `i`, with ramps applied. |
 | `writtenBeatToClick`, `pausesInBar` | Written beats mapped to clicks; a bar's fermatas and caesuras as clicks. |
 | `checkFlow(blocks, { leadIn })` | ML-248 issues: `{ code, severity, blockIds, message }`. |
@@ -85,13 +114,13 @@ position, never early.
 - Every click's beat info carries `tag` (the passage), `clickIndex`, `bpm`, `intervalSeconds` and
   `time`.
 - `onBoundary` returning `null` ends the piece with a single `{ ended: true }` beat.
-- Quick Play and Metronome Blocks don't use sequence mode and are unchanged.
+- Quick Play doesn't use sequence mode.
 
 ## Testing
 
 **Unit tests** (`node --test "server/test/**/*.test.js"`): `server/test/flowJourney.test.js` covers
-every rule above in several variations, every checker rule, tempo maths and beat mapping, plus the five
-ML-204 fixture Flows end to end.
+every rule above in several variations, every checker rule, tempo maths and beat mapping, repeat bars
+(ranges, rest bars, lead-in, end before start, errors), plus the five ML-204 fixture Flows end to end.
 
 **Test clock (local development only).** With `localStorage['tml.testClock'] = '1'` on
 `localhost`/`127.0.0.1`, Play Flow's player runs silently on a virtual clock, and `window.__flowTest`
@@ -102,6 +131,7 @@ appears. It's never active on sandbox or production.
 | `play()` | Starts playback. |
 | `step(n)` | Plays exactly n clicks and returns what the screen shows after each: position, pass, bpm, time, hold, label, highlighted bars, glyphs, dot count. |
 | `runToEnd()` | Plays to the end. |
+| `setLoop(settings)` | Repeat bars on (`{ startBar, endBar, restBars }`) or off (`null`), as the sheet does. |
 | `state()` | What the screen shows now, without playing anything. |
 | `journey()` | The journey for the open Flow. |
 | `issues()` | The checker's issues for the open Flow. |

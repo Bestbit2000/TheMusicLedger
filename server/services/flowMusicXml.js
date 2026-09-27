@@ -106,11 +106,7 @@ function rampWords(from, to) {
 // empty is left out entirely, so a plain block's extension is just {"block": n}.
 function blockExtension(b, index) {
   const ext = { block: index };
-  if (b.isLeadIn) {
-    ext.isLeadIn = true;
-    if (b.repeatLeadIn) ext.repeatLeadIn = true;
-    if (b.quietSecondsBeforeLeadIn) ext.quietSecondsBeforeLeadIn = b.quietSecondsBeforeLeadIn;
-  }
+  if (b.isLeadIn) ext.isLeadIn = true; // ML-113: always one whole bar - nothing else to carry
   if (!b.noteValue) ext.noteValueUnset = true;
   if (b.rehearsalMark) {
     ext.rehearsalMark = b.rehearsalMark;
@@ -206,7 +202,8 @@ export function flowToMusicXml(flow, blocks, opts = {}) {
   out.push('<part-list><score-part id="P1"><part-name print-object="no">Flow</part-name></score-part></part-list>');
   out.push('<part id="P1">');
 
-  let measureNumber = blocks.length && blocks[0].isLeadIn && blocks[0].pickupBeats ? 0 : 1;
+  // ML-113: the lead-in is bar 0 - an unnumbered (implicit) bar before bar 1, so bar numbers match the app.
+  let measureNumber = blocks.length && blocks[0].isLeadIn ? 0 : 1;
   let lastTime = null;
   let lastTempoKey = null;
   let isFirstMeasure = true;
@@ -283,7 +280,7 @@ export function flowToMusicXml(flow, blocks, opts = {}) {
       const isBlockEnd = bar === barCount - 1;
       const parts = [];
 
-      const implicit = isPickup ? ' implicit="yes"' : '';
+      const implicit = b.isLeadIn ? ' implicit="yes"' : '';
       parts.push(`<measure number="${measureNumber}"${implicit}>`);
 
       // Left barline: forward repeat and/or a volta starting here.

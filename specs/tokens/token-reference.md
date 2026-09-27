@@ -254,7 +254,6 @@ one ladder, low to high. Never invent a number in a component.
 |---|---|---|
 | `--app-max-width` | `500px` | single source of truth for the centred app column (ML-53) |
 | `--touch-target` | `48px` | minimum tap target for any button |
-| `--bottom-bar-clearance` | `110px` | scroll room so content can clear the docked block-editor bar |
 | `--bottom-bar-clearance-lg` | `150px` | scroll room above the taller Flow details sticky bar |
 
 ## Layer 1 primitives (reference only - never use in components)

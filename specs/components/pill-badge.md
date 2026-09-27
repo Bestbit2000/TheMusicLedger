@@ -1,7 +1,7 @@
 # Pill / badge
 
 ## 1. Metadata
-- **Name:** Pill / badge (`.flow-pill`, `.notif-count`, `.filter-strip-badge`, `.metroSeg-count-badge`, `.admin-badge`, `.admin-chip`, `.admin-stat-pill`, `.admin-feedback-badge`, `.notification-status-*`, `.status-*`, `.admin-nav-count`)
+- **Name:** Pill / badge (`.flow-pill`, `.notif-count`, `.filter-strip-badge`, `.admin-badge`, `.admin-chip`, `.admin-stat-pill`, `.admin-feedback-badge`, `.notification-status-*`, `.status-*`, `.admin-nav-count`)
 - **Category:** Data display
 - **Status:** Stable. Several near-duplicates should converge on the variants below
 
@@ -22,7 +22,7 @@ A small non-interactive label for a count, status or tag. `--radius-pill` is res
 `span` › text (optionally uppercase for admin status).
 
 ## 4. Tokens used
-`--radius-pill` (`--radius-sm` for the square-ish `.metroSeg-count-badge`), `--space-0-5`,
+`--radius-pill`, `--space-0-5`,
 `--space-1`, `--space-2`, `--space-3`, `--font-xs`, `--font-sm`, `--font-weight-bold`, plus the
 colours above.
 

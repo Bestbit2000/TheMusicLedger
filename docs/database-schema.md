@@ -196,6 +196,12 @@ Notes on fields that took a few passes to nail down:
   handling as the fermatas table above - this supersedes `metronome_segments.
   rehearsal_mark` (a single nullable column, ML-35), which is left in place unused
   rather than dropped, per this doc's usual "superseded, not removed" precedent.
+- **Flow lead-ins (ML-113, 2026-09-27):** on a Flow (`parent_score_id`) the lead-in is now a
+  yes/no - always `bar_count = 1`, `pickup_beats` null, `repeat_lead_in` false,
+  `quiet_seconds_before_lead_in` 0 (`058_flow_lead_in_one_bar.sql`, kept that way on every write by
+  `asFlowLeadIn` in `flowBlocks.js`). Looping and rests between repeats moved to Rehearse's repeat
+  control (ML-302), a playback setting stored per device, not in the database. The three bullets
+  below still describe the old ad-hoc Metronome Blocks setups, which keep their values.
 - **`is_lead_in`** (ML-35, redesigned per the follow-up comment on that ticket): a
   setup has **at most one** lead-in row now, played once at the very start and
   excluded from the loop-back. The app enforces the one-per-setup rule in the
@@ -230,6 +236,12 @@ Notes on fields that took a few passes to nail down:
   yet (an older row, or a lead-in, which has no independent display of its
   own - the app always resolves the lead-in's display from the current first
   regular block, same as its `bpm`/time signature).
+- **Metronome Blocks removed (2026-09-27):** the ad-hoc editor that created named and
+  scratch setups here is gone (superseded by pieces in My music and Rehearse); today only
+  Quick Play writes ad-hoc setups (`is_quick_play`, its history). The old editor's rows -
+  saved setups and scratch copies - are left in place, unused (superseded, not removed), as
+  are its segment columns. The API routes that listed, created, saved, duplicated them and
+  edited their segments were removed with it.
 - **`adhoc_metronome_setups.saved_at`** (ML-35 follow-up): naming a setup
   before you could even press play was too much friction, so creating one no
   longer asks for a name up front - it starts as an unnamed scratch copy,
@@ -341,7 +353,7 @@ See `docs/theory-practice.md`.
 | Table | Purpose | Key columns |
 |---|---|---|
 | `duration_options` | Shared preset duration list (minutes) for the save-session screen and the practice timer (`ML-7`). One row can be `is_default` - the quick timer's starting length when a user has no practise sessions in the last 90 days (`ML-236`) | id, minutes, sort_order, active, is_default |
-| `playback_speed_options` | Metronome Blocks' play-speed presets (`ML-109`) | id, percent, active |
+| `playback_speed_options` | Play-speed presets (`ML-109`) for Quick Play and Rehearse (first built for Metronome Blocks) | id, percent, active |
 
 Neither is per-account - each is a single tool-wide list, deliberately moved out
 of hardcoded frontend HTML so it can be changed without a release. Both are

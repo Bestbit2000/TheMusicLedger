@@ -60,12 +60,13 @@ describe('linear play and the end of the piece (ML-250)', () => {
     test('an empty flow has no journey', () => {
         assert.deepEqual(FJ.buildJourney([]).steps, []);
     });
-    test('a lead-in plays first: whole bars, or one partial bar for a pickup', () => {
+    test('a lead-in plays first, always one bar (ML-113)', () => {
         const blocks = [blk('A')];
-        const whole = FJ.buildJourney(blocks, { leadIn: { id: 99, isLeadIn: true, barCount: 2, numerator: 4 } });
-        assert.deepEqual(whole.steps.map(s => s.kind), ['leadIn', 'leadIn', 'main']);
-        const pickup = FJ.buildJourney(blocks, { leadIn: { id: 99, isLeadIn: true, barCount: 1, pickupBeats: 2, numerator: 4 } });
-        assert.deepEqual(pickup.steps.map(s => s.kind), ['leadIn', 'main']);
+        const one = FJ.buildJourney(blocks, { leadIn: { id: 99, isLeadIn: true, barCount: 1, numerator: 4 } });
+        assert.deepEqual(one.steps.map(s => s.kind), ['leadIn', 'main']);
+        // An old row that still says 2 bars, or a pickup, plays one whole bar too.
+        const old = FJ.buildJourney(blocks, { leadIn: { id: 99, isLeadIn: true, barCount: 2, pickupBeats: 2, numerator: 4 } });
+        assert.deepEqual(old.steps.map(s => s.kind), ['leadIn', 'main']);
     });
 });
 
@@ -378,5 +379,99 @@ describe('written beats to metronome clicks (ML-255)', () => {
     });
     test('checker: a pause or alternate ending past the end of a shortened block', () => {
         assert.deepEqual(codes([blk('A', { barCount: 2, fermatas: [{ kind: 'fermata', barOffset: 4, beatOffset: 1, holdBeats: 1 }] })]), ['stale-setting']);
+    });
+});
+
+describe('repeat bars (ML-302)', () => {
+    // The loop as bar numbers, 'r' for a rest bar and 'L' for the lead-in.
+    const nums = (blocks, steps) => steps.map(s => (s.kind === 'rest' ? 'r' : s.kind === 'leadIn' ? 'L' : FJ.barNumberOf(blocks, s.blockIndex, s.bar))).join(' ');
+    // Bars 1-8: A = 1-4, B = 5-8.
+    const plain = () => [blk('A', { barCount: 4 }), blk('B', { barCount: 4 })];
+
+    test('a straight range, no rest bars', () => {
+        const blocks = plain();
+        const p = FJ.loopPlan(blocks, { startBar: 3, endBar: 6 });
+        assert.equal(p.ok, true);
+        assert.equal(nums(blocks, p.countIn), '3 4 5 6');
+        assert.equal(nums(blocks, p.between), '3 4 5 6');
+        assert.deepEqual(p.runs, [[3, 6]]);
+        assert.equal(p.between[0].via, 'loop');
+        assert.equal(p.countIn[0].via, null);
+    });
+    test('rest bars count in before the first pass and sit between passes, on the start bar', () => {
+        const blocks = plain();
+        const p = FJ.loopPlan(blocks, { startBar: 5, endBar: 6, restBars: 2 });
+        assert.equal(nums(blocks, p.countIn), 'r r 5 6');
+        assert.equal(nums(blocks, p.between), 'r r 5 6');
+        assert.equal(p.countIn[0].blockIndex, 1);
+        assert.equal(p.countIn[0].bar, 0);
+        assert.equal(p.between[0].via, 'loop');
+    });
+    test('rest bars are clamped to 0-5', () => {
+        const blocks = plain();
+        assert.equal(FJ.loopPlan(blocks, { startBar: 1, endBar: 1, restBars: 9 }).between.filter(s => s.kind === 'rest').length, 5);
+        assert.equal(FJ.loopPlan(blocks, { startBar: 1, endBar: 1, restBars: -1 }).between.filter(s => s.kind === 'rest').length, 0);
+    });
+    test('a single bar', () => {
+        const blocks = plain();
+        const p = FJ.loopPlan(blocks, { startBar: 7, endBar: 7 });
+        assert.equal(nums(blocks, p.between), '7');
+        assert.deepEqual(p.runs, [[7, 7]]);
+    });
+    test('the lead-in plays on the first pass only, and only from the start of the piece', () => {
+        const blocks = plain();
+        const leadIn = { id: 99, isLeadIn: true, barCount: 1, numerator: 4 };
+        const fromOne = FJ.loopPlan(blocks, { startBar: 1, endBar: 2, restBars: 1, leadIn });
+        assert.equal(nums(blocks, fromOne.countIn), 'r L 1 2');
+        assert.equal(nums(blocks, fromOne.between), 'r 1 2');
+        const fromThree = FJ.loopPlan(blocks, { startBar: 3, endBar: 4, leadIn });
+        assert.equal(nums(blocks, fromThree.countIn), '3 4');
+    });
+    test('repeats inside the range still apply, with their passes', () => {
+        // A (1-2) repeated, then B (3).
+        const blocks = [blk('A', { barCount: 2, isRepeatStart: true, isRepeatEnd: true }), blk('B')];
+        const p = FJ.loopPlan(blocks, { startBar: 1, endBar: 3 });
+        assert.equal(nums(blocks, p.between), '1 2 1 2 3');
+        assert.deepEqual(p.between.map(s => s.pass), [1, 1, 2, 2, 1]);
+        assert.deepEqual(p.runs, [[1, 2], [1, 3]]);
+    });
+    test('the end bar can be before the start bar when a repeat goes back there', () => {
+        // Bars 1-8 with a repeat back to bar 1 at the end of bar 8.
+        const blocks = [blk('A', { barCount: 4, isRepeatStart: true }), blk('B', { barCount: 4, isRepeatEnd: true }), blk('C')];
+        const p = FJ.loopPlan(blocks, { startBar: 7, endBar: 2 });
+        assert.equal(p.ok, true);
+        assert.equal(nums(blocks, p.between), '7 8 1 2');
+        assert.deepEqual(p.runs, [[7, 8], [1, 2]]);
+        assert.deepEqual(p.between.map(s => s.pass), [1, 1, 2, 2]);
+    });
+    test('and after a D.C. jump', () => {
+        const blocks = [blk('A', { barCount: 2 }), blk('B', { barCount: 2, gotoStartDc: true })];
+        const p = FJ.loopPlan(blocks, { startBar: 4, endBar: 1 });
+        assert.equal(nums(blocks, p.between), '4 1');
+    });
+    test('an end bar that is never reached after the start', () => {
+        const blocks = plain();
+        assert.deepEqual(FJ.loopPlan(blocks, { startBar: 6, endBar: 2 }), { ok: false, reason: 'endNotReached' });
+    });
+    test('a start bar the piece never plays', () => {
+        const blocks = [blk('A', { isFinalBarline: true }), blk('B')];
+        assert.deepEqual(FJ.loopPlan(blocks, { startBar: 2, endBar: 2 }), { ok: false, reason: 'startNeverPlays' });
+    });
+    test('bars outside the piece', () => {
+        const blocks = plain();
+        assert.equal(FJ.loopPlan(blocks, { startBar: 0, endBar: 2 }).reason, 'range');
+        assert.equal(FJ.loopPlan(blocks, { startBar: 1, endBar: 9 }).reason, 'range');
+    });
+    test('the intro is skipped - the loop starts in the piece proper', () => {
+        // Intro plays bars 3-4 first, then the piece from bar 1.
+        const blocks = [blk('A', { barCount: 2 }), blk('B', { barCount: 2, introStartBarOffset: 1, introEndBarOffset: 2 })];
+        const p = FJ.loopPlan(blocks, { startBar: 3, endBar: 4 });
+        assert.equal(nums(blocks, p.between), '3 4');
+        assert.equal(p.between[0].kind, 'main');
+    });
+    test('passagesOf keeps each rest bar as its own passage', () => {
+        const blocks = plain();
+        const p = FJ.loopPlan(blocks, { startBar: 5, endBar: 6, restBars: 3 });
+        assert.deepEqual(FJ.passagesOf(p.between).map(x => x.kind), ['rest', 'rest', 'rest', 'main']);
     });
 });

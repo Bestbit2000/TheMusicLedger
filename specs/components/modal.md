@@ -1,7 +1,7 @@
 # Modal
 
 ## 1. Metadata
-- **Name:** Modal (`.modal`, `.modal-content`, `.modal-close-x`, `.modal-content-sticky-footer`, `.metroSeg-scroll-area`, `.metroSeg-modal-heading`)
+- **Name:** Modal (`.modal`, `.modal-content`, `.modal-close-x`, `.modal-content-sticky-footer`, `.metroSeg-scroll-area`)
 - **Category:** Overlays
 - **Status:** Stable
 

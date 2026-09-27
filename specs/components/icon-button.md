@@ -27,7 +27,7 @@ An action represented by a Material Symbol with no text label.
 
 ## 5. Props / API
 - Always set `aria-label`.
-- Low-emphasis context (e.g. `.metroBlk-setup-row-actions`): drop the fill/border but keep the 48px target. Delete keeps `--danger-color` on the icon.
+- Low-emphasis context (a rarely used action in a list row): drop the fill/border but keep the 48px target. Delete keeps `--danger-color` on the icon.
 - Keep a `--space-3` gap between a harmless and a destructive icon button.
 
 ## 6. States

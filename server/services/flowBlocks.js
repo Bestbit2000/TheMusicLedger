@@ -23,6 +23,15 @@ async function assertNoOtherLeadIn(scoreId, excludeSegmentId) {
   if (rows.length) throw withStatus(400, 'This flow already has a lead-in block.');
 }
 
+// ML-113: a Flow's lead-in is always one whole bar - no pickup beats, no looping, no quiet seconds
+// (looping and rests between repeats are Rehearse's repeat control, ML-302). Its time signature and
+// tempo are taken from bar 1 on playback. Applied to every write, so an import, an old client or a
+// copy can't bring the old settings back. The ad-hoc Metronome Blocks side is left as it was.
+function asFlowLeadIn(normalized) {
+  if (!normalized.isLeadIn) return normalized;
+  return { ...normalized, barCount: 1, pickupBeats: null, repeatLeadIn: false, quietSecondsBeforeLeadIn: 0 };
+}
+
 async function getBlockDtoById(segmentId) {
   const { rows } = await pool.query(
     `SELECT ms.id, ms.order_index, ms.bar_count, ms.bpm, ms.is_lead_in, ms.repeat_lead_in, ms.quiet_seconds_before_lead_in, ms.pickup_beats,
@@ -155,7 +164,7 @@ export async function listFlowBlocksUnchecked(scoreId) {
 
 export async function createFlowBlock(accountId, scoreId, data) {
   await assertFlowAccess(accountId, scoreId);
-  const normalized = validateSegmentPayload(data);
+  const normalized = asFlowLeadIn(validateSegmentPayload(data));
   if (normalized.isLeadIn) await assertNoOtherLeadIn(scoreId, null);
 
   const segmentId = await withTransaction(async (client) => {
@@ -209,7 +218,7 @@ export async function updateFlowBlock(accountId, segmentId, data) {
   if (data.timeSignatureId !== undefined && data.accountTimeSignatureId === undefined) merged.accountTimeSignatureId = null;
   if (data.accountTimeSignatureId !== undefined && data.timeSignatureId === undefined) merged.timeSignatureId = null;
 
-  const normalized = validateSegmentPayload(merged);
+  const normalized = asFlowLeadIn(validateSegmentPayload(merged));
   if (normalized.isLeadIn && !current.isLeadIn) await assertNoOtherLeadIn(current.scoreId, segmentId);
   const orderIndex = data.orderIndex !== undefined ? Number(data.orderIndex) : current.orderIndex;
 
@@ -285,7 +294,7 @@ export async function copyAllFlowBlocks(sourceScoreId, destScoreId) {
 
   await withTransaction(async (client) => {
     for (const row of rows) {
-      const normalized = validateSegmentPayload({
+      const normalized = asFlowLeadIn(validateSegmentPayload({
         barCount: row.bar_count, bpm: row.bpm, isLeadIn: row.is_lead_in, repeatLeadIn: row.repeat_lead_in,
         quietSecondsBeforeLeadIn: row.quiet_seconds_before_lead_in, pickupBeats: row.pickup_beats,
         timeSignatureId: row.time_signature_id, accountTimeSignatureId: row.account_time_signature_id,
@@ -304,7 +313,7 @@ export async function copyAllFlowBlocks(sourceScoreId, destScoreId) {
         rampDurationBars: row.ramp_duration_bars,
         fermatas: fermatas[String(row.id)] || [], ramps: ramps[String(row.id)] || [],
         rehearsalMarks: rehearsalMarks[String(row.id)] || []
-      });
+      }));
       const columns = ['parent_score_id', 'order_index', ...SEGMENT_COLUMNS];
       const values = [destScoreId, row.order_index, ...segmentColumnValues(normalized)];
       const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');

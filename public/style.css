@@ -432,14 +432,6 @@
     .btn-icon-delete.centered-action { margin: var(--space-2) auto 0 auto; }
     .btn-icon-delete { padding: 0; background: var(--danger-color); color: var(--text-on-accent); border: none; width: 48px; height: 48px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .btn-icon-copy { padding: 0; background: transparent; color: var(--text-color); border: 2px solid var(--control-border); width: 48px; height: 48px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    /* Deliberate gap so Copy and Delete (a destructive action right next to a harmless one) aren't
-       flush against each other. */
-    .metroBlk-setup-row-actions { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; }
-    /* Both actions here are rarely used, so neither should read as loudly as the base .btn-icon-copy/
-       -delete circles do elsewhere in the app - same 48x48 tap target, just no filled/outlined circle
-       behind it. Delete's icon stays red so it's still identifiable as the dangerous one at a glance. */
-    .metroBlk-setup-row-actions .btn-icon-copy { background: transparent; border: none; color: var(--label-color); }
-    .metroBlk-setup-row-actions .btn-icon-delete { background: transparent; color: var(--danger-text); }
 
     .play-card { background: var(--container-bg); padding: var(--space-6) var(--space-5); border-radius: var(--radius-lg); border: 2px solid var(--primary-action-strong); text-align: center; margin-bottom: var(--space-6); transition: transform var(--duration-base) ease, opacity var(--duration-base) ease; }
     .play-card.slide-out-left, .play-card.slide-in-left { transform: translateX(-40px); opacity: 0; }
@@ -894,6 +886,16 @@
        and with the front page's own tool-icon-row, which uses the same equal-width-cells idea. */
     .metro-transport-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin: var(--space-2) 0 var(--space-4) 0; }
     .metro-transport-grid .metroBlk-ctrl-value-btn { width: 100%; min-width: 0; }
+    /* ML-302: Rehearse's 5 controls - Play in the middle, a little wider, with where-you-are controls
+       (reset, repeat) to its left and how-it-sounds ones (sub beats, speed) to its right. */
+    .metro-transport-grid-5 { grid-template-columns: 1fr 1fr 1.4fr 1fr 1fr; gap: var(--space-1); }
+    /* Narrower cells: less side padding, and a value like "12–16" stays on one line. */
+    .metro-transport-grid-5 .metroBlk-ctrl-value-btn { padding: 0 var(--space-1); }
+    .metro-transport-grid-5 .metroBlk-ctrl-value-btn strong { white-space: nowrap; }
+    /* A value control that's switched on (Rehearse's repeat while it's repeating) - the same gold
+       selected look as .flow-multiselect-num.selected. */
+    .metroBlk-ctrl-value-btn.metroBlk-ctrl-value-btn-on { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
+    .metroBlk-ctrl-value-btn.metroBlk-ctrl-value-btn-on .metroBlk-ctrl-value-label { color: var(--primary-action-strong); }
     /* Play/pause reshaped to match the other cells (icon + small label) instead of the plain round
        .metro-play-btn. Press-and-hold still resets too (the shared setupPlayButtonHoldReset), but
        ML-139 restored a plain Reset button alongside it (.metro-play-grid-btn-reset below) since the
@@ -958,62 +960,10 @@
     /* "Like the tuner" per the request - same X-in-a-circle language as .modal-close-x, just flowing
        in its own grid cell (centred) instead of pinned to a modal's corner. */
     .timer-inline-close-btn { width: 48px; height: 48px; justify-self: center; border-radius: var(--radius-circle); border: none; background: var(--input-bg); color: var(--text-color); font-size: var(--font-lg); line-height: var(--line-height-tight); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-
-    /* Minimised metronome bar (ML-64) - same sticky slot as the timer bar above, shown whenever the
-       metronome has been played/paused (not stopped) and the Metronome screen itself isn't on-screen.
-       Unlike the timer's flush full-width bar, this is its own contained "box" with rounded corners
-       and a small margin, per the design - two lines: the beat circles, then a row of quick controls. */
-    .metro-mini-bar { width: calc(100% - 30px); max-width: calc(var(--app-max-width) - 30px); box-sizing: border-box; background: var(--secondary-color); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin: 0 0 var(--space-3) 0; }
-    /* Same viewport/scroll-content split as the full view's .metro-display-viewport/-content, so the
-       mini bar's row can pan too once there are too many beats to fit its (much narrower) box (ML-64
-       feedback: it needs to pan just like the full view, not just cram everything in). */
-    .metro-mini-viewport { width: 100%; overflow: hidden; padding-top: var(--space-2); margin-bottom: var(--space-1); }
-    .metro-mini-content { width: var(--content-w, 100%); transform: translateX(var(--scroll-x)); transition: transform var(--scroll-dur, 0s) linear; } /* same custom properties as .metro-display-content */
-    .metro-mini-dots { margin-bottom: 0; }
-    .metro-mini-controls { display: flex; align-items: center; gap: var(--space-2); }
-    .metro-mini-ctrl-btn { flex: 1 1 0; min-width: 0; min-height: 48px; background: var(--nav-action); color: var(--nav-action-text); border: none; border-radius: var(--radius-sm); padding: var(--space-2) var(--space-1); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: var(--line-height-snug); box-sizing: border-box; }
-    .metro-mini-ctrl-btn strong { font-size: var(--font-base); }
-    .metro-mini-ctrl-unit { font-size: var(--font-2xs); opacity: 0.8; white-space: nowrap; }
-    /* Metronome Blocks' mini bar transport row (ML-94) - smaller versions of the builder's own
-       .metro-transport-btn (60px is too big for a box that's meant to stay out of the way on other
-       pages), reusing its .metro-play-btn/.metro-stop-btn colour classes so Play still reads gold and
-       Reset/Settings still read silver, same as the full view. */
-    /* Six buttons now (Play, Reset, sub beats, play speed, settings, close - ML-91 follow-up
-       replicates the full view's whole control row here), so a tighter gap than the full view's own
-       row keeps them from crowding the mini bar's narrower width. */
-    .metroBlk-mini-transport-row { display: flex; align-items: center; justify-content: center; gap: var(--space-2); margin-top: var(--space-2); flex-wrap: wrap; }
-    .metroBlk-mini-transport-btn { width: 44px; height: 44px; border: none; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .metroBlk-mini-transport-btn .material-symbols-outlined { font-size: var(--icon-md); }
-
-    /* Metronome Blocks (ML-35) - the multi-bar sequencer tool. Prefixed .metroBlk- throughout,
-       distinct from the single-bar tool's .metro- classes above, even where the shapes are similar,
-       so the two features' styles never get tangled reading either one. */
-    /* The current setup's name. An unsaved setup now lands straight in Edit Mode rather than Play
-       Mode (ML-97 follow-up - metroBlkEnterAppropriateMode), so Play Mode's header only ever shows a
-       real, already-saved name with a plain pencil next to it - no more save-vs-edit glyph switch.
-       The pencil enters Edit Mode - it no longer opens a popup itself, Edit Mode's own inline input
-       and bottom bar (.metroBlk-edit-bar below) own naming and saving now. */
-    .metroBlk-setup-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-3); min-height: 48px; }
-    .metroBlk-setup-name-btn { display: flex; align-items: center; gap: var(--space-2); min-height: 48px; background: none; border: none; padding: 0; cursor: pointer; font: inherit; color: inherit; }
-    .metroBlk-setup-name { font-size: var(--font-lg); font-weight: var(--font-weight-bold); color: var(--text-color); }
-    .metroBlk-setup-name-icon { font-size: var(--font-md); color: var(--label-color); }
-    .metroBlk-setup-name-input { width: 100%; font-size: var(--font-lg); font-weight: var(--font-weight-bold); padding: var(--space-2) var(--space-4); }
-    /* Flags a field Save found missing (empty name, no blocks) - every blocking field highlights
-       together, not one at a time as each is fixed (see metroBlkEditValidationProblems). The name
-       input already has a border to recolour; the tile strip has none, so it gets an outline
-       instead (doesn't take up layout space, so the grid doesn't shift). */
-    .metroBlk-field-invalid { border-color: var(--danger-text) !important; }
-    #metroBlockTiles.metroBlk-field-invalid { outline: 2px solid var(--danger-text); outline-offset: 6px; border-radius: var(--radius-md); }
-
-    /* Edit Mode's own save/cancel (ML-97) - fixed to the bottom of the viewport rather than sitting
-       inline, so it's reachable without scrolling back up however long the block list gets, and the
-       reminder to save stays in view the whole time. Matches .container's own max-width/centering so
-       it lines up with the page above it on wide viewports. */
-    .metroBlk-edit-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-header-overlay); width: 100%; max-width: var(--app-max-width); margin: 0 auto; box-sizing: border-box; background: var(--container-bg); border-top: 2px solid var(--primary-action-strong); box-shadow: var(--shadow-xl); padding: var(--space-3) var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
-    .metroBlk-edit-bar-text { font-size: var(--font-sm); color: var(--label-color); text-align: center; }
-    .metroBlk-edit-bar-actions { display: flex; gap: var(--space-3); }
-    /* Keeps the last tile/setups-list row from ever sitting under the fixed bar above. */
-    #metroBuilderView.metroBlk-editing { padding-bottom: var(--bottom-bar-clearance); }
+    /* .metroBlk- classes: started life as the Metronome Blocks multi-bar tool (ML-35, removed
+       2026-09-27 - superseded by pieces in My music and Rehearse). What's left here is shared:
+       the now-playing row, value boxes, tile strip, pickers and the mini tuner, used by Quick Play,
+       Rehearse and the Flow editor. */
 
     /* Tuner access from this screen (previously a fully separate, self-contained tool/view) - toggled
        on/off from the top bar (ML-91, topTunerToggleBtn) rather than a close button of its own, and
@@ -1081,12 +1031,6 @@
     /* ML-205: no dropdown caret - these open the app's own tile pickers, not a native dropdown, so they
        use the same tile look as the Flow block tiles (.flow-tile: 1px --input-border, --radius-lg,
        --font-md value over a --label-color caption) - see specs/components/selectable-tile.md. */
-    /* Same idea, sized down to match the mini bar's own Play/Reset (44px) instead of the full view's
-       60px - six buttons now share this one row (ML-94 follow-up: "replicate the whole button line"),
-       so every button here is smaller than its full-view counterpart, not just these two. */
-    .metroBlk-mini-ctrl-value-btn { height: 44px; min-width: 52px; padding: 0 var(--space-2); border: 1px solid var(--control-border); border-radius: var(--radius-lg); background: var(--input-bg); color: var(--text-color); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: var(--line-height-tight); box-sizing: border-box; }
-    .metroBlk-mini-ctrl-value-btn strong { font-size: var(--font-base); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
-    .metroBlk-mini-ctrl-value-label { font-size: var(--font-2xs); opacity: 0.85; white-space: nowrap; }
 
     /* Play speed's popup (ML-91 follow-up: the slider lost the old +/- steppers' quick, repeatable
        jumps, and a typed exact value doesn't really matter when only round 10%-step numbers are ever
@@ -1106,11 +1050,16 @@
        implementations fight over the same gesture on a touchscreen. */
     .metroBlk-tile { position: relative; min-height: 100px; min-width: 0; background: var(--input-bg); border: 2px solid var(--control-border); border-radius: var(--radius-md); padding: var(--space-2); cursor: pointer; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: var(--space-1); text-align: center; touch-action: none; }
     .metroBlk-tile.dragging { opacity: 0.5; box-shadow: var(--shadow-lg); }
+    /* ML-302: Rehearse's 4-column tiles line up row by row - heading, bpm, bars - whatever the heading
+       is (a boxed rehearsal mark, a 2-line long mark, a bar number, "Lead-in"). Each tile is a subgrid
+       over three shared rows, so every line sits at the same height as its neighbours'. Every tile in
+       this strip has exactly those three children. */
+    .metroBlk-tile-strip.flow-play-tile-strip { grid-auto-rows: auto; }
+    .flow-play-tile-strip .metroBlk-tile { grid-row: span 3; display: grid; grid-template-rows: subgrid; row-gap: var(--space-1); align-content: center; justify-items: center; align-items: center; }
     .metroBlk-tile.lead-in { border-color: var(--selection-text); background: var(--selection-tint); }
     .metroBlk-tile-sig { font-size: var(--font-lg); font-weight: var(--font-weight-bold); }
     .metroBlk-tile-bpm { font-size: var(--font-sm); color: var(--label-color); }
     .metroBlk-tile-bars { font-size: var(--font-xs); color: var(--label-color); }
-    .metroBlk-tile-badge { font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--selection-text); text-transform: uppercase; }
     /* Play Flow's own tile headline (ML-179 follow-up) - a rehearsal mark, boxed so it reads as a
        named section rather than a plain number; .metroBlk-tile-sig itself (same size/weight, no box)
        is reused for the plain starting-bar-number case. */
@@ -1119,15 +1068,10 @@
        the tile, even in the 4-column grid. The full name is in the tile's title/aria-label and leads
        the now-playing line. */
     .metroBlk-tile-mark-box-long { font-size: var(--font-sm); line-height: var(--line-height-snug); padding: var(--space-0-5) var(--space-1); align-self: stretch; overflow-wrap: normal; word-break: break-word; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .metroBlk-add-tile { min-height: 100px; min-width: 0; background: transparent; border: 2px dashed var(--input-border); border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--label-color); font-size: var(--font-2xl); box-sizing: border-box; }
     /* Play Mode's own visual (ML-97/98) - replaces the old "coming next" preview row: whichever
        block is actually sounding right now gets a bold gold border/glow, both on a regular tile and
        the lead-in's own row (shares this class - see renderMetroBlkActiveTileHighlight). */
-    .metroBlk-tile-active, .metroBlk-leadin-row-filled.metroBlk-tile-active { border-color: var(--primary-action-strong); box-shadow: var(--focus-ring); }
-    /* Edit-Mode-only per-block "more actions" (ML-97/ML-100: Copy to end, Copy here, Delete).
-       Absolute top-right so it never competes with the tile's own tap-to-edit target underneath it. */
-    .metroBlk-tile-menu-btn { position: absolute; top: 2px; right: 2px; width: 32px; height: 32px; border: none; border-radius: var(--radius-circle); background: transparent; color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; }
-    .metroBlk-tile-menu-btn .material-symbols-outlined { font-size: var(--icon-md); }
+    .metroBlk-tile-active { border-color: var(--primary-action-strong); box-shadow: var(--focus-ring); }
     /* One shared menu (not one per tile) repositioned against whichever 3-dot button was tapped -
        position: fixed (not .dropdown-menu's own absolute) since it isn't nested inside the tile it's
        acting on, just placed near it via JS-computed top/left, clamped to the viewport on both axes
@@ -1137,18 +1081,6 @@
        border-bottom) with extra space plus its own line above, so the destructive option isn't
        sitting flush against the harmless ones and easy to tap by mistake (ML-100). */
     .metroBlk-tile-menu-delete { color: var(--danger-text); margin-top: var(--space-2); border-top: 1px solid var(--input-border); }
-
-    /* The lead-in sits in its own fixed slot ABOVE the reorderable grid, not as a tile mixed in
-       with it - it's always "whatever plays first", so there's no ordering to get out of sync by
-       dragging things around, and nothing to divide from the rest with a separator line. Full
-       width but shallow (a bar, not a square card) - a narrow square card left the "+ Lead-in"
-       text wrapping onto two lines at the tile's own oversized 2rem font. */
-    .metroBlk-leadin-slot { margin-bottom: var(--space-2); }
-    .metroBlk-leadin-row { width: 100%; min-height: 48px; box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); cursor: pointer; }
-    .metroBlk-leadin-row-add { border: 2px dashed var(--input-border); background: transparent; color: var(--label-color); font-size: var(--font-md); font-weight: var(--font-weight-bold); }
-    .metroBlk-leadin-row-add .metroBlk-leadin-plus { font-size: var(--font-xl); line-height: var(--line-height-tight); }
-    .metroBlk-leadin-row-filled { border: 2px solid var(--selection-text); background: var(--selection-tint); color: var(--text-color); flex-wrap: wrap; }
-    .metroBlk-leadin-row-filled .metroBlk-tile-badge { flex-shrink: 0; }
 
     /* Play panel: current block + up to 2 faded upcoming blocks, each boxed as its own card so a
        run of circles reads as one connected unit rather than loose dots floating on the page. The
@@ -1257,115 +1189,6 @@
     /* Overrides the base .metroSeg-sticky-footer's plain gap-of-buttons layout (metroSegmentModal's
        Cancel/Save) to right-align the lone Done button instead. */
     .metroSeg-timesig-footer { justify-content: flex-end; align-items: center; }
-
-    /* ML-103 follow-up: block editor reworked into the "expandable card" layout from the attached
-       reference (expandable_metronome_sections.html) - a bordered box per topic (Standard/Multiple
-       bars/Repeats/Landmarks/Speed change/Introduction/Jumps/Articulation), styled consistent with
-       the tap-target look already used elsewhere (.metroBlk-timesig-opt, .metroBlk-ctrl-value-btn)
-       rather than inventing a new visual language. Every title in here is sentence case in the
-       source text itself (not CSS text-transform), per the "no capitals" instruction. */
-    .metro-section-box { border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-4); margin-top: var(--space-5); }
-    .metroSeg-modal-heading { display: flex; align-items: center; gap: var(--space-2); padding-right: calc(var(--touch-target) + var(--space-2)); }
-
-    /* Card header: plain text for Standard (always active, no toggle); a header + .toggle-switch for
-       every other card, which doubles as its expand/collapse control (metroSegToggleSection) - the
-       whole header row is clickable, not just the switch. */
-    .metroSeg-card-header { display: flex; align-items: center; justify-content: space-between; width: 100%; background: none; border: none; padding: 0; margin: 0 0 var(--space-2) 0; cursor: pointer; text-align: left; color: inherit; font: inherit; }
-    #metroSegStandardBox .metroSeg-card-header { cursor: default; }
-    .metroSeg-card-title { margin: 0; font-size: var(--font-md); font-weight: var(--font-weight-bold); }
-    .metroSeg-card-body { padding-top: var(--space-2); }
-
-    /* Zero-jitter smooth expand/collapse (grid-template-rows 0fr -> 1fr), same technique as the
-       attached reference - pure CSS, no JS height measuring. */
-    .metroSeg-expandable { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--duration-base) ease; }
-    .metroSeg-expandable.is-expanded { grid-template-rows: 1fr; }
-    .metroSeg-expandable-inner { overflow: hidden; min-height: 0; }
-
-    /* N-across grid of tap tiles - Repeats (3), Introduction/Jumps' target signs (2), Jumps'
-       instructions/fermata-beat-picker (4). */
-    .metroSeg-tile-grid { display: grid; gap: var(--space-2); }
-    .metroSeg-tile-grid-2 { grid-template-columns: repeat(2, 1fr); }
-    .metroSeg-tile-grid-3 { grid-template-columns: repeat(3, 1fr); }
-    .metroSeg-tile-grid-4 { grid-template-columns: repeat(4, 1fr); }
-
-    .metroSeg-tap-btn { min-height: 72px; height: auto; min-width: 0; padding: var(--space-2) var(--space-1); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-0-5); line-height: var(--line-height-snug); box-sizing: border-box; }
-    .metroSeg-tap-btn strong { font-size: var(--font-md); font-weight: var(--font-weight-bold); }
-    .metroSeg-tap-btn.selected { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
-    .metroSeg-tap-label { font-size: var(--font-xs); opacity: 0.85; text-align: center; }
-    /* Real repeat-barline notation as styled text (thick double bar + dots), matching the attached
-       reference's own "||:"/"​:||" rendering rather than custom SVG art - still literal notation, not
-       a generic icon, just simpler than hand-drawn glyphs. */
-    .metroSeg-repeat-glyph { font-size: var(--font-xl); font-weight: var(--font-weight-bold); letter-spacing: -1px; }
-
-    /* Row-shaped tile (icon/glyph + title + subtext) - Landmarks' double barline, Jumps' Segno/Coda
-       target signs. */
-    .metroSeg-row-tile { display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); cursor: pointer; text-align: left; box-sizing: border-box; }
-    .metroSeg-row-tile.selected { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
-    .metroSeg-row-tile-glyph { flex-shrink: 0; width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--container-bg); border: 1px solid var(--input-border); display: flex; align-items: center; justify-content: center; font-weight: var(--font-weight-bold); font-size: var(--font-md); }
-    .metroSeg-row-tile-glyph svg { width: 18px; height: 18px; }
-    .metroSeg-row-tile-glyph.metroSeg-row-tile-glyph-sm { width: var(--icon-md); height: var(--icon-md); margin: 0 auto; } /* centred glyph inside a jump tile (Coda) */
-    .metroSeg-row-tile.selected .metroSeg-row-tile-glyph { border-color: var(--primary-action-strong); color: var(--primary-action-strong); }
-    .metroSeg-row-tile-text { display: flex; flex-direction: column; gap: var(--space-0-5); min-width: 0; }
-    .metroSeg-row-tile-text strong { font-size: var(--font-sm); }
-    .metroSeg-row-tile-text span { font-size: var(--font-xs); color: var(--label-color); }
-
-    /* Small muted section label inside a card body (e.g. "Section boundary", "Target signs") -
-       sentence case in the source text, no text-transform, unlike the reference's uppercase version. */
-    .metroSeg-micro-label { font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--label-color); margin-bottom: var(--space-2); }
-    .metroSeg-micro-label-row { display: flex; align-items: center; justify-content: space-between; }
-    .metroSeg-count-badge { font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--label-color); background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-sm); padding: var(--space-0-5) var(--space-2); white-space: nowrap; }
-    .metroSeg-count-badge-accent { color: var(--primary-action-strong); background: var(--primary-action-tint); border-color: var(--primary-action-strong); }
-
-    /* Dashed "+ Add..." affordance for the rehearsal-mark/fermata lists. */
-    .metroSeg-add-btn { display: block; width: 100%; margin-top: var(--space-2); padding: var(--space-3); border: 2px dashed var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font-weight: var(--font-weight-bold); font-size: var(--font-sm); cursor: pointer; text-align: center; }
-
-    /* List rows for rehearsal marks and fermatas - same shape as the custom-time-signature manage
-       list (.history-item, see renderMetroSegCustomSigManageList) rather than inventing a new one. */
-    .metroSeg-list-row { align-items: center; }
-    .metroSeg-list-row-badge { flex-shrink: 0; width: 28px; height: 28px; border-radius: var(--radius-sm); background: var(--primary-action-tint); color: var(--primary-action-strong); border: 1px solid var(--primary-action-strong); display: flex; align-items: center; justify-content: center; font-weight: var(--font-weight-bold); font-size: var(--font-sm); margin-right: var(--space-3); }
-    /* Plain pencil, no circle behind it - same "quieter than the base icon-circle buttons" recipe as
-       .qp-bar-menu-btn's corner menu button. Edit is the only action in the row now; delete moved
-       into the edit popup itself instead of sitting here too. */
-    .metroSeg-icon-btn { width: 36px; height: 36px; border: none; border-radius: var(--radius-circle); background: transparent; color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
-    .metroSeg-icon-btn .material-symbols-outlined { font-size: var(--icon-md); }
-
-    /* Speed change: helper text + the two "cycle" tiles (Change at beat / Over duration), nested one
-       level inside the card for visual separation, matching the reference's own inset box. */
-    .metroSeg-inset-box { background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3); }
-    .metroSeg-cycle-tile { background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); }
-    .metroSeg-cycle-row { display: flex; align-items: center; justify-content: space-between; margin-top: var(--space-0-5); }
-    .metroSeg-cycle-row strong { font-size: var(--font-md); }
-    .metroSeg-cycle-btn { background: var(--input-bg); border: 1px solid var(--control-border); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-3); font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--primary-action-strong); cursor: pointer; }
-
-    /* Introduction's Start/End tiles - a value + badge on top, a description line, a "tap to edit"
-       hint below. */
-    .metroSeg-info-tile { display: flex; flex-direction: column; gap: var(--space-1); align-items: flex-start; text-align: left; min-height: 88px; padding: var(--space-3); border: 2px solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); cursor: pointer; box-sizing: border-box; }
-    .metroSeg-info-tile.selected { border-color: var(--primary-action-strong); }
-    .metroSeg-info-tile-top { display: flex; align-items: center; justify-content: space-between; width: 100%; font-weight: var(--font-weight-bold); font-size: var(--font-sm); }
-    .metroSeg-info-tile-sub { font-size: var(--font-xs); color: var(--label-color); }
-    .metroSeg-info-tile-hint { font-size: var(--font-xs); color: var(--label-color); opacity: 0.7; }
-
-    /* Repeat count quick-pick (metroSegRepeatCountModal) - 2-across grid of preset choices instead
-       of a stepper. */
-    .metroSeg-quickpick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); }
-    .metroSeg-quickpick-opt { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-0-5); padding: var(--space-3); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); cursor: pointer; text-align: left; }
-    .metroSeg-quickpick-opt strong { font-size: var(--font-md); }
-    .metroSeg-quickpick-opt span { font-size: var(--font-xs); color: var(--label-color); }
-    .metroSeg-quickpick-opt.selected { border-color: var(--primary-action-strong); background: var(--primary-action-tint); }
-    .metroSeg-quickpick-opt.selected strong, .metroSeg-quickpick-opt.selected span { color: var(--primary-action-strong); }
-
-    /* Row-list picker (1st/2nd time volta options, fermata playback mode) - a title+subtext row with
-       an optional trailing mark, one option per row rather than a tile grid (each option needs more
-       explanatory text than a tile comfortably fits). */
-    .metroSeg-option-list { display: flex; flex-direction: column; gap: var(--space-2); }
-    .metroSeg-option-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); width: 100%; padding: var(--space-3); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); cursor: pointer; text-align: left; box-sizing: border-box; }
-    .metroSeg-option-row div { display: flex; flex-direction: column; gap: var(--space-0-5); min-width: 0; }
-    .metroSeg-option-row strong { font-size: var(--font-sm); }
-    .metroSeg-option-row span { font-size: var(--font-xs); color: var(--label-color); }
-    .metroSeg-option-row-mark { flex-shrink: 0; font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--label-color); }
-    .metroSeg-option-row.selected { border-color: var(--primary-action-strong); }
-    .metroSeg-option-row.selected strong { color: var(--primary-action-strong); }
-    .metroSeg-option-row.selected .metroSeg-option-row-mark { color: var(--primary-action-strong); }
 
     /* ML-103: Flow's entry screen (metroBlkEntryScreen) - replaces the old silent auto-resolve into
        an editor with an explicit "new or open?" choice. Two large tap targets, same tap-target
@@ -1588,16 +1411,6 @@
        and, whenever the pickup is shorter than the bar, one of the skipped leading beats, and needs to
        render as skipped, not accented. */
     .metro-dot-note.metroBlk-dot-skipped, .metro-dot-sub.metroBlk-dot-skipped { opacity: 1; background: var(--input-bg); border-color: var(--input-border); }
-    /* The lead-in's quiet space (ML-92 follow-up): nothing is actually sounding yet, so every dot in
-       the row - accented, skipped, sub, whichever - disappears entirely rather than showing greyed
-       out (tried first - too easy to miss, barely distinguishable from the row's own already-dim
-       "upcoming" state at a glance), then snaps straight back the instant the lead-in's real first
-       click fires (renderMetroBlkRows re-renders without this class). opacity, not display:none/
-       visibility:hidden, so it rides .metro-dot's own existing opacity transition (0.08s) for a quick
-       fade rather than an abrupt cut - and the track line stays, so the row doesn't look empty, just
-       quiet. !important since it has to override every other dot-state rule (.accent,
-       .metroBlk-dot-skipped, .lit) uniformly, not just the default. */
-    .metroBlk-quiet-gap .metro-dot { opacity: 0 !important; }
 
     /* Layout utilities for the small set of repeated static inline-style patterns */
     .flex-row { display: flex; }
@@ -1689,9 +1502,6 @@
     .flow-from-file-warnings { margin-top: var(--space-4); padding: var(--space-3) var(--space-4); border-left: 3px solid var(--warning-text); background: var(--input-bg); border-radius: var(--radius-md); font-size: var(--font-sm); }
     .flow-from-file-warnings ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); }
     .flow-from-file-warnings li { margin-bottom: var(--space-1); line-height: var(--line-height-base); }
-    /* Extra breathing room below specifically - it was sitting right on top of the first block
-       card below it with only the button's own margin-top for separation. */
-    #flowAddLeadInBtn { margin-bottom: var(--space-4); }
 
     .flow-upload-progress { margin-top: var(--space-3); padding: var(--space-3); background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); }
     .flow-upload-progress-text { display: flex; justify-content: space-between; font-size: var(--font-sm); font-weight: var(--font-weight-bold); margin-bottom: var(--space-2); }
@@ -1723,7 +1533,7 @@
     .flow-doc-item-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
     /* Same grey-outline "clickable circle" shape as .list-item-menu-btn, tinted red for delete
        rather than .btn-icon-delete's solid red fill - Recordings/Documents rows delete far more
-       casually than a whole flow (see flowDeleteLink), so it shouldn't read as loudly. */
+       casually than a whole flow (deleted from My music's list), so it shouldn't read as loudly. */
     .flow-delete-btn { width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-circle); border: 1px solid var(--control-border); background: var(--input-bg); color: var(--danger-text); display: flex; align-items: center; justify-content: center; cursor: pointer; }
     /* Native <audio> controls, full row width - no extra chrome needed for a compact,
        "just play it" control. */
@@ -1827,6 +1637,10 @@
     .flow-bar-list-1 { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-2) 0 var(--space-4) 0; }
     .flow-bar-full-tile { display: flex; flex-direction: column; width: 100%; padding: 0; font: inherit; color: var(--text-color); text-align: left; background: var(--input-bg); border: 2px solid var(--control-border); border-radius: var(--radius-md); cursor: pointer; overflow: hidden; }
     .flow-bar-full-tile.metroBlk-tile-active { border-color: var(--primary-action-strong); box-shadow: var(--focus-ring); }
+    /* ML-302: the bars Rehearse is repeating - a dashed gold outline, so they read as a range; the
+       bar playing now keeps the solid active outline on top. */
+    .metroBlk-tile.flow-tile-in-repeat, .flow-bar-detail-tile.flow-tile-in-repeat, .flow-bar-full-tile.flow-tile-in-repeat { border-style: dashed; border-color: var(--primary-action-strong); }
+    .flow-tile-in-repeat.metroBlk-tile-active { border-style: solid; }
     .flow-bar-full-head { display: flex; align-items: center; gap: var(--space-1); height: calc(var(--icon-lg) + 2 * var(--space-2)); box-sizing: border-box; padding: 0 var(--space-3); border-bottom: 1px solid var(--input-border); }
     .flow-bar-full-head > * { height: var(--icon-lg); display: inline-flex; align-items: center; box-sizing: border-box; }
     .flow-bar-full-bars { margin-left: auto; font-size: var(--font-sm); color: var(--label-color); }
@@ -1885,8 +1699,6 @@
        Text stays at 4.5:1+ in both themes. */
     .flow-bar-popup-icon-btn:disabled, .flow-bar-popup-action:disabled { background: transparent; border-color: var(--input-border); color: var(--label-color); cursor: not-allowed; }
 
-    .flow-lead-in-card { border: 2px solid var(--primary-action-strong); margin-bottom: var(--space-3); }
-    .flow-lead-in-card .flow-card-header { margin-bottom: var(--space-3); }
     /* Reorderable block cards - same rounded-card language as .flow-card, plus a drag handle and
        rehearsal-mark badge in the header. Gesture split now genuinely mirrors Quick Play's own
        qp-block-box/qp-block-surface/qp-bar-grab-handle (wireQpBarGrabHandle/wireQpBarSwipe): a plain
@@ -2242,11 +2054,13 @@
     .flow-ramp-delete-underlay .material-symbols-outlined { font-size: var(--icon-lg); }
     /* All four swipe-to-delete underlays (Quick play bars, Flow blocks, fermatas, ramps) sit behind a
        card with the same rounded corners - at rest the red showed through the card's anti-aliased
-       corner as a pink fringe. Hidden until the card is actually moved (every swipe sets an inline
-       translateX on the card, and clears it when closed), and on close the hide waits out the 0.2s
-       snap-back so the red doesn't vanish mid-slide. */
+       corner as a pink fringe. Hidden until the card is actually moved - the sliding card has .is-moved while swiped (swipeTo/
+       setMove), and on close the hide waits out the 0.2s snap-back so the red doesn't vanish
+       mid-slide. (It used to look for an inline translateX, which ML-288 removed, leaving the delete
+       hidden behind every swiped card.) Only a swipe moves the card itself: a vertical drag or FLIP
+       reorder moves the outer box, so this never shows the red during a reorder. */
     :is(.qp-block-delete-underlay, .flow-block-delete-underlay, .flow-fermata-delete-underlay, .flow-ramp-delete-underlay) { visibility: hidden; transition: visibility 0s linear var(--duration-base); }
-    :has(> [style*="translateX"]) > :is(.qp-block-delete-underlay, .flow-block-delete-underlay, .flow-fermata-delete-underlay, .flow-ramp-delete-underlay) { visibility: visible; transition-delay: 0s; }
+    :has(> .is-moved) > :is(.qp-block-delete-underlay, .flow-block-delete-underlay, .flow-fermata-delete-underlay, .flow-ramp-delete-underlay) { visibility: visible; transition-delay: 0s; }
     .flow-ramp-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-3); background: var(--input-bg); border: 1px solid var(--control-border); border-radius: var(--radius-md); position: relative; }
     /* Two-line row text (bold "Bar X, beat Y -> ..." title + a lighter "Tempo change - To N bpm"
        subtitle underneath) - unlike the Pauses list's single-line row, since a ramp's start/end/
@@ -2362,8 +2176,8 @@
        controls listed in the first rule aren't otherwise positioned, so they become the ::before's
        containing block; the absolutely-positioned ones (.scroll-btn, .tuner-card-settings-btn,
        .metroBlk-tile-menu-btn) already are. */
-    :where(.top-tuner-toggle, .tuner-pause-btn, .metro-mute-btn, .metroBlk-row-volume-btn, .metroBlk-mini-tuner-close-btn, .metroSeg-icon-btn, .qp-bar-menu-btn, .qp-merge-split-btn, .qp-merge-branch-btn, .qp-loaded-history-clear-btn, .qp-loaded-history-undo-btn, .list-item-menu-btn, .flow-bar-popup-icon-btn, .flow-delete-btn, .flow-block-grab-handle, .metro-bpm-step) { position: relative; }
-    :is(.top-tuner-toggle, .scroll-btn, .tuner-card-settings-btn, .tuner-pause-btn, .metro-mute-btn, .metroBlk-row-volume-btn, .metroBlk-mini-tuner-instrument-btn, .metroBlk-mini-tuner-close-btn, .metroBlk-tile-menu-btn, .metroSeg-icon-btn, .qp-bar-menu-btn, .qp-merge-split-btn, .qp-merge-branch-btn, .qp-loaded-history-clear-btn, .qp-loaded-history-undo-btn, .list-item-menu-btn, .flow-bar-popup-icon-btn, .flow-delete-btn, .flow-block-grab-handle, .metro-bpm-step)::before { content: ''; position: absolute; top: 50%; left: 50%; width: max(100%, var(--touch-target)); height: max(100%, var(--touch-target)); transform: translate(-50%, -50%); }
+    :where(.top-tuner-toggle, .tuner-pause-btn, .metro-mute-btn, .metroBlk-row-volume-btn, .metroBlk-mini-tuner-close-btn, .qp-bar-menu-btn, .qp-merge-split-btn, .qp-merge-branch-btn, .qp-loaded-history-clear-btn, .qp-loaded-history-undo-btn, .list-item-menu-btn, .flow-bar-popup-icon-btn, .flow-delete-btn, .flow-block-grab-handle, .metro-bpm-step) { position: relative; }
+    :is(.top-tuner-toggle, .scroll-btn, .tuner-card-settings-btn, .tuner-pause-btn, .metro-mute-btn, .metroBlk-row-volume-btn, .metroBlk-mini-tuner-instrument-btn, .metroBlk-mini-tuner-close-btn, .qp-bar-menu-btn, .qp-merge-split-btn, .qp-merge-branch-btn, .qp-loaded-history-clear-btn, .qp-loaded-history-undo-btn, .list-item-menu-btn, .flow-bar-popup-icon-btn, .flow-delete-btn, .flow-block-grab-handle, .metro-bpm-step)::before { content: ''; position: absolute; top: 50%; left: 50%; width: max(100%, var(--touch-target)); height: max(100%, var(--touch-target)); transform: translate(-50%, -50%); }
 
     /* A7 - respect the OS "reduce motion" setting: no slides, fades, pulses or scale bounces. A near-zero
        duration (not 0) so any code waiting on transitionend/animationend still gets its event. Beat dots

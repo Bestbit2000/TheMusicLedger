@@ -1,7 +1,7 @@
 # List row
 
 ## 1. Metadata
-- **Name:** List row (`.history-item`, `.history-details`, `.qp-loaded-history-row`, `.metroSeg-list-row`, `.metroBlk-setup-row-actions`, `.draggable-item`, `.drag-handle`, `.settings-link`, `.settings-link-icon`, `.settings-link-text`, `.settings-link-title`, `.settings-link-sub`, `.settings-link-chevron`, `.settings-subview`, `.flow-list-row-body`, `.challenge-item-edge`, `.summary-item-row`)
+- **Name:** List row (`.history-item`, `.history-details`, `.qp-loaded-history-row`, `.draggable-item`, `.drag-handle`, `.settings-link`, `.settings-link-icon`, `.settings-link-text`, `.settings-link-title`, `.settings-link-sub`, `.settings-link-chevron`, `.settings-subview`, `.flow-list-row-body`, `.challenge-item-edge`, `.summary-item-row`)
 - **Category:** Data display
 - **Status:** Stable
 

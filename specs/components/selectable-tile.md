@@ -1,14 +1,14 @@
 # Selectable tile
 
 ## 1. Metadata
-- **Name:** Selectable tile (`.flow-picker-tile`, `.flow-choice-option`, `.metroSeg-tap-btn`, `.metroSeg-row-tile`, `.metro-beats-option`, `.flow-tile-grid`, `.metroSeg-tile-grid`)
+- **Name:** Selectable tile (`.flow-picker-tile`, `.flow-choice-option`, `.metro-beats-option`, `.flow-tile-grid`)
 - **Category:** Inputs
 - **Status:** Stable. Four class families share one visual pattern and should converge on it
 
 ## 2. Overview
 A tappable option card for choosing a value that needs more than a word: a note value glyph, a
 time signature, a block type, a repeat mode. Laid out in a grid (`.flow-tile-grid`) or as a list
-(`.flow-choice-option`, `.metroSeg-row-tile`). **Don't use** for plain short text options in a form
+(`.flow-choice-option`). **Don't use** for plain short text options in a form
 (use [radio-group](radio-group.md)) or for actions ([button](button.md)).
 
 ## 3. Anatomy

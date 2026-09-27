@@ -91,6 +91,7 @@ later table exists. Each file has a comment marking where this happens.
 | `055_warmups.sql` | Adds `warmup_exercises` (ML-294) - the Warm-ups tool's brass exercises (title, kind, tip, notes as JSON, beats per bar, tempo, order, switched on/off), edited by super admins in Admin → Warm-ups; every save is checked with `public/warmups.js`. Seeds 66 original exercises and the `warmups` feature row (enabled). |
 | `056_flow_manage.sql` | Seeds the `flow_manage` feature (ML-299, enabled): the ☰ menu's My music (create, import, library, edit pieces). The home tool is now Rehearse (play only), shown when there's a piece to play. App-wide for now; per-person limits later. No tables. |
 | `057_drills.sql` | Adds `drill_attempts` (ML-298/295/296) - one row per finished round of Tap tempo, Gap trainer or Ear, with its raw details (the server re-scores from them with public/drills.js) - and the features `tap_tempo`, `gap_trainer`, `ear_training` (enabled). See docs/drills.md. |
+| `058_flow_lead_in_one_bar.sql` | ML-113: every Flow lead-in becomes one whole bar (no pickup beats, no repeat, no quiet seconds). Looping and rests moved to Rehearse's repeat control (ML-302). Flow lead-ins only; the columns stay for the old ad-hoc setups. No schema change. |
 
 ## Decisions made translating the design doc into SQL
 

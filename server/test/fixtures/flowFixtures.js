@@ -22,10 +22,10 @@ export const flowFixtures = [
     composer: 'Fixture Composer',
     arranger: 'Fixture Arranger',
     publisher: 'Fixture Publisher',
-    description: 'Pickup lead-in, repeats with play counts, multi-number voltas (one starting mid-block), section barlines, rehearsal marks, compound/irregular/custom metres, dotted beat notes.',
+    description: 'Lead-in bar, repeats with play counts, multi-number voltas (one starting mid-block), section barlines, rehearsal marks, compound/irregular/custom metres, dotted beat notes.',
     youtube: [{ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', title: 'Fixture reference video' }],
     blocks: [
-      { isLeadIn: true, pickupBeats: 2, barCount: 1, bpm: 100, timeSignature: ts(4, 4), repeatLeadIn: true, quietSecondsBeforeLeadIn: 2 },
+      { isLeadIn: true, barCount: 1, bpm: 100, timeSignature: ts(4, 4) },
       { barCount: 8, bpm: 100, noteValue: 'crotchet', timeSignature: ts(4, 4), isRepeatStart: true,
         rehearsalMarks: [{ mark: 'A', barOffset: 0 }, { mark: 'A2', barOffset: 4 }], isSectionBoundary: true },
       { barCount: 4, bpm: 100, noteValue: 'crotchet', timeSignature: ts(4, 4), isRepeatStart: true,
@@ -73,7 +73,7 @@ export const flowFixtures = [
   },
   {
     title: `${FIXTURE_TITLE_PREFIX} E - pauses, tempo ramps, intro, D.C. al Fine`,
-    description: 'Whole-bar lead-in, fermatas in all three playback modes, a caesura, accel./rit. ramps (next-block and custom targets, block-end and mid-block ends), an intro spanning two blocks.',
+    description: 'Lead-in bar, fermatas in all three playback modes, a caesura, accel./rit. ramps (next-block and custom targets, block-end and mid-block ends), an intro spanning two blocks.',
     blocks: [
       { isLeadIn: true, barCount: 1, bpm: 90, timeSignature: ts(3, 4) },
       { barCount: 8, bpm: 90, noteValue: 'crotchet', timeSignature: ts(3, 4), introStartBarOffset: 1, introStartBeatOffset: 1,

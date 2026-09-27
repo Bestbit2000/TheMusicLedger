@@ -349,17 +349,14 @@ function buildBlocks(bars, ownFormat, warnings, flowHasToCoda) {
       fermatas: [], ramps: []
     };
 
-    // Lead-in: a pickup bar (implicit / short first bar), or our own whole-bar lead-in marker.
+    // Lead-in: a pickup bar (implicit / short first bar), or our own lead-in marker. ML-113: a lead-in
+    // is always one whole bar in bar 1's time and tempo, so a pickup plays as a full bar and any old
+    // repeat / quiet-seconds settings in our own extension are ignored.
     const isPickup = gi === 0 && group.length === 1 && (first.implicit || first.lengthQ < first.fullQ - EPS);
     if (ext.isLeadIn || (!ownFormat && isPickup)) {
       block.isLeadIn = true;
-      block.repeatLeadIn = !!ext.repeatLeadIn;
-      block.quietSecondsBeforeLeadIn = ext.quietSecondsBeforeLeadIn || 0;
-      if (isPickup) {
-        const beats = first.lengthQ / first.beatQ;
-        block.pickupBeats = Math.max(1, Math.round(beats));
-        if (Math.abs(beats - block.pickupBeats) > EPS) warnings.push(`The pickup bar is ${beats.toFixed(2)} beats long - rounded to ${block.pickupBeats}.`);
-      }
+      if (group.length > 1) warnings.push(`The lead-in was ${group.length} bars long - a lead-in is now one bar, so only one is kept.`);
+      block.barCount = 1;
     }
 
     if (block.isRepeatEnd && last.right.repeat.times) {

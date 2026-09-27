@@ -11,11 +11,14 @@ A full relational schema (accounts/bands/tutors, scores with sectioned
 multi-bar metronome data per Jira `ML-35`, practice lists, sessions, scales,
 technique exercises, challenges, and a monetization layer) is applied to all
 three Neon branches (`production`/`sandbox`/`dev`). Beyond `sessions` and
-`challenges`, the ad-hoc multi-bar metronome ("Metronome Blocks" tool,
-`ML-35`) is now wired up too — `adhoc_metronome_setups`/`metronome_segments`
-(ad-hoc only, `parent_score_id` always null) plus `time_signature_options`/
-`account_time_signatures`, behind `/api/metronome/*` and `/api/time-signatures*`
-in `server/routes/api.js`. `scores` itself is now wired up too, as a **Flow**
+`challenges`, `adhoc_metronome_setups`/`metronome_segments` (ad-hoc rows,
+`parent_score_id` null) are wired up as **Quick Play's history** (`ML-34`), plus
+`time_signature_options`/`account_time_signatures` and `playback_speed_options`,
+behind `/api/metronome/*` and `/api/time-signatures*` in `server/routes/api.js`.
+The old ad-hoc "Metronome Blocks" editor (`ML-35`) that also used those tables
+was removed on 2026-09-27 (superseded by pieces in My music and Rehearse); its
+rows stay in the tables. Headphone-delay calibration lives in Settings →
+Metronome & playback. `scores` itself is now wired up too, as a **Flow**
 (`ML-179` Phase 1 — see `docs/database-schema.md`'s "Flow" vs "Score" naming
 note: the table stays `scores`, but the product concept/service file
 (`server/services/flows.js`)/endpoints (`/api/flows/*`)/UI are "Flow"
@@ -33,7 +36,7 @@ by the admin panel's Flows page (export/import between environments),
 "Import from MusicXML" and "Export to MusicXML" for
 every user (feature-gated), and PDF/OMR import; read
 [`docs/flow-musicxml.md`](docs/flow-musicxml.md) before touching any of them
-(`ML-204`). The OMR service behind PDF import (solfascribe-omr, a third-party repo) has a repeatable security review - Admin → Security, with the write-up and verdict in [`docs/omr-security-review.md`](docs/omr-security-review.md) (`ML-192`); read it before touching `scoreImport.js`/`runOmr` or enabling `flow_import_from_file`. What a Flow plays, in what order and at what tempo (repeats, alternate endings, intro, jumps, Fine, ramps, fermatas/caesuras, stopping at the end), and where on the screen you are, all comes from the journey engine [`public/flowJourney.js`](public/flowJourney.js). Read [`docs/flow-journey.md`](docs/flow-journey.md) before touching Play Flow playback, the metronome player's sequence mode, the bar settings or the ML-248 consistency check. It's covered by `server/test/flowJourney.test.js` and back-test cases #12-17 (`ML-193`). **All music notation** (notes, clefs, key signatures, symbols) is drawn by [`public/notation.js`](public/notation.js) in the self-hosted **Bravura** font - never hand-drawn SVG or Unicode music characters. The Theory practice tool (quizzes, scoring, grades) is [`public/theoryEngine.js`](public/theoryEngine.js), which also builds the Scales practice tool's scales (ML-9, `specs/components/scales.md`). The Warm-ups tool and its super-admin exercise editor are described in [`docs/warmups.md`](docs/warmups.md) (ML-294). The drill tools - Tap tempo, Gap trainer and Ear - share one engine ([`public/drills.js`](public/drills.js)), one results table and screen; read [`docs/drills.md`](docs/drills.md) before changing a level or the scoring (ML-298/295/296). Read [`docs/theory-practice.md`](docs/theory-practice.md) before touching either (`ML-260`). The in-app notification centre (red dot on ☰, admin announcements,
+(`ML-204`). The OMR service behind PDF import (solfascribe-omr, a third-party repo) has a repeatable security review - Admin → Security, with the write-up and verdict in [`docs/omr-security-review.md`](docs/omr-security-review.md) (`ML-192`); read it before touching `scoreImport.js`/`runOmr` or enabling `flow_import_from_file`. What a Flow plays, in what order and at what tempo (repeats, alternate endings, intro, jumps, Fine, ramps, fermatas/caesuras, stopping at the end), and where on the screen you are - plus Rehearse's repeat bars (`loopPlan`, ML-302) and the one-bar lead-in (ML-113) - all comes from the journey engine [`public/flowJourney.js`](public/flowJourney.js). Read [`docs/flow-journey.md`](docs/flow-journey.md) before touching Play Flow playback, the metronome player's sequence mode, the bar settings or the ML-248 consistency check. It's covered by `server/test/flowJourney.test.js` and back-test cases #12-17 (`ML-193`). **All music notation** (notes, clefs, key signatures, symbols) is drawn by [`public/notation.js`](public/notation.js) in the self-hosted **Bravura** font - never hand-drawn SVG or Unicode music characters. The Theory practice tool (quizzes, scoring, grades) is [`public/theoryEngine.js`](public/theoryEngine.js), which also builds the Scales practice tool's scales (ML-9, `specs/components/scales.md`). The Warm-ups tool and its super-admin exercise editor are described in [`docs/warmups.md`](docs/warmups.md) (ML-294). The drill tools - Tap tempo, Gap trainer and Ear - share one engine ([`public/drills.js`](public/drills.js)), one results table and screen; read [`docs/drills.md`](docs/drills.md) before changing a level or the scoring (ML-298/295/296). Read [`docs/theory-practice.md`](docs/theory-practice.md) before touching either (`ML-260`). The in-app notification centre (red dot on ☰, admin announcements,
 automatic "update available - reload" notice) is described in
 [`docs/notifications.md`](docs/notifications.md) (`ML-201`). The rest of the schema (practice lists, scales, technique,
 monetization) remains provisioned but not wired up to any endpoint. The full

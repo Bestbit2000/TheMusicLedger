@@ -42,7 +42,7 @@ to sit on a specific beat. One part, one-line percussion staff.
 | title / composer / arranger | `<work-title>`, `<creator type="composer">`, `<creator type="arranger">` |
 | time signature | `<time>` (only when it changes) |
 | bpm + beat note (`noteValue`) | `<metronome>` showing the block's own "note = bpm" label + `<sound tempo>` (quarter notes/min) - see "Tempo" |
-| pickup lead-in (`pickupBeats`) | first measure `implicit="yes"`, one rest per pickup beat |
+| lead-in (ML-113: always one whole bar) | an unnumbered bar 0, `<measure number="0" implicit="yes">`, with a whole-bar rest, so the piece's bar numbers match the app. Reading: a pickup (implicit or short first bar) in someone else's file becomes a one-bar lead-in. (An old row with `pickupBeats` still writes one rest per pickup beat.) |
 | `isRepeatStart` | left `<barline>` `heavy-light` + `<repeat direction="forward"/>` |
 | `isRepeatEnd` + `repeatPlayCount` | right `<barline>` `light-heavy` + `<repeat direction="backward" times="n"/>` (`times` written whenever set, even 2) |
 | `repeatEndingNumbers` / `repeatEndingStartBar` | `<ending number="1, 3" type="start">` on the volta's first bar; `type="stop"` (ends in a repeat) or `"discontinue"` (last-time ending) on the block's last bar |
@@ -66,7 +66,7 @@ to sit on a specific beat. One part, one-line percussion staff.
   block's first bar, text `musicledger:` + JSON. Its presence marks **where each block starts**
   (so re-import gives back identical blocks, even ones you split between identical bars). It
   carries only what standard MusicXML can't:
-  `isLeadIn`, `repeatLeadIn`, `quietSecondsBeforeLeadIn`, `noteValueUnset`, intro start/end
+  `isLeadIn`, `noteValueUnset`, intro start/end
   offsets, fermata `holdBeats`/`playbackMode`, ramp `endMode`/`targetMode`, legacy columns
   (`rehearsalMark`, `isFirstTimeBar`/`isSecondTimeBar`, the single legacy ramp), and raw offsets
   that are stale (past the end of a block that was shortened after they were set).

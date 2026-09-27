@@ -14,8 +14,7 @@ import { getAccountProfile, updateAccountProfile, getPracticeYearSetting, update
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
 import { listDurationOptions, getDefaultDurationMinutes } from '../services/durationOptions.js';
 import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSignaturesWithUsage, setCustomTimeSignatureActive, deleteCustomTimeSignature } from '../services/timeSignatures.js';
-import { listAdhocSetups, createAdhocSetup, renameAdhocSetup, saveAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, getOrCreateScratchSetup, createNamedAdhocSetup, duplicateAdhocSetup, createQuickPlaySetup, listQuickPlayHistory, setAdhocSetupFavorite, overwriteQuickPlayHistorySegments, duplicateQuickPlayHistory } from '../services/metronomeSetups.js';
-import { createSegment, updateSegment, deleteSegment } from '../services/metronomeSegments.js';
+import { renameAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, createQuickPlaySetup, listQuickPlayHistory, setAdhocSetupFavorite, overwriteQuickPlayHistorySegments, duplicateQuickPlayHistory } from '../services/metronomeSetups.js';
 import { listActivePlaybackSpeeds } from '../services/playbackSpeeds.js';
 import { handleUpload } from '@vercel/blob/client';
 import { put } from '@vercel/blob';
@@ -872,51 +871,13 @@ router.delete('/time-signatures/custom/:id', requireAuth, resolveAccount, async 
   }
 });
 
-router.get('/metronome/setups', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    res.json(await listAdhocSetups(req.accountId));
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
 // ML-34: Quick Play's "Show history" list - registered before the "/metronome/setups/:id"
-// route below for the same reason "scratch" is (a literal path segment, not an id).
+// route below ("history" is a literal path segment, not an id). The rest of /metronome/setups/:id
+// is Quick Play's history too (rename, favourite, delete, load) - the old Metronome Blocks editor's
+// own setup/segment routes were removed on 2026-09-27.
 router.get('/metronome/history', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await listQuickPlayHistory(req.accountId));
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-router.post('/metronome/setups', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    const { name } = req.body;
-    res.json(await createAdhocSetup(req.accountId, name));
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-// The builder's landing state - reuses or creates the account's one scratch
-// setup, seeded with a default block. Registered before the ":id" route
-// below so "scratch" isn't swallowed as an id.
-router.get('/metronome/setups/scratch', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    res.json(await getOrCreateScratchSetup(req.accountId));
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-// "+ Add new set" - names a fresh setup and seeds it with a default block,
-// both in the one step the popup triggers.
-router.post('/metronome/setups/named', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    const { name } = req.body;
-    if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required.' });
-    res.json(await createNamedAdhocSetup(req.accountId, name.trim()));
   } catch (error) {
     sendError(res, error);
   }
@@ -960,32 +921,6 @@ router.delete('/metronome/setups/:id', requireAuth, resolveAccount, async (req, 
   }
 });
 
-// "Copy this setup" - clones a setup (all its blocks, lead-in included) under a
-// new name, as a starting point for a variant.
-router.post('/metronome/setups/:id/duplicate', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    const { name } = req.body;
-    if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required.' });
-    res.json(await duplicateAdhocSetup(req.accountId, req.params.id, name.trim()));
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-// "Save for later" - names a scratch setup (saved_at still NULL) and moves
-// it into the account's saved list in one step. Distinct from the plain
-// rename PUT above, which only ever touches an already-saved setup's name.
-router.post('/metronome/setups/:id/save', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    const { name } = req.body;
-    if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required to save.' });
-    await saveAdhocSetup(req.accountId, req.params.id, name.trim());
-    res.json({ message: 'Setup saved' });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
 // Quick Play (front page): writes the whole set of blocks in as one history
 // row per Play press - see createQuickPlaySetup. One request rather than a
 // setup-create + N segment-create round trip since nothing needs to exist
@@ -1021,31 +956,6 @@ router.post('/metronome/history/:id/duplicate', requireAuth, resolveAccount, asy
     const { name } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required.' });
     res.json(await duplicateQuickPlayHistory(req.accountId, req.params.id, name.trim()));
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-router.post('/metronome/setups/:id/segments', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    res.json(await createSegment(req.accountId, req.params.id, req.body));
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-router.put('/metronome/segments/:segId', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    res.json(await updateSegment(req.accountId, req.params.segId, req.body));
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-router.delete('/metronome/segments/:segId', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    await deleteSegment(req.accountId, req.params.segId);
-    res.json({ message: 'Block deleted' });
   } catch (error) {
     sendError(res, error);
   }

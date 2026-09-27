@@ -14,7 +14,7 @@
 // and checks a Flow for settings that don't make sense together  (ML-248).
 //
 // Conventions (same as the block editor and server/services/flowBlocks.js):
-//   - blocks are the regular blocks in written order (the lead-in is passed separately)
+//   - blocks are the regular blocks in written order (the lead-in, always one bar, is passed separately)
 //   - bar offsets are 0-based for fermatas/ramps, 1-based for intro bars and repeatEndingStartBar
 //   - beat offsets are 1-based WRITTEN beats (the time signature's numerator: "beat 4 of 6" in 6/8)
 //   - bpm is in the block's own beat unit (what the metronome's conductor beat plays at)
@@ -126,10 +126,8 @@
         const push = (s) => { steps.push(s); return steps.length < LOOP_GUARD_BARS; };
         const n = blocks.length;
 
-        if (leadIn) {
-            const leadBars = leadIn.pickupBeats ? 1 : barCountOf(leadIn);
-            for (let bar = 0; bar < leadBars; bar++) push({ kind: 'leadIn', blockIndex: -1, blockId: leadIn.id, bar, pass: 1, via: null });
-        }
+        // ML-113: the lead-in is always one whole bar.
+        if (leadIn) push({ kind: 'leadIn', blockIndex: -1, blockId: leadIn.id, bar: 0, pass: 1, via: null });
         if (!n) return { steps, end: 'end' };
 
         // --- Intro (ML-252): from its start bar straight through to its end bar (or the end of the
@@ -235,6 +233,66 @@
             }
         });
         return out;
+    }
+
+    // --- Repeat bars (ML-302): Rehearse's practice loop ---
+    // The piece's own bar number (1-based, lead-in excluded) of a block's bar - what the tiles show.
+    function barNumberOf(blocks, blockIndex, bar) {
+        let n = 1;
+        for (let k = 0; k < blockIndex; k++) n += barCountOf(blocks[k]);
+        return n + bar;
+    }
+    function totalBars(blocks) {
+        return blocks.reduce((sum, b) => sum + barCountOf(b), 0);
+    }
+
+    // Plays bars startBar..endBar over and over, following the piece's own order: from the first time
+    // the start bar plays in the piece proper (not the intro) to the next time the end bar plays. So
+    // repeats, endings and jumps inside the range still apply, and the end bar can be *before* the
+    // start bar when a repeat or jump goes back there (7 -> 2 with a repeat at bar 8 plays 7 8 1 2).
+    // restBars (0-5) are extra clicking bars in the start bar's time and tempo: a count-in before the
+    // first pass, and between every pass after that. The lead-in bar plays on the first pass only, and
+    // only when the loop starts where the piece starts (bar 1's first time).
+    // Returns { ok: true, countIn, body, between, runs } - three step lists in buildJourney's shape
+    // (rest bars are kind 'rest', on the start bar's block) and runs, the loop's [from, to] bar-number
+    // stretches for "Plays 7-8, then 1-2" - or { ok: false, reason } with reason 'range' (not a bar in
+    // the piece), 'startNeverPlays' or 'endNotReached'.
+    function loopPlan(blocks, opts) {
+        const { startBar, endBar } = opts;
+        const restBars = Math.max(0, Math.min(5, Math.floor(Number(opts.restBars) || 0)));
+        const total = totalBars(blocks);
+        if (!Number.isInteger(startBar) || !Number.isInteger(endBar) || startBar < 1 || endBar < 1 || startBar > total || endBar > total) {
+            return { ok: false, reason: 'range' };
+        }
+        const steps = buildJourney(blocks, { leadIn: opts.leadIn }).steps;
+        const numberOf = (s) => barNumberOf(blocks, s.blockIndex, s.bar);
+        const s = steps.findIndex(st => st.kind === 'main' && numberOf(st) === startBar);
+        if (s === -1) return { ok: false, reason: 'startNeverPlays' };
+        let e = -1;
+        for (let k = s; k < steps.length; k++) {
+            if (steps[k].kind === 'main' && numberOf(steps[k]) === endBar) { e = k; break; }
+        }
+        if (e === -1) return { ok: false, reason: 'endNotReached' };
+
+        const body = steps.slice(s, e + 1).map((st, k) => (k === 0 ? { ...st, via: 'loop' } : st));
+        const first = body[0];
+        const rest = [];
+        for (let bar = 0; bar < restBars; bar++) {
+            rest.push({ kind: 'rest', blockIndex: first.blockIndex, blockId: first.blockId, bar: first.bar, restIndex: bar, pass: first.pass, via: bar === 0 ? 'loop' : null });
+        }
+        const firstMain = steps.findIndex(st => st.kind === 'main');
+        const leadIn = s === firstMain ? steps.filter(st => st.kind === 'leadIn') : [];
+        // The first pass carries on straight from the count-in, so its first bar isn't a jump.
+        const countIn = [...rest, ...leadIn, ...body.map((st, k) => (k === 0 && !rest.length && !leadIn.length ? { ...st, via: null } : st))];
+
+        const runs = [];
+        body.forEach(st => {
+            const n = numberOf(st);
+            const last = runs[runs.length - 1];
+            if (last && n === last[1] + 1) last[1] = n;
+            else if (!last || n !== last[1]) runs.push([n, n]);
+        });
+        return { ok: true, countIn, body, between: [...rest, ...body], runs };
     }
 
     // --- Tempo (ML-251) ---
@@ -446,7 +504,7 @@
 
     return {
         METER_TABLE, meterInfo, writtenBeatsPerBar, writtenBeatToClick,
-        buildJourney, passagesOf, tempoAt, rampSpans, pausesInBar,
+        buildJourney, passagesOf, loopPlan, barNumberOf, totalBars, tempoAt, rampSpans, pausesInBar,
         repeatBarInvalid, introInvalid, pauseInvalid, rampInvalid,
         barRangeLabel, checkFlow
     };

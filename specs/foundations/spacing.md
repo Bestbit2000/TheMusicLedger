@@ -45,5 +45,5 @@ Values found in the ML-198 audit were snapped to the nearest step. On a tie, **p
 15px → `--space-4`, 25px → `--space-6`, 30px → `--space-7`.
 
 **Clearance isn't spacing.** Room reserved for a fixed/docked element uses a layout token
-(`--bottom-bar-clearance`, `--bottom-bar-clearance-lg`) or is derived from the element's size
+(`--bottom-bar-clearance-lg`) or is derived from the element's size
 (`calc(var(--touch-target) + var(--space-2))` beside a close button). Never snap it to the spacing scale.

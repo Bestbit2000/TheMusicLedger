@@ -69,31 +69,28 @@ test('flow metadata: title/composer/arranger standard, publisher/description/You
   const ext = JSON.parse(field['#text']);
   assert.equal(ext.formatVersion, FLOW_MUSICXML_FORMAT_VERSION);
   assert.equal(ext.publisher, 'Fixture Publisher');
-  assert.match(ext.description, /Pickup lead-in/);
+  assert.match(ext.description, /Lead-in bar/);
   assert.deepEqual(ext.recordings, [{ type: 'youtube', youtubeVideoId: 'dQw4w9WgXcQ', title: 'Fixture reference video' }]);
 });
 
-test('pickup lead-in is an implicit bar 0 of per-beat rests, with lead-in settings in the extension', () => {
-  const { measures } = render(byTitle('A - repeats, voltas & metres'));
-  const pickup = measures[0];
-  assert.equal(pickup['@_number'], '0');
-  assert.equal(pickup['@_implicit'], 'yes');
-  assert.equal(pickup.note.length, 2);
-  assert.deepEqual(extensionOf(pickup), { block: 0, isLeadIn: true, repeatLeadIn: true, quietSecondsBeforeLeadIn: 2, noteValueUnset: true });
-  assert.equal(measures[1]['@_number'], '1');
-});
-
-test('whole-bar lead-in is a normal bar flagged only by the extension', () => {
-  const { measures } = render(byTitle('E - pauses, tempo ramps, intro, D.C. al Fine'));
-  assert.equal(measures[0]['@_implicit'], undefined);
-  assert.equal(measures[0].note.length, 1);
-  assert.equal(measures[0].note[0].rest['@_measure'], 'yes');
-  assert.equal(extensionOf(measures[0]).isLeadIn, true);
+// ML-113: a lead-in is always one whole bar, written as an unnumbered bar 0 so the piece's bar numbers
+// match the app. Only isLeadIn goes in the extension - there are no other lead-in settings.
+test('the lead-in is an implicit whole bar 0, flagged by the extension', () => {
+  for (const title of ['A - repeats, voltas & metres', 'E - pauses, tempo ramps, intro, D.C. al Fine']) {
+    const { measures } = render(byTitle(title));
+    assert.equal(measures[0]['@_number'], '0', title);
+    assert.equal(measures[0]['@_implicit'], 'yes', title);
+    assert.equal(measures[0].note.length, 1, title);
+    assert.equal(measures[0].note[0].rest['@_measure'], 'yes', title);
+    assert.equal(extensionOf(measures[0]).isLeadIn, true, title);
+    assert.equal(extensionOf(measures[0]).repeatLeadIn, undefined, title);
+    assert.equal(measures[1]['@_number'], '1', title);
+  }
 });
 
 test('repeats, play counts, voltas (incl. mid-block start and multi-number) and barline styles', () => {
   const { measures } = render(byTitle('A - repeats, voltas & metres'));
-  // measures: 0 pickup | 1-8 block1 | 9-12 block2 | 13-15 block3 | 16-17 block4 | 18-21 block5 ...
+  // measures: 0 lead-in | 1-8 block1 | 9-12 block2 | 13-15 block3 | 16-17 block4 | 18-21 block5 ...
   assert.equal(barline(measures[1], 'left').repeat['@_direction'], 'forward');
   assert.equal(barline(measures[8], 'right')['bar-style'], 'light-light');
   // block 3's volta starts at its bar 2 (repeatEndingStartBar), not its first bar

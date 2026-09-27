@@ -1,14 +1,14 @@
 # Card
 
 ## 1. Metadata
-- **Name:** Card (`.flow-card`, `.flow-blocks-card`, `.play-card`, `.tuner-card`, `.about-running-note`, `.metro-section-box`, `.metroSeg-inset-box`, `.play-*`, `.slide-in-*`, `.slide-out-*`, `.summary-title`, `.challenge-edit-stats`, `.release-change-list`)
+- **Name:** Card (`.flow-card`, `.flow-blocks-card`, `.play-card`, `.tuner-card`, `.about-running-note`, `.play-*`, `.slide-in-*`, `.slide-out-*`, `.summary-title`, `.challenge-edit-stats`, `.release-change-list`)
 - **Category:** Layout / surfaces
 - **Status:** Stable
 
 ## 2. Overview
 A bordered surface that groups related content inside the app column. Cards are flat (no shadow).
 **Don't** nest a card inside a card more than one level deep. Use an inset box
-(`.metroSeg-inset-box`, `--container-bg` with an `--input-border` outline, one radius step smaller) for the inner level.
+(`--container-bg` with an `--input-border` outline, one radius step smaller) for the inner level.
 
 **Info rows** (`.info-row`, `.info-row-end` on the last of a group): a label and its read-only value, e.g. My account's Email / Account level / Member since - `--container-bg`, `--input-border` outline, label left, value right.
 
