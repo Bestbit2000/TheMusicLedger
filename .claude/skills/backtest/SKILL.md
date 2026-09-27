@@ -82,6 +82,10 @@ tests) to see every test case and which features it's linked to.
      (`await expect(page.locator('#cat-practise')).toBeChecked()`) rather than
      via role.
    - Every test needs explicit assertions (`await expect(...).toBeVisible()`, etc).
+   - **Two dev accounts (ML-310).** `loginAsLocalDev` is `local-dev@themusicledger.local`, an
+     ordinary `standard_member`. `loginAsLocalAdmin` (`/auth/login?as=admin`) is
+     `local-admin@themusicledger.local`, a `super_admin` on the dev branch, for admin-only
+     actions (e.g. publishing a piece). Case #25 switches between the two.
    - Start each spec with `import { test, expect } from '@playwright/test';`
      and `import { loginAsLocalDev } from '../helpers/auth';`, then call
      `loginAsLocalDev(page)` in a `test.beforeEach`.

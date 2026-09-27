@@ -569,6 +569,7 @@
          renderAccountSummaries (app.js). -->
     <div id="accountView" class="hidden-group">
         <button type="button" class="history-item settings-link" onclick="switchView('accountDetailsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">badge</span><span class="settings-link-text"><span class="settings-link-title">Your details</span><span class="settings-link-sub" id="accountDetailsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" onclick="switchView('accountInstrumentsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">music_note</span><span class="settings-link-text"><span class="settings-link-title">Your instruments</span><span class="settings-link-sub" id="accountInstrumentsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" onclick="switchView('accountBandsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">groups</span><span class="settings-link-text"><span class="settings-link-title">Your bands</span><span class="settings-link-sub" id="accountBandsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" onclick="switchView('accountTeachersView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">school</span><span class="settings-link-text"><span class="settings-link-title">Teachers</span><span class="settings-link-sub" id="accountTeachersSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
     </div>
@@ -593,6 +594,18 @@
         </div>
         <div class="info-row info-row-end">
             <span>Member since</span><strong id="accountJoinedReadout"></strong>
+        </div>
+    </div>
+
+    <!-- ML-309: the instruments you play, from the catalogue (instruments table). Your main one is the
+         default for new practice sessions and the Theory tool; with two or more, the add-session form
+         asks which one. -->
+    <div id="accountInstrumentsView" class="hidden-group">
+        <p class="metro-help-text">Each practice session is recorded against the instrument you played. Your main instrument is used unless you pick another when you add a session.</p>
+        <div id="accountInstrumentsList"></div>
+        <div class="flex-row gap-sm mt-2">
+            <select id="accountInstrumentPicker" aria-label="Instrument to add" class="flex-1"><option value="">Choose an instrument&hellip;</option></select>
+            <button class="btn-submit btn-inline" id="accountAddInstrumentBtn">Add</button>
         </div>
     </div>
 
@@ -632,6 +645,10 @@
     <!-- One shared floating menu for every band row (ML-89 follow-up), repositioned against whichever
          row's "more" button was tapped - mirrors Metronome Blocks' own per-tile menu pattern. Delete is
          only shown when the currently-targeted band's canDelete says so (see openAccountBandMenu). -->
+    <div class="dropdown-menu account-band-menu" id="accountInstrumentMenu">
+        <button type="button" class="dropdown-item" id="accountInstrumentMenuMain"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">star</span><span class="dropdown-item-text">Make main instrument</span></button>
+        <button type="button" class="dropdown-item account-band-menu-delete" id="accountInstrumentMenuRemove"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">remove_circle</span><span class="dropdown-item-text">Remove</span></button>
+    </div>
     <div class="dropdown-menu account-band-menu" id="accountBandMenu">
         <button type="button" class="dropdown-item" id="accountBandMenuLeave"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="3.5"/><path d="M2 20.5a6 6 0 0 1 12 0"/><path d="M15 12.5h6.5"/><path d="M18.5 9.5l3 3-3 3"/></svg><span class="dropdown-item-text">Leave band</span></button>
         <button type="button" class="dropdown-item account-band-menu-delete hidden-group" id="accountBandMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete band</span></button>
@@ -804,6 +821,12 @@
                  re-entering the tool lands back on the two-choice screen anyway, see
                  metroBlkShowEntryScreen). -->
             <div class="hidden-group" id="metroBlkEntryLibrary">
+                <!-- ML-310: Mine (personal + band) / Public, plus a title/composer search. -->
+                <div class="filter-strip" id="flowLibraryFilterStrip">
+                    <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
+                    <div class="filter-strip-pills" id="flowLibraryFilterPills" role="group" aria-label="Show pieces"></div>
+                </div>
+                <input type="search" id="flowLibrarySearch" class="mb-4" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
                 <div id="metroBlkSetupsList">Loading...</div>
             </div>
         </div>
@@ -812,6 +835,8 @@
         <div class="dropdown-menu metroBlk-tile-menu" id="flowLibraryItemMenu">
             <button type="button" class="dropdown-item" id="flowLibraryItemMenuEdit"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">edit</span><span class="dropdown-item-text">Edit</span></button>
             <button type="button" class="dropdown-item" id="flowLibraryItemMenuDuplicate"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">content_copy</span><span class="dropdown-item-text">Duplicate</span></button>
+            <!-- ML-310: a public piece - copy it into your own library to change it -->
+            <button type="button" class="dropdown-item" id="flowLibraryItemMenuCopy"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">library_add</span><span class="dropdown-item-text">Copy to my library</span></button>
             <!-- ML-204: personal + band flows, gated by flow_export_musicxml (openFlowLibraryItemMenu) -->
             <button type="button" class="dropdown-item" id="flowLibraryItemMenuExport"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-7"/><path d="M9 13.5l3-3 3 3"/></svg><span class="dropdown-item-text">Export to MusicXML</span></button>
             <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowLibraryItemMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete flow</span></button>
@@ -927,14 +952,14 @@
                 </div>
             </section>
 
-            <!-- Placeholder text for now - Move to a band/Publish (make public) aren't wired up to
-                 this card yet (that's the follow-up that replaces the old flowHubMenu popup), so it
-                 always reads the default personal-flow state regardless of the flow's actual one. -->
+            <!-- ML-310: reads the piece's real state; only a super admin gets the Make public /
+                 Make private button (renderFlowVisibility, app.js). Move to a band isn't on this card yet. -->
             <section class="flow-card">
                 <div class="flow-card-header">
                     <span class="flow-card-label">Visibility</span>
                 </div>
                 <p class="flow-visibility-value" id="flowVisibilityText">Private - just me</p>
+                <button type="button" class="flow-action-btn flow-action-btn-wide mt-4 hidden-group" id="flowVisibilityToggleBtn"><span class="material-symbols-outlined" aria-hidden="true">public</span> <span id="flowVisibilityToggleLabel">Make public</span></button>
             </section>
         </div>
 
@@ -1132,6 +1157,8 @@
                 <div class="dropdown-menu align-edge" id="flowPlayMenu">
                     <button type="button" class="dropdown-item" id="flowPlayMenuEditDetails"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">edit_note</span><span class="dropdown-item-text">Edit details</span></button>
                     <button type="button" class="dropdown-item" id="flowPlayMenuEditFlow"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M11 13.5v-2.7l6.6-6.6a1.5 1.5 0 0 1 2.1 0l1.1 1.1a1.5 1.5 0 0 1 0 2.1L14.2 13.5z"/><circle cx="7.5" cy="16.5" r="1" fill="currentColor" stroke="none"/><circle cx="11" cy="16.5" r="1" fill="currentColor" stroke="none"/><circle cx="14.5" cy="16.5" r="1" fill="currentColor" stroke="none"/><circle cx="7.5" cy="13" r="1" fill="currentColor" stroke="none"/></svg><span class="dropdown-item-text">Edit bars</span></button>
+                    <!-- ML-310: in place of the two Edit items on a public piece you can't edit -->
+                    <button type="button" class="dropdown-item hidden-group" id="flowPlayMenuCopy"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">library_add</span><span class="dropdown-item-text">Copy to my library</span></button>
                     <button type="button" class="dropdown-item" id="flowPlayMenuLoadLibrary"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h12a2 2 0 0 1 2 2v12"/><path d="M5 7h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/><path d="M10 10.5v6.5"/><path d="M7 14.5l3 3 3-3"/></svg><span class="dropdown-item-text">Load from library</span></button>
                     <button type="button" class="dropdown-item" id="flowPlayMenuCreateNew"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">add</span><span class="dropdown-item-text">Create new</span></button>
                 </div>
@@ -2071,6 +2098,13 @@
          public/notation.js, the glue is the THEORY PRACTICE section of app.js. -->
     <div id="theoryView" class="hidden-group">
         <p class="theory-intro">Short quizzes to learn music theory. Pick one, choose how hard, and see how many you can get right.</p>
+        <!-- ML-309: the instrument sets the clef each quiz starts on (its theory_clef). -->
+        <div class="form-group hidden-group" id="theoryInstrumentGroup">
+            <label for="theoryInstrument">Your instrument</label>
+            <select id="theoryInstrument"></select>
+            <p class="metro-help-text mt-2">Sets the clef the quizzes start on. You can still pick any clef in a quiz.</p>
+        </div>
+        <button type="button" class="btn-text hidden-group" id="theoryInstrumentSetBtn">Choose your instrument - it sets the clef the quizzes start on</button>
         <div class="theory-quiz-list" id="theoryQuizList"></div>
     </div>
 
@@ -2197,6 +2231,8 @@
         </div>
         <div class="form-group hidden-group" id="customDurationGroup"><input type="number" id="duration" placeholder="Enter minutes" min="1"></div>
         <div class="form-group"><label for="date">When?</label><input type="date" id="date"></div>
+        <!-- ML-309: only with two or more instruments on My account -->
+        <div class="form-group hidden-group" id="instrumentGroup"><label for="sessionInstrument">Which instrument?</label><select id="sessionInstrument"></select></div>
         <button class="btn-submit mt-2" id="submitBtn">Save session</button>
         <button class="btn-cancel btn-nav" id="cancelAddBtn" onclick="goBack()">Cancel</button>
     </div>
@@ -2842,6 +2878,7 @@
         <div class="form-group"><label for="editDuration">Duration (mins)</label><input type="number" id="editDuration"></div>
         <div class="form-group hidden-group" id="editWhoGroup"><label for="editWho">Who with?</label><select id="editWho"></select></div>
         <div class="form-group"><label for="editDate">Date</label><input type="date" id="editDate"></div>
+        <div class="form-group hidden-group" id="editInstrumentGroup"><label for="editInstrument">Instrument</label><select id="editInstrument"></select></div>
         <button class="btn-submit" id="saveEditBtn">Update record</button>
         <button class="btn-cancel btn-nav" onclick="hideModal('editModal')">Cancel</button>
     </div>

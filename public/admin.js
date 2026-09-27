@@ -765,6 +765,55 @@
             </div>
         `).join('');
     }
+    // ML-309: Theory grades - read-only, from the engine itself (no request).
+    function renderTheoryGrades() {
+        const el = document.getElementById('theoryGradesList');
+        const T = window.TheoryEngine;
+        if (!el || !T) return;
+        const FORM = { harmonic: 'harmonic', melodic: 'melodic' };
+        const RANGE = { 0: 'on the stave (and the space just above and below)', 2: 'up to 2 ledger lines above and below', 4: 'up to 4 ledger lines above and below', 6: 'up to 6 ledger lines' };
+        const ACC = { none: 'naturals', sharps: 'sharps', flats: 'flats' };
+        const SET = { basics: 'Symbols', dynamics: 'Dynamics', rhythm: 'Rhythm and time', structure: 'Structure', terms: 'Terms' };
+        const keyName = (id) => id.replace(/b(?= )/, '♭').replace(/#/, '♯');
+        el.innerHTML = T.gradeSummary().map(g => {
+            const lines = [];
+            const line = (label, text) => `<p class="admin-test-case-meta"><strong>${label}:</strong> ${escapeHtml(text)}</p>`;
+            if (g.clefs.length) lines.push(line('Clefs', g.clefs.join(', ')));
+            if (g.rangeChanged) lines.push(line('Note names', RANGE[g.range]));
+            if (g.accidentals.length) lines.push(line('Note spellings', g.accidentals.map(a => ACC[a]).join(', ')));
+            if (g.keys.length) lines.push(line('Keys', g.keys.map(keyName).join(', ')));
+            if (g.minorForms.length) lines.push(line('Minor scales', g.minorForms.map(f => FORM[f]).join(', ')));
+            const bySet = Object.keys(SET).map(set => [set, g.symbols.filter(s => s.set === set)]).filter(([, list]) => list.length);
+            return `
+                <div class="admin-feature">
+                    <div class="admin-feature-header"><div class="admin-feature-header-text">
+                        <h2>Grade ${g.grade} adds</h2>
+                        <p class="admin-test-case-meta">${g.symbols.length} symbols and terms · ${T.gradeContent(g.grade).symbols.length} in total up to Grade ${g.grade}</p>
+                    </div></div>
+                    ${lines.join('')}
+                    ${bySet.map(([set, list]) => `
+                        <h3>${SET[set]}</h3>
+                        ${list.map(s => `<p class="admin-test-case-meta"><strong>${escapeHtml(s.name)}</strong> - ${escapeHtml(s.meaning)}</p>`).join('')}`).join('')}
+                </div>`;
+        }).join('');
+    }
+
+    // ML-309: practice by instrument.
+    async function reloadInstrumentUsage() {
+        const el = document.getElementById('usageInstruments');
+        try {
+            const u = await apiCall('/api/admin/usage/instruments');
+            const hours = m => (m / 60).toFixed(1);
+            el.innerHTML = `
+                <p class="admin-test-case-meta">${u.accountsWithInstruments} of ${u.accounts} accounts have chosen an instrument. No instrument: ${u.untaggedSessions} session${u.untaggedSessions === 1 ? '' : 's'}, ${hours(u.untaggedMinutes)} h.</p>
+                ${u.instruments.length ? `<div class="admin-stat-table-wrap"><table class="admin-stat-table">
+                    <thead><tr><th>Instrument</th><th>Family</th><th>Players (main)</th><th>Sessions</th><th>Hours</th></tr></thead>
+                    <tbody>${u.instruments.map(i => `<tr><td>${escapeHtml(i.name)}</td><td>${escapeHtml(i.family)}</td><td>${i.players} (${i.mainPlayers})</td><td>${i.sessions}</td><td>${hours(i.minutes)}</td></tr>`).join('')}</tbody>
+                </table></div>` : '<p>No one has chosen an instrument yet.</p>'}`;
+        } catch (error) {
+            el.innerHTML = `<p>Error loading instrument usage: ${escapeHtml(error.message)}</p>`;
+        }
+    }
     async function reloadDurationUsage() {
         const { durationUsage } = await apiCall('/api/admin/usage/durations');
         renderDurationUsageList(durationUsage);
@@ -1280,10 +1329,25 @@
         return f.ownerName || f.ownerEmail || '-';
     }
 
+    // ML-310: All / Public (the public library everyone sees) / Personal / Band.
+    let flowsOwnershipFilter = 'all';
+    function renderFlowsOwnershipPills() {
+        const pills = document.getElementById('flowsOwnershipPills');
+        if (!pills) return;
+        const count = key => key === 'all' ? allFlows.length : allFlows.filter(f => f.ownership === key).length;
+        pills.innerHTML = [['all', 'All'], ['public', 'Public library'], ['personal', 'Personal'], ['band', 'Band']].map(([key, label]) =>
+            `<button type="button" class="filter-pill${flowsOwnershipFilter === key ? ' active' : ''}" data-flows-ownership="${key}" aria-pressed="${flowsOwnershipFilter === key}">${label} <span class="filter-pill-count">${count(key)}</span></button>`).join('');
+        pills.querySelectorAll('[data-flows-ownership]').forEach(b => b.addEventListener('click', () => {
+            flowsOwnershipFilter = b.dataset.flowsOwnership;
+            renderFlows();
+        }));
+    }
+
     function filteredFlows() {
         const q = (document.getElementById('flowsFilter')?.value || '').trim().toLowerCase();
-        if (!q) return allFlows;
-        return allFlows.filter(f => [f.title, f.composer, f.ownerName, f.ownerEmail, f.bandName]
+        const shown = flowsOwnershipFilter === 'all' ? allFlows : allFlows.filter(f => f.ownership === flowsOwnershipFilter);
+        if (!q) return shown;
+        return shown.filter(f => [f.title, f.composer, f.ownerName, f.ownerEmail, f.bandName]
             .some(v => v && String(v).toLowerCase().includes(q)));
     }
 
@@ -1303,6 +1367,7 @@
 
     function renderFlows() {
         const el = document.getElementById('flowsList');
+        renderFlowsOwnershipPills();
         const flows = filteredFlows();
         if (!allFlows.length) { el.innerHTML = '<p>No flows on this environment yet.</p>'; return; }
         if (!flows.length) { el.innerHTML = '<p>No flows match that filter.</p>'; return; }
@@ -1323,7 +1388,12 @@
                             <td>${f.totalBars}</td>
                             <td>${escapeHtml(flowMediaText(f))}</td>
                             <td>${escapeHtml(new Date(f.createdAt).toLocaleDateString())}</td>
-                            <td><button class="btn-edit" type="button" data-flow-export="${f.id}">Export</button></td>
+                            <td><div class="admin-feature-actions">
+                                <a class="btn-edit" href="/?flow=${f.id}&flowMode=play" target="_blank" rel="noopener">View</a>
+                                <a class="btn-edit" href="/?flow=${f.id}&flowMode=edit" target="_blank" rel="noopener">Edit</a>
+                                ${f.ownership === 'band' ? '' : `<button class="btn-edit" type="button" data-flow-publish="${f.id}">${f.ownership === 'public' ? 'Unpublish' : 'Publish'}</button>`}
+                                <button class="btn-edit" type="button" data-flow-export="${f.id}">Export</button>
+                            </div></td>
                         </tr>`).join('')}
                     </tbody>
                 </table>
@@ -1344,6 +1414,27 @@
         });
         el.querySelectorAll('[data-flow-export]').forEach(btn => {
             btn.addEventListener('click', () => exportFlowFiles([Number(btn.dataset.flowExport)], btn));
+        });
+        // ML-310: publishing puts it in everyone's library and Rehearse (view, play, copy); either way
+        // the piece becomes yours (flows.js publishFlow / unpublishFlow).
+        el.querySelectorAll('[data-flow-publish]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const flow = allFlows.find(f => f.id === Number(btn.dataset.flowPublish));
+                if (!flow) return;
+                const makePublic = flow.ownership !== 'public';
+                const msg = makePublic
+                    ? `Publish "${flow.title}"? Everyone will see it in their library and Rehearse, and can copy it. It becomes yours.`
+                    : `Unpublish "${flow.title}"? It leaves everyone's library and becomes your own private piece.`;
+                showConfirmModal(makePublic ? 'Publish' : 'Unpublish', msg, async () => {
+                    try {
+                        await apiCall('/api/flows/' + flow.id + (makePublic ? '/publish' : '/unpublish'), 'PUT');
+                        showToast(makePublic ? 'Published' : 'Unpublished', 'success');
+                        await reloadFlows();
+                    } catch (error) {
+                        showToast('Error: ' + error.message);
+                    }
+                }, false);
+            });
         });
     }
 
@@ -2029,7 +2120,7 @@
             renderFeatures(backtest);
             renderFeaturesCatalog(featuresRes.features);
             await Promise.all([
-                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadNotificationsAdmin(), reloadWarmupsAdmin(), reloadPosthogLink(),
+                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadInstrumentUsage(), Promise.resolve(renderTheoryGrades()), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadNotificationsAdmin(), reloadWarmupsAdmin(), reloadPosthogLink(),
                 reloadSecurityReview().catch((error) => { document.getElementById('securityReview').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`; }),
                 reloadFlowDefaultName(), reloadFlowDefaultTimeSig(), reloadFlowDefaultBpm(), reloadFlowDefaultBarCount(), reloadFlowDefaultNoteValue()
             ]);

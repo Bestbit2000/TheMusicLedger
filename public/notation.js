@@ -42,6 +42,9 @@
         note8thUp: ['E1D7', 2.264, 3.5, -0.6],
         note8thDown: ['E1D8', 1.328, 0.6, -3.6], // ML-294
         note16thUp: ['E1D9', 2.324, 3.5, -0.6],
+        // ML-309 (Theory grades) - measured from the font like the rest.
+        note32ndUp: ['E1DB', 2.252, 4.1, -0.6],
+        noteDoubleWhole: ['E1D0', 2.62, 0.7, -0.7],
         augmentationDot: ['E1E7', 0.4, 0.2, -0.2],
         accidentalFlat: ['E260', 0.904, 1.8, -0.7],
         accidentalNatural: ['E261', 0.672, 1.4, -1.4],
@@ -78,13 +81,25 @@
         restQuarter: ['E4E5', 1.08, 1.5, -1.5],
         rest8th: ['E4E6', 1, 0.7, -1],
         rest16th: ['E4E7', 1.28, 0.8, -2],
+        rest32nd: ['E4E8', 1.452, 1.8, -2],
+        ornamentTrill: ['E566', 2.084, 1.6, -0.1],
+        ornamentTurn: ['E567', 1.84, 0.9, 0],
+        ornamentShortTrill: ['E56C', 2.92, 1, 0],
+        ornamentMordent: ['E56D', 2.916, 1.3, -0.3],
+        graceNoteAcciaccaturaStemUp: ['E560', 1.428, 2.1, -0.4],
+        graceNoteAppoggiaturaStemUp: ['E562', 1.292, 2.1, -0.4],
         timeSigCommon: ['E08A', 1.696, 1.1, -1],
         timeSigCutCommon: ['E08B', 1.668, 1.5, -1.5],
+        timeSig0: ['E080', 1.88, 1, -1],
+        timeSig1: ['E081', 1.336, 1, -1],
         timeSig2: ['E082', 1.784, 1.1, -1.1],
         timeSig3: ['E083', 1.684, 1, -1],
         timeSig4: ['E084', 1.88, 1, -1],
+        timeSig5: ['E085', 1.612, 1, -1],
         timeSig6: ['E086', 1.736, 1, -1],
+        timeSig7: ['E087', 1.764, 1, -1],
         timeSig8: ['E088', 1.744, 1.1, -1.1],
+        timeSig9: ['E089', 1.736, 1, -1],
     };
     const ACCIDENTAL_GLYPH = { '-2': 'accidentalDoubleFlat', '-1': 'accidentalFlat', 0: 'accidentalNatural', 1: 'accidentalSharp', 2: 'accidentalDoubleSharp' };
 
@@ -114,11 +129,14 @@
     }
 
     // --- Clefs. Steps count up from the bottom staff line (0) in half staff spaces: 8 is the top line.
-    // Key-signature positions are the standard ones printed in every edition. Alto/tenor slot in here
-    // when they're needed - nothing else in this file is clef-specific. ---
+    // Key-signature positions are the standard ones printed in every edition - nothing else in this
+    // file is clef-specific. Alto and tenor (ML-309, Theory Grades 4 and 5) are the C clef centred on the
+    // middle / 4th line; tenor's sharps start low (F# on the 2nd line), as printed. ---
     const CLEFS = {
         treble: { glyph: 'gClef', glyphStep: 2, bottomLine: diatonic('E4'), sharps: [8, 5, 9, 6, 3, 7, 4], flats: [4, 7, 3, 6, 2, 5, 1] },
         bass: { glyph: 'fClef', glyphStep: 6, bottomLine: diatonic('G2'), sharps: [6, 3, 7, 4, 1, 5, 2], flats: [2, 5, 1, 4, 0, 3, -1] },
+        alto: { glyph: 'cClef', glyphStep: 4, bottomLine: diatonic('F3'), sharps: [7, 4, 8, 5, 2, 6, 3], flats: [3, 6, 2, 5, 1, 4, 0] },
+        tenor: { glyph: 'cClef', glyphStep: 6, bottomLine: diatonic('D3'), sharps: [2, 6, 3, 7, 4, 8, 5], flats: [5, 8, 4, 7, 3, 6, 2] },
     };
     function clefInfo(clef) {
         const c = CLEFS[clef];
@@ -281,11 +299,20 @@
                 // ML-294: the digits are drawn at 80% (TIME_SIG_DIGIT_SCALE) - full size, the two meet on the
                 // middle line and read as one shape on a phone; smaller, each stays centred in its half with a
                 // clear gap between them. Each glyph is centred on its baseline, so scaling keeps it in place.
+                // A number of two or more digits (12/8, ML-309) is its digit glyphs side by side.
                 const k = it.glyph ? 1 : TIME_SIG_DIGIT_SCALE;
-                const glyphs = it.glyph ? [[it.glyph, 4]] : [['timeSig' + it.top, 6], ['timeSig' + it.bottom, 2]];
-                const w = Math.max(...glyphs.map(([g]) => metrics(g).advance)) * S * k;
+                const rows = it.glyph ? [[[it.glyph], 4]] : [[String(it.top).split('').map(d => 'timeSig' + d), 6], [String(it.bottom).split('').map(d => 'timeSig' + d), 2]];
+                const rowW = (gs) => gs.reduce((sum, g) => sum + metrics(g).advance, 0) * S * k;
+                const w = Math.max(...rows.map(([gs]) => rowW(gs)));
                 const tx = x;
-                for (const [g, st] of glyphs) parts.push((y) => glyphEl(g, tx + (w - metrics(g).advance * S * k) / 2, y(st), null, k));
+                for (const [gs, st] of rows) {
+                    let gx = tx + (w - rowW(gs)) / 2;
+                    for (const g of gs) {
+                        const at = gx;
+                        parts.push((y) => glyphEl(g, at, y(st), null, k));
+                        gx += metrics(g).advance * S * k;
+                    }
+                }
                 x += w;
                 positions.push({ start, end: x });
                 x += noteGap;

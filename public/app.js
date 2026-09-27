@@ -279,10 +279,15 @@
         feedback: {
             submit: (data) => apiCall('/api/feedback', 'POST', data)
         },
+        instruments: {
+            list: () => apiCall('/api/instruments')
+        },
         account: {
             get: () => apiCall('/api/account'),
             update: (data) => apiCall('/api/account', 'PUT', data),
             getBands: () => apiCall('/api/account/bands'),
+            getInstruments: () => apiCall('/api/account/instruments'),
+            setInstruments: (instrumentIds, primaryId) => apiCall('/api/account/instruments', 'PUT', { instrumentIds, primaryId }),
             addBand: (name, website) => apiCall('/api/account/bands', 'POST', { name, website }),
             joinBand: (id) => apiCall(`/api/account/bands/${id}/join`, 'POST'),
             leaveBand: (id) => apiCall(`/api/account/bands/${id}`, 'DELETE'),
@@ -585,8 +590,10 @@
             document.getElementById('tunerShowHzSetting').checked = localStorage.getItem(TUNER_SHOW_HZ_KEY) === 'true';
             document.getElementById('tunerShowOctaveSetting').checked = localStorage.getItem(TUNER_SHOW_OCTAVE_KEY) === 'true';
             document.getElementById('fermataPlaybackModeSetting').value = localStorage.getItem(FERMATA_PLAYBACK_MODE_KEY) || 'tone';
-            syncAdminLinkVisibility();
+            const adminSync = syncAdminLinkVisibility();
             startNotifications();
+            adminSync.then(openFlowFromUrl);
+            loadMyInstruments(); // ML-309: for the add-session form and the Theory tool
             // ML-197: picks back up an in-progress timer left running server-side (see
             // syncActiveTimerSession) - most often after an accidental reload/relogin lost the local
             // timerState. Caught on its own (not folded into the outer catch) so a failure here -
@@ -601,6 +608,24 @@
         } catch (error) {
             console.warn('Failed to initialize app:', error.message);
             displayLoginScreen();
+        }
+    }
+
+    // ML-310: /?flow=<id>&flowMode=play|edit - the admin Flows page's View and Edit links. Runs once the
+    // account level is known, so a super admin lands on Edit details with the Visibility button showing.
+    function openFlowFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const id = Number(params.get('flow'));
+        if (!id) return;
+        const mode = params.get('flowMode');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        currentFlowId = id;
+        flowEditMode = 'edit';
+        if (mode === 'edit') {
+            flowEditRequestedTab = 'details';
+            switchView('flowDetailsHubView');
+        } else {
+            goToFlowPlayView(id);
         }
     }
 
@@ -875,7 +900,7 @@
     // screens, Flow's editor...), the item it belongs under.
     const NAV_PARENT_VIEW = { flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView',
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
-        accountDetailsView: 'accountView', accountBandsView: 'accountView', accountTeachersView: 'accountView',
+        accountDetailsView: 'accountView', accountInstrumentsView: 'accountView', accountBandsView: 'accountView', accountTeachersView: 'accountView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
         tapTempoPlayView: 'tapTempoView', gapTrainerPlayView: 'gapTrainerView', earPlayView: 'earView',
         challengeSelectView: 'manageChallengesView', challengePlayView: 'manageChallengesView', challengeSummaryView: 'manageChallengesView', editChallengeView: 'manageChallengesView' };
@@ -1088,7 +1113,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -1208,7 +1233,9 @@
         if (viewName === 'accountView') { document.getElementById('topTitle').innerText = 'My account'; loadAccountView(); }
         // ML-289: My account's groups, each its own screen (the data was loaded by the list above).
         if (viewName === 'accountDetailsView') { document.getElementById('topTitle').innerText = 'Your details'; }
+        if (viewName === 'accountInstrumentsView') { document.getElementById('topTitle').innerText = 'Your instruments'; loadAccountInstruments(); }
         if (viewName === 'accountBandsView') { document.getElementById('topTitle').innerText = 'Your bands'; loadAccountBands(); }
+        if (viewName === 'entryForm') renderSessionInstrumentPicker('instrumentGroup', 'sessionInstrument', null);
         if (viewName === 'accountTeachersView') { document.getElementById('topTitle').innerText = 'Teachers'; loadTeacherList(); }
         // ML-282: Settings is a list of groups, each its own screen. Every screen re-syncs its
         // controls from storage in case they were last changed elsewhere (the Tuner page itself).
@@ -2561,7 +2588,8 @@
                 category: cat,
                 duration: Number(dur),
                 who: who || null,
-                date: dStr
+                date: dStr,
+                instrumentId: sessionInstrumentValue('instrumentGroup', 'sessionInstrument')
             });
             showSuccessToast(result.message);
             btn.innerText = 'Save session';
@@ -3121,6 +3149,98 @@
         } catch { /* not fatal - link just stays hidden */ }
     }
 
+    // ---------------------------------------------------------------- Your instruments (ML-309)
+    // myInstruments: this account's, main first - loaded at startup (the add-session form and the
+    // Theory tool use it) and again on My account. instrumentCatalogue: the whole list, on first use.
+    let myInstruments = [];
+    let instrumentCatalogue = null;
+    async function loadMyInstruments() {
+        try { myInstruments = await API.account.getInstruments(); } catch { /* offline - keep the last list */ }
+        return myInstruments;
+    }
+    async function loadAccountInstruments() {
+        try {
+            if (!instrumentCatalogue) instrumentCatalogue = await API.instruments.list();
+            await loadMyInstruments();
+            renderAccountInstruments();
+        } catch (error) {
+            showWarningToast('Error loading instruments: ' + error.message);
+        }
+    }
+    function renderAccountInstruments() {
+        const list = document.getElementById('accountInstrumentsList');
+        if (!list) return;
+        list.innerHTML = myInstruments.length ? myInstruments.map(i => `
+            <div class="history-item">
+                <span class="grow"><strong>${escapeHtml(i.name)}</strong><br><span class="text-sm text-muted">${i.isPrimary ? 'Main instrument' : escapeHtml(i.family)}</span></span>
+                <button class="btn-icon-edit" data-instrument-menu-id="${i.id}" aria-label="Options for ${escapeHtml(i.name)}" aria-haspopup="menu"><span class="material-symbols-outlined">more_vert</span></button>
+            </div>`).join('') : '<div class="text-muted">No instruments yet - choose the one you play below.</div>';
+        list.querySelectorAll('[data-instrument-menu-id]').forEach(btn => btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openAccountInstrumentMenu(btn, Number(btn.dataset.instrumentMenuId));
+        }));
+        const picker = document.getElementById('accountInstrumentPicker');
+        if (picker && instrumentCatalogue) {
+            const mine = new Set(myInstruments.map(i => i.id));
+            const families = [...new Set(instrumentCatalogue.map(i => i.family))];
+            picker.innerHTML = '<option value="">Choose an instrument&hellip;</option>' + families.map(f =>
+                `<optgroup label="${escapeHtml(f)}">${instrumentCatalogue.filter(i => i.family === f && !mine.has(i.id))
+                    .map(i => `<option value="${i.id}">${escapeHtml(i.name)}</option>`).join('')}</optgroup>`).join('');
+        }
+        renderAccountSummaries();
+    }
+    async function saveMyInstruments(ids, primaryId) {
+        try {
+            myInstruments = await API.account.setInstruments(ids, primaryId);
+            renderAccountInstruments();
+        } catch (error) {
+            showWarningToast('Error saving instruments: ' + error.message);
+        }
+    }
+    document.getElementById('accountAddInstrumentBtn')?.addEventListener('click', () => {
+        const id = Number(document.getElementById('accountInstrumentPicker').value);
+        if (!id) return showWarningToast('Choose an instrument first');
+        const main = myInstruments.find(i => i.isPrimary);
+        saveMyInstruments([...myInstruments.map(i => i.id), id], main ? main.id : id);
+    });
+    let accountInstrumentMenuTargetId = null;
+    function openAccountInstrumentMenu(btnEl, id) {
+        const menu = document.getElementById('accountInstrumentMenu');
+        if (!menu) return;
+        accountInstrumentMenuTargetId = id;
+        setShown('accountInstrumentMenuMain', !myInstruments.find(i => i.id === id)?.isPrimary);
+        menu.classList.add('show');
+        const r = btnEl.getBoundingClientRect();
+        const left = Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8));
+        placeAt(menu, left, Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8));
+    }
+    function closeAccountInstrumentMenu() { document.getElementById('accountInstrumentMenu')?.classList.remove('show'); }
+    document.addEventListener('click', closeAccountInstrumentMenu);
+    document.getElementById('accountInstrumentMenuMain')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAccountInstrumentMenu();
+        saveMyInstruments(myInstruments.map(i => i.id), accountInstrumentMenuTargetId);
+    });
+    document.getElementById('accountInstrumentMenuRemove')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAccountInstrumentMenu();
+        const rest = myInstruments.filter(i => i.id !== accountInstrumentMenuTargetId);
+        const main = rest.find(i => i.isPrimary) || rest[0];
+        saveMyInstruments(rest.map(i => i.id), main ? main.id : null);
+    });
+    // The add-session form's / edit modal's instrument picker - only with two or more instruments.
+    // selectedId null = the main instrument.
+    function renderSessionInstrumentPicker(groupId, selectId, selectedId) {
+        const show = myInstruments.length > 1;
+        setShown(groupId, show);
+        const sel = document.getElementById(selectId);
+        if (!sel || !show) return;
+        sel.innerHTML = myInstruments.map(i => `<option value="${i.id}">${escapeHtml(i.name)}${i.isPrimary ? ' (main)' : ''}</option>`).join('');
+        const main = myInstruments.find(i => i.isPrimary) || myInstruments[0];
+        sel.value = String(selectedId && myInstruments.some(i => i.id === selectedId) ? selectedId : main.id);
+    }
+    const sessionInstrumentValue = (groupId, selectId) => isShown(groupId) ? Number(document.getElementById(selectId).value) || null : undefined;
+
     function renderAccountBandsList() {
         const container = document.getElementById('accountBandsList');
         if (!container) return;
@@ -3231,7 +3351,7 @@
         } catch (error) {
             showWarningToast('Error loading account: ' + error.message);
         }
-        await Promise.all([loadAccountBands(), loadTeacherList()]);
+        await Promise.all([loadAccountBands(), loadTeacherList(), loadMyInstruments()]);
         renderAccountSummaries();
     }
 
@@ -3240,6 +3360,8 @@
         const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
         const name = [document.getElementById('accountFirstNameInput')?.value.trim(), document.getElementById('accountSurnameInput')?.value.trim()].filter(Boolean).join(' ');
         set('accountDetailsSummary', name || document.getElementById('accountEmailReadout')?.textContent || 'Add your name');
+        const main = myInstruments.find(i => i.isPrimary);
+        set('accountInstrumentsSummary', main ? main.name + (myInstruments.length > 1 ? ` + ${myInstruments.length - 1} more` : '') : 'Choose what you play');
         const bands = accountBandsData.myBands.length;
         set('accountBandsSummary', bands ? `${bands} band${bands === 1 ? '' : 's'}` : 'Not in a band yet');
         const teachers = (appData.teachers || []).filter(t => !t.archived).length;
@@ -3343,6 +3465,7 @@
             sel.innerHTML = buildWhoOptionsHtml(cat === 'Lesson' ? appData.teachers : appData.organisations, session.who);
             if(session.who) sel.value = session.who;
         }
+        renderSessionInstrumentPicker('editInstrumentGroup', 'editInstrument', session.instrumentId);
 
         showModal('editModal');
     }
@@ -3405,7 +3528,8 @@
                 category: cat,
                 duration: Number(dur),
                 who: who || null,
-                date: dStr
+                date: dStr,
+                instrumentId: sessionInstrumentValue('editInstrumentGroup', 'editInstrument')
             });
             hideModal('editModal');
             btn.innerText = 'Update record';
@@ -4731,15 +4855,46 @@
     // of openMetroBlkSetup. Duplicate/Delete are personal-flows-only for now (band/public sharing
     // makes "delete" a much bigger question - who's allowed to - that's a deliberate follow-up, not
     // an oversight), same "list-item-menu-btn + one shared floating menu" pattern as session history.
+    // ML-310: All / Mine (personal + band) / Public, plus a title/composer search - both per visit only.
+    let flowLibraryFilter = 'all';
+    let flowLibraryQuery = '';
+    function renderFlowLibraryFilter() {
+        const pills = document.getElementById('flowLibraryFilterPills');
+        if (!pills) return;
+        const mine = flowsListCache.filter(f => !f.isPublic).length;
+        const counts = { all: flowsListCache.length, mine, public: flowsListCache.length - mine };
+        pills.innerHTML = [['all', 'All'], ['mine', 'Mine'], ['public', 'Public']].map(([key, label]) =>
+            `<button type="button" class="filter-pill${flowLibraryFilter === key ? ' active' : ''}" data-flow-library-filter="${key}" aria-pressed="${flowLibraryFilter === key}">${label} <span class="filter-pill-count">${counts[key]}</span></button>`).join('');
+        pills.querySelectorAll('[data-flow-library-filter]').forEach(b => b.addEventListener('click', () => {
+            flowLibraryFilter = b.dataset.flowLibraryFilter;
+            renderFlowsList();
+        }));
+    }
+    document.getElementById('flowLibrarySearch')?.addEventListener('input', (e) => {
+        flowLibraryQuery = e.target.value.trim().toLowerCase();
+        renderFlowsList();
+    });
+    function flowLibraryVisible() {
+        return flowsListCache.filter(f => {
+            if (flowLibraryFilter === 'mine' && f.isPublic) return false;
+            if (flowLibraryFilter === 'public' && !f.isPublic) return false;
+            if (!flowLibraryQuery) return true;
+            return (f.title || '').toLowerCase().includes(flowLibraryQuery) || (f.composer || '').toLowerCase().includes(flowLibraryQuery);
+        });
+    }
+
     function renderFlowsList() {
         const ui = document.getElementById('metroBlkSetupsList');
         if (!ui) return;
-        if (!flowsListCache.length) { ui.innerHTML = '<p>No flows yet - go back and choose "Create your own" to make one.</p>'; return; }
-        ui.innerHTML = flowsListCache.map(f => `
+        renderFlowLibraryFilter();
+        if (!flowsListCache.length) { ui.innerHTML = '<p>No pieces yet - go back and choose "Create your own" to make one.</p>'; return; }
+        const visible = flowLibraryVisible();
+        if (!visible.length) { ui.innerHTML = '<p class="text-muted">No pieces match.</p>'; return; }
+        ui.innerHTML = visible.map(f => `
             <div class="history-item clickable" data-flow-library-id="${f.id}">
                 <div role="button" tabindex="0" class="grow" onclick="openFlow(${f.id})">
                     <strong>${escapeHtml(f.title)}</strong>
-                    <div class="text-sm text-muted">${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}</div>
+                    <div class="text-sm text-muted">${f.composer ? escapeHtml(f.composer) + ' &bull; ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}</div>
                 </div>
                 ${flowLibraryMenuItemsFor(f).length ? `<button type="button" class="list-item-menu-btn" data-flow-library-menu-btn aria-label="Options for ${escapeHtml(f.title)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>` : ''}
             </div>
@@ -4753,12 +4908,16 @@
         });
     }
 
-    // Which ⋮ menu items a library row gets: Edit/Duplicate/Delete stay personal-only (see the
-    // renderFlowsList comment); ML-204's Export covers band flows too, but never public library
-    // flows (the server refuses those anyway - exportFlowForUser).
+    // Which ⋮ menu items a library row gets: Edit wherever the server says you can edit (canEdit - your
+    // own, your band's, and public pieces for a super admin, ML-310); Duplicate/Delete stay personal-only
+    // (see the renderFlowsList comment); a public piece can be copied into your own library to change
+    // it (ML-310); ML-204's Export covers band flows too, but never public library flows (the server
+    // refuses those anyway - exportFlowForUser).
     function flowLibraryMenuItemsFor(flow) {
         const ownership = flowOwnershipLabel(flow);
-        const items = ownership === 'Personal' ? ['Edit', 'Duplicate', 'Delete'] : [];
+        const items = flow.canEdit ? ['Edit'] : [];
+        if (ownership === 'Personal') items.push('Duplicate', 'Delete');
+        if (ownership === 'Public') items.push('Copy');
         if (ownership !== 'Public' && isFeatureEnabled('flow_export_musicxml')) items.push('Export');
         return items;
     }
@@ -4770,7 +4929,7 @@
         if (!menu) return;
         const flow = flowsListCache.find(f => f.id === id);
         const items = flow ? flowLibraryMenuItemsFor(flow) : [];
-        ['Edit', 'Duplicate', 'Delete', 'Export'].forEach(item => {
+        ['Edit', 'Duplicate', 'Copy', 'Delete', 'Export'].forEach(item => {
             document.getElementById('flowLibraryItemMenu' + item)?.classList.toggle('hidden-group', !items.includes(item));
         });
         menu.classList.add('show');
@@ -4813,6 +4972,24 @@
         } catch (error) {
             showWarningToast('Error duplicating flow: ' + error.message);
         }
+    });
+    // ML-310: copies a public piece (details + bars, not recordings/documents) into your own library.
+    async function copyFlowToMyLibrary(id) {
+        try {
+            const copy = await API.flows.duplicate(id);
+            await loadFlowsList();
+            showSuccessToast('Copied to your library as "' + copy.title + '"');
+            return copy;
+        } catch (error) {
+            showWarningToast('Error copying piece: ' + error.message);
+            return null;
+        }
+    }
+    document.getElementById('flowLibraryItemMenuCopy')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = flowLibraryMenuTargetId;
+        closeFlowLibraryItemMenu();
+        if (id !== null) copyFlowToMyLibrary(id);
     });
     // ML-204: downloads the flow as .musicxml - fetched with the auth header (a plain link can't carry
     // one), then saved under the name the server chose (Content-Disposition's UTF-8 filename*).
@@ -4870,6 +5047,9 @@
             currentFlowDetail = detail;
             flowLeadInBlock = blocks.find(b => b.isLeadIn) || null;
             currentFlowBlocks = blocks.filter(b => !b.isLeadIn);
+            setShown('flowPlayMenuEditDetails', detail.canEdit);
+            setShown('flowPlayMenuEditFlow', detail.canEdit);
+            setShown('flowPlayMenuCopy', !detail.canEdit && detail.isPublic);
             switchView('flowPlayView');
         } catch (error) {
             showWarningToast('Error loading flow: ' + error.message);
@@ -4890,6 +5070,8 @@
         const listEntry = flowsListCache.find(f => f.id === id);
         if (listEntry && listEntry.blockCount > 0) {
             goToFlowPlayView(id);
+        } else if (listEntry && !listEntry.canEdit) {
+            showWarningToast('This piece has no bars yet.');
         } else {
             switchView('flowDetailsHubView');
         }
@@ -5389,7 +5571,38 @@
         renderFlowRecordingsList();
         renderFlowDocumentsList();
         updateFlowEditTabCounts();
+        renderFlowVisibility();
     }
+
+    // ML-310: the Visibility card. Public pieces are in everyone's library and Rehearse (view, play,
+    // copy); only a super admin can publish or unpublish - unpublishing makes it their own private piece.
+    function renderFlowVisibility() {
+        const f = currentFlowDetail;
+        if (!f) return;
+        document.getElementById('flowVisibilityText').innerText = f.isPublic ? 'Public - everyone can play it and copy it'
+            : f.ownerBandId ? 'Band - everyone in the band' : 'Private - just me';
+        setShown('flowVisibilityToggleBtn', currentAccountIsSuperAdmin && !f.ownerBandId && flowEditMode === 'edit');
+        document.getElementById('flowVisibilityToggleLabel').innerText = f.isPublic ? 'Make private' : 'Make public';
+    }
+    document.getElementById('flowVisibilityToggleBtn')?.addEventListener('click', () => {
+        const f = currentFlowDetail;
+        if (!f) return;
+        const makePublic = !f.isPublic;
+        showConfirmModal(makePublic ? 'Make public' : 'Make private', makePublic
+            ? 'Make "' + f.title + '" public? Everyone will see it in their library and Rehearse, and can copy it.'
+            : 'Make "' + f.title + '" private? It leaves everyone\'s library and becomes your own piece.', async () => {
+            try {
+                const updated = await (makePublic ? API.flows.publish(f.id) : API.flows.unpublish(f.id));
+                // Only the ownership fields - the rest of currentFlowDetail may hold unsaved edits.
+                currentFlowDetail = { ...currentFlowDetail, isPublic: updated.isPublic, ownerBandId: updated.ownerBandId, ownerAccountId: updated.ownerAccountId, canEdit: updated.canEdit };
+                renderFlowVisibility();
+                rehearseRefresh();
+                showSuccessToast(makePublic ? 'Now public' : 'Now private');
+            } catch (error) {
+                showWarningToast('Error changing visibility: ' + error.message);
+            }
+        }, false, makePublic ? 'Make public' : 'Make private');
+    });
 
     // On-blur save (no separate Save button for this card in Create mode - see the plan's own note
     // on why) - skips the request entirely when the value hasn't actually changed. In Edit mode,
@@ -9873,6 +10086,11 @@
         flowEditMode = 'edit';
         switchView('flowDetailsHubView');
     });
+    document.getElementById('flowPlayMenuCopy')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        closeFlowPlayMenu();
+        if (currentFlowId) await copyFlowToMyLibrary(currentFlowId);
+    });
     // ML-299: the pieces to play are Rehearse's list now (the library with create/import is My music).
     document.getElementById('flowPlayMenuLoadLibrary')?.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -13483,8 +13701,45 @@
         if (el) el.outerHTML = Notation.symbol('gClef').replace('class="notation"', 'class="notation tool-icon-svg"');
     })();
 
+    // --- Your instrument (ML-309): which of My account's instruments, per device (tml.theory.instrument,
+    // default the main one). Its clef is where every quiz's Clef option starts; picking another
+    // instrument moves every quiz to that clef. No instruments = a link to My account instead.
+    const THEORY_INSTRUMENT_KEY = 'tml.theory.instrument';
+    function theoryInstrument() {
+        let id = null;
+        try { id = Number(localStorage.getItem(THEORY_INSTRUMENT_KEY)) || null; } catch (e) { /* per-device only */ }
+        return myInstruments.find(i => i.id === id) || myInstruments.find(i => i.isPrimary) || myInstruments[0] || null;
+    }
+    function theoryInstrumentClefs(inst) {
+        if (!inst) return null;
+        if (inst.theoryClef === 'grand') return ['treble', 'bass'];
+        return ['treble', 'bass', 'alto', 'tenor'].includes(inst.theoryClef) ? [inst.theoryClef] : null;
+    }
+    function renderTheoryInstrument() {
+        const inst = theoryInstrument();
+        setShown('theoryInstrumentGroup', !!inst);
+        setShown('theoryInstrumentSetBtn', !inst);
+        const sel = document.getElementById('theoryInstrument');
+        if (!sel || !inst) return;
+        sel.innerHTML = myInstruments.map(i => `<option value="${i.id}">${escapeHtml(i.name)}</option>`).join('');
+        sel.value = String(inst.id);
+    }
+    document.getElementById('theoryInstrument')?.addEventListener('change', (e) => {
+        try { localStorage.setItem(THEORY_INSTRUMENT_KEY, e.target.value); } catch (err) { /* per-device only */ }
+        const clefs = theoryInstrumentClefs(theoryInstrument());
+        if (!clefs) return;
+        for (const q of TheoryEngine.QUIZZES) {
+            if (!q.options.some(d => d.key === 'clefs')) continue;
+            const stored = theoryStoredChoice(q.id);
+            const options = TheoryEngine.normaliseOptions(q.id, { ...(stored.options || {}), clefs });
+            try { localStorage.setItem(`tml.theory.${q.id}`, JSON.stringify({ ...stored, options })); } catch (err) { /* per-device only */ }
+        }
+    });
+    document.getElementById('theoryInstrumentSetBtn')?.addEventListener('click', () => switchView('accountInstrumentsView'));
+
     // --- Quiz list ---
     async function renderTheoryList() {
+        renderTheoryInstrument();
         const list = document.getElementById('theoryQuizList');
         // ML-301: every quiz has a subtitle (so the rows are the same height); one you haven't tried has
         // a "New" pill where the grade dots go.
@@ -13517,7 +13772,8 @@
     function openTheoryOptions(quizId) {
         theoryQuizId = quizId;
         const stored = theoryStoredChoice(quizId);
-        theoryOptions = TheoryEngine.normaliseOptions(quizId, stored.options);
+        const first = stored.options ? {} : { clefs: theoryInstrumentClefs(theoryInstrument()) || undefined };
+        theoryOptions = TheoryEngine.normaliseOptions(quizId, { ...first, ...(stored.options || {}), ...(theoryGradesOn() ? {} : { grade: 0 }) });
         theoryRoundId = TheoryEngine.round(stored.round).value;
         switchView('theoryOptionsView');
     }
@@ -13526,12 +13782,18 @@
     // .compact shows three to a row on a phone, so it suits exactly three choices; two or four go two
     // to a row (2 x 2) rather than wrapping 3 + 1.
     const theoryPillsCompact = (choices) => choices.length === 3;
+    // ML-309: Theory grades (feature theory_grades) - "Custom" is the quiz's own options, 1-5 a grade.
+    const theoryGradesOn = () => isFeatureEnabled('theory_grades');
+    const THEORY_GRADE_GROUP = { key: 'grade', label: 'Theory grade', multi: false, choices: [{ value: 0, label: 'Custom' }, ...TheoryEngine.GRADE_CHOICES.map(g => ({ value: g, label: `Grade ${g}` }))] };
     function renderTheoryOptions() {
         const quiz = TheoryEngine.quiz(theoryQuizId);
+        const gradeClefs = theoryOptions.grade ? TheoryEngine.gradeContent(theoryOptions.grade).clefs : null;
         const groups = quiz.options.filter(d => TheoryEngine.optionVisible(d, theoryOptions)).map(d => ({
-            key: d.key, label: d.label, multi: !!d.multi, choices: d.choices,
+            key: d.key, label: d.label, multi: !!d.multi,
+            choices: d.key === 'clefs' && gradeClefs ? d.choices.filter(c => gradeClefs.includes(c.value)) : d.choices,
             isOn: (v) => (d.multi ? theoryOptions[d.key].includes(v) : theoryOptions[d.key] === v)
         }));
+        if (theoryGradesOn() && quiz.options.length) groups.unshift({ ...THEORY_GRADE_GROUP, isOn: (v) => theoryOptions.grade === v });
         groups.push({ key: 'round', label: 'Round', multi: false, choices: TheoryEngine.ROUNDS.map(r => ({ value: r.value, label: r.label })), isOn: (v) => theoryRoundId === v });
         const form = document.getElementById('theoryOptionsForm');
         form.innerHTML = groups.map(g => `
@@ -13545,7 +13807,12 @@
             const g = groups.find(x => x.key === key);
             const value = g.choices[Number(input.dataset.index)].value;
             if (key === 'round') theoryRoundId = value;
-            else if (g.multi) {
+            else if (key === 'grade') {
+                theoryOptions = TheoryEngine.normaliseOptions(theoryQuizId, { ...theoryOptions, grade: value });
+                theoryStoreChoice();
+                renderTheoryOptions(); // a different set of options shows
+                return;
+            } else if (g.multi) {
                 const now = g.choices.filter((c, i) => form.querySelector(`#theoryOpt-${key}-${i}`).checked).map(c => c.value);
                 if (!now.length) { input.checked = true; return; } // at least one clef
                 theoryOptions = TheoryEngine.normaliseOptions(theoryQuizId, { ...theoryOptions, [key]: now });
@@ -13554,7 +13821,7 @@
             }
             theoryStoreChoice();
             // Showing/hiding a dependent option (minor form) needs a redraw; otherwise just the best line.
-            const visibleNow = quiz.options.filter(d => TheoryEngine.optionVisible(d, theoryOptions)).length + 1;
+            const visibleNow = quiz.options.filter(d => TheoryEngine.optionVisible(d, theoryOptions)).length + 1 + (theoryGradesOn() && quiz.options.length ? 1 : 0);
             if (visibleNow !== groups.length) renderTheoryOptions();
             else renderTheoryOptionsBest();
         }));

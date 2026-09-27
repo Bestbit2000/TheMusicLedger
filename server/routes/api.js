@@ -18,6 +18,7 @@ import { renameAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, createQu
 import { listActivePlaybackSpeeds } from '../services/playbackSpeeds.js';
 import { handleUpload } from '@vercel/blob/client';
 import { put } from '@vercel/blob';
+import { listInstruments, listAccountInstruments, setAccountInstruments, resolveSessionInstrument } from '../services/instruments.js';
 import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, addUploadedRecording, addYouTubeRecording, deleteRecording, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks } from '../services/flowBlocks.js';
 import { importScoreFromFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/scoreImport.js';
@@ -240,20 +241,50 @@ router.get('/dropdown-options', requireAuth, resolveAccount, async (req, res) =>
 });
 
 // ========================================
+// INSTRUMENTS (ML-309) - the catalogue, and the instruments this account plays (My account ->
+// Your instruments). See server/services/instruments.js.
+// ========================================
+router.get('/instruments', requireAuth, async (req, res) => {
+  try {
+    res.json(await listInstruments());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.get('/account/instruments', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await listAccountInstruments(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.put('/account/instruments', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await setAccountInstruments(req.accountId, req.body?.instrumentIds, req.body?.primaryId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ========================================
 // SESSIONS (Practice logging)
 // ========================================
 router.post('/sessions', requireAuth, resolveAccount, async (req, res) => {
   try {
-    const { category, duration, who, date } = req.body;
+    const { category, duration, who, date, instrumentId } = req.body;
     const sessionType = CATEGORY_TO_SESSION_TYPE[category];
     if (!sessionType) return res.status(400).json({ error: 'Invalid category' });
 
     const { bandId, tutorId } = await resolveWho(req.accountId, sessionType, who);
+    // ML-309: the instrument picked on the form, else the account's main instrument, else none.
+    const sessionInstrumentId = await resolveSessionInstrument(req.accountId, instrumentId);
 
     const { rows } = await pool.query(
-      `INSERT INTO sessions (session_type, account_id, band_id, tutor_id, started_at, total_duration_minutes)
-       VALUES ($1, $2, $3, $4, ($5::date + (NOW() AT TIME ZONE $7)::time) AT TIME ZONE $7, $6) RETURNING id`,
-      [sessionType, req.accountId, bandId, tutorId, date, Number(duration), LONDON_TZ]
+      `INSERT INTO sessions (session_type, account_id, band_id, tutor_id, started_at, total_duration_minutes, instrument_id)
+       VALUES ($1, $2, $3, $4, ($5::date + (NOW() AT TIME ZONE $7)::time) AT TIME ZONE $7, $6, $8) RETURNING id`,
+      [sessionType, req.accountId, bandId, tutorId, date, Number(duration), LONDON_TZ, sessionInstrumentId]
     );
 
     res.json({ message: `Saved ${duration} mins!`, category, row: Number(rows[0].id) });
@@ -268,10 +299,12 @@ router.get('/sessions', requireAuth, resolveAccount, async (req, res) => {
     const { rows } = await pool.query(
       `SELECT s.id, s.session_type,
               to_char(s.started_at AT TIME ZONE $2, 'YYYY-MM-DD') AS date_str,
-              s.total_duration_minutes, b.name AS band_name, t.display_name AS tutor_name
+              s.total_duration_minutes, b.name AS band_name, t.display_name AS tutor_name,
+              s.instrument_id, i.name AS instrument_name
        FROM sessions s
        LEFT JOIN bands b ON b.id = s.band_id
        LEFT JOIN tutors t ON t.id = s.tutor_id
+       LEFT JOIN instruments i ON i.id = s.instrument_id
        WHERE s.account_id = $1
        ORDER BY s.started_at DESC`,
       [req.accountId, LONDON_TZ]
@@ -282,7 +315,9 @@ router.get('/sessions', requireAuth, resolveAccount, async (req, res) => {
       category: SESSION_TYPE_TO_CATEGORY[r.session_type],
       dateStr: r.date_str,
       duration: r.total_duration_minutes,
-      who: r.band_name || r.tutor_name || ''
+      who: r.band_name || r.tutor_name || '',
+      instrumentId: r.instrument_id !== null ? Number(r.instrument_id) : null,
+      instrumentName: r.instrument_name || null
     })));
   } catch (error) {
     console.error('Sessions fetch error:', error);
@@ -293,18 +328,21 @@ router.get('/sessions', requireAuth, resolveAccount, async (req, res) => {
 router.put('/sessions/:row', requireAuth, resolveAccount, async (req, res) => {
   try {
     const { row } = req.params;
-    const { category, duration, who, date } = req.body;
+    const { category, duration, who, date, instrumentId } = req.body;
     const sessionType = CATEGORY_TO_SESSION_TYPE[category];
     if (!sessionType) return res.status(400).json({ error: 'Invalid category' });
 
     const { bandId, tutorId } = await resolveWho(req.accountId, sessionType, who);
+    // ML-309: only changes the instrument when the form sent one (older clients don't).
+    const sessionInstrumentId = instrumentId === undefined ? undefined : await resolveSessionInstrument(req.accountId, instrumentId);
 
     await pool.query(
       `UPDATE sessions SET session_type = $1, band_id = $2, tutor_id = $3,
          started_at = ($4::date + (started_at AT TIME ZONE $8)::time) AT TIME ZONE $8,
-         total_duration_minutes = $5
+         total_duration_minutes = $5,
+         instrument_id = CASE WHEN $9::boolean THEN $10::bigint ELSE instrument_id END
        WHERE id = $6 AND account_id = $7`,
-      [sessionType, bandId, tutorId, date, Number(duration), row, req.accountId, LONDON_TZ]
+      [sessionType, bandId, tutorId, date, Number(duration), row, req.accountId, LONDON_TZ, sessionInstrumentId !== undefined, sessionInstrumentId ?? null]
     );
 
     res.json({ message: 'Session updated', row });

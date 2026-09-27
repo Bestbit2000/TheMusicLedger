@@ -156,7 +156,9 @@ export async function saveTheoryAttempt(accountId, body) {
   if (Number.isNaN(startedAt.getTime())) throw withStatus(400, 'Invalid start time.');
   const naming = b.naming === 'solfege' ? 'solfege' : 'letters';
 
-  const options = plain(Theory.normaliseOptions(b.quizId, b.options));
+  // ML-309: a Theory grade only counts while theory_grades is on - otherwise it's the custom options.
+  const gradesOn = await isFeatureEnabled('theory_grades');
+  const options = plain(Theory.normaliseOptions(b.quizId, gradesOn ? b.options : { ...(b.options || {}), grade: 0 }));
   const settingsKey = Theory.settingsKey(b.quizId, options, round.value);
   const { right, wrong, score, grade } = plain(Theory.scoreRound(round.value, answers));
   const smartLearn = await isFeatureEnabled('theory_smart_learn');

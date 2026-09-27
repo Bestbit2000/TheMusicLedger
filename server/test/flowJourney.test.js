@@ -475,3 +475,68 @@ describe('repeat bars (ML-302)', () => {
         assert.deepEqual(FJ.passagesOf(p.between).map(x => x.kind), ['rest', 'rest', 'rest', 'main']);
     });
 });
+
+describe('back-to-back sets of alternate endings (ML-311)', () => {
+    // Teddy Bears Picnic's shape: two "1. 2." pairs in a row, each section with its own start repeat.
+    test('two pairs, each with a start repeat: no "marked twice" warning, and both play right', () => {
+        const blocks = [
+            blk('A'),
+            blk('B', { barCount: 2, isRepeatStart: true, isRepeatEnd: true, repeatEndingNumbers: [1], repeatEndingStartBar: 2 }),
+            blk('C', { repeatEndingNumbers: [2] }),
+            blk('D', { barCount: 2, isRepeatStart: true, isRepeatEnd: true, repeatEndingNumbers: [1], repeatEndingStartBar: 2 }),
+            blk('E', { repeatEndingNumbers: [2] }),
+            blk('F')
+        ];
+        assert.equal(play(blocks).s, 'A1 B1 B2 B1 C1 D1 D2 D1 E1 F1');
+        assert.deepEqual(codes(blocks), []);
+    });
+    test('the second pair with no start repeat goes back to just after the first pair', () => {
+        const blocks = [
+            blk('A', { isRepeatStart: true }),
+            blk('B', { isRepeatEnd: true, repeatEndingNumbers: [1] }),
+            blk('C', { repeatEndingNumbers: [2] }),
+            blk('D'),
+            blk('E', { isRepeatEnd: true, repeatEndingNumbers: [1] }),
+            blk('F', { repeatEndingNumbers: [2] }),
+            blk('G')
+        ];
+        // D has no endings, so the second pair is E/F; its repeat goes back to D (after C).
+        assert.equal(play(blocks).s, 'A1 B1 A1 C1 D1 E1 D1 F1 G1');
+        // Still asks for a start repeat (ML-248: ambiguous after an earlier repeat) - but no longer
+        // a 'marked twice' warning, and playback goes back to just after the first pair.
+        assert.deepEqual(codes(blocks), ['repeat-end-no-start']);
+    });
+    test('a second "1." straight after a "2." (no start repeat, no bars between) starts a new set', () => {
+        const blocks = [
+            blk('A', { isRepeatStart: true }),
+            blk('B', { isRepeatEnd: true, repeatEndingNumbers: [1] }),
+            blk('C', { repeatEndingNumbers: [2] }),
+            blk('D', { isRepeatEnd: true, repeatEndingNumbers: [1] }),
+            blk('E', { repeatEndingNumbers: [2] }),
+            blk('F')
+        ];
+        // D's set has nothing before its 1st ending to repeat, so D plays once and E follows.
+        assert.equal(play(blocks).s, 'A1 B1 A1 C1 D1 E1 F1');
+        assert.deepEqual(codes(blocks), ['repeat-end-no-start']);
+    });
+    test('a 1st ending spread over two blocks is still one set', () => {
+        const blocks = [
+            blk('A', { isRepeatStart: true }),
+            blk('B', { repeatEndingNumbers: [1] }),
+            blk('C', { isRepeatEnd: true, repeatEndingNumbers: [1] }),
+            blk('D', { repeatEndingNumbers: [2] }),
+            blk('E')
+        ];
+        assert.equal(play(blocks).s, 'A1 B1 C1 A1 D1 E1');
+        assert.deepEqual(codes(blocks), []);
+    });
+    test('the same pass really marked twice in one set still warns', () => {
+        const blocks = [
+            blk('A', { isRepeatStart: true }),
+            blk('B', { isRepeatEnd: true, repeatEndingNumbers: [1, 2] }),
+            blk('C', { repeatEndingNumbers: [2] }),
+            blk('D')
+        ];
+        assert.ok(codes(blocks).includes('ending-pass-twice'));
+    });
+});

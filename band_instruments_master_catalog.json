@@ -1,0 +1,1250 @@
+{
+  "metadata": {
+    "title": "Comprehensive Master Instrument Catalog for Concert Band, Brass Band, and Wind Band",
+    "description": "Complete reference catalog containing name, standard tuning/key, sounding transposition, clef, instrument family, ensemble distribution, and usage notes for wind, brass, string, keyboard, and percussion instruments.",
+    "ensemble_definitions": {
+      "Concert Band": "Also known as Symphonic Band or Wind Ensemble. Composed of full woodwind, brass, percussion sections, and double bass/piano/harp.",
+      "Brass Band": "Traditional British-style brass band with strictly defined 28-player instrumentation: cornets, flugelhorn, tenor horns, baritones, trombones, euphoniums, tubas (EEb and BBb basses), and percussion.",
+      "Wind Band / Military Band": "Large-scale symphonic or military wind formation blending full woodwinds, expanded brass (cornets, trumpets, mellophones/horns), marching basses/sousaphones, and marching/concert percussion."
+    },
+    "total_instruments_cataloged": 76
+  },
+  "instruments": [
+    {
+      "id": "piccolo_c",
+      "name": "Piccolo",
+      "key": "C",
+      "sounding_transposition": "Sounds 1 octave higher than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Flute",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Auxiliary / Standard Section Lead High Voice",
+      "frequency": "Standard",
+      "notes": "Ubiquitous in concert and military bands for upper-register brilliance and tutti doubling."
+    },
+    {
+      "id": "piccolo_db",
+      "name": "D♭ Piccolo",
+      "key": "D♭",
+      "sounding_transposition": "Sounds a minor 9th higher than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Flute",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Historical Military Band Piccolo",
+      "frequency": "Rare / Historical",
+      "notes": "Standard in late 19th and early 20th century American and European military band arrangements (Sousa marches originally scored for D♭ piccolo)."
+    },
+    {
+      "id": "concert_flute",
+      "name": "Concert Flute",
+      "key": "C",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Flute",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Core Woodwind Melody & Color Voice",
+      "frequency": "Standard",
+      "notes": "Typically divided into 1st and 2nd flute parts; standard sections contain 4 to 8 players."
+    },
+    {
+      "id": "alto_flute",
+      "name": "Alto Flute",
+      "key": "G",
+      "sounding_transposition": "Sounds a perfect 4th lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Flute",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Auxiliary Warm Low Voice",
+      "frequency": "Occasional",
+      "notes": "Frequently used in modern symphonic band repertoire for rich, velvety lyrical passages."
+    },
+    {
+      "id": "bass_flute",
+      "name": "Bass Flute",
+      "key": "C",
+      "sounding_transposition": "Sounds 1 octave lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Flute",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Auxiliary Deep Tone Color",
+      "frequency": "Rare / Extended",
+      "notes": "Found in contemporary large-ensemble works and dedicated flute choir features."
+    },
+    {
+      "id": "oboe",
+      "name": "Oboe",
+      "key": "C",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Double Reed",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Core Soloist & Harmonic Color Voice",
+      "frequency": "Standard",
+      "notes": "Usually 1st and 2nd oboe; primary tuning benchmark instrument in concert bands."
+    },
+    {
+      "id": "english_horn",
+      "name": "English Horn (Cor Anglais)",
+      "key": "F",
+      "sounding_transposition": "Sounds a perfect 5th lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Double Reed",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Auxiliary Tenor Double Reed Soloist",
+      "frequency": "Common",
+      "notes": "Major expressive voice in masterworks (Holst, Grainger, Maslanka, Reed)."
+    },
+    {
+      "id": "oboe_d_amore",
+      "name": "Oboe d'Amore",
+      "key": "A",
+      "sounding_transposition": "Sounds a minor 3rd lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Double Reed",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Specialist Mezzo-Soprano Double Reed",
+      "frequency": "Rare / Extended",
+      "notes": "Rarely scored in transcriptions (e.g. Ravel, Bach) and select contemporary band works."
+    },
+    {
+      "id": "bassoon",
+      "name": "Bassoon",
+      "key": "C",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Bass / Tenor",
+      "family": "Woodwind",
+      "subfamily": "Double Reed",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Core Bass & Tenor Woodwind Voice",
+      "frequency": "Standard",
+      "notes": "Standard instrumentation calls for Bassoon 1 and 2, reinforcing low clarinets, saxophones, and euphoniums."
+    },
+    {
+      "id": "contrabassoon",
+      "name": "Contrabassoon",
+      "key": "C",
+      "sounding_transposition": "Sounds 1 octave lower than written",
+      "clef": "Bass",
+      "family": "Woodwind",
+      "subfamily": "Double Reed",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Sub-bass Foundation & Dark Accent",
+      "frequency": "Occasional",
+      "notes": "Provides foundation pedal reed tone down to sub-contra B♭/A."
+    },
+    {
+      "id": "heckelphone",
+      "name": "Heckelphone",
+      "key": "C",
+      "sounding_transposition": "Sounds 1 octave lower than written",
+      "clef": "Treble / Bass",
+      "family": "Woodwind",
+      "subfamily": "Double Reed",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Rare Baritone Double Reed",
+      "frequency": "Rare / Extended",
+      "notes": "Baritone oboe member, occasional appearance in avant-garde and large European wind scores."
+    },
+    {
+      "id": "ab_piccolo_clarinet",
+      "name": "A♭ Piccolo Clarinet",
+      "key": "A♭",
+      "sounding_transposition": "Sounds a minor 7th higher than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Clarinet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "High Sopranino Solo / Color Voice",
+      "frequency": "Rare / Historical",
+      "notes": "Featured in traditional Italian and Spanish civil/military bands (banda civica/militare) and clarinet choirs."
+    },
+    {
+      "id": "eb_clarinet",
+      "name": "E♭ Sopranino Clarinet",
+      "key": "E♭",
+      "sounding_transposition": "Sounds a minor 3rd higher than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Clarinet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Standard High Clarinet Voice",
+      "frequency": "Standard",
+      "notes": "Crucial lead color in advanced concert band literature, military marches, and wind ensembles."
+    },
+    {
+      "id": "d_clarinet",
+      "name": "D Clarinet",
+      "key": "D",
+      "sounding_transposition": "Sounds a major 2nd higher than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Clarinet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Historical / Classical Sopranino Voice",
+      "frequency": "Rare / Historical",
+      "notes": "Seen mainly in older European concert band transcriptions (Strauss, Molter); today almost universally transposed to E♭ clarinet."
+    },
+    {
+      "id": "bb_soprano_clarinet",
+      "name": "B♭ Clarinet (Soprano)",
+      "key": "B♭",
+      "sounding_transposition": "Sounds a major 2nd lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Clarinet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Primary Core Woodwind Ensemble Backbone",
+      "frequency": "Standard",
+      "notes": "The violin equivalent of the wind band. Divided into 1st, 2nd, and 3rd parts, often with 9–20 players total."
+    },
+    {
+      "id": "a_soprano_clarinet",
+      "name": "A Clarinet",
+      "key": "A",
+      "sounding_transposition": "Sounds a minor 3rd lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Clarinet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Occasional Orchestral Adaptation / Soloist",
+      "frequency": "Rare / Occasional",
+      "notes": "Standard in orchestras, but occasionally specified in band works (e.g. Percy Grainger, David Maslanka) or orchestral transcriptions."
+    },
+    {
+      "id": "basset_horn",
+      "name": "Basset Horn",
+      "key": "F",
+      "sounding_transposition": "Sounds a perfect 5th lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Clarinet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Tenor Auxiliary Clarinet",
+      "frequency": "Rare / Occasional",
+      "notes": "Featured in classical transcriptions (Mozart, Mendelssohn) and specialist clarinet choir features."
+    },
+    {
+      "id": "eb_alto_clarinet",
+      "name": "E♭ Alto Clarinet",
+      "key": "E♭",
+      "sounding_transposition": "Sounds a major 6th lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Clarinet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Mid-Voice Harmony & Bridge",
+      "frequency": "Common",
+      "notes": "Bridges soprano and bass clarinets; standard in American mid-century symphonic band scoring."
+    },
+    {
+      "id": "bb_bass_clarinet",
+      "name": "B♭ Bass Clarinet",
+      "key": "B♭",
+      "sounding_transposition": "Sounds a major 9th lower than written (French notation in treble clef)",
+      "clef": "Treble (French notation) / Bass (German notation)",
+      "family": "Woodwind",
+      "subfamily": "Clarinet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Core Bass Woodwind & Solo Voice",
+      "frequency": "Standard",
+      "notes": "Standard section contains 1 to 3 players; critical bridge between woodwinds and brass basses."
+    },
+    {
+      "id": "eb_contra_alto_clarinet",
+      "name": "EE♭ Contra-Alto Clarinet",
+      "key": "E♭",
+      "sounding_transposition": "Sounds 1 octave and a major 6th lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Clarinet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Contra-Bass Harmony & Resonance",
+      "frequency": "Common",
+      "notes": "Often preferred in academic concert bands for easier response and agility compared to BB♭ contrabass."
+    },
+    {
+      "id": "bb_contrabass_clarinet",
+      "name": "BB♭ Contrabass Clarinet",
+      "key": "B♭",
+      "sounding_transposition": "Sounds 2 octaves and a major 2nd lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Clarinet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "True Sub-bass Woodwind Anchor",
+      "frequency": "Common",
+      "notes": "Adds profound sub-harmonic depth; capable of descending to sounding B♭0."
+    },
+    {
+      "id": "soprillo_saxophone",
+      "name": "Soprillo Saxophone (Piccolo Saxophone)",
+      "key": "B♭",
+      "sounding_transposition": "Sounds 1 octave and a major 2nd higher than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Saxophone",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Novelty / Extreme High Color",
+      "frequency": "Rare / Extended",
+      "notes": "Smallest pitched saxophone (sounding up to F7); rare novelty or saxophone choir feature."
+    },
+    {
+      "id": "sopranino_saxophone",
+      "name": "E♭ Sopranino Saxophone",
+      "key": "E♭",
+      "sounding_transposition": "Sounds a minor 3rd higher than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Saxophone",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Upper Color Accent",
+      "frequency": "Occasional",
+      "notes": "Appears in European military band scores and modern saxophone ensemble repertoire."
+    },
+    {
+      "id": "bb_soprano_saxophone",
+      "name": "B♭ Soprano Saxophone",
+      "key": "B♭",
+      "sounding_transposition": "Sounds a major 2nd lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Saxophone",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Expressive Soloist & Upper Quartal Voice",
+      "frequency": "Common",
+      "notes": "Regularly called for in contemporary concert band literature (Grainger, Husa, Mackey, Ticheli)."
+    },
+    {
+      "id": "eb_alto_saxophone",
+      "name": "E♭ Alto Saxophone",
+      "key": "E♭",
+      "sounding_transposition": "Sounds a major 6th lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Saxophone",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Core Lead Saxophone Voice",
+      "frequency": "Standard",
+      "notes": "Standard instrumentation includes 1st and 2nd Alto Saxophones; versatile melodic and harmonic voice."
+    },
+    {
+      "id": "bb_tenor_saxophone",
+      "name": "B♭ Tenor Saxophone",
+      "key": "B♭",
+      "sounding_transposition": "Sounds a major 9th lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Saxophone",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Core Tenor Saxophone Voice",
+      "frequency": "Standard",
+      "notes": "Essential middle-register voice, frequently pairing with euphoniums, French horns, and bassoons."
+    },
+    {
+      "id": "eb_baritone_saxophone",
+      "name": "E♭ Baritone Saxophone",
+      "key": "E♭",
+      "sounding_transposition": "Sounds 1 octave and a major 6th lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Saxophone",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Core Bass Saxophone & Rhythmic Anchor",
+      "frequency": "Standard",
+      "notes": "Usually features a low A key in modern bands; provides punchy bass lines and reed foundation."
+    },
+    {
+      "id": "bb_bass_saxophone",
+      "name": "B♭ Bass Saxophone",
+      "key": "B♭",
+      "sounding_transposition": "Sounds 2 octaves and a major 2nd lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Saxophone",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Auxiliary Deep Bass",
+      "frequency": "Occasional",
+      "notes": "Common in early 20th century bands (Sousa, Gilmore) and revived in modern concert band scores."
+    },
+    {
+      "id": "eb_contrabass_saxophone",
+      "name": "EE♭ Contrabass Saxophone",
+      "key": "E♭",
+      "sounding_transposition": "Sounds 2 octaves and a major 6th lower than written",
+      "clef": "Treble",
+      "family": "Woodwind",
+      "subfamily": "Saxophone",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Extreme Sub-bass Extension",
+      "frequency": "Rare / Extended",
+      "notes": "Gigantic sub-bass saxophone; also seen in modern 'Tubax' configuration."
+    },
+    {
+      "id": "eb_soprano_cornet",
+      "name": "E♭ Soprano Cornet",
+      "key": "E♭",
+      "sounding_transposition": "Sounds a minor 3rd higher than written",
+      "clef": "Treble",
+      "family": "Brass",
+      "subfamily": "Cornet",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "High Solo Brass Lead & Crown",
+      "frequency": "Standard in Brass Band, Common in Wind Band",
+      "notes": "Sole upper-register brass crown in traditional British brass bands (1 player); also used for high color in concert bands."
+    },
+    {
+      "id": "bb_cornet",
+      "name": "B♭ Cornet",
+      "key": "B♭",
+      "sounding_transposition": "Sounds a major 2nd lower than written",
+      "clef": "Treble",
+      "family": "Brass",
+      "subfamily": "Cornet",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Core Melodic Brass Voice",
+      "frequency": "Standard",
+      "notes": "In Brass Bands, makes up 9 players (4 Solo Cornets, 1 Repiano, 2 Second Cornets, 2 Third Cornets). In Concert Bands, historically distinct from trumpets (Cornet 1/2)."
+    },
+    {
+      "id": "bb_repiano_cornet",
+      "name": "B♭ Repiano Cornet",
+      "key": "B♭",
+      "sounding_transposition": "Sounds a major 2nd lower than written",
+      "clef": "Treble",
+      "family": "Brass",
+      "subfamily": "Cornet",
+      "ensembles": [
+        "Brass Band"
+      ],
+      "role": "Auxiliary Roving Soloist & Flute/Horn Doubler",
+      "frequency": "Standard (Brass Band)",
+      "notes": "Dedicated seat in British brass bands acting as utility soloist and bridge between soprano and lower cornets."
+    },
+    {
+      "id": "bb_flugelhorn",
+      "name": "B♭ Flugelhorn",
+      "key": "B♭",
+      "sounding_transposition": "Sounds a major 2nd lower than written",
+      "clef": "Treble",
+      "family": "Brass",
+      "subfamily": "Flugelhorn",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Mellow Mezzo-Soprano Brass Soloist",
+      "frequency": "Standard in Brass Band, Common in Concert Band",
+      "notes": "1 player in standard Brass Band (essential bridge to Tenor Horns); frequently used for lyrical solos in concert band works."
+    },
+    {
+      "id": "piccolo_trumpet",
+      "name": "Piccolo Trumpet",
+      "key": "B♭ / A",
+      "sounding_transposition": "Sounds a minor 7th (in B♭) or major 6th (in A) higher than written",
+      "clef": "Treble",
+      "family": "Brass",
+      "subfamily": "Trumpet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "High Clarino Soloist & Brilliance",
+      "frequency": "Occasional",
+      "notes": "Four-valved instrument used for clarino baroque transcriptions and contemporary wind ensemble works."
+    },
+    {
+      "id": "eb_d_trumpet",
+      "name": "E♭ / D Trumpet",
+      "key": "E♭ / D",
+      "sounding_transposition": "Sounds a minor 3rd (in E♭) or major 2nd (in D) higher than written",
+      "clef": "Treble",
+      "family": "Brass",
+      "subfamily": "Trumpet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Upper Register Classical Trumpet",
+      "frequency": "Occasional",
+      "notes": "Often specified for classical transcriptions (Haydn, Hummel) and high fanfare passages."
+    },
+    {
+      "id": "bb_trumpet",
+      "name": "B♭ Trumpet",
+      "key": "B♭",
+      "sounding_transposition": "Sounds a major 2nd lower than written",
+      "clef": "Treble",
+      "family": "Brass",
+      "subfamily": "Trumpet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Core Melodic & Fanfare Brass Voice",
+      "frequency": "Standard (Concert/Wind Band)",
+      "notes": "Standard concert band section comprises 3 parts (often 2–3 players each). Note: Excluded from traditional British brass bands, where cornets reign."
+    },
+    {
+      "id": "c_trumpet",
+      "name": "C Trumpet",
+      "key": "C",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Treble",
+      "family": "Brass",
+      "subfamily": "Trumpet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Bright Orchestral Trumpet Voice",
+      "frequency": "Occasional",
+      "notes": "Frequently utilized by professional wind ensembles and college bands playing orchestral repertoire."
+    },
+    {
+      "id": "bass_trumpet",
+      "name": "Bass Trumpet",
+      "key": "B♭ / C",
+      "sounding_transposition": "Sounds a major 9th lower than written (in B♭)",
+      "clef": "Treble / Bass",
+      "family": "Brass",
+      "subfamily": "Trumpet",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Tenor Brass Fanfare Voice",
+      "frequency": "Rare / Extended",
+      "notes": "Occasionally called for in large military bands and works by Stravinsky, Wagner, or modern wind composers."
+    },
+    {
+      "id": "eb_tenor_horn",
+      "name": "E♭ Tenor Horn (Alto Horn)",
+      "key": "E♭",
+      "sounding_transposition": "Sounds a major 6th lower than written",
+      "clef": "Treble",
+      "family": "Brass",
+      "subfamily": "Horn",
+      "ensembles": [
+        "Brass Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Middle Harmonic & Melodic Core (Brass Band)",
+      "frequency": "Standard in Brass Band, Common in Military Band",
+      "notes": "Standard in British brass bands (Solo, 1st, and 2nd Tenor Horn). Referred to as 'Alto Horn' in North America."
+    },
+    {
+      "id": "french_horn",
+      "name": "French Horn (Double Horn)",
+      "key": "F / B♭",
+      "sounding_transposition": "Sounds a perfect 5th lower than written (in F)",
+      "clef": "Treble / Bass",
+      "family": "Brass",
+      "subfamily": "Horn",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Core Harmonic Warmth & Melodic Horn Voice",
+      "frequency": "Standard (Concert/Wind Band)",
+      "notes": "Standard section of 4 horns (Horns 1, 2, 3, 4). Excluded from standard British brass bands."
+    },
+    {
+      "id": "mellophone",
+      "name": "F / E♭ Mellophone",
+      "key": "F / E♭",
+      "sounding_transposition": "Sounds a perfect 5th lower (in F) or major 6th lower (in E♭)",
+      "clef": "Treble",
+      "family": "Brass",
+      "subfamily": "Horn",
+      "ensembles": [
+        "Wind Band / Military Band",
+        "Marching Band"
+      ],
+      "role": "Forward-Facing Middle Brass",
+      "frequency": "Standard in Marching/Outdoor Bands, Historical in Concert Band",
+      "notes": "Commonly replaces French horns in marching wind bands and outdoor military formations."
+    },
+    {
+      "id": "wagner_tuba",
+      "name": "Wagner Tuba (Tenor / Bass)",
+      "key": "B♭ / F",
+      "sounding_transposition": "Sounds a major 2nd lower (B♭) or perfect 5th lower (F)",
+      "clef": "Treble / Bass",
+      "family": "Brass",
+      "subfamily": "Horn",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Deep Noble Brass Color",
+      "frequency": "Rare / Extended",
+      "notes": "Played with a horn mouthpiece by French hornists; used in transcriptions (Bruckner, Wagner, Strauss) and extended modern wind works."
+    },
+    {
+      "id": "bb_baritone_horn",
+      "name": "B♭ Baritone Horn",
+      "key": "B♭",
+      "sounding_transposition": "Sounds a major 9th lower than written in treble clef (or concert pitch in bass clef)",
+      "clef": "Treble (Brass Band) / Bass (Wind Band)",
+      "family": "Brass",
+      "subfamily": "Baritone/Euphonium",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Cylindrical/Narrow-Bore Tenor Harmony Voice",
+      "frequency": "Standard in Brass Band, Common in Wind Band",
+      "notes": "Standard in British brass bands (1st and 2nd Baritone). Narrower cylindrical bore than euphonium, producing a leaner, lighter tone."
+    },
+    {
+      "id": "bb_euphonium",
+      "name": "B♭ Euphonium",
+      "key": "B♭",
+      "sounding_transposition": "Sounds a major 9th lower than written in treble clef (or concert pitch in bass clef)",
+      "clef": "Bass Clef (Concert pitch in Concert Band) / Treble Clef (Transposing in Brass Band)",
+      "family": "Brass",
+      "subfamily": "Baritone/Euphonium",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Premier Tenor-Baritone Soloist & Tenor Foundation",
+      "frequency": "Standard",
+      "notes": "Wide conical bore with warm cello-like timbre. 2 players in brass band (Solo Euphonium & 2nd Euphonium); 2–4 players in concert band."
+    },
+    {
+      "id": "alto_trombone",
+      "name": "Alto Trombone",
+      "key": "E♭",
+      "sounding_transposition": "Concert pitch in alto/treble clef, or transposing up a minor 3rd depending on edition",
+      "clef": "Alto / Treble",
+      "family": "Brass",
+      "subfamily": "Trombone",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Auxiliary High Trombone Voice",
+      "frequency": "Occasional",
+      "notes": "Used in early music transcriptions, classical wind serenades, and select modern symphonic wind scores."
+    },
+    {
+      "id": "tenor_trombone",
+      "name": "Tenor Trombone (Slide Trombone)",
+      "key": "B♭",
+      "sounding_transposition": "Concert pitch in bass clef (Concert Band); sounds major 9th lower than written in treble clef (Brass Band)",
+      "clef": "Bass / Tenor (Concert Band) / Treble (Brass Band)",
+      "family": "Brass",
+      "subfamily": "Trombone",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Core Tenor Brass Directional Voice",
+      "frequency": "Standard",
+      "notes": "In Brass Band: 1st and 2nd Tenor Trombones reading transposing treble clef. In Concert Band: 1st and 2nd Trombones reading non-transposing bass/tenor clef."
+    },
+    {
+      "id": "bass_trombone",
+      "name": "Bass Trombone",
+      "key": "B♭ / F / G♭ / D",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Bass",
+      "family": "Brass",
+      "subfamily": "Trombone",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Core Low Brass Voice & Rhythmic Punch",
+      "frequency": "Standard",
+      "notes": "Equipped with 1 or 2 rotary/axial valves. Unique in British brass bands as the ONLY brass instrument reading non-transposing bass clef."
+    },
+    {
+      "id": "contrabass_trombone",
+      "name": "Contrabass Trombone",
+      "key": "BB♭ / F",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Bass",
+      "family": "Brass",
+      "subfamily": "Trombone",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Sub-bass Directional Brass Voice",
+      "frequency": "Rare / Extended",
+      "notes": "Double-slide or valve-extended contrabass instrument used in monumental wind ensemble works."
+    },
+    {
+      "id": "valve_trombone",
+      "name": "Valve Trombone",
+      "key": "B♭",
+      "sounding_transposition": "Sounds a major 9th lower than written (treble) or concert pitch (bass)",
+      "clef": "Treble / Bass",
+      "family": "Brass",
+      "subfamily": "Trombone",
+      "ensembles": [
+        "Wind Band / Military Band",
+        "Concert Band"
+      ],
+      "role": "Agile Marching & Latin Band Trombone",
+      "frequency": "Common in Southern European / Latin American Bands",
+      "notes": "Widely used in Italian, Spanish, Austrian, and Latin American wind bands for rapid valve agility while marching."
+    },
+    {
+      "id": "eb_tuba",
+      "name": "E♭ Tuba (EE♭ Bass)",
+      "key": "E♭",
+      "sounding_transposition": "Concert pitch in bass clef (Concert Band); sounds 1 octave + major 6th lower in treble clef (Brass Band)",
+      "clef": "Bass (Concert Band) / Treble (Brass Band)",
+      "family": "Brass",
+      "subfamily": "Tuba",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Core Bass Foundation",
+      "frequency": "Standard",
+      "notes": "Known as 'EE♭ Bass' in British Brass Bands (2 players). Celebrated for lyrical agility and clear upper-bass definition."
+    },
+    {
+      "id": "bb_tuba",
+      "name": "B♭ Tuba (BB♭ Bass)",
+      "key": "B♭",
+      "sounding_transposition": "Concert pitch in bass clef (Concert Band); sounds 2 octaves + major 2nd lower in treble clef (Brass Band)",
+      "clef": "Bass (Concert Band) / Treble (Brass Band)",
+      "family": "Brass",
+      "subfamily": "Tuba",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Heavy Sub-bass Anchor",
+      "frequency": "Standard",
+      "notes": "Known as 'BB♭ Bass' in British Brass Bands (2 players). Forms the monumental foundation of both brass and wind bands."
+    },
+    {
+      "id": "c_tuba",
+      "name": "C Tuba (CC Tuba)",
+      "key": "C",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Bass",
+      "family": "Brass",
+      "subfamily": "Tuba",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Orchestral Bass Foundation",
+      "frequency": "Common (Professional Wind Ensembles)",
+      "notes": "Standard instrument for orchestral tuba players in the USA, frequently preferred in American collegiate wind ensembles."
+    },
+    {
+      "id": "f_tuba",
+      "name": "F Tuba",
+      "key": "F",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Bass",
+      "family": "Brass",
+      "subfamily": "Tuba",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Solo & High-Register Tuba Voice",
+      "frequency": "Common",
+      "notes": "Used widely for solo repertoire, higher tuba parts, and lighter texture wind ensemble works."
+    },
+    {
+      "id": "sousaphone",
+      "name": "Sousaphone",
+      "key": "B♭ / E♭",
+      "sounding_transposition": "Concert pitch (non-transposing bass clef)",
+      "clef": "Bass",
+      "family": "Brass",
+      "subfamily": "Tuba",
+      "ensembles": [
+        "Wind Band / Military Band",
+        "Marching Band"
+      ],
+      "role": "Marching & Military Band Bass Anchor",
+      "frequency": "Standard in Marching/Military Bands",
+      "notes": "Designed under John Philip Sousa's direction to cast warm bass tone upward and over the band."
+    },
+    {
+      "id": "helicon",
+      "name": "Helicon",
+      "key": "B♭ / E♭ / F",
+      "sounding_transposition": "Concert pitch (non-transposing bass clef)",
+      "clef": "Bass",
+      "family": "Brass",
+      "subfamily": "Tuba",
+      "ensembles": [
+        "Wind Band / Military Band"
+      ],
+      "role": "Historical Mounted/Military Band Bass",
+      "frequency": "Occasional / Historical",
+      "notes": "Predecessor to the sousaphone, coiling around the torso; common in European cavalry and military bands."
+    },
+    {
+      "id": "double_bass",
+      "name": "String Bass (Double Bass / Contrabass)",
+      "key": "C",
+      "sounding_transposition": "Sounds 1 octave lower than written",
+      "clef": "Bass",
+      "family": "Strings",
+      "subfamily": "Bowed Strings",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Pizzicato Definition & Low Resonance",
+      "frequency": "Standard in Concert Band",
+      "notes": "Standard member of the modern concert band/wind ensemble, providing pizzicato clarity and warm sustained low notes."
+    },
+    {
+      "id": "violoncello",
+      "name": "Cello (Violoncello)",
+      "key": "C",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Bass / Tenor / Treble",
+      "family": "Strings",
+      "subfamily": "Bowed Strings",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Mid-Bass Melodic Voice",
+      "frequency": "Rare / Regional",
+      "notes": "Standard in traditional Spanish wind bands (bandas de música) and Italian municipal bands; occasional guest in symphonic wind works."
+    },
+    {
+      "id": "concert_harp",
+      "name": "Concert Harp",
+      "key": "C (Diatonic with 7 double-action pedals)",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Grand Staff (Treble and Bass)",
+      "family": "Strings",
+      "subfamily": "Plucked Strings",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Arpeggiated Color & Delicate Accents",
+      "frequency": "Common in Advanced Wind Literature",
+      "notes": "Featured extensively in contemporary masterworks (Grainger, Persichetti, Husa, Barnes, Whitacre)."
+    },
+    {
+      "id": "electric_bass",
+      "name": "Electric Bass Guitar",
+      "key": "C",
+      "sounding_transposition": "Sounds 1 octave lower than written",
+      "clef": "Bass",
+      "family": "Strings",
+      "subfamily": "Plucked Strings (Electric)",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Modern Rhythm & Punch",
+      "frequency": "Common in Pops & Contemporary Literature",
+      "notes": "Often doubles or replaces the tuba/double bass in jazz, pop, Broadway, and wind rock settings."
+    },
+    {
+      "id": "piano",
+      "name": "Concert Grand Piano",
+      "key": "C",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Grand Staff (Treble and Bass)",
+      "family": "Keyboard",
+      "subfamily": "Keyboard / Percussion",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Harmonic Backbone, Percussive Attack & Soloist",
+      "frequency": "Standard in Contemporary Literature",
+      "notes": "Vital orchestral texture in 20th and 21st-century wind band repertoire."
+    },
+    {
+      "id": "celesta",
+      "name": "Celesta",
+      "key": "C",
+      "sounding_transposition": "Sounds 1 octave higher than written",
+      "clef": "Grand Staff (Treble and Bass)",
+      "family": "Keyboard",
+      "subfamily": "Keyboard / Metallophone",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Ethereal Sparkle & Color",
+      "frequency": "Occasional",
+      "notes": "Steel plates struck by felt hammers, operated via keyboard; used for delicate fairy-like textures."
+    },
+    {
+      "id": "synthesizer_organ",
+      "name": "Synthesizer / Electronic Organ",
+      "key": "C",
+      "sounding_transposition": "Concert pitch (transposition user-defined)",
+      "clef": "Grand Staff",
+      "family": "Keyboard",
+      "subfamily": "Electronic",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Sub-pedal Tones & Electronic Effects",
+      "frequency": "Occasional",
+      "notes": "Used for pipe organ emulations, sub-bass 32' pedal points, and atmospheric sound design."
+    },
+    {
+      "id": "timpani",
+      "name": "Timpani (Kettledrums)",
+      "key": "Tuned to pitch (typically set of 4 or 5 drums: 32\", 29\", 26\", 23\", 20\")",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Bass",
+      "family": "Percussion",
+      "subfamily": "Tuned Percussion (Membranophone)",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Core Harmonic Bass Rhythms & Dynamic Climax",
+      "frequency": "Standard",
+      "notes": "Crucial anchor in both brass bands and concert bands. Pitch range typically covers D2 to A3."
+    },
+    {
+      "id": "glockenspiel",
+      "name": "Glockenspiel (Orchestra Bells)",
+      "key": "C (Tuned steel bars)",
+      "sounding_transposition": "Sounds 2 octaves higher than written",
+      "clef": "Treble",
+      "family": "Percussion",
+      "subfamily": "Tuned Percussion (Metallophone)",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Upper Harmonic Sparkle & Melody Reinforcement",
+      "frequency": "Standard",
+      "notes": "Penetrating high metallic bell tone, often doubling upper woodwinds or soprano brass."
+    },
+    {
+      "id": "xylophone",
+      "name": "Xylophone",
+      "key": "C (Tuned rosewood/synthetic bars)",
+      "sounding_transposition": "Sounds 1 octave higher than written",
+      "clef": "Treble",
+      "family": "Percussion",
+      "subfamily": "Tuned Percussion (Idiophone)",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Sharp Articulation & Rapid Melodic Runs",
+      "frequency": "Standard",
+      "notes": "Bright, sharp acoustic attack; essential in both modern concert band and brass band percussion sections."
+    },
+    {
+      "id": "marimba",
+      "name": "Marimba",
+      "key": "C (Tuned rosewood/padauk bars, usually 4.3 or 5.0 octaves)",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Grand Staff (Treble and Bass)",
+      "family": "Percussion",
+      "subfamily": "Tuned Percussion (Idiophone)",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Warm Resonant Chords & Rapid Keyboard Runs",
+      "frequency": "Standard in Modern Band Repertoire",
+      "notes": "Deep, warm, resonant acoustic timbre; foundational voice in modern percussion writing."
+    },
+    {
+      "id": "vibraphone",
+      "name": "Vibraphone",
+      "key": "C (Tuned aluminum alloy bars, 3.0 octaves)",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Treble",
+      "family": "Percussion",
+      "subfamily": "Tuned Percussion (Metallophone)",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Lyrical Sustained Chords & Motor Vibrato Effects",
+      "frequency": "Standard in Modern Band Repertoire",
+      "notes": "Equipped with motorized rotating butterflies in resonator tubes and a damper pedal."
+    },
+    {
+      "id": "tubular_bells",
+      "name": "Tubular Bells (Chimes)",
+      "key": "C (Tuned brass tubes, usually C4 to F5 / G5)",
+      "sounding_transposition": "Concert pitch (non-transposing)",
+      "clef": "Treble",
+      "family": "Percussion",
+      "subfamily": "Tuned Percussion (Metallophone)",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Church Bell Emulation & Majestic Fanfares",
+      "frequency": "Standard",
+      "notes": "Simulates real church bells; prominent in climaxes and ceremonial marches."
+    },
+    {
+      "id": "crotales",
+      "name": "Crotales (Antique Cymbals)",
+      "key": "C (Tuned bronze discs, 1 or 2 octaves)",
+      "sounding_transposition": "Sounds 2 octaves higher than written",
+      "clef": "Treble",
+      "family": "Percussion",
+      "subfamily": "Tuned Percussion (Metallophone)",
+      "ensembles": [
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Pristine High Shimmer & Bowed Metallic Textures",
+      "frequency": "Common in Contemporary Literature",
+      "notes": "Can be struck with hard mallets or bowed with a double bass bow for eerie, shimmering harmonics."
+    },
+    {
+      "id": "snare_drum",
+      "name": "Snare Drum",
+      "key": "Indefinite Pitch (Non-tuned)",
+      "sounding_transposition": "Indefinite pitch",
+      "clef": "Neutral / Percussion Clef",
+      "family": "Percussion",
+      "subfamily": "Unpitched Percussion (Membranophone)",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Primary Rhythmic Drive & Military Rudiments",
+      "frequency": "Standard",
+      "notes": "Foundational instrument in all band types; metal/gut snares provide crisp articulation."
+    },
+    {
+      "id": "bass_drum",
+      "name": "Concert Bass Drum (Gran Cassa)",
+      "key": "Indefinite Pitch (Low resonance)",
+      "sounding_transposition": "Indefinite pitch",
+      "clef": "Neutral / Percussion Clef",
+      "family": "Percussion",
+      "subfamily": "Unpitched Percussion (Membranophone)",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Deep Acoustic Pulse & Explosive Impact",
+      "frequency": "Standard",
+      "notes": "Large suspended calfskin or plastic head drum providing foundational dynamic weight."
+    },
+    {
+      "id": "clash_cymbals",
+      "name": "Clash Cymbals (Crash Cymbals / Hand Cymbals)",
+      "key": "Indefinite Pitch (High metallic spectrum)",
+      "sounding_transposition": "Indefinite pitch",
+      "clef": "Neutral / Percussion Clef",
+      "family": "Percussion",
+      "subfamily": "Unpitched Percussion (Idiophone)",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Dynamic Climax & March Accents",
+      "frequency": "Standard",
+      "notes": "Hand-held paired bronze cymbals (typically 18\" to 22\" Viennese or French crash)."
+    },
+    {
+      "id": "suspended_cymbal",
+      "name": "Suspended Cymbal",
+      "key": "Indefinite Pitch",
+      "sounding_transposition": "Indefinite pitch",
+      "clef": "Neutral / Percussion Clef",
+      "family": "Percussion",
+      "subfamily": "Unpitched Percussion (Idiophone)",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Atmospheric Crescendos & Accents",
+      "frequency": "Standard",
+      "notes": "Played with yarn/felt mallets, drumsticks, or scraped with a triangle beater/coin."
+    },
+    {
+      "id": "tam_tam",
+      "name": "Tam-Tam (Gong)",
+      "key": "Indefinite Pitch (Deep fundamental spectrum)",
+      "sounding_transposition": "Indefinite pitch",
+      "clef": "Neutral / Percussion Clef",
+      "family": "Percussion",
+      "subfamily": "Unpitched Percussion (Idiophone)",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Dramatic Cataclysm & Solemn Resonances",
+      "frequency": "Standard",
+      "notes": "Unpitched, flat-faced hammered bronze disc; provides colossal dramatic crashes and quiet omens."
+    },
+    {
+      "id": "triangle",
+      "name": "Triangle",
+      "key": "Indefinite Pitch (High metallic overtone)",
+      "sounding_transposition": "Indefinite pitch",
+      "clef": "Neutral / Percussion Clef",
+      "family": "Percussion",
+      "subfamily": "Unpitched Percussion (Idiophone)",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "High Crystalline Punctuation & Shimmer",
+      "frequency": "Standard",
+      "notes": "Steel bar bent into an open triangle; cuts clearly through full fortissimo tutti."
+    },
+    {
+      "id": "tambourine",
+      "name": "Tambourine",
+      "key": "Indefinite Pitch",
+      "sounding_transposition": "Indefinite pitch",
+      "clef": "Neutral / Percussion Clef",
+      "family": "Percussion",
+      "subfamily": "Unpitched Percussion (Membranophone/Idiophone)",
+      "ensembles": [
+        "Brass Band",
+        "Concert Band",
+        "Wind Band / Military Band"
+      ],
+      "role": "Rhythmic Color & Festive Accents",
+      "frequency": "Standard",
+      "notes": "Wood shell with calfskin head and metal jingles; executed with thumb rolls, shakes, and knee-fist strikes."
+    }
+  ]
+}

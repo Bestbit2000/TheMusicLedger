@@ -5,7 +5,7 @@
 // account_id column match) and which parent-id column gets written actually differ.
 
 import pool from '../config/db.js';
-import { withStatus, assertFlowAccess } from './flows.js';
+import { withStatus, assertFlowAccess, assertFlowReadAccess } from './flows.js';
 import { toSegmentDto } from './metronomeSetups.js';
 import {
   SEGMENT_COLUMNS, segmentColumnValues, validateSegmentPayload,
@@ -126,7 +126,7 @@ async function getBlockForFlow(accountId, segmentId) {
 
 // Every block for a flow, in order - the Blocks Studio list/Block Inspector's data source.
 export async function listFlowBlocks(accountId, scoreId) {
-  await assertFlowAccess(accountId, scoreId);
+  await assertFlowReadAccess(accountId, scoreId);
   return listFlowBlocksUnchecked(scoreId);
 }
 

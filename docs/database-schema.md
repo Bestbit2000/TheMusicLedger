@@ -126,6 +126,16 @@ by editing ownership columns directly. Unpublishing (or removing from a band)
 always lands on personal, owned by whoever performed the action; there's no
 stored "previous owner" to revert to instead.
 
+**Public library (ML-310)**: two access checks in `flows.js`. `assertFlowReadAccess`
+(details, blocks, copy) lets **anyone** open a public piece, to view, play (Rehearse
+lists public pieces) or "Copy to my library" (`duplicateFlow`: details and bars, not
+recordings or documents; always lands personal). `assertFlowAccess` (every change,
+uploads, publish, move, delete, MusicXML export) is unchanged: owner, band member, or
+any super admin for a public piece. Both list and detail DTOs carry `canEdit` so the
+client hides Edit where the server would refuse it. Only super admins publish or
+unpublish, from the piece's Visibility card or Admin → Flows (Public library filter,
+View / Edit links = `/?flow=<id>&flowMode=play|edit`).
+
 Notes on fields that took a few passes to nail down:
 - **No `subdivide` anywhere** — it's a live runtime override on the metronome player,
   never saved against a score or segment. ML-35 briefly considered persisting it per
@@ -311,7 +321,9 @@ Notes on fields that took a few passes to nail down:
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `sessions` | The umbrella event (practice/rehearsal/performance/lesson) | id, session_type, account_id, band_id, tutor_id, practice_list_id, started_at, **total_duration_minutes** (actual, authoritative) |
+| `sessions` | The umbrella event (practice/rehearsal/performance/lesson) | id, session_type, account_id, band_id, tutor_id, practice_list_id, started_at, **total_duration_minutes** (actual, authoritative), instrument_id (ML-309) |
+| `instruments` | ML-309: meta catalogue of band instruments (generated from `band_instruments_master_catalog.json` by `scripts/generate-instruments-migration.mjs`; upsert on `code`) | id, code, name, pitch_key, sounding_transposition, clef, theory_clef, family, subfamily, ensembles, role, frequency, notes, sort_order, active |
+| `account_instruments` | ML-309: the instruments an account plays; at most one main (`is_primary`) - the default for new sessions and the Theory tool's clef | account_id, instrument_id, is_primary, created_at |
 | `session_participants` | Attendance, incl. one-off guests who aren't full band members | session_id, account_id, is_guest, role |
 | `session_segments` | The up-to-4 timed chunks (warm up / scales / technique / performance) within a session | id, session_id, segment_type, order_index, **planned_duration_minutes** (guidance only), score_id, metronome_segment_id |
 | `active_timer_sessions` | The practice **timer** tool's currently in-progress run, if any (`ML-197`) - one row per account, synced only on start/pause/resume/snooze (not periodically) and deleted once it finishes/stops, so an accidental reload/relogin can resume it instead of losing it. `elapsed_seconds`/`updated_at` are a wall-clock anchor: while `running`, elapsed is projected forward from `updated_at` using Postgres's own clock, so a resume picks up with exactly the same time left to the second rather than "aware a timer was going" - a pause freezes that projection instead of letting the paused stretch count against it. Deliberately separate from `sessions` (whose `total_duration_minutes` is only ever written once, at completion - see "Session timing" above) rather than a status column bolted onto it | account_id (PK), target_seconds (NULL = open-ended/count-up), elapsed_seconds, running, updated_at |

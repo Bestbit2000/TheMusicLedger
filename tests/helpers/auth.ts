@@ -8,3 +8,10 @@ export async function loginAsLocalDev(page: Page) {
   await page.goto('/auth/login');
   await expect(page.getByRole('button', { name: 'Start a challenge' })).toBeVisible();
 }
+
+// ML-310: the second dev account, local-admin@themusicledger.local - a super admin on dev (local-dev
+// itself is an ordinary standard_member), for admin-only actions such as publishing a piece.
+export async function loginAsLocalAdmin(page: Page) {
+  await page.goto('/auth/login?as=admin');
+  await expect(page.getByRole('button', { name: 'Start a challenge' })).toBeVisible();
+}

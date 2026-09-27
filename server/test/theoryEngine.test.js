@@ -44,8 +44,8 @@ describe('options', () => {
         assert.deepEqual(T.QUIZZES.map(q => q.id), ['noteNames', 'keys', 'symbols', 'mixed']);
     });
     test('defaults fill in, and anything not on the list is thrown out', () => {
-        assert.deepEqual(T.normaliseOptions('noteNames', {}), { clefs: ['treble'], range: 0, accidentals: 'none' });
-        assert.deepEqual(T.normaliseOptions('noteNames', { clefs: ['bass', 'alto'], range: 3, accidentals: 'sharps' }), { clefs: ['bass'], range: 0, accidentals: 'sharps' });
+        assert.deepEqual(T.normaliseOptions('noteNames', {}), { clefs: ['treble'], range: 0, accidentals: 'none', grade: 0 });
+        assert.deepEqual(T.normaliseOptions('noteNames', { clefs: ['bass', 'soprano'], range: 3, accidentals: 'sharps', grade: 9 }), { clefs: ['bass'], range: 0, accidentals: 'sharps', grade: 0 });
         assert.deepEqual(T.normaliseOptions('noteNames', { clefs: [] }).clefs, ['treble']);
         assert.equal(T.normaliseOptions('keys', { upTo: 1 }).upTo, 3, 'up to 1 is no longer offered');
         assert.deepEqual(T.QUIZZES.find(q => q.id === 'keys').options.find(o => o.key === 'upTo').choices.map(c => c.value), [3, 5, 7]);
@@ -218,9 +218,11 @@ describe('scales', () => {
 
 describe('symbols', () => {
     test('the sets and their sizes', () => {
-        const count = (set) => T.SYMBOLS.filter(s => s.set === set).length;
+        // The custom sets (ML-309's grade-only symbols aren't in them, so custom rounds are unchanged).
+        const custom = T.SYMBOLS.filter(s => !s.gradeOnly);
+        const count = (set) => custom.filter(s => s.set === set).length;
         assert.deepEqual(T.SET_IDS.map(count), [13, 9, 17, 11, 15, 0]); // speeds are T.SPEEDS, not symbols
-        assert.equal(T.SYMBOLS.length, 65);
+        assert.equal(custom.length, 65);
     });
     test('unique, with a name and meaning, and every one draws', () => {
         const ids = T.SYMBOLS.map(s => s.id), names = T.SYMBOLS.map(s => s.name), meanings = T.SYMBOLS.map(s => s.meaning);
@@ -234,8 +236,8 @@ describe('symbols', () => {
             else assert.fail(`${s.id}: unknown render ${r.type}`);
         }
     });
-    test('a staff scrap never shows a clef', () => {
-        for (const s of T.SYMBOLS.filter(x => x.render.type === 'staff')) assert.equal(s.render.staff.hideClef, true, s.id);
+    test('a staff scrap never shows a clef (except the alto and tenor clef questions, which are the clef)', () => {
+        for (const s of T.SYMBOLS.filter(x => x.render.type === 'staff' && !['altoClef', 'tenorClef'].includes(x.id))) assert.equal(s.render.staff.hideClef, true, s.id);
     });
     test('ask names / meanings / both: 1 or 2 questions per symbol', () => {
         assert.equal(source('symbols', { set: 'basics', ask: 'names' }, { seed: 1 }).size, 13);
@@ -379,7 +381,7 @@ describe('smart learn refinements (ML-269)', () => {
             assert.equal(clone(src.next()).id, id);
             assert.ok(T.describeQuestion(id), id);
         }
-        assert.equal(T.itemFromId('note:alto:C4'), null);
+        assert.equal(T.itemFromId('note:soprano:C4'), null);
         assert.equal(T.itemFromId('symbolName:noSuchSymbol'), null);
     });
     test('weak spots: only the weighted questions, weakest first more often, and nothing without weights', () => {
@@ -510,5 +512,62 @@ describe('speeds (ML-297)', () => {
         const ids = (level) => new Set(take(source('mixed', { level }, { seed: 3 }), 600).map(q => q.id.split(':')[0]));
         assert.ok(ids('advanced').has('speedName'));
         assert.ok(!ids('beginner').has('speedName'));
+    });
+});
+
+describe('Theory grades (ML-309)', () => {
+    test('cumulative: each grade has everything the one before had, and more', () => {
+        for (let g = 2; g <= 5; g++) {
+            const a = T.gradeContent(g - 1), b = T.gradeContent(g);
+            for (const k of ['clefs', 'accidentals', 'keyIds', 'minorForms']) for (const x of a[k]) assert.ok(b[k].includes(x), `grade ${g} lost ${k} ${x}`);
+            for (const sym of a.symbols) assert.ok(b.symbols.some(x => x.id === sym.id), `grade ${g} lost ${sym.id}`);
+            assert.ok(b.range >= a.range);
+            assert.ok(b.symbols.length > a.symbols.length);
+        }
+    });
+    test('what each grade adds (draft from the ABRSM syllabus)', () => {
+        assert.deepEqual(T.gradeContent(1).keyIds, ['C major', 'G major', 'D major', 'F major']);
+        assert.deepEqual(T.gradeContent(1).clefs, ['treble', 'bass']);
+        assert.deepEqual(T.gradeContent(2).keyIds.filter(k => k.endsWith('minor')), ['A minor', 'E minor', 'D minor']);
+        assert.ok(T.gradeContent(2).keyIds.includes('Eb major') && !T.gradeContent(2).keyIds.includes('E major'));
+        assert.equal(T.gradeContent(3).keyIds.length, 18); // up to 4 sharps/flats, major and minor
+        assert.deepEqual(T.gradeContent(3).minorForms, ['harmonic', 'melodic']);
+        assert.deepEqual(T.gradeContent(4).clefs, ['treble', 'bass', 'alto']);
+        assert.deepEqual(T.gradeContent(5).clefs, ['treble', 'bass', 'alto', 'tenor']);
+        assert.equal(T.gradeContent(5).keyIds.length, 26);
+        assert.ok(!T.gradeContent(5).symbols.some(s => s.id === 'introBrackets'), 'intro brackets are not in the syllabus');
+        assert.equal(T.gradeSummary().length, 5);
+    });
+    test('a grade replaces the options except clef / show / ask; clefs are the grade\'s', () => {
+        const o = T.normaliseOptions('keys', { grade: 2, clefs: ['alto', 'bass'], upTo: 7 });
+        assert.deepEqual(o.clefs, ['bass']);
+        assert.equal(T.normaliseOptions('noteNames', { grade: 1, clefs: ['tenor'] }).clefs[0], 'treble');
+        const keys = T.QUIZZES.find(q => q.id === 'keys');
+        assert.deepEqual(keys.options.filter(d => T.optionVisible(d, o)).map(d => d.key), ['clefs', 'show']);
+        assert.equal(T.settingsKey('keys', o, 't60'), 'keys|t60|grade=2;clefs=bass;show=both');
+        assert.equal(T.describeOptions('keys', o, 't60'), 'Grade 2 syllabus · Bass · Both · 60 s');
+        // custom settings keys are unchanged by the grade option
+        assert.equal(T.settingsKey('keys', {}, 't60'), 'keys|t60|clefs=treble;show=both;upTo=3;keyTypes=both;modes=major');
+        assert.equal(T.normaliseOptions('weakSpots', { grade: 3 }).grade, 0);
+    });
+    test('every quiz at every grade deals valid questions that draw, only from the grade', () => {
+        for (const quizId of ['noteNames', 'keys', 'symbols', 'mixed']) for (const grade of T.GRADE_CHOICES) {
+            const G = T.gradeContent(grade);
+            const src = source(quizId, { grade, clefs: ['treble', 'bass', 'alto', 'tenor'] }, { seed: grade });
+            for (const q of take(src, 150)) {
+                assert.equal(new Set(q.answers.map(a => a.id)).size, q.answers.length, q.id);
+                assert.ok(q.answers.some(a => a.id === q.correct), q.id);
+                const [type, a, b] = q.id.split(':');
+                if (type === 'keySignature' || type === 'scale') assert.ok(G.keyIds.includes(b), `${q.id} not in grade ${grade}`);
+                if (type === 'note' || type === 'keySignature' || type === 'scale') assert.ok(G.clefs.includes(a), q.id);
+                if (type === 'symbolName' || type === 'symbolMeaning') assert.ok(G.symbols.some(s => s.id === a), `${q.id} not in grade ${grade}`);
+                if (q.prompt.staff) N.staff(q.prompt.staff);
+            }
+        }
+    });
+    test('alto and tenor key signatures: every one draws', () => {
+        for (const clef of ['alto', 'tenor']) for (const type of ['sharp', 'flat']) for (let c = 1; c <= 7; c++) N.staff({ clef, keySignature: { type, count: c } });
+        assert.equal(N.staffStep('C4', 'alto'), 4);
+        assert.equal(N.staffStep('C4', 'tenor'), 6);
     });
 });

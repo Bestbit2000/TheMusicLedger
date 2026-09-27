@@ -11,6 +11,11 @@
 // meaning, both ways, incl. rhythm, Italian terms and speeds - ML-297/301) and Mixed (all of them in turn). Every quiz deals each of its
 // questions once, in a shuffled order, before any comes round again.
 //
+// Theory grades (ML-309, feature theory_grades): any quiz can be set to "Grade 1-5" instead of its own
+// options - everything in the ABRSM Music Theory syllabus up to that grade that these quizzes can ask
+// (THEORY_GRADES, and each symbol's grade). Listed for review on Admin -> Theory grades; see
+// docs/theory-grades.md.
+//
 // Read docs/theory-practice.md before changing the scoring or grade limits.
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory(require('./notation.js'));
@@ -53,19 +58,20 @@
     ];
     const DEFAULT_ROUND = 't60';
 
-    // Clef is multi-select (not "Both") so alto/tenor can be added later without reworking the options.
+    // Clef is multi-select (not "Both"); alto and tenor arrived with Theory grades (ML-309).
     // showIf: { key: value } or { key: [values] } - shown only while every listed option matches.
+    // gradeKeep: still shown when a Theory grade is picked (every other option is the grade's).
     const OPT = {
-        clefs: { key: 'clefs', label: 'Clef', multi: true, default: ['treble'], choices: [{ value: 'treble', label: 'Treble' }, { value: 'bass', label: 'Bass' }] },
+        clefs: { key: 'clefs', label: 'Clef', multi: true, gradeKeep: true, default: ['treble'], choices: [{ value: 'treble', label: 'Treble' }, { value: 'bass', label: 'Bass' }, { value: 'alto', label: 'Alto' }, { value: 'tenor', label: 'Tenor' }] },
         range: { key: 'range', label: 'Range, above and below', default: 0, choices: [{ value: 0, label: 'On the staff' }, { value: 2, label: '2 ledger lines' }, { value: 4, label: '4 ledger lines' }, { value: 6, label: '6 ledger lines' }] },
         accidentals: { key: 'accidentals', label: 'Sharps and flats', default: 'none', choices: [{ value: 'none', label: 'None' }, { value: 'sharps', label: 'Sharps' }, { value: 'flats', label: 'Flats' }] },
-        show: { key: 'show', label: 'Show', default: 'both', choices: [{ value: 'keySignatures', label: 'Key signatures' }, { value: 'scales', label: 'Scales' }, { value: 'both', label: 'Both' }] },
+        show: { key: 'show', label: 'Show', gradeKeep: true, default: 'both', choices: [{ value: 'keySignatures', label: 'Key signatures' }, { value: 'scales', label: 'Scales' }, { value: 'both', label: 'Both' }] },
         upTo: { key: 'upTo', label: 'Up to (sharps or flats)', default: 3, choices: [{ value: 3, label: '3' }, { value: 5, label: '5' }, { value: 7, label: '7' }] },
         keyTypes: { key: 'keyTypes', label: 'Keys', default: 'both', choices: [{ value: 'sharp', label: 'Sharp keys' }, { value: 'flat', label: 'Flat keys' }, { value: 'both', label: 'Both' }] },
         modes: { key: 'modes', label: 'Major and minor', default: 'major', choices: [{ value: 'major', label: 'Major' }, { value: 'both', label: 'Major and minor' }] },
         minorForm: { key: 'minorForm', label: 'Minor scales', default: 'harmonic', showIf: { modes: 'both', show: ['scales', 'both'] }, choices: [{ value: 'harmonic', label: 'Harmonic' }, { value: 'melodic', label: 'Melodic' }, { value: 'both', label: 'Both' }] },
         set: { key: 'set', label: 'Symbols', default: 'basics', choices: [{ value: 'basics', label: 'Basics' }, { value: 'dynamics', label: 'Dynamics' }, { value: 'rhythm', label: 'Rhythm' }, { value: 'structure', label: 'Structure' }, { value: 'terms', label: 'Terms' }, { value: 'speeds', label: 'Speeds' }, { value: 'everything', label: 'Everything' }] },
-        ask: { key: 'ask', label: 'Ask', default: 'both', choices: [{ value: 'names', label: 'Names' }, { value: 'meanings', label: 'Meanings' }, { value: 'both', label: 'Both' }] },
+        ask: { key: 'ask', label: 'Ask', gradeKeep: true, default: 'both', choices: [{ value: 'names', label: 'Names' }, { value: 'meanings', label: 'Meanings' }, { value: 'both', label: 'Both' }] },
         level: { key: 'level', label: 'Level', default: 'beginner', choices: [{ value: 'beginner', label: 'Beginner' }, { value: 'intermediate', label: 'Intermediate' }, { value: 'advanced', label: 'Advanced' }] },
     };
 
@@ -90,15 +96,17 @@
         if (!q) throw new Error(`Unknown quiz: ${id}`);
         return q;
     }
-    const optionVisible = (def, opts) => !def.showIf || Object.entries(def.showIf)
-        .every(([k, v]) => (Array.isArray(v) ? v.includes(opts[k]) : opts[k] === v));
+    const optionVisible = (def, opts) => (!opts.grade || !!def.gradeKeep) && (!def.showIf || Object.entries(def.showIf)
+        .every(([k, v]) => (Array.isArray(v) ? v.includes(opts[k]) : opts[k] === v)));
 
     // Fills defaults and throws out anything that isn't one of the listed choices (stored options from
     // an older version, a hand-edited localStorage value...). Always returns a complete, valid set.
+    // grade: 0 = the quiz's own options, 1-5 = a Theory grade; the clefs are then only the grade's.
     function normaliseOptions(quizId, raw) {
         const out = {};
         raw = raw || {};
-        for (const def of quiz(quizId).options) {
+        const q = quiz(quizId);
+        for (const def of q.options) {
             const allowed = def.choices.map(c => c.value);
             if (def.multi) {
                 const v = Array.isArray(raw[def.key]) ? allowed.filter(a => raw[def.key].includes(a)) : [];
@@ -106,6 +114,12 @@
             } else {
                 out[def.key] = allowed.includes(raw[def.key]) ? raw[def.key] : def.default;
             }
+        }
+        out.grade = q.options.length && GRADE_CHOICES.includes(raw.grade) ? raw.grade : 0;
+        if (out.grade && out.clefs) {
+            const allowed = gradeContent(out.grade).clefs;
+            const v = out.clefs.filter(c => allowed.includes(c));
+            out.clefs = v.length ? v : [allowed[0]];
         }
         return out;
     }
@@ -118,6 +132,7 @@
         const opts = normaliseOptions(quizId, rawOptions);
         const parts = quiz(quizId).options.filter(d => optionVisible(d, opts))
             .map(d => `${d.key}=${d.multi ? opts[d.key].slice().sort().join(',') : opts[d.key]}`);
+        if (opts.grade) parts.unshift(`grade=${opts.grade}`);
         return `${quizId}|${round(roundId).value}|${parts.join(';')}`;
     }
     // "Treble, Bass · 2 ledger lines · None · 60 s" - the results screen's subtitle.
@@ -130,6 +145,7 @@
             if (d.key === 'ask') return `Ask: ${label(opts.ask).toLowerCase()}`;
             return label(opts[d.key]);
         });
+        if (opts.grade) parts.unshift(`Grade ${opts.grade} syllabus`);
         return [...parts, round(roundId).label].join(' · ');
     }
 
@@ -305,14 +321,17 @@
         return rng.shuffle([correct, ...keyDistractors(correct, rng, { includeRelative })]).map(k => ({ id: k.id, label: keyLabel(k, naming) }));
     }
     // Key signature and scale items for a set of key options.
+    // o.keyIds / o.minorForms (a Theory grade) replace the upTo/keyTypes/modes/minorForm options.
     function keyItems(clefs, o) {
-        const keys = keyPool(o);
+        const keys = o.keyIds ? ALL_KEYS.filter(k => o.keyIds.includes(k.id)) : keyPool(o);
+        const minorForms = o.minorForms || (o.minorForm === 'both' ? ['harmonic', 'melodic'] : [o.minorForm]);
+        const includeRelative = o.keyIds ? keys.some(k => k.mode === 'minor') : o.modes === 'both';
         const out = [];
         for (const clef of clefs) for (const key of keys) {
             if (o.show !== 'scales') out.push({ type: 'keySignature', key, clef });
             if (o.show !== 'keySignatures') {
-                const forms = key.mode === 'minor' ? (o.minorForm === 'both' ? ['harmonic', 'melodic'] : [o.minorForm]) : [null];
-                for (const form of forms) out.push({ type: 'scale', key, clef, form, includeRelative: o.modes === 'both' });
+                const forms = key.mode === 'minor' ? minorForms : [null];
+                for (const form of forms) out.push({ type: 'scale', key, clef, form, includeRelative });
             }
         }
         return out;
@@ -538,9 +557,110 @@
         { id: 'sempre', set: 'terms', name: 'sempre', meaning: 'Always', render: word('sempre') },
         { id: 'pocoAPoco', set: 'terms', name: 'poco a poco', meaning: 'Little by little', render: word('poco a poco') },
         { id: 'molto', set: 'terms', name: 'molto', meaning: 'Very, much', render: word('molto') },
+
+        // ---- Theory grades only (ML-309, gradeOnly: not in the custom sets, so custom rounds and their
+        // personal bests are unchanged). A draft for review on Admin -> Theory grades.
+        { id: 'altoClef', set: 'basics', grade: 4, gradeOnly: true, name: 'Alto clef', meaning: 'A C clef: middle C is the middle line', render: { type: 'staff', staff: { clef: 'alto', noteGap: 1.4, items: [n('C4')], minWidth: 8 } } },
+        { id: 'tenorClef', set: 'basics', grade: 5, gradeOnly: true, name: 'Tenor clef', meaning: 'A C clef: middle C is the 4th line up', render: { type: 'staff', staff: { clef: 'tenor', noteGap: 1.4, items: [n('C4')], minWidth: 8 } } },
+        { id: 'doubleSharp', set: 'basics', grade: 4, gradeOnly: true, name: 'Double sharp', meaning: 'Raise the note by two semitones', render: { type: 'symbol', glyph: 'accidentalDoubleSharp' } },
+        { id: 'doubleFlat', set: 'basics', grade: 4, gradeOnly: true, name: 'Double flat', meaning: 'Lower the note by two semitones', render: { type: 'symbol', glyph: 'accidentalDoubleFlat' } },
+        { id: 'trill', set: 'basics', grade: 4, gradeOnly: true, name: 'Trill', meaning: 'Alternate quickly between the note and the note above', render: { type: 'symbol', glyph: 'ornamentTrill' } },
+        { id: 'turn', set: 'basics', grade: 4, gradeOnly: true, name: 'Turn', meaning: 'Play the note above, the note, the note below, then the note', render: { type: 'symbol', glyph: 'ornamentTurn' } },
+        { id: 'upperMordent', set: 'basics', grade: 4, gradeOnly: true, name: 'Upper mordent', meaning: 'Quickly play the note, the note above, then the note again', render: { type: 'symbol', glyph: 'ornamentShortTrill' } },
+        { id: 'lowerMordent', set: 'basics', grade: 4, gradeOnly: true, name: 'Lower mordent', meaning: 'Quickly play the note, the note below, then the note again', render: { type: 'symbol', glyph: 'ornamentMordent' } },
+        { id: 'acciaccatura', set: 'basics', grade: 4, gradeOnly: true, name: 'Acciaccatura', meaning: 'A crushed grace note, played as quickly as possible', render: { type: 'symbol', glyph: 'graceNoteAcciaccaturaStemUp' } },
+        { id: 'appoggiatura', set: 'basics', grade: 4, gradeOnly: true, name: 'Appoggiatura', meaning: 'A leaning grace note that takes time from the main note', render: { type: 'symbol', glyph: 'graceNoteAppoggiaturaStemUp' } },
+        { id: 'time22', set: 'rhythm', grade: 2, gradeOnly: true, name: 'Two-two time', meaning: '2 minim beats in a bar', render: time(2, 2) },
+        { id: 'time32', set: 'rhythm', grade: 2, gradeOnly: true, name: 'Three-two time', meaning: '3 minim beats in a bar', render: time(3, 2) },
+        { id: 'time42', set: 'rhythm', grade: 2, gradeOnly: true, name: 'Four-two time', meaning: '4 minim beats in a bar', render: time(4, 2) },
+        { id: 'time38', set: 'rhythm', grade: 3, gradeOnly: true, name: 'Three-eight time', meaning: '3 quavers in a bar, felt as 1 beat', render: time(3, 8) },
+        { id: 'time98', set: 'rhythm', grade: 3, gradeOnly: true, name: 'Nine-eight time', meaning: '9 quavers in a bar, felt as 3 beats', render: time(9, 8) },
+        { id: 'time128', set: 'rhythm', grade: 3, gradeOnly: true, name: 'Twelve-eight time', meaning: '12 quavers in a bar, felt as 4 beats', render: time(12, 8) },
+        { id: 'time64', set: 'rhythm', grade: 3, gradeOnly: true, name: 'Six-four time', meaning: '6 crotchets in a bar, felt as 2 beats', render: time(6, 4) },
+        { id: 'time54', set: 'rhythm', grade: 5, gradeOnly: true, name: 'Five-four time', meaning: '5 crotchet beats in a bar', render: time(5, 4) },
+        { id: 'time78', set: 'rhythm', grade: 5, gradeOnly: true, name: 'Seven-eight time', meaning: '7 quavers in a bar, in uneven groups', render: time(7, 8) },
+        { id: 'demisemiquaver', set: 'rhythm', grade: 3, gradeOnly: true, name: 'Demisemiquaver', meaning: 'A note lasting an eighth of a beat', render: on([n('A4', { head: 'note32ndUp' })], { minWidth: 5 }) },
+        { id: 'demisemiquaverRest', set: 'rhythm', grade: 3, gradeOnly: true, name: 'Demisemiquaver rest', meaning: 'An eighth of a beat of silence', render: rest('rest32nd', 4) },
+        { id: 'breve', set: 'rhythm', grade: 4, gradeOnly: true, name: 'Breve', meaning: 'A note lasting 8 beats (two semibreves)', render: on([n('A4', { head: 'noteDoubleWhole' })], { minWidth: 5 }) },
+        { id: 'dcAlFine', set: 'structure', grade: 2, gradeOnly: true, name: 'D.C. al Fine', meaning: 'Go back to the beginning and play up to Fine', render: word('D.C. al Fine') },
+        { id: 'dsAlCoda', set: 'structure', grade: 3, gradeOnly: true, name: 'D.S. al Coda', meaning: 'Go back to the sign, then jump to the coda at "To Coda"', render: word('D.S. al Coda') },
+        // Terms, grade by grade.
+        ...[
+            [1, 'allegretto', 'allegretto', 'Fairly quick (not as quick as allegro)', true],
+            [1, 'lento', 'lento', 'Slow (often a little slower than adagio)', true],
+            [1, 'rall', 'rall.', 'Gradually getting slower (rallentando)'],
+            [1, 'riten', 'riten.', 'Held back: slower at once (ritenuto)'],
+            [1, 'decresc', 'decresc.', 'Gradually getting quieter (decrescendo)'],
+            [1, 'cresc', 'cresc.', 'Gradually getting louder (crescendo)'],
+            [1, 'mezzo', 'mezzo', 'Half, moderately'],
+            [2, 'grazioso', 'grazioso', 'Gracefully'],
+            [2, 'vivace', 'vivace', 'Lively, quick', true],
+            [2, 'prestissimo', 'prestissimo', 'As fast as possible', true],
+            [2, 'meno', 'meno', 'Less'],
+            [2, 'piu', 'più', 'More'],
+            [2, 'poco', 'poco', 'A little'],
+            [2, 'con', 'con', 'With'],
+            [2, 'moto', 'moto', 'Movement'],
+            [2, 'ma', 'ma', 'But'],
+            [3, 'maNonTroppo', 'ma non troppo', 'But not too much'],
+            [3, 'sostenuto', 'sostenuto', 'Sustained'],
+            [3, 'tranquillo', 'tranquillo', 'Calm'],
+            [3, 'espressivo', 'espressivo', 'Expressively'],
+            [3, 'giocoso', 'giocoso', 'Playful, merry'],
+            [3, 'leggiero', 'leggiero', 'Lightly, nimbly'],
+            [3, 'maestoso', 'maestoso', 'Majestically'],
+            [3, 'senza', 'senza', 'Without'],
+            [3, 'mosso', 'mosso', 'With movement'],
+            [3, 'assai', 'assai', 'Very'],
+            [3, 'sottoVoce', 'sotto voce', 'In an undertone, quietly'],
+            [3, 'simile', 'sim.', 'In the same way (simile)'],
+            [4, 'animato', 'animato', 'Animated, lively'],
+            [4, 'brillante', 'brillante', 'Brilliantly'],
+            [4, 'comodo', 'comodo', 'At a comfortable speed'],
+            [4, 'deciso', 'deciso', 'With determination'],
+            [4, 'energico', 'energico', 'Energetically'],
+            [4, 'graveTerm', 'grave', 'Very slow, solemn', true],
+            [4, 'largamente', 'largamente', 'Broadly'],
+            [4, 'marcato', 'marcato', 'Emphatic, accented'],
+            [4, 'pesante', 'pesante', 'Heavily'],
+            [4, 'risoluto', 'risoluto', 'Boldly, strongly'],
+            [4, 'scherzando', 'scherzando', 'Playfully, jokingly'],
+            [4, 'semplice', 'semplice', 'Simply'],
+            [4, 'subito', 'subito', 'Suddenly'],
+            [4, 'vivo', 'vivo', 'Very lively, brisk'],
+            [4, 'attacca', 'attacca', 'Go straight on to the next section'],
+            [5, 'affettuoso', 'affettuoso', 'With feeling, affectionately'],
+            [5, 'agitato', 'agitato', 'Agitated'],
+            [5, 'allargando', 'allargando', 'Broadening out, often getting slower and louder'],
+            [5, 'calando', 'calando', 'Getting softer and slower, dying away'],
+            [5, 'conForza', 'con forza', 'With force'],
+            [5, 'morendo', 'morendo', 'Dying away'],
+            [5, 'smorzando', 'smorzando', 'Dying away in tone and speed'],
+            [5, 'stringendo', 'stringendo', 'Gradually getting faster'],
+            [5, 'rubato', 'rubato', 'With some freedom of time'],
+            [5, 'tempoPrimo', 'tempo primo', 'Back to the first speed'],
+            [5, 'teneramente', 'teneramente', 'Tenderly, gently'],
+            [5, 'nobilmente', 'nobilmente', 'Nobly'],
+        ].map(([grade, id, name, meaning, tempo]) => ({ id, set: 'terms', grade, gradeOnly: true, name, meaning, render: word(name, !!tempo) })),
     ];
+    // The Theory grade each of the original symbols belongs to (ML-309; the grade-only ones above carry
+    // their own). Not listed = not in any grade (intro brackets are a band thing, not in the syllabus).
+    const SYMBOL_GRADE = {
+        trebleClef: 1, bassClef: 1, sharp: 1, flat: 1, natural: 1, fermata: 1, breathMark: 1, staccato: 1, accent: 1, tie: 1, slur: 1, tenuto: 2, caesura: 3,
+        pp: 1, p: 1, mp: 1, mf: 1, f: 1, ff: 1, crescendo: 1, diminuendo: 1, sfz: 2,
+        semibreve: 1, dottedMinim: 1, minim: 1, crotchet: 1, quaver: 1, semiquaver: 1, semibreveRest: 1, minimRest: 1, crotchetRest: 1, quaverRest: 1, semiquaverRest: 1,
+        time44: 1, time34: 1, time24: 1, commonTime: 1, cutTime: 2, time68: 3,
+        startRepeat: 1, endRepeat: 1, doubleBar: 1, finalBarline: 1, daCapo: 1, fine: 1, dalSegno: 2, segno: 2, firstTimeBar: 2, coda: 3,
+        adagio: 1, allegro: 1, andante: 1, moderato: 1, rit: 1, accel: 1, aTempo: 1, legato: 1, dolce: 1, cantabile: 1, largo: 2, presto: 2, sempre: 2, molto: 2, pocoAPoco: 2,
+    };
+    for (const sym of SYMBOLS) if (SYMBOL_GRADE[sym.id]) sym.grade = SYMBOL_GRADE[sym.id];
     const SET_IDS = ['basics', 'dynamics', 'rhythm', 'structure', 'terms', 'speeds'];
-    const symbolsIn = (sets) => SYMBOLS.filter(s => sets.includes('everything') || sets.includes(s.set));
+    // A set list is the custom sets (grade-only symbols left out), or ['grade:N'] - every symbol up to Grade N.
+    const symbolsIn = (sets) => {
+        const g = sets.length === 1 && /^grade:\d$/.test(sets[0]) ? Number(sets[0].slice(6)) : 0;
+        if (g) return SYMBOLS.filter(s => s.grade && s.grade <= g);
+        return SYMBOLS.filter(s => !s.gradeOnly && (sets.includes('everything') || sets.includes(s.set)));
+    };
     function symbolItems(sets, ask) {
         const out = [];
         for (const sym of symbolsIn(sets)) {
@@ -616,7 +736,11 @@
         const pool = symbolsIn(sets);
         const same = rng.shuffle(pool.filter(s => s.id !== correct.id && s.set === correct.set));
         const chosen = rng.shuffle(pool.filter(s => s.id !== correct.id && s.set !== correct.set));
-        const rest = rng.shuffle(SYMBOLS.filter(s => s.id !== correct.id && !pool.includes(s)));
+        // Custom rounds never see the grade-only symbols (ML-309) - not even as filler - so their
+        // rounds stay exactly as before; a grade round's filler is other graded symbols.
+        const graded = sets.length === 1 && /^grade:/.test(sets[0]);
+        const universe = SYMBOLS.filter(s => (graded ? s.grade : !s.gradeOnly));
+        const rest = rng.shuffle(universe.filter(s => s.id !== correct.id && !pool.includes(s)));
         return rng.shuffle([correct, ...same.concat(chosen, rest).slice(0, 3)]);
     }
     function symbolNameQuestion(item, rng) {
@@ -641,6 +765,70 @@
             // meaning-to-name question, which still teaches the same thing.
             answers: symbolChoices(sym, item.sets, rng).map(s => ({ id: s.id, label: s.name, render: s.render })),
             correct: sym.id,
+        };
+    }
+
+    // ---------------------------------------------------------------- Theory grades (ML-309)
+
+    // What each grade ADDS, for the parts the quizzes ask (the symbols and terms carry their own grade).
+    // gradeContent(g) is everything up to and including g - grades are cumulative. A draft from the ABRSM
+    // Music Theory syllabus (Grades 1-5); docs/theory-grades.md has the sources and what's not covered yet.
+    //   range: ledger lines above and below (RANGE_STEPS); accidentals: note-name spellings asked;
+    //   majors/minors: key tonics added; upTo: every key with up to that many sharps or flats;
+    //   minorForms: the minor scale forms asked.
+    const THEORY_GRADES = [
+        { grade: 1, clefs: ['treble', 'bass'], range: 0, accidentals: ['none'], majors: ['C', 'G', 'D', 'F'], minors: [], minorForms: [] },
+        { grade: 2, range: 2, accidentals: ['sharps', 'flats'], majors: ['A', 'Bb', 'Eb'], minors: ['A', 'E', 'D'], minorForms: ['harmonic'] },
+        { grade: 3, range: 4, upTo: 4, minorForms: ['melodic'] },
+        { grade: 4, clefs: ['alto'], upTo: 5 },
+        { grade: 5, clefs: ['tenor'], upTo: 6 },
+    ];
+    const GRADE_CHOICES = THEORY_GRADES.map(g => g.grade);
+    function gradeContent(grade) {
+        const out = { grade, clefs: [], range: 0, accidentals: [], keyIds: [], minorForms: [] };
+        for (const g of THEORY_GRADES.filter(x => x.grade <= grade)) {
+            out.clefs.push(...(g.clefs || []));
+            if (g.range !== undefined) out.range = g.range;
+            out.accidentals.push(...(g.accidentals || []));
+            out.keyIds.push(...(g.majors || []).map(t => `${t} major`), ...(g.minors || []).map(t => `${t} minor`));
+            if (g.upTo) out.keyIds.push(...ALL_KEYS.filter(k => k.count <= g.upTo).map(k => k.id));
+            out.minorForms.push(...(g.minorForms || []));
+        }
+        out.keyIds = ALL_KEYS.map(k => k.id).filter(id => out.keyIds.includes(id)); // circle-of-fifths order, once each
+        out.symbols = SYMBOLS.filter(s => s.grade && s.grade <= grade);
+        return out;
+    }
+    // Admin -> Theory grades: per grade, what it adds - for someone to check against the syllabus.
+    function gradeSummary() {
+        return THEORY_GRADES.map(({ grade }) => {
+            const now = gradeContent(grade), before = grade > 1 ? gradeContent(grade - 1) : null;
+            const added = (list, prev) => list.filter(x => !(prev || []).includes(x));
+            return {
+                grade,
+                clefs: added(now.clefs, before && before.clefs),
+                range: now.range,
+                rangeChanged: !before || before.range !== now.range,
+                accidentals: added(now.accidentals, before && before.accidentals),
+                keys: added(now.keyIds, before && before.keyIds),
+                minorForms: added(now.minorForms, before && before.minorForms),
+                symbols: SYMBOLS.filter(s => s.grade === grade).map(s => ({ id: s.id, set: s.set, name: s.name, meaning: s.meaning })),
+            };
+        });
+    }
+    // The items a quiz asks at a grade (the grade's content, the clefs and Show/Ask the player chose).
+    function gradeItems(quizId, opts) {
+        const G = gradeContent(opts.grade);
+        const keyOpts = { keyIds: G.keyIds, minorForms: G.minorForms.length ? G.minorForms : ['harmonic'] };
+        const sets = [`grade:${opts.grade}`];
+        if (quizId === 'noteNames') return { note: noteItems(opts.clefs, G.range, G.accidentals) };
+        if (quizId === 'keys') return { keys: keyItems(opts.clefs, { ...keyOpts, show: opts.show }) };
+        if (quizId === 'symbols') return { symbols: symbolItems(sets, opts.ask) };
+        return {
+            note: noteItems(opts.clefs, G.range, G.accidentals),
+            keySignature: keyItems(opts.clefs, { ...keyOpts, show: 'keySignatures' }),
+            scale: keyItems(opts.clefs, { ...keyOpts, show: 'scales' }),
+            symbolName: symbolItems(sets, 'names'),
+            symbolMeaning: symbolItems(sets, 'meanings'),
         };
     }
 
@@ -696,6 +884,7 @@
         if (quizId === 'weakSpots') {
             return { weak: Object.keys(weights || {}).filter(id => weights[id] > 0).map(itemFromId).filter(Boolean) };
         }
+        if (opts.grade) return gradeItems(quizId, opts);
         if (quizId === 'noteNames') return { note: noteItems(opts.clefs, opts.range, [opts.accidentals]) };
         if (quizId === 'keys') return { keys: keyItems(opts.clefs, opts) };
         if (quizId === 'symbols') return { symbols: symbolItems(opts.set === 'everything' ? ['everything'] : [opts.set], opts.ask) };
@@ -801,6 +990,7 @@
         QUIZZES, ROUNDS, DEFAULT_ROUND, SYMBOLS, SET_IDS, SPEEDS, speedFor, speedLabel, KEY_TABLE, RANGE_STEPS, NOTE_BUTTONS, KEYBOARD_BUTTONS, MIXED_LEVELS, SCALE_FORMS, SCALE_FORM_LABEL, buildScale, writeScale, scalePool, TIMING, GRADE_LIMITS, PAR,
         quiz, round, normaliseOptions, optionVisible, settingsKey, describeOptions,
         makeRng, questionSource, itemsFor, SMART, nextWeight, smartOrder, reviewBoost, effectiveWeight, itemFromId, describeQuestion, WEAK_SPOTS, scalePitches, keyPool, keyAlters, noteItems, parOf,
-        spell, spellName, scoreRound, gradeFor, ALL_KEYS
+        spell, spellName, scoreRound, gradeFor, ALL_KEYS,
+        THEORY_GRADES, GRADE_CHOICES, gradeContent, gradeSummary
     };
 }));

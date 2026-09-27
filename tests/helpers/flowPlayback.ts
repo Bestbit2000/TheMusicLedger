@@ -52,7 +52,8 @@ export async function deleteTestFlows(page: Page) {
     await page.evaluate(async (prefix) => {
         const w = (window as any).__flowTest;
         const flows = await w.api.flows.list();
-        for (const f of flows) if ((f.title || '').startsWith(prefix)) await w.api.flows.delete(f.id);
+        // canEdit: a public test piece (ML-310) is in everyone's list but only its super admin can delete it.
+        for (const f of flows) if ((f.title || '').startsWith(prefix) && f.canEdit) await w.api.flows.delete(f.id);
     }, TEST_FLOW_PREFIX);
 }
 

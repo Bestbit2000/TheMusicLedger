@@ -23,13 +23,17 @@ router.get('/login', (req, res, next) => {
   // acts as a second lock a single misconfigured env var can't open alone.
   // Both must be set in server/.env for local dev - see server/README.md.
   if (process.env.NODE_ENV === 'development' && process.env.ALLOW_LOCAL_DEV_LOGIN === 'true') {
+    // ?as=admin (ML-310): a second account, a super admin on dev, for back-tests of admin-only actions
+    // (publishing a piece to the public library) - local-dev itself is an ordinary standard_member.
+    const admin = req.query.as === 'admin';
+    const userId = admin ? 'local-admin@themusicledger.local' : 'local-dev@themusicledger.local';
     const authToken = signToken({
-      userId: 'local-dev@themusicledger.local',
+      userId,
       firstName: 'Local',
-      surname: 'Dev'
+      surname: admin ? 'Admin' : 'Dev'
     });
     const frontendUrl = `${req.protocol}://${req.get('host')}`;
-    return res.redirect(`${frontendUrl}?authToken=${authToken}&userId=local-dev@themusicledger.local`);
+    return res.redirect(`${frontendUrl}?authToken=${authToken}&userId=${userId}`);
   }
   next();
 }, passport.authenticate('google', {

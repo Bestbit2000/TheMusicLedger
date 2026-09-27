@@ -46,6 +46,7 @@
         <button class="admin-nav-item" data-section="usage" type="button">Usage</button>
         <button class="admin-nav-item" data-section="flows" type="button">Flows</button>
         <button class="admin-nav-item" data-section="warmups" type="button">Warm-ups</button>
+        <button class="admin-nav-item" data-section="theory-grades" type="button">Theory grades</button>
         <button class="admin-nav-item" data-section="notifications" type="button">Notifications</button>
         <!-- ML-170: the untriaged count rides on the nav item itself - the whole value of this tab
              is noticing there's something waiting without having to go and look. -->
@@ -185,12 +186,18 @@
             </div>
             <div class="admin-subtabs">
                 <button class="admin-subtab-item active" data-subtab="usage-durations" type="button">Durations</button>
+                <button class="admin-subtab-item" data-subtab="usage-instruments" type="button">Instruments</button>
                 <button class="admin-subtab-item" data-subtab="usage-notevalues" type="button">Note values</button>
                 <button class="admin-subtab-item" data-subtab="usage-flowauthoring" type="button">Flow authoring time</button>
             </div>
             <div id="usage-durations-subtab" class="admin-subtab-panel">
                 <p class="admin-intro">Matched by value against <code>sessions.total_duration_minutes</code>, not a real reference (a session just stores whatever number of minutes was entered) - so this counts sessions whose duration happens to equal a preset, which is almost always because that preset was actually picked rather than typed by coincidence.</p>
                 <div id="usageDurationsList" class="admin-feature-list">Loading&hellip;</div>
+            </div>
+            <!-- ML-309: practice time per instrument (sessions.instrument_id) and who plays what. -->
+            <div id="usage-instruments-subtab" class="admin-subtab-panel hidden-group">
+                <p class="admin-intro">Practice time by instrument. A session is recorded against the instrument picked when it was added, or the player's main instrument (My account &rarr; Your instruments). Sessions from before instruments existed, or from players with none set, are counted as <strong>no instrument</strong>. <strong>Players</strong> = accounts with that instrument on their list (<strong>main</strong> = as their main one).</p>
+                <div id="usageInstruments">Loading&hellip;</div>
             </div>
             <div id="usage-notevalues-subtab" class="admin-subtab-panel hidden-group">
                 <p class="admin-intro">Read-only - these five values are fixed by musical notation itself, not app data, so there's nothing to add/edit/delete here, just how many saved blocks currently use each. A block only counts once it's actually been opened and saved since this was added - see ML-109 for the historic-data caveat.</p>
@@ -202,6 +209,14 @@
                 <p class="admin-intro"><strong>Median leads, with min/max beside it.</strong> One interrupted run visibly moves a mean at this sample size. If min and max are miles apart, the median isn't describing anything stable yet - collect more runs before drawing a conclusion. Statistics cover completed, non-excluded sessions only; import-assisted (&ldquo;Create from file&rdquo;) runs are kept out of the headline and the breakdowns, and shown separately under Create vs edit.</p>
                 <div id="flowAuthoringStats">Loading&hellip;</div>
             </div>
+        </section>
+        <!-- ML-309: what each Theory grade includes, straight from public/theoryEngine.js (THEORY_GRADES and
+             each symbol's grade), so it can be checked against the syllabus. Read-only: changes are code. -->
+        <section id="theory-grades-section" class="admin-section hidden-group">
+            <h1>Theory grades</h1>
+            <p class="admin-intro">What each grade in the Theory tool asks when a quiz is set to "Grade 1-5" (feature <code>theory_grades</code>). A <strong>draft</strong> from the ABRSM Music Theory syllabus, Grades 1-5, for checking. Grades are <strong>cumulative</strong>: Grade 3 asks everything in Grades 1-3. Each grade below lists only what it adds. The player still picks the clef (from the grade's clefs), and whether Keys shows key signatures, scales or both, and whether Notation asks names, meanings or both. Changes are made in <code>public/theoryEngine.js</code>. The reasoning and sources are in <code>docs/theory-grades.md</code>.</p>
+            <p class="admin-intro"><strong>Not asked yet</strong> (new quiz types, ML-309 C): intervals, triads and chords, cadences, transposition, the chromatic scale, technical names of scale degrees, triplets and irregular groupings, grouping and beaming, and instruments and voices.</p>
+            <div id="theoryGradesList">Loading&hellip;</div>
         </section>
         <!-- ML-201: announcements for every account's ☰ -> Notifications (red dot on ☰ until read). -->
         <!-- ML-294: the Warm-ups tool's exercises. Super admins only (every /api/admin route is). -->
@@ -228,6 +243,12 @@
                 <button class="btn-submit no-margin" id="flowsExportSelectedBtn" type="button" disabled>Export selected</button>
                 <button class="btn-submit no-margin" id="flowsImportBtn" type="button">Import&hellip;</button>
                 <input type="file" id="flowsImportFile" accept=".musicxml,.xml,.mxl,.zip" hidden>
+            </div>
+            <!-- ML-310: the public library is the Public pill. View opens the piece in Play Flow, Edit
+                 on its Edit details screen (new tab); Publish / Unpublish is super admin only anyway. -->
+            <div class="filter-strip" id="flowsOwnershipStrip">
+                <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
+                <div class="filter-strip-pills" id="flowsOwnershipPills" role="group" aria-label="Show flows"></div>
             </div>
             <div id="flowsList">Loading&hellip;</div>
         </section>
@@ -515,6 +536,7 @@
 
 <!-- notation.js and warmups.js first: admin.js's Warm-ups editor draws with them (ML-294). -->
 <script src="notation.js"></script>
+<script src="theoryEngine.js"></script>
 <script src="warmups.js"></script>
 <script src="admin.js"></script>
 <script src="admin-design.js"></script>

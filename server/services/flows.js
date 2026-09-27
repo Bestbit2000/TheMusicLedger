@@ -35,16 +35,18 @@ export function extractYouTubeVideoId(url) {
   return match ? match[1] : null;
 }
 
-function toFlowSummaryDto(row) {
+function toFlowSummaryDto(row, canEdit) {
   return {
     id: Number(row.id),
     title: row.title,
+    composer: row.composer || null,
     ownerBandId: row.owner_band_id !== null ? Number(row.owner_band_id) : null,
     ownerAccountId: row.owner_account_id !== null ? Number(row.owner_account_id) : null,
     isPublic: row.is_public,
     createdAt: row.created_at,
     blockCount: Number(row.block_count || 0),
-    totalBars: Number(row.total_bars || 0)
+    totalBars: Number(row.total_bars || 0),
+    canEdit: !!canEdit // ML-310: a public piece is view/play/copy for everyone, edit for super admins
   };
 }
 
@@ -73,7 +75,7 @@ function toDocumentDto(row) {
   };
 }
 
-function toFlowDetailDto(score, recordingRows, documentRows, summary) {
+function toFlowDetailDto(score, recordingRows, documentRows, summary, canEdit) {
   return {
     id: Number(score.id),
     title: score.title,
@@ -84,6 +86,7 @@ function toFlowDetailDto(score, recordingRows, documentRows, summary) {
     ownerBandId: score.owner_band_id !== null ? Number(score.owner_band_id) : null,
     ownerAccountId: score.owner_account_id !== null ? Number(score.owner_account_id) : null,
     isPublic: score.is_public,
+    canEdit: !!canEdit,
     createdAt: score.created_at,
     recordings: recordingRows.map(toRecordingDto),
     documents: documentRows.map(toDocumentDto),
@@ -110,6 +113,23 @@ export async function assertFlowAccess(accountId, scoreId) {
     if (publicRows.length) return publicRows[0];
   }
   throw withStatus(404, 'Flow not found');
+}
+
+// ML-310: read access - everything assertFlowAccess allows (the owner, its band, a super admin for a
+// public piece), plus any public piece for everyone: view it, play it, copy it into your own library.
+// Every change still goes through assertFlowAccess.
+export async function assertFlowReadAccess(accountId, scoreId) {
+  try {
+    return await assertFlowAccess(accountId, scoreId);
+  } catch (error) {
+    if (error.status !== 404) throw error;
+  }
+  const { rows } = await pool.query('SELECT * FROM scores WHERE id = $1 AND is_public = true', [scoreId]);
+  if (rows.length) return rows[0];
+  throw withStatus(404, 'Flow not found');
+}
+async function canEditFlow(accountId, scoreId) {
+  try { await assertFlowAccess(accountId, scoreId); return true; } catch (error) { return false; }
 }
 
 async function assertBandMembership(accountId, bandId) {
@@ -183,7 +203,8 @@ export async function createFlow(accountId, { name, bandId } = {}) {
 // per-row, just as one list query instead of one row at a time.
 export async function listFlows(accountId) {
   const { rows } = await pool.query(
-    `SELECT s.id, s.title, s.owner_band_id, s.owner_account_id, s.is_public, s.created_at,
+    `SELECT s.id, s.title, s.composer, s.owner_band_id, s.owner_account_id, s.is_public, s.created_at,
+            BOOL_OR(bm.account_id IS NOT NULL) AS is_band_member,
             COUNT(ms.id) AS block_count,
             -- Bar counts exclude the lead-in: it's a count-in, not part of the piece.
             COALESCE(SUM(ms.bar_count) FILTER (WHERE NOT ms.is_lead_in), 0) AS total_bars
@@ -195,11 +216,14 @@ export async function listFlows(accountId) {
      ORDER BY s.created_at DESC`,
     [accountId]
   );
-  return rows.map(toFlowSummaryDto);
+  const superAdmin = await isSuperAdmin(accountId);
+  return rows.map(r => toFlowSummaryDto(r, (Number(r.owner_account_id) === Number(accountId) && !r.is_public)
+    || r.is_band_member || (r.is_public && superAdmin)));
 }
 
 export async function getFlowDetail(accountId, scoreId) {
-  const score = await assertFlowAccess(accountId, scoreId);
+  const score = await assertFlowReadAccess(accountId, scoreId);
+  const canEdit = await canEditFlow(accountId, scoreId);
   const [{ rows: recordingRows }, { rows: documentRows }, { rows: summaryRows }] = await Promise.all([
     pool.query('SELECT * FROM score_recordings WHERE score_id = $1 ORDER BY order_index, id', [scoreId]),
     pool.query('SELECT * FROM score_documents WHERE score_id = $1 ORDER BY id', [scoreId]),
@@ -217,7 +241,7 @@ export async function getFlowDetail(accountId, scoreId) {
       [scoreId]
     )
   ]);
-  return toFlowDetailDto(score, recordingRows, documentRows, summaryRows[0]);
+  return toFlowDetailDto(score, recordingRows, documentRows, summaryRows[0], canEdit);
 }
 
 export async function updateFlowMetadata(accountId, scoreId, data) {
@@ -280,13 +304,15 @@ export async function unpublishFlow(accountId, scoreId) {
 }
 
 // Creates the duplicate's own score row (metadata copied, blocks copied separately by the route -
-// see flowBlocks.js's copyAllFlowBlocks) - personal-flows-only for now (band/public sharing makes
-// "who's allowed to duplicate this" a bigger question than this pass needs to answer). Always lands
+// see flowBlocks.js's copyAllFlowBlocks) - your own personal pieces and, since ML-310, any public
+// piece ("Copy to my library"). Band pieces are not copied yet. Always lands
 // personal, even duplicating your own flow, same "start simple" default as createFlow itself.
 export async function duplicateFlow(accountId, scoreId) {
-  const source = await assertFlowAccess(accountId, scoreId);
-  if (source.is_public || source.owner_band_id !== null || Number(source.owner_account_id) !== Number(accountId)) {
-    throw withStatus(400, 'Only a personal flow you own can be duplicated right now.');
+  const source = await assertFlowReadAccess(accountId, scoreId);
+  // Your own personal piece, or any public piece (ML-310: "Copy to my library" to adapt it).
+  const ownPersonal = !source.is_public && source.owner_band_id === null && Number(source.owner_account_id) === Number(accountId);
+  if (!ownPersonal && !source.is_public) {
+    throw withStatus(400, 'Only your own pieces and public pieces can be copied.');
   }
   const { rows } = await pool.query(
     `INSERT INTO scores (title, composer, arranger, publisher, description, owner_account_id)

@@ -24,6 +24,7 @@ import { listFeedbackForAdmin, updateFeedbackAdmin } from '../services/feedback.
 import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitImport, MAX_IMPORT_BYTES } from '../services/flowTransfer.js';
 import { listNotificationsForAdmin, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
 import { getSecurityReview, runSecurityReviewNow } from '../services/securityReview.js';
+import { getInstrumentUsageStats } from '../services/instruments.js';
 
 const router = express.Router();
 
@@ -468,6 +469,15 @@ router.delete('/time-signatures/:id', requireAuth, resolveAccount, requireSuperA
 router.get('/usage/note-values', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     res.json({ noteValues: await listNoteValueUsage() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-309: practice time by instrument (sessions.instrument_id), plus who plays what.
+router.get('/usage/instruments', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await getInstrumentUsageStats());
   } catch (error) {
     sendError(res, error);
   }

@@ -71,11 +71,23 @@
     const hasIntroStart = (b) => b && b.introStartBarOffset !== null && b.introStartBarOffset !== undefined;
     const hasIntroEnd = (b) => b && b.introEndBarOffset !== null && b.introEndBarOffset !== undefined;
 
-    // The run of consecutive alternate-ending blocks that block i belongs to ([start, end] indices).
+    // Does a new set of alternate endings start at block k (which has endings)? ML-311: two sets can
+    // sit back to back - "1. 2." then the next section's own "1. 2." - so a run of ending blocks isn't
+    // always one set. A new set starts at a repeat start, or at an ending for time 1 straight after a
+    // set's last ending (one with no repeat end of its own, and not itself for time 1 - so a 1st ending
+    // spread over two blocks stays one set).
+    function startsNewVoltaSet(blocks, k) {
+        const b = blocks[k];
+        const prev = blocks[k - 1];
+        if (!hasVoltas(b) || !hasVoltas(prev)) return false;
+        if (b.isRepeatStart) return true;
+        return b.repeatEndingNumbers.includes(1) && !prev.repeatEndingNumbers.includes(1) && !prev.isRepeatEnd;
+    }
+    // The set of alternate endings that block i belongs to ([start, end] indices).
     function voltaGroup(blocks, i) {
         let s = i, e = i;
-        while (s > 0 && hasVoltas(blocks[s - 1])) s--;
-        while (e < blocks.length - 1 && hasVoltas(blocks[e + 1])) e++;
+        while (s > 0 && hasVoltas(blocks[s - 1]) && !startsNewVoltaSet(blocks, s)) s--;
+        while (e < blocks.length - 1 && hasVoltas(blocks[e + 1]) && !startsNewVoltaSet(blocks, e + 1)) e++;
         return [s, e];
     }
     // The highest pass number any ending in that run is for - "the last time through".
@@ -98,8 +110,13 @@
         const [gs] = hasVoltas(blocks[e]) ? voltaGroup(blocks, e) : [e];
         let low = 0;
         for (let k = gs - 1; k >= 0; k--) {
-            if (blocks[k].isRepeatEnd) { low = k + 1; break; }
+            // An earlier repeat's end - or, if it's inside a set of endings, the end of that whole set
+            // (its last ending may have no repeat end of its own).
+            if (blocks[k].isRepeatEnd) { low = (hasVoltas(blocks[k]) ? voltaGroup(blocks, k)[1] : k) + 1; break; }
         }
+        // Never back into an earlier set of endings (ML-311): straight after one, this set's own
+        // region starts here.
+        if (gs > 0 && hasVoltas(blocks[gs - 1])) low = Math.max(low, gs);
         for (let k = e; k >= low; k--) {
             if (blocks[k].isRepeatStart) return k;
         }
@@ -213,7 +230,7 @@
             if (next < n) {
                 const prev = blocks[from];
                 const nb = blocks[next];
-                if (nb.isRepeatStart || (!hasVoltas(nb) && (hasVoltas(prev) || prev.isRepeatEnd))) pass = 1;
+                if (nb.isRepeatStart || startsNewVoltaSet(blocks, next) || (!hasVoltas(nb) && (hasVoltas(prev) || prev.isRepeatEnd))) pass = 1;
             }
             return next;
         }
@@ -420,8 +437,15 @@
                 return;
             }
             const passes = Math.max(...(ends.length ? ends : [gs - 1]).map(j => blocks[j].repeatPlayCount || 2));
+            // One ending can span several blocks: consecutive blocks with the same ending numbers count
+            // once (ML-311).
             const counts = {};
-            group.forEach(j => blocks[j].repeatEndingNumbers.forEach(p => { counts[p] = (counts[p] || 0) + 1; }));
+            group.forEach((j, idx) => {
+                const nums = blocks[j].repeatEndingNumbers;
+                const prev = idx > 0 ? blocks[group[idx - 1]].repeatEndingNumbers : null;
+                if (prev && prev.length === nums.length && prev.every((p, q) => p === nums[q])) return;
+                nums.forEach(p => { counts[p] = (counts[p] || 0) + 1; });
+            });
             group.forEach(j => {
                 const never = blocks[j].repeatEndingNumbers.filter(p => p > passes);
                 if (never.length) add('ending-never-plays', 'error', [j], `${label(j)}: ending ${never.join(', ')} never plays - the repeat only plays ${passes} time${passes === 1 ? '' : 's'}.`);

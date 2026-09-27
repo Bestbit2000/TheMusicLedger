@@ -30,6 +30,11 @@ Related tickets:
 Both browser files load before `app.js` (notation first). Node and the server load them with `vm`,
 because this package is ESM and they're browser scripts. That's the same approach as `flowJourney.js`.
 
+## Theory grades and instruments (ML-309)
+
+Each quiz can be set to Grade 1-5 (feature `theory_grades`), and the Theory page's instrument sets
+the clef each quiz starts on - see [theory-grades.md](theory-grades.md).
+
 ## Scales practice (ML-9)
 
 The Scales tool (home tile, behind the `scales_practice` feature) shares this engine and renderer:
