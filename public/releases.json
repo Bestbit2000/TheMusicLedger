@@ -1,5 +1,51 @@
 [
   {
+    "version": "0.30.0",
+    "date": "2026-09-28",
+    "changes": [
+      {
+        "key": "ML-323",
+        "type": "Fixes",
+        "summary": "Projection in stats excludes today's values"
+      },
+      {
+        "key": "ML-321",
+        "type": "New",
+        "summary": "Skills lists: choose skills and level up through each tool's steps"
+      },
+      {
+        "key": "ML-320",
+        "type": "New",
+        "summary": "Session planner and runner: 5-minute blocks, templates, 4:30 nudge"
+      },
+      {
+        "key": "ML-319",
+        "type": "New",
+        "summary": "Practice lists with a concert date, readiness forecast and join-up groups"
+      },
+      {
+        "key": "ML-318",
+        "type": "New",
+        "summary": "Rename the other on-screen \"Level\"s (Help, Notes, Difficulty, Account type)"
+      },
+      {
+        "key": "ML-317",
+        "type": "New",
+        "summary": "Rehearse session mode: play the weakest chunk at its Level, Level up, rate it"
+      },
+      {
+        "key": "ML-316",
+        "type": "New",
+        "summary": "Piece setup (\"How well can you play it?\"), chunk length rule and bar heat map"
+      },
+      {
+        "key": "ML-315",
+        "type": "New",
+        "summary": "Levels engine and piece chunks (data + API)"
+      }
+    ]
+  },
+  {
     "version": "0.29.0",
     "date": "2026-09-27",
     "changes": [
@@ -22,6 +68,11 @@
         "key": "ML-302",
         "type": "New",
         "summary": "Create repeat section for rehearse area"
+      },
+      {
+        "key": "ML-274",
+        "type": "New",
+        "summary": "Notes on the theory test should be all on one row"
       },
       {
         "key": "ML-113",
