@@ -405,7 +405,7 @@
     .chart-legend-swatch { background: var(--series); width: var(--icon-sm); height: var(--icon-sm); box-sizing: border-box; border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
     .chart-legend-swatch-projected { border: 2px solid var(--series); background: transparent; } /* full outline - in the key it isn't sitting on a solid bar */
     .chart-x-label { position: absolute; top: 100%; margin-top: var(--space-1); font-size: var(--font-xs); color: var(--label-color); text-align: center; width: 40px; left: 50%; transform: translateX(-50%); line-height: var(--line-height-snug); white-space: normal; pointer-events: none; }
-    .chart-x-year { font-size: var(--font-2xs); opacity: 0.8; } /* the year under a January (or first) month label */
+    .chart-x-year { font-size: var(--font-2xs); } /* the year under a January (or first) month label - full --label-color, no dimming (it failed 4.5:1 at 0.8 opacity, axe, 0.30.0) */
 
     .month-nav { display: flex; justify-content: space-between; align-items: center; background: var(--secondary-color); padding: var(--space-2); border-radius: var(--radius-md); margin-bottom: var(--space-4); }
     .month-nav button { background: none; border: none; font-size: var(--font-md); cursor: pointer; color: var(--text-color); font-weight: var(--font-weight-bold); }
@@ -2296,3 +2296,43 @@
     .no-transition { transition: none; }
     .transition-swipe { transition: transform var(--duration-swipe) ease; }
     .transition-transform { transition: transform var(--duration-base) ease; }
+
+    /* Practice Levels (ML-316, epic ML-314) - see specs/components/level-map.md. A piece's Level map
+       (one square per bar, the Level number in it so it never relies on colour), the thin strip for
+       list rows, the Level chip and the 1-5 Level picker. Colours: --level-1..5, silver to gold. */
+    .level-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--level-cell-size), 1fr)); gap: var(--space-0-5); margin-bottom: var(--space-3); }
+    .level-cell { min-height: var(--level-cell-size); aspect-ratio: 1; border-radius: var(--radius-2xs); display: grid; place-items: center; font-size: var(--font-xs); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); box-sizing: border-box; }
+    .level-strip { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--space-0-5); height: var(--level-strip-height); }
+    .level-strip .level-cell { min-height: 0; aspect-ratio: auto; font-size: 0; }
+    .lv-0 { background: transparent; border: 1px dashed var(--level-unset-border); color: var(--label-color); }
+    .lv-1 { background: var(--level-1); color: var(--level-1-text); }
+    .lv-2 { background: var(--level-2); color: var(--level-2-text); }
+    .lv-3 { background: var(--level-3); color: var(--level-3-text); }
+    .lv-4 { background: var(--level-4); color: var(--level-4-text); }
+    .lv-5 { background: var(--level-5); color: var(--level-5-text); }
+    .level-cell.is-marked { box-shadow: var(--focus-ring); }
+    .level-legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); font-size: var(--font-sm); color: var(--label-color); margin-bottom: var(--space-4); }
+    .level-legend > span { display: inline-flex; align-items: center; gap: var(--space-1); }
+    .level-legend .level-cell { width: var(--icon-md); min-height: var(--icon-md); }
+    .level-chip { flex-shrink: 0; width: var(--icon-xl); height: var(--icon-xl); border-radius: var(--radius-xs); display: grid; place-items: center; font-size: var(--font-sm); font-weight: var(--font-weight-bold); box-sizing: border-box; }
+    .level-picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-1); margin-bottom: var(--space-3); }
+    .level-pick { min-height: var(--touch-target); border: 2px solid transparent; border-radius: var(--radius-md); display: grid; place-items: center; align-content: center; gap: var(--space-0-5); font: inherit; font-size: var(--font-md); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); cursor: pointer; padding: var(--space-1); }
+    .level-pick small { font-size: var(--font-xs); font-weight: var(--font-weight-semibold); }
+    .level-pick.selected { border-color: var(--primary-action-strong); box-shadow: var(--focus-ring); }
+    .level-notice { background: var(--status-amber-bg); color: var(--status-amber-fg); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); font-size: var(--font-sm); }
+    .level-row-body { display: flex; align-items: center; gap: var(--space-3); min-width: 0; min-height: var(--touch-target); background: none; border: none; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+    .level-fit-warn { color: var(--status-amber-fg); font-weight: var(--font-weight-bold); }
+    .level-answer { width: 100%; text-align: left; background: var(--input-bg); color: var(--text-color); font: inherit; font-weight: var(--font-weight-bold); line-height: var(--line-height-base); min-height: var(--touch-target); }
+    .history-item.level-row-selected { border-color: var(--primary-action-strong); box-shadow: var(--focus-ring); }
+
+    /* Practice session (ML-320, epic ML-314) - see specs/components/practice-session.md. The bar under the
+       top bar while a session runs (in .top-bar-sticky-group, so it stays put on every screen) and the
+       strip of the session's 5-minute blocks: done gold, the one now dark gold, the rest grey. */
+    .session-bar { width: 100%; max-width: var(--app-max-width); box-sizing: border-box; display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-5); min-height: var(--touch-target); background: var(--container-bg); color: var(--text-color); border: none; border-bottom: 2px solid var(--primary-action-strong); font: inherit; text-align: left; cursor: pointer; }
+    .session-bar-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); font-size: var(--font-sm); font-weight: var(--font-weight-semibold); }
+    .session-bar-row strong { font-variant-numeric: tabular-nums; }
+    .session-strip { display: flex; gap: var(--space-0-5); height: var(--space-2); }
+    .session-seg { flex: 1; border-radius: var(--radius-2xs); background: var(--control-border); }
+    .session-seg.is-done { background: var(--primary-action); }
+    .session-seg.is-now { background: var(--primary-action-strong); }
+    .session-block-time { flex-shrink: 0; min-width: var(--space-9); font-variant-numeric: tabular-nums; }

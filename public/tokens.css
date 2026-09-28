@@ -82,6 +82,9 @@
        gold rather than a category hue (green/purple read as "practise only"/"lesson only"). */
     --ds-heat-gold-1: #f3e3a8; --ds-heat-gold-2: #e2c355; --ds-heat-gold-3: #c9a22c; --ds-heat-gold-4: #8f7114;
     --ds-heat-gold-dark-1: #4a3b0b; --ds-heat-gold-dark-2: #7d6415; --ds-heat-gold-dark-3: #b8952b; --ds-heat-gold-dark-4: #f5d78e;
+    /* ML-316: practice Levels 1-5 - silver (1-2) rising to gold (5); the brighter, the better. */
+    --ds-level-1: #8f9398; --ds-level-2: #c9cdd2; --ds-level-3: #f6e7ad; --ds-level-4: #eccf62; --ds-level-5: #f5c211;
+    --ds-level-dark-1: #50545a; --ds-level-dark-2: #80858c; --ds-level-dark-3: #6f5f22; --ds-level-dark-4: #b8952b; --ds-level-dark-5: #ffd23f;
 
     /* Translucent */
     --ds-black-a20: rgba(0, 0, 0, 0.2);
@@ -265,6 +268,17 @@
     --heat-sess-2: var(--ds-heat-gold-2, #e2c355);               /* intensity step 2 */
     --heat-sess-3: var(--ds-heat-gold-3, #c9a22c);               /* intensity step 3 */
     --heat-sess-4: var(--ds-heat-gold-4, #8f7114);               /* intensity step 4 (max) */
+    --level-1: var(--ds-level-1, #8f9398);                       /* practice Level 1 (ML-316) - dull silver: heat-map bar, Level chip, picker */
+    --level-2: var(--ds-level-2, #c9cdd2);                       /* practice Level 2 - silver */
+    --level-3: var(--ds-level-3, #f6e7ad);                       /* practice Level 3 - pale gold */
+    --level-4: var(--ds-level-4, #eccf62);                       /* practice Level 4 - light gold */
+    --level-5: var(--ds-level-5, #f5c211);                       /* practice Level 5 - gold, performance-ready */
+    --level-1-text: var(--ds-neutral-875, #1a1a1a);              /* the Level number on a --level-1 fill */
+    --level-2-text: var(--ds-neutral-875, #1a1a1a);              /* the Level number on --level-2 */
+    --level-3-text: var(--ds-neutral-875, #1a1a1a);              /* the Level number on --level-3 */
+    --level-4-text: var(--ds-neutral-875, #1a1a1a);              /* the Level number on --level-4 */
+    --level-5-text: var(--ds-neutral-875, #1a1a1a);              /* the Level number on --level-5 */
+    --level-unset-border: var(--ds-neutral-550, #858585);        /* dashed outline of a bar with no Level yet (3:1 on the page) */
 
     /* Spacing */
     --space-0: var(--ds-size-0, 0);                              /* reset only */
@@ -308,6 +322,10 @@
     --icon-md: var(--ds-size-20, 20px);                          /* default Material Symbols size */
     --icon-lg: var(--ds-size-24, 24px);                          /* icon-only buttons */
     --icon-xl: var(--ds-size-32, 32px);                          /* tool tiles, hero icons */
+
+    /* Practice Levels heat map (ML-316) */
+    --level-cell-size: var(--ds-size-24, 24px);                  /* one bar's square in a piece's Level map (display only, not a tap target) */
+    --level-strip-height: var(--ds-size-12, 12px);               /* the thin one-row Level strip on a list row */
 
     /* Radius - see specs/foundations/radius.md. --radius-md is THE button radius. */
     --radius-2xs: var(--ds-radius-2, 2px);                       /* heatmap cells, chart bar tops */
@@ -398,6 +416,14 @@ body.dark-mode {
     --heat-sess-2: var(--ds-heat-gold-dark-2, #7d6415);
     --heat-sess-3: var(--ds-heat-gold-dark-3, #b8952b);
     --heat-sess-4: var(--ds-heat-gold-dark-4, #f5d78e);
+    --level-1: var(--ds-level-dark-1, #50545a);
+    --level-2: var(--ds-level-dark-2, #80858c);
+    --level-3: var(--ds-level-dark-3, #6f5f22);
+    --level-4: var(--ds-level-dark-4, #b8952b);
+    --level-5: var(--ds-level-dark-5, #ffd23f);
+    --level-1-text: var(--ds-neutral-0, #ffffff);
+    --level-3-text: var(--ds-neutral-0, #ffffff);
+    --level-unset-border: var(--ds-neutral-500b, #808080);
     --status-amber-bg: var(--ds-status-amber-bg-dark, #4a3c0c);
     --status-amber-fg: var(--ds-status-amber-fg-dark, #f2dd90);
     --status-green-bg: var(--ds-status-green-bg-dark, #17431f);

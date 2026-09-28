@@ -258,6 +258,39 @@
         warmups: {
             list: () => apiCall('/api/warmups')
         },
+        // ML-315/316: a piece's practice Levels (chunks, per account) - PRACTICE LEVELS in routes/api.js
+        // ML-319: practice lists
+        practiceLists: {
+            list: () => apiCall('/api/practice/lists'),
+            get: (id) => apiCall(`/api/practice/lists/${id}`),
+            create: (data) => apiCall('/api/practice/lists', 'POST', data),
+            update: (id, data) => apiCall(`/api/practice/lists/${id}`, 'PUT', data),
+            remove: (id) => apiCall(`/api/practice/lists/${id}`, 'DELETE'),
+            setPieces: (id, scoreIds) => apiCall(`/api/practice/lists/${id}/pieces`, 'PUT', { scoreIds })
+        },
+        // ML-320: the practice session builder
+        practice: {
+            chunks: () => apiCall('/api/practice/chunks'),
+            saveSession: (data) => apiCall('/api/practice/sessions', 'POST', data),
+            templates: () => apiCall('/api/practice/templates'),
+            addTemplate: (data) => apiCall('/api/practice/templates', 'POST', data),
+            saveTemplate: (id, data) => apiCall(`/api/practice/templates/${id}`, 'PUT', data),
+            deleteTemplate: (id) => apiCall(`/api/practice/templates/${id}`, 'DELETE'),
+            getActive: () => apiCall('/api/practice/active'),
+            putActive: (data) => apiCall('/api/practice/active', 'PUT', data),
+            clearActive: () => apiCall('/api/practice/active', 'DELETE')
+        },
+        // ML-321: your skills list
+        skills: {
+            list: () => apiCall('/api/practice/skills'),
+            set: (keys) => apiCall('/api/practice/skills', 'PUT', { keys }),
+            result: (data) => apiCall('/api/practice/skills/result', 'POST', data)
+        },
+        levels: {
+            get: (flowId) => apiCall(`/api/flows/${flowId}/levels`),
+            save: (flowId, chunks) => apiCall(`/api/flows/${flowId}/levels`, 'PUT', { chunks }),
+            setChunk: (chunkId, data) => apiCall(`/api/levels/chunks/${chunkId}`, 'POST', data)
+        },
         // ML-298/295/296: the drill tools - tool is tapTempo | gapTrainer | ear
         drills: {
             summary: (tool) => apiCall(`/api/drills/${tool}/summary`),
@@ -656,6 +689,7 @@
             renderFeatureGates();
             renderPracticeYearOptions();
             syncPracticeYearSettings();
+            resumePracticeRun(); // ML-320: a session that was running carries on (this device or another)
         } catch (error) {
             console.warn('Failed to load settings:', error);
             appData = { organisations: [], teachers: [], durations: [], enabledFeatures: [] };
@@ -675,6 +709,9 @@
         document.getElementById('feedbackNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('feedback'));
         document.getElementById('theoryToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('theory_practice'));
         document.getElementById('scalesToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('scales_practice'));
+        // ML-320: Start a practice session replaces Start a challenge.
+        document.getElementById('startPracticeSessionBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('practice_levels'));
+        document.getElementById('startChallengeBtn')?.classList.toggle('hidden-group', isFeatureEnabled('practice_levels'));
         document.getElementById('warmupsToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('warmups'));
         // ML-299: My music (create / import / library / edit) and Play Flow's "Create new".
         document.getElementById('tapTempoToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('tap_tempo'));
@@ -898,7 +935,7 @@
     }
     // The current screen: its own item, or for a screen the menu doesn't list directly (a tool's inner
     // screens, Flow's editor...), the item it belongs under.
-    const NAV_PARENT_VIEW = { flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView',
+    const NAV_PARENT_VIEW = { flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView', pieceLevelsView: 'rehearseView', practiceListView: 'rehearseView',
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
         accountDetailsView: 'accountView', accountInstrumentsView: 'accountView', accountBandsView: 'accountView', accountTeachersView: 'accountView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
@@ -1113,7 +1150,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'pieceLevelsView', 'sessionPlanView', 'sessionRunView', 'practiceListView', 'skillsView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -1287,7 +1324,18 @@
             }
         }
 
-        if (viewName === 'rehearseView') { document.getElementById('topTitle').innerText = 'Rehearse'; renderRehearseList(); rehearseRefresh(); }
+        if (viewName === 'rehearseView') { document.getElementById('topTitle').innerText = 'Rehearse'; renderRehearseList(); rehearseRefresh(); renderRehearseLists(); }
+        if (viewName === 'pieceLevelsView') document.getElementById('topTitle').innerText = 'My Levels';
+        // ML-317: leaving the play screen any other way than Finish ends the practice without a rating.
+        if (flowSession && viewName !== 'flowPlayView') endLevelPractice();
+        if (viewName === 'sessionPlanView') document.getElementById('topTitle').innerText = 'Practice session';
+        if (viewName === 'sessionRunView') document.getElementById('topTitle').innerText = 'Practice session';
+        if (viewName === 'practiceListView') document.getElementById('topTitle').innerText = plState.list ? plState.list.name : 'Practice list';
+        // Back from a piece's My Levels: its chunks may have changed, so the forecast is worked out again.
+        if (viewName === 'practiceListView' && isBack && plState.list) API.practiceLists.get(plState.list.id).then(l => { plState.list = l; renderPracticeList(); }).catch(() => { /* keeps what it had */ });
+        if (practiceRun) renderPracticeRun(); // ML-320: the session bar on every screen but the session's own
+        if (viewName !== 'warmupsView') skillWarmupsKind = null;
+        if (viewName === 'skillsView') document.getElementById('topTitle').innerText = 'My skills';
         if (viewName === 'metroBuilderView') {
             // No title text here any more (ML-91) - the tuner toggle takes that spot in the top bar
             // instead, and the view is unambiguous from its content anyway.
@@ -1334,6 +1382,7 @@
             // (ML-166) - currentFlowDetail.recordings was just re-fetched too.
             buildFlowMediaSlides();
             renderFlowMediaCarousel();
+            renderFlowSessionControls(); // ML-317: Level / Level up / Finish while practising, else the usual tiles
         }
         // The mini tuner widget is a single shared element (one mic session, one renderer - see
         // "Metronome Blocks mini tuner" below) physically relocated into whichever of Flow/Metronome
@@ -2775,7 +2824,10 @@
             }
 
             filtered.forEach(d => {
-                const dateStr = parseDateSafely(d.dateStr).toISOString().split('T')[0];
+                // ML-323: the local calendar day, not toISOString() - that's UTC, and during British Summer
+                // Time local midnight is 23:00 the day before, so the 1st of each month was counted in the
+                // month before (a day, its hours and sessions missing from this month and its projection).
+                const dateStr = formatLocalDateStr(parseDateSafely(d.dateStr));
                 let k = dateStr.substring(0,7);
                 if(monthMap[k]) {
                     monthMap[k].days.add(dateStr);
@@ -4844,6 +4896,1236 @@
     }
     document.getElementById('rehearseAddBtn')?.addEventListener('click', () => switchView('metroBuilderView'));
 
+    // ===== ML-316 (epic ML-314): a piece's practice Levels =====
+    // "How well can you play it?" -> the whole piece at a Level, hard passages on top of it, or chunks.
+    // One square per bar (FlowJourney.barLevels), silver (1) to gold (5), the Level number in each so it
+    // never relies on colour. Every chunk shows how many times it plays in a 4:30 block at its Level
+    // (FlowJourney.chunkFit); fewer than 3 gets a split. Saved per account (PUT /api/flows/:id/levels).
+    // Opened from Play Flow's menu, so currentFlowId/currentFlowBlocks/currentFlowDetail are loaded.
+    const levels = { flowId: null, blocks: [], total: 0, mode: null, whole: null, hard: [], chunks: [], groups: [], hardEdit: null, groupEdit: null, selected: -1, barsChanged: false };
+    const fmtMinSec = (s) => { const t = Math.round(s); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+    const levelsRange = (a, z) => (a === z ? `Bar ${a}` : `Bars ${a}–${z}`);
+
+    function openPieceLevels() {
+        if (!currentFlowId) return;
+        levels.flowId = currentFlowId;
+        levels.blocks = currentFlowBlocks.slice();
+        levels.total = FlowJourney.totalBars(levels.blocks);
+        levels.mode = null; levels.hardEdit = null; levels.selected = -1;
+        switchView('pieceLevelsView');
+        document.getElementById('levelsSub').textContent = `${currentFlowDetail?.title || 'This piece'} · ${levels.total} bar${levels.total === 1 ? '' : 's'}`;
+        API.levels.get(levels.flowId).then(applyPieceLevels).catch(e => showWarningToast('Levels not loaded: ' + e.message));
+        renderPieceLevels();
+    }
+    function applyPieceLevels(data) {
+        const cs = data.chunks || [];
+        levels.whole = cs.find(c => c.kind === 'whole') || null;
+        levels.hard = cs.filter(c => c.kind === 'hard');
+        levels.chunks = cs.filter(c => c.kind === 'chunk');
+        levels.groups = cs.filter(c => c.kind === 'group'); // ML-319 join-up groups
+        levels.groupEdit = null;
+        levels.mode = levels.chunks.length ? 'chunk' : levels.hard.length ? 'hard' : levels.whole ? 'whole' : null;
+        levels.barsChanged = !!data.barsChanged;
+        levels.subBeatsBelow = data.subBeatsBelow;
+        levels.selected = -1; levels.hardEdit = null;
+        renderPieceLevels();
+    }
+    function levelsCurrentChunks() {
+        if (levels.mode === 'chunk') return [...levels.chunks, ...levels.groups];
+        if (levels.mode === 'hard') return [levels.whole, ...levels.hard].filter(Boolean);
+        if (levels.mode === 'whole') return levels.whole ? [levels.whole] : [];
+        return [];
+    }
+    function levelsFit(c) {
+        if (!c || c.level == null) return null;
+        const f = FlowJourney.chunkFit(levels.blocks, { startBar: c.startBar, endBar: c.endBar, level: c.level });
+        return f.ok ? f : null;
+    }
+    function levelsFitText(f) {
+        if (!f) return '';
+        const runs = `${f.runs}× in a 5-minute block`;
+        return f.fits === 'tooLong' ? `${fmtMinSec(f.runSeconds)} a run - only ${runs}` : `${fmtMinSec(f.runSeconds)} a run · ${runs}`;
+    }
+    // The five Level buttons for a bar range, each showing its % of the piece's tempo.
+    function renderLevelPicker(el, range, value, onPick) {
+        const pct = FlowJourney.levelPercents(FlowJourney.slowestTempo(levels.blocks, range[0], range[1]));
+        el.innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" class="level-pick lv-${n}${value === n ? ' selected' : ''}" aria-pressed="${value === n}" data-level="${n}" aria-label="Level ${n}, ${pct[n - 1]}% speed">${n}<small>${pct[n - 1]}%</small></button>`).join('');
+        el.querySelectorAll('[data-level]').forEach(b => b.addEventListener('click', () => onPick(Number(b.dataset.level))));
+    }
+    function levelsRow(c, i, { selected, actions }) {
+        const f = levelsFit(c);
+        const lv = c.level == null ? 0 : c.level;
+        const fit = f ? `<br><span class="text-sm ${f.fits === 'tooLong' ? 'level-fit-warn' : 'text-muted'}">${levelsFitText(f)}</span>` : (c.level == null ? '<br><span class="text-sm text-muted">Not set yet</span>' : '');
+        return `<div class="history-item${selected ? ' level-row-selected' : ''}" data-row="${i}">
+            <button type="button" class="level-row-body grow text-left" data-select="${i}" aria-pressed="${!!selected}">
+                <span class="level-chip lv-${lv}" aria-hidden="true">${lv || ''}</span>
+                <span><strong>${escapeHtml(c.label || levelsRange(c.startBar, c.endBar))}</strong>${c.label ? `<br><span class="text-sm text-muted">${levelsRange(c.startBar, c.endBar)}</span>` : ''}${fit}</span>
+            </button>
+            ${actions}
+        </div>`;
+    }
+
+    function renderPieceLevels() {
+        const cs = levelsCurrentChunks();
+        const map = FlowJourney.barLevels(levels.total, cs);
+        const marked = levels.hardEdit ? [levels.hardEdit.startBar, levels.hardEdit.endBar]
+            : (levels.mode === 'chunk' && levels.chunks[levels.selected]) ? [levels.chunks[levels.selected].startBar, levels.chunks[levels.selected].endBar] : null;
+        const mapEl = document.getElementById('levelsMap');
+        mapEl.innerHTML = map.map((lv, k) => {
+            const n = k + 1;
+            const on = marked && n >= Math.min(...marked) && n <= Math.max(...marked);
+            return `<span class="level-cell lv-${lv || 0}${on ? ' is-marked' : ''}">${lv || ''}</span>`;
+        }).join('');
+        const set = map.filter(v => v).length;
+        mapEl.setAttribute('aria-label', !set ? 'No Levels set yet' : `Levels by bar: ${[1, 2, 3, 4, 5].map(n => [n, map.filter(v => v === n).length]).filter(([, c]) => c).map(([n, c]) => `${c} bar${c === 1 ? '' : 's'} at Level ${n}`).join(', ')}${set < map.length ? `, ${map.length - set} not set` : ''}`);
+
+        setShown('levelsBarsChanged', levels.barsChanged);
+        setShown('levelsAsk', levels.mode === null);
+        document.getElementById('levelsAskTitle').textContent = `How well can you play ${currentFlowDetail?.title || 'it'}?`;
+        setShown('levelsWhole', levels.mode === 'whole' || levels.mode === 'hard');
+        setShown('levelsHard', levels.mode === 'hard');
+        setShown('levelsChunks', levels.mode === 'chunk');
+        setShown('levelsSaveBtn', levels.mode !== null);
+        setShown('levelsPractiseWeakestBtn', levels.mode !== null && cs.some(c => c.level != null));
+        setShown('levelsWholePractiseBtn', levels.mode === 'whole' && !!levels.whole && levels.whole.level != null);
+        setShown('levelsChangeAnswerBtn', levels.mode !== null);
+
+        if (levels.mode === 'whole' || levels.mode === 'hard') {
+            if (!levels.whole) levels.whole = { kind: 'whole', startBar: 1, endBar: levels.total, level: null };
+            document.getElementById('levelsWholeLabel').textContent = levels.mode === 'hard' ? 'The rest of the piece, at Level' : 'The whole piece, at Level';
+            renderLevelPicker(document.getElementById('levelsWholePicker'), [1, levels.total], levels.whole.level, (n) => { levels.whole.level = n; renderPieceLevels(); });
+            const f = levels.mode === 'whole' ? levelsFit(levels.whole) : null;
+            document.getElementById('levelsWholeFit').textContent = f ? (f.fits === 'tooLong' ? `At this Level the whole piece takes ${fmtMinSec(f.runSeconds)} - only ${f.runs}× in a 5-minute block. Aim for 3 or more: break it up.` : levelsFitText(f)) : '';
+            setShown('levelsWholeBreakBtn', !!f && f.fits === 'tooLong');
+        }
+        if (levels.mode === 'hard') renderHardPassages();
+        if (levels.mode === 'chunk') { renderChunks(); renderGroups(); }
+    }
+
+    function renderHardPassages() {
+        const list = document.getElementById('levelsHardList');
+        list.innerHTML = levels.hard.length ? levels.hard.map((c, i) => levelsRow(c, i, {
+            selected: levels.hardEdit && levels.hardEdit.index === i,
+            actions: `<button type="button" class="flow-delete-btn" data-remove="${i}" aria-label="Remove ${levelsRange(c.startBar, c.endBar)}"><span class="material-symbols-outlined" aria-hidden="true">delete</span></button>`
+        })).join('') : '<p class="text-sm text-muted">None yet. Add each passage you find hard, as many as you need.</p>';
+        list.querySelectorAll('[data-select]').forEach(b => b.addEventListener('click', () => { const i = Number(b.dataset.select); levels.hardEdit = { index: i, ...levels.hard[i] }; renderPieceLevels(); }));
+        list.querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', () => { levels.hard.splice(Number(b.dataset.remove), 1); levels.hardEdit = null; renderPieceLevels(); }));
+        const e = levels.hardEdit;
+        setShown('levelsHardEditor', !!e);
+        setShown('levelsHardAddBtn', !e);
+        if (!e) return;
+        const from = document.getElementById('levelsHardFrom'), to = document.getElementById('levelsHardTo');
+        from.max = to.max = String(levels.total);
+        if (document.activeElement !== from) from.value = e.startBar;
+        if (document.activeElement !== to) to.value = e.endBar;
+        document.getElementById('levelsHardDoneBtn').textContent = e.index == null ? 'Add' : 'Update';
+        renderLevelPicker(document.getElementById('levelsHardPicker'), [e.startBar, e.endBar], e.level, (n) => { e.level = n; renderPieceLevels(); });
+        document.getElementById('levelsHardFit').textContent = levelsFitText(levelsFit(e));
+    }
+    function levelsHardInput() {
+        const e = levels.hardEdit;
+        if (!e) return;
+        const clamp = (v) => Math.max(1, Math.min(levels.total, Math.round(Number(v) || 1)));
+        e.startBar = clamp(document.getElementById('levelsHardFrom').value);
+        e.endBar = clamp(document.getElementById('levelsHardTo').value);
+        renderPieceLevels();
+    }
+
+    // Suggested chunks: the piece's own sections - a new chunk at every rehearsal mark and after every
+    // section boundary - or every 4 bars when it has none. Anything too long to play 3 times in a block
+    // at Level 1 is split further.
+    function levelsSections() {
+        const starts = new Set([1]);
+        const labels = {};
+        levels.blocks.forEach((b, i) => {
+            const first = FlowJourney.barNumberOf(levels.blocks, i, 0);
+            if (b.rehearsalMark) { starts.add(first); labels[first] = b.rehearsalMark; }
+            (b.rehearsalMarks || []).forEach(m => { const n = FlowJourney.barNumberOf(levels.blocks, i, m.barOffset || 0); starts.add(n); labels[n] = m.mark; });
+            if ((b.isSectionBoundary || b.isFinalBarline) && i < levels.blocks.length - 1) starts.add(first + Math.max(1, b.barCount || 1));
+        });
+        const s = [...starts].filter(n => n <= levels.total).sort((a, z) => a - z);
+        if (s.length < 2) return null;
+        return s.map((a, k) => ({ startBar: a, endBar: (s[k + 1] || levels.total + 1) - 1, label: labels[a] || null }));
+    }
+    function levelsEvery(n) {
+        const out = [];
+        for (let a = 1; a <= levels.total; a += n) out.push({ startBar: a, endBar: Math.min(levels.total, a + n - 1), label: null });
+        return out;
+    }
+    function levelsSplitToFit(list) {
+        return list.flatMap(c => FlowJourney.suggestSplit(levels.blocks, { startBar: c.startBar, endBar: c.endBar, level: c.level || 1 })
+            .map(([a, z], k, all) => ({ ...c, id: k === 0 && all.length === 1 ? c.id : undefined, startBar: a, endBar: z, label: all.length > 1 && c.label ? `${c.label} ${k + 1}` : c.label })));
+    }
+    function levelsSuggest(kind) {
+        const base = (kind === 'every4' ? null : levelsSections()) || levelsEvery(4);
+        levels.chunks = levelsSplitToFit(base.map(c => ({ kind: 'chunk', ...c, level: 1 })));
+        levels.selected = -1;
+        renderPieceLevels();
+    }
+    function renderChunks() {
+        const list = document.getElementById('levelsChunkList');
+        const parked = document.getElementById('levelsChunkEditor');
+        if (parked && list.contains(parked)) list.after(parked); // take the picker out before the list is redrawn
+        list.innerHTML = levels.chunks.map((c, i) => {
+            const f = levelsFit(c);
+            const split = f && f.fits === 'tooLong' ? FlowJourney.suggestSplit(levels.blocks, { startBar: c.startBar, endBar: c.endBar, level: c.level }) : null;
+            // The split sits under its row, full width, so the row's own text keeps its room.
+            return levelsRow(c, i, { selected: levels.selected === i, actions: '' })
+                + (split && split.length > 1 ? `<button type="button" class="btn-nav" data-split="${i}">Split ${escapeHtml(c.label || levelsRange(c.startBar, c.endBar))} into ${split.length}</button>` : '');
+        }).join('');
+        list.querySelectorAll('[data-select]').forEach(b => b.addEventListener('click', () => { const i = Number(b.dataset.select); levels.selected = levels.selected === i ? -1 : i; renderPieceLevels(); }));
+        list.querySelectorAll('[data-split]').forEach(b => b.addEventListener('click', () => {
+            const i = Number(b.dataset.split);
+            levels.chunks.splice(i, 1, ...levelsSplitToFit([levels.chunks[i]]));
+            levels.selected = -1;
+            renderPieceLevels();
+        }));
+        const c = levels.chunks[levels.selected];
+        const editor = document.getElementById('levelsChunkEditor');
+        setShown(editor, !!c);
+        if (!c) { list.after(editor); return; }
+        // The picker sits right under the chunk it's for, not at the bottom of a long list.
+        list.querySelector(`[data-row="${levels.selected}"]`)?.after(editor);
+        document.getElementById('levelsChunkLevelLabel').textContent = `${c.label || levelsRange(c.startBar, c.endBar)} at Level`;
+        renderLevelPicker(document.getElementById('levelsChunkPicker'), [c.startBar, c.endBar], c.level, (n) => { c.level = n; renderPieceLevels(); });
+    }
+
+    function levelsPickMode(mode) {
+        levels.mode = mode;
+        levels.hardEdit = null; levels.selected = -1;
+        if ((mode === 'whole' || mode === 'hard') && !levels.whole) levels.whole = { kind: 'whole', startBar: 1, endBar: levels.total, level: null };
+        if (mode === 'chunk' && !levels.chunks.length) { levelsSuggest('sections'); return; }
+        renderPieceLevels();
+    }
+    // Returns true when saved. quiet: no "Levels saved" toast (Practise saves first, then moves on).
+    async function savePieceLevels(quiet) {
+        const out = levelsCurrentChunks();
+        if (levels.mode !== 'chunk' && (!levels.whole || levels.whole.level == null)) { showWarningToast(levels.mode === 'hard' ? 'Pick a Level for the rest of the piece first.' : 'Pick a Level first.'); return false; }
+        const body = out.map(c => ({ id: c.id, kind: c.kind, startBar: c.startBar, endBar: c.endBar, level: c.level, label: c.label }));
+        try {
+            applyPieceLevels(await API.levels.save(levels.flowId, body));
+            if (quiet !== true && sessPlan.setupReturn) { backToPlanAfterSetup(); return true; } // came from the session planner
+            if (quiet !== true) showSuccessToast('Levels saved');
+            return true;
+        } catch (e) {
+            showWarningToast('Levels not saved: ' + e.message);
+            return false;
+        }
+    }
+    document.querySelectorAll('[data-levels-mode]').forEach(b => b.addEventListener('click', () => levelsPickMode(b.dataset.levelsMode)));
+    document.getElementById('levelsWholeBreakBtn')?.addEventListener('click', () => levelsPickMode('chunk'));
+    document.getElementById('levelsHardAddBtn')?.addEventListener('click', () => {
+        const a = Math.min(levels.total, 1);
+        levels.hardEdit = { index: null, kind: 'hard', startBar: a, endBar: Math.min(levels.total, a + 3), level: 2 };
+        renderPieceLevels();
+        document.getElementById('levelsHardFrom')?.focus();
+    });
+    document.getElementById('levelsHardFrom')?.addEventListener('input', levelsHardInput);
+    document.getElementById('levelsHardTo')?.addEventListener('input', levelsHardInput);
+    document.getElementById('levelsHardCancelBtn')?.addEventListener('click', () => { levels.hardEdit = null; renderPieceLevels(); });
+    document.getElementById('levelsHardDoneBtn')?.addEventListener('click', () => {
+        const e = levels.hardEdit;
+        if (!e) return;
+        if (e.level == null) { showWarningToast('Pick a Level for these bars.'); return; }
+        const c = { id: e.id, kind: 'hard', startBar: Math.min(e.startBar, e.endBar), endBar: Math.max(e.startBar, e.endBar), level: e.level, label: e.label || null };
+        if (e.index == null) levels.hard.push(c); else levels.hard[e.index] = c;
+        levels.hard.sort((x, y) => x.startBar - y.startBar);
+        levels.hardEdit = null;
+        renderPieceLevels();
+    });
+    document.getElementById('levelsFromSectionsBtn')?.addEventListener('click', () => levelsSuggest('sections'));
+    document.getElementById('levelsEvery4Btn')?.addEventListener('click', () => levelsSuggest('every4'));
+    document.getElementById('levelsChunkUnsetBtn')?.addEventListener('click', () => { const c = levels.chunks[levels.selected]; if (c) { c.level = null; renderPieceLevels(); } });
+    document.getElementById('levelsSaveBtn')?.addEventListener('click', () => savePieceLevels());
+    document.getElementById('levelsChangeAnswerBtn')?.addEventListener('click', () => { levels.mode = null; levels.hardEdit = null; levels.selected = -1; renderPieceLevels(); });
+    document.getElementById('flowPlayMenuLevels')?.addEventListener('click', (e) => { e.stopPropagation(); closeFlowPlayMenu(); openPieceLevels(); });
+
+
+    // ===== ML-317: practising a chunk at its Level - Rehearse's session mode =====
+    // The play screen loops the chunk (one gap bar between runs) at its Level's speed, sub-beats come on
+    // by themselves below the account's speed (flowShouldSubdivide), and the repeat / sub beats / speed
+    // tiles become Level, Level up and Finish. Finish asks how it went; every change is saved
+    // (chunk_level_changes). Leaving any other way puts the player's own settings back, unrated.
+    function levelsWeakest() {
+        const cs = levelsCurrentChunks().filter(c => c.id && c.level != null);
+        if (!cs.length) return null;
+        // Lowest Level first; on a tie a hard passage or chunk before "the rest of the piece".
+        return cs.slice().sort((a, b) => a.level - b.level || (a.kind === 'whole') - (b.kind === 'whole') || a.startBar - b.startBar)[0];
+    }
+    async function practiseLevels(pick) {
+        // Saved first, so the chunk has its id and the history starts from what's on screen.
+        if (!(await savePieceLevels(true))) return;
+        const chunk = pick();
+        if (!chunk || chunk.level == null) { showWarningToast('Pick a Level for those bars first.'); return; }
+        startLevelPractice(chunk);
+    }
+    function startLevelPractice(chunk) {
+        if (flowSession) endLevelPractice(); // one practice at a time - put the player's own settings back first
+        const slow = FlowJourney.slowestTempo(levels.blocks, chunk.startBar, chunk.endBar);
+        flowSession = {
+            flowId: levels.flowId, chunk: { ...chunk }, level: chunk.level,
+            percents: FlowJourney.levelPercents(slow),
+            subBeatsBelow: levels.subBeatsBelow || FlowJourney.LEVELS.SUB_BEATS_BELOW,
+            saved: { speed: flowSpeedPercent, subMode: flowSubBeatsMode, subOverride: flowSubdivideOverride }
+        };
+        flowSubBeatsMode = 'session';
+        setFlowSpeedPercent(flowSession.percents[chunk.level - 1]);
+        switchView('flowPlayView');
+    }
+    function endLevelPractice() {
+        const s = flowSession;
+        if (!s) return;
+        flowSession = null;
+        if (flowPlayer.isPlaying()) flowPlayer.pause();
+        hideModal('levelRateModal');
+        flowSubBeatsMode = s.saved.subMode;
+        flowSubdivideOverride = s.saved.subOverride;
+        setFlowSpeedPercent(s.saved.speed);
+        flowLoadLoopForPiece();
+        renderFlowSessionControls();
+    }
+    function renderFlowSessionControls() {
+        const s = flowSession;
+        ['flowLoopBtn', 'flowSubdivideBtn', 'flowSpeedBtn'].forEach(id => setShown(id, !s));
+        ['flowSessionLevelBtn', 'flowSessionUpBtn', 'flowSessionFinishBtn'].forEach(id => setShown(id, !!s));
+        if (!s) return;
+        const pct = s.percents[s.level - 1];
+        document.getElementById('flowSessionLevelLbl').textContent = s.level;
+        document.getElementById('flowSessionLevelSub').textContent = `level · ${pct}%`;
+        document.getElementById('flowSessionUpBtn').disabled = s.level >= 5;
+    }
+    async function flowSessionLevelUp() {
+        const s = flowSession;
+        if (!s || s.level >= 5) return;
+        const played = s.percents[s.level - 1];
+        s.level++;
+        setFlowSpeedPercent(s.percents[s.level - 1]);
+        // Faster may mean fewer sub-beats, so the passage restarts from the bar it's on in the new grid.
+        const pos = flowScreenPosition();
+        if (pos) flowStartSequenceAt(flowPlayIndex, pos.bar - pos.p.fromBar);
+        renderFlowPlaybackRow();
+        renderFlowSessionControls();
+        showSuccessToast(`Level ${s.level} - ${s.percents[s.level - 1]}%`);
+        try { await API.levels.setChunk(s.chunk.id, { level: s.level, source: 'during', percentPlayed: played }); }
+        catch (e) { showWarningToast('Level not saved: ' + e.message); }
+    }
+    function openLevelRating() {
+        const s = flowSession;
+        if (!s) return;
+        if (flowPlayer.isPlaying()) flowPlayer.pause();
+        const n = s.level;
+        const pct = (k) => s.percents[k - 1];
+        const name = s.chunk.label || levelsRange(s.chunk.startBar, s.chunk.endBar).replace(/^Bar/, 'bar');
+        document.getElementById('levelRateTitle').textContent = `How did ${name} go?`;
+        document.getElementById('levelRateSub').textContent = `Played at Level ${n} (${pct(n)}%)`;
+        const opts = [];
+        if (n < 5) opts.push([n + 1, `Clean - up to Level ${n + 1}`, `${pct(n + 1)}% next time`]);
+        opts.push([n, `Getting there - stay at Level ${n}`, 'Same speed next time']);
+        if (n > 1) opts.push([n - 1, `Too fast - back to Level ${n - 1}`, `${pct(n - 1)}% next time`]);
+        const box = document.getElementById('levelRateOptions');
+        box.innerHTML = opts.map(([lv, title, sub], i) => `<button type="button" class="flow-choice-option level-answer${i === opts.length - 1 ? ' no-margin' : ''}" data-rate="${lv}"><span><strong>${title}</strong><br><span class="text-sm text-muted">${sub}</span></span></button>`).join('');
+        box.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => rateLevelPractice(Number(b.dataset.rate))));
+        const jumps = [];
+        for (let k = n + 2; k <= 5; k++) jumps.push(k);
+        setShown('levelRateJumpLabel', jumps.length > 0);
+        setShown('levelRateJump', jumps.length > 0);
+        const jumpEl = document.getElementById('levelRateJump');
+        jumpEl.innerHTML = jumps.map(k => `<button type="button" class="level-pick lv-${k}" data-rate="${k}" aria-label="Jump to Level ${k}, ${pct(k)}% speed">${k}<small>${pct(k)}%</small></button>`).join('');
+        jumpEl.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => rateLevelPractice(Number(b.dataset.rate))));
+        showModal('levelRateModal');
+        document.getElementById('flowSessionFinishBtn').setAttribute('aria-expanded', 'true');
+    }
+    async function rateLevelPractice(level) {
+        const s = flowSession;
+        if (!s) return;
+        hideModal('levelRateModal');
+        document.getElementById('flowSessionFinishBtn').setAttribute('aria-expanded', 'false');
+        try {
+            await API.levels.setChunk(s.chunk.id, { level, source: 'rating', percentPlayed: s.percents[s.level - 1] });
+            showSuccessToast(level > s.level ? `Up to Level ${level}` : level < s.level ? `Back to Level ${level}` : `Staying at Level ${level}`);
+        } catch (e) {
+            showWarningToast('Rating not saved: ' + e.message);
+        }
+        goBack(); // to My Levels (or the session screen) - switchView ends the practice
+        API.levels.get(levels.flowId).then(applyPieceLevels).catch(() => { /* the screen keeps what it had */ });
+        if (practiceRun && practiceRun.waitingForRating) sessionAdvance(); // ML-320: rated at the nudge - on to the next block
+    }
+    document.getElementById('flowSessionUpBtn')?.addEventListener('click', flowSessionLevelUp);
+    document.getElementById('flowSessionFinishBtn')?.addEventListener('click', openLevelRating);
+    document.getElementById('levelRateCloseBtn')?.addEventListener('click', () => {
+        hideModal('levelRateModal');
+        document.getElementById('flowSessionFinishBtn').setAttribute('aria-expanded', 'false');
+        // ML-320: closed unrated at the end of a session block - the session still moves on.
+        if (practiceRun && practiceRun.waitingForRating) { goBack(); sessionAdvance(); }
+    });
+    document.getElementById('levelsPractiseWeakestBtn')?.addEventListener('click', () => practiseLevels(levelsWeakest));
+    document.getElementById('levelsWholePractiseBtn')?.addEventListener('click', () => practiseLevels(() => levels.whole));
+    document.getElementById('levelsChunkPractiseBtn')?.addEventListener('click', () => {
+        const c = levels.chunks[levels.selected];
+        if (!c) return;
+        const [a, z] = [c.startBar, c.endBar];
+        practiseLevels(() => levels.chunks.find(x => x.startBar === a && x.endBar === z));
+    });
+
+
+    // ===== ML-320 (epic ML-314): the practice session - plan it, run it, log it =====
+    // Rules (blocks, template, focus, who fills them, the 4:30 nudge) are PracticePlan's
+    // (public/practicePlan.js). The runner counts each block by the wall clock; at 4:30 the sound stops
+    // and a 30-second nudge moves you on, Keep going nudges again 5 minutes later. A session that ends
+    // (or is ended) is logged as one practice session with its blocks (POST /api/practice/sessions).
+    const SESSION_TOOL_VIEWS = { warmups: 'warmupsView', scales: 'scalesView', tapTempo: 'tapTempoView', gapTrainer: 'gapTrainerView', ear: 'earView' };
+    const sessPlan = { minutes: 45, template: 'standard', focus: 'both', blocks: [], chunks: [], edited: false };
+    var practiceRun = null; // var: switchView checks it before this line has run
+    let practiceTick = null;
+
+    function sessBlockText(b) {
+        if (b.kind === 'rehearsal') return b.chunk ? `${b.chunk.title} · ${b.chunk.label || levelsRange(b.chunk.startBar, b.chunk.endBar)} · Level ${b.chunk.level}` : 'Any piece - you pick it in Rehearse';
+        if (b.kind === 'skills' && b.skill) { const s = skillsData.find(x => x.key === b.skill.key) || b.skill; const def = SKILLS[b.skill.key]; return `${def ? def.label : b.skill.key}${s.step ? ` - ${s.step.label}` : ''}`; }
+        if (b.kind === 'skills') return PracticePlan.toolLabel(b.tool);
+        if (b.kind === 'warmup') return 'The Warm-ups tool';
+        if (b.kind === 'scales') return 'The Scales tool';
+        return 'Tap to choose';
+    }
+    // A block in a sentence: "Scales", "Skills - Tempo", "Rehearsal - Floral Dance...".
+    const sessBlockName = (b) => (b.kind === 'warmup' || b.kind === 'scales' ? PracticePlan.KINDS[b.kind] : `${PracticePlan.KINDS[b.kind]} - ${sessBlockText(b)}`);
+    function sessStripHtml(blocks, index) {
+        return blocks.map((b, i) => `<span class="session-seg${index == null ? '' : i < index ? ' is-done' : i === index ? ' is-now' : ''}"></span>`).join('');
+    }
+    function sessReplan() {
+        sessPlan.blocks = PracticePlan.plan(sessPlan.minutes, sessPlan.template, sessPlan.focus, sessPlan.chunks, skillsData.map(s => ({ key: s.key, stepIndex: s.stepIndex, lastPractised: s.lastPractised, done: s.done, step: s.step })));
+        renderSessionPlan();
+    }
+    function renderSessionPlan() {
+        const templated = sessPlan.minutes >= 15;
+        document.getElementById('sessLenValue').textContent = sessPlan.minutes;
+        document.getElementById('sessLenMinus').disabled = sessPlan.minutes <= PracticePlan.MIN_MINUTES;
+        document.getElementById('sessLenPlus').disabled = sessPlan.minutes >= PracticePlan.MAX_MINUTES;
+        setShown('sessTemplateGroup', templated);
+        setShown('sessFocusGroup', templated);
+        const pills = (el, options, value, onPick) => {
+            el.innerHTML = options.map(([k, label]) => `<button type="button" class="filter-pill${value === k ? ' active' : ''}" aria-pressed="${value === k}" data-k="${k}">${label}</button>`).join('');
+            el.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => onPick(b.dataset.k)));
+        };
+        const tplKey = sessPlan.template && sessPlan.template.id ? `t:${sessPlan.template.id}` : sessPlan.template;
+        pills(document.getElementById('sessTemplatePills'), [['standard', 'Standard'], ['concert', 'Concert (no Scales)'], ...sessTemplates.map(t => [`t:${t.id}`, t.name])], tplKey, (k) => {
+            const mine = k.startsWith('t:') ? sessTemplates.find(t => `t:${t.id}` === k) : null;
+            if (mine) { sessPlan.template = { ...mine }; sessPlan.focus = mine.focus; sessPlan.minutes = mine.minutes; } else sessPlan.template = k;
+            sessReplan();
+        });
+        setShown('sessListNote', !!sessPlan.listName);
+        document.getElementById('sessListNote').textContent = sessPlan.listName ? `Rehearsal blocks come from ${sessPlan.listName}.` : '';
+        pills(document.getElementById('sessFocusPills'), [['skills', 'Skills'], ['both', 'Both'], ['rehearsal', 'Rehearsal']], sessPlan.focus, (k) => { sessPlan.focus = k; sessReplan(); });
+        document.getElementById('sessPlanStrip').innerHTML = sessStripHtml(sessPlan.blocks, null);
+        const list = document.getElementById('sessBlockList');
+        list.innerHTML = sessPlan.blocks.map((b, i) => `
+            <div class="history-item">
+                <button type="button" class="level-row-body grow text-left" data-block="${i}" aria-haspopup="dialog">
+                    <span class="session-block-time text-sm text-muted">${i * 5}–${i * 5 + 5}</span>
+                    <span><strong>${PracticePlan.KINDS[b.kind]}</strong><br><span class="text-sm text-muted">${escapeHtml(sessBlockText(b))}</span></span>
+                </button>
+            </div>`).join('');
+        list.querySelectorAll('[data-block]').forEach(b => b.addEventListener('click', () => openSessionBlockModal(Number(b.dataset.block))));
+        setShown('sessNoChunks', !sessPlan.chunks.length && sessPlan.blocks.some(b => b.kind === 'rehearsal'));
+        setShown('sessSetupPieceBtn', !sessPlan.chunks.length && sessPlan.blocks.some(b => b.kind === 'rehearsal'));
+        // Only blocks still to choose (5 and 10 minutes) hold the start - a Rehearsal block with no Levels
+        // set just opens Rehearse to pick a piece.
+        const unchosen = sessPlan.blocks.some(b => b.kind === 'choose');
+        const start = document.getElementById('sessStartBtn');
+        start.disabled = unchosen;
+        start.textContent = unchosen ? 'Choose every block first' : `Start - ${sessPlan.minutes} minutes`;
+    }
+    // opts (ML-319, from a practice list): { scoreIds, minutes, template, focus, listName } - only that
+    // list's pieces fill the Rehearsal blocks.
+    async function openSessionPlanner(opts) {
+        const o = opts || {};
+        sessPlan.scoreIds = o.scoreIds || null;
+        sessPlan.listName = o.listName || null;
+        if (o.minutes) sessPlan.minutes = PracticePlan.clampMinutes(o.minutes);
+        if (o.template) sessPlan.template = o.template;
+        if (o.focus) sessPlan.focus = o.focus;
+        switchView('sessionPlanView');
+        sessReplan();
+        await Promise.all([loadTemplates(), loadSkills()]);
+        try {
+            const all = (await API.practice.chunks()).chunks || [];
+            sessPlan.chunks = sessPlan.scoreIds ? all.filter(c => sessPlan.scoreIds.includes(c.scoreId)) : all;
+        } catch (e) {
+            sessPlan.chunks = [];
+            showWarningToast('Your Levels could not be loaded: ' + e.message);
+        }
+        sessReplan();
+    }
+    // Change one block: its kind, then for Skills the tool and for Rehearsal the bars.
+    // startAt 'rehearsal' opens straight on the Rehearsal choices (the planner's "Set up a piece").
+    function openSessionBlockModal(i, startAt) {
+        const b = sessPlan.blocks[i];
+        document.getElementById('sessionBlockTitle').textContent = `Block ${i + 1} (${i * 5}–${i * 5 + 5} min)`;
+        const box = document.getElementById('sessionBlockOptions');
+        const option = (key, title, sub, selected) => `<button type="button" class="flow-choice-option level-answer${selected ? ' selected' : ''}" data-opt="${key}"><span><strong>${escapeHtml(title)}</strong>${sub ? `<br><span class="text-sm text-muted">${escapeHtml(sub)}</span>` : ''}</span></button>`;
+        const kinds = () => {
+            box.innerHTML = [['warmup', 'Warm-up', 'The Warm-ups tool'], ['scales', 'Scales', 'The Scales tool'], ['skills', 'Skills', 'Tempo, Pulse, Warm-ups or Pitch'], ['rehearsal', 'Rehearsal', 'Bars you\'ve given a Level, at that Level']]
+                .map(([k, t, s]) => option(k, t, s, b.kind === k)).join('');
+            box.querySelectorAll('[data-opt]').forEach(o => o.addEventListener('click', () => {
+                const k = o.dataset.opt;
+                if (k === 'skills') return tools();
+                if (k === 'rehearsal') return chunks();
+                sessPlan.blocks[i] = { kind: k, minutes: 5 };
+                done();
+            }));
+        };
+        const tools = () => {
+            const mine = skillsData.filter(s => !s.done);
+            box.innerHTML = mine.length
+                ? mine.map(s => option(`skill:${s.key}`, s.def.label, skillStepText(s), b.kind === 'skills' && b.skill && b.skill.key === s.key)).join('')
+                : PracticePlan.SKILL_TOOLS.map(t => option(t.tool, t.label, '', b.kind === 'skills' && b.tool === t.tool)).join('') + '<p class="text-sm text-muted mt-3">Add skills in My skills and they\'ll show here, step by step.</p>';
+            box.querySelectorAll('[data-opt]').forEach(o => o.addEventListener('click', () => {
+                const k = o.dataset.opt;
+                if (k.startsWith('skill:')) { const s = skillsData.find(x => x.key === k.slice(6)); sessPlan.blocks[i] = { kind: 'skills', minutes: 5, skill: { key: s.key, stepIndex: s.stepIndex, lastPractised: s.lastPractised, step: s.step } }; }
+                else sessPlan.blocks[i] = { kind: 'skills', minutes: 5, tool: k };
+                done();
+            }));
+        };
+        const chunks = async () => {
+            // Bars you've given a Level; then "Set up ..." for each piece with none yet - that takes you
+            // through its "How well can you play it?" and brings you back here with the block filled in;
+            // then "Any piece" (opens Rehearse to pick one and play it your way).
+            await rehearseRefresh();
+            const withLevels = new Set(sessPlan.chunks.map(c => c.scoreId));
+            const toSetUp = rehearsePlayable().filter(f => !withLevels.has(f.id) && (!sessPlan.scoreIds || sessPlan.scoreIds.includes(f.id)));
+            box.innerHTML = sessPlan.chunks.map(c => option(String(c.id), `${c.title} · ${c.label || levelsRange(c.startBar, c.endBar)}`, `Level ${c.level}`, b.kind === 'rehearsal' && b.chunk && b.chunk.id === c.id)).join('')
+                + (toSetUp.length ? `<p class="text-sm fw-bold mt-3 mb-2">${sessPlan.chunks.length ? 'Or set up another piece' : 'Set up a piece first - say how well you can play it'}</p>` : '')
+                + toSetUp.map(f => option(`setup:${f.id}`, `Set up ${f.title}`, 'How well can you play it? Then back here', false)).join('')
+                + option('any', 'Any piece', 'Pick it in Rehearse and play it your way', b.kind === 'rehearsal' && !b.chunk);
+            box.querySelectorAll('[data-opt]').forEach(o => o.addEventListener('click', () => {
+                const k = o.dataset.opt;
+                if (k.startsWith('setup:')) { hideModal('sessionBlockModal'); setUpPieceForBlock(Number(k.slice(6)), i); return; }
+                sessPlan.blocks[i] = { kind: 'rehearsal', minutes: 5, chunk: k === 'any' ? null : sessPlan.chunks.find(c => c.id === Number(k)) };
+                done();
+            }));
+        };
+        const done = () => { hideModal('sessionBlockModal'); renderSessionPlan(); };
+        if (startAt === 'rehearsal') chunks(); else kinds();
+        showModal('sessionBlockModal');
+    }
+    // Set up a piece's Levels from the planner: My Levels for that piece; saving brings you back to the
+    // plan with this block (and any other Rehearsal block with nothing to practise) on the new bars.
+    function setUpPieceForBlock(scoreId, blockIndex) {
+        sessPlan.setupReturn = { scoreId, blockIndex };
+        openLevelsForPiece(scoreId);
+    }
+    async function backToPlanAfterSetup() {
+        const ret = sessPlan.setupReturn;
+        sessPlan.setupReturn = null;
+        if (viewStack[viewStack.length - 1] === 'pieceLevelsView') goBack();
+        try {
+            const all = (await API.practice.chunks()).chunks || [];
+            sessPlan.chunks = sessPlan.scoreIds ? all.filter(c => sessPlan.scoreIds.includes(c.scoreId)) : all;
+        } catch (e) { /* keeps what it had */ }
+        const mine = sessPlan.chunks.filter(c => c.scoreId === ret.scoreId);
+        let k = 0;
+        sessPlan.blocks.forEach((b, j) => {
+            if (b.kind === 'rehearsal' && (j === ret.blockIndex || !b.chunk) && mine.length) b.chunk = mine[k++ % mine.length];
+        });
+        renderSessionPlan();
+        showSuccessToast(mine.length ? 'Levels saved - your Rehearsal blocks now use them' : 'Levels saved');
+    }
+
+    // --- Running it ---
+    function startPracticeRun() {
+        if (practiceRun) { switchView('sessionRunView'); return; }
+        practiceRun = { blocks: sessPlan.blocks.map(b => ({ ...b, seconds: 0, started: false })), index: 0, blockStart: Date.now(), nudgeAt: PracticePlan.NUDGE_SECONDS, nudged: false, startedAt: Date.now(), done: false };
+        clearInterval(practiceTick);
+        practiceTick = setInterval(practiceRunTick, 1000);
+        switchView('sessionRunView');
+        renderPracticeRun();
+        practiceRunSave();
+    }
+    const runElapsed = () => Math.floor((Date.now() - practiceRun.blockStart) / 1000);
+    function practiceRunTick() {
+        const r = practiceRun;
+        if (!r || r.done) return;
+        const state = PracticePlan.blockState(runElapsed(), r.nudgeAt);
+        if (state !== 'play' && !r.nudged) sessionNudge();
+        if (state === 'next' && !r.waitingForRating) sessionMoveOn();
+        renderPracticeRun();
+    }
+    // 4:30: the sound stops - Play Flow pauses where it is, any other tool is left for the session
+    // screen (leaving a tool stops it) - and the nudge counts the last 30 seconds down.
+    function sessionNudge() {
+        const r = practiceRun;
+        r.nudged = true;
+        const view = viewStack[viewStack.length - 1];
+        if (view === 'flowPlayView') { if (flowPlayer.isPlaying()) flowPlayer.pause(); }
+        else if (view !== 'sessionRunView') switchView('sessionRunView');
+        const next = r.blocks[r.index + 1];
+        document.getElementById('sessionNudgeText').textContent = next ? `Take a breath. Next up: ${sessBlockName(next)}.` : 'Take a breath - that was the last block.';
+        showModal('sessionNudgeModal');
+    }
+    function sessionKeepGoing() {
+        const r = practiceRun;
+        if (!r) return;
+        hideModal('sessionNudgeModal');
+        r.nudgeAt = runElapsed() + PracticePlan.KEEP_GOING_SECONDS;
+        r.nudged = false;
+        renderPracticeRun();
+        practiceRunSave();
+    }
+    // Move on: a Levels practice asks how it went first (its rating sends you on); anything else goes now.
+    function sessionMoveOn() {
+        const r = practiceRun;
+        if (!r || r.done) return;
+        hideModal('sessionNudgeModal');
+        if (flowSession) { r.waitingForRating = true; openLevelRating(); return; }
+        // ML-321: a Warm-ups / Scales skill asks "Got it?" before moving on (drills rate themselves).
+        const b = r.blocks[r.index];
+        const s = b && b.kind === 'skills' && b.skill && b.started && !b.skillRated ? skillsData.find(x => x.key === b.skill.key) : null;
+        if (s && !s.def.graded && !s.done) { r.waitingForRating = true; askSkillRating(s, () => { b.skillRated = true; sessionAdvance(); }); return; }
+        sessionAdvance();
+    }
+    function sessionAdvance() {
+        const r = practiceRun;
+        if (!r || r.done) return;
+        r.waitingForRating = false;
+        const b = r.blocks[r.index];
+        b.seconds += runElapsed();
+        b.started = true;
+        r.index++;
+        if (r.index >= r.blocks.length) { finishPracticeRun(); return; }
+        r.blockStart = Date.now();
+        r.nudgeAt = PracticePlan.NUDGE_SECONDS;
+        r.nudged = false;
+        practiceRunSave();
+        startSessionBlock(); // the next block starts on its own
+    }
+    async function startSessionBlock() {
+        const r = practiceRun;
+        if (!r) return;
+        const b = r.blocks[r.index];
+        b.started = true;
+        if (b.kind === 'rehearsal' && b.chunk) {
+            try { await startChunkPractice(b.chunk); } catch (e) { showWarningToast('Could not open those bars: ' + e.message); switchView('sessionRunView'); }
+            return;
+        }
+        if (b.kind === 'rehearsal') { practiceRunSave(); switchView('rehearseView'); return; } // no Levels yet: pick any piece
+        if (b.kind === 'skills' && b.skill) {
+            const s = skillsData.find(x => x.key === b.skill.key) || skillWithSteps({ key: b.skill.key, stepIndex: b.skill.stepIndex || 0 });
+            if (s && !s.done) { openSkillStep(s); practiceRunSave(); return; }
+        }
+        practiceRunSave();
+        const view = b.kind === 'warmup' ? 'warmupsView' : b.kind === 'scales' ? 'scalesView' : SESSION_TOOL_VIEWS[b.tool];
+        switchView(view || 'sessionRunView');
+    }
+    // Open a chunk's piece and practise it at its Level (ML-317), from a session.
+    async function startChunkPractice(chunk) {
+        const [detail, blocks, lv] = await Promise.all([API.flows.get(chunk.scoreId), API.flows.blocks.list(chunk.scoreId), API.levels.get(chunk.scoreId)]);
+        currentFlowId = chunk.scoreId;
+        currentFlowDetail = detail;
+        flowLeadInBlock = blocks.find(b => b.isLeadIn) || null;
+        currentFlowBlocks = blocks.filter(b => !b.isLeadIn);
+        setShown('flowPlayMenuEditDetails', detail.canEdit);
+        setShown('flowPlayMenuEditFlow', detail.canEdit);
+        setShown('flowPlayMenuCopy', !detail.canEdit && detail.isPublic);
+        setShown('flowPlayMenuLevels', isFeatureEnabled('practice_levels'));
+        levels.flowId = chunk.scoreId;
+        levels.blocks = currentFlowBlocks.slice();
+        levels.total = FlowJourney.totalBars(levels.blocks);
+        applyPieceLevels(lv);
+        const c = [levels.whole, ...levels.hard, ...levels.chunks].find(x => x && x.id === chunk.id);
+        if (!c || c.level == null) throw new Error('those bars have changed - check My Levels');
+        startLevelPractice(c);
+    }
+    async function finishPracticeRun(early) {
+        const r = practiceRun;
+        if (!r || r.done) return;
+        if (early) { const b = r.blocks[r.index]; b.seconds += runElapsed(); b.started = true; }
+        r.done = true;
+        clearInterval(practiceTick);
+        hideModal('sessionNudgeModal');
+        API.practice.clearActive().catch(() => { /* gone when it goes stale */ });
+        if (flowSession) endLevelPractice();
+        const played = r.blocks.filter(b => b.started && b.seconds > 0);
+        const minutes = Math.max(1, Math.round(played.reduce((s, b) => s + b.seconds, 0) / 60));
+        document.getElementById('sessRunDoneTitle').textContent = early ? 'Session ended' : 'Session done';
+        document.getElementById('sessRunDoneText').textContent = `${minutes} minute${minutes === 1 ? '' : 's'}, ${played.length} block${played.length === 1 ? '' : 's'}. Saving to your practice history...`;
+        switchView('sessionRunView');
+        renderPracticeRun();
+        if (!played.length) { document.getElementById('sessRunDoneText').textContent = 'Nothing was played, so nothing was saved.'; return; }
+        try {
+            await API.practice.saveSession({
+                minutes,
+                segments: played.map(b => ({ kind: b.kind, plannedMinutes: b.minutes, actualSeconds: b.seconds, chunkId: b.chunk ? b.chunk.id : null, tool: b.kind === 'skills' ? (b.skill ? (SKILLS[b.skill.key] || {}).tool || null : b.tool) : null }))
+            });
+            document.getElementById('sessRunDoneText').textContent = `${minutes} minute${minutes === 1 ? '' : 's'}, ${played.length} block${played.length === 1 ? '' : 's'} - saved to your practice history.`;
+            fetchDataAndRender(); // Stats and history pick up the new session
+        } catch (e) {
+            document.getElementById('sessRunDoneText').textContent = `${minutes} minutes - not saved: ${e.message}. Add it with Add session time.`;
+        }
+    }
+    function renderPracticeRun() {
+        const r = practiceRun;
+        const bar = document.getElementById('sessionBar');
+        const onRunView = viewStack[viewStack.length - 1] === 'sessionRunView';
+        setShown(bar, !!r && !r.done && !onRunView);
+        if (!r) return;
+        const strip = sessStripHtml(r.blocks, r.done ? r.blocks.length : r.index);
+        document.getElementById('sessRunStrip').innerHTML = strip;
+        document.getElementById('sessionBarStrip').innerHTML = strip;
+        setShown('sessRunActive', !r.done);
+        setShown('sessRunDone', r.done);
+        if (r.done) return;
+        const b = r.blocks[r.index];
+        const left = Math.max(0, PracticePlan.BLOCK_MINUTES * 60 - runElapsed());
+        const nudgeLeft = Math.max(0, r.nudgeAt + (PracticePlan.BLOCK_MINUTES * 60 - PracticePlan.NUDGE_SECONDS) - runElapsed());
+        const count = `Block ${r.index + 1} of ${r.blocks.length}`;
+        document.getElementById('sessRunCount').textContent = count;
+        document.getElementById('sessRunKind').textContent = PracticePlan.KINDS[b.kind];
+        document.getElementById('sessRunDetail').textContent = sessBlockText(b);
+        document.getElementById('sessRunTime').textContent = fmtMinSec(r.nudgeAt > PracticePlan.NUDGE_SECONDS ? Math.max(0, r.nudgeAt - runElapsed()) : left);
+        document.getElementById('sessRunGoBtn').textContent = b.started ? 'Back to this block' : 'Start this block';
+        const next = r.blocks[r.index + 1];
+        document.getElementById('sessRunUpNext').textContent = next ? `Up next: ${sessBlockName(next)}` : 'This is the last block.';
+        document.getElementById('sessRunNextBtn').textContent = next ? 'Next block' : 'Finish the session';
+        document.getElementById('sessionBarText').textContent = `${count} · ${PracticePlan.KINDS[b.kind]}`;
+        document.getElementById('sessionBarTime').textContent = fmtMinSec(r.nudgeAt > PracticePlan.NUDGE_SECONDS ? Math.max(0, r.nudgeAt - runElapsed()) : left);
+        document.getElementById('sessionNudgeCount').textContent = fmtMinSec(Math.min(30, nudgeLeft));
+    }
+
+    document.getElementById('startPracticeSessionBtn')?.addEventListener('click', () => (practiceRun && !practiceRun.done ? switchView('sessionRunView') : openSessionPlanner({})));
+    document.getElementById('sessLenMinus')?.addEventListener('click', () => { sessPlan.minutes = PracticePlan.clampMinutes(sessPlan.minutes - 5); sessReplan(); });
+    document.getElementById('sessLenPlus')?.addEventListener('click', () => { sessPlan.minutes = PracticePlan.clampMinutes(sessPlan.minutes + 5); sessReplan(); });
+    document.getElementById('sessionBlockCloseBtn')?.addEventListener('click', () => hideModal('sessionBlockModal'));
+    document.getElementById('sessSetupPieceBtn')?.addEventListener('click', () => openSessionBlockModal(Math.max(0, sessPlan.blocks.findIndex(b => b.kind === 'rehearsal')), 'rehearsal'));
+    document.getElementById('sessStartBtn')?.addEventListener('click', () => { startPracticeRun(); startSessionBlock(); });
+    document.getElementById('sessRunGoBtn')?.addEventListener('click', startSessionBlock);
+    document.getElementById('sessRunNextBtn')?.addEventListener('click', sessionMoveOn);
+    document.getElementById('sessRunEndBtn')?.addEventListener('click', () => finishPracticeRun(true));
+    document.getElementById('sessRunDoneBtn')?.addEventListener('click', () => { practiceRun = null; renderPracticeRun(); switchView('mainView'); });
+    document.getElementById('sessionBar')?.addEventListener('click', () => switchView('sessionRunView'));
+    document.getElementById('sessionNudgeKeepBtn')?.addEventListener('click', sessionKeepGoing);
+    document.getElementById('sessionNudgeNextBtn')?.addEventListener('click', sessionMoveOn);
+    // Practice session test hook - LOCAL DEVELOPMENT ONLY, the same switch as the Flow and Theory hooks
+    // (localhost + localStorage 'tml.testClock' = '1'): read the run and move a block's clock on.
+    (function sessionTestHook() {
+        let on = false;
+        try { on = ['localhost', '127.0.0.1'].includes(location.hostname) && localStorage.getItem('tml.testClock') === '1'; } catch (e) { on = false; }
+        if (!on) return;
+        window.__sessionTest = {
+            run: () => (practiceRun ? JSON.parse(JSON.stringify({ ...practiceRun, elapsed: runElapsed() })) : null),
+            plan: () => JSON.parse(JSON.stringify(sessPlan)),
+            skip: (seconds) => { if (practiceRun) { practiceRun.blockStart -= seconds * 1000; practiceRunTick(); } },
+            skills: () => JSON.parse(JSON.stringify(skillsData.map(x => ({ key: x.key, stepIndex: x.stepIndex, done: x.done, step: x.step })))),
+            skillContext: () => skillContext,
+            drillSaved: (tool, level, grade) => skillDrillSaved(tool, level, grade)
+        };
+    })();
+
+
+    // ===== ML-319 (epic ML-314): practice lists and the readiness forecast =====
+    // A list is a concert's pieces with its date, sessions a week and session length (saved as you type).
+    // The forecast is PracticePlan.forecast: one block moves one chunk up one Level; anything not set up
+    // is named, not guessed; when behind it suggests the first change that gets you there. "Plan a
+    // session for this" opens the planner with only this list's pieces for the Rehearsal blocks.
+    const plState = { list: null, saveTimer: null, picked: null };
+    const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    function todayIso() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+    function plDateText(iso) {
+        if (!iso) return 'No date yet';
+        const d = new Date(`${iso}T12:00:00`);
+        const days = Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${todayIso()}T00:00:00Z`)) / 86400000);
+        const when = days < 0 ? 'past' : days === 0 ? 'today' : `${days} day${days === 1 ? '' : 's'} to go`;
+        return `${DAYS_SHORT[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} · ${when}`;
+    }
+    async function renderRehearseLists() {
+        const on = isFeatureEnabled('practice_levels');
+        setShown('practiceListsSection', on);
+        if (!on) return;
+        const box = document.getElementById('practiceListsList');
+        try {
+            const { lists } = await API.practiceLists.list();
+            box.innerHTML = lists.length ? lists.map(l => `
+                <div class="history-item">
+                    <button type="button" class="level-row-body grow text-left" data-list="${l.id}">
+                        <span><strong>${escapeHtml(l.name)}</strong><br><span class="text-sm text-muted">${l.bandName ? `${escapeHtml(l.bandName)} · ` : ''}${plDateText(l.eventDate)} · ${l.pieceCount} piece${l.pieceCount === 1 ? '' : 's'}</span></span>
+                    </button>
+                </div>`).join('') : '<p class="text-sm text-muted">A list is the pieces for a concert - with its date, it tells you if you\'ll be ready.</p>';
+            box.querySelectorAll('[data-list]').forEach(b => b.addEventListener('click', () => openPracticeList(Number(b.dataset.list))));
+        } catch (e) {
+            box.innerHTML = '';
+        }
+    }
+    async function openPracticeList(id) {
+        switchView('practiceListView');
+        try {
+            plState.list = await API.practiceLists.get(id);
+            renderPracticeList();
+        } catch (e) {
+            showWarningToast('List not loaded: ' + e.message);
+        }
+    }
+    function plForecast(list) {
+        return PracticePlan.forecast({ pieces: list.pieces, eventDate: list.eventDate, today: todayIso(), sessionsPerWeek: list.sessionsPerWeek, minutes: list.sessionMinutes, template: 'standard', focus: 'both' });
+    }
+    function renderPracticeList() {
+        const l = plState.list;
+        if (!l) return;
+        document.getElementById('topTitle').innerText = l.name;
+        const setVal = (id, v) => { const el = document.getElementById(id); if (document.activeElement !== el) el.value = v == null ? '' : v; };
+        setVal('plName', l.name); setVal('plDate', l.eventDate); setVal('plPerWeek', l.sessionsPerWeek); setVal('plMinutes', l.sessionMinutes);
+        const f = plForecast(l);
+        const verdict = document.getElementById('plVerdict');
+        const text = document.getElementById('plVerdictText');
+        const blocksLine = `${f.total} block${f.total === 1 ? '' : 's'} to Level 5 (${f.minutes} minutes of rehearsal) · ${f.perSession} rehearsal block${f.perSession === 1 ? '' : 's'} in a ${l.sessionMinutes}-minute session`;
+        if (!l.pieces.length) { verdict.textContent = 'Add the pieces'; text.textContent = 'Add the pieces for this concert and the forecast works out whether you\'ll be ready.'; }
+        else if (f.onTrack === null) { verdict.textContent = `${f.needed} session${f.needed === 1 ? '' : 's'} to be ready`; text.textContent = `${blocksLine}. Add the concert date to see if that fits.`; }
+        else if (f.total === 0) { verdict.textContent = 'Ready'; text.textContent = 'Everything counted is at Level 5.'; }
+        else if (f.onTrack) { verdict.textContent = `On track: ${f.needed} of ${f.available} sessions`; text.textContent = `${blocksLine}. ${plDateText(l.eventDate)}.`; }
+        else { verdict.textContent = `Behind: need ${f.needed} sessions, you have ${f.available}`; text.textContent = `${blocksLine}. ${plDateText(l.eventDate)}.`; }
+        const sug = document.getElementById('plSuggestion');
+        setShown(sug, !!f.suggestion);
+        if (f.suggestion) sug.textContent = f.suggestion.sessions != null && f.suggestion.template && !f.suggestion.sessionsPerWeek
+            ? `Fix: ${f.suggestion.text} - ${f.suggestion.perSession} rehearsal blocks a session, ${f.suggestion.sessions} sessions. Plan a session for this uses it.`
+            : `Fix: ${f.suggestion.text}.`;
+        const nc = document.getElementById('plNotCounted');
+        setShown(nc, f.notCounted.length > 0);
+        nc.textContent = `Not counted: ${f.notCounted.join('; ')}.`;
+        const box = document.getElementById('plPieces');
+        box.innerHTML = l.pieces.length ? l.pieces.map((p, i) => {
+            const map = FlowJourney.barLevels(p.totalBars, p.chunks);
+            const pb = f.pieces[i];
+            const note = pb.blocks === null ? 'Not set up - tap to set up' : pb.blocks === 0 ? 'Ready' : `${pb.blocks} block${pb.blocks === 1 ? '' : 's'} to Level 5${pb.joinUp ? ' (with join-up)' : ''}`;
+            return `<div class="history-item">
+                <button type="button" class="level-row-body grow text-left" data-piece="${p.scoreId}" aria-label="${escapeHtml(p.title)} - ${note}. Open My Levels">
+                    <span class="grow"><strong>${escapeHtml(p.title)}</strong><br><span class="text-sm text-muted">${note}</span>
+                    <span class="level-strip mt-1" aria-hidden="true">${map.map(v => `<span class="level-cell lv-${v || 0}"></span>`).join('')}</span></span>
+                </button>
+                <button type="button" class="flow-delete-btn" data-remove-piece="${p.scoreId}" aria-label="Take ${escapeHtml(p.title)} off this list"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+            </div>`;
+        }).join('') : '<p class="text-sm text-muted">No pieces yet.</p>';
+        box.querySelectorAll('[data-piece]').forEach(b => b.addEventListener('click', () => openLevelsForPiece(Number(b.dataset.piece))));
+        box.querySelectorAll('[data-remove-piece]').forEach(b => b.addEventListener('click', () => plSetPieces(l.pieces.map(p => p.scoreId).filter(id => id !== Number(b.dataset.removePiece)))));
+        document.getElementById('plPlanBtn').disabled = !l.pieces.length;
+    }
+    async function plSetPieces(ids) {
+        try { plState.list = await API.practiceLists.setPieces(plState.list.id, ids); renderPracticeList(); }
+        catch (e) { showWarningToast('List not saved: ' + e.message); }
+    }
+    // Name, date, sessions a week and minutes save a moment after you stop typing.
+    function plFieldChanged() {
+        clearTimeout(plState.saveTimer);
+        plState.saveTimer = setTimeout(async () => {
+            const l = plState.list;
+            if (!l) return;
+            const body = {
+                name: document.getElementById('plName').value.trim() || l.name,
+                eventDate: document.getElementById('plDate').value || null,
+                sessionsPerWeek: Number(document.getElementById('plPerWeek').value) || l.sessionsPerWeek,
+                sessionMinutes: Number(document.getElementById('plMinutes').value) || l.sessionMinutes
+            };
+            try { plState.list = await API.practiceLists.update(l.id, body); renderPracticeList(); }
+            catch (e) { showWarningToast('List not saved: ' + e.message); }
+        }, 600);
+    }
+    // A piece's My Levels, from a list: load it as Play Flow would, then open the Levels screen.
+    async function openLevelsForPiece(scoreId) {
+        try {
+            const [detail, blocks] = await Promise.all([API.flows.get(scoreId), API.flows.blocks.list(scoreId)]);
+            currentFlowId = scoreId;
+            currentFlowDetail = detail;
+            flowLeadInBlock = blocks.find(b => b.isLeadIn) || null;
+            currentFlowBlocks = blocks.filter(b => !b.isLeadIn);
+            openPieceLevels();
+        } catch (e) {
+            showWarningToast('Piece not loaded: ' + e.message);
+        }
+    }
+    function openPlPiecesModal() {
+        const l = plState.list;
+        plState.picked = new Set(l.pieces.map(p => p.scoreId));
+        const box = document.getElementById('plPiecesOptions');
+        const pieces = (typeof rehearsePlayable === 'function' ? rehearsePlayable() : flowsListCache) || [];
+        box.innerHTML = pieces.length ? pieces.map(f => `<button type="button" class="flow-choice-option level-answer${plState.picked.has(f.id) ? ' selected' : ''}" aria-pressed="${plState.picked.has(f.id)}" data-pick="${f.id}"><span><strong>${escapeHtml(f.title)}</strong><br><span class="text-sm text-muted">${f.totalBars} bars</span></span></button>`).join('')
+            : '<p class="metro-help-text">No pieces yet - add one in My music.</p>';
+        box.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => {
+            const id = Number(b.dataset.pick);
+            if (plState.picked.has(id)) plState.picked.delete(id); else plState.picked.add(id);
+            b.classList.toggle('selected', plState.picked.has(id));
+            b.setAttribute('aria-pressed', String(plState.picked.has(id)));
+        }));
+        showModal('plPiecesModal');
+    }
+    document.getElementById('practiceListNewBtn')?.addEventListener('click', () => newPracticeList());
+    ['plName', 'plDate', 'plPerWeek', 'plMinutes'].forEach(id => document.getElementById(id)?.addEventListener('input', plFieldChanged));
+    document.getElementById('plAddPiecesBtn')?.addEventListener('click', () => { if (!flowsListCache.length) rehearseRefresh(); openPlPiecesModal(); });
+    document.getElementById('plPiecesCloseBtn')?.addEventListener('click', () => hideModal('plPiecesModal'));
+    document.getElementById('plPiecesDoneBtn')?.addEventListener('click', () => {
+        hideModal('plPiecesModal');
+        const keep = plState.list.pieces.map(p => p.scoreId).filter(id => plState.picked.has(id));
+        const added = [...plState.picked].filter(id => !keep.includes(id));
+        plSetPieces([...keep, ...added]);
+    });
+    document.getElementById('plPlanBtn')?.addEventListener('click', () => {
+        const l = plState.list;
+        const f = plForecast(l);
+        const s = f.suggestion && f.suggestion.template ? f.suggestion : null;
+        openSessionPlanner({ scoreIds: l.pieces.map(p => p.scoreId), minutes: l.sessionMinutes, template: s ? s.template : 'standard', focus: s ? s.focus : 'both', listName: l.name });
+    });
+    document.getElementById('plDeleteBtn')?.addEventListener('click', () => {
+        const l = plState.list;
+        showConfirmModal('Delete this list?', `"${l.name}" goes, but its pieces and your Levels stay.`, async () => {
+            try { await API.practiceLists.remove(l.id); plState.list = null; goBack(); renderRehearseLists(); }
+            catch (e) { showWarningToast('List not deleted: ' + e.message); }
+        }, true, 'Delete');
+    });
+
+    // --- Join-up groups on My Levels (chunk answer only) ---
+    function levelsGroupStatus(g) {
+        const inside = levels.chunks.filter(c => c.startBar >= g.startBar && c.endBar <= g.endBar);
+        const below = inside.filter(c => c.level == null || c.level < 4).length;
+        return { inside: inside.length, below, ready: inside.length > 0 && below === 0 };
+    }
+    function renderGroups() {
+        const list = document.getElementById('levelsGroupList');
+        if (!list) return;
+        list.innerHTML = levels.groups.map((g, i) => {
+            const st = levelsGroupStatus(g);
+            const fit = FlowJourney.chunkFit(levels.blocks, { startBar: g.startBar, endBar: g.endBar, level: g.level || 4 });
+            const tooLong = fit.ok && fit.runs < 1;
+            const status = tooLong ? `<span class="text-sm level-fit-warn">${fmtMinSec(fit.runSeconds)} a run - too long for one block, make it smaller</span>`
+                : st.ready ? `<span class="text-sm text-muted">Ready - all ${st.inside} chunks at Level 4 or more${fit.ok ? ` · ${fmtMinSec(fit.runSeconds)} a run` : ''}</span>`
+                : `<span class="text-sm text-muted">${st.below} of ${st.inside} chunk${st.inside === 1 ? '' : 's'} still below Level 4</span>`;
+            return `<div class="history-item">
+                <div class="grow">
+                    <span class="level-row-body">
+                        <span class="level-chip lv-${g.level || 0}" aria-hidden="true">${g.level || ''}</span>
+                        <span><strong>${escapeHtml(g.label || levelsRange(g.startBar, g.endBar))}</strong><br>${status}</span>
+                    </span>
+                    ${st.ready && !tooLong ? `<button type="button" class="btn-nav no-margin mt-2" data-group-practise="${i}">Practise this group</button>` : ''}
+                </div>
+                <button type="button" class="flow-delete-btn" data-group-remove="${i}" aria-label="Remove the join-up group ${levelsRange(g.startBar, g.endBar)}"><span class="material-symbols-outlined" aria-hidden="true">delete</span></button>
+            </div>`;
+        }).join('');
+        list.querySelectorAll('[data-group-remove]').forEach(b => b.addEventListener('click', () => { levels.groups.splice(Number(b.dataset.groupRemove), 1); renderPieceLevels(); }));
+        list.querySelectorAll('[data-group-practise]').forEach(b => b.addEventListener('click', () => {
+            const g = levels.groups[Number(b.dataset.groupPractise)];
+            if (g.level == null) g.level = 4; // joined up at Level 4 first, then on to full speed
+            const [a, z] = [g.startBar, g.endBar];
+            practiseLevels(() => levels.groups.find(x => x.startBar === a && x.endBar === z));
+        }));
+        const e = levels.groupEdit;
+        setShown('levelsGroupEditor', !!e);
+        setShown('levelsGroupAddBtn', !e);
+        if (!e) return;
+        const from = document.getElementById('levelsGroupFrom'), to = document.getElementById('levelsGroupTo');
+        from.max = to.max = String(levels.total);
+        if (document.activeElement !== from) from.value = e.startBar;
+        if (document.activeElement !== to) to.value = e.endBar;
+        const fit = FlowJourney.chunkFit(levels.blocks, { startBar: Math.min(e.startBar, e.endBar), endBar: Math.max(e.startBar, e.endBar), level: 4 });
+        document.getElementById('levelsGroupFit').textContent = fit.ok ? (fit.runs < 1 ? `${fmtMinSec(fit.runSeconds)} a run at Level 4 - too long for one block. Make it smaller.` : `${fmtMinSec(fit.runSeconds)} a run at Level 4 - fits in a block.`) : '';
+    }
+    document.getElementById('levelsGroupAddBtn')?.addEventListener('click', () => {
+        const first = levels.chunks[0], second = levels.chunks[1] || first;
+        levels.groupEdit = { startBar: first ? first.startBar : 1, endBar: second ? second.endBar : Math.min(levels.total, 8) };
+        renderPieceLevels();
+    });
+    ['levelsGroupFrom', 'levelsGroupTo'].forEach(id => document.getElementById(id)?.addEventListener('input', () => {
+        const e = levels.groupEdit;
+        if (!e) return;
+        const clamp = (v) => Math.max(1, Math.min(levels.total, Math.round(Number(v) || 1)));
+        e.startBar = clamp(document.getElementById('levelsGroupFrom').value);
+        e.endBar = clamp(document.getElementById('levelsGroupTo').value);
+        renderPieceLevels();
+    }));
+    document.getElementById('levelsGroupCancelBtn')?.addEventListener('click', () => { levels.groupEdit = null; renderPieceLevels(); });
+    document.getElementById('levelsGroupDoneBtn')?.addEventListener('click', () => {
+        const e = levels.groupEdit;
+        if (!e) return;
+        const g = { kind: 'group', startBar: Math.min(e.startBar, e.endBar), endBar: Math.max(e.startBar, e.endBar), level: null, label: null };
+        const fit = FlowJourney.chunkFit(levels.blocks, { startBar: g.startBar, endBar: g.endBar, level: 4 });
+        if (fit.ok && fit.runs < 1) { showWarningToast('Too long to play through in one block - make the group smaller.'); return; }
+        levels.groups.push(g);
+        levels.groups.sort((x, y) => x.startBar - y.startBar);
+        levels.groupEdit = null;
+        renderPieceLevels();
+    });
+
+
+    // ===== ML-321 (epic ML-314): your skills list =====
+    // A skill is a playing tool plus its steps in order (SKILLS below - Range ML-305 and Rhythm ML-306
+    // plug in here when they're built). Tempo, Pulse and Pitch pass a step at grade 4 or 5 (the drill's
+    // own score, caught in saveDrill); Warm-ups and Scales ask "Got it?". The list, where you're up to
+    // and every go are on the server (/api/practice/skills*).
+    const SKILL_PASS_GRADE = 4;
+    function scalesSkillSteps(mode) {
+        return TheoryEngine.ALL_KEYS.filter(k => k.mode === mode)
+            .sort((a, b) => a.count - b.count || (a.type === 'sharp' ? -1 : 1) - (b.type === 'sharp' ? -1 : 1))
+            .map(k => ({ id: k.id, label: `${k.tonic} ${mode}` }));
+    }
+    const SKILLS = {
+        tapTempo: { label: 'Tempo', tool: 'tapTempo', graded: true, steps: () => Drills.TAP.LEVELS.map(l => ({ id: l.id, label: l.label })) },
+        gapTrainer: { label: 'Pulse', tool: 'gapTrainer', graded: true, steps: () => Drills.GAP.PATTERNS.map(p => ({ id: p.id, label: p.label })) },
+        'ear:playback': { label: 'Pitch - Play it back', tool: 'ear', graded: true, steps: () => Drills.EAR.NOTE_SETS.map(s => ({ id: `playback:${s.id}`, set: s.id, label: s.label })) },
+        'scales:major': { label: 'Scales - major keys', tool: 'scales', graded: false, steps: () => scalesSkillSteps('major') },
+        'scales:minor': { label: 'Scales - minor keys (harmonic)', tool: 'scales', graded: false, steps: () => scalesSkillSteps('minor') },
+        ...Object.fromEntries(Warmups.KINDS.map(k => [`warmups:${k.id}`, {
+            label: `Warm-ups - ${k.label.toLowerCase()}`, tool: 'warmups', graded: false, kind: k.id,
+            steps: () => (warmupsAll || []).filter(ex => ex.kind === k.id).map(ex => ({ id: ex.id, label: ex.title }))
+        }]))
+    };
+    let skillsData = [];        // your list, from the server, with each skill's steps attached
+    var skillContext = null;    // var: saveDrill checks it - { key, stepIndex, stepId, tool } while practising a step
+    var skillWarmupsKind = null; // var: warmupsList reads it - a Warm-ups skill shows only its own kind
+    function skillWithSteps(item) {
+        const def = SKILLS[item.key];
+        if (!def) return null;
+        const steps = def.steps();
+        return { ...item, def, steps, done: steps.length > 0 && item.stepIndex >= steps.length, step: steps[Math.min(item.stepIndex, Math.max(0, steps.length - 1))] || null };
+    }
+    async function loadSkills() {
+        await warmupsLoad(); // the Warm-ups skills' steps are the exercises
+        try { skillsData = ((await API.skills.list()).skills || []).map(skillWithSteps).filter(Boolean); }
+        catch (e) { skillsData = []; }
+        return skillsData;
+    }
+    const skillStepText = (s) => (s.done ? 'All done' : `Step ${s.stepIndex + 1} of ${s.steps.length}: ${s.step ? s.step.label : ''}`);
+    function renderSkills() {
+        const box = document.getElementById('skillsList');
+        if (!box) return;
+        box.innerHTML = skillsData.length ? skillsData.map((s, i) => `
+            <div class="history-item">
+                <div class="grow">
+                    <strong>${escapeHtml(s.def.label)}</strong><br><span class="text-sm text-muted">${escapeHtml(skillStepText(s))}</span>
+                    <span class="level-strip mt-1" aria-hidden="true">${s.steps.map((st, k) => `<span class="level-cell lv-${k < s.stepIndex ? 5 : k === s.stepIndex ? 2 : 0}"></span>`).join('')}</span>
+                    ${s.done ? '' : `<div class="flex-row gap-sm mt-2"><button type="button" class="btn-nav grow no-margin" data-skill-go="${i}">Practise</button>${!s.def.graded ? `<button type="button" class="btn-nav grow no-margin" data-skill-got="${i}">Got it</button>` : ''}</div>`}
+                </div>
+                <button type="button" class="flow-delete-btn" data-skill-remove="${i}" aria-label="Take ${escapeHtml(s.def.label)} off your list"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+            </div>`).join('') : '<p class="text-sm text-muted">No skills yet. Add the ones you want to work on.</p>';
+        box.querySelectorAll('[data-skill-go]').forEach(b => b.addEventListener('click', () => openSkillStep(skillsData[Number(b.dataset.skillGo)])));
+        box.querySelectorAll('[data-skill-got]').forEach(b => b.addEventListener('click', () => recordSkillStep(skillsData[Number(b.dataset.skillGot)], true, null)));
+        box.querySelectorAll('[data-skill-remove]').forEach(b => b.addEventListener('click', async () => {
+            const keys = skillsData.map(s => s.key).filter((k, j) => j !== Number(b.dataset.skillRemove));
+            try { skillsData = ((await API.skills.set(keys)).skills || []).map(skillWithSteps).filter(Boolean); renderSkills(); }
+            catch (e) { showWarningToast('Not saved: ' + e.message); }
+        }));
+    }
+    async function openSkillsView() {
+        switchView('skillsView');
+        await loadSkills();
+        renderSkills();
+    }
+    function openSkillsAddModal() {
+        const have = new Set(skillsData.map(s => s.key));
+        const box = document.getElementById('skillsAddOptions');
+        const keys = Object.keys(SKILLS).filter(k => !have.has(k));
+        box.innerHTML = keys.length ? keys.map(k => `<button type="button" class="flow-choice-option level-answer" data-add-skill="${k}"><span><strong>${escapeHtml(SKILLS[k].label)}</strong><br><span class="text-sm text-muted">${SKILLS[k].steps().length} steps · ${SKILLS[k].graded ? 'moves on at grade 4 or 5' : 'you say when you\'ve got it'}</span></span></button>`).join('')
+            : '<p class="metro-help-text">Every skill is on your list already. More are coming: Range and Rhythm.</p>';
+        box.querySelectorAll('[data-add-skill]').forEach(b => b.addEventListener('click', async () => {
+            hideModal('skillsAddModal');
+            try { skillsData = ((await API.skills.set([...skillsData.map(s => s.key), b.dataset.addSkill])).skills || []).map(skillWithSteps).filter(Boolean); renderSkills(); }
+            catch (e) { showWarningToast('Not saved: ' + e.message); }
+        }));
+        showModal('skillsAddModal');
+    }
+    // Open a skill's tool at the step you're on.
+    function openSkillStep(s) {
+        if (!s || s.done || !s.step) return;
+        skillContext = { key: s.key, stepIndex: s.stepIndex, stepId: s.step.id, tool: s.def.tool, stepCount: s.steps.length };
+        const st = s.step;
+        if (s.def.tool === 'tapTempo') { tapState.level = st.id; drillStore('tapTempo', tapState); switchView('tapTempoView'); }
+        else if (s.def.tool === 'gapTrainer') { gapState.pattern = st.id; drillStore('gapTrainer', gapState); switchView('gapTrainerView'); }
+        else if (s.def.tool === 'ear') { earState.mode = 'playback'; earState.sets.playback = st.set; drillStore('ear', earState); switchView('earView'); }
+        else if (s.def.tool === 'scales') {
+            switchView('scalesView');
+            scales.keyId = st.id;
+            scales.form = s.key === 'scales:minor' ? 'harmonic' : 'major';
+            if (scales.form !== 'major') scales.minorForm = 'harmonic';
+            scales.type = 'scale';
+            scalesChanged();
+        } else if (s.def.tool === 'warmups') {
+            skillWarmupsKind = s.def.kind;
+            warmups.currentId = st.id;
+            switchView('warmupsView');
+        }
+        showSuccessToast(`${s.def.label}: ${st.label}`);
+    }
+    async function recordSkillStep(s, passed, grade) {
+        try {
+            const out = await API.skills.result({ key: s.key, stepIndex: s.stepIndex, passed, grade, stepCount: s.steps.length });
+            skillsData = (out.skills || []).map(skillWithSteps).filter(Boolean);
+            const now = skillsData.find(x => x.key === s.key);
+            if (passed) showSuccessToast(now && now.done ? `${s.def.label}: all steps done` : `${s.def.label}: on to ${now && now.step ? now.step.label : 'the next step'}`);
+            renderSkills();
+            return now;
+        } catch (e) {
+            showWarningToast('Not saved: ' + e.message);
+            return null;
+        }
+    }
+    // A drill round was saved: if it's the skill step you're on, grade 4+ passes it.
+    function skillDrillSaved(tool, level, grade) {
+        const c = skillContext;
+        if (!c || c.tool !== tool || c.stepId !== level) return;
+        const s = skillsData.find(x => x.key === c.key) || { key: c.key, stepIndex: c.stepIndex, steps: new Array(c.stepCount), def: SKILLS[c.key] };
+        const passed = grade >= SKILL_PASS_GRADE;
+        recordSkillStep({ ...s, stepIndex: c.stepIndex }, passed, grade).then(now => {
+            if (practiceRun && practiceRun.blocks[practiceRun.index] && practiceRun.blocks[practiceRun.index].skill) practiceRun.blocks[practiceRun.index].skillRated = true;
+            if (passed && now && !now.done && now.step) skillContext = { key: now.key, stepIndex: now.stepIndex, stepId: now.step.id, tool: now.def.tool, stepCount: now.steps.length };
+            else if (passed) skillContext = null;
+        });
+        if (!passed) showSuccessToast(`Grade ${grade} - a 4 or 5 moves you on to the next step.`);
+    }
+    // Warm-ups / Scales at the end of a Skills block: "Got it?" (then on to the next block).
+    function askSkillRating(s, then) {
+        document.getElementById('skillRateTitle').textContent = `${s.def.label}: got it?`;
+        document.getElementById('skillRateSub').textContent = s.step ? s.step.label : '';
+        const next = s.steps[s.stepIndex + 1];
+        document.getElementById('skillRateNext').textContent = next ? `Next time: ${next.label}` : 'That\'s the last step';
+        const done = (passed) => { hideModal('skillRateModal'); (passed === null ? Promise.resolve() : recordSkillStep(s, passed, null)).then(() => then && then()); };
+        document.getElementById('skillRateYesBtn').onclick = () => done(true);
+        document.getElementById('skillRateNoBtn').onclick = () => done(false);
+        document.getElementById('skillRateCloseBtn').onclick = () => done(null);
+        showModal('skillRateModal');
+    }
+    document.getElementById('skillsAddBtn')?.addEventListener('click', openSkillsAddModal);
+    document.getElementById('skillsAddCloseBtn')?.addEventListener('click', () => hideModal('skillsAddModal'));
+    document.getElementById('sessSkillsBtn')?.addEventListener('click', openSkillsView);
+
+    // ===== ML-320 follow-up: your own session templates =====
+    let sessTemplates = [];
+    let tplDraft = null; // { id?, name, lead: [], focus, minutes }
+    async function loadTemplates() {
+        try { sessTemplates = (await API.practice.templates()).templates || []; } catch (e) { sessTemplates = []; }
+        return sessTemplates;
+    }
+    function renderTemplateModal() {
+        const list = document.getElementById('sessTplList');
+        list.innerHTML = sessTemplates.length ? sessTemplates.map((t, i) => `<button type="button" class="flow-choice-option level-answer${tplDraft && tplDraft.id === t.id ? ' selected' : ''}" data-tpl="${i}"><span><strong>${escapeHtml(t.name)}</strong><br><span class="text-sm text-muted">${t.lead.map(k => PracticePlan.KINDS[k]).join(', ') || 'No opening blocks'}, then ${t.focus === 'both' ? 'Skills and Rehearsal' : PracticePlan.KINDS[t.focus]} · ${t.minutes} min</span></span></button>`).join('')
+            : '<p class="metro-help-text">Standard and Concert are built in. Make your own - e.g. "Chops day": Warm-up, Scales, Skills, Skills, then Both.</p>';
+        list.querySelectorAll('[data-tpl]').forEach(b => b.addEventListener('click', () => { const t = sessTemplates[Number(b.dataset.tpl)]; tplDraft = { ...t, lead: t.lead.slice() }; renderTemplateModal(); }));
+        setShown('sessTplEditor', !!tplDraft);
+        setShown('sessTplNewBtn', !tplDraft);
+        if (!tplDraft) return;
+        const d = tplDraft;
+        const name = document.getElementById('sessTplName');
+        if (document.activeElement !== name) name.value = d.name;
+        document.getElementById('sessTplMinutes').value = d.minutes;
+        const lead = document.getElementById('sessTplLead');
+        lead.innerHTML = d.lead.length ? d.lead.map((k, i) => `<button type="button" class="filter-pill active" data-lead="${i}" aria-label="Take out ${PracticePlan.KINDS[k]} (block ${i + 1})">${i + 1}. ${PracticePlan.KINDS[k]}</button>`).join('') : '<span class="text-sm text-muted">None - the focus starts straight away.</span>';
+        lead.querySelectorAll('[data-lead]').forEach(b => b.addEventListener('click', () => { d.lead.splice(Number(b.dataset.lead), 1); renderTemplateModal(); }));
+        const add = document.getElementById('sessTplAdd');
+        add.innerHTML = ['warmup', 'scales', 'skills', 'rehearsal'].map(k => `<button type="button" class="filter-pill" data-add="${k}">+ ${PracticePlan.KINDS[k]}</button>`).join('');
+        add.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => { if (d.lead.length < 24) d.lead.push(b.dataset.add); renderTemplateModal(); }));
+        const focus = document.getElementById('sessTplFocus');
+        focus.innerHTML = [['skills', 'Skills'], ['both', 'Both'], ['rehearsal', 'Rehearsal']].map(([k, l]) => `<button type="button" class="filter-pill${d.focus === k ? ' active' : ''}" aria-pressed="${d.focus === k}" data-f="${k}">${l}</button>`).join('');
+        focus.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => { d.focus = b.dataset.f; renderTemplateModal(); }));
+        setShown('sessTplDeleteBtn', !!d.id);
+    }
+    async function openTemplateModal() {
+        tplDraft = null;
+        await loadTemplates();
+        renderTemplateModal();
+        showModal('sessionTemplateModal');
+    }
+    document.getElementById('sessTemplatesBtn')?.addEventListener('click', openTemplateModal);
+    document.getElementById('sessionTemplateCloseBtn')?.addEventListener('click', () => hideModal('sessionTemplateModal'));
+    document.getElementById('sessTplNewBtn')?.addEventListener('click', () => {
+        const cur = sessPlan.template;
+        tplDraft = { name: '', lead: (cur && cur.lead ? cur.lead : (PracticePlan.TEMPLATES[cur] || PracticePlan.TEMPLATES.standard).lead).slice(), focus: sessPlan.focus, minutes: sessPlan.minutes };
+        renderTemplateModal();
+        document.getElementById('sessTplName')?.focus();
+    });
+    document.getElementById('sessTplName')?.addEventListener('input', (e) => { if (tplDraft) tplDraft.name = e.target.value; });
+    document.getElementById('sessTplMinutes')?.addEventListener('input', (e) => { if (tplDraft) tplDraft.minutes = Number(e.target.value) || tplDraft.minutes; });
+    document.getElementById('sessTplSaveBtn')?.addEventListener('click', async () => {
+        const d = tplDraft;
+        if (!d) return;
+        try {
+            const saved = d.id ? await API.practice.saveTemplate(d.id, d) : await API.practice.addTemplate(d);
+            await loadTemplates();
+            tplDraft = null;
+            renderTemplateModal();
+            hideModal('sessionTemplateModal');
+            sessPlan.template = { ...saved };
+            sessPlan.focus = saved.focus;
+            sessPlan.minutes = saved.minutes;
+            sessReplan();
+            showSuccessToast(`Template "${saved.name}" saved`);
+        } catch (e) { showWarningToast('Not saved: ' + e.message); }
+    });
+    document.getElementById('sessTplDeleteBtn')?.addEventListener('click', async () => {
+        const d = tplDraft;
+        if (!d || !d.id) return;
+        try {
+            await API.practice.deleteTemplate(d.id);
+            if (sessPlan.template && sessPlan.template.id === d.id) sessPlan.template = 'standard';
+            await loadTemplates();
+            tplDraft = null;
+            renderTemplateModal();
+            sessReplan();
+        } catch (e) { showWarningToast('Not deleted: ' + e.message); }
+    });
+
+    // ===== ML-320 follow-up: a running session carries on after a reload, or on another device =====
+    // The runner's state is kept on the server (active_practice_sessions) whenever it changes; the
+    // current block's start is by the server's clock, so the time left is right wherever you open it.
+    // A session left for 3 hours or more is saved as it stood (the block you stopped in counted up to its
+    // 5 minutes) and cleared.
+    const PRACTICE_STALE_SECONDS = 3 * 3600;
+    function practiceRunSave() {
+        const r = practiceRun;
+        if (!r || r.done) return;
+        const state = { blocks: r.blocks, index: r.index, nudgeAt: r.nudgeAt, nudged: r.nudged, startedAt: r.startedAt, scoreIds: sessPlan.scoreIds || null };
+        API.practice.putActive({ state, blockElapsedSeconds: runElapsed() }).catch(() => { /* not kept - it still runs here */ });
+    }
+    async function resumePracticeRun() {
+        if (!isFeatureEnabled('practice_levels') || practiceRun) return;
+        let active = null;
+        try { active = (await API.practice.getActive()).active; } catch (e) { return; }
+        if (!active || !active.state || !Array.isArray(active.state.blocks)) return;
+        const st = active.state;
+        if (active.idleSeconds >= PRACTICE_STALE_SECONDS) {
+            const blocks = st.blocks.map((b, i) => (i === st.index ? { ...b, seconds: (b.seconds || 0) + Math.min(active.elapsedSeconds, PracticePlan.BLOCK_MINUTES * 60), started: true } : b));
+            const played = blocks.filter(b => b.started && b.seconds > 0);
+            API.practice.clearActive().catch(() => {});
+            if (!played.length) return;
+            const minutes = Math.max(1, Math.round(played.reduce((s, b) => s + b.seconds, 0) / 60));
+            try {
+                await API.practice.saveSession({ minutes, segments: played.map(b => ({ kind: b.kind, plannedMinutes: b.minutes, actualSeconds: b.seconds, chunkId: b.chunk ? b.chunk.id : null, tool: b.kind === 'skills' ? (b.skill ? b.skill.def && b.skill.def.tool || SKILLS[b.skill.key]?.tool : b.tool) : null })) });
+                showSuccessToast(`Your unfinished practice session was saved (${minutes} minutes).`);
+                fetchDataAndRender();
+            } catch (e) { /* nothing to save it to */ }
+            return;
+        }
+        practiceRun = { blocks: st.blocks, index: st.index, blockStart: Date.now() - active.elapsedSeconds * 1000, nudgeAt: st.nudgeAt, nudged: false, startedAt: st.startedAt, done: false };
+        loadSkills().catch(() => {}); // Skills blocks need your list (their steps, and Got it? for Warm-ups / Scales)
+        sessPlan.scoreIds = st.scoreIds || null;
+        clearInterval(practiceTick);
+        practiceTick = setInterval(practiceRunTick, 1000);
+        renderPracticeRun();
+        showSuccessToast(`Practice session carried on - block ${st.index + 1} of ${st.blocks.length}. Tap the bar at the top.`);
+    }
+
+    // ===== ML-319 follow-up: band practice lists =====
+    async function newPracticeList() {
+        let bands = [];
+        try { bands = (await API.account.getBands()).myBands || []; } catch (e) { bands = []; }
+        const create = async (bandId) => {
+            hideModal('plOwnerModal');
+            try {
+                const list = await API.practiceLists.create({ name: 'New practice list', bandId });
+                await openPracticeList(list.id);
+                document.getElementById('plName')?.select();
+            } catch (e) { showWarningToast('List not created: ' + e.message); }
+        };
+        if (!bands.length) { create(null); return; }
+        const box = document.getElementById('plOwnerOptions');
+        box.innerHTML = [`<button type="button" class="flow-choice-option level-answer" data-owner=""><span><strong>Just me</strong><br><span class="text-sm text-muted">Only you see it</span></span></button>`,
+            ...bands.map(b => `<button type="button" class="flow-choice-option level-answer" data-owner="${b.id}"><span><strong>${escapeHtml(b.name)}</strong><br><span class="text-sm text-muted">Shared with the band</span></span></button>`)].join('');
+        box.querySelectorAll('[data-owner]').forEach(b => b.addEventListener('click', () => create(b.dataset.owner ? Number(b.dataset.owner) : null)));
+        showModal('plOwnerModal');
+    }
+    document.getElementById('plOwnerCloseBtn')?.addEventListener('click', () => hideModal('plOwnerModal'));
+
     function flowOwnershipLabel(flow) {
         if (flow.isPublic) return 'Public';
         if (flow.ownerBandId) return 'Band';
@@ -5050,6 +6332,7 @@
             setShown('flowPlayMenuEditDetails', detail.canEdit);
             setShown('flowPlayMenuEditFlow', detail.canEdit);
             setShown('flowPlayMenuCopy', !detail.canEdit && detail.isPublic);
+            setShown('flowPlayMenuLevels', isFeatureEnabled('practice_levels'));
             switchView('flowPlayView');
         } catch (error) {
             showWarningToast('Error loading flow: ' + error.message);
@@ -8880,9 +10163,14 @@
     // lead-in never subdivides.
     let flowSubBeatsMode = 'off';
     let flowSubdivideOverride = null;
+    // ML-317: a Levels practice (set by startLevelPractice, cleared by endLevelPractice) - the Level
+    // sets the loop, the speed and the sub-beats, and the player's own settings come back afterwards.
+    var flowSession = null; // var: switchView checks it before this line has run
     function flowShouldSubdivide(block) {
         const info = metroBlkMeterInfo(block);
         if (!info) return false; // lead-in
+        // In a practice session, sub-beats come on by themselves when the bar's beat is slow at this speed.
+        if (flowSubBeatsMode === 'session') return FlowJourney.sessionSubBeats(block.bpm, flowSpeedPercent, flowSession ? flowSession.subBeatsBelow : null);
         return flowSubBeatsMode !== 'off';
     }
     function flowSubFactorFor(block) {
@@ -9795,6 +11083,9 @@
     function flowLoadLoopForPiece() {
         const saved = flowLoopSavedAll()[flowLoopPieceKey()];
         flowLoop = saved && saved.on ? { startBar: saved.startBar, endBar: saved.endBar, restBars: saved.restBars || 0 } : null;
+        // ML-317: a practice loops its chunk with one gap bar between runs (what the chunk length rule
+        // assumes) - never saved over the piece's own repeat setting.
+        if (flowSession && flowSession.flowId === Number(flowLoopPieceKey())) flowLoop = { startBar: flowSession.chunk.startBar, endBar: flowSession.chunk.endBar, restBars: 1 };
         flowComputeLoopPlan();
     }
     function flowPassagesFor(steps, loopPass) {
@@ -14111,12 +15402,14 @@
         try {
             const h = await API.drills.history(tool, level);
             if (stillCurrent && !stillCurrent()) return;
-            el.textContent = h.best ? `Your best at this level: ${h.best.score} (grade ${h.best.grade})` : "You haven't tried this level yet.";
+            el.textContent = h.best ? `Your best with these settings: ${h.best.score} (grade ${h.best.grade})` : "You haven't tried these settings yet.";
         } catch (e) { /* not essential */ }
     }
     async function saveDrill(tool, level, startedAt, t0, details) {
         try {
-            return await API.drills.save(tool, { level, startedAt, durationMs: Math.round(drillNow() - t0), details });
+            const saved = await API.drills.save(tool, { level, startedAt, durationMs: Math.round(drillNow() - t0), details });
+            if (saved && saved.result) skillDrillSaved(tool, level, saved.result.grade); // ML-321: grade 4+ passes a skill step
+            return saved;
         } catch (e) {
             showWarningToast('Round not saved: ' + e.message);
             return null;
@@ -14145,18 +15438,18 @@
         g.innerHTML = [1, 2, 3, 4, 5].map(i => `<span class="theory-grade-dot${i <= grade ? ' theory-grade-dot-on' : ''}"></span>`).join('');
         const best = document.getElementById('drillResultBest');
         if (!saved) best.textContent = `Grade ${grade} of 5 · not saved`;
-        else if (saved.previousBest === null) best.textContent = `Grade ${grade} of 5 · your first round at this level`;
+        else if (saved.previousBest === null) best.textContent = `Grade ${grade} of 5 · your first round with these settings`;
         else if (saved.newBest) best.textContent = `Grade ${grade} of 5 · new personal best (was ${saved.previousBest})`;
         else best.textContent = `Grade ${grade} of 5 · your best is ${saved.best ? saved.best.score : saved.previousBest}`;
         document.getElementById('drillResultStats').innerHTML = stats.map(([label, value]) => `<div class="stat-card"><span class="label">${escapeHtml(label)}</span><span class="value">${escapeHtml(String(value))}</span></div>`).join('');
         document.getElementById('drillResultDetail').innerHTML = rows.map(([a, b]) => `<li><span>${escapeHtml(a)}</span><strong>${escapeHtml(b)}</strong></li>`).join('');
         const recent = saved ? saved.recent : [];
         const trend = document.getElementById('drillTrend');
-        trend.innerHTML = !recent.length ? '<p class="text-muted">Your rounds at this level will show here.</p>'
+        trend.innerHTML = !recent.length ? '<p class="text-muted">Your rounds with these settings will show here.</p>'
             : `<div class="theory-trend-bars" role="img" aria-label="Scores of your last ${recent.length} rounds: ${recent.map(a => a.score).join(', ')}">${recent.map((a, i) => `
                 <div class="chart-bar-container"><div class="chart-bar series-hours" style="--bar-h:${Math.max(2, a.score)}%;"></div>
                 <span class="chart-x-label">${i === recent.length - 1 ? 'Now' : a.score}</span></div>`).join('')}</div>`;
-        // Results replaces the play screen, so Back (and "Change level") lands on the setup screen.
+        // Results replaces the play screen, so Back (and "Change settings") lands on the setup screen.
         if (viewStack[viewStack.length - 1] === playView) viewStack.pop();
         switchView('drillResultsView');
     }
@@ -14173,7 +15466,7 @@
     })();
     function renderTapTempoSetup() {
         const level = Drills.tapLevel(tapState.level);
-        renderDrillOptions('tapTempo', [{ key: 'level', label: 'Level', value: tapState.level, choices: Drills.TAP.LEVELS.map(l => ({ value: l.id, label: l.label })), help: level.desc }],
+        renderDrillOptions('tapTempo', [{ key: 'level', label: 'Help', value: tapState.level, choices: Drills.TAP.LEVELS.map(l => ({ value: l.id, label: l.label })), help: level.desc }],
             (k, v) => { tapState.level = v; drillStore('tapTempo', tapState); renderTapTempoSetup(); });
         const lv = tapState.level;
         renderDrillBest('tapTempo', lv, 'tapTempoBest', () => tapState.level === lv);
@@ -14412,7 +15705,7 @@
         const set = Drills.earSet(earState.mode, setId);
         renderDrillOptions('ear', [
             { key: 'mode', label: 'How', value: earState.mode, choices: Drills.EAR.MODES.map(m => ({ value: m.id, label: m.label })), help: mode.desc },
-            { key: 'set', label: earState.mode === 'reference' ? 'Level' : 'Notes', value: setId, choices: list.map(x => ({ value: x.id, label: x.label })), help: set.desc || '' },
+            { key: 'set', label: 'Notes', value: setId, choices: list.map(x => ({ value: x.id, label: x.label })), help: set.desc || '' },
         ], (k, v) => { if (k === 'mode') earState.mode = v; else earState.sets[earState.mode] = v; drillStore('ear', earState); renderEarSetup(); });
         // Notes are named in written pitch for the tuner's instrument (a B-flat cornet's C sounds B-flat).
         const tr = ((tunerTransposition % 12) + 12) % 12;
@@ -15048,7 +16341,8 @@
     }
     let warmupsAll = null;      // every switched-on exercise, from the server (loaded once a visit)
     let warmupsBpm = 72;        // this exercise's tempo - starts at the exercise's own each time
-    const warmupsList = () => (warmupsAll || []).filter(ex => warmups.kinds.includes(ex.kind));
+    // ML-321: while practising a Warm-ups skill, only that kind (whatever My warm-ups is set to).
+    const warmupsList = () => (warmupsAll || []).filter(ex => (skillWarmupsKind ? ex.kind === skillWarmupsKind : warmups.kinds.includes(ex.kind)));
     function warmupsCurrent() {
         const list = warmupsList();
         return list.find(ex => ex.id === warmups.currentId) || list[0] || null;

@@ -92,6 +92,10 @@ later table exists. Each file has a comment marking where this happens.
 | `056_flow_manage.sql` | Seeds the `flow_manage` feature (ML-299, enabled): the ☰ menu's My music (create, import, library, edit pieces). The home tool is now Rehearse (play only), shown when there's a piece to play. App-wide for now; per-person limits later. No tables. |
 | `057_drills.sql` | Adds `drill_attempts` (ML-298/295/296) - one row per finished round of Tap tempo, Gap trainer or Ear, with its raw details (the server re-scores from them with public/drills.js) - and the features `tap_tempo`, `gap_trainer`, `ear_training` (enabled). See docs/drills.md. |
 | `058_flow_lead_in_one_bar.sql` | ML-113: every Flow lead-in becomes one whole bar (no pickup beats, no repeat, no quiet seconds). Looping and rests moved to Rehearse's repeat control (ML-302). Flow lead-ins only; the columns stay for the old ad-hoc setups. No schema change. |
+| `061_practice_levels.sql` | ML-315 (epic ML-314): `piece_chunks` (an account's chunks of a piece, each with a Level 1-5 or not set) and `chunk_level_changes` (every Level change, kept when a chunk goes), `accounts.practice_sub_beats_below` (default 100), and the `practice_levels` feature (disabled until the screens ship). See docs/database-schema.md "Practice Levels". |
+| `062_practice_sessions.sql` | ML-320: `session_segments` gets `actual_seconds`, `chunk_id` (the Rehearsal block's chunk) and `tool` (a Skills block's tool). The practice session builder logs a finished session as one `sessions` row plus a segment per block. |
+| `063_practice_lists.sql` | ML-319: `practice_lists` gets `event_date`, `sessions_per_week` and `session_minutes` (personal lists: the concert's pieces and the readiness forecast); `piece_chunks.kind` allows `group` (join-up groups). |
+| `064_practice_templates_skills.sql` | ML-320 follow-ups and ML-321: `practice_templates` (your own templates), `active_practice_sessions` (the running session, kept across reloads and devices), `skill_list_items` and `skill_step_results` (your skills list and every go at a step). |
 
 ## Decisions made translating the design doc into SQL
 

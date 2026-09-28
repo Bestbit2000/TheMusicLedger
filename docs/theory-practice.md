@@ -90,7 +90,7 @@ All answers are **one tap on a button**. Four quizzes (confirmed on ML-260, 2026
 | **Note names** | A whole note on a staff → 7 letters, or with sharps/flats on the keyboard: 5 sharps above the 7 naturals and 5 flats below, in their keys' columns (ML-292 - no E♯/B♯/C♭/F♭; the written note shows which spelling is right) | Clef (multi-select), range (on the staff / 2 / 4 / 6 ledger lines, above and below), sharps and flats (none / sharps / flats) |
 | **Keys** | A key signature → "Which major/minor key?"; or a scale written out with accidentals → "Which scale is this?". 4 keys each | Clef, show (key signatures / scales / both), up to 3 / 5 / 7 ♯/♭ (C major and A minor always in), sharp / flat keys / both, major or major + minor, minor scales: harmonic / melodic / both (only with minor keys and scales) |
 | **Notation** (id `symbols`; "Symbols and speeds", ML-301) | A symbol → its name, or a meaning → the symbol (terms: the word → its meaning, or a meaning → the word). 4 choices | Set: Basics / Dynamics / Rhythm / Structure / Terms / Speeds / Everything; ask: names / meanings / both |
-| **Mixed** | Every question type in turn: a note, a key signature, a scale, a symbol name, a symbol meaning | Clef, level (beginner / intermediate / advanced) |
+| **Mixed** | Every question type in turn: a note, a key signature, a scale, a symbol name, a symbol meaning | Clef, difficulty (beginner / intermediate / advanced) |
 
 **Symbol sets:**
 
@@ -103,9 +103,9 @@ All answers are **one tap on a button**. Four quizzes (confirmed on ML-260, 2026
 | Terms | 15 | Largo, Adagio, Andante, Moderato, Allegro, Presto, rit., accel., a tempo, legato, dolce, cantabile, sempre, poco a poco, molto |
 | Speeds (ML-297) | 7 bands | A metronome mark (♩ = 108) → its speed name, or a speed name → its bpm band. Grave / Largo 15-55, Adagio / Lento 56-75, Andante 76-107, Moderato 108-119, Allegro 120-155, Vivace 156-175, Presto / Prestissimo 176-200+ |
 
-**Mixed levels:**
+**Mixed difficulty** (the option was called Level until ML-318):
 
-| Level | Notes | Keys | Symbols |
+| Difficulty | Notes | Keys | Symbols |
 |---|---|---|---|
 | Beginner | On the staff, no sharps or flats | Up to 3, major | Basics, Dynamics, Rhythm |
 | Intermediate | 2 ledger lines, no sharps or flats | Up to 5, major and minor (harmonic) | + Structure |
@@ -145,7 +145,7 @@ own questions the same way. A small selection still repeats in a long round, but
   multiple of 5) inside the band, different each time. Wrong answers are the neighbouring bands, listed
   slow to fast. Question ids are per band (`speedName:moderato`, `speedBpm:moderato`), so Smart learn
   weighs the band, not the number. The same bands give every tempo box its speed name
-  (`speedLabel`, see specs/components/metronome.md). Mixed's Advanced level (Everything) includes them.
+  (`speedLabel`, see specs/components/metronome.md). Mixed's Advanced difficulty (Everything) includes them.
 - **Minor scales** are shown harmonic or melodic, because a natural minor scale has exactly its relative
   major's notes.
 - **Scale placement:** a scale starts at staff step -2 to 4, so it sits on the staff.

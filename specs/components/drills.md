@@ -14,8 +14,8 @@ Three home-screen tools built on one engine ([`public/drills.js`](../../public/d
 screen. Each tool has:
 
 1. **A setup screen**: a short intro (`.theory-intro`), one-tap option pills (the Theory options look:
-   `.form-group` › `.radio-group`, with a `.metro-help-text` line describing the chosen level), your best
-   at that level (`.theory-best-line`) and **Start** (`.btn-submit`).
+   `.form-group` › `.radio-group`, with a `.metro-help-text` line describing the chosen option), your best
+   with those settings (`.theory-best-line`) and **Start** (`.btn-submit`).
 2. **A play screen**:
    - **Tap tempo:** "Speed 2 of 5 · 4 of 9 taps" (`.theory-status`), the speed as a Bravura metronome
      mark (`Notation.tempoMark`) or an Italian speed name (`.theory-prompt`), the live meter
@@ -30,8 +30,8 @@ screen. Each tool has:
      **Skip** (*Play it back* only, with "Listening… G", `.drill-listen`), then **Next note**.
 3. **The results screen** (`#drillResultsView`, shared): the tool and level, the grade dots
    (`.theory-grade-lg`), best-line, four stat cards (`.stat-card`), a line per speed / gap / note
-   (`.drill-result-list`), your last rounds at this level (the Theory trend bars), **Again** and
-   **Change level**.
+   (`.drill-result-list`), your last rounds with these settings (the Theory trend bars), **Again** and
+   **Change settings**.
 
 **The pad** is the one big target a drill is played on: gold like Play (`--primary-action`), round,
 4 touch targets wide, and it gives under the finger (`.is-hit`, scale 0.94, `--duration-instant`). It

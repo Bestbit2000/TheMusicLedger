@@ -22,7 +22,7 @@ practice session can be built from them later.
 
 You're given a speed and tap it on the pad: 9 taps (8 gaps), 5 speeds a round.
 
-| Level | You see | Help |
+| Help (on screen; stored as the level id) | You see | Help |
 |---|---|---|
 | **Listen first** | ♩ = 116 (a Bravura metronome mark) | One bar of clicks at the speed, then silence. A meter shows faster / slower. |
 | **With a guide** | ♩ = 116 | No clicks. The meter shows faster / slower as you tap. |
@@ -73,7 +73,7 @@ are no recordings to licence, and they're tuned to the tuner's A4 setting.
   instruments sound lower than written, by the transposition.
 - **By ear, a sharp and its flat are the same answer** (C♯ = D♭), and the octave doesn't matter.
 
-| Mode | How it works | Levels |
+| Mode | How it works | Notes (on screen; stored as the level id) |
 |---|---|---|
 | **With a home note** | Written C, then the mystery note (in the octave above it). | Home and 5th (C G) · Add the 3rd (C E G) · Add 2nd and 6th (C D E G A) · Major scale · All 12 notes |
 | **On its own** | Just the note, over two octaves (C4-B5), so the octave gives nothing away. | No sharps or flats · All 12 notes |

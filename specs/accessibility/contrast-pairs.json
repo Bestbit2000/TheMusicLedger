@@ -341,6 +341,48 @@
       "bg": "--primary-action-tint",
       "over": "--container-bg",
       "use": "Menu: the current screen's row (text and icon) on its gold wash - ML-259"
+    },
+    {
+      "kind": "text",
+      "fg": "--level-1-text",
+      "bg": "--level-1",
+      "use": "Practice Levels: the Level number on a Level 1 square, chip or picker button - ML-316"
+    },
+    {
+      "kind": "text",
+      "fg": "--level-2-text",
+      "bg": "--level-2",
+      "use": "Practice Levels: the Level number on a Level 2 square, chip or picker button - ML-316"
+    },
+    {
+      "kind": "text",
+      "fg": "--level-3-text",
+      "bg": "--level-3",
+      "use": "Practice Levels: the Level number on a Level 3 square, chip or picker button - ML-316"
+    },
+    {
+      "kind": "text",
+      "fg": "--level-4-text",
+      "bg": "--level-4",
+      "use": "Practice Levels: the Level number on a Level 4 square, chip or picker button - ML-316"
+    },
+    {
+      "kind": "text",
+      "fg": "--level-5-text",
+      "bg": "--level-5",
+      "use": "Practice Levels: the Level number on a Level 5 square, chip or picker button - ML-316"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--level-unset-border",
+      "bg": "--container-bg",
+      "use": "Practice Levels: the dashed outline of a bar with no Level yet - ML-316"
+    },
+    {
+      "kind": "text",
+      "fg": "--status-amber-fg",
+      "bg": "--container-bg",
+      "use": "Practice Levels: a chunk too long for a 5-minute block (.level-fit-warn) - ML-316"
     }
   ]
 }

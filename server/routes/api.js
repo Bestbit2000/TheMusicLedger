@@ -6,6 +6,10 @@
 
 import express from 'express';
 import { assertWarmupsEnabled, listActiveWarmups } from '../services/warmups.js';
+import { assertPracticeLevelsEnabled, getPieceLevels, replacePieceChunks, setChunkLevel, setSubBeatsBelow } from '../services/practiceLevels.js';
+import { listPracticeChunks, savePracticeSession, listTemplates, saveTemplate, deleteTemplate, getActivePractice, putActivePractice, clearActivePractice } from '../services/practiceSessions.js';
+import { listSkills, setSkills, recordSkillResult } from '../services/skills.js';
+import { listPracticeLists, createPracticeList, updatePracticeList, deletePracticeList, setPracticeListPieces, getPracticeList } from '../services/practiceLists.js';
 import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader } from '../middleware/auth.js';
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
@@ -132,6 +136,94 @@ router.get('/warmups', requireAuth, resolveAccount, async (req, res) => {
   try {
     await assertWarmupsEnabled();
     res.json({ exercises: await listActiveWarmups() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ========================================
+// PRACTICE LEVELS (ML-315, epic ML-314) - a piece's chunks, each with a Level 1-5, per account; the
+// heat map's per-bar Levels; Level changes in practice; the session sub-beat speed. Behind the
+// practice_levels feature. See db/migrations/061_practice_levels.sql and public/flowJourney.js.
+// ========================================
+router.get('/flows/:id/levels', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertPracticeLevelsEnabled();
+    res.json(await getPieceLevels(req.accountId, req.params.id));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.put('/flows/:id/levels', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertPracticeLevelsEnabled();
+    res.json(await replacePieceChunks(req.accountId, req.params.id, req.body?.chunks));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/levels/chunks/:chunkId', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertPracticeLevelsEnabled();
+    res.json(await setChunkLevel(req.accountId, req.params.chunkId, req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-320: the practice session builder - chunks for its Rehearsal blocks, and logging a finished session.
+router.get('/practice/chunks', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertPracticeLevelsEnabled();
+    res.json({ chunks: await listPracticeChunks(req.accountId) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/practice/sessions', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertPracticeLevelsEnabled();
+    res.json(await savePracticeSession(req.accountId, req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-319: practice lists (a concert's pieces, its date, sessions a week) - the forecast is worked out in the browser.
+const practiceListRoute = (fn) => async (req, res) => {
+  try {
+    await assertPracticeLevelsEnabled();
+    res.json(await fn(req));
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+router.get('/practice/lists', requireAuth, resolveAccount, practiceListRoute(req => listPracticeLists(req.accountId).then(lists => ({ lists }))));
+router.post('/practice/lists', requireAuth, resolveAccount, practiceListRoute(req => createPracticeList(req.accountId, req.body || {})));
+router.get('/practice/lists/:id', requireAuth, resolveAccount, practiceListRoute(req => getPracticeList(req.accountId, req.params.id)));
+router.put('/practice/lists/:id', requireAuth, resolveAccount, practiceListRoute(req => updatePracticeList(req.accountId, req.params.id, req.body || {})));
+router.delete('/practice/lists/:id', requireAuth, resolveAccount, practiceListRoute(req => deletePracticeList(req.accountId, req.params.id)));
+router.put('/practice/lists/:id/pieces', requireAuth, resolveAccount, practiceListRoute(req => setPracticeListPieces(req.accountId, req.params.id, req.body?.scoreIds)));
+// ML-320 follow-ups: your own templates, and the session running now (kept across reloads and devices).
+router.get('/practice/templates', requireAuth, resolveAccount, practiceListRoute(req => listTemplates(req.accountId).then(templates => ({ templates }))));
+router.post('/practice/templates', requireAuth, resolveAccount, practiceListRoute(req => saveTemplate(req.accountId, null, req.body || {})));
+router.put('/practice/templates/:id', requireAuth, resolveAccount, practiceListRoute(req => saveTemplate(req.accountId, Number(req.params.id), req.body || {})));
+router.delete('/practice/templates/:id', requireAuth, resolveAccount, practiceListRoute(req => deleteTemplate(req.accountId, Number(req.params.id))));
+router.get('/practice/active', requireAuth, resolveAccount, practiceListRoute(req => getActivePractice(req.accountId)));
+router.put('/practice/active', requireAuth, resolveAccount, practiceListRoute(req => putActivePractice(req.accountId, req.body || {})));
+router.delete('/practice/active', requireAuth, resolveAccount, practiceListRoute(req => clearActivePractice(req.accountId)));
+// ML-321: your skills list.
+router.get('/practice/skills', requireAuth, resolveAccount, practiceListRoute(req => listSkills(req.accountId).then(skills => ({ skills }))));
+router.put('/practice/skills', requireAuth, resolveAccount, practiceListRoute(req => setSkills(req.accountId, req.body?.keys).then(skills => ({ skills }))));
+router.post('/practice/skills/result', requireAuth, resolveAccount, practiceListRoute(req => recordSkillResult(req.accountId, req.body || {}).then(skills => ({ skills }))));
+
+router.put('/account/practice-settings', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertPracticeLevelsEnabled();
+    res.json(await setSubBeatsBelow(req.accountId, req.body?.subBeatsBelow));
   } catch (error) {
     sendError(res, error);
   }

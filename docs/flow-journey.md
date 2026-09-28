@@ -90,6 +90,45 @@ the scheduler reaches the end of the queue, appends another `between` - so it ne
 carry `loopPass` ("Repeat 3") and `restIndex`. Tapping a tile jumps within the current pass; a bar
 outside the loop gets a "turn repeat off to play from there" note.
 
+## Practice Levels (ML-315, epic ML-314)
+
+A piece gets a **Level 1-5** per chunk of bars (`piece_chunks`, see `docs/database-schema.md`). In a
+practice session the Level sets the speed and sub-beats for you. The rules, all in `flowJourney.js`:
+
+- **Speed is a % of the piece's own tempo**, so ramps and tempo changes keep their shape. Level 5 =
+  100%. Level 1 = 40 ÷ the **slowest** conducted-beat tempo in the chunk (ramps included), rounded
+  **up** to 5%, so no bar drops below 40 bpm. Levels 2-4 are equal steps between, rounded to 5%.
+  120 bpm → 35 / 50 / 70 / 85 / 100. At or below 40 bpm every Level is 100%.
+- **Session sub-beats** (`sessionSubBeats`): on for a bar when its beat at that Level is below the
+  account's `practice_sub_beats_below` (default 100). Practice sessions only - Rehearse, Quick Play and
+  the metronome keep the player's own sub-beat setting.
+- **Chunk length rule** (`chunkFit`): a block is 4:30 of playing (`LEVELS.BLOCK_SECONDS`). One run of a
+  chunk follows the piece's order through `loopPlan` (a repeat inside it plays twice), with fermata
+  holds and caesura silences, plus one gap bar between runs. 4+ runs = `good`, 3 = `ok`, fewer =
+  `tooLong`. Checked at the chunk's current Level - Level 1 is slowest, so a chunk that fits at Level 1
+  fits at every Level. `suggestSplit` gives the fewest equal parts that each fit 3+ runs.
+- **The heat map** (`barLevels`): each bar's Level from the chunks; where they overlap (a hard passage
+  on top of the whole piece) the narrowest wins; null = not set.
+
+Tests: `server/test/practiceLevels.test.js`.
+
+**Practising at a Level (ML-317).** The play screen has a practice mode (`flowSession` in app.js),
+started from My Levels ("Practise the weakest bars", "Practise this chunk", "Practise the whole piece" -
+each saves the Levels first).
+
+- **The loop:** it repeats the chunk with Repeat bars (`restBars: 1`, the gap bar the chunk length rule
+  assumes). This is set in memory only, so the piece's own saved repeat setting isn't touched.
+- **Speed and sub-beats:** the speed is the Level's %, and `flowSubBeatsMode = 'session'` asks
+  `sessionSubBeats` for every bar.
+- **The tiles:** repeat, sub beats and speed are swapped for **Level** (a live status), **Level up** (the
+  same bars at the next Level straight away, saved as `during`) and **Finish**.
+- **Finish:** "How did it go?" gives up one / stay / down one, plus jumps to higher Levels, saved as
+  `rating` with the speed played.
+- **Leaving:** leaving the play screen any other way ends the practice unrated. The player's own speed,
+  sub-beat setting and repeat come back.
+
+The 4:30 nudge and the 5-minute blocks belong to the session runner (ML-320).
+
 ## The engine's API
 
 | Function | What for |
@@ -103,6 +142,11 @@ outside the loop gets a "turn repeat off to play from there" note.
 | `checkFlow(blocks, { leadIn })` | ML-248 issues: `{ code, severity, blockIds, message }`. |
 | `repeatBarInvalid`, `introInvalid`, `pauseInvalid`, `rampInvalid` | The "needs updating" checks that turn a tile red. The card tiles use them too. |
 | `METER_TABLE`, `meterInfo` | How each metre is conducted. The player uses the same table. |
+| `LEVELS`, `levelPercents(slowestBpm)`, `levelPercent(level, slowestBpm)` | Practice Levels: the five speed %s for a chunk (ML-315). |
+| `sessionSubBeats(bpm, percent, thresholdBpm)` | Whether a bar gets sub-beats in a practice session. |
+| `slowestTempo(blocks, startBar, endBar)`, `barSeconds(blocks, i, bar, percent)` | The chunk's slowest beat tempo; one bar's length at a speed. |
+| `chunkFit(blocks, { startBar, endBar, level \| percent })`, `suggestSplit(...)` | Runs of a chunk in a 4:30 block (`good`/`ok`/`tooLong`); a split that fits. |
+| `barLevels(totalBars, chunks)` | Each bar's Level for the heat map. |
 
 ## The metronome player's sequence mode
 

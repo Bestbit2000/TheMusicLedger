@@ -407,7 +407,7 @@
                         <p>${escapeHtml(a.email)}</p>
                         <p class="admin-test-case-meta">Joined ${fmtDate(a.createdAt)}</p>
                     </div>
-                    <select class="admin-level-select" data-account-id="${a.id}" aria-label="Account level for ${escapeHtml(accountDisplayName(a))}">
+                    <select class="admin-level-select" data-account-id="${a.id}" aria-label="Account type for ${escapeHtml(accountDisplayName(a))}">
                         ${ACCOUNT_LEVELS.map(([value, label]) => `<option value="${value}" ${a.accountLevel === value ? 'selected' : ''}>${label}</option>`).join('')}
                     </select>
                 </div>
@@ -417,7 +417,7 @@
             sel.addEventListener('change', async () => {
                 try {
                     await apiCall(`/api/admin/accounts/${sel.dataset.accountId}/level`, 'PUT', { accountLevel: sel.value });
-                    showToast('Account level updated.', 'success');
+                    showToast('Account type updated.', 'success');
                 } catch (error) {
                     showToast(error.message);
                     await reloadAccounts();

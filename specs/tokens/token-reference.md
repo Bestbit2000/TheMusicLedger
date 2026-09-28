@@ -130,6 +130,17 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 | `--heat-sess-2` | `#e2c355` | `#7d6415` | intensity step 2 |
 | `--heat-sess-3` | `#c9a22c` | `#b8952b` | intensity step 3 |
 | `--heat-sess-4` | `#8f7114` | `#f5d78e` | intensity step 4 (max) |
+| `--level-1` | `#8f9398` | `#50545a` | practice Level 1 (ML-316) - dull silver: heat-map bar, Level chip, picker |
+| `--level-2` | `#c9cdd2` | `#80858c` | practice Level 2 - silver |
+| `--level-3` | `#f6e7ad` | `#6f5f22` | practice Level 3 - pale gold |
+| `--level-4` | `#eccf62` | `#b8952b` | practice Level 4 - light gold |
+| `--level-5` | `#f5c211` | `#ffd23f` | practice Level 5 - gold, performance-ready |
+| `--level-1-text` | `#1a1a1a` | `#ffffff` | the Level number on a --level-1 fill |
+| `--level-2-text` | `#1a1a1a` | (same) | the Level number on --level-2 |
+| `--level-3-text` | `#1a1a1a` | `#ffffff` | the Level number on --level-3 |
+| `--level-4-text` | `#1a1a1a` | (same) | the Level number on --level-4 |
+| `--level-5-text` | `#1a1a1a` | (same) | the Level number on --level-5 |
+| `--level-unset-border` | `#858585` | `#808080` | dashed outline of a bar with no Level yet (3:1 on the page) |
 
 ## Spacing
 
@@ -182,6 +193,13 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 | `--icon-md` | `20px` | default Material Symbols size |
 | `--icon-lg` | `24px` | icon-only buttons |
 | `--icon-xl` | `32px` | tool tiles, hero icons |
+
+## Practice Levels heat map (ML-316)
+
+| Token | Value | Use for |
+|---|---|---|
+| `--level-cell-size` | `24px` | one bar's square in a piece's Level map (display only, not a tap target) |
+| `--level-strip-height` | `12px` | the thin one-row Level strip on a list row |
 
 ## Radius
 
@@ -316,6 +334,16 @@ one ladder, low to high. Never invent a number in a component.
 | `--ds-heat-gold-dark-2` | `#7d6415` |
 | `--ds-heat-gold-dark-3` | `#b8952b` |
 | `--ds-heat-gold-dark-4` | `#f5d78e` |
+| `--ds-level-1` | `#8f9398` |
+| `--ds-level-2` | `#c9cdd2` |
+| `--ds-level-3` | `#f6e7ad` |
+| `--ds-level-4` | `#eccf62` |
+| `--ds-level-5` | `#f5c211` |
+| `--ds-level-dark-1` | `#50545a` |
+| `--ds-level-dark-2` | `#80858c` |
+| `--ds-level-dark-3` | `#6f5f22` |
+| `--ds-level-dark-4` | `#b8952b` |
+| `--ds-level-dark-5` | `#ffd23f` |
 | `--ds-black-a20` | `rgba(0, 0, 0, 0.2)` |
 | `--ds-black-a10` | `rgba(0, 0, 0, 0.1)` |
 | `--ds-black-a30` | `rgba(0, 0, 0, 0.3)` |

@@ -309,11 +309,37 @@ Notes on fields that took a few passes to nail down:
 |---|---|---|
 | `account_segment_bar_exclusions` | Bars this player skips within a segment, whenever they run it (individual only, not band-wide) | id, account_id, metronome_segment_id, bar_from, bar_to, note |
 
+### Practice Levels (`ML-315`, epic `ML-314`, wired up behind `practice_levels`)
+
+A piece's Level 1-5 per account, bar by bar, as chunks. The heat map's per-bar Level is derived
+(`FlowJourney.barLevels`: where chunks overlap, the narrowest wins), never stored. Bars are the piece's
+own numbers (lead-in excluded), as Repeat bars uses. Maths and rules: `docs/flow-journey.md`
+("Practice Levels"). Concept and owner decisions: the ML-314 epic.
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `piece_chunks` | (063: kind `group` = a join-up group - neighbouring chunks played through together once they're all at Level 4; groups may overlap each other) One account's chunks of one piece: the whole piece (`whole`), a hard passage on top of it (`hard`) or a separate chunk (`chunk`, never overlapping another). Level null = not set yet | id, account_id, score_id, kind, start_bar, end_bar, level, label, sort_order, **bars_total_at_setup** (the piece's length when saved - a mismatch later = "bars changed") |
+| `chunk_level_changes` | Every Level change: setup, edit, a Level up during a block, the rating after it. Kept when its chunk is deleted (`chunk_id` null). Later gives each player's own rate for the readiness forecast | id, chunk_id, account_id, score_id, level_before, level_after, source, percent_played, created_at |
+
+`accounts.practice_sub_beats_below` (default 100): in a practice session sub-beats switch on for a bar
+whose beat at its Level is below this speed. Session only - the tools keep the player's own setting.
+
+### Practice sessions: templates, the running session, skills (ML-320 follow-ups, ML-321)
+
+See [practice-sessions.md](practice-sessions.md) for how they fit together.
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `practice_templates` | Your own session templates (Standard and Concert are built in, in code) | id, account_id, name, lead_blocks (text[] of warmup/scales/skills/rehearsal), focus, minutes |
+| `active_practice_sessions` | The practice session running now, one per account, so it carries on after a reload or on another device; saved as it stood and cleared after 3 hours idle | account_id (PK), state (jsonb), block_started_at (database clock), updated_at |
+| `skill_list_items` | Your skills list and the step you're on in each | id, account_id, skill_key (e.g. tapTempo, warmups:lip-slurs, scales:major), step_index, sort_order, last_practised |
+| `skill_step_results` | Every go at a skill step - drill grade 4+ or "Got it" passes | id, account_id, skill_key, step_index, passed, grade, created_at |
+
 ### Practice lists
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `practice_lists` | Owned by an account or a band; can target an upcoming event (e.g. a concert rehearsal list) | id, owner_account_id, owner_band_id, target_session_id, name |
+| `practice_lists` | Owned by an account or a band; can target an upcoming event (e.g. a concert rehearsal list). **Wired up (ML-319) for personal lists:** a concert's pieces, its date and how you plan to practise for it - the readiness forecast (`PracticePlan.forecast`, public/practicePlan.js) is worked out in the browser from the pieces' `piece_chunks` | id, owner_account_id, owner_band_id, target_session_id, name, event_date, sessions_per_week (default 3), session_minutes (default 45) (063) |
 | `practice_list_scores` | Scores in the list, ordered | practice_list_id, score_id, order_index |
 | `practice_list_segment_overrides` | Whole-segment include/exclude for this list | practice_list_id, metronome_segment_id, included |
 
@@ -325,7 +351,7 @@ Notes on fields that took a few passes to nail down:
 | `instruments` | ML-309: meta catalogue of band instruments (generated from `band_instruments_master_catalog.json` by `scripts/generate-instruments-migration.mjs`; upsert on `code`) | id, code, name, pitch_key, sounding_transposition, clef, theory_clef, family, subfamily, ensembles, role, frequency, notes, sort_order, active |
 | `account_instruments` | ML-309: the instruments an account plays; at most one main (`is_primary`) - the default for new sessions and the Theory tool's clef | account_id, instrument_id, is_primary, created_at |
 | `session_participants` | Attendance, incl. one-off guests who aren't full band members | session_id, account_id, is_guest, role |
-| `session_segments` | The up-to-4 timed chunks (warm up / scales / technique / performance) within a session | id, session_id, segment_type, order_index, **planned_duration_minutes** (guidance only), score_id, metronome_segment_id |
+| `session_segments` | The blocks of a session. **Wired up by the practice session builder (ML-320):** one row per 5-minute block played - Warm-up = `warm_up`, Scales = `scales`, Skills = `technique`, Rehearsal = `performance` | id, session_id, segment_type, order_index, **planned_duration_minutes** (guidance only), score_id, metronome_segment_id, actual_seconds, chunk_id (the Rehearsal block's `piece_chunks` row), tool (a Skills block's tool) (062) |
 | `active_timer_sessions` | The practice **timer** tool's currently in-progress run, if any (`ML-197`) - one row per account, synced only on start/pause/resume/snooze (not periodically) and deleted once it finishes/stops, so an accidental reload/relogin can resume it instead of losing it. `elapsed_seconds`/`updated_at` are a wall-clock anchor: while `running`, elapsed is projected forward from `updated_at` using Postgres's own clock, so a resume picks up with exactly the same time left to the second rather than "aware a timer was going" - a pause freezes that projection instead of letting the paused stretch count against it. Deliberately separate from `sessions` (whose `total_duration_minutes` is only ever written once, at completion - see "Session timing" above) rather than a status column bolted onto it | account_id (PK), target_seconds (NULL = open-ended/count-up), elapsed_seconds, running, updated_at |
 
 ### Scales

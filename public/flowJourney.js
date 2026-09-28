@@ -349,6 +349,124 @@
             .map(f => ({ kind: f.kind === 'caesura' ? 'caesura' : 'fermata', click: writtenBeatToClick(block, f.beatOffset, clicksPerBar), holdBeats: f.holdBeats || 1 }));
     }
 
+    // --- Practice Levels (ML-314 / ML-315): speed, sub-beats and chunk length for a practice session ---
+    // A Level (1-5) is a % of the piece's own tempo, so ramps and tempo changes keep their shape.
+    // Level 5 = 100%. Level 1 = as slow as it goes without any bar in the chunk dropping below 40 bpm
+    // (rounded UP to 5%). Levels 2-4 are equal steps in between, rounded to 5%.
+    const LEVELS = {
+        MIN_BPM: 40, STEP: 5, BLOCK_SECONDS: 270, MIN_RUNS: 3, GOOD_RUNS: 4, SUB_BEATS_BELOW: 100
+    };
+    const clampLevel = (level) => Math.max(1, Math.min(5, Math.round(Number(level) || 1)));
+
+    // The five Level percents for a chunk whose slowest tempo is slowestBpm. At or below 40 bpm every
+    // Level is 100% (the Level then only records how secure it is).
+    function levelPercents(slowestBpm) {
+        const slow = Number(slowestBpm);
+        if (!Number.isFinite(slow) || slow <= LEVELS.MIN_BPM) return [100, 100, 100, 100, 100];
+        const p1 = Math.min(100, Math.ceil((LEVELS.MIN_BPM / slow) * 100 / LEVELS.STEP - 1e-9) * LEVELS.STEP);
+        const out = [p1];
+        for (let k = 2; k <= 4; k++) out.push(Math.round((p1 + (k - 1) * (100 - p1) / 4) / LEVELS.STEP) * LEVELS.STEP);
+        out.push(100);
+        return out;
+    }
+    function levelPercent(level, slowestBpm) { return levelPercents(slowestBpm)[clampLevel(level) - 1]; }
+
+    // Sub-beats in a practice session only (the tools keep the player's own setting): on for a bar when
+    // its conducted beat at this speed is below the account's threshold (default 100 bpm).
+    function sessionSubBeats(bpm, percent, thresholdBpm) {
+        const threshold = Number(thresholdBpm) > 0 ? Number(thresholdBpm) : LEVELS.SUB_BEATS_BELOW;
+        return Number(bpm) * (Number(percent) || 100) / 100 < threshold;
+    }
+
+    // Piece bars startBar..endBar (written order, 1-based) as { blockIndex, bar } pairs.
+    function barsInRange(blocks, startBar, endBar) {
+        const out = [];
+        let n = 1;
+        blocks.forEach((b, i) => {
+            for (let bar = 0; bar < barCountOf(b); bar++, n++) if (n >= startBar && n <= endBar) out.push({ blockIndex: i, bar });
+        });
+        return out;
+    }
+    // Tempo at each conducted beat of a block's bar (ramps applied).
+    function beatTempos(blocks, i, bar) {
+        const b = blocks[i];
+        const w = writtenBeatsPerBar(b);
+        const macro = meterInfo(b).macroBeatsPerBar;
+        const per = w / macro;
+        const out = [];
+        for (let k = 0; k < macro; k++) out.push(tempoAt(blocks, i, bar * w + k * per));
+        return out;
+    }
+    // The slowest conducted-beat tempo in bars startBar..endBar - what Level 1's 40 bpm floor is checked against.
+    function slowestTempo(blocks, startBar, endBar) {
+        let slow = Infinity;
+        barsInRange(blocks, startBar, endBar).forEach(({ blockIndex, bar }) => {
+            beatTempos(blocks, blockIndex, bar).forEach(t => { if (t > 0 && t < slow) slow = t; });
+        });
+        return Number.isFinite(slow) ? slow : null;
+    }
+    // Seconds one bar takes at percent % (fermata holds and caesura silences included).
+    function barSeconds(blocks, i, bar, percent) {
+        const f = (Number(percent) || 100) / 100;
+        const b = blocks[i];
+        const tempos = beatTempos(blocks, i, bar);
+        let secs = tempos.reduce((sum, t) => sum + 60 / (t * f), 0);
+        const beatSecs = 60 / ((tempos[0] || Number(b.bpm) || 100) * f);
+        (b.fermatas || []).filter(p => (p.barOffset || 0) === bar).forEach(p => {
+            const hold = Math.max(1, Number(p.holdBeats) || 1);
+            secs += beatSecs * (p.kind === 'caesura' ? hold : hold - 1);
+        });
+        return secs;
+    }
+
+    // Does a chunk fit a 4:30 block? One run follows the piece's order (repeats inside the chunk play as
+    // written, via loopPlan), plus one gap bar between runs. Returns { ok, percent, runSeconds,
+    // gapSeconds, runs, fits } - fits: 'good' (4+ runs), 'ok' (3), 'tooLong' (fewer) - or
+    // { ok: false, reason } from loopPlan.
+    function chunkFit(blocks, opts) {
+        const { startBar, endBar } = opts;
+        const plan = loopPlan(blocks, { startBar, endBar });
+        if (!plan.ok) return plan;
+        const percent = opts.percent || levelPercent(opts.level, slowestTempo(blocks, Math.min(startBar, endBar), Math.max(startBar, endBar)));
+        const runSeconds = plan.body.reduce((sum, st) => sum + barSeconds(blocks, st.blockIndex, st.bar, percent), 0);
+        const first = plan.body[0];
+        const gapSeconds = barSeconds(blocks, first.blockIndex, first.bar, percent);
+        const runs = Math.floor(LEVELS.BLOCK_SECONDS / (runSeconds + gapSeconds));
+        const fits = runs >= LEVELS.GOOD_RUNS ? 'good' : runs >= LEVELS.MIN_RUNS ? 'ok' : 'tooLong';
+        return { ok: true, percent, runSeconds, gapSeconds, runs, fits };
+    }
+
+    // A too-long chunk split into the fewest equal-ish parts that each fit 3+ runs at that Level. Each
+    // part's own Level 1 speed is used when level is 1, so the answer holds as the chunk levels up.
+    // Returns [[startBar, endBar], ...] (the chunk itself when it already fits or can't be split).
+    function suggestSplit(blocks, opts) {
+        const { startBar, endBar, level } = opts;
+        const bars = endBar - startBar + 1;
+        if (bars < 2 || endBar < startBar) return [[startBar, endBar]];
+        for (let parts = 1; parts <= bars; parts++) {
+            const size = Math.ceil(bars / parts);
+            const out = [];
+            for (let s = startBar; s <= endBar; s += size) out.push([s, Math.min(endBar, s + size - 1)]);
+            if (out.every(([a, z]) => { const f = chunkFit(blocks, { startBar: a, endBar: z, level }); return f.ok && f.fits !== 'tooLong'; })) return out;
+        }
+        return [[startBar, endBar]];
+    }
+
+    // The heat map: each piece bar's Level (null = not set), from a piece's chunks
+    // [{ startBar, endBar, level }]. Where chunks overlap (a hard passage inside "the rest of the piece")
+    // the narrowest one wins.
+    function barLevels(totalBarCount, chunks) {
+        const out = new Array(Math.max(0, totalBarCount)).fill(null);
+        const width = new Array(out.length).fill(Infinity);
+        (chunks || []).forEach(c => {
+            const w = c.endBar - c.startBar;
+            for (let n = Math.max(1, c.startBar); n <= Math.min(out.length, c.endBar); n++) {
+                if (w < width[n - 1]) { width[n - 1] = w; out[n - 1] = c.level == null ? null : clampLevel(c.level); }
+            }
+        });
+        return out;
+    }
+
     // --- Stale settings (a block shortened after a setting was made) - the same four checks that turn
     // a card tile red; app.js's flowRepeatBarInvalid/flowIntroInvalid/flowPauseInvalid/flowRampInvalid
     // call these. ---
@@ -530,6 +648,7 @@
         METER_TABLE, meterInfo, writtenBeatsPerBar, writtenBeatToClick,
         buildJourney, passagesOf, loopPlan, barNumberOf, totalBars, tempoAt, rampSpans, pausesInBar,
         repeatBarInvalid, introInvalid, pauseInvalid, rampInvalid,
-        barRangeLabel, checkFlow
+        barRangeLabel, checkFlow,
+        LEVELS, levelPercents, levelPercent, sessionSubBeats, slowestTempo, barSeconds, chunkFit, suggestSplit, barLevels
     };
 }));
