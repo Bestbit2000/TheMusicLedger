@@ -11,13 +11,14 @@ import { withStatus } from './flows.js';
 import { isFeatureEnabled } from './features.js';
 
 const sandbox = { self: {} };
-for (const f of ['notation.js', 'theoryEngine.js', 'drills.js']) {
+for (const f of ['notation.js', 'theoryEngine.js', 'drills.js', 'rhythm.js']) {
   vm.runInNewContext(fs.readFileSync(new URL(`../../public/${f}`, import.meta.url), 'utf8'), sandbox);
 }
 const Drills = sandbox.self.Drills;
+const Rhythm = sandbox.self.Rhythm; // ML-306: the Rhythm tool's rounds are drill rounds too
 const plain = (v) => JSON.parse(JSON.stringify(v));
 
-const FEATURE = { tapTempo: 'tap_tempo', gapTrainer: 'gap_trainer', ear: 'ear_training' };
+const FEATURE = { tapTempo: 'tap_tempo', gapTrainer: 'gap_trainer', ear: 'ear_training', rhythm: 'rhythm_trainer' };
 const HISTORY_LENGTH = 8;
 const MAX_DETAILS_BYTES = 20000;
 
@@ -83,7 +84,7 @@ export async function saveDrillAttempt(accountId, body) {
   if (details === undefined || JSON.stringify(details).length > MAX_DETAILS_BYTES) throw withStatus(400, 'Bad details.');
   let result;
   try {
-    result = plain(Drills.scoreRound(tool, level, plain(details)));
+    result = plain(tool === 'rhythm' ? Rhythm.scoreRound(level, plain(details)) : Drills.scoreRound(tool, level, plain(details)));
   } catch (e) {
     throw withStatus(400, e.message || 'Bad round.');
   }
@@ -101,8 +102,44 @@ export async function saveDrillAttempt(accountId, body) {
         Number.isFinite(durationMs) && durationMs >= 0 ? Math.round(durationMs) : null, started.toISOString()]
     );
     const history = await historyFor(client, accountId, tool, level);
-    return { attempt: toDto(rows[0]), result, previousBest: prevBest, newBest: prevBest === null || result.score > prevBest, ...history };
+    const rhythmLevels = tool === 'rhythm' ? await raiseRhythmLevels(client, accountId, plain(Rhythm.levelsFromRound(level, plain(details), result))) : undefined;
+    return { attempt: toDto(rows[0]), result, previousBest: prevBest, newBest: prevBest === null || result.score > prevBest, ...history, rhythmLevels };
   } finally {
     client.release();
   }
+}
+
+// ---- ML-306: each rhythm's speed Level (never goes down) and the player's own word for it.
+// earned: [{ pattern, level }] from Rhythm.levelsFromRound. Returns the rhythms whose Level went up.
+async function raiseRhythmLevels(client, accountId, earned) {
+  const up = [];
+  for (const e of earned.filter(x => x.level > 0)) {
+    const { rows } = await client.query(
+      `INSERT INTO rhythm_pattern_levels (account_id, pattern_id, level) VALUES ($1, $2, $3)
+       ON CONFLICT (account_id, pattern_id) DO UPDATE SET level = GREATEST(rhythm_pattern_levels.level, EXCLUDED.level), updated_at = now()
+       RETURNING level`,
+      [accountId, e.pattern, e.level]
+    );
+    up.push({ pattern: e.pattern, level: rows[0].level });
+  }
+  return up;
+}
+
+export async function getRhythmLevels(accountId) {
+  const { rows } = await pool.query('SELECT pattern_id, level, word FROM rhythm_pattern_levels WHERE account_id = $1', [accountId]);
+  const patterns = {};
+  for (const r of rows) patterns[r.pattern_id] = { level: r.level, word: r.word };
+  return { patterns };
+}
+
+export async function setRhythmWord(accountId, patternId, word) {
+  try { Rhythm.pattern(patternId); } catch (e) { throw withStatus(400, 'Unknown rhythm.'); }
+  const w = word === null || word === undefined ? '' : String(word).trim();
+  if (w.length > 40) throw withStatus(400, 'Keep your word to 40 letters.');
+  await pool.query(
+    `INSERT INTO rhythm_pattern_levels (account_id, pattern_id, word) VALUES ($1, $2, $3)
+     ON CONFLICT (account_id, pattern_id) DO UPDATE SET word = EXCLUDED.word, updated_at = now()`,
+    [accountId, patternId, w || null]
+  );
+  return getRhythmLevels(accountId);
 }

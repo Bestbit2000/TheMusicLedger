@@ -10,6 +10,8 @@ Ear (`ear`, `ear_training`).
 - **Status:** New (ML-298, ML-295, ML-296)
 
 ## 2. Overview
+**Rhythm (ML-306)** shares this screen set too: its setup screen adds a `.flow-tile-grid.flow-tile-grid-3` of `.flow-picker-tile` rhythms (each a small Bravura stave, its name and Level) and an optional "your own word" field; its play screen is `.theory-status`, the bar on a `.scales-staff` (the note playing `.is-now`), `.drill-feedback`, the `.drill-pad` (Tap) and Stop; its rounds use the drill results screen. Rules: [`public/rhythm.js`](../../public/rhythm.js), docs/rhythm.md.
+
 Three home-screen tools built on one engine ([`public/drills.js`](../../public/drills.js)) and one results
 screen. Each tool has:
 

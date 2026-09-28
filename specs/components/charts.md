@@ -36,6 +36,7 @@ Section header: `.section-title` (title + optional action, bottom rule).
   - It's not used on any other chart.
   - **Key:** while a chart draws a projection, a `.chart-legend` sits under it, right-aligned like `.heatmap-legend`. It has a solid swatch labelled "Actual" and an outline swatch (`.chart-legend-swatch-projected`, a full border) labelled "Projected", both in that chart's `--chart-*` colour. `renderBarChart` hides it (`hidden-group`) whenever there's no projection: setting off, last day of the month, or nothing logged yet.
   - People can turn it off at **Settings → Stats → "Show this month's projection on charts"**. It's on by default and saved on that device only (`localStorage` key `statsShowProjection`, checked by `statsShowProjection()`), like dark mode and the tuner's display options. Changing it redraws the charts straight away.
+- **Labelled bars (ML-308):** `.chart-wrapper.chart-labelled` gives every bar its own `.chart-x-label` (a category per bar, e.g. a session length in minutes, rather than months) - each bar is at least `--touch-target` wide so the labels never overlap, and the row scrolls sideways. Used by Admin → Usage → Durations.
 - Scroll buttons appear on hover-capable devices only.
 
 ## 6. States

@@ -44,9 +44,40 @@ meanings are on Admin → Theory grades). ABRSM doesn't publish a single terms-p
 syllabus, and its syllabus notice says listings may not be reproduced without permission, so these
 are our own selection and wording, to be checked against the recommended books.
 
-**Not asked yet** (they need new question types, ML-309 C - see `docs/ml309-handover.md`):
-intervals, triads/chords and inversions, cadences, transposition (octave, and B♭/A/F instruments),
-the chromatic scale, technical names of scale degrees, triplets/irregular groupings, grouping and
-beaming, instruments and voices. Grades 6-8 are ML-309 E.
+## Intervals, chords, technical names, chromatic scale (ML-309 C1)
+
+Owner decisions (2026-09-28): **grades only** (no custom options), **new quizzes** are fine, **written
+only** (nothing played). Two new quizzes, **Intervals** and **Chords**, have only a grade picker (their
+own grades, no Custom) and the clef; the app leaves them off the list while `theory_grades` is off, and
+the server refuses their rounds then. Keys and Mixed pick up the new types at a grade too.
+
+| Grade | Intervals quiz | Keys (with scales shown) | Chords quiz |
+|---|---|---|---|
+| 2 | Number only (2nd-octave) above the tonic of the grade's major keys | | |
+| 3 | Number and quality (major/minor/perfect) above the tonic of the major and minor keys | | |
+| 4 | + any two notes within an octave, augmented and diminished | Technical names (a note in a key → tonic ... leading note); the chromatic scale (Yes/No: written correctly?) | I, IV, V (tonic, subdominant, dominant) in root position |
+| 5 | + compound intervals (named "Compound major 3rd") | | + II; root position, 1st and 2nd inversion (a, b, c); "Which position?"; cadences: perfect V-I, plagal IV-I, imperfect I/II/IV-V |
+
+- **Groups:** each new type is its own group in a round, taken in turn with the others, so a large
+  pool (every interval between any two notes) doesn't swamp a small one (cadences). Keys at Grade 4+
+  alternates key questions, technical names and chromatic scales - but only with Show = scales or
+  both. Mixed at a grade adds intervals, technical names and chords (chords + inversions + cadences as one group).
+- **Intervals** are shown melodic or harmonic at random (same question id). Wrong answers are the
+  nearest intervals in semitones (a diminished 4th for a major 3rd is fair game from Grade 4);
+  Grades 2-3 never offer augmented or diminished.
+- **Chords** are close-position triads on one staff with the key signature; a minor key's chords come
+  from the harmonic minor (major V, diminished II). A cadence is two root-position chords.
+- **Chromatic scale:** the right version is the harmonic chromatic scale (tonic and dominant once,
+  every other letter twice) on the Grade 4 major tonics that need no double sharps/flats (C G D A E B
+  F B♭ E♭). The wrong version respells one note so a letter is used three times or skipped; the
+  feedback says which ("it's wrong - D is used 3 times"). One right and one wrong per tonic and clef.
+- **Question ids** (Smart learn): `intervalNumber|interval:<clef>:<low>:<high>`, `degree:<clef>:<key>:<1-7>`,
+  `chromatic:<clef>:<tonic>:ok|<n>`, `chord|inversion:<clef>:<key>:<1|2|4|5>:<0-2>`, `cadence:<clef>:<key>:<from>-<to>`.
+- Engraving: `Notation.staff` gained a `chord` item (see docs/theory-practice.md, "Notation").
+- Admin → Theory grades lists these per grade ("topics" in `gradeSummary()`).
+
+**Not asked yet** (ML-309 C2/C3 - see `docs/ml309-handover.md`): transposition (octave, and B♭/A/F
+instruments), triplets/irregular groupings, grouping and beaming, time signature from a bar, missing
+bar-lines, instruments and voices. Grades 6-8 are ML-309 E.
 
 Tests: `server/test/theoryEngine.test.js` → "Theory grades (ML-309)".

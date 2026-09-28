@@ -24,7 +24,12 @@
       ],
       "role": "Auxiliary / Standard Section Lead High Voice",
       "frequency": "Standard",
-      "notes": "Ubiquitous in concert and military bands for upper-register brilliance and tutti doubling."
+      "notes": "Ubiquitous in concert and military bands for upper-register brilliance and tutti doubling.",
+      "written_to_concert_semitones": 12,
+      "written_range": [
+        "D4",
+        "C7"
+      ]
     },
     {
       "id": "piccolo_db",
@@ -40,7 +45,12 @@
       ],
       "role": "Historical Military Band Piccolo",
       "frequency": "Rare / Historical",
-      "notes": "Standard in late 19th and early 20th century American and European military band arrangements (Sousa marches originally scored for D♭ piccolo)."
+      "notes": "Standard in late 19th and early 20th century American and European military band arrangements (Sousa marches originally scored for D♭ piccolo).",
+      "written_to_concert_semitones": 13,
+      "written_range": [
+        "D4",
+        "A6"
+      ]
     },
     {
       "id": "concert_flute",
@@ -56,7 +66,12 @@
       ],
       "role": "Core Woodwind Melody & Color Voice",
       "frequency": "Standard",
-      "notes": "Typically divided into 1st and 2nd flute parts; standard sections contain 4 to 8 players."
+      "notes": "Typically divided into 1st and 2nd flute parts; standard sections contain 4 to 8 players.",
+      "written_to_concert_semitones": 0,
+      "written_range": [
+        "C4",
+        "C7"
+      ]
     },
     {
       "id": "alto_flute",
@@ -72,7 +87,12 @@
       ],
       "role": "Auxiliary Warm Low Voice",
       "frequency": "Occasional",
-      "notes": "Frequently used in modern symphonic band repertoire for rich, velvety lyrical passages."
+      "notes": "Frequently used in modern symphonic band repertoire for rich, velvety lyrical passages.",
+      "written_to_concert_semitones": -5,
+      "written_range": [
+        "C4",
+        "C7"
+      ]
     },
     {
       "id": "bass_flute",
@@ -88,7 +108,12 @@
       ],
       "role": "Auxiliary Deep Tone Color",
       "frequency": "Rare / Extended",
-      "notes": "Found in contemporary large-ensemble works and dedicated flute choir features."
+      "notes": "Found in contemporary large-ensemble works and dedicated flute choir features.",
+      "written_to_concert_semitones": -12,
+      "written_range": [
+        "C4",
+        "C7"
+      ]
     },
     {
       "id": "oboe",
@@ -104,7 +129,12 @@
       ],
       "role": "Core Soloist & Harmonic Color Voice",
       "frequency": "Standard",
-      "notes": "Usually 1st and 2nd oboe; primary tuning benchmark instrument in concert bands."
+      "notes": "Usually 1st and 2nd oboe; primary tuning benchmark instrument in concert bands.",
+      "written_to_concert_semitones": 0,
+      "written_range": [
+        "Bb3",
+        "A6"
+      ]
     },
     {
       "id": "english_horn",
@@ -120,7 +150,12 @@
       ],
       "role": "Auxiliary Tenor Double Reed Soloist",
       "frequency": "Common",
-      "notes": "Major expressive voice in masterworks (Holst, Grainger, Maslanka, Reed)."
+      "notes": "Major expressive voice in masterworks (Holst, Grainger, Maslanka, Reed).",
+      "written_to_concert_semitones": -7,
+      "written_range": [
+        "B3",
+        "G6"
+      ]
     },
     {
       "id": "oboe_d_amore",
@@ -136,7 +171,12 @@
       ],
       "role": "Specialist Mezzo-Soprano Double Reed",
       "frequency": "Rare / Extended",
-      "notes": "Rarely scored in transcriptions (e.g. Ravel, Bach) and select contemporary band works."
+      "notes": "Rarely scored in transcriptions (e.g. Ravel, Bach) and select contemporary band works.",
+      "written_to_concert_semitones": -3,
+      "written_range": [
+        "B3",
+        "G6"
+      ]
     },
     {
       "id": "bassoon",
@@ -152,7 +192,12 @@
       ],
       "role": "Core Bass & Tenor Woodwind Voice",
       "frequency": "Standard",
-      "notes": "Standard instrumentation calls for Bassoon 1 and 2, reinforcing low clarinets, saxophones, and euphoniums."
+      "notes": "Standard instrumentation calls for Bassoon 1 and 2, reinforcing low clarinets, saxophones, and euphoniums.",
+      "written_to_concert_semitones": 0,
+      "written_range": [
+        "Bb1",
+        "E5"
+      ]
     },
     {
       "id": "contrabassoon",
@@ -168,7 +213,12 @@
       ],
       "role": "Sub-bass Foundation & Dark Accent",
       "frequency": "Occasional",
-      "notes": "Provides foundation pedal reed tone down to sub-contra B♭/A."
+      "notes": "Provides foundation pedal reed tone down to sub-contra B♭/A.",
+      "written_to_concert_semitones": -12,
+      "written_range": [
+        "Bb1",
+        "F4"
+      ]
     },
     {
       "id": "heckelphone",
@@ -184,7 +234,12 @@
       ],
       "role": "Rare Baritone Double Reed",
       "frequency": "Rare / Extended",
-      "notes": "Baritone oboe member, occasional appearance in avant-garde and large European wind scores."
+      "notes": "Baritone oboe member, occasional appearance in avant-garde and large European wind scores.",
+      "written_to_concert_semitones": -12,
+      "written_range": [
+        "A3",
+        "G6"
+      ]
     },
     {
       "id": "ab_piccolo_clarinet",
@@ -200,7 +255,12 @@
       ],
       "role": "High Sopranino Solo / Color Voice",
       "frequency": "Rare / Historical",
-      "notes": "Featured in traditional Italian and Spanish civil/military bands (banda civica/militare) and clarinet choirs."
+      "notes": "Featured in traditional Italian and Spanish civil/military bands (banda civica/militare) and clarinet choirs.",
+      "written_to_concert_semitones": 10,
+      "written_range": [
+        "E3",
+        "C6"
+      ]
     },
     {
       "id": "eb_clarinet",
@@ -216,7 +276,12 @@
       ],
       "role": "Standard High Clarinet Voice",
       "frequency": "Standard",
-      "notes": "Crucial lead color in advanced concert band literature, military marches, and wind ensembles."
+      "notes": "Crucial lead color in advanced concert band literature, military marches, and wind ensembles.",
+      "written_to_concert_semitones": 3,
+      "written_range": [
+        "E3",
+        "G6"
+      ]
     },
     {
       "id": "d_clarinet",
@@ -232,7 +297,12 @@
       ],
       "role": "Historical / Classical Sopranino Voice",
       "frequency": "Rare / Historical",
-      "notes": "Seen mainly in older European concert band transcriptions (Strauss, Molter); today almost universally transposed to E♭ clarinet."
+      "notes": "Seen mainly in older European concert band transcriptions (Strauss, Molter); today almost universally transposed to E♭ clarinet.",
+      "written_to_concert_semitones": 2,
+      "written_range": [
+        "E3",
+        "G6"
+      ]
     },
     {
       "id": "bb_soprano_clarinet",
@@ -248,7 +318,12 @@
       ],
       "role": "Primary Core Woodwind Ensemble Backbone",
       "frequency": "Standard",
-      "notes": "The violin equivalent of the wind band. Divided into 1st, 2nd, and 3rd parts, often with 9–20 players total."
+      "notes": "The violin equivalent of the wind band. Divided into 1st, 2nd, and 3rd parts, often with 9–20 players total.",
+      "written_to_concert_semitones": -2,
+      "written_range": [
+        "E3",
+        "C7"
+      ]
     },
     {
       "id": "a_soprano_clarinet",
@@ -264,7 +339,12 @@
       ],
       "role": "Occasional Orchestral Adaptation / Soloist",
       "frequency": "Rare / Occasional",
-      "notes": "Standard in orchestras, but occasionally specified in band works (e.g. Percy Grainger, David Maslanka) or orchestral transcriptions."
+      "notes": "Standard in orchestras, but occasionally specified in band works (e.g. Percy Grainger, David Maslanka) or orchestral transcriptions.",
+      "written_to_concert_semitones": -3,
+      "written_range": [
+        "E3",
+        "C7"
+      ]
     },
     {
       "id": "basset_horn",
@@ -280,7 +360,12 @@
       ],
       "role": "Tenor Auxiliary Clarinet",
       "frequency": "Rare / Occasional",
-      "notes": "Featured in classical transcriptions (Mozart, Mendelssohn) and specialist clarinet choir features."
+      "notes": "Featured in classical transcriptions (Mozart, Mendelssohn) and specialist clarinet choir features.",
+      "written_to_concert_semitones": -7,
+      "written_range": [
+        "C3",
+        "G6"
+      ]
     },
     {
       "id": "eb_alto_clarinet",
@@ -296,7 +381,12 @@
       ],
       "role": "Mid-Voice Harmony & Bridge",
       "frequency": "Common",
-      "notes": "Bridges soprano and bass clarinets; standard in American mid-century symphonic band scoring."
+      "notes": "Bridges soprano and bass clarinets; standard in American mid-century symphonic band scoring.",
+      "written_to_concert_semitones": -9,
+      "written_range": [
+        "Eb3",
+        "G6"
+      ]
     },
     {
       "id": "bb_bass_clarinet",
@@ -312,7 +402,12 @@
       ],
       "role": "Core Bass Woodwind & Solo Voice",
       "frequency": "Standard",
-      "notes": "Standard section contains 1 to 3 players; critical bridge between woodwinds and brass basses."
+      "notes": "Standard section contains 1 to 3 players; critical bridge between woodwinds and brass basses.",
+      "written_to_concert_semitones": -14,
+      "written_range": [
+        "Eb3",
+        "G6"
+      ]
     },
     {
       "id": "eb_contra_alto_clarinet",
@@ -328,7 +423,12 @@
       ],
       "role": "Contra-Bass Harmony & Resonance",
       "frequency": "Common",
-      "notes": "Often preferred in academic concert bands for easier response and agility compared to BB♭ contrabass."
+      "notes": "Often preferred in academic concert bands for easier response and agility compared to BB♭ contrabass.",
+      "written_to_concert_semitones": -21,
+      "written_range": [
+        "Eb3",
+        "E6"
+      ]
     },
     {
       "id": "bb_contrabass_clarinet",
@@ -344,7 +444,12 @@
       ],
       "role": "True Sub-bass Woodwind Anchor",
       "frequency": "Common",
-      "notes": "Adds profound sub-harmonic depth; capable of descending to sounding B♭0."
+      "notes": "Adds profound sub-harmonic depth; capable of descending to sounding B♭0.",
+      "written_to_concert_semitones": -26,
+      "written_range": [
+        "Eb3",
+        "E6"
+      ]
     },
     {
       "id": "soprillo_saxophone",
@@ -360,7 +465,12 @@
       ],
       "role": "Novelty / Extreme High Color",
       "frequency": "Rare / Extended",
-      "notes": "Smallest pitched saxophone (sounding up to F7); rare novelty or saxophone choir feature."
+      "notes": "Smallest pitched saxophone (sounding up to F7); rare novelty or saxophone choir feature.",
+      "written_to_concert_semitones": 14,
+      "written_range": [
+        "Bb3",
+        "E6"
+      ]
     },
     {
       "id": "sopranino_saxophone",
@@ -376,7 +486,12 @@
       ],
       "role": "Upper Color Accent",
       "frequency": "Occasional",
-      "notes": "Appears in European military band scores and modern saxophone ensemble repertoire."
+      "notes": "Appears in European military band scores and modern saxophone ensemble repertoire.",
+      "written_to_concert_semitones": 3,
+      "written_range": [
+        "Bb3",
+        "F#6"
+      ]
     },
     {
       "id": "bb_soprano_saxophone",
@@ -392,7 +507,12 @@
       ],
       "role": "Expressive Soloist & Upper Quartal Voice",
       "frequency": "Common",
-      "notes": "Regularly called for in contemporary concert band literature (Grainger, Husa, Mackey, Ticheli)."
+      "notes": "Regularly called for in contemporary concert band literature (Grainger, Husa, Mackey, Ticheli).",
+      "written_to_concert_semitones": -2,
+      "written_range": [
+        "Bb3",
+        "F#6"
+      ]
     },
     {
       "id": "eb_alto_saxophone",
@@ -408,7 +528,12 @@
       ],
       "role": "Core Lead Saxophone Voice",
       "frequency": "Standard",
-      "notes": "Standard instrumentation includes 1st and 2nd Alto Saxophones; versatile melodic and harmonic voice."
+      "notes": "Standard instrumentation includes 1st and 2nd Alto Saxophones; versatile melodic and harmonic voice.",
+      "written_to_concert_semitones": -9,
+      "written_range": [
+        "Bb3",
+        "F#6"
+      ]
     },
     {
       "id": "bb_tenor_saxophone",
@@ -424,7 +549,12 @@
       ],
       "role": "Core Tenor Saxophone Voice",
       "frequency": "Standard",
-      "notes": "Essential middle-register voice, frequently pairing with euphoniums, French horns, and bassoons."
+      "notes": "Essential middle-register voice, frequently pairing with euphoniums, French horns, and bassoons.",
+      "written_to_concert_semitones": -14,
+      "written_range": [
+        "Bb3",
+        "F#6"
+      ]
     },
     {
       "id": "eb_baritone_saxophone",
@@ -440,7 +570,12 @@
       ],
       "role": "Core Bass Saxophone & Rhythmic Anchor",
       "frequency": "Standard",
-      "notes": "Usually features a low A key in modern bands; provides punchy bass lines and reed foundation."
+      "notes": "Usually features a low A key in modern bands; provides punchy bass lines and reed foundation.",
+      "written_to_concert_semitones": -21,
+      "written_range": [
+        "Bb3",
+        "F#6"
+      ]
     },
     {
       "id": "bb_bass_saxophone",
@@ -456,7 +591,12 @@
       ],
       "role": "Auxiliary Deep Bass",
       "frequency": "Occasional",
-      "notes": "Common in early 20th century bands (Sousa, Gilmore) and revived in modern concert band scores."
+      "notes": "Common in early 20th century bands (Sousa, Gilmore) and revived in modern concert band scores.",
+      "written_to_concert_semitones": -26,
+      "written_range": [
+        "Bb3",
+        "F#6"
+      ]
     },
     {
       "id": "eb_contrabass_saxophone",
@@ -472,7 +612,12 @@
       ],
       "role": "Extreme Sub-bass Extension",
       "frequency": "Rare / Extended",
-      "notes": "Gigantic sub-bass saxophone; also seen in modern 'Tubax' configuration."
+      "notes": "Gigantic sub-bass saxophone; also seen in modern 'Tubax' configuration.",
+      "written_to_concert_semitones": -33,
+      "written_range": [
+        "Bb3",
+        "F#6"
+      ]
     },
     {
       "id": "eb_soprano_cornet",
@@ -489,7 +634,12 @@
       ],
       "role": "High Solo Brass Lead & Crown",
       "frequency": "Standard in Brass Band, Common in Wind Band",
-      "notes": "Sole upper-register brass crown in traditional British brass bands (1 player); also used for high color in concert bands."
+      "notes": "Sole upper-register brass crown in traditional British brass bands (1 player); also used for high color in concert bands.",
+      "written_to_concert_semitones": 3,
+      "written_range": [
+        "C3",
+        "E6"
+      ]
     },
     {
       "id": "bb_cornet",
@@ -506,7 +656,12 @@
       ],
       "role": "Core Melodic Brass Voice",
       "frequency": "Standard",
-      "notes": "In Brass Bands, makes up 9 players (4 Solo Cornets, 1 Repiano, 2 Second Cornets, 2 Third Cornets). In Concert Bands, historically distinct from trumpets (Cornet 1/2)."
+      "notes": "In Brass Bands, makes up 9 players (4 Solo Cornets, 1 Repiano, 2 Second Cornets, 2 Third Cornets). In Concert Bands, historically distinct from trumpets (Cornet 1/2).",
+      "written_to_concert_semitones": -2,
+      "written_range": [
+        "C3",
+        "F6"
+      ]
     },
     {
       "id": "bb_repiano_cornet",
@@ -521,7 +676,12 @@
       ],
       "role": "Auxiliary Roving Soloist & Flute/Horn Doubler",
       "frequency": "Standard (Brass Band)",
-      "notes": "Dedicated seat in British brass bands acting as utility soloist and bridge between soprano and lower cornets."
+      "notes": "Dedicated seat in British brass bands acting as utility soloist and bridge between soprano and lower cornets.",
+      "written_to_concert_semitones": -2,
+      "written_range": [
+        "C3",
+        "F6"
+      ]
     },
     {
       "id": "bb_flugelhorn",
@@ -538,7 +698,12 @@
       ],
       "role": "Mellow Mezzo-Soprano Brass Soloist",
       "frequency": "Standard in Brass Band, Common in Concert Band",
-      "notes": "1 player in standard Brass Band (essential bridge to Tenor Horns); frequently used for lyrical solos in concert band works."
+      "notes": "1 player in standard Brass Band (essential bridge to Tenor Horns); frequently used for lyrical solos in concert band works.",
+      "written_to_concert_semitones": -2,
+      "written_range": [
+        "C3",
+        "D6"
+      ]
     },
     {
       "id": "piccolo_trumpet",
@@ -554,7 +719,12 @@
       ],
       "role": "High Clarino Soloist & Brilliance",
       "frequency": "Occasional",
-      "notes": "Four-valved instrument used for clarino baroque transcriptions and contemporary wind ensemble works."
+      "notes": "Four-valved instrument used for clarino baroque transcriptions and contemporary wind ensemble works.",
+      "written_to_concert_semitones": 10,
+      "written_range": [
+        "C4",
+        "G6"
+      ]
     },
     {
       "id": "eb_d_trumpet",
@@ -570,7 +740,12 @@
       ],
       "role": "Upper Register Classical Trumpet",
       "frequency": "Occasional",
-      "notes": "Often specified for classical transcriptions (Haydn, Hummel) and high fanfare passages."
+      "notes": "Often specified for classical transcriptions (Haydn, Hummel) and high fanfare passages.",
+      "written_to_concert_semitones": 3,
+      "written_range": [
+        "F#3",
+        "D6"
+      ]
     },
     {
       "id": "bb_trumpet",
@@ -586,7 +761,12 @@
       ],
       "role": "Core Melodic & Fanfare Brass Voice",
       "frequency": "Standard (Concert/Wind Band)",
-      "notes": "Standard concert band section comprises 3 parts (often 2–3 players each). Note: Excluded from traditional British brass bands, where cornets reign."
+      "notes": "Standard concert band section comprises 3 parts (often 2–3 players each). Note: Excluded from traditional British brass bands, where cornets reign.",
+      "written_to_concert_semitones": -2,
+      "written_range": [
+        "C3",
+        "F6"
+      ]
     },
     {
       "id": "c_trumpet",
@@ -602,7 +782,12 @@
       ],
       "role": "Bright Orchestral Trumpet Voice",
       "frequency": "Occasional",
-      "notes": "Frequently utilized by professional wind ensembles and college bands playing orchestral repertoire."
+      "notes": "Frequently utilized by professional wind ensembles and college bands playing orchestral repertoire.",
+      "written_to_concert_semitones": 0,
+      "written_range": [
+        "C3",
+        "F6"
+      ]
     },
     {
       "id": "bass_trumpet",
@@ -618,7 +803,12 @@
       ],
       "role": "Tenor Brass Fanfare Voice",
       "frequency": "Rare / Extended",
-      "notes": "Occasionally called for in large military bands and works by Stravinsky, Wagner, or modern wind composers."
+      "notes": "Occasionally called for in large military bands and works by Stravinsky, Wagner, or modern wind composers.",
+      "written_to_concert_semitones": -14,
+      "written_range": [
+        "F#3",
+        "C6"
+      ]
     },
     {
       "id": "eb_tenor_horn",
@@ -634,7 +824,12 @@
       ],
       "role": "Middle Harmonic & Melodic Core (Brass Band)",
       "frequency": "Standard in Brass Band, Common in Military Band",
-      "notes": "Standard in British brass bands (Solo, 1st, and 2nd Tenor Horn). Referred to as 'Alto Horn' in North America."
+      "notes": "Standard in British brass bands (Solo, 1st, and 2nd Tenor Horn). Referred to as 'Alto Horn' in North America.",
+      "written_to_concert_semitones": -9,
+      "written_range": [
+        "C3",
+        "E6"
+      ]
     },
     {
       "id": "french_horn",
@@ -650,7 +845,12 @@
       ],
       "role": "Core Harmonic Warmth & Melodic Horn Voice",
       "frequency": "Standard (Concert/Wind Band)",
-      "notes": "Standard section of 4 horns (Horns 1, 2, 3, 4). Excluded from standard British brass bands."
+      "notes": "Standard section of 4 horns (Horns 1, 2, 3, 4). Excluded from standard British brass bands.",
+      "written_to_concert_semitones": -7,
+      "written_range": [
+        "F#2",
+        "C6"
+      ]
     },
     {
       "id": "mellophone",
@@ -666,7 +866,12 @@
       ],
       "role": "Forward-Facing Middle Brass",
       "frequency": "Standard in Marching/Outdoor Bands, Historical in Concert Band",
-      "notes": "Commonly replaces French horns in marching wind bands and outdoor military formations."
+      "notes": "Commonly replaces French horns in marching wind bands and outdoor military formations.",
+      "written_to_concert_semitones": -7,
+      "written_range": [
+        "F#3",
+        "C6"
+      ]
     },
     {
       "id": "wagner_tuba",
@@ -682,7 +887,12 @@
       ],
       "role": "Deep Noble Brass Color",
       "frequency": "Rare / Extended",
-      "notes": "Played with a horn mouthpiece by French hornists; used in transcriptions (Bruckner, Wagner, Strauss) and extended modern wind works."
+      "notes": "Played with a horn mouthpiece by French hornists; used in transcriptions (Bruckner, Wagner, Strauss) and extended modern wind works.",
+      "written_to_concert_semitones": -2,
+      "written_range": [
+        "C3",
+        "C6"
+      ]
     },
     {
       "id": "bb_baritone_horn",
@@ -699,7 +909,12 @@
       ],
       "role": "Cylindrical/Narrow-Bore Tenor Harmony Voice",
       "frequency": "Standard in Brass Band, Common in Wind Band",
-      "notes": "Standard in British brass bands (1st and 2nd Baritone). Narrower cylindrical bore than euphonium, producing a leaner, lighter tone."
+      "notes": "Standard in British brass bands (1st and 2nd Baritone). Narrower cylindrical bore than euphonium, producing a leaner, lighter tone.",
+      "written_to_concert_semitones": -14,
+      "written_range": [
+        "F#2",
+        "E6"
+      ]
     },
     {
       "id": "bb_euphonium",
@@ -716,7 +931,12 @@
       ],
       "role": "Premier Tenor-Baritone Soloist & Tenor Foundation",
       "frequency": "Standard",
-      "notes": "Wide conical bore with warm cello-like timbre. 2 players in brass band (Solo Euphonium & 2nd Euphonium); 2–4 players in concert band."
+      "notes": "Wide conical bore with warm cello-like timbre. 2 players in brass band (Solo Euphonium & 2nd Euphonium); 2–4 players in concert band.",
+      "written_to_concert_semitones": -14,
+      "written_range": [
+        "C2",
+        "F6"
+      ]
     },
     {
       "id": "alto_trombone",
@@ -732,7 +952,12 @@
       ],
       "role": "Auxiliary High Trombone Voice",
       "frequency": "Occasional",
-      "notes": "Used in early music transcriptions, classical wind serenades, and select modern symphonic wind scores."
+      "notes": "Used in early music transcriptions, classical wind serenades, and select modern symphonic wind scores.",
+      "written_to_concert_semitones": 0,
+      "written_range": [
+        "A2",
+        "F5"
+      ]
     },
     {
       "id": "tenor_trombone",
@@ -749,7 +974,12 @@
       ],
       "role": "Core Tenor Brass Directional Voice",
       "frequency": "Standard",
-      "notes": "In Brass Band: 1st and 2nd Tenor Trombones reading transposing treble clef. In Concert Band: 1st and 2nd Trombones reading non-transposing bass/tenor clef."
+      "notes": "In Brass Band: 1st and 2nd Tenor Trombones reading transposing treble clef. In Concert Band: 1st and 2nd Trombones reading non-transposing bass/tenor clef.",
+      "written_to_concert_semitones": -14,
+      "written_range": [
+        "F#2",
+        "G6"
+      ]
     },
     {
       "id": "bass_trombone",
@@ -766,7 +996,12 @@
       ],
       "role": "Core Low Brass Voice & Rhythmic Punch",
       "frequency": "Standard",
-      "notes": "Equipped with 1 or 2 rotary/axial valves. Unique in British brass bands as the ONLY brass instrument reading non-transposing bass clef."
+      "notes": "Equipped with 1 or 2 rotary/axial valves. Unique in British brass bands as the ONLY brass instrument reading non-transposing bass clef.",
+      "written_to_concert_semitones": 0,
+      "written_range": [
+        "Bb0",
+        "C5"
+      ]
     },
     {
       "id": "contrabass_trombone",
@@ -782,7 +1017,12 @@
       ],
       "role": "Sub-bass Directional Brass Voice",
       "frequency": "Rare / Extended",
-      "notes": "Double-slide or valve-extended contrabass instrument used in monumental wind ensemble works."
+      "notes": "Double-slide or valve-extended contrabass instrument used in monumental wind ensemble works.",
+      "written_to_concert_semitones": 0,
+      "written_range": [
+        "C1",
+        "F4"
+      ]
     },
     {
       "id": "valve_trombone",
@@ -798,7 +1038,12 @@
       ],
       "role": "Agile Marching & Latin Band Trombone",
       "frequency": "Common in Southern European / Latin American Bands",
-      "notes": "Widely used in Italian, Spanish, Austrian, and Latin American wind bands for rapid valve agility while marching."
+      "notes": "Widely used in Italian, Spanish, Austrian, and Latin American wind bands for rapid valve agility while marching.",
+      "written_to_concert_semitones": -14,
+      "written_range": [
+        "F#3",
+        "F6"
+      ]
     },
     {
       "id": "eb_tuba",
@@ -815,7 +1060,12 @@
       ],
       "role": "Core Bass Foundation",
       "frequency": "Standard",
-      "notes": "Known as 'EE♭ Bass' in British Brass Bands (2 players). Celebrated for lyrical agility and clear upper-bass definition."
+      "notes": "Known as 'EE♭ Bass' in British Brass Bands (2 players). Celebrated for lyrical agility and clear upper-bass definition.",
+      "written_to_concert_semitones": -21,
+      "written_range": [
+        "F#2",
+        "C6"
+      ]
     },
     {
       "id": "bb_tuba",
@@ -832,7 +1082,12 @@
       ],
       "role": "Heavy Sub-bass Anchor",
       "frequency": "Standard",
-      "notes": "Known as 'BB♭ Bass' in British Brass Bands (2 players). Forms the monumental foundation of both brass and wind bands."
+      "notes": "Known as 'BB♭ Bass' in British Brass Bands (2 players). Forms the monumental foundation of both brass and wind bands.",
+      "written_to_concert_semitones": -26,
+      "written_range": [
+        "F#2",
+        "C6"
+      ]
     },
     {
       "id": "c_tuba",
@@ -848,7 +1103,12 @@
       ],
       "role": "Orchestral Bass Foundation",
       "frequency": "Common (Professional Wind Ensembles)",
-      "notes": "Standard instrument for orchestral tuba players in the USA, frequently preferred in American collegiate wind ensembles."
+      "notes": "Standard instrument for orchestral tuba players in the USA, frequently preferred in American collegiate wind ensembles.",
+      "written_to_concert_semitones": 0,
+      "written_range": [
+        "D1",
+        "F4"
+      ]
     },
     {
       "id": "f_tuba",
@@ -864,7 +1124,12 @@
       ],
       "role": "Solo & High-Register Tuba Voice",
       "frequency": "Common",
-      "notes": "Used widely for solo repertoire, higher tuba parts, and lighter texture wind ensemble works."
+      "notes": "Used widely for solo repertoire, higher tuba parts, and lighter texture wind ensemble works.",
+      "written_to_concert_semitones": 0,
+      "written_range": [
+        "F1",
+        "C5"
+      ]
     },
     {
       "id": "sousaphone",
@@ -880,7 +1145,12 @@
       ],
       "role": "Marching & Military Band Bass Anchor",
       "frequency": "Standard in Marching/Military Bands",
-      "notes": "Designed under John Philip Sousa's direction to cast warm bass tone upward and over the band."
+      "notes": "Designed under John Philip Sousa's direction to cast warm bass tone upward and over the band.",
+      "written_to_concert_semitones": 0,
+      "written_range": [
+        "Bb0",
+        "F4"
+      ]
     },
     {
       "id": "helicon",
@@ -895,7 +1165,12 @@
       ],
       "role": "Historical Mounted/Military Band Bass",
       "frequency": "Occasional / Historical",
-      "notes": "Predecessor to the sousaphone, coiling around the torso; common in European cavalry and military bands."
+      "notes": "Predecessor to the sousaphone, coiling around the torso; common in European cavalry and military bands.",
+      "written_to_concert_semitones": 0,
+      "written_range": [
+        "Bb0",
+        "F4"
+      ]
     },
     {
       "id": "double_bass",
@@ -911,7 +1186,12 @@
       ],
       "role": "Pizzicato Definition & Low Resonance",
       "frequency": "Standard in Concert Band",
-      "notes": "Standard member of the modern concert band/wind ensemble, providing pizzicato clarity and warm sustained low notes."
+      "notes": "Standard member of the modern concert band/wind ensemble, providing pizzicato clarity and warm sustained low notes.",
+      "written_to_concert_semitones": -12,
+      "written_range": [
+        "E2",
+        "D5"
+      ]
     },
     {
       "id": "violoncello",
@@ -927,7 +1207,12 @@
       ],
       "role": "Mid-Bass Melodic Voice",
       "frequency": "Rare / Regional",
-      "notes": "Standard in traditional Spanish wind bands (bandas de música) and Italian municipal bands; occasional guest in symphonic wind works."
+      "notes": "Standard in traditional Spanish wind bands (bandas de música) and Italian municipal bands; occasional guest in symphonic wind works.",
+      "written_to_concert_semitones": 0,
+      "written_range": [
+        "C2",
+        "A5"
+      ]
     },
     {
       "id": "concert_harp",
@@ -943,7 +1228,9 @@
       ],
       "role": "Arpeggiated Color & Delicate Accents",
       "frequency": "Common in Advanced Wind Literature",
-      "notes": "Featured extensively in contemporary masterworks (Grainger, Persichetti, Husa, Barnes, Whitacre)."
+      "notes": "Featured extensively in contemporary masterworks (Grainger, Persichetti, Husa, Barnes, Whitacre).",
+      "written_to_concert_semitones": 0,
+      "written_range": null
     },
     {
       "id": "electric_bass",
@@ -959,7 +1246,12 @@
       ],
       "role": "Modern Rhythm & Punch",
       "frequency": "Common in Pops & Contemporary Literature",
-      "notes": "Often doubles or replaces the tuba/double bass in jazz, pop, Broadway, and wind rock settings."
+      "notes": "Often doubles or replaces the tuba/double bass in jazz, pop, Broadway, and wind rock settings.",
+      "written_to_concert_semitones": -12,
+      "written_range": [
+        "E2",
+        "C5"
+      ]
     },
     {
       "id": "piano",
@@ -975,7 +1267,9 @@
       ],
       "role": "Harmonic Backbone, Percussive Attack & Soloist",
       "frequency": "Standard in Contemporary Literature",
-      "notes": "Vital orchestral texture in 20th and 21st-century wind band repertoire."
+      "notes": "Vital orchestral texture in 20th and 21st-century wind band repertoire.",
+      "written_to_concert_semitones": 0,
+      "written_range": null
     },
     {
       "id": "celesta",
@@ -991,7 +1285,9 @@
       ],
       "role": "Ethereal Sparkle & Color",
       "frequency": "Occasional",
-      "notes": "Steel plates struck by felt hammers, operated via keyboard; used for delicate fairy-like textures."
+      "notes": "Steel plates struck by felt hammers, operated via keyboard; used for delicate fairy-like textures.",
+      "written_to_concert_semitones": 12,
+      "written_range": null
     },
     {
       "id": "synthesizer_organ",
@@ -1007,7 +1303,9 @@
       ],
       "role": "Sub-pedal Tones & Electronic Effects",
       "frequency": "Occasional",
-      "notes": "Used for pipe organ emulations, sub-bass 32' pedal points, and atmospheric sound design."
+      "notes": "Used for pipe organ emulations, sub-bass 32' pedal points, and atmospheric sound design.",
+      "written_to_concert_semitones": 0,
+      "written_range": null
     },
     {
       "id": "timpani",
@@ -1024,7 +1322,9 @@
       ],
       "role": "Core Harmonic Bass Rhythms & Dynamic Climax",
       "frequency": "Standard",
-      "notes": "Crucial anchor in both brass bands and concert bands. Pitch range typically covers D2 to A3."
+      "notes": "Crucial anchor in both brass bands and concert bands. Pitch range typically covers D2 to A3.",
+      "written_to_concert_semitones": 0,
+      "written_range": null
     },
     {
       "id": "glockenspiel",
@@ -1041,7 +1341,9 @@
       ],
       "role": "Upper Harmonic Sparkle & Melody Reinforcement",
       "frequency": "Standard",
-      "notes": "Penetrating high metallic bell tone, often doubling upper woodwinds or soprano brass."
+      "notes": "Penetrating high metallic bell tone, often doubling upper woodwinds or soprano brass.",
+      "written_to_concert_semitones": 24,
+      "written_range": null
     },
     {
       "id": "xylophone",
@@ -1058,7 +1360,9 @@
       ],
       "role": "Sharp Articulation & Rapid Melodic Runs",
       "frequency": "Standard",
-      "notes": "Bright, sharp acoustic attack; essential in both modern concert band and brass band percussion sections."
+      "notes": "Bright, sharp acoustic attack; essential in both modern concert band and brass band percussion sections.",
+      "written_to_concert_semitones": 12,
+      "written_range": null
     },
     {
       "id": "marimba",
@@ -1075,7 +1379,9 @@
       ],
       "role": "Warm Resonant Chords & Rapid Keyboard Runs",
       "frequency": "Standard in Modern Band Repertoire",
-      "notes": "Deep, warm, resonant acoustic timbre; foundational voice in modern percussion writing."
+      "notes": "Deep, warm, resonant acoustic timbre; foundational voice in modern percussion writing.",
+      "written_to_concert_semitones": 0,
+      "written_range": null
     },
     {
       "id": "vibraphone",
@@ -1092,7 +1398,9 @@
       ],
       "role": "Lyrical Sustained Chords & Motor Vibrato Effects",
       "frequency": "Standard in Modern Band Repertoire",
-      "notes": "Equipped with motorized rotating butterflies in resonator tubes and a damper pedal."
+      "notes": "Equipped with motorized rotating butterflies in resonator tubes and a damper pedal.",
+      "written_to_concert_semitones": 0,
+      "written_range": null
     },
     {
       "id": "tubular_bells",
@@ -1109,7 +1417,9 @@
       ],
       "role": "Church Bell Emulation & Majestic Fanfares",
       "frequency": "Standard",
-      "notes": "Simulates real church bells; prominent in climaxes and ceremonial marches."
+      "notes": "Simulates real church bells; prominent in climaxes and ceremonial marches.",
+      "written_to_concert_semitones": 0,
+      "written_range": null
     },
     {
       "id": "crotales",
@@ -1125,7 +1435,9 @@
       ],
       "role": "Pristine High Shimmer & Bowed Metallic Textures",
       "frequency": "Common in Contemporary Literature",
-      "notes": "Can be struck with hard mallets or bowed with a double bass bow for eerie, shimmering harmonics."
+      "notes": "Can be struck with hard mallets or bowed with a double bass bow for eerie, shimmering harmonics.",
+      "written_to_concert_semitones": 24,
+      "written_range": null
     },
     {
       "id": "snare_drum",
@@ -1142,7 +1454,9 @@
       ],
       "role": "Primary Rhythmic Drive & Military Rudiments",
       "frequency": "Standard",
-      "notes": "Foundational instrument in all band types; metal/gut snares provide crisp articulation."
+      "notes": "Foundational instrument in all band types; metal/gut snares provide crisp articulation.",
+      "written_to_concert_semitones": null,
+      "written_range": null
     },
     {
       "id": "bass_drum",
@@ -1159,7 +1473,9 @@
       ],
       "role": "Deep Acoustic Pulse & Explosive Impact",
       "frequency": "Standard",
-      "notes": "Large suspended calfskin or plastic head drum providing foundational dynamic weight."
+      "notes": "Large suspended calfskin or plastic head drum providing foundational dynamic weight.",
+      "written_to_concert_semitones": null,
+      "written_range": null
     },
     {
       "id": "clash_cymbals",
@@ -1176,7 +1492,9 @@
       ],
       "role": "Dynamic Climax & March Accents",
       "frequency": "Standard",
-      "notes": "Hand-held paired bronze cymbals (typically 18\" to 22\" Viennese or French crash)."
+      "notes": "Hand-held paired bronze cymbals (typically 18\" to 22\" Viennese or French crash).",
+      "written_to_concert_semitones": null,
+      "written_range": null
     },
     {
       "id": "suspended_cymbal",
@@ -1193,7 +1511,9 @@
       ],
       "role": "Atmospheric Crescendos & Accents",
       "frequency": "Standard",
-      "notes": "Played with yarn/felt mallets, drumsticks, or scraped with a triangle beater/coin."
+      "notes": "Played with yarn/felt mallets, drumsticks, or scraped with a triangle beater/coin.",
+      "written_to_concert_semitones": null,
+      "written_range": null
     },
     {
       "id": "tam_tam",
@@ -1210,7 +1530,9 @@
       ],
       "role": "Dramatic Cataclysm & Solemn Resonances",
       "frequency": "Standard",
-      "notes": "Unpitched, flat-faced hammered bronze disc; provides colossal dramatic crashes and quiet omens."
+      "notes": "Unpitched, flat-faced hammered bronze disc; provides colossal dramatic crashes and quiet omens.",
+      "written_to_concert_semitones": null,
+      "written_range": null
     },
     {
       "id": "triangle",
@@ -1227,7 +1549,9 @@
       ],
       "role": "High Crystalline Punctuation & Shimmer",
       "frequency": "Standard",
-      "notes": "Steel bar bent into an open triangle; cuts clearly through full fortissimo tutti."
+      "notes": "Steel bar bent into an open triangle; cuts clearly through full fortissimo tutti.",
+      "written_to_concert_semitones": null,
+      "written_range": null
     },
     {
       "id": "tambourine",
@@ -1244,7 +1568,9 @@
       ],
       "role": "Rhythmic Color & Festive Accents",
       "frequency": "Standard",
-      "notes": "Wood shell with calfskin head and metal jingles; executed with thumb rolls, shakes, and knee-fist strikes."
+      "notes": "Wood shell with calfskin head and metal jingles; executed with thumb rolls, shakes, and knee-fist strikes.",
+      "written_to_concert_semitones": null,
+      "written_range": null
     }
   ]
 }

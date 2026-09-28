@@ -120,3 +120,69 @@ describe('SVG output', () => {
         assert.throws(() => N.symbol('notAGlyph'));
     });
 });
+
+describe('chords (ML-309 C)', () => {
+    // Every <text> glyph as [x, y, character] - where each notehead and accidental landed.
+    const glyphs = (svg) => [...svg.matchAll(/<text class="notation-glyph[^"]*" x="([\d.-]+)" y="([\d.-]+)"[^>]*>(.)<\/text>/g)].map(m => [Number(m[1]), Number(m[2]), m[3]]);
+    const head = N.glyphChar('noteheadWhole'), sharp = N.glyphChar('accidentalSharp'), flat = N.glyphChar('accidentalFlat');
+    test('a triad: three heads in one column, one above the other', () => {
+        const heads = glyphs(N.staff({ items: [{ type: 'chord', notes: [{ pitch: 'C4' }, { pitch: 'E4' }, { pitch: 'G4' }] }] })).filter(g => g[2] === head);
+        assert.equal(heads.length, 3);
+        assert.equal(new Set(heads.map(h => h[0])).size, 1, 'same x');
+        assert.equal(new Set(heads.map(h => h[1])).size, 3, 'different heights');
+    });
+    test('a 2nd: the upper note sits to the right; a ledger line covers both', () => {
+        const svg = N.staff({ items: [{ type: 'chord', notes: [{ pitch: 'B3' }, { pitch: 'C4' }] }] });
+        const heads = glyphs(svg).filter(g => g[2] === head).sort((a, b) => b[1] - a[1]); // lowest first
+        assert.ok(heads[1][0] > heads[0][0], 'C is right of B');
+        assert.equal(svg.match(/<line /g).length, 5 + 1, 'middle C\'s ledger line');
+    });
+    test('accidentals: close ones stack in columns, a 7th apart share one', () => {
+        const close = glyphs(N.staff({ items: [{ type: 'chord', notes: [{ pitch: 'F#4' }, { pitch: 'A#4' }] }] })).filter(g => g[2] === sharp);
+        assert.notEqual(close[0][0], close[1][0], 'a 3rd apart: two columns');
+        const far = glyphs(N.staff({ items: [{ type: 'chord', notes: [{ pitch: 'Bb3' }, { pitch: 'Ab4' }] }] })).filter(g => g[2] === flat);
+        assert.equal(far[0][0], far[1][0], 'a 7th apart: one column');
+        const keyed = glyphs(N.staff({ items: [{ type: 'chord', notes: [{ pitch: 'F#4', accidental: false }, { pitch: 'A4' }] }] }));
+        assert.ok(!keyed.some(g => g[2] === sharp), 'accidental: false leaves it to the key signature');
+    });
+    test('draws in every clef, with a key signature and between other items', () => {
+        for (const clef of ['treble', 'bass', 'alto', 'tenor']) N.staff({ clef, keySignature: { type: 'flat', count: 3 }, items: [{ type: 'chord', notes: [{ pitch: 'Eb4' }, { pitch: 'G4' }, { pitch: 'Bb4' }] }, { type: 'barline', glyph: 'barlineFinal' }], justify: 30 });
+        assert.throws(() => N.staff({ items: [{ type: 'chord', notes: [] }] }));
+    });
+});
+
+describe('rhythm groups (ML-306)', () => {
+    const q = (v, len, more) => ({ v, len, ...(more || {}) });
+    const count = (svg, re) => (svg.match(re) || []).length;
+    const glyph = (name) => N.glyphChar(name);
+    const beams = (svg) => count(svg, /<path d="M[\d.-]+ [\d.-]+ L[\d.-]+ [\d.-]+ L/g);
+    test('two quavers: one beam, two stems, no flags; a lone quaver is flagged', () => {
+        const two = N.staff({ items: [{ type: 'group', notes: [q(0.5, 0.5), q(0.5, 0.5)] }] });
+        assert.equal(beams(two), 1);
+        assert.equal(count(two, new RegExp(glyph('flag8thUp'), 'g')), 0);
+        const lone = N.staff({ items: [{ type: 'group', notes: [q(0.5, 0.5, { rest: true }), q(0.5, 0.5)] }] });
+        assert.equal(beams(lone), 0);
+        assert.equal(count(lone, new RegExp(glyph('flag8thUp'), 'g')), 1);
+        assert.equal(count(lone, new RegExp(glyph('rest8th'), 'g')), 1);
+    });
+    test('four semiquavers: two beams; dotted quaver + semiquaver: a beam and a part beam', () => {
+        assert.equal(beams(N.staff({ items: [{ type: 'group', notes: [0, 1, 2, 3].map(() => q(0.25, 0.25)) }] })), 2);
+        const dotted = N.staff({ items: [{ type: 'group', notes: [q(0.5, 0.75, { dots: 1 }), q(0.25, 0.25)] }] });
+        assert.equal(beams(dotted), 2);
+        assert.equal(count(dotted, new RegExp(glyph('augmentationDot'), 'g')), 1);
+    });
+    test('a triplet prints its 3 (with a bracket when not all beamed); words go under the notes', () => {
+        const beamed = N.staff({ items: [{ type: 'group', tuplet: 3, notes: [0, 1, 2].map(() => q(0.5, 1 / 3)) }] });
+        assert.equal(count(beamed, new RegExp(glyph('tuplet3'), 'g')), 1);
+        const lines = (svg) => count(svg, /<line /g);
+        const bracketed = N.staff({ items: [{ type: 'group', tuplet: 3, notes: [q(1, 2 / 3), q(0.5, 1 / 3)] }] });
+        assert.equal(lines(bracketed) - lines(beamed), 4 - 1, 'a bracket is 4 lines, and there is one stem fewer');
+        const words = N.staff({ items: [{ type: 'group', notes: [q(0.5, 0.5, { word: 'Ap' }), q(0.5, 0.5, { word: 'ple' })] }] });
+        assert.match(words, />Ap<\/text>/);
+        assert.match(words, />ple<\/text>/);
+    });
+    test('notes never crowd: four semiquavers take more room than their share of the beat', () => {
+        const width = (items) => Number(/viewBox="0 0 ([\d.]+)/.exec(N.staff({ hideClef: true, beatWidth: 5, items }))[1]);
+        assert.ok(width([{ type: 'group', notes: [0, 1, 2, 3].map(() => q(0.25, 0.25)) }]) > width([{ type: 'group', notes: [q(1, 1)] }]));
+    });
+});

@@ -96,6 +96,8 @@ later table exists. Each file has a comment marking where this happens.
 | `062_practice_sessions.sql` | ML-320: `session_segments` gets `actual_seconds`, `chunk_id` (the Rehearsal block's chunk) and `tool` (a Skills block's tool). The practice session builder logs a finished session as one `sessions` row plus a segment per block. |
 | `063_practice_lists.sql` | ML-319: `practice_lists` gets `event_date`, `sessions_per_week` and `session_minutes` (personal lists: the concert's pieces and the readiness forecast); `piece_chunks.kind` allows `group` (join-up groups). |
 | `064_practice_templates_skills.sql` | ML-320 follow-ups and ML-321: `practice_templates` (your own templates), `active_practice_sessions` (the running session, kept across reloads and devices), `skill_list_items` and `skill_step_results` (your skills list and every go at a step). |
+| `065_range.sql` | ML-322 / ML-305: `instruments.written_to_concert` / `range_low` / `range_high` (transposition and typical written range, generated from the catalogue by `scripts/generate-instrument-ranges-migration.mjs`), `account_instruments.bottom_note` / `top_note` (your comfortable range), `range_note_levels` and `range_goes` (the Range tool), feature `range_trainer` (off). See docs/range.md. |
+| `066_rhythm.sql` | ML-306: lets `drill_attempts.tool` be `rhythm` (Rhythm rounds are drill rounds), `rhythm_pattern_levels` (each rhythm's speed Level and your own word for it), feature `rhythm_trainer` (off). See docs/rhythm.md. |
 
 ## Decisions made translating the design doc into SQL
 

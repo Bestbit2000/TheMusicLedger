@@ -158,6 +158,8 @@ export async function saveTheoryAttempt(accountId, body) {
 
   // ML-309: a Theory grade only counts while theory_grades is on - otherwise it's the custom options.
   const gradesOn = await isFeatureEnabled('theory_grades');
+  // ML-309 C: the grade-only quizzes (Intervals, Chords) have no custom options to fall back on.
+  if (!gradesOn && plain(Theory.quiz(b.quizId)).gradeOnly) throw withStatus(400, 'This quiz needs Theory grades.');
   const options = plain(Theory.normaliseOptions(b.quizId, gradesOn ? b.options : { ...(b.options || {}), grade: 0 }));
   const settingsKey = Theory.settingsKey(b.quizId, options, round.value);
   const { right, wrong, score, grade } = plain(Theory.scoreRound(round.value, answers));

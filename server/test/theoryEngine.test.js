@@ -40,8 +40,9 @@ function midi(pitch) {
 const steps = (pitches) => pitches.slice(1).map((p, i) => midi(p) - midi(pitches[i])).join('');
 
 describe('options', () => {
-    test('the four quizzes', () => {
-        assert.deepEqual(T.QUIZZES.map(q => q.id), ['noteNames', 'keys', 'symbols', 'mixed']);
+    test('the quizzes (Intervals and Chords are grade-only, ML-309 C)', () => {
+        assert.deepEqual(T.QUIZZES.map(q => q.id), ['noteNames', 'keys', 'symbols', 'intervals', 'chords', 'mixed']);
+        assert.deepEqual(T.QUIZZES.filter(q => q.gradeOnly).map(q => q.id), ['intervals', 'chords']);
     });
     test('defaults fill in, and anything not on the list is thrown out', () => {
         assert.deepEqual(T.normaliseOptions('noteNames', {}), { clefs: ['treble'], range: 0, accidentals: 'none', grade: 0 });
@@ -85,7 +86,7 @@ describe('every quiz, every option combination', () => {
                     assert.equal(new Set(ids).size, ids.length, `duplicate answers ${qn.id}`);
                     assert.ok(ids.includes(qn.correct), `right answer missing ${qn.id}`);
                     if (typeOf(qn.id) === 'note') assert.ok(ids.length === 7 || ids.length === 17);
-                    else assert.equal(ids.length, 4, `${qn.id} ${JSON.stringify(opts)}`);
+                    else assert.ok(({ chord: [3, 4], inversion: [3], cadence: [3], chromatic: [2] }[typeOf(qn.id)] || [4]).includes(ids.length), `${qn.id} ${JSON.stringify(opts)}`);
                     if (i && src.size > 1) assert.notEqual(qn.id, qs[i - 1].id, 'same question twice in a row');
                     if (qn.prompt.staff) N.staff(qn.prompt.staff);
                 });
@@ -551,7 +552,7 @@ describe('Theory grades (ML-309)', () => {
         assert.equal(T.normaliseOptions('weakSpots', { grade: 3 }).grade, 0);
     });
     test('every quiz at every grade deals valid questions that draw, only from the grade', () => {
-        for (const quizId of ['noteNames', 'keys', 'symbols', 'mixed']) for (const grade of T.GRADE_CHOICES) {
+        for (const quizId of ['noteNames', 'keys', 'symbols', 'intervals', 'chords', 'mixed']) for (const grade of (T.QUIZZES.find(q => q.id === quizId).grades || T.GRADE_CHOICES)) {
             const G = T.gradeContent(grade);
             const src = source(quizId, { grade, clefs: ['treble', 'bass', 'alto', 'tenor'] }, { seed: grade });
             for (const q of take(src, 150)) {
@@ -559,7 +560,9 @@ describe('Theory grades (ML-309)', () => {
                 assert.ok(q.answers.some(a => a.id === q.correct), q.id);
                 const [type, a, b] = q.id.split(':');
                 if (type === 'keySignature' || type === 'scale') assert.ok(G.keyIds.includes(b), `${q.id} not in grade ${grade}`);
-                if (type === 'note' || type === 'keySignature' || type === 'scale') assert.ok(G.clefs.includes(a), q.id);
+                if (!/^(symbol|speed)/.test(type)) assert.ok(G.clefs.includes(a), q.id);
+                if (['degree', 'chord', 'inversion', 'cadence'].includes(type)) assert.ok(G.keyIds.includes(b), `${q.id} not in grade ${grade}`);
+                if (type === 'intervalNumber') assert.equal(grade, 2, 'number-only intervals are grade 2 only');
                 if (type === 'symbolName' || type === 'symbolMeaning') assert.ok(G.symbols.some(s => s.id === a), `${q.id} not in grade ${grade}`);
                 if (q.prompt.staff) N.staff(q.prompt.staff);
             }
@@ -569,5 +572,135 @@ describe('Theory grades (ML-309)', () => {
         for (const clef of ['alto', 'tenor']) for (const type of ['sharp', 'flat']) for (let c = 1; c <= 7; c++) N.staff({ clef, keySignature: { type, count: c } });
         assert.equal(N.staffStep('C4', 'alto'), 4);
         assert.equal(N.staffStep('C4', 'tenor'), 6);
+    });
+});
+
+describe('intervals, technical names, chromatic scale, chords, cadences (ML-309 C)', () => {
+    const LETTERS = 'CDEFGAB';
+    const letterSteps = (low, high) => { const a = N.parsePitch(low), b = N.parsePitch(high); return (b.octave * 7 + LETTERS.indexOf(b.letter)) - (a.octave * 7 + LETTERS.indexOf(a.letter)); };
+    const key = (id) => T.ALL_KEYS.find(k => k.id === id);
+    const all = (quizId, grade) => {
+        const src = source(quizId, { grade, clefs: ['treble', 'bass', 'alto', 'tenor'] }, { seed: 11 });
+        return take(src, src.size);
+    };
+
+    test('grade-only quizzes: always at one of their own grades', () => {
+        assert.equal(T.normaliseOptions('intervals', {}).grade, 2);
+        assert.equal(T.normaliseOptions('intervals', { grade: 1 }).grade, 2);
+        assert.equal(T.normaliseOptions('chords', { grade: 3 }).grade, 4);
+        assert.equal(T.normaliseOptions('chords', { grade: 5 }).grade, 5);
+        assert.equal(T.settingsKey('intervals', { grade: 3 }, 't60'), 'intervals|t60|grade=3;clefs=treble');
+        assert.equal(T.describeOptions('chords', { grade: 5, clefs: ['bass'] }, 'q10'), 'Grade 5 syllabus · Bass · 10 questions');
+    });
+    test('naming intervals', () => {
+        const name = (a, b) => { const iv = T.intervalBetween(a, b); return T.intervalLabel(iv.quality, iv.number); };
+        assert.equal(name('C4', 'E4'), 'Major 3rd');
+        assert.equal(name('C4', 'Eb4'), 'Minor 3rd');
+        assert.equal(name('F4', 'B4'), 'Augmented 4th');
+        assert.equal(name('B4', 'F5'), 'Diminished 5th');
+        assert.equal(name('C#4', 'Bb4'), 'Diminished 7th');
+        assert.equal(name('C4', 'C5'), 'Perfect octave');
+        assert.equal(name('C4', 'E5'), 'Compound major 3rd');
+        assert.equal(name('A3', 'G5'), 'Compound minor 7th');
+    });
+    test('every interval question: the right answer is the notes\' real interval, in letters and semitones', () => {
+        const SIZE = { 1: 0, 2: 2, 3: 4, 4: 5, 5: 7, 6: 9, 7: 11 };
+        for (const grade of [2, 3, 4, 5]) for (const q of all('intervals', grade)) {
+            const [type, , low, high] = q.id.split(':');
+            const number = letterSteps(low, high) + 1;
+            if (type === 'intervalNumber') { assert.equal(q.correct, String(number), q.id); continue; }
+            const m = /^([a-z]+)(\d+)$/.exec(q.correct);
+            assert.equal(Number(m[2]), number, q.id);
+            const simple = ((number - 1) % 7) + 1, perfectType = [1, 4, 5].includes(simple);
+            const shift = { perfect: 0, major: 0, minor: -1, aug: 1, dim: perfectType ? -1 : -2 }[m[1]];
+            assert.equal(midi(high) - midi(low), SIZE[simple] + 12 * Math.floor((number - 1) / 7) + shift, q.id);
+            if (grade === 3) assert.ok(!q.answers.some(a => /^(aug|dim)/.test(a.id)), `grade 3 offered augmented/diminished: ${q.id}`);
+            if (grade <= 3) assert.ok(number <= 8);
+        }
+    });
+    test('grade 2 intervals are above the tonic of the grade\'s major keys; compound only from grade 5', () => {
+        const tonics = T.gradeContent(2).keyIds.filter(id => id.endsWith('major')).map(id => id.split(' ')[0]);
+        for (const q of all('intervals', 2)) assert.ok(tonics.includes(q.id.split(':')[2].replace(/-?\d+$/, '')), q.id);
+        assert.ok(!all('intervals', 4).some(q => Number(q.correct.replace(/\D/g, '')) > 8));
+        assert.ok(all('intervals', 5).some(q => Number(q.correct.replace(/\D/g, '')) > 8));
+    });
+    test('technical names: the note is that degree of the key; a minor key\'s leading note is raised', () => {
+        const qs = all('keys', 4).filter(x => typeOf(x.id) === 'degree');
+        assert.ok(qs.length > 100);
+        for (const q of qs) {
+            const [, clef, keyId, deg] = q.id.split(':');
+            const k = key(keyId), pitch = q.prompt.staff.items[0].pitch.replace(/n(?=-?\d)/, '');
+            assert.equal(q.correct, `deg${deg}`);
+            assert.equal(q.answers.find(a => a.id === q.correct).label, T.DEGREE_NAMES[deg - 1]);
+            assert.equal((LETTERS.indexOf(pitch[0]) - LETTERS.indexOf(k.tonic[0]) + 7) % 7, deg - 1, q.id);
+            if (k.mode === 'minor' && deg === '7') assert.equal((((midi(pitch) - midi(k.tonic + '4')) % 12) + 12) % 12, 11, `${q.id}: a semitone below the tonic`);
+            assert.ok(T.gradeContent(4).clefs.includes(clef));
+        }
+    });
+    test('chromatic scale: the right ones keep the rule, every wrong one breaks it with the same sounds', () => {
+        for (const t of ['C', 'G', 'D', 'A', 'E', 'B', 'F', 'Bb', 'Eb']) {
+            const right = T.chromaticScale(t, 'treble');
+            assert.equal(T.chromaticFault(right), null, t);
+            assert.equal(steps(right), '1'.repeat(12), `${t}: a semitone at a time`);
+            const wrongs = T.chromaticMistakes(right);
+            assert.ok(wrongs.length > 0, t);
+            for (const w of wrongs) {
+                assert.ok(T.chromaticFault(w), `${t}: ${w.join(' ')}`);
+                assert.equal(steps(w), steps(right), 'only respelled, never a different note');
+            }
+        }
+        assert.equal(T.chromaticScale('Ab', 'treble'), null, 'needs a double flat: not asked');
+        const qs = all('keys', 4).filter(x => typeOf(x.id) === 'chromatic');
+        assert.ok(qs.some(q => q.correct === 'yes') && qs.some(q => q.correct === 'no'));
+        for (const q of qs) assert.ok(q.feedback, 'says why');
+        assert.ok(!all('keys', 3).some(x => typeOf(x.id) === 'chromatic' || typeOf(x.id) === 'degree'), 'grade 4 on');
+        assert.ok(!take(source('keys', { grade: 5, show: 'keySignatures' }, { seed: 1 }), 80).some(x => /^(chromatic|degree)/.test(x.id)), 'not with key signatures only');
+    });
+    test('triads: major I/IV/V in a major key; a minor key\'s V is major and its II diminished', () => {
+        assert.equal(steps(T.triad(key('C major'), 'treble', 1, 0)), '43');
+        assert.equal(steps(T.triad(key('A minor'), 'treble', 5, 0)), '43', 'E G# B');
+        assert.equal(steps(T.triad(key('A minor'), 'treble', 1, 0)), '34');
+        assert.equal(steps(T.triad(key('A minor'), 'treble', 2, 0)), '33', 'B D F');
+        assert.equal(steps(T.triad(key('D major'), 'bass', 4, 1)), '35', 'first inversion: 3rd in the bass');
+        assert.equal(steps(T.triad(key('D major'), 'bass', 4, 2)), '54', 'second inversion: 5th in the bass');
+        for (const q of all('chords', 5).filter(x => typeOf(x.id) === 'chord' || typeOf(x.id) === 'inversion')) {
+            const [type, , , deg, inv] = q.id.split(':');
+            assert.equal(q.correct, type === 'chord' ? { 1: 'I', 2: 'II', 4: 'IV', 5: 'V' }[deg] : 'abc'[inv], q.id);
+            assert.equal(q.prompt.staff.items[0].notes.length, 3);
+        }
+        const g4 = all('chords', 4);
+        assert.ok(g4.every(q => typeOf(q.id) === 'chord' && q.id.endsWith(':0') && q.id.split(':')[3] !== '2'), 'grade 4: I, IV, V in root position');
+    });
+    test('cadences: perfect ends V-I, plagal IV-I, imperfect on V', () => {
+        const kinds = new Set();
+        for (const q of all('chords', 5).filter(x => typeOf(x.id) === 'cadence')) {
+            const [from, to] = q.id.split(':')[3].split('-');
+            const want = to === '5' ? 'imperfect' : from === '5' ? 'perfect' : 'plagal';
+            assert.equal(q.correct, want, q.id);
+            kinds.add(want);
+            assert.equal(q.prompt.staff.items.filter(i => i.type === 'chord').length, 2);
+        }
+        assert.equal(kinds.size, 3);
+    });
+    test('every new question rebuilds from its id (Smart learn weak spots) as the same question', () => {
+        const qs = [...all('intervals', 5), ...all('chords', 5), ...all('keys', 5).filter(x => /^(degree|chromatic)/.test(x.id)), ...all('intervals', 2)];
+        for (const q of qs) {
+            assert.ok(T.itemFromId(q.id), q.id);
+            const again = clone(sandbox.self.TheoryEngine.questionSource('weakSpots', {}, { seed: 1, weights: { [q.id]: 5 } }).next());
+            assert.equal(again.id, q.id);
+            assert.equal(again.correct, q.correct);
+            assert.ok(T.describeQuestion(q.id, 'letters'), q.id);
+        }
+        assert.equal(T.itemFromId('interval:treble:C4:H4'), null);
+        assert.equal(T.itemFromId('chord:treble:C major:3:0'), null);
+        assert.equal(T.itemFromId('chromatic:treble:Ab:ok'), null);
+        assert.equal(T.itemFromId('cadence:treble:C major:5-4'), null);
+    });
+    test('Mixed at a grade asks the grade\'s new types too; Admin lists them', () => {
+        const types = (g) => new Set(take(source('mixed', { grade: g }, { seed: 2 }), 200).map(q => typeOf(q.id)));
+        assert.ok(types(2).has('intervalNumber'));
+        assert.ok(!types(3).has('degree'));
+        for (const t of ['interval', 'degree', 'chord', 'inversion', 'cadence']) assert.ok(types(5).has(t), t);
+        assert.deepEqual(T.gradeSummary().map(g => g.topics.map(t => t.label)), [[], ['Intervals'], ['Intervals'], ['Intervals', 'Technical names', 'Chromatic scale', 'Chords'], ['Intervals', 'Chords', 'Inversions', 'Cadences']]);
     });
 });

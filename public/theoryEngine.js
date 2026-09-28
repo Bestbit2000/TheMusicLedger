@@ -7,7 +7,9 @@
 // hands those to public/notation.js. Every answer is one tap on a button (confirmed on ML-260), so every
 // question carries its full, fixed list of answer buttons.
 //
-// Four quizzes: Note names, Keys (key signatures + written-out scales), Notation (id 'symbols': name <->
+// Intervals and Chords (ML-309 C) are grade-only quizzes: see Theory grades below.
+//
+// Four custom quizzes: Note names, Keys (key signatures + written-out scales), Notation (id 'symbols': name <->
 // meaning, both ways, incl. rhythm, Italian terms and speeds - ML-297/301) and Mixed (all of them in turn). Every quiz deals each of its
 // questions once, in a shuffled order, before any comes round again.
 //
@@ -44,7 +46,9 @@
     // How long a question of each type "should" take - a timed round's perfect score is answering every
     // question in its par time (confirmed on ML-260 as a top pace per quiz: 40 note names, 24 key
     // signatures, 30 symbol names, 24 symbol meanings, 15 scales a minute). Mixed rounds add them up.
-    const PAR = { note: 1.5, keySignature: 2.5, scale: 4, symbolName: 2, symbolMeaning: 2.5, speedName: 2.5, speedBpm: 2.5 };
+    const PAR = { note: 1.5, keySignature: 2.5, scale: 4, symbolName: 2, symbolMeaning: 2.5, speedName: 2.5, speedBpm: 2.5,
+        // ML-309 C (Theory grades only): read two notes, a note in a key, a whole scale, a chord, two chords.
+        intervalNumber: 2.5, interval: 4, degree: 3, chromatic: 6, chord: 4, inversion: 3, cadence: 5 };
     const typeOf = (questionId) => String(questionId).split(':')[0];
     const parOf = (questionId) => PAR[typeOf(questionId)] || 2;
 
@@ -79,6 +83,10 @@
         { id: 'noteNames', title: 'Note names', subtitle: 'Identify the note on a stave', icon: 'noteheadWhole', options: [OPT.clefs, OPT.range, OPT.accidentals] },
         { id: 'keys', title: 'Keys', subtitle: 'Key signatures and scales', icon: 'accidentalSharp', options: [OPT.clefs, OPT.show, OPT.upTo, OPT.keyTypes, OPT.modes, OPT.minorForm] },
         { id: 'symbols', title: 'Notation', subtitle: 'Symbols and speeds', icon: 'fermataAbove', options: [OPT.set, OPT.ask] },
+        // ML-309 C: grade-only quizzes (feature theory_grades) - no custom options, just the grades
+        // that have something to ask. The app leaves them off the list while theory_grades is off.
+        { id: 'intervals', title: 'Intervals', subtitle: 'The distance between two notes', icon: 'noteHalfUp', options: [OPT.clefs], gradeOnly: true, grades: [2, 3, 4, 5] },
+        { id: 'chords', title: 'Chords', subtitle: 'Triads, inversions and cadences', icon: 'noteQuarterUp', options: [OPT.clefs], gradeOnly: true, grades: [4, 5] },
         { id: 'mixed', title: 'Mixed', subtitle: 'A bit of everything', icon: 'segno', options: [OPT.clefs, OPT.level] },
     ];
     // What each Mixed level asks, from each quiz.
@@ -115,7 +123,9 @@
                 out[def.key] = allowed.includes(raw[def.key]) ? raw[def.key] : def.default;
             }
         }
-        out.grade = q.options.length && GRADE_CHOICES.includes(raw.grade) ? raw.grade : 0;
+        // A grade-only quiz (ML-309 C) is always at one of its own grades - the lowest by default.
+        if (q.gradeOnly) out.grade = q.grades.includes(raw.grade) ? raw.grade : q.grades[0];
+        else out.grade = q.options.length && GRADE_CHOICES.includes(raw.grade) ? raw.grade : 0;
         if (out.grade && out.clefs) {
             const allowed = gradeContent(out.grade).clefs;
             const v = out.clefs.filter(c => allowed.includes(c));
@@ -768,6 +778,348 @@
         };
     }
 
+    // ---------------------------------------------------------------- intervals, chords, degrees, chromatic (ML-309 C)
+
+    // Grade-only question types (the Intervals and Chords quizzes, and Keys / Mixed at a grade): what the
+    // ABRSM Grades 2-5 syllabus asks about intervals, technical names, the chromatic scale, triads,
+    // inversions and cadences. Written only (no sound). Pitches are spelled strings, as everywhere here.
+    const SEMI = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+    const LETTER_ORDER = 'CDEFGAB';
+    const semisOf = (pitch) => { const p = Notation.parsePitch(pitch); return p.octave * 12 + SEMI[p.letter] + p.alter; };
+    const pitchName = (letter, alter, octave) => letter + ACC_SUFFIX_ASCII[alter] + octave;
+    // The note `steps` letters above (0 = the same letter), `semis` semitones above - or null if that
+    // needs more than a double sharp or flat.
+    function noteAbove(pitch, steps, semis) {
+        const p = Notation.parsePitch(pitch);
+        const d = LETTER_ORDER.indexOf(p.letter) + steps;
+        const letter = LETTER_ORDER[((d % 7) + 7) % 7], octave = p.octave + Math.floor(d / 7);
+        const alter = semisOf(pitch) + semis - (octave * 12 + SEMI[letter]);
+        return Math.abs(alter) <= 2 ? pitchName(letter, alter, octave) : null;
+    }
+    // The lowest octave that puts this letter at or above a staff step (the bottom note of a question).
+    function placeAt(letter, alter, clef, floor) {
+        let octave = 0;
+        while (Notation.staffStep(letter + octave, clef) < floor) octave++;
+        return pitchName(letter, alter, octave);
+    }
+
+    // --- Intervals. Size in semitones of a major/perfect interval of each simple number (8 = octave). ---
+    const INTERVAL_BASE = { 1: 0, 2: 2, 3: 4, 4: 5, 5: 7, 6: 9, 7: 11 };
+    const PERFECT_TYPE = [1, 4, 5];
+    const QUALITY_SHIFT = { perfect: { dim: -1, perfect: 0, aug: 1 }, major: { dim: -2, minor: -1, major: 0, aug: 1 } };
+    const QUALITY_LABEL = { perfect: 'perfect', major: 'major', minor: 'minor', aug: 'augmented', dim: 'diminished' };
+    const ordinal = (n) => n + (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th');
+    const simpleOf = (number) => ((number - 1) % 7) + 1;
+    const qualityType = (number) => (PERFECT_TYPE.includes(simpleOf(number)) ? 'perfect' : 'major');
+    const intervalSemis = (quality, number) => INTERVAL_BASE[simpleOf(number)] + 12 * Math.floor((number - 1) / 7) + QUALITY_SHIFT[qualityType(number)][quality];
+    // { quality, number } between two spelled notes (low first), or null if it isn't one of the five qualities.
+    function intervalBetween(low, high) {
+        const number = Notation.diatonic(high) - Notation.diatonic(low) + 1;
+        if (number < 1) return null;
+        const shift = semisOf(high) - semisOf(low) - (intervalSemis(qualityType(number) === 'perfect' ? 'perfect' : 'major', number));
+        const quality = Object.keys(QUALITY_SHIFT[qualityType(number)]).find(q => QUALITY_SHIFT[qualityType(number)][q] === shift);
+        return quality ? { quality, number } : null;
+    }
+    // "Major 3rd", "Perfect octave", "Compound minor 6th" (Grade 5 names compound intervals this way).
+    function intervalLabel(quality, number) {
+        const q = QUALITY_LABEL[quality];
+        const cap = (s) => s[0].toUpperCase() + s.slice(1);
+        if (number > 8) return `Compound ${q} ${number === 15 ? 'octave' : ordinal(simpleOf(number))}`;
+        return cap(`${q} ${number === 8 ? 'octave' : ordinal(number)}`);
+    }
+    const intervalId = (quality, number) => quality + number;
+    const numberLabel = (number) => (number === 8 ? 'Octave' : ordinal(number));
+    // The intervals Grade 4 (simple, within an octave) and Grade 5 (compound, up to two octaves less a
+    // 2nd) ask between any two notes. Augmented and diminished only where exam papers use them.
+    const SIMPLE_INTERVALS = [['minor', 2], ['major', 2], ['aug', 2], ['minor', 3], ['major', 3], ['dim', 4], ['perfect', 4], ['aug', 4], ['dim', 5], ['perfect', 5], ['aug', 5], ['minor', 6], ['major', 6], ['aug', 6], ['dim', 7], ['minor', 7], ['major', 7], ['perfect', 8]];
+    const COMPOUND_INTERVALS = [['minor', 9], ['major', 9], ['minor', 10], ['major', 10], ['perfect', 11], ['aug', 11], ['dim', 12], ['perfect', 12], ['minor', 13], ['major', 13], ['minor', 14], ['major', 14]];
+    // The bottom notes of "any two notes": the 17 keyboard spellings the note-name quizzes use.
+    const LOW_NAMES = [...NOTE_BUTTONS.none, 'C#', 'D#', 'F#', 'G#', 'A#', 'Db', 'Eb', 'Gb', 'Ab', 'Bb'];
+    // One staff height for every interval question (a compound interval climbs three ledger lines).
+    const INTERVAL_STEPS = [-5, 16];
+
+    // Above the tonic of a key (Grades 2 and 3): the scale's notes - in a minor key the harmonic and
+    // melodic forms' (minor 3rd and 6th, major 6th and 7th).
+    function tonicIntervals(key, clef) {
+        const tonic = placeAt(parseName(key.tonic).letter, parseName(key.tonic).alter, clef, -2);
+        const list = key.mode === 'major'
+            ? [['major', 2], ['major', 3], ['perfect', 4], ['perfect', 5], ['major', 6], ['major', 7], ['perfect', 8]]
+            : [['major', 2], ['minor', 3], ['perfect', 4], ['perfect', 5], ['minor', 6], ['major', 6], ['major', 7], ['perfect', 8]];
+        return list.map(([q, n]) => [tonic, noteAbove(tonic, n - 1, intervalSemis(q, n))]).filter(([, h]) => h);
+    }
+    // grade: 2 = number only above the tonic of the major keys; 3 = number and quality above the tonic;
+    // 4 = + any two notes within an octave; 5 = + compound. keyIds: the grade's keys.
+    function intervalItems(clefs, grade, keyIds) {
+        const out = [], seen = new Set();
+        const add = (it) => { const id = itemKey(it); if (!seen.has(id)) { seen.add(id); out.push(it); } };
+        const keys = ALL_KEYS.filter(k => keyIds.includes(k.id) && (grade > 2 || k.mode === 'major'));
+        for (const clef of clefs) {
+            for (const key of keys) for (const [low, high] of tonicIntervals(key, clef)) add({ type: grade === 2 ? 'intervalNumber' : 'interval', clef, low, high, wide: grade >= 4 });
+            if (grade < 4) continue;
+            const lists = [[SIMPLE_INTERVALS, -2], ...(grade >= 5 ? [[COMPOUND_INTERVALS, -4]] : [])];
+            for (const [list, floor] of lists) for (const name of LOW_NAMES) {
+                const p = parseName(name);
+                const low = placeAt(p.letter, p.alter, clef, floor);
+                for (const [q, n] of list) {
+                    const high = noteAbove(low, n - 1, intervalSemis(q, n));
+                    if (high) add({ type: 'interval', clef, low, high, wide: true });
+                }
+            }
+        }
+        return out;
+    }
+    // Two notes, drawn one after the other (melodic) or together (harmonic) - either, at random: the
+    // question is the same.
+    function intervalStaff(item, rng) {
+        const items = rng() < 0.5 ? [{ type: 'chord', notes: [{ pitch: item.low }, { pitch: item.high }] }] : [{ type: 'note', pitch: item.low }, { type: 'note', pitch: item.high }];
+        return { clef: item.clef, items, stepRange: INTERVAL_STEPS, minWidth: 12 };
+    }
+    function intervalNumberQuestion(item, rng) {
+        const { number } = intervalBetween(item.low, item.high);
+        const others = rng.shuffle([2, 3, 4, 5, 6, 7, 8].filter(x => x !== number)).sort((a, b) => Math.abs(a - number) - Math.abs(b - number));
+        return {
+            id: `intervalNumber:${item.clef}:${item.low}:${item.high}`,
+            prompt: { text: 'What is the number of this interval?', staff: intervalStaff(item, rng), label: `Two notes on the ${item.clef} staff` },
+            layout: 'choices',
+            answers: [number, ...others.slice(0, 3)].sort((a, b) => a - b).map(x => ({ id: String(x), label: numberLabel(x) })),
+            correct: String(number),
+        };
+    }
+    // Wrong answers are the nearest intervals in size (a minor 3rd for a major 3rd, a perfect 4th...),
+    // augmented and diminished only from Grade 4 (item.wide) - so a Grade 3 round never offers a name
+    // the grade hasn't taught.
+    function intervalQuestion(item, rng) {
+        const iv = intervalBetween(item.low, item.high);
+        const size = intervalSemis(iv.quality, iv.number);
+        const pool = [];
+        for (let n = Math.max(2, iv.number - 2); n <= Math.min(15, iv.number + 2); n++) {
+            for (const q of Object.keys(QUALITY_SHIFT[qualityType(n)])) {
+                if (n === iv.number && q === iv.quality) continue;
+                if (!item.wide && (q === 'aug' || q === 'dim')) continue;
+                if ((n > 8) !== (iv.number > 8) && n !== 8) continue; // compound with compound (the octave sits between)
+                pool.push({ quality: q, number: n, size: intervalSemis(q, n) });
+            }
+        }
+        const others = rng.shuffle(pool).sort((a, b) => Math.abs(a.size - size) - Math.abs(b.size - size)).slice(0, 3);
+        const answers = [{ ...iv, size }, ...others].sort((a, b) => a.size - b.size || a.number - b.number);
+        return {
+            id: `interval:${item.clef}:${item.low}:${item.high}`,
+            prompt: { text: 'Which interval is this?', staff: intervalStaff(item, rng), label: `Two notes on the ${item.clef} staff` },
+            layout: 'choices',
+            answers: answers.map(a => ({ id: intervalId(a.quality, a.number), label: intervalLabel(a.quality, a.number) })),
+            correct: intervalId(iv.quality, iv.number),
+        };
+    }
+
+    // --- Technical names of the scale degrees (Grade 4). A minor key's 7th is the raised leading note. ---
+    const DEGREE_NAMES = ['Tonic', 'Supertonic', 'Mediant', 'Subdominant', 'Dominant', 'Submediant', 'Leading note'];
+    // The key's own note at a degree (1-7), written against the key signature.
+    function keyNote(key, pitch) {
+        const alters = keyAlters(key);
+        const p = Notation.parsePitch(pitch);
+        const show = p.alter !== alters[p.letter];
+        return { pitch: show && p.alter === 0 ? `${p.letter}n${p.octave}` : pitch, accidental: show };
+    }
+    function degreeItems(clefs, keyIds) {
+        const out = [];
+        for (const clef of clefs) for (const key of ALL_KEYS.filter(k => keyIds.includes(k.id))) {
+            for (let degree = 1; degree <= 7; degree++) out.push({ type: 'degree', clef, key, degree });
+        }
+        return out;
+    }
+    function degreeQuestion(item, rng, naming) {
+        const { key, clef, degree } = item;
+        const note = keyNote(key, scalePitches(key, clef, 'harmonic')[degree - 1]);
+        const others = rng.shuffle([1, 2, 3, 4, 5, 6, 7].filter(d => d !== degree)).sort((a, b) => Math.abs(a - degree) - Math.abs(b - degree));
+        return {
+            id: `degree:${clef}:${key.id}:${degree}`,
+            prompt: {
+                text: `Which degree of ${keyLabel(key, naming)} is this?`,
+                staff: { clef, keySignature: key.count ? { type: key.type, count: key.count } : null, items: [{ type: 'note', ...note }], stepRange: [-3, 11], minWidth: 14 },
+                label: `A note in ${keyLabel(key, naming)}, ${clef} clef`,
+            },
+            layout: 'choices',
+            answers: [degree, ...others.slice(0, 3)].sort((a, b) => a - b).map(d => ({ id: `deg${d}`, label: DEGREE_NAMES[d - 1] })),
+            correct: `deg${degree}`,
+        };
+    }
+
+    // --- The chromatic scale (Grade 4): is it written correctly? Every letter used once or twice (the
+    // tonic's letter once, plus the octave), in order, a semitone at a time. The right version is the
+    // harmonic chromatic scale (tonic and dominant once, every other letter twice); a wrong one respells
+    // one note so a letter is used three times, or skipped.
+    const CHROMATIC_STEPS = [0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6, 7]; // letters above the tonic, note by note
+    function chromaticScale(tonicName, clef) {
+        const t = parseName(tonicName);
+        const tonic = placeAt(t.letter, t.alter, clef, -2);
+        const out = CHROMATIC_STEPS.map((steps, i) => noteAbove(tonic, steps, i));
+        return out.every(p => p && Math.abs(Notation.parsePitch(p).alter) <= 1) ? out : null;
+    }
+    // Why a spelling breaks the rule (null = it's right).
+    function chromaticFault(pitches) {
+        const letters = pitches.slice(0, 12).map(p => Notation.parsePitch(p).letter);
+        for (const l of LETTER_ORDER) {
+            const n = letters.filter(x => x === l).length;
+            if (n > 2) return `${l} is used ${n} times`;
+            if (n === 0) return `there is no ${l}`;
+        }
+        return null;
+    }
+    // Every single-note respelling (to the letter above or below, one sharp or flat at most) that breaks
+    // the rule - in a fixed order, so an id can name one by its index.
+    function chromaticMistakes(pitches) {
+        const out = [];
+        for (let i = 1; i < 12; i++) for (const dir of [1, -1]) {
+            const p = noteAbove(pitches[i], dir, 0);
+            if (!p || Math.abs(Notation.parsePitch(p).alter) > 1) continue;
+            const wrong = pitches.slice();
+            wrong[i] = p;
+            if (chromaticFault(wrong)) out.push(wrong);
+        }
+        return out;
+    }
+    // The tonics: the Grade 4 major keys whose harmonic chromatic scale needs no double sharps or flats.
+    function chromaticItems(clefs, keyIds) {
+        const out = [];
+        for (const clef of clefs) for (const key of ALL_KEYS.filter(k => k.mode === 'major' && keyIds.includes(k.id))) {
+            const right = chromaticScale(key.tonic, clef);
+            if (!right) continue;
+            const wrongs = chromaticMistakes(right);
+            out.push({ type: 'chromatic', clef, tonic: key.tonic, variant: 'ok' });
+            // One wrong version per tonic and clef, so a round is about half right, half wrong.
+            if (wrongs.length) out.push({ type: 'chromatic', clef, tonic: key.tonic, variant: (key.count * 7 + clef.length) % wrongs.length });
+        }
+        return out;
+    }
+    // Written as one bar: an accidental lasts to the end, and a note going back to plain gets a natural.
+    function writeAccidentals(pitches) {
+        const inBar = {};
+        return pitches.map((pitch) => {
+            const p = Notation.parsePitch(pitch);
+            const slot = p.letter + p.octave;
+            const show = p.alter !== (inBar[slot] || 0);
+            inBar[slot] = p.alter;
+            return { type: 'note', head: 'noteheadBlack', pitch: show && p.alter === 0 ? `${p.letter}n${p.octave}` : pitch, accidental: show };
+        });
+    }
+    function chromaticQuestion(item) {
+        const right = chromaticScale(item.tonic, item.clef);
+        const pitches = item.variant === 'ok' ? right : chromaticMistakes(right)[item.variant];
+        const fault = chromaticFault(pitches);
+        return {
+            id: `chromatic:${item.clef}:${item.tonic}:${item.variant}`,
+            prompt: {
+                text: 'Is this chromatic scale written correctly?',
+                staff: { clef: item.clef, items: writeAccidentals(pitches), noteGap: 0.9, stepRange: [-3, 11] },
+                label: `A chromatic scale on the ${item.clef} staff`,
+            },
+            layout: 'choices',
+            answers: [{ id: 'yes', label: 'Yes' }, { id: 'no', label: 'No' }],
+            correct: fault ? 'no' : 'yes',
+            // Says why, not just which: the rule is the thing to learn.
+            feedback: fault ? `Not quite: it's wrong - ${fault}.` : "Not quite: it's right - every letter is used once or twice, in order.",
+        };
+    }
+
+    // --- Triads (Grades 4 and 5), inversions and cadences (Grade 5), in close position with the key
+    // signature. A minor key's chords come from its harmonic minor (a major V, a diminished II). ---
+    const CHORD_ROMAN = { 1: 'I', 2: 'II', 4: 'IV', 5: 'V' };
+    const CHORD_LABEL = { 1: 'Tonic (I)', 2: 'Supertonic (II)', 4: 'Subdominant (IV)', 5: 'Dominant (V)' };
+    const INVERSION_LABEL = ['Root position (a)', '1st inversion (b)', '2nd inversion (c)'];
+    // The chord's notes, bottom up: root, 3rd, 5th rotated by the inversion; the bass note on the staff
+    // at step `floor` or above (or near `near`, a staff step, for the second chord of a cadence).
+    function triad(key, clef, degree, inversion, near) {
+        const scale = scalePitches(key, clef, 'harmonic').slice(0, 7);
+        const tones = [0, 2, 4].map(i => scale[(degree - 1 + i) % 7]);
+        const rotated = tones.slice(inversion).concat(tones.slice(0, inversion));
+        const bass = Notation.parsePitch(rotated[0]);
+        let low = placeAt(bass.letter, bass.alter, clef, -1);
+        if (near !== undefined) {
+            const lp = Notation.parsePitch(low);
+            let best = low;
+            for (const o of [lp.octave - 1, lp.octave, lp.octave + 1]) {
+                const cand = pitchName(lp.letter, lp.alter, o);
+                const st = Notation.staffStep(cand, clef);
+                if (st >= -3 && st <= 5 && Math.abs(st - near) < Math.abs(Notation.staffStep(best, clef) - near)) best = cand;
+            }
+            low = best;
+        }
+        const out = [low];
+        for (const t of rotated.slice(1)) {
+            const tp = Notation.parsePitch(t);
+            let p = pitchName(tp.letter, tp.alter, Notation.parsePitch(out[out.length - 1]).octave);
+            if (Notation.diatonic(p) <= Notation.diatonic(out[out.length - 1])) p = pitchName(tp.letter, tp.alter, Notation.parsePitch(p).octave + 1);
+            out.push(p);
+        }
+        return out;
+    }
+    const chordStaffItem = (key, pitches) => ({ type: 'chord', notes: pitches.map(p => keyNote(key, p)) });
+    const keySigOf = (key) => (key.count ? { type: key.type, count: key.count } : null);
+    // degrees: which chords (1, 2, 4, 5); inversions: which positions (0-2).
+    function chordItems(clefs, keyIds, degrees, inversions, type) {
+        const out = [];
+        for (const clef of clefs) for (const key of ALL_KEYS.filter(k => keyIds.includes(k.id))) {
+            for (const degree of degrees) for (const inversion of inversions) out.push({ type, clef, key, degree, inversion, withII: degrees.includes(2) });
+        }
+        return out;
+    }
+    function chordQuestion(item, rng, naming) {
+        const { key, clef, degree, inversion } = item;
+        const choices = item.withII || degree === 2 ? [1, 2, 4, 5] : [1, 4, 5];
+        return {
+            id: `chord:${clef}:${key.id}:${degree}:${inversion}`,
+            prompt: {
+                text: `In ${keyLabel(key, naming)}, which chord is this?`,
+                staff: { clef, keySignature: keySigOf(key), items: [chordStaffItem(key, triad(key, clef, degree, inversion))], stepRange: [-3, 13], minWidth: 14 },
+                label: `A chord in ${keyLabel(key, naming)}, ${clef} clef`,
+            },
+            layout: 'choices',
+            answers: choices.map(d => ({ id: CHORD_ROMAN[d], label: CHORD_LABEL[d] })),
+            correct: CHORD_ROMAN[degree],
+        };
+    }
+    function inversionQuestion(item, rng, naming) {
+        const { key, clef, degree, inversion } = item;
+        return {
+            id: `inversion:${clef}:${key.id}:${degree}:${inversion}`,
+            prompt: {
+                text: `This is chord ${CHORD_ROMAN[degree]} in ${keyLabel(key, naming)}. Which position?`,
+                staff: { clef, keySignature: keySigOf(key), items: [chordStaffItem(key, triad(key, clef, degree, inversion))], stepRange: [-3, 13], minWidth: 14 },
+                label: `Chord ${CHORD_ROMAN[degree]} in ${keyLabel(key, naming)}, ${clef} clef`,
+            },
+            layout: 'choices',
+            answers: INVERSION_LABEL.map((label, i) => ({ id: 'abc'[i], label })),
+            correct: 'abc'[inversion],
+        };
+    }
+    // Two chords in root position. Perfect V-I, plagal IV-I, imperfect ending on V (from I, II or IV).
+    const CADENCES = [[5, 1, 'perfect'], [4, 1, 'plagal'], [1, 5, 'imperfect'], [2, 5, 'imperfect'], [4, 5, 'imperfect']];
+    const CADENCE_LABEL = { perfect: 'Perfect', imperfect: 'Imperfect', plagal: 'Plagal' };
+    function cadenceItems(clefs, keyIds) {
+        const out = [];
+        for (const clef of clefs) for (const key of ALL_KEYS.filter(k => keyIds.includes(k.id))) {
+            for (const [from, to] of CADENCES) out.push({ type: 'cadence', clef, key, from, to });
+        }
+        return out;
+    }
+    function cadenceQuestion(item, rng, naming) {
+        const { key, clef, from, to } = item;
+        const kind = CADENCES.find(c => c[0] === from && c[1] === to)[2];
+        const first = triad(key, clef, from, 0);
+        const second = triad(key, clef, to, 0, Notation.staffStep(first[0], clef));
+        return {
+            id: `cadence:${clef}:${key.id}:${from}-${to}`,
+            prompt: {
+                text: `The end of a phrase in ${keyLabel(key, naming)}. Which cadence?`,
+                staff: { clef, keySignature: keySigOf(key), items: [chordStaffItem(key, first), chordStaffItem(key, second), { type: 'barline', glyph: 'barlineFinal' }], stepRange: [-3, 13], minWidth: 16 },
+                label: `Two chords in ${keyLabel(key, naming)}, ${clef} clef`,
+            },
+            layout: 'choices',
+            answers: ['perfect', 'imperfect', 'plagal'].map(k => ({ id: k, label: CADENCE_LABEL[k] })),
+            correct: kind,
+        };
+    }
+
     // ---------------------------------------------------------------- Theory grades (ML-309)
 
     // What each grade ADDS, for the parts the quizzes ask (the symbols and terms carry their own grade).
@@ -776,18 +1128,30 @@
     //   range: ledger lines above and below (RANGE_STEPS); accidentals: note-name spellings asked;
     //   majors/minors: key tonics added; upTo: every key with up to that many sharps or flats;
     //   minorForms: the minor scale forms asked.
+    //   ML-309 C - intervals: how far the Intervals quiz goes ('number' above the tonic, 'tonic' number
+    //   and quality above the tonic, 'simple' any two notes within an octave, 'compound'); chords: the
+    //   triads added; technicalNames, chromatic, inversions, cadences: asked from that grade on.
     const THEORY_GRADES = [
         { grade: 1, clefs: ['treble', 'bass'], range: 0, accidentals: ['none'], majors: ['C', 'G', 'D', 'F'], minors: [], minorForms: [] },
-        { grade: 2, range: 2, accidentals: ['sharps', 'flats'], majors: ['A', 'Bb', 'Eb'], minors: ['A', 'E', 'D'], minorForms: ['harmonic'] },
-        { grade: 3, range: 4, upTo: 4, minorForms: ['melodic'] },
-        { grade: 4, clefs: ['alto'], upTo: 5 },
-        { grade: 5, clefs: ['tenor'], upTo: 6 },
+        { grade: 2, range: 2, accidentals: ['sharps', 'flats'], majors: ['A', 'Bb', 'Eb'], minors: ['A', 'E', 'D'], minorForms: ['harmonic'], intervals: 'number' },
+        { grade: 3, range: 4, upTo: 4, minorForms: ['melodic'], intervals: 'tonic' },
+        { grade: 4, clefs: ['alto'], upTo: 5, intervals: 'simple', chords: [1, 4, 5], technicalNames: true, chromatic: true },
+        { grade: 5, clefs: ['tenor'], upTo: 6, intervals: 'compound', chords: [2], inversions: true, cadences: true },
     ];
+    const INTERVAL_TEXT = {
+        number: 'number only (2nd to octave), above the tonic of the major keys',
+        tonic: 'number and quality (major, minor, perfect), above the tonic of the major and minor keys',
+        simple: 'any two notes within an octave, augmented and diminished too',
+        compound: 'compound intervals, up to two octaves',
+    };
     const GRADE_CHOICES = THEORY_GRADES.map(g => g.grade);
     function gradeContent(grade) {
-        const out = { grade, clefs: [], range: 0, accidentals: [], keyIds: [], minorForms: [] };
+        const out = { grade, clefs: [], range: 0, accidentals: [], keyIds: [], minorForms: [], intervals: null, chords: [], technicalNames: false, chromatic: false, inversions: false, cadences: false };
         for (const g of THEORY_GRADES.filter(x => x.grade <= grade)) {
             out.clefs.push(...(g.clefs || []));
+            if (g.intervals) out.intervals = g.intervals;
+            out.chords.push(...(g.chords || []));
+            for (const k of ['technicalNames', 'chromatic', 'inversions', 'cadences']) if (g[k]) out[k] = true;
             if (g.range !== undefined) out.range = g.range;
             out.accidentals.push(...(g.accidentals || []));
             out.keyIds.push(...(g.majors || []).map(t => `${t} major`), ...(g.minors || []).map(t => `${t} minor`));
@@ -795,6 +1159,7 @@
             out.minorForms.push(...(g.minorForms || []));
         }
         out.keyIds = ALL_KEYS.map(k => k.id).filter(id => out.keyIds.includes(id)); // circle-of-fifths order, once each
+        out.chords.sort((a, b) => a - b);
         out.symbols = SYMBOLS.filter(s => s.grade && s.grade <= grade);
         return out;
     }
@@ -803,7 +1168,17 @@
         return THEORY_GRADES.map(({ grade }) => {
             const now = gradeContent(grade), before = grade > 1 ? gradeContent(grade - 1) : null;
             const added = (list, prev) => list.filter(x => !(prev || []).includes(x));
+            // ML-309 C: the new question types, in words.
+            const topics = [];
+            if (now.intervals && (!before || before.intervals !== now.intervals)) topics.push({ label: 'Intervals', text: INTERVAL_TEXT[now.intervals] });
+            if (now.technicalNames && !(before && before.technicalNames)) topics.push({ label: 'Technical names', text: 'tonic, supertonic, mediant, subdominant, dominant, submediant, leading note - a note in a key' });
+            if (now.chromatic && !(before && before.chromatic)) topics.push({ label: 'Chromatic scale', text: 'is it written correctly? Every letter once or twice, a semitone at a time' });
+            const newChords = added(now.chords, before && before.chords);
+            if (newChords.length) topics.push({ label: 'Chords', text: `${newChords.map(d => `${DEGREE_NAMES[d - 1].toLowerCase()} (${CHORD_ROMAN[d]})`).join(', ')} triads, in root position${now.inversions ? ' and inversions' : ''}` });
+            if (now.inversions && !(before && before.inversions)) topics.push({ label: 'Inversions', text: 'root position, 1st and 2nd inversion (a, b, c) of I, II, IV and V' });
+            if (now.cadences && !(before && before.cadences)) topics.push({ label: 'Cadences', text: 'perfect (V-I), imperfect (I, II or IV to V), plagal (IV-I)' });
             return {
+                topics,
                 grade,
                 clefs: added(now.clefs, before && before.clefs),
                 range: now.range,
@@ -820,15 +1195,34 @@
         const G = gradeContent(opts.grade);
         const keyOpts = { keyIds: G.keyIds, minorForms: G.minorForms.length ? G.minorForms : ['harmonic'] };
         const sets = [`grade:${opts.grade}`];
+        // ML-309 C: each new question type is its own group, so the round takes them in turn and a big
+        // group (every interval between any two notes) doesn't swamp a small one (cadences).
+        const g = opts.grade;
+        const intervals = () => (G.intervals ? intervalItems(opts.clefs, g, G.keyIds) : []);
+        const degrees = () => (G.technicalNames ? degreeItems(opts.clefs, G.keyIds) : []);
+        const chromatic = () => (G.chromatic ? chromaticItems(opts.clefs, G.keyIds) : []);
+        const chords = () => (G.chords.length ? chordItems(opts.clefs, G.keyIds, G.chords, G.inversions ? [0, 1, 2] : [0], 'chord') : []);
+        const inversions = () => (G.inversions ? chordItems(opts.clefs, G.keyIds, G.chords, [0, 1, 2], 'inversion') : []);
+        const cadences = () => (G.cadences ? cadenceItems(opts.clefs, G.keyIds) : []);
         if (quizId === 'noteNames') return { note: noteItems(opts.clefs, G.range, G.accidentals) };
-        if (quizId === 'keys') return { keys: keyItems(opts.clefs, { ...keyOpts, show: opts.show }) };
+        // Keys: technical names and the chromatic scale come with scales (not with "key signatures" only).
+        if (quizId === 'keys') {
+            const scalesToo = opts.show !== 'keySignatures';
+            return { keys: keyItems(opts.clefs, { ...keyOpts, show: opts.show }), degree: scalesToo ? degrees() : [], chromatic: scalesToo ? chromatic() : [] };
+        }
         if (quizId === 'symbols') return { symbols: symbolItems(sets, opts.ask) };
+        if (quizId === 'intervals') return { interval: intervals() };
+        if (quizId === 'chords') return { chord: chords(), inversion: inversions(), cadence: cadences() };
         return {
             note: noteItems(opts.clefs, G.range, G.accidentals),
             keySignature: keyItems(opts.clefs, { ...keyOpts, show: 'keySignatures' }),
             scale: keyItems(opts.clefs, { ...keyOpts, show: 'scales' }),
             symbolName: symbolItems(sets, 'names'),
             symbolMeaning: symbolItems(sets, 'meanings'),
+            // Mixed at a grade also asks the grade's intervals, technical names and chords (one group each).
+            interval: intervals(),
+            degree: degrees(),
+            chord: [...chords(), ...inversions(), ...cadences()],
         };
     }
 
@@ -863,6 +1257,35 @@
             const speed = SPEEDS.find(s => s.id === a);
             return speed ? { type, speed } : null;
         }
+        // ML-309 C. Rebuilt items are checked by building them (a malformed id throws, and is dropped).
+        const ok = (it) => { try { build(it, makeRng(1), 'letters'); return it; } catch (e) { return null; } };
+        const [, , , , e] = String(id).split(':');
+        if (!Notation.CLEFS[a]) return null;
+        if (type === 'intervalNumber' || type === 'interval') {
+            if (!/^[A-G](bb|b|#|x)?-?\d+$/.test(b || '') || !/^[A-G](bb|b|#|x)?-?\d+$/.test(c || '')) return null;
+            const iv = intervalBetween(b, c);
+            // Augmented/diminished wrong answers only when the interval itself is one (see intervalQuestion).
+            return iv ? ok({ type, clef: a, low: b, high: c, wide: iv.quality === 'aug' || iv.quality === 'dim' }) : null;
+        }
+        if (type === 'degree') {
+            const key = ALL_KEYS.find(k => k.id === b), degree = Number(c);
+            return key && degree >= 1 && degree <= 7 ? { type, clef: a, key, degree } : null;
+        }
+        if (type === 'chromatic') {
+            const variant = c === 'ok' ? 'ok' : Number(c);
+            if (!/^[A-G][#b]?$/.test(b || '') || (variant !== 'ok' && !Number.isInteger(variant))) return null;
+            const right = chromaticScale(b, a);
+            if (!right || (variant !== 'ok' && !chromaticMistakes(right)[variant])) return null;
+            return { type, clef: a, tonic: b, variant };
+        }
+        if (type === 'chord' || type === 'inversion') {
+            const key = ALL_KEYS.find(k => k.id === b), degree = Number(c), inversion = Number(e);
+            return key && CHORD_ROMAN[degree] && [0, 1, 2].includes(inversion) ? { type, clef: a, key, degree, inversion, withII: degree === 2 } : null;
+        }
+        if (type === 'cadence') {
+            const key = ALL_KEYS.find(k => k.id === b), [from, to] = String(c).split('-').map(Number);
+            return key && CADENCES.some(x => x[0] === from && x[1] === to) ? { type, clef: a, key, from, to } : null;
+        }
         return null;
     }
     // A plain-words name for a question, for the weak spots list ("B♭4 on the treble staff").
@@ -874,6 +1297,13 @@
         if (it.type === 'scale') return `${keyLabel(it.key, naming)}${it.form ? ` (${it.form})` : ''} scale, ${it.clef} clef`;
         if (it.type === 'speedName') return `${it.speed.names.join(' / ')}: from its bpm`;
         if (it.type === 'speedBpm') return `${it.speed.names.join(' / ')}: how fast`;
+        const pn = (p) => { const q = Notation.parsePitch(p); return spell(q.letter, q.alter, naming) + q.octave; };
+        if (it.type === 'intervalNumber' || it.type === 'interval') return `${pn(it.low)} up to ${pn(it.high)}, ${it.clef} clef${it.type === 'intervalNumber' ? ' (number)' : ''}`;
+        if (it.type === 'degree') return `The ${DEGREE_NAMES[it.degree - 1].toLowerCase()} of ${keyLabel(it.key, naming)}, ${it.clef} clef`;
+        if (it.type === 'chromatic') return `A chromatic scale on ${spellName(it.tonic, naming)}${it.variant === 'ok' ? '' : ' (written wrongly)'}, ${it.clef} clef`;
+        if (it.type === 'chord') return `Chord ${CHORD_ROMAN[it.degree]}${it.inversion ? 'abc'[it.inversion] : ''} in ${keyLabel(it.key, naming)}, ${it.clef} clef`;
+        if (it.type === 'inversion') return `Chord ${CHORD_ROMAN[it.degree]}${'abc'[it.inversion]} in ${keyLabel(it.key, naming)}: its position`;
+        if (it.type === 'cadence') return `${CHORD_ROMAN[it.from]}-${CHORD_ROMAN[it.to]} in ${keyLabel(it.key, naming)}: which cadence`;
         const term = it.sym.set === 'terms';
         return it.type === 'symbolName' ? `${it.sym.name}: ${term ? 'what it means' : 'its name'}` : `${it.sym.name}: from its meaning`;
     }
@@ -907,8 +1337,20 @@
         : it.type === 'keySignature' ? `keySignature:${it.clef}:${it.key.id}`
         : it.type === 'scale' ? `scale:${it.clef}:${it.key.id}${it.key.mode === 'minor' ? `:${it.form}` : ''}`
         : it.speed ? `${it.type}:${it.speed.id}`
+        : it.type === 'intervalNumber' || it.type === 'interval' ? `${it.type}:${it.clef}:${it.low}:${it.high}`
+        : it.type === 'degree' ? `degree:${it.clef}:${it.key.id}:${it.degree}`
+        : it.type === 'chromatic' ? `chromatic:${it.clef}:${it.tonic}:${it.variant}`
+        : it.type === 'chord' || it.type === 'inversion' ? `${it.type}:${it.clef}:${it.key.id}:${it.degree}:${it.inversion}`
+        : it.type === 'cadence' ? `cadence:${it.clef}:${it.key.id}:${it.from}-${it.to}`
         : `${it.type}:${it.sym.id}`;
     function build(item, rng, naming) {
+        if (item.type === 'intervalNumber') return intervalNumberQuestion(item, rng);
+        if (item.type === 'interval') return intervalQuestion(item, rng);
+        if (item.type === 'degree') return degreeQuestion(item, rng, naming);
+        if (item.type === 'chromatic') return chromaticQuestion(item);
+        if (item.type === 'chord') return chordQuestion(item, rng, naming);
+        if (item.type === 'inversion') return inversionQuestion(item, rng, naming);
+        if (item.type === 'cadence') return cadenceQuestion(item, rng, naming);
         if (item.type === 'note') return noteQuestion(item, naming);
         if (item.type === 'keySignature') return keySignatureQuestion(item, rng, naming);
         if (item.type === 'scale') return scaleQuestion(item, rng, naming);
@@ -991,6 +1433,7 @@
         quiz, round, normaliseOptions, optionVisible, settingsKey, describeOptions,
         makeRng, questionSource, itemsFor, SMART, nextWeight, smartOrder, reviewBoost, effectiveWeight, itemFromId, describeQuestion, WEAK_SPOTS, scalePitches, keyPool, keyAlters, noteItems, parOf,
         spell, spellName, scoreRound, gradeFor, ALL_KEYS,
-        THEORY_GRADES, GRADE_CHOICES, gradeContent, gradeSummary
+        THEORY_GRADES, GRADE_CHOICES, gradeContent, gradeSummary,
+        intervalBetween, intervalLabel, noteAbove, chromaticScale, chromaticFault, chromaticMistakes, triad, DEGREE_NAMES
     };
 }));

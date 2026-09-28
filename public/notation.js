@@ -23,7 +23,9 @@
     const FONT_SIZE = 4 * S;      // SMuFL: 1 em = 4 staff spaces
     const TIME_SIG_DIGIT_SCALE = 0.8; // ML-294: time-signature digits, so the top and bottom don't merge on a phone
     // Bravura's engravingDefaults (staff spaces).
-    const ENGRAVING = { staffLine: 0.13, ledgerLine: 0.16, ledgerExtension: 0.4, bracketLine: 0.16, hairpin: 0.16, tieEnd: 0.1, tieMid: 0.22 };
+    const ENGRAVING = { staffLine: 0.13, ledgerLine: 0.16, ledgerExtension: 0.4, bracketLine: 0.16, hairpin: 0.16, tieEnd: 0.1, tieMid: 0.22,
+        // ML-306 (rhythm groups): stems and beams, as every notation program draws them.
+        stemThickness: 0.12, beamThickness: 0.5, beamSpacing: 0.25, stemLength: 3.5, tupletBracket: 0.16 };
 
     // SMuFL name -> [codepoint, advance width, top, bottom] (staff spaces, measured from the font;
     // top/bottom are relative to the glyph's baseline, up positive).
@@ -100,6 +102,10 @@
         timeSig7: ['E087', 1.764, 1, -1],
         timeSig8: ['E088', 1.744, 1.1, -1.1],
         timeSig9: ['E089', 1.736, 1, -1],
+        // ML-306 (rhythm groups) - measured from the font like the rest.
+        flag8thUp: ['E240', 1.056, 0.1, -3.3],
+        flag16thUp: ['E242', 1.116, 0, -3.3],
+        tuplet3: ['E883', 1.184, 1.5, -0.1],
     };
     const ACCIDENTAL_GLYPH = { '-2': 'accidentalDoubleFlat', '-1': 'accidentalFlat', 0: 'accidentalNatural', 1: 'accidentalSharp', 2: 'accidentalDoubleSharp' };
 
@@ -172,9 +178,9 @@
     function lineEl(x1, y1, x2, y2, thickness) {
         return `<line x1="${r(x1)}" y1="${r(y1)}" x2="${r(x2)}" y2="${r(y2)}" stroke="currentColor" stroke-width="${r(thickness * S)}"/>`;
     }
-    function svgWrap(width, height, body, label) {
+    function svgWrap(width, height, body, label, extra = '') {
         const a11y = label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true" focusable="false"';
-        return `<svg class="notation" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${r(width)} ${r(height)}" width="${r(width)}" height="${r(height)}" fill="currentColor" ${a11y}>${body}</svg>`;
+        return `<svg class="notation" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${r(width)} ${r(height)}" width="${r(width)}" height="${r(height)}" fill="currentColor" ${a11y}${extra}>${body}</svg>`;
     }
 
     // A staff with a clef, optional key signature and a row of items. Items, in order:
@@ -182,6 +188,17 @@
     //     the pitch has one), above?: glyph, below?: glyph, dots?: 1, cls?: 'class names' }
     //     cls (ML-9) goes on the note's own glyphs (accidental and head/stem), so a caller can colour one
     //     note - the Scales tool's playing note - without redrawing.
+    //   { type: 'chord', notes: [{ pitch, accidental? }], head? } (ML-309 C) stemless noteheads on one
+    //     column - a harmonic interval, a triad. The upper note of a 2nd sits to the right, touching, and
+    //     accidentals stack in columns to the left (top one nearest) wherever they'd collide, as engraved.
+    //   { type: 'group', pitch?, notes: [{ v, len, dots?, rest?, word?, cls? }], tuplet?, beatLen? } (ML-306)
+    //     a beat or two of rhythm, spaced by time: v is the written value in crotchets (4 semibreve, 2
+    //     minim, 1 crotchet, 0.5 quaver, 0.25 semiquaver), len the time it takes (a triplet quaver is
+    //     v 0.5, len 1/3). Stems up; quavers and shorter within one beat (beatLen, default 1 - 1.5 in
+    //     compound time) are beamed, a lone one is flagged; a semiquaver next to a longer note gets a
+    //     part beam pointing at it. tuplet: 3 prints the number over the beam (with a bracket if the
+    //     notes aren't all beamed). word: a syllable under the note. Rests sit in the middle of the
+    //     staff. opts.beatWidth (staff spaces per crotchet beat, default 5) spaces the notes.
     //   { type: 'barline', glyph: 'barlineSingle'|'barlineDouble'|'barlineFinal'|'repeatLeft'|'repeatRight' }
     //   { type: 'mark', glyph, step }        a breath mark, caesura or rest at a staff position (rests:
     //                                        whole rest step 6 - hangs from the 4th line - the rest step 4)
@@ -205,7 +222,7 @@
         if (!opts.justify || first.width >= opts.justify * S) return first.svg;
         const items = opts.items || [];
         const lastIsBarline = items.length && items[items.length - 1].type === 'barline';
-        const gaps = items.filter(it => it.type === 'note' || it.type === 'timeSig' || it.type === 'mark' || (it.type === 'space' && it.grow)).length - (lastIsBarline ? 0 : 1);
+        const gaps = items.filter(it => it.type === 'note' || it.type === 'chord' || it.type === 'timeSig' || it.type === 'mark' || (it.type === 'space' && it.grow)).length - (lastIsBarline ? 0 : 1);
         if (gaps < 1) return first.svg;
         const noteGap = (opts.noteGap ?? 1.6) + (opts.justify * S - first.width) / S / gaps;
         return staffLayout({ ...opts, noteGap }).svg;
@@ -294,6 +311,153 @@
                 }
                 positions.push({ start, end: x, step: st, headX: hx, headW });
                 x += noteGap;
+            } else if (it.type === 'chord') {
+                const heads = (it.notes || []).map(nt => {
+                    const p = parsePitch(nt.pitch);
+                    return { p, st: diatonic(p) - c.bottomLine, showAcc: nt.accidental ?? (p.alter !== 0 || p.explicitNatural) };
+                }).sort((a, b) => a.st - b.st);
+                if (!heads.length) throw new Error('A chord needs notes');
+                // A 2nd: the upper note moves to the right of the column (the next one up stays put).
+                heads.forEach((h, i) => { h.offset = i > 0 && h.st - heads[i - 1].st === 1 && !heads[i - 1].offset; });
+                // Accidentals, top first: each goes in the first column (nearest the notes) where it's at
+                // least a 7th (6 steps) from every accidental already there.
+                const columns = [];
+                for (const h of heads.filter(x => x.showAcc).reverse()) {
+                    const name = ACCIDENTAL_GLYPH[h.p.alter];
+                    if (!name) throw new Error(`No single accidental glyph for ${h.p.letter}${h.p.alter}`);
+                    h.acc = name;
+                    let col = columns.find(cl => cl.every(o => Math.abs(o.st - h.st) >= 6));
+                    if (!col) { col = []; columns.push(col); }
+                    col.push(h);
+                }
+                const colW = columns.map(cl => Math.max(...cl.map(h => metrics(h.acc).advance)) * S + 0.2 * S);
+                columns.forEach((cl, ci) => {
+                    const cx = x + colW.slice(ci + 1).reduce((a, b) => a + b, 0); // column 0 is the rightmost
+                    for (const h of cl) {
+                        const m = metrics(h.acc);
+                        parts.push((y) => glyphEl(h.acc, cx, y(h.st), it.cls));
+                        grow(h.st + m.top * 2, h.st + m.bottom * 2);
+                    }
+                });
+                x += colW.reduce((a, b) => a + b, 0) + (columns.length ? 0.1 * S : 0);
+                const head = it.head || 'noteheadWhole';
+                const hm = metrics(head);
+                const hx = x, hw = hm.advance * S;
+                const anyOffset = heads.some(h => h.offset);
+                const ext = ENGRAVING.ledgerExtension * S;
+                const ledgers = new Set(heads.flatMap(h => ledgerSteps(h.st)));
+                for (const ls of ledgers) parts.push((y) => lineEl(hx - ext, y(ls), hx + hw * (anyOffset ? 2 : 1) + ext, y(ls), ENGRAVING.ledgerLine));
+                for (const h of heads) {
+                    const at = hx + (h.offset ? hw : 0);
+                    parts.push((y) => glyphEl(head, at, y(h.st), it.cls));
+                    grow(h.st + hm.top * 2, h.st + hm.bottom * 2);
+                }
+                x += hw * (anyOffset ? 2 : 1);
+                positions.push({ start, end: x, step: heads[0].st, headX: hx, headW: hw });
+                x += noteGap;
+            } else if (it.type === 'group') {
+                const unit = (opts.beatWidth ?? 5) * S;
+                const st = diatonic(parsePitch(it.pitch || 'A4')) - c.bottomLine;
+                const beatLen = it.beatLen || 1;
+                const stemW = ENGRAVING.stemThickness * S;
+                const headW = metrics('noteheadBlack').advance * S;
+                const stemTopStep = st + ENGRAVING.stemLength * 2;
+                const REST = { 4: ['restWhole', 6], 2: ['restHalf', 4], 1: ['restQuarter', 4], 0.5: ['rest8th', 4], 0.25: ['rest16th', 4] };
+                // Spaced by time, but never tighter than a notehead (and its dot, and its word) plus a gap -
+                // so four semiquavers widen their beat rather than overlap, as an engraver spaces them.
+                let off = 0, gx = x;
+                const placed = (it.notes || []).map((nt) => {
+                    const p = { ...nt, x: gx, start: off };
+                    const need = headW + 0.9 * S + (nt.dots ? 0.7 * S : 0);
+                    const wordNeed = nt.word ? String(nt.word).length * 0.8 * S + 0.6 * S : 0;
+                    off += nt.len;
+                    gx += Math.max(nt.len * unit, need, wordNeed);
+                    return p;
+                });
+                const groupEnd = gx;
+                // Rests, heads, stems and dots.
+                for (const p of placed) {
+                    if (p.rest) {
+                        const [glyph, rs] = REST[p.v] || REST[0.5];
+                        const m = metrics(glyph);
+                        parts.push((y) => glyphEl(glyph, p.x, y(rs), p.cls));
+                        grow(rs + m.top * 2, rs + m.bottom * 2);
+                        for (let d = 0; d < (p.dots || 0); d++) { const dx = p.x + m.advance * S + 0.3 * S + d * 0.6 * S; parts.push((y) => glyphEl('augmentationDot', dx, y(5))); }
+                        continue;
+                    }
+                    const head = p.v >= 4 ? 'noteheadWhole' : p.v >= 2 ? 'noteheadHalf' : 'noteheadBlack';
+                    const hm = metrics(head);
+                    p.headW = hm.advance * S;
+                    p.stemX = p.x + p.headW - stemW / 2;
+                    for (const ls of ledgerSteps(st)) parts.push((y) => lineEl(p.x - ENGRAVING.ledgerExtension * S, y(ls), p.x + p.headW + ENGRAVING.ledgerExtension * S, y(ls), ENGRAVING.ledgerLine));
+                    parts.push((y) => glyphEl(head, p.x, y(st), p.cls));
+                    grow(st + hm.top * 2, st + hm.bottom * 2);
+                    const dotStep = st % 2 === 0 ? st + 1 : st;
+                    for (let d = 0; d < (p.dots || 0); d++) { const dx = p.x + p.headW + 0.35 * S + d * 0.6 * S; parts.push((y) => glyphEl('augmentationDot', dx, y(dotStep), p.cls)); }
+                    if (p.v < 4) parts.push((y) => lineEl(p.stemX, y(st) - 0.2 * S, p.stemX, y(stemTopStep), ENGRAVING.stemThickness));
+                    if (p.word) {
+                        const cx = p.x + p.headW / 2;
+                        parts.push((y) => `<text class="notation-text" x="${r(cx)}" y="${r(y(-4))}" font-size="${r(1.5 * S)}" text-anchor="middle">${esc(p.word)}</text>`);
+                        grow(-6, -4);
+                    }
+                }
+                grow(stemTopStep, stemTopStep + 1);
+                // Beams: runs of quavers-or-shorter, next to each other, inside one beat. A lone one is flagged.
+                const beamable = (p) => !p.rest && p.v <= 0.5;
+                const beatOf = (p) => Math.floor((p.start + 1e-6) / beatLen);
+                const runs = [];
+                placed.forEach((p, i) => {
+                    const prev = placed[i - 1];
+                    if (!beamable(p)) return;
+                    if (prev && beamable(prev) && beatOf(prev) === beatOf(p) && runs.length && runs[runs.length - 1].includes(prev)) runs[runs.length - 1].push(p);
+                    else runs.push([p]);
+                });
+                const beamPath = (x1, x2, topStep, down) => (y) => {
+                    const t = y(topStep) + down, b = t + ENGRAVING.beamThickness * S;
+                    return `<path d="M${r(x1)} ${r(t)} L${r(x2)} ${r(t)} L${r(x2)} ${r(b)} L${r(x1)} ${r(b)} Z"/>`;
+                };
+                const level2 = (ENGRAVING.beamThickness + ENGRAVING.beamSpacing) * S;
+                let allBeamed = runs.length === 1 && placed.filter(p => !p.rest).every(p => runs[0].includes(p));
+                for (const run of runs) {
+                    if (run.length === 1) {
+                        const p = run[0];
+                        const flag = p.v <= 0.25 ? 'flag16thUp' : 'flag8thUp';
+                        parts.push((y) => glyphEl(flag, p.stemX - stemW / 2, y(stemTopStep), p.cls));
+                        continue;
+                    }
+                    const first = run[0], last = run[run.length - 1];
+                    parts.push(beamPath(first.stemX - stemW / 2, last.stemX + stemW / 2, stemTopStep, 0));
+                    // Second beam for semiquavers: one beam over each run of them, a part beam for a lone one
+                    // (pointing back at the note before when it's last, otherwise on to the next).
+                    let k = 0;
+                    while (k < run.length) {
+                        if (run[k].v > 0.25) { k++; continue; }
+                        let e = k;
+                        while (e + 1 < run.length && run[e + 1].v <= 0.25) e++;
+                        const a1 = run[k], a2 = run[e];
+                        if (e > k) parts.push(beamPath(a1.stemX - stemW / 2, a2.stemX + stemW / 2, stemTopStep, level2));
+                        else {
+                            const stub = Math.min(1.2 * S, unit * 0.25), toLeft = e === run.length - 1;
+                            parts.push(beamPath(toLeft ? a1.stemX - stub : a1.stemX - stemW / 2, toLeft ? a1.stemX + stemW / 2 : a1.stemX + stub, stemTopStep, level2));
+                        }
+                        k = e + 1;
+                    }
+                }
+                // The tuplet number, over the middle of the group; a bracket when the notes aren't one beam.
+                if (it.tuplet) {
+                    const m = metrics('tuplet' + it.tuplet);
+                    const numStep = stemTopStep + 2;
+                    const mid = (x + groupEnd) / 2;
+                    parts.push((y) => glyphEl('tuplet' + it.tuplet, mid - m.advance * S / 2, y(numStep)));
+                    grow(numStep, numStep + m.top * 2);
+                    if (!allBeamed) {
+                        const bx1 = x, bx2 = groupEnd - 0.4 * S, gap = m.advance * S * 0.7, arm = 0.8 * S;
+                        parts.push((y) => lineEl(bx1, y(numStep + 1) + arm, bx1, y(numStep + 1), ENGRAVING.tupletBracket) + lineEl(bx1, y(numStep + 1), mid - gap, y(numStep + 1), ENGRAVING.tupletBracket)
+                            + lineEl(mid + gap, y(numStep + 1), bx2, y(numStep + 1), ENGRAVING.tupletBracket) + lineEl(bx2, y(numStep + 1), bx2, y(numStep + 1) + arm, ENGRAVING.tupletBracket));
+                    }
+                }
+                x = groupEnd;
+                positions.push({ start, end: x, notes: placed.map(p => ({ x: p.x, rest: !!p.rest })) });
             } else if (it.type === 'timeSig') {
                 // Digits centred on the 4th and 2nd lines' spaces (steps 6 and 2), as printed; C / ¢ on the middle line.
                 // ML-294: the digits are drawn at 80% (TIME_SIG_DIGIT_SCALE) - full size, the two meet on the
@@ -407,7 +571,10 @@
         let body = '';
         for (let i = 0; i <= 8; i += 2) body += lineEl(0, yOf(i), width, yOf(i), ENGRAVING.staffLine);
         body += parts.map((f) => f(yOf)).join('');
-        return { svg: svgWrap(width, height, body, opts.label), width };
+        // tappable (ML-322, the range picker): the staff step at the top edge and the padding, so a tap's
+        // height can be turned back into a staff step (step = hi - (y - pad) / (S / 2), y in SVG units).
+        const extra = opts.tappable ? ` data-step-hi="${hi}" data-step-pad="${pad}"` : '';
+        return { svg: svgWrap(width, height, body, opts.label, extra), width };
     }
 
     // One glyph on its own, trimmed to its own box (dynamics, segno, coda, D.C./D.S., clefs...).

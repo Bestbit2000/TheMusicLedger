@@ -1,5 +1,5 @@
     const API_BASE_URL = window.location.hostname === 'localhost'
-        ? 'http://localhost:3000'
+        ? window.location.origin // any local port (two dev servers can run side by side)
         : `https://${window.location.hostname}`;
 
     // ML-190: real feature gates, backed by the `features` table (admin panel's Features page -
@@ -286,6 +286,13 @@
             set: (keys) => apiCall('/api/practice/skills', 'PUT', { keys }),
             result: (data) => apiCall('/api/practice/skills/result', 'POST', data)
         },
+        // ML-322 / ML-305: your comfortable range per instrument, and the Range tool's goes.
+        range: {
+            get: () => apiCall('/api/range'),
+            set: (instrumentId, bottom, top) => apiCall(`/api/range/${instrumentId}`, 'PUT', { bottom, top }),
+            go: (instrumentId, data) => apiCall(`/api/range/${instrumentId}/goes`, 'POST', data),
+            move: (instrumentId, direction) => apiCall(`/api/range/${instrumentId}/move`, 'POST', { direction })
+        },
         levels: {
             get: (flowId) => apiCall(`/api/flows/${flowId}/levels`),
             save: (flowId, chunks) => apiCall(`/api/flows/${flowId}/levels`, 'PUT', { chunks }),
@@ -296,6 +303,11 @@
             summary: (tool) => apiCall(`/api/drills/${tool}/summary`),
             history: (tool, level) => apiCall(`/api/drills/${tool}/attempts?level=${encodeURIComponent(level)}`),
             save: (tool, data) => apiCall(`/api/drills/${tool}/attempts`, 'POST', data)
+        },
+        // ML-306: each rhythm's speed Level and your own word for it.
+        rhythm: {
+            levels: () => apiCall('/api/rhythm'),
+            setWord: (patternId, word) => apiCall(`/api/rhythm/${encodeURIComponent(patternId)}/word`, 'PUT', { word })
         },
         theory: {
             summary: () => apiCall('/api/theory/summary'),
@@ -717,6 +729,8 @@
         document.getElementById('tapTempoToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('tap_tempo'));
         document.getElementById('gapTrainerToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('gap_trainer'));
         document.getElementById('earToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('ear_training'));
+        document.getElementById('rangeToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('range_trainer'));
+        document.getElementById('rhythmToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('rhythm_trainer'));
         const manage = isFeatureEnabled('flow_manage');
         document.getElementById('myMusicNavItem')?.classList.toggle('hidden-group', !manage);
         document.getElementById('flowPlayMenuCreateNew')?.classList.toggle('hidden-group', !manage);
@@ -939,7 +953,7 @@
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
         accountDetailsView: 'accountView', accountInstrumentsView: 'accountView', accountBandsView: 'accountView', accountTeachersView: 'accountView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
-        tapTempoPlayView: 'tapTempoView', gapTrainerPlayView: 'gapTrainerView', earPlayView: 'earView',
+        tapTempoPlayView: 'tapTempoView', gapTrainerPlayView: 'gapTrainerView', earPlayView: 'earView', rhythmPlayView: 'rhythmView',
         challengeSelectView: 'manageChallengesView', challengePlayView: 'manageChallengesView', challengeSummaryView: 'manageChallengesView', editChallengeView: 'manageChallengesView' };
     function markNavCurrent() {
         const top = viewStack[viewStack.length - 1] || 'mainView';
@@ -1150,7 +1164,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'pieceLevelsView', 'sessionPlanView', 'sessionRunView', 'practiceListView', 'skillsView'];
+    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'pieceLevelsView', 'sessionPlanView', 'sessionRunView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -1216,6 +1230,8 @@
         if (isShown('tapTempoPlayView') && viewName !== 'tapTempoPlayView') tapStop();
         if (isShown('gapTrainerPlayView') && viewName !== 'gapTrainerPlayView') gapStop();
         if (isShown('earPlayView') && viewName !== 'earPlayView') earStop();
+        if (isShown('rangeView') && viewName !== 'rangeView') rangeStop();
+        if (isShown('rhythmPlayView') && viewName !== 'rhythmPlayView') rhythmStop();
 
         if (viewStack[viewStack.length - 1] === 'quickPlayView' && viewName !== 'quickPlayView' && qpPlayer.isPlaying()) {
             qpPlayer.pause();
@@ -1289,6 +1305,9 @@
         if (viewName === 'tapTempoView') { document.getElementById('topTitle').innerText = 'Tempo'; renderTapTempoSetup(); tapPlayer.prewarm(); }
         if (viewName === 'gapTrainerView') { document.getElementById('topTitle').innerText = 'Pulse'; renderGapTrainerSetup(); gapPlayer.prewarm(); }
         if (viewName === 'earView') { document.getElementById('topTitle').innerText = 'Pitch'; renderEarSetup(); }
+        if (viewName === 'rangeView') { document.getElementById('topTitle').innerText = 'Range'; renderRangeView(); rangePlayer.prewarm(); }
+        if (viewName === 'rhythmView') { document.getElementById('topTitle').innerText = 'Rhythm'; renderRhythmView(); rhythmPlayer.prewarm(); }
+        if (viewName === 'rhythmPlayView') document.getElementById('topTitle').innerText = 'Rhythm';
         if (viewName === 'tapTempoPlayView') document.getElementById('topTitle').innerText = DRILL_TITLES.tapTempo;
         if (viewName === 'gapTrainerPlayView') document.getElementById('topTitle').innerText = DRILL_TITLES.gapTrainer;
         if (viewName === 'earPlayView') document.getElementById('topTitle').innerText = DRILL_TITLES.ear;
@@ -3224,7 +3243,7 @@
         if (!list) return;
         list.innerHTML = myInstruments.length ? myInstruments.map(i => `
             <div class="history-item">
-                <span class="grow"><strong>${escapeHtml(i.name)}</strong><br><span class="text-sm text-muted">${i.isPrimary ? 'Main instrument' : escapeHtml(i.family)}</span></span>
+                <span class="grow"><strong>${escapeHtml(i.name)}</strong><br><span class="text-sm text-muted">${i.isPrimary ? 'Main instrument' : escapeHtml(i.family)}${isFeatureEnabled('range_trainer') && i.bottomNote && i.topNote ? ` · range ${PlayRange.label(i.bottomNote)} to ${PlayRange.label(i.topNote)}` : ''}</span></span>
                 <button class="btn-icon-edit" data-instrument-menu-id="${i.id}" aria-label="Options for ${escapeHtml(i.name)}" aria-haspopup="menu"><span class="material-symbols-outlined">more_vert</span></button>
             </div>`).join('') : '<div class="text-muted">No instruments yet - choose the one you play below.</div>';
         list.querySelectorAll('[data-instrument-menu-id]').forEach(btn => btn.addEventListener('click', (e) => {
@@ -3261,6 +3280,7 @@
         if (!menu) return;
         accountInstrumentMenuTargetId = id;
         setShown('accountInstrumentMenuMain', !myInstruments.find(i => i.id === id)?.isPrimary);
+        setShown('accountInstrumentMenuRange', isFeatureEnabled('range_trainer') && !!myInstruments.find(i => i.id === id)?.rangeLow); // ML-322
         menu.classList.add('show');
         const r = btnEl.getBoundingClientRect();
         const left = Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8));
@@ -3268,6 +3288,12 @@
     }
     function closeAccountInstrumentMenu() { document.getElementById('accountInstrumentMenu')?.classList.remove('show'); }
     document.addEventListener('click', closeAccountInstrumentMenu);
+    document.getElementById('accountInstrumentMenuRange')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAccountInstrumentMenu();
+        rangeData = null; // fresh, in case it changed on another screen
+        openRangePicker(accountInstrumentMenuTargetId);
+    });
     document.getElementById('accountInstrumentMenuMain')?.addEventListener('click', (e) => {
         e.stopPropagation();
         closeAccountInstrumentMenu();
@@ -5273,7 +5299,7 @@
     // (public/practicePlan.js). The runner counts each block by the wall clock; at 4:30 the sound stops
     // and a 30-second nudge moves you on, Keep going nudges again 5 minutes later. A session that ends
     // (or is ended) is logged as one practice session with its blocks (POST /api/practice/sessions).
-    const SESSION_TOOL_VIEWS = { warmups: 'warmupsView', scales: 'scalesView', tapTempo: 'tapTempoView', gapTrainer: 'gapTrainerView', ear: 'earView' };
+    const SESSION_TOOL_VIEWS = { warmups: 'warmupsView', scales: 'scalesView', tapTempo: 'tapTempoView', gapTrainer: 'gapTrainerView', ear: 'earView', range: 'rangeView', rhythm: 'rhythmView' };
     const sessPlan = { minutes: 45, template: 'standard', focus: 'both', blocks: [], chunks: [], edited: false };
     var practiceRun = null; // var: switchView checks it before this line has run
     let practiceTick = null;
@@ -5870,6 +5896,19 @@
         ...Object.fromEntries(Warmups.KINDS.map(k => [`warmups:${k.id}`, {
             label: `Warm-ups - ${k.label.toLowerCase()}`, tool: 'warmups', graded: false, kind: k.id,
             steps: () => (warmupsAll || []).filter(ex => ex.kind === k.id).map(ex => ({ id: ex.id, label: ex.title }))
+        }])),
+        // ML-306: Rhythm (feature rhythm_trainer), one entry per set; its steps are the set's rhythms,
+        // passed at grade 4 or 5 (saveDrill -> skillDrillSaved, the rhythm id is the drill level).
+        ...Object.fromEntries(Rhythm.SETS.map(set => [`rhythm:${set.id}`, {
+            label: `Rhythm - ${set.label.toLowerCase()}`, tool: 'rhythm', graded: true, set: set.id, feature: 'rhythm_trainer',
+            steps: () => Rhythm.patternsIn(set.id).map(p => ({ id: p.id, label: p.name }))
+        }])),
+        // ML-305: Range (feature range_trainer). The step is always the note just beyond your range on
+        // your main instrument - it moves with your range (rangeSkillSteps), so it isn't a fixed ladder.
+        ...Object.fromEntries(['up', 'down'].map(dir => [`range:${dir}`, {
+            label: dir === 'up' ? 'Range - top notes' : 'Range - bottom notes', tool: 'range', graded: false, direction: dir, rolling: true, feature: 'range_trainer',
+            desc: 'moves on when a note reaches Level 5 and you move your range',
+            steps: () => rangeSkillSteps(dir)
         }]))
     };
     let skillsData = [];        // your list, from the server, with each skill's steps attached
@@ -5879,15 +5918,17 @@
         const def = SKILLS[item.key];
         if (!def) return null;
         const steps = def.steps();
+        if (def.rolling) return { ...item, stepIndex: 0, def, steps, done: steps.length === 0, step: steps[0] || null };
         return { ...item, def, steps, done: steps.length > 0 && item.stepIndex >= steps.length, step: steps[Math.min(item.stepIndex, Math.max(0, steps.length - 1))] || null };
     }
     async function loadSkills() {
         await warmupsLoad(); // the Warm-ups skills' steps are the exercises
+        if (isFeatureEnabled('range_trainer') && !rangeData) await rangeLoad(); // Range's step is the note beyond your range
         try { skillsData = ((await API.skills.list()).skills || []).map(skillWithSteps).filter(Boolean); }
         catch (e) { skillsData = []; }
         return skillsData;
     }
-    const skillStepText = (s) => (s.done ? 'All done' : `Step ${s.stepIndex + 1} of ${s.steps.length}: ${s.step ? s.step.label : ''}`);
+    const skillStepText = (s) => (s.done ? 'All done' : s.def.rolling ? `Now: ${s.step ? s.step.label : ''}` : `Step ${s.stepIndex + 1} of ${s.steps.length}: ${s.step ? s.step.label : ''}`);
     function renderSkills() {
         const box = document.getElementById('skillsList');
         if (!box) return;
@@ -5896,7 +5937,7 @@
                 <div class="grow">
                     <strong>${escapeHtml(s.def.label)}</strong><br><span class="text-sm text-muted">${escapeHtml(skillStepText(s))}</span>
                     <span class="level-strip mt-1" aria-hidden="true">${s.steps.map((st, k) => `<span class="level-cell lv-${k < s.stepIndex ? 5 : k === s.stepIndex ? 2 : 0}"></span>`).join('')}</span>
-                    ${s.done ? '' : `<div class="flex-row gap-sm mt-2"><button type="button" class="btn-nav grow no-margin" data-skill-go="${i}">Practise</button>${!s.def.graded ? `<button type="button" class="btn-nav grow no-margin" data-skill-got="${i}">Got it</button>` : ''}</div>`}
+                    ${s.done ? '' : `<div class="flex-row gap-sm mt-2"><button type="button" class="btn-nav grow no-margin" data-skill-go="${i}">Practise</button>${!s.def.graded && !s.def.rolling ? `<button type="button" class="btn-nav grow no-margin" data-skill-got="${i}">Got it</button>` : ''}</div>`}
                 </div>
                 <button type="button" class="flow-delete-btn" data-skill-remove="${i}" aria-label="Take ${escapeHtml(s.def.label)} off your list"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
             </div>`).join('') : '<p class="text-sm text-muted">No skills yet. Add the ones you want to work on.</p>';
@@ -5916,9 +5957,9 @@
     function openSkillsAddModal() {
         const have = new Set(skillsData.map(s => s.key));
         const box = document.getElementById('skillsAddOptions');
-        const keys = Object.keys(SKILLS).filter(k => !have.has(k));
-        box.innerHTML = keys.length ? keys.map(k => `<button type="button" class="flow-choice-option level-answer" data-add-skill="${k}"><span><strong>${escapeHtml(SKILLS[k].label)}</strong><br><span class="text-sm text-muted">${SKILLS[k].steps().length} steps · ${SKILLS[k].graded ? 'moves on at grade 4 or 5' : 'you say when you\'ve got it'}</span></span></button>`).join('')
-            : '<p class="metro-help-text">Every skill is on your list already. More are coming: Range and Rhythm.</p>';
+        const keys = Object.keys(SKILLS).filter(k => !have.has(k) && (!SKILLS[k].feature || isFeatureEnabled(SKILLS[k].feature)));
+        box.innerHTML = keys.length ? keys.map(k => `<button type="button" class="flow-choice-option level-answer" data-add-skill="${k}"><span><strong>${escapeHtml(SKILLS[k].label)}</strong><br><span class="text-sm text-muted">${SKILLS[k].rolling ? SKILLS[k].desc : `${SKILLS[k].steps().length} steps · ${SKILLS[k].graded ? 'moves on at grade 4 or 5' : 'you say when you\'ve got it'}`}</span></span></button>`).join('')
+            : '<p class="metro-help-text">Every skill is on your list already.</p>';
         box.querySelectorAll('[data-add-skill]').forEach(b => b.addEventListener('click', async () => {
             hideModal('skillsAddModal');
             try { skillsData = ((await API.skills.set([...skillsData.map(s => s.key), b.dataset.addSkill])).skills || []).map(skillWithSteps).filter(Boolean); renderSkills(); }
@@ -5941,6 +5982,15 @@
             if (scales.form !== 'major') scales.minorForm = 'harmonic';
             scales.type = 'scale';
             scalesChanged();
+        } else if (s.def.tool === 'rhythm') {
+            rhythmState.set = s.def.set;
+            rhythmState.pattern = st.id;
+            drillStore('rhythm', rhythmState);
+            switchView('rhythmView');
+        } else if (s.def.tool === 'range') {
+            rangeState.direction = s.def.direction;
+            rangeStore();
+            switchView('rangeView');
         } else if (s.def.tool === 'warmups') {
             skillWarmupsKind = s.def.kind;
             warmups.currentId = st.id;
@@ -15051,7 +15101,8 @@
         };
         let summary = {}, weak = null, loaded = false;
         const draw = () => {
-            list.innerHTML = TheoryEngine.QUIZZES.map(q => row(q, summary[q.id])).join('') + (weak ? weakRow(weak) : '');
+            // ML-309 C: the grade-only quizzes (Intervals, Chords) only while Theory grades are on.
+            list.innerHTML = TheoryEngine.QUIZZES.filter(q => !q.gradeOnly || theoryGradesOn()).map(q => row(q, summary[q.id])).join('') + (weak ? weakRow(weak) : '');
             list.querySelectorAll('[data-quiz]').forEach(b => b.addEventListener('click', () => openTheoryOptions(b.dataset.quiz)));
         };
         draw();
@@ -15084,7 +15135,9 @@
             choices: d.key === 'clefs' && gradeClefs ? d.choices.filter(c => gradeClefs.includes(c.value)) : d.choices,
             isOn: (v) => (d.multi ? theoryOptions[d.key].includes(v) : theoryOptions[d.key] === v)
         }));
-        if (theoryGradesOn() && quiz.options.length) groups.unshift({ ...THEORY_GRADE_GROUP, isOn: (v) => theoryOptions.grade === v });
+        // A grade-only quiz (ML-309 C) offers just its own grades - no Custom.
+        const gradeGroup = quiz.gradeOnly ? { ...THEORY_GRADE_GROUP, choices: THEORY_GRADE_GROUP.choices.filter(c => quiz.grades.includes(c.value)) } : THEORY_GRADE_GROUP;
+        if (theoryGradesOn() && quiz.options.length) groups.unshift({ ...gradeGroup, isOn: (v) => theoryOptions.grade === v });
         groups.push({ key: 'round', label: 'Round', multi: false, choices: TheoryEngine.ROUNDS.map(r => ({ value: r.value, label: r.label })), isOn: (v) => theoryRoundId === v });
         const form = document.getElementById('theoryOptionsForm');
         form.innerHTML = groups.map(g => `
@@ -15276,7 +15329,8 @@
             theoryMarkAnswer(id, 'wrong');
             theoryMarkAnswer(q.correct, 'right');
             const label = q.answers.find(a => a.id === q.correct).label;
-            document.getElementById('theoryFeedback').textContent = `Not quite: it's ${label}`;
+            // A question can say why instead (the chromatic scale's Yes/No, ML-309 C).
+            document.getElementById('theoryFeedback').textContent = q.feedback || `Not quite: it's ${label}`;
         }
         theoryUpdateTally();
         const finished = r.questions && r.answers.length >= r.questions;
@@ -15375,7 +15429,7 @@
     // chosen level is remembered on the device (localStorage tml.drills.<tool>). See docs/drills.md and
     // specs/components/drills.md.
     // On screen they're Tempo, Pulse and Pitch (tool groups, 2026-09-26); the ids stay tapTempo / gapTrainer / ear.
-    const DRILL_TITLES = { tapTempo: 'Tempo', gapTrainer: 'Pulse', ear: 'Pitch' };
+    const DRILL_TITLES = { tapTempo: 'Tempo', gapTrainer: 'Pulse', ear: 'Pitch', rhythm: 'Rhythm' };
     function drillStored(tool) { try { return JSON.parse(localStorage.getItem(`tml.drills.${tool}`) || '{}') || {}; } catch (e) { return {}; } }
     function drillStore(tool, v) { try { localStorage.setItem(`tml.drills.${tool}`, JSON.stringify(v)); } catch (e) { /* per-device convenience only */ } }
     const drillNow = () => performance.now();
@@ -15919,6 +15973,539 @@
             },
         };
     }
+
+    // ========================================
+    // RANGE (Jira ML-305 / ML-322)
+    // ========================================
+    // Your comfortable range per instrument (My account -> Your instruments -> Your range..., or the
+    // Range screen's own button) and the Range tool: play the scale to your top note (or down to your
+    // bottom one), then hold the next note - the tuner counts the beats (or you say Held it / Not yet),
+    // each note beyond your range gets a Level, and at Level 5 it asks to move your range. Rules in
+    // public/range.js (PlayRange); saved by server/services/range.js; docs/range.md. Feature range_trainer.
+    const RANGE_STORE = 'tml.range'; // per device: { instrumentId, direction, bpm }
+    let rangeState = (() => { try { return { direction: 'up', bpm: 60, instrumentId: null, ...(JSON.parse(localStorage.getItem(RANGE_STORE) || '{}') || {}) }; } catch (e) { return { direction: 'up', bpm: 60, instrumentId: null }; } })();
+    const rangeStore = () => { try { localStorage.setItem(RANGE_STORE, JSON.stringify(rangeState)); } catch (e) { /* per device only */ } };
+    let rangeData = null;       // GET /api/range: your instruments, their ranges and Levels
+    let rangeGo = null;         // the go in progress (listening), or null
+    let rangePick = null;       // the range picker while it's open
+    let rangeTuner = null;      // one microphone engine for both the go and "Measure it"
+    const rangePlayer = createMetronomePlayer();
+    rangePlayer.setVisualLatencyMs(metroState.latencyMs);
+    const RANGE_BPMS = [50, 60, 72];
+    const rangeLabel = (p) => (p ? PlayRange.label(p) : '');
+    const rangeBeatsText = (b) => `${Math.round(b * 10) / 10} beat${Math.round(b * 10) === 10 ? '' : 's'}`;
+
+    async function rangeLoad() {
+        try { rangeData = await API.range.get(); } catch (e) { rangeData = { instruments: [] }; }
+        return rangeData;
+    }
+    // The instruments Range works on (a typical range known), and the one picked (per device, else main).
+    const rangeInstruments = () => ((rangeData && rangeData.instruments) || []).filter(i => i.outer);
+    function rangeInstrument() {
+        const list = rangeInstruments();
+        return list.find(i => i.instrumentId === rangeState.instrumentId) || list.find(i => i.isPrimary) || list[0] || null;
+    }
+    const rangeOf = (inst) => ({ bottom: inst.bottom, top: inst.top });
+    const rangeLevelOf = (inst, midi) => inst.levels.find(l => l.midi === midi) || { level: 0, streak: 0, bestBeats: 0, goes: 0 };
+
+    async function renderRangeView() {
+        await rangeLoad();
+        renderRangeSetup();
+    }
+    function renderRangeSetup() {
+        const list = rangeInstruments(), inst = rangeInstrument();
+        const setBtn = document.getElementById('rangeSetBtn');
+        if (!inst) {
+            renderDrillOptions('range', [], () => {});
+            document.getElementById('rangeSummary').textContent = 'Range works on a wind, brass or string instrument. Add the one you play in My account → Your instruments.';
+            setBtn.textContent = 'Your instruments';
+            setBtn.onclick = () => switchView('accountInstrumentsView');
+            setShown('rangeWork', false);
+            return;
+        }
+        const groups = [];
+        if (list.length > 1) groups.push({ key: 'instrument', label: 'Instrument', value: inst.instrumentId, choices: list.map(i => ({ value: i.instrumentId, label: i.name })) });
+        groups.push({ key: 'direction', label: 'Work on', value: rangeState.direction, choices: [{ value: 'up', label: 'Top notes' }, { value: 'down', label: 'Bottom notes' }] });
+        groups.push({ key: 'bpm', label: 'Speed', value: rangeState.bpm, choices: RANGE_BPMS.map(b => ({ value: b, label: `${b} bpm` })), help: 'One beat of the hold is one click.' });
+        renderDrillOptions('range', groups, (key, value) => {
+            if (key === 'instrument') rangeState.instrumentId = value; else rangeState[key] = value;
+            rangeStore();
+            rangeStop();
+            renderRangeSetup();
+        });
+        const set = !PlayRange.checkRange(rangeOf(inst), inst.outer);
+        document.getElementById('rangeSummary').textContent = set
+            ? `Your comfortable range on ${inst.name}: ${rangeLabel(inst.bottom)} to ${rangeLabel(inst.top)}.`
+            : `Set the notes you can play comfortably on ${inst.name} first.`;
+        setBtn.textContent = set ? 'Change your range' : 'Set your range';
+        setBtn.onclick = () => openRangePicker(inst.instrumentId);
+        setShown('rangeWork', set);
+        document.getElementById('rangeFeedback').textContent = '';
+        if (set) renderRangeWork();
+    }
+    function renderRangeWork() {
+        const inst = rangeInstrument();
+        if (!inst) return;
+        const dir = rangeState.direction, range = rangeOf(inst);
+        const r = PlayRange.run(range, inst.outer, dir);
+        const staff = document.getElementById('rangeStaff');
+        if (!r) {
+            staff.innerHTML = '';
+            document.getElementById('rangeTargetLine').textContent = dir === 'up'
+                ? `${rangeLabel(inst.top)} is the top of ${inst.name}'s range - nothing higher to work on.`
+                : `${rangeLabel(inst.bottom)} is the bottom of ${inst.name}'s range - nothing lower to work on.`;
+            ['rangeLevels', 'rangeBeats'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+            ['rangeStartBtn', 'rangeHeldBtn', 'rangeNotYetBtn'].forEach(id => { document.getElementById(id).disabled = true; });
+            return;
+        }
+        ['rangeStartBtn', 'rangeHeldBtn', 'rangeNotYetBtn'].forEach(id => { document.getElementById(id).disabled = false; });
+        const written = PlayRange.writeRun(r.notes);
+        const items = written.map((n, i) => ({ type: 'note', pitch: n.pitch, accidental: n.accidental, cls: i === written.length - 1 ? 'is-now' : null }));
+        const edge = dir === 'up' ? inst.top : inst.bottom;
+        staff.innerHTML = Notation.staff({ clef: inst.clef, items, noteGap: 1.1, label: `The scale ${dir === 'up' ? 'up' : 'down'} to ${rangeLabel(edge)}, then ${rangeLabel(r.target.pitch)} to hold` });
+        const lv = rangeLevelOf(inst, r.target.midi);
+        document.getElementById('rangeTargetLine').textContent = lv.level === 5
+            ? `${rangeLabel(r.target.pitch)} is at Level 5 - after your next go, it asks to make it your new ${dir === 'up' ? 'top' : 'bottom'} note`
+            : lv.goes
+            ? `Hold ${rangeLabel(r.target.pitch)}: Level ${lv.level} · best ${rangeBeatsText(lv.bestBeats)} · ${Math.min(lv.streak, PlayRange.IN_A_ROW)} of ${PlayRange.IN_A_ROW} in a row at 8 beats`
+            : `Hold ${rangeLabel(r.target.pitch)}: not tried yet`;
+        // Every note beyond your range (nearest first, the one you're on marked), each its own Level.
+        const beyond = PlayRange.notesBeyond(range, inst.outer, dir).slice(0, 12);
+        const strip = document.getElementById('rangeLevels');
+        strip.innerHTML = beyond.map((n, i) => `<span class="level-cell lv-${rangeLevelOf(inst, n.midi).level}${i === 0 ? ' is-marked' : ''}"></span>`).join('');
+        strip.setAttribute('aria-label', 'Notes beyond your range: ' + beyond.map(n => { const l = rangeLevelOf(inst, n.midi).level; return `${rangeLabel(n.pitch)} ${l ? `Level ${l}` : 'not tried'}`; }).join(', '));
+        rangeShowBeats(0);
+    }
+    // Eight dots, one per beat of the hold that makes a Level 5 go.
+    function rangeShowBeats(beats) {
+        const el = document.getElementById('rangeBeats');
+        el.innerHTML = Array.from({ length: PlayRange.HOLD_BEATS }, (_, i) => `<span class="drill-beat${i < Math.floor(beats) ? ' is-now' : ''}"></span>`).join('');
+    }
+
+    // --- A go with the microphone: a bar of clicks, then clicks all the way; play the scale, then hold. ---
+    function rangeEnsureTuner() {
+        if (!rangeTuner) { rangeTuner = createTunerEngine(); rangeTuner.onPitch(rangeOnPitch); }
+        return rangeTuner;
+    }
+    async function rangeStart() {
+        if (rangeGo) { rangeFinish(); return; } // the button is Stop while listening
+        const inst = rangeInstrument();
+        const r = inst && PlayRange.run(rangeOf(inst), inst.outer, rangeState.direction);
+        if (!r) return;
+        const ok = await rangeEnsureTuner().start();
+        if (!ok) { showWarningToast('Range listens with the microphone - allow it, or use Held it / Not yet.'); return; }
+        rangeGo = { inst, direction: rangeState.direction, bpm: rangeState.bpm, target: r.target, tracker: PlayRange.holdTracker(r.target.midi, rangeState.bpm), t0: drillNow(), heard: null };
+        rangeGo.timer = setTimeout(() => rangeFinish(), 60000);
+        rangePlayer.setConductorBpm(rangeGo.bpm);
+        rangePlayer.setConductorBeatsPerBar(4);
+        rangePlayer.setNotesPerBeat(1);
+        rangePlayer.setSubdivisionFactor(1);
+        rangePlayer.setClickFilter(null);
+        rangePlayer.resetToBarStart();
+        rangePlayer.play();
+        document.getElementById('rangeStartBtn').textContent = 'Stop';
+        document.getElementById('rangeFeedback').textContent = `Play the scale, then hold ${rangeLabel(r.target.pitch)}`;
+        rangeShowBeats(0);
+    }
+    function rangeOnPitch(freq, rms) {
+        const heard = (inst) => (freq > 0 && rms > 0.01 ? PlayRange.heardWritten(freq, inst.writtenToConcert, tunerA4Freq) : null);
+        if (rangePick && rangePick.measurer) return rangeMeasureFeed(heard(rangePick.inst));
+        const g = rangeGo;
+        if (!g || g.done) return;
+        const h = heard(g.inst);
+        const st = g.tracker.feed(drillNow() - g.t0, h ? h.midi : null);
+        rangeShowBeats(st.beats);
+        const fb = document.getElementById('rangeFeedback');
+        if (st.holding) fb.textContent = `Holding ${rangeLabel(g.target.pitch)}: ${rangeBeatsText(st.beats)}`;
+        else if (h && h.midi !== g.heard) { g.heard = h.midi; fb.textContent = `Hearing ${rangeLabel(PlayRange.pitchOf(h.midi, 'usual'))} - hold ${rangeLabel(g.target.pitch)}`; }
+        if (st.done) rangeFinish();
+    }
+    // Stops listening and the clicks (leaving the screen, or Stop) without saving anything.
+    function rangeStop() {
+        const g = rangeGo;
+        if (g) { g.done = true; clearTimeout(g.timer); }
+        rangeGo = null;
+        if (rangePlayer.isPlaying()) rangePlayer.pause();
+        if (rangeTuner && rangeTuner.isActive() && !(rangePick && rangePick.measurer)) rangeTuner.stop();
+        const btn = document.getElementById('rangeStartBtn');
+        if (btn) btn.textContent = 'Start - listen with the microphone';
+    }
+    async function rangeFinish() {
+        const g = rangeGo;
+        if (!g || g.done) return;
+        const st = g.tracker.state(drillNow() - g.t0);
+        rangeStop();
+        if (!(st.beats > 0)) {
+            document.getElementById('rangeFeedback').textContent = `I didn't hear ${rangeLabel(g.target.pitch)} - try again, or use Held it / Not yet.`;
+            return;
+        }
+        await rangeSaveGo(g.inst, g.direction, st.beats, g.bpm, 'mic');
+    }
+    // A go, measured or self-rated: saved (the server works out the Level), then maybe "move your range?".
+    async function rangeSaveGo(inst, direction, beats, bpm, method) {
+        let out;
+        try { out = await API.range.go(inst.instrumentId, { direction, beats, bpm, method }); }
+        catch (e) { showWarningToast('Not saved: ' + e.message); return; }
+        const i = inst.levels.findIndex(l => l.midi === out.midi);
+        const lv = { midi: out.midi, note: out.note, level: out.level, bestBeats: out.bestBeats, streak: out.streak, goes: out.goes };
+        if (i >= 0) inst.levels[i] = lv; else inst.levels.push(lv);
+        const inRow = out.streak > 0 && out.level < 5 ? ` · ${out.streak} of ${PlayRange.IN_A_ROW} in a row` : '';
+        document.getElementById('rangeFeedback').textContent = method === 'self'
+            ? `${rangeLabel(out.note)}: ${beats >= PlayRange.HOLD_BEATS ? 'held' : 'not yet'} - Level ${out.level}${inRow}`
+            : `${rangeLabel(out.note)}: held ${rangeBeatsText(beats)} - Level ${out.level}${inRow}`;
+        renderRangeWork();
+        rangeShowBeats(beats);
+        rangeSkillGo(direction, false);
+        // Asks on the go that reaches Level 5, and again after any later go if you said Not yet.
+        if (out.level === 5) rangeAskToMove(inst, direction, out.note);
+    }
+    function rangeAskToMove(inst, direction, note) {
+        const which = direction === 'up' ? 'top' : 'bottom';
+        showConfirmModal('Move your range?',
+            `${rangeLabel(note)} is at Level 5 - held for 8 beats three goes in a row. Make it your new ${which} note on ${inst.name}?`,
+            async () => {
+                try {
+                    rangeData = await API.range.move(inst.instrumentId, direction);
+                    rangeSkillGo(direction, true);
+                    renderRangeSetup();
+                    showSuccessToast(`Your ${which} note is now ${rangeLabel(note)}`);
+                } catch (e) { showWarningToast('Not moved: ' + e.message); }
+            }, false, 'Move it', 'Not yet');
+    }
+    document.getElementById('rangeStartBtn')?.addEventListener('click', () => rangeStart());
+    document.getElementById('rangeHeldBtn')?.addEventListener('click', () => { const inst = rangeInstrument(); if (inst) { rangeStop(); rangeSaveGo(inst, rangeState.direction, PlayRange.SELF_BEATS.held, rangeState.bpm, 'self'); } });
+    document.getElementById('rangeNotYetBtn')?.addEventListener('click', () => { const inst = rangeInstrument(); if (inst) { rangeStop(); rangeSaveGo(inst, rangeState.direction, PlayRange.SELF_BEATS.notYet, rangeState.bpm, 'self'); } });
+
+    // --- Skills (ML-321): "Range - top notes" / "Range - bottom notes" on your main instrument. The step
+    // is always the note just beyond your range (it moves with your range), so every go counts as
+    // practice and moving your range passes the step.
+    function rangeSkillSteps(direction) {
+        const inst = rangeInstrument();
+        if (!inst || PlayRange.checkRange(rangeOf(inst), inst.outer)) return [{ id: 'set', label: 'Set your range' }];
+        return PlayRange.notesBeyond(rangeOf(inst), inst.outer, direction).map(n => ({ id: n.pitch, label: `Hold ${rangeLabel(n.pitch)}` }));
+    }
+    function rangeSkillGo(direction, moved) {
+        const s = (skillsData || []).find(x => x.key === `range:${direction}`);
+        if (!s || !s.steps.length) return;
+        API.skills.result({ key: s.key, stepIndex: 0, passed: moved, grade: null, stepCount: s.steps.length })
+            .then(out => { skillsData = (out.skills || []).map(skillWithSteps).filter(Boolean); })
+            .catch(() => { /* the go itself is saved; the skill's "last practised" can wait */ });
+        if (practiceRun && practiceRun.blocks[practiceRun.index] && practiceRun.blocks[practiceRun.index].skill) practiceRun.blocks[practiceRun.index].skillRated = true;
+    }
+
+    // --- The range picker: two staves (bottom, top) - tap near a note, then -/+ a semitone - or measure
+    // it with the tuner. Used from the Range screen and from My account -> Your instruments.
+    async function openRangePicker(instrumentId, then) {
+        if (!rangeData) await rangeLoad();
+        const inst = ((rangeData && rangeData.instruments) || []).find(i => i.instrumentId === instrumentId && i.outer);
+        if (!inst) { showWarningToast('Range doesn\'t apply to this instrument.'); return; }
+        const outer = inst.outer;
+        // Not set yet: start on the bottom and top lines of the stave, inside the instrument's range.
+        const start = (step) => PlayRange.pitchAtStep(step, inst.clef, outer);
+        rangePick = { inst, then, bottom: inst.bottom || start(0), top: inst.top || start(8), measurer: null };
+        document.getElementById('rangePickerTitle').textContent = `Your range - ${inst.name}`;
+        document.getElementById('rangeMeasureStatus').textContent = '';
+        document.getElementById('rangeMeasureBtn').textContent = 'Measure it with the tuner';
+        renderRangePicker();
+        showModal('rangePickerModal');
+    }
+    // The stave shows the notes the instrument reaches around a normal stave; a note further out still
+    // draws (the stave grows) and -/+ reach it.
+    const RANGE_PICKER_STEPS = [-6, 14];
+    function renderRangePicker() {
+        const p = rangePick;
+        if (!p) return;
+        for (const edge of ['bottom', 'top']) {
+            const cap = edge === 'bottom' ? 'Bottom' : 'Top';
+            const pitch = p[edge];
+            document.getElementById(`range${cap}Stave`).innerHTML = theoryScaleSvg(Notation.staff({ clef: p.inst.clef, items: [{ type: 'note', pitch }], stepRange: RANGE_PICKER_STEPS, minWidth: 12, tappable: true }), 1.4);
+            document.getElementById(`range${cap}Stave`).setAttribute('aria-label', `${cap} note: ${rangeLabel(pitch)}. Tap the stave near a note to pick it`);
+            document.getElementById(`range${cap}Value`).textContent = rangeLabel(pitch);
+        }
+    }
+    // A tap's height on the stave -> the staff step there -> that natural note (inside the range).
+    function rangePickerTap(edge, e) {
+        const p = rangePick;
+        const svg = e.currentTarget.querySelector('svg');
+        if (!p || !svg || e.detail === 0) return; // keyboard "click": -/+ do the picking
+        const rect = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
+        const y = (e.clientY - rect.top) * (vb.height / rect.height);
+        const step = Number(svg.dataset.stepHi) - (y - Number(svg.dataset.stepPad)) / (Notation.S / 2);
+        p[edge] = PlayRange.pitchAtStep(step, p.inst.clef, p.inst.outer);
+        renderRangePicker();
+    }
+    for (const edge of ['bottom', 'top']) {
+        const cap = edge === 'bottom' ? 'Bottom' : 'Top';
+        document.getElementById(`range${cap}Stave`)?.addEventListener('click', (e) => rangePickerTap(edge, e));
+        document.getElementById(`range${cap}Minus`)?.addEventListener('click', () => { if (rangePick) { rangePick[edge] = PlayRange.stepSemitone(rangePick[edge], -1, rangePick.inst.outer); renderRangePicker(); } });
+        document.getElementById(`range${cap}Plus`)?.addEventListener('click', () => { if (rangePick) { rangePick[edge] = PlayRange.stepSemitone(rangePick[edge], 1, rangePick.inst.outer); renderRangePicker(); } });
+    }
+    // Measure it: play slowly down to your lowest note and up to your highest; each note held steady for
+    // a second counts. Stop measuring puts the lowest and highest into the picker (still to save).
+    async function rangeMeasureToggle() {
+        const p = rangePick;
+        if (!p) return;
+        const status = document.getElementById('rangeMeasureStatus');
+        if (p.measurer) {
+            const res = p.measurer.result();
+            rangeMeasureEnd();
+            if (res.bottom) p.bottom = res.bottom;
+            if (res.top && (!res.bottom || res.high > res.low)) p.top = res.top;
+            status.textContent = res.bottom ? `Measured: ${rangeLabel(res.bottom)} to ${rangeLabel(res.top)}. Adjust with − and + if you like, then Save.` : 'Nothing held long enough to measure - try again, holding each note for a second.';
+            renderRangePicker();
+            return;
+        }
+        rangeStop();
+        const ok = await rangeEnsureTuner().start();
+        if (!ok) { status.textContent = 'Measuring needs the microphone - allow it and try again, or pick the notes on the staves.'; return; }
+        p.measurer = PlayRange.rangeMeasurer(p.inst.outer);
+        p.measureT0 = drillNow();
+        document.getElementById('rangeMeasureBtn').textContent = 'Stop measuring';
+        status.textContent = 'Play slowly down to your lowest comfortable note, then up to your highest - hold each for a second.';
+    }
+    function rangeMeasureFeed(h) {
+        const p = rangePick;
+        const res = p.measurer.feed(drillNow() - p.measureT0, h ? h.midi : null);
+        const parts = [];
+        if (res.now !== null) parts.push(`Hearing ${rangeLabel(PlayRange.pitchOf(res.now, 'usual'))}`);
+        if (res.bottom) parts.push(`lowest held ${rangeLabel(res.bottom)}`, `highest held ${rangeLabel(res.top)}`);
+        if (parts.length) document.getElementById('rangeMeasureStatus').textContent = parts.join(' · ');
+    }
+    function rangeMeasureEnd() {
+        if (rangePick) rangePick.measurer = null;
+        if (rangeTuner && rangeTuner.isActive()) rangeTuner.stop();
+        document.getElementById('rangeMeasureBtn').textContent = 'Measure it with the tuner';
+    }
+    function closeRangePicker() {
+        rangeMeasureEnd();
+        rangePick = null;
+        hideModal('rangePickerModal');
+    }
+    async function saveRangePicker() {
+        const p = rangePick;
+        if (!p) return;
+        const problem = PlayRange.checkRange({ bottom: p.bottom, top: p.top }, p.inst.outer);
+        if (problem) { showWarningToast(problem); return; }
+        try {
+            rangeData = await API.range.set(p.inst.instrumentId, p.bottom, p.top);
+            const mine = myInstruments.find(i => i.id === p.inst.instrumentId);
+            if (mine) { mine.bottomNote = p.bottom; mine.topNote = p.top; }
+        } catch (e) { showWarningToast('Not saved: ' + e.message); return; }
+        const then = p.then;
+        closeRangePicker();
+        if (isShown('rangeView')) renderRangeSetup();
+        if (isShown('accountInstrumentsView')) renderAccountInstruments();
+        if (then) then();
+    }
+    document.getElementById('rangeMeasureBtn')?.addEventListener('click', rangeMeasureToggle);
+    document.getElementById('rangePickerSaveBtn')?.addEventListener('click', saveRangePicker);
+    document.getElementById('rangePickerCancelBtn')?.addEventListener('click', closeRangePicker);
+    document.getElementById('rangePickerCloseBtn')?.addEventListener('click', closeRangePicker);
+
+    // ========================================
+    // RHYTHM (Jira ML-306)
+    // ========================================
+    // Word rhythms and the Takadimi crib sheet: pick one (or play through a set), a bar's count-in, then
+    // tap it on the pad (scored strictly) or clap / sing / play it into the microphone (scored leniently).
+    // Each rhythm has a speed Level (1-5); a round at a Level's speed with grade 4+ reaches it. Rounds
+    // save as drill rounds (tool 'rhythm'), so they share the drill results screen, history and Skills.
+    // Rules: public/rhythm.js; docs/rhythm.md. Feature rhythm_trainer.
+    const rhythmState = (() => {
+        const s = drillStored('rhythm');
+        const set = Rhythm.SETS.some(x => x.id === s.set) ? s.set : 'words';
+        const pattern = Rhythm.PATTERNS.some(p => p.id === s.pattern && p.set === set) ? s.pattern : Rhythm.patternsIn(set)[0].id;
+        return { set, pattern, method: Rhythm.METHODS.includes(s.method) ? s.method : 'tap', bpm: Number(s.bpm) || null };
+    })();
+    let rhythmMine = {};            // { patternId: { level, word } } from the server
+    let rhythmRound = null;
+    let rhythmTuner = null;
+    const rhythmPlayer = createMetronomePlayer();
+    rhythmPlayer.setVisualLatencyMs(metroState.latencyMs);
+    const rhythmLevel = (id) => (rhythmMine[id] && rhythmMine[id].level) || 0;
+    const rhythmSvg = (items, k) => theoryScaleSvg(Notation.staff({ clef: 'treble', hideClef: true, items, beatWidth: 5 }), k);
+
+    async function renderRhythmView() {
+        try { rhythmMine = (await API.rhythm.levels()).patterns || {}; } catch (e) { rhythmMine = {}; }
+        renderRhythmSetup();
+    }
+    function renderRhythmSetup() {
+        const p = Rhythm.pattern(rhythmState.pattern);
+        const bpms = Rhythm.levelBpms(p);
+        if (!bpms.includes(rhythmState.bpm)) rhythmState.bpm = Rhythm.nextBpm(p, rhythmLevel(p.id));
+        const set = Rhythm.setOf(rhythmState.set);
+        renderDrillOptions('rhythm', [
+            { key: 'set', label: 'Rhythms', value: rhythmState.set, choices: Rhythm.SETS.map(x => ({ value: x.id, label: x.label })), help: set.desc },
+            { key: 'method', label: 'How', value: rhythmState.method, choices: [{ value: 'tap', label: 'Tap' }, { value: 'mic', label: 'Clap, sing or play' }], help: rhythmState.method === 'tap' ? 'Tap the pad on every note. Scored exactly.' : 'The microphone listens for each note starting - scored more forgivingly than tapping.' },
+            { key: 'bpm', label: `Speed (${p.meter === Rhythm.COMPOUND ? 'dotted crotchets' : 'crotchets'} a minute)`, value: rhythmState.bpm, choices: bpms.map((b, i) => ({ value: b, label: `L${i + 1} · ${b}` })), help: `Level ${bpms.indexOf(rhythmState.bpm) + 1} speed. Grade 4 or 5 here reaches it.` },
+        ], (k, v) => {
+            rhythmState[k] = v;
+            if (k === 'set') { rhythmState.pattern = Rhythm.patternsIn(v)[0].id; rhythmState.bpm = null; }
+            drillStore('rhythm', rhythmState);
+            renderRhythmSetup();
+        });
+        // The set's rhythms, each drawn as one beat (or two), with its name and your Level.
+        const grid = document.getElementById('rhythmPatterns');
+        grid.innerHTML = Rhythm.patternsIn(rhythmState.set).map(q => {
+            const lv = rhythmLevel(q.id), mine = rhythmMine[q.id] && rhythmMine[q.id].word;
+            const items = Rhythm.barItems({ ...q, meter: { ...q.meter, beats: q.beats } }, { withTimeSig: false, barline: null, words: false });
+            return `<button type="button" class="flow-picker-tile${q.id === p.id ? ' selected' : ''}" data-rhythm="${q.id}" aria-pressed="${q.id === p.id}" aria-label="${escapeHtml(q.name)}${mine ? ` (${escapeHtml(mine)})` : ''}, ${lv ? `Level ${lv}` : 'not tried'}">
+                <span class="flow-picker-tile-icon-row">${rhythmSvg(items, 0.8)}</span>
+                <span class="flow-picker-tile-label">${escapeHtml(mine || q.name)}${lv ? ` · L${lv}` : ''}</span>
+            </button>`;
+        }).join('');
+        grid.querySelectorAll('[data-rhythm]').forEach(b => b.addEventListener('click', () => {
+            rhythmState.pattern = b.dataset.rhythm;
+            rhythmState.bpm = Rhythm.nextBpm(Rhythm.pattern(b.dataset.rhythm), rhythmLevel(b.dataset.rhythm));
+            drillStore('rhythm', rhythmState);
+            renderRhythmSetup();
+        }));
+        const lv = rhythmLevel(p.id);
+        document.getElementById('rhythmPatternLine').textContent = `${p.name}: ${lv ? `Level ${lv} (${bpms[lv - 1]} bpm)` : 'not tried yet'}${lv < 5 ? ` · next: Level ${lv + 1} at ${bpms[lv]} bpm` : ' · top Level'}`;
+        setShown('rhythmWordGroup', p.set !== 'words');
+        document.getElementById('rhythmWord').value = (rhythmMine[p.id] && rhythmMine[p.id].word) || '';
+        document.getElementById('rhythmSheetBtn').textContent = `Play through all ${Rhythm.patternsIn(rhythmState.set).length} (${set.label.toLowerCase()})`;
+        const id = p.id;
+        renderDrillBest('rhythm', id, 'rhythmBest', () => rhythmState.pattern === id);
+    }
+    document.getElementById('rhythmWord')?.addEventListener('change', async (e) => {
+        const id = rhythmState.pattern;
+        try { rhythmMine = (await API.rhythm.setWord(id, e.target.value)).patterns || {}; renderRhythmSetup(); }
+        catch (err) { showWarningToast('Not saved: ' + err.message); }
+    });
+
+    // --- A round: a bar's count-in, then the bars; the note playing is lit as it goes. ---
+    async function rhythmStart(level, seed) {
+        const sched = Rhythm.schedule(level);
+        const bpm = rhythmState.bpm;
+        const method = rhythmState.method;
+        rhythmRound = { level, sched, bpm, method, taps: [], t0: null, done: false, startedAt: new Date().toISOString(), started: drillNow(), barShown: -1 };
+        switchView('rhythmPlayView');
+        setShown('rhythmPad', method === 'tap');
+        document.getElementById('rhythmBar').textContent = 'Get ready';
+        document.getElementById('rhythmState').textContent = `${bpm} bpm`;
+        document.getElementById('rhythmFeedback').textContent = method === 'tap' ? 'A bar to count you in - tap every note from bar 1' : 'A bar to count you in - then clap, sing or play every note';
+        rhythmShowBar(0);
+        if (method === 'mic') {
+            if (!rhythmTuner) {
+                rhythmTuner = createTunerEngine();
+                rhythmTuner.onPitch((freq, rms) => {
+                    const r = rhythmRound;
+                    if (!r || r.done || !r.detector) return;
+                    const now = rhythmPlayer.audioNow();
+                    if (now !== null && r.detector.feed(now, rms) !== null) r.taps.push(now);
+                });
+            }
+            const ok = await rhythmTuner.start(rhythmPlayer.getAudioContext());
+            if (!ok) { showWarningToast('Listening needs the microphone - allow it, or choose Tap.'); rhythmStop(); goBack(); return; }
+            rhythmRound.detector = Rhythm.onsetDetector();
+        }
+        rhythmPlayer.setConductorBpm(bpm);
+        rhythmPlayer.setConductorBeatsPerBar(sched.meter.beats);
+        rhythmPlayer.setNotesPerBeat(1);
+        rhythmPlayer.setSubdivisionFactor(1);
+        rhythmPlayer.setClickFilter(null);
+        rhythmPlayer.resetToBarStart();
+        rhythmPlayer.play();
+        rhythmTick();
+    }
+    // One bar on the stave (a single rhythm shows its bar between repeat signs; a whole set shows the
+    // bar being played).
+    function rhythmShowBar(bar) {
+        const r = rhythmRound;
+        if (!r || r.barShown === bar) return;
+        r.barShown = bar;
+        const p = r.sched.bars[Math.min(bar, r.sched.bars.length - 1)];
+        const single = !r.level.startsWith('sheet:');
+        const items = Rhythm.barItems(p, { clsPrefix: 'rn-', barline: single ? 'repeatRight' : 'barlineSingle' });
+        if (single) items.splice(1, 0, { type: 'barline', glyph: 'repeatLeft', gapAfter: 0.8 });
+        document.getElementById('rhythmStaff').innerHTML = rhythmSvg(items, 1.2).replace('aria-hidden="true" focusable="false"', `role="img" aria-label="${escapeHtml(p.name)}, one bar"`);
+    }
+    rhythmPlayer.onBeat((info) => {
+        const r = rhythmRound;
+        if (!r || r.done || info.ended) return;
+        const perBar = r.sched.meter.beats, spb = 60 / r.bpm;
+        const ci = info.clickIndex;
+        if (r.t0 === null) r.t0 = info.time - ci * spb + Rhythm.ROUND.COUNT_IN_BARS * perBar * spb;
+        const bar = Math.floor(ci / perBar) - Rhythm.ROUND.COUNT_IN_BARS;
+        if (bar >= r.sched.bars.length) { rhythmFinish(); return; }
+        const beat = ci % perBar;
+        if (bar < 0) { document.getElementById('rhythmBar').textContent = `Count-in ${beat + 1}`; return; }
+        document.getElementById('rhythmBar').textContent = `Bar ${bar + 1} of ${r.sched.bars.length}`;
+        if (beat === 0 && bar === 0) document.getElementById('rhythmFeedback').textContent = '';
+    });
+    // Lights the note playing now (by the audio clock, less the output delay you hear the click with).
+    function rhythmTick() {
+        const r = rhythmRound;
+        if (!r || r.done) return;
+        const now = rhythmPlayer.audioNow();
+        if (r.t0 !== null && now !== null) {
+            const beats = (now - r.t0 - (metroState.latencyMs || 0) / 1000) * r.bpm / 60;
+            let cur = null;
+            for (const o of r.sched.onsets) { if (o.beat <= beats + 1e-6) cur = o; else break; }
+            if (cur && beats < r.sched.totalBeats) {
+                rhythmShowBar(cur.bar);
+                if (r.lit !== `${cur.bar}:${cur.index}`) {
+                    r.lit = `${cur.bar}:${cur.index}`;
+                    document.querySelectorAll('#rhythmStaff .is-now').forEach(el => el.classList.remove('is-now'));
+                    document.querySelectorAll(`#rhythmStaff .rn-${cur.index}`).forEach(el => el.classList.add('is-now'));
+                }
+            }
+        }
+        requestAnimationFrame(rhythmTick);
+    }
+    wireDrillPad('rhythmPad', () => {
+        const r = rhythmRound;
+        if (!r || r.done || r.method !== 'tap') return;
+        const now = rhythmPlayer.audioNow();
+        if (now !== null) r.taps.push(now);
+    });
+    function rhythmStop() {
+        if (rhythmPlayer.isPlaying()) rhythmPlayer.pause();
+        rhythmPlayer.resetToBarStart();
+        if (rhythmTuner && rhythmTuner.isActive()) rhythmTuner.stop();
+        if (rhythmRound) rhythmRound.done = true;
+        rhythmRound = null;
+    }
+    document.getElementById('rhythmStopBtn')?.addEventListener('click', () => { rhythmStop(); goBack(); });
+    // Taps (or heard note starts) go in as seconds from bar 1 beat 1, less the output delay set in
+    // Settings (you play to the click you hear, that much after it's scheduled).
+    function rhythmTapsRelative(r) {
+        const lag = (metroState.latencyMs || 0) / 1000;
+        return r.taps.map(t => Math.round((t - r.t0 - lag) * 1000) / 1000).filter(t => t > -5 && t < 300);
+    }
+    async function rhythmFinish(tapsOverride) {
+        const r = rhythmRound;
+        if (!r || r.done) return;
+        r.done = true;
+        if (rhythmPlayer.isPlaying()) rhythmPlayer.pause();
+        rhythmPlayer.resetToBarStart();
+        if (rhythmTuner && rhythmTuner.isActive()) rhythmTuner.stop();
+        const details = { bpm: r.bpm, method: r.method, taps: tapsOverride || (r.t0 === null ? [] : rhythmTapsRelative(r)) };
+        const local = Rhythm.scoreRound(r.level, details);
+        const before = { ...rhythmMine };
+        const saved = await saveDrill('rhythm', r.level, r.startedAt, r.started, details);
+        const result = saved ? saved.result : local;
+        rhythmRound = null;
+        // Levels reached this round.
+        const ups = ((saved && saved.rhythmLevels) || []).filter(x => x.level > ((before[x.pattern] && before[x.pattern].level) || 0));
+        for (const x of (saved && saved.rhythmLevels) || []) rhythmMine[x.pattern] = { ...(rhythmMine[x.pattern] || {}), level: x.level };
+        if (ups.length) showSuccessToast(ups.length === 1 ? `${Rhythm.pattern(ups[0].pattern).name}: Level ${ups[0].level}` : `${ups.length} rhythms went up a Level`);
+        // Reached the Level you were playing at: next time, the next Level's speed.
+        if (ups.some(x => x.pattern === rhythmState.pattern)) { rhythmState.bpm = Rhythm.nextBpm(Rhythm.pattern(rhythmState.pattern), rhythmLevel(rhythmState.pattern)); drillStore('rhythm', rhythmState); }
+        const ms = (v) => (v === null ? '-' : Math.abs(v) <= result.onTimeMs ? 'on time' : `${Math.abs(v)} ms ${v < 0 ? 'early' : 'late'}`);
+        const sheet = r.level.startsWith('sheet:');
+        const label = sheet ? `All ${Rhythm.setOf(r.level.slice(6)).label.toLowerCase()}` : Rhythm.pattern(r.level).name;
+        showDrillResults({
+            tool: 'rhythm', levelLabel: `${label} · ${r.bpm} bpm · ${r.method === 'tap' ? 'tapped' : 'listened'}`, result, saved, playView: 'rhythmPlayView',
+            stats: [['Score', result.score], ['Notes on time', `${result.onTime} of ${result.results.length}`], ['Missed', result.missed], [r.method === 'tap' ? 'Extra taps' : 'Extra notes', result.extra]],
+            rows: sheet
+                ? result.perPattern.map(pp => [Rhythm.pattern(pp.pattern).name, `${pp.score}`])
+                : [['On average', ms(result.drift)], ...(r.method === 'mic' ? [['Steady delay taken out', `${result.shift} ms`]] : [])],
+            again: () => rhythmStart(r.level),
+        });
+    }
+    document.getElementById('rhythmStartBtn')?.addEventListener('click', () => rhythmStart(rhythmState.pattern));
+    document.getElementById('rhythmSheetBtn')?.addEventListener('click', () => rhythmStart(`sheet:${rhythmState.set}`));
 
     // ========================================
     // SPEED NAMES (Jira ML-297)

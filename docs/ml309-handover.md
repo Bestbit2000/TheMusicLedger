@@ -22,6 +22,13 @@ a new chat needs to start **C**, **D** and **E**, without the 0.29.0 conversatio
 
 ## C - new Theory quiz types (so grades 1-5 cover the whole syllabus)
 
+**C1 is done** (2026-09-28): Intervals (Grades 2-5), technical names and the chromatic scale (Grade 4,
+in Keys), triads, inversions and cadences (Grades 4-5, the Chords quiz), and the `chord` item in
+`notation.js` - see "Intervals, chords..." in `docs/theory-grades.md`. Owner decisions: grades only,
+new quizzes fine, written only. **C2 next:** rhythm (beams and tuplet brackets in `notation.js` first,
+then triplets/irregular groups, grouping/beaming, time signature from a bar, missing bar-line).
+**C3:** transposition, instruments and voices.
+
 Each is a new entry in `QUIZZES` (or a new question type inside Mixed), following the existing
 pattern: items → `build()` → a question with a fixed list of one-tap answers, an id that
 `itemFromId()` can rebuild (Smart learn weak spots rely on it), a `PAR` time, and a `grade` so it

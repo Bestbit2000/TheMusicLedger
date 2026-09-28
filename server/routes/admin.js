@@ -15,7 +15,7 @@ import pool from '../config/db.js';
 import { listWarmupsForAdmin, createWarmup, updateWarmup, setWarmupActive, moveWarmup, deleteWarmup } from '../services/warmups.js';
 import { listAccountsForAdmin, setAccountLevel } from '../services/accounts.js';
 import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin } from '../services/bands.js';
-import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption, deleteDurationOption, listDurationUsageStats } from '../services/durationOptions.js';
+import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption, deleteDurationOption, listDurationUsageStats, listSessionMinuteCounts } from '../services/durationOptions.js';
 import { listTimeSignatureOptionsForAdmin, createTimeSignatureOption, updateTimeSignatureOption, deleteOrArchiveTimeSignatureOption, listNoteValueUsage } from '../services/timeSignatures.js';
 import { listPlaybackSpeedsForAdmin, createPlaybackSpeedOption, updatePlaybackSpeedOption, deletePlaybackSpeedOption } from '../services/playbackSpeeds.js';
 import { getConfigValue, setConfigValue } from '../services/appConfig.js';
@@ -487,7 +487,8 @@ router.get('/usage/instruments', requireAuth, resolveAccount, requireSuperAdmin,
 // listDurationUsageStats.
 router.get('/usage/durations', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
-    res.json({ durationUsage: await listDurationUsageStats() });
+    const [durationUsage, sessionMinutes] = await Promise.all([listDurationUsageStats(), listSessionMinuteCounts()]);
+    res.json({ durationUsage, sessionMinutes }); // ML-308: sessionMinutes feeds the two charts
   } catch (error) {
     sendError(res, error);
   }

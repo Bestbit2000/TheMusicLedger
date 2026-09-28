@@ -23,6 +23,7 @@ import { listActivePlaybackSpeeds } from '../services/playbackSpeeds.js';
 import { handleUpload } from '@vercel/blob/client';
 import { put } from '@vercel/blob';
 import { listInstruments, listAccountInstruments, setAccountInstruments, resolveSessionInstrument } from '../services/instruments.js';
+import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../services/range.js';
 import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, addUploadedRecording, addYouTubeRecording, deleteRecording, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks } from '../services/flowBlocks.js';
 import { importScoreFromFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/scoreImport.js';
@@ -33,7 +34,7 @@ import { exportFlowForUser } from '../services/flowTransfer.js';
 import { submitFeedback } from '../services/feedback.js';
 import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead } from '../services/notifications.js';
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryWeights } from '../services/theoryPractice.js';
-import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary } from '../services/drills.js';
+import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getRhythmLevels, setRhythmWord } from '../services/drills.js';
 
 const router = express.Router();
 
@@ -281,6 +282,26 @@ router.post('/theory/attempts', requireAuth, resolveAccount, async (req, res) =>
 // drills run in the browser (public/drills.js); the server re-scores each round from its taps/answers.
 // See db/migrations/057_drills.sql and docs/drills.md.
 // ========================================
+// ML-306: the Rhythm tool's per-rhythm speed Levels and your own words (its rounds save through
+// /drills/rhythm/attempts like the other drills).
+router.get('/rhythm', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertDrillEnabled('rhythm');
+    res.json(await getRhythmLevels(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.put('/rhythm/:patternId/word', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertDrillEnabled('rhythm');
+    res.json(await setRhythmWord(req.accountId, req.params.patternId, req.body?.word));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.get('/drills/:tool/summary', requireAuth, resolveAccount, async (req, res) => {
   try {
     await assertDrillEnabled(req.params.tool);
@@ -355,6 +376,46 @@ router.get('/account/instruments', requireAuth, resolveAccount, async (req, res)
 router.put('/account/instruments', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await setAccountInstruments(req.accountId, req.body?.instrumentIds, req.body?.primaryId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ========================================
+// RANGE (ML-322 / ML-305) - your comfortable range per instrument and the Range tool's goes and Levels.
+// Behind the range_trainer feature. See server/services/range.js and docs/range.md.
+// ========================================
+router.get('/range', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertRangeEnabled();
+    res.json(await getRange(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.put('/range/:instrumentId', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertRangeEnabled();
+    res.json(await setRange(req.accountId, Number(req.params.instrumentId), req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/range/:instrumentId/goes', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertRangeEnabled();
+    res.json(await recordGo(req.accountId, Number(req.params.instrumentId), req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/range/:instrumentId/move', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertRangeEnabled();
+    res.json(await moveRange(req.accountId, Number(req.params.instrumentId), req.body || {}));
   } catch (error) {
     sendError(res, error);
   }

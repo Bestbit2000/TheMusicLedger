@@ -3,7 +3,7 @@
 // login flow. No admin-role check yet - see the note in admin.html.
 (function () {
     const API_BASE_URL = window.location.hostname === 'localhost'
-        ? 'http://localhost:3000'
+        ? window.location.origin // any local port (two dev servers can run side by side)
         : `https://${window.location.hostname}`;
 
     // ML-288: pop-ups open with .show and close without it - never style.display (same as app.js).
@@ -752,18 +752,57 @@
         renderNoteValuesList(noteValues);
     }
 
-    function renderDurationUsageList(durationUsage) {
+    // ML-308: two bar charts from every saved session length - the 5-minute steps 5-120 in order,
+    // then every other length (custom ones) most common first - to see whether the presets need
+    // changing. The stats screen's bar-chart pieces (specs/components/charts.md), .chart-labelled so
+    // every bar has its label. Each chart is also a role="img" with every value in its label, each bar
+    // has a hover title, and the custom lengths are listed as a table too.
+    const pl = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+    function durationChartHtml(bars, label) {
+        const max = Math.max(1, ...bars.map(b => b.sessions));
+        const steps = [1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 250, 300, 500, 1000, 2000, 5000];
+        const step = steps.find(s => s * 3.5 >= max) || Math.ceil(max / 3);
+        const top = Math.max(max * 1.05, step * 3);
+        const pct = (v) => `${(v / top) * 100}%`;
+        const lines = [0, 1, 2, 3].map(i => `<div class="grid-line${i ? '' : ' is-baseline'}" data-pos="${pct(step * i)}"></div>`).join('');
+        const yLabels = [0, 1, 2, 3].map(i => `<span class="chart-y-label" data-pos="${pct(step * i)}">${step * i}</span>`).join('');
+        const barHtml = bars.map(b => `
+            <div class="chart-bar-container" title="${b.minutes} min: ${pl(b.sessions, 'session')}">
+                <div class="chart-bar series-sessions" data-h="${pct(b.sessions)}"></div>
+                <span class="chart-x-label">${b.minutes}</span>
+            </div>`).join('');
+        return `<div class="chart-wrapper chart-labelled" role="img" aria-label="${escapeHtml(label)}">
+                <div class="chart-grid-lines">${lines}</div>
+                <div class="chart-y-axis"><div class="chart-y-axis-container">${yLabels}</div></div>
+                <div class="chart-scroll-area">${barHtml}</div>
+            </div>`;
+    }
+    // Chart geometry is a run-time value: set as custom properties the chart classes read (ML-288).
+    function applyChartGeometry(root) {
+        root.querySelectorAll('[data-pos]').forEach(el => el.style.setProperty('--line-pos', el.dataset.pos));
+        root.querySelectorAll('[data-h]').forEach(el => el.style.setProperty('--bar-h', el.dataset.h));
+    }
+    function renderDurationUsageList(durationUsage, sessionMinutes) {
         const el = document.getElementById('usageDurationsList');
-        el.innerHTML = durationUsage.map(d => `
-            <div class="admin-feature">
-                <div class="admin-feature-header">
-                    <div class="admin-feature-header-text">
-                        <h2>${d.minutes} minutes</h2>
-                        <p class="admin-test-case-meta">${d.usageCount} session${d.usageCount === 1 ? '' : 's'}</p>
-                    </div>
-                </div>
-            </div>
-        `).join('');
+        const count = new Map((sessionMinutes || []).map(r => [r.minutes, r.sessions]));
+        const presets = new Set(durationUsage.map(d => d.minutes));
+        const steps = Array.from({ length: 24 }, (_, i) => (i + 1) * 5).map(m => ({ minutes: m, sessions: count.get(m) || 0 }));
+        const others = (sessionMinutes || []).filter(r => r.minutes % 5 !== 0 || r.minutes > 120)
+            .sort((a, b) => b.sessions - a.sessions || a.minutes - b.minutes);
+        const stepTotal = steps.reduce((s, b) => s + b.sessions, 0), otherTotal = others.reduce((s, b) => s + b.sessions, 0);
+        const describe = (bars) => bars.map(b => `${b.minutes} min ${b.sessions}`).join(', ');
+        el.innerHTML = `
+            <div class="admin-stat-section-title">5-minute lengths, 5 to 120 minutes</div>
+            <p class="admin-test-case-meta">${pl(stepTotal, 'session')}. Presets on offer now: ${[...presets].sort((a, b) => a - b).join(', ') || 'none'} minutes.</p>
+            ${durationChartHtml(steps, `Sessions per length, 5 to 120 minutes in 5-minute steps: ${describe(steps)}`)}
+            <div class="admin-stat-section-title">Other lengths, most common first</div>
+            <p class="admin-test-case-meta">Lengths typed in that aren't a 5-minute step from 5 to 120: ${pl(otherTotal, 'session')}, ${pl(others.length, 'different length')}.</p>
+            ${others.length ? `${durationChartHtml(others, `Sessions per other length, most common first: ${describe(others)}`)}
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table">
+                <thead><tr><th>Minutes</th><th>Sessions</th></tr></thead>
+                <tbody>${others.map(b => `<tr><td>${b.minutes}</td><td>${b.sessions}</td></tr>`).join('')}</tbody>
+            </table></div>` : '<p>No other lengths saved yet.</p>'}`;
+        applyChartGeometry(el);
     }
     // ML-309: Theory grades - read-only, from the engine itself (no request).
     function renderTheoryGrades() {
@@ -783,6 +822,7 @@
             if (g.accidentals.length) lines.push(line('Note spellings', g.accidentals.map(a => ACC[a]).join(', ')));
             if (g.keys.length) lines.push(line('Keys', g.keys.map(keyName).join(', ')));
             if (g.minorForms.length) lines.push(line('Minor scales', g.minorForms.map(f => FORM[f]).join(', ')));
+            for (const t of g.topics || []) lines.push(line(t.label, t.text)); // ML-309 C: intervals, chords...
             const bySet = Object.keys(SET).map(set => [set, g.symbols.filter(s => s.set === set)]).filter(([, list]) => list.length);
             return `
                 <div class="admin-feature">
@@ -809,14 +849,30 @@
                 ${u.instruments.length ? `<div class="admin-stat-table-wrap"><table class="admin-stat-table">
                     <thead><tr><th>Instrument</th><th>Family</th><th>Players (main)</th><th>Sessions</th><th>Hours</th></tr></thead>
                     <tbody>${u.instruments.map(i => `<tr><td>${escapeHtml(i.name)}</td><td>${escapeHtml(i.family)}</td><td>${i.players} (${i.mainPlayers})</td><td>${i.sessions}</td><td>${hours(i.minutes)}</td></tr>`).join('')}</tbody>
-                </table></div>` : '<p>No one has chosen an instrument yet.</p>'}`;
+                </table></div>` : '<p>No one has chosen an instrument yet.</p>'}
+                ${await instrumentRangesHtml()}`;
         } catch (error) {
             el.innerHTML = `<p>Error loading instrument usage: ${escapeHtml(error.message)}</p>`;
         }
     }
+    // ML-322: each instrument's typical written range - the outer limit for the range picker and the
+    // Range tool (never a player's starting point) - listed for review. From the catalogue
+    // (band_instruments_master_catalog.json -> migration 065); change it there and generate a new migration.
+    async function instrumentRangesHtml() {
+        const list = await apiCall('/api/instruments');
+        const note = (p) => (p ? escapeHtml(p.replace(/^([A-G])#/, '$1♯').replace(/^([A-G])b/, '$1♭')) : '');
+        const shift = (n) => (n === null || n === undefined ? '' : n === 0 ? 'concert pitch' : `sounds ${Math.abs(n)} semitone${Math.abs(n) === 1 ? '' : 's'} ${n > 0 ? 'higher' : 'lower'}`);
+        return `
+            <div class="admin-stat-section-title">Typical ranges (Range's outer limit)</div>
+            <p class="admin-test-case-meta">Written notes, in the clef each instrument is read in here (brass band treble where there is one). Players set their own comfortable range inside this; Range never goes beyond it. None = holding a note doesn't apply.</p>
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table">
+                <thead><tr><th>Instrument</th><th>Clef</th><th>Lowest</th><th>Highest</th><th>Transposition</th></tr></thead>
+                <tbody>${list.map(i => `<tr><td>${escapeHtml(i.name)}</td><td>${escapeHtml(i.theoryClef)}</td><td>${i.rangeLow ? note(i.rangeLow) : 'none'}</td><td>${note(i.rangeHigh)}</td><td>${shift(i.writtenToConcert)}</td></tr>`).join('')}</tbody>
+            </table></div>`;
+    }
     async function reloadDurationUsage() {
-        const { durationUsage } = await apiCall('/api/admin/usage/durations');
-        renderDurationUsageList(durationUsage);
+        const { durationUsage, sessionMinutes } = await apiCall('/api/admin/usage/durations');
+        renderDurationUsageList(durationUsage, sessionMinutes);
     }
 
     // ---- Flow authoring time (ML-199) - the baseline for how long building a Flow by hand takes.

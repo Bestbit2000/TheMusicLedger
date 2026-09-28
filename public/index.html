@@ -245,6 +245,16 @@
                     <span class="material-symbols-outlined" aria-hidden="true">graphic_eq</span>
                     <span class="tool-icon-label">Pulse</span>
                 </button>
+                <!-- ML-305 / ML-322: Range - stretch your top and bottom notes a note at a time (feature range_trainer). docs/range.md. -->
+                <button class="tool-icon-btn hidden-group" id="rangeToolBtn" onclick="switchView('rangeView')" aria-label="Range">
+                    <span class="material-symbols-outlined" aria-hidden="true">height</span>
+                    <span class="tool-icon-label">Range</span>
+                </button>
+                <!-- ML-306: Rhythm - word rhythms and the Takadimi crib sheet, tapped or played (feature rhythm_trainer). docs/rhythm.md. -->
+                <button class="tool-icon-btn hidden-group" id="rhythmToolBtn" onclick="switchView('rhythmView')" aria-label="Rhythm">
+                    <span class="material-symbols-outlined" aria-hidden="true">music_note</span>
+                    <span class="tool-icon-label">Rhythm</span>
+                </button>
             </div>
         </div>
 
@@ -657,6 +667,7 @@
          only shown when the currently-targeted band's canDelete says so (see openAccountBandMenu). -->
     <div class="dropdown-menu account-band-menu" id="accountInstrumentMenu">
         <button type="button" class="dropdown-item" id="accountInstrumentMenuMain"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">star</span><span class="dropdown-item-text">Make main instrument</span></button>
+        <button type="button" class="dropdown-item hidden-group" id="accountInstrumentMenuRange"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">height</span><span class="dropdown-item-text">Your range&hellip;</span></button>
         <button type="button" class="dropdown-item account-band-menu-delete" id="accountInstrumentMenuRemove"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">remove_circle</span><span class="dropdown-item-text">Remove</span></button>
     </div>
     <div class="dropdown-menu account-band-menu" id="accountBandMenu">
@@ -835,8 +846,54 @@
 
     <!-- ML-321 (epic ML-314): your skills list - playing skills, each worked up through its tool's own
          steps. Skills blocks in a session go to the one practised longest ago. -->
+    <!-- ML-305 / ML-322: the Range tool. Play up to your top note (or down to your bottom one), then hold
+         the next note: the tuner counts the beats, and each note beyond your range has a Level. Rules:
+         public/range.js; screen: the RANGE section of app.js; docs/range.md. -->
+    <div id="rangeView" class="hidden-group">
+        <p class="metro-help-text">Stretch your range a note at a time: play the scale to your comfortable note, then hold the next one as long as you can. Hold it for 8 beats three goes in a row to reach Level 5.</p>
+        <div id="rangeOptions"></div>
+        <p class="theory-best-line" id="rangeSummary"></p>
+        <button type="button" class="btn-nav" id="rangeSetBtn" aria-haspopup="dialog">Set your range</button>
+        <div class="hidden-group" id="rangeWork">
+            <div class="range-staff" id="rangeStaff"></div>
+            <p class="drill-feedback" id="rangeTargetLine"></p>
+            <div class="level-strip" id="rangeLevels" role="img"></div>
+            <div class="drill-bar mt-2 mb-3" id="rangeBeats" aria-hidden="true"></div>
+            <p class="drill-feedback" id="rangeFeedback" role="status" aria-live="polite"></p>
+            <button type="button" class="btn-submit" id="rangeStartBtn">Start - listen with the microphone</button>
+            <div class="flex-row gap-sm mt-2">
+                <button type="button" class="btn-nav grow no-margin" id="rangeHeldBtn">Held it (8 beats)</button>
+                <button type="button" class="btn-nav grow no-margin" id="rangeNotYetBtn">Not yet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ML-306: the Rhythm tool. Pick a rhythm (or play through a whole set), then tap it on the pad or
+         clap / sing / play it into the microphone with a bar's count-in. Each rhythm has a speed Level.
+         Rules: public/rhythm.js; screen: the RHYTHM section of app.js; docs/rhythm.md. -->
+    <div id="rhythmView" class="hidden-group">
+        <p class="metro-help-text">Pick a rhythm, then tap it - or clap, sing or play it - along with the click. Each rhythm has a Level: play it at that Level's speed and score grade 4 or 5 to reach it.</p>
+        <div id="rhythmOptions"></div>
+        <div class="flow-tile-grid flow-tile-grid-3" id="rhythmPatterns" role="group" aria-label="Rhythms"></div>
+        <p class="theory-best-line" id="rhythmPatternLine"></p>
+        <div class="form-group hidden-group" id="rhythmWordGroup">
+            <label for="rhythmWord">Your own word for it (optional)</label>
+            <input type="text" id="rhythmWord" maxlength="40" autocomplete="off" placeholder="e.g. Pine-ap-ple">
+        </div>
+        <p class="theory-best-line" id="rhythmBest"></p>
+        <button type="button" class="btn-submit" id="rhythmStartBtn">Start</button>
+        <button type="button" class="btn-nav" id="rhythmSheetBtn">Play through the whole set</button>
+    </div>
+    <div id="rhythmPlayView" class="hidden-group">
+        <div class="theory-status"><span id="rhythmBar"></span><span id="rhythmState"></span></div>
+        <div class="scales-staff" id="rhythmStaff"></div>
+        <p class="drill-feedback" id="rhythmFeedback" role="status" aria-live="polite"></p>
+        <button type="button" class="drill-pad" id="rhythmPad">Tap</button>
+        <button type="button" class="btn-nav" id="rhythmStopBtn">Stop</button>
+    </div>
+
     <div id="skillsView" class="hidden-group">
-        <p class="metro-help-text">The skills you're working on. Each one goes step by step through its tool: Tempo, Pulse and Pitch move you on at grade 4 or 5; for Warm-ups and Scales you say when you've got it. Skills blocks in a practice session take the one you practised longest ago.</p>
+        <p class="metro-help-text">The skills you're working on. Each one goes step by step through its tool: Tempo, Pulse, Pitch and Rhythm move you on at grade 4 or 5; for Warm-ups and Scales you say when you've got it; Range moves on when you move your range. Skills blocks in a practice session take the one you practised longest ago.</p>
         <div id="skillsList"></div>
         <button type="button" class="btn-nav" id="skillsAddBtn" aria-haspopup="dialog">+ Add a skill</button>
     </div>
@@ -1410,10 +1467,11 @@
     <!-- BPM popup (ML-179 follow-up) - exactly the same tiered slider mechanic as the ad-hoc/Quick
          Play BPM controls (METRO_MIN_BPM/MAX_BPM/SLIDER_TIERS, metroBestFitTier, setupSliderInteraction),
          just its own single-field popup rather than embedded inline on a card. -->
-    <div class="modal" id="flowBpmModal" role="dialog" aria-modal="true" aria-labelledby="flowBpmModalTitle">
+    <div class="modal" id="flowBpmModal" role="dialog" aria-modal="true" aria-labelledby="flowBpmModalTitle" aria-describedby="flowBpmModalHelp">
         <div class="modal-content">
             <button type="button" class="modal-close-x" id="flowBpmCloseBtn" aria-label="Close">&times;</button>
             <h2 id="flowBpmModalTitle">Tempo (bpm)</h2>
+            <p class="metro-help-text" id="flowBpmModalHelp">How fast it plays: beat notes per minute.</p>
             <div class="metro-speed-row no-margin">
                 <button class="metro-bpm-step" id="flowBpmMinus" type="button" aria-label="Decrease bpm">&minus;</button>
                 <div class="metro-speed-readout">
@@ -1434,10 +1492,11 @@
 
     <!-- Bar count popup (ML-179 follow-up) - same tiered-slider mechanic as the BPM popup above,
          its own tier list (50/250/500) per the request rather than reusing METRO_SLIDER_TIERS. -->
-    <div class="modal" id="flowBarsModal" role="dialog" aria-modal="true" aria-labelledby="flowBarsModalTitle">
+    <div class="modal" id="flowBarsModal" role="dialog" aria-modal="true" aria-labelledby="flowBarsModalTitle" aria-describedby="flowBarsModalHelp">
         <div class="modal-content">
             <button type="button" class="modal-close-x" id="flowBarsCloseBtn" aria-label="Close">&times;</button>
             <h2 id="flowBarsModalTitle">Number of bars</h2>
+            <p class="metro-help-text" id="flowBarsModalHelp">How many bars share these settings. Add more entries for a change of time or tempo.</p>
             <div class="metro-speed-row no-margin">
                 <button class="metro-bpm-step" id="flowBarsMinus" type="button" aria-label="Decrease bars">&minus;</button>
                 <div class="metro-speed-readout">
@@ -1477,10 +1536,11 @@
          shape. No bottom Close button (the top-right X already covers that). Empty-block state opens
          straight into the form (no list/header at all, see flowFermataFormOpen); once a pause exists
          the list + count sits on top and the form collapses behind "+ Add another pause". -->
-    <div class="modal" id="flowFermataModal" role="dialog" aria-modal="true" aria-labelledby="flowFermataModalTitle">
+    <div class="modal" id="flowFermataModal" role="dialog" aria-modal="true" aria-labelledby="flowFermataModalTitle" aria-describedby="flowFermataModalHelp">
         <div class="modal-content">
             <button type="button" class="modal-close-x" id="flowFermataCloseBtn" aria-label="Close">&times;</button>
             <h2 id="flowFermataModalTitle">Pauses <span class="flow-modal-bar-pill" id="flowFermataPill"></span></h2>
+            <p class="metro-help-text" id="flowFermataModalHelp">A pause (fermata) holds a beat longer; a caesura (//) adds a short silence.</p>
             <div class="flow-pause-list-header hidden-group" id="flowFermataListHeader">
                 <span class="flow-tile-section-label">Current pauses</span>
                 <span class="flow-pause-count-badge" id="flowFermataCountBadge">0</span>
@@ -1543,10 +1603,11 @@
          ramp's own extra fields: where it ends (end of block, or a specific bar/beat) and its target
          speed (the next block's own bpm, or a custom one - reuses the same Tempo (bpm) popup as the
          block's own bpm tile and the ad-hoc/Quick Play metronome, see flowOpenBpmModal). -->
-    <div class="modal" id="flowRampModal" role="dialog" aria-modal="true" aria-labelledby="flowRampModalTitle">
+    <div class="modal" id="flowRampModal" role="dialog" aria-modal="true" aria-labelledby="flowRampModalTitle" aria-describedby="flowRampModalHelp">
         <div class="modal-content">
             <button type="button" class="modal-close-x" id="flowRampCloseBtn" aria-label="Close">&times;</button>
             <h2 id="flowRampModalTitle">Tempo ramps <span class="flow-modal-bar-pill" id="flowRampPill"></span></h2>
+            <p class="metro-help-text" id="flowRampModalHelp">Speed up (accel.) or slow down (rit.) gradually, from a beat to a target tempo.</p>
             <div class="flow-pause-list-header hidden-group" id="flowRampListHeader">
                 <span class="flow-tile-section-label">Current ramps</span>
                 <span class="flow-pause-count-badge" id="flowRampCountBadge">0</span>
@@ -2669,6 +2730,40 @@
     </div>
 </div>
 
+<!-- ML-322: your comfortable range on an instrument - tap the stave to pick a note, then -/+ a semitone;
+     or measure it with the tuner (the lowest and highest notes you hold steady for a second). -->
+<div class="modal" id="rangePickerModal" role="dialog" aria-modal="true" aria-labelledby="rangePickerTitle" aria-describedby="rangePickerHelp">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" id="rangePickerCloseBtn" aria-label="Close without saving">&times;</button>
+        <h2 id="rangePickerTitle">Your range</h2>
+        <p class="metro-help-text" id="rangePickerHelp">The lowest and highest notes you can play comfortably now. Tap the stave near a note, then use &minus; and + to get it exactly.</p>
+        <div class="range-edge">
+            <span class="flow-tile-section-label" id="rangeBottomLabel">Bottom note</span>
+            <button type="button" class="range-stave-btn" id="rangeBottomStave" aria-label="Bottom note - tap the stave near a note to pick it"></button>
+            <div class="metro-speed-row no-margin" role="group" aria-labelledby="rangeBottomLabel">
+                <button type="button" class="metro-bpm-step" id="rangeBottomMinus" aria-label="Bottom note a semitone lower">&minus;</button>
+                <div class="metro-speed-readout"><div id="rangeBottomValue" aria-live="polite"></div></div>
+                <button type="button" class="metro-bpm-step" id="rangeBottomPlus" aria-label="Bottom note a semitone higher">+</button>
+            </div>
+        </div>
+        <div class="range-edge">
+            <span class="flow-tile-section-label" id="rangeTopLabel">Top note</span>
+            <button type="button" class="range-stave-btn" id="rangeTopStave" aria-label="Top note - tap the stave near a note to pick it"></button>
+            <div class="metro-speed-row no-margin" role="group" aria-labelledby="rangeTopLabel">
+                <button type="button" class="metro-bpm-step" id="rangeTopMinus" aria-label="Top note a semitone lower">&minus;</button>
+                <div class="metro-speed-readout"><div id="rangeTopValue" aria-live="polite"></div></div>
+                <button type="button" class="metro-bpm-step" id="rangeTopPlus" aria-label="Top note a semitone higher">+</button>
+            </div>
+        </div>
+        <button type="button" class="btn-nav" id="rangeMeasureBtn">Measure it with the tuner</button>
+        <p class="metro-help-text" id="rangeMeasureStatus" role="status" aria-live="polite"></p>
+        <div class="flex-row gap-sm">
+            <button type="button" class="btn-cancel btn-nav grow no-margin" id="rangePickerCancelBtn">Cancel</button>
+            <button type="button" class="btn-submit grow no-margin" id="rangePickerSaveBtn">Save</button>
+        </div>
+    </div>
+</div>
+
 <!-- ML-320 follow-up: your own session templates - opening blocks in order, a focus and a length. -->
 <div class="modal" id="sessionTemplateModal" role="dialog" aria-modal="true" aria-labelledby="sessionTemplateTitle">
     <div class="modal-content">
@@ -2852,11 +2947,11 @@
     </div>
 </div>
 
-<div class="modal" id="metroSegNoteModal" role="dialog" aria-modal="true" aria-labelledby="metroSegNoteModalTitle">
+<div class="modal" id="metroSegNoteModal" role="dialog" aria-modal="true" aria-labelledby="metroSegNoteModalTitle" aria-describedby="metroSegNoteModalHelp">
     <div class="modal-content">
         <button type="button" class="modal-close-x" onclick="hideModal('metroSegNoteModal')" aria-label="Close">&times;</button>
         <h2 id="metroSegNoteModalTitle">Beat note</h2>
-        <p class="metro-help-text">Choose the note value for the tempo (e.g. &#9833; = 120).</p>
+        <p class="metro-help-text" id="metroSegNoteModalHelp">Which note the tempo counts, e.g. &#9833; = 120 or &#9834;. = 80.</p>
         <div class="metroBlk-note-picker" id="metroSegNotePicker"></div>
     </div>
 </div>
@@ -2864,11 +2959,11 @@
 <!-- Same "Beat unit" modal format (see metroSegNoteModal above) applied to the Blocks Studio bar
      card's "start" tile - a proper barline glyph pair (flowBarlineIconSvg) instead of the old
      text-list picker's "|"/"|:" characters. -->
-<div class="modal" id="flowBarStartModal" role="dialog" aria-modal="true" aria-labelledby="flowBarStartModalTitle">
+<div class="modal" id="flowBarStartModal" role="dialog" aria-modal="true" aria-labelledby="flowBarStartModalTitle" aria-describedby="flowBarStartModalHelp">
     <div class="modal-content">
         <button type="button" class="modal-close-x" onclick="hideModal('flowBarStartModal')" aria-label="Close">&times;</button>
         <h2 id="flowBarStartModalTitle">Start of bar</h2>
-        <p class="metro-help-text">Whether this bar starts a repeated section.</p>
+        <p class="metro-help-text" id="flowBarStartModalHelp">A plain barline, or a start-repeat sign.</p>
         <div class="metroBlk-note-picker" id="flowBarStartPicker"></div>
     </div>
 </div>
@@ -2877,10 +2972,11 @@
      "Repeats" grid (tapping a count both marks the bar a repeat end and sets it, no separate
      slider step). Own modal rather than reusing #flowChoiceModal - two titled tile grids, not a
      single option list. -->
-<div class="modal" id="flowBarEndModal" role="dialog" aria-modal="true" aria-labelledby="flowBarEndModalTitle">
+<div class="modal" id="flowBarEndModal" role="dialog" aria-modal="true" aria-labelledby="flowBarEndModalTitle" aria-describedby="flowBarEndModalHelp">
     <div class="modal-content">
         <button type="button" class="modal-close-x" onclick="hideModal('flowBarEndModal')" aria-label="Close">&times;</button>
         <h2 id="flowBarEndModalTitle">End of bar</h2>
+        <p class="metro-help-text" id="flowBarEndModalHelp">The barline at the end of this bar: plain, double, Fine, final, or an end-repeat with how many times to play.</p>
         <div class="flow-tile-section">
             <span class="flow-tile-section-label">Structure</span>
             <!-- flow-tile-grid-4 - same fixed column width as the Repeats grid below (see
@@ -2901,10 +2997,11 @@
      as their own block instead, at the same per-tile width a 4-column grid would give them
      (.flow-tile-grid-3-centered, same "match the standard width, then center" technique as the
      alternate-ending picker's repeat-pass grid). Tap an option to select & close - no Save/Cancel. -->
-<div class="modal" id="flowSignModal" role="dialog" aria-modal="true" aria-labelledby="flowSignModalTitle">
+<div class="modal" id="flowSignModal" role="dialog" aria-modal="true" aria-labelledby="flowSignModalTitle" aria-describedby="flowSignModalHelp">
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="flowSignCloseBtn" aria-label="Close">&times;</button>
         <h2 id="flowSignModalTitle">Jump sign</h2>
+        <p class="metro-help-text" id="flowSignModalHelp">Mark this bar with a Segno or Coda sign for jumps to land on.</p>
         <div class="flow-tile-grid flow-tile-grid-3-centered" id="flowSignOptions"></div>
     </div>
 </div>
@@ -2915,10 +3012,11 @@
      the Jump sign picker. Marking a bar as the Fine stopping point itself lives on the End-of-bar
      Structure picker instead (isFine), not here - this picker is jump instructions only. Tap an
      option to select & close - no Save/Cancel. -->
-<div class="modal" id="flowJumpModal" role="dialog" aria-modal="true" aria-labelledby="flowJumpModalTitle">
+<div class="modal" id="flowJumpModal" role="dialog" aria-modal="true" aria-labelledby="flowJumpModalTitle" aria-describedby="flowJumpModalHelp">
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="flowJumpCloseBtn" aria-label="Close">&times;</button>
         <h2 id="flowJumpModalTitle">Jump instruction</h2>
+        <p class="metro-help-text" id="flowJumpModalHelp">Where to go after this bar: D.C. or D.S., al Fine or al Coda, or To Coda.</p>
         <div class="flow-tile-grid flow-tile-grid-3-centered" id="flowJumpOptions"></div>
     </div>
 </div>
@@ -2927,10 +3025,11 @@
      (037_volta_start_bar.sql) which bar a multi-bar ending starts at. Own modal, own Save/Cancel
      (never written until committed) rather than #flowChoiceModal - a toggle plus two sections is
      more than that generic single-list picker's shape. -->
-<div class="modal" id="flowRepeatBarModal" role="dialog" aria-modal="true" aria-labelledby="flowRepeatBarModalTitle">
+<div class="modal" id="flowRepeatBarModal" role="dialog" aria-modal="true" aria-labelledby="flowRepeatBarModalTitle" aria-describedby="flowRepeatBarModalHelp">
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="flowRepeatBarCloseBtn" aria-label="Close">&times;</button>
         <h2 id="flowRepeatBarModalTitle">Alternate ending <span class="flow-modal-bar-pill" id="flowRepeatBarPill"></span></h2>
+        <p class="metro-help-text" id="flowRepeatBarModalHelp">1st- and 2nd-time bars: play this bar only on the passes you pick.</p>
         <div class="flow-volta-toggle-row">
             <div class="flow-volta-toggle-text">
                 <span id="flowRepeatBarToggleLabel" class="flow-volta-toggle-title">Alternate ending (volta)</span>
@@ -3011,10 +3110,11 @@
     </div>
 </div>
 
-<div class="modal" id="flowIntroModal" role="dialog" aria-modal="true" aria-labelledby="flowIntroModalTitle">
+<div class="modal" id="flowIntroModal" role="dialog" aria-modal="true" aria-labelledby="flowIntroModalTitle" aria-describedby="flowIntroModalHelp">
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="flowIntroCloseBtn" aria-label="Close">&times;</button>
         <h2 id="flowIntroModalTitle">Intro section <span class="flow-modal-bar-pill" id="flowIntroPill"></span></h2>
+        <p class="metro-help-text" id="flowIntroModalHelp">The intro: bars played once before bar 1, as a band plays the last line of a hymn.</p>
         <div class="flow-volta-toggle-row">
             <div class="flow-volta-toggle-text">
                 <span id="flowIntroStartToggleLabel" class="flow-volta-toggle-title">Start intro?</span>
@@ -3063,11 +3163,12 @@
      db/migrations/030_time_signature_family.sql) plus an inline custom-meter builder, designed to
      fit above the fold on a phone without scrolling. modal-content-sticky-footer/metroSeg-scroll-area
      is the same "padded scrollable body + flush footer bar" split metroSegmentModal already uses. -->
-<div class="modal" id="metroSegTimeSigModal" role="dialog" aria-modal="true" aria-labelledby="metroSegTimeSigModalTitle">
+<div class="modal" id="metroSegTimeSigModal" role="dialog" aria-modal="true" aria-labelledby="metroSegTimeSigModalTitle" aria-describedby="metroSegTimeSigModalHelp">
     <div class="modal-content modal-content-sticky-footer">
         <button type="button" class="modal-close-x" onclick="hideModal('metroSegTimeSigModal')" aria-label="Close">&times;</button>
         <div class="metroSeg-scroll-area">
         <h2 id="metroSegTimeSigModalTitle">Time signature</h2>
+        <p class="metro-help-text" id="metroSegTimeSigModalHelp">How many beats are in each bar, and what kind of note gets the beat.</p>
 
         <div id="metroSegTimeSigFamilies"></div>
 
@@ -3209,9 +3310,11 @@
 <script src="flowJourney.js"></script>
 <script src="practicePlan.js"></script>
 <script src="notation.js"></script>
+<script src="range.js"></script>
 <script src="theoryEngine.js"></script>
 <script src="warmups.js"></script>
 <script src="drills.js"></script>
+<script src="rhythm.js"></script>
 <script src="app.js"></script>
 <script src="a11y.js"></script>
 

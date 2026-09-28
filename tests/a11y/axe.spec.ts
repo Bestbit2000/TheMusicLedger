@@ -29,6 +29,9 @@ const SCREENS: { view: string; name: string }[] = [
     { view: 'aboutView', name: 'About' },
     { view: 'scalesView', name: 'Scales' }, // ML-9
     { view: 'warmupsView', name: 'Warm-ups' }, // ML-294
+    { view: 'theoryView', name: 'Theory' }, // ML-260 (Intervals and Chords with theory_grades on, ML-325)
+    { view: 'rangeView', name: 'Range' }, // ML-305 (range_trainer)
+    { view: 'rhythmView', name: 'Rhythm' }, // ML-306 (rhythm_trainer)
 ];
 
 async function show(page: Page, view: string, dark: boolean) {

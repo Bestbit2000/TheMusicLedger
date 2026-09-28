@@ -37,6 +37,19 @@ export async function listDurationUsageStats() {
   return rows.map(r => ({ minutes: r.minutes, usageCount: Number(r.usage_count) }));
 }
 
+// ML-308: every session length ever saved and how many sessions have it - the admin Usage charts
+// (the 5-minute steps 5-120, then everything else, most common first) split it on the client.
+export async function listSessionMinuteCounts() {
+  const { rows } = await pool.query(
+    `SELECT total_duration_minutes AS minutes, COUNT(*) AS sessions
+     FROM sessions
+     WHERE total_duration_minutes > 0
+     GROUP BY total_duration_minutes
+     ORDER BY total_duration_minutes`
+  );
+  return rows.map(r => ({ minutes: Number(r.minutes), sessions: Number(r.sessions) }));
+}
+
 // ---- Admin panel (ML-109) - no usage-check on delete: a duration is a value typed into a session/
 // timer at the moment it's used, never stored by reference, so removing a preset can't orphan
 // anything already saved. sort_order is set to one past the current max, then editable directly -

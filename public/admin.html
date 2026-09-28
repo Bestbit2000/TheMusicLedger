@@ -191,7 +191,7 @@
                 <button class="admin-subtab-item" data-subtab="usage-flowauthoring" type="button">Flow authoring time</button>
             </div>
             <div id="usage-durations-subtab" class="admin-subtab-panel">
-                <p class="admin-intro">Matched by value against <code>sessions.total_duration_minutes</code>, not a real reference (a session just stores whatever number of minutes was entered) - so this counts sessions whose duration happens to equal a preset, which is almost always because that preset was actually picked rather than typed by coincidence.</p>
+                <p class="admin-intro">How long saved sessions are (<code>sessions.total_duration_minutes</code>, every session type). The first chart is the 5-minute steps from 5 to 120 minutes; the second is every other length people have typed in, most common first - a length that keeps coming up there may be worth adding as a preset. Hover a bar for its count.</p>
                 <div id="usageDurationsList" class="admin-feature-list">Loading&hellip;</div>
             </div>
             <!-- ML-309: practice time per instrument (sessions.instrument_id) and who plays what. -->

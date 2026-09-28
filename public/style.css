@@ -405,6 +405,9 @@
     .chart-legend-swatch { background: var(--series); width: var(--icon-sm); height: var(--icon-sm); box-sizing: border-box; border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
     .chart-legend-swatch-projected { border: 2px solid var(--series); background: transparent; } /* full outline - in the key it isn't sitting on a solid bar */
     .chart-x-label { position: absolute; top: 100%; margin-top: var(--space-1); font-size: var(--font-xs); color: var(--label-color); text-align: center; width: 40px; left: 50%; transform: translateX(-50%); line-height: var(--line-height-snug); white-space: normal; pointer-events: none; }
+    /* ML-308: a chart with a label under every bar (a category per bar, not months) - each bar is as
+       wide as its label, so the labels never overlap; the row scrolls sideways as usual. */
+    .chart-labelled .chart-bar-container { min-width: var(--touch-target); margin-right: var(--space-1); }
     .chart-x-year { font-size: var(--font-2xs); } /* the year under a January (or first) month label - full --label-color, no dimming (it failed 4.5:1 at 0.8 opacity, axe, 0.30.0) */
 
     .month-nav { display: flex; justify-content: space-between; align-items: center; background: var(--secondary-color); padding: var(--space-2); border-radius: var(--radius-md); margin-bottom: var(--space-4); }
@@ -1893,6 +1896,15 @@
     .scales-staff-row-short { width: calc(var(--row-frac, 1) * 100%); } /* the last, shorter row - same scale as the full rows */
     /* The note to play, while the metronome runs (Notation note cls). */
     .scales-staff .is-now { fill: var(--primary-action-strong); }
+    /* ML-305 / ML-322: Range. The run to your comfortable note with the note to hold in gold (Notation
+       note cls is-now, as Scales' playing note); the range picker's two edges, each a stave you tap near
+       a note (a button - its height is the note's height on the stave) above a -/+ row. */
+    .range-staff { margin: var(--space-3) 0; }
+    .range-staff svg { display: block; width: 100%; height: auto; }
+    .range-staff .is-now { fill: var(--primary-action-strong); }
+    .range-edge { margin-bottom: var(--space-4); }
+    .range-stave-btn { display: block; width: 100%; min-height: calc(var(--touch-target) * 3); margin: var(--space-1) 0 var(--space-2); padding: var(--space-2); box-sizing: border-box; background: var(--input-bg); border: 2px solid var(--control-border); border-radius: var(--radius-md); color: var(--text-color); cursor: pointer; }
+    .range-stave-btn svg { display: block; margin: 0 auto; max-width: 100%; height: auto; pointer-events: none; }
     /* The key-note picker: the keyboard layout - 7 columns, sharps above, flats below (placement shared with .theory-answers-keyboard). */
     .note-keyboard { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-1); }
     .note-keyboard .flow-picker-tile { min-height: var(--touch-target); padding: var(--space-2) 0; }

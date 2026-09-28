@@ -68,7 +68,8 @@ text, not notation.
 - **Clefs:** treble and bass. Alto and tenor go in `CLEFS` when they're needed.
 - **Drawing:**
   - `staff({ clef, keySignature, items, spans, stepRange, hideClef, noteGap, minWidth, label })`
-    - items: `note` (with `head`, `above`/`below` marks and `dots`), `barline`, `mark` (breath mark,
+    - items: `note` (with `head`, `above`/`below` marks and `dots`), `chord` (stemless heads in one
+      column, ML-309 C), `group` (a beat of beamed rhythm with words, ML-306 - see docs/rhythm.md), `barline`, `mark` (breath mark,
       caesura, rests), `timeSig`, `text` (Fine), `space`.
     - spans: `volta`, `intro`, `hairpin`, `tie`, `slur`.
   - `symbol(glyph)`, `hairpin(dir)`, `textMark(text, { italic | bold })`.
@@ -83,7 +84,7 @@ text, not notation.
 
 ## The quizzes
 
-All answers are **one tap on a button**. Four quizzes (confirmed on ML-260, 2026-09-25):
+All answers are **one tap on a button**. Four quizzes with their own options (confirmed on ML-260, 2026-09-25), plus two grade-only ones, **Intervals** and **Chords** (ML-309 C, only while `theory_grades` is on - see [theory-grades.md](theory-grades.md)):
 
 | Quiz | Asks | Options |
 |---|---|---|
@@ -224,6 +225,13 @@ are the plain shuffle above, with no memory.
 | Key signature | 2.5 s | 24 |
 | Symbol meaning | 2.5 s | 24 |
 | Scale | 4 s | 15 |
+| Interval number (grade only) | 2.5 s | 24 |
+| Interval | 4 s | 15 |
+| Technical name | 3 s | 20 |
+| Chromatic scale | 6 s | 10 |
+| Chord | 4 s | 15 |
+| Inversion | 3 s | 20 |
+| Cadence | 5 s | 12 |
 
 **Grade:**
 

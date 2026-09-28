@@ -19,7 +19,11 @@ function toInstrumentDto(r) {
     theoryClef: r.theory_clef,
     family: r.family,
     subfamily: r.subfamily,
-    ensembles: r.ensembles || []
+    ensembles: r.ensembles || [],
+    // ML-322: the instrument's typical written range (the Range tool's outer limit; null = doesn't apply)
+    rangeLow: r.range_low || null,
+    writtenToConcert: r.written_to_concert,
+    rangeHigh: r.range_high || null
   };
 }
 
@@ -35,11 +39,12 @@ export async function listInstruments() {
 // The account's instruments, main one first.
 export async function listAccountInstruments(accountId) {
   const { rows } = await pool.query(
-    `SELECT i.*, ai.is_primary FROM account_instruments ai JOIN instruments i ON i.id = ai.instrument_id
+    `SELECT i.*, ai.is_primary, ai.bottom_note, ai.top_note FROM account_instruments ai JOIN instruments i ON i.id = ai.instrument_id
      WHERE ai.account_id = $1 ORDER BY ai.is_primary DESC, ai.created_at, i.name`,
     [accountId]
   );
-  return rows.map(r => ({ ...toInstrumentDto(r), isPrimary: r.is_primary }));
+  // bottomNote / topNote (ML-322): the notes this player can play comfortably now, or null.
+  return rows.map(r => ({ ...toInstrumentDto(r), isPrimary: r.is_primary, bottomNote: r.bottom_note, topNote: r.top_note }));
 }
 
 // Replaces the whole list. primaryId must be one of them; with none given, the first becomes main.

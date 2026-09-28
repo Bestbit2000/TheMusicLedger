@@ -85,6 +85,8 @@ sub-beats, the 4:30 chunk length rule, the heat map, and the practice mode.
   | Pitch (Play it back) | its note sets |
   | Scales - major / minor (harmonic) | key by key, fewest sharps or flats first |
   | Warm-ups, per kind | the exercises of that kind, in order |
+| Rhythm - words / one beat / two beats / triplets / 6/8 (ML-306) | the set's rhythms in order, passed at grade 4 or 5 ([rhythm.md](rhythm.md)) |
+| Range - top / bottom notes (ML-305) | the note just beyond your range (it moves with your range - see [range.md](range.md)) |
 
 - **Passing a step:**
   - Tempo, Pulse and Pitch pass at **grade 4 or 5**. `saveDrill` hands each saved round to
@@ -93,5 +95,5 @@ sub-beats, the 4:30 chunk length rule, the heat map, and the practice mode.
     My skills.
 - **Server tables:** `skill_list_items` holds your list and where you're up to; `skill_step_results`
   holds every go.
-- **Range (ML-305) and Rhythm (ML-306, with its crib sheet)** are not built yet. When they are, each
-  becomes a `SKILLS` entry and plugs straight into the list, the planner and the passing rules.
+- **Range (ML-305)** is built: moving your range passes its step ([range.md](range.md)). **Rhythm
+  (ML-306, with its crib sheet)** is built too ([rhythm.md](rhythm.md)).

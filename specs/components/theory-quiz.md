@@ -6,7 +6,7 @@
 - **Status:** New (ML-260 / ML-264)
 
 ## 2. Overview
-The Theory tool's four screens: quiz list (Note names, Keys, Notation, Mixed - each with a subtitle so the rows match; one not tried yet has a "New" pill, `.flow-pill.flow-pill-accent`, where the grade dots go, ML-301) → options → question → results. Everything reuses the
+The Theory tool's four screens: quiz list (Note names, Keys, Notation, Intervals and Chords - the last two only while Theory grades are on, ML-309 C - then Mixed - each with a subtitle so the rows match; one not tried yet has a "New" pill, `.flow-pill.flow-pill-accent`, where the grade dots go, ML-301) → options → question → results. Everything reuses the
 shared components where one fits - list rows ([list-row](list-row.md)) for the quiz list, the
 [radio-group](radio-group.md) pills (and their multi-select variant) for options, primary/secondary
 [buttons](button.md), [stat cards](stat-card.md) and the stats [bar chart](charts.md) pieces on the
@@ -14,7 +14,7 @@ results screen. Notation is always [notation](notation.md). The classes here onl
 particular to a timed quiz.
 
 ## 3. Anatomy
-- **Quiz list:** `.theory-intro` › `.history-item.clickable.theory-quiz-row` × 4 (`.theory-quiz-icon` (a Bravura glyph) › `.history-details` (title, subtitle line, last grade) › `.theory-grade` last grade).
+- **Quiz list:** `.theory-intro` › `.history-item.clickable.theory-quiz-row` × 4-6 (`.theory-quiz-icon` (a Bravura glyph) › `.history-details` (title, subtitle line, last grade) › `.theory-grade` last grade).
 - **Question:** `.theory-status` (clock left, tally right) › `.theory-countdown` › `.theory-countdown-fill` (timed rounds only) › `.theory-question` › `.theory-prompt` (a staff, a symbol, or `.theory-meaning` text) › `.theory-feedback` (always takes its line) › `.theory-answers` › `.theory-answer` × n.
 - **Answer grids:** `.theory-answers` is 2 across (keys, symbol names, term meanings); `.theory-answers-notes` 7 across on the 8-column width, centred (the 7 naturals, ML-292); `.theory-answers-keyboard` the same 7 columns in three rows - sharps above, naturals, flats below, each placed in its black key's column by `data-id` (17 buttons, ML-292); `.theory-answers-symbols` 2 across, taller, each button drawing a symbol or term. The layout follows each question, so a Mixed round changes it question by question.
 - **Results:** `.theory-results-options` › `.theory-grade-block` (`.theory-grade.theory-grade-lg` + `.theory-best-line`) › `.dashboard-grid` of 4 `.stat-card`s › `.section-title` › `.theory-trend` › `.theory-trend-bars` (8 fixed slots of `.chart-bar-container`/`.chart-bar`) › Again (`.btn-submit`) / Change options (`.btn-nav`).
@@ -31,8 +31,10 @@ particular to a timed quiz.
   note: the 7 naturals, or with sharps or flats on the whole keyboard - 5 sharps, 7 naturals, 5 flats
   (no E♯, B♯, C♭ or F♭: they're white keys, and never asked). The written note says which spelling is right.
 - A right answer marks green with a tick and moves on after 150 ms; a wrong one marks the tapped button
-  red with a cross, the right one green with a tick, says "Not quite: it's X", and moves on after
-  1.5 s. Taps in the first 0.3 s of a question are ignored (double taps).
+  red with a cross, the right one green with a tick, says "Not quite: it's X" (or the question's own
+  `feedback`, which says why - the chromatic scale's Yes/No, ML-309 C), and moves on after 1.5 s.
+- ML-309 C question types use the same `.theory-answers` grid with 2, 3 or 4 buttons (chromatic scale
+  Yes/No; inversions and cadences 3; Grade 4 chords I/IV/V 3). An odd button sits alone on the last row. Taps in the first 0.3 s of a question are ignored (double taps).
 - Grade: 5 dots, filled = the grade (`.theory-grade-dot-on`). `.theory-grade-lg` on the results screen.
 - Timed rounds show the countdown bar (`transform: scaleX()` from JS); fixed rounds hide it and the
   clock counts up.
