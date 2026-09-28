@@ -1,5 +1,41 @@
 [
   {
+    "version": "0.31.0",
+    "date": "2026-09-28",
+    "changes": [
+      {
+        "key": "ML-325",
+        "type": "New",
+        "summary": "ML-309 C1: Theory Intervals and Chords quizzes, technical names and chromatic scale (Grades 2-5)"
+      },
+      {
+        "key": "ML-322",
+        "type": "New",
+        "summary": "Playing range per instrument: bottom and top note on a stave"
+      },
+      {
+        "key": "ML-308",
+        "type": "New",
+        "summary": "Present usage for durations as chart"
+      },
+      {
+        "key": "ML-307",
+        "type": "New",
+        "summary": "Notes for each entry in the flows"
+      },
+      {
+        "key": "ML-306",
+        "type": "New",
+        "summary": "Rhythm improver tool"
+      },
+      {
+        "key": "ML-305",
+        "type": "New",
+        "summary": "Range expander trainer"
+      }
+    ]
+  },
+  {
     "version": "0.30.0",
     "date": "2026-09-28",
     "changes": [
