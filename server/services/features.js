@@ -73,6 +73,12 @@ export async function isFeatureEnabled(featureKey, level = contextLevel()) {
   return featureOn((await loadMatrix()).get(featureKey), level);
 }
 
+// ML-355: a feature's Live switch alone, for things used before anyone has logged in (password login).
+// Unlike isFeatureEnabled, a feature missing from the table reads as OFF - fail closed.
+export async function isFeatureLive(featureKey) {
+  return !!(await loadMatrix()).get(featureKey)?.live;
+}
+
 // For the client's own startup bootstrap (GET /api/dropdown-options) - every feature_key on for this
 // account's type, so the frontend can gate UI without a request per feature.
 export async function listEnabledFeatureKeys(level = contextLevel()) {

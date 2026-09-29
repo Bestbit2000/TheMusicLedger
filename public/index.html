@@ -36,6 +36,42 @@
         <h1 class="splash-title">Welcome</h1>
         <p id="loginStatusText" class="splash-subtitle">Just a moment, getting ready to open&hellip;</p>
         <button id="loginBtn" class="splash-login-btn">Log in to Google</button>
+        <!-- ML-355: email + password (shown when password_login is on), forgot password, and the
+             "choose a password" screen an emailed invite or reset link opens. -->
+        <div id="passwordLogin" class="hidden-group">
+            <p class="splash-subtitle splash-or">or log in with your email</p>
+            <form id="passwordLoginForm" class="splash-form" novalidate>
+                <label for="loginEmail">Email</label>
+                <input type="email" id="loginEmail" autocomplete="username" inputmode="email" required>
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" autocomplete="current-password" required>
+                <p class="splash-message hidden-group" id="passwordLoginMessage" role="alert"></p>
+                <button type="submit" class="splash-login-btn show" id="passwordLoginSubmit">Log in</button>
+                <button type="button" class="splash-link-btn" id="forgotLinkBtn">Forgot your password?</button>
+            </form>
+        </div>
+        <form id="forgotForm" class="splash-form hidden-group" novalidate>
+            <p class="splash-subtitle">We'll email you a link to choose a new password.</p>
+            <label for="forgotEmail">Email</label>
+            <input type="email" id="forgotEmail" autocomplete="username" inputmode="email" required>
+            <p class="splash-message hidden-group" id="forgotMessage" role="status"></p>
+            <button type="submit" class="splash-login-btn show" id="forgotSubmit">Send the link</button>
+            <button type="button" class="splash-link-btn" id="forgotBackBtn">Back to log in</button>
+        </form>
+        <form id="setPasswordForm" class="splash-form hidden-group" novalidate>
+            <div id="setPasswordFields" class="splash-form">
+                <label for="setPasswordEmail">Email</label>
+                <input type="email" id="setPasswordEmail" autocomplete="username" readonly>
+                <label for="setPassword">New password</label>
+                <input type="password" id="setPassword" autocomplete="new-password" aria-describedby="setPasswordHint" required>
+                <p class="splash-hint" id="setPasswordHint">At least 10 characters. A few words together is easy to remember and hard to guess.</p>
+                <label for="setPasswordConfirm">New password again</label>
+                <input type="password" id="setPasswordConfirm" autocomplete="new-password" required>
+                <button type="submit" class="splash-login-btn show" id="setPasswordSubmit">Save and log in</button>
+            </div>
+            <p class="splash-message hidden-group" id="setPasswordMessage" role="alert"></p>
+            <button type="button" class="splash-link-btn hidden-group" id="setPasswordLoginLink">Go to log in</button>
+        </form>
     </div>
 </div>
 

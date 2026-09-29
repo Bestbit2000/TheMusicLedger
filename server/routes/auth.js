@@ -1,6 +1,16 @@
 import express from 'express';
 import passport from '../config/passport.js';
 import { signToken } from '../utils/authToken.js';
+import { currentTokenVersion, forgetTokenVersion } from '../services/tokenVersions.js';
+import { passwordLoginEnabled, login, forgotPassword, resetPassword, describeLink, acceptInvite, appUrl } from '../services/passwordAuth.js';
+import { sendError } from '../utils/httpErrors.js';
+
+// ML-355: every login token carries the account's token version (tv) - read fresh, not from the cache,
+// so a login straight after a password reset isn't signed with the old number.
+async function freshTokenVersion(email) {
+  forgetTokenVersion(email);
+  return currentTokenVersion(email);
+}
 
 const router = express.Router();
 
@@ -8,7 +18,7 @@ const router = express.Router();
 // conventional /google, /google/callback) - these are already registered as
 // Google's authorized redirect URIs across every environment; renaming them
 // would mean re-registering all five.
-router.get('/login', (req, res, next) => {
+router.get('/login', async (req, res, next) => {
   // Google OAuth is skipped entirely when running locally, so local dev
   // doesn't need real Google credentials or a browser consent screen.
   // Two independent gates, not one (ML-140) - this used to check only
@@ -32,6 +42,7 @@ router.get('/login', (req, res, next) => {
     const userId = admin ? 'local-admin@themusicledger.local' : standard ? 'local-standard@themusicledger.local' : 'local-dev@themusicledger.local';
     const authToken = signToken({
       userId,
+      tv: await freshTokenVersion(userId),
       firstName: 'Local',
       surname: admin ? 'Admin' : standard ? 'Standard' : 'Dev'
     });
@@ -50,13 +61,19 @@ router.get('/login', (req, res, next) => {
 }));
 
 router.get('/callback', (req, res, next) => {
-  passport.authenticate('google', { session: false }, (err, tokenData) => {
+  passport.authenticate('google', { session: false }, async (err, tokenData) => {
     if (err || !tokenData) {
       console.error('OAuth callback error:', err || 'no user returned');
       return res.status(500).json({ error: 'Authentication failed', details: err?.message });
     }
 
-    const authToken = signToken(tokenData);
+    let authToken;
+    try {
+      authToken = signToken({ ...tokenData, tv: await freshTokenVersion(tokenData.userId) });
+    } catch (e) {
+      console.error('OAuth callback token error:', e.message);
+      return res.status(500).json({ error: 'Authentication failed' });
+    }
 
     // Redirect to frontend with token. Always derive this from the incoming
     // request rather than an env var - a stale FRONTEND_URL (e.g. copied
@@ -72,7 +89,7 @@ router.get('/callback', (req, res, next) => {
 // as a 404 (not 401/403) so a misconfigured NODE_ENV doesn't even reveal
 // this endpoint exists. Requires TEST_LOGIN_SECRET to be set server-side at
 // all, regardless of NODE_ENV, so an empty/unset secret can never match.
-router.post('/test-login', (req, res) => {
+router.post('/test-login', async (req, res) => {
   const secret = process.env.TEST_LOGIN_SECRET;
   const provided = req.body?.secret;
 
@@ -81,8 +98,63 @@ router.post('/test-login', (req, res) => {
   }
 
   const userId = req.body?.userId || 'claude-test@themusicledger.local';
-  const authToken = signToken({ userId, email: userId, isTestAccount: true });
+  const authToken = signToken({ userId, email: userId, isTestAccount: true, tv: await freshTokenVersion(userId) });
   res.json({ authToken, userId });
+});
+
+// ---- ML-355: email + password login (docs/password-login.md). All 404 while password_login is off. ----
+// Tokens come back as JSON (the page stores them) rather than in a redirect URL.
+
+// Which login methods the login screen offers - the one thing it asks before anyone has logged in.
+router.get('/methods', async (req, res) => {
+  try {
+    res.json({ google: true, password: await passwordLoginEnabled() });
+  } catch (error) {
+    res.json({ google: true, password: false });
+  }
+});
+
+router.post('/password/login', async (req, res) => {
+  try {
+    res.json(await login(req.body?.email, req.body?.password, req.ip));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/password/forgot', async (req, res) => {
+  try {
+    await forgotPassword(req.body?.email, req.ip, appUrl(req));
+    res.json({ message: "If that email has an account, we've sent it a link to choose a new password." });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// The invite / reset link screens: what the link is for (the email), then the new password.
+router.get('/link/:purpose/:secret', async (req, res) => {
+  try {
+    if (!['invite', 'reset'].includes(req.params.purpose)) return res.status(404).json({ error: 'Not found' });
+    res.json(await describeLink(req.params.secret, req.params.purpose, req.ip));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/invite/accept', async (req, res) => {
+  try {
+    res.json(await acceptInvite(req.body?.token, req.body?.password, req.ip));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/password/reset', async (req, res) => {
+  try {
+    res.json(await resetPassword(req.body?.token, req.body?.password, req.ip));
+  } catch (error) {
+    sendError(res, error);
+  }
 });
 
 export default router;

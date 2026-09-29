@@ -16,6 +16,7 @@ import { listWarmupsForAdmin, createWarmup, updateWarmup, setWarmupActive, moveW
 import { listAccountsForAdmin, setAccountLevel } from '../services/accounts.js';
 import { getFeatureAccess, saveFeatureAccess, clearFeatureCache } from '../services/features.js';
 import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin, setBandDetails } from '../services/bands.js';
+import { createInvite, listPendingInvites, cancelInvite, passwordLoginEnabled, appUrl } from '../services/passwordAuth.js';
 import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption, deleteDurationOption, listDurationUsageStats, listSessionMinuteCounts } from '../services/durationOptions.js';
 import { listTimeSignatureOptionsForAdmin, createTimeSignatureOption, updateTimeSignatureOption, deleteOrArchiveTimeSignatureOption, listNoteValueUsage } from '../services/timeSignatures.js';
 import { listPlaybackSpeedsForAdmin, createPlaybackSpeedOption, updatePlaybackSpeedOption, deletePlaybackSpeedOption } from '../services/playbackSpeeds.js';
@@ -344,6 +345,34 @@ router.put('/accounts/:id/level', requireAuth, resolveAccount, requireSuperAdmin
   try {
     await setAccountLevel(req.params.id, req.body.accountLevel);
     res.json({ message: 'Account level updated' });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-355: invite someone to log in with their email and a password (password_login must be on).
+router.get('/invites', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json({ enabled: await passwordLoginEnabled(), invites: await listPendingInvites() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/invites', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const { email, firstName, surname, accountLevel } = req.body || {};
+    const invite = await createInvite({ email, firstName, surname, accountLevel, createdBy: req.accountId, origin: appUrl(req) });
+    res.json({ invite, message: `Invite sent to ${invite.email}` });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.delete('/invites/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await cancelInvite(req.params.id);
+    res.json({ message: 'Invite cancelled' });
   } catch (error) {
     sendError(res, error);
   }

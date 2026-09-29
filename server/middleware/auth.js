@@ -1,6 +1,20 @@
 import { verifyToken } from '../utils/authToken.js';
 import { getOrCreateAccount, isSuperAdmin, getAccountLevel } from '../services/accounts.js';
 import { featureContext, ACCOUNT_TYPE_KEYS } from '../services/features.js';
+import { tokenIsCurrent } from '../services/tokenVersions.js';
+
+// ML-355: a token signed before the account's last password reset is refused ("signed out everywhere").
+// A database error answers 500, not 401 - a 401 logs the app out (ML-48), which a blip mustn't do.
+async function rejectOldToken(tokenData, res) {
+  let current;
+  try { current = await tokenIsCurrent(tokenData); } catch (error) {
+    console.error('Token version check failed:', error.message);
+    res.status(500).json({ error: 'Could not check your login - try again' });
+    return true;
+  }
+  if (!current) { res.status(401).json({ error: 'Invalid or expired token' }); return true; }
+  return false;
+}
 
 export async function requireAuth(req, res, next) {
   try {
@@ -11,6 +25,7 @@ export async function requireAuth(req, res, next) {
 
     const token = authHeader.substring(7);
     const tokenData = verifyToken(token);
+    if (await rejectOldToken(tokenData, res)) return;
 
     req.userId = tokenData.userId;
     req.firstName = tokenData.firstName || '';
@@ -40,6 +55,7 @@ export async function requireAuthFromQueryOrHeader(req, res, next) {
     }
 
     const tokenData = verifyToken(token);
+    if (await rejectOldToken(tokenData, res)) return;
 
     req.userId = tokenData.userId;
     req.firstName = tokenData.firstName || '';

@@ -102,6 +102,10 @@
         <section id="accounts-section" class="admin-section hidden-group">
             <h1>Accounts</h1>
             <p class="admin-intro">Every account and its account type (ML-77). Only Super admins can change it.</p>
+            <!-- ML-355: invite someone to log in with their email and a password (password_login must be Live). -->
+            <p class="admin-intro hidden-group" id="invitesOffNote">Email + password login is off - switch <strong>Email and password login</strong> on in Feature access to invite people.</p>
+            <button class="btn-submit no-margin admin-add-btn" id="inviteBtn" type="button">+ Invite by email</button>
+            <div id="invitesList" class="admin-feature-list"></div>
             <div id="accountsList" class="admin-feature-list">Loading&hellip;</div>
         </section>
         <section id="bands-section" class="admin-section hidden-group">
@@ -476,6 +480,22 @@
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="featureFormCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="featureFormSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ML-355: invite by email - the link in the email lets them choose a password (7 days, once). -->
+<div class="modal" id="inviteFormModal" role="dialog" aria-modal="true" aria-labelledby="inviteFormTitle">
+    <div class="modal-content">
+        <h2 id="inviteFormTitle">Invite by email</h2>
+        <p class="admin-intro">They get an email with a link to choose a password. It works once, for 7 days. Someone who already logs in with Google keeps their account and gains a password.</p>
+        <div class="form-group"><label for="inviteEmailInput">Email</label><input type="email" id="inviteEmailInput" autocomplete="off"></div>
+        <div class="form-group"><label for="inviteFirstNameInput">First name</label><input type="text" id="inviteFirstNameInput" maxlength="80" autocomplete="off"></div>
+        <div class="form-group"><label for="inviteSurnameInput">Surname</label><input type="text" id="inviteSurnameInput" maxlength="80" autocomplete="off"></div>
+        <div class="form-group"><label for="inviteLevelInput">Account type</label><select id="inviteLevelInput"></select></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="inviteFormCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="inviteFormSaveBtn" type="button">Send invite</button>
         </div>
     </div>
 </div>

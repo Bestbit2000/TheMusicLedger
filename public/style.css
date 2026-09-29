@@ -694,13 +694,25 @@
     .anchored-popup { position: fixed; z-index: var(--z-toast); background: var(--container-bg); color: var(--text-color); border: 1px solid var(--input-border); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); box-shadow: var(--shadow-xl); font-size: var(--font-sm); font-weight: var(--font-weight-bold); white-space: nowrap; pointer-events: none; }
 
     /* Splash / login screen */
-    .splash-screen { display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--splash-bg); align-items: center; justify-content: center; z-index: var(--z-splash); padding: var(--space-5); box-sizing: border-box; }
+    /* overflow-y + safe centring (ML-355): with the email login under Google's button the splash can
+       be taller than a phone screen - it scrolls, and its top never slides out of reach. */
+    .splash-screen { display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--splash-bg); align-items: safe center; justify-content: center; z-index: var(--z-splash); padding: var(--space-5); box-sizing: border-box; overflow-y: auto; }
     .splash-content { text-align: center; max-width: 480px; width: 100%; }
     .splash-image { width: 100%; max-width: 420px; border-radius: var(--radius-md); box-shadow: var(--shadow-2xl); margin-bottom: var(--space-7); }
     .splash-title { color: var(--splash-title-color); margin: 0 0 var(--space-2) 0; font-size: var(--font-2xl); letter-spacing: 1px; }
     .splash-subtitle { color: var(--splash-subtitle-color); font-size: var(--font-md); margin: 0 0 var(--space-6) 0; }
     .splash-login-btn { display: none; width: 100%; padding: var(--space-4) var(--space-5); font-size: var(--font-md); font-weight: var(--font-weight-bold); cursor: pointer; background: linear-gradient(135deg, var(--primary-action), var(--primary-action-gradient-end)); color: var(--primary-action-text); border: none; border-radius: var(--radius-sm); }
     .splash-login-btn.show { display: inline-block; } /* revealed by displayLoginScreen once the silent sign-in has failed */
+    .splash-login-btn:disabled { opacity: var(--opacity-muted); cursor: default; }
+    /* ML-355: the email + password forms on the (always dark) splash - labels and messages in the
+       splash's own fixed colours, the fields and gold button as everywhere else. */
+    .splash-or { margin: var(--space-6) 0 var(--space-2) 0; }
+    .splash-form { display: flex; flex-direction: column; gap: var(--space-2); text-align: left; }
+    .splash-form label { color: var(--splash-subtitle-color); font-weight: var(--font-weight-bold); margin-top: var(--space-2); }
+    .splash-form .splash-login-btn { margin-top: var(--space-3); }
+    .splash-hint { color: var(--splash-subtitle-color); font-size: var(--font-sm); margin: 0; }
+    .splash-message { color: var(--splash-title-color); font-weight: var(--font-weight-bold); margin: var(--space-2) 0 0 0; }
+    .splash-link-btn { align-self: center; min-height: var(--touch-target); padding: var(--space-2) var(--space-3); background: none; border: none; color: var(--splash-title-color); font: inherit; font-weight: var(--font-weight-bold); text-decoration: underline; cursor: pointer; }
 
     /* Slider - shared design-system component (see style guide). A draggable track + thumb + fill,
        with an optional min/max scale caption underneath. Used for any single numeric value dragged

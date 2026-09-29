@@ -73,16 +73,21 @@
             const userId = params.get('userId');
 
             if (token && userId) {
-                localStorage.setItem('authToken', token);
-                localStorage.setItem('userId', userId);
-                this.token = token;
-                this.userId = userId;
-                this.isAuthenticated = true;
-                if (window.posthog) window.posthog.identify(userId);
+                this.accept(token, userId);
                 window.history.replaceState({}, document.title, window.location.pathname);
                 return true;
             }
             return false;
+        }
+
+        // A token from a login - Google's redirect (above) or ML-355's email + password (a JSON reply).
+        accept(token, userId) {
+            localStorage.setItem('authToken', token);
+            localStorage.setItem('userId', userId);
+            this.token = token;
+            this.userId = userId;
+            this.isAuthenticated = true;
+            if (window.posthog) window.posthog.identify(userId);
         }
 
         logout() {
@@ -692,6 +697,10 @@
             console.log('OAuth callback processed');
         }
 
+        // ML-355: an emailed invite or reset link opens its own "choose a password" screen, logged in
+        // or not (it logs in as the invited account when done).
+        if (openPasswordLinkFromUrl()) return;
+
         // Check authentication - not logged in, so reveal the login button
         if (!auth.isAuthenticated) {
             displayLoginScreen();
@@ -778,7 +787,118 @@
         if (statusText) statusText.textContent = 'Please log in to continue';
         const btn = document.getElementById('loginBtn');
         if (btn) btn.classList.add('show');
+        // ML-355: email + password too, when password_login is on (asked before anyone's logged in).
+        fetch(`${API_BASE_URL}/auth/methods`).then(r => r.json()).then(m => setShown('passwordLogin', !!m.password)).catch(() => {});
     }
+
+    // ===== ML-355: email + password login, forgot password, and the invite / reset link screens =====
+    // docs/password-login.md. The server answers every login with a token as JSON; it's stored like
+    // Google's, then the page reloads into the app.
+    function splashMessage(id, text) {
+        const el = document.getElementById(id);
+        el.textContent = text || '';
+        setShown(el, !!text);
+    }
+    function showSplashPanel(which) {
+        // 'login' (Google + email), 'forgot', or 'set' (choose a password from an emailed link)
+        setShown('loginBtn', which === 'login');
+        setShown('passwordLogin', which === 'login');
+        setShown('forgotForm', which === 'forgot');
+        setShown('setPasswordForm', which === 'set');
+    }
+    async function authPost(path, body) {
+        const res = await fetch(`${API_BASE_URL}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Something went wrong - try again.');
+        return data;
+    }
+    function loggedInWith(data) {
+        auth.accept(data.authToken, data.userId);
+        window.location.replace(window.location.pathname);
+    }
+    document.getElementById('passwordLoginForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('passwordLoginSubmit');
+        splashMessage('passwordLoginMessage', '');
+        btn.disabled = true;
+        try {
+            loggedInWith(await authPost('/auth/password/login', {
+                email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value }));
+        } catch (err) {
+            splashMessage('passwordLoginMessage', err.message);
+            btn.disabled = false;
+        }
+    });
+    document.getElementById('forgotLinkBtn')?.addEventListener('click', () => {
+        document.getElementById('forgotEmail').value = document.getElementById('loginEmail').value;
+        splashMessage('forgotMessage', '');
+        showSplashPanel('forgot');
+        document.getElementById('forgotEmail').focus();
+    });
+    document.getElementById('forgotBackBtn')?.addEventListener('click', () => { showSplashPanel('login'); document.getElementById('loginEmail').focus(); });
+    document.getElementById('forgotForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('forgotSubmit');
+        btn.disabled = true;
+        try {
+            const data = await authPost('/auth/password/forgot', { email: document.getElementById('forgotEmail').value });
+            splashMessage('forgotMessage', `${data.message} It works for an hour - check your spam folder if it doesn't arrive.`);
+        } catch (err) {
+            splashMessage('forgotMessage', err.message);
+        }
+        btn.disabled = false;
+    });
+
+    let passwordLink = null; // { purpose: 'invite' | 'reset', token }
+    function openPasswordLinkFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const purpose = params.has('invite') ? 'invite' : params.has('reset') ? 'reset' : null;
+        if (!purpose) return false;
+        passwordLink = { purpose, token: params.get(purpose) };
+        // Out of the address bar and history straight away - it's a one-time key.
+        window.history.replaceState({}, document.title, window.location.pathname);
+        setShown('mainContainer', false);
+        setShown('loginScreen', true);
+        document.getElementById('loginStatusText').textContent = purpose === 'invite' ? 'Choose a password to get started.' : 'Choose a new password.';
+        document.querySelector('#loginScreen .splash-title').textContent = purpose === 'invite' ? 'Welcome' : 'New password';
+        showSplashPanel('set');
+        splashMessage('setPasswordMessage', '');
+        fetch(`${API_BASE_URL}/auth/link/${purpose}/${encodeURIComponent(passwordLink.token)}`)
+            .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'This link has expired or already been used - ask for a new one.'); return d; })
+            .then(d => {
+                document.getElementById('setPasswordEmail').value = d.email;
+                if (d.firstName && purpose === 'invite') document.getElementById('loginStatusText').textContent = `Hi ${d.firstName} - choose a password to get started.`;
+                document.getElementById('setPassword').focus();
+            })
+            .catch(err => {
+                splashMessage('setPasswordMessage', err.message);
+                setShown('setPasswordFields', false);
+                setShown('setPasswordLoginLink', true);
+            });
+        return true;
+    }
+    document.getElementById('setPasswordForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const pw = document.getElementById('setPassword').value;
+        if (pw.length < 10) return splashMessage('setPasswordMessage', 'Use at least 10 characters.');
+        if (pw !== document.getElementById('setPasswordConfirm').value) return splashMessage('setPasswordMessage', "The two passwords don't match.");
+        const btn = document.getElementById('setPasswordSubmit');
+        btn.disabled = true;
+        try {
+            const data = await authPost(passwordLink.purpose === 'invite' ? '/auth/invite/accept' : '/auth/password/reset', { token: passwordLink.token, password: pw });
+            if (data.needsGoogle) {
+                splashMessage('setPasswordMessage', 'Password saved. Super admins log in with Google until two-step sign-in is ready.');
+                setShown('setPasswordFields', false);
+                setShown('setPasswordLoginLink', true);
+                return;
+            }
+            loggedInWith(data);
+        } catch (err) {
+            splashMessage('setPasswordMessage', err.message);
+            btn.disabled = false;
+        }
+    });
+    document.getElementById('setPasswordLoginLink')?.addEventListener('click', () => window.location.replace(window.location.pathname));
 
     function displayMainApp() {
         setShown('loginScreen', false);
@@ -791,7 +911,7 @@
 
     document.getElementById('loginBtn')?.addEventListener('click', () => auth.login());
     window.logoutUser = function() {
-        showConfirmModal('Log out', 'Are you sure you want to log out of Google?', () => auth.logout(), false);
+        showConfirmModal('Log out', 'Are you sure you want to log out?', () => auth.logout(), false);
     }
 
     async function loadAppData(token) {

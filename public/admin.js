@@ -9,6 +9,7 @@
     // ML-288: pop-ups open with .show and close without it - never style.display (same as app.js).
     const showModal = (id) => document.getElementById(id)?.classList.add('show');
     const hideModal = (id) => document.getElementById(id)?.classList.remove('show');
+    const setShown = (id, on) => document.getElementById(id)?.classList.toggle('hidden-group', !on);
 
     if (localStorage.getItem('darkMode') === 'true') {
         document.body.classList.add('dark-mode');
@@ -430,7 +431,66 @@
     async function reloadAccounts() {
         const { accounts } = await apiCall('/api/admin/accounts');
         renderAccountsList(accounts);
+        await reloadInvites();
     }
+
+    // ML-355: invites to log in with an email and a password. Not super admin - a super admin needs
+    // two-step sign-in, which comes in the next batch.
+    async function reloadInvites() {
+        let data;
+        try { data = await apiCall('/api/admin/invites'); } catch (e) { return; } // before migration 074
+        setShown('invitesOffNote', !data.enabled);
+        document.getElementById('inviteBtn').disabled = !data.enabled;
+        const el = document.getElementById('invitesList');
+        el.innerHTML = data.invites.length ? `<h2>Invites not accepted yet</h2>` + data.invites.map(i => `
+            <div class="admin-feature">
+                <div class="admin-feature-header">
+                    <div class="admin-feature-header-text">
+                        <h2>${escapeHtml([i.firstName, i.surname].filter(Boolean).join(' ') || i.email)}</h2>
+                        <p>${escapeHtml(i.email)}</p>
+                        <p class="admin-test-case-meta">${escapeHtml((ACCOUNT_LEVELS.find(([v]) => v === i.accountLevel) || [0, ''])[1])} &middot; sent ${fmtDate(i.createdAt)} &middot; works until ${fmtDate(i.expiresAt)}</p>
+                    </div>
+                    <div class="admin-feature-actions">
+                        <button class="btn-icon-delete" data-cancel-invite="${i.id}" aria-label="Cancel the invite to ${escapeHtml(i.email)}" type="button"><span class="material-symbols-outlined">delete</span></button>
+                    </div>
+                </div>
+            </div>`).join('') : '';
+        el.querySelectorAll('[data-cancel-invite]').forEach(btn => btn.addEventListener('click', () => {
+            showConfirmModal('Cancel invite', 'Cancel this invite? The link in their email stops working.', async () => {
+                try { await apiCall(`/api/admin/invites/${btn.dataset.cancelInvite}`, 'DELETE'); await reloadInvites(); showToast('Invite cancelled.', 'success'); }
+                catch (error) { showToast(error.message); }
+            }, true);
+        }));
+    }
+    function openInviteForm() {
+        ['inviteEmailInput', 'inviteFirstNameInput', 'inviteSurnameInput'].forEach(id => { document.getElementById(id).value = ''; });
+        document.getElementById('inviteLevelInput').innerHTML = ACCOUNT_LEVELS.filter(([v]) => v !== 'super_admin')
+            .map(([v, l]) => `<option value="${v}"${v === 'standard_member' ? ' selected' : ''}>${l}</option>`).join('');
+        showModal('inviteFormModal');
+        document.getElementById('inviteEmailInput').focus();
+    }
+    async function sendInvite() {
+        const btn = document.getElementById('inviteFormSaveBtn');
+        btn.disabled = true;
+        try {
+            const { message } = await apiCall('/api/admin/invites', 'POST', {
+                email: document.getElementById('inviteEmailInput').value,
+                firstName: document.getElementById('inviteFirstNameInput').value,
+                surname: document.getElementById('inviteSurnameInput').value,
+                accountLevel: document.getElementById('inviteLevelInput').value
+            });
+            hideModal('inviteFormModal');
+            showToast(message, 'success');
+            await reloadInvites();
+        } catch (error) {
+            showToast(error.message);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+    document.getElementById('inviteBtn')?.addEventListener('click', openInviteForm);
+    document.getElementById('inviteFormCancelBtn')?.addEventListener('click', () => hideModal('inviteFormModal'));
+    document.getElementById('inviteFormSaveBtn')?.addEventListener('click', sendInvite);
 
     // ========================================
     // Bands (ML-89) - the shared band directory. Same add/edit/delete-with-
