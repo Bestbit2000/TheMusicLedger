@@ -2231,47 +2231,13 @@
          bolted onto it. Reopens on itself every time the extended 5 minutes also runs out (or Stop is
          pressed again), any number of times - see timerPendingFinish/finishTimerSession for how the
          elapsed time survives each round trip so the eventual save always reflects the full total. -->
-<div class="modal" id="scalesKeyModal" role="dialog" aria-modal="true" aria-labelledby="scalesKeyModalTitle">
+    <!-- ML-357: the Scales setting row's pickers - tap one to choose (it closes). -->
+    <div class="modal" id="scalesClefModal" role="dialog" aria-modal="true" aria-labelledby="scalesClefModalTitle">
         <div class="modal-content">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
-            <h2 id="scalesKeyModalTitle">Key</h2>
-            <div class="form-group">
-                <label>Major or minor</label>
-            <div class="radio-group"><input type="radio" id="scalesMode-major" name="scalesMode" value="major"><label for="scalesMode-major">Major</label><input type="radio" id="scalesMode-minor" name="scalesMode" value="minor"><label for="scalesMode-minor">Minor</label></div>
-            </div>
-            <div class="form-group hidden-group" id="scalesFormGroup">
-                <label>Minor form</label>
-            <div class="radio-group compact"><input type="radio" id="scalesForm-harmonic" name="scalesForm" value="harmonic"><label for="scalesForm-harmonic">Harmonic</label><input type="radio" id="scalesForm-melodic" name="scalesForm" value="melodic"><label for="scalesForm-melodic">Melodic</label><input type="radio" id="scalesForm-natural" name="scalesForm" value="natural"><label for="scalesForm-natural">Natural</label></div>
-            </div>
-            <div class="form-group">
-                <label>Key note</label>
-                <div class="note-keyboard" id="scalesRootGrid"></div>
-            </div>
-            <button type="button" class="btn-submit no-margin mt-4" data-modal-close>Done</button>
-        </div>
-    </div>
-
-    <div class="modal" id="scalesTypeModal" role="dialog" aria-modal="true" aria-labelledby="scalesTypeModalTitle">
-        <div class="modal-content">
-            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
-            <h2 id="scalesTypeModalTitle">Scale or arpeggio</h2>
-            <div class="flow-tile-grid flow-tile-grid-2-centered" id="scalesTypeGrid"></div>
-        </div>
-    </div>
-
-    <div class="modal" id="scalesRangeModal" role="dialog" aria-modal="true" aria-labelledby="scalesRangeModalTitle">
-        <div class="modal-content">
-            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
-            <h2 id="scalesRangeModalTitle">Octaves and clef</h2>
-            <div class="form-group">
-                <label>Octaves</label>
-                <div class="flow-tile-grid flow-tile-grid-3" id="scalesOctavesGrid"></div>
-            </div>
-            <div class="form-group">
-                <label>Clef</label>
-                <div class="flow-tile-grid flow-tile-grid-2-centered" id="scalesClefGrid"></div>
-            </div>
-            <button type="button" class="btn-submit no-margin mt-4" data-modal-close>Done</button>
+            <h2 id="scalesClefModalTitle">Clef</h2>
+            <p class="text-muted modal-intro">The clef the scales are written in. For trombone, baritone, euphonium and tuba it also picks the ABRSM list - the bass clef lists are at concert pitch.</p>
+            <div class="flow-tile-grid flow-tile-grid-3" id="scalesClefGrid"></div>
         </div>
     </div>
 
@@ -2279,7 +2245,17 @@
         <div class="modal-content">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
             <h2 id="scalesDirModalTitle">Direction</h2>
-            <div class="flow-tile-grid flow-tile-grid-3" id="scalesDirGrid"></div>
+            <p class="text-muted modal-intro">How every scale in your list is played. A dominant 7th, a scale in thirds and the ABRSM patterns keep their own shape.</p>
+            <div class="flow-tile-grid flow-tile-grid-4" id="scalesDirGrid"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="scalesDetailModal" role="dialog" aria-modal="true" aria-labelledby="scalesDetailModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="scalesDetailModalTitle">Detail</h2>
+            <p class="text-muted modal-intro">How much of the scale to show while you play.</p>
+            <div class="flow-tile-grid flow-tile-grid-3" id="scalesDetailGrid"></div>
         </div>
     </div>
 
@@ -2389,15 +2365,16 @@
         <div class="modal-content modal-content-sticky-footer">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
             <div class="metroSeg-scroll-area">
-                <h2 id="scalesPoolModalTitle">My scales</h2>
-                <p class="text-muted modal-intro">Tick the grades you're working on. The grid shows every scale ABRSM asks for at those grades on your instrument; the ones you can play are the list Next, Previous and Shuffle go round.</p>
-                <div class="form-group" role="group" aria-labelledby="scalesGradesLabel"><label id="scalesGradesLabel">Grades</label>
-                    <div class="radio-group compact scales-grade-options" id="scalesGradeOptions"><input type="checkbox" id="scalesGrade-1" name="scalesGrade" value="1"><label for="scalesGrade-1">1</label><input type="checkbox" id="scalesGrade-2" name="scalesGrade" value="2"><label for="scalesGrade-2">2</label><input type="checkbox" id="scalesGrade-3" name="scalesGrade" value="3"><label for="scalesGrade-3">3</label><input type="checkbox" id="scalesGrade-4" name="scalesGrade" value="4"><label for="scalesGrade-4">4</label></div>
-                </div>
+                <h2 id="scalesPoolModalTitle">Scales</h2>
                 <div class="form-group"><label for="scalesGradeInstrument">Instrument</label><select id="scalesGradeInstrument"></select></div>
+                <div class="form-group" role="group" aria-labelledby="scalesGradesLabel"><label id="scalesGradesLabel">Grades <span class="text-muted" id="scalesGradesSummary"></span></label>
+                    <div class="radio-group compact scales-grade-options" id="scalesGradeOptions"><input type="checkbox" id="scalesGrade-1" name="scalesGrade" value="1"><label for="scalesGrade-1">1</label><input type="checkbox" id="scalesGrade-2" name="scalesGrade" value="2"><label for="scalesGrade-2">2</label><input type="checkbox" id="scalesGrade-3" name="scalesGrade" value="3"><label for="scalesGrade-3">3</label><input type="checkbox" id="scalesGrade-4" name="scalesGrade" value="4"><label for="scalesGrade-4">4</label><input type="checkbox" id="scalesGrade-5" name="scalesGrade" value="5"><label for="scalesGrade-5">5</label><input type="checkbox" id="scalesGrade-6" name="scalesGrade" value="6"><label for="scalesGrade-6">6</label><input type="checkbox" id="scalesGrade-7" name="scalesGrade" value="7"><label for="scalesGrade-7">7</label><input type="checkbox" id="scalesGrade-8" name="scalesGrade" value="8"><label for="scalesGrade-8">8</label><input type="checkbox" id="scalesGrade-else" name="scalesGrade" value="else"><label for="scalesGrade-else">Everything else</label></div>
+                </div>
                 <p class="text-sm" id="scalesGradeListName" aria-live="polite"></p>
-                <button type="button" class="btn-nav" id="scalesSeeRangeBtn" aria-haspopup="dialog">See your range</button>
-                <p class="scales-pool-count" id="scalesPoolCount" aria-live="polite"></p>
+                <div class="scales-pool-line">
+                    <p class="scales-pool-count" id="scalesPoolCount" aria-live="polite"></p>
+                    <button type="button" class="scales-range-link" id="scalesSeeRangeBtn" aria-haspopup="dialog">See your range</button>
+                </div>
                 <div id="scalesGradeGrid"></div>
                 <div class="scale-grid-legend" aria-hidden="true">
                     <span><span class="scale-grid-cell is-ready"></span>In your list</span>
@@ -2409,6 +2386,22 @@
             </div>
             <div class="metroSeg-sticky-footer">
                 <button type="button" class="btn-submit no-margin" data-modal-close>Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ML-357: Choose a scale - opened from the scale's name. Your list from My scales, row by row as in
+         its grid, each key a button; tap one to play it. -->
+    <div class="modal" id="scalesChooseModal" role="dialog" aria-modal="true" aria-labelledby="scalesChooseTitle">
+        <div class="modal-content modal-content-sticky-footer">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <div class="metroSeg-scroll-area">
+                <h2 id="scalesChooseTitle">Choose a scale</h2>
+                <p class="text-muted modal-intro" id="scalesChooseIntro"></p>
+                <div id="scalesChooseList"></div>
+            </div>
+            <div class="metroSeg-sticky-footer">
+                <button type="button" class="btn-nav btn-cancel no-margin" id="scalesChooseEditBtn">Change your scales</button>
             </div>
         </div>
     </div>
@@ -2442,18 +2435,15 @@
          screen - the note to play lights gold while the metronome runs - then the same transport and
          tempo box as the Metronome tool. Glue: the SCALES PRACTICE section of app.js; scales are built
          by TheoryEngine.buildScale / writeScale, drawn by Notation.staff. See specs/components/scales.md. -->
+    <!-- ML-357 (owner's layout): the settings along the top - which scales (instrument + grades), clef,
+         direction, how much to show - then the scale's box with Previous / Next / Shuffle / Select under
+         it, then the metronome in its own box, switched on or off. -->
     <div id="scalesView" class="hidden-group">
-        <div class="flow-tile-grid flow-tile-grid-4">
-            <button type="button" class="flow-tile" id="scalesKeyBtn" aria-haspopup="dialog" aria-label="Key - tap to change"><span class="flow-tile-value" id="scalesKeyVal">C</span><span class="flow-tile-label" id="scalesKeyLbl">major</span></button>
-            <button type="button" class="flow-tile" id="scalesTypeBtn" aria-haspopup="dialog" aria-label="Scale or arpeggio - tap to change"><span class="flow-tile-value" id="scalesTypeVal">Scale</span><span class="flow-tile-label">type</span></button>
-            <button type="button" class="flow-tile" id="scalesRangeBtn" aria-haspopup="dialog" aria-label="Octaves and clef - tap to change"><span class="flow-tile-value" id="scalesOctavesVal">1</span><span class="flow-tile-label" id="scalesOctavesLbl">octave</span></button>
-            <button type="button" class="flow-tile" id="scalesDirBtn" aria-haspopup="dialog" aria-label="Direction - tap to change"><span class="flow-tile-value"><span class="material-symbols-outlined" id="scalesDirIcon" aria-hidden="true">swap_vert</span></span><span class="flow-tile-label" id="scalesDirLbl">up &amp; down</span></button>
-        </div>
-        <div class="scales-pick-row">
-            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesPrevBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><span class="metroBlk-ctrl-value-label">previous</span></button>
-            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesNextBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><span class="metroBlk-ctrl-value-label">next</span></button>
-            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesShuffleBtn"><span class="material-symbols-outlined" aria-hidden="true">shuffle</span><span class="metroBlk-ctrl-value-label">shuffle</span></button>
-            <button type="button" class="metro-play-grid-btn scales-pick-mine" id="scalesPoolBtn" aria-haspopup="dialog"><span class="material-symbols-outlined" aria-hidden="true">playlist_add_check</span><span class="metroBlk-ctrl-value-label">my scales</span></button>
+        <div class="metro-transport-grid scales-setting-row">
+            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesPoolBtn" aria-haspopup="dialog" aria-label="Scales - your instrument and grades"><strong id="scalesPoolBtnVal"><span class="material-symbols-outlined" aria-hidden="true">playlist_add_check</span></strong><span class="metroBlk-ctrl-value-label" id="scalesPoolBtnLbl">scales</span></button>
+            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesClefBtn" aria-haspopup="dialog" aria-label="Clef - tap to change"><strong id="scalesClefBtnVal">Treble</strong><span class="metroBlk-ctrl-value-label" id="scalesClefBtnLbl">clef</span></button>
+            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesDirBtn" aria-haspopup="dialog" aria-label="Direction - tap to change"><strong id="scalesDirBtnVal"><span class="material-symbols-outlined" aria-hidden="true" id="scalesDirIcon">swap_vert</span></strong><span class="metroBlk-ctrl-value-label" id="scalesDirBtnLbl">up &amp; down</span></button>
+            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesDetailBtn" aria-haspopup="dialog" aria-label="Detail - how much of the scale to show"><strong id="scalesDetailBtnVal">Notes</strong><span class="metroBlk-ctrl-value-label" id="scalesDetailBtnLbl">detail</span></button>
         </div>
         <section class="flow-card scales-staff-card" aria-labelledby="scalesTitle">
             <div class="scales-staff-head">
@@ -2461,21 +2451,31 @@
                     <h2 class="scales-staff-title" id="scalesTitle">C major scale</h2>
                     <span class="scales-staff-sub" id="scalesSub"></span>
                 </div>
-                <!-- Play from memory: the name only, no notes - harder, you play it from memory. -->
-                <!-- The metronome's volume - same button and pop-up as the Metronome tool's (qpVolumeBtn). -->
+                <!-- The metronome's volume - same button and pop-up as the Metronome tool's (qpVolumeBtn); hidden while the metronome is off. -->
                 <button type="button" class="metroBlk-row-volume-btn" id="scalesVolumeBtn" aria-label="Volume - tap to change" aria-haspopup="dialog" aria-expanded="false"><span class="material-symbols-outlined" id="scalesVolumeIcon">volume_up</span></button>
-                <div class="scales-memory-toggle">
-                    <span id="scalesMemoryLbl">From memory</span><label class="toggle-switch"><input type="checkbox" id="scalesMemoryToggle" aria-labelledby="scalesMemoryLbl"><span class="toggle-slider"></span></label>
-                </div>
             </div>
+            <!-- Detail: Notes = the scale written out; Key = a blank stave with the key signature (you find the
+                 notes); Name = no stave, just the name and what to play. -->
             <div class="scales-staff" id="scalesStaff"></div>
             <div class="scales-memory hidden-group" id="scalesMemory">
                 <div class="scales-memory-name" id="scalesMemoryName">C major</div>
                 <div class="scales-memory-detail" id="scalesMemoryDetail"></div>
                 <div class="scales-memory-progress" id="scalesMemoryProgress" aria-live="off"></div>
             </div>
+            <div class="scales-pick-row">
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesPrevBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><span class="metroBlk-ctrl-value-label">previous</span></button>
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesNextBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><span class="metroBlk-ctrl-value-label">next</span></button>
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesShuffleBtn"><span class="material-symbols-outlined" aria-hidden="true">shuffle</span><span class="metroBlk-ctrl-value-label">shuffle</span></button>
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesChooseBtn" aria-haspopup="dialog" aria-label="Select - choose a scale from your list"><span class="material-symbols-outlined" aria-hidden="true">format_list_bulleted</span><span class="metroBlk-ctrl-value-label">select</span></button>
+            </div>
         </section>
-        <div class="metro-transport-grid mt-3">
+        <section class="flow-card scales-staff-card scales-metronome-card" aria-labelledby="scalesMetronomeLbl">
+            <div class="scales-staff-head">
+                <h2 class="scales-staff-title" id="scalesMetronomeLbl">Use metronome</h2>
+                <label class="toggle-switch"><input type="checkbox" id="scalesMetronomeToggle" aria-labelledby="scalesMetronomeLbl"><span class="toggle-slider"></span></label>
+            </div>
+            <div id="scalesMetronomeControls">
+        <div class="metro-transport-grid">
             <button type="button" class="metro-play-grid-btn" id="scalesPlayBtn" aria-label="Play - press and hold to go back to the start" aria-pressed="false">
                 <span class="material-symbols-outlined" id="scalesPlayIcon">play_arrow</span>
                 <span class="metroBlk-ctrl-value-label" id="scalesPlayLbl">play</span>
@@ -2510,6 +2510,8 @@
                 <div class="slider-scale"><span>15</span><span>200</span></div>
             </div>
         </div>
+            </div>
+        </section>
     </div>
 
 

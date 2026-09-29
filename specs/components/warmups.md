@@ -1,7 +1,7 @@
 # Warm-ups
 
 ## 1. Metadata
-- **Name:** Warm-ups (`.warmups-tip`, `.warmup-note`, `.warmup-note-*`; the Admin → Warm-ups editor: `.admin-warmup-kind`, `.admin-warmup-row-preview`, `.admin-warmup-off`, `.admin-modal-wide`, `.admin-warmup-fields`, `.admin-warmup-preview-head`, `.admin-warmup-preview`, `.admin-warmup-status`, `.admin-warmup-inline`, `.admin-warmup-tools`, `.is-selected`)
+- **Name:** Warm-ups (`.warmups-tip`, `.warmup-note`, `.warmup-note-*`; the Admin → Warm-ups editor: `.admin-warmup-kind`, `.admin-warmup-row-preview`, `.admin-warmup-off`, `.admin-modal-wide`, `.admin-warmup-fields`, `.admin-warmup-preview-head`, `.admin-warmup-preview`, `.admin-warmup-status`, `.admin-warmup-inline`, `.admin-warmup-tools`, `.is-selected`, `.note-keyboard` - the note picker: sharps above, naturals, flats below, the same placement as `.theory-answers-keyboard`; the Scales key picker used it until ML-357)
 - **Category:** Tool screen · admin editor
 - **Status:** New (ML-294)
 

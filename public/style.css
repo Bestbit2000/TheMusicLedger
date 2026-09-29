@@ -1936,9 +1936,17 @@
     /* "My scales" / "My warm-ups" open a pop-up: outlined, like .btn-cancel, rather than filled grey. */
     .scales-pick-mine { background: transparent; border: 2px solid var(--primary-action-strong); color: var(--primary-action-strong); }
     .scales-staff-card { padding: var(--space-3) var(--space-2); }
+    /* ML-357: the setting row along the top (scales / clef / direction / detail) - the transport's value
+       boxes with a one-line value, so "Treble" fits a quarter of a phone */
+    .scales-setting-btn { padding: var(--space-2) var(--space-1); }
+    .scales-setting-btn strong { font-size: var(--font-base); line-height: var(--line-height-snug); text-align: center; }
+    /* Previous / Next / Shuffle / Select sit under the stave, inside the scale's box */
+    .scales-staff-card .scales-pick-row { margin: var(--space-3) 0 0 0; }
+    /* Use metronome: its own box, the title and the on/off switch on one line, the transport under it */
+    .scales-metronome-card { margin-top: var(--space-3); }
+    .scales-metronome-card .scales-staff-head { padding-bottom: 0; }
     .scales-staff-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 0 var(--space-2) var(--space-2); }
     .scales-staff-heading { display: flex; flex-direction: column; gap: var(--space-0-5); min-width: 0; }
-    .scales-memory-toggle { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; font-size: var(--font-sm); color: var(--label-color); }
     /* Play from memory (ML-9): the scale's name in place of the notes. */
     .scales-memory { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-7) var(--space-3); text-align: center; }
     .scales-memory-name { font-size: var(--font-2xl); font-weight: var(--font-weight-bold); color: var(--text-color); }
@@ -1964,6 +1972,16 @@
     .note-keyboard .flow-picker-tile { min-height: var(--touch-target); padding: var(--space-2) 0; }
     /* ML-294: Warm-ups shares the Scales layout classes; its own bit is the exercise's tip under the title. */
     .warmups-tip { margin: 0 var(--space-2) var(--space-2); font-size: var(--font-sm); color: var(--label-color); }
+    /* ML-357 Choose a scale: your list row by row, each key a 44px+ button, five across */
+    .scales-choose-group { margin-top: var(--space-4); }
+    .scales-choose-label { margin: 0 0 var(--space-2) 0; font-size: var(--font-sm); font-weight: var(--font-weight-bold); }
+    .scales-choose-label .scale-grid-sub { font-weight: var(--font-weight-normal); }
+    .scales-choose-keys { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); }
+    .scales-choose-keys .flow-picker-tile { min-height: var(--touch-target); padding: var(--space-2) 0; }
+    /* The Scales pop-up: the count and See your range (a text link) on one line */
+    .scales-pool-line { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+    .scales-pool-line .scales-pool-count { margin: 0; }
+    .scales-range-link { flex: none; min-height: var(--touch-target); padding: var(--space-2) 0; background: none; border: none; color: var(--link-color); font: inherit; font-weight: var(--font-weight-bold); text-decoration: underline; cursor: pointer; }
     .scales-pool-count { margin: var(--space-2) 0 0 0; font-size: var(--font-sm); color: var(--label-color); }
     /* ML-357: the grade grid in My scales (specs/components/scales.md) - a label column, then the 15 keys
        in chromatic order. Every state has a shape or mark as well as a colour: filled (ready), "8"
@@ -1986,8 +2004,9 @@
     .scale-grid-legend { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2) var(--space-3); margin-top: var(--space-4); font-size: var(--font-sm); color: var(--label-color); }
     .scale-grid-legend > span { display: flex; align-items: center; gap: var(--space-2); }
     .scale-grid-legend .scale-grid-cell { width: var(--space-4); flex: none; }
-    /* My scales' Grades 1-4: always one row of four (a compact radio group's labels are content-box, so four would wrap) */
-    .scales-grade-options label { flex: 1 1 0; min-width: 0; box-sizing: border-box; }
+    /* My scales' option rows (clef, direction, grades): four to a row, however many there are - a compact
+       radio group's labels are content-box, so four would wrap. A last one on its own (Everything else) fills its row. */
+    .scales-grade-options label { flex: 1 1 calc(25% - var(--space-2)); min-width: 0; box-sizing: border-box; }
     .scales-range-staff { display: flex; justify-content: center; margin: var(--space-3) 0; }
 
     .flow-picker-tile-label { display: block; font-size: var(--font-xs); color: var(--label-color); min-height: 1em; }
