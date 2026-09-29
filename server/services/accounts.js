@@ -142,3 +142,31 @@ export async function setAccountLevel(accountId, level) {
   if (!rows.length) { const e = new Error('Account not found'); e.status = 404; throw e; }
   levelCache.delete(String(accountId)); // this server sees the change at once; others within 30 seconds
 }
+
+// ML-356: display and reading preferences (accounts.display_prefs) - they follow the account to every
+// device. Only these keys and values are kept; anything else is dropped. {} = nothing chosen yet.
+export const DISPLAY_PREF_CHOICES = {
+  darkMode: [true, false],
+  dyslexia: [true, false],                       // more line / letter / word spacing, no italics
+  font: ['standard', 'lexend', 'opendyslexic'],
+  background: ['standard', 'cream', 'blue', 'green'],
+  textSize: ['standard', 'large', 'larger']
+};
+export async function getDisplayPrefs(accountId) {
+  const { rows } = await pool.query('SELECT display_prefs FROM accounts WHERE id = $1', [accountId]);
+  return rows[0]?.display_prefs || {};
+}
+export async function saveDisplayPrefs(accountId, prefs) {
+  const clean = {};
+  for (const [key, allowed] of Object.entries(DISPLAY_PREF_CHOICES)) {
+    if (prefs && key in prefs) {
+      if (!allowed.includes(prefs[key])) { const e = new Error(`Unknown ${key} setting.`); e.status = 400; throw e; }
+      clean[key] = prefs[key];
+    }
+  }
+  // Merged, so one screen can save one setting without resending the others.
+  const { rows } = await pool.query(
+    'UPDATE accounts SET display_prefs = display_prefs || $2::jsonb WHERE id = $1 RETURNING display_prefs',
+    [accountId, JSON.stringify(clean)]);
+  return rows[0]?.display_prefs || {};
+}

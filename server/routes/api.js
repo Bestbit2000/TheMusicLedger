@@ -14,7 +14,7 @@ import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader } from '../mi
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, joinBand, leaveBand, createSharedBand, deleteBandIfSoleMember } from '../services/bands.js';
-import { getAccountProfile, updateAccountProfile, getPracticeYearSetting, updatePracticeYearSetting } from '../services/accounts.js';
+import { getAccountProfile, updateAccountProfile, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
 import { listDurationOptions, getDefaultDurationMinutes } from '../services/durationOptions.js';
 import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSignaturesWithUsage, setCustomTimeSignatureActive, deleteCustomTimeSignature } from '../services/timeSignatures.js';
@@ -688,6 +688,22 @@ router.post('/settings/teachers/:name/unarchive', requireAuth, resolveAccount, a
 router.get('/account', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await getAccountProfile(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-356: display and reading preferences - saved on the account so they follow you to every device.
+router.get('/account/display', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json({ prefs: await getDisplayPrefs(req.accountId) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.put('/account/display', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json({ prefs: await saveDisplayPrefs(req.accountId, req.body?.prefs) });
   } catch (error) {
     sendError(res, error);
   }

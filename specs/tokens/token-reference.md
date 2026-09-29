@@ -16,10 +16,10 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 
 | Token | Light | Dark | Use for |
 |---|---|---|---|
-| `--bg-color` | `#f4f7f6` | `#121212` | page background |
-| `--container-bg` | `#ffffff` | `#1e1e1e` | main column, cards, modals, menus |
+| `--bg-color` | `#f4f7f6` | `#141c16` | page background |
+| `--container-bg` | `#ffffff` | `#1d2720` | main column, cards, modals, menus |
 | `--secondary-color` | `#f1f8e9` | `#2c2c2c` | quiet tinted panel (month nav, active admin tab) |
-| `--input-bg` | `#fafafa` | `#333333` | inputs + tappable surfaces |
+| `--input-bg` | `#fafafa` | `#2b362e` | inputs + tappable surfaces |
 | `--surface-inverse` | `#333333` | (same) | dark toast / snackbar |
 | `--overlay-bg` | `rgba(0, 0, 0, 0.85)` | (same) | modal scrim |
 | `--menu-backdrop-bg` | `rgba(0, 0, 0, 0.3)` | `rgba(0, 0, 0, 0.6)` | dims the page behind the open ☰ menu on a phone (ML-291) - lighter than a modal scrim |
@@ -161,29 +161,41 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 
 ## Typography
 
-| Token | Value | Use for |
-|---|---|---|
-| `--font-sans` | `'Inter', 'Segoe UI', Tahoma, sans-serif` | all UI text |
-| `--font-mono` | `ui-monospace, 'SFMono-Regular', Consolas, monospace` | code, IDs, timestamps in admin |
-| `--font-music` | `'Noto Music', serif` | Unicode musical symbols (segno, coda) |
-| `--font-notation` | `'Bravura'` | music notation glyphs (notes, clefs, symbols) - Bravura via public/notation.js (ML-262) |
-| `--font-notation-text` | `Georgia, 'Times New Roman', serif` | words printed in music: Fine, 1./2. time-bar numbers (ML-262) |
-| `--font-2xs` | `0.6rem` | heatmap day labels only |
-| `--font-xs` | `0.65rem` | micro labels, badges, chart axes |
-| `--font-sm` | `0.8rem` | secondary text, captions, chips, metadata |
-| `--font-base` | `0.95rem` | body text, list rows, inputs |
-| `--font-md` | `1.1rem` | buttons, card titles, top-bar title |
-| `--font-lg` | `1.3rem` | large buttons, modal titles, stat values |
-| `--font-xl` | `1.6rem` | hero values (current piece, tuner octave) |
-| `--font-2xl` | `2rem` | page titles, splash title |
-| `--font-3xl` | `3rem` | giant readouts (tuner note) |
-| `--font-weight-normal` | `400` | body text |
-| `--font-weight-semibold` | `600` | form labels, nav/tab items, modal titles |
-| `--font-weight-bold` | `700` | buttons, titles, emphasised values |
-| `--line-height-tight` | `1` | icon glyphs, single-line numeric readouts |
-| `--line-height-snug` | `1.2` | multi-line button labels, chart labels |
-| `--line-height-base` | `1.45` | body paragraphs, notifications |
-| `--line-height-relaxed` | `1.6` | long-form reading text (release notes) |
+| Token | Light | Dark | Use for |
+|---|---|---|---|
+| `--font-sans` | `'Inter', 'Segoe UI', Tahoma, sans-serif` | `'OpenDyslexic', 'Comic Sans MS', sans-serif` | all UI text |
+| `--font-mono` | `ui-monospace, 'SFMono-Regular', Consolas, monospace` | (same) | code, IDs, timestamps in admin |
+| `--font-music` | `'Noto Music', serif` | (same) | Unicode musical symbols (segno, coda) |
+| `--font-notation` | `'Bravura'` | (same) | music notation glyphs (notes, clefs, symbols) - Bravura via public/notation.js (ML-262) |
+| `--font-notation-text` | `Georgia, 'Times New Roman', serif` | (same) | words printed in music: Fine, 1./2. time-bar numbers (ML-262) |
+| `--font-2xs` | `0.6rem` | (same) | heatmap day labels only |
+| `--font-xs` | `0.65rem` | (same) | micro labels, badges, chart axes |
+| `--font-sm` | `0.8rem` | (same) | secondary text, captions, chips, metadata |
+| `--font-base` | `0.95rem` | (same) | body text, list rows, inputs |
+| `--font-md` | `1.1rem` | (same) | buttons, card titles, top-bar title |
+| `--font-lg` | `1.3rem` | (same) | large buttons, modal titles, stat values |
+| `--font-xl` | `1.6rem` | (same) | hero values (current piece, tuner octave) |
+| `--font-2xl` | `2rem` | (same) | page titles, splash title |
+| `--font-3xl` | `3rem` | (same) | giant readouts (tuner note) |
+| `--font-weight-normal` | `400` | (same) | body text |
+| `--font-weight-semibold` | `600` | (same) | form labels, nav/tab items, modal titles |
+| `--font-weight-bold` | `700` | (same) | buttons, titles, emphasised values |
+| `--line-height-tight` | `1` | (same) | icon glyphs, single-line numeric readouts |
+| `--line-height-snug` | `1.2` | (same) | multi-line button labels, chart labels |
+| `--line-height-base` | `1.45` | `1.7` | body paragraphs, notifications |
+| `--line-height-relaxed` | `1.6` | `1.85` | long-form reading text (release notes) |
+| `--text-scale` | `100%` | `125%` | the root font size - Text size setting |
+| `--reading-letter-spacing` | `normal` | `0.035em` | dyslexia-friendly: a little more |
+| `--reading-word-spacing` | `normal` | `0.12em` | dyslexia-friendly: a little more |
+| `--reading-em-style` | `italic` | `normal` | dyslexia-friendly: no italics |
+| `--tile-label-fit` | `15cqi` | (same) | the biggest a tool tile's label can be and still fit its tile |
+| `--font-preview-standard` | `'Inter', 'Segoe UI', Tahoma, sans-serif` | (same) | each Reading font choice drawn in its own font |
+| `--font-preview-lexend` | `'Lexend', 'Segoe UI', sans-serif` | (same) | the Lexend choice, in Lexend |
+| `--font-preview-opendyslexic` | `'OpenDyslexic', 'Comic Sans MS', sans-serif` | (same) | the OpenDyslexic choice, in OpenDyslexic |
+| `--swatch-standard` | `#f4f7f6` | (same) | Background choice swatches - the light page colours |
+| `--swatch-cream` | `#f8f0dc` | (same) | the Cream choice's swatch |
+| `--swatch-blue` | `#e8f0f8` | (same) | the Pale blue choice's swatch |
+| `--swatch-green` | `#e6f2e8` | (same) | the Pale green choice's swatch |
 
 ## Icon glyph sizes (Material Symbols font-size)
 
@@ -398,6 +410,34 @@ one ladder, low to high. Never invent a number in a component.
 | `--ds-font-music` | `'Noto Music', serif` |
 | `--ds-font-bravura` | `'Bravura'` |
 | `--ds-font-serif` | `Georgia, 'Times New Roman', serif` |
+| `--ds-font-lexend` | `'Lexend', 'Segoe UI', sans-serif` |
+| `--ds-font-opendyslexic` | `'OpenDyslexic', 'Comic Sans MS', sans-serif` |
+| `--ds-text-scale-100` | `100%` |
+| `--ds-text-scale-112` | `112.5%` |
+| `--ds-text-scale-125` | `125%` |
+| `--ds-leading-1-7` | `1.7` |
+| `--ds-leading-1-85` | `1.85` |
+| `--ds-tracking-reading` | `0.035em` |
+| `--ds-word-spacing-reading` | `0.12em` |
+| `--ds-tile-label-fit` | `15cqi` |
+| `--ds-cream-page` | `#f8f0dc` |
+| `--ds-cream-card` | `#fdf8ec` |
+| `--ds-cream-field` | `#fffcf4` |
+| `--ds-blue-page` | `#e8f0f8` |
+| `--ds-blue-card` | `#f1f6fb` |
+| `--ds-blue-field` | `#f9fbfd` |
+| `--ds-green-page` | `#e6f2e8` |
+| `--ds-green-card` | `#f0f8f1` |
+| `--ds-green-field` | `#f9fcf9` |
+| `--ds-cream-page-dark` | `#1d1a14` |
+| `--ds-cream-card-dark` | `#28241c` |
+| `--ds-cream-field-dark` | `#363026` |
+| `--ds-blue-page-dark` | `#131a22` |
+| `--ds-blue-card-dark` | `#1c242e` |
+| `--ds-blue-field-dark` | `#2a333f` |
+| `--ds-green-page-dark` | `#141c16` |
+| `--ds-green-card-dark` | `#1d2720` |
+| `--ds-green-field-dark` | `#2b362e` |
 | `--ds-text-0-6` | `0.6rem` |
 | `--ds-text-0-65` | `0.65rem` |
 | `--ds-text-0-8` | `0.8rem` |

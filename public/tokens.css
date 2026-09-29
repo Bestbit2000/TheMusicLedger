@@ -132,6 +132,35 @@
     --ds-font-music: 'Noto Music', serif;
     --ds-font-bravura: 'Bravura';
     --ds-font-serif: Georgia, 'Times New Roman', serif;
+    --ds-font-lexend: 'Lexend', 'Segoe UI', sans-serif;          /* ML-356 reading font (self-hosted, SIL OFL) */
+    --ds-font-opendyslexic: 'OpenDyslexic', 'Comic Sans MS', sans-serif; /* ML-356 reading font (self-hosted, SIL OFL) */
+    --ds-text-scale-100: 100%;
+    --ds-text-scale-112: 112.5%;
+    --ds-text-scale-125: 125%;
+    --ds-leading-1-7: 1.7;
+    --ds-leading-1-85: 1.85;
+    --ds-tracking-reading: 0.035em;   /* ML-356 dyslexia-friendly letter spacing */
+    --ds-word-spacing-reading: 0.12em;
+    --ds-tile-label-fit: 15cqi;       /* ML-356 a tool tile's label never wider than its tile */
+    /* ML-356 background choices - light, then dark: page, cards, fields */
+    --ds-cream-page: #f8f0dc;
+    --ds-cream-card: #fdf8ec;
+    --ds-cream-field: #fffcf4;
+    --ds-blue-page: #e8f0f8;
+    --ds-blue-card: #f1f6fb;
+    --ds-blue-field: #f9fbfd;
+    --ds-green-page: #e6f2e8;
+    --ds-green-card: #f0f8f1;
+    --ds-green-field: #f9fcf9;
+    --ds-cream-page-dark: #1d1a14;
+    --ds-cream-card-dark: #28241c;
+    --ds-cream-field-dark: #363026;
+    --ds-blue-page-dark: #131a22;
+    --ds-blue-card-dark: #1c242e;
+    --ds-blue-field-dark: #2a333f;
+    --ds-green-page-dark: #141c16;
+    --ds-green-card-dark: #1d2720;
+    --ds-green-field-dark: #2b362e;
     --ds-text-0-6: 0.6rem;
     --ds-text-0-65: 0.65rem;
     --ds-text-0-8: 0.8rem;
@@ -316,6 +345,19 @@
     --line-height-snug: var(--ds-leading-1-2, 1.2);              /* multi-line button labels, chart labels */
     --line-height-base: var(--ds-leading-1-45, 1.45);            /* body paragraphs, notifications */
     --line-height-relaxed: var(--ds-leading-1-6, 1.6);           /* long-form reading text (release notes) */
+    /* ML-356 reading preferences (html[data-*] blocks at the end of this file switch these) */
+    --text-scale: var(--ds-text-scale-100, 100%);                /* the root font size - Text size setting */
+    --reading-letter-spacing: normal;                            /* dyslexia-friendly: a little more */
+    --reading-word-spacing: normal;                              /* dyslexia-friendly: a little more */
+    --reading-em-style: italic;                                  /* dyslexia-friendly: no italics */
+    --tile-label-fit: var(--ds-tile-label-fit, 15cqi);           /* the biggest a tool tile's label can be and still fit its tile */
+    --font-preview-standard: var(--ds-font-inter, 'Inter', sans-serif); /* each Reading font choice drawn in its own font */
+    --font-preview-lexend: var(--ds-font-lexend, 'Lexend', sans-serif); /* the Lexend choice, in Lexend */
+    --font-preview-opendyslexic: var(--ds-font-opendyslexic, 'OpenDyslexic', sans-serif); /* the OpenDyslexic choice, in OpenDyslexic */
+    --swatch-standard: var(--ds-neutral-50, #f4f7f6);            /* Background choice swatches - the light page colours */
+    --swatch-cream: var(--ds-cream-page, #f8f0dc);               /* the Cream choice's swatch */
+    --swatch-blue: var(--ds-blue-page, #e8f0f8);                 /* the Pale blue choice's swatch */
+    --swatch-green: var(--ds-green-page, #e6f2e8);               /* the Pale green choice's swatch */
 
     /* Icon glyph sizes (Material Symbols font-size) */
     --icon-sm: var(--ds-size-16, 16px);                          /* inline icons inside text or chips */
@@ -435,3 +477,33 @@ body.dark-mode {
     --status-purple-bg: var(--ds-status-purple-bg-dark, #2f2557);
     --status-purple-fg: var(--ds-status-purple-fg-dark, #c3b6f0);
 }
+
+/* =============================================================================
+   ML-356 display and reading preferences - saved on the account, set as data
+   attributes on <html> by public/display-prefs.js (before the page draws) and
+   app.js. Each block only remaps Layer 2 aliases, like dark mode. Music notation
+   keeps its own font (--font-notation) whatever the reading font.
+   ============================================================================= */
+html[data-font="lexend"] { --font-sans: var(--ds-font-lexend, 'Lexend', sans-serif); }
+html[data-font="opendyslexic"] { --font-sans: var(--ds-font-opendyslexic, 'OpenDyslexic', sans-serif); }
+
+html[data-text="large"] { --text-scale: var(--ds-text-scale-112, 112.5%); }
+html[data-text="larger"] { --text-scale: var(--ds-text-scale-125, 125%); }
+
+/* Dyslexia-friendly reading: more space between lines, letters and words; no italics (British
+   Dyslexia Association style guide). */
+html[data-reading="on"] {
+    --line-height-base: var(--ds-leading-1-7, 1.7);
+    --line-height-relaxed: var(--ds-leading-1-85, 1.85);
+    --reading-letter-spacing: var(--ds-tracking-reading, 0.035em);
+    --reading-word-spacing: var(--ds-word-spacing-reading, 0.12em);
+    --reading-em-style: normal;
+}
+
+/* Background colour - light, then dark (the dark variant beats body.dark-mode on specificity). */
+html[data-bg="cream"] { --bg-color: var(--ds-cream-page, #f8f0dc); --container-bg: var(--ds-cream-card, #fdf8ec); --input-bg: var(--ds-cream-field, #fffcf4); }
+html[data-bg="blue"] { --bg-color: var(--ds-blue-page, #e8f0f8); --container-bg: var(--ds-blue-card, #f1f6fb); --input-bg: var(--ds-blue-field, #f9fbfd); }
+html[data-bg="green"] { --bg-color: var(--ds-green-page, #e6f2e8); --container-bg: var(--ds-green-card, #f0f8f1); --input-bg: var(--ds-green-field, #f9fcf9); }
+html[data-bg="cream"] body.dark-mode { --bg-color: var(--ds-cream-page-dark, #1d1a14); --container-bg: var(--ds-cream-card-dark, #28241c); --input-bg: var(--ds-cream-field-dark, #363026); }
+html[data-bg="blue"] body.dark-mode { --bg-color: var(--ds-blue-page-dark, #131a22); --container-bg: var(--ds-blue-card-dark, #1c242e); --input-bg: var(--ds-blue-field-dark, #2a333f); }
+html[data-bg="green"] body.dark-mode { --bg-color: var(--ds-green-page-dark, #141c16); --container-bg: var(--ds-green-card-dark, #1d2720); --input-bg: var(--ds-green-field-dark, #2b362e); }

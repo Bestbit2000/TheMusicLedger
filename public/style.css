@@ -11,6 +11,39 @@
     .notation-text-italic { font-style: italic; font-weight: var(--font-weight-bold); }
     .notation-text-bold { font-weight: var(--font-weight-bold); }
 
+    /* ML-356: the reading fonts, self-hosted (SIL OFL - public/fonts/*-LICENSE.txt, listed in
+       docs/third-party-providers.md). Only downloaded once someone chooses one (Settings -> Display and
+       reading). Lexend is one variable font for every weight, split Latin / Latin extended like Google's. */
+    @font-face { font-family: 'Lexend'; src: url('/fonts/lexend-latin.woff2') format('woff2'); font-weight: 100 900; /* token-audit-ignore: an @font-face descriptor - CSS allows no custom properties here */ font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: 'Lexend'; src: url('/fonts/lexend-latin-ext.woff2') format('woff2'); font-weight: 100 900; /* token-audit-ignore: an @font-face descriptor - CSS allows no custom properties here */ font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+    @font-face { font-family: 'OpenDyslexic'; src: url('/fonts/opendyslexic-regular.woff2') format('woff2'); font-weight: 400; /* token-audit-ignore: an @font-face descriptor - CSS allows no custom properties here */ font-display: swap; }
+    @font-face { font-family: 'OpenDyslexic'; src: url('/fonts/opendyslexic-bold.woff2') format('woff2'); font-weight: 600 700; /* token-audit-ignore: an @font-face descriptor - CSS allows no custom properties here */ font-display: swap; }
+
+    /* ML-356: Text size scales everything sized in rem (the whole type scale); dyslexia-friendly reading
+       adds letter and word spacing and turns italics off. Icon and notation fonts keep their own
+       spacing - a ligature icon font breaks with letter-spacing. */
+    html { font-size: var(--text-scale); }
+    body { letter-spacing: var(--reading-letter-spacing); word-spacing: var(--reading-word-spacing); }
+    .material-symbols-outlined, svg, .notation-glyph, .notation-text { letter-spacing: normal; word-spacing: normal; }
+    em, i, cite { font-style: var(--reading-em-style); }
+    /* Buttons don't inherit the page's font on their own (the browser gives them its own) - with a
+       reading font chosen, every button follows it too. The standard look is left exactly as it was. */
+    html[data-font] button { font-family: inherit; }
+    /* With a wider reading font or larger text, a home tool tile's label shrinks to fit its (fixed) tile
+       rather than being cut off - "Metronome" is the longest. */
+    html[data-font] .tool-icon-btn, html[data-text] .tool-icon-btn { container-type: inline-size; }
+    html[data-font] .tool-icon-btn .tool-icon-label, html[data-text] .tool-icon-btn .tool-icon-label { font-size: min(var(--font-sm), var(--tile-label-fit)); }
+    /* Settings -> Display and reading: each font choice is written in its own font, each background
+       choice shows its colour (specs/components/display-and-reading.md). */
+    .font-preview-standard { font-family: var(--font-preview-standard); }
+    .font-preview-lexend { font-family: var(--font-preview-lexend); }
+    .font-preview-opendyslexic { font-family: var(--font-preview-opendyslexic); }
+    .bg-swatch { display: inline-block; width: var(--space-4); height: var(--space-4); margin-right: var(--space-2); border: 1px solid var(--control-border); border-radius: var(--radius-circle); vertical-align: middle; }
+    .bg-swatch-standard { background: var(--swatch-standard); }
+    .bg-swatch-cream { background: var(--swatch-cream); }
+    .bg-swatch-blue { background: var(--swatch-blue); }
+    .bg-swatch-green { background: var(--swatch-green); }
+
     /* Anything you can click shows the hand on a desktop - the default for every enabled button, so a
        new component can't forget it. A component's own cursor (grab, not-allowed...) still wins: this is
        an element selector, so any class rule overrides it. */

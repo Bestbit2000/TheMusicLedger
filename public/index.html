@@ -28,6 +28,8 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<!-- ML-356: display and reading preferences (dark mode, font, background, text size) before anything draws -->
+<script src="display-prefs.js"></script>
 
 <!-- LOGIN / SPLASH SCREEN -->
 <div id="loginScreen" class="splash-screen">
@@ -561,15 +563,42 @@
          its current values (renderSettingsSummaries). The Tuner and Metronome rows reuse the home
          screen's tool icons (fillSettingsToolIcons). -->
     <div id="settingsView" class="settings-subview hidden-group">
-        <button type="button" class="history-item settings-link" onclick="switchView('settingsDisplayView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">contrast</span><span class="settings-link-text"><span class="settings-link-title">Display</span><span class="settings-link-sub" id="settingsDisplaySummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" onclick="switchView('settingsDisplayView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">contrast</span><span class="settings-link-text"><span class="settings-link-title">Display and reading</span><span class="settings-link-sub" id="settingsDisplaySummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" onclick="switchView('settingsStatsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">bar_chart</span><span class="settings-link-text"><span class="settings-link-title">Stats</span><span class="settings-link-sub" id="settingsStatsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" onclick="switchView('settingsTunerView')"><span class="settings-link-icon" data-tool-icon="tunerView" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">Tuner</span><span class="settings-link-sub" id="settingsTunerSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" onclick="switchView('settingsPlaybackView')"><span class="settings-link-icon" data-tool-icon="quickPlayView" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">Metronome &amp; playback</span><span class="settings-link-sub" id="settingsPlaybackSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
     </div>
 
+    <!-- ML-356: Display and reading - saved on the account, so it follows you to every device. -->
     <div id="settingsDisplayView" class="settings-subview hidden-group">
         <div class="setting-row">
             <span id="darkModeToggleLabel">Dark mode</span><label class="toggle-switch"><input type="checkbox" id="darkModeToggle" aria-labelledby="darkModeToggleLabel"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+            <span id="dyslexiaToggleLabel">Dyslexia-friendly reading</span><label class="toggle-switch"><input type="checkbox" id="dyslexiaToggle" aria-labelledby="dyslexiaToggleLabel" aria-describedby="dyslexiaToggleHelp"><span class="toggle-slider"></span></label>
+        </div>
+        <p class="text-sm mb-4" id="dyslexiaToggleHelp">More space between lines, letters and words, and no italics. Choose the font, background and text size that suit you below - turning this on picks Lexend and cream to start with.</p>
+        <div class="form-group" role="group" aria-labelledby="readingFontLabel"><label id="readingFontLabel">Reading font</label>
+            <div class="radio-group compact" id="readingFontOptions">
+                <input type="radio" name="readingFont" id="readingFont-standard" value="standard"><label for="readingFont-standard" class="font-preview-standard">Standard</label>
+                <input type="radio" name="readingFont" id="readingFont-lexend" value="lexend"><label for="readingFont-lexend" class="font-preview-lexend">Lexend</label>
+                <input type="radio" name="readingFont" id="readingFont-opendyslexic" value="opendyslexic"><label for="readingFont-opendyslexic" class="font-preview-opendyslexic">OpenDyslexic</label>
+            </div>
+        </div>
+        <div class="form-group" role="group" aria-labelledby="readingBackgroundLabel"><label id="readingBackgroundLabel">Background colour</label>
+            <div class="radio-group" id="readingBackgroundOptions">
+                <input type="radio" name="readingBackground" id="readingBackground-standard" value="standard"><label for="readingBackground-standard"><span class="bg-swatch bg-swatch-standard" aria-hidden="true"></span>Standard</label>
+                <input type="radio" name="readingBackground" id="readingBackground-cream" value="cream"><label for="readingBackground-cream"><span class="bg-swatch bg-swatch-cream" aria-hidden="true"></span>Cream</label>
+                <input type="radio" name="readingBackground" id="readingBackground-blue" value="blue"><label for="readingBackground-blue"><span class="bg-swatch bg-swatch-blue" aria-hidden="true"></span>Pale blue</label>
+                <input type="radio" name="readingBackground" id="readingBackground-green" value="green"><label for="readingBackground-green"><span class="bg-swatch bg-swatch-green" aria-hidden="true"></span>Pale green</label>
+            </div>
+        </div>
+        <div class="form-group" role="group" aria-labelledby="readingTextSizeLabel"><label id="readingTextSizeLabel">Text size</label>
+            <div class="radio-group compact" id="readingTextSizeOptions">
+                <input type="radio" name="readingTextSize" id="readingTextSize-standard" value="standard"><label for="readingTextSize-standard">Standard</label>
+                <input type="radio" name="readingTextSize" id="readingTextSize-large" value="large"><label for="readingTextSize-large">Large</label>
+                <input type="radio" name="readingTextSize" id="readingTextSize-larger" value="larger"><label for="readingTextSize-larger">Larger</label>
+            </div>
         </div>
     </div>
 

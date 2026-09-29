@@ -730,10 +730,7 @@
             await loadAppData(startupToken);
             await fetchDataAndRender(startupToken);
             document.getElementById('date').valueAsDate = new Date();
-            if (localStorage.getItem('darkMode') === 'true') {
-                document.body.classList.add('dark-mode');
-                document.getElementById('darkModeToggle').checked = true;
-            }
+            loadDisplayPrefs(); // ML-356: the account's display and reading settings (display-prefs.js already applied the device's copy)
             renderTunerTranspositionSetting();
             document.getElementById('tunerUseFlatsToggle').checked = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
             document.getElementById('tunerNoteStyleSetting').value = localStorage.getItem(TUNER_NOTE_STYLE_KEY) || 'letters';
@@ -1186,7 +1183,7 @@
     function renderSettingsSummaries() {
         const val = id => document.getElementById(id);
         const selText = id => { const el = val(id); return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : ''; };
-        val('settingsDisplaySummary').textContent = 'Dark mode ' + (val('darkModeToggle').checked ? 'on' : 'off');
+        val('settingsDisplaySummary').textContent = displaySummary();
         const year = val('practiceYearToggle').checked
             ? 'Practice year from ' + val('practiceYearStartDay').value + ' ' + selText('practiceYearStartMonth')
             : 'Calendar year';
@@ -1616,7 +1613,7 @@
         if (viewName === 'accountTeachersView') { document.getElementById('topTitle').innerText = 'My teachers'; loadTeacherList(); }
         // ML-282: Settings is a list of groups, each its own screen. Every screen re-syncs its
         // controls from storage in case they were last changed elsewhere (the Tuner page itself).
-        const SETTINGS_TITLES = { settingsView: 'Settings', settingsDisplayView: 'Display settings', settingsStatsView: 'Stats settings', settingsTunerView: 'Tuner settings', settingsPlaybackView: 'Metronome & playback' };
+        const SETTINGS_TITLES = { settingsView: 'Settings', settingsDisplayView: 'Display and reading', settingsStatsView: 'Stats settings', settingsTunerView: 'Tuner settings', settingsPlaybackView: 'Metronome & playback' };
         if (SETTINGS_TITLES[viewName]) {
             document.getElementById('topTitle').innerText = SETTINGS_TITLES[viewName];
             syncSettingsControls();
@@ -15954,16 +15951,66 @@
     document.getElementById('timerPlayBtn')?.addEventListener('click', toggleTimerPlayPause);
     document.getElementById('timerStopBtn')?.addEventListener('click', finishTimerSession);
 
-    // Dark mode toggle
-    document.getElementById('darkModeToggle')?.addEventListener('change', (e) => {
-        if (e.target.checked) {
-            document.body.classList.add('dark-mode');
-            localStorage.setItem('darkMode', 'true');
-        } else {
-            document.body.classList.remove('dark-mode');
-            localStorage.setItem('darkMode', 'false');
-        }
+    // ===== ML-356: Display and reading (docs/display-and-reading.md) =====
+    // Saved on the account so they follow you to every device; a copy stays on the device
+    // (tml.display) so display-prefs.js can apply them before the page draws next time.
+    const DISPLAY_DEFAULTS = { darkMode: false, dyslexia: false, font: 'standard', background: 'standard', textSize: 'standard' };
+    let displayPrefs = { ...DISPLAY_DEFAULTS };
+    try { displayPrefs = { ...DISPLAY_DEFAULTS, ...JSON.parse(localStorage.getItem('tml.display') || '{}') }; } catch (e) { /* defaults */ }
+    if (localStorage.getItem('tml.display') === null && localStorage.getItem('darkMode') === 'true') displayPrefs.darkMode = true;
+    function useDisplayPrefs(prefs) {
+        displayPrefs = { ...DISPLAY_DEFAULTS, ...prefs };
+        window.applyDisplayPrefs(displayPrefs);
+        try {
+            localStorage.setItem('tml.display', JSON.stringify(displayPrefs));
+            localStorage.setItem('darkMode', String(displayPrefs.darkMode)); // older copies of the app read this
+        } catch (e) { /* the account copy is the real one */ }
+        renderDisplaySettings();
+    }
+    async function loadDisplayPrefs() {
+        try {
+            const { prefs } = await apiCall('/api/account/display');
+            // First time on the account: keep what this device already had (dark mode), and save it.
+            if (!Object.keys(prefs).length) { saveDisplayPrefs(displayPrefs); return; }
+            useDisplayPrefs(prefs);
+        } catch (e) { renderDisplaySettings(); } // offline: the device's copy stands
+    }
+    async function saveDisplayPrefs(changes) {
+        useDisplayPrefs({ ...displayPrefs, ...changes });
+        try { await apiCall('/api/account/display', 'PUT', { prefs: displayPrefs }); }
+        catch (e) { showWarningToast('Saved on this device only - ' + e.message); }
+    }
+    function displaySummary() {
+        const bits = [displayPrefs.darkMode ? 'Dark mode' : 'Light mode'];
+        if (displayPrefs.dyslexia) bits.push('dyslexia-friendly');
+        if (displayPrefs.font !== 'standard') bits.push(displayPrefs.font === 'lexend' ? 'Lexend' : 'OpenDyslexic');
+        if (displayPrefs.textSize !== 'standard') bits.push(displayPrefs.textSize + ' text');
+        return bits.join(', ');
+    }
+    function renderDisplaySettings() {
+        const dark = document.getElementById('darkModeToggle');
+        if (!dark) return;
+        dark.checked = displayPrefs.darkMode;
+        document.getElementById('dyslexiaToggle').checked = displayPrefs.dyslexia;
+        [['readingFont', 'font'], ['readingBackground', 'background'], ['readingTextSize', 'textSize']].forEach(([name, key]) => {
+            const r = document.getElementById(`${name}-${displayPrefs[key]}`);
+            if (r) r.checked = true;
+        });
+        const sum = document.getElementById('settingsDisplaySummary');
+        if (sum) sum.textContent = displaySummary();
+    }
+    document.getElementById('darkModeToggle')?.addEventListener('change', (e) => saveDisplayPrefs({ darkMode: e.target.checked }));
+    document.getElementById('dyslexiaToggle')?.addEventListener('change', (e) => {
+        const changes = { dyslexia: e.target.checked };
+        // Turning it on starts you off with Lexend and cream (unless you've chosen your own already).
+        if (e.target.checked && displayPrefs.font === 'standard') changes.font = 'lexend';
+        if (e.target.checked && displayPrefs.background === 'standard') changes.background = 'cream';
+        saveDisplayPrefs(changes);
     });
+    [['readingFont', 'font'], ['readingBackground', 'background'], ['readingTextSize', 'textSize']].forEach(([name, key]) => {
+        document.querySelectorAll(`input[name="${name}"]`).forEach(r => r.addEventListener('change', () => { if (r.checked) saveDisplayPrefs({ [key]: r.value }); }));
+    });
+    renderDisplaySettings();
 
     // ========================================
     // THEORY PRACTICE (ML-260, screens ML-264, saving ML-265)
