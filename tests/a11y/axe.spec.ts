@@ -12,6 +12,9 @@ import { loginAsLocalDev } from '../helpers/auth';
 const SCREENS: { view: string; name: string }[] = [
     { view: 'mainView', name: 'Home' },
     { view: 'quickPlayView', name: 'Metronome' },
+    { view: 'statsHomeView', name: 'Stats' }, // ML-327 (the dashboard)
+    { view: 'toolResultsView', name: 'Tool results' }, // ML-327
+    { view: 'accountDetailsView', name: 'My details' }, // ML-330
     { view: 'historyView', name: 'Session history' },
     { view: 'statsView', name: 'Detailed stats' },
     { view: 'streakStatsView', name: 'Streaks' },

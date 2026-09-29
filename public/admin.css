@@ -318,3 +318,23 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-design-motion-dot { transition-duration: var(--sample); position: absolute; top: 50%; left: 0; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-circle); background: var(--primary-action); transform: translate(0, -50%); transition-property: left; transition-timing-function: var(--ease-standard); }
 .admin-design-table tr:hover .admin-design-motion-dot, .admin-design-table tr:active .admin-design-motion-dot { left: calc(100% - var(--space-3)); }
 .admin-design-probe { color: var(--probe-color); box-shadow: var(--probe-shadow); } /* hidden; resolves token values for the annotations */
+
+/* ML-345: Admin -> Feature access - see specs/components/admin-feature-access.md. The grid (every
+   account type) reuses .admin-stat-table inside .admin-stat-table-wrap (it scrolls sideways on a narrow
+   screen, the feature column staying put); the one-type view is a list of switch rows. */
+.admin-access-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+.admin-access-table th, .admin-access-table td { text-align: center; vertical-align: middle; }
+.admin-access-table th[scope="row"] { position: sticky; left: 0; z-index: var(--z-sticky); text-align: left; white-space: normal; min-width: 200px; background: var(--container-bg); font-weight: var(--font-weight-normal); color: var(--text-color); }
+.admin-access-table th[scope="row"] small, .admin-access-row small { display: block; color: var(--label-color); font-size: var(--font-xs); }
+.admin-access-group th { text-align: left; background: var(--input-bg); color: var(--label-color); font-weight: var(--font-weight-bold); }
+.admin-access-live { border-right: 1px solid var(--input-border); }
+.admin-access-cell { display: inline-grid; place-items: center; width: var(--touch-target); height: var(--touch-target); border-radius: var(--radius-sm); cursor: pointer; }
+.admin-access-cell input { width: var(--icon-md); height: var(--icon-md); accent-color: var(--primary-action); cursor: pointer; }
+.admin-access-cell, .admin-access-row { border: 2px solid transparent; }
+.admin-access-cell.is-changed, .admin-access-row.is-changed { border-color: var(--primary-action); }
+.admin-access-copy { display: block; margin: var(--space-1) auto 0; font-size: var(--font-xs); font-weight: var(--font-weight-normal); }
+.admin-access-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-2); border-bottom: 1px solid var(--input-border); border-radius: var(--radius-sm); }
+.admin-access-savebar { position: sticky; bottom: var(--space-3); z-index: var(--z-float); display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-4); padding: var(--space-3) var(--space-4); background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+.admin-access-toolbar select { width: auto; max-width: 100%; margin: 0; }
+/* The catalog's descriptions are long - two lines here, the whole text on hover (title) and on Features. */
+.admin-access-table th[scope="row"] small, .admin-access-row small { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }

@@ -10,6 +10,7 @@
 
 import JSZip from 'jszip';
 import pool from '../config/db.js';
+import { accountDisplayName } from './accounts.js';
 import { withStatus, assertFlowAccess, createFlow, updateFlowMetadata, addYouTubeRecording, deleteFlow } from './flows.js';
 import { listFlowBlocksUnchecked, createFlowBlock } from './flowBlocks.js';
 import { validateSegmentPayload } from './metronomeSegments.js';
@@ -29,7 +30,7 @@ const VALID_DENOMINATORS = [1, 2, 4, 8, 16, 32];
 export async function listFlowsForAdmin() {
   const { rows } = await pool.query(
     `SELECT s.id, s.title, s.composer, s.is_public, s.owner_account_id, s.owner_band_id, s.created_at,
-            a.first_name, a.surname, a.email, b.name AS band_name,
+            a.first_name, a.surname, a.display_name, a.email, b.name AS band_name,
             (SELECT COUNT(*) FROM metronome_segments ms WHERE ms.parent_score_id = s.id) AS block_count,
             (SELECT COALESCE(SUM(ms.bar_count), 0) FROM metronome_segments ms WHERE ms.parent_score_id = s.id AND NOT ms.is_lead_in) AS total_bars, -- lead-in excluded from bar counts
             (SELECT COUNT(*) FROM score_recordings r WHERE r.score_id = s.id AND r.type = 'youtube') AS youtube_count,
@@ -45,7 +46,7 @@ export async function listFlowsForAdmin() {
     title: r.title,
     composer: r.composer,
     ownership: r.is_public ? 'public' : r.owner_band_id !== null ? 'band' : 'personal',
-    ownerName: r.owner_account_id !== null ? [r.first_name, r.surname].filter(Boolean).join(' ') || r.email : null,
+    ownerName: r.owner_account_id !== null ? accountDisplayName(r) : null,
     ownerEmail: r.email,
     bandName: r.band_name,
     blockCount: Number(r.block_count),

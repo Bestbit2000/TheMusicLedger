@@ -35,7 +35,7 @@ async function accountInstrument(accountId, instrumentId, client = pool) {
   return rows[0];
 }
 
-// Your instruments with their range, and the Level of every note beyond it that you've tried.
+// My instruments with their range, and the Level of every note beyond it that you've tried.
 export async function getRange(accountId) {
   const { rows } = await pool.query(
     `SELECT ai.bottom_note, ai.top_note, ai.is_primary, i.id, i.name, i.theory_clef, i.written_to_concert, i.range_low, i.range_high

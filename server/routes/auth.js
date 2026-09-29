@@ -25,12 +25,15 @@ router.get('/login', (req, res, next) => {
   if (process.env.NODE_ENV === 'development' && process.env.ALLOW_LOCAL_DEV_LOGIN === 'true') {
     // ?as=admin (ML-310): a second account, a super admin on dev, for back-tests of admin-only actions
     // (publishing a piece to the public library) - local-dev itself is an ordinary standard_member.
+    // ?as=standard (ML-345): a third account, a standard member, for back-tests of what Standard
+    // members can't see (local-dev is a beta tester on dev since 071_feature_access.sql).
     const admin = req.query.as === 'admin';
-    const userId = admin ? 'local-admin@themusicledger.local' : 'local-dev@themusicledger.local';
+    const standard = req.query.as === 'standard';
+    const userId = admin ? 'local-admin@themusicledger.local' : standard ? 'local-standard@themusicledger.local' : 'local-dev@themusicledger.local';
     const authToken = signToken({
       userId,
       firstName: 'Local',
-      surname: admin ? 'Admin' : 'Dev'
+      surname: admin ? 'Admin' : standard ? 'Standard' : 'Dev'
     });
     const frontendUrl = `${req.protocol}://${req.get('host')}`;
     return res.redirect(`${frontendUrl}?authToken=${authToken}&userId=${userId}`);

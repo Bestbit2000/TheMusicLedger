@@ -87,37 +87,60 @@ describe('the readiness forecast (ML-319)', () => {
         { title: 'Nimrod', chunks: [c('whole', 5)] },
         { title: 'Mack and Mabel', chunks: [] },
     ];
-    const base = { pieces: cobham, eventDate: '2026-10-11', today: '2026-09-27', minutes: 45, template: 'standard', focus: 'both' };
-    test('one block per chunk per Level; nothing guessed', () => {
-        const f = PP.forecast({ ...base, sessionsPerWeek: 3 });
-        assert.deepEqual(f.pieces.map(p => p.blocks), [6, 13, 1, 0, null]);
-        assert.equal(f.total, 20);
-        assert.deepEqual(f.notCounted, ['Floral Dance: 1 chunk with no Level yet', 'Mack and Mabel (set it up first)']);
+    const base = { pieces: cobham, eventDate: '2026-10-11', today: '2026-09-27' };
+    test('one block per chunk per Level; a piece not set up takes one preparation block (ML-334)', () => {
+        const f = PP.forecast(base);
+        assert.deepEqual(f.pieces.map(p => p.blocks), [6, 13, 1, 0, 1]);
+        assert.deepEqual(f.pieces.map(p => p.prep), [false, false, false, false, true]);
+        assert.equal(f.total, 21);
+        assert.equal(f.minutes, 105);
+        assert.deepEqual(f.notCounted, ['Floral Dance: 1 chunk with no Level yet', 'Mack and Mabel: after preparing it, its Levels decide the rest']);
     });
-    test('45 minutes Standard / Both: 4 rehearsal blocks, 5 sessions, 6 available at 3 a week', () => {
-        const f = PP.forecast({ ...base, sessionsPerWeek: 3 });
-        assert.equal(f.perSession, 4);
-        assert.equal(f.needed, 5);
+    test('with a target date: the daily pace, rounded up (ML-333)', () => {
+        const f = PP.forecast(base);
         assert.equal(f.days, 14);
-        assert.equal(f.available, 6);
-        assert.equal(f.onTrack, true);
-        assert.equal(f.suggestion, null);
-    });
-    test('behind: suggests the first change that gets there', () => {
-        const f = PP.forecast({ ...base, sessionsPerWeek: 2 });
-        assert.equal(f.onTrack, false);
-        assert.equal(f.available, 4);
-        assert.equal(f.suggestion.template, 'concert');
-        assert.equal(f.suggestion.focus, 'rehearsal');
-        assert.equal(f.suggestion.sessions, 3);
+        assert.equal(f.perDay, 2);
+        assert.equal(f.perDayMinutes, 10);
     });
     test('join-up groups: chunks to Level 4, then one block per group not yet at 5', () => {
         const withGroup = [...cobham[1].chunks, c('group', null, 1, 40)];
         assert.equal(PP.pieceBlocks(withGroup).blocks, 3 + 2 + 1 + 3 + 1);
         assert.equal(PP.pieceBlocks([c('chunk', 5), c('group', 5)]).blocks, 0);
     });
-    test('no date: no verdict', () => {
-        assert.equal(PP.forecast({ ...base, eventDate: null }).onTrack, null);
+    test('no target date, or nothing to do: no pace', () => {
+        assert.equal(PP.forecast({ ...base, eventDate: null }).perDay, null);
+        assert.equal(PP.forecast({ ...base, pieces: [cobham[3]] }).perDay, null);
+    });
+});
+
+describe('warm-up lists (ML-343)', () => {
+    const kinds = ['long-tones', 'lip-slurs', 'flexibility'];
+    const ex = [
+        { id: 1, kind: 'long-tones' }, { id: 2, kind: 'long-tones' },
+        { id: 3, kind: 'lip-slurs' }, { id: 4, kind: 'lip-slurs' },
+        { id: 5, kind: 'flexibility' }
+    ];
+    const list = (id) => PP.WARMUP_LISTS.find(l => l.id === id);
+    test('the four standard lists', () => {
+        assert.deepEqual(Array.from(PP.WARMUP_LISTS, l => l.name), ['External warm-up', 'One of each kind', 'Brass basics', 'Everything, random']);
+    });
+    test('External plays nothing - just the timer', () => {
+        assert.deepEqual(PP.warmupSequence(list('external'), ex, kinds), []);
+    });
+    test('One of each kind: one per kind, in the kinds\' order', () => {
+        assert.deepEqual(PP.warmupSequence(list('each'), ex, kinds, () => 0), [1, 3, 5]);
+        assert.deepEqual(PP.warmupSequence(list('each'), ex, kinds, () => 0.99), [2, 4, 5]);
+    });
+    test('Brass basics: long tones then lip slurs, in order', () => {
+        assert.deepEqual(PP.warmupSequence(list('brass'), ex, kinds), [1, 2, 3, 4]);
+    });
+    test('random: the same exercises, shuffled', () => {
+        const seq = PP.warmupSequence(list('all'), ex, kinds, () => 0);
+        assert.deepEqual([...seq].sort(), [1, 2, 3, 4, 5]);
+        assert.notDeepEqual(seq, [1, 2, 3, 4, 5]);
+    });
+    test('your own list: its kinds, in the tool\'s kind order', () => {
+        assert.deepEqual(PP.warmupSequence({ kinds: ['flexibility', 'long-tones'], random: false }, ex, kinds), [1, 2, 5]);
     });
 });
 
@@ -140,8 +163,5 @@ describe('your own templates and the skills list (ML-320 follow-up, ML-321)', ()
     test('an empty skills list falls back to the playing tools', () => {
         assert.equal(PP.plan(15, 'concert', 'skills', [], []).filter(b => b.kind === 'skills')[0].tool, 'tapTempo');
     });
-    test('the forecast takes a template of your own', () => {
-        const f = PP.forecast({ pieces: [{ title: 'X', chunks: [{ kind: 'whole', level: 1 }] }], eventDate: null, today: '2026-09-27', minutes: 30, template: { lead: ['warmup'] }, focus: 'rehearsal' });
-        assert.equal(f.perSession, 5);
-    });
+
 });

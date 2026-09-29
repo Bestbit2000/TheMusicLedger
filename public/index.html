@@ -87,20 +87,20 @@
                  home screen's own (renderNavToolsRow, so the icons, order and Theory's feature gate
                  always match), and the screen you're on is marked aria-current (markNavCurrent). -->
             <div id="burgerDropdown" class="dropdown-menu nav-menu">
+                <!-- ML-326: two panels - the menu itself, and Tools, which slides in over it (openNavTools). -->
+                <div class="nav-panel" id="navMainPanel">
                 <button type="button" class="dropdown-item nav-item" data-view="mainView" onclick="switchView('mainView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">home</span><span class="nav-item-text">Home</span></button>
                 <!-- ML-201: gated by the `notifications` feature (renderFeatureGates). -->
                 <button type="button" class="dropdown-item nav-item hidden-group" id="notificationsNavItem" data-view="notificationsView" onclick="switchView('notificationsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">notifications</span><span class="nav-item-text">Notifications</span><span class="notif-count hidden-group" id="notificationsNavCount"></span></button>
 
-                <div class="nav-divider" role="separator"></div>
-                <!-- Tool groups: one labelled row per tool group (Everyday / Practise / Learn), built from the home tiles. -->
-                <div id="navToolsRow"></div>
+                <!-- ML-326: Tools opens its own panel (the Everyday / Practise / Learn icons) instead of listing them all here. -->
+                <button type="button" class="dropdown-item nav-item" id="navToolsBtn" aria-haspopup="true" aria-controls="navToolsPanel"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">apps</span><span class="nav-item-text">Tools</span><span class="material-symbols-outlined nav-item-chevron" aria-hidden="true">chevron_right</span></button>
 
                 <div class="nav-divider" role="separator"></div>
                 <div class="nav-section-title">Progress</div>
-                <button type="button" class="dropdown-item nav-item" data-view="statsView" onclick="switchView('statsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">bar_chart</span><span class="nav-item-text">Stats</span></button>
-                <button type="button" class="dropdown-item nav-item" data-view="streakStatsView" onclick="switchView('streakStatsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">local_fire_department</span><span class="nav-item-text">Streaks</span></button>
-                <button type="button" class="dropdown-item nav-item" data-view="historyView" onclick="switchView('historyView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">history</span><span class="nav-item-text">Session history</span></button>
-                <button type="button" class="dropdown-item nav-item" data-view="manageChallengesView" onclick="switchView('manageChallengesView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">emoji_events</span><span class="nav-item-text">Challenges</span></button>
+                <!-- ML-327: Stats is a dashboard now - Streaks, Session history and Tool results are reached from it. -->
+                <button type="button" class="dropdown-item nav-item" data-view="statsHomeView" onclick="switchView('statsHomeView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">bar_chart</span><span class="nav-item-text">Stats</span></button>
+                <button type="button" class="dropdown-item nav-item hidden-group" id="challengesNavItem" data-view="manageChallengesView" onclick="switchView('manageChallengesView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">emoji_events</span><span class="nav-item-text">Challenges</span></button>
 
                 <div class="nav-divider" role="separator"></div>
                 <div class="nav-section-title">You</div>
@@ -123,6 +123,13 @@
                 <div class="nav-divider" role="separator"></div>
                 <!-- Log out on its own at the bottom, with the account it signs out of underneath. -->
                 <button type="button" class="dropdown-item nav-item" onclick="closeMenu(); logoutUser();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">logout</span><span class="nav-item-text">Log out<span class="nav-item-sub" id="navAccountEmail"></span></span></button>
+                </div>
+                <div class="nav-panel nav-panel-sub hidden-group" id="navToolsPanel" role="group" aria-label="Tools">
+                    <button type="button" class="dropdown-item nav-item" id="navToolsBackBtn"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">chevron_left</span><span class="nav-item-text">Tools</span></button>
+                    <div class="nav-divider" role="separator"></div>
+                    <!-- Tool groups: one labelled row per tool group (Everyday / Practise / Learn), built from the home tiles. -->
+                    <div id="navToolsRow"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -174,11 +181,19 @@
 
 <div class="container">
 
+    <!-- ML-345: shown while a super admin previews the app as another account type. -->
+    <div class="level-notice mb-3 hidden-group" id="previewBanner" role="status">
+        <span id="previewBannerText">Previewing the app.</span>
+        <button type="button" class="btn-text" id="previewStopBtn">Stop previewing</button>
+    </div>
+
     <div id="mainView">
+        <!-- ML-330: "Hi, <display name>" - your display name, or your first name; hidden with neither. -->
+        <p class="text-md fw-bold mt-0 mb-3 hidden-group" id="homeGreeting"></p>
         <!-- ML-320: Start a practice session replaces Start a challenge (behind practice_levels; ML-324
              cleans challenges up later). renderFeatureGates shows one or the other. -->
         <button type="button" class="btn-large hidden-group" id="startPracticeSessionBtn">Start a practice session</button>
-        <button class="btn-large" id="startChallengeBtn" onclick="switchView('challengeSelectView')">Start a challenge</button>
+        <button class="btn-large hidden-group" id="startChallengeBtn" onclick="switchView('challengeSelectView')">Start a challenge</button>
         <button class="btn-nav" onclick="switchView('entryForm')">Add session time</button>
 
         <div class="section-title tools-title">Tools</div>
@@ -265,6 +280,23 @@
             <button type="button" class="stat-card clickable" onclick="switchView('streakStatsView')"><span class="label">Current practise streak</span><span class="value" id="mainPractiseStreak">...</span></button>
             <button type="button" class="stat-card clickable" onclick="switchView('streakStatsView')"><span class="label">Current playing streak</span><span class="value" id="mainPlayingStreak">...</span></button>
         </div>
+    </div>
+
+    <!-- ML-327: the Stats dashboard - what ☰ Stats opens. One number per kind of stat; tap it for the
+         full page. Filled in by renderStatsHome (app.js). A new kind of stat gets a card here. -->
+    <div id="statsHomeView" class="hidden-group">
+        <div class="dashboard-grid">
+            <button type="button" class="stat-card clickable" onclick="switchView('statsView')"><span class="label">Practice time this month</span><span class="value" id="statsHomeTime">-</span></button>
+            <button type="button" class="stat-card clickable" onclick="switchView('streakStatsView')"><span class="label">Current practise streak</span><span class="value" id="statsHomeStreak">-</span></button>
+            <button type="button" class="stat-card clickable" onclick="switchView('historyView')"><span class="label">Sessions this month</span><span class="value" id="statsHomeSessions">-</span></button>
+            <button type="button" class="stat-card clickable hidden-group" id="statsHomeToolsCard" onclick="switchView('toolResultsView')"><span class="label">Tools last played</span><span class="value" id="statsHomeTools">-</span></button>
+        </div>
+    </div>
+
+    <!-- ML-327: Tool results - each scored tool that's switched on (Theory and the drill tools), how much
+         you've played it and when. A row opens the tool, where its history and bests are. -->
+    <div id="toolResultsView" class="hidden-group">
+        <div id="toolResultsList">Loading...</div>
     </div>
 
     <div id="statsView" class="hidden-group">
@@ -565,20 +597,46 @@
              Rehearse, Scales, Warm-ups. It used to sit in the old Metronome Blocks volume pop-up, which
              nothing could open any more once My music moved to pieces; moved here when that editor was
              removed (2026-09-27). -->
+        <!-- ML-347: laid out like the Metronome - the delay (-/+ and a slider), then the same beat
+             display (metroBlk-row, built by renderMetroCalibRow), then the same transport buttons:
+             Test (play) and Reset (the delay back to 0 ms). -->
         <div class="section-title mt-6">Headphone delay</div>
-        <p class="metro-help-text">Bluetooth headphones/speakers add their own audio delay that the app can't detect - play the test beats and nudge the delay until the circle you see lines up with the click you hear.</p>
-        <div class="metro-transport-row">
-            <button class="metro-transport-btn metro-play-btn" id="metroCalibPlayBtn" aria-label="Play test beats"><span class="material-symbols-outlined" id="metroCalibPlayIcon">play_arrow</span></button>
-        </div>
-        <div class="metro-tier" id="metroCalibDots"></div>
+        <p class="metro-help-text">Bluetooth headphones/speakers add their own audio delay that the app can't detect - press Test and nudge the delay until the circle you see lines up with the click you hear.</p>
         <div class="metro-speed-row">
             <button class="metro-speed-btn" id="metroCalibLatencyMinusBtn" aria-label="Less delay">&minus;</button>
-            <div class="metro-speed-readout">
+            <div class="metro-speed-readout" aria-live="polite">
                 <div id="metroCalibLatencyMs">0 ms</div>
+                <div class="metro-speed-sub">delay</div>
             </div>
             <button class="metro-speed-btn" id="metroCalibLatencyPlusBtn" aria-label="More delay">+</button>
         </div>
-        <button class="metro-speed-reset" id="metroCalibLatencyResetBtn">Reset to 0ms</button>
+        <div class="slider-wrap no-margin">
+            <div class="slider-track" id="metroCalibSliderTrack">
+                <div class="slider-fill" id="metroCalibSliderFill"></div>
+                <div class="slider-thumb" id="metroCalibSliderThumb" tabindex="0" role="slider" aria-label="Headphone delay in milliseconds" aria-valuemin="0" aria-valuemax="500" aria-valuenow="0"></div>
+            </div>
+            <div class="slider-scale"><span>0 ms</span><span>500 ms</span></div>
+        </div>
+        <div class="metroBlk-rows mt-4">
+            <div class="metroBlk-row metroBlk-row-current">
+                <div class="metroBlk-row-head"><span class="metroBlk-row-label">Test beats · 4/4 · 100 bpm</span></div>
+                <div class="metro-display-viewport" id="metroCalibViewport">
+                    <div class="metro-display-content" id="metroCalibContent">
+                        <div class="metro-tier" id="metroCalibDots"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="metro-transport-grid">
+            <button type="button" class="metro-play-grid-btn" id="metroCalibPlayBtn" aria-label="Test - play the test beats">
+                <span class="material-symbols-outlined" id="metroCalibPlayIcon">play_arrow</span>
+                <span class="metroBlk-ctrl-value-label" id="metroCalibPlayLbl">test</span>
+            </button>
+            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="metroCalibLatencyResetBtn" aria-label="Reset the delay to 0 ms">
+                <span class="material-symbols-outlined">restart_alt</span>
+                <span class="metroBlk-ctrl-value-label">reset</span>
+            </button>
+        </div>
     </div>
 
     <!-- ML-77: name/email/level/signup date + real band membership. Also carries the Teachers list
@@ -588,22 +646,49 @@
          rather than everything on one long page. The summaries under each row are filled in by
          renderAccountSummaries (app.js). -->
     <div id="accountView" class="hidden-group">
-        <button type="button" class="history-item settings-link" onclick="switchView('accountDetailsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">badge</span><span class="settings-link-text"><span class="settings-link-title">Your details</span><span class="settings-link-sub" id="accountDetailsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link" onclick="switchView('accountInstrumentsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">music_note</span><span class="settings-link-text"><span class="settings-link-title">Your instruments</span><span class="settings-link-sub" id="accountInstrumentsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link" onclick="switchView('accountBandsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">groups</span><span class="settings-link-text"><span class="settings-link-title">Your bands</span><span class="settings-link-sub" id="accountBandsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link" onclick="switchView('accountTeachersView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">school</span><span class="settings-link-text"><span class="settings-link-title">Teachers</span><span class="settings-link-sub" id="accountTeachersSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" onclick="switchView('accountDetailsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">badge</span><span class="settings-link-text"><span class="settings-link-title">My details</span><span class="settings-link-sub" id="accountDetailsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" onclick="switchView('accountInstrumentsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">music_note</span><span class="settings-link-text"><span class="settings-link-title">My instruments</span><span class="settings-link-sub" id="accountInstrumentsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" onclick="switchView('accountBandsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">groups</span><span class="settings-link-text"><span class="settings-link-title">My bands</span><span class="settings-link-sub" id="accountBandsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link hidden-group" id="accountTeachersRow" onclick="switchView('accountTeachersView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">school</span><span class="settings-link-text"><span class="settings-link-title">My teachers</span><span class="settings-link-sub" id="accountTeachersSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
     </div>
 
+    <!-- ML-330: each name reads as plain text with an edit pencil; the pencil opens its fields with
+         Save and Cancel. The display name is what the app calls you (the home greeting, and to people
+         in your bands) - blank means your first name. -->
     <div id="accountDetailsView" class="hidden-group">
-        <div class="form-group">
-            <label for="accountFirstNameInput">First name</label>
-            <input type="text" id="accountFirstNameInput" placeholder="First name">
+        <div class="info-row">
+            <span>Name</span>
+            <span class="flex-row gap-sm items-center"><strong id="accountNameReadout">-</strong><button type="button" class="btn-icon-edit" id="accountEditNameBtn" aria-label="Edit name" aria-expanded="false" aria-controls="accountNameEdit"><span class="material-symbols-outlined" aria-hidden="true">edit</span></button></span>
         </div>
-        <div class="form-group">
-            <label for="accountSurnameInput">Last name</label>
-            <input type="text" id="accountSurnameInput" placeholder="Last name">
+        <div class="hidden-group" id="accountNameEdit">
+            <div class="form-group">
+                <label for="accountFirstNameInput">First name</label>
+                <input type="text" id="accountFirstNameInput" placeholder="First name" autocomplete="given-name">
+            </div>
+            <div class="form-group">
+                <label for="accountSurnameInput">Last name</label>
+                <input type="text" id="accountSurnameInput" placeholder="Last name" autocomplete="family-name">
+            </div>
+            <div class="flex-row gap-sm mb-4">
+                <button type="button" class="btn-submit btn-inline" id="accountSaveNameBtn">Save</button>
+                <button type="button" class="btn-nav btn-cancel btn-inline" id="accountCancelNameBtn">Cancel</button>
+            </div>
         </div>
-        <button class="btn-submit btn-inline" id="accountSaveNameBtn">Save</button>
+        <div class="info-row">
+            <span>Display name</span>
+            <span class="flex-row gap-sm items-center"><strong id="accountDisplayNameReadout">-</strong><button type="button" class="btn-icon-edit" id="accountEditDisplayNameBtn" aria-label="Edit display name" aria-expanded="false" aria-controls="accountDisplayNameEdit"><span class="material-symbols-outlined" aria-hidden="true">edit</span></button></span>
+        </div>
+        <div class="hidden-group" id="accountDisplayNameEdit">
+            <div class="form-group">
+                <label for="accountDisplayNameInput">Display name</label>
+                <input type="text" id="accountDisplayNameInput" maxlength="40" autocomplete="nickname" aria-describedby="accountDisplayNameHelp">
+                <p class="metro-help-text" id="accountDisplayNameHelp">What the app calls you - on the home screen, and to people in your bands. Leave it blank to use your first name.</p>
+            </div>
+            <div class="flex-row gap-sm mb-4">
+                <button type="button" class="btn-submit btn-inline" id="accountSaveDisplayNameBtn">Save</button>
+                <button type="button" class="btn-nav btn-cancel btn-inline" id="accountCancelDisplayNameBtn">Cancel</button>
+            </div>
+        </div>
 
         <div class="section-title mt-6">Account</div>
         <div class="info-row">
@@ -667,7 +752,7 @@
          only shown when the currently-targeted band's canDelete says so (see openAccountBandMenu). -->
     <div class="dropdown-menu account-band-menu" id="accountInstrumentMenu">
         <button type="button" class="dropdown-item" id="accountInstrumentMenuMain"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">star</span><span class="dropdown-item-text">Make main instrument</span></button>
-        <button type="button" class="dropdown-item hidden-group" id="accountInstrumentMenuRange"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">height</span><span class="dropdown-item-text">Your range&hellip;</span></button>
+        <button type="button" class="dropdown-item hidden-group" id="accountInstrumentMenuRange"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">height</span><span class="dropdown-item-text">My range&hellip;</span></button>
         <button type="button" class="dropdown-item account-band-menu-delete" id="accountInstrumentMenuRemove"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">remove_circle</span><span class="dropdown-item-text">Remove</span></button>
     </div>
     <div class="dropdown-menu account-band-menu" id="accountBandMenu">
@@ -736,8 +821,9 @@
         <div class="section-title">
             <span>Bars</span>
             <div class="qp-bars-title-links">
-                <span class="qp-bars-title-link" id="qpShowHistoryBtn">Show history</span>
-                <span class="qp-bars-title-link" id="qpSaveToFlowBtn">Save to flow</span>
+                <span class="qp-bars-title-link hidden-group" id="qpShowHistoryBtn">Show history</span>
+                <!-- ML-328: gated by metronome_save_to_flow (renderFeatureGates) -->
+                <span class="qp-bars-title-link hidden-group" id="qpSaveToFlowBtn">Save to flow</span>
             </div>
         </div>
         <!-- Which history entry (if any) is currently loaded - hidden entirely otherwise, see
@@ -802,14 +888,29 @@
                 <div class="metro-speed-readout" aria-live="polite"><div id="sessLenValue">45</div><div class="metro-speed-sub">minutes</div></div>
                 <button type="button" class="metro-bpm-step" id="sessLenPlus" aria-label="5 minutes more">+</button>
             </div>
+            <!-- ML-337: the standard slider under the number, in 5-minute steps (5-120). -->
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="sessLenSliderTrack">
+                    <div class="slider-fill" id="sessLenSliderFill"></div>
+                    <div class="slider-thumb" id="sessLenSliderThumb" tabindex="0" role="slider" aria-label="Session length in minutes" aria-valuemin="5" aria-valuemax="120" aria-valuenow="45"></div>
+                </div>
+                <div class="slider-scale"><span>5</span><span>120</span></div>
+            </div>
         </div>
         <div class="form-group" id="sessTemplateGroup">
             <label id="sessTemplateLabel">Template</label>
             <div class="filter-strip-pills" id="sessTemplatePills" role="group" aria-labelledby="sessTemplateLabel"></div>
         </div>
-        <div class="form-group" id="sessFocusGroup">
-            <label id="sessFocusLabel">Focus for the rest</label>
-            <div class="filter-strip-pills" id="sessFocusPills" role="group" aria-labelledby="sessFocusLabel"></div>
+        <!-- ML-342: the focus is part of the template - this line says what the chosen one does. -->
+        <p class="text-sm text-muted" id="sessTemplateNote"></p>
+        <!-- ML-339 / ML-343: which skills list the Skills blocks use, and which warm-up list the Warm-up blocks play. -->
+        <div class="form-group hidden-group" id="sessSkillListGroup">
+            <label id="sessSkillListLabel">Skills list</label>
+            <div class="filter-strip-pills" id="sessSkillListPills" role="group" aria-labelledby="sessSkillListLabel"></div>
+        </div>
+        <div class="form-group hidden-group" id="sessWarmupListGroup">
+            <label id="sessWarmupListLabel">Warm-up list</label>
+            <div class="filter-strip-pills" id="sessWarmupListPills" role="group" aria-labelledby="sessWarmupListLabel"></div>
         </div>
         <div class="flex-row gap-sm">
             <button type="button" class="btn-nav grow" id="sessSkillsBtn">My skills</button>
@@ -818,8 +919,8 @@
         <p class="text-sm text-muted hidden-group" id="sessListNote"></p>
         <div class="session-strip mb-3" id="sessPlanStrip" aria-hidden="true"></div>
         <div id="sessBlockList"></div>
-        <p class="text-sm text-muted hidden-group" id="sessNoChunks">No pieces have Levels yet, so Rehearsal blocks would just open Rehearse. Set up a piece - say how well you can play it - and they'll practise your weakest bars at the right speed.</p>
-        <button type="button" class="btn-nav hidden-group" id="sessSetupPieceBtn" aria-haspopup="dialog">Set up a piece</button>
+        <p class="text-sm text-muted hidden-group" id="sessNoChunks">No pieces have Levels yet, so Rehearsal blocks would just open Rehearse. Prepare a piece for practice - say how well you can play it - and they'll practise your weakest bars at the right speed.</p>
+        <button type="button" class="btn-nav hidden-group" id="sessSetupPieceBtn" aria-haspopup="dialog">Prepare a piece for practice</button>
         <button type="button" class="btn-submit" id="sessStartBtn">Start session</button>
     </div>
 
@@ -892,25 +993,39 @@
         <button type="button" class="btn-nav" id="rhythmStopBtn">Stop</button>
     </div>
 
+    <!-- ML-339: several named skills lists (a practice session picks one); ML-343: warm-up lists (what
+         a session's Warm-up blocks play) - the four standard ones and your own. -->
     <div id="skillsView" class="hidden-group">
         <p class="metro-help-text">The skills you're working on. Each one goes step by step through its tool: Tempo, Pulse, Pitch and Rhythm move you on at grade 4 or 5; for Warm-ups and Scales you say when you've got it; Range moves on when you move your range. Skills blocks in a practice session take the one you practised longest ago.</p>
+        <div class="section-title">Skills lists</div>
+        <div class="filter-strip-pills mb-3" id="skillListPills" role="group" aria-label="Skills list"></div>
         <div id="skillsList"></div>
-        <button type="button" class="btn-nav" id="skillsAddBtn" aria-haspopup="dialog">+ Add a skill</button>
+        <button type="button" class="btn-nav" id="skillsAddBtn" aria-haspopup="dialog">+ Add skills</button>
+        <div class="flex-row gap-sm hidden-group" id="skillListActions">
+            <button type="button" class="btn-text" id="skillListRenameBtn" aria-haspopup="dialog">Rename this list</button>
+            <button type="button" class="btn-text btn-text-danger" id="skillListDeleteBtn">Delete this list</button>
+        </div>
+        <div class="section-title">Warm-up lists</div>
+        <p class="metro-help-text">What a practice session's Warm-up blocks play. Pick one when you plan a session.</p>
+        <div id="warmupListsList"></div>
+        <button type="button" class="btn-nav" id="warmupListNewBtn" aria-haspopup="dialog">+ New warm-up list</button>
     </div>
 
-    <!-- ML-319 (epic ML-314): a practice list - its pieces with their Level strips, the concert date,
-         and the readiness forecast (PracticePlan.forecast). -->
+    <!-- ML-319 (epic ML-314): a practice list - its pieces with their Level strips, the target date,
+         and the readiness forecast (PracticePlan.forecast). ML-332: the date is a Target date button
+         (a concert, an exam...) opening plDateModal. ML-333: no sessions a week / minutes - the list
+         works out the five-minute blocks it takes and the daily pace to the target date. -->
     <div id="practiceListView" class="hidden-group">
         <div class="form-group"><label for="plName">Name</label><input type="text" id="plName" maxlength="80" autocomplete="off" placeholder="e.g. Cobham concert"></div>
-        <div class="flex-row gap-sm">
-            <div class="form-group grow"><label for="plDate">Concert date</label><input type="date" id="plDate"></div>
-            <div class="form-group grow"><label for="plPerWeek">Sessions a week</label><input type="number" id="plPerWeek" min="1" max="14" inputmode="numeric"></div>
-            <div class="form-group grow"><label for="plMinutes">Minutes each</label><input type="number" id="plMinutes" min="5" max="120" step="5" inputmode="numeric"></div>
+        <div class="form-group">
+            <button type="button" class="metroBlk-ctrl-value-btn" id="plDateBtn" aria-haspopup="dialog" aria-expanded="false" aria-label="Target date - tap to change">
+                <strong id="plDateBtnText">None</strong>
+                <span class="metroBlk-ctrl-value-label">target date</span>
+            </button>
         </div>
         <section class="flow-card" id="plForecast" aria-live="polite">
             <div class="flow-card-header"><span class="flow-card-label" id="plVerdict">Readiness</span></div>
             <p class="text-sm no-margin" id="plVerdictText"></p>
-            <div class="level-notice mt-3 hidden-group" id="plSuggestion"></div>
             <p class="text-sm text-muted mt-3 no-margin hidden-group" id="plNotCounted"></p>
         </section>
         <div class="section-title">Pieces</div>
@@ -1029,43 +1144,23 @@
             </div>
         </div>
 
-        <!-- ML-103: the tool used to always silently resolve straight into an editor (whatever was
-             already in memory, the account's scratch, or the last-loaded saved setup) with no
-             explicit "new or open?" moment. This entry screen replaces that auto-resolve - see
-             switchView's metroBuilderView branch, metroBlkShowEntryScreen/metroBlkShowEditorScreen. -->
+        <!-- ML-329: My music opens straight on the library - Add a piece at the top (Create your own,
+             or import when an import gate is on), then the filter (All / Mine / each of your bands /
+             Public), a search, and the pieces. Each row's ⋮ has Play, Edit and Delete (and Duplicate,
+             Copy, Export where they apply); tapping the row itself opens it as before. -->
         <div id="metroBlkEntryScreen">
-            <div class="section-title"><span id="metroBlkEntryTitle">My music</span></div>
-            <p class="metro-help-text">Add a piece, import one, or open one you've already made. To play one, use Rehearse.</p>
-            <div class="metroBlk-entry-choices">
-                <button type="button" class="metroBlk-entry-choice" id="metroBlkEntryCreateBtn" aria-label="Create your own - build a new piece from scratch">
-                    <span class="material-symbols-outlined" aria-hidden="true">add_circle</span>
-                    <strong>Create your own</strong>
-                    <span class="metro-help-text">Build a new piece from scratch</span>
-                </button>
-                <button type="button" class="metroBlk-entry-choice" id="metroBlkEntryLoadBtn" aria-label="Load from library - open one of your saved pieces">
-                    <span class="material-symbols-outlined" aria-hidden="true">folder_open</span>
-                    <strong>Load from library</strong>
-                    <span class="metro-help-text">Open one of your saved pieces</span>
-                </button>
-                <!-- ML-79: wired up - see flowFromFileView below (PDF/MusicXML/.mxl, Phase 2 added PDF
-                     via OMR). ML-190: starts hidden - the flow_import_from_file feature gate
-                     (renderFeatureGates, app.js) only ever REVEALS this once appData.enabledFeatures
-                     has actually loaded and says so; defaulting to hidden here avoids a flash of an
-                     option that then disappears the moment that resolves. -->
-                <!-- ML-204: two gates share this one button - flow_import_musicxml ("Import from
-                     MusicXML", .musicxml/.mxl) and flow_import_from_file (PDF/scan via OMR). Its
-                     label/help text are set by renderFeatureGates (app.js) to match whichever are on. -->
-                <button type="button" class="metroBlk-entry-choice hidden-group" id="metroBlkEntryFromFileBtn" aria-label="Import from MusicXML - create a flow from a MusicXML or .mxl file">
-                    <span class="material-symbols-outlined" aria-hidden="true">upload_file</span>
-                    <strong id="metroBlkEntryFromFileLabel">Import from MusicXML</strong>
-                    <span class="metro-help-text" id="metroBlkEntryFromFileHelp">Open a MusicXML or .mxl file from notation software</span>
-                </button>
+            <div class="section-title">My music</div>
+            <p class="metro-help-text">Your pieces, your bands' and the public library. To practise one, use Rehearse.</p>
+            <button type="button" class="btn-nav" id="myMusicAddBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="myMusicAddMenu">+ Add a piece</button>
+            <!-- One floating menu under Add a piece (placed by JS, like the row menus). -->
+            <div class="dropdown-menu metroBlk-tile-menu" id="myMusicAddMenu">
+                <button type="button" class="dropdown-item" id="metroBlkEntryCreateBtn"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">add</span><span class="dropdown-item-text">Create your own</span></button>
+                <!-- ML-204: two gates share this item - flow_import_musicxml ("Import from MusicXML") and
+                     flow_import_from_file (PDF/scan via OMR, ML-190). Starts hidden; its label follows
+                     whichever are on (applyFlowImportFormats). -->
+                <button type="button" class="dropdown-item hidden-group" id="metroBlkEntryFromFileBtn"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">upload_file</span><span class="dropdown-item-text" id="metroBlkEntryFromFileLabel">Import from MusicXML</span></button>
             </div>
-            <!-- No in-panel "Back" any more - the top header's own "<" already does that (leaving and
-                 re-entering the tool lands back on the two-choice screen anyway, see
-                 metroBlkShowEntryScreen). -->
-            <div class="hidden-group" id="metroBlkEntryLibrary">
-                <!-- ML-310: Mine (personal + band) / Public, plus a title/composer search. -->
+            <div id="metroBlkEntryLibrary">
                 <div class="filter-strip" id="flowLibraryFilterStrip">
                     <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
                     <div class="filter-strip-pills" id="flowLibraryFilterPills" role="group" aria-label="Show pieces"></div>
@@ -1074,16 +1169,17 @@
                 <div id="metroBlkSetupsList">Loading...</div>
             </div>
         </div>
-        <!-- One shared floating menu for every flow-library row (only shown for a personal flow, for
-             now) - same pattern as flowBlockMenu/sessionHistoryItemMenu. -->
+        <!-- One shared floating menu for every flow-library row - same pattern as flowBlockMenu/
+             sessionHistoryItemMenu. ML-329: Play first (a piece with bars). -->
         <div class="dropdown-menu metroBlk-tile-menu" id="flowLibraryItemMenu">
+            <button type="button" class="dropdown-item" id="flowLibraryItemMenuPlay"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">play_arrow</span><span class="dropdown-item-text">Play</span></button>
             <button type="button" class="dropdown-item" id="flowLibraryItemMenuEdit"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">edit</span><span class="dropdown-item-text">Edit</span></button>
             <button type="button" class="dropdown-item" id="flowLibraryItemMenuDuplicate"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">content_copy</span><span class="dropdown-item-text">Duplicate</span></button>
             <!-- ML-310: a public piece - copy it into your own library to change it -->
             <button type="button" class="dropdown-item" id="flowLibraryItemMenuCopy"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">library_add</span><span class="dropdown-item-text">Copy to my library</span></button>
             <!-- ML-204: personal + band flows, gated by flow_export_musicxml (openFlowLibraryItemMenu) -->
             <button type="button" class="dropdown-item" id="flowLibraryItemMenuExport"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-7"/><path d="M9 13.5l3-3 3 3"/></svg><span class="dropdown-item-text">Export to MusicXML</span></button>
-            <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowLibraryItemMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete flow</span></button>
+            <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowLibraryItemMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete</span></button>
         </div>
 
     </div>
@@ -1844,6 +1940,8 @@
                  elsewhere in the app (.slider-track/.slider-fill/.slider-thumb/.slider-scale,
                  setupSliderInteraction) rather than a native <input type=range>, so it matches their
                  look exactly (bigger thumb, grey remainder). -->
+            <!-- ML-345: gated by tuner_rewind (renderFeatureGates) -->
+            <div class="hidden-group" id="tunerRewindGroup">
             <div class="tuner-rewind-label">Rewind history (max 30s)</div>
             <div class="tuner-rewind-row">
                 <button type="button" class="tuner-pause-btn" id="tunerPauseBtn" aria-label="Pause history" aria-pressed="false" data-pressed-managed><span class="material-symbols-outlined" id="tunerPauseIcon">pause</span></button>
@@ -1854,6 +1952,7 @@
                     </div>
                     <div class="slider-scale"><span id="tunerScrubSliderMinLbl">-30s</span><span>0s</span></div>
                 </div>
+            </div>
             </div>
         </div>
 
@@ -2363,7 +2462,7 @@
         <p class="theory-intro">Short quizzes to learn music theory. Pick one, choose how hard, and see how many you can get right.</p>
         <!-- ML-309: the instrument sets the clef each quiz starts on (its theory_clef). -->
         <div class="form-group hidden-group" id="theoryInstrumentGroup">
-            <label for="theoryInstrument">Your instrument</label>
+            <label for="theoryInstrument">My instrument</label>
             <select id="theoryInstrument"></select>
             <p class="metro-help-text mt-2">Sets the clef the quizzes start on. You can still pick any clef in a quiz.</p>
         </div>
@@ -2710,12 +2809,33 @@
     </div>
 </div>
 
-<!-- ML-321: add a skill to your list. -->
+<!-- ML-321: add skills to a list. ML-338: filter by grade (1-5). ML-340: pick several, then Add. -->
 <div class="modal" id="skillsAddModal" role="dialog" aria-modal="true" aria-labelledby="skillsAddTitle">
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="skillsAddCloseBtn" aria-label="Close">&times;</button>
-        <h2 id="skillsAddTitle">Add a skill</h2>
+        <h2 id="skillsAddTitle">Add skills</h2>
+        <div class="filter-strip-pills mb-3" id="skillsAddGrades" role="group" aria-label="Show skills for"></div>
         <div id="skillsAddOptions"></div>
+        <button type="button" class="btn-submit mt-3 no-margin" id="skillsAddDoneBtn" disabled>Add</button>
+    </div>
+</div>
+
+<!-- ML-343: your own warm-up list - its name, which kinds of warm-up, in order or random. -->
+<div class="modal" id="warmupListModal" role="dialog" aria-modal="true" aria-labelledby="warmupListTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" id="warmupListCloseBtn" aria-label="Close">&times;</button>
+        <h2 id="warmupListTitle">Warm-up list</h2>
+        <div class="form-group"><label for="warmupListName">Name</label><input type="text" id="warmupListName" maxlength="60" autocomplete="off" placeholder="e.g. Before band"></div>
+        <div class="form-group">
+            <label id="warmupListKindsLabel">Kinds of warm-up</label>
+            <div class="radio-group" role="group" aria-labelledby="warmupListKindsLabel" id="warmupListKinds"></div>
+        </div>
+        <div class="form-group">
+            <label id="warmupListOrderLabel">Order</label>
+            <div class="radio-group" role="radiogroup" aria-labelledby="warmupListOrderLabel"><input type="radio" id="warmupListOrder-listed" name="warmupListOrder" value="listed"><label for="warmupListOrder-listed">In order</label><input type="radio" id="warmupListOrder-random" name="warmupListOrder" value="random"><label for="warmupListOrder-random">Random</label></div>
+        </div>
+        <button type="button" class="btn-submit no-margin" id="warmupListSaveBtn">Save</button>
+        <button type="button" class="btn-text btn-text-danger hidden-group" id="warmupListDeleteBtn">Delete this list</button>
     </div>
 </div>
 
@@ -2735,7 +2855,7 @@
 <div class="modal" id="rangePickerModal" role="dialog" aria-modal="true" aria-labelledby="rangePickerTitle" aria-describedby="rangePickerHelp">
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="rangePickerCloseBtn" aria-label="Close without saving">&times;</button>
-        <h2 id="rangePickerTitle">Your range</h2>
+        <h2 id="rangePickerTitle">My range</h2>
         <p class="metro-help-text" id="rangePickerHelp">The lowest and highest notes you can play comfortably now. Tap the stave near a note, then use &minus; and + to get it exactly.</p>
         <div class="range-edge">
             <span class="flow-tile-section-label" id="rangeBottomLabel">Bottom note</span>
@@ -2797,6 +2917,22 @@
 </div>
 
 <!-- ML-319: add pieces to a practice list - tap to tick, then Done. -->
+<!-- ML-332: a practice list's target date - none, or a date to be ready by. -->
+<div class="modal" id="plDateModal" role="dialog" aria-modal="true" aria-labelledby="plDateTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" id="plDateCloseBtn" aria-label="Close">&times;</button>
+        <h2 id="plDateTitle">Target date</h2>
+        <p class="metro-help-text">The day you want to be ready by - a concert, an exam, a lesson.</p>
+        <button type="button" class="flow-choice-option level-answer" id="plDateNoneBtn" aria-pressed="false"><span><strong>No target date</strong><br><span class="text-sm text-muted">Just show how many blocks it takes</span></span></button>
+        <button type="button" class="flow-choice-option level-answer" id="plDateSetBtn" aria-pressed="false"><span><strong>Pick a date</strong><br><span class="text-sm text-muted">See the pace that gets you there</span></span></button>
+        <div class="form-group hidden-group" id="plDatePickGroup">
+            <label for="plDate">Date</label>
+            <input type="date" id="plDate">
+            <button type="button" class="btn-submit mt-3 no-margin" id="plDateDoneBtn">Done</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal" id="plPiecesModal" role="dialog" aria-modal="true" aria-labelledby="plPiecesTitle">
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="plPiecesCloseBtn" aria-label="Close">&times;</button>

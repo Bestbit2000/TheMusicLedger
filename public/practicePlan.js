@@ -21,10 +21,14 @@
     const MAX_MINUTES = 120;
     const NUDGE_SECONDS = 270;     // the 4:30 nudge
     const KEEP_GOING_SECONDS = 300; // "Keep going" nudges again 5 minutes later
+    // ML-342: a template holds its focus too (the planner no longer asks) - Standard is half Skills,
+    // half Rehearsal; Concert is all Rehearsal. Your own templates carry their own focus.
     const TEMPLATES = {
-        standard: { label: 'Standard', lead: ['warmup', 'scales'] },
-        concert: { label: 'Concert', lead: ['warmup'] }
+        standard: { label: 'Standard', lead: ['warmup', 'scales'], focus: 'both' },
+        concert: { label: 'Concert', lead: ['warmup'], focus: 'rehearsal' }
     };
+    const FOCUS_LABELS = { skills: 'Skills', both: 'Skills and Rehearsal', rehearsal: 'Rehearsal' };
+    const templateFocus = (template) => (template && template.focus) || (TEMPLATES[template] && TEMPLATES[template].focus) || 'both';
     const KINDS = {
         warmup: 'Warm-up', scales: 'Scales', skills: 'Skills', rehearsal: 'Rehearsal', choose: 'Choose a block'
     };
@@ -108,51 +112,60 @@
     }
     const DAY_MS = 86400000;
     const dayNumber = (iso) => Math.floor(Date.parse(`${String(iso).slice(0, 10)}T00:00:00Z`) / DAY_MS);
-    const rehearsalPerSession = (minutes, template, focus) => blockKinds(minutes, template, focus).filter(k => k === 'rehearsal').length;
+    // ML-334: a piece that isn't set up yet takes one block first - preparation for practice (say how
+    // well you can play it, or play it through, so it gets its Levels). After that its Levels decide.
+    const PREP_BLOCKS = 1;
 
-    // input: { pieces: [{ title, chunks }], eventDate, today (YYYY-MM-DD), sessionsPerWeek, minutes,
-    // template, focus }. Returns the per-piece blocks, what isn't counted, blocks per session, sessions
-    // needed vs available before the date, and - when behind - the first change that gets you there.
+    // input: { pieces: [{ title, chunks }], eventDate (the target date, or null), today (YYYY-MM-DD) }.
+    // ML-333: nothing to type in - the list works out how many five-minute blocks it takes and, with a
+    // target date, the pace that gets there: blocks a day (rounded up) and the minutes that is.
+    // Returns the per-piece blocks (prep: true for a piece still to prepare), the total, what isn't
+    // counted, the days to go and the daily pace.
     function forecast(input) {
-        const perWeek = Math.max(1, Math.min(14, Math.round(Number(input.sessionsPerWeek) || 3)));
-        const minutes = clampMinutes(input.minutes || 45);
-        const template = TEMPLATES[input.template] || (input.template && input.template.lead) ? input.template : 'standard';
-        const focus = ['skills', 'both', 'rehearsal'].includes(input.focus) ? input.focus : 'both';
-        const pieces = (input.pieces || []).map(p => ({ title: p.title, ...pieceBlocks(p.chunks) }));
-        const total = pieces.reduce((s, p) => s + (p.blocks || 0), 0);
+        const pieces = (input.pieces || []).map(p => {
+            const b = pieceBlocks(p.chunks);
+            return b.blocks === null ? { title: p.title, ...b, prep: true, blocks: PREP_BLOCKS } : { title: p.title, ...b, prep: false };
+        });
+        const total = pieces.reduce((s, p) => s + p.blocks, 0);
         const notCounted = [];
         pieces.forEach(p => {
-            if (p.blocks === null) notCounted.push(`${p.title} (set it up first)`);
+            if (p.prep) notCounted.push(`${p.title}: after preparing it, its Levels decide the rest`);
             else if (p.unset) notCounted.push(`${p.title}: ${p.unset} chunk${p.unset === 1 ? '' : 's'} with no Level yet`);
         });
         const days = input.eventDate ? Math.max(0, dayNumber(input.eventDate) - dayNumber(input.today)) : null;
-        const available = days === null ? null : Math.floor(days * perWeek / 7);
-        const needFor = (t, f) => { const per = rehearsalPerSession(minutes, t, f); return per ? Math.ceil(total / per) : Infinity; };
-        const perSession = rehearsalPerSession(minutes, template, focus);
-        const needed = total === 0 ? 0 : needFor(template, focus);
-        const onTrack = available === null ? null : needed <= available;
-        let suggestion = null;
-        if (onTrack === false) {
-            const tries = [];
-            if (template === 'standard') tries.push({ template: 'concert', focus, text: 'Concert template (drops Scales)' });
-            if (focus !== 'rehearsal') tries.push({ template: 'concert', focus: 'rehearsal', text: 'Concert template with Rehearsal focus' });
-            for (const t of tries) {
-                const n = needFor(t.template, t.focus);
-                if (n <= available) { suggestion = { ...t, sessions: n, perSession: rehearsalPerSession(minutes, t.template, t.focus) }; break; }
-            }
-            if (!suggestion && days > 0) {
-                const n = needFor('concert', 'rehearsal');
-                const week = Math.ceil(n * 7 / days);
-                suggestion = week <= 14
-                    ? { text: `${week} sessions a week, Concert template with Rehearsal focus`, sessionsPerWeek: week, template: 'concert', focus: 'rehearsal', sessions: n }
-                    : { text: 'More time than there is before the date - longer sessions, or fewer pieces', sessions: n };
-            }
+        const perDay = days && total ? Math.ceil(total / days) : null;
+        return { pieces, total, minutes: total * BLOCK_MINUTES, days, perDay, perDayMinutes: perDay === null ? null : perDay * BLOCK_MINUTES, notCounted };
+    }
+
+    // ML-343: warm-up lists - what a session's Warm-up blocks play. Everyone has these four; your own
+    // (kinds + in order or random) are stored on the server (warmup_lists). External = your own warm-up
+    // away from the app: nothing on screen, just the block's timer.
+    const WARMUP_LISTS = [
+        { id: 'external', name: 'External warm-up', external: true, desc: 'Your own warm-up - just the timer' },
+        { id: 'each', name: 'One of each kind', each: true, desc: 'One warm-up of every kind, in order' },
+        { id: 'brass', name: 'Brass basics', kinds: ['long-tones', 'lip-slurs'], random: false, desc: 'Long tones, then lip slurs' },
+        { id: 'all', name: 'Everything, random', kinds: null, random: true, desc: 'All the warm-ups, in random order' }
+    ];
+    // The exercises a list plays, as ids in order. exercises: [{ id, kind }] in the tool's own order;
+    // kindOrder: every kind id, in the tool's order; rand: () => [0, 1) (tests pass a fixed one).
+    function warmupSequence(list, exercises, kindOrder, rand) {
+        const r = rand || Math.random;
+        const all = exercises || [];
+        if (!list || list.external) return [];
+        if (list.each) {
+            return kindOrder.map(k => all.filter(ex => ex.kind === k)).filter(xs => xs.length).map(xs => xs[Math.floor(r() * xs.length)].id);
         }
-        return { pieces, total, minutes: total * BLOCK_MINUTES, perSession, needed, days, available, onTrack, notCounted, suggestion };
+        const kinds = list.kinds && list.kinds.length ? list.kinds : kindOrder;
+        const ids = kindOrder.filter(k => kinds.includes(k)).flatMap(k => all.filter(ex => ex.kind === k)).map(ex => ex.id);
+        if (list.random) {
+            for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+        }
+        return ids;
     }
 
     return {
+        WARMUP_LISTS, warmupSequence,
         BLOCK_MINUTES, MIN_MINUTES, MAX_MINUTES, NUDGE_SECONDS, KEEP_GOING_SECONDS, TEMPLATES, KINDS, SKILL_TOOLS,
-        clampMinutes, blockKinds, fillBlocks, plan, blockState, toolLabel, pieceBlocks, forecast
+        clampMinutes, blockKinds, fillBlocks, plan, blockState, toolLabel, pieceBlocks, forecast, PREP_BLOCKS, templateFocus, FOCUS_LABELS
     };
 }));

@@ -130,6 +130,10 @@
     .nav-tool .tool-icon-svg { width: var(--icon-lg); height: var(--icon-lg); }
     .nav-tool .material-symbols-outlined { font-size: var(--icon-lg); }
     .nav-tool-label { font-size: var(--font-xs); font-weight: var(--font-weight-semibold); }
+    /* ML-326: Tools is its own panel inside the menu - it slides in from the right over the main one. */
+    .nav-item-chevron { flex: 0 0 auto; font-size: var(--icon-md); color: var(--label-color); }
+    .nav-panel-sub { animation: nav-panel-in var(--duration-base) ease; }
+    @keyframes nav-panel-in { from { transform: translateX(var(--space-6)); opacity: 0; } to { transform: none; opacity: 1; } }
     /* One shared floating menu, repositioned via JS against whichever row's own "more" button opened
        it (same pattern as .metroBlk-tile-menu) - overrides .dropdown-menu's own absolute/top:100%/
        right:20px (built for the single fixed-position burger menu) so JS can freely set left/top. */
@@ -1193,20 +1197,6 @@
        Cancel/Save) to right-align the lone Done button instead. */
     .metroSeg-timesig-footer { justify-content: flex-end; align-items: center; }
 
-    /* ML-103: Flow's entry screen (metroBlkEntryScreen) - replaces the old silent auto-resolve into
-       an editor with an explicit "new or open?" choice. Two large tap targets, same tap-target
-       language as .metroBlk-timesig-opt/.metro-beats-option, just bigger to read as the primary
-       destination of the page rather than one option among many. */
-    /* ML-223: grid-auto-rows keeps every row the same height, so a tile whose help text wraps
-       further (the import tile, alone on row 2) no longer grows taller than the other two. */
-    .metroBlk-entry-choices { display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: 1fr; gap: var(--space-3); margin-top: var(--space-4); }
-    .metroBlk-entry-choice { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); min-height: 140px; padding: var(--space-4); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); cursor: pointer; text-align: center; box-sizing: border-box; }
-    .metroBlk-entry-choice .material-symbols-outlined { font-size: var(--icon-xl); color: var(--primary-action-strong); }
-    .metroBlk-entry-choice strong { font-size: var(--font-md); }
-    /* "Coming soon" tile - dimmed and not clickable (cursor: default, no primary-action icon tint)
-       rather than styled identically to the two real choices either side of it. */
-    .metroBlk-entry-choice-disabled { cursor: default; opacity: 0.55; }
-    .metroBlk-entry-choice-disabled .material-symbols-outlined { color: var(--label-color); }
     #metroBlkEntryLibrary { margin-top: var(--space-4); }
 
     .metroBlk-mini-label-readout { font-size: var(--font-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2312,10 +2302,17 @@
     /* Practice Levels (ML-316, epic ML-314) - see specs/components/level-map.md. A piece's Level map
        (one square per bar, the Level number in it so it never relies on colour), the thin strip for
        list rows, the Level chip and the 1-5 Level picker. Colours: --level-1..5, silver to gold. */
-    .level-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--level-cell-size), 1fr)); gap: var(--space-0-5); margin-bottom: var(--space-3); }
+    /* ML-336: 10 bars a row, the row's bar numbers in a left column ("1 - 10", or just "1" when narrow). */
+    .level-map { display: grid; grid-template-columns: max-content repeat(10, minmax(0, 1fr)); gap: var(--space-0-5); margin-bottom: var(--space-3); container-type: inline-size; }
+    .level-map-bars { grid-column: 1; align-self: center; padding-right: var(--space-1); font-size: var(--font-xs); color: var(--label-color); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    @container (max-width: 300px) { .level-map-bars-to { display: none; } }
     .level-cell { min-height: var(--level-cell-size); aspect-ratio: 1; border-radius: var(--radius-2xs); display: grid; place-items: center; font-size: var(--font-xs); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); box-sizing: border-box; }
     .level-strip { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--space-0-5); height: var(--level-strip-height); }
-    .level-strip .level-cell { min-height: 0; aspect-ratio: auto; font-size: 0; }
+    .level-strip .level-cell { min-height: 0; min-width: 0; aspect-ratio: auto; font-size: 0; }
+    /* ML-334: a long piece's strip has a cell per bar - an unset bar's dashed border (2px a cell) pushed
+       the strip off the page, so in a strip an unset bar is a plain fill instead. */
+    .level-strip { overflow: hidden; }
+    .level-strip .lv-0 { border: none; background: var(--level-unset-border); }
     .lv-0 { background: transparent; border: 1px dashed var(--level-unset-border); color: var(--label-color); }
     .lv-1 { background: var(--level-1); color: var(--level-1-text); }
     .lv-2 { background: var(--level-2); color: var(--level-2-text); }

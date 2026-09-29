@@ -9,7 +9,7 @@ before changing a rule. Owner decisions: 2026-09-28 (this release's chat).
 - **What it is:** the notes **you** can play comfortably **now**, per instrument - not what the
   instrument can do. Stored as written pitch in `account_instruments.bottom_note` / `top_note`
   (`'Bb3'`, `'G5'`; NULL = not set).
-- **Where it's set:** My account → Your instruments → an instrument's ⋮ → **Your range…**, or the Range
+- **Where it's set:** My account → My instruments → an instrument's ⋮ → **My range…**, or the Range
   tool's **Set / Change your range**. Both open the range picker (`#rangePickerModal`):
   - **Tap the stave** near a note: it picks the natural note on that line or space.
   - **− / +** then move a semitone, spelled the usual way (C♯, E♭, F♯, A♭, B♭ - never A♯3 as a bottom note).

@@ -39,6 +39,8 @@
         <div class="admin-nav-items" id="adminNavItems">
         <a class="admin-nav-item admin-back-link" href="/">&larr; Back to app</a>
         <button class="admin-nav-item active" data-section="features" type="button">Features</button>
+        <!-- ML-345: who gets each feature, by account type -->
+        <button class="admin-nav-item" data-section="feature-access" type="button">Feature access</button>
         <button class="admin-nav-item" data-section="release-tests" type="button">Release tests</button>
         <button class="admin-nav-item" data-section="accounts" type="button">Accounts</button>
         <button class="admin-nav-item" data-section="bands" type="button">Bands</button>
@@ -64,6 +66,27 @@
             <button class="btn-submit no-margin admin-add-btn" id="addFeatureBtn" type="button">+ Add feature</button>
             <div id="featuresCatalog" class="admin-feature-list">Loading&hellip;</div>
         </section>
+        <!-- ML-345: features by account type (feature_access). The grid (All account types) or one type
+             at a time (a tab each - the phone view). Changes wait in the Save bar and save together.
+             See docs/feature-access-plan.md and specs/components/admin-feature-access.md. -->
+        <section id="feature-access-section" class="admin-section hidden-group">
+            <h1>Feature access</h1>
+            <p class="admin-intro">What each account type can use. Off means hidden in the app and refused by the server. <strong>Live</strong> is the master switch: off turns a feature off for everyone, whatever the account type. Super admins always have everything. A new feature is Super admin only until you switch it on here. Add, rename or describe features on the Features page.</p>
+            <div class="admin-subtabs" id="accessTabs" role="tablist" aria-label="Account type"></div>
+            <div class="admin-access-toolbar">
+                <span id="accessSummary"></span>
+                <select id="accessCopyFrom" class="hidden-group" aria-label="Copy every setting from another account type"></select>
+                <select id="accessPreviewSelect" aria-label="Preview the app as an account type"></select>
+                <button type="button" class="btn-nav btn-inline-sm no-margin" id="accessPreviewBtn">Preview</button>
+            </div>
+            <div id="accessBody">Loading&hellip;</div>
+            <div class="admin-access-savebar hidden-group" id="accessSaveBar" role="region" aria-label="Unsaved changes">
+                <span class="grow" id="accessSaveText" aria-live="polite"></span>
+                <button type="button" class="btn-cancel btn-nav btn-inline-sm no-margin" id="accessDiscardBtn">Discard</button>
+                <button type="button" class="btn-submit btn-inline-sm no-margin" id="accessSaveBtn">Save</button>
+            </div>
+        </section>
+
         <section id="release-tests-section" class="admin-section hidden-group">
             <h1>Release tests</h1>
             <p class="admin-intro">Back-test registry for ML-29 - ask Claude Code to add coverage for a feature or run the suite (<code>.claude/skills/backtest</code>); results land here.</p>
@@ -196,7 +219,7 @@
             </div>
             <!-- ML-309: practice time per instrument (sessions.instrument_id) and who plays what. -->
             <div id="usage-instruments-subtab" class="admin-subtab-panel hidden-group">
-                <p class="admin-intro">Practice time by instrument. A session is recorded against the instrument picked when it was added, or the player's main instrument (My account &rarr; Your instruments). Sessions from before instruments existed, or from players with none set, are counted as <strong>no instrument</strong>. <strong>Players</strong> = accounts with that instrument on their list (<strong>main</strong> = as their main one).</p>
+                <p class="admin-intro">Practice time by instrument. A session is recorded against the instrument picked when it was added, or the player's main instrument (My account &rarr; My instruments). Sessions from before instruments existed, or from players with none set, are counted as <strong>no instrument</strong>. <strong>Players</strong> = accounts with that instrument on their list (<strong>main</strong> = as their main one).</p>
                 <div id="usageInstruments">Loading&hellip;</div>
             </div>
             <div id="usage-notevalues-subtab" class="admin-subtab-panel hidden-group">

@@ -33,6 +33,7 @@ The markup stays label-first (`.label`, `.value`, `.sess-count`) for screen read
 ## 5. Props / API
 - `.stat-card.edge-*` gives a Detailed stats card a thick left edge in its category's colour (`.edge-total` uses the text colour).
 - `.dashboard-grid.single-col` is a one-column grid (the total card on its own row).
+- **The Stats dashboard (ML-327, `statsHomeView`)** is where ☰ Stats goes: one `.clickable` card per kind of stat (practice time this month, current practise streak, sessions this month, tool results - when last played), each opening its full page (Detailed stats, Streaks, Session history, Tool results). A new kind of stat gets a card here rather than a ☰ menu row. Tool results is a list of `.settings-link` rows, one per scored tool that is switched on.
 - **Display by default.** A plain `.stat-card` sits on `--container-bg` (the same surface as the page) with a 1px `--input-border` outline, so it never looks tappable (ML-200).
 - `.clickable` for cards that drill into detail. It switches to the tappable `--input-bg` surface and adds the press scale. Never give a card `.clickable` unless it actually has a click handler.
 - Labels are written in sentence case in HTML. `::first-letter` can't be used inside the flex label.

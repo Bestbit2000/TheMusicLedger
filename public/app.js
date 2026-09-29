@@ -111,6 +111,27 @@
     // ========================================
     // API HELPER FUNCTIONS
     // ========================================
+    // ML-345: "Preview the app as..." (Admin -> Feature access) opens the app with ?preview=<type>; it's
+    // kept for this tab only (sessionStorage) until Stop previewing.
+    const PREVIEW_TYPES = { standard_member: 'Standard member', premium_member: 'Premium member', beta_tester: 'Beta tester', teacher: 'Teacher', band_admin: 'Band admin' };
+    let previewLevel = (() => {
+        try {
+            const fromUrl = new URLSearchParams(location.search).get('preview');
+            if (fromUrl && PREVIEW_TYPES[fromUrl]) {
+                sessionStorage.setItem('tml.previewLevel', fromUrl);
+                const url = new URL(location.href);
+                url.searchParams.delete('preview');
+                history.replaceState(null, '', url.pathname + url.search + url.hash);
+            }
+            const saved = sessionStorage.getItem('tml.previewLevel');
+            return PREVIEW_TYPES[saved] ? saved : null;
+        } catch (e) { return null; }
+    })();
+    function stopPreview() {
+        try { sessionStorage.removeItem('tml.previewLevel'); } catch (e) { /* nothing kept */ }
+        location.reload();
+    }
+
     async function apiCall(endpoint, method = 'GET', body = null, tokenOverride = null) {
         if (!auth.isAuthenticated) {
             showWarningToast('Not authenticated. Please login.');
@@ -130,7 +151,10 @@
             method,
             headers: {
                 'Content-Type': 'application/json',
-                ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {})
+                ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
+                // ML-345: a super admin previewing the app as another account type (the server only
+                // honours this for super admins).
+                ...(previewLevel ? { 'X-Preview-Level': previewLevel } : {})
             }
         };
 
@@ -282,9 +306,18 @@
         },
         // ML-321: your skills list
         skills: {
-            list: () => apiCall('/api/practice/skills'),
-            set: (keys) => apiCall('/api/practice/skills', 'PUT', { keys }),
-            result: (data) => apiCall('/api/practice/skills/result', 'POST', data)
+            list: () => apiCall('/api/practice/skills'), // { lists, skills } - ML-339
+            result: (data) => apiCall('/api/practice/skills/result', 'POST', data),
+            createList: (name, keys) => apiCall('/api/practice/skill-lists', 'POST', { name, keys }),
+            updateList: (id, data) => apiCall(`/api/practice/skill-lists/${id}`, 'PUT', data),
+            deleteList: (id) => apiCall(`/api/practice/skill-lists/${id}`, 'DELETE')
+        },
+        // ML-343: your own warm-up lists (the standard ones are PracticePlan.WARMUP_LISTS).
+        warmupLists: {
+            list: () => apiCall('/api/practice/warmup-lists'),
+            create: (data) => apiCall('/api/practice/warmup-lists', 'POST', data),
+            update: (id, data) => apiCall(`/api/practice/warmup-lists/${id}`, 'PUT', data),
+            remove: (id) => apiCall(`/api/practice/warmup-lists/${id}`, 'DELETE')
         },
         // ML-322 / ML-305: your comfortable range per instrument, and the Range tool's goes.
         range: {
@@ -475,6 +508,70 @@
         const pl = document.getElementById('mainPlayingStreak');
         if (p) p.innerText = dayLabel(data.currentPractise);
         if (pl) pl.innerText = dayLabel(data.currentPlaying);
+    }
+
+    // ML-327: the Stats dashboard - one number per kind of stat, each card opening its full page.
+    // Practice time, sessions and the streak come from the sessions already loaded (rawData); Tool
+    // results asks the server for each scored tool's summary (toolResultsData).
+    function renderStatsHome() {
+        const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+        const month = formatLocalDateStr(new Date()).slice(0, 7);
+        const thisMonth = rawData.filter(d => String(d.dateStr).startsWith(month));
+        set('statsHomeTime', formatMins(thisMonth.reduce((t, d) => t + d.duration, 0)));
+        set('statsHomeSessions', String(thisMonth.length));
+        set('statsHomeStreak', dayLabel(getStreakData().currentPractise));
+        const tools = scoredTools();
+        setShown('statsHomeToolsCard', tools.length > 0);
+        if (tools.length && isShown('statsHomeView')) loadToolResults().then(rows => {
+            const last = rows.map(r => r.lastAt).filter(Boolean).sort().pop();
+            set('statsHomeTools', last ? formatToolResultDate(last) : 'Not yet');
+        });
+    }
+    // The scored tools (their results are saved on the account), in home-screen order, that are on.
+    const SCORED_TOOLS = [
+        { id: 'theory', view: 'theoryView', feature: 'theory_practice', title: 'Theory' },
+        { id: 'ear', view: 'earView', feature: 'ear_training', title: 'Pitch' },
+        { id: 'tapTempo', view: 'tapTempoView', feature: 'tap_tempo', title: 'Tempo' },
+        { id: 'gapTrainer', view: 'gapTrainerView', feature: 'gap_trainer', title: 'Pulse' },
+        { id: 'rhythm', view: 'rhythmView', feature: 'rhythm_trainer', title: 'Rhythm' }
+    ];
+    function scoredTools() { return SCORED_TOOLS.filter(t => isFeatureEnabled(t.feature)); }
+    // One row per tool: { tool, rounds, lastAt } - Theory counts the quizzes you've tried (its summary
+    // holds each quiz's latest round), the drills count every round.
+    async function loadToolResults() {
+        return Promise.all(scoredTools().map(async tool => {
+            try {
+                if (tool.id === 'theory') {
+                    const quizzes = Object.values((await API.theory.summary()).quizzes || {});
+                    return { tool, rounds: quizzes.length, lastAt: quizzes.map(q => q.startedAt).sort().pop() || null };
+                }
+                const levels = Object.values((await API.drills.summary(tool.id)).levels || {});
+                return { tool, rounds: levels.reduce((n, l) => n + l.rounds, 0), lastAt: levels.map(l => l.lastAt).filter(Boolean).sort().pop() || null };
+            } catch { return { tool, rounds: 0, lastAt: null, failed: true }; }
+        }));
+    }
+    function formatToolResultDate(iso) {
+        const day = formatLocalDateStr(new Date(iso));
+        const today = formatLocalDateStr(new Date());
+        if (day === today) return 'Today';
+        if (day === dateStrAddDays(today, -1)) return 'Yesterday';
+        return formatStreakEndDate(day);
+    }
+    async function renderToolResults() {
+        const list = document.getElementById('toolResultsList');
+        if (!list) return;
+        const rows = await loadToolResults();
+        const count = (r) => r.tool.id === 'theory' ? `${r.rounds} quiz${r.rounds === 1 ? '' : 'zes'} tried` : `${r.rounds} round${r.rounds === 1 ? '' : 's'}`;
+        list.innerHTML = rows.length ? rows.map(r => {
+            const sub = r.failed ? "Couldn't load" : !r.lastAt ? 'Not tried yet'
+                : `${count(r)} · last played ${formatToolResultDate(r.lastAt)}`;
+            return `<button type="button" class="history-item settings-link" data-tool-view="${r.tool.view}"><span class="settings-link-icon" data-tool-icon="${r.tool.view}" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">${escapeHtml(r.tool.title)}</span><span class="settings-link-sub">${escapeHtml(sub)}</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>`;
+        }).join('') : '<div class="text-muted">No scored tools are switched on.</div>';
+        list.querySelectorAll('[data-tool-icon]').forEach(slot => {
+            const tile = document.querySelector('#mainView .tool-icon-btn[onclick*="' + slot.dataset.toolIcon + '"] .tool-icon-svg, #mainView .tool-icon-btn[onclick*="' + slot.dataset.toolIcon + '"] .material-symbols-outlined');
+            if (tile) { const c = tile.cloneNode(true); c.removeAttribute('id'); slot.appendChild(c); }
+        });
+        list.querySelectorAll('[data-tool-view]').forEach(b => b.addEventListener('click', () => switchView(b.dataset.toolView)));
     }
 
     function renderStreakStats() {
@@ -686,7 +783,11 @@
     function displayMainApp() {
         setShown('loginScreen', false);
         setShown('mainContainer', true);
+        // ML-345: say so while previewing another account type
+        setShown('previewBanner', !!previewLevel);
+        if (previewLevel) document.getElementById('previewBannerText').textContent = `Previewing the app as a ${PREVIEW_TYPES[previewLevel]}.`;
     }
+    document.getElementById('previewStopBtn')?.addEventListener('click', stopPreview);
 
     document.getElementById('loginBtn')?.addEventListener('click', () => auth.login());
     window.logoutUser = function() {
@@ -723,7 +824,7 @@
         document.getElementById('scalesToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('scales_practice'));
         // ML-320: Start a practice session replaces Start a challenge.
         document.getElementById('startPracticeSessionBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('practice_levels'));
-        document.getElementById('startChallengeBtn')?.classList.toggle('hidden-group', isFeatureEnabled('practice_levels'));
+        document.getElementById('startChallengeBtn')?.classList.toggle('hidden-group', isFeatureEnabled('practice_levels') || !isFeatureEnabled('challenges'));
         document.getElementById('warmupsToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('warmups'));
         // ML-299: My music (create / import / library / edit) and Play Flow's "Create new".
         document.getElementById('tapTempoToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('tap_tempo'));
@@ -732,9 +833,18 @@
         document.getElementById('rangeToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('range_trainer'));
         document.getElementById('rhythmToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('rhythm_trainer'));
         const manage = isFeatureEnabled('flow_manage');
+        const create = manage && isFeatureEnabled('flow_create'); // ML-345: Add a piece
         document.getElementById('myMusicNavItem')?.classList.toggle('hidden-group', !manage);
-        document.getElementById('flowPlayMenuCreateNew')?.classList.toggle('hidden-group', !manage);
-        document.getElementById('rehearseAddBtn')?.classList.toggle('hidden-group', !manage);
+        document.getElementById('flowPlayMenuCreateNew')?.classList.toggle('hidden-group', !create);
+        document.getElementById('rehearseAddBtn')?.classList.toggle('hidden-group', !create);
+        document.getElementById('myMusicAddBtn')?.classList.toggle('hidden-group', !create);
+        // ML-345: the other gates by account type
+        document.getElementById('qpShowHistoryBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('metronome_history'));
+        document.getElementById('tunerRewindGroup')?.classList.toggle('hidden-group', !isFeatureEnabled('tuner_rewind'));
+        document.getElementById('challengesNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('challenges'));
+        document.getElementById('accountTeachersRow')?.classList.toggle('hidden-group', !isFeatureEnabled('manage_tutor'));
+        // ML-328: the Metronome's "Save to flow" - its own gate, so it can be limited per person later.
+        document.getElementById('qpSaveToFlowBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('metronome_save_to_flow'));
         rehearseRefresh();
         renderToolGroups();
     }
@@ -764,7 +874,6 @@
         const helpEl = document.getElementById('metroBlkEntryFromFileHelp');
         if (labelEl) labelEl.innerText = label;
         if (helpEl) helpEl.innerText = help;
-        btn?.setAttribute('aria-label', label + ' - ' + help);
         const dropHelp = document.getElementById('flowFromFileDropHelp');
         if (dropHelp) dropHelp.innerText = pdf && musicxml ? 'Select a PDF scan, MusicXML, or .mxl' : pdf ? 'Select a PDF scan' : 'Select a MusicXML or .mxl file';
         document.getElementById('flowFromFilePdfChip')?.classList.toggle('hidden-group', !pdf);
@@ -949,7 +1058,7 @@
     }
     // The current screen: its own item, or for a screen the menu doesn't list directly (a tool's inner
     // screens, Flow's editor...), the item it belongs under.
-    const NAV_PARENT_VIEW = { flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView', pieceLevelsView: 'rehearseView', practiceListView: 'rehearseView',
+    const NAV_PARENT_VIEW = { statsView: 'statsHomeView', streakStatsView: 'statsHomeView', historyView: 'statsHomeView', toolResultsView: 'statsHomeView', flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView', pieceLevelsView: 'rehearseView', practiceListView: 'rehearseView',
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
         accountDetailsView: 'accountView', accountInstrumentsView: 'accountView', accountBandsView: 'accountView', accountTeachersView: 'accountView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
@@ -962,12 +1071,29 @@
             if (el.dataset.view === current) el.setAttribute('aria-current', 'page');
             else el.removeAttribute('aria-current');
         });
+        // ML-326: on a tool's screen, Tools (the way into its panel) is marked too.
+        const onTool = !!document.querySelector('#navToolsRow [aria-current="page"]');
+        const toolsBtn = document.getElementById('navToolsBtn');
+        if (onTool) toolsBtn?.setAttribute('aria-current', 'page'); else toolsBtn?.removeAttribute('aria-current');
     }
+    // ML-326: Tools slides in over the menu (the Everyday / Practise / Learn icons); its Back row slides
+    // it away again. The menu always opens on its main panel.
+    function showNavPanel(tools) {
+        setShown('navMainPanel', !tools);
+        setShown('navToolsPanel', tools);
+        document.getElementById('navToolsBtn')?.setAttribute('aria-expanded', String(tools));
+        document.getElementById('burgerDropdown').scrollTop = 0;
+        document.getElementById(tools ? 'navToolsBackBtn' : 'navToolsBtn')?.focus({ preventScroll: true });
+    }
+    document.getElementById('navToolsBtn')?.addEventListener('click', (e) => { e.stopPropagation(); showNavPanel(true); });
+    document.getElementById('navToolsBackBtn')?.addEventListener('click', (e) => { e.stopPropagation(); showNavPanel(false); });
     // Who you're signed in as (the email under Log out - ML-289 dropped the name by My account) - fetched once, and refreshed
     // whenever My account loads the profile (loadAccountView calls setNavAccount).
     let navAccountLoaded = false;
+    let accountProfile = null; // ML-330: name, display name - for My details and the home greeting
     function setNavAccount(profile) {
         navAccountLoaded = true;
+        if (!accountProfile) { accountProfile = profile; renderHomeGreeting(); } // ML-330: "Hi, <name>" on home
         document.getElementById('navAccountEmail').textContent = profile.email || '';
     }
     async function renderNavMenu() {
@@ -998,6 +1124,9 @@
         closeAllMetroPopupMenus();
         if (opening) rehearseRefresh(); // ML-299: Rehearse appears in Tools as soon as there's a piece
         if (opening) {
+            setShown('navMainPanel', true);
+            setShown('navToolsPanel', false);
+            document.getElementById('navToolsBtn')?.setAttribute('aria-expanded', 'false');
             dropdown.classList.add('show');
             renderNavMenu();
         }
@@ -1164,7 +1293,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'pieceLevelsView', 'sessionPlanView', 'sessionRunView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
+    const views = ['mainView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'pieceLevelsView', 'sessionPlanView', 'sessionRunView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -1279,17 +1408,23 @@
             topBackBtn.classList.remove('hidden-btn');
         }
 
+        if (viewName === 'statsHomeView') { document.getElementById('topTitle').innerText = 'Stats'; renderStatsHome(); }
+        if (viewName === 'toolResultsView') { document.getElementById('topTitle').innerText = 'Tool results'; renderToolResults(); }
         if (viewName === 'historyView') { document.getElementById('topTitle').innerText = 'Session history'; renderHistoryList(rawData); }
         if (viewName === 'streakStatsView') { document.getElementById('topTitle').innerText = 'Streaks'; renderStreakStats(); }
         if (viewName === 'statsView') { document.getElementById('topTitle').innerText = 'Detailed stats'; scrollStatsToRight(); }
         if (viewName === 'entryForm') { document.getElementById('topTitle').innerText = 'Add record'; }
         if (viewName === 'accountView') { document.getElementById('topTitle').innerText = 'My account'; loadAccountView(); }
         // ML-289: My account's groups, each its own screen (the data was loaded by the list above).
-        if (viewName === 'accountDetailsView') { document.getElementById('topTitle').innerText = 'Your details'; }
-        if (viewName === 'accountInstrumentsView') { document.getElementById('topTitle').innerText = 'Your instruments'; loadAccountInstruments(); }
-        if (viewName === 'accountBandsView') { document.getElementById('topTitle').innerText = 'Your bands'; loadAccountBands(); }
+        if (viewName === 'accountDetailsView') {
+            document.getElementById('topTitle').innerText = 'My details';
+            // ML-330: reached straight from somewhere other than My account, the details aren't loaded yet
+            if (!document.getElementById('accountEmailReadout').textContent) loadAccountView(); else renderAccountNames();
+        }
+        if (viewName === 'accountInstrumentsView') { document.getElementById('topTitle').innerText = 'My instruments'; loadAccountInstruments(); }
+        if (viewName === 'accountBandsView') { document.getElementById('topTitle').innerText = 'My bands'; loadAccountBands(); }
         if (viewName === 'entryForm') renderSessionInstrumentPicker('instrumentGroup', 'sessionInstrument', null);
-        if (viewName === 'accountTeachersView') { document.getElementById('topTitle').innerText = 'Teachers'; loadTeacherList(); }
+        if (viewName === 'accountTeachersView') { document.getElementById('topTitle').innerText = 'My teachers'; loadTeacherList(); }
         // ML-282: Settings is a list of groups, each its own screen. Every screen re-syncs its
         // controls from storage in case they were last changed elsewhere (the Tuner page itself).
         const SETTINGS_TITLES = { settingsView: 'Settings', settingsDisplayView: 'Display settings', settingsStatsView: 'Stats settings', settingsTunerView: 'Tuner settings', settingsPlaybackView: 'Metronome & playback' };
@@ -1297,6 +1432,7 @@
             document.getElementById('topTitle').innerText = SETTINGS_TITLES[viewName];
             syncSettingsControls();
             if (viewName === 'settingsView') { fillSettingsToolIcons(); renderSettingsSummaries(); }
+            if (viewName === 'settingsPlaybackView') renderMetroCalibRow(); // ML-347
         }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
         if (viewName === 'theoryView') { document.getElementById('topTitle').innerText = 'Theory'; renderTheoryList(); }
@@ -1353,7 +1489,8 @@
         // Back from a piece's My Levels: its chunks may have changed, so the forecast is worked out again.
         if (viewName === 'practiceListView' && isBack && plState.list) API.practiceLists.get(plState.list.id).then(l => { plState.list = l; renderPracticeList(); }).catch(() => { /* keeps what it had */ });
         if (practiceRun) renderPracticeRun(); // ML-320: the session bar on every screen but the session's own
-        if (viewName !== 'warmupsView') skillWarmupsKind = null;
+        if (viewName === 'sessionPlanView' && isBack) sessReplan(); // ML-339/343: back from My skills - the lists may have changed
+        if (viewName !== 'warmupsView') { skillWarmupsKind = null; sessionWarmupIds = null; }
         if (viewName === 'skillsView') document.getElementById('topTitle').innerText = 'My skills';
         if (viewName === 'metroBuilderView') {
             // No title text here any more (ML-91) - the tuner toggle takes that spot in the top bar
@@ -1362,8 +1499,9 @@
             loadMetroBlkTimeSignatures();
             // My music: create / import / the library of pieces (ML-179/ML-299). The old ad-hoc
             // Metronome Blocks editor that used to live on this view was removed on 2026-09-27.
-            loadFlowsList();
             metroBlkShowEntryScreen();
+            // The band pills need your bands' names - re-drawn once both are in.
+            Promise.all([loadFlowLibraryBandNames(), loadFlowsList()]).then(renderFlowsList);
         }
 
         // ML-179: currentFlowDetail is already fetched by openFlow/createAndOpenFlow before this
@@ -1702,6 +1840,13 @@
     async function loadChallenges(token) {
         try {
             allChallenges = await API.challenges.get(token);
+        } catch (error) {
+            allChallenges = [];
+            if (error.status === 403) return; // ML-345: challenges are off for this account type
+            showWarningToast('Error loading challenges: ' + error.message);
+            return;
+        }
+        try {
             if(isShown('editChallengeView')) renderEditChallengeItems();
             if(isShown('manageChallengesView')) renderChallengesList();
             if(isShown('challengeSelectView')) renderChallengeSelect();
@@ -2690,6 +2835,7 @@
             if(mainTotalTime) mainTotalTime.innerText = formatMins(tMins);
             if(mainTotalSessions) mainTotalSessions.innerText = tSess;
             updateStreakBoxes();
+            renderStatsHome();
             renderStatsBoxes();
             renderFilteredVisuals();
         } catch(err) { showWarningToast("Render Error: " + err.message); }
@@ -3200,7 +3346,7 @@
     // ========================================
     const ACCOUNT_LEVEL_LABELS = {
         super_admin: 'Super admin', band_admin: 'Band admin', premium_member: 'Premium member',
-        standard_member: 'Standard member', beta_tester: 'Beta tester'
+        standard_member: 'Standard member', beta_tester: 'Beta tester', teacher: 'Teacher'
     };
     let accountBandsData = { allBands: [], myBands: [] };
 
@@ -3216,11 +3362,12 @@
         try {
             const profile = await API.account.get();
             currentAccountIsSuperAdmin = profile.accountLevel === 'super_admin';
+            setNavAccount(profile); // ML-330: also gives the home screen its greeting
             document.getElementById('adminNavLink')?.classList.toggle('hidden-group', !currentAccountIsSuperAdmin);
         } catch { /* not fatal - link just stays hidden */ }
     }
 
-    // ---------------------------------------------------------------- Your instruments (ML-309)
+    // ---------------------------------------------------------------- My instruments (ML-309)
     // myInstruments: this account's, main first - loaded at startup (the add-session form and the
     // Theory tool use it) and again on My account. instrumentCatalogue: the whole list, on first use.
     let myInstruments = [];
@@ -3420,8 +3567,8 @@
     async function loadAccountView() {
         try {
             const profile = await API.account.get();
-            document.getElementById('accountFirstNameInput').value = profile.firstName || '';
-            document.getElementById('accountSurnameInput').value = profile.surname || '';
+            accountProfile = profile;
+            renderAccountNames();
             document.getElementById('accountEmailReadout').innerText = profile.email;
             setNavAccount(profile); // ML-259: keep the menu's name and email in step
             document.getElementById('accountLevelReadout').innerText = ACCOUNT_LEVEL_LABELS[profile.accountLevel] || profile.accountLevel;
@@ -3436,7 +3583,7 @@
     // ML-289: one line under each My account row, like Settings' summaries.
     function renderAccountSummaries() {
         const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
-        const name = [document.getElementById('accountFirstNameInput')?.value.trim(), document.getElementById('accountSurnameInput')?.value.trim()].filter(Boolean).join(' ');
+        const name = accountProfile ? [accountProfile.firstName, accountProfile.surname].filter(Boolean).join(' ') : '';
         set('accountDetailsSummary', name || document.getElementById('accountEmailReadout')?.textContent || 'Add your name');
         const main = myInstruments.find(i => i.isPrimary);
         set('accountInstrumentsSummary', main ? main.name + (myInstruments.length > 1 ? ` + ${myInstruments.length - 1} more` : '') : 'Choose what you play');
@@ -3446,16 +3593,62 @@
         set('accountTeachersSummary', teachers ? `${teachers} teacher${teachers === 1 ? '' : 's'}` : 'None added yet');
     }
 
-    document.getElementById('accountSaveNameBtn')?.addEventListener('click', async () => {
-        const firstName = document.getElementById('accountFirstNameInput').value.trim();
-        const surname = document.getElementById('accountSurnameInput').value.trim();
+    // ML-330: My details shows each name as text with an edit pencil; the pencil opens its fields
+    // (Save / Cancel). The name and the display name save separately. accountProfile is declared by
+    // setNavAccount (it's filled at startup, for the home greeting).
+    function renderAccountNames() {
+        const p = accountProfile || {};
+        const full = [p.firstName, p.surname].filter(Boolean).join(' ');
+        document.getElementById('accountNameReadout').textContent = full || 'Not set';
+        document.getElementById('accountDisplayNameReadout').textContent = p.displayName || p.firstName || 'Not set'; // blank = your first name
+        renderHomeGreeting();
+    }
+    function renderHomeGreeting() {
+        const name = accountProfile && (accountProfile.displayName || accountProfile.firstName);
+        const el = document.getElementById('homeGreeting');
+        if (el) el.textContent = name ? `Hi, ${name}` : '';
+        setShown('homeGreeting', !!name);
+    }
+    function setAccountNameEditing(which, editing) {
+        const ids = which === 'name'
+            ? { panel: 'accountNameEdit', btn: 'accountEditNameBtn', focus: 'accountFirstNameInput' }
+            : { panel: 'accountDisplayNameEdit', btn: 'accountEditDisplayNameBtn', focus: 'accountDisplayNameInput' };
+        if (editing) {
+            const p = accountProfile || {};
+            if (which === 'name') {
+                document.getElementById('accountFirstNameInput').value = p.firstName || '';
+                document.getElementById('accountSurnameInput').value = p.surname || '';
+            } else {
+                document.getElementById('accountDisplayNameInput').value = p.displayName || '';
+            }
+        }
+        setShown(ids.panel, editing);
+        document.getElementById(ids.btn).setAttribute('aria-expanded', String(editing));
+        document.getElementById(editing ? ids.focus : ids.btn)?.focus();
+    }
+    async function saveAccountNames(which, changes) {
         try {
-            await API.account.update({ firstName, surname });
-            showSuccessToast('Account updated');
+            await API.account.update(changes);
+            accountProfile = { ...(accountProfile || {}), ...changes, ...(changes.displayName !== undefined ? { displayName: changes.displayName || null } : {}) };
+            renderAccountNames();
+            renderAccountSummaries();
+            setAccountNameEditing(which, false);
+            showSuccessToast(which === 'name' ? 'Name saved' : 'Display name saved');
         } catch (error) {
             showWarningToast('Error updating account: ' + error.message);
         }
-    });
+    }
+    document.getElementById('accountEditNameBtn')?.addEventListener('click', () => setAccountNameEditing('name', !isShown('accountNameEdit')));
+    document.getElementById('accountCancelNameBtn')?.addEventListener('click', () => setAccountNameEditing('name', false));
+    document.getElementById('accountSaveNameBtn')?.addEventListener('click', () => saveAccountNames('name', {
+        firstName: document.getElementById('accountFirstNameInput').value.trim(),
+        surname: document.getElementById('accountSurnameInput').value.trim()
+    }));
+    document.getElementById('accountEditDisplayNameBtn')?.addEventListener('click', () => setAccountNameEditing('display', !isShown('accountDisplayNameEdit')));
+    document.getElementById('accountCancelDisplayNameBtn')?.addEventListener('click', () => setAccountNameEditing('display', false));
+    document.getElementById('accountSaveDisplayNameBtn')?.addEventListener('click', () => saveAccountNames('display', {
+        displayName: document.getElementById('accountDisplayNameInput').value.trim()
+    }));
 
     document.getElementById('accountJoinBandBtn')?.addEventListener('click', async () => {
         const picker = document.getElementById('accountBandPicker');
@@ -4732,6 +4925,15 @@
     function renderMetroLatencyReadout() {
         const readout = document.getElementById('metroCalibLatencyMs');
         if (readout) readout.innerText = `${metroState.latencyMs} ms`;
+        // ML-347: the slider under it
+        const pct = (metroState.latencyMs / METRO_LATENCY_MAX) * 100;
+        document.getElementById('metroCalibSliderFill')?.style.setProperty('--pct', `${pct}%`);
+        const thumb = document.getElementById('metroCalibSliderThumb');
+        if (thumb) {
+            thumb.style.setProperty('--pct', `${pct}%`);
+            thumb.setAttribute('aria-valuenow', metroState.latencyMs);
+            thumb.setAttribute('aria-valuetext', `${metroState.latencyMs} milliseconds`);
+        }
     }
     function setMetroLatencyMs(ms) {
         metroState.latencyMs = Math.min(METRO_LATENCY_MAX, Math.max(0, ms));
@@ -4755,14 +4957,29 @@
     metroCalibPlayer.setNotesPerBeat(1);
     metroCalibPlayer.setSubdivisionFactor(1);
     metroCalibPlayer.setVisualLatencyMs(metroState.latencyMs);
-    buildMetroDotRow('metroCalibDots', 4, 1, false, (k) => (k / 4) * 100);
+    // ML-347: the same beat display as the Metronome (renderQuickPlayRows) - 4 beats laid out over 5
+    // slots so the track runs one slot past the last dot. Built when Settings -> Metronome & playback
+    // shows, since a hidden row measures 0 wide.
+    function renderMetroCalibRow() {
+        const trackLeftPct = (k) => k * (100 / 5) + (100 / 5) / 2;
+        buildMetroDotRow('metroCalibDots', 4, 1, false, trackLeftPct);
+        metroApplyDisplayWidth('metroCalibViewport', 'metroCalibContent', 5);
+        connectMetroBlkDotsWithTrack('metroCalibDots', metroLeftStyle(trackLeftPct(4)));
+    }
     metroCalibPlayer.onBeat((beatInfo) => flashTierDot('metroCalibDots', beatInfo.clickIndexInBar));
     function setMetroCalibPlaying(playing) {
         const icon = document.getElementById('metroCalibPlayIcon');
-        if (playing) { metroCalibPlayer.play(); if (icon) icon.innerText = 'pause'; }
+        const btn = document.getElementById('metroCalibPlayBtn');
+        if (playing) { metroCalibPlayer.play(); if (icon) icon.innerText = 'stop'; }
         else { metroCalibPlayer.pause(); if (icon) icon.innerText = 'play_arrow'; }
+        document.getElementById('metroCalibPlayLbl').textContent = playing ? 'stop' : 'test';
+        btn?.setAttribute('aria-label', playing ? 'Stop the test beats' : 'Test - play the test beats');
     }
     document.getElementById('metroCalibPlayBtn')?.addEventListener('click', () => setMetroCalibPlaying(!metroCalibPlayer.isPlaying()));
+    setupSliderInteraction(document.getElementById('metroCalibSliderTrack'), document.getElementById('metroCalibSliderThumb'), {
+        onDragRatio: (ratio) => setMetroLatencyMs(Math.round((ratio * METRO_LATENCY_MAX) / METRO_LATENCY_STEP) * METRO_LATENCY_STEP),
+        onArrowStep: (dir) => setMetroLatencyMs(metroState.latencyMs + dir * METRO_LATENCY_STEP)
+    });
     document.getElementById('metroCalibLatencyMinusBtn')?.addEventListener('click', () => setMetroLatencyMs(metroState.latencyMs - METRO_LATENCY_STEP));
     document.getElementById('metroCalibLatencyPlusBtn')?.addEventListener('click', () => setMetroLatencyMs(metroState.latencyMs + METRO_LATENCY_STEP));
     document.getElementById('metroCalibLatencyResetBtn')?.addEventListener('click', () => setMetroLatencyMs(0));
@@ -4820,39 +5037,41 @@
         return block.isLeadIn ? block.numerator : metroBlkMeterInfo(block).macroBeatsPerBar;
     }
 
-    // ML-103: Flow's entry screen (create vs load) replaces the old silent auto-resolve into an
-    // editor - see the switchView('metroBuilderView') branch above for when each is shown.
+    // ML-329: My music opens straight on the library (filter, search, pieces). Add a piece sits at the
+    // top: with an import gate on it opens a small menu (Create your own / Import...); with none, it
+    // just creates. The filter and search start fresh on each visit.
     function metroBlkShowEntryScreen() {
         document.getElementById('metroBlkEntryScreen')?.classList.remove('hidden-group');
-        // Always reset back to the two-choice state, rather than leaving the library list expanded
-        // from a previous visit.
-        document.getElementById('metroBlkEntryLibrary')?.classList.add('hidden-group');
-        document.querySelector('.metroBlk-entry-choices')?.classList.remove('hidden-group');
-        document.getElementById('metroBlkEntryTitle').innerText = 'My music';
+        flowLibraryFilter = 'all';
+        flowLibraryQuery = '';
+        const search = document.getElementById('flowLibrarySearch');
+        if (search) search.value = '';
     }
-
-    // Shared by metroBlkEntryLoadBtn's own click and every other "jump straight to the library"
-    // entry point (Play Flow's 3-dot menu) - reveals the list and swaps the section-title to say
-    // so, rather than the generic "Flow" the two-choice screen shows.
-    function showFlowLibraryList() {
-        document.querySelector('.metroBlk-entry-choices')?.classList.add('hidden-group');
-        document.getElementById('metroBlkEntryLibrary')?.classList.remove('hidden-group');
-        document.getElementById('metroBlkEntryTitle').innerText = 'Library';
+    function closeMyMusicAddMenu() {
+        document.getElementById('myMusicAddMenu')?.classList.remove('show');
+        document.getElementById('myMusicAddBtn')?.setAttribute('aria-expanded', 'false');
     }
-    // ML-179: "Create your own" now creates a score-backed Flow (Flow Details Hub) instead of
-    // jumping straight into the ad-hoc scratch builder - loadMetroBlkDefaultSetup is unreachable
-    // from here now (its only other caller, deleteMetroBlkSetup, is itself unreachable the same
-    // way - see the loadFlowsList comment above). Left in place per this file's usual precedent.
+    document.addEventListener('click', closeMyMusicAddMenu);
+    document.getElementById('myMusicAddBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const { pdf, musicxml } = flowImportGates();
+        if (!pdf && !musicxml) { createAndOpenFlow(); return; }
+        const menu = document.getElementById('myMusicAddMenu');
+        if (menu.classList.contains('show')) { closeMyMusicAddMenu(); return; }
+        menu.classList.add('show');
+        e.currentTarget.setAttribute('aria-expanded', 'true');
+        const r = e.currentTarget.getBoundingClientRect();
+        placeAt(menu, Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)), Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8));
+    });
+    // ML-179: "Create your own" creates a score-backed Flow (Flow Details Hub).
     document.getElementById('metroBlkEntryCreateBtn')?.addEventListener('click', () => {
+        closeMyMusicAddMenu();
         createAndOpenFlow();
     });
-    document.getElementById('metroBlkEntryLoadBtn')?.addEventListener('click', showFlowLibraryList);
-    // Gated behind the flow_import_from_file feature (renderFeatureGates handles show/hide, once
-    // appData's actually loaded - this listener just needs to agree once clicked, in case it's
-    // clicked in the brief window before that's resolved). Hidden rather than disabled-looking, so
-    // the entry screen reads as the plain two-choice screen it always was before ML-79, not as
-    // "here's a third option, but not for you".
+    // Behind the import gates (applyFlowImportFormats shows/hides it once appData has loaded - this
+    // listener just needs to agree, in case it's clicked before that's resolved).
     document.getElementById('metroBlkEntryFromFileBtn')?.addEventListener('click', () => {
+        closeMyMusicAddMenu();
         const { pdf, musicxml } = flowImportGates();
         if (!pdf && !musicxml) return;
         switchView('flowFromFileView');
@@ -4889,7 +5108,7 @@
     function rehearseShowTile() {
         const tile = document.getElementById('rehearseToolBtn');
         if (!tile) return;
-        const hidden = !rehearsePlayable().length;
+        const hidden = !rehearsePlayable().length || !isFeatureEnabled('rehearse'); // ML-345
         if (tile.classList.contains('hidden-group') === hidden) return;
         tile.classList.toggle('hidden-group', hidden);
         renderToolGroups();
@@ -4997,10 +5216,13 @@
         const marked = levels.hardEdit ? [levels.hardEdit.startBar, levels.hardEdit.endBar]
             : (levels.mode === 'chunk' && levels.chunks[levels.selected]) ? [levels.chunks[levels.selected].startBar, levels.chunks[levels.selected].endBar] : null;
         const mapEl = document.getElementById('levelsMap');
+        // ML-336: 10 bars a row, as bars are counted in music, with the row's bars on the left ("1 - 10";
+        // just "1" when the map is too narrow - CSS hides the "- 10").
         mapEl.innerHTML = map.map((lv, k) => {
             const n = k + 1;
             const on = marked && n >= Math.min(...marked) && n <= Math.max(...marked);
-            return `<span class="level-cell lv-${lv || 0}${on ? ' is-marked' : ''}">${lv || ''}</span>`;
+            const label = k % 10 === 0 ? `<span class="level-map-bars" aria-hidden="true">${n}<span class="level-map-bars-to"> - ${Math.min(n + 9, map.length)}</span></span>` : '';
+            return `${label}<span class="level-cell lv-${lv || 0}${on ? ' is-marked' : ''}">${lv || ''}</span>`;
         }).join('');
         const set = map.filter(v => v).length;
         mapEl.setAttribute('aria-label', !set ? 'No Levels set yet' : `Levels by bar: ${[1, 2, 3, 4, 5].map(n => [n, map.filter(v => v === n).length]).filter(([, c]) => c).map(([n, c]) => `${c} bar${c === 1 ? '' : 's'} at Level ${n}`).join(', ')}${set < map.length ? `, ${map.length - set} not set` : ''}`);
@@ -5308,7 +5530,7 @@
         if (b.kind === 'rehearsal') return b.chunk ? `${b.chunk.title} · ${b.chunk.label || levelsRange(b.chunk.startBar, b.chunk.endBar)} · Level ${b.chunk.level}` : 'Any piece - you pick it in Rehearse';
         if (b.kind === 'skills' && b.skill) { const s = skillsData.find(x => x.key === b.skill.key) || b.skill; const def = SKILLS[b.skill.key]; return `${def ? def.label : b.skill.key}${s.step ? ` - ${s.step.label}` : ''}`; }
         if (b.kind === 'skills') return PracticePlan.toolLabel(b.tool);
-        if (b.kind === 'warmup') return 'The Warm-ups tool';
+        if (b.kind === 'warmup') return b.warmup ? b.warmup.name : 'The Warm-ups tool';
         if (b.kind === 'scales') return 'The Scales tool';
         return 'Tap to choose';
     }
@@ -5319,15 +5541,31 @@
     }
     function sessReplan() {
         sessPlan.blocks = PracticePlan.plan(sessPlan.minutes, sessPlan.template, sessPlan.focus, sessPlan.chunks, skillsData.map(s => ({ key: s.key, stepIndex: s.stepIndex, lastPractised: s.lastPractised, done: s.done, step: s.step })));
+        sessApplyWarmupList();
         renderSessionPlan();
+    }
+    // ML-343: every Warm-up block carries the warm-up list it plays (kept with the running session).
+    function sessApplyWarmupList() {
+        const wl = currentWarmupList();
+        const plain = wl ? { key: wl.key, name: wl.name, external: !!wl.external, each: !!wl.each, kinds: wl.kinds || null, random: !!wl.random } : null;
+        sessPlan.blocks.forEach(b => { if (b.kind === 'warmup') b.warmup = plain; });
     }
     function renderSessionPlan() {
         const templated = sessPlan.minutes >= 15;
         document.getElementById('sessLenValue').textContent = sessPlan.minutes;
+        // ML-337: the slider under it
+        const lenPct = ((sessPlan.minutes - PracticePlan.MIN_MINUTES) / (PracticePlan.MAX_MINUTES - PracticePlan.MIN_MINUTES)) * 100;
+        document.getElementById('sessLenSliderFill').style.setProperty('--pct', `${lenPct}%`);
+        const lenThumb = document.getElementById('sessLenSliderThumb');
+        lenThumb.style.setProperty('--pct', `${lenPct}%`);
+        lenThumb.setAttribute('aria-valuenow', sessPlan.minutes);
+        lenThumb.setAttribute('aria-valuetext', `${sessPlan.minutes} minutes`);
         document.getElementById('sessLenMinus').disabled = sessPlan.minutes <= PracticePlan.MIN_MINUTES;
         document.getElementById('sessLenPlus').disabled = sessPlan.minutes >= PracticePlan.MAX_MINUTES;
         setShown('sessTemplateGroup', templated);
-        setShown('sessFocusGroup', templated);
+        setShown('sessTemplateNote', templated);
+        const lead = (sessPlan.template && sessPlan.template.lead) || (PracticePlan.TEMPLATES[sessPlan.template] || PracticePlan.TEMPLATES.standard).lead;
+        document.getElementById('sessTemplateNote').textContent = `${[...lead.map(k => PracticePlan.KINDS[k]), `then ${PracticePlan.FOCUS_LABELS[sessPlan.focus] || 'Rehearsal'}`].join(', ')}.`;
         const pills = (el, options, value, onPick) => {
             el.innerHTML = options.map(([k, label]) => `<button type="button" class="filter-pill${value === k ? ' active' : ''}" aria-pressed="${value === k}" data-k="${k}">${label}</button>`).join('');
             el.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => onPick(b.dataset.k)));
@@ -5335,12 +5573,21 @@
         const tplKey = sessPlan.template && sessPlan.template.id ? `t:${sessPlan.template.id}` : sessPlan.template;
         pills(document.getElementById('sessTemplatePills'), [['standard', 'Standard'], ['concert', 'Concert (no Scales)'], ...sessTemplates.map(t => [`t:${t.id}`, t.name])], tplKey, (k) => {
             const mine = k.startsWith('t:') ? sessTemplates.find(t => `t:${t.id}` === k) : null;
-            if (mine) { sessPlan.template = { ...mine }; sessPlan.focus = mine.focus; sessPlan.minutes = mine.minutes; } else sessPlan.template = k;
+            if (mine) { sessPlan.template = { ...mine }; sessPlan.minutes = mine.minutes; } else sessPlan.template = k;
+            sessPlan.focus = PracticePlan.templateFocus(sessPlan.template); // ML-342
             sessReplan();
         });
+        // ML-339 / ML-343: which skills list and which warm-up list this session uses.
+        const hasSkills = sessPlan.blocks.some(b => b.kind === 'skills');
+        setShown('sessSkillListGroup', hasSkills && skillLists.length > 0);
+        const sl = currentSkillList();
+        pills(document.getElementById('sessSkillListPills'), skillLists.map(l => [String(l.id), l.name]), sl ? String(sl.id) : '', (k) => { setSkillList(Number(k)); sessReplan(); });
+        setShown('sessWarmupListGroup', sessPlan.blocks.some(b => b.kind === 'warmup'));
+        const wl = currentWarmupList();
+        pills(document.getElementById('sessWarmupListPills'), allWarmupLists().map(l => [l.key, l.name]), wl ? wl.key : '', (k) => { setWarmupList(k); sessReplan(); });
         setShown('sessListNote', !!sessPlan.listName);
         document.getElementById('sessListNote').textContent = sessPlan.listName ? `Rehearsal blocks come from ${sessPlan.listName}.` : '';
-        pills(document.getElementById('sessFocusPills'), [['skills', 'Skills'], ['both', 'Both'], ['rehearsal', 'Rehearsal']], sessPlan.focus, (k) => { sessPlan.focus = k; sessReplan(); });
+
         document.getElementById('sessPlanStrip').innerHTML = sessStripHtml(sessPlan.blocks, null);
         const list = document.getElementById('sessBlockList');
         list.innerHTML = sessPlan.blocks.map((b, i) => `
@@ -5368,7 +5615,7 @@
         sessPlan.listName = o.listName || null;
         if (o.minutes) sessPlan.minutes = PracticePlan.clampMinutes(o.minutes);
         if (o.template) sessPlan.template = o.template;
-        if (o.focus) sessPlan.focus = o.focus;
+        sessPlan.focus = PracticePlan.templateFocus(sessPlan.template); // ML-342: the template's own focus
         switchView('sessionPlanView');
         sessReplan();
         await Promise.all([loadTemplates(), loadSkills()]);
@@ -5419,8 +5666,8 @@
             const withLevels = new Set(sessPlan.chunks.map(c => c.scoreId));
             const toSetUp = rehearsePlayable().filter(f => !withLevels.has(f.id) && (!sessPlan.scoreIds || sessPlan.scoreIds.includes(f.id)));
             box.innerHTML = sessPlan.chunks.map(c => option(String(c.id), `${c.title} · ${c.label || levelsRange(c.startBar, c.endBar)}`, `Level ${c.level}`, b.kind === 'rehearsal' && b.chunk && b.chunk.id === c.id)).join('')
-                + (toSetUp.length ? `<p class="text-sm fw-bold mt-3 mb-2">${sessPlan.chunks.length ? 'Or set up another piece' : 'Set up a piece first - say how well you can play it'}</p>` : '')
-                + toSetUp.map(f => option(`setup:${f.id}`, `Set up ${f.title}`, 'How well can you play it? Then back here', false)).join('')
+                + (toSetUp.length ? `<p class="text-sm fw-bold mt-3 mb-2">${sessPlan.chunks.length ? 'Or prepare another piece for practice' : 'Prepare a piece for practice first - say how well you can play it'}</p>` : '')
+                + toSetUp.map(f => option(`setup:${f.id}`, `Prepare ${f.title} for practice`, 'How well can you play it? Then back here', false)).join('')
                 + option('any', 'Any piece', 'Pick it in Rehearse and play it your way', b.kind === 'rehearsal' && !b.chunk);
             box.querySelectorAll('[data-opt]').forEach(o => o.addEventListener('click', () => {
                 const k = o.dataset.opt;
@@ -5538,6 +5785,20 @@
             if (s && !s.done) { openSkillStep(s); practiceRunSave(); return; }
         }
         practiceRunSave();
+        // ML-343: a Warm-up block plays its warm-up list - External is your own warm-up (just the timer).
+        if (b.kind === 'warmup' && b.warmup && b.warmup.external) {
+            switchView('sessionRunView');
+            showSuccessToast('Your own warm-up - the timer is running');
+            return;
+        }
+        if (b.kind === 'warmup' && b.warmup) {
+            await warmupsLoad();
+            const seq = PracticePlan.warmupSequence(b.warmup, (warmupsAll || []).map(ex => ({ id: ex.id, kind: ex.kind })), Warmups.KIND_IDS);
+            switchView('warmupsView');
+            sessionWarmupIds = seq.length ? seq : null; // after switchView, which clears it when leaving the tool
+            if (seq.length) { warmups.currentId = seq[0]; renderWarmups(); }
+            return;
+        }
         const view = b.kind === 'warmup' ? 'warmupsView' : b.kind === 'scales' ? 'scalesView' : SESSION_TOOL_VIEWS[b.tool];
         switchView(view || 'sessionRunView');
     }
@@ -5619,6 +5880,17 @@
     document.getElementById('startPracticeSessionBtn')?.addEventListener('click', () => (practiceRun && !practiceRun.done ? switchView('sessionRunView') : openSessionPlanner({})));
     document.getElementById('sessLenMinus')?.addEventListener('click', () => { sessPlan.minutes = PracticePlan.clampMinutes(sessPlan.minutes - 5); sessReplan(); });
     document.getElementById('sessLenPlus')?.addEventListener('click', () => { sessPlan.minutes = PracticePlan.clampMinutes(sessPlan.minutes + 5); sessReplan(); });
+    // ML-337: drag or tap the slider (snaps to 5 minutes); arrows step 5.
+    function sessSetMinutes(m) {
+        const next = PracticePlan.clampMinutes(m);
+        if (next === sessPlan.minutes) return;
+        sessPlan.minutes = next;
+        sessReplan();
+    }
+    setupSliderInteraction(document.getElementById('sessLenSliderTrack'), document.getElementById('sessLenSliderThumb'), {
+        onDragRatio: (ratio) => sessSetMinutes(PracticePlan.MIN_MINUTES + ratio * (PracticePlan.MAX_MINUTES - PracticePlan.MIN_MINUTES)),
+        onArrowStep: (dir) => sessSetMinutes(sessPlan.minutes + dir * PracticePlan.BLOCK_MINUTES)
+    });
     document.getElementById('sessionBlockCloseBtn')?.addEventListener('click', () => hideModal('sessionBlockModal'));
     document.getElementById('sessSetupPieceBtn')?.addEventListener('click', () => openSessionBlockModal(Math.max(0, sessPlan.blocks.findIndex(b => b.kind === 'rehearsal')), 'rehearsal'));
     document.getElementById('sessStartBtn')?.addEventListener('click', () => { startPracticeRun(); startSessionBlock(); });
@@ -5656,7 +5928,7 @@
     const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     function todayIso() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
     function plDateText(iso) {
-        if (!iso) return 'No date yet';
+        if (!iso) return 'No target date';
         const d = new Date(`${iso}T12:00:00`);
         const days = Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${todayIso()}T00:00:00Z`)) / 86400000);
         const when = days < 0 ? 'past' : days === 0 ? 'today' : `${days} day${days === 1 ? '' : 's'} to go`;
@@ -5674,7 +5946,7 @@
                     <button type="button" class="level-row-body grow text-left" data-list="${l.id}">
                         <span><strong>${escapeHtml(l.name)}</strong><br><span class="text-sm text-muted">${l.bandName ? `${escapeHtml(l.bandName)} · ` : ''}${plDateText(l.eventDate)} · ${l.pieceCount} piece${l.pieceCount === 1 ? '' : 's'}</span></span>
                     </button>
-                </div>`).join('') : '<p class="text-sm text-muted">A list is the pieces for a concert - with its date, it tells you if you\'ll be ready.</p>';
+                </div>`).join('') : '<p class="text-sm text-muted">A list is the pieces you\'re working towards - give it a target date and it shows the pace you need.</p>';
             box.querySelectorAll('[data-list]').forEach(b => b.addEventListener('click', () => openPracticeList(Number(b.dataset.list))));
         } catch (e) {
             box.innerHTML = '';
@@ -5690,28 +5962,77 @@
         }
     }
     function plForecast(list) {
-        return PracticePlan.forecast({ pieces: list.pieces, eventDate: list.eventDate, today: todayIso(), sessionsPerWeek: list.sessionsPerWeek, minutes: list.sessionMinutes, template: 'standard', focus: 'both' });
+        return PracticePlan.forecast({ pieces: list.pieces, eventDate: list.eventDate, today: todayIso() });
     }
+    // ML-332: the target date button and its pop-up - no target date, or pick one.
+    function plDateLabel(iso) {
+        if (!iso) return 'None';
+        const d = new Date(`${iso}T12:00:00`);
+        return `${DAYS_SHORT[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+    }
+    function openPlDateModal() {
+        const l = plState.list;
+        if (!l) return;
+        const has = !!l.eventDate;
+        document.getElementById('plDateNoneBtn').classList.toggle('selected', !has);
+        document.getElementById('plDateNoneBtn').setAttribute('aria-pressed', String(!has));
+        document.getElementById('plDateSetBtn').classList.toggle('selected', has);
+        document.getElementById('plDateSetBtn').setAttribute('aria-pressed', String(has));
+        document.getElementById('plDate').value = l.eventDate || '';
+        setShown('plDatePickGroup', has);
+        document.getElementById('plDateBtn').setAttribute('aria-expanded', 'true');
+        showModal('plDateModal');
+    }
+    function closePlDateModal() {
+        hideModal('plDateModal');
+        document.getElementById('plDateBtn').setAttribute('aria-expanded', 'false');
+    }
+    async function plSaveDate(iso) {
+        closePlDateModal();
+        const l = plState.list;
+        if (!l || (l.eventDate || null) === (iso || null)) return;
+        try { plState.list = await API.practiceLists.update(l.id, { name: l.name, eventDate: iso || null }); renderPracticeList(); }
+        catch (e) { showWarningToast('List not saved: ' + e.message); }
+    }
+    document.getElementById('plDateBtn')?.addEventListener('click', openPlDateModal);
+    document.getElementById('plDateCloseBtn')?.addEventListener('click', closePlDateModal);
+    document.getElementById('plDateNoneBtn')?.addEventListener('click', () => plSaveDate(null));
+    document.getElementById('plDateSetBtn')?.addEventListener('click', () => {
+        document.getElementById('plDateSetBtn').classList.add('selected');
+        document.getElementById('plDateSetBtn').setAttribute('aria-pressed', 'true');
+        document.getElementById('plDateNoneBtn').classList.remove('selected');
+        document.getElementById('plDateNoneBtn').setAttribute('aria-pressed', 'false');
+        setShown('plDatePickGroup', true);
+        const input = document.getElementById('plDate');
+        if (!input.value) input.value = todayIso();
+        input.focus();
+    });
+    document.getElementById('plDateDoneBtn')?.addEventListener('click', () => {
+        const v = document.getElementById('plDate').value;
+        if (!v) return showWarningToast('Pick a date first');
+        plSaveDate(v);
+    });
     function renderPracticeList() {
         const l = plState.list;
         if (!l) return;
         document.getElementById('topTitle').innerText = l.name;
         const setVal = (id, v) => { const el = document.getElementById(id); if (document.activeElement !== el) el.value = v == null ? '' : v; };
-        setVal('plName', l.name); setVal('plDate', l.eventDate); setVal('plPerWeek', l.sessionsPerWeek); setVal('plMinutes', l.sessionMinutes);
+        setVal('plName', l.name);
+        document.getElementById('plDateBtnText').textContent = plDateLabel(l.eventDate);
+        document.getElementById('plDateBtn').setAttribute('aria-label', `Target date: ${l.eventDate ? plDateText(l.eventDate) : 'none'} - tap to change`);
         const f = plForecast(l);
         const verdict = document.getElementById('plVerdict');
         const text = document.getElementById('plVerdictText');
-        const blocksLine = `${f.total} block${f.total === 1 ? '' : 's'} to Level 5 (${f.minutes} minutes of rehearsal) · ${f.perSession} rehearsal block${f.perSession === 1 ? '' : 's'} in a ${l.sessionMinutes}-minute session`;
-        if (!l.pieces.length) { verdict.textContent = 'Add the pieces'; text.textContent = 'Add the pieces for this concert and the forecast works out whether you\'ll be ready.'; }
-        else if (f.onTrack === null) { verdict.textContent = `${f.needed} session${f.needed === 1 ? '' : 's'} to be ready`; text.textContent = `${blocksLine}. Add the concert date to see if that fits.`; }
+        // ML-333: the blocks it takes, and with a target date the daily pace that gets there.
+        const blocks = (n) => `${n} five-minute block${n === 1 ? '' : 's'}`;
+        if (!l.pieces.length) { verdict.textContent = 'Add the pieces'; text.textContent = 'Add the pieces you\'re working towards and this works out how much practice they need.'; }
         else if (f.total === 0) { verdict.textContent = 'Ready'; text.textContent = 'Everything counted is at Level 5.'; }
-        else if (f.onTrack) { verdict.textContent = `On track: ${f.needed} of ${f.available} sessions`; text.textContent = `${blocksLine}. ${plDateText(l.eventDate)}.`; }
-        else { verdict.textContent = `Behind: need ${f.needed} sessions, you have ${f.available}`; text.textContent = `${blocksLine}. ${plDateText(l.eventDate)}.`; }
-        const sug = document.getElementById('plSuggestion');
-        setShown(sug, !!f.suggestion);
-        if (f.suggestion) sug.textContent = f.suggestion.sessions != null && f.suggestion.template && !f.suggestion.sessionsPerWeek
-            ? `Fix: ${f.suggestion.text} - ${f.suggestion.perSession} rehearsal blocks a session, ${f.suggestion.sessions} sessions. Plan a session for this uses it.`
-            : `Fix: ${f.suggestion.text}.`;
+        else {
+            verdict.textContent = `${blocks(f.total)} to be ready`;
+            text.textContent = f.days === null ? `That's ${f.minutes} minutes of rehearsal. Add a target date to see the pace you need.`
+                : f.days === 0 ? `That's ${f.minutes} minutes of rehearsal - and the target date is today.`
+                : `About ${blocks(f.perDay)} (${f.perDayMinutes} minutes) a day. ${plDateText(l.eventDate)}.`;
+        }
         const nc = document.getElementById('plNotCounted');
         setShown(nc, f.notCounted.length > 0);
         nc.textContent = `Not counted: ${f.notCounted.join('; ')}.`;
@@ -5719,11 +6040,13 @@
         box.innerHTML = l.pieces.length ? l.pieces.map((p, i) => {
             const map = FlowJourney.barLevels(p.totalBars, p.chunks);
             const pb = f.pieces[i];
-            const note = pb.blocks === null ? 'Not set up - tap to set up' : pb.blocks === 0 ? 'Ready' : `${pb.blocks} block${pb.blocks === 1 ? '' : 's'} to Level 5${pb.joinUp ? ' (with join-up)' : ''}`;
+            // ML-334: a piece not set up yet is fine on a list - its first block is preparation for
+            // practice (giving it Levels), which you can do now.
+            const note = pb.prep ? `Not set up - ${PracticePlan.PREP_BLOCKS} block to prepare it` : pb.blocks === 0 ? 'Ready' : `${pb.blocks} block${pb.blocks === 1 ? '' : 's'} to Level 5${pb.joinUp ? ' (with join-up)' : ''}`;
             return `<div class="history-item">
-                <button type="button" class="level-row-body grow text-left" data-piece="${p.scoreId}" aria-label="${escapeHtml(p.title)} - ${note}. Open My Levels">
+                <button type="button" class="level-row-body grow text-left" data-piece="${p.scoreId}" aria-label="${escapeHtml(p.title)} - ${note}. ${pb.prep ? 'Prepare it now' : 'Open My Levels'}">
                     <span class="grow"><strong>${escapeHtml(p.title)}</strong><br><span class="text-sm text-muted">${note}</span>
-                    <span class="level-strip mt-1" aria-hidden="true">${map.map(v => `<span class="level-cell lv-${v || 0}"></span>`).join('')}</span></span>
+                    ${pb.prep ? '<span class="text-sm fw-bold">Prepare it now &rsaquo;</span>' : `<span class="level-strip mt-1" aria-hidden="true">${map.map(v => `<span class="level-cell lv-${v || 0}"></span>`).join('')}</span>`}</span>
                 </button>
                 <button type="button" class="flow-delete-btn" data-remove-piece="${p.scoreId}" aria-label="Take ${escapeHtml(p.title)} off this list"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
             </div>`;
@@ -5736,18 +6059,13 @@
         try { plState.list = await API.practiceLists.setPieces(plState.list.id, ids); renderPracticeList(); }
         catch (e) { showWarningToast('List not saved: ' + e.message); }
     }
-    // Name, date, sessions a week and minutes save a moment after you stop typing.
+    // The name saves a moment after you stop typing (the target date saves from its pop-up).
     function plFieldChanged() {
         clearTimeout(plState.saveTimer);
         plState.saveTimer = setTimeout(async () => {
             const l = plState.list;
             if (!l) return;
-            const body = {
-                name: document.getElementById('plName').value.trim() || l.name,
-                eventDate: document.getElementById('plDate').value || null,
-                sessionsPerWeek: Number(document.getElementById('plPerWeek').value) || l.sessionsPerWeek,
-                sessionMinutes: Number(document.getElementById('plMinutes').value) || l.sessionMinutes
-            };
+            const body = { name: document.getElementById('plName').value.trim() || l.name, eventDate: l.eventDate || null };
             try { plState.list = await API.practiceLists.update(l.id, body); renderPracticeList(); }
             catch (e) { showWarningToast('List not saved: ' + e.message); }
         }, 600);
@@ -5781,7 +6099,7 @@
         showModal('plPiecesModal');
     }
     document.getElementById('practiceListNewBtn')?.addEventListener('click', () => newPracticeList());
-    ['plName', 'plDate', 'plPerWeek', 'plMinutes'].forEach(id => document.getElementById(id)?.addEventListener('input', plFieldChanged));
+    document.getElementById('plName')?.addEventListener('input', plFieldChanged);
     document.getElementById('plAddPiecesBtn')?.addEventListener('click', () => { if (!flowsListCache.length) rehearseRefresh(); openPlPiecesModal(); });
     document.getElementById('plPiecesCloseBtn')?.addEventListener('click', () => hideModal('plPiecesModal'));
     document.getElementById('plPiecesDoneBtn')?.addEventListener('click', () => {
@@ -5791,10 +6109,9 @@
         plSetPieces([...keep, ...added]);
     });
     document.getElementById('plPlanBtn')?.addEventListener('click', () => {
+        // ML-333/342: a session for a list is the Concert template (Warm-up, then Rehearsal) on its pieces.
         const l = plState.list;
-        const f = plForecast(l);
-        const s = f.suggestion && f.suggestion.template ? f.suggestion : null;
-        openSessionPlanner({ scoreIds: l.pieces.map(p => p.scoreId), minutes: l.sessionMinutes, template: s ? s.template : 'standard', focus: s ? s.focus : 'both', listName: l.name });
+        openSessionPlanner({ scoreIds: l.pieces.map(p => p.scoreId), template: 'concert', listName: l.name });
     });
     document.getElementById('plDeleteBtn')?.addEventListener('click', () => {
         const l = plState.list;
@@ -5882,36 +6199,71 @@
     // own score, caught in saveDrill); Warm-ups and Scales ask "Got it?". The list, where you're up to
     // and every go are on the server (/api/practice/skills*).
     const SKILL_PASS_GRADE = 4;
-    function scalesSkillSteps(mode) {
-        return TheoryEngine.ALL_KEYS.filter(k => k.mode === mode)
+    // maxAccidentals (ML-338): a grade's scales go up to that many sharps or flats; null = every key.
+    function scalesSkillSteps(mode, maxAccidentals = null) {
+        return TheoryEngine.ALL_KEYS.filter(k => k.mode === mode && (maxAccidentals === null || k.count <= maxAccidentals))
             .sort((a, b) => a.count - b.count || (a.type === 'sharp' ? -1 : 1) - (b.type === 'sharp' ? -1 : 1))
             .map(k => ({ id: k.id, label: `${k.tonic} ${mode}` }));
     }
+    // ML-338: grades 1-5 - the exam grades a skill belongs to ([first, last]), so Add skills can filter
+    // by grade. Scales also come grade-sized: a grade's major keys go up to that many sharps or flats
+    // (Grade 5: all of them), and minor keys start at Grade 2, up to one fewer. See docs/practice-sessions.md.
+    const SKILL_GRADES = [1, 2, 3, 4, 5];
+    const WARMUP_KIND_GRADES = { 'long-tones': [1, 5], 'lip-slurs': [2, 5], flexibility: [3, 5], articulation: [1, 5], fingers: [1, 5], melodic: [1, 3] };
+    const RHYTHM_SET_GRADES = { words: [1, 2], beat: [1, 3], two: [2, 4], triplets: [3, 5], six8: [4, 5] };
     const SKILLS = {
-        tapTempo: { label: 'Tempo', tool: 'tapTempo', graded: true, steps: () => Drills.TAP.LEVELS.map(l => ({ id: l.id, label: l.label })) },
-        gapTrainer: { label: 'Pulse', tool: 'gapTrainer', graded: true, steps: () => Drills.GAP.PATTERNS.map(p => ({ id: p.id, label: p.label })) },
-        'ear:playback': { label: 'Pitch - Play it back', tool: 'ear', graded: true, steps: () => Drills.EAR.NOTE_SETS.map(s => ({ id: `playback:${s.id}`, set: s.id, label: s.label })) },
-        'scales:major': { label: 'Scales - major keys', tool: 'scales', graded: false, steps: () => scalesSkillSteps('major') },
-        'scales:minor': { label: 'Scales - minor keys (harmonic)', tool: 'scales', graded: false, steps: () => scalesSkillSteps('minor') },
+        tapTempo: { label: 'Tempo', tool: 'tapTempo', graded: true, grades: [1, 5], steps: () => Drills.TAP.LEVELS.map(l => ({ id: l.id, label: l.label })) },
+        gapTrainer: { label: 'Pulse', tool: 'gapTrainer', graded: true, grades: [1, 5], steps: () => Drills.GAP.PATTERNS.map(p => ({ id: p.id, label: p.label })) },
+        'ear:playback': { label: 'Pitch - Play it back', tool: 'ear', graded: true, grades: [1, 5], steps: () => Drills.EAR.NOTE_SETS.map(s => ({ id: `playback:${s.id}`, set: s.id, label: s.label })) },
+        'scales:major': { label: 'Scales - major keys', tool: 'scales', mode: 'major', graded: false, grades: [1, 5], steps: () => scalesSkillSteps('major') },
+        'scales:minor': { label: 'Scales - minor keys (harmonic)', tool: 'scales', mode: 'minor', graded: false, grades: [2, 5], steps: () => scalesSkillSteps('minor') },
+        ...Object.fromEntries(SKILL_GRADES.map(g => [`scales:major-g${g}`, {
+            label: `Scales - Grade ${g} major keys`, tool: 'scales', mode: 'major', graded: false, grades: [g, g],
+            steps: () => scalesSkillSteps('major', g >= 5 ? null : g)
+        }])),
+        ...Object.fromEntries(SKILL_GRADES.filter(g => g >= 2).map(g => [`scales:minor-g${g}`, {
+            label: `Scales - Grade ${g} minor keys (harmonic)`, tool: 'scales', mode: 'minor', graded: false, grades: [g, g],
+            steps: () => scalesSkillSteps('minor', g >= 5 ? null : g - 1)
+        }])),
         ...Object.fromEntries(Warmups.KINDS.map(k => [`warmups:${k.id}`, {
-            label: `Warm-ups - ${k.label.toLowerCase()}`, tool: 'warmups', graded: false, kind: k.id,
+            label: `Warm-ups - ${k.label.toLowerCase()}`, tool: 'warmups', graded: false, kind: k.id, grades: WARMUP_KIND_GRADES[k.id] || [1, 5],
             steps: () => (warmupsAll || []).filter(ex => ex.kind === k.id).map(ex => ({ id: ex.id, label: ex.title }))
         }])),
         // ML-306: Rhythm (feature rhythm_trainer), one entry per set; its steps are the set's rhythms,
         // passed at grade 4 or 5 (saveDrill -> skillDrillSaved, the rhythm id is the drill level).
         ...Object.fromEntries(Rhythm.SETS.map(set => [`rhythm:${set.id}`, {
-            label: `Rhythm - ${set.label.toLowerCase()}`, tool: 'rhythm', graded: true, set: set.id, feature: 'rhythm_trainer',
+            label: `Rhythm - ${set.label.toLowerCase()}`, tool: 'rhythm', graded: true, set: set.id, feature: 'rhythm_trainer', grades: RHYTHM_SET_GRADES[set.id] || [1, 5],
             steps: () => Rhythm.patternsIn(set.id).map(p => ({ id: p.id, label: p.name }))
         }])),
         // ML-305: Range (feature range_trainer). The step is always the note just beyond your range on
         // your main instrument - it moves with your range (rangeSkillSteps), so it isn't a fixed ladder.
         ...Object.fromEntries(['up', 'down'].map(dir => [`range:${dir}`, {
-            label: dir === 'up' ? 'Range - top notes' : 'Range - bottom notes', tool: 'range', graded: false, direction: dir, rolling: true, feature: 'range_trainer',
+            label: dir === 'up' ? 'Range - top notes' : 'Range - bottom notes', tool: 'range', graded: false, direction: dir, rolling: true, feature: 'range_trainer', grades: [1, 5],
             desc: 'moves on when a note reaches Level 5 and you move your range',
             steps: () => rangeSkillSteps(dir)
         }]))
     };
-    let skillsData = [];        // your list, from the server, with each skill's steps attached
+    let skillsData = [];        // the skills list you're on (ML-339), with each skill's steps and your progress attached
+    let skillLists = [];        // ML-339: your named skills lists [{ id, name, keys }]
+    let skillProgress = [];     // where you're up to on every skill you've had on a list
+    const SKILL_LIST_STORE = 'tml.skills.list'; // the list you're on - per device
+    let skillListId = (() => { try { return Number(localStorage.getItem(SKILL_LIST_STORE)) || null; } catch (e) { return null; } })();
+    function currentSkillList() { return skillLists.find(l => l.id === skillListId) || skillLists[0] || null; }
+    function setSkillList(id) {
+        skillListId = id;
+        try { localStorage.setItem(SKILL_LIST_STORE, String(id)); } catch (e) { /* per-device convenience */ }
+        buildSkillsData();
+    }
+    function buildSkillsData() {
+        const list = currentSkillList();
+        const byKey = new Map(skillProgress.map(p => [p.key, p]));
+        skillsData = list ? list.keys.map(k => skillWithSteps(byKey.get(k) || { key: k, stepIndex: 0, lastPractised: null })).filter(Boolean) : [];
+    }
+    function applySkillsResponse(out) {
+        if (out && Array.isArray(out.lists)) skillLists = out.lists;
+        if (out && Array.isArray(out.skills)) skillProgress = out.skills;
+        buildSkillsData();
+    }
     var skillContext = null;    // var: saveDrill checks it - { key, stepIndex, stepId, tool } while practising a step
     var skillWarmupsKind = null; // var: warmupsList reads it - a Warm-ups skill shows only its own kind
     function skillWithSteps(item) {
@@ -5924,49 +6276,195 @@
     async function loadSkills() {
         await warmupsLoad(); // the Warm-ups skills' steps are the exercises
         if (isFeatureEnabled('range_trainer') && !rangeData) await rangeLoad(); // Range's step is the note beyond your range
-        try { skillsData = ((await API.skills.list()).skills || []).map(skillWithSteps).filter(Boolean); }
-        catch (e) { skillsData = []; }
+        try { applySkillsResponse(await API.skills.list()); }
+        catch (e) { skillLists = []; skillProgress = []; buildSkillsData(); }
+        await loadWarmupLists();
         return skillsData;
     }
     const skillStepText = (s) => (s.done ? 'All done' : s.def.rolling ? `Now: ${s.step ? s.step.label : ''}` : `Step ${s.stepIndex + 1} of ${s.steps.length}: ${s.step ? s.step.label : ''}`);
+    // ML-339: a pill per skills list (+ New list), then the list's skills - name and where you're up to
+    // (ML-341: no step strip or buttons - sessions do the practising).
     function renderSkills() {
         const box = document.getElementById('skillsList');
         if (!box) return;
-        box.innerHTML = skillsData.length ? skillsData.map((s, i) => `
+        const list = currentSkillList();
+        const pills = document.getElementById('skillListPills');
+        pills.innerHTML = skillLists.map(l => `<button type="button" class="filter-pill${list && l.id === list.id ? ' active' : ''}" aria-pressed="${!!list && l.id === list.id}" data-skill-list="${l.id}">${escapeHtml(l.name)}</button>`).join('')
+            + '<button type="button" class="filter-pill" id="skillListNewBtn" aria-haspopup="dialog">+ New list</button>';
+        pills.querySelectorAll('[data-skill-list]').forEach(b => b.addEventListener('click', () => { setSkillList(Number(b.dataset.skillList)); renderSkills(); }));
+        document.getElementById('skillListNewBtn').addEventListener('click', newSkillList);
+        setShown('skillListActions', !!list);
+        box.innerHTML = !list ? '<p class="text-sm text-muted">No skills lists yet. Start one with + New list.</p>'
+            : skillsData.length ? skillsData.map((s, i) => `
             <div class="history-item">
                 <div class="grow">
                     <strong>${escapeHtml(s.def.label)}</strong><br><span class="text-sm text-muted">${escapeHtml(skillStepText(s))}</span>
-                    <span class="level-strip mt-1" aria-hidden="true">${s.steps.map((st, k) => `<span class="level-cell lv-${k < s.stepIndex ? 5 : k === s.stepIndex ? 2 : 0}"></span>`).join('')}</span>
-                    ${s.done ? '' : `<div class="flex-row gap-sm mt-2"><button type="button" class="btn-nav grow no-margin" data-skill-go="${i}">Practise</button>${!s.def.graded && !s.def.rolling ? `<button type="button" class="btn-nav grow no-margin" data-skill-got="${i}">Got it</button>` : ''}</div>`}
                 </div>
-                <button type="button" class="flow-delete-btn" data-skill-remove="${i}" aria-label="Take ${escapeHtml(s.def.label)} off your list"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
-            </div>`).join('') : '<p class="text-sm text-muted">No skills yet. Add the ones you want to work on.</p>';
-        box.querySelectorAll('[data-skill-go]').forEach(b => b.addEventListener('click', () => openSkillStep(skillsData[Number(b.dataset.skillGo)])));
-        box.querySelectorAll('[data-skill-got]').forEach(b => b.addEventListener('click', () => recordSkillStep(skillsData[Number(b.dataset.skillGot)], true, null)));
-        box.querySelectorAll('[data-skill-remove]').forEach(b => b.addEventListener('click', async () => {
+                <button type="button" class="flow-delete-btn" data-skill-remove="${i}" aria-label="Take ${escapeHtml(s.def.label)} off ${escapeHtml(list.name)}"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+            </div>`).join('') : '<p class="text-sm text-muted">No skills on this list yet. Add the ones you want to work on.</p>';
+        box.querySelectorAll('[data-skill-remove]').forEach(b => b.addEventListener('click', () => {
             const keys = skillsData.map(s => s.key).filter((k, j) => j !== Number(b.dataset.skillRemove));
-            try { skillsData = ((await API.skills.set(keys)).skills || []).map(skillWithSteps).filter(Boolean); renderSkills(); }
-            catch (e) { showWarningToast('Not saved: ' + e.message); }
+            saveSkillListKeys(keys);
         }));
+        renderWarmupLists();
     }
+    async function saveSkillListKeys(keys) {
+        const list = currentSkillList();
+        if (!list) return;
+        try { applySkillsResponse(await API.skills.updateList(list.id, { keys })); renderSkills(); }
+        catch (e) { showWarningToast('Not saved: ' + e.message); }
+    }
+    function newSkillList() {
+        showPromptModal('Name the new skills list', '', async (name) => {
+            const n = String(name || '').trim();
+            if (!n) return;
+            try {
+                applySkillsResponse(await API.skills.createList(n, []));
+                const made = skillLists[skillLists.length - 1];
+                if (made) setSkillList(made.id);
+                renderSkills();
+            } catch (e) { showWarningToast('Not saved: ' + e.message); }
+        });
+    }
+    document.getElementById('skillListRenameBtn')?.addEventListener('click', () => {
+        const list = currentSkillList();
+        if (!list) return;
+        showPromptModal('Rename this list', list.name, async (name) => {
+            const n = String(name || '').trim();
+            if (!n || n === list.name) return;
+            try { applySkillsResponse(await API.skills.updateList(list.id, { name: n })); renderSkills(); }
+            catch (e) { showWarningToast('Not saved: ' + e.message); }
+        });
+    });
+    document.getElementById('skillListDeleteBtn')?.addEventListener('click', () => {
+        const list = currentSkillList();
+        if (!list) return;
+        showConfirmModal('Delete this list?', `"${list.name}" goes. Where you're up to on each skill is kept for your other lists.`, async () => {
+            try { applySkillsResponse(await API.skills.deleteList(list.id)); if (skillLists[0]) setSkillList(skillLists[0].id); renderSkills(); }
+            catch (e) { showWarningToast('Not deleted: ' + e.message); }
+        }, true);
+    });
     async function openSkillsView() {
         switchView('skillsView');
+        renderSkills();
         await loadSkills();
         renderSkills();
     }
+    // ML-340: tick several skills, then Add. ML-338: All or Grade 1-5 - a grade shows the skills that
+    // belong to it (SKILLS[k].grades). With no list yet, adding starts "My skills".
+    const skillsAdd = { grade: 0, picked: new Set() };
     function openSkillsAddModal() {
-        const have = new Set(skillsData.map(s => s.key));
-        const box = document.getElementById('skillsAddOptions');
-        const keys = Object.keys(SKILLS).filter(k => !have.has(k) && (!SKILLS[k].feature || isFeatureEnabled(SKILLS[k].feature)));
-        box.innerHTML = keys.length ? keys.map(k => `<button type="button" class="flow-choice-option level-answer" data-add-skill="${k}"><span><strong>${escapeHtml(SKILLS[k].label)}</strong><br><span class="text-sm text-muted">${SKILLS[k].rolling ? SKILLS[k].desc : `${SKILLS[k].steps().length} steps · ${SKILLS[k].graded ? 'moves on at grade 4 or 5' : 'you say when you\'ve got it'}`}</span></span></button>`).join('')
-            : '<p class="metro-help-text">Every skill is on your list already.</p>';
-        box.querySelectorAll('[data-add-skill]').forEach(b => b.addEventListener('click', async () => {
-            hideModal('skillsAddModal');
-            try { skillsData = ((await API.skills.set([...skillsData.map(s => s.key), b.dataset.addSkill])).skills || []).map(skillWithSteps).filter(Boolean); renderSkills(); }
-            catch (e) { showWarningToast('Not saved: ' + e.message); }
-        }));
+        skillsAdd.picked = new Set();
+        renderSkillsAddModal();
         showModal('skillsAddModal');
     }
+    function renderSkillsAddModal() {
+        const have = new Set(skillsData.map(s => s.key));
+        const g = skillsAdd.grade;
+        const grades = document.getElementById('skillsAddGrades');
+        grades.innerHTML = [[0, 'All'], ...SKILL_GRADES.map(n => [n, `Grade ${n}`])].map(([n, label]) =>
+            `<button type="button" class="filter-pill${g === n ? ' active' : ''}" aria-pressed="${g === n}" data-grade="${n}">${label}</button>`).join('');
+        grades.querySelectorAll('[data-grade]').forEach(b => b.addEventListener('click', () => { skillsAdd.grade = Number(b.dataset.grade); renderSkillsAddModal(); }));
+        const box = document.getElementById('skillsAddOptions');
+        const keys = Object.keys(SKILLS).filter(k => !have.has(k) && (!SKILLS[k].feature || isFeatureEnabled(SKILLS[k].feature))
+            && (!g || (SKILLS[k].grades[0] <= g && g <= SKILLS[k].grades[1])));
+        const gradeText = (d) => (d.grades[0] === d.grades[1] ? `Grade ${d.grades[0]}` : `Grades ${d.grades[0]}-${d.grades[1]}`);
+        box.innerHTML = keys.length ? keys.map(k => {
+            const d = SKILLS[k], on = skillsAdd.picked.has(k);
+            return `<button type="button" class="flow-choice-option level-answer${on ? ' selected' : ''}" aria-pressed="${on}" data-add-skill="${k}"><span><strong>${escapeHtml(d.label)}</strong><br><span class="text-sm text-muted">${gradeText(d)} · ${d.rolling ? d.desc : `${d.steps().length} steps · ${d.graded ? 'moves on at grade 4 or 5' : 'you say when you\'ve got it'}`}</span></span></button>`;
+        }).join('') : `<p class="metro-help-text">${g ? `Every Grade ${g} skill is on this list already.` : 'Every skill is on this list already.'}</p>`;
+        box.querySelectorAll('[data-add-skill]').forEach(b => b.addEventListener('click', () => {
+            const k = b.dataset.addSkill;
+            if (skillsAdd.picked.has(k)) skillsAdd.picked.delete(k); else skillsAdd.picked.add(k);
+            b.classList.toggle('selected', skillsAdd.picked.has(k));
+            b.setAttribute('aria-pressed', String(skillsAdd.picked.has(k)));
+            renderSkillsAddDone();
+        }));
+        renderSkillsAddDone();
+    }
+    function renderSkillsAddDone() {
+        const n = skillsAdd.picked.size;
+        const btn = document.getElementById('skillsAddDoneBtn');
+        btn.disabled = !n;
+        btn.textContent = n ? `Add ${n} skill${n === 1 ? '' : 's'}` : 'Add';
+    }
+    document.getElementById('skillsAddDoneBtn')?.addEventListener('click', async () => {
+        const add = [...skillsAdd.picked];
+        if (!add.length) return;
+        hideModal('skillsAddModal');
+        try {
+            const list = currentSkillList();
+            if (list) applySkillsResponse(await API.skills.updateList(list.id, { keys: [...skillsData.map(s => s.key), ...add] }));
+            else { applySkillsResponse(await API.skills.createList('My skills', add)); if (skillLists[0]) setSkillList(skillLists[0].id); }
+            renderSkills();
+        } catch (e) { showWarningToast('Not saved: ' + e.message); }
+    });
+
+    // ===== ML-343: warm-up lists - the standard four and your own; a session's Warm-up blocks play one =====
+    let myWarmupLists = [];
+    const WARMUP_LIST_STORE = 'tml.warmups.list'; // the one sessions use - per device ('std:each', 'own:12')
+    let warmupListKey = (() => { try { return localStorage.getItem(WARMUP_LIST_STORE) || 'std:each'; } catch (e) { return 'std:each'; } })();
+    async function loadWarmupLists() {
+        try { myWarmupLists = (await API.warmupLists.list()).lists || []; } catch (e) { myWarmupLists = []; }
+    }
+    function allWarmupLists() {
+        return [...PracticePlan.WARMUP_LISTS.map(l => ({ ...l, key: `std:${l.id}` })),
+            ...myWarmupLists.map(l => ({ ...l, key: `own:${l.id}`, own: true, desc: `${l.kinds.map(k => (Warmups.KINDS.find(x => x.id === k) || {}).label || k).join(', ')}${l.random ? ', random' : ', in order'}` }))];
+    }
+    function currentWarmupList() { const all = allWarmupLists(); return all.find(l => l.key === warmupListKey) || all.find(l => l.key === 'std:each'); }
+    function setWarmupList(key) {
+        warmupListKey = key;
+        try { localStorage.setItem(WARMUP_LIST_STORE, key); } catch (e) { /* per-device convenience */ }
+    }
+    function renderWarmupLists() {
+        const box = document.getElementById('warmupListsList');
+        if (!box) return;
+        const cur = currentWarmupList();
+        box.innerHTML = allWarmupLists().map(l => `
+            <div class="history-item">
+                ${l.own ? `<button type="button" class="level-row-body grow text-left" data-warmup-edit="${l.id}" aria-haspopup="dialog" aria-label="${escapeHtml(l.name)} - ${escapeHtml(l.desc)}. Edit">` : '<div class="grow">'}
+                    <span><strong>${escapeHtml(l.name)}</strong>${cur && cur.key === l.key ? ' <span class="text-sm text-muted">(sessions use this)</span>' : ''}<br><span class="text-sm text-muted">${escapeHtml(l.desc)}</span></span>
+                ${l.own ? '</button>' : '</div>'}
+            </div>`).join('');
+        box.querySelectorAll('[data-warmup-edit]').forEach(b => b.addEventListener('click', () => openWarmupListModal(Number(b.dataset.warmupEdit))));
+    }
+    let warmupListEditId = null;
+    function openWarmupListModal(id) {
+        const l = id ? myWarmupLists.find(x => x.id === id) : null;
+        warmupListEditId = l ? l.id : null;
+        document.getElementById('warmupListTitle').textContent = l ? 'Edit warm-up list' : 'New warm-up list';
+        document.getElementById('warmupListName').value = l ? l.name : '';
+        document.getElementById('warmupListKinds').innerHTML = Warmups.KINDS.map(k => `<input type="checkbox" id="warmupListKind-${k.id}" name="warmupListKinds" value="${k.id}"${!l || l.kinds.includes(k.id) ? ' checked' : ''}><label for="warmupListKind-${k.id}">${escapeHtml(k.label)}</label>`).join('');
+        document.getElementById(`warmupListOrder-${l && l.random ? 'random' : 'listed'}`).checked = true;
+        setShown('warmupListDeleteBtn', !!l);
+        showModal('warmupListModal');
+        document.getElementById('warmupListName').focus();
+    }
+    document.getElementById('warmupListNewBtn')?.addEventListener('click', () => openWarmupListModal(null));
+    document.getElementById('warmupListCloseBtn')?.addEventListener('click', () => hideModal('warmupListModal'));
+    document.getElementById('warmupListSaveBtn')?.addEventListener('click', async () => {
+        const name = document.getElementById('warmupListName').value.trim();
+        const kinds = [...document.querySelectorAll('input[name="warmupListKinds"]:checked')].map(x => x.value);
+        if (!name) return showWarningToast('Give the list a name');
+        if (!kinds.length) return showWarningToast('Choose at least one kind of warm-up');
+        const body = { name, kinds, random: document.getElementById('warmupListOrder-random').checked };
+        try {
+            myWarmupLists = (warmupListEditId ? await API.warmupLists.update(warmupListEditId, body) : await API.warmupLists.create(body)).lists || [];
+            hideModal('warmupListModal');
+            renderWarmupLists();
+        } catch (e) { showWarningToast('Not saved: ' + e.message); }
+    });
+    document.getElementById('warmupListDeleteBtn')?.addEventListener('click', () => {
+        const l = myWarmupLists.find(x => x.id === warmupListEditId);
+        if (!l) return;
+        hideModal('warmupListModal');
+        showConfirmModal('Delete this warm-up list?', `"${l.name}" goes. The warm-ups themselves stay.`, async () => {
+            try { myWarmupLists = (await API.warmupLists.remove(l.id)).lists || []; if (warmupListKey === `own:${l.id}`) setWarmupList('std:each'); renderWarmupLists(); }
+            catch (e) { showWarningToast('Not deleted: ' + e.message); }
+        }, true);
+    });
+    // While a session's Warm-up block plays a list, the Warm-ups tool goes through just these exercises.
+    var sessionWarmupIds = null; // var: warmupsList reads it
     // Open a skill's tool at the step you're on.
     function openSkillStep(s) {
         if (!s || s.done || !s.step) return;
@@ -5978,7 +6476,7 @@
         else if (s.def.tool === 'scales') {
             switchView('scalesView');
             scales.keyId = st.id;
-            scales.form = s.key === 'scales:minor' ? 'harmonic' : 'major';
+            scales.form = s.def.mode === 'minor' ? 'harmonic' : 'major';
             if (scales.form !== 'major') scales.minorForm = 'harmonic';
             scales.type = 'scale';
             scalesChanged();
@@ -6001,7 +6499,7 @@
     async function recordSkillStep(s, passed, grade) {
         try {
             const out = await API.skills.result({ key: s.key, stepIndex: s.stepIndex, passed, grade, stepCount: s.steps.length });
-            skillsData = (out.skills || []).map(skillWithSteps).filter(Boolean);
+            applySkillsResponse({ skills: out.skills });
             const now = skillsData.find(x => x.key === s.key);
             if (passed) showSuccessToast(now && now.done ? `${s.def.label}: all steps done` : `${s.def.label}: on to ${now && now.step ? now.step.label : 'the next step'}`);
             renderSkills();
@@ -6187,16 +6685,31 @@
     // of openMetroBlkSetup. Duplicate/Delete are personal-flows-only for now (band/public sharing
     // makes "delete" a much bigger question - who's allowed to - that's a deliberate follow-up, not
     // an oversight), same "list-item-menu-btn + one shared floating menu" pattern as session history.
-    // ML-310: All / Mine (personal + band) / Public, plus a title/composer search - both per visit only.
+    // ML-310 / ML-329: All / Mine (your own) / one pill per band / Public, plus a title/composer search -
+    // both per visit only. A band pill shows once one of its pieces is in the list.
     let flowLibraryFilter = 'all';
     let flowLibraryQuery = '';
+    let flowLibraryBandNames = {};
+    async function loadFlowLibraryBandNames() {
+        try {
+            const bands = (await API.account.getBands()).myBands || [];
+            flowLibraryBandNames = Object.fromEntries(bands.map(b => [Number(b.id), b.displayName || b.name]));
+        } catch { /* the pills fall back to "Band" */ }
+    }
+    function flowLibraryFilterKey(f) {
+        if (f.isPublic) return 'public';
+        return f.ownerBandId ? 'band:' + f.ownerBandId : 'mine';
+    }
     function renderFlowLibraryFilter() {
         const pills = document.getElementById('flowLibraryFilterPills');
         if (!pills) return;
-        const mine = flowsListCache.filter(f => !f.isPublic).length;
-        const counts = { all: flowsListCache.length, mine, public: flowsListCache.length - mine };
-        pills.innerHTML = [['all', 'All'], ['mine', 'Mine'], ['public', 'Public']].map(([key, label]) =>
-            `<button type="button" class="filter-pill${flowLibraryFilter === key ? ' active' : ''}" data-flow-library-filter="${key}" aria-pressed="${flowLibraryFilter === key}">${label} <span class="filter-pill-count">${counts[key]}</span></button>`).join('');
+        const counts = { all: flowsListCache.length, mine: 0, public: 0 };
+        flowsListCache.forEach(f => { const k = flowLibraryFilterKey(f); counts[k] = (counts[k] || 0) + 1; });
+        const bandKeys = Object.keys(counts).filter(k => k.startsWith('band:'))
+            .map(k => [k, flowLibraryBandNames[Number(k.slice(5))] || 'Band'])
+            .sort((a, b) => a[1].localeCompare(b[1]));
+        pills.innerHTML = [['all', 'All'], ['mine', 'Mine'], ...bandKeys, ['public', 'Public']].map(([key, label]) =>
+            `<button type="button" class="filter-pill${flowLibraryFilter === key ? ' active' : ''}" data-flow-library-filter="${escapeHtml(key)}" aria-pressed="${flowLibraryFilter === key}">${escapeHtml(label)} <span class="filter-pill-count">${counts[key] || 0}</span></button>`).join('');
         pills.querySelectorAll('[data-flow-library-filter]').forEach(b => b.addEventListener('click', () => {
             flowLibraryFilter = b.dataset.flowLibraryFilter;
             renderFlowsList();
@@ -6208,8 +6721,7 @@
     });
     function flowLibraryVisible() {
         return flowsListCache.filter(f => {
-            if (flowLibraryFilter === 'mine' && f.isPublic) return false;
-            if (flowLibraryFilter === 'public' && !f.isPublic) return false;
+            if (flowLibraryFilter !== 'all' && flowLibraryFilterKey(f) !== flowLibraryFilter) return false;
             if (!flowLibraryQuery) return true;
             return (f.title || '').toLowerCase().includes(flowLibraryQuery) || (f.composer || '').toLowerCase().includes(flowLibraryQuery);
         });
@@ -6219,7 +6731,7 @@
         const ui = document.getElementById('metroBlkSetupsList');
         if (!ui) return;
         renderFlowLibraryFilter();
-        if (!flowsListCache.length) { ui.innerHTML = '<p>No pieces yet - go back and choose "Create your own" to make one.</p>'; return; }
+        if (!flowsListCache.length) { ui.innerHTML = '<p>No pieces yet - tap "Add a piece" to make one.</p>'; return; }
         const visible = flowLibraryVisible();
         if (!visible.length) { ui.innerHTML = '<p class="text-muted">No pieces match.</p>'; return; }
         ui.innerHTML = visible.map(f => `
@@ -6247,7 +6759,8 @@
     // refuses those anyway - exportFlowForUser).
     function flowLibraryMenuItemsFor(flow) {
         const ownership = flowOwnershipLabel(flow);
-        const items = flow.canEdit ? ['Edit'] : [];
+        const items = flow.totalBars > 0 ? ['Play'] : []; // ML-329
+        if (flow.canEdit) items.push('Edit');
         if (ownership === 'Personal') items.push('Duplicate', 'Delete');
         if (ownership === 'Public') items.push('Copy');
         if (ownership !== 'Public' && isFeatureEnabled('flow_export_musicxml')) items.push('Export');
@@ -6261,7 +6774,7 @@
         if (!menu) return;
         const flow = flowsListCache.find(f => f.id === id);
         const items = flow ? flowLibraryMenuItemsFor(flow) : [];
-        ['Edit', 'Duplicate', 'Copy', 'Delete', 'Export'].forEach(item => {
+        ['Play', 'Edit', 'Duplicate', 'Copy', 'Delete', 'Export'].forEach(item => {
             document.getElementById('flowLibraryItemMenu' + item)?.classList.toggle('hidden-group', !items.includes(item));
         });
         menu.classList.add('show');
@@ -6283,6 +6796,15 @@
     // own tap-the-row behaviour, which sends a non-empty flow straight to Play Flow) - the whole
     // point of this menu item is to edit, not play, so it always opens the Hub first (flowEditRequestedTab,
     // same mechanism Play Flow's own 3-dot menu uses), leaving Media/Blocks a tab tap away.
+    // ML-329: Play - straight to Play Flow, whether or not you can edit it.
+    document.getElementById('flowLibraryItemMenuPlay')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = flowLibraryMenuTargetId;
+        closeFlowLibraryItemMenu();
+        if (id === null) return;
+        currentFlowId = id;
+        goToFlowPlayView(id);
+    });
     document.getElementById('flowLibraryItemMenuEdit')?.addEventListener('click', (e) => {
         e.stopPropagation();
         const id = flowLibraryMenuTargetId;
@@ -12756,6 +13278,7 @@
     // row's bars instead of creating a new entry every time - "override the saved version", per the
     // request - until it's cleared (qpClearLoadedHistory) or the bars are reset (qpResetAllBars).
     async function saveQuickPlayHistory() {
+        if (!isFeatureEnabled('metronome_history')) return; // ML-345: no history for this account type
         try {
             if (qpLoadedHistoryId !== null) {
                 await API.metronomeBlocks.quickPlay.overwriteHistory(qpLoadedHistoryId, qpBlocksPayload());
@@ -15042,7 +15565,7 @@
         if (el) el.outerHTML = Notation.symbol('gClef').replace('class="notation"', 'class="notation tool-icon-svg"');
     })();
 
-    // --- Your instrument (ML-309): which of My account's instruments, per device (tml.theory.instrument,
+    // --- My instrument (ML-309): which of My account's instruments, per device (tml.theory.instrument,
     // default the main one). Its clef is where every quiz's Clef option starts; picking another
     // instrument moves every quiz to that clef. No instruments = a link to My account instead.
     const THEORY_INSTRUMENT_KEY = 'tml.theory.instrument';
@@ -15977,7 +16500,7 @@
     // ========================================
     // RANGE (Jira ML-305 / ML-322)
     // ========================================
-    // Your comfortable range per instrument (My account -> Your instruments -> Your range..., or the
+    // Your comfortable range per instrument (My account -> My instruments -> My range..., or the
     // Range screen's own button) and the Range tool: play the scale to your top note (or down to your
     // bottom one), then hold the next note - the tuner counts the beats (or you say Held it / Not yet),
     // each note beyond your range gets a Level, and at Level 5 it asks to move your range. Rules in
@@ -16017,8 +16540,8 @@
         const setBtn = document.getElementById('rangeSetBtn');
         if (!inst) {
             renderDrillOptions('range', [], () => {});
-            document.getElementById('rangeSummary').textContent = 'Range works on a wind, brass or string instrument. Add the one you play in My account → Your instruments.';
-            setBtn.textContent = 'Your instruments';
+            document.getElementById('rangeSummary').textContent = 'Range works on a wind, brass or string instrument. Add the one you play in My account → My instruments.';
+            setBtn.textContent = 'My instruments';
             setBtn.onclick = () => switchView('accountInstrumentsView');
             setShown('rangeWork', false);
             return;
@@ -16188,13 +16711,13 @@
         const s = (skillsData || []).find(x => x.key === `range:${direction}`);
         if (!s || !s.steps.length) return;
         API.skills.result({ key: s.key, stepIndex: 0, passed: moved, grade: null, stepCount: s.steps.length })
-            .then(out => { skillsData = (out.skills || []).map(skillWithSteps).filter(Boolean); })
+            .then(out => { applySkillsResponse({ skills: out.skills }); })
             .catch(() => { /* the go itself is saved; the skill's "last practised" can wait */ });
         if (practiceRun && practiceRun.blocks[practiceRun.index] && practiceRun.blocks[practiceRun.index].skill) practiceRun.blocks[practiceRun.index].skillRated = true;
     }
 
     // --- The range picker: two staves (bottom, top) - tap near a note, then -/+ a semitone - or measure
-    // it with the tuner. Used from the Range screen and from My account -> Your instruments.
+    // it with the tuner. Used from the Range screen and from My account -> My instruments.
     async function openRangePicker(instrumentId, then) {
         if (!rangeData) await rangeLoad();
         const inst = ((rangeData && rangeData.instruments) || []).find(i => i.instrumentId === instrumentId && i.outer);
@@ -16203,7 +16726,7 @@
         // Not set yet: start on the bottom and top lines of the stave, inside the instrument's range.
         const start = (step) => PlayRange.pitchAtStep(step, inst.clef, outer);
         rangePick = { inst, then, bottom: inst.bottom || start(0), top: inst.top || start(8), measurer: null };
-        document.getElementById('rangePickerTitle').textContent = `Your range - ${inst.name}`;
+        document.getElementById('rangePickerTitle').textContent = `My range - ${inst.name}`;
         document.getElementById('rangeMeasureStatus').textContent = '';
         document.getElementById('rangeMeasureBtn').textContent = 'Measure it with the tuner';
         renderRangePicker();
@@ -16929,7 +17452,10 @@
     let warmupsAll = null;      // every switched-on exercise, from the server (loaded once a visit)
     let warmupsBpm = 72;        // this exercise's tempo - starts at the exercise's own each time
     // ML-321: while practising a Warm-ups skill, only that kind (whatever My warm-ups is set to).
-    const warmupsList = () => (warmupsAll || []).filter(ex => (skillWarmupsKind ? ex.kind === skillWarmupsKind : warmups.kinds.includes(ex.kind)));
+    // ML-343: a session's warm-up list (sessionWarmupIds) - just its exercises, in its order.
+    const warmupsList = () => (sessionWarmupIds
+        ? sessionWarmupIds.map(id => (warmupsAll || []).find(ex => ex.id === id)).filter(Boolean)
+        : (warmupsAll || []).filter(ex => (skillWarmupsKind ? ex.kind === skillWarmupsKind : warmups.kinds.includes(ex.kind))));
     function warmupsCurrent() {
         const list = warmupsList();
         return list.find(ex => ex.id === warmups.currentId) || list[0] || null;

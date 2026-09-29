@@ -8,7 +8,7 @@ import express from 'express';
 import { assertWarmupsEnabled, listActiveWarmups } from '../services/warmups.js';
 import { assertPracticeLevelsEnabled, getPieceLevels, replacePieceChunks, setChunkLevel, setSubBeatsBelow } from '../services/practiceLevels.js';
 import { listPracticeChunks, savePracticeSession, listTemplates, saveTemplate, deleteTemplate, getActivePractice, putActivePractice, clearActivePractice } from '../services/practiceSessions.js';
-import { listSkills, setSkills, recordSkillResult } from '../services/skills.js';
+import { recordSkillResult, getSkillsAndLists, createSkillList, updateSkillList, deleteSkillList, listWarmupLists, saveWarmupList, deleteWarmupList } from '../services/skills.js';
 import { listPracticeLists, createPracticeList, updatePracticeList, deletePracticeList, setPracticeListPieces, getPracticeList } from '../services/practiceLists.js';
 import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader } from '../middleware/auth.js';
 import { sendError } from '../utils/httpErrors.js';
@@ -216,10 +216,17 @@ router.delete('/practice/templates/:id', requireAuth, resolveAccount, practiceLi
 router.get('/practice/active', requireAuth, resolveAccount, practiceListRoute(req => getActivePractice(req.accountId)));
 router.put('/practice/active', requireAuth, resolveAccount, practiceListRoute(req => putActivePractice(req.accountId, req.body || {})));
 router.delete('/practice/active', requireAuth, resolveAccount, practiceListRoute(req => clearActivePractice(req.accountId)));
-// ML-321: your skills list.
-router.get('/practice/skills', requireAuth, resolveAccount, practiceListRoute(req => listSkills(req.accountId).then(skills => ({ skills }))));
-router.put('/practice/skills', requireAuth, resolveAccount, practiceListRoute(req => setSkills(req.accountId, req.body?.keys).then(skills => ({ skills }))));
+// ML-321: your skills and where you're up to; ML-339: your named skills lists ({ lists, skills }).
+router.get('/practice/skills', requireAuth, resolveAccount, practiceListRoute(req => getSkillsAndLists(req.accountId)));
+router.post('/practice/skill-lists', requireAuth, resolveAccount, practiceListRoute(req => createSkillList(req.accountId, req.body || {})));
+router.put('/practice/skill-lists/:id', requireAuth, resolveAccount, practiceListRoute(req => updateSkillList(req.accountId, req.params.id, req.body || {})));
+router.delete('/practice/skill-lists/:id', requireAuth, resolveAccount, practiceListRoute(req => deleteSkillList(req.accountId, req.params.id)));
 router.post('/practice/skills/result', requireAuth, resolveAccount, practiceListRoute(req => recordSkillResult(req.accountId, req.body || {}).then(skills => ({ skills }))));
+// ML-343: your own warm-up lists.
+router.get('/practice/warmup-lists', requireAuth, resolveAccount, practiceListRoute(req => listWarmupLists(req.accountId).then(lists => ({ lists }))));
+router.post('/practice/warmup-lists', requireAuth, resolveAccount, practiceListRoute(req => saveWarmupList(req.accountId, null, req.body || {}).then(lists => ({ lists }))));
+router.put('/practice/warmup-lists/:id', requireAuth, resolveAccount, practiceListRoute(req => saveWarmupList(req.accountId, req.params.id, req.body || {}).then(lists => ({ lists }))));
+router.delete('/practice/warmup-lists/:id', requireAuth, resolveAccount, practiceListRoute(req => deleteWarmupList(req.accountId, req.params.id).then(lists => ({ lists }))));
 
 router.put('/account/practice-settings', requireAuth, resolveAccount, async (req, res) => {
   try {
@@ -355,7 +362,7 @@ router.get('/dropdown-options', requireAuth, resolveAccount, async (req, res) =>
 
 // ========================================
 // INSTRUMENTS (ML-309) - the catalogue, and the instruments this account plays (My account ->
-// Your instruments). See server/services/instruments.js.
+// My instruments). See server/services/instruments.js.
 // ========================================
 router.get('/instruments', requireAuth, async (req, res) => {
   try {
@@ -697,8 +704,8 @@ router.put('/account/practice-year', requireAuth, resolveAccount, async (req, re
 
 router.put('/account', requireAuth, resolveAccount, async (req, res) => {
   try {
-    const { firstName, surname } = req.body;
-    await updateAccountProfile(req.accountId, { firstName, surname });
+    const { firstName, surname, displayName } = req.body || {};
+    await updateAccountProfile(req.accountId, { firstName, surname, displayName });
     res.json({ message: 'Account updated' });
   } catch (error) {
     sendError(res, error);
@@ -762,6 +769,25 @@ router.delete('/account/bands/:id/full', requireAuth, resolveAccount, async (req
 // ========================================
 // CHALLENGES
 // ========================================
+// ML-345: whole areas that are off for some account types - the server refuses them too, not just the
+// app. Runs before each route's own requireAuth/resolveAccount (they run again there; cheap, cached).
+const requireFeature = (...keys) => async (req, res, next) => {
+  try {
+    for (const k of keys) if (await isFeatureEnabled(k)) return next();
+    res.status(403).json({ error: "This feature isn't available right now." });
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+// Reading the challenges list with challenges off just gets an empty list - the app asks for it at
+// startup, before it knows which features this account has. Anything else is refused.
+router.use('/challenges', requireAuth, resolveAccount, async (req, res, next) => {
+  if (req.method === 'GET' && req.path === '/' && !(await isFeatureEnabled('challenges'))) return res.json([]);
+  next();
+}, requireFeature('challenges'));
+router.use('/metronome/history', requireAuth, resolveAccount, requireFeature('metronome_history'));
+router.use('/settings/teachers', requireAuth, resolveAccount, requireFeature('manage_tutor'));
+
 router.get('/challenges', requireAuth, resolveAccount, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -1170,6 +1196,10 @@ router.get('/flows', requireAuth, resolveAccount, async (req, res) => {
 // single default bar - never a truly empty flow with nothing to play.
 router.post('/flows', requireAuth, resolveAccount, async (req, res) => {
   try {
+    // ML-345: a new piece comes from My music's Add a piece or the Metronome's Save to flow.
+    if (!(await isFeatureEnabled('flow_create')) && !(await isFeatureEnabled('metronome_save_to_flow'))) {
+      return res.status(403).json({ error: "This feature isn't available right now." });
+    }
     const flow = await createFlow(req.accountId, req.body || {});
     const defaults = await getFlowDefaultBlockSettings();
     await createFlowBlock(req.accountId, flow.id, defaults);

@@ -27,13 +27,23 @@ function toInstrumentDto(r) {
   };
 }
 
+// ML-331: A-Z inside each family, by the instrument itself - the key in front ("B♭ ", "E♭ / D ",
+// "EE♭ ") is left out of the sort, so B♭ Cornet sits under C and Soprano Cornet under S.
+const KEY_PREFIX = /^[A-G]{1,2}[♭♯]?(?:\s*\/\s*[A-G]{1,2}[♭♯]?)*\s+(?=[A-Z])/u;
+export function instrumentSortName(name) {
+  return String(name || '').replace(KEY_PREFIX, '');
+}
+export function compareInstruments(a, b) {
+  const fam = (f) => { const i = FAMILY_ORDER.indexOf(f); return i === -1 ? FAMILY_ORDER.length : i; };
+  return fam(a.family) - fam(b.family)
+    || String(a.family || '').localeCompare(String(b.family || ''))
+    || instrumentSortName(a.name).localeCompare(instrumentSortName(b.name), 'en', { sensitivity: 'base' })
+    || String(a.name).localeCompare(String(b.name), 'en');
+}
+
 export async function listInstruments() {
-  const { rows } = await pool.query(
-    `SELECT * FROM instruments WHERE active
-     ORDER BY array_position($1::text[], family) NULLS LAST, sort_order, name`,
-    [FAMILY_ORDER]
-  );
-  return rows.map(toInstrumentDto);
+  const { rows } = await pool.query('SELECT * FROM instruments WHERE active');
+  return rows.map(toInstrumentDto).sort(compareInstruments);
 }
 
 // The account's instruments, main one first.

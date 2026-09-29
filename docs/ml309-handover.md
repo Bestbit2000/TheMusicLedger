@@ -12,7 +12,7 @@ a new chat needs to start **C**, **D** and **E**, without the 0.29.0 conversatio
   migration `059`; to change the catalogue, edit the JSON and generate a *new* migration - the insert
   upserts on `code`). `account_instruments` (at most one `is_primary`). `sessions.instrument_id`
   (set server-side on POST/PUT `/api/sessions`: the picked instrument if the account plays it, else
-  the main one). My account → Your instruments. Admin → Usage → Instruments. Each instrument has
+  the main one). My account → My instruments. Admin → Usage → Instruments. Each instrument has
   `theory_clef` (treble/bass/alto/tenor/grand/none) and `pitch_key` / `sounding_transposition`.
 - **Theory grades** (B): `THEORY_GRADES`, `gradeContent(g)`, `gradeSummary()`, symbol `grade` /
   `gradeOnly` in `public/theoryEngine.js`; the grade picker per quiz (feature `theory_grades`);

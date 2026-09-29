@@ -1,5 +1,6 @@
 import { verifyToken } from '../utils/authToken.js';
-import { getOrCreateAccount, isSuperAdmin } from '../services/accounts.js';
+import { getOrCreateAccount, isSuperAdmin, getAccountLevel } from '../services/accounts.js';
+import { featureContext, ACCOUNT_TYPE_KEYS } from '../services/features.js';
 
 export async function requireAuth(req, res, next) {
   try {
@@ -57,14 +58,25 @@ export async function requireAuthFromQueryOrHeader(req, res, next) {
 // concerns - "is this token real" and "does a database row exist for it" -
 // stay independently testable. Routes that touch the database use both:
 // router.get(path, requireAuth, resolveAccount, handler).
+//
+// ML-345: also works out the account type, which decides the account's features, and runs the rest
+// of the request with it (featureContext), so every isFeatureEnabled check answers for this account.
+// A super admin can preview the app as another type (Admin -> Feature access, "Preview the app as")
+// with the X-Preview-Level header - only a super admin's is honoured, and admin routes still check
+// the real level (requireSuperAdmin reads the database).
 export async function resolveAccount(req, res, next) {
+  let level;
   try {
     req.accountId = await getOrCreateAccount(req.userId, req.firstName, req.surname);
-    next();
+    level = await getAccountLevel(req.accountId);
   } catch (error) {
     console.error('Account resolution error:', error.message);
-    res.status(500).json({ error: 'Failed to resolve account' });
+    return res.status(500).json({ error: 'Failed to resolve account' });
   }
+  req.realAccountLevel = level;
+  const preview = req.headers['x-preview-level'];
+  req.accountLevel = level === 'super_admin' && ACCOUNT_TYPE_KEYS.includes(preview) ? preview : level;
+  featureContext.run({ accountLevel: req.accountLevel }, next);
 }
 
 // ML-77: gates the whole admin panel (server/routes/admin.js) to super_admin

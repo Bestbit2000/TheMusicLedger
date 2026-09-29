@@ -389,7 +389,8 @@
         ['band_admin', 'Band admin'],
         ['premium_member', 'Premium member'],
         ['standard_member', 'Standard member'],
-        ['beta_tester', 'Beta tester']
+        ['beta_tester', 'Beta tester'],
+        ['teacher', 'Teacher'] // ML-346
     ];
 
     function accountDisplayName(a) {
@@ -2152,8 +2153,157 @@
         });
     }
 
+    // ========================================
+    // ML-345: Feature access - every feature by account type, plus Live (the master switch). The grid
+    // ("All account types") or one type at a time (a tab each). Changes wait in the Save bar and save
+    // together (PUT /api/admin/feature-access). Super admins always have everything (locked column).
+    // See docs/feature-access-plan.md.
+    // ========================================
+    const ACCESS_GROUPS = [
+        ['Tools - Everyday', ['metronome', 'tuner', 'timer']],
+        ['Tools - Practise', ['rehearse', 'warmups', 'scales_practice']],
+        ['Tools - Learn', ['theory_practice', 'theory_grades', 'theory_smart_learn', 'ear_training', 'tap_tempo', 'gap_trainer', 'range_trainer', 'rhythm_trainer']],
+        ['Practice sessions', ['practice_levels']],
+        ['Menu', ['challenges', 'flow_manage', 'manage_tutor', 'notifications', 'feedback']],
+        ['My music', ['flow_create', 'flow_import_musicxml', 'flow_import_from_file', 'flow_export_musicxml', 'flow_playback', 'flow_editor', 'flow_consistency_check']],
+        ['Metronome and tuner', ['metronome_history', 'metronome_save_to_flow', 'tuner_rewind']]
+    ];
+    const access = { data: null, view: 'all', live: new Map(), cells: new Map() };
+    const accessCellKey = (id, level) => `${id}|${level}`;
+    function accessLive(f) { return access.live.has(f.id) ? access.live.get(f.id) : f.live; }
+    function accessOn(f, level) {
+        if (level === 'super_admin') return true;
+        const k = accessCellKey(f.id, level);
+        return access.cells.has(k) ? access.cells.get(k) : f.access[level];
+    }
+    function accessSetCell(f, level, on) {
+        const k = accessCellKey(f.id, level);
+        if (on === f.access[level]) access.cells.delete(k); else access.cells.set(k, on);
+    }
+    function accessSetLive(f, on) {
+        if (on === f.live) access.live.delete(f.id); else access.live.set(f.id, on);
+    }
+    function accessGroups() {
+        const byKey = new Map(access.data.features.map(f => [f.featureKey, f]));
+        const used = new Set();
+        const groups = ACCESS_GROUPS.map(([title, keys]) => [title, keys.map(k => byKey.get(k)).filter(Boolean)])
+            .map(([title, fs]) => { fs.forEach(f => used.add(f.featureKey)); return [title, fs]; });
+        const rest = access.data.features.filter(f => !used.has(f.featureKey));
+        if (rest.length) groups.push(['Core and other', rest]);
+        return groups.filter(([, fs]) => fs.length);
+    }
+    async function loadFeatureAccess() {
+        const body = document.getElementById('accessBody');
+        try {
+            access.data = await apiCall('/api/admin/feature-access');
+            access.live.clear();
+            access.cells.clear();
+            renderFeatureAccess();
+        } catch (error) {
+            body.innerHTML = `<p>Error loading feature access: ${escapeHtml(error.message)}</p>`;
+        }
+    }
+    function renderFeatureAccess() {
+        if (!access.data) return;
+        const { types, features } = access.data;
+        const tabs = document.getElementById('accessTabs');
+        tabs.innerHTML = [['all', 'All account types'], ...types.map(t => [t.key, t.label])].map(([k, l]) =>
+            `<button type="button" class="admin-subtab-item${access.view === k ? ' active' : ''}" role="tab" aria-selected="${access.view === k}" data-access-tab="${k}">${escapeHtml(l)}</button>`).join('');
+        tabs.querySelectorAll('[data-access-tab]').forEach(b => b.addEventListener('click', () => { access.view = b.dataset.accessTab; renderFeatureAccess(); }));
+
+        const type = types.find(t => t.key === access.view);
+        const onCount = type ? features.filter(f => accessLive(f) && accessOn(f, type.key)).length : 0;
+        document.getElementById('accessSummary').innerHTML = type
+            ? `<strong>${escapeHtml(type.label)}</strong> - ${onCount} of ${features.length} features on`
+            : `${features.length} features · ${types.length} account types`;
+        const copy = document.getElementById('accessCopyFrom');
+        const canCopy = !!type && type.key !== 'super_admin';
+        copy.classList.toggle('hidden-group', !canCopy);
+        if (canCopy) copy.innerHTML = `<option value="">Copy from…</option>${types.filter(t => t.key !== type.key && t.key !== 'super_admin').map(t => `<option value="${t.key}">${escapeHtml(t.label)}</option>`).join('')}`;
+        const preview = document.getElementById('accessPreviewSelect');
+        const previewTypes = types.filter(t => t.key !== 'super_admin');
+        preview.innerHTML = `<option value="">Preview the app as…</option>${previewTypes.map(t => `<option value="${t.key}"${type && type.key === t.key ? ' selected' : ''}>${escapeHtml(t.label)}</option>`).join('')}`;
+
+        const body = document.getElementById('accessBody');
+        body.innerHTML = type ? renderAccessType(type) : renderAccessGrid(types);
+        body.querySelectorAll('[data-cell]').forEach(input => input.addEventListener('change', () => {
+            const [id, level] = input.dataset.cell.split('|');
+            accessSetCell(features.find(f => f.id === Number(id)), level, input.checked);
+            renderFeatureAccess();
+        }));
+        body.querySelectorAll('[data-live]').forEach(input => input.addEventListener('change', () => {
+            accessSetLive(features.find(f => f.id === Number(input.dataset.live)), input.checked);
+            renderFeatureAccess();
+        }));
+        body.querySelectorAll('[data-copy-premium]').forEach(b => b.addEventListener('click', () => accessCopy('premium_member', 'beta_tester')));
+
+        const changes = access.live.size + access.cells.size;
+        document.getElementById('accessSaveBar').classList.toggle('hidden-group', changes === 0);
+        document.getElementById('accessSaveText').innerHTML = `<strong>${changes} change${changes === 1 ? '' : 's'}</strong> not saved yet`;
+    }
+    function renderAccessGrid(types) {
+        const head = `<tr><th scope="col">Feature</th><th scope="col" class="admin-access-live">Live</th>${types.map(t => `<th scope="col">${escapeHtml(t.label)}${t.key === 'beta_tester' ? '<button type="button" class="btn-text admin-access-copy" data-copy-premium>Same as Premium</button>' : ''}</th>`).join('')}</tr>`;
+        const rows = accessGroups().map(([title, fs]) => `<tr class="admin-access-group"><th scope="rowgroup" colspan="${types.length + 2}">${escapeHtml(title)}</th></tr>` + fs.map(f => {
+            const live = accessLive(f);
+            return `<tr><th scope="row"><strong>${escapeHtml(f.name)}</strong><small title="${escapeHtml(f.description || '')}">${escapeHtml(f.description || f.featureKey)}</small></th>
+                <td class="admin-access-live"><label class="toggle-switch"><input type="checkbox" data-live="${f.id}"${live ? ' checked' : ''} aria-label="${escapeHtml(f.name)} live for everyone"><span class="toggle-slider"></span></label></td>
+                ${types.map(t => {
+                    const locked = t.key === 'super_admin';
+                    const changed = access.cells.has(accessCellKey(f.id, t.key));
+                    return `<td><label class="admin-access-cell${changed ? ' is-changed' : ''}"><input type="checkbox"${locked ? ' disabled' : ` data-cell="${f.id}|${t.key}"`}${accessOn(f, t.key) ? ' checked' : ''} aria-label="${escapeHtml(f.name)} for ${escapeHtml(t.label)}${locked ? ' (always)' : ''}"></label></td>`;
+                }).join('')}</tr>`;
+        }).join('')).join('');
+        return `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-access-table"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
+    }
+    function renderAccessType(type) {
+        const locked = type.key === 'super_admin';
+        return (locked ? '<p class="admin-intro">Super admins always have every feature that\'s Live. Use Preview to see the app as another account type.</p>' : '')
+            + accessGroups().map(([title, fs]) => `<div class="admin-stat-section-title">${escapeHtml(title)}</div>` + fs.map(f => {
+                const changed = access.cells.has(accessCellKey(f.id, type.key));
+                const live = accessLive(f);
+                return `<div class="admin-access-row${changed ? ' is-changed' : ''}"><div class="grow"><strong>${escapeHtml(f.name)}</strong><small title="${escapeHtml(f.description || '')}">${escapeHtml(f.description || f.featureKey)}${live ? '' : ' - off for everyone (Live is off)'}</small></div>
+                    <label class="toggle-switch"><input type="checkbox"${locked ? ' disabled' : ` data-cell="${f.id}|${type.key}"`}${accessOn(f, type.key) ? ' checked' : ''} aria-label="${escapeHtml(f.name)} for ${escapeHtml(type.label)}"><span class="toggle-slider"></span></label></div>`;
+            }).join('')).join('');
+    }
+    function accessCopy(from, to) {
+        access.data.features.forEach(f => accessSetCell(f, to, accessOn(f, from)));
+        renderFeatureAccess();
+    }
+    function initFeatureAccess() {
+        document.querySelector('.admin-nav-item[data-section="feature-access"]')?.addEventListener('click', () => { if (!access.data) loadFeatureAccess(); });
+        document.getElementById('accessCopyFrom')?.addEventListener('change', (e) => {
+            const from = e.target.value;
+            if (from && access.view !== 'all') accessCopy(from, access.view);
+        });
+        document.getElementById('accessPreviewBtn')?.addEventListener('click', () => {
+            const level = document.getElementById('accessPreviewSelect').value;
+            if (!level) { showToast('Choose an account type to preview.'); return; }
+            window.open(`/?preview=${encodeURIComponent(level)}`, '_blank', 'noopener');
+        });
+        document.getElementById('accessDiscardBtn')?.addEventListener('click', () => { access.live.clear(); access.cells.clear(); renderFeatureAccess(); });
+        document.getElementById('accessSaveBtn')?.addEventListener('click', async () => {
+            const btn = document.getElementById('accessSaveBtn');
+            btn.disabled = true;
+            try {
+                access.data = await apiCall('/api/admin/feature-access', 'PUT', {
+                    live: [...access.live].map(([featureId, enabled]) => ({ featureId, enabled })),
+                    access: [...access.cells].map(([k, enabled]) => { const [featureId, level] = k.split('|'); return { featureId: Number(featureId), level, enabled }; })
+                });
+                access.live.clear();
+                access.cells.clear();
+                renderFeatureAccess();
+                showToast('Feature access saved', 'success');
+            } catch (error) {
+                showToast('Not saved: ' + error.message);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    }
+
     async function load() {
         initNav();
+        initFeatureAccess();
         initSecurityReview();
         initFeatureForm();
         initConfirmModal();

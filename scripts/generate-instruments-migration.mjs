@@ -30,7 +30,7 @@ const rows = catalogue.instruments.map((i, n) => `    (${[
 ].join(', ')})`);
 
 const sql = `-- ML-309: the instrument catalogue - a meta table every account picks its instruments from (My account
--- -> Your instruments), so practice time can be measured per instrument (usage stats now; comparing
+-- -> My instruments), so practice time can be measured per instrument (usage stats now; comparing
 -- with other players later). Generated from band_instruments_master_catalog.json by
 -- scripts/generate-instruments-migration.mjs - edit the catalogue and generate a new migration rather
 -- than hand-editing rows here. Upsert on code: ids never change once an account or session uses one.

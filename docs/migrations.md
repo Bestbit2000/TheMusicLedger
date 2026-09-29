@@ -98,6 +98,11 @@ later table exists. Each file has a comment marking where this happens.
 | `064_practice_templates_skills.sql` | ML-320 follow-ups and ML-321: `practice_templates` (your own templates), `active_practice_sessions` (the running session, kept across reloads and devices), `skill_list_items` and `skill_step_results` (your skills list and every go at a step). |
 | `065_range.sql` | ML-322 / ML-305: `instruments.written_to_concert` / `range_low` / `range_high` (transposition and typical written range, generated from the catalogue by `scripts/generate-instrument-ranges-migration.mjs`), `account_instruments.bottom_note` / `top_note` (your comfortable range), `range_note_levels` and `range_goes` (the Range tool), feature `range_trainer` (off). See docs/range.md. |
 | `066_rhythm.sql` | ML-306: lets `drill_attempts.tool` be `rhythm` (Rhythm rounds are drill rounds), `rhythm_pattern_levels` (each rhythm's speed Level and your own word for it), feature `rhythm_trainer` (off). See docs/rhythm.md. |
+| `067_display_name.sql` | ML-330: `accounts.display_name` (what the app calls you - the home greeting and band members; null = your first name, up to 40 characters). |
+| `068_metronome_save_to_flow.sql` | ML-328: feature `metronome_save_to_flow` (on) - the Metronome's "Save to flow" link. |
+| `069_my_account_labels.sql` | ML-344: the Range feature's description names the screen as My account -> My instruments (was "Your instruments"). Data only. |
+| `071_feature_access.sql` | ML-345 / ML-346: `teacher` added to `accounts.account_level`; `feature_access` (feature × account type; with `features.enabled` as Live, the master switch - see docs/feature-access-plan.md); new features `rehearse`, `flow_create`, `metronome_history`, `tuner_rewind`; every type gets every feature except Standard member, which loses the ones ML-345 lists; the dev account local-dev becomes a beta tester. |
+| `070_skill_and_warmup_lists.sql` | ML-339 / ML-343: `skill_lists` (named skills lists - each account's current skills become "My skills"; `skill_list_items` stays as the progress on each skill, shared by every list) and `warmup_lists` (your own warm-up lists: kinds, in order or random; the four standard lists are in `public/practicePlan.js`). |
 
 ## Decisions made translating the design doc into SQL
 

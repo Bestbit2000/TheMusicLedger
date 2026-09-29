@@ -19,22 +19,29 @@ replaces **Start a challenge** on the home screen.
 
 ## The session (ML-320)
 
-- **Blocks:** a session is 5-120 minutes, one 5-minute block per 5 minutes. At 5 and 10 minutes you
-  choose every block yourself. From 15 minutes a template fills them:
-  - **Standard:** Warm-up, Scales, then the focus.
-  - **Concert:** Warm-up, then the focus.
+- **Blocks:** a session is 5-120 minutes (−/+ and a slider in 5-minute steps, ML-337), one 5-minute
+  block per 5 minutes. At 5 and 10 minutes you choose every block yourself. From 15 minutes a template
+  fills them:
+  - **Standard:** Warm-up, Scales, then Skills and Rehearsal (focus Both).
+  - **Concert:** Warm-up, then Rehearsal (focus Rehearsal).
   - **Your own:** saved as a name, the opening blocks in order, a focus and a length
     (`practice_templates`).
-- **Focus:** Skills, Rehearsal or Both. Both splits the rest in half, and an odd block goes to
-  Rehearsal.
+- **Focus** is part of the template (ML-342) - the planner doesn't ask. Skills, Rehearsal or Both;
+  Both splits the rest in half, and an odd block goes to Rehearsal. A line under the template pills
+  says what the chosen one does (`PracticePlan.templateFocus`).
+- **Skills list and warm-up list** (ML-339 / ML-343): the planner picks which of your skills lists
+  the Skills blocks use and which warm-up list the Warm-up blocks play (both remembered per device).
 - **What fills the blocks:**
   - **Rehearsal** blocks take chunks weakest first, then the one practised longest ago
     (`/api/practice/chunks`).
   - **Skills** blocks take the skill on your list practised longest ago. With an empty list they
     rotate through the playing tools.
   - From a practice list, only that list's pieces are used.
+  - **Warm-up** blocks play the chosen warm-up list: its exercises (`PracticePlan.warmupSequence`)
+    in the Warm-ups tool, or with **External warm-up** nothing at all - you stay on the session
+    screen while the block's timer runs.
   - **A Rehearsal block with no Levels to use** never holds up the start. Its choices are:
-    - **Set up <piece>** for each piece with no Levels yet. This goes through that piece's "How well can you play it?" on My Levels, and saving comes straight back to the plan with the block on the new bars (`setUpPieceForBlock` / `backToPlanAfterSetup`). The planner also has a **Set up a piece** button when you have no Levels at all.
+    - **Prepare <piece> for practice** (ML-334's name for it) for each piece with no Levels yet. This goes through that piece's "How well can you play it?" on My Levels, and saving comes straight back to the plan with the block on the new bars (`setUpPieceForBlock` / `backToPlanAfterSetup`). The planner also has a **Set up a piece** button when you have no Levels at all.
     - **Any piece**, which opens Rehearse to pick one and play it your way.
 - **The runner** counts each block by the wall clock.
   - **At 4:30** the sound stops. Play Flow pauses; any other tool is left for the session screen,
@@ -60,21 +67,47 @@ replaces **Start a challenge** on the home screen.
 See "Practice Levels" in [flow-journey.md](flow-journey.md): speeds as a % of the piece's tempo, session
 sub-beats, the 4:30 chunk length rule, the heat map, and the practice mode.
 
-## Practice lists and the forecast (ML-319)
+## Practice lists and the forecast (ML-319, reworked by ML-332/333/334)
 
-- **A list** is a concert's pieces, with its date, sessions a week and minutes per session. It's
-  personal, or a band's: any member of the band can create and change a band's list.
-- **The forecast** assumes one block moves one chunk up one Level.
-  - **Nothing is guessed:** pieces not set up, and chunks with no Level, are named as "not counted".
+- **A list** is the pieces you're working towards, with an optional **target date** (a concert, an
+  exam, a lesson - ML-332: a button opening a pop-up, "No target date" or "Pick a date"). It's
+  personal, or a band's: any member of the band can create and change a band's list. There's nothing
+  else to type in (ML-333 took out sessions a week and minutes each; the columns stay, unused).
+- **The forecast** (`PracticePlan.forecast`) counts five-minute blocks, assuming one block moves one
+  chunk up one Level:
+  - **A piece not set up yet** is fine on a list: it counts one block, **preparation for practice**
+    (ML-334 - giving it its Levels). Its row says so and "Prepare it now" opens My Levels. After
+    that its Levels decide.
+  - **Nothing else is guessed:** chunks with no Level are named as "not counted".
   - **Join-up groups** (`piece_chunks` kind `group`): the chunks only need Level 4, then each group
     needs a run-through block until it's at Level 5.
-  - **Sessions needed** is blocks ÷ rehearsal blocks per session. **Sessions available** is days to
-    the date × sessions a week ÷ 7.
-  - **When you're behind**, it suggests the first change that gets you there: Concert template, then
-    Rehearsal focus, then more sessions a week. "Plan a session for this" applies it.
+  - **With a target date** it shows the pace: blocks a day (rounded up) and the minutes that is. No
+    on-track / behind verdict - there's nothing to compare against.
+  - **"Plan a session for this"** opens the planner on the list's pieces with the Concert template.
 - **Each member's forecast** uses their own Levels.
 
-## Skills (ML-321)
+## Skills (ML-321; lists ML-339, grades ML-338)
+
+- **Skills lists (ML-339):** you can keep several named lists (`skill_lists`), each a set of skills in
+  order. My skills shows one at a time (a pill each, + New list, Rename, Delete). Where you're up to
+  on a skill (`skill_list_items`) is shared by every list it's on and kept when it comes off one.
+  Rows show the skill and where you're up to only (ML-341) - practising happens in sessions.
+- **Adding skills (ML-340):** tick several in Add skills, then Add. **Grades (ML-338):** the pop-up
+  filters by Grade 1-5. Each skill belongs to a span of grades (`SKILLS[k].grades` in app.js), a first
+  cut the owner can adjust:
+
+  | Skill | Grades |
+  |---|---|
+  | Tempo, Pulse, Pitch, Range | 1-5 |
+  | Scales - all major keys / all minor keys | 1-5 / 2-5 |
+  | Scales - Grade N major keys | N: keys up to N sharps or flats (Grade 5: all) |
+  | Scales - Grade N minor keys (harmonic) | N = 2-5: keys up to N-1 sharps or flats (Grade 5: all) |
+  | Warm-ups: long tones, articulation, finger patterns / lip slurs / flexibility / easy melodies | 1-5 / 2-5 / 3-5 / 1-3 |
+  | Rhythm: words / one beat / two beats / triplets / 6/8 | 1-2 / 1-3 / 2-4 / 3-5 / 4-5 |
+
+- **Warm-up lists (ML-343):** also on My skills. Everyone has **External warm-up** (just the timer),
+  **One of each kind**, **Brass basics** (long tones, then lip slurs) and **Everything, random**
+  (`PracticePlan.WARMUP_LISTS`). Your own (`warmup_lists`) are kinds of warm-up, in order or random.
 
 - **A skill** is a playing tool plus its steps in order (`SKILLS` in app.js):
 

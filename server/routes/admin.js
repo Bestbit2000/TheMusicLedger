@@ -14,6 +14,7 @@ import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listWarmupsForAdmin, createWarmup, updateWarmup, setWarmupActive, moveWarmup, deleteWarmup } from '../services/warmups.js';
 import { listAccountsForAdmin, setAccountLevel } from '../services/accounts.js';
+import { getFeatureAccess, saveFeatureAccess, clearFeatureCache } from '../services/features.js';
 import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin } from '../services/bands.js';
 import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption, deleteDurationOption, listDurationUsageStats, listSessionMinuteCounts } from '../services/durationOptions.js';
 import { listTimeSignatureOptionsForAdmin, createTimeSignatureOption, updateTimeSignatureOption, deleteOrArchiveTimeSignatureOption, listNoteValueUsage } from '../services/timeSignatures.js';
@@ -224,8 +225,26 @@ router.post('/features', requireAuth, resolveAccount, requireSuperAdmin, async (
   }
 });
 
+// ML-345: Admin -> Feature access - every feature by account type, and Live (the master switch).
+// Saved together (one transaction), since it changes production for real people.
+router.get('/feature-access', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await getFeatureAccess());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.put('/feature-access', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await saveFeatureAccess(req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.put('/features/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
+    clearFeatureCache(); // ML-345: Live may change
     const { featureKey, name, description, enabled } = req.body;
     if (!featureKey || !name) {
       return res.status(400).json({ error: 'featureKey and name are required' });

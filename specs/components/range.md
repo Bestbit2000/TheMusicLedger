@@ -8,7 +8,7 @@
 ## 2. Overview
 Two screens stretch your playing range a note at a time:
 - **The Range tool** (home, Learn group). It shows the run to your comfortable top (or bottom) note with the note to hold in gold, how long you held it and each note's Level.
-- **The range picker.** It's a pop-up where you set your comfortable bottom and top notes on a stave, or measure them with the tuner. It opens from the Range tool or from My account → Your instruments → Your range….
+- **The range picker.** It's a pop-up where you set your comfortable bottom and top notes on a stave, or measure them with the tuner. It opens from the Range tool or from My account → My instruments → My range….
 
 Everything else on both screens is a shared component:
 - the drill options pills and feedback line ([drills](drills.md))

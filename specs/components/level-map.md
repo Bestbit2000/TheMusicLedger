@@ -1,7 +1,7 @@
 # Level map (practice Levels)
 
 ## 1. Metadata
-- **Name:** Level map (`.level-map`, `.level-cell`, `.lv-0`, `.lv-1`, `.lv-2`, `.lv-3`, `.lv-4`, `.lv-5`, `.is-marked`, `.level-strip`, `.level-legend`, `.level-chip`, `.level-picker`, `.level-pick`, `.level-row-body`, `.level-row-selected`, `.level-answer`, `.level-fit-warn`, `.level-notice`)
+- **Name:** Level map (`.level-map`, `.level-map-bars`, `.level-map-bars-to`, `.level-cell`, `.lv-0`, `.lv-1`, `.lv-2`, `.lv-3`, `.lv-4`, `.lv-5`, `.is-marked`, `.level-strip`, `.level-legend`, `.level-chip`, `.level-picker`, `.level-pick`, `.level-row-body`, `.level-row-selected`, `.level-answer`, `.level-fit-warn`, `.level-notice`)
 - **Category:** Data display / inputs
 - **Status:** New (ML-316, epic ML-314)
 
@@ -16,10 +16,14 @@ also appear on practice lists (the strip) and in a practice session.
   uses `--heat-*`. See [charts](charts.md).
 
 ## 3. Anatomy
-- **Map:** `.level-map` › `.level-cell.lv-N` × bars. The Level number is inside each square, and an
-  unset bar is empty with a dashed outline.
+- **Map:** `.level-map` › `.level-cell.lv-N` × bars, **10 bars a row** (ML-336), as bars are counted in
+  music. Each row starts with `.level-map-bars`, the row's bars ("1 - 10", "11 - 20"...); when the map
+  is too narrow (a container query at 300px) `.level-map-bars-to` hides and it reads just "1", "11".
+  The Level number is inside each square, and an unset bar is empty with a dashed outline.
   - `.is-marked` rings the bars being edited: the hard passage being added, or the chunk selected.
 - **Strip:** `.level-strip` › `.level-cell.lv-N` × bars. One thin row with no numbers, for list rows.
+  In a strip an unset bar is a plain `--level-unset-border` fill, not a dashed outline - a long piece's
+  outlines pushed the strip off the page (ML-334). The strip never overflows its row.
 - **Legend:** `.level-legend` › `span` › `.level-cell` + label.
 - **Chip:** `.level-chip.lv-N`, the Level at the start of a chunk / hard-passage row. The row is a
   `.history-item` with a `.level-row-body` button (the chip plus text) and any action buttons.

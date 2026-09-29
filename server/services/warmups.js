@@ -13,6 +13,7 @@ for (const f of ['notation.js', 'warmups.js']) {
   vm.runInNewContext(fs.readFileSync(new URL(`../../public/${f}`, import.meta.url), 'utf8'), sandbox);
 }
 const Warmups = sandbox.self.Warmups;
+export const WARMUP_KIND_IDS = Warmups.KIND_IDS; // ML-343: warm-up lists are made of these kinds
 
 const COLS = 'id, title, kind, tip, notes, beats_per_bar, bpm, sort_order, is_active, updated_at';
 function toExercise(row) {
