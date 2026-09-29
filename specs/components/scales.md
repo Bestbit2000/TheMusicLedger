@@ -1,7 +1,7 @@
 # Scales practice
 
 ## 1. Metadata
-- **Name:** Scales practice (`.scales-setting-row`, `.scales-setting-btn`, `.scales-pick-row`, `.scales-pick-mine`, `.scales-staff-heading`, `.scales-memory`, `.scales-memory-name`, `.scales-memory-detail`, `.scales-memory-progress`, `.scales-staff-card`, `.scales-staff-head`, `.scales-staff-title`, `.scales-staff-sub`, `.scales-staff`, `.scales-staff-row-short`, `.scales-note`, `.scales-note-*`, `.is-now`, `.scales-metronome-card`, `.scales-choose-group`, `.scales-choose-label`, `.scales-choose-keys`, `.scales-pool-line`, `.scales-pool-count`, `.scales-range-link`, `.scale-grid`, `.scale-grid-head`, `.scale-grid-acc`, `.scale-grid-row`, `.scale-grid-label`, `.scale-grid-sub`, `.scale-grid-cell`, `.is-ready`, `.is-other`, `.is-locked`, `.is-beyond`, `.is-no`, `.scale-grid-legend`, `.scales-range-staff`, `.scales-grade-options`)
+- **Name:** Scales practice (`.scales-setting-row`, `.scales-setting-btn`, `.scales-dir-flip`, `.scales-choice-grid`, `.scales-pick-row`, `.scales-pick-mine`, `.scales-staff-heading`, `.scales-memory`, `.scales-memory-name`, `.scales-memory-detail`, `.scales-memory-progress`, `.scales-staff-card`, `.scales-staff-head`, `.scales-staff-title`, `.scales-staff-sub`, `.scales-staff`, `.scales-staff-row-short`, `.scales-note`, `.scales-note-*`, `.is-now`, `.scales-metronome-card`, `.scales-choose-group`, `.scales-choose-label`, `.scales-choose-keys`, `.scales-pool-line`, `.scales-pool-count`, `.scales-range-link`, `.scale-grid`, `.scale-grid-head`, `.scale-grid-acc`, `.scale-grid-row`, `.scale-grid-label`, `.scale-grid-sub`, `.scale-grid-cell`, `.is-ready`, `.is-other`, `.is-locked`, `.is-beyond`, `.is-no`, `.scale-grid-legend`, `.scales-range-staff`, `.scales-grade-options`)
 - **Category:** Tool screen
 - **Status:** New (ML-9); grade lists, the grade grid and this layout ML-357
 
@@ -18,12 +18,14 @@ Top to bottom (owner's layout, ML-357):
    - **Clef** ("Treble / clef") - Treble, Bass, Tenor: the stave's clef, and it picks the ABRSM list for
      instruments read in more than one (trombone, baritone, euphonium, tuba);
    - **Direction** (its arrow icon over "up & down") - Up, Down, Up & down, Down & up: how every scale in
-     the list is played (a dominant 7th, a scale in thirds and the ABRSM patterns keep their own shape);
+     the list is played (the arrows read in the order you play: "down & up" is the up & down icon flipped,
+     `.scales-dir-flip`) (a dominant 7th, a scale in thirds and the ABRSM patterns keep their own shape);
    - **Detail** ("Notes / detail") - how much of the scale to show: **Notes** (the name, key and notes),
      **Key** (the name and a blank stave with the clef and key signature - you find the notes), **Name** (no
-     stave: the name and what to play, `.scales-memory` - it was the "From memory" switch).
-   Clef, direction and detail are pick-one pop-ups (`.flow-tile-grid` of `.flow-picker-tile`s) that close
-   when you choose.
+     stave: the name and what to play, `.scales-memory` - it was the "From memory" switch). 
+   Clef, direction and detail are pick-one pop-ups (`.flow-tile-grid.scales-choice-grid` of
+   `.flow-picker-tile`s) that close when you choose; each value sits at the top of its tile, so they line up
+   even when a caption wraps on a phone.
 2. **The scale's box** (`.flow-card.scales-staff-card`): the scale's name (`h2.scales-staff-title`) with
    "2 octaves · treble" under it (or "Get ready… 3" during the count-in) and the metronome's volume button
    (`.metroBlk-row-volume-btn`) at the right of that line - hidden while the metronome is off. Then the

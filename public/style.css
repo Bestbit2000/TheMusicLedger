@@ -1940,6 +1940,11 @@
        boxes with a one-line value, so "Treble" fits a quarter of a phone */
     .scales-setting-btn { padding: var(--space-2) var(--space-1); }
     .scales-setting-btn strong { font-size: var(--font-base); line-height: var(--line-height-snug); text-align: center; }
+    /* The Scales pickers (clef, direction, detail): the value at the top and the caption under it, so the
+       values line up across the row even when a caption wraps on a narrow phone */
+    .scales-choice-grid .flow-picker-tile-icon-row { flex: none; }
+    /* Direction: "down & up" is the up & down arrows flipped, so the first arrow is the first way you go */
+    .scales-dir-flip { transform: scaleX(-1); }
     /* Previous / Next / Shuffle / Select sit under the stave, inside the scale's box */
     .scales-staff-card .scales-pick-row { margin: var(--space-3) 0 0 0; }
     /* Use metronome: its own box, the title and the on/off switch on one line, the transport under it */

@@ -17630,12 +17630,14 @@
     const SCALES_BEATS_PER_BAR = 4;
     const SCALES_BPM_MAX = 200;
     const SCALES_NPB = [[1, 'crotchets'], [2, 'quavers'], [3, 'triplets'], [4, 'semiquavers']];
-    const SCALES_DIRECTIONS = { up: ['arrow_upward', 'up'], down: ['arrow_downward', 'down'], both: ['swap_vert', 'up & down'], downUp: ['import_export', 'down & up'] };
+    const SCALES_DIRECTIONS = { up: ['arrow_upward', 'up'], down: ['arrow_downward', 'down'], both: ['swap_vert', 'up & down'], downUp: ['swap_vert', 'down & up'] };
+    // The arrows read left to right in the order you play: up & down is up-arrow first; down & up is the same icon flipped (.scales-dir-flip).
+    const scalesDirIconHtml = (v) => `<span class="material-symbols-outlined${v === 'downUp' ? ' scales-dir-flip' : ''}" aria-hidden="true">${(SCALES_DIRECTIONS[v] || SCALES_DIRECTIONS.both)[0]}</span>`;
     const SCALES_TYPES = [['scale', 'Scale'], ['arpeggio', 'Arpeggio'], ['chromatic', 'Chromatic'], ['dom7', 'Dominant 7th'], ['thirds', 'Scale in thirds'], ['wholetone', 'Whole-tone scale'], ['dim7', 'Diminished 7th']];
     // Kinds named by their starting note or key ("Diminished 7th on G♯") rather than "<key> <form> <kind>"
     const SCALES_NAMED_WHOLE = ['dom7', 'chromatic', 'wholetone', 'dim7'];
     // Detail (ML-357): how much of the scale to show while you play
-    const SCALES_DETAILS = [['notes', 'Notes', 'name, key and notes'], ['key', 'Key', 'name and key - you find the notes'], ['name', 'Name', 'just the name']];
+    const SCALES_DETAILS = [['notes', 'Notes', 'name, key and notes'], ['key', 'Key', 'just name and key'], ['name', 'Name', 'just the name']];
     const SCALES_CLEFS = [['treble', 'Treble'], ['bass', 'Bass'], ['tenor', 'Tenor']];
     const scalesTypeName = (t) => (SCALES_TYPES.find(([v]) => v === t) || SCALES_TYPES[0])[1];
     const scalesLength = () => ScaleGrades.lengthLabel(scales.octaves, scales.pattern);
@@ -17674,6 +17676,7 @@
         document.getElementById('scalesClefBtnVal').textContent = (SCALES_CLEFS.find(([v]) => v === scales.clef) || SCALES_CLEFS[0])[1];
         const [dirIcon, dirLabel] = SCALES_DIRECTIONS[scales.direction] || SCALES_DIRECTIONS.both;
         document.getElementById('scalesDirIcon').textContent = dirIcon;
+        document.getElementById('scalesDirIcon').classList.toggle('scales-dir-flip', scales.direction === 'downUp');
         document.getElementById('scalesDirBtnLbl').textContent = dirLabel;
         const detail = SCALES_DETAILS.some(([v]) => v === scales.detail) ? scales.detail : 'notes';
         document.getElementById('scalesDetailBtnVal').textContent = SCALES_DETAILS.find(([v]) => v === detail)[1];
@@ -17889,7 +17892,7 @@
         showModal('scalesClefModal');
     });
     document.getElementById('scalesDirBtn')?.addEventListener('click', () => {
-        scalesFillGrid('scalesDirGrid', Object.entries(SCALES_DIRECTIONS).map(([v, [icon, l]]) => ({ value: `<span class="material-symbols-outlined" aria-hidden="true">${icon}</span>`, caption: l, selected: scales.direction === v, v, attrs: `aria-label="${l}"` })),
+        scalesFillGrid('scalesDirGrid', Object.entries(SCALES_DIRECTIONS).map(([v, [, l]]) => ({ value: scalesDirIconHtml(v), caption: l, selected: scales.direction === v, v, attrs: `aria-label="${l}"` })),
             (o) => { scales.direction = o.v; hideModal('scalesDirModal'); scalesChanged(); });
         showModal('scalesDirModal');
     });
