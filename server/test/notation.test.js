@@ -186,3 +186,25 @@ describe('rhythm groups (ML-306)', () => {
         assert.ok(width([{ type: 'group', notes: [0, 1, 2, 3].map(() => q(0.25, 0.25)) }]) > width([{ type: 'group', notes: [q(1, 1)] }]));
     });
 });
+
+describe('slurs (ML-361)', () => {
+    // where the slur starts (its first point) against the first note's glyph, and whether its curve is below or above
+    const slur = (pitches, head, extra = {}) => {
+        const svg = N.staff({ clef: 'treble', items: pitches.map((p, i) => ({ type: 'note', pitch: p, head, cls: 'n' + i })), spans: [{ kind: 'slur', from: 0, to: pitches.length - 1, ...extra }] });
+        const start = Number(/<path d="M[\d.-]+ ([\d.-]+)/.exec(svg)[1]);
+        const note = Number(/class="notation-glyph n0" x="[\d.-]+" y="([\d.-]+)"/.exec(svg)[1]);
+        return { start, note, svg };
+    };
+    test('under stem-up notes (the notehead side)', () => {
+        const s = slur(['E4', 'F4', 'A4'], 'noteQuarterUp');
+        assert.ok(s.start > s.note, 'starts below the first note');
+    });
+    test('over the top as soon as a stem points down (a lip slur up to high notes)', () => {
+        const s = slur(['C5', 'E5', 'G5'], 'noteQuarterDown');
+        assert.ok(s.start < s.note, 'starts above the first note');
+    });
+    test('a slur carried over a line break: open at the start or the end, from a single note', () => {
+        assert.doesNotThrow(() => N.staff({ items: [{ type: 'note', pitch: 'G4', head: 'noteheadWhole' }], spans: [{ kind: 'slur', from: 0, to: 0, openStart: true }] }));
+        assert.doesNotThrow(() => N.staff({ items: [{ type: 'note', pitch: 'G4', head: 'noteQuarterUp' }, { type: 'note', pitch: 'C5', head: 'noteQuarterDown' }], spans: [{ kind: 'slur', from: 0, to: 1, openEnd: true }] }));
+    });
+});

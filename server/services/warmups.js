@@ -57,6 +57,7 @@ function validated(body) {
   const notes = (Array.isArray(body.notes) ? body.notes : []).map((n) => {
     const out = { p: n && n.p ? String(n.p) : null, d: n && n.d };
     if (n && n.dot) out.dot = true;
+    if (n && n.sl) out.sl = true; // ML-361: slurred to the next note
     return out;
   });
   const errors = [];

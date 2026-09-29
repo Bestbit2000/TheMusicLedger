@@ -76,3 +76,43 @@ describe('warm-ups (ML-294)', () => {
         }
     });
 });
+
+describe('warm-ups: slurs and the range (ML-361)', () => {
+    test('parse / format: ^ is "slurred to the next note"', () => {
+        assert.deepEqual(plain(W.parse('C4q^ G4q')), [{ p: 'C4', d: 'q', sl: true }, { p: 'G4', d: 'q' }]);
+        assert.equal(W.format(W.parse('C4q.^ G4e rq C5w')), 'C4q.^ G4e rq C5w');
+    });
+    test('check: a slur must lead to a note - not from a rest, not off the end, not into a rest', () => {
+        assert.ok(W.check(ex('C4q^ G4q^ C5h')).ok);
+        assert.match(W.check({ beatsPerBar: 4, notes: [{ p: null, d: 'q', sl: true }, { p: 'C4', d: 'h' }, { p: 'C4', d: 'q' }] }).errors.join(), /rest can't start a slur/);
+        assert.match(W.check(ex('C4q^ rq C4h')).errors.join(), /doesn't lead to a note/);
+        assert.match(W.check(ex('C4w^')).errors.join(), /doesn't lead to a note/);
+    });
+    test('rows: a run of slurred notes and the note after it is one slur; over a line break it runs to the end and comes in from the start', () => {
+        const two = W.rows(ex('C4q^ G4q^ C5q^ G4q^ C4w B3q^ F#4q^ B4q^ F#4q^ B3w'));
+        assert.deepEqual(plain(two.map(r => r.spans)), [[{ kind: 'slur', from: 1, to: 6 }], [{ kind: 'slur', from: 0, to: 5 }]]);
+        const quavers = W.rows(ex('G4e^ C5e^ G4e^ C5e^ G4e^ C5e^ G4e^ C5e^ G4w')); // 8 a row: the held note is on the next
+        assert.deepEqual(plain(quavers[0].spans), [{ kind: 'slur', from: 1, to: 8, openEnd: true }]);
+        assert.deepEqual(plain(quavers[1].spans), [{ kind: 'slur', from: 0, to: 0, openStart: true }]);
+        for (const r of quavers) N.staff({ clef: 'treble', items: r.items, spans: r.spans });
+        assert.deepEqual(plain(W.rows(ex('C4q G4q C5h')).map(r => r.spans)), [[]]);
+    });
+    test('span: the lowest and highest note, in either clef (bass is a 9th lower)', () => {
+        const e = ex('C4q G4q C5q E5q G5w');
+        assert.deepEqual(plain(W.span(e)), [W.midi('C4'), W.midi('G5')]);
+        assert.deepEqual(plain(W.span(e, 'bass')), [W.midi('C4') - 14, W.midi('G5') - 14]);
+        assert.equal(W.span(ex('rw')), null);
+    });
+    test('the 078 migration: 22 lip slurs and flexibility warm-ups, every slur valid, the same notes as 055', () => {
+        const sql = fs.readFileSync(new URL('../../db/migrations/078_warmup_slurs.sql', import.meta.url), 'utf8');
+        const found = [...sql.matchAll(/SET notes = '(\[.*?\])'::jsonb.*?\n WHERE title = '((?:[^']|'')+)' AND kind = '([a-z-]+)' AND notes = '(\[.*?\])'::jsonb/g)];
+        assert.equal(found.length, 22);
+        for (const [, after, title, kind, before] of found) {
+            assert.ok(['lip-slurs', 'flexibility'].includes(kind), title);
+            const a = JSON.parse(after), b = JSON.parse(before);
+            assert.ok(W.check({ beatsPerBar: 4, notes: a }).ok, title);
+            assert.ok(a.some(n => n.sl), `${title} has a slur`);
+            assert.deepEqual(a.map(({ sl, ...n }) => n), b, `${title}: only slurs added`);
+        }
+    });
+});

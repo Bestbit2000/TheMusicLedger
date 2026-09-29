@@ -1,7 +1,7 @@
 # Scales practice
 
 ## 1. Metadata
-- **Name:** Scales practice (`.scales-setting-row`, `.scales-setting-btn`, `.scales-dir-flip`, `.scales-choice-grid`, `.scales-pick-row`, `.scales-pick-mine`, `.scales-staff-heading`, `.scales-memory`, `.scales-memory-name`, `.scales-memory-detail`, `.scales-memory-progress`, `.scales-staff-card`, `.scales-staff-head`, `.scales-staff-title`, `.scales-staff-sub`, `.scales-staff`, `.scales-staff-row-short`, `.scales-note`, `.scales-note-*`, `.is-now`, `.scales-metronome-card`, `.scales-choose-group`, `.scales-choose-label`, `.scales-choose-keys`, `.scales-pool-line`, `.scales-pool-count`, `.scales-range-link`, `.scale-grid`, `.scale-grid-head`, `.scale-grid-acc`, `.scale-grid-row`, `.scale-grid-label`, `.scale-grid-sub`, `.scale-grid-cell`, `.is-ready`, `.is-other`, `.is-locked`, `.is-beyond`, `.is-no`, `.scale-grid-legend`, `.scales-range-staff`, `.scales-grade-options`)
+- **Name:** Scales practice (`.scales-setting-row`, `.scales-setting-btn`, `.scales-dir-flip`, `.scales-choice-grid`, `.scales-pick-row`, `.is-centred`, `.scales-staff-heading`, `.scales-memory`, `.scales-memory-name`, `.scales-memory-detail`, `.scales-memory-progress`, `.scales-staff-card`, `.scales-staff-head`, `.scales-staff-title`, `.scales-staff-sub`, `.scales-staff`, `.scales-staff-row-short`, `.scales-note`, `.scales-note-*`, `.is-now`, `.scales-metronome-card`, `.scales-choose-group`, `.scales-choose-label`, `.scales-choose-keys`, `.scales-pool-line`, `.scales-pool-count`, `.scales-range-link`, `.scale-grid`, `.scale-grid-head`, `.scale-grid-acc`, `.scale-grid-row`, `.scale-grid-label`, `.scale-grid-sub`, `.scale-grid-cell`, `.is-ready`, `.is-other`, `.is-locked`, `.is-beyond`, `.is-no`, `.scale-grid-legend`, `.scales-range-staff`, `.scales-grade-options`)
 - **Category:** Tool screen
 - **Status:** New (ML-9); grade lists, the grade grid and this layout ML-357
 
@@ -13,7 +13,8 @@ your instrument, and Everything else (ML-357, see `docs/scales-grades.md`).
 Top to bottom (owner's layout, ML-357):
 1. **The setting row** (`.metro-transport-grid.scales-setting-row`, four across): the transport's value
    boxes (`.metroBlk-ctrl-value-btn.scales-setting-btn` - a one-line value, so "Treble" fits a quarter of a
-   phone), each opening its own pop-up:
+   phone), each opening its own pop-up (fewer than four - Warm-ups' two - are still a quarter wide, centred:
+   `.scales-setting-row.is-centred`):
    - **Scales** (icon + "scales", `#scalesPoolBtn`) - the instrument and grades, below;
    - **Clef** ("Treble / clef") - Treble, Bass, Tenor: the stave's clef, and it picks the ABRSM list for
      instruments read in more than one (trombone, baritone, euphonium, tuba);

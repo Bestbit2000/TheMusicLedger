@@ -6,6 +6,7 @@
 // and bass all read the same written notes), as a list of notes:
 //   { p: 'G4', d: 'q' }             pitch (scientific, 'F#4', 'Bb3') and length: w h q e (semibreve,
 //   { p: 'G4', d: 'q', dot: true }  minim, crotchet, quaver) - dot for dotted
+//   { p: 'G4', d: 'q', sl: true }   slurred to the next note (ML-361) - a run of them is one slur
 //   { p: null, d: 'w' }             a rest
 // plus beatsPerBar (crotchet beats, 2-6). Bars are worked out from the lengths; a note may not cross a
 // bar line. Bass clef (trombone, euphonium) is the same exercise down a major 9th - how a treble-clef
@@ -56,6 +57,9 @@
                 if (m === null) errors.push(`Note ${i + 1}: "${n.p}" isn't a pitch.`);
                 else if (m < lo || m > hi) errors.push(`Note ${i + 1}: ${n.p} is outside ${RANGE[0]}-${RANGE[1]}.`);
             }
+            // A slur leads to the next note: not from a rest, not off the end, not into a rest.
+            if (n.sl && n.p === null) errors.push(`Note ${i + 1}: a rest can't start a slur.`);
+            else if (n.sl && (i === notes.length - 1 || !notes[i + 1] || notes[i + 1].p === null)) errors.push(`Note ${i + 1}: the slur doesn't lead to a note.`);
             const b = beatsOf(n);
             if (bpb && filled + b > bpb + 1e-9) errors.push(`Note ${i + 1} runs over the bar line (bar ${bars.length + 1}).`);
             bar.push(i);
@@ -100,6 +104,9 @@
     // Each row is Notation.staff items; every note/rest carries `cls` (warmup-note warmup-note-<i>) so the
     // tool can light the one playing and the admin editor can tap one to select it. Accidentals are
     // written as they're needed and last to the end of the bar (a natural where one goes back).
+    // Each row also has its slurs (Notation spans, ML-361): a run of notes marked `sl` and the note
+    // after it; a slur that runs past the end of a row runs on to the row's end (openEnd) and comes in
+    // from the start of the next (openStart), as printed.
     function rows(ex, clef = 'treble', { perRow = 8, barsPerRow = 4, cls = 'warmup-note' } = {}) {
         const { bars } = check(ex);
         const notes = ex.notes || [];
@@ -110,8 +117,10 @@
             row.push(bar); count += bar.length;
         });
         if (row.length) out.push(row);
+        let carried = false; // a slur still open at the end of the row before
         return out.map((rowBars, r) => {
             const items = [];
+            const itemOf = {}; // note index -> item index in this row
             if (r === 0) items.push({ type: 'timeSig', top: ex.beatsPerBar || 4, bottom: 4 });
             rowBars.forEach((bar, b) => {
                 const inBar = {};
@@ -134,13 +143,31 @@
                     if (show && alter === 0) p = m[1] + 'n' + m[3];
                     const down = Notation.staffStep(p, clef) >= 4;
                     const head = n.d === 'w' ? 'noteheadWhole' : { h: 'noteHalf', q: 'noteQuarter', e: 'note8th' }[n.d] + (down ? 'Down' : 'Up');
+                    itemOf[i] = items.length;
                     items.push({ type: 'note', pitch: p, accidental: show, head, dots: n.dot ? 1 : 0, cls: c });
                 });
                 const lastBar = r === out.length - 1 && b === rowBars.length - 1;
                 items.push({ type: 'barline', glyph: lastBar ? 'barlineFinal' : 'barlineSingle' });
             });
-            return { items, from: rowBars[0][0], to: rowBars[rowBars.length - 1][rowBars[rowBars.length - 1].length - 1] };
+            const spans = [];
+            let start = null;
+            const firstItem = itemOf[rowBars.flat().find(i => i in itemOf)];
+            rowBars.flat().forEach((i, k) => {
+                if (!(i in itemOf)) return;
+                const comesIn = k === 0 && carried;
+                if (start === null && (notes[i].sl || comesIn)) start = itemOf[i];
+                if (start !== null && !notes[i].sl) { spans.push({ kind: 'slur', from: start, to: itemOf[i], ...(comesIn || (carried && start === firstItem) ? { openStart: true } : {}) }); start = null; }
+            });
+            const lastNote = rowBars.flat().filter(i => i in itemOf).pop();
+            carried = start !== null;
+            if (carried) spans.push({ kind: 'slur', from: start, to: itemOf[lastNote], openEnd: true, ...(r > 0 && start === firstItem && out[r - 1] && notes[out[r - 1].flat().filter(i => notes[i].p !== null).pop()].sl ? { openStart: true } : {}) });
+            return { items, spans, from: rowBars[0][0], to: rowBars[rowBars.length - 1][rowBars[rowBars.length - 1].length - 1] };
         });
+    }
+    // The lowest and highest note (MIDI) as written in a clef - for "is it in your range" (ML-361).
+    function span(ex, clef = 'treble') {
+        const ms = (ex.notes || []).filter(n => n.p !== null).map(n => midi(pitchFor(n.p, clef)));
+        return ms.length ? [Math.min(...ms), Math.max(...ms)] : null;
     }
     // One shared height for every row of an exercise, so the rows don't jump about.
     function stepRange(ex, clef = 'treble') {
@@ -149,17 +176,21 @@
     }
 
     // Authoring shorthand (seed data and tests): "G4w | E4h G4h | rq C5q. D5e" - pitch or r, then the
-    // length, a dot for dotted. Bar lines are optional (check() works bars out from the lengths).
+    // length, a dot for dotted, ^ for slurred to the next note ("C4q^ G4q^ C5w"). Bar lines are optional
+    // (check() works bars out from the lengths).
     function parse(text) {
         return String(text).trim().split(/\s+/).filter(t => t !== '|').map((t) => {
-            const m = /^(r|[A-G](?:bb|b|#|x)?[0-8])([whqe])(\.)?$/.exec(t);
+            const m = /^(r|[A-G](?:bb|b|#|x)?[0-8])([whqe])(\.)?(\^)?$/.exec(t);
             if (!m) throw new Error('Bad note: ' + t);
             const n = { p: m[1] === 'r' ? null : m[1], d: m[2] };
             if (m[3]) n.dot = true;
+            if (m[4]) n.sl = true;
             return n;
         });
     }
+    // The other way round (tests, and the migration that added the seed exercises' slurs).
+    const format = (notes) => notes.map(n => `${n.p === null ? 'r' : n.p}${n.d}${n.dot ? '.' : ''}${n.sl ? '^' : ''}`).join(' ');
 
-    const api = { KINDS, KIND_IDS, LENGTHS, LENGTH_NAMES, RANGE, beatsOf, midi, check, toBassClef, pitchFor, timeline, noteAt, rows, stepRange, parse };
+    const api = { KINDS, KIND_IDS, LENGTHS, LENGTH_NAMES, RANGE, beatsOf, midi, check, toBassClef, pitchFor, timeline, noteAt, rows, span, stepRange, parse, format };
     root.Warmups = api;
 })(typeof self !== 'undefined' ? self : globalThis);

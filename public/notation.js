@@ -209,7 +209,9 @@
     //   { kind: 'volta', from, to, text }    1st/2nd time bar bracket
     //   { kind: 'intro', from, to }          hymn/carol intro corner brackets
     //   { kind: 'hairpin', from, to, dir: 'cresc'|'dim' }
-    //   { kind: 'tie' | 'slur', from, to }  curve under stem-up noteheads (from/to must be notes)
+    //   { kind: 'tie' | 'slur', from, to }  under stem-up noteheads, over the top when a stem points down
+    //                                        (from/to must be notes); openStart / openEnd: a slur carried
+    //                                        over a line break - it comes in from the row's start / runs to its end
     // stepRange [lo, hi] fixes the drawn height (at least that much; allow a step past the lowest/highest
     // note for its notehead), so a run of questions doesn't jump
     // about as notes go above or below the staff. hideClef leaves the clef off (pitches still sit where
@@ -309,7 +311,7 @@
                     parts.push((y) => glyphEl('augmentationDot', dx, y(dotStep)));
                     x = dx + metrics('augmentationDot').advance * S;
                 }
-                positions.push({ start, end: x, step: st, headX: hx, headW });
+                positions.push({ start, end: x, step: st, headX: hx, headW, stem: /Down$/.test(head) ? 'down' : /Up$/.test(head) ? 'up' : null });
                 x += noteGap;
             } else if (it.type === 'chord') {
                 const heads = (it.notes || []).map(nt => {
@@ -537,12 +539,31 @@
                 }
             } else if (sp.kind === 'tie' || sp.kind === 'slur') {
                 if (a.step === undefined || b.step === undefined) throw new Error(sp.kind + ' must join two notes');
-                // Under stem-up noteheads, as engraved: a filled crescent, thin at the ends, thickest mid-way.
-                const lowStep = Math.min(a.step, b.step);
+                // A filled crescent, thin at the ends, thickest mid-way. On the notehead side, as engraved:
+                // under stem-up notes, and over the top as soon as any stem in it points down (ML-357 - a
+                // lip slur's high notes), clearing the stem ends of any stem-up notes and every note between.
+                const inSpan = positions.slice(sp.from, sp.to + 1).filter(p => p.step !== undefined);
+                if (inSpan.some(p => p.stem === 'down')) {
+                    const depth = (sp.kind === 'tie' ? 0.9 : 1.4) * S;
+                    const clear = (p) => p.step + (p.stem === 'up' ? ENGRAVING.stemLength * 2 + 0.5 : 1.5);
+                    const topStep = Math.max(...inSpan.map(clear));
+                    parts.push((y) => {
+                        const x1 = sp.openStart ? Math.max(0, a.start - 2 * S) : a.headX + a.headW * 0.5, x2 = sp.openEnd ? width - 0.3 * S : b.headX + b.headW * 0.5;
+                        const y1 = y(clear(sp.openStart ? b : a)), y2 = y(clear(sp.openEnd ? a : b));
+                        const yt = Math.min(y1, y2, y(topStep));
+                        const w = x2 - x1, t = (ENGRAVING.tieMid - ENGRAVING.tieEnd) * S * 1.33;
+                        const c1x = x1 + w * 0.25, c2x = x2 - w * 0.25, cy = yt - depth * 1.33;
+                        return '<path d="M' + r(x1) + ' ' + r(y1) + ' C' + r(c1x) + ' ' + r(cy) + ' ' + r(c2x) + ' ' + r(cy) + ' ' + r(x2) + ' ' + r(y2)
+                            + ' C' + r(c2x) + ' ' + r(cy + t) + ' ' + r(c1x) + ' ' + r(cy + t) + ' ' + r(x1) + ' ' + r(y1) + ' Z" stroke="currentColor" stroke-width="' + r(ENGRAVING.tieEnd * S) + '"/>';
+                    });
+                    grow(topStep, topStep + 5);
+                    continue;
+                }
+                const lowStep = Math.min(...inSpan.map(p => p.step));
                 const depth = (sp.kind === 'tie' ? 0.9 : 1.4) * S;
                 parts.push((y) => {
-                    const x1 = a.headX + a.headW * 0.5, x2 = b.headX + b.headW * 0.5;
-                    const y1 = y(a.step) + 0.75 * S, y2 = y(b.step) + 0.75 * S;
+                    const x1 = sp.openStart ? Math.max(0, a.start - 2 * S) : a.headX + a.headW * 0.5, x2 = sp.openEnd ? width - 0.3 * S : b.headX + b.headW * 0.5;
+                    const y1 = y((sp.openStart ? b : a).step) + 0.75 * S, y2 = y((sp.openEnd ? a : b).step) + 0.75 * S;
                     const yb = Math.max(y1, y2, y(lowStep) + 0.75 * S);
                     const w = x2 - x1, t = (ENGRAVING.tieMid - ENGRAVING.tieEnd) * S * 1.33;
                     const c1x = x1 + w * 0.25, c2x = x2 - w * 0.25, cy = yb + depth * 1.33;

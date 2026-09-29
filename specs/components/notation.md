@@ -20,7 +20,7 @@ button *label*, like "C♯" or "B♭ major", is text, not notation, and stays in
 engraving thicknesses) + `<text class="notation-glyph">` per glyph (Bravura, 1 em = 4 staff spaces)
 + `<text class="notation-text">` for words printed in music: expression words italic
 (`.notation-text-italic`: Fine, rit., legato), tempo words bold and upright (`.notation-text-bold`:
-Allegro), time-bar numbers plain. Ties and slurs are a filled `<path>` (thin ends, thick middle).
+Allegro), time-bar numbers plain. Ties and slurs are a filled `<path>` (thin ends, thick middle). They go on the notehead side, as engraved: under stem-up notes, and over the top - clearing the stem ends and every note between - as soon as a stem in them points down (ML-361, warm-up lip slurs). A slur carried over a line break is open at one end (`openEnd` runs to the row's end, `openStart` comes in from its start).
 
 ## 4. Tokens used
 `--font-notation` (Bravura), `--font-notation-text` (serif, for Fine / time-bar numbers),

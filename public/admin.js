@@ -1791,7 +1791,7 @@
         const rows = W.rows(ex, clef);
         const stepRange = W.stepRange(ex, clef);
         return (firstRowOnly ? rows.slice(0, 1) : rows)
-            .map(r => Notation.staff({ clef, items: r.items, stepRange, noteGap: 2.2, justify: 60, label: label ? `${label}, notes ${r.from + 1} to ${r.to + 1}` : undefined }))
+            .map(r => Notation.staff({ clef, items: r.items, spans: r.spans, stepRange, noteGap: 2.2, justify: 60, label: label ? `${label}, notes ${r.from + 1} to ${r.to + 1}` : undefined }))
             .join('');
     }
 
@@ -1901,6 +1901,13 @@
         document.getElementById('warmupDeleteNoteBtn').disabled = sel === null;
         document.getElementById('warmupAddEndBtn').disabled = sel === null;
         document.getElementById('warmupUndoBtn').disabled = !warmupEditing.undo.length;
+        // ML-361: slur the selected note to the next one (not from a rest, not the last note)
+        const slurBtn = document.getElementById('warmupSlurBtn');
+        const selNote = sel !== null ? draft.notes[sel] : null;
+        const nextNote = sel !== null ? draft.notes[sel + 1] : null;
+        slurBtn.disabled = !selNote || selNote.p === null || !nextNote || nextNote.p === null;
+        slurBtn.setAttribute('aria-pressed', String(!!(selNote && selNote.sl)));
+        slurBtn.textContent = selNote && selNote.sl ? 'Remove slur' : 'Slur to next note';
     }
     function warmupChangeNotes(fn) {
         warmupEditing.undo.push(JSON.stringify(warmupEditing.notes));
@@ -1915,7 +1922,7 @@
         warmupChangeNotes((notes) => {
             const sel = warmupEditing.selected;
             if (sel === null) notes.push(note);
-            else { notes[sel] = note; warmupEditing.selected = sel + 1 < notes.length ? sel + 1 : null; }
+            else { if (notes[sel].sl && note.p !== null) note.sl = true; notes[sel] = note; warmupEditing.selected = sel + 1 < notes.length ? sel + 1 : null; }
         });
     }
     function openWarmupForm(ex) {
@@ -1967,6 +1974,11 @@
         warmupChangeNotes((notes) => { notes.splice(sel, 1); warmupEditing.selected = notes.length ? Math.min(sel, notes.length - 1) : null; });
     });
     document.getElementById('warmupAddEndBtn')?.addEventListener('click', () => { warmupEditing.selected = null; renderWarmupEditor(); });
+    document.getElementById('warmupSlurBtn')?.addEventListener('click', () => {
+        const sel = warmupEditing.selected;
+        if (sel === null) return;
+        warmupChangeNotes((notes) => { if (notes[sel].sl) delete notes[sel].sl; else notes[sel].sl = true; });
+    });
     document.getElementById('warmupUndoBtn')?.addEventListener('click', () => {
         const prev = warmupEditing.undo.pop();
         if (prev === undefined) return;

@@ -1933,12 +1933,12 @@
     /* Previous / Next / My ... : the same icon-over-label buttons as the transport row below
        (.metro-play-grid-btn, grey), so the two rows match: previous, next, shuffle, my ... */
     .scales-pick-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin: var(--space-3) 0; }
-    /* "My scales" / "My warm-ups" open a pop-up: outlined, like .btn-cancel, rather than filled grey. */
-    .scales-pick-mine { background: transparent; border: 2px solid var(--primary-action-strong); color: var(--primary-action-strong); }
     .scales-staff-card { padding: var(--space-3) var(--space-2); }
     /* ML-357: the setting row along the top (scales / clef / direction / detail) - the transport's value
        boxes with a one-line value, so "Treble" fits a quarter of a phone */
     .scales-setting-btn { padding: var(--space-2) var(--space-1); }
+    /* ML-361: fewer than four (Warm-ups: warm-ups and clef) - each still a quarter wide, centred */
+    .scales-setting-row.is-centred { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: calc((100% - 3 * var(--space-2)) / 4); justify-content: center; }
     .scales-setting-btn strong { font-size: var(--font-base); line-height: var(--line-height-snug); text-align: center; }
     /* The Scales pickers (clef, direction, detail): the value at the top and the caption under it, so the
        values line up across the row even when a caption wraps on a narrow phone */
@@ -1983,6 +1983,10 @@
     .scales-choose-label .scale-grid-sub { font-weight: var(--font-weight-normal); }
     .scales-choose-keys { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); }
     .scales-choose-keys .flow-picker-tile { min-height: var(--touch-target); padding: var(--space-2) 0; }
+    /* ML-361 Choose a warm-up: a row per warm-up, the title in the body weight; a locked one muted, with a lock */
+    .flow-choice-option.warmups-choose-row { font-weight: var(--font-weight-normal); }
+    .flow-choice-option.warmups-choose-row.is-locked { opacity: var(--opacity-muted); cursor: default; }
+    .flow-choice-option.warmups-choose-row.is-locked .material-symbols-outlined { color: var(--label-color); }
     /* The Scales pop-up: the count and See your range (a text link) on one line */
     .scales-pool-line { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
     .scales-pool-line .scales-pool-count { margin: 0; }

@@ -2277,21 +2277,50 @@
         </div>
     </div>
 
+    <!-- ML-361: Warm-ups - the instrument (whose range and clef count), the kinds (the standard pick list),
+         how many are in your list and how many are locked (outside your range for now). -->
     <div class="modal" id="warmupsSettingsModal" role="dialog" aria-modal="true" aria-labelledby="warmupsSettingsModalTitle">
+        <div class="modal-content modal-content-sticky-footer">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <div class="metroSeg-scroll-area">
+                <h2 id="warmupsSettingsModalTitle">Warm-ups</h2>
+                <div class="form-group"><label for="warmupsInstrument">Instrument</label><select id="warmupsInstrument"></select></div>
+                <div class="form-group" role="group" aria-labelledby="warmupsKindsLabel">
+                    <label id="warmupsKindsLabel">Kinds <span class="text-muted" id="warmupsKindsSummary"></span></label>
+                    <div class="pick-bar" id="warmupsKindsBar"></div>
+                    <div id="warmupsKindsList"></div>
+                </div>
+                <div class="scales-pool-line">
+                    <p class="scales-pool-count" id="warmupsCount" aria-live="polite"></p>
+                    <button type="button" class="scales-range-link" id="warmupsSeeRangeBtn" aria-haspopup="dialog">See your range</button>
+                </div>
+                <p class="text-sm text-muted" id="warmupsLockedNote"></p>
+            </div>
+            <div class="metroSeg-sticky-footer">
+                <button type="button" class="btn-submit no-margin" data-modal-close>Done</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="warmupsClefModal" role="dialog" aria-modal="true" aria-labelledby="warmupsClefModalTitle">
         <div class="modal-content">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
-            <h2 id="warmupsSettingsModalTitle">My warm-ups</h2>
-            <p class="text-muted modal-intro">Next and Previous go through the kinds you choose, in order.</p>
-            <div class="form-group">
-                <label>Kinds of warm-up</label>
-            <div class="radio-group"><input type="checkbox" id="warmupsKinds-long-tones" name="warmupsKinds" value="long-tones"><label for="warmupsKinds-long-tones">Long tones</label><input type="checkbox" id="warmupsKinds-lip-slurs" name="warmupsKinds" value="lip-slurs"><label for="warmupsKinds-lip-slurs">Lip slurs</label><input type="checkbox" id="warmupsKinds-flexibility" name="warmupsKinds" value="flexibility"><label for="warmupsKinds-flexibility">Flexibility</label><input type="checkbox" id="warmupsKinds-articulation" name="warmupsKinds" value="articulation"><label for="warmupsKinds-articulation">Articulation</label><input type="checkbox" id="warmupsKinds-fingers" name="warmupsKinds" value="fingers"><label for="warmupsKinds-fingers">Finger patterns</label><input type="checkbox" id="warmupsKinds-melodic" name="warmupsKinds" value="melodic"><label for="warmupsKinds-melodic">Easy melodies</label></div>
+            <h2 id="warmupsClefModalTitle">Clef</h2>
+            <p class="text-muted modal-intro">Starts on your instrument's clef - change it here (a euphonium reads either). Bass clef is the same exercise a 9th lower, so a lip slur stays on the same harmonics.</p>
+            <div class="flow-tile-grid flow-tile-grid-2-centered scales-choice-grid" id="warmupsClefGrid"></div>
+        </div>
+    </div>
+    <!-- ML-361: Choose a warm-up (from Select): the list by kind; the locked ones in place with a lock. -->
+    <div class="modal" id="warmupsChooseModal" role="dialog" aria-modal="true" aria-labelledby="warmupsChooseTitle">
+        <div class="modal-content modal-content-sticky-footer">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <div class="metroSeg-scroll-area">
+                <h2 id="warmupsChooseTitle">Choose a warm-up</h2>
+                <p class="text-muted modal-intro" id="warmupsChooseIntro"></p>
+                <div id="warmupsChooseList"></div>
             </div>
-            <div class="form-group">
-                <label>Clef</label>
-            <div class="radio-group"><input type="radio" id="warmupsClef-treble" name="warmupsClef" value="treble"><label for="warmupsClef-treble">Treble</label><input type="radio" id="warmupsClef-bass" name="warmupsClef" value="bass"><label for="warmupsClef-bass">Bass</label></div>
+            <div class="metroSeg-sticky-footer">
+                <button type="button" class="btn-nav btn-cancel no-margin" id="warmupsChooseEditBtn">Change your warm-ups</button>
             </div>
-            <p class="scales-pool-count" id="warmupsCount" aria-live="polite"></p>
-            <button type="button" class="btn-submit no-margin mt-4" data-modal-close>Done</button>
         </div>
     </div>
     <div class="modal" id="warmupsRepeatModal" role="dialog" aria-modal="true" aria-labelledby="warmupsRepeatModalTitle">
@@ -2515,17 +2544,14 @@
     </div>
 
 
-    <!-- ML-294: Warm-ups. The same layout as Scales (it shares its classes): Previous / Next exercise /
-         Shuffle (a random one) / My warm-ups (which kinds, and treble or bass clef), the exercise on the stave - the note to play
-         lights gold, following each note's length - then the transport and tempo box. Exercises come
-         from /api/warmups (edited in Admin -> Warm-ups); drawn by public/warmups.js + Notation.staff.
-         See specs/components/warmups.md. -->
+    <!-- ML-294 / ML-361: Warm-ups, in the Scales layout: Warm-ups (instrument and kinds) and Clef along the
+         top; the exercise - title, tip, the stave (slurs drawn), the note to play lighting gold - with
+         Previous / Next / Shuffle / Select under it; then Use metronome. Exercises come from /api/warmups
+         (Admin -> Warm-ups); drawn by public/warmups.js + Notation.staff. See specs/components/warmups.md. -->
     <div id="warmupsView" class="hidden-group">
-        <div class="scales-pick-row">
-            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsPrevBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><span class="metroBlk-ctrl-value-label">previous</span></button>
-            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsNextBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><span class="metroBlk-ctrl-value-label">next</span></button>
-            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsShuffleBtn"><span class="material-symbols-outlined" aria-hidden="true">shuffle</span><span class="metroBlk-ctrl-value-label">shuffle</span></button>
-            <button type="button" class="metro-play-grid-btn scales-pick-mine" id="warmupsSettingsBtn" aria-haspopup="dialog"><span class="material-symbols-outlined" aria-hidden="true">playlist_add_check</span><span class="metroBlk-ctrl-value-label">my warm-ups</span></button>
+        <div class="metro-transport-grid scales-setting-row is-centred">
+            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="warmupsSettingsBtn" aria-haspopup="dialog" aria-label="Warm-ups - your instrument and the kinds"><strong><span class="material-symbols-outlined" aria-hidden="true">playlist_add_check</span></strong><span class="metroBlk-ctrl-value-label">warm-ups</span></button>
+            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="warmupsClefBtn" aria-haspopup="dialog" aria-label="Clef - tap to change"><strong id="warmupsClefVal">Treble</strong><span class="metroBlk-ctrl-value-label">clef</span></button>
         </div>
         <section class="flow-card scales-staff-card" aria-labelledby="warmupsTitle">
             <div class="scales-staff-head">
@@ -2537,8 +2563,20 @@
             </div>
             <p class="warmups-tip" id="warmupsTip"></p>
             <div class="scales-staff" id="warmupsStaff"></div>
+            <div class="scales-pick-row">
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsPrevBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><span class="metroBlk-ctrl-value-label">previous</span></button>
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsNextBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><span class="metroBlk-ctrl-value-label">next</span></button>
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsShuffleBtn"><span class="material-symbols-outlined" aria-hidden="true">shuffle</span><span class="metroBlk-ctrl-value-label">shuffle</span></button>
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsChooseBtn" aria-haspopup="dialog" aria-label="Select - choose a warm-up from your list"><span class="material-symbols-outlined" aria-hidden="true">format_list_bulleted</span><span class="metroBlk-ctrl-value-label">select</span></button>
+            </div>
         </section>
-        <div class="metro-transport-grid mt-3">
+        <section class="flow-card scales-staff-card scales-metronome-card" aria-labelledby="warmupsMetronomeLbl">
+            <div class="scales-staff-head">
+                <h2 class="scales-staff-title" id="warmupsMetronomeLbl">Use metronome</h2>
+                <label class="toggle-switch"><input type="checkbox" id="warmupsMetronomeToggle" aria-labelledby="warmupsMetronomeLbl"><span class="toggle-slider"></span></label>
+            </div>
+            <div id="warmupsMetronomeControls">
+        <div class="metro-transport-grid">
             <button type="button" class="metro-play-grid-btn" id="warmupsPlayBtn" aria-label="Play - press and hold to go back to the start" aria-pressed="false">
                 <span class="material-symbols-outlined" id="warmupsPlayIcon">play_arrow</span>
                 <span class="metroBlk-ctrl-value-label" id="warmupsPlayLbl">play</span>
@@ -2573,6 +2611,8 @@
                 <div class="slider-scale"><span>15</span><span>200</span></div>
             </div>
         </div>
+            </div>
+        </section>
     </div>
 
     <!-- ML-260 Theory practice: list -> options -> play -> results, one view each so the top bar's
