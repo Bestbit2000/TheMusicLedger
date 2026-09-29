@@ -1,5 +1,116 @@
 [
   {
+    "version": "0.32.0",
+    "date": "2026-09-29",
+    "changes": [
+      {
+        "key": "ML-347",
+        "type": "Fixes",
+        "summary": "Head phone delay test needs to have the same format as the stard metronome"
+      },
+      {
+        "key": "ML-346",
+        "type": "New",
+        "summary": "Create a 2 new account types"
+      },
+      {
+        "key": "ML-345",
+        "type": "New",
+        "summary": "Gate out any feature for standard members that's not fully sorted out"
+      },
+      {
+        "key": "ML-344",
+        "type": "New",
+        "summary": "My account labels say \"My\", not \"Your\""
+      },
+      {
+        "key": "ML-343",
+        "type": "New",
+        "summary": "Practise warm up list required"
+      },
+      {
+        "key": "ML-342",
+        "type": "New",
+        "summary": "Add practise,  focus for the rest should be part of the template"
+      },
+      {
+        "key": "ML-341",
+        "type": "New",
+        "summary": "Skills list don't need to see detail or play it"
+      },
+      {
+        "key": "ML-340",
+        "type": "New",
+        "summary": "Add a skill to be able to multi select in pop up."
+      },
+      {
+        "key": "ML-339",
+        "type": "New",
+        "summary": "Add a skill to save to a skill list to reuse"
+      },
+      {
+        "key": "ML-338",
+        "type": "New",
+        "summary": "Add a skill to have a grade filter "
+      },
+      {
+        "key": "ML-337",
+        "type": "New",
+        "summary": "Setting up practise list time needs slider"
+      },
+      {
+        "key": "ML-336",
+        "type": "New",
+        "summary": "Boxes on prepare piece to be 10 across"
+      },
+      {
+        "key": "ML-334",
+        "type": "Fixes",
+        "summary": "Practise list - not set up piece had wrong icons"
+      },
+      {
+        "key": "ML-333",
+        "type": "New",
+        "summary": "Remove Number of sessions and length for practise"
+      },
+      {
+        "key": "ML-332",
+        "type": "New",
+        "summary": "Practise list concert date needs a pop up button"
+      },
+      {
+        "key": "ML-331",
+        "type": "New",
+        "summary": "Instrument list is in weird order. "
+      },
+      {
+        "key": "ML-330",
+        "type": "New",
+        "summary": "Your details to have edit for band"
+      },
+      {
+        "key": "ML-329",
+        "type": "New",
+        "summary": "My music to show library list straight away"
+      },
+      {
+        "key": "ML-328",
+        "type": "New",
+        "summary": "Gate the save to flow from metronome"
+      },
+      {
+        "key": "ML-327",
+        "type": "New",
+        "summary": "Stats needs a home page"
+      },
+      {
+        "key": "ML-326",
+        "type": "New",
+        "summary": "Put tools into sub menu"
+      }
+    ]
+  },
+  {
     "version": "0.31.0",
     "date": "2026-09-28",
     "changes": [
