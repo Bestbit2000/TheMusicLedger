@@ -70,7 +70,12 @@ sub-beats, the 4:30 chunk length rule, the heat map, and the practice mode.
 ## Practice lists and the forecast (ML-319, reworked by ML-332/333/334)
 
 - **A list** is the pieces you're working towards, with an optional **target date** (a concert, an
-  exam, a lesson - ML-332: a button opening a pop-up, "No target date" or "Pick a date"). It's
+  exam, a lesson - ML-332: a button opening a pop-up, "No target date" or "Pick a date"; ML-348: the
+  button is one fixed quarter-width cell of the 4-across grid, showing dd mmm yy). Each piece row
+  has a ⋮ menu (ML-349): **Prepare levels** (**Edit levels** once it has them), then **Delete**,
+  which asks first and offers Undo. **Add pieces** (ML-351) is the same pick list as Add skills,
+  offering only pieces not on the list yet, filtered like My music (All / Mine / each band / Public,
+  plus search); Select all / Unselect all act on what the filter shows. It's
   personal, or a band's: any member of the band can create and change a band's list. There's nothing
   else to type in (ML-333 took out sessions a week and minutes each; the columns stay, unused).
 - **The forecast** (`PracticePlan.forecast`) counts five-minute blocks, assuming one block moves one
@@ -92,7 +97,9 @@ sub-beats, the 4:30 chunk length rule, the heat map, and the practice mode.
   order. My skills shows one at a time (a pill each, + New list, Rename, Delete). Where you're up to
   on a skill (`skill_list_items`) is shared by every list it's on and kept when it comes off one.
   Rows show the skill and where you're up to only (ML-341) - practising happens in sessions.
-- **Adding skills (ML-340):** tick several in Add skills, then Add. **Grades (ML-338):** the pop-up
+- **Adding skills (ML-340):** tick several in Add skills, then Add (ML-353: a pick list - tick boxes,
+  Select all / Unselect all on the grade showing, "Add N skills" pinned at the bottom; see
+  `specs/components/pick-list.md`). **Grades (ML-338):** the pop-up
   filters by Grade 1-5. Each skill belongs to a span of grades (`SKILLS[k].grades` in app.js), a first
   cut the owner can adjust:
 

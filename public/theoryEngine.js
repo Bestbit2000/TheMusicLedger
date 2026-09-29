@@ -54,13 +54,16 @@
 
     // ---------------------------------------------------------------- options
 
+    // ML-354: one fixed length per kind - a longer test is the same round repeated (REPEATS, x1-x5),
+    // each repeat scored on its own, and the best one counts. So a score never depends on the length.
     const ROUNDS = [
         { value: 't30', label: '30 s', seconds: 30 },
-        { value: 't60', label: '60 s', seconds: 60 },
         { value: 'q10', label: '10 questions', questions: 10 },
-        { value: 'q20', label: '20 questions', questions: 20 },
     ];
-    const DEFAULT_ROUND = 't60';
+    const DEFAULT_ROUND = 't30';
+    const REPEATS = [1, 2, 3, 4, 5];
+    const DEFAULT_REPEATS = 1;
+    const repeatsOf = (n) => (REPEATS.includes(Number(n)) ? Number(n) : DEFAULT_REPEATS);
 
     // Clef is multi-select (not "Both"); alto and tenor arrived with Theory grades (ML-309).
     // showIf: { key: value } or { key: [values] } - shown only while every listed option matches.
@@ -1427,9 +1430,24 @@
         }
         return { right, wrong, score, grade: gradeFor(score) };
     }
+    // ML-354: a repeated test. answers carry block (1..repeats); blockMs is each block's time (a fixed
+    // round's own clock; timed blocks are the round's length). Every block is scored as a round on its
+    // own and the best one is the result: highest score, then the quicker, then the earlier. Returns
+    // that block's right/wrong/score/grade, which block it was (1-based), and every block's score.
+    function scoreBlocks(roundId, answers, repeats, blockMs) {
+        const n = repeatsOf(repeats);
+        const blocks = Array.from({ length: n }, (_, i) => ({
+            ...scoreRound(roundId, answers.filter(a => (a.block || 1) === i + 1)),
+            ms: blockMs && Number.isFinite(blockMs[i]) ? blockMs[i] : 0
+        }));
+        let best = 0;
+        blocks.forEach((b, i) => { if (b.score > blocks[best].score || (b.score === blocks[best].score && b.ms < blocks[best].ms)) best = i; });
+        const { right, wrong, score, grade, ms } = blocks[best];
+        return { right, wrong, score, grade, ms, bestBlock: best + 1, blockScores: blocks.map(b => b.score) };
+    }
 
     return {
-        QUIZZES, ROUNDS, DEFAULT_ROUND, SYMBOLS, SET_IDS, SPEEDS, speedFor, speedLabel, KEY_TABLE, RANGE_STEPS, NOTE_BUTTONS, KEYBOARD_BUTTONS, MIXED_LEVELS, SCALE_FORMS, SCALE_FORM_LABEL, buildScale, writeScale, scalePool, TIMING, GRADE_LIMITS, PAR,
+        QUIZZES, ROUNDS, DEFAULT_ROUND, REPEATS, DEFAULT_REPEATS, repeatsOf, scoreBlocks, SYMBOLS, SET_IDS, SPEEDS, speedFor, speedLabel, KEY_TABLE, RANGE_STEPS, NOTE_BUTTONS, KEYBOARD_BUTTONS, MIXED_LEVELS, SCALE_FORMS, SCALE_FORM_LABEL, buildScale, writeScale, scalePool, TIMING, GRADE_LIMITS, PAR,
         quiz, round, normaliseOptions, optionVisible, settingsKey, describeOptions,
         makeRng, questionSource, itemsFor, SMART, nextWeight, smartOrder, reviewBoost, effectiveWeight, itemFromId, describeQuestion, WEAK_SPOTS, scalePitches, keyPool, keyAlters, noteItems, parOf,
         spell, spellName, scoreRound, gradeFor, ALL_KEYS,

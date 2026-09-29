@@ -1017,8 +1017,10 @@
          works out the five-minute blocks it takes and the daily pace to the target date. -->
     <div id="practiceListView" class="hidden-group">
         <div class="form-group"><label for="plName">Name</label><input type="text" id="plName" maxlength="80" autocomplete="off" placeholder="e.g. Cobham concert"></div>
-        <div class="form-group">
-            <button type="button" class="metroBlk-ctrl-value-btn" id="plDateBtn" aria-haspopup="dialog" aria-expanded="false" aria-label="Target date - tap to change">
+        <!-- ML-348: one cell of the standard 4-across grid - a fixed quarter width that doesn't grow with
+             the date, the same height as every other 4-across row. -->
+        <div class="metro-transport-grid">
+            <button type="button" class="metroBlk-ctrl-value-btn is-date" id="plDateBtn" aria-haspopup="dialog" aria-expanded="false" aria-label="Target date - tap to change">
                 <strong id="plDateBtnText">None</strong>
                 <span class="metroBlk-ctrl-value-label">target date</span>
             </button>
@@ -1030,6 +1032,12 @@
         </section>
         <div class="section-title">Pieces</div>
         <div id="plPieces"></div>
+        <!-- ML-349: one shared ⋮ menu for every piece row - Prepare levels (Edit levels once it has
+             them), then Delete. Same pattern as My music's flowLibraryItemMenu. -->
+        <div class="dropdown-menu metroBlk-tile-menu" id="plPieceMenu">
+            <button type="button" class="dropdown-item" id="plPieceMenuLevels"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">signal_cellular_alt</span><span class="dropdown-item-text" id="plPieceMenuLevelsText">Prepare levels</span></button>
+            <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="plPieceMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete</span></button>
+        </div>
         <button type="button" class="btn-nav" id="plAddPiecesBtn" aria-haspopup="dialog">+ Add pieces</button>
         <button type="button" class="btn-submit" id="plPlanBtn">Plan a session for this</button>
         <button type="button" class="btn-text btn-text-danger" id="plDeleteBtn">Delete this list</button>
@@ -2564,6 +2572,8 @@
         <div class="theory-grade-block">
             <div class="theory-grade theory-grade-lg" id="theoryResultGrade" role="img"></div>
             <p class="theory-best-line" id="theoryResultBest"></p>
+            <!-- ML-354: a repeated test lists every round's score; the best one counts. -->
+            <p class="theory-best-line hidden-group" id="theoryResultRounds"></p>
             <p class="theory-best-line hidden-group" id="theoryResultSmart"></p>
         </div>
         <div class="dashboard-grid">
@@ -2809,14 +2819,25 @@
     </div>
 </div>
 
-<!-- ML-321: add skills to a list. ML-338: filter by grade (1-5). ML-340: pick several, then Add. -->
+<!-- ML-321: add skills to a list. ML-338: filter by grade (1-5). ML-340: pick several, then Add.
+     ML-353: a pick list (tick boxes, Select all / Unselect all on what the filter shows) with the Add
+     button pinned at the bottom. -->
 <div class="modal" id="skillsAddModal" role="dialog" aria-modal="true" aria-labelledby="skillsAddTitle">
-    <div class="modal-content">
+    <div class="modal-content modal-content-sticky-footer">
         <button type="button" class="modal-close-x" id="skillsAddCloseBtn" aria-label="Close">&times;</button>
-        <h2 id="skillsAddTitle">Add skills</h2>
-        <div class="filter-strip-pills mb-3" id="skillsAddGrades" role="group" aria-label="Show skills for"></div>
-        <div id="skillsAddOptions"></div>
-        <button type="button" class="btn-submit mt-3 no-margin" id="skillsAddDoneBtn" disabled>Add</button>
+        <div class="metroSeg-scroll-area">
+            <h2 id="skillsAddTitle">Add skills</h2>
+            <!-- ML-352: the standard filter strip (tune icon on the left), same as My music/Stats/History. -->
+            <div class="filter-strip">
+                <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
+                <div class="filter-strip-pills" id="skillsAddGrades" role="group" aria-label="Show skills for"></div>
+            </div>
+            <div class="pick-bar" id="skillsAddPickBar"></div>
+            <div id="skillsAddOptions"></div>
+        </div>
+        <div class="metroSeg-sticky-footer">
+            <button type="button" class="btn-submit no-margin" id="skillsAddDoneBtn" disabled>Add</button>
+        </div>
     </div>
 </div>
 
@@ -2933,12 +2954,25 @@
     </div>
 </div>
 
+<!-- ML-351: add pieces to a practice list - a pick list (tick several, Select all / Unselect all on
+     what the filter shows), filtered by owner (All / Mine / each band / Public) and a search, with the
+     Add button pinned at the bottom. Pieces already on the list aren't offered; take one off with its ⋮. -->
 <div class="modal" id="plPiecesModal" role="dialog" aria-modal="true" aria-labelledby="plPiecesTitle">
-    <div class="modal-content">
+    <div class="modal-content modal-content-sticky-footer">
         <button type="button" class="modal-close-x" id="plPiecesCloseBtn" aria-label="Close">&times;</button>
-        <h2 id="plPiecesTitle">Pieces in this list</h2>
-        <div id="plPiecesOptions"></div>
-        <button type="button" class="btn-submit mt-3 no-margin" id="plPiecesDoneBtn">Done</button>
+        <div class="metroSeg-scroll-area">
+            <h2 id="plPiecesTitle">Add pieces</h2>
+            <div class="filter-strip">
+                <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
+                <div class="filter-strip-pills" id="plPiecesFilterPills" role="group" aria-label="Show pieces"></div>
+            </div>
+            <input type="search" id="plPiecesSearch" class="mb-3" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
+            <div class="pick-bar" id="plPiecesPickBar"></div>
+            <div id="plPiecesOptions"></div>
+        </div>
+        <div class="metroSeg-sticky-footer">
+            <button type="button" class="btn-submit no-margin" id="plPiecesDoneBtn" disabled>Add</button>
+        </div>
     </div>
 </div>
 

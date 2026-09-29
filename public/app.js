@@ -3391,7 +3391,7 @@
         list.innerHTML = myInstruments.length ? myInstruments.map(i => `
             <div class="history-item">
                 <span class="grow"><strong>${escapeHtml(i.name)}</strong><br><span class="text-sm text-muted">${i.isPrimary ? 'Main instrument' : escapeHtml(i.family)}${isFeatureEnabled('range_trainer') && i.bottomNote && i.topNote ? ` · range ${PlayRange.label(i.bottomNote)} to ${PlayRange.label(i.topNote)}` : ''}</span></span>
-                <button class="btn-icon-edit" data-instrument-menu-id="${i.id}" aria-label="Options for ${escapeHtml(i.name)}" aria-haspopup="menu"><span class="material-symbols-outlined">more_vert</span></button>
+                <button type="button" class="list-item-menu-btn" data-instrument-menu-id="${i.id}" aria-label="Options for ${escapeHtml(i.name)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
             </div>`).join('') : '<div class="text-muted">No instruments yet - choose the one you play below.</div>';
         list.querySelectorAll('[data-instrument-menu-id]').forEach(btn => btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -3475,7 +3475,7 @@
             container.innerHTML = accountBandsData.myBands.map(b => `
                 <div class="history-item">
                     <span>${b.displayName}</span>
-                    <button class="btn-icon-edit" data-band-menu-id="${b.id}" aria-label="Options for ${b.displayName}"><span class="material-symbols-outlined">more_vert</span></button>
+                    <button type="button" class="list-item-menu-btn" data-band-menu-id="${b.id}" aria-label="Options for ${b.displayName}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 </div>
             `).join('');
             container.querySelectorAll('[data-band-menu-id]').forEach(btn => {
@@ -5964,11 +5964,12 @@
     function plForecast(list) {
         return PracticePlan.forecast({ pieces: list.pieces, eventDate: list.eventDate, today: todayIso() });
     }
-    // ML-332: the target date button and its pop-up - no target date, or pick one.
+    // ML-332: the target date button and its pop-up - no target date, or pick one. ML-348: dd mmm yy,
+    // so the longest date still fits the button's fixed quarter width.
     function plDateLabel(iso) {
         if (!iso) return 'None';
         const d = new Date(`${iso}T12:00:00`);
-        return `${DAYS_SHORT[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+        return `${String(d.getDate()).padStart(2, '0')} ${MONTHS_SHORT[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
     }
     function openPlDateModal() {
         const l = plState.list;
@@ -6048,16 +6049,50 @@
                     <span class="grow"><strong>${escapeHtml(p.title)}</strong><br><span class="text-sm text-muted">${note}</span>
                     ${pb.prep ? '<span class="text-sm fw-bold">Prepare it now &rsaquo;</span>' : `<span class="level-strip mt-1" aria-hidden="true">${map.map(v => `<span class="level-cell lv-${v || 0}"></span>`).join('')}</span>`}</span>
                 </button>
-                <button type="button" class="flow-delete-btn" data-remove-piece="${p.scoreId}" aria-label="Take ${escapeHtml(p.title)} off this list"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+                <button type="button" class="list-item-menu-btn" data-piece-menu="${p.scoreId}" aria-label="Options for ${escapeHtml(p.title)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined" aria-hidden="true">more_vert</span></button>
             </div>`;
         }).join('') : '<p class="text-sm text-muted">No pieces yet.</p>';
         box.querySelectorAll('[data-piece]').forEach(b => b.addEventListener('click', () => openLevelsForPiece(Number(b.dataset.piece))));
-        box.querySelectorAll('[data-remove-piece]').forEach(b => b.addEventListener('click', () => plSetPieces(l.pieces.map(p => p.scoreId).filter(id => id !== Number(b.dataset.removePiece)))));
+        box.querySelectorAll('[data-piece-menu]').forEach(b => b.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openPlPieceMenu(b, Number(b.dataset.pieceMenu));
+        }));
         document.getElementById('plPlanBtn').disabled = !l.pieces.length;
     }
+    // ML-349: a piece row's ⋮ menu - Prepare levels / Edit levels, then Delete (asks first, then Undo).
+    let plPieceMenuTargetId = null;
+    function openPlPieceMenu(btnEl, id) {
+        const menu = document.getElementById('plPieceMenu');
+        const i = plState.list.pieces.findIndex(p => p.scoreId === id);
+        if (!menu || i < 0) return;
+        plPieceMenuTargetId = id;
+        document.getElementById('plPieceMenuLevelsText').textContent = plForecast(plState.list).pieces[i].prep ? 'Prepare levels' : 'Edit levels';
+        menu.classList.add('show');
+        const r = btnEl.getBoundingClientRect();
+        placeAt(menu, Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8)),
+            Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8));
+    }
+    function closePlPieceMenu() { document.getElementById('plPieceMenu')?.classList.remove('show'); }
+    document.addEventListener('click', closePlPieceMenu);
+    document.getElementById('plPieceMenuLevels')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closePlPieceMenu();
+        openLevelsForPiece(plPieceMenuTargetId);
+    });
+    document.getElementById('plPieceMenuDelete')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closePlPieceMenu();
+        const id = plPieceMenuTargetId;
+        const piece = plState.list.pieces.find(p => p.scoreId === id);
+        if (!piece) return;
+        showConfirmModal('Delete piece', `Take "${piece.title}" off this list? It stays in My music.`, async () => {
+            const listId = plState.list.id, before = plState.list.pieces.map(p => p.scoreId);
+            if (await plSetPieces(before.filter(x => x !== id))) showUndoToast(`${piece.title} taken off the list`, () => { if (plState.list?.id === listId) plSetPieces(before); });
+        }, true, 'Delete');
+    });
     async function plSetPieces(ids) {
-        try { plState.list = await API.practiceLists.setPieces(plState.list.id, ids); renderPracticeList(); }
-        catch (e) { showWarningToast('List not saved: ' + e.message); }
+        try { plState.list = await API.practiceLists.setPieces(plState.list.id, ids); renderPracticeList(); return true; }
+        catch (e) { showWarningToast('List not saved: ' + e.message); return false; }
     }
     // The name saves a moment after you stop typing (the target date saves from its pop-up).
     function plFieldChanged() {
@@ -6083,30 +6118,51 @@
             showWarningToast('Piece not loaded: ' + e.message);
         }
     }
+    // ML-351: Add pieces - a pick list of the pieces not on the list yet, filtered like My music (All /
+    // Mine / each band / Public, plus a title/composer search; flowLibraryFilterKey), both per visit.
+    const plPick = { filter: 'all', query: '' };
     function openPlPiecesModal() {
-        const l = plState.list;
-        plState.picked = new Set(l.pieces.map(p => p.scoreId));
-        const box = document.getElementById('plPiecesOptions');
-        const pieces = (typeof rehearsePlayable === 'function' ? rehearsePlayable() : flowsListCache) || [];
-        box.innerHTML = pieces.length ? pieces.map(f => `<button type="button" class="flow-choice-option level-answer${plState.picked.has(f.id) ? ' selected' : ''}" aria-pressed="${plState.picked.has(f.id)}" data-pick="${f.id}"><span><strong>${escapeHtml(f.title)}</strong><br><span class="text-sm text-muted">${f.totalBars} bars</span></span></button>`).join('')
-            : '<p class="metro-help-text">No pieces yet - add one in My music.</p>';
-        box.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => {
-            const id = Number(b.dataset.pick);
-            if (plState.picked.has(id)) plState.picked.delete(id); else plState.picked.add(id);
-            b.classList.toggle('selected', plState.picked.has(id));
-            b.setAttribute('aria-pressed', String(plState.picked.has(id)));
-        }));
+        plState.picked = new Set();
+        plPick.filter = 'all';
+        plPick.query = '';
+        document.getElementById('plPiecesSearch').value = '';
+        renderPlPiecesModal();
         showModal('plPiecesModal');
+        if (!Object.keys(flowLibraryBandNames).length) loadFlowLibraryBandNames().then(renderPlPiecesModal);
     }
+    function renderPlPiecesModal() {
+        const onList = new Set(plState.list.pieces.map(p => p.scoreId));
+        const offered = ((typeof rehearsePlayable === 'function' ? rehearsePlayable() : flowsListCache) || []).filter(f => !onList.has(f.id));
+        const ownerName = (key) => key === 'mine' ? 'Mine' : key === 'public' ? 'Public' : (flowLibraryBandNames[Number(key.slice(5))] || 'Band');
+        const counts = { all: offered.length, mine: 0, public: 0 };
+        offered.forEach(f => { const k = flowLibraryFilterKey(f); counts[k] = (counts[k] || 0) + 1; });
+        const bandKeys = Object.keys(counts).filter(k => k.startsWith('band:')).sort((a, b) => ownerName(a).localeCompare(ownerName(b)));
+        if (plPick.filter !== 'all' && !counts[plPick.filter]) plPick.filter = 'all';
+        const pills = document.getElementById('plPiecesFilterPills');
+        pills.innerHTML = ['all', 'mine', ...bandKeys, 'public'].map(k =>
+            `<button type="button" class="filter-pill${plPick.filter === k ? ' active' : ''}" data-pl-filter="${escapeHtml(k)}" aria-pressed="${plPick.filter === k}">${escapeHtml(k === 'all' ? 'All' : ownerName(k))} <span class="filter-pill-count">${counts[k] || 0}</span></button>`).join('');
+        pills.querySelectorAll('[data-pl-filter]').forEach(b => b.addEventListener('click', () => { plPick.filter = b.dataset.plFilter; renderPlPiecesModal(); }));
+        const q = plPick.query;
+        const shown = offered.filter(f => (plPick.filter === 'all' || flowLibraryFilterKey(f) === plPick.filter)
+            && (!q || f.title.toLowerCase().includes(q) || (f.composer || '').toLowerCase().includes(q)));
+        const rows = shown.map(f => ({ key: f.id, html: `<strong>${escapeHtml(f.title)}</strong><br><span class="text-sm text-muted">${f.composer ? escapeHtml(f.composer) + ' · ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} · ${escapeHtml(ownerName(flowLibraryFilterKey(f)))}</span>` }));
+        renderPickList(document.getElementById('plPiecesOptions'), document.getElementById('plPiecesPickBar'), rows, plState.picked, renderPlPiecesDone,
+            `<p class="metro-help-text">${!offered.length ? (onList.size ? 'Every piece is on this list already.' : 'No pieces yet - add one in My music.') : 'No pieces match.'}</p>`);
+    }
+    function renderPlPiecesDone() {
+        const btn = document.getElementById('plPiecesDoneBtn');
+        btn.disabled = !plState.picked.size;
+        btn.textContent = pickCountLabel(plState.picked.size, 'piece');
+    }
+    document.getElementById('plPiecesSearch')?.addEventListener('input', (e) => { plPick.query = e.target.value.trim().toLowerCase(); renderPlPiecesModal(); });
     document.getElementById('practiceListNewBtn')?.addEventListener('click', () => newPracticeList());
     document.getElementById('plName')?.addEventListener('input', plFieldChanged);
     document.getElementById('plAddPiecesBtn')?.addEventListener('click', () => { if (!flowsListCache.length) rehearseRefresh(); openPlPiecesModal(); });
     document.getElementById('plPiecesCloseBtn')?.addEventListener('click', () => hideModal('plPiecesModal'));
     document.getElementById('plPiecesDoneBtn')?.addEventListener('click', () => {
+        if (!plState.picked.size) return;
         hideModal('plPiecesModal');
-        const keep = plState.list.pieces.map(p => p.scoreId).filter(id => plState.picked.has(id));
-        const added = [...plState.picked].filter(id => !keep.includes(id));
-        plSetPieces([...keep, ...added]);
+        plSetPieces([...plState.list.pieces.map(p => p.scoreId), ...plState.picked]);
     });
     document.getElementById('plPlanBtn')?.addEventListener('click', () => {
         // ML-333/342: a session for a list is the Concert template (Warm-up, then Rehearsal) on its pieces.
@@ -6350,8 +6406,36 @@
         await loadSkills();
         renderSkills();
     }
+    // ML-351/353: a pick list - rows you tick (tapping anywhere on a row toggles its tick box), and a
+    // Select all / Unselect all bar that acts only on the rows showing (the current filter/search).
+    // rows: [{ key, html }]; picked: a Set of keys, kept by the caller across filter changes;
+    // onChange runs after any change (to update the "Add N ..." button).
+    function renderPickList(listEl, barEl, rows, picked, onChange, emptyHtml) {
+        listEl.innerHTML = rows.length ? rows.map((r, i) => `<button type="button" class="flow-choice-option level-answer pick-row" data-pick-row="${i}"><span class="material-symbols-outlined pick-row-check" aria-hidden="true"></span><span class="grow">${r.html}</span></button>`).join('') : emptyHtml;
+        barEl.innerHTML = '<button type="button" class="btn-text" data-pick-all>Select all</button><button type="button" class="btn-text" data-pick-none>Unselect all</button>';
+        setShown(barEl, rows.length > 1);
+        const sync = () => {
+            listEl.querySelectorAll('[data-pick-row]').forEach(b => {
+                const on = picked.has(rows[Number(b.dataset.pickRow)].key);
+                b.classList.toggle('selected', on);
+                b.setAttribute('aria-pressed', String(on));
+                b.querySelector('.pick-row-check').textContent = on ? 'check_box' : 'check_box_outline_blank';
+            });
+            onChange();
+        };
+        listEl.querySelectorAll('[data-pick-row]').forEach(b => b.addEventListener('click', () => {
+            const k = rows[Number(b.dataset.pickRow)].key;
+            if (picked.has(k)) picked.delete(k); else picked.add(k);
+            sync();
+        }));
+        barEl.querySelector('[data-pick-all]').addEventListener('click', () => { rows.forEach(r => picked.add(r.key)); sync(); });
+        barEl.querySelector('[data-pick-none]').addEventListener('click', () => { rows.forEach(r => picked.delete(r.key)); sync(); });
+        sync();
+    }
+    const pickCountLabel = (n, word) => n ? `Add ${n} ${word}${n === 1 ? '' : 's'}` : 'Add';
+
     // ML-340: tick several skills, then Add. ML-338: All or Grade 1-5 - a grade shows the skills that
-    // belong to it (SKILLS[k].grades). With no list yet, adding starts "My skills".
+    // belong to it (SKILLS[k].grades). With no list yet, adding starts "My skills". ML-353: a pick list.
     const skillsAdd = { grade: 0, picked: new Set() };
     function openSkillsAddModal() {
         skillsAdd.picked = new Set();
@@ -6369,24 +6453,18 @@
         const keys = Object.keys(SKILLS).filter(k => !have.has(k) && (!SKILLS[k].feature || isFeatureEnabled(SKILLS[k].feature))
             && (!g || (SKILLS[k].grades[0] <= g && g <= SKILLS[k].grades[1])));
         const gradeText = (d) => (d.grades[0] === d.grades[1] ? `Grade ${d.grades[0]}` : `Grades ${d.grades[0]}-${d.grades[1]}`);
-        box.innerHTML = keys.length ? keys.map(k => {
-            const d = SKILLS[k], on = skillsAdd.picked.has(k);
-            return `<button type="button" class="flow-choice-option level-answer${on ? ' selected' : ''}" aria-pressed="${on}" data-add-skill="${k}"><span><strong>${escapeHtml(d.label)}</strong><br><span class="text-sm text-muted">${gradeText(d)} · ${d.rolling ? d.desc : `${d.steps().length} steps · ${d.graded ? 'moves on at grade 4 or 5' : 'you say when you\'ve got it'}`}</span></span></button>`;
-        }).join('') : `<p class="metro-help-text">${g ? `Every Grade ${g} skill is on this list already.` : 'Every skill is on this list already.'}</p>`;
-        box.querySelectorAll('[data-add-skill]').forEach(b => b.addEventListener('click', () => {
-            const k = b.dataset.addSkill;
-            if (skillsAdd.picked.has(k)) skillsAdd.picked.delete(k); else skillsAdd.picked.add(k);
-            b.classList.toggle('selected', skillsAdd.picked.has(k));
-            b.setAttribute('aria-pressed', String(skillsAdd.picked.has(k)));
-            renderSkillsAddDone();
-        }));
-        renderSkillsAddDone();
+        const rows = keys.map(k => {
+            const d = SKILLS[k];
+            return { key: k, html: `<strong>${escapeHtml(d.label)}</strong><br><span class="text-sm text-muted">${gradeText(d)} · ${d.rolling ? d.desc : `${d.steps().length} steps · ${d.graded ? 'moves on at grade 4 or 5' : 'you say when you\'ve got it'}`}</span>` };
+        });
+        renderPickList(box, document.getElementById('skillsAddPickBar'), rows, skillsAdd.picked, renderSkillsAddDone,
+            `<p class="metro-help-text">${g ? `Every Grade ${g} skill is on this list already.` : 'Every skill is on this list already.'}</p>`);
     }
     function renderSkillsAddDone() {
         const n = skillsAdd.picked.size;
         const btn = document.getElementById('skillsAddDoneBtn');
         btn.disabled = !n;
-        btn.textContent = n ? `Add ${n} skill${n === 1 ? '' : 's'}` : 'Add';
+        btn.textContent = pickCountLabel(n, 'skill');
     }
     document.getElementById('skillsAddDoneBtn')?.addEventListener('click', async () => {
         const add = [...skillsAdd.picked];
@@ -8945,10 +9023,10 @@
         inlineExtra.innerHTML = '';
         const container = document.getElementById('flowChoiceOptions');
         container.innerHTML = options.map((opt, i) => `
-            <div class="flow-choice-option${opt.selected ? ' selected' : ''}" data-choice-idx="${i}">
+            <button type="button" class="flow-choice-option${opt.selected ? ' selected' : ''}" data-choice-idx="${i}" aria-pressed="${!!opt.selected}">
                 ${opt.html ? opt.html : `<span>${escapeHtml(opt.label)}</span>`}
-                ${opt.selected && !opt.html ? '<span class="material-symbols-outlined">check</span>' : ''}
-            </div>
+                ${opt.selected && !opt.html ? '<span class="material-symbols-outlined" aria-hidden="true">check</span>' : ''}
+            </button>
         `).join('');
         container.querySelectorAll('[data-choice-idx]').forEach(el => {
             el.addEventListener('click', () => {
@@ -15346,7 +15424,20 @@
         }
         timerState.remainingSeconds--;
         updateTimerDisplays();
-        if (timerState.remainingSeconds <= 0) finishTimerSession();
+        if (timerState.remainingSeconds <= 0) finishTimerSession(true);
+    }
+
+    // ML-303: time's up stops the music with it - whichever metronome is playing (Quick Play, Rehearse,
+    // Scales, Warm-ups) pauses where it is, not back to the start. Returns what to start again, which
+    // only "Just another 5 minutes" does; saving it or not leaves it paused. (The drills - Tempo, Pulse,
+    // Pitch, Range, Rhythm - are rounds of their own and aren't touched.)
+    function pauseMusicForTimer() {
+        const resume = [];
+        if (qpPlayer.isPlaying()) { pauseQuickPlay(); resume.push(playQuickPlay); }
+        if (flowPlayer.isPlaying()) { pauseFlow(); resume.push(playFlow); }
+        if (scalesPlayer.isPlaying()) { scalesPause(); resume.push(scalesPlay); }
+        if (warmupsPlayer.isPlaying()) { warmupsPause(); resume.push(warmupsPlay); }
+        return resume;
     }
 
     // targetSeconds is null for an open-ended session (ML-184) - no countdown, so remainingSeconds
@@ -15378,13 +15469,14 @@
     // "Just another 5 minutes" can rebuild timerState from exactly where it left off.
     let timerPendingFinish = null;
 
-    // Ends the current timer (whether the countdown ran out, or Stop/Close was
+    // Ends the current timer (whether the countdown ran out - timeUp - or Stop/Close was
     // pressed early) and - if any real time was logged - offers to save it as a
     // practice session via the existing save-session screen, pre-filled.
-    function finishTimerSession() {
+    function finishTimerSession(timeUp = false) {
         if (!timerState) return;
         clearInterval(timerIntervalId);
         timerIntervalId = null;
+        const resumeMusic = timeUp === true ? pauseMusicForTimer() : []; // the Stop buttons pass their click event
         const { elapsedSeconds, openEnded, targetSeconds } = timerState;
         timerState = null;
         renderTimerScreen();
@@ -15395,7 +15487,7 @@
         API.timer.clearActive().catch(() => {}); // ML-197: nothing left to resume once the session's actually over
 
         if (elapsedSeconds < 1) return;
-        timerPendingFinish = { elapsedSeconds, openEnded, targetSeconds };
+        timerPendingFinish = { elapsedSeconds, openEnded, targetSeconds, resumeMusic };
         openTimerFinishedModal();
     }
 
@@ -15426,9 +15518,10 @@
     // never a target to extend).
     document.getElementById('timerFinishedExtendBtn')?.addEventListener('click', () => {
         if (!timerPendingFinish) return closeTimerFinishedModal();
-        const { elapsedSeconds, openEnded, targetSeconds } = timerPendingFinish;
+        const { elapsedSeconds, openEnded, targetSeconds, resumeMusic } = timerPendingFinish;
         timerPendingFinish = null;
         closeTimerFinishedModal();
+        resumeMusic.forEach(play => play()); // ML-303: the music picks up where time ran out
         timerState = {
             targetSeconds: openEnded ? null : (targetSeconds || 0) + 300,
             remainingSeconds: openEnded ? null : 300,
@@ -15512,6 +15605,7 @@
     var theoryQuizId = null;
     let theoryOptions = null;      // normalised options for theoryQuizId
     let theoryRoundId = TheoryEngine.DEFAULT_ROUND;
+    let theoryRepeats = TheoryEngine.DEFAULT_REPEATS; // ML-354: the round done 1-5 times, best one counts
     var theoryRound = null;        // the round in progress, or null
     var theoryLastResult = null;   // what the results screen shows
     let theoryTicker = null;
@@ -15530,7 +15624,7 @@
         } catch (e) { return {}; }
     }
     function theoryStoreChoice() {
-        try { localStorage.setItem(`tml.theory.${theoryQuizId}`, JSON.stringify({ options: theoryOptions, round: theoryRoundId })); } catch (e) { /* per-device convenience only */ }
+        try { localStorage.setItem(`tml.theory.${theoryQuizId}`, JSON.stringify({ options: theoryOptions, round: theoryRoundId, repeats: theoryRepeats })); } catch (e) { /* per-device convenience only */ }
     }
     // Notation draws at 1 unit per px; scale its width/height (the viewBox keeps the drawing) so a
     // staff space is the same size on every question. CSS max-width shrinks it on a narrow phone.
@@ -15640,6 +15734,7 @@
         const first = stored.options ? {} : { clefs: theoryInstrumentClefs(theoryInstrument()) || undefined };
         theoryOptions = TheoryEngine.normaliseOptions(quizId, { ...first, ...(stored.options || {}), ...(theoryGradesOn() ? {} : { grade: 0 }) });
         theoryRoundId = TheoryEngine.round(stored.round).value;
+        theoryRepeats = TheoryEngine.repeatsOf(stored.repeats);
         switchView('theoryOptionsView');
     }
 
@@ -15647,6 +15742,7 @@
     // .compact shows three to a row on a phone, so it suits exactly three choices; two or four go two
     // to a row (2 x 2) rather than wrapping 3 + 1.
     const theoryPillsCompact = (choices) => choices.length === 3;
+    const theoryRepeatsText = (n) => (n === 1 ? '×1 - one round' : `×${n} - best of ${n} rounds`);
     // ML-309: Theory grades (feature theory_grades) - "Custom" is the quiz's own options, 1-5 a grade.
     const theoryGradesOn = () => isFeatureEnabled('theory_grades');
     const THEORY_GRADE_GROUP = { key: 'grade', label: 'Theory grade', multi: false, choices: [{ value: 0, label: 'Custom' }, ...TheoryEngine.GRADE_CHOICES.map(g => ({ value: g, label: `Grade ${g}` }))] };
@@ -15668,7 +15764,18 @@
                 <div class="radio-group${theoryPillsCompact(g.choices) ? ' compact' : ''}">
                     ${g.choices.map((c, i) => `<input type="${g.multi ? 'checkbox' : 'radio'}" id="theoryOpt-${g.key}-${i}" name="theoryOpt-${g.key}" data-key="${g.key}" data-index="${i}"${g.isOn(c.value) ? ' checked' : ''}><label for="theoryOpt-${g.key}-${i}">${escapeHtml(c.label)}</label>`).join('')}
                 </div>
-            </div>`).join('');
+            </div>`).join('') + `
+            <div class="form-group" role="group" aria-labelledby="theoryRepeatLabel"><label id="theoryRepeatLabel">Repeat</label>
+                <div class="metro-transport-grid">
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="theoryRepeatBtn" aria-haspopup="dialog" aria-label="Repeat: ${theoryRepeatsText(theoryRepeats)} - tap to change">
+                        <strong>&times;${theoryRepeats}</strong><span class="metroBlk-ctrl-value-label">${theoryRepeats === 1 ? 'once' : `best of ${theoryRepeats}`}</span>
+                    </button>
+                </div>
+            </div>`;
+        // ML-354: the repeat count is a pop-up choice (x1-x5), not another row of pills.
+        document.getElementById('theoryRepeatBtn').addEventListener('click', () => openFlowChoiceModal('Repeat',
+            TheoryEngine.REPEATS.map(n => ({ value: n, label: theoryRepeatsText(n), selected: n === theoryRepeats })),
+            (opt) => { theoryRepeats = opt.value; theoryStoreChoice(); renderTheoryOptions(); }));
         form.querySelectorAll('input').forEach(input => input.addEventListener('change', () => {
             const key = input.dataset.key;
             const g = groups.find(x => x.key === key);
@@ -15760,8 +15867,10 @@
         const round = TheoryEngine.round(theoryRoundId);
         const source = TheoryEngine.questionSource(theoryQuizId, theoryOptions, { seed: seed ?? (Date.now() % 2147483647), naming: theoryNaming(), weights });
         if (!source.size) { showWarningToast('Nothing to work on yet - questions you get wrong collect here.'); return; } // an empty weak spots round
+        // ML-354: block is which repeat this is (1..repeats); right/wrong and the clock are this block's.
         theoryRound = {
             quizId: theoryQuizId, options: theoryOptions, roundId: round.value, seconds: round.seconds || null, questions: round.questions || null,
+            repeats: theoryRepeats, block: 1, blockMs: [], blockAnswered: 0,
             naming: theoryNaming(), source,
             startedAt: new Date().toISOString(), accumulatedMs: 0, runningSince: theoryNow(),
             right: 0, wrong: 0, answers: [], question: null, shownAt: 0, locked: false, ended: false
@@ -15793,7 +15902,7 @@
             const fill = document.getElementById('theoryCountdownFill');
             fill.style.setProperty('--remaining', left / (r.seconds * 1000));
             document.getElementById('theoryCountdown').setAttribute('aria-valuenow', String(Math.round(100 * left / (r.seconds * 1000))));
-            if (left <= 0) theoryEndRound();
+            if (left <= 0) theoryBlockDone();
         } else {
             const s = Math.floor(elapsed / 1000);
             clock.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -15801,9 +15910,26 @@
     }
     function theoryUpdateTally() {
         const r = theoryRound;
-        document.getElementById('theoryTally').textContent = r.questions
-            ? `${Math.min(r.answers.length + 1, r.questions)} of ${r.questions}`
+        const tally = r.questions
+            ? `${Math.min(r.blockAnswered + 1, r.questions)} of ${r.questions}`
             : `${r.right} right${r.wrong ? ` · ${r.wrong} wrong` : ''}`;
+        document.getElementById('theoryTally').textContent = r.repeats > 1 ? `Round ${r.block} of ${r.repeats} · ${tally}` : tally;
+    }
+    // ML-354: a block (one repeat) is over - keep its time, then straight on to the next ("Round 2 of 3"),
+    // or the results after the last one.
+    function theoryBlockDone() {
+        const r = theoryRound;
+        if (!r || r.ended) return;
+        r.blockMs.push(r.seconds ? r.seconds * 1000 : Math.round(theoryElapsedMs(r)));
+        if (r.block >= r.repeats) { theoryEndRound(); return; }
+        r.block++;
+        r.blockAnswered = 0;
+        r.right = 0;
+        r.wrong = 0;
+        r.accumulatedMs = 0;
+        r.runningSince = document.hidden ? null : theoryNow();
+        theoryNextQuestion();
+        theoryTick();
     }
     function theoryNextQuestion() {
         const r = theoryRound;
@@ -15840,7 +15966,8 @@
         if (theoryNow() - r.shownAt < TheoryEngine.TIMING.minAnswerMs) return;
         const q = r.question;
         const correct = id === q.correct;
-        r.answers.push({ questionId: q.id, answerId: id, correct, ms: Math.round(theoryNow() - r.shownAt) });
+        r.answers.push({ questionId: q.id, answerId: id, correct, ms: Math.round(theoryNow() - r.shownAt), block: r.block });
+        r.blockAnswered++;
         // Smart learn: a later deal in this same round already knows, and a miss comes back 3 questions on.
         r.source.record(q.id, correct, r.answers[r.answers.length - 1].ms);
         r.locked = true;
@@ -15856,12 +15983,14 @@
             document.getElementById('theoryFeedback').textContent = q.feedback || `Not quite: it's ${label}`;
         }
         theoryUpdateTally();
-        const finished = r.questions && r.answers.length >= r.questions;
+        const finished = r.questions && r.blockAnswered >= r.questions;
+        const block = r.block;
         // A right answer moves on almost at once (speed counts); a wrong one leaves the right answer
-        // up long enough to learn it - which also costs time, so guessing doesn't pay.
+        // up long enough to learn it - which also costs time, so guessing doesn't pay. (A timed block
+        // can run out meanwhile and move on by itself - then this one has nothing left to do.)
         setTimeout(() => {
-            if (theoryRound !== r || r.ended) return;
-            if (finished) theoryEndRound();
+            if (theoryRound !== r || r.ended || r.block !== block) return;
+            if (finished) theoryBlockDone();
             else theoryNextQuestion();
         }, correct ? 150 : TheoryEngine.TIMING.wrongRevealMs);
     }
@@ -15879,10 +16008,10 @@
         clearInterval(theoryTicker);
         theoryTicker = null;
         r.ended = true;
-        const elapsed = theoryElapsedMs(r);
-        const durationMs = r.seconds ? r.seconds * 1000 : Math.round(elapsed);
-        const local = TheoryEngine.scoreRound(r.roundId, r.answers);
-        theoryLastResult = { round: r, durationMs, score: local.score, grade: local.grade, saved: null, saving: true };
+        // ML-354: the best block is the result (theoryBlockDone has kept every block's time).
+        const local = TheoryEngine.scoreBlocks(r.roundId, r.answers, r.repeats, r.blockMs);
+        theoryLastResult = { round: r, durationMs: local.ms, score: local.score, grade: local.grade, right: local.right, wrong: local.wrong,
+            bestBlock: local.bestBlock, blockScores: local.blockScores, saved: null, saving: true };
         theoryRound = null;
         // Results replaces Play in the back history: Back from Results goes to the options.
         if (viewStack[viewStack.length - 1] === 'theoryPlayView') viewStack.pop();
@@ -15890,8 +16019,8 @@
         renderTheoryResults();
         try {
             theoryLastResult.saved = await API.theory.save({
-                quizId: r.quizId, roundType: r.roundId, options: r.options, naming: r.naming,
-                right: r.right, wrong: r.wrong, durationMs, startedAt: r.startedAt, answers: r.answers
+                quizId: r.quizId, roundType: r.roundId, repeats: r.repeats, options: r.options, naming: r.naming,
+                blockMs: r.blockMs, startedAt: r.startedAt, answers: r.answers
             });
         } catch (e) {
             showWarningToast("Couldn't save this round. Your result is below, but it won't be in your history.");
@@ -15906,13 +16035,19 @@
         const saved = res.saved;
         const score = saved ? saved.attempt.score : res.score;
         const grade = saved ? saved.attempt.grade : res.grade;
-        const answered = r.right + r.wrong;
-        document.getElementById('theoryResultsOptions').textContent = `${TheoryEngine.quiz(r.quizId).title} · ${TheoryEngine.describeOptions(r.quizId, r.options, r.roundId)}`;
+        // ML-354: right/wrong, accuracy and time are the best round's - the one the score comes from.
+        const right = saved ? saved.attempt.right : res.right;
+        const wrong = saved ? saved.attempt.wrong : res.wrong;
+        const answered = right + wrong;
+        document.getElementById('theoryResultsOptions').textContent = `${TheoryEngine.quiz(r.quizId).title} · ${TheoryEngine.describeOptions(r.quizId, r.options, r.roundId)}${r.repeats > 1 ? ` × ${r.repeats}` : ''}`;
+        const rounds = document.getElementById('theoryResultRounds');
+        setShown(rounds, r.repeats > 1);
+        rounds.textContent = `Your rounds: ${res.blockScores.join(', ')}. Round ${res.bestBlock} was the best, so it counts.`;
         const gradeEl = document.getElementById('theoryResultGrade');
         gradeEl.outerHTML = theoryGradeHtml(grade).replace('class="theory-grade"', 'class="theory-grade theory-grade-lg" id="theoryResultGrade"');
         document.getElementById('theoryResultScore').textContent = `${score}`;
-        document.getElementById('theoryResultRight').textContent = r.wrong ? `${r.right} (${r.wrong} wrong)` : `${r.right}`;
-        document.getElementById('theoryResultAccuracy').textContent = answered ? `${Math.round(100 * r.right / answered)}%` : '-';
+        document.getElementById('theoryResultRight').textContent = wrong ? `${right} (${wrong} wrong)` : `${right}`;
+        document.getElementById('theoryResultAccuracy').textContent = answered ? `${Math.round(100 * right / answered)}%` : '-';
         const secs = Math.round(res.durationMs / 1000);
         document.getElementById('theoryResultTime').textContent = r.seconds ? `${r.seconds} s` : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
         const best = document.getElementById('theoryResultBest');

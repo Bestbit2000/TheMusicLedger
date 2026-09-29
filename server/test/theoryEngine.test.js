@@ -60,15 +60,15 @@ describe('options', () => {
         assert.equal(T.optionVisible(def, { modes: 'major', show: 'both' }), false);
     });
     test('settings key: same options = same key, whatever the order; hidden options ignored', () => {
-        const a = T.settingsKey('noteNames', { clefs: ['treble', 'bass'], range: 2 }, 't60');
-        assert.equal(a, T.settingsKey('noteNames', { clefs: ['bass', 'treble'], range: 2 }, 't60'));
-        assert.notEqual(a, T.settingsKey('noteNames', { clefs: ['bass', 'treble'], range: 2 }, 't30'));
+        const a = T.settingsKey('noteNames', { clefs: ['treble', 'bass'], range: 2 }, 't30');
+        assert.equal(a, T.settingsKey('noteNames', { clefs: ['bass', 'treble'], range: 2 }, 't30'));
+        assert.notEqual(a, T.settingsKey('noteNames', { clefs: ['bass', 'treble'], range: 2 }, 'q10'));
         assert.equal(T.settingsKey('keys', { modes: 'major', minorForm: 'melodic' }, 'q10'), T.settingsKey('keys', { modes: 'major', minorForm: 'harmonic' }, 'q10'));
         assert.notEqual(T.settingsKey('keys', { modes: 'both', minorForm: 'melodic' }, 'q10'), T.settingsKey('keys', { modes: 'both', minorForm: 'harmonic' }, 'q10'));
-        assert.equal(T.settingsKey('noteNames', {}, 'bogus'), T.settingsKey('noteNames', {}, 't60'));
+        assert.equal(T.settingsKey('noteNames', {}, 'bogus'), T.settingsKey('noteNames', {}, 't30'));
     });
     test('describes a set of options for the results screen', () => {
-        assert.equal(T.describeOptions('noteNames', { clefs: ['treble', 'bass'], range: 2 }, 't60'), 'Treble, Bass · 2 ledger lines · None · 60 s');
+        assert.equal(T.describeOptions('noteNames', { clefs: ['treble', 'bass'], range: 2 }, 't30'), 'Treble, Bass · 2 ledger lines · None · 30 s');
         assert.equal(T.describeOptions('keys', { modes: 'both' }, 'q10'), 'Treble · Both · Up to 3 ♯/♭ · Both · Major and minor · Harmonic · 10 questions');
         assert.equal(T.describeOptions('symbols', { set: 'terms', ask: 'meanings' }, 't30'), 'Terms · Ask: meanings · 30 s');
     });
@@ -269,23 +269,45 @@ describe('symbols', () => {
 describe('scoring', () => {
     const ans = (type, right, wrong) => [...Array(right).fill({ questionId: `${type}:x`, correct: true }), ...Array(wrong).fill({ questionId: `${type}:x`, correct: false })];
     test('timed: right +1, wrong -1, each worth its par time - the same as the confirmed top paces', () => {
-        assert.deepEqual(T.scoreRound('t60', ans('note', 34, 2)), { right: 34, wrong: 2, score: 80, grade: 4 });       // 40/min
-        assert.equal(T.scoreRound('t30', ans('note', 17, 1)).score, 80);
-        assert.equal(T.scoreRound('t60', ans('note', 60, 0)).score, 100);
-        assert.equal(T.scoreRound('t60', ans('scale', 15, 0)).score, 100);                                               // 15/min
-        assert.equal(T.scoreRound('t60', ans('keySignature', 24, 0)).score, 100);                                        // 24/min
-        assert.equal(T.scoreRound('t60', ans('symbolName', 30, 0)).score, 100);                                         // 30/min
-        assert.equal(T.scoreRound('t60', ans('symbolMeaning', 24, 0)).score, 100);                                       // 24/min
-        assert.equal(T.scoreRound('t60', ans('scale', 2, 9)).score, 0);
+        assert.deepEqual(T.scoreRound('t30', ans('note', 17, 1)), { right: 17, wrong: 1, score: 80, grade: 4 });
+        assert.equal(T.scoreRound('t30', ans('note', 20, 0)).score, 100);                                                // 40/min
+        assert.equal(T.scoreRound('t30', ans('scale', 8, 0)).score, 100);                                                // 15/min
+        assert.equal(T.scoreRound('t30', ans('keySignature', 12, 0)).score, 100);                                        // 24/min
+        assert.equal(T.scoreRound('t30', ans('symbolName', 15, 0)).score, 100);                                          // 30/min
+        assert.equal(T.scoreRound('t30', ans('symbolMeaning', 12, 0)).score, 100);                                       // 24/min
+        assert.equal(T.scoreRound('t30', ans('scale', 2, 9)).score, 0);
     });
     test('timed, mixed types: the pars add up', () => {
-        // 10 notes (15 s) + 5 scales (20 s) + 1 wrong key signature (-2.5 s) = 32.5 s of 60 -> 54
-        const a = [...ans('note', 10, 0), ...ans('scale', 5, 0), ...ans('keySignature', 0, 1)];
-        assert.deepEqual(T.scoreRound('t60', a), { right: 15, wrong: 1, score: 54, grade: 3 });
+        // 5 notes (7.5 s) + 2 scales (8 s) + 1 wrong key signature (-2.5 s) = 13 s of 30 -> 43
+        const a = [...ans('note', 5, 0), ...ans('scale', 2, 0), ...ans('keySignature', 0, 1)];
+        assert.deepEqual(T.scoreRound('t30', a), { right: 7, wrong: 1, score: 43, grade: 2 });
     });
     test('fixed: out of the number of questions', () => {
         assert.deepEqual(T.scoreRound('q10', ans('scale', 8, 2)), { right: 8, wrong: 2, score: 60, grade: 3 });
-        assert.equal(T.scoreRound('q20', ans('note', 20, 0)).score, 100);
+        assert.equal(T.scoreRound('q10', ans('note', 10, 0)).score, 100);
+    });
+    test('only the 30 s and 10-question rounds; repeat 1-5 times (ML-354)', () => {
+        assert.deepEqual(T.ROUNDS.map(r => r.value), ['t30', 'q10']);
+        assert.equal(T.round('t60').value, 't30'); // an old stored choice falls back to the default
+        assert.deepEqual(T.REPEATS, [1, 2, 3, 4, 5]);
+        assert.equal(T.repeatsOf(3), 3);
+        assert.equal(T.repeatsOf(9), 1);
+        assert.equal(T.repeatsOf(undefined), 1);
+    });
+    test('repeats: each block scored on its own, the best one counts (ML-354)', () => {
+        const inBlock = (block, list) => list.map(a => ({ ...a, block }));
+        // Block 1: 6 of 10, block 2: 9 of 10 (-1), block 3: 7 of 10
+        const a = [...inBlock(1, ans('note', 8, 2)), ...inBlock(2, ans('note', 9, 1)), ...inBlock(3, ans('note', 7, 3))];
+        const r = T.scoreBlocks('q10', a, 3, [40000, 38000, 45000]);
+        assert.deepEqual(r, { right: 9, wrong: 1, score: 80, grade: 4, ms: 38000, bestBlock: 2, blockScores: [60, 80, 40] });
+        // Equal scores: the quicker block, then the earlier one.
+        const tie = [...inBlock(1, ans('note', 9, 1)), ...inBlock(2, ans('note', 9, 1))];
+        assert.equal(T.scoreBlocks('q10', tie, 2, [50000, 42000]).bestBlock, 2);
+        assert.equal(T.scoreBlocks('q10', tie, 2, [42000, 42000]).bestBlock, 1);
+        // x1 is exactly the old single round.
+        assert.deepEqual(T.scoreBlocks('t30', ans('note', 17, 1), 1, [30000]), { right: 17, wrong: 1, score: 80, grade: 4, ms: 30000, bestBlock: 1, blockScores: [80] });
+        // A timed block with nothing answered scores 0.
+        assert.deepEqual(T.scoreBlocks('t30', inBlock(1, ans('note', 10, 0)), 2, [30000, 30000]).blockScores, [50, 0]);
     });
     test('grade limits', () => {
         assert.deepEqual([100, 90, 89, 70, 69, 50, 49, 30, 29, 0].map(s => T.gradeFor(s)), [5, 5, 4, 4, 3, 3, 2, 2, 1, 1]);
@@ -545,10 +567,10 @@ describe('Theory grades (ML-309)', () => {
         assert.equal(T.normaliseOptions('noteNames', { grade: 1, clefs: ['tenor'] }).clefs[0], 'treble');
         const keys = T.QUIZZES.find(q => q.id === 'keys');
         assert.deepEqual(keys.options.filter(d => T.optionVisible(d, o)).map(d => d.key), ['clefs', 'show']);
-        assert.equal(T.settingsKey('keys', o, 't60'), 'keys|t60|grade=2;clefs=bass;show=both');
-        assert.equal(T.describeOptions('keys', o, 't60'), 'Grade 2 syllabus · Bass · Both · 60 s');
+        assert.equal(T.settingsKey('keys', o, 't30'), 'keys|t30|grade=2;clefs=bass;show=both');
+        assert.equal(T.describeOptions('keys', o, 't30'), 'Grade 2 syllabus · Bass · Both · 30 s');
         // custom settings keys are unchanged by the grade option
-        assert.equal(T.settingsKey('keys', {}, 't60'), 'keys|t60|clefs=treble;show=both;upTo=3;keyTypes=both;modes=major');
+        assert.equal(T.settingsKey('keys', {}, 't30'), 'keys|t30|clefs=treble;show=both;upTo=3;keyTypes=both;modes=major');
         assert.equal(T.normaliseOptions('weakSpots', { grade: 3 }).grade, 0);
     });
     test('every quiz at every grade deals valid questions that draw, only from the grade', () => {
@@ -589,7 +611,7 @@ describe('intervals, technical names, chromatic scale, chords, cadences (ML-309 
         assert.equal(T.normaliseOptions('intervals', { grade: 1 }).grade, 2);
         assert.equal(T.normaliseOptions('chords', { grade: 3 }).grade, 4);
         assert.equal(T.normaliseOptions('chords', { grade: 5 }).grade, 5);
-        assert.equal(T.settingsKey('intervals', { grade: 3 }, 't60'), 'intervals|t60|grade=3;clefs=treble');
+        assert.equal(T.settingsKey('intervals', { grade: 3 }, 't30'), 'intervals|t30|grade=3;clefs=treble');
         assert.equal(T.describeOptions('chords', { grade: 5, clefs: ['bass'] }, 'q10'), 'Grade 5 syllabus · Bass · 10 questions');
     });
     test('naming intervals', () => {

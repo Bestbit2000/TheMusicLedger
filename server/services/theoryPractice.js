@@ -18,7 +18,7 @@ for (const f of ['notation.js', 'theoryEngine.js']) {
 const Theory = sandbox.self.TheoryEngine;
 const plain = (v) => JSON.parse(JSON.stringify(v));
 
-const MAX_ANSWERS = 200;           // far beyond a 60 s round at any human speed
+const MAX_BLOCK_ANSWERS = 100;     // far beyond a 30 s round at any human speed
 const HISTORY_LENGTH = 8;          // rounds shown in the results screen's trend
 
 function toDto(row) {
@@ -32,6 +32,8 @@ function toDto(row) {
     wrong: row.wrong_count,
     score: row.score,
     grade: row.grade,
+    repeats: row.repeats,
+    blockScores: row.block_scores,
     durationMs: row.duration_ms,
     startedAt: row.started_at
   };
@@ -139,19 +141,29 @@ export async function saveTheoryAttempt(accountId, body) {
   if (!quizIds.includes(b.quizId)) throw withStatus(400, 'Unknown quiz.');
   const round = plain(Theory.ROUNDS).find(r => r.value === b.roundType);
   if (!round) throw withStatus(400, 'Unknown round type.');
+  // ML-354: the round done 1-5 times; each answer says which time (block), and each block its time.
+  const repeats = Number(b.repeats ?? 1);
+  if (!plain(Theory.REPEATS).includes(repeats)) throw withStatus(400, 'Repeat 1 to 5 times.');
   // The round is scored from its answers: a timed round weighs each one by its question type's par
   // time (Mixed rounds mix types), so right/wrong counts alone aren't enough.
-  if (!Array.isArray(b.answers) || b.answers.length > MAX_ANSWERS) throw withStatus(400, 'Missing answers.');
+  if (!Array.isArray(b.answers) || b.answers.length > MAX_BLOCK_ANSWERS * repeats) throw withStatus(400, 'Missing answers.');
   const answers = b.answers.map(a => ({
     questionId: String(a && a.questionId || '').slice(0, 80),
     answerId: String(a && a.answerId || '').slice(0, 40),
     correct: !!(a && a.correct),
-    ms: Math.max(0, Math.min(3600000, Math.round(Number(a && a.ms) || 0)))
+    ms: Math.max(0, Math.min(3600000, Math.round(Number(a && a.ms) || 0))),
+    block: Number((a && a.block) ?? 1)
   }));
   if (answers.some(a => !a.questionId || !a.answerId)) throw withStatus(400, 'Every answer needs a question and an answer.');
-  if (round.questions && answers.length !== round.questions) throw withStatus(400, `A ${round.questions}-question round has ${round.questions} answers.`);
-  const durationMs = Number(b.durationMs);
-  if (!Number.isInteger(durationMs) || durationMs < 0 || durationMs > 60 * 60 * 1000) throw withStatus(400, 'Invalid duration.');
+  if (answers.some(a => !Number.isInteger(a.block) || a.block < 1 || a.block > repeats)) throw withStatus(400, 'An answer is in a round that isn\'t there.');
+  if (answers.some((a, i) => i && a.block < answers[i - 1].block)) throw withStatus(400, 'Answers go round by round.');
+  for (let k = 1; k <= repeats; k++) {
+    const n = answers.filter(a => a.block === k).length;
+    if (round.questions && n !== round.questions) throw withStatus(400, `A ${round.questions}-question round has ${round.questions} answers.`);
+    if (n > MAX_BLOCK_ANSWERS) throw withStatus(400, 'Too many answers.');
+  }
+  const blockMs = Array.isArray(b.blockMs) ? b.blockMs.map(Number) : [];
+  if (blockMs.length !== repeats || blockMs.some(ms => !Number.isInteger(ms) || ms < 0 || ms > 60 * 60 * 1000)) throw withStatus(400, 'Invalid duration.');
   const startedAt = new Date(b.startedAt);
   if (Number.isNaN(startedAt.getTime())) throw withStatus(400, 'Invalid start time.');
   const naming = b.naming === 'solfege' ? 'solfege' : 'letters';
@@ -162,7 +174,9 @@ export async function saveTheoryAttempt(accountId, body) {
   if (!gradesOn && plain(Theory.quiz(b.quizId)).gradeOnly) throw withStatus(400, 'This quiz needs Theory grades.');
   const options = plain(Theory.normaliseOptions(b.quizId, gradesOn ? b.options : { ...(b.options || {}), grade: 0 }));
   const settingsKey = Theory.settingsKey(b.quizId, options, round.value);
-  const { right, wrong, score, grade } = plain(Theory.scoreRound(round.value, answers));
+  // The best block is the result, and its time is the attempt's duration (for a fixed round, the
+  // tie-break between equal scores - BEST_ORDER).
+  const { right, wrong, score, grade, ms: durationMs, blockScores } = plain(Theory.scoreBlocks(round.value, answers, repeats, blockMs));
   const smartLearn = await isFeatureEnabled('theory_smart_learn');
   let learning = null; // Smart learn: how many of this round's questions are still being learned
 
@@ -172,21 +186,21 @@ export async function saveTheoryAttempt(accountId, body) {
     const before = await historyFor(client, accountId, settingsKey);
     const { rows } = await client.query(
       `INSERT INTO theory_quiz_attempts
-         (account_id, quiz_id, round_type, options, settings_key, naming, right_count, wrong_count, score, grade, duration_ms, started_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-      [accountId, b.quizId, round.value, JSON.stringify(options), settingsKey, naming, right, wrong, score, grade, durationMs, startedAt]
+         (account_id, quiz_id, round_type, repeats, block_scores, options, settings_key, naming, right_count, wrong_count, score, grade, duration_ms, started_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+      [accountId, b.quizId, round.value, repeats, blockScores, JSON.stringify(options), settingsKey, naming, right, wrong, score, grade, durationMs, startedAt]
     );
     const attempt = toDto(rows[0]);
-    const clean = answers.map((a, i) => ({ seq: i + 1, q: a.questionId, a: a.answerId, c: a.correct, ms: a.ms }));
+    const clean = answers.map((a, i) => ({ seq: i + 1, q: a.questionId, a: a.answerId, c: a.correct, ms: a.ms, block: a.block }));
     if (clean.length) {
       const values = [];
       const params = [attempt.id];
       clean.forEach((a, i) => {
-        const o = 2 + i * 5;
-        values.push(`($1, $${o}, $${o + 1}, $${o + 2}, $${o + 3}, $${o + 4})`);
-        params.push(a.seq, a.q, a.a, a.c, a.ms);
+        const o = 2 + i * 6;
+        values.push(`($1, $${o}, $${o + 1}, $${o + 2}, $${o + 3}, $${o + 4}, $${o + 5})`);
+        params.push(a.seq, a.q, a.a, a.c, a.ms, a.block);
       });
-      await client.query(`INSERT INTO theory_quiz_answers (attempt_id, seq, question_id, answer_id, correct, ms) VALUES ${values.join(', ')}`, params);
+      await client.query(`INSERT INTO theory_quiz_answers (attempt_id, seq, question_id, answer_id, correct, ms, block) VALUES ${values.join(', ')}`, params);
       if (smartLearn) learning = await applySmartLearn(client, accountId, answers);
     }
     const after = await historyFor(client, accountId, settingsKey);

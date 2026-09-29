@@ -10,6 +10,10 @@ Inline, horizontally scrollable category filter above a list or stats (Session h
 stats). Replaced the old full-width filter button + modal. **Don't use** for more than ~8 options,
 or for a single required choice (use [radio-group](radio-group.md)).
 
+**Every filter row uses the whole strip, icon included** (ML-352) - never bare `.filter-strip-pills`,
+so it's obvious the pills filter the list. Used on Session history, Stats, My music, the Add skills
+popup and the Add pieces popup.
+
 ## 3. Anatomy
 `.filter-strip` › `.filter-strip-icon` (decorative, not a button: no outline, no fill, just a `--label-color` icon (ML-200), with the `.filter-strip-badge` active count) › `.filter-strip-pills` (drag-scrollable) › `.filter-pill[.active]` × n › optional `.filter-pill-count`
 
@@ -28,7 +32,7 @@ Unselected (outline) · Selected (`.active`: accent outline in `--cat-*-text` + 
 ## 7. Code example
 ```html
 <div class="filter-strip">
-  <div class="filter-strip-icon"><span class="material-symbols-outlined">filter_list</span></div>
+  <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
   <div class="filter-strip-pills">
     <button class="filter-pill active">All</button>
     <button class="filter-pill active" style="--filter-pill-accent: var(--cat-practise)">Practise <span class="filter-pill-count">12</span></button>

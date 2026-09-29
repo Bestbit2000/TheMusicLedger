@@ -200,8 +200,19 @@ are the plain shuffle above, with no memory.
 
 | Round | How it runs |
 |---|---|
-| **Timed, 30 s or 60 s** (default 60) | The clock stops while the app is in the background. |
-| **Fixed, 10 or 20 questions** | No time limit: the clock counts up. This is also the no-pressure option WCAG 2.2.1 needs. |
+| **Timed, 30 s** (the default) | The clock stops while the app is in the background. |
+| **Fixed, 10 questions** | No time limit: the clock counts up. This is also the no-pressure option WCAG 2.2.1 needs. |
+
+**Repeat (ML-354):** a longer test is the same round done again, not a longer round - ×1 to ×5
+(`REPEATS`, default ×1), picked from a pop-up on the options screen (the Repeat value box). The rounds
+run straight on, one after another: the play screen says "Round 2 of 3", and each round has its own
+clock, tally and question count. **Each round is scored on its own and the best one is the result**
+(`scoreBlocks`: highest score, then the quicker, then the earlier) - so a score never depends on how
+long the test was, and a ×3 test shares its history and personal best with ×1 (the settings key
+doesn't include the repeat count). The results screen lists every round's score and says which one
+counted; right/wrong, accuracy and time are that round's. The old 60 s and 20-question rounds are
+gone, and every Theory score saved before them was deleted (migration 072, owner's decision) so
+everyone started fresh.
 
 **Answering:**
 - **Right answer:** +1. It shows as right, then the next question comes up after 150 ms.
@@ -248,10 +259,14 @@ The limits live in `TheoryEngine` (`PAR`, `GRADE_LIMITS`, `TIMING`).
 ## Saving and history
 
 - **Only finished rounds are saved.** Leaving part-way asks first.
-- **Saving:** `POST /api/theory/attempts` with the quiz, round type, options, naming, duration, start
-  time and every answer (`questionId`, `answerId`, `correct`, `ms`).
-  - The server scores the round **from its answers** with the engine (the question id's first part is
-    its type, which sets its par), and stores it.
+- **Saving:** `POST /api/theory/attempts` with the quiz, round type, `repeats` (1-5), options, naming,
+  `blockMs` (each round's time), start time and every answer (`questionId`, `answerId`, `correct`,
+  `ms`, `block` - which round it was in).
+  - The server scores the test **from its answers** with the engine (the question id's first part is
+    its type, which sets its par; `scoreBlocks` picks the best round), and stores it: `score`, `grade`,
+    `right_count`, `wrong_count` and `duration_ms` are the best round's, `repeats` and `block_scores`
+    (every round's score, in order) the whole test's; each answer keeps its `block`. A fixed round must
+    have exactly 10 answers in every block.
   - It returns: `isFirst`, `isNewBest`, `previousBest`, `best`, and `recent` (the last 8 rounds, oldest
     first).
 - **History:** `GET /api/theory/attempts?settingsKey=` returns the recent rounds and the best.

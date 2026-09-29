@@ -49,7 +49,7 @@ The multi-select variant (`.flow-multiselect-grid`) allows many.
 [radio-group](radio-group.md) · [flow-editor](flow-editor.md) · [color: the selected pattern](../foundations/color.md)
 
 ## 9. Accessibility
-- Tiles are `<button>`s with a name that includes the value ("Crotchet", "4/4 time"); selected tiles set `aria-pressed="true"` (or are in a radio-like group).
+- Tiles are `<button>`s with a name that includes the value ("Crotchet", "4/4 time"); selected tiles set `aria-pressed="true"` (or are in a radio-like group). That includes the generic choice pop-up's rows (`openFlowChoiceModal`, ML-354 - they were `<div>`s): `:where(button.flow-choice-option)` strips the browser's button look at zero specificity, so they look the same as before and `.level-answer` / `.selected` still apply.
 - Selected = strong-gold outline + tint + strong-gold text (never colour alone). Tappable edge is `--control-border`.
 
 See [accessibility foundation](../foundations/accessibility.md).

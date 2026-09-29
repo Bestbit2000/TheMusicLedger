@@ -899,6 +899,13 @@
     /* Narrower cells: less side padding, and a value like "12–16" stays on one line. */
     .metro-transport-grid-5 .metroBlk-ctrl-value-btn { padding: 0 var(--space-1); }
     .metro-transport-grid-5 .metroBlk-ctrl-value-btn strong { white-space: nowrap; }
+    /* ML-348: a date value box (a practice list's target date, "30 May 26"). Its cell is a fixed
+       quarter of the grid and never grows with the date, so the date steps its size down to stay on one
+       line in a narrow cell: --font-sm, then --font-base and --font-md as the cell gets wider. */
+    .metroBlk-ctrl-value-btn.is-date { padding: 0 var(--space-1); container: value-date / inline-size; }
+    .metroBlk-ctrl-value-btn.is-date strong { white-space: nowrap; font-size: var(--font-sm); }
+    @container value-date (min-width: 72px) { .metroBlk-ctrl-value-btn.is-date strong { font-size: var(--font-base); } }
+    @container value-date (min-width: 84px) { .metroBlk-ctrl-value-btn.is-date strong { font-size: var(--font-md); } }
     /* A value control that's switched on (Rehearse's repeat while it's repeating) - the same gold
        selected look as .flow-multiselect-num.selected. */
     .metroBlk-ctrl-value-btn.metroBlk-ctrl-value-btn-on { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
@@ -1909,6 +1916,17 @@
     .flow-choice-option { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border: 2px solid var(--control-border); border-radius: var(--radius-lg); margin-bottom: var(--space-2); cursor: pointer; font-weight: var(--font-weight-bold); }
     .flow-choice-option.selected { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
     .flow-choice-option .material-symbols-outlined { color: var(--primary-action-strong); }
+    /* ML-354: the generic choice pop-up's options are real <button>s (keyboard and screen reader), made to
+       look exactly like the old <div>s. :where keeps this at zero specificity, so .level-answer and
+       .selected still win wherever they're used. */
+    :where(button.flow-choice-option) { width: 100%; box-sizing: border-box; background: none; color: inherit; font: inherit; font-weight: var(--font-weight-bold); text-align: left; }
+    /* ML-351/353: pick list - a multi-select row with a tick box on the left (the whole row toggles
+       it), and the Select all / Unselect all bar above the list. See specs/components/pick-list.md. */
+    .pick-row { justify-content: flex-start; gap: var(--space-3); }
+    .flow-choice-option .pick-row-check { flex-shrink: 0; color: var(--label-color); }
+    .flow-choice-option.selected .pick-row-check { color: var(--primary-action-strong); font-variation-settings: 'FILL' 1; }
+    .pick-bar { display: flex; justify-content: flex-end; gap: var(--space-4); margin-bottom: var(--space-2); }
+    .pick-bar .btn-text { width: auto; padding: var(--space-3) var(--space-1); }
     /* Segno/coda glyphs (flowSignIconSvg) - the real Unicode Musical Symbols characters, set in Noto
        Music (loaded in index.html) rather than drawn by hand; plain text, so it inherits currentColor
        for free (no separate selected-state handling needed, unlike a stroked SVG). */
