@@ -3490,8 +3490,20 @@
         if (picker) {
             const myBandIds = new Set(accountBandsData.myBands.map(b => b.id));
             const joinable = accountBandsData.allBands.filter(b => !myBandIds.has(b.id));
+            // Migration 073: grouped by kind of band, each with its town (and its main band for a
+            // youth/training band) so two similar names can be told apart.
+            const label = (b) => escapeHtml(b.displayName + (b.town ? ` - ${b.town}` : '') + (b.parentName ? ` (part of ${b.parentName})` : ''));
+            const groups = [
+                ['Brass bands', ['Brass Band', 'Brass Ensemble', 'Massed Band']],
+                ['Concert and wind bands', ['Concert Band', 'Wind Band']],
+                ['Youth and training bands', ['Youth Brass Band', 'Youth Wind Band', 'Training Band']]
+            ];
+            const known = groups.flatMap(g => g[1]);
             picker.innerHTML = '<option value="">Choose a band to join&hellip;</option>' +
-                joinable.map(b => `<option value="${b.id}">${b.displayName}</option>`).join('');
+                [...groups, ['Other bands', null]].map(([title, types]) => {
+                    const inGroup = joinable.filter(b => (types ? types.includes(b.ensembleType) : !known.includes(b.ensembleType)));
+                    return inGroup.length ? `<optgroup label="${title}">${inGroup.map(b => `<option value="${b.id}">${label(b)}</option>`).join('')}</optgroup>` : '';
+                }).join('');
         }
     }
 

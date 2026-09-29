@@ -15,7 +15,7 @@ import pool from '../config/db.js';
 import { listWarmupsForAdmin, createWarmup, updateWarmup, setWarmupActive, moveWarmup, deleteWarmup } from '../services/warmups.js';
 import { listAccountsForAdmin, setAccountLevel } from '../services/accounts.js';
 import { getFeatureAccess, saveFeatureAccess, clearFeatureCache } from '../services/features.js';
-import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin } from '../services/bands.js';
+import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin, setBandDetails } from '../services/bands.js';
 import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption, deleteDurationOption, listDurationUsageStats, listSessionMinuteCounts } from '../services/durationOptions.js';
 import { listTimeSignatureOptionsForAdmin, createTimeSignatureOption, updateTimeSignatureOption, deleteOrArchiveTimeSignatureOption, listNoteValueUsage } from '../services/timeSignatures.js';
 import { listPlaybackSpeedsForAdmin, createPlaybackSpeedOption, updatePlaybackSpeedOption, deletePlaybackSpeedOption } from '../services/playbackSpeeds.js';
@@ -366,9 +366,11 @@ router.get('/bands', requireAuth, resolveAccount, requireSuperAdmin, async (req,
 
 router.post('/bands', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
-    const { name, website } = req.body;
+    const { name, website, ...details } = req.body;
     // ML-247: adding a band to the directory doesn't make the admin a member of it.
-    res.json({ band: await createSharedBand(req.accountId, name, website, { joinCreator: false }) });
+    const band = await createSharedBand(req.accountId, name, website, { joinCreator: false });
+    await setBandDetails(band.id, details); // migration 073: kind, town, section, main band...
+    res.json({ band });
   } catch (error) {
     sendError(res, error);
   }
@@ -376,8 +378,7 @@ router.post('/bands', requireAuth, resolveAccount, requireSuperAdmin, async (req
 
 router.put('/bands/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
-    const { name, website, contactEmail } = req.body;
-    await updateBandAdmin(req.params.id, { name, website, contactEmail });
+    await updateBandAdmin(req.params.id, req.body || {});
     res.json({ message: 'Band updated' });
   } catch (error) {
     sendError(res, error);

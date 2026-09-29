@@ -58,7 +58,7 @@ and `public/analytics.js`.
 | Table | Purpose | Key columns |
 |---|---|---|
 | `accounts` | A person with a login | id, first_name, surname, email, account_level, practice_year_enabled/_start_month/_start_day (`ML-234`) |
-| `bands` | An ensemble | id, name, website, contact_email, created_by_account_id, active |
+| `bands` | An ensemble. Migration 073 added the directory details (all optional) and seeded 45 bands within ~15 miles of Woking and Guildford | id, name, website, contact_email, created_by_account_id, active, ensemble_type (Brass Band, Concert Band, Wind Band, Youth Brass Band, Youth Wind Band, Training Band, Brass Ensemble, Massed Band), town, county, rehearsal_postcode, section_level (Championship-Fourth, Non-contesting), parent_band_id (a youth/training/second band's main band - one level only), notes |
 | `band_members` | Standing membership | band_id, account_id, role |
 | `tutors` | Soft lookup, no login required | id, display_name, first_name, surname, email, active |
 | `tutor_account_links` | Connects a tutor lookup row to a real account, if the tutor has one | tutor_id, account_id, linked_at |

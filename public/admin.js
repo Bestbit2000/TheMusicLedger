@@ -437,6 +437,14 @@
     // shared-modal pattern as Features above.
     // ========================================
     let bandsById = new Map();
+    // Migration 073's details - the same lists the server checks (server/services/bands.js).
+    const BAND_TYPES = ['Brass Band', 'Concert Band', 'Wind Band', 'Youth Brass Band', 'Youth Wind Band', 'Training Band', 'Brass Ensemble', 'Massed Band'];
+    const BAND_SECTIONS = ['Championship', 'First', 'Second', 'Third', 'Fourth', 'Non-contesting'];
+    // "Brass Band · Third section · Cobham, Surrey KT11 3EJ · part of The Cobham Band"
+    function bandDetailLine(b) {
+        const where = [b.town, b.county].filter(Boolean).join(', ') + (b.rehearsalPostcode ? ` ${b.rehearsalPostcode}` : '');
+        return [b.ensembleType, b.sectionLevel && `${b.sectionLevel} section`, where.trim(), b.parentName && `part of ${b.parentName}`].filter(Boolean).join(' · ');
+    }
 
     function renderBandsList(bands) {
         bandsById = new Map(bands.map(b => [b.id, b]));
@@ -448,6 +456,8 @@
                     <div class="admin-feature-header-text">
                         <h2>${escapeHtml(b.displayName)}${b.active ? '' : ' (archived)'}</h2>
                         <p>${b.website ? `<a href="${escapeHtml(b.website)}" target="_blank" rel="noopener">${escapeHtml(b.website)}</a>` : 'No website'}</p>
+                        ${bandDetailLine(b) ? `<p class="admin-test-case-meta">${escapeHtml(bandDetailLine(b))}</p>` : ''}
+                        ${b.notes ? `<p class="admin-test-case-meta">${escapeHtml(b.notes)}</p>` : ''}
                         <p class="admin-test-case-meta">${b.memberCount} member${b.memberCount === 1 ? '' : 's'} &middot; ${b.sessionCount} session${b.sessionCount === 1 ? '' : 's'}</p>
                     </div>
                     <div class="admin-feature-actions">
@@ -478,6 +488,18 @@
         document.getElementById('bandNameInput').value = band ? band.name : '';
         document.getElementById('bandWebsiteInput').value = band ? (band.website || '') : '';
         document.getElementById('bandContactEmailInput').value = band ? (band.contactEmail || '') : '';
+        const options = (el, blank, values, current) => {
+            el.innerHTML = `<option value="">${blank}</option>` + values.map(([v, l]) => `<option value="${escapeHtml(String(v))}"${String(v) === String(current ?? '') ? ' selected' : ''}>${escapeHtml(l)}</option>`).join('');
+        };
+        options(document.getElementById('bandTypeInput'), 'Not known', BAND_TYPES.map(t => [t, t]), band?.ensembleType);
+        options(document.getElementById('bandSectionInput'), 'None (not a contesting brass band)', BAND_SECTIONS.map(s => [s, s]), band?.sectionLevel);
+        // A main band is one that isn't itself part of another band (one level only).
+        const mains = [...bandsById.values()].filter(b => !b.parentBandId && b.active && (!band || b.id !== band.id));
+        options(document.getElementById('bandParentInput'), 'Nothing - it is a main band', mains.map(b => [b.id, b.displayName]), band?.parentBandId);
+        document.getElementById('bandTownInput').value = band?.town || '';
+        document.getElementById('bandCountyInput').value = band?.county || '';
+        document.getElementById('bandPostcodeInput').value = band?.rehearsalPostcode || '';
+        document.getElementById('bandNotesInput').value = band?.notes || '';
         showModal('bandFormModal');
         document.getElementById('bandNameInput').focus();
     }
@@ -496,13 +518,23 @@
         // per ML-89) - an existing band grandfathered in with no website can keep it that way.
         if (!editingBandId && !website) { showToast('A website is required so new bands can be checked for duplicates.'); return; }
 
+        const details = {
+            ensembleType: document.getElementById('bandTypeInput').value,
+            sectionLevel: document.getElementById('bandSectionInput').value,
+            parentBandId: document.getElementById('bandParentInput').value || null,
+            town: document.getElementById('bandTownInput').value,
+            county: document.getElementById('bandCountyInput').value,
+            rehearsalPostcode: document.getElementById('bandPostcodeInput').value,
+            notes: document.getElementById('bandNotesInput').value
+        };
+
         const saveBtn = document.getElementById('bandFormSaveBtn');
         saveBtn.disabled = true;
         try {
             if (editingBandId) {
-                await apiCall(`/api/admin/bands/${editingBandId}`, 'PUT', { name, website, contactEmail });
+                await apiCall(`/api/admin/bands/${editingBandId}`, 'PUT', { name, website, contactEmail, ...details });
             } else {
-                await apiCall('/api/admin/bands', 'POST', { name, website });
+                await apiCall('/api/admin/bands', 'POST', { name, website, ...details });
             }
             closeBandForm();
             await reloadBands();

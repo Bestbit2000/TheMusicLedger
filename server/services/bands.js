@@ -98,13 +98,27 @@ function bandDisplayName(name) {
   const core = /^The\s+(.+)$/i.exec(name)?.[1];
   return core ? `${core} (The)` : name;
 }
+// Migration 073: what kind of band, where it rehearses, its brass band section, the band it belongs
+// to (a youth/training/second band) and any notes. All optional - older bands have none of them.
+export const ENSEMBLE_TYPES = ['Brass Band', 'Concert Band', 'Wind Band', 'Youth Brass Band', 'Youth Wind Band', 'Training Band', 'Brass Ensemble', 'Massed Band'];
+export const SECTION_LEVELS = ['Championship', 'First', 'Second', 'Third', 'Fourth', 'Non-contesting'];
+const DETAIL_COLUMNS = `b.ensemble_type, b.town, b.county, b.rehearsal_postcode, b.section_level, b.parent_band_id, b.notes,
+            (SELECT pb.name FROM bands pb WHERE pb.id = b.parent_band_id) AS parent_name`;
 function toDirectoryBand(row) {
   return {
     id: Number(row.id),
     name: row.name,
     displayName: bandDisplayName(row.name),
     website: row.website,
-    memberCount: row.member_count !== undefined ? Number(row.member_count) : undefined
+    memberCount: row.member_count !== undefined ? Number(row.member_count) : undefined,
+    ensembleType: row.ensemble_type ?? null,
+    town: row.town ?? null,
+    county: row.county ?? null,
+    rehearsalPostcode: row.rehearsal_postcode ?? null,
+    sectionLevel: row.section_level ?? null,
+    parentBandId: row.parent_band_id ? Number(row.parent_band_id) : null,
+    parentName: row.parent_name ? bandDisplayName(row.parent_name) : null,
+    notes: row.notes ?? null
   };
 }
 function sortByDisplayName(bands) {
@@ -115,7 +129,7 @@ function sortByDisplayName(bands) {
 // band picker.
 export async function listAllBands() {
   const { rows } = await pool.query(
-    `SELECT b.id, b.name, b.website, COUNT(bm.account_id) AS member_count
+    `SELECT b.id, b.name, b.website, ${DETAIL_COLUMNS}, COUNT(bm.account_id) AS member_count
      FROM bands b LEFT JOIN band_members bm ON bm.band_id = b.id
      WHERE b.active
      GROUP BY b.id`
@@ -130,7 +144,7 @@ export async function listAllBands() {
 // real membership (not a concern for the private per-account list, which has no such thing).
 export async function getAccountBands(accountId) {
   const { rows } = await pool.query(
-    `SELECT b.id, b.name, b.website, bm.role,
+    `SELECT b.id, b.name, b.website, ${DETAIL_COLUMNS}, bm.role,
             (SELECT COUNT(*) FROM band_members bm2 WHERE bm2.band_id = b.id) AS total_members,
             EXISTS(SELECT 1 FROM sessions s WHERE s.band_id = b.id) AS used_in_sessions
      FROM band_members bm JOIN bands b ON b.id = bm.band_id
@@ -250,7 +264,7 @@ export async function createSharedBand(accountId, name, website, { joinCreator =
 
 export async function listBandsForAdmin() {
   const { rows } = await pool.query(
-    `SELECT b.id, b.name, b.website, b.contact_email, b.active,
+    `SELECT b.id, b.name, b.website, b.contact_email, b.active, ${DETAIL_COLUMNS},
             COUNT(DISTINCT bm.account_id) AS member_count,
             (SELECT COUNT(*) FROM sessions s WHERE s.band_id = b.id) AS session_count
      FROM bands b LEFT JOIN band_members bm ON bm.band_id = b.id
@@ -262,12 +276,37 @@ export async function listBandsForAdmin() {
   return sortByDisplayName(rows.map(r => ({ ...toDirectoryBand(r), contactEmail: r.contact_email, active: r.active, sessionCount: Number(r.session_count) })));
 }
 
-export async function updateBandAdmin(id, { name, website, contactEmail }) {
+export async function updateBandAdmin(id, { name, website, contactEmail, ...details }) {
   const { rows } = await pool.query(
     'UPDATE bands SET name = $1, website = $2, contact_email = $3 WHERE id = $4 RETURNING id',
     [name, website || null, contactEmail || null, id]
   );
   if (!rows.length) { const e = new Error('Band not found'); e.status = 404; throw e; }
+  await setBandDetails(id, details);
+}
+
+// Migration 073's details, from the admin panel. Blank means "not known".
+export async function setBandDetails(id, { ensembleType, town, county, rehearsalPostcode, sectionLevel, parentBandId, notes } = {}) {
+  const text = (v, max) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
+  const bad = (msg) => { const e = new Error(msg); e.status = 400; return e; };
+  const type = text(ensembleType, 40);
+  if (type && !ENSEMBLE_TYPES.includes(type)) throw bad('Unknown kind of band.');
+  const section = text(sectionLevel, 20);
+  if (section && !SECTION_LEVELS.includes(section)) throw bad('Unknown section.');
+  const parent = parentBandId ? Number(parentBandId) : null;
+  if (parent !== null) {
+    if (!Number.isInteger(parent) || parent === Number(id)) throw bad("A band can't belong to itself.");
+    const { rows } = await pool.query('SELECT parent_band_id FROM bands WHERE id = $1', [parent]);
+    if (!rows.length) throw bad("That main band isn't in the directory.");
+    // One level only: a training band belongs to the main band, not to its youth band.
+    if (rows[0].parent_band_id !== null) throw bad('That band belongs to another band itself - pick the main one.');
+  }
+  const postcode = text(rehearsalPostcode, 10);
+  await pool.query(
+    `UPDATE bands SET ensemble_type = $1, town = $2, county = $3, rehearsal_postcode = $4, section_level = $5,
+            parent_band_id = $6, notes = $7 WHERE id = $8`,
+    [type, text(town, 80), text(county, 80), postcode && postcode.toUpperCase(), section, parent, text(notes, 500), id]
+  );
 }
 
 // Deleting a band still linked to a real member or referenced in session
