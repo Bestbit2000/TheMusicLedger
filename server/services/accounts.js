@@ -149,7 +149,7 @@ export const DISPLAY_PREF_CHOICES = {
   darkMode: [true, false],
   dyslexia: [true, false],                       // more line / letter / word spacing, no italics
   font: ['standard', 'lexend', 'opendyslexic'],
-  background: ['standard', 'cream', 'blue', 'green'],
+  background: ['standard', 'cream', 'blue', 'green', 'yellow', 'peach'], // ML-359: + soft yellow, peach
   textSize: ['standard', 'large', 'larger']
 };
 export async function getDisplayPrefs(accountId) {

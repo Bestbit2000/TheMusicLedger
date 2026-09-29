@@ -572,9 +572,6 @@
     <!-- ML-356: Display and reading - saved on the account, so it follows you to every device. -->
     <div id="settingsDisplayView" class="settings-subview hidden-group">
         <div class="setting-row">
-            <span id="darkModeToggleLabel">Dark mode</span><label class="toggle-switch"><input type="checkbox" id="darkModeToggle" aria-labelledby="darkModeToggleLabel"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="setting-row">
             <span id="dyslexiaToggleLabel">Dyslexia-friendly reading</span><label class="toggle-switch"><input type="checkbox" id="dyslexiaToggle" aria-labelledby="dyslexiaToggleLabel" aria-describedby="dyslexiaToggleHelp"><span class="toggle-slider"></span></label>
         </div>
         <p class="text-sm mb-4" id="dyslexiaToggleHelp">More space between lines, letters and words, and no italics. Choose the font, background and text size that suit you below - turning this on picks Lexend and cream to start with.</p>
@@ -585,12 +582,18 @@
                 <input type="radio" name="readingFont" id="readingFont-opendyslexic" value="opendyslexic"><label for="readingFont-opendyslexic" class="font-preview-opendyslexic">OpenDyslexic</label>
             </div>
         </div>
-        <div class="form-group" role="group" aria-labelledby="readingBackgroundLabel"><label id="readingBackgroundLabel">Background colour</label>
+        <!-- ML-359: dark mode lives with the background colours - each colour has a dark version too. -->
+        <div class="form-group" role="group" aria-labelledby="readingBackgroundLabel"><label id="readingBackgroundLabel">Background</label>
+            <div class="setting-row mb-3">
+                <span id="darkModeToggleLabel">Dark mode</span><label class="toggle-switch"><input type="checkbox" id="darkModeToggle" aria-labelledby="darkModeToggleLabel"><span class="toggle-slider"></span></label>
+            </div>
             <div class="radio-group" id="readingBackgroundOptions">
                 <input type="radio" name="readingBackground" id="readingBackground-standard" value="standard"><label for="readingBackground-standard"><span class="bg-swatch bg-swatch-standard" aria-hidden="true"></span>Standard</label>
                 <input type="radio" name="readingBackground" id="readingBackground-cream" value="cream"><label for="readingBackground-cream"><span class="bg-swatch bg-swatch-cream" aria-hidden="true"></span>Cream</label>
                 <input type="radio" name="readingBackground" id="readingBackground-blue" value="blue"><label for="readingBackground-blue"><span class="bg-swatch bg-swatch-blue" aria-hidden="true"></span>Pale blue</label>
                 <input type="radio" name="readingBackground" id="readingBackground-green" value="green"><label for="readingBackground-green"><span class="bg-swatch bg-swatch-green" aria-hidden="true"></span>Pale green</label>
+                <input type="radio" name="readingBackground" id="readingBackground-yellow" value="yellow"><label for="readingBackground-yellow"><span class="bg-swatch bg-swatch-yellow" aria-hidden="true"></span>Soft yellow</label>
+                <input type="radio" name="readingBackground" id="readingBackground-peach" value="peach"><label for="readingBackground-peach"><span class="bg-swatch bg-swatch-peach" aria-hidden="true"></span>Peach</label>
             </div>
         </div>
         <div class="form-group" role="group" aria-labelledby="readingTextSizeLabel"><label id="readingTextSizeLabel">Text size</label>

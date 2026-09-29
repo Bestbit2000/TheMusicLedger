@@ -142,25 +142,39 @@
     --ds-tracking-reading: 0.035em;   /* ML-356 dyslexia-friendly letter spacing */
     --ds-word-spacing-reading: 0.12em;
     --ds-tile-label-fit: 15cqi;       /* ML-356 a tool tile's label never wider than its tile */
-    /* ML-356 background choices - light, then dark: page, cards, fields */
-    --ds-cream-page: #f8f0dc;
+    /* ML-356 background choices - light, then dark: page, cards, fields. ML-359: + soft yellow and peach
+       (visual stress overlays), and stronger dark versions so a colour shows in dark mode too. Every text
+       colour is at least 4.5:1 on each (checked for page, card and field). */
+    --ds-cream-page: #f9f1df;
     --ds-cream-card: #fdf8ec;
     --ds-cream-field: #fffcf4;
-    --ds-blue-page: #e8f0f8;
+    --ds-blue-page: #ecf2f9;
     --ds-blue-card: #f1f6fb;
     --ds-blue-field: #f9fbfd;
-    --ds-green-page: #e6f2e8;
+    --ds-green-page: #eaf4eb;
     --ds-green-card: #f0f8f1;
     --ds-green-field: #f9fcf9;
-    --ds-cream-page-dark: #1d1a14;
-    --ds-cream-card-dark: #28241c;
-    --ds-cream-field-dark: #363026;
-    --ds-blue-page-dark: #131a22;
-    --ds-blue-card-dark: #1c242e;
-    --ds-blue-field-dark: #2a333f;
-    --ds-green-page-dark: #141c16;
-    --ds-green-card-dark: #1d2720;
-    --ds-green-field-dark: #2b362e;
+    --ds-yellow-page: #f8f3d2;
+    --ds-yellow-card: #fcf9e6;
+    --ds-yellow-field: #fffdf3;
+    --ds-peach-page: #ffede6;
+    --ds-peach-card: #fff6f2;
+    --ds-peach-field: #fff8f5;
+    --ds-cream-page-dark: #2b2517;
+    --ds-cream-card-dark: #362f1f;
+    --ds-cream-field-dark: #3a3223;
+    --ds-blue-page-dark: #16222f;
+    --ds-blue-card-dark: #1f2d3c;
+    --ds-blue-field-dark: #273544;
+    --ds-green-page-dark: #17261b;
+    --ds-green-card-dark: #213225;
+    --ds-green-field-dark: #27372a;
+    --ds-yellow-page-dark: #29260f;
+    --ds-yellow-card-dark: #343118;
+    --ds-yellow-field-dark: #37341d;
+    --ds-peach-page-dark: #2e1f1b;
+    --ds-peach-card-dark: #3a2823;
+    --ds-peach-field-dark: #422f2a;
     --ds-text-0-6: 0.6rem;
     --ds-text-0-65: 0.65rem;
     --ds-text-0-8: 0.8rem;
@@ -355,10 +369,12 @@
     --font-preview-standard: var(--ds-font-inter, 'Inter', sans-serif); /* each Reading font choice drawn in its own font */
     --font-preview-lexend: var(--ds-font-lexend, 'Lexend', sans-serif); /* the Lexend choice, in Lexend */
     --font-preview-opendyslexic: var(--ds-font-opendyslexic, 'OpenDyslexic', sans-serif); /* the OpenDyslexic choice, in OpenDyslexic */
-    --swatch-standard: var(--ds-neutral-50, #f4f7f6);            /* Background choice swatches - the light page colours */
-    --swatch-cream: var(--ds-cream-page, #f8f0dc);               /* the Cream choice's swatch */
-    --swatch-blue: var(--ds-blue-page, #e8f0f8);                 /* the Pale blue choice's swatch */
-    --swatch-green: var(--ds-green-page, #e6f2e8);               /* the Pale green choice's swatch */
+    --swatch-standard: var(--ds-neutral-50, #f4f7f6);            /* Background choice swatches - the light page colours (the dark shades in dark mode, ML-359) */
+    --swatch-cream: var(--ds-cream-page, #f9f1df);               /* the Cream choice's swatch */
+    --swatch-blue: var(--ds-blue-page, #ecf2f9);                 /* the Pale blue choice's swatch */
+    --swatch-green: var(--ds-green-page, #eaf4eb);               /* the Pale green choice's swatch */
+    --swatch-yellow: var(--ds-yellow-page, #f8f3d2);             /* ML-359 the Soft yellow choice's swatch */
+    --swatch-peach: var(--ds-peach-page, #ffede6);               /* ML-359 the Peach choice's swatch */
 
     /* Icon glyph sizes (Material Symbols font-size) */
     --icon-sm: var(--ds-size-16, 16px);                          /* inline icons inside text or chips */
@@ -502,9 +518,15 @@ html[data-reading="on"] {
 }
 
 /* Background colour - light, then dark (the dark variant beats body.dark-mode on specificity). */
-html[data-bg="cream"] { --bg-color: var(--ds-cream-page, #f8f0dc); --container-bg: var(--ds-cream-card, #fdf8ec); --input-bg: var(--ds-cream-field, #fffcf4); }
-html[data-bg="blue"] { --bg-color: var(--ds-blue-page, #e8f0f8); --container-bg: var(--ds-blue-card, #f1f6fb); --input-bg: var(--ds-blue-field, #f9fbfd); }
-html[data-bg="green"] { --bg-color: var(--ds-green-page, #e6f2e8); --container-bg: var(--ds-green-card, #f0f8f1); --input-bg: var(--ds-green-field, #f9fcf9); }
-html[data-bg="cream"] body.dark-mode { --bg-color: var(--ds-cream-page-dark, #1d1a14); --container-bg: var(--ds-cream-card-dark, #28241c); --input-bg: var(--ds-cream-field-dark, #363026); }
-html[data-bg="blue"] body.dark-mode { --bg-color: var(--ds-blue-page-dark, #131a22); --container-bg: var(--ds-blue-card-dark, #1c242e); --input-bg: var(--ds-blue-field-dark, #2a333f); }
-html[data-bg="green"] body.dark-mode { --bg-color: var(--ds-green-page-dark, #141c16); --container-bg: var(--ds-green-card-dark, #1d2720); --input-bg: var(--ds-green-field-dark, #2b362e); }
+html[data-bg="cream"] { --bg-color: var(--ds-cream-page, #f9f1df); --container-bg: var(--ds-cream-card, #fdf8ec); --input-bg: var(--ds-cream-field, #fffcf4); }
+html[data-bg="blue"] { --bg-color: var(--ds-blue-page, #ecf2f9); --container-bg: var(--ds-blue-card, #f1f6fb); --input-bg: var(--ds-blue-field, #f9fbfd); }
+html[data-bg="green"] { --bg-color: var(--ds-green-page, #eaf4eb); --container-bg: var(--ds-green-card, #f0f8f1); --input-bg: var(--ds-green-field, #f9fcf9); }
+html[data-bg="yellow"] { --bg-color: var(--ds-yellow-page, #f8f3d2); --container-bg: var(--ds-yellow-card, #fcf9e6); --input-bg: var(--ds-yellow-field, #fffdf3); }
+html[data-bg="peach"] { --bg-color: var(--ds-peach-page, #ffede6); --container-bg: var(--ds-peach-card, #fff6f2); --input-bg: var(--ds-peach-field, #fff8f5); }
+html[data-bg="cream"] body.dark-mode { --bg-color: var(--ds-cream-page-dark, #2b2517); --container-bg: var(--ds-cream-card-dark, #362f1f); --input-bg: var(--ds-cream-field-dark, #3a3223); }
+html[data-bg="blue"] body.dark-mode { --bg-color: var(--ds-blue-page-dark, #16222f); --container-bg: var(--ds-blue-card-dark, #1f2d3c); --input-bg: var(--ds-blue-field-dark, #273544); }
+html[data-bg="green"] body.dark-mode { --bg-color: var(--ds-green-page-dark, #17261b); --container-bg: var(--ds-green-card-dark, #213225); --input-bg: var(--ds-green-field-dark, #27372a); }
+html[data-bg="yellow"] body.dark-mode { --bg-color: var(--ds-yellow-page-dark, #29260f); --container-bg: var(--ds-yellow-card-dark, #343118); --input-bg: var(--ds-yellow-field-dark, #37341d); }
+html[data-bg="peach"] body.dark-mode { --bg-color: var(--ds-peach-page-dark, #2e1f1b); --container-bg: var(--ds-peach-card-dark, #3a2823); --input-bg: var(--ds-peach-field-dark, #422f2a); }
+/* ML-359: in dark mode the swatches show the dark shades you'd get */
+body.dark-mode { --swatch-standard: var(--ds-neutral-900, #121212); --swatch-cream: var(--ds-cream-page-dark, #2b2517); --swatch-blue: var(--ds-blue-page-dark, #16222f); --swatch-green: var(--ds-green-page-dark, #17261b); --swatch-yellow: var(--ds-yellow-page-dark, #29260f); --swatch-peach: var(--ds-peach-page-dark, #2e1f1b); }

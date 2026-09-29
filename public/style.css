@@ -43,6 +43,8 @@
     .bg-swatch-cream { background: var(--swatch-cream); }
     .bg-swatch-blue { background: var(--swatch-blue); }
     .bg-swatch-green { background: var(--swatch-green); }
+    .bg-swatch-yellow { background: var(--swatch-yellow); }
+    .bg-swatch-peach { background: var(--swatch-peach); }
 
     /* Anything you can click shows the hand on a desktop - the default for every enabled button, so a
        new component can't forget it. A component's own cursor (grab, not-allowed...) still wins: this is

@@ -16,10 +16,10 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 
 | Token | Light | Dark | Use for |
 |---|---|---|---|
-| `--bg-color` | `#f4f7f6` | `#141c16` | page background |
-| `--container-bg` | `#ffffff` | `#1d2720` | main column, cards, modals, menus |
+| `--bg-color` | `#f4f7f6` | `#2e1f1b` | page background |
+| `--container-bg` | `#ffffff` | `#3a2823` | main column, cards, modals, menus |
 | `--secondary-color` | `#f1f8e9` | `#2c2c2c` | quiet tinted panel (month nav, active admin tab) |
-| `--input-bg` | `#fafafa` | `#2b362e` | inputs + tappable surfaces |
+| `--input-bg` | `#fafafa` | `#422f2a` | inputs + tappable surfaces |
 | `--surface-inverse` | `#333333` | (same) | dark toast / snackbar |
 | `--overlay-bg` | `rgba(0, 0, 0, 0.85)` | (same) | modal scrim |
 | `--menu-backdrop-bg` | `rgba(0, 0, 0, 0.3)` | `rgba(0, 0, 0, 0.6)` | dims the page behind the open ☰ menu on a phone (ML-291) - lighter than a modal scrim |
@@ -193,10 +193,12 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 | `--font-preview-standard` | `'Inter', 'Segoe UI', Tahoma, sans-serif` | (same) | each Reading font choice drawn in its own font |
 | `--font-preview-lexend` | `'Lexend', 'Segoe UI', sans-serif` | (same) | the Lexend choice, in Lexend |
 | `--font-preview-opendyslexic` | `'OpenDyslexic', 'Comic Sans MS', sans-serif` | (same) | the OpenDyslexic choice, in OpenDyslexic |
-| `--swatch-standard` | `#f4f7f6` | (same) | Background choice swatches - the light page colours |
-| `--swatch-cream` | `#f8f0dc` | (same) | the Cream choice's swatch |
-| `--swatch-blue` | `#e8f0f8` | (same) | the Pale blue choice's swatch |
-| `--swatch-green` | `#e6f2e8` | (same) | the Pale green choice's swatch |
+| `--swatch-standard` | `#f4f7f6` | `#121212` | Background choice swatches - the light page colours (the dark shades in dark mode, ML-359) |
+| `--swatch-cream` | `#f9f1df` | `#2b2517` | the Cream choice's swatch |
+| `--swatch-blue` | `#ecf2f9` | `#16222f` | the Pale blue choice's swatch |
+| `--swatch-green` | `#eaf4eb` | `#17261b` | the Pale green choice's swatch |
+| `--swatch-yellow` | `#f8f3d2` | `#29260f` | ML-359 the Soft yellow choice's swatch |
+| `--swatch-peach` | `#ffede6` | `#2e1f1b` | ML-359 the Peach choice's swatch |
 
 ## Icon glyph sizes (Material Symbols font-size)
 
@@ -421,24 +423,36 @@ one ladder, low to high. Never invent a number in a component.
 | `--ds-tracking-reading` | `0.035em` |
 | `--ds-word-spacing-reading` | `0.12em` |
 | `--ds-tile-label-fit` | `15cqi` |
-| `--ds-cream-page` | `#f8f0dc` |
+| `--ds-cream-page` | `#f9f1df` |
 | `--ds-cream-card` | `#fdf8ec` |
 | `--ds-cream-field` | `#fffcf4` |
-| `--ds-blue-page` | `#e8f0f8` |
+| `--ds-blue-page` | `#ecf2f9` |
 | `--ds-blue-card` | `#f1f6fb` |
 | `--ds-blue-field` | `#f9fbfd` |
-| `--ds-green-page` | `#e6f2e8` |
+| `--ds-green-page` | `#eaf4eb` |
 | `--ds-green-card` | `#f0f8f1` |
 | `--ds-green-field` | `#f9fcf9` |
-| `--ds-cream-page-dark` | `#1d1a14` |
-| `--ds-cream-card-dark` | `#28241c` |
-| `--ds-cream-field-dark` | `#363026` |
-| `--ds-blue-page-dark` | `#131a22` |
-| `--ds-blue-card-dark` | `#1c242e` |
-| `--ds-blue-field-dark` | `#2a333f` |
-| `--ds-green-page-dark` | `#141c16` |
-| `--ds-green-card-dark` | `#1d2720` |
-| `--ds-green-field-dark` | `#2b362e` |
+| `--ds-yellow-page` | `#f8f3d2` |
+| `--ds-yellow-card` | `#fcf9e6` |
+| `--ds-yellow-field` | `#fffdf3` |
+| `--ds-peach-page` | `#ffede6` |
+| `--ds-peach-card` | `#fff6f2` |
+| `--ds-peach-field` | `#fff8f5` |
+| `--ds-cream-page-dark` | `#2b2517` |
+| `--ds-cream-card-dark` | `#362f1f` |
+| `--ds-cream-field-dark` | `#3a3223` |
+| `--ds-blue-page-dark` | `#16222f` |
+| `--ds-blue-card-dark` | `#1f2d3c` |
+| `--ds-blue-field-dark` | `#273544` |
+| `--ds-green-page-dark` | `#17261b` |
+| `--ds-green-card-dark` | `#213225` |
+| `--ds-green-field-dark` | `#27372a` |
+| `--ds-yellow-page-dark` | `#29260f` |
+| `--ds-yellow-card-dark` | `#343118` |
+| `--ds-yellow-field-dark` | `#37341d` |
+| `--ds-peach-page-dark` | `#2e1f1b` |
+| `--ds-peach-card-dark` | `#3a2823` |
+| `--ds-peach-field-dark` | `#422f2a` |
 | `--ds-text-0-6` | `0.6rem` |
 | `--ds-text-0-65` | `0.65rem` |
 | `--ds-text-0-8` | `0.8rem` |

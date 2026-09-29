@@ -1,7 +1,7 @@
 # Display and reading
 
 ## 1. Metadata
-- **Name:** Display and reading (`.font-preview-standard`, `.font-preview-lexend`, `.font-preview-opendyslexic`, `.bg-swatch`, `.bg-swatch-standard`, `.bg-swatch-cream`, `.bg-swatch-blue`, `.bg-swatch-green`) and the page-wide reading preferences (`html[data-font]`, `html[data-bg]`, `html[data-text]`, `html[data-reading]`)
+- **Name:** Display and reading (`.font-preview-standard`, `.font-preview-lexend`, `.font-preview-opendyslexic`, `.bg-swatch`, `.bg-swatch-standard`, `.bg-swatch-yellow`, `.bg-swatch-peach`, `.bg-swatch-cream`, `.bg-swatch-blue`, `.bg-swatch-green`) and the page-wide reading preferences (`html[data-font]`, `html[data-bg]`, `html[data-text]`, `html[data-reading]`)
 - **Category:** Settings / foundations
 - **Status:** Stable (ML-356)
 
@@ -13,14 +13,16 @@ Layer 2 aliases change, so every screen follows without a component knowing. Mus
 keeps Bravura. See [docs/display-and-reading.md](../../docs/display-and-reading.md).
 
 ## 3. Anatomy
-Settings screen: two `.setting-row` toggles (Dark mode; Dyslexia-friendly reading + a `.text-sm` line
-saying what it does) › three `.radio-group` pill rows: Reading font (each label drawn in its own font -
-`.font-preview-*`), Background colour (each label led by a `.bg-swatch` circle of that colour),
-Text size (Standard / Large / Larger).
+Settings screen: the Dyslexia-friendly reading `.setting-row` toggle + a `.text-sm` line saying what it
+does › Reading font (a `.radio-group`, each label drawn in its own font - `.font-preview-*`) › **Background**
+(ML-359): the Dark mode `.setting-row` toggle, then Standard, Cream, Pale blue, Pale green, Soft yellow and
+Peach (a `.radio-group`, two to a row, each label led by a `.bg-swatch` circle of that colour - the dark
+shade while dark mode is on, since every colour has a dark version) › Text size (Standard / Large / Larger).
+Dark mode sits with the colours because it's one of the two halves of the same choice.
 
 ## 4. Tokens used
 Settings: `--font-preview-standard | -lexend | -opendyslexic`, `--swatch-standard | -cream | -blue |
--green`, `--space-2`, `--space-4`, `--control-border`, `--radius-circle`.
+-green | -yellow | -peach` (dark-mode shades in `body.dark-mode`), `--space-2`, `--space-4`, `--control-border`, `--radius-circle`.
 Page-wide (switched by the data attributes): `--font-sans` (reading font), `--text-scale` (root font
 size: 100 / 112.5 / 125%), `--line-height-base` and `--line-height-relaxed`, `--reading-letter-spacing`,
 `--reading-word-spacing`, `--reading-em-style` (dyslexia-friendly), `--bg-color`, `--container-bg`,
@@ -36,7 +38,7 @@ device copy, saves to the account), `loadDisplayPrefs()` at startup. Server: `GE
 
 ## 6. States
 Each preference's value; turning dyslexia-friendly on picks Lexend and cream if the font and
-background are still standard.
+background are still standard, and turning it off puts back whichever of them it changed (ML-359).
 
 ## 7. Code example
 ```html
