@@ -3842,6 +3842,52 @@
         box.querySelector('[data-codes-done]').addEventListener('click', done);
     }
 
+    // ML-355 batch 3: change your password - or, for a Google account, add one (then you can also log in
+    // with your email). Every password box has the show/hide eye (specs/components/password-field.md).
+    function passwordFieldHtml(id, label, autocomplete, extra = '') {
+        return `<label for="${id}">${label}</label>
+            <div class="password-field"><input type="password" id="${id}" autocomplete="${autocomplete}"${extra}>
+            <button type="button" class="password-toggle" data-password-toggle="${id}" aria-label="Show password" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">visibility</span></button></div>`;
+    }
+    function renderPasswordPanel(hasPassword) {
+        const panel = document.getElementById('accountPasswordPanel');
+        panel.innerHTML = hasPassword
+            ? '<button type="button" class="btn-nav" id="accountPasswordOpenBtn">Change password</button>'
+            : '<p class="text-sm mb-3">Want to log in with your email and a password as well?</p><button type="button" class="btn-nav" id="accountPasswordOpenBtn">Add a password</button>';
+        document.getElementById('accountPasswordOpenBtn').addEventListener('click', () => {
+            panel.innerHTML = `<form id="accountPasswordForm" novalidate>
+                ${hasPassword ? `<div class="form-group">${passwordFieldHtml('accountCurrentPassword', 'Current password', 'current-password')}</div>` : ''}
+                <div class="form-group">${passwordFieldHtml('accountNewPassword', 'New password', 'new-password', ' aria-describedby="accountNewPasswordHint"')}
+                    <p class="text-sm" id="accountNewPasswordHint">At least 10 characters. A few words together is easy to remember and hard to guess.</p></div>
+                <div class="form-group">${passwordFieldHtml('accountNewPassword2', 'New password again', 'new-password')}</div>
+                ${hasPassword ? '<p class="text-sm mb-3">You\'ll stay logged in here, and be logged out everywhere else.</p>' : ''}
+                <p class="two-step-message hidden-group" id="accountPasswordMsg" role="alert"></p>
+                <div class="flex-row gap-sm mb-4"><button type="submit" class="btn-submit btn-inline" id="accountPasswordSaveBtn">Save</button><button type="button" class="btn-nav btn-cancel btn-inline" id="accountPasswordCancelBtn">Cancel</button></div>
+            </form>`;
+            document.getElementById('accountPasswordCancelBtn').addEventListener('click', () => renderPasswordPanel(hasPassword));
+            const msg = document.getElementById('accountPasswordMsg');
+            const say = (t) => { msg.textContent = t; setShown(msg, !!t); };
+            document.getElementById('accountPasswordForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const pw = document.getElementById('accountNewPassword').value;
+                if (pw.length < 10) return say('Use at least 10 characters.');
+                if (pw !== document.getElementById('accountNewPassword2').value) return say("The two new passwords don't match.");
+                const btn = document.getElementById('accountPasswordSaveBtn');
+                btn.disabled = true;
+                try {
+                    const res = await apiCall('/api/account/password', 'POST', { current: document.getElementById('accountCurrentPassword')?.value || '', password: pw });
+                    auth.updateToken(res.authToken); // the old one stops working - this device keeps going
+                    showSuccessToast(res.added ? 'Password added - you can also log in with your email now' : 'Password changed - you\'re logged out on your other devices');
+                    loadAccountSecurity();
+                } catch (err) {
+                    say(err.message);
+                    btn.disabled = false;
+                }
+            });
+            document.getElementById(hasPassword ? 'accountCurrentPassword' : 'accountNewPassword').focus();
+        });
+    }
+
     // --- Account -> Sign-in and security ---
     let securityStatus = null;
     async function loadSecurityStatus() {
@@ -3861,14 +3907,19 @@
         if (!st) { box.innerHTML = '<p class="text-sm">Couldn\'t load this - try again.</p>'; return; }
         if (!st.hasPassword) {
             box.innerHTML = `<div class="info-row"><span>You log in with</span><strong>Google</strong></div>
-                <p class="text-sm">Two-step sign-in here is for logging in with an email and password. Google has its own - turn on 2-Step Verification in your Google account to protect it.</p>`;
+                <p class="text-sm">Two-step sign-in here is for logging in with an email and password. Google has its own - turn on 2-Step Verification in your Google account to protect it.</p>
+                <div id="accountPasswordPanel"></div>`;
+            renderPasswordPanel(false);
             return;
         }
         const ts = st.twoStep;
         box.innerHTML = `<div class="info-row"><span>You log in with</span><strong>Email and password</strong></div>
+            <div class="info-row"><span>Password</span><strong>${st.passwordSetAt ? `Set ${new Date(st.passwordSetAt).toLocaleDateString()}` : 'Set'}</strong></div>
+            <div id="accountPasswordPanel"></div>
             <div class="info-row"><span>Two-step sign-in</span><strong>${ts.enabled ? `On since ${new Date(ts.enabledAt).toLocaleDateString()}` : 'Off'}</strong></div>
             ${ts.enabled ? `<div class="info-row"><span>Recovery codes left</span><strong>${ts.recoveryCodesLeft} of 10</strong></div>` : ''}
             <div id="accountTwoStepPanel"></div>`;
+        renderPasswordPanel(true);
         const panel = document.getElementById('accountTwoStepPanel');
         if (!ts.enabled) {
             panel.innerHTML = `<p class="text-sm mb-3">After your password, you'll also type a code from an app on your phone - so a stolen password alone can't get in.${st.twoStepRequired ? ' It\'s required for super admins.' : ''}</p>

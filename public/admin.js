@@ -398,6 +398,22 @@
         return [a.firstName, a.surname].filter(Boolean).join(' ').trim() || a.email;
     }
 
+    // ML-355 batch 3: how each account logs in, and the help an admin can give with it.
+    let passwordLoginOn = false; // from /api/admin/invites (reloadInvites)
+    function accountLoginLine(a) {
+        const parts = [a.hasPassword ? 'Google or email + password' : 'Google'];
+        if (a.hasPassword) parts.push(a.twoStepOn ? 'two-step on' : 'two-step off');
+        if (a.lastPasswordLoginAt) parts.push(`last password login ${fmtDate(a.lastPasswordLoginAt)}`);
+        if (a.lockedUntil) parts.push(`<strong>locked until ${fmtDate(a.lockedUntil)}</strong> (too many wrong tries)`);
+        return parts.join(' &middot; ');
+    }
+    const ACCOUNT_ACTIONS = {
+        'send-reset': (a) => [a.hasPassword ? 'Send a reset link' : 'Send a link to add a password', `Email ${a.email} a link to choose a new password? It works once, for an hour.`],
+        unlock: (a) => ['Unlock', `Let ${accountDisplayName(a)} try their password and codes again straight away?`],
+        'two-step/off': (a) => ['Turn off two-step sign-in', `Turn off ${accountDisplayName(a)}'s two-step sign-in - for a lost phone with no recovery codes? Only do this once you're sure it's really them.${a.accountLevel === 'super_admin' ? ' As a super admin, they\'ll have to set it up again at their next password login.' : ' They can set it up again in Sign-in and security.'}`],
+        'sign-out': (a) => ['Sign out everywhere', `Sign ${accountDisplayName(a)} out on every device? They'll need to log in again.`]
+    };
+
     function renderAccountsList(accounts) {
         const el = document.getElementById('accountsList');
         if (!accounts.length) { el.innerHTML = '<p>No accounts yet.</p>'; return; }
@@ -408,13 +424,33 @@
                         <h2>${escapeHtml(accountDisplayName(a))}</h2>
                         <p>${escapeHtml(a.email)}</p>
                         <p class="admin-test-case-meta">Joined ${fmtDate(a.createdAt)}</p>
+                        <p class="admin-test-case-meta">${accountLoginLine(a)}</p>
                     </div>
                     <select class="admin-level-select" data-account-id="${a.id}" aria-label="Account type for ${escapeHtml(accountDisplayName(a))}">
                         ${ACCOUNT_LEVELS.map(([value, label]) => `<option value="${value}" ${a.accountLevel === value ? 'selected' : ''}>${label}</option>`).join('')}
                     </select>
+                    <div class="flex-row gap-sm flex-wrap">
+                        ${passwordLoginOn ? `<button type="button" class="btn-nav btn-inline-sm" data-account-action="send-reset" data-account-id="${a.id}">${a.hasPassword ? 'Send a reset link' : 'Send a link to add a password'}</button>` : ''}
+                        ${a.lockedUntil ? `<button type="button" class="btn-nav btn-inline-sm" data-account-action="unlock" data-account-id="${a.id}">Unlock</button>` : ''}
+                        ${a.twoStepOn ? `<button type="button" class="btn-nav btn-inline-sm" data-account-action="two-step/off" data-account-id="${a.id}">Turn off two-step</button>` : ''}
+                        <button type="button" class="btn-nav btn-inline-sm" data-account-action="sign-out" data-account-id="${a.id}">Sign out everywhere</button>
+                    </div>
                 </div>
             </div>
         `).join('');
+        el.querySelectorAll('[data-account-action]').forEach(btn => btn.addEventListener('click', () => {
+            const a = accounts.find(x => String(x.id) === btn.dataset.accountId);
+            const [title, text] = ACCOUNT_ACTIONS[btn.dataset.accountAction](a);
+            showConfirmModal(title, text, async () => {
+                try {
+                    const { message } = await apiCall(`/api/admin/accounts/${a.id}/${btn.dataset.accountAction}`, 'POST', {});
+                    showToast(message, 'success');
+                    await reloadAccounts();
+                } catch (error) {
+                    showToast(error.message);
+                }
+            }, false);
+        }));
         el.querySelectorAll('.admin-level-select').forEach((sel) => {
             sel.addEventListener('change', async () => {
                 try {
@@ -429,9 +465,9 @@
     }
 
     async function reloadAccounts() {
+        await reloadInvites(); // first: it says whether password login is on (the reset link button)
         const { accounts } = await apiCall('/api/admin/accounts');
         renderAccountsList(accounts);
-        await reloadInvites();
     }
 
     // ML-355: invites to log in with an email and a password. Not super admin - a super admin needs
@@ -439,6 +475,7 @@
     async function reloadInvites() {
         let data;
         try { data = await apiCall('/api/admin/invites'); } catch (e) { return; } // before migration 074
+        passwordLoginOn = !!data.enabled;
         setShown('invitesOffNote', !data.enabled);
         document.getElementById('inviteBtn').disabled = !data.enabled;
         const el = document.getElementById('invitesList');

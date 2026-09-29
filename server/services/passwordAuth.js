@@ -336,3 +336,93 @@ export async function requirePasswordAccount(accountId) {
   const { rows } = await pool.query('SELECT 1 FROM account_passwords WHERE account_id = $1', [accountId]);
   if (!rows.length) throw fail(400, 'Two-step sign-in is for logging in with a password - you log in with Google, which has its own.');
 }
+
+// ---- batch 3: admin tools (Admin -> Accounts) ----
+async function adminTarget(accountId) {
+  const { rows } = await pool.query('SELECT id, email, first_name, token_version FROM accounts WHERE id = $1', [accountId]);
+  if (!rows.length) throw fail(404, 'Account not found.');
+  return rows[0];
+}
+// A password reset link, as if they'd asked for one - for someone who can't get in (or to add a password
+// to a Google account). Doesn't count against their own forgot-password limit.
+export async function adminSendReset(accountId, origin) {
+  await requireEnabled();
+  const account = await adminTarget(accountId);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const secret = await newLink(client, { purpose: 'reset', email: account.email, minutes: RESET_MINUTES });
+    const url = `${origin}/?reset=${secret}`;
+    const { text, html } = emailBody(
+      [`Hi${account.first_name ? ` ${account.first_name}` : ''},`, 'The Music Ledger team has sent you a link to choose a new password for your account.'],
+      'Choose a new password', url, `This link works once, for ${RESET_MINUTES} minutes. If you weren't expecting it, you can ignore this email - your password hasn't changed.`);
+    await sendMail({ to: account.email, subject: 'Your Music Ledger password', text, html });
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
+  return account.email;
+}
+// Clears a pause after too many wrong passwords or codes.
+export async function adminUnlock(accountId) {
+  await adminTarget(accountId);
+  await pool.query('UPDATE account_passwords SET failed_attempts = 0, locked_until = NULL WHERE account_id = $1', [accountId]);
+  await pool.query('UPDATE account_two_step SET failed_attempts = 0, locked_until = NULL WHERE account_id = $1', [accountId]);
+}
+// Signs the account out on every device (Google and password logins alike).
+export async function adminSignOutEverywhere(accountId) {
+  const account = await adminTarget(accountId);
+  await pool.query('UPDATE accounts SET token_version = token_version + 1 WHERE id = $1', [accountId]);
+  forgetTokenVersion(account.email);
+}
+// Lost phone and no recovery codes: two-step sign-in off, so they can log in with just the password and
+// set it up again (a super admin is asked to at their next password login).
+export async function adminTurnOffTwoStep(accountId) {
+  await adminTarget(accountId);
+  await pool.query('DELETE FROM account_two_step WHERE account_id = $1', [accountId]);
+  await pool.query('DELETE FROM account_recovery_codes WHERE account_id = $1', [accountId]);
+}
+
+// ---- batch 3: change (or add) your own password, logged in ----
+// With a password: the current one first (wrong ones count towards the lock, like logging in), and
+// every other device is signed out - this one gets a fresh token. Without one (a Google account): just
+// the new password, which adds email + password login.
+export async function changeOwnPassword(accountId, current, next, ip) {
+  await requireEnabled();
+  if (await overLimit('login', ip, 30, 15)) throw fail(429, TOO_MANY);
+  const { rows } = await pool.query(
+    `SELECT a.email, p.password_hash, p.locked_until FROM accounts a LEFT JOIN account_passwords p ON p.account_id = a.id WHERE a.id = $1`, [accountId]);
+  const row = rows[0];
+  if (!row) throw fail(404, 'Account not found.');
+  if (row.password_hash) {
+    if (row.locked_until && new Date(row.locked_until) > new Date()) throw fail(423, 'Too many wrong passwords - try again in a few minutes, or use "Forgot your password?".');
+    if (!(await verifyPassword(String(current || ''), row.password_hash))) {
+      await pool.query(
+        `UPDATE account_passwords SET failed_attempts = failed_attempts + 1,
+                locked_until = CASE WHEN failed_attempts + 1 >= $2 THEN now() + make_interval(mins => $3) ELSE locked_until END
+          WHERE account_id = $1`, [accountId, LOCK_AFTER, LOCK_MINUTES]);
+      throw fail(400, 'Your current password isn\'t right.');
+    }
+  }
+  const problem = await passwordProblem(next);
+  if (problem) throw fail(400, problem);
+  const client = await pool.connect();
+  let account;
+  try {
+    await client.query('BEGIN');
+    await setPassword(client, accountId, next);
+    if (row.password_hash) await client.query('UPDATE accounts SET token_version = token_version + 1 WHERE id = $1', [accountId]);
+    account = await accountByEmail(client, row.email);
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
+  forgetTokenVersion(account.email);
+  return { added: !row.password_hash, ...signLoginToken(account) };
+}

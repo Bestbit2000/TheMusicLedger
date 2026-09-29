@@ -16,7 +16,7 @@ import { listWarmupsForAdmin, createWarmup, updateWarmup, setWarmupActive, moveW
 import { listAccountsForAdmin, setAccountLevel } from '../services/accounts.js';
 import { getFeatureAccess, saveFeatureAccess, clearFeatureCache } from '../services/features.js';
 import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin, setBandDetails } from '../services/bands.js';
-import { createInvite, listPendingInvites, cancelInvite, passwordLoginEnabled, appUrl } from '../services/passwordAuth.js';
+import { createInvite, listPendingInvites, cancelInvite, passwordLoginEnabled, appUrl, adminSendReset, adminUnlock, adminSignOutEverywhere, adminTurnOffTwoStep } from '../services/passwordAuth.js';
 import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption, deleteDurationOption, listDurationUsageStats, listSessionMinuteCounts } from '../services/durationOptions.js';
 import { listTimeSignatureOptionsForAdmin, createTimeSignatureOption, updateTimeSignatureOption, deleteOrArchiveTimeSignatureOption, listNoteValueUsage } from '../services/timeSignatures.js';
 import { listPlaybackSpeedsForAdmin, createPlaybackSpeedOption, updatePlaybackSpeedOption, deletePlaybackSpeedOption } from '../services/playbackSpeeds.js';
@@ -349,6 +349,25 @@ router.put('/accounts/:id/level', requireAuth, resolveAccount, requireSuperAdmin
     sendError(res, error);
   }
 });
+
+// ML-355 batch 3: help with someone's login - email them a reset link, clear a lock after too many wrong
+// tries, turn off two-step sign-in (a lost phone), or sign them out on every device.
+const accountAction = (fn, message) => async (req, res) => {
+  try {
+    const result = await fn(req);
+    res.json({ message: typeof message === 'function' ? message(result) : message });
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+router.post('/accounts/:id/send-reset', requireAuth, resolveAccount, requireSuperAdmin,
+  accountAction((req) => adminSendReset(req.params.id, appUrl(req)), (email) => `Reset link sent to ${email}`));
+router.post('/accounts/:id/unlock', requireAuth, resolveAccount, requireSuperAdmin,
+  accountAction((req) => adminUnlock(req.params.id), 'Unlocked - they can try again now'));
+router.post('/accounts/:id/two-step/off', requireAuth, resolveAccount, requireSuperAdmin,
+  accountAction((req) => adminTurnOffTwoStep(req.params.id), 'Two-step sign-in is off for them - they can set it up again'));
+router.post('/accounts/:id/sign-out', requireAuth, resolveAccount, requireSuperAdmin,
+  accountAction((req) => adminSignOutEverywhere(req.params.id), 'Signed out on every device'));
 
 // ML-355: invite someone to log in with their email and a password (password_login must be on).
 router.get('/invites', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {

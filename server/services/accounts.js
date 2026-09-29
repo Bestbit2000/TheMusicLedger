@@ -113,12 +113,23 @@ export async function isSuperAdmin(accountId) {
 // ---- Admin panel (ML-77: Super-admin-only account-level management) ----
 
 export async function listAccountsForAdmin() {
+  // ML-355 batch 3: how each account logs in - password or not, two-step on, locked, last password login.
   const { rows } = await pool.query(
-    'SELECT id, first_name, surname, email, account_level, created_at FROM accounts ORDER BY created_at'
+    `SELECT a.id, a.first_name, a.surname, a.email, a.account_level, a.created_at,
+            p.account_id IS NOT NULL AS has_password, p.last_login_at, p.locked_until AS password_locked_until,
+            t.enabled_at AS two_step_enabled_at, t.locked_until AS two_step_locked_until
+       FROM accounts a
+       LEFT JOIN account_passwords p ON p.account_id = a.id
+       LEFT JOIN account_two_step t ON t.account_id = a.id
+      ORDER BY a.created_at`
   );
+  const lockedUntil = (...times) => times.filter(t => t && new Date(t) > new Date()).sort().pop() || null;
   return rows.map(r => ({
     id: Number(r.id), firstName: r.first_name, surname: r.surname, email: r.email,
-    accountLevel: r.account_level, createdAt: r.created_at
+    accountLevel: r.account_level, createdAt: r.created_at,
+    hasPassword: r.has_password, lastPasswordLoginAt: r.last_login_at,
+    twoStepOn: !!r.two_step_enabled_at,
+    lockedUntil: lockedUntil(r.password_locked_until, r.two_step_locked_until)
   }));
 }
 

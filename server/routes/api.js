@@ -35,7 +35,7 @@ import { submitFeedback } from '../services/feedback.js';
 import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead } from '../services/notifications.js';
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryWeights } from '../services/theoryPractice.js';
 import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getRhythmLevels, setRhythmWord } from '../services/drills.js';
-import { securityStatus, requirePasswordAccount } from '../services/passwordAuth.js';
+import { securityStatus, requirePasswordAccount, changeOwnPassword } from '../services/passwordAuth.js';
 import { beginSetup, confirmSetup, newRecoveryCodes, turnOff } from '../services/twoStep.js';
 
 const router = express.Router();
@@ -698,6 +698,15 @@ router.get('/account', requireAuth, resolveAccount, async (req, res) => {
 router.get('/account/security', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await securityStatus(req.accountId, req.realAccountLevel));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+// ML-355 batch 3: change your password (or add one to a Google account). Other devices are signed out;
+// this one gets a fresh token.
+router.post('/account/password', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await changeOwnPassword(req.accountId, req.body?.current, req.body?.password, req.ip));
   } catch (error) {
     sendError(res, error);
   }

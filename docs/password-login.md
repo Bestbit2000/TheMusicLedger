@@ -12,7 +12,7 @@ Gmail account (SMTP) until then.
 |---|---|---|
 | 1 | Password login, invites, forgot / reset password, email sending, dev outbox | built |
 | 2 | Two-step sign-in (authenticator app + recovery codes); required for super admins | built |
-| 3 | Admin tools: login method per account, unlock, send a reset link, turn off 2FA; change password in the app | to do |
+| 3 | Admin tools: login method per account, unlock, send a reset link, turn off 2FA, sign out everywhere; change (or add) your password in the app | built |
 
 ## How it works
 
@@ -57,6 +57,23 @@ Gmail account (SMTP) until then.
   `SESSION_SECRET` if that's not set - changing it means everyone sets two-step sign-in up again.
   Recovery codes are stored as SHA-256 only. Tables: `account_two_step`, `account_recovery_codes`
   (migration 075).
+
+## Changing your password, and the admin tools (batch 3)
+
+- **My account → Sign-in and security → Change password:** the current password (wrong ones count
+  towards the lock, like logging in), then the new one twice. Every other device is signed out; this one
+  gets a fresh token (`POST /api/account/password`). A **Google-only** account sees **Add a password**
+  instead (no current password) - then it can also log in with its email.
+- **Admin → Accounts** shows how each account logs in ("Google" or "Google or email + password"),
+  whether two-step is on, the last password login, and a lock ("locked until …, too many wrong tries").
+  Buttons, each asking first:
+  - **Send a reset link** (or "…to add a password" for a Google-only account) - emails the 1-hour link
+    as if they'd asked (needs `password_login` on).
+  - **Unlock** (only while locked) - clears the pause after wrong passwords or codes.
+  - **Turn off two-step** (only while it's on) - for a lost phone with no recovery codes; only once
+    you're sure it's them. A super admin is asked to set it up again at their next password login.
+  - **Sign out everywhere** - bumps their token version, so every device (Google too) logs in again.
+  Routes: `POST /api/admin/accounts/:id/send-reset | unlock | two-step/off | sign-out`.
 
 ## Security details
 
