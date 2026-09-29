@@ -15957,7 +15957,7 @@
     // ===== ML-356: Display and reading (docs/display-and-reading.md) =====
     // Saved on the account so they follow you to every device; a copy stays on the device
     // (tml.display) so display-prefs.js can apply them before the page draws next time.
-    const DISPLAY_DEFAULTS = { darkMode: false, dyslexia: false, font: 'standard', background: 'standard', textSize: 'standard' };
+    const DISPLAY_DEFAULTS = { darkMode: false, dyslexia: false, font: 'standard', background: 'standard', textSize: 'standard', beforeDyslexia: null };
     let displayPrefs = { ...DISPLAY_DEFAULTS };
     try { displayPrefs = { ...DISPLAY_DEFAULTS, ...JSON.parse(localStorage.getItem('tml.display') || '{}') }; } catch (e) { /* defaults */ }
     if (localStorage.getItem('tml.display') === null && localStorage.getItem('darkMode') === 'true') displayPrefs.darkMode = true;
@@ -16005,9 +16005,20 @@
     document.getElementById('darkModeToggle')?.addEventListener('change', (e) => saveDisplayPrefs({ darkMode: e.target.checked }));
     document.getElementById('dyslexiaToggle')?.addEventListener('change', (e) => {
         const changes = { dyslexia: e.target.checked };
-        // Turning it on starts you off with Lexend and cream (unless you've chosen your own already).
-        if (e.target.checked && displayPrefs.font === 'standard') changes.font = 'lexend';
-        if (e.target.checked && displayPrefs.background === 'standard') changes.background = 'cream';
+        if (e.target.checked) {
+            // Turning it on starts you off with Lexend and cream (unless you've chosen your own already),
+            // remembering what they were (ML-359) ...
+            const before = {};
+            if (displayPrefs.font === 'standard') { changes.font = 'lexend'; before.font = 'standard'; }
+            if (displayPrefs.background === 'standard') { changes.background = 'cream'; before.background = 'standard'; }
+            changes.beforeDyslexia = Object.keys(before).length ? before : null;
+        } else {
+            // ... so turning it off puts them back - unless you've changed them yourself since.
+            const before = displayPrefs.beforeDyslexia || {};
+            if (before.font && displayPrefs.font === 'lexend') changes.font = before.font;
+            if (before.background && displayPrefs.background === 'cream') changes.background = before.background;
+            changes.beforeDyslexia = null;
+        }
         saveDisplayPrefs(changes);
     });
     [['readingFont', 'font'], ['readingBackground', 'background'], ['readingTextSize', 'textSize']].forEach(([name, key]) => {

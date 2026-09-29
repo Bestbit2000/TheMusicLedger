@@ -164,6 +164,14 @@ export async function saveDisplayPrefs(accountId, prefs) {
       clean[key] = prefs[key];
     }
   }
+  // ML-359: what turning dyslexia-friendly reading on changed (the font / background it picked), so
+  // turning it off can put them back - null once put back.
+  if (prefs && 'beforeDyslexia' in prefs) {
+    const b = prefs.beforeDyslexia;
+    const ok = b === null || (typeof b === 'object' && !Array.isArray(b) && Object.keys(b).every(k => ['font', 'background'].includes(k) && DISPLAY_PREF_CHOICES[k].includes(b[k])));
+    if (!ok) { const e = new Error('Unknown beforeDyslexia setting.'); e.status = 400; throw e; }
+    clean.beforeDyslexia = b;
+  }
   // Merged, so one screen can save one setting without resending the others.
   const { rows } = await pool.query(
     'UPDATE accounts SET display_prefs = display_prefs || $2::jsonb WHERE id = $1 RETURNING display_prefs',

@@ -5,7 +5,7 @@ Settings → **Display and reading** - for dyslexic players first, and useful to
 | Setting | Choices | What it does |
 |---|---|---|
 | Dark mode | on / off | As before - now saved on the account instead of per device |
-| Dyslexia-friendly reading | on / off | Line spacing 1.7 (1.85 for long text), a little more letter (0.035em) and word (0.12em) spacing, no italics - the British Dyslexia Association style guide. Turning it on picks Lexend and cream if the font and background are still standard |
+| Dyslexia-friendly reading | on / off | Line spacing 1.7 (1.85 for long text), a little more letter (0.035em) and word (0.12em) spacing, no italics - the British Dyslexia Association style guide. Turning it on picks Lexend and cream if the font and background are still standard, remembering them (`beforeDyslexia`), so turning it off puts them back - unless you changed them yourself in between (ML-359) |
 | Reading font | Standard (Inter) · Lexend · OpenDyslexic | The font for all UI text (buttons too). Music notation always stays in Bravura |
 | Background colour | Standard · Cream · Pale blue · Pale green | Page, cards and fields, with a dark version of each for dark mode |
 | Text size | Standard · Large (112.5%) · Larger (125%) | The root font size - everything sized in rem grows |
