@@ -2381,28 +2381,47 @@
         </div>
     </div>
 
+    <!-- ML-357: My scales is the ABRSM grade lists (public/scaleGrades.js). Tick the grades and choose the
+         instrument: the grid shows every scale those grades ask for, in chromatic key order - ready,
+         in another octave, outside your range for now, beyond the instrument, or not needed - and the
+         ready ones are the list Previous / Next / Shuffle go round. The Key / Type / Octaves tiles stay. -->
     <div class="modal" id="scalesPoolModal" role="dialog" aria-modal="true" aria-labelledby="scalesPoolModalTitle">
+        <div class="modal-content modal-content-sticky-footer">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <div class="metroSeg-scroll-area">
+                <h2 id="scalesPoolModalTitle">My scales</h2>
+                <p class="text-muted modal-intro">Tick the grades you're working on. The grid shows every scale ABRSM asks for at those grades on your instrument; the ones you can play are the list Next, Previous and Shuffle go round.</p>
+                <div class="form-group" role="group" aria-labelledby="scalesGradesLabel"><label id="scalesGradesLabel">Grades</label>
+                    <div class="radio-group compact scales-grade-options" id="scalesGradeOptions"><input type="checkbox" id="scalesGrade-1" name="scalesGrade" value="1"><label for="scalesGrade-1">1</label><input type="checkbox" id="scalesGrade-2" name="scalesGrade" value="2"><label for="scalesGrade-2">2</label><input type="checkbox" id="scalesGrade-3" name="scalesGrade" value="3"><label for="scalesGrade-3">3</label><input type="checkbox" id="scalesGrade-4" name="scalesGrade" value="4"><label for="scalesGrade-4">4</label></div>
+                </div>
+                <div class="form-group"><label for="scalesGradeInstrument">Instrument</label><select id="scalesGradeInstrument"></select></div>
+                <p class="text-sm" id="scalesGradeListName" aria-live="polite"></p>
+                <button type="button" class="btn-nav" id="scalesSeeRangeBtn" aria-haspopup="dialog">See your range</button>
+                <p class="scales-pool-count" id="scalesPoolCount" aria-live="polite"></p>
+                <div id="scalesGradeGrid"></div>
+                <div class="scale-grid-legend" aria-hidden="true">
+                    <span><span class="scale-grid-cell is-ready"></span>In your list</span>
+                    <span><span class="scale-grid-cell is-other">8</span>In your list, in another octave</span>
+                    <span><span class="scale-grid-cell is-locked"><span class="material-symbols-outlined">lock</span></span>Outside your range, for now</span>
+                    <span><span class="scale-grid-cell is-beyond">&times;</span>Beyond the instrument</span>
+                    <span><span class="scale-grid-cell is-no"></span>Not needed at these grades</span>
+                </div>
+            </div>
+            <div class="metroSeg-sticky-footer">
+                <button type="button" class="btn-submit no-margin" data-modal-close>Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ML-357: See your range - the notes you can play comfortably, named and on a stave in the clef the
+         scales are in (for bass or tenor clef brass that's concert pitch, like the ABRSM lists). -->
+    <div class="modal" id="scalesMyRangeModal" role="dialog" aria-modal="true" aria-labelledby="scalesMyRangeTitle">
         <div class="modal-content">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
-            <h2 id="scalesPoolModalTitle">My scales</h2>
-            <p class="text-muted modal-intro">The scales you can play. Next and Previous go through them in order (majors round the circle of fifths, then minors); Shuffle picks one at random.</p>
-            <div class="form-group">
-                <label>Up to how many sharps</label>
-            <div class="radio-group"><input type="radio" id="scalesMaxSharps-0" name="scalesMaxSharps" value="0"><label for="scalesMaxSharps-0">0</label><input type="radio" id="scalesMaxSharps-1" name="scalesMaxSharps" value="1"><label for="scalesMaxSharps-1">1</label><input type="radio" id="scalesMaxSharps-2" name="scalesMaxSharps" value="2"><label for="scalesMaxSharps-2">2</label><input type="radio" id="scalesMaxSharps-3" name="scalesMaxSharps" value="3"><label for="scalesMaxSharps-3">3</label><input type="radio" id="scalesMaxSharps-4" name="scalesMaxSharps" value="4"><label for="scalesMaxSharps-4">4</label><input type="radio" id="scalesMaxSharps-5" name="scalesMaxSharps" value="5"><label for="scalesMaxSharps-5">5</label><input type="radio" id="scalesMaxSharps-6" name="scalesMaxSharps" value="6"><label for="scalesMaxSharps-6">6</label><input type="radio" id="scalesMaxSharps-7" name="scalesMaxSharps" value="7"><label for="scalesMaxSharps-7">7</label></div>
-            </div>
-            <div class="form-group">
-                <label>Up to how many flats</label>
-            <div class="radio-group"><input type="radio" id="scalesMaxFlats-0" name="scalesMaxFlats" value="0"><label for="scalesMaxFlats-0">0</label><input type="radio" id="scalesMaxFlats-1" name="scalesMaxFlats" value="1"><label for="scalesMaxFlats-1">1</label><input type="radio" id="scalesMaxFlats-2" name="scalesMaxFlats" value="2"><label for="scalesMaxFlats-2">2</label><input type="radio" id="scalesMaxFlats-3" name="scalesMaxFlats" value="3"><label for="scalesMaxFlats-3">3</label><input type="radio" id="scalesMaxFlats-4" name="scalesMaxFlats" value="4"><label for="scalesMaxFlats-4">4</label><input type="radio" id="scalesMaxFlats-5" name="scalesMaxFlats" value="5"><label for="scalesMaxFlats-5">5</label><input type="radio" id="scalesMaxFlats-6" name="scalesMaxFlats" value="6"><label for="scalesMaxFlats-6">6</label><input type="radio" id="scalesMaxFlats-7" name="scalesMaxFlats" value="7"><label for="scalesMaxFlats-7">7</label></div>
-            </div>
-            <div class="form-group">
-                <label>Kinds of scale</label>
-            <div class="radio-group"><input type="checkbox" id="scalesPoolForms-major" name="scalesPoolForms" value="major"><label for="scalesPoolForms-major">Major</label><input type="checkbox" id="scalesPoolForms-harmonic" name="scalesPoolForms" value="harmonic"><label for="scalesPoolForms-harmonic">Harmonic minor</label><input type="checkbox" id="scalesPoolForms-melodic" name="scalesPoolForms" value="melodic"><label for="scalesPoolForms-melodic">Melodic minor</label><input type="checkbox" id="scalesPoolForms-natural" name="scalesPoolForms" value="natural"><label for="scalesPoolForms-natural">Natural minor</label></div>
-            </div>
-            <div class="form-group">
-                <label>Scales and arpeggios</label>
-            <div class="radio-group"><input type="checkbox" id="scalesPoolTypes-scale" name="scalesPoolTypes" value="scale"><label for="scalesPoolTypes-scale">Scales</label><input type="checkbox" id="scalesPoolTypes-arpeggio" name="scalesPoolTypes" value="arpeggio"><label for="scalesPoolTypes-arpeggio">Arpeggios</label></div>
-            </div>
-            <p class="scales-pool-count" id="scalesPoolCount" aria-live="polite"></p>
+            <h2 id="scalesMyRangeTitle">Your range</h2>
+            <div class="scales-range-staff" id="scalesMyRangeStaff"></div>
+            <p class="text-sm" id="scalesMyRangeText"></p>
+            <button type="button" class="btn-nav hidden-group" id="scalesMyRangeSetBtn">Set your range</button>
             <button type="button" class="btn-submit no-margin mt-4" data-modal-close>Done</button>
         </div>
     </div>
@@ -3573,6 +3592,7 @@
 <script src="notation.js"></script>
 <script src="range.js"></script>
 <script src="theoryEngine.js"></script>
+<script src="scaleGrades.js"></script>
 <script src="warmups.js"></script>
 <script src="drills.js"></script>
 <script src="rhythm.js"></script>

@@ -6927,6 +6927,8 @@
             scales.form = s.def.mode === 'minor' ? 'harmonic' : 'major';
             if (scales.form !== 'major') scales.minorForm = 'harmonic';
             scales.type = 'scale';
+            scales.pattern = null;
+            scales.tonicOctave = null; // ML-357: the usual placement, not one a grade list chose
             scalesChanged();
         } else if (s.def.tool === 'rhythm') {
             rhythmState.set = s.def.set;
@@ -17617,15 +17619,22 @@
     // spelled by TheoryEngine.buildScale / writeScale and drawn by Notation.staff. See
     // specs/components/scales.md.
     const SCALES_STORE = 'tml.scales';
+    // ML-357: grades (ticked in My scales) + gradeInstrumentId pick the ABRSM list; pattern and tonicOctave
+    // are how a grade list plays a scale (down to the dominant; which octave it starts in) - picking a key,
+    // type or length by hand goes back to the usual placement. pool is the old My scales, no longer shown.
     const SCALES_DEFAULTS = { keyId: 'C major', form: 'major', minorForm: 'harmonic', type: 'scale', octaves: 1, direction: 'both', clef: 'treble', npb: 1, countIn: 1, bpm: 72, memory: false, volume: 80,
+        pattern: null, tonicOctave: null, grades: [1], gradeInstrumentId: null,
         pool: { maxSharps: 3, maxFlats: 3, forms: ['major', 'harmonic'], types: ['scale'] } };
     const SCALES_BEATS_PER_BAR = 4;
     const SCALES_BPM_MAX = 200;
     const SCALES_NPB = [[1, 'crotchets'], [2, 'quavers'], [3, 'triplets'], [4, 'semiquavers']];
-    const SCALES_DIRECTIONS = { up: ['arrow_upward', 'up'], down: ['arrow_downward', 'down'], both: ['swap_vert', 'up & down'] };
+    const SCALES_DIRECTIONS = { up: ['arrow_upward', 'up'], down: ['arrow_downward', 'down'], both: ['swap_vert', 'up & down'], downUp: ['import_export', 'down & up'] };
+    const SCALES_TYPES = [['scale', 'Scale'], ['arpeggio', 'Arpeggio'], ['chromatic', 'Chromatic'], ['dom7', 'Dominant 7th']];
+    const scalesTypeName = (t) => (SCALES_TYPES.find(([v]) => v === t) || SCALES_TYPES[0])[1];
+    const scalesLength = () => ScaleGrades.lengthLabel(scales.octaves, scales.pattern);
     // A tonic the other mode doesn't have as a key (no D# major, no Db minor) switches to its other spelling.
     const SCALES_ENHARMONIC = { 'D#': 'Eb', 'Eb': 'D#', 'G#': 'Ab', 'Ab': 'G#', 'A#': 'Bb', 'Bb': 'A#', 'Db': 'C#', 'C#': 'Db', 'Gb': 'F#', 'F#': 'Gb', 'Cb': 'B' };
-    const scalesClone = (o) => ({ ...o, pool: { ...o.pool, forms: [...o.pool.forms], types: [...o.pool.types] } });
+    const scalesClone = (o) => ({ ...o, grades: [...(o.grades || [1])], pool: { ...o.pool, forms: [...o.pool.forms], types: [...o.pool.types] } });
     let scales = (() => {
         try {
             const saved = JSON.parse(localStorage.getItem(SCALES_STORE) || 'null');
@@ -17653,22 +17662,24 @@
         const minor = scalesMode() === 'minor';
         document.getElementById('scalesKeyVal').textContent = scalesName(scalesTonic());
         document.getElementById('scalesKeyLbl').textContent = minor ? `${scale.form} minor` : 'major';
-        document.getElementById('scalesTypeVal').textContent = scales.type === 'arpeggio' ? 'Arpeggio' : 'Scale';
-        document.getElementById('scalesOctavesVal').textContent = scales.octaves;
-        document.getElementById('scalesOctavesLbl').textContent = scales.octaves === 1 ? 'octave' : 'octaves';
+        document.getElementById('scalesTypeVal').textContent = scalesTypeName(scales.type);
+        // ML-357: lengths now include "a 12th" and "down to the dominant"
+        const octVal = scales.pattern ? '1+' : scales.octaves === 1.5 ? '12th' : scales.octaves;
+        document.getElementById('scalesOctavesVal').textContent = octVal;
+        document.getElementById('scalesOctavesLbl').textContent = scales.pattern ? 'to dominant' : scales.octaves === 1.5 ? 'a 12th' : scales.octaves === 1 ? 'octave' : 'octaves';
         const [dirIcon, dirLabel] = SCALES_DIRECTIONS[scales.direction] || SCALES_DIRECTIONS.both;
         document.getElementById('scalesDirIcon').textContent = dirIcon;
         document.getElementById('scalesDirLbl').textContent = dirLabel;
         document.getElementById('scalesNpbVal').textContent = scales.npb;
         document.getElementById('scalesCountInVal').textContent = scales.countIn ? '1 bar' : 'none';
-        document.getElementById('scalesTitle').textContent = scale.title.replace(/^\S+/, scalesName(scalesTonic()));
+        document.getElementById('scalesTitle').textContent = scales.type === 'dom7' || scales.type === 'chromatic' ? scale.title : scale.title.replace(/^\S+/, scalesName(scalesTonic()));
         scalesShowSub();
         // Play from memory: the name only ("B♭ minor" / "harmonic · scale · 2 octaves · up & down") in place of the notes.
         document.getElementById('scalesMemoryToggle').checked = !!scales.memory;
         setShown('scalesStaff', !scales.memory);
         setShown('scalesMemory', !!scales.memory);
         document.getElementById('scalesMemoryName').textContent = `${scalesName(scalesTonic())} ${scalesMode()}`;
-        document.getElementById('scalesMemoryDetail').textContent = [minor ? scale.form : null, scales.type, `${scales.octaves} octave${scales.octaves === 1 ? '' : 's'}`, SCALES_DIRECTIONS[scales.direction][1]].filter(Boolean).join(' · ');
+        document.getElementById('scalesMemoryDetail').textContent = [minor && scales.type !== 'dom7' && scales.type !== 'arpeggio' ? scale.form : null, scalesTypeName(scales.type).toLowerCase(), scalesLength(), scale.pattern || scales.type === 'dom7' ? null : SCALES_DIRECTIONS[scales.direction][1]].filter(Boolean).join(' · ');
 
         // Rows of 8 notes (6 at 3 a beat, so a bar splits evenly), all the same height, spread to one
         // width so the notes line up down the page. Stems go down from the middle line up.
@@ -17714,7 +17725,7 @@
         const sub = document.getElementById('scalesSub');
         if (!sub) return;
         sub.textContent = scalesCountdown > 0 ? `Get ready… ${scalesCountdown}`
-            : `${scales.octaves} octave${scales.octaves === 1 ? '' : 's'} · ${scales.clef}`;
+            : `${scalesLength()} · ${scales.clef}`;
     }
 
     // --- Playing: one click per note (notes / beat clicks each beat); a count-in bar at the start only ---
@@ -17861,6 +17872,7 @@
         }).join('');
         grid.querySelectorAll('.flow-picker-tile').forEach(btn => btn.addEventListener('click', () => {
             scales.keyId = `${btn.dataset.id} ${scalesMode()}`;
+            scales.tonicOctave = null;
             hideModal('scalesKeyModal');
             scalesChanged();
         }));
@@ -17872,6 +17884,7 @@
         if (!valid.includes(tonic)) tonic = valid.includes(SCALES_ENHARMONIC[tonic]) ? SCALES_ENHARMONIC[tonic] : valid[0];
         scales.keyId = `${tonic} ${mode}`;
         scales.form = mode === 'minor' ? scales.minorForm : 'major';
+        scales.tonicOctave = null;
         scalesRenderKeyPicker();
         scalesChanged();
     }));
@@ -17882,15 +17895,17 @@
     }));
     document.getElementById('scalesKeyBtn')?.addEventListener('click', () => { scalesRenderKeyPicker(); showModal('scalesKeyModal'); });
     document.getElementById('scalesTypeBtn')?.addEventListener('click', () => {
-        scalesFillGrid('scalesTypeGrid', [['scale', 'Scale'], ['arpeggio', 'Arpeggio']].map(([v, l]) => ({ value: l, caption: '', selected: scales.type === v, v })),
-            (o) => { scales.type = o.v; hideModal('scalesTypeModal'); scalesChanged(); });
+        scalesFillGrid('scalesTypeGrid', SCALES_TYPES.map(([v, l]) => ({ value: l, caption: '', selected: scales.type === v, v })),
+            (o) => { scales.type = o.v; scales.tonicOctave = null; hideModal('scalesTypeModal'); scalesChanged(); });
         showModal('scalesTypeModal');
     });
     function scalesRenderRangePicker() {
-        scalesFillGrid('scalesOctavesGrid', [1, 2, 3].map(n => ({ value: n, caption: n === 1 ? 'octave' : 'octaves', selected: scales.octaves === n, v: n })),
-            (o) => { scales.octaves = o.v; scalesRenderRangePicker(); scalesChanged(); });
-        scalesFillGrid('scalesClefGrid', [['treble', 'Treble'], ['bass', 'Bass']].map(([v, l]) => ({ value: l, caption: 'clef', selected: scales.clef === v, v })),
-            (o) => { scales.clef = o.v; scalesRenderRangePicker(); scalesChanged(); });
+        // ML-357: + "a 12th" and "1 octave, then down to the dominant" (ABRSM), and the tenor clef
+        const lengths = [[1, null, '1', 'octave'], [1.5, null, '12th', 'a 12th'], [2, null, '2', 'octaves'], [3, null, '3', 'octaves'], [1, 'toDominant', '1+', 'to dominant']];
+        scalesFillGrid('scalesOctavesGrid', lengths.map(([n, pat, v, cap]) => ({ value: v, caption: cap, selected: scales.octaves === n && (scales.pattern || null) === pat, v: [n, pat] })),
+            (o) => { scales.octaves = o.v[0]; scales.pattern = o.v[1]; scales.tonicOctave = null; scalesRenderRangePicker(); scalesChanged(); });
+        scalesFillGrid('scalesClefGrid', [['treble', 'Treble'], ['bass', 'Bass'], ['tenor', 'Tenor']].map(([v, l]) => ({ value: l, caption: 'clef', selected: scales.clef === v, v })),
+            (o) => { scales.clef = o.v; scales.tonicOctave = null; scalesRenderRangePicker(); scalesChanged(); });
     }
     document.getElementById('scalesRangeBtn')?.addEventListener('click', () => { scalesRenderRangePicker(); showModal('scalesRangeModal'); });
     document.getElementById('scalesDirBtn')?.addEventListener('click', () => {
@@ -17909,54 +17924,140 @@
         showModal('scalesCountInModal');
     });
 
-    // --- My scales, and Previous / Next / Shuffle ---
-    function scalesRenderPool() {
-        const p = scales.pool;
-        const check = (id, on) => { const el = document.getElementById(id); if (el) el.checked = on; };
-        check(`scalesMaxSharps-${p.maxSharps}`, true);
-        check(`scalesMaxFlats-${p.maxFlats}`, true);
-        TheoryEngine.SCALE_FORMS.forEach(f => check(`scalesPoolForms-${f}`, p.forms.includes(f)));
-        ['scale', 'arpeggio'].forEach(t => check(`scalesPoolTypes-${t}`, p.types.includes(t)));
-        const n = TheoryEngine.scalePool(p).length;
-        document.getElementById('scalesPoolCount').textContent = `${n} scale${n === 1 ? '' : 's'} to choose from`;
+    // --- My scales (ML-357): the ABRSM grade lists, and Previous / Next / Shuffle ---
+    // Tick the grades and choose the instrument; ScaleGrades works out which scales those grades ask for
+    // on it and whether each fits the instrument and your range (docs/scales-grades.md). The ready and
+    // other-octave ones are the list, in grid order (majors, then minors; keys in chromatic order).
+    const scalesGradeInstrument = () => (myInstruments || []).find(i => i.id === scales.gradeInstrumentId) || (myInstruments || []).find(i => i.isPrimary) || (myInstruments || [])[0] || null;
+    // For bass- or tenor-clef brass that's usually written in treble (a baritone or euphonium in a brass
+    // band), the ABRSM list is at concert pitch - so the instrument's and your written range move by its
+    // transposition to be compared with it.
+    function scalesGradeContext(inst) {
+        const shift = inst && inst.family === 'Brass' && inst.theoryClef === 'treble' && scales.clef !== 'treble' ? Number(inst.writtenToConcert) || 0 : 0;
+        const at = (pitch) => { const m = pitch ? ScaleGrades.midiOf(pitch) : null; return m == null ? null : m + shift; };
+        return { clef: scales.clef, shift, low: at(inst && inst.rangeLow), high: at(inst && inst.rangeHigh), bottom: at(inst && inst.bottomNote), top: at(inst && inst.topNote) };
     }
-    function scalesPoolChanged(e) {
-        const p = scales.pool;
-        const input = e.target;
-        if (input.name === 'scalesMaxSharps') p.maxSharps = Number(input.value);
-        if (input.name === 'scalesMaxFlats') p.maxFlats = Number(input.value);
-        if (input.name === 'scalesPoolForms' || input.name === 'scalesPoolTypes') {
-            const listName = input.name === 'scalesPoolForms' ? 'forms' : 'types';
-            const picked = [...document.querySelectorAll(`input[name="${input.name}"]:checked`)].map(x => x.value);
-            if (!picked.length) { input.checked = true; return; } // always keep at least one
-            p[listName] = picked;
+    function scalesGradeGrid() {
+        const inst = scalesGradeInstrument();
+        const group = inst ? ScaleGrades.groupFor(inst.name, scales.clef) : null;
+        if (!group) return { inst, group, grid: null, pool: [] };
+        const grid = ScaleGrades.grid(group.id, scales.grades, scalesGradeContext(inst));
+        return { inst, group, grid, pool: grid.pool };
+    }
+    const SCALE_CELL = { ready: ['is-ready', '', 'in your list'], other: ['is-other', '8', 'in your list, another octave'], locked: ['is-locked', '<span class="material-symbols-outlined">lock</span>', 'outside your range'], beyond: ['is-beyond', '&times;', 'beyond the instrument'], no: ['is-no', '', ''] };
+    function scalesRenderPool() {
+        [1, 2, 3, 4].forEach(g => { const el = document.getElementById(`scalesGrade-${g}`); if (el) el.checked = scales.grades.includes(g); });
+        const sel = document.getElementById('scalesGradeInstrument');
+        const inst = scalesGradeInstrument();
+        sel.innerHTML = (myInstruments || []).length
+            ? myInstruments.map(i => `<option value="${i.id}"${inst && i.id === inst.id ? ' selected' : ''}>${escapeHtml(i.name)}</option>`).join('')
+            : '<option value="">Add your instrument in My account</option>';
+        const { group, grid, pool } = scalesGradeGrid();
+        const name = document.getElementById('scalesGradeListName');
+        const box = document.getElementById('scalesGradeGrid');
+        setShown('scalesSeeRangeBtn', !!inst);
+        if (!inst) {
+            name.textContent = 'Add the instrument you play in My account → My instruments, and the grades show here.';
+            box.innerHTML = '';
+        } else if (!group) {
+            name.textContent = `There's no ABRSM brass or woodwind list for ${inst.name} yet - pick scales with the Key and Type tiles.`;
+            box.innerHTML = '';
+        } else {
+            const pitchNote = group.clef === 'bass' && inst.theoryClef === 'treble' && inst.family === 'Brass' ? ', concert pitch' : '';
+            name.textContent = `ABRSM list: ${group.name}${pitchNote}. Change the clef with the Octaves and clef tile.`;
+            const head = (title, cols) => `<div class="scale-grid-head" aria-hidden="true"><span class="scale-grid-label">${title}</span>${cols.map(c => { const n = scalesName(c); return `<span>${escapeHtml(n[0])}<span class="scale-grid-acc">${escapeHtml(n.slice(1)) || '&nbsp;'}</span></span>`; }).join('')}</div>`;
+            const row = (r) => {
+                const said = Object.entries(SCALE_CELL).filter(([k]) => k !== 'no').map(([k, [, , words]]) => {
+                    const keys = r.cells.filter(c => c.state === k).map(c => scalesName(c.tonic));
+                    return keys.length ? `${words}: ${keys.join(', ')}` : '';
+                }).filter(Boolean).join('; ');
+                return `<div class="scale-grid-row" role="img" aria-label="${escapeHtml(`${r.label}, ${r.sub}. ${said || 'none needed'}`)}"><span class="scale-grid-label" aria-hidden="true">${escapeHtml(r.label)}<span class="scale-grid-sub">${escapeHtml(r.sub)}</span></span>${r.cells.map(c => `<span class="scale-grid-cell ${SCALE_CELL[c.state][0]}" aria-hidden="true">${SCALE_CELL[c.state][1]}</span>`).join('')}</div>`;
+            };
+            const sec = (key, title, cols) => (grid.sections[key].length ? `<div class="scale-grid">${head(title, cols)}${grid.sections[key].map(row).join('')}</div>` : '');
+            box.innerHTML = scales.grades.length
+                ? sec('major', 'Major keys', ScaleGrades.MAJOR_COLUMNS) + sec('minor', 'Minor keys', ScaleGrades.MINOR_COLUMNS)
+                : '<p class="text-sm">Tick a grade to see its scales.</p>';
         }
+        document.getElementById('scalesPoolCount').textContent = group && scales.grades.length ? `${pool.length} scale${pool.length === 1 ? '' : 's'} in your list${grid && grid.needed > pool.length ? ` (of ${grid.needed} needed)` : ''}` : '';
+    }
+    document.querySelectorAll('input[name="scalesGrade"]').forEach(input => input.addEventListener('change', () => {
+        scales.grades = [...document.querySelectorAll('input[name="scalesGrade"]:checked')].map(x => Number(x.value));
         scalesSave();
         scalesRenderPool();
+    }));
+    document.getElementById('scalesGradeInstrument')?.addEventListener('change', (e) => {
+        scales.gradeInstrumentId = Number(e.target.value) || null;
+        scalesSave();
+        scalesRenderPool();
+    });
+    document.getElementById('scalesPoolBtn')?.addEventListener('click', async () => {
+        if (!myInstruments || !myInstruments.length) await loadMyInstruments();
+        scalesRenderPool();
+        showModal('scalesPoolModal');
+    });
+
+    // See your range: the notes you can play comfortably, named and on a stave in the scales' clef.
+    function scalesRenderMyRange() {
+        const inst = scalesGradeInstrument();
+        const ctx = scalesGradeContext(inst);
+        document.getElementById('scalesMyRangeTitle').textContent = inst ? `Your range on ${inst.name}` : 'Your range';
+        const staff = document.getElementById('scalesMyRangeStaff');
+        const text = document.getElementById('scalesMyRangeText');
+        const setBtn = document.getElementById('scalesMyRangeSetBtn');
+        const named = (m) => PlayRange.label(PlayRange.pitchOf(m, 'usual'));
+        if (inst && ctx.bottom != null && ctx.top != null) {
+            const notes = [ctx.bottom, ctx.top].map(m => PlayRange.pitchOf(m, 'usual'));
+            staff.innerHTML = Notation.staff({ clef: scales.clef, noteGap: 3, label: `Your range: ${named(ctx.bottom)} to ${named(ctx.top)}`,
+                items: notes.map(pitch => ({ type: 'note', pitch })) });
+            text.textContent = `Lowest ${named(ctx.bottom)}, highest ${named(ctx.top)}${ctx.shift ? ' - at concert pitch, as the bass-clef grade lists are written' : ''}.`
+                + (ctx.low != null ? ` The instrument goes from ${named(ctx.low)} to ${named(ctx.high)}.` : '');
+            setBtn.textContent = 'Change your range';
+        } else {
+            staff.innerHTML = '';
+            text.textContent = inst ? `You haven't set the notes you can play comfortably on ${inst.name} yet - until you do, every scale the grades need counts as in your list.` : 'Add the instrument you play in My account → My instruments first.';
+            setBtn.textContent = inst ? 'Set your range' : 'My instruments';
+        }
+        setShown(setBtn, true);
+        // The range picker opens over My scales (and the grid redraws once it's saved); without the Range
+        // tool, or an instrument, it's My instruments.
+        setBtn.onclick = () => {
+            hideModal('scalesMyRangeModal');
+            if (inst && isFeatureEnabled('range_trainer')) { rangeData = null; openRangePicker(inst.id, scalesRenderPool); return; }
+            hideModal('scalesPoolModal');
+            switchView('accountInstrumentsView');
+        };
     }
-    document.querySelectorAll('#scalesPoolModal input').forEach(input => input.addEventListener('change', scalesPoolChanged));
-    document.getElementById('scalesPoolBtn')?.addEventListener('click', () => { scalesRenderPool(); showModal('scalesPoolModal'); });
-    // Previous / Next go through My scales in order (majors round the circle of fifths, then minors),
-    // wrapping round; Shuffle picks any other one at random. The same three as Warm-ups.
-    const scalesSame = (s) => s.keyId === scales.keyId && s.form === scales.form && s.type === scales.type;
+    document.getElementById('scalesSeeRangeBtn')?.addEventListener('click', () => { scalesRenderMyRange(); showModal('scalesMyRangeModal'); });
+
+    // Previous / Next go through your list in order, wrapping round; Shuffle picks any other one at
+    // random. The same three as Warm-ups.
+    const scalesSame = (p) => p.keyId === scales.keyId && p.form === scales.form && p.type === scales.type && p.octaves === scales.octaves && (p.pattern || null) === (scales.pattern || null);
     function scalesGo(pick) {
-        if (!pick) { showWarningToast('No scales match My scales - open it to choose some.'); return; }
+        if (!pick) { showWarningToast('Nothing in your list yet - open My scales to tick your grades.'); return; }
         scales.keyId = pick.keyId;
         scales.form = pick.form;
         if (pick.form !== 'major') scales.minorForm = pick.form;
         scales.type = pick.type;
+        scales.octaves = pick.octaves;
+        scales.pattern = pick.pattern || null;
+        scales.tonicOctave = Number.isInteger(pick.tonicOctave) ? pick.tonicOctave : null;
         scalesChanged();
     }
-    function scalesStep(dir) {
-        const pool = TheoryEngine.scalePool(scales.pool);
+    // The instruments load at sign-in; if that hasn't finished (or failed offline), wait for it here.
+    async function scalesGradePool() {
+        if (!myInstruments || !myInstruments.length) await loadMyInstruments();
+        return scalesGradeGrid().pool;
+    }
+    async function scalesStep(dir) {
+        const pool = await scalesGradePool();
         const i = pool.findIndex(scalesSame);
-        // Not one of My scales (picked on the tiles): Next starts at the first, Previous at the last
+        // Not in your list (picked on the tiles): Next starts at the first, Previous at the last
         scalesGo(pool[i < 0 ? (dir > 0 ? 0 : pool.length - 1) : (i + dir + pool.length) % pool.length]);
     }
     document.getElementById('scalesNextBtn')?.addEventListener('click', () => scalesStep(1));
     document.getElementById('scalesPrevBtn')?.addEventListener('click', () => scalesStep(-1));
-    document.getElementById('scalesShuffleBtn')?.addEventListener('click', () => {
-        const pool = TheoryEngine.scalePool(scales.pool);
+    document.getElementById('scalesShuffleBtn')?.addEventListener('click', async () => {
+        const pool = await scalesGradePool();
         const others = pool.filter(p => !scalesSame(p));
         const choices = others.length ? others : pool;
         scalesGo(choices[Math.floor(Math.random() * choices.length)]);
@@ -17968,7 +18069,7 @@
     });
 
     // Every Scales pop-up closes on its × / Done, or a tap on the backdrop.
-    ['scalesKeyModal', 'scalesTypeModal', 'scalesRangeModal', 'scalesDirModal', 'scalesNpbModal', 'scalesCountInModal', 'scalesPoolModal', 'scalesVolumeModal'].forEach(id => {
+    ['scalesKeyModal', 'scalesTypeModal', 'scalesRangeModal', 'scalesDirModal', 'scalesNpbModal', 'scalesCountInModal', 'scalesPoolModal', 'scalesMyRangeModal', 'scalesVolumeModal'].forEach(id => {
         const modal = document.getElementById(id);
         if (!modal) return;
         modal.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', () => hideModal(modal)));

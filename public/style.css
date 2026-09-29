@@ -1965,6 +1965,30 @@
     /* ML-294: Warm-ups shares the Scales layout classes; its own bit is the exercise's tip under the title. */
     .warmups-tip { margin: 0 var(--space-2) var(--space-2); font-size: var(--font-sm); color: var(--label-color); }
     .scales-pool-count { margin: var(--space-2) 0 0 0; font-size: var(--font-sm); color: var(--label-color); }
+    /* ML-357: the grade grid in My scales (specs/components/scales.md) - a label column, then the 15 keys
+       in chromatic order. Every state has a shape or mark as well as a colour: filled (ready), "8"
+       (another octave), a lock (outside your range), a cross (beyond the instrument), dashed (not needed). */
+    .scale-grid { margin-top: var(--space-4); }
+    .scale-grid-head, .scale-grid-row { display: grid; grid-template-columns: var(--scale-grid-label-width) repeat(15, minmax(0, 1fr)); gap: var(--space-0-5); align-items: center; }
+    .scale-grid-head { font-size: var(--font-2xs); color: var(--label-color); text-align: center; margin-bottom: var(--space-1); }
+    /* The key's sharp or flat sits under its letter - fifteen columns are too narrow for C♯ D♭ side by side */
+    .scale-grid-acc { display: block; line-height: var(--line-height-tight); }
+    .scale-grid-head .scale-grid-label { font-size: var(--font-sm); color: var(--text-color); font-weight: var(--font-weight-bold); text-align: left; }
+    .scale-grid-row { margin-top: var(--space-0-5); }
+    .scale-grid-label { font-size: var(--font-xs); line-height: var(--line-height-snug); }
+    .scale-grid-sub { display: block; color: var(--label-color); }
+    .scale-grid-cell { display: flex; align-items: center; justify-content: center; height: var(--space-4); border: 1px dashed var(--control-border); border-radius: var(--radius-xs); font-size: var(--font-2xs); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); box-sizing: border-box; }
+    .scale-grid-cell .material-symbols-outlined { font-size: var(--font-2xs); }
+    .scale-grid-cell.is-ready { background: var(--success-text); border: 1px solid var(--success-text); }
+    .scale-grid-cell.is-other { background: var(--status-green-bg); border: 1px solid var(--status-green-fg); color: var(--status-green-fg); }
+    .scale-grid-cell.is-locked { background: var(--status-amber-bg); border: 1px solid var(--status-amber-fg); color: var(--status-amber-fg); }
+    .scale-grid-cell.is-beyond { background: var(--control-off-bg); border: 1px solid var(--control-off-bg); color: var(--container-bg); }
+    .scale-grid-legend { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2) var(--space-3); margin-top: var(--space-4); font-size: var(--font-sm); color: var(--label-color); }
+    .scale-grid-legend > span { display: flex; align-items: center; gap: var(--space-2); }
+    .scale-grid-legend .scale-grid-cell { width: var(--space-4); flex: none; }
+    /* My scales' Grades 1-4: always one row of four (a compact radio group's labels are content-box, so four would wrap) */
+    .scales-grade-options label { flex: 1 1 0; min-width: 0; box-sizing: border-box; }
+    .scales-range-staff { display: flex; justify-content: center; margin: var(--space-3) 0; }
 
     .flow-picker-tile-label { display: block; font-size: var(--font-xs); color: var(--label-color); min-height: 1em; }
     .flow-picker-tile.selected .flow-picker-tile-label { color: var(--primary-action-strong); }

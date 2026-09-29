@@ -39,16 +39,19 @@ the clef each quiz starts on - see [theory-grades.md](theory-grades.md).
 
 The Scales tool (home tile, behind the `scales_practice` feature) shares this engine and renderer:
 
-- `TheoryEngine.buildScale({ keyId, form, type, octaves, direction, clef })`: any of the 30 keys, as a
-  scale or an arpeggio (tonic, 3rd, 5th), 1-3 octaves, up / down / up and down. Minor forms: harmonic
+- `TheoryEngine.buildScale({ keyId, form, type, octaves, direction, clef, pattern, tonicOctave })`: any of
+  the 30 keys, as a scale, an arpeggio (tonic, 3rd, 5th), a chromatic scale or a dominant 7th (ML-357),
+  1, 1.5 ("a 12th"), 2 or 3 octaves, up / down / up and down / down and up; `pattern: 'toDominant'` is
+  ABRSM's "one octave, then down to the dominant"; `tonicOctave` places it (a grade list's choice). Minor forms: harmonic
   (raised 7th both ways), melodic (raised 6th and 7th going up, natural coming down) and natural. The
   bottom note sits on the staff or just under it (two ledger lines at most for 2-3 octaves).
 - `TheoryEngine.writeScale(scale, barLength)`: which notes need an accidental written against the key
   signature. An accidental lasts to the end of its bar, and a note going back to plain gets a natural.
-- `TheoryEngine.scalePool({ maxSharps, maxFlats, forms, types })`: "My scales" - sharp and flat limits
-  set separately.
+- "My scales" is the ABRSM grade list for your instrument (ML-357): `public/scaleGrades.js`, explained
+  in [scales-grades.md](scales-grades.md). (`TheoryEngine.scalePool` - sharp and flat limits - was the
+  old My scales; nothing uses it now.)
 - `Notation.staff` gained `note.cls` (to colour the playing note) and `justify` (spread a row to a width).
-- Tests: `server/test/theoryEngine.test.js`, "scales practice (ML-9)". The screen: `specs/components/scales.md`.
+- Tests: `server/test/theoryEngine.test.js`, "scales practice (ML-9)", and `server/test/scaleGrades.test.js` (ML-357). The screen: `specs/components/scales.md`.
 
 ## Notation
 

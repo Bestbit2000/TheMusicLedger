@@ -351,6 +351,7 @@
     --reading-word-spacing: normal;                              /* dyslexia-friendly: a little more */
     --reading-em-style: italic;                                  /* dyslexia-friendly: no italics */
     --tile-label-fit: var(--ds-tile-label-fit, 15cqi);           /* the biggest a tool tile's label can be and still fit its tile */
+    --scale-grid-label-width: var(--ds-size-64, 64px);           /* ML-357 the Scales grade grid's row-label column (the 15 key columns share the rest) */
     --font-preview-standard: var(--ds-font-inter, 'Inter', sans-serif); /* each Reading font choice drawn in its own font */
     --font-preview-lexend: var(--ds-font-lexend, 'Lexend', sans-serif); /* the Lexend choice, in Lexend */
     --font-preview-opendyslexic: var(--ds-font-opendyslexic, 'OpenDyslexic', sans-serif); /* the OpenDyslexic choice, in OpenDyslexic */

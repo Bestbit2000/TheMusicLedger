@@ -189,6 +189,7 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 | `--reading-word-spacing` | `normal` | `0.12em` | dyslexia-friendly: a little more |
 | `--reading-em-style` | `italic` | `normal` | dyslexia-friendly: no italics |
 | `--tile-label-fit` | `15cqi` | (same) | the biggest a tool tile's label can be and still fit its tile |
+| `--scale-grid-label-width` | `64px` | (same) | ML-357 the Scales grade grid's row-label column (the 15 key columns share the rest) |
 | `--font-preview-standard` | `'Inter', 'Segoe UI', Tahoma, sans-serif` | (same) | each Reading font choice drawn in its own font |
 | `--font-preview-lexend` | `'Lexend', 'Segoe UI', sans-serif` | (same) | the Lexend choice, in Lexend |
 | `--font-preview-opendyslexic` | `'OpenDyslexic', 'Comic Sans MS', sans-serif` | (same) | the OpenDyslexic choice, in OpenDyslexic |

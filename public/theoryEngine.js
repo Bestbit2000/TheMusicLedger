@@ -404,40 +404,93 @@
     const SCALE_FORM_LABEL = { major: 'major', harmonic: 'harmonic minor', melodic: 'melodic minor', natural: 'natural minor' };
     const ACC_SUFFIX_ASCII = { '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: 'x' };
     function scaleKey(keyId) { return ALL_KEYS.find(k => k.id === keyId) || null; }
-    function buildScale({ keyId, form, type = 'scale', octaves = 1, direction = 'up', clef = 'treble' }) {
+    // ML-357 (ABRSM grades) added: type 'chromatic' (from the key's tonic, sharps up and flats down, no
+    // key signature) and 'dom7' (the dominant 7th in the key, root position, up and down, then resolving
+    // up a 4th to the tonic); octaves 1.5 ("a 12th": to the dominant above the octave); pattern
+    // 'toDominant' (one octave up, then on down to the dominant below the tonic and back up to it -
+    // ABRSM brass Grade 4); direction 'downUp' (from the top down, then back up); and tonicOctave, the
+    // octave of the bottom tonic when a placement is chosen (the grade grid's "in your range" check).
+    const SCALE_TYPES = ['scale', 'arpeggio', 'chromatic', 'dom7'];
+    const SCALE_TYPE_LABEL = { scale: 'scale', arpeggio: 'arpeggio', chromatic: 'chromatic scale', dom7: 'dominant 7th' };
+    const CHROMATIC_UP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const CHROMATIC_DOWN = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+    const LETTER_SEMI = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+    // The written range the bottom tonic is placed at by default (no tonicOctave): on the staff or just
+    // under it - step -2 or above for up to an octave and a half, -4 or above (two ledger lines) for more.
+    function defaultTonicOctave(letter, octaves, clef) {
+        const floor = octaves > 1.5 ? -4 : -2;
+        let octave = 0;
+        while (Notation.staffStep(letter + octave, clef) < floor) octave++;
+        return octave;
+    }
+    function buildScale({ keyId, form, type = 'scale', octaves = 1, direction = 'up', clef = 'treble', pattern = null, tonicOctave = null }) {
         const key = scaleKey(keyId);
         if (!key) throw new Error('Unknown key ' + keyId);
+        if (!SCALE_TYPES.includes(type)) type = 'scale';
         const minor = key.mode === 'minor';
         if (!minor) form = 'major'; else if (!['harmonic', 'melodic', 'natural'].includes(form)) form = 'harmonic';
+        octaves = [1, 1.5, 2, 3].includes(Number(octaves)) ? Number(octaves) : 1;
+        if (pattern !== 'toDominant' || octaves !== 1 || type === 'chromatic' || type === 'dom7') pattern = null;
         const alters = keyAlters(key);
         const t = parseName(key.tonic);
         const letters = 'CDEFGAB';
         const start = letters.indexOf(t.letter);
-        // The bottom note sits on the staff or just under it: at step -2 or above for one octave,
-        // -4 or above (two ledger lines) for more, so the top doesn't climb too far.
-        const floor = octaves > 1 ? -4 : -2;
-        let octave = 0;
-        while (Notation.staffStep(t.letter + octave, clef) < floor) octave++;
-        const degrees = type === 'arpeggio' ? [0, 2, 4] : [0, 1, 2, 3, 4, 5, 6];
+        // A dominant 7th starts on the dominant, so that's the note placed on the staff.
+        const octave = Number.isInteger(tonicOctave) ? tonicOctave
+            : type === 'dom7' ? defaultTonicOctave(letters[(start + 4) % 7], octaves, clef) - Math.floor((start + 4) / 7)
+            : defaultTonicOctave(t.letter, pattern ? 1.5 : octaves, clef);
+        const tonicName = key.tonic.replace('#', '♯').replace(/^([A-G])b$/, '$1♭');
+        const order = (up, down) => (direction === 'down' ? down : direction === 'both' ? up.concat(down.slice(1)) : direction === 'downUp' ? down.concat(up.slice(1)) : up);
+
+        if (type === 'chromatic') {
+            const base = (octave + 1) * 12 + LETTER_SEMI[t.letter] + t.alter;
+            const name = (m, names) => { const pc = ((m % 12) + 12) % 12; return names[pc] + (Math.floor(m / 12) - 1); };
+            const span = Math.round(octaves * 12);
+            const upM = Array.from({ length: span + 1 }, (_, i) => base + i);
+            // Start and finish spelled as the tonic is.
+            const spell = (m, names) => (m === base || m === base + span ? key.tonic + (Math.floor((m - LETTER_SEMI[t.letter] - t.alter) / 12) - 1) : name(m, names));
+            const asc = upM.map(m => spell(m, CHROMATIC_UP)), desc = upM.slice().reverse().map(m => spell(m, CHROMATIC_DOWN));
+            return { key, form, type, octaves, direction, clef, pattern: null, tonicOctave: octave, pitches: order(asc, desc), keySignature: null, title: `Chromatic scale on ${tonicName}` };
+        }
+
         const pitch = (deg, ascending) => {
             const i = ((deg % 7) + 7) % 7, o = Math.floor(deg / 7);
             const letter = letters[(start + i) % 7];
             const oct = octave + o + Math.floor((start + i) / 7);
             let alter = alters[letter];
-            if (minor && i === 6 && (form === 'harmonic' || (form === 'melodic' && ascending))) alter += 1;
-            if (minor && i === 5 && form === 'melodic' && ascending) alter += 1;
+            if (minor && i === 6 && (form === 'harmonic' || type === 'dom7' || (form === 'melodic' && ascending))) alter += 1;
+            if (minor && i === 5 && form === 'melodic' && ascending && type === 'scale') alter += 1;
             return letter + ACC_SUFFIX_ASCII[alter] + oct;
         };
-        const up = [];
-        for (let o = 0; o < octaves; o++) for (const d of degrees) up.push(o * 7 + d);
-        up.push(octaves * 7);
-        const asc = up.map(d => pitch(d, true));
-        const desc = up.slice().reverse().map(d => pitch(d, false));
-        const pitches = direction === 'down' ? desc : direction === 'both' ? asc.concat(desc.slice(1)) : asc;
+        let pitches;
+        if (type === 'dom7') {
+            // Dominant, leading note, supertonic, subdominant - up and down - then the tonic a 4th above.
+            const up = [];
+            for (let o = 0; o < octaves; o++) up.push(...[4, 6, 8, 10].map(d => d + 7 * o));
+            up.push(4 + 7 * octaves);
+            const asc = up.map(d => pitch(d, true)), desc = up.slice().reverse().map(d => pitch(d, false));
+            pitches = asc.concat(desc.slice(1), [pitch(7, true)]);
+        } else {
+            const inShape = (d) => type !== 'arpeggio' || [0, 2, 4].includes(((d % 7) + 7) % 7);
+            if (pattern === 'toDominant') {
+                // Up an octave, down past the tonic to the dominant below (degree -3), back up to the tonic.
+                const shape = [];
+                for (let d = 0; d <= 7; d++) if (inShape(d)) shape.push([d, true]);
+                for (let d = 6; d >= -3; d--) if (inShape(d)) shape.push([d, false]);
+                for (let d = -2; d <= 0; d++) if (inShape(d)) shape.push([d, true]);
+                pitches = shape.map(([d, asc]) => pitch(d, asc));
+            } else {
+                const top = Math.floor(octaves) * 7 + (octaves % 1 ? 4 : 0);
+                const up = [];
+                for (let d = 0; d <= top; d++) if (inShape(d)) up.push(d);
+                pitches = order(up.map(d => pitch(d, true)), up.slice().reverse().map(d => pitch(d, false)));
+            }
+        }
         return {
-            key, form, type, octaves, direction, clef, pitches,
+            key, form, type, octaves, direction, clef, pattern, tonicOctave: octave, pitches,
             keySignature: key.count ? { type: key.type, count: key.count } : null,
-            title: `${key.tonic.replace('#', '♯').replace(/^([A-G])b$/, '$1♭')} ${SCALE_FORM_LABEL[form]} ${type === 'arpeggio' ? 'arpeggio' : 'scale'}`,
+            // A minor arpeggio is the same in every form (ML-357), so it's just "minor"
+            title: type === 'dom7' ? `Dominant 7th in ${tonicName} ${key.mode}` : `${tonicName} ${type === 'arpeggio' && key.mode === 'minor' ? 'minor' : SCALE_FORM_LABEL[form]} ${SCALE_TYPE_LABEL[type]}`,
         };
     }
     // Which notes need an accidental written, given the key signature: one that differs from the key
@@ -1447,7 +1500,7 @@
     }
 
     return {
-        QUIZZES, ROUNDS, DEFAULT_ROUND, REPEATS, DEFAULT_REPEATS, repeatsOf, scoreBlocks, SYMBOLS, SET_IDS, SPEEDS, speedFor, speedLabel, KEY_TABLE, RANGE_STEPS, NOTE_BUTTONS, KEYBOARD_BUTTONS, MIXED_LEVELS, SCALE_FORMS, SCALE_FORM_LABEL, buildScale, writeScale, scalePool, TIMING, GRADE_LIMITS, PAR,
+        QUIZZES, ROUNDS, DEFAULT_ROUND, REPEATS, DEFAULT_REPEATS, repeatsOf, scoreBlocks, SYMBOLS, SET_IDS, SPEEDS, speedFor, speedLabel, KEY_TABLE, RANGE_STEPS, NOTE_BUTTONS, KEYBOARD_BUTTONS, MIXED_LEVELS, SCALE_FORMS, SCALE_FORM_LABEL, SCALE_TYPES, SCALE_TYPE_LABEL, buildScale, writeScale, scalePool, TIMING, GRADE_LIMITS, PAR,
         quiz, round, normaliseOptions, optionVisible, settingsKey, describeOptions,
         makeRng, questionSource, itemsFor, SMART, nextWeight, smartOrder, reviewBoost, effectiveWeight, itemFromId, describeQuestion, WEAK_SPOTS, scalePitches, keyPool, keyAlters, noteItems, parOf,
         spell, spellName, scoreRound, gradeFor, ALL_KEYS,

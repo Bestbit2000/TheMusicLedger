@@ -383,6 +383,30 @@
       "fg": "--status-amber-fg",
       "bg": "--container-bg",
       "use": "Practice Levels: a chunk too long for a 5-minute block (.level-fit-warn) - ML-316"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--success-text",
+      "bg": "--container-bg",
+      "use": "Scales grade grid (ML-357): an in-your-list cell against the pop-up"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--container-bg",
+      "bg": "--control-off-bg",
+      "use": "Scales grade grid (ML-357): the cross on a beyond-the-instrument cell"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--status-green-fg",
+      "bg": "--container-bg",
+      "use": "Scales grade grid (ML-357): the edge of an another-octave cell"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--status-amber-fg",
+      "bg": "--container-bg",
+      "use": "Scales grade grid (ML-357): the edge of an outside-your-range cell"
     }
   ]
 }
