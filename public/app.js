@@ -794,6 +794,21 @@
     // ===== ML-355: email + password login, forgot password, and the invite / reset link screens =====
     // docs/password-login.md. The server answers every login with a token as JSON; it's stored like
     // Google's, then the page reloads into the app.
+    // The eye button in a password box: show what's typed, and hide it again. The type goes back to
+    // "password" before a form is sent, so a browser never saves it as ordinary text.
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-password-toggle]');
+        if (!btn) return;
+        const input = document.getElementById(btn.dataset.passwordToggle);
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.setAttribute('aria-pressed', String(show));
+        btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        btn.querySelector('.material-symbols-outlined').textContent = show ? 'visibility_off' : 'visibility';
+    });
+    document.addEventListener('submit', (e) => {
+        e.target.querySelectorAll?.('[data-password-toggle][aria-pressed="true"]').forEach(btn => btn.click());
+    }, true);
     function splashMessage(id, text) {
         const el = document.getElementById(id);
         el.textContent = text || '';

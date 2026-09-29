@@ -712,6 +712,11 @@
     .splash-form .splash-login-btn { margin-top: var(--space-3); }
     .splash-hint { color: var(--splash-subtitle-color); font-size: var(--font-sm); margin: 0; }
     .splash-message { color: var(--splash-title-color); font-weight: var(--font-weight-bold); margin: var(--space-2) 0 0 0; }
+    /* ML-355: a password box with an eye button at its right end to show / hide what's typed - see
+       specs/components/password-field.md. The field keeps room on the right so text never runs under it. */
+    .password-field { position: relative; }
+    .password-field input { padding-right: calc(var(--touch-target) + var(--space-2)); }
+    .password-toggle { position: absolute; top: 0; right: 0; bottom: 0; width: var(--touch-target); min-height: var(--touch-target); display: flex; align-items: center; justify-content: center; padding: 0; background: none; border: none; border-radius: var(--radius-lg); color: var(--label-color); cursor: pointer; }
     .splash-link-btn { align-self: center; min-height: var(--touch-target); padding: var(--space-2) var(--space-3); background: none; border: none; color: var(--splash-title-color); font: inherit; font-weight: var(--font-weight-bold); text-decoration: underline; cursor: pointer; }
 
     /* Slider - shared design-system component (see style guide). A draggable track + thumb + fill,
