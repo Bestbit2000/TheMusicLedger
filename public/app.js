@@ -745,6 +745,14 @@
             startNotifications();
             adminSync.then(openFlowFromUrl);
             loadMyInstruments(); // ML-309: for the add-session form and the Theory tool
+            // ML-355: logged in with a recovery code - say how many are left, and where to get more.
+            try {
+                const left = sessionStorage.getItem('tml.recoveryCodeUsed');
+                if (left !== null) {
+                    sessionStorage.removeItem('tml.recoveryCodeUsed');
+                    showWarningToast(`You used a recovery code - ${left} left. Make a new set in My account > Sign-in and security.`);
+                }
+            } catch (e) { /* just a reminder */ }
             // ML-197: picks back up an in-progress timer left running server-side (see
             // syncActiveTimerSession) - most often after an accidental reload/relogin lost the local
             // timerState. Caught on its own (not folded into the outer catch) so a failure here -
@@ -820,6 +828,8 @@
         setShown('passwordLogin', which === 'login');
         setShown('forgotForm', which === 'forgot');
         setShown('setPasswordForm', which === 'set');
+        setShown('twoStepForm', which === 'code');        // ML-355 batch 2: the code after the password
+        setShown('twoStepSetupSplash', which === 'setup'); // a super admin setting it up (required)
     }
     async function authPost(path, body) {
         const res = await fetch(`${API_BASE_URL}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -827,10 +837,59 @@
         if (!res.ok) throw new Error(data.error || 'Something went wrong - try again.');
         return data;
     }
+    // After a password (log in, invite, reset): straight in, or two-step sign-in first - a code, or for a
+    // super admin who hasn't got it yet, setting it up (the server says which, with a short-lived challenge).
+    let twoStepChallenge = null;
     function loggedInWith(data) {
+        if (data.twoStep) {
+            twoStepChallenge = data.challenge;
+            document.getElementById('loginStatusText').textContent = 'Two-step sign-in';
+            useRecoveryCode(false);
+            splashMessage('twoStepMessage', '');
+            showSplashPanel('code');
+            document.getElementById('twoStepCode').focus();
+            return;
+        }
+        if (data.twoStepSetup) {
+            twoStepChallenge = data.challenge;
+            document.getElementById('loginStatusText').textContent = 'Set up two-step sign-in';
+            showSplashPanel('setup');
+            renderTwoStepSetup(document.getElementById('twoStepSetupSplash'), 'splash', {
+                intro: 'Super admins need two-step sign-in: after your password, a code from an app on your phone. It takes a minute, once.',
+                setup: () => authPost('/auth/two-step/setup', { challenge: twoStepChallenge }),
+                confirm: (code) => authPost('/auth/two-step/setup/confirm', { challenge: twoStepChallenge, code }),
+                finished: (result) => loggedInWith(result)
+            });
+            return;
+        }
+        if (data.usedRecoveryCode) {
+            // Shown once the app opens (the page reloads).
+            try { sessionStorage.setItem('tml.recoveryCodeUsed', String(data.recoveryCodesLeft)); } catch (e) { /* just a reminder */ }
+        }
         auth.accept(data.authToken, data.userId);
         window.location.replace(window.location.pathname);
     }
+    function useRecoveryCode(on) {
+        document.getElementById('twoStepCodeLabel').textContent = on ? 'Recovery code' : 'Code from your authenticator app';
+        const input = document.getElementById('twoStepCode');
+        input.inputMode = on ? 'text' : 'numeric';
+        input.value = '';
+        document.getElementById('twoStepRecoveryBtn').textContent = on ? 'Use the app code instead' : 'Use a recovery code instead';
+        document.getElementById('twoStepRecoveryBtn').dataset.on = on ? '1' : '';
+    }
+    document.getElementById('twoStepRecoveryBtn')?.addEventListener('click', (e) => { useRecoveryCode(!e.currentTarget.dataset.on); document.getElementById('twoStepCode').focus(); });
+    document.getElementById('twoStepForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('twoStepSubmit');
+        btn.disabled = true;
+        splashMessage('twoStepMessage', '');
+        try {
+            loggedInWith(await authPost('/auth/two-step', { challenge: twoStepChallenge, code: document.getElementById('twoStepCode').value }));
+        } catch (err) {
+            splashMessage('twoStepMessage', err.message);
+            btn.disabled = false;
+        }
+    });
     document.getElementById('passwordLoginForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('passwordLoginSubmit');
@@ -901,12 +960,6 @@
         btn.disabled = true;
         try {
             const data = await authPost(passwordLink.purpose === 'invite' ? '/auth/invite/accept' : '/auth/password/reset', { token: passwordLink.token, password: pw });
-            if (data.needsGoogle) {
-                splashMessage('setPasswordMessage', 'Password saved. Super admins log in with Google until two-step sign-in is ready.');
-                setShown('setPasswordFields', false);
-                setShown('setPasswordLoginLink', true);
-                return;
-            }
             loggedInWith(data);
         } catch (err) {
             splashMessage('setPasswordMessage', err.message);
@@ -1195,7 +1248,7 @@
     // screens, Flow's editor...), the item it belongs under.
     const NAV_PARENT_VIEW = { statsView: 'statsHomeView', streakStatsView: 'statsHomeView', historyView: 'statsHomeView', toolResultsView: 'statsHomeView', flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView', pieceLevelsView: 'rehearseView', practiceListView: 'rehearseView',
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
-        accountDetailsView: 'accountView', accountInstrumentsView: 'accountView', accountBandsView: 'accountView', accountTeachersView: 'accountView',
+        accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountInstrumentsView: 'accountView', accountBandsView: 'accountView', accountTeachersView: 'accountView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
         tapTempoPlayView: 'tapTempoView', gapTrainerPlayView: 'gapTrainerView', earPlayView: 'earView', rhythmPlayView: 'rhythmView',
         challengeSelectView: 'manageChallengesView', challengePlayView: 'manageChallengesView', challengeSummaryView: 'manageChallengesView', editChallengeView: 'manageChallengesView' };
@@ -1428,7 +1481,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'pieceLevelsView', 'sessionPlanView', 'sessionRunView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
+    const views = ['mainView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'pieceLevelsView', 'sessionPlanView', 'sessionRunView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -1557,6 +1610,7 @@
             if (!document.getElementById('accountEmailReadout').textContent) loadAccountView(); else renderAccountNames();
         }
         if (viewName === 'accountInstrumentsView') { document.getElementById('topTitle').innerText = 'My instruments'; loadAccountInstruments(); }
+        if (viewName === 'accountSecurityView') { document.getElementById('topTitle').innerText = 'Sign-in and security'; loadAccountSecurity(); }
         if (viewName === 'accountBandsView') { document.getElementById('topTitle').innerText = 'My bands'; loadAccountBands(); }
         if (viewName === 'entryForm') renderSessionInstrumentPicker('instrumentGroup', 'sessionInstrument', null);
         if (viewName === 'accountTeachersView') { document.getElementById('topTitle').innerText = 'My teachers'; loadTeacherList(); }
@@ -3723,8 +3777,129 @@
         } catch (error) {
             showWarningToast('Error loading account: ' + error.message);
         }
-        await Promise.all([loadAccountBands(), loadTeacherList(), loadMyInstruments()]);
+        await Promise.all([loadAccountBands(), loadTeacherList(), loadMyInstruments(), loadSecurityStatus()]);
         renderAccountSummaries();
+    }
+
+    // ===== ML-355 batch 2: two-step sign-in (docs/password-login.md) =====
+    // One setup screen, built in two places: the login splash (a super admin's first password login,
+    // where it's required) and Account -> Sign-in and security. `look` picks the splash or app classes.
+    const TWO_STEP_LOOK = {
+        splash: { text: 'splash-hint', btn: 'splash-login-btn show', link: 'splash-link-btn', label: '', msg: 'splash-message' },
+        app: { text: 'text-sm mb-3', btn: 'btn-submit mt-3', link: 'btn-text', label: '', msg: 'two-step-message' }
+    };
+    function twoStepCodeField(id, label, look) {
+        return `<label for="${id}"${look.label ? ` class="${look.label}"` : ''}>${label}</label>
+            <input type="text" id="${id}" inputmode="numeric" autocomplete="one-time-code" maxlength="20" spellcheck="false">`;
+    }
+    function copyText(text, done) {
+        (navigator.clipboard?.writeText(text) || Promise.reject()).then(() => showSuccessToast(done)).catch(() => showWarningToast('Couldn\'t copy - select it and copy by hand.'));
+    }
+    // setup(): -> { secret, otpauthUrl }; confirm(code): -> { recoveryCodes, ... }; finished(result) after the codes are saved.
+    async function renderTwoStepSetup(box, lookName, { setup, confirm, finished, intro }) {
+        const look = TWO_STEP_LOOK[lookName];
+        box.innerHTML = `<p class="${look.text}">Getting it ready&hellip;</p>`;
+        let details;
+        try { details = await setup(); } catch (err) { box.innerHTML = `<p class="${look.msg}" role="alert">${escapeHtml(err.message)}</p>`; return; }
+        const id = `twoStepSetupCode-${lookName}`;
+        box.innerHTML = `
+            ${intro ? `<p class="${look.text}">${escapeHtml(intro)}</p>` : ''}
+            <p class="${look.text}"><strong>1.</strong> Add The Music Ledger to an authenticator app on your phone - Google Authenticator, Microsoft Authenticator, 1Password and others all work.</p>
+            <button type="button" class="${look.btn}" data-two-step-open>Add to my authenticator app</button>
+            <p class="${look.text}">On a computer, or the button doesn't open an app? Type this setup key into the app instead:</p>
+            <p class="two-step-key" aria-label="Setup key">${escapeHtml(details.secret)}</p>
+            <button type="button" class="${look.link}" data-two-step-copy-key>Copy the setup key</button>
+            <p class="${look.text}"><strong>2.</strong> Type the 6-digit code the app shows for The Music Ledger.</p>
+            ${twoStepCodeField(id, 'Code', look)}
+            <p class="${look.msg} hidden-group" data-two-step-msg role="alert"></p>
+            <button type="button" class="${look.btn}" data-two-step-confirm>Turn on two-step sign-in</button>`;
+        box.querySelector('[data-two-step-open]').addEventListener('click', () => { window.location.href = details.otpauthUrl; });
+        box.querySelector('[data-two-step-copy-key]').addEventListener('click', () => copyText(details.secret.replace(/\s/g, ''), 'Setup key copied'));
+        const msg = box.querySelector('[data-two-step-msg]');
+        const confirmBtn = box.querySelector('[data-two-step-confirm]');
+        const go = async () => {
+            confirmBtn.disabled = true;
+            try {
+                const result = await confirm(document.getElementById(id).value);
+                renderRecoveryCodes(box, lookName, result.recoveryCodes, () => finished(result), 'Two-step sign-in is on.');
+            } catch (err) {
+                msg.textContent = err.message;
+                setShown(msg, true);
+                confirmBtn.disabled = false;
+            }
+        };
+        confirmBtn.addEventListener('click', go);
+        document.getElementById(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+    }
+    function renderRecoveryCodes(box, lookName, codes, done, heading) {
+        const look = TWO_STEP_LOOK[lookName];
+        box.innerHTML = `
+            <p class="${look.text}"><strong>${escapeHtml(heading)}</strong> Now save these recovery codes somewhere safe - a password manager, or printed out. If you lose your phone, each one gets you in once. They won't be shown again.</p>
+            <ol class="recovery-codes" aria-label="Recovery codes">${codes.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ol>
+            <button type="button" class="${look.link}" data-codes-copy>Copy the codes</button>
+            <button type="button" class="${look.btn}" data-codes-done>I've saved them</button>`;
+        box.querySelector('[data-codes-copy]').addEventListener('click', () => copyText(codes.join('\n'), 'Recovery codes copied'));
+        box.querySelector('[data-codes-done]').addEventListener('click', done);
+    }
+
+    // --- Account -> Sign-in and security ---
+    let securityStatus = null;
+    async function loadSecurityStatus() {
+        try { securityStatus = await apiCall('/api/account/security'); } catch (e) { securityStatus = null; }
+        // Only worth a row once email + password login is on (Google-only accounts see why it's not for them).
+        setShown('accountSecurityRow', !!securityStatus?.passwordLogin);
+        const sub = document.getElementById('accountSecuritySummary');
+        if (sub && securityStatus) sub.textContent = !securityStatus.hasPassword ? 'Google' : securityStatus.twoStep.enabled ? 'Password, two-step sign-in on' : 'Password, two-step sign-in off';
+    }
+    async function loadAccountSecurity() {
+        await loadSecurityStatus();
+        renderAccountSecurity();
+    }
+    function renderAccountSecurity() {
+        const box = document.getElementById('accountSecurityBody');
+        const st = securityStatus;
+        if (!st) { box.innerHTML = '<p class="text-sm">Couldn\'t load this - try again.</p>'; return; }
+        if (!st.hasPassword) {
+            box.innerHTML = `<div class="info-row"><span>You log in with</span><strong>Google</strong></div>
+                <p class="text-sm">Two-step sign-in here is for logging in with an email and password. Google has its own - turn on 2-Step Verification in your Google account to protect it.</p>`;
+            return;
+        }
+        const ts = st.twoStep;
+        box.innerHTML = `<div class="info-row"><span>You log in with</span><strong>Email and password</strong></div>
+            <div class="info-row"><span>Two-step sign-in</span><strong>${ts.enabled ? `On since ${new Date(ts.enabledAt).toLocaleDateString()}` : 'Off'}</strong></div>
+            ${ts.enabled ? `<div class="info-row"><span>Recovery codes left</span><strong>${ts.recoveryCodesLeft} of 10</strong></div>` : ''}
+            <div id="accountTwoStepPanel"></div>`;
+        const panel = document.getElementById('accountTwoStepPanel');
+        if (!ts.enabled) {
+            panel.innerHTML = `<p class="text-sm mb-3">After your password, you'll also type a code from an app on your phone - so a stolen password alone can't get in.${st.twoStepRequired ? ' It\'s required for super admins.' : ''}</p>
+                <button type="button" class="btn-submit" id="accountTwoStepStartBtn">Set up two-step sign-in</button>`;
+            document.getElementById('accountTwoStepStartBtn').addEventListener('click', () => renderTwoStepSetup(panel, 'app', {
+                setup: () => apiCall('/api/account/two-step/setup', 'POST', {}),
+                confirm: (code) => apiCall('/api/account/two-step/confirm', 'POST', { code }),
+                finished: () => loadAccountSecurity()
+            }));
+            return;
+        }
+        panel.innerHTML = `${ts.recoveryCodesLeft <= 3 ? `<p class="text-sm mb-3"><strong>Running low on recovery codes</strong> - make a new set.</p>` : ''}
+            <button type="button" class="btn-nav" id="accountNewCodesBtn">New recovery codes</button>
+            ${st.twoStepRequired ? '<p class="text-sm">Two-step sign-in is required for super admins, so it can\'t be turned off.</p>' : '<button type="button" class="btn-text btn-text-danger" id="accountTwoStepOffBtn">Turn off two-step sign-in</button>'}`;
+        const askCode = (title, action, allowRecovery, onDone) => {
+            const look = TWO_STEP_LOOK.app;
+            panel.innerHTML = `<p class="text-sm mb-3"><strong>${escapeHtml(title)}</strong> Type the code from your authenticator app${allowRecovery ? ' (or a recovery code)' : ''} to confirm it's you.</p>
+                ${twoStepCodeField('accountTwoStepConfirmCode', 'Code', look)}
+                <p class="${look.msg} hidden-group" id="accountTwoStepConfirmMsg" role="alert"></p>
+                <div class="flex-row gap-sm mt-3"><button type="button" class="btn-submit btn-inline" id="accountTwoStepConfirmBtn">Confirm</button><button type="button" class="btn-nav btn-cancel btn-inline" id="accountTwoStepCancelBtn">Cancel</button></div>`;
+            document.getElementById('accountTwoStepCancelBtn').addEventListener('click', renderAccountSecurity);
+            document.getElementById('accountTwoStepConfirmBtn').addEventListener('click', async () => {
+                try { onDone(await action(document.getElementById('accountTwoStepConfirmCode').value)); }
+                catch (err) { const m = document.getElementById('accountTwoStepConfirmMsg'); m.textContent = err.message; setShown(m, true); }
+            });
+            document.getElementById('accountTwoStepConfirmCode').focus();
+        };
+        document.getElementById('accountNewCodesBtn').addEventListener('click', () => askCode('New recovery codes.', (code) => apiCall('/api/account/two-step/recovery-codes', 'POST', { code }), false,
+            (r) => renderRecoveryCodes(panel, 'app', r.recoveryCodes, loadAccountSecurity, 'Your old recovery codes no longer work.')));
+        document.getElementById('accountTwoStepOffBtn')?.addEventListener('click', () => askCode('Turn off two-step sign-in?', (code) => apiCall('/api/account/two-step/off', 'POST', { code }), true,
+            () => { showSuccessToast('Two-step sign-in is off'); loadAccountSecurity(); }));
     }
 
     // ML-289: one line under each My account row, like Settings' summaries.

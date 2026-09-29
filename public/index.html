@@ -81,6 +81,16 @@
             <p class="splash-message hidden-group" id="setPasswordMessage" role="alert"></p>
             <button type="button" class="splash-link-btn hidden-group" id="setPasswordLoginLink">Go to log in</button>
         </form>
+        <!-- ML-355 batch 2: two-step sign-in after the password - a code from the authenticator app (or a
+             recovery code); and, for a super admin without it yet, setting it up (built by renderTwoStepSetup). -->
+        <form id="twoStepForm" class="splash-form hidden-group" novalidate>
+            <label for="twoStepCode" id="twoStepCodeLabel">Code from your authenticator app</label>
+            <input type="text" id="twoStepCode" inputmode="numeric" autocomplete="one-time-code" maxlength="20" spellcheck="false" required>
+            <p class="splash-message hidden-group" id="twoStepMessage" role="alert"></p>
+            <button type="submit" class="splash-login-btn show" id="twoStepSubmit">Continue</button>
+            <button type="button" class="splash-link-btn" id="twoStepRecoveryBtn">Use a recovery code instead</button>
+        </form>
+        <div id="twoStepSetupSplash" class="splash-form hidden-group"></div>
     </div>
 </div>
 
@@ -692,9 +702,16 @@
          renderAccountSummaries (app.js). -->
     <div id="accountView" class="hidden-group">
         <button type="button" class="history-item settings-link" onclick="switchView('accountDetailsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">badge</span><span class="settings-link-text"><span class="settings-link-title">My details</span><span class="settings-link-sub" id="accountDetailsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <!-- ML-355: shown once email + password login is on -->
+        <button type="button" class="history-item settings-link hidden-group" id="accountSecurityRow" onclick="switchView('accountSecurityView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">lock</span><span class="settings-link-text"><span class="settings-link-title">Sign-in and security</span><span class="settings-link-sub" id="accountSecuritySummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" onclick="switchView('accountInstrumentsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">music_note</span><span class="settings-link-text"><span class="settings-link-title">My instruments</span><span class="settings-link-sub" id="accountInstrumentsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" onclick="switchView('accountBandsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">groups</span><span class="settings-link-text"><span class="settings-link-title">My bands</span><span class="settings-link-sub" id="accountBandsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link hidden-group" id="accountTeachersRow" onclick="switchView('accountTeachersView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">school</span><span class="settings-link-text"><span class="settings-link-title">My teachers</span><span class="settings-link-sub" id="accountTeachersSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+    </div>
+
+    <!-- ML-355 batch 2: how you log in, and two-step sign-in for a password login (renderAccountSecurity). -->
+    <div id="accountSecurityView" class="hidden-group">
+        <div id="accountSecurityBody"></div>
     </div>
 
     <!-- ML-330: each name reads as plain text with an edit pencil; the pencil opens its fields with

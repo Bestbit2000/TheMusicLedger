@@ -8,17 +8,19 @@
 
 import crypto from 'node:crypto';
 import pool from '../config/db.js';
-import { signToken } from '../utils/authToken.js';
+import { signToken, verifyToken } from '../utils/authToken.js';
 import { hashPassword, verifyPassword, spendPasswordTime, passwordProblem } from './passwords.js';
 import { sendMail, mailIsReal } from './mail.js';
 import { isFeatureLive } from './features.js';
-import { forgetTokenVersion } from './tokenVersions.js';
+import { forgetTokenVersion, currentTokenVersion } from './tokenVersions.js';
+import { twoStepStatus, beginSetup, confirmSetup, verifyLoginCode } from './twoStep.js';
 
 const INVITE_DAYS = 7;
 const RESET_MINUTES = 60;
 const LOCK_AFTER = 5;        // wrong passwords in a row
 const LOCK_MINUTES = 15;
-// Levels an invite can give. Not super_admin: a super admin must use two-step sign-in (batch 2).
+// Levels an invite can give. Not super_admin - making someone a super admin stays a deliberate change in
+// Admin -> Accounts (their next password login then has to set up two-step sign-in).
 export const INVITE_LEVELS = ['standard_member', 'premium_member', 'beta_tester', 'teacher', 'band_admin'];
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
@@ -59,6 +61,48 @@ function signLoginToken(account) {
     userId: account.email
   };
 }
+// ---- batch 2: the step after a correct password (or an invite / reset link) ----
+// Two-step on: a short-lived challenge asks for a code. A super admin without it: a challenge to set it
+// up first (it's required for them). Anyone else: logged in. A challenge is signed like a login token
+// but has no userId, so it can never be used as one (requireAuth refuses it).
+const CHALLENGE_MS = 10 * 60 * 1000;
+async function completeLogin(account) {
+  const { enabled } = await twoStepStatus(account.id);
+  const challenge = (purpose) => signToken({ purpose, accountId: Number(account.id), email: account.email, tv: account.token_version }, CHALLENGE_MS);
+  if (enabled) return { twoStep: true, challenge: challenge('two-step') };
+  if (account.account_level === 'super_admin') return { twoStepSetup: true, challenge: challenge('two-step-setup') };
+  return signLoginToken(account);
+}
+async function accountFromChallenge(token, purpose) {
+  let data;
+  try { data = verifyToken(token); } catch { throw fail(401, 'That took too long - log in again.'); }
+  if (data.purpose !== purpose || !data.email) throw fail(401, 'That took too long - log in again.');
+  const account = await accountByEmail(pool, data.email);
+  if (!account || Number(account.id) !== data.accountId || Number(data.tv || 0) < (await currentTokenVersion(account.email))) throw fail(401, 'That took too long - log in again.');
+  return account;
+}
+export async function secondStep(challenge, code, ip) {
+  await requireEnabled();
+  if (await overLimit('two-step', ip, 30, 15)) throw fail(429, TOO_MANY);
+  const account = await accountFromChallenge(challenge, 'two-step');
+  const used = await verifyLoginCode(account.id, code);
+  const { recoveryCodesLeft } = await twoStepStatus(account.id);
+  return { ...signLoginToken(account), usedRecoveryCode: used === 'recovery', recoveryCodesLeft };
+}
+export async function setupFromChallenge(challenge, ip) {
+  await requireEnabled();
+  if (await overLimit('two-step', ip, 30, 15)) throw fail(429, TOO_MANY);
+  const account = await accountFromChallenge(challenge, 'two-step-setup');
+  return beginSetup(account.id, account.email);
+}
+export async function confirmSetupFromChallenge(challenge, code, ip) {
+  await requireEnabled();
+  if (await overLimit('two-step', ip, 30, 15)) throw fail(429, TOO_MANY);
+  const account = await accountFromChallenge(challenge, 'two-step-setup');
+  const { recoveryCodes } = await confirmSetup(account.id, code);
+  return { recoveryCodes, ...signLoginToken(account) };
+}
+
 async function accountByEmail(client, email) {
   const { rows } = await client.query(
     `SELECT a.id, a.email, a.first_name, a.surname, a.account_level, a.token_version,
@@ -179,8 +223,7 @@ export async function acceptInvite(secret, password, ip) {
     await client.query('UPDATE auth_email_links SET used_at = now() WHERE id = $1', [link.id]);
     await client.query('UPDATE account_passwords SET last_login_at = now() WHERE account_id = $1', [account.id]);
     await client.query('COMMIT');
-    if (account.account_level === 'super_admin') return { needsGoogle: true };
-    return signLoginToken(account);
+    return completeLogin(account);
   } catch (e) {
     await client.query('ROLLBACK').catch(() => {});
     throw e;
@@ -210,10 +253,8 @@ export async function login(email, password, ip) {
         WHERE account_id = $1`, [account.id, LOCK_AFTER, LOCK_MINUTES]);
     throw fail(401, WRONG);
   }
-  // Batch 1: a super admin must have two-step sign-in, which isn't built yet - Google only for now.
-  if (account.account_level === 'super_admin') throw fail(403, 'Super admins log in with Google until two-step sign-in is ready.');
   await pool.query('UPDATE account_passwords SET failed_attempts = 0, locked_until = NULL, last_login_at = now() WHERE account_id = $1', [account.id]);
-  return signLoginToken(account);
+  return completeLogin(account);
 }
 
 // ---- forgot / reset ----
@@ -272,6 +313,26 @@ export async function resetPassword(secret, password, ip) {
     client.release();
   }
   forgetTokenVersion(account.email);
-  if (account.account_level === 'super_admin') return { needsGoogle: true };
-  return signLoginToken(account);
+  return completeLogin(account);
+}
+
+// ---- batch 2: Account -> Sign-in and security (logged in) ----
+export async function securityStatus(accountId, accountLevel) {
+  const [{ rows }, twoStep, enabled] = await Promise.all([
+    pool.query('SELECT set_at, last_login_at FROM account_passwords WHERE account_id = $1', [accountId]),
+    twoStepStatus(accountId),
+    passwordLoginEnabled()
+  ]);
+  return {
+    passwordLogin: enabled,
+    hasPassword: !!rows.length,
+    passwordSetAt: rows[0]?.set_at || null,
+    twoStep,
+    twoStepRequired: accountLevel === 'super_admin'
+  };
+}
+export async function requirePasswordAccount(accountId) {
+  await requireEnabled();
+  const { rows } = await pool.query('SELECT 1 FROM account_passwords WHERE account_id = $1', [accountId]);
+  if (!rows.length) throw fail(400, 'Two-step sign-in is for logging in with a password - you log in with Google, which has its own.');
 }

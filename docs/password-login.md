@@ -11,15 +11,15 @@ Gmail account (SMTP) until then.
 | Batch | What | Status |
 |---|---|---|
 | 1 | Password login, invites, forgot / reset password, email sending, dev outbox | built |
-| 2 | Two-step sign-in (authenticator app + recovery codes); required for super admins | to do |
+| 2 | Two-step sign-in (authenticator app + recovery codes); required for super admins | built |
 | 3 | Admin tools: login method per account, unlock, send a reset link, turn off 2FA; change password in the app | to do |
 
 ## How it works
 
 - **One account per email address**, however you log in. Accepting an invite for an email that already
   logs in with Google adds a password to that same account (its name and type stay as they are).
-- **Invite-only.** Admin → Accounts → "+ Invite by email": email, name, account type (not super admin
-  until batch 2). The email's link (`/?invite=…`, 7 days, once) opens "choose a password"; saving it
+- **Invite-only.** Admin → Accounts → "+ Invite by email": email, name, account type (not super admin -
+  promoting a super admin stays a deliberate change there). The email's link (`/?invite=…`, 7 days, once) opens "choose a password"; saving it
   creates the account (with the invite's name and type) and logs in. A newer invite replaces an older
   one. Unused invites are listed there and can be cancelled.
 - **Log in** with email + password on the login screen (under Google's button). The server answers with
@@ -31,7 +31,32 @@ Gmail account (SMTP) until then.
   carries the version it was signed with (`tv`) - older ones get a 401 (`server/services/tokenVersions.js`,
   checked in `requireAuth`, cached 30 s per email). Google logins carry it too. A database error in that
   check answers 500, never 401, so a blip can't log anyone out (ML-48).
-- **Super admins** can't use password login until batch 2 (two-step sign-in is required for them).
+- **Super admins** can use password login only with two-step sign-in: their first password login
+  (or accepting an invite / resetting) takes them through setting it up, and they can't turn it off.
+
+## Two-step sign-in (batch 2)
+
+- **What it is:** after the password, a 6-digit code from an authenticator app (Google Authenticator,
+  Microsoft Authenticator, 1Password...) - TOTP, RFC 6238 (HMAC-SHA1, 30 s steps, the step before and
+  after also accepted for clock drift; a code can't be used twice). `server/services/twoStep.js`, no
+  package. Only password logins ask for it - Google logins rely on Google's own 2-Step Verification.
+- **Set up** in My account → **Sign-in and security** (the row shows once `password_login` is Live):
+  "Add to my authenticator app" opens the `otpauth:` link (on a phone that's the authenticator app
+  itself), or type the setup key; then a code from the app turns it on and shows **10 recovery codes**
+  once (each works once if the phone's lost). There: new recovery codes, and turn it off - each needs a
+  current code (turning off also takes a recovery code). No QR code yet - adding one needs a package.
+- **Logging in:** password → the server answers with a 10-minute **challenge** (signed like a token but
+  with no `userId`, so it can never be used as a login) → the code (or "Use a recovery code instead") →
+  logged in. Logging in with a recovery code says how many are left. An invite or reset link goes
+  through the same step, so an emailed link can't skip two-step sign-in.
+- **Required for super admins:** a super admin's password login without it gets a challenge to set it
+  up on the login screen first. They can't turn it off.
+- **Wrong codes:** 5 in a row pause app codes for 15 minutes (recovery codes still work); 30 attempts per
+  15 minutes per IP across the two-step endpoints.
+- **Storage:** the TOTP secret is encrypted (AES-256-GCM) with a key from `TWO_STEP_KEY`, or derived from
+  `SESSION_SECRET` if that's not set - changing it means everyone sets two-step sign-in up again.
+  Recovery codes are stored as SHA-256 only. Tables: `account_two_step`, `account_recovery_codes`
+  (migration 075).
 
 ## Security details
 
@@ -78,6 +103,6 @@ plenty for invite-only.
 `db/migrations/074_password_login.sql` (tables), `server/services/passwordAuth.js` (the flows),
 `passwords.js`, `mail.js`, `tokenVersions.js`, `server/routes/auth.js` (`/auth/methods`,
 `/auth/password/login|forgot|reset`, `/auth/link/:purpose/:secret`, `/auth/invite/accept`),
-`server/routes/admin.js` (`/api/admin/invites`), the login screen in `public/index.html` +
+`server/routes/admin.js` (`/api/admin/invites`), `server/services/twoStep.js` + `/auth/two-step*` + `/api/account/security`, `/api/account/two-step/*` (batch 2), the login screen in `public/index.html` +
 `public/app.js` (search ML-355), Admin → Accounts (`public/admin.js`). Unit tests:
-`server/test/passwords.test.js`.
+`server/test/passwords.test.js`, `server/test/twoStep.test.js` (the RFC 6238 test vectors).

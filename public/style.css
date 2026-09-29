@@ -717,6 +717,13 @@
     .password-field { position: relative; }
     .password-field input { padding-right: calc(var(--touch-target) + var(--space-2)); }
     .password-toggle { position: absolute; top: 0; right: 0; bottom: 0; width: var(--touch-target); min-height: var(--touch-target); display: flex; align-items: center; justify-content: center; padding: 0; background: none; border: none; border-radius: var(--radius-lg); color: var(--label-color); cursor: pointer; }
+    /* ML-355 batch 2: two-step sign-in - the setup key and the recovery codes, shown on a light card
+       (the input look) in both the login splash and the app, in a monospace font so each character is
+       unmistakable. See specs/components/two-step.md. */
+    .two-step-key, .recovery-codes { background: var(--input-bg); color: var(--text-color); border: 1px solid var(--control-border); border-radius: var(--radius-lg); font-family: var(--font-mono); font-size: var(--font-md); margin: var(--space-2) 0; }
+    .two-step-key { padding: var(--space-3) var(--space-4); overflow-wrap: anywhere; text-align: center; } /* wraps between the groups of 4, not inside one */
+    .recovery-codes { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2) var(--space-4); padding: var(--space-3) var(--space-4) var(--space-3) var(--space-7); }
+    .two-step-message { color: var(--danger-text); font-weight: var(--font-weight-bold); margin: var(--space-2) 0; }
     .splash-link-btn { align-self: center; min-height: var(--touch-target); padding: var(--space-2) var(--space-3); background: none; border: none; color: var(--splash-title-color); font: inherit; font-weight: var(--font-weight-bold); text-decoration: underline; cursor: pointer; }
 
     /* Slider - shared design-system component (see style guide). A draggable track + thumb + fill,

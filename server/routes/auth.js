@@ -2,7 +2,7 @@ import express from 'express';
 import passport from '../config/passport.js';
 import { signToken } from '../utils/authToken.js';
 import { currentTokenVersion, forgetTokenVersion } from '../services/tokenVersions.js';
-import { passwordLoginEnabled, login, forgotPassword, resetPassword, describeLink, acceptInvite, appUrl } from '../services/passwordAuth.js';
+import { passwordLoginEnabled, login, forgotPassword, resetPassword, describeLink, acceptInvite, appUrl, secondStep, setupFromChallenge, confirmSetupFromChallenge } from '../services/passwordAuth.js';
 import { sendError } from '../utils/httpErrors.js';
 
 // ML-355: every login token carries the account's token version (tv) - read fresh, not from the cache,
@@ -152,6 +152,32 @@ router.post('/invite/accept', async (req, res) => {
 router.post('/password/reset', async (req, res) => {
   try {
     res.json(await resetPassword(req.body?.token, req.body?.password, req.ip));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-355 batch 2: the code after the password (or setting it up, for a super admin who hasn't yet).
+// Each takes the short-lived challenge the password step returned.
+router.post('/two-step', async (req, res) => {
+  try {
+    res.json(await secondStep(req.body?.challenge, req.body?.code, req.ip));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/two-step/setup', async (req, res) => {
+  try {
+    res.json(await setupFromChallenge(req.body?.challenge, req.ip));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/two-step/setup/confirm', async (req, res) => {
+  try {
+    res.json(await confirmSetupFromChallenge(req.body?.challenge, req.body?.code, req.ip));
   } catch (error) {
     sendError(res, error);
   }

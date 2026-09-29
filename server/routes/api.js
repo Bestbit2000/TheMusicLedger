@@ -35,6 +35,8 @@ import { submitFeedback } from '../services/feedback.js';
 import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead } from '../services/notifications.js';
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryWeights } from '../services/theoryPractice.js';
 import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getRhythmLevels, setRhythmWord } from '../services/drills.js';
+import { securityStatus, requirePasswordAccount } from '../services/passwordAuth.js';
+import { beginSetup, confirmSetup, newRecoveryCodes, turnOff } from '../services/twoStep.js';
 
 const router = express.Router();
 
@@ -686,6 +688,49 @@ router.post('/settings/teachers/:name/unarchive', requireAuth, resolveAccount, a
 router.get('/account', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await getAccountProfile(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-355 batch 2: Account -> Sign-in and security - two-step sign-in for password logins (set up,
+// new recovery codes, turn off). Required for super admins, so they can't turn it off.
+router.get('/account/security', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await securityStatus(req.accountId, req.realAccountLevel));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/account/two-step/setup', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await requirePasswordAccount(req.accountId);
+    res.json(await beginSetup(req.accountId, req.userId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/account/two-step/confirm', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await requirePasswordAccount(req.accountId);
+    res.json(await confirmSetup(req.accountId, req.body?.code));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/account/two-step/recovery-codes', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await requirePasswordAccount(req.accountId);
+    res.json(await newRecoveryCodes(req.accountId, req.body?.code));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/account/two-step/off', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await requirePasswordAccount(req.accountId);
+    if (req.realAccountLevel === 'super_admin') return res.status(403).json({ error: 'Two-step sign-in is required for super admins.' });
+    res.json(await turnOff(req.accountId, req.body?.code));
   } catch (error) {
     sendError(res, error);
   }
