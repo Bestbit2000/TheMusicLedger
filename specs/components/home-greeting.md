@@ -13,13 +13,13 @@ on a 3-day streak"), just before "Start a practice session". The rules are in
 discouraging one.
 
 ## 3. Anatomy
-`.home-greeting` (a row: `--space-3` gap, `--space-3` under it) › `button.avatar` › `.home-greeting-text` ›
+`.home-greeting` (a row: `--space-3` gap, `--space-6` under it - a clear break before Start a practice session) › `button.avatar` › `.home-greeting-text` ›
 `p.home-greeting-hello` (the greeting, bold, `--font-md`) › `p.home-greeting-line` (the line, `--font-sm`,
 `--label-color`; hidden until it's worked out, and when there's nothing to say). The whole row is hidden
 when the account has no name.
 
 ## 4. Tokens used
-`--space-3`, `--font-md`, `--font-sm`, `--font-weight-bold`, `--label-color` (and the avatar's own).
+`--space-3`, `--space-6`, `--font-md`, `--font-sm`, `--font-weight-bold`, `--label-color` (and the avatar's own).
 
 ## 5. Props / API
 `renderHomeGreeting()` (app.js) - on the profile arriving, after the sessions load (`renderAllViews`) and

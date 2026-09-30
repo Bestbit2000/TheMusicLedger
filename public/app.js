@@ -4189,11 +4189,17 @@
     // The tiles live on the All tools page (#toolsView, each with a data-tool id); Home shows copies of the
     // chosen ones that are switched on, in your order. Chosen with "Choose Home tools" (the tiles
     // become ★ toggles), saved on the account (accounts.home_tools, HOME_TOOL_IDS on the server).
-    const HOME_TOOLS_DEFAULT = ['metronome', 'tuner', 'timer', 'warmups'];
+    // Until you choose your own, Home's tools follow what your account type has switched on: with four or
+    // fewer tools, all of them (a Standard member's few); with more, the Everyday ones plus Rehearse.
+    const HOME_TOOLS_DEFAULT = ['metronome', 'tuner', 'timer', 'rehearse'];
     const HOME_TOOLS_MAX = 4;
     const toolTiles = () => [...document.querySelectorAll('#toolsView .tool-icon-btn[data-tool]')];
     const toolShown = (t) => !t.classList.contains('hidden-group');
-    const homeToolIds = () => (accountProfile && Array.isArray(accountProfile.homeTools) ? accountProfile.homeTools : HOME_TOOLS_DEFAULT);
+    function homeToolsDefault() {
+        const on = toolTiles().filter(toolShown).map(t => t.dataset.tool);
+        return on.length <= HOME_TOOLS_MAX ? on : HOME_TOOLS_DEFAULT;
+    }
+    const homeToolIds = () => (accountProfile && Array.isArray(accountProfile.homeTools) ? accountProfile.homeTools : homeToolsDefault());
     // The favourites that are showing (switched on) - at most four, in your order (a new one goes at the end;
     // move them on the All tools page while choosing).
     const homeToolsShown = () => {

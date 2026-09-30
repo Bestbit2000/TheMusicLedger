@@ -29,6 +29,6 @@ test('the routine is in the order it is practised: Warm-ups, Scales, Rehearse', 
 
 test('the default Home tools are real tools, four of them', () => {
     const defaults = JSON.parse(/HOME_TOOLS_DEFAULT = (\[[^\]]*\])/.exec(app)[1].replace(/'/g, '"'));
-    assert.deepEqual(defaults, ['metronome', 'tuner', 'timer', 'warmups']);
+    assert.deepEqual(defaults, ['metronome', 'tuner', 'timer', 'rehearse']); // Everyday + Rehearse (four or fewer tools on: all of them)
     assert.ok(defaults.every(id => serverIds.includes(id)));
 });

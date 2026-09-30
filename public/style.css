@@ -158,7 +158,7 @@
     .avatar .is-dot { fill: currentColor; stroke: none; }
     .avatar-initials { font-size: var(--font-sm); font-weight: var(--font-weight-bold); }
     /* The home greeting: avatar, then the greeting with one line of encouragement under it */
-    .home-greeting { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
+    .home-greeting { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-6); } /* a clear break before Start a practice session */
     .home-greeting-text { min-width: 0; }
     .home-greeting-hello { margin: 0; font-size: var(--font-md); font-weight: var(--font-weight-bold); }
     .home-greeting-line { margin: 0; font-size: var(--font-sm); color: var(--label-color); }

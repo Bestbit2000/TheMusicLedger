@@ -35,7 +35,7 @@ people. The rules are in [docs/feature-access-plan.md](../../docs/feature-access
 
 ## 5. Props / API
 - A changed cell or row gets `.is-changed` (a `--primary-action` outline) until it's saved or discarded.
-- The grid scrolls sideways inside `.admin-stat-table-wrap` on a narrow screen, with the feature column staying put.
+- The page uses the whole width beside the admin menu (the usual 900px `.admin-content` cap is lifted while Feature access is open; its intro stays at 900px), so every account type fits on a normal screen. On a narrower one the grid scrolls sideways inside `.admin-stat-table-wrap`, with the feature column staying put.
 - Copy from… and Same as Premium only fill in the waiting changes - nothing is saved until Save.
 - Preview opens the app in a new tab as that type (`/?preview=<type>`, kept for the tab). The app shows a `.level-notice` banner with Stop previewing, and the server honours the preview for super admins only.
 

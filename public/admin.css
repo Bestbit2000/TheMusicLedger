@@ -149,6 +149,10 @@ body.admin-body { display: block; background: var(--bg-color); }
 
 .admin-stat-section-title { font-size: var(--font-md); font-weight: var(--font-weight-bold); color: var(--text-color); margin: var(--space-6) 0 var(--space-2) 0; }
 .admin-stat-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: var(--space-5); }
+/* Feature access's grid (7 columns) uses the whole width beside the menu, not the usual 900px reading width;
+   its intro stays at that width so the lines don't run too long. Still scrolls sideways when the window is narrower. */
+.admin-content:has(> #feature-access-section:not(.hidden-group)) { max-width: none; }
+#feature-access-section .admin-intro { max-width: 900px; }
 .admin-stat-table { border-collapse: collapse; width: 100%; font-size: var(--font-sm); }
 .admin-stat-table th, .admin-stat-table td { padding: var(--space-2) var(--space-3); text-align: right; border-bottom: 1px solid var(--input-border); white-space: nowrap; }
 .admin-stat-table th { color: var(--label-color); font-weight: var(--font-weight-semibold); text-align: right; }

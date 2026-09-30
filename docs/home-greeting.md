@@ -8,7 +8,9 @@ Home is short on purpose - one clear action, a few tools, everything else a tap 
 2. **Start a practice session** - the one gold button (or Start a challenge, when practice sessions are off).
 3. **Log time you've already played** - a link (`.btn-text`) to Add session time, not a second button.
 4. **My tools** - up to **four** favourites in one row, copies of the All tools tiles (`renderHomeTools`),
-   in **your** order. Default **Metronome, Tuner, Timer, Warm-ups** - so the metronome is one tap away.
+   in **your** order. Until you choose your own, the default follows what your account type has switched on:
+   **four or fewer tools → all of them** (e.g. a Standard member's), **more → the Everyday ones (Metronome,
+   Tuner, Timer) plus Rehearse** (`homeToolsDefault`) - so the metronome is always one tap away.
    Only tools switched on for the account show (a favourite that's off for now stays chosen).
 5. **All tools** - a row that opens the All tools page, with the other tools named under it.
 
@@ -23,7 +25,7 @@ choosing, a boxed **"My Home screen"** card - pinned under the top bar as you sc
 line under it, and **Done** pinned to the bottom - shows them as Home will: tap one for **Move earlier / Move
 later / Take off Home** (← / → from the keyboard). Tap-to-move, not drag: four tiles need a tap or two, and a
 hold-to-drag would fight scrolling and still need this as its accessible alternative. Saved on the account: `accounts.home_tools` (migration 080, null = the default
-four), `PUT /api/account { homeTools }`, checked against `HOME_TOOL_IDS` in server/services/accounts.js. The
+above), `PUT /api/account { homeTools }`, checked against `HOME_TOOL_IDS` in server/services/accounts.js. The
 ☰ menu's Tools rows are built from the same groups. `server/test/homeTools.test.js` keeps the tiles, the
 server's list, the routine's order and the defaults in step.
 
