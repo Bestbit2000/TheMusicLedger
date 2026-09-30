@@ -19,6 +19,8 @@ function toUserDto(row) {
     title: row.title,
     body: row.body,
     publishAt: row.publish_at,
+    // ML-167: an urgent one also pops up in the app until it's read
+    urgent: !!row.urgent,
     read: !!row.read_at,
     readAt: row.read_at || null
   };
@@ -29,7 +31,7 @@ function toUserDto(row) {
 // behaviour for ML-201, so a new user still hears about e.g. a recently added feature.
 export async function listNotificationsForAccount(accountId) {
   const { rows } = await pool.query(
-    `SELECT n.id, n.title, n.body, n.publish_at, r.read_at
+    `SELECT n.id, n.title, n.body, n.publish_at, n.urgent, r.read_at
      FROM notifications n
      LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.account_id = $1
      WHERE ${LIVE_CONDITION}
@@ -83,6 +85,7 @@ function toAdminDto(row) {
     title: row.title,
     body: row.body,
     audience: row.audience,
+    urgent: !!row.urgent,
     publishAt: row.publish_at,
     expiresAt: row.expires_at,
     withdrawnAt: row.withdrawn_at,
@@ -115,7 +118,7 @@ function parseTimestamp(value, label) {
 
 // Shared by create and update: validates the whole shape, so an edit can't leave e.g. an expiry
 // before the (new) publish time.
-function validateNotification({ title, body, publishAt, expiresAt }) {
+function validateNotification({ title, body, publishAt, expiresAt, urgent }) {
   const t = String(title ?? '').trim();
   const b = String(body ?? '').trim();
   if (!t) throw withStatus(400, 'A title is required.');
@@ -125,15 +128,15 @@ function validateNotification({ title, body, publishAt, expiresAt }) {
   const publish = parseTimestamp(publishAt, 'Publish time') || new Date();
   const expires = parseTimestamp(expiresAt, 'Expiry');
   if (expires && expires <= publish) throw withStatus(400, 'Expiry must be after the publish time.');
-  return { title: t, body: b, publishAt: publish, expiresAt: expires };
+  return { title: t, body: b, publishAt: publish, expiresAt: expires, urgent: urgent === true };
 }
 
 export async function createNotification(adminAccountId, data) {
   const v = validateNotification(data || {});
   const { rows } = await pool.query(
-    `INSERT INTO notifications (title, body, publish_at, expires_at, created_by_account_id)
-     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-    [v.title, v.body, v.publishAt, v.expiresAt, adminAccountId]
+    `INSERT INTO notifications (title, body, publish_at, expires_at, urgent, created_by_account_id)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+    [v.title, v.body, v.publishAt, v.expiresAt, v.urgent, adminAccountId]
   );
   return getAdminNotification(rows[0].id);
 }
@@ -141,8 +144,8 @@ export async function createNotification(adminAccountId, data) {
 export async function updateNotification(notificationId, data) {
   const v = validateNotification(data || {});
   const { rowCount } = await pool.query(
-    `UPDATE notifications SET title = $1, body = $2, publish_at = $3, expires_at = $4, updated_at = now() WHERE id = $5`,
-    [v.title, v.body, v.publishAt, v.expiresAt, notificationId]
+    `UPDATE notifications SET title = $1, body = $2, publish_at = $3, expires_at = $4, urgent = $5, updated_at = now() WHERE id = $6`,
+    [v.title, v.body, v.publishAt, v.expiresAt, v.urgent, notificationId]
   );
   if (!rowCount) throw withStatus(404, 'Notification not found');
   return getAdminNotification(notificationId);

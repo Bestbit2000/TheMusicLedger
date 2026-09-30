@@ -1,7 +1,7 @@
 # Pill / badge
 
 ## 1. Metadata
-- **Name:** Pill / badge (`.flow-pill`, `.notif-count`, `.filter-strip-badge`, `.admin-badge`, `.admin-chip`, `.admin-stat-pill`, `.admin-feedback-badge`, `.notification-status-*`, `.status-*`, `.admin-nav-count`)
+- **Name:** Pill / badge (`.flow-pill`, `.notif-count`, `.filter-strip-badge`, `.admin-badge`, `.admin-chip`, `.admin-stat-pill`, `.admin-feedback-badge`, `.notification-status-*` (incl. `.notification-status-urgent`), `.status-*`, `.admin-nav-count`)
 - **Category:** Data display
 - **Status:** Stable. Several near-duplicates should converge on the variants below
 

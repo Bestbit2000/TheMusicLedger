@@ -1,7 +1,7 @@
 # Notification centre
 
 ## 1. Metadata
-- **Name:** Notification centre (`.notif-dot`, `.notif-count`, `.notifications-toolbar`, `.notification-item`, `.notification-head`, `.notification-unread-dot`, `.notification-date`, `.notification-body`, `.notification-update`, `.notification-release`, `.notifications-empty`, `.notifications-empty-art`, `.notifications-empty-title`)
+- **Name:** Notification centre (`.notif-dot`, `.notif-count`, `.notifications-toolbar`, `.notification-item`, `.notification-head`, `.notification-unread-dot`, `.notification-date`, `.notification-body`, `.notification-update`, `.notification-release`, `.notifications-empty`, `.notifications-empty-art`, `.notifications-empty-title`, `.notification-urgent` (the urgent pop-up's content), `.notification-urgent-tag`)
 - **Category:** Feedback
 - **Status:** Stable (ML-201). Behaviour documented in [docs/notifications.md](../../docs/notifications.md)
 
@@ -13,6 +13,10 @@ confirmations. Those are [toasts](toast.md).
 ## 3. Anatomy
 List: `.notifications-toolbar` (Mark all read) › `.notification-item[.unread][.expanded]` › `.notification-head` (`.notification-unread-dot` + title) › `.notification-date` › `.notification-body` (2-line clamp until expanded).
 Update card: `.notification-item.notification-update` with a `.btn-submit` Reload button.
+Urgent (ML-167): in the list, an amber `.notification-urgent-tag` "Urgent" after the title. While unread it also
+pops up - `#urgentNotificationModal` (`role=dialog`) › `.modal-content.notification-urgent` › the tag ›
+`h2` title › `.notification-date` › `.notification-body` (in full, no clamp) › a `.btn-submit` **Got it** that
+marks it read. No × - Got it is the way out; closed any other way it comes back on the next check.
 Empty: `.notifications-empty` › a line drawing (`svg.notifications-empty-art`, someone relaxing back in a deckchair
 with a euphonium; `aria-hidden`; lines in `--label-color`, the instrument a `.is-solid` group filled with
 `--container-bg` so it hides the lines behind it) › `h2.notifications-empty-title` "You're all caught up!" ›
@@ -24,13 +28,14 @@ session, the tools and the timer).
 ## 4. Tokens used
 `--danger-color` (dots, count), `--text-on-accent`, `--container-bg` (dot ring), `--input-bg`,
 `--input-border`, `--primary-action` (unread/update outline), `--text-color`, `--label-color`,
+`--status-amber-bg`/`--status-amber-fg` (urgent tag - an existing checked pair), `--font-xs`, `--font-weight-bold`, `--space-0-5`,
 `--radius-md`, `--radius-pill`, `--space-2`, `--space-3`, `--space-4`, `--space-5`, `--space-6`, `--font-sm`, `--font-lg`, `--line-height-base`.
 
 ## 5. Props / API
 See [docs/notifications.md](../../docs/notifications.md) for the data flow and the update-available check.
 
 ## 6. States
-Unread (gold outline + red dot) · Read (plain outline) · Collapsed (2-line clamp) · Expanded · Empty (`.notifications-empty`).
+Unread (gold outline + red dot) · Read (plain outline) · Collapsed (2-line clamp) · Expanded · Empty (`.notifications-empty`) · Urgent (tag; pop-up until Got it).
 
 ## 7. Code example
 ```html

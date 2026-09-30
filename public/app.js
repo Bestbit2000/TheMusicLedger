@@ -1902,9 +1902,10 @@
     //     fetches releases.json fresh) showed the new version while the old code was still running.
     //     runningAppVersion is captured once, at startup, from the same deployment the code itself
     //     came from; every poll compares it with the server's appVersion.
-    // Polled on open, whenever the app comes back to the foreground, and every 5 minutes while open -
-    // so a scheduled notification or a new release shows up within about 5 minutes.
-    const NOTIFICATIONS_POLL_MS = 5 * 60 * 1000;
+    // Polled on open, whenever the app comes back to the foreground, and every minute while it's on screen
+    // (a hidden tab skips the poll) - so a scheduled notification, an urgent one (ML-167) or a new release
+    // shows up within about a minute. Urgent ones also pop up (showNextUrgentNotification).
+    const NOTIFICATIONS_POLL_MS = 60 * 1000;
     const NOTIFICATIONS_RESUME_MIN_GAP_MS = 60 * 1000;
     let runningAppVersion = null;
     let latestAppVersion = null;
@@ -1955,7 +1956,43 @@
         if (res.appVersion) latestAppVersion = res.appVersion;
         renderNotificationIndicators();
         if (isShown('notificationsView')) renderNotificationsView();
+        showNextUrgentNotification();
     }
+
+    // ML-167: an unread urgent notification pops up over whatever you're doing - oldest first, one at a
+    // time - until "Got it" marks it read. Closed any other way, it comes back on the next check.
+    let urgentNotificationShownId = null;
+    function showNextUrgentNotification() {
+        const modal = document.getElementById('urgentNotificationModal');
+        if (!modal || !isFeatureEnabled('notifications')) return;
+        const next = notificationsCache.filter(n => n.urgent && !n.read)
+            .sort((a, b) => new Date(a.publishAt) - new Date(b.publishAt))[0];
+        if (!next) { if (modal.classList.contains('show')) hideModal(modal); urgentNotificationShownId = null; return; }
+        if (modal.classList.contains('show') && urgentNotificationShownId === next.id) return;
+        urgentNotificationShownId = next.id;
+        document.getElementById('urgentNotificationTitle').textContent = next.title;
+        document.getElementById('urgentNotificationDate').textContent = formatNotificationDate(next.publishAt);
+        document.getElementById('urgentNotificationBody').textContent = next.body;
+        showModal(modal);
+        document.getElementById('urgentNotificationOkBtn')?.focus();
+    }
+
+    document.getElementById('urgentNotificationOkBtn')?.addEventListener('click', async () => {
+        const id = urgentNotificationShownId;
+        hideModal('urgentNotificationModal');
+        urgentNotificationShownId = null;
+        const n = notificationsCache.find(x => x.id === id);
+        if (!n) return;
+        n.read = true; // optimistic - the next urgent one (if any) follows straight away
+        notificationsUnreadCount = Math.max(0, notificationsUnreadCount - 1);
+        try {
+            applyNotificationsResponse(await API.notifications.read(id));
+        } catch (error) {
+            console.warn('Mark read failed:', error.message);
+            renderNotificationIndicators();
+            showNextUrgentNotification();
+        }
+    });
 
     // Quiet by design - a failed poll (offline, flag switched off) never toasts; the next one retries.
     async function checkNotifications(force = false) {
@@ -2044,7 +2081,7 @@
             const expanded = expandedNotificationIds.has(n.id);
             return `
             <button type="button" class="notification-item${n.read ? '' : ' unread'}${expanded ? ' expanded' : ''}" data-notification-id="${n.id}" aria-expanded="${expanded}">
-                <div class="notification-head">${n.read ? '' : '<span class="notification-unread-dot" aria-label="Unread"></span>'}<strong>${escapeHtml(n.title)}</strong></div>
+                <div class="notification-head">${n.read ? '' : '<span class="notification-unread-dot" aria-label="Unread"></span>'}<strong>${escapeHtml(n.title)}</strong>${n.urgent ? '<span class="notification-urgent-tag">Urgent</span>' : ''}</div>
                 <div class="notification-date">${escapeHtml(formatNotificationDate(n.publishAt))}</div>
                 <p class="notification-body">${escapeHtml(n.body)}</p>
             </button>`;

@@ -198,6 +198,8 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-feedback-badge.notification-status-live { background: var(--status-green-bg); color: var(--status-green-fg); }
 .admin-feedback-badge.notification-status-scheduled { background: var(--status-blue-bg); color: var(--status-blue-fg); }
 .admin-feedback-badge.notification-status-expired, .admin-feedback-badge.notification-status-withdrawn { background: var(--status-grey-bg); color: var(--status-grey-fg); }
+/* ML-167: an urgent notification (pops up in the app until read) */
+.admin-feedback-badge.notification-status-urgent { background: var(--status-amber-bg); color: var(--status-amber-fg); }
 
 /* ML-204 - Flows (export/import between environments). Reuses .admin-stat-table for the list; the
    import preview is a scrolling list inside the standard modal, one card per flow in the file. */

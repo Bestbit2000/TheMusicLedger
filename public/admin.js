@@ -2045,6 +2045,7 @@
                         <p class="admin-notification-body">${escapeHtml(n.body)}</p>
                         <div class="admin-feedback-badges">
                             <span class="admin-feedback-badge notification-status-${n.status}">${NOTIFICATION_STATUS_LABELS[n.status] || n.status}</span>
+                            ${n.urgent ? '<span class="admin-feedback-badge notification-status-urgent">Urgent</span>' : ''}
                             <span class="admin-feedback-badge cat">Read by ${n.readCount} of ${data.accountCount}</span>
                         </div>
                     </div>
@@ -2083,6 +2084,7 @@
         document.getElementById('notificationPublishMode').value = scheduled ? 'scheduled' : 'now';
         document.getElementById('notificationPublishAtInput').value = n ? toLocalInputValue(n.publishAt) : '';
         document.getElementById('notificationExpiresAtInput').value = n ? toLocalInputValue(n.expiresAt) : '';
+        document.getElementById('notificationUrgentInput').checked = !!(n && n.urgent); // ML-167
         syncNotificationPublishMode();
         showModal('notificationFormModal');
     }
@@ -2099,7 +2101,8 @@
             title: document.getElementById('notificationTitleInput').value,
             body: document.getElementById('notificationBodyInput').value,
             publishAt: scheduled ? fromLocalInputValue(publishValue) : null,
-            expiresAt: fromLocalInputValue(document.getElementById('notificationExpiresAtInput').value)
+            expiresAt: fromLocalInputValue(document.getElementById('notificationExpiresAtInput').value),
+            urgent: document.getElementById('notificationUrgentInput').checked // ML-167
         };
         const btn = document.getElementById('notificationFormSaveBtn');
         btn.disabled = true;

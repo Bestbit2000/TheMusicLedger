@@ -2497,6 +2497,18 @@
         </div>
     </div>
 
+    <!-- ML-167: an urgent notification - pops up over whatever you're doing until "Got it" (which marks it read).
+         Filled in by showNextUrgentNotification (app.js). -->
+    <div class="modal" id="urgentNotificationModal" role="dialog" aria-modal="true" aria-labelledby="urgentNotificationTitle" aria-describedby="urgentNotificationBody">
+        <div class="modal-content notification-urgent">
+            <span class="notification-urgent-tag">Urgent</span>
+            <h2 id="urgentNotificationTitle"></h2>
+            <div class="notification-date" id="urgentNotificationDate"></div>
+            <p class="notification-body" id="urgentNotificationBody"></p>
+            <button type="button" class="btn-submit no-margin mt-4" id="urgentNotificationOkBtn">Got it</button>
+        </div>
+    </div>
+
     <div class="modal" id="scalesMyRangeModal" role="dialog" aria-modal="true" aria-labelledby="scalesMyRangeTitle">
         <div class="modal-content">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
