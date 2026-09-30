@@ -282,7 +282,18 @@
        later, Take off Home), as the app's other ⋮ menus; same place and size as the ★ on the tiles below */
     .tool-icon-btn .tool-move-icon { position: absolute; top: var(--space-1); right: var(--space-1); font-size: var(--icon-sm); color: inherit; }
     .tools-done-bar { margin-top: var(--space-4); }
-    .tools-page.is-editing .tools-done-bar { position: sticky; bottom: 0; z-index: var(--z-sticky); background: var(--container-bg); padding: var(--space-3) 0; }
+    .tools-page.is-editing .tools-done-bar, .stats-page.is-editing .tools-done-bar { position: sticky; bottom: 0; z-index: var(--z-sticky); background: var(--container-bg); padding: var(--space-3) 0; }
+    /* ML-387: the Stats page (.stats-page) works the same way for Home stats - a filled ★ in the corner of each
+       card on Home; while choosing every card shows one and the ones on Home take the selected look (tint and
+       a strong border, the text keeps its own colours). The star is the card's text colour, as on the tools. */
+    .stats-page .stat-card.clickable { position: relative; }
+    .stat-card .stat-fav-star { display: none; position: absolute; top: var(--space-1); right: var(--space-1); font-size: var(--icon-sm); color: var(--text-color); }
+    .stat-card.is-fav .stat-fav-star { display: block; font-variation-settings: 'FILL' 1; }
+    .stats-page.is-editing .stat-card .stat-fav-star { display: block; }
+    .stats-page.is-editing .stat-card.clickable.is-fav { background: var(--primary-action-tint); border-color: var(--primary-action-strong); }
+    /* Home's My stats sit between the greeting and Start a practice session: the greeting's break moves below them. */
+    .home-greeting.has-stats { margin-bottom: var(--space-3); }
+    .dashboard-grid.home-stats { margin-bottom: var(--space-6); }
     /* Custom front-page tool glyphs (Quick play, Flow) - inlined SVGs (not <img>, so `fill:
        currentColor` can pick up the button's own themed text color like the material icons already
        do) with a JS-added viewBox and preserveAspectRatio so any source aspect ratio scales to fit

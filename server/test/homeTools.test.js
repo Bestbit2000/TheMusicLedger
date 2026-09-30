@@ -27,6 +27,15 @@ test('the routine is in the order it is practised: Warm-ups, Scales, Rehearse', 
     assert.deepEqual([...routine.matchAll(/data-tool="([a-z-]+)"/g)].map(m => m[1]), ['warmups', 'scales', 'rehearse']);
 });
 
+// ML-388: how many fit comes from the home_tools limit (Admin -> Feature access), not a number in the code.
+test('how many tools fit on Home is the home_tools limit, seeded Standard 4 and everyone else 8', () => {
+    assert.doesNotMatch(app, /HOME_TOOLS_MAX\b/);
+    assert.match(app, /appData\.limits\?\.home_tools/);
+    const sql = fs.readFileSync(new URL('../../db/migrations/085_home_tools_limit.sql', import.meta.url), 'utf8');
+    const seeded = Object.fromEntries([...sql.matchAll(/\('([a-z_]+)', (\d+)\)/g)].map(m => [m[1], Number(m[2])]));
+    assert.deepEqual(seeded, { standard_member: 4, premium_member: 8, beta_tester: 8, teacher: 8, band_admin: 8, super_admin: 8 });
+});
+
 test('the default Home tools are real tools, four of them', () => {
     const defaults = JSON.parse(/HOME_TOOLS_DEFAULT = (\[[^\]]*\])/.exec(app)[1].replace(/'/g, '"'));
     assert.deepEqual(defaults, ['metronome', 'tuner', 'timer', 'rehearse']); // Everyday + Rehearse (four or fewer tools on: all of them)

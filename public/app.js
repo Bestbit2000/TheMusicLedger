@@ -522,23 +522,188 @@
         if (pl) pl.innerText = dayLabel(data.currentPlaying);
     }
 
-    // ML-327: the Stats dashboard - one number per kind of stat, each card opening its full page.
-    // Practice time, sessions and the streak come from the sessions already loaded (rawData); Tool
-    // results asks the server for each scored tool's summary (toolResultsData).
+    // ML-327: the Stats dashboard - one number per stat, each card opening its full page. ML-387: grouped,
+    // and any of them can go on Home (renderHomeStats copies the cards, so it runs after this).
+    // Practice time, sessions and the streaks come from the sessions already loaded (rawData, weeks start
+    // on Monday as the Stats page); the concert from the home extras (the nearest practice list with a
+    // date); the last Theory score and Tools last played ask the server, only when they'll be seen.
+    const statCard = (id) => document.querySelector(`#statsHomeView .stat-card[data-stat="${id}"]`);
+    let statsToolsLast = null, statsTheoryLast = null, statsAsyncLoading = false;
     function renderStatsHome() {
         const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
-        const month = formatLocalDateStr(new Date()).slice(0, 7);
-        const thisMonth = rawData.filter(d => String(d.dateStr).startsWith(month));
-        set('statsHomeTime', formatMins(thisMonth.reduce((t, d) => t + d.duration, 0)));
-        set('statsHomeSessions', String(thisMonth.length));
-        set('statsHomeStreak', dayLabel(getStreakData().currentPractise));
-        const tools = scoredTools();
-        setShown('statsHomeToolsCard', tools.length > 0);
-        if (tools.length && isShown('statsHomeView')) loadToolResults().then(rows => {
-            const last = rows.map(r => r.lastAt).filter(Boolean).sort().pop();
-            set('statsHomeTools', last ? formatToolResultDate(last) : 'Not yet');
+        const now = new Date();
+        const today = formatLocalDateStr(now);
+        const monday = dateStrAddDays(today, -((now.getDay() + 6) % 7));
+        const yearStart = practiceYearEnabled() ? formatLocalDateStr(practiceYearStartFor(now)) : `${today.slice(0, 4)}-01-01`;
+        const since = (from) => rawData.filter(d => String(d.dateStr) >= from && String(d.dateStr) <= today);
+        const mins = (list) => formatMins(list.reduce((t, d) => t + d.duration, 0));
+        const week = since(monday), month = since(`${today.slice(0, 7)}-01`);
+        set('statsHomeTimeWeek', mins(week));
+        set('statsHomeTime', mins(month));
+        set('statsHomeTimeYear', mins(since(yearStart)));
+        set('statsHomeTimeYearLabel', practiceYearEnabled() ? 'Practice time this practice year' : 'Practice time this year');
+        set('statsHomeSessionsWeek', String(week.length));
+        set('statsHomeSessions', String(month.length));
+        const streaks = getStreakData();
+        set('statsHomeStreak', dayLabel(streaks.currentPractise));
+        set('statsHomeStreakLongest', dayLabel(streaks.longestPractise?.length || 0));
+        // The next concert: the nearest practice list with a date still to come
+        setShown(statCard('concert'), isFeatureEnabled('practice_levels'));
+        const c = homeExtras && homeExtras.concert;
+        set('statsHomeConcert', c ? dayLabel(c.days) : 'None');
+        set('statsHomeConcertLabel', c ? `to ${c.name}` : 'Next concert');
+        setShown(statCard('theory_last'), isFeatureEnabled('theory_practice'));
+        set('statsHomeTheory', statsTheoryLast === null ? '-' : statsTheoryLast.score === undefined ? 'Not yet' : String(statsTheoryLast.score));
+        setShown(statCard('tools_last'), scoredTools().length > 0);
+        set('statsHomeTools', statsToolsLast === null ? '-' : statsToolsLast ? formatToolResultDate(statsToolsLast) : 'Not yet');
+        document.querySelectorAll('#statsHomeView .tool-group').forEach(g => setShown(g, [...g.querySelectorAll('.stat-card')].some(isStatShown)));
+        loadStatsAsync();
+        renderStatStars();
+        renderHomeStats();
+    }
+    // The server-backed ones, once each while the Stats page or Home needs them (Home only if chosen).
+    function loadStatsAsync() {
+        if (statsAsyncLoading) return;
+        const wanted = (id) => isShown('statsHomeView') || homeStatsShown().some(c => c.dataset.stat === id);
+        const jobs = [];
+        if (statsToolsLast === null && scoredTools().length && wanted('tools_last')) jobs.push(loadToolResults().then(rows => {
+            statsToolsLast = rows.map(r => r.lastAt).filter(Boolean).sort().pop() || '';
+        }));
+        if (statsTheoryLast === null && isFeatureEnabled('theory_practice') && wanted('theory_last')) jobs.push(API.theory.summary().then(s => {
+            const last = Object.values((s && s.quizzes) || {}).sort((a, b) => String(a.startedAt).localeCompare(String(b.startedAt))).pop();
+            statsTheoryLast = last ? { score: last.score } : {};
+        }).catch(() => { statsTheoryLast = {}; })); // a failed load shows "Not yet" rather than asking again and again
+        if (!homeExtras && !homeExtrasLoading && homeSessionsLoaded && (isShown('statsHomeView') || homeStatsShown().some(c => c.dataset.stat === 'concert'))) {
+            homeExtrasLoading = true;
+            jobs.push(loadHomeExtras().then(x => { homeExtras = x; }));
+        }
+        if (!jobs.length) return;
+        statsAsyncLoading = true;
+        Promise.allSettled(jobs).then(() => { statsAsyncLoading = false; renderStatsHome(); renderHomeGreeting(); });
+    }
+    const isStatShown = (c) => !c.classList.contains('hidden-group');
+
+    // ===== ML-387: Home's "My stats" - chosen on the Stats page, like the Home tools =====
+    // Home shows copies of the chosen cards that are shown (their feature is on), in your order, up to the
+    // home_stats limit for your account type (Standard 2, others 4). Saved on the account
+    // (accounts.home_stats, HOME_STAT_IDS on the server). Hidden until you've logged something - a new
+    // player isn't shown a row of zeros.
+    const HOME_STATS_DEFAULT = ['time_week', 'streak_current'];
+    const HOME_STATS_MAX_DEFAULT = 2;
+    let statsEditing = false;
+    const homeStatsMax = () => {
+        const n = appData.limits?.home_stats;
+        return Number.isInteger(n) && n >= 0 ? n : HOME_STATS_MAX_DEFAULT;
+    };
+    const statCards = () => [...document.querySelectorAll('#statsHomeView .tool-group .stat-card[data-stat]')];
+    const homeStatIds = () => (accountProfile && Array.isArray(accountProfile.homeStats) ? accountProfile.homeStats : HOME_STATS_DEFAULT);
+    const homeStatsShown = () => {
+        const byId = new Map(statCards().map(c => [c.dataset.stat, c]));
+        return homeStatIds().map(id => byId.get(id)).filter(c => c && isStatShown(c)).slice(0, homeStatsMax());
+    };
+    // A copy of a card for Home or the "My Home screen" card: no ids (they'd clash), no ★.
+    function statCardCopy(c) {
+        const copy = c.cloneNode(true);
+        copy.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+        copy.removeAttribute('aria-pressed');
+        copy.classList.remove('is-fav');
+        copy.querySelector('.stat-fav-star')?.remove();
+        return copy;
+    }
+    function renderHomeStats() {
+        const row = document.getElementById('homeStatsRow');
+        if (!row) return;
+        const cards = homeSessionsLoaded && rawData.length ? homeStatsShown() : [];
+        row.innerHTML = '';
+        cards.forEach(c => row.appendChild(statCardCopy(c)));
+        setShown(row, cards.length > 0);
+        document.getElementById('homeGreetingRow')?.classList.toggle('has-stats', cards.length > 0);
+    }
+    // The ★ on each Stats card that's on Home; while choosing, every card shows one and is a toggle.
+    function renderStatStars() {
+        const view = document.getElementById('statsHomeView');
+        if (!view) return;
+        const onHome = new Set(homeStatsShown().map(c => c.dataset.stat));
+        statCards().forEach(c => {
+            if (!c.querySelector('.stat-fav-star')) c.insertAdjacentHTML('beforeend', '<span class="material-symbols-outlined stat-fav-star" aria-hidden="true">star</span>');
+            c.classList.toggle('is-fav', onHome.has(c.dataset.stat));
+            if (statsEditing) c.setAttribute('aria-pressed', String(onHome.has(c.dataset.stat)));
+            else c.removeAttribute('aria-pressed');
+        });
+        view.classList.toggle('is-editing', statsEditing);
+        document.getElementById('statsHint').textContent = statsEditing
+            ? `${onHome.size} of ${homeStatsMax()} on Home. Tap a stat below to add it or take it off.`
+            : 'Tap a number for the full page. The ones marked ★ are on Home.';
+        renderStatsHomeOrder();
+        const btn = document.getElementById('statsEditBtn');
+        btn.textContent = statsEditing ? 'Done' : 'Choose Home stats';
+        btn.setAttribute('aria-pressed', String(statsEditing));
+    }
+    // While choosing: your Home stats in Home's order, each opening Move earlier / Move later / Take off Home.
+    function renderStatsHomeOrder() {
+        const box = document.getElementById('statsHomeOrder');
+        const row = document.getElementById('statsHomeOrderRow');
+        if (!box || !row) return;
+        const cards = homeStatsShown();
+        setShown(box, statsEditing && cards.length > 0);
+        row.innerHTML = '';
+        if (!statsEditing) return;
+        cards.forEach((c, i) => {
+            const copy = statCardCopy(c);
+            const id = c.dataset.stat;
+            copy.removeAttribute('onclick');
+            delete copy.dataset.stat;
+            copy.dataset.orderStat = id;
+            copy.setAttribute('aria-haspopup', 'menu');
+            copy.setAttribute('aria-label', `${c.querySelector('.label').textContent}, ${i + 1} of ${cards.length} on Home - move it or take it off`);
+            copy.addEventListener('click', (e) => { e.stopPropagation(); openHomeToolMenu(copy, id, 'stat'); });
+            copy.addEventListener('keydown', (e) => {
+                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                e.preventDefault();
+                moveHomeStat(id, e.key === 'ArrowLeft' ? -1 : 1, true);
+            });
+            row.appendChild(copy);
         });
     }
+    async function saveHomeStats(next, before) {
+        accountProfile.homeStats = next;
+        renderStatStars();
+        renderHomeStats();
+        try { await API.account.update({ homeStats: next }); }
+        catch (e) { accountProfile.homeStats = before; renderStatStars(); renderHomeStats(); showWarningToast('Home stats not saved - ' + e.message); }
+    }
+    async function moveHomeStat(id, dir, refocus = false) {
+        if (!accountProfile) return;
+        const shown = homeStatsShown().map(c => c.dataset.stat);
+        const i = shown.indexOf(id), other = shown[i + dir];
+        if (i < 0 || !other) return;
+        const before = accountProfile.homeStats ?? null;
+        const next = homeStatIds().slice();
+        const a = next.indexOf(id), b = next.indexOf(other);
+        [next[a], next[b]] = [next[b], next[a]];
+        const saving = saveHomeStats(next, before);
+        if (refocus) document.querySelector(`#statsHomeOrderRow [data-order-stat="${id}"]`)?.focus();
+        await saving;
+    }
+    async function toggleHomeStat(id) {
+        if (!accountProfile) return;
+        const shown = homeStatsShown().map(c => c.dataset.stat);
+        const on = shown.includes(id);
+        if (!on && shown.length >= homeStatsMax()) { showWarningToast(`Home holds ${homeStatsMax()} stats - take one off first.`); return; }
+        const before = accountProfile.homeStats ?? null;
+        // Kept: stats that are hidden for now (their feature is off) - they come back when it's on again
+        await saveHomeStats(on ? homeStatIds().filter(x => x !== id) : [...homeStatIds(), id], before);
+    }
+    document.getElementById('statsEditBtn')?.addEventListener('click', () => { statsEditing = !statsEditing; renderStatStars(); });
+    // While choosing, a tap on a card toggles it instead of opening its page (caught before the card's own click).
+    document.getElementById('statsHomeView')?.addEventListener('click', (e) => {
+        if (!statsEditing) return;
+        const c = e.target.closest('.tool-group .stat-card[data-stat]');
+        if (!c) return;
+        e.preventDefault();
+        e.stopPropagation();
+        toggleHomeStat(c.dataset.stat);
+    }, true);
     // The scored tools (their results are saved on the account), in home-screen order, that are on.
     const SCORED_TOOLS = [
         { id: 'theory', view: 'theoryView', feature: 'theory_practice', title: 'Theory' },
@@ -1041,6 +1206,7 @@
         renderToolGroups();
         renderToolStars();
         renderHomeTools(); // ML-378: Home's copies follow the gates
+        renderStatsHome(); // ML-387: so do the stats (and Home's copies of them)
     }
     // Tool groups: a home tool group shows only while at least one of its tools does.
     function renderToolGroups() {
@@ -1678,6 +1844,7 @@
         if (viewName === 'theoryResultsView') { document.getElementById('topTitle').innerText = 'Results'; }
         if (viewName === 'toolsView') { document.getElementById('topTitle').innerText = 'All tools'; renderToolStars(); }
         if (viewName !== 'toolsView' && toolsEditing) { toolsEditing = false; renderToolStars(); } // ML-378: leaving ends choosing
+        if (viewName !== 'statsHomeView' && statsEditing) { statsEditing = false; renderStatStars(); } // ML-387: the same for Home stats
         if (viewName === 'notificationsView') { document.getElementById('topTitle').innerText = 'Notifications'; renderNotificationsView(); checkNotifications(true); }
         if (viewName === 'flowFromFileView') { document.getElementById('topTitle').innerText = flowImportTitle(); resetFlowFromFileScreen(); }
         if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
@@ -4159,6 +4326,7 @@
     }
     function renderHomeGreeting() {
         renderHomeTools(); // ML-378: the account's favourites arrive with the profile
+        renderHomeStats(); // ML-387: so do the stats
         const p = accountProfile;
         const name = p && (p.displayName || p.firstName);
         setShown('homeGreetingRow', !!name);
@@ -4171,7 +4339,7 @@
         const lineEl = document.getElementById('homeGreetingLine');
         if (homeSessionsLoaded && !homeExtras && !homeExtrasLoading) {
             homeExtrasLoading = true;
-            loadHomeExtras().then(x => { homeExtras = x; renderHomeGreeting(); });
+            loadHomeExtras().then(x => { homeExtras = x; renderHomeGreeting(); renderStatsHome(); }); // ML-387: the concert stat
         }
         if (!homeSessionsLoaded || !homeExtras) { setShown(lineEl, false); return; }
         const line = HomeGreeting.pickLine(HomeGreeting.lines({
@@ -4185,26 +4353,32 @@
     }
     document.getElementById('homeAvatar')?.addEventListener('click', () => switchView('accountDetailsView'));
 
-    // ===== ML-378: Home's "My tools" (up to four favourites) and the All tools page =====
+    // ===== ML-378: Home's "My tools" (your favourites) and the All tools page =====
     // The tiles live on the All tools page (#toolsView, each with a data-tool id); Home shows copies of the
     // chosen ones that are switched on, in your order. Chosen with "Choose Home tools" (the tiles
     // become ★ toggles), saved on the account (accounts.home_tools, HOME_TOOL_IDS on the server).
-    // Until you choose your own, Home's tools follow what your account type has switched on: with four or
-    // fewer tools, all of them (a Standard member's few); with more, the Everyday ones plus Rehearse.
+    // Until you choose your own, Home's tools follow what your account type has switched on: if they all
+    // fit, all of them (a Standard member's few); with more, the Everyday ones plus Rehearse.
     const HOME_TOOLS_DEFAULT = ['metronome', 'tuner', 'timer', 'rehearse'];
-    const HOME_TOOLS_MAX = 4;
+    // ML-388: how many fit is a limit by account type (Admin -> Feature access, Limits: Standard 4,
+    // everyone else 8 to start); 4 if it isn't set.
+    const HOME_TOOLS_MAX_DEFAULT = 4;
+    const homeToolsMax = () => {
+        const n = appData.limits?.home_tools;
+        return Number.isInteger(n) && n >= 1 ? n : HOME_TOOLS_MAX_DEFAULT;
+    };
     const toolTiles = () => [...document.querySelectorAll('#toolsView .tool-icon-btn[data-tool]')];
     const toolShown = (t) => !t.classList.contains('hidden-group');
     function homeToolsDefault() {
         const on = toolTiles().filter(toolShown).map(t => t.dataset.tool);
-        return on.length <= HOME_TOOLS_MAX ? on : HOME_TOOLS_DEFAULT;
+        return on.length <= homeToolsMax() ? on : HOME_TOOLS_DEFAULT;
     }
     const homeToolIds = () => (accountProfile && Array.isArray(accountProfile.homeTools) ? accountProfile.homeTools : homeToolsDefault());
-    // The favourites that are showing (switched on) - at most four, in your order (a new one goes at the end;
-    // move them on the All tools page while choosing).
+    // The favourites that are showing (switched on) - at most homeToolsMax(), in your order (a new one goes at
+    // the end; move them on the All tools page while choosing). Past the limit they stay chosen, just hidden.
     const homeToolsShown = () => {
         const byId = new Map(toolTiles().map(t => [t.dataset.tool, t]));
-        return homeToolIds().map(id => byId.get(id)).filter(t => t && toolShown(t)).slice(0, HOME_TOOLS_MAX);
+        return homeToolIds().map(id => byId.get(id)).filter(t => t && toolShown(t)).slice(0, homeToolsMax());
     };
     function renderHomeTools() {
         const row = document.getElementById('homeToolsRow');
@@ -4248,7 +4422,7 @@
         });
         view.classList.toggle('is-editing', toolsEditing);
         document.getElementById('toolsHint').textContent = toolsEditing
-            ? `${onHome.size} of ${HOME_TOOLS_MAX} on Home. Tap a tool in the lists below to add it or take it off.`
+            ? `${onHome.size} of ${homeToolsMax()} on Home. Tap a tool in the lists below to add it or take it off.`
             : 'Tap a tool to open it. The ones marked ★ are on Home.';
         renderToolsHomeOrder();
         const btn = document.getElementById('toolsEditBtn');
@@ -4288,11 +4462,13 @@
             row.appendChild(c);
         });
     }
-    let homeToolMenuId = null;
-    function openHomeToolMenu(tile, id) {
+    // ML-387: the same menu moves Home stats (kind 'stat') as well as Home tools.
+    let homeToolMenuId = null, homeToolMenuKind = 'tool';
+    function openHomeToolMenu(tile, id, kind = 'tool') {
         const menu = document.getElementById('homeToolMenu');
-        const ids = homeToolsShown().map(t => t.dataset.tool), i = ids.indexOf(id);
+        const ids = kind === 'stat' ? homeStatsShown().map(c => c.dataset.stat) : homeToolsShown().map(t => t.dataset.tool), i = ids.indexOf(id);
         homeToolMenuId = id;
+        homeToolMenuKind = kind;
         setShown('homeToolMenuEarlier', i > 0);
         setShown('homeToolMenuLater', i < ids.length - 1);
         menu.classList.add('show');
@@ -4322,18 +4498,18 @@
     [['homeToolMenuEarlier', -1], ['homeToolMenuLater', 1]].forEach(([btnId, dir]) => document.getElementById(btnId)?.addEventListener('click', (e) => {
         e.stopPropagation();
         closeHomeToolMenu();
-        if (homeToolMenuId) moveHomeTool(homeToolMenuId, dir);
+        if (homeToolMenuId) (homeToolMenuKind === 'stat' ? moveHomeStat : moveHomeTool)(homeToolMenuId, dir);
     }));
     document.getElementById('homeToolMenuRemove')?.addEventListener('click', (e) => {
         e.stopPropagation();
         closeHomeToolMenu();
-        if (homeToolMenuId) toggleHomeTool(homeToolMenuId);
+        if (homeToolMenuId) (homeToolMenuKind === 'stat' ? toggleHomeStat : toggleHomeTool)(homeToolMenuId);
     });
     async function toggleHomeTool(id) {
         if (!accountProfile) return;
         const shown = homeToolsShown().map(t => t.dataset.tool);
         const on = shown.includes(id);
-        if (!on && shown.length >= HOME_TOOLS_MAX) { showWarningToast(`Home holds ${HOME_TOOLS_MAX} tools - take one off first.`); return; }
+        if (!on && shown.length >= homeToolsMax()) { showWarningToast(`Home holds ${homeToolsMax()} tools - take one off first.`); return; }
         const before = accountProfile.homeTools ?? null;
         // Kept: favourites that are switched off for now (they come back when they're on again)
         const next = on ? homeToolIds().filter(x => x !== id) : [...homeToolIds(), id];

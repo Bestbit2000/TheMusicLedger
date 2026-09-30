@@ -257,6 +257,11 @@
                 <p class="home-greeting-line hidden-group" id="homeGreetingLine"></p>
             </div>
         </div>
+        <!-- ML-387: My stats - your chosen numbers from the Stats page (up to the home_stats limit for your
+             account type: Standard 2, others 4), copies of the Stats page's cards made by renderHomeStats.
+             Chosen with "Choose Home stats" on the Stats page, saved on the account (accounts.home_stats);
+             default: Practice time this week and Current practise streak. Hidden until you've logged something. -->
+        <div class="dashboard-grid home-stats hidden-group" id="homeStatsRow" role="group" aria-label="My stats"></div>
         <!-- ML-320: Start a practice session replaces Start a challenge (behind practice_levels; ML-324
              cleans challenges up later). renderFeatureGates shows one or the other. -->
         <button type="button" class="btn-large hidden-group" id="startPracticeSessionBtn">Start a practice session</button>
@@ -264,9 +269,9 @@
         <!-- ML-378: logging time you've already played is a link, not a second button - Start a practice
              session is the one action that stands out. -->
         <button type="button" class="btn-text" onclick="switchView('entryForm')">Log time you've already played</button>
-        <!-- ML-378: My tools - up to four favourites, in the All tools page's order (renderHomeTools copies
+        <!-- ML-378: My tools - your favourites (up to the home_tools limit for your account type, ML-388: Standard 4, others 8), in the All tools page's order (renderHomeTools copies
              their tiles from #toolsView). Chosen on the All tools page, saved on the account (accounts.home_tools);
-             default: all your tools if you have four or fewer, else Metronome, Tuner, Timer, Rehearse. Only tools that are switched on show. -->
+             default: all your tools if they fit, else Metronome, Tuner, Timer, Rehearse. Only tools that are switched on show. -->
         <div class="section-title tools-title" id="homeToolsTitle">My tools</div>
         <div class="tool-icon-row" id="homeToolsRow"></div>
         <button type="button" class="history-item settings-link" onclick="switchView('toolsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">apps</span><span class="settings-link-text"><span class="settings-link-title">All tools</span><span class="settings-link-sub" id="homeAllToolsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
@@ -276,7 +281,7 @@
          Rehearse - as the session templates). Each tile is gated as before (renderFeatureGates; Rehearse once
          there's a piece), a group hides when none of its tools are on (renderToolGroups), and the ☰ menu's
          Tools rows are built from these groups (renderNavToolsRow). "Choose Home tools" turns the tiles
-         into ★ toggles for Home (up to four). -->
+         into ★ toggles for Home (up to the home_tools limit, ML-388). -->
     <div id="toolsView" class="tools-page hidden-group">
         <!-- ML-378: while choosing - your Home tools in Home's order. Tap one for Move earlier / Move later /
              Take off Home (#homeToolMenu); ← / → move it from the keyboard. Not a .tool-group, so the ☰ menu
@@ -360,14 +365,56 @@
         </div>
     </div>
 
-    <!-- ML-327: the Stats dashboard - what ☰ Stats opens. One number per kind of stat; tap it for the
-         full page. Filled in by renderStatsHome (app.js). A new kind of stat gets a card here. -->
-    <div id="statsHomeView" class="hidden-group">
-        <div class="dashboard-grid">
-            <button type="button" class="stat-card clickable" onclick="switchView('statsView')"><span class="label">Practice time this month</span><span class="value" id="statsHomeTime">-</span></button>
-            <button type="button" class="stat-card clickable" onclick="switchView('streakStatsView')"><span class="label">Current practise streak</span><span class="value" id="statsHomeStreak">-</span></button>
-            <button type="button" class="stat-card clickable" onclick="switchView('historyView')"><span class="label">Sessions this month</span><span class="value" id="statsHomeSessions">-</span></button>
-            <button type="button" class="stat-card clickable hidden-group" id="statsHomeToolsCard" onclick="switchView('toolResultsView')"><span class="label">Tools last played</span><span class="value" id="statsHomeTools">-</span></button>
+    <!-- ML-327: the Stats dashboard - what ☰ Stats opens. One number per stat, in groups; tap it for the
+         full page. Filled in by renderStatsHome (app.js). A new kind of stat gets a card here (data-stat =
+         an id in HOME_STAT_IDS, server/services/accounts.js). ML-387: "Choose Home stats" turns the cards
+         into ★ toggles for Home (up to the home_stats limit); a card whose feature is off is hidden. -->
+    <div id="statsHomeView" class="stats-page hidden-group">
+        <!-- ML-387: while choosing - your Home stats in Home's order. Tap one for Move earlier / Move later /
+             Take off Home (#homeToolMenu, shared with the tools). Pinned under the top bar (.tools-home-card). -->
+        <section class="flow-card display-card tools-home-card hidden-group" id="statsHomeOrder" aria-labelledby="statsHomeOrderTitle">
+            <span class="display-preview-label" id="statsHomeOrderTitle">My Home screen</span>
+            <div class="dashboard-grid no-margin" id="statsHomeOrderRow"></div>
+        </section>
+        <p class="text-sm text-muted mt-0 mb-3" id="statsHint" aria-live="polite"></p>
+        <div class="tool-group" id="statGroup-time" role="group" aria-labelledby="statGroupTitle-time">
+            <div class="tool-group-title" id="statGroupTitle-time">Practice time</div>
+            <div class="dashboard-grid">
+            <button type="button" class="stat-card clickable" data-stat="time_week" onclick="switchView('statsView')"><span class="label">Practice time this week</span><span class="value" id="statsHomeTimeWeek">-</span></button>
+            <button type="button" class="stat-card clickable" data-stat="time_month" onclick="switchView('statsView')"><span class="label">Practice time this month</span><span class="value" id="statsHomeTime">-</span></button>
+            <button type="button" class="stat-card clickable" data-stat="time_year" onclick="switchView('statsView')"><span class="label" id="statsHomeTimeYearLabel">Practice time this year</span><span class="value" id="statsHomeTimeYear">-</span></button>
+            </div>
+        </div>
+        <div class="tool-group" id="statGroup-streaks" role="group" aria-labelledby="statGroupTitle-streaks">
+            <div class="tool-group-title" id="statGroupTitle-streaks">Streaks</div>
+            <div class="dashboard-grid">
+            <button type="button" class="stat-card clickable" data-stat="streak_current" onclick="switchView('streakStatsView')"><span class="label">Current practise streak</span><span class="value" id="statsHomeStreak">-</span></button>
+            <button type="button" class="stat-card clickable" data-stat="streak_longest" onclick="switchView('streakStatsView')"><span class="label">Longest practise streak</span><span class="value" id="statsHomeStreakLongest">-</span></button>
+            </div>
+        </div>
+        <div class="tool-group" id="statGroup-sessions" role="group" aria-labelledby="statGroupTitle-sessions">
+            <div class="tool-group-title" id="statGroupTitle-sessions">Sessions</div>
+            <div class="dashboard-grid">
+            <button type="button" class="stat-card clickable" data-stat="sessions_week" onclick="switchView('historyView')"><span class="label">Sessions this week</span><span class="value" id="statsHomeSessionsWeek">-</span></button>
+            <button type="button" class="stat-card clickable" data-stat="sessions_month" onclick="switchView('historyView')"><span class="label">Sessions this month</span><span class="value" id="statsHomeSessions">-</span></button>
+            </div>
+        </div>
+        <div class="tool-group" id="statGroup-concerts" role="group" aria-labelledby="statGroupTitle-concerts">
+            <div class="tool-group-title" id="statGroupTitle-concerts">Concerts</div>
+            <div class="dashboard-grid">
+            <button type="button" class="stat-card clickable hidden-group" data-stat="concert" onclick="switchView('rehearseView')"><span class="label" id="statsHomeConcertLabel">Next concert</span><span class="value" id="statsHomeConcert">-</span></button>
+            </div>
+        </div>
+        <div class="tool-group" id="statGroup-tools" role="group" aria-labelledby="statGroupTitle-tools">
+            <div class="tool-group-title" id="statGroupTitle-tools">Tools</div>
+            <div class="dashboard-grid">
+            <button type="button" class="stat-card clickable hidden-group" data-stat="theory_last" onclick="switchView('theoryView')"><span class="label">Last Theory score</span><span class="value" id="statsHomeTheory">-</span></button>
+            <button type="button" class="stat-card clickable hidden-group" data-stat="tools_last" onclick="switchView('toolResultsView')"><span class="label">Tools last played</span><span class="value" id="statsHomeTools">-</span></button>
+            </div>
+        </div>
+        <!-- Pinned to the bottom while choosing (Done), so it's always to hand -->
+        <div class="tools-done-bar">
+            <button type="button" class="btn-nav btn-cancel no-margin" id="statsEditBtn" aria-pressed="false">Choose Home stats</button>
         </div>
     </div>
 

@@ -161,6 +161,14 @@ Some things aren't on/off but **how much**: a number per account type, set on Ad
   most recent, that many in all. Every play is still kept (ML-366), so moving up a type shows the older
   ones straight away. Under the list: "Limited to the last N metronome plays". Standard members only see
   it once `metronome_history` is switched on for them.
+- **`home_tools`** (ML-388, migration 085) - how many tools can be on Home ("My tools"): Standard 4,
+  everyone else 8 to start (the owner may raise it to 12 as more tools get used). The app reads
+  `appData.limits.home_tools` (4 if unset). Only how many *show*: `accounts.home_tools` keeps every
+  favourite, so moving down a type hides the later ones and moving back up brings them back. The tile row
+  is four to a row, so 8 is two rows.
+- **`home_stats`** (ML-387, migration 086) - how many stats can be on Home ("My stats"): Standard 2,
+  everyone else 4. The app reads `appData.limits.home_stats` (2 if unset); choices past it are kept, just
+  not shown. See docs/home-greeting.md "My stats".
 
 **Adding a limit:** a migration inserting the `feature_limits` row and a value per type, then
 `getLimit('your_key', default)` where it's used (and `appData.limits.your_key` in the app if the app

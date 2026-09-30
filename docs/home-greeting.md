@@ -1,25 +1,49 @@
-# Home screen: greeting and layout (ML-377, ML-378)
+# Home screen: greeting and layout (ML-377, ML-378, ML-387)
 
 ## Layout (ML-378)
 
 Home is short on purpose - one clear action, a few tools, everything else a tap away:
 
 1. The **greeting** (below) - avatar, greeting, one encouraging line.
+1. **My stats** (ML-387) - numbers you chose on the Stats page (see below). Hidden until you've logged something.
 2. **Start a practice session** - the one gold button (or Start a challenge, when practice sessions are off).
 3. **Log time you've already played** - a link (`.btn-text`) to Add session time, not a second button.
-4. **My tools** - up to **four** favourites in one row, copies of the All tools tiles (`renderHomeTools`),
+4. **My tools** - your favourites, **4 for Standard, 8 for everyone else** (the `home_tools` limit on Admin → Feature access, ML-388 - four to a row, so 8 is two rows), copies of the All tools tiles (`renderHomeTools`),
    in **your** order. Until you choose your own, the default follows what your account type has switched on:
-   **four or fewer tools → all of them** (e.g. a Standard member's), **more → the Everyday ones (Metronome,
+   **no more tools than fit → all of them** (e.g. a Standard member's), **more → the Everyday ones (Metronome,
    Tuner, Timer) plus Rehearse** (`homeToolsDefault`) - so the metronome is always one tap away.
    Only tools switched on for the account show (a favourite that's off for now stays chosen).
 5. **All tools** - a row that opens the All tools page, with the other tools named under it.
 
-No Progress cards on Home any more: the greeting line gives one number that matters, and ☰ Stats has them all.
+No fixed Progress cards on Home any more: the greeting line gives one number that matters, ☰ Stats has them all, and
+you choose which of them sit on Home (My stats, below).
+
+## My stats (ML-387)
+
+Stat cards between the greeting and Start a practice session - **numbers only** (owner, 2026-09-30: a bar or
+chart means little without a target; targets come later). Two to a row, up to the account type's `home_stats`
+limit (Admin → Feature access, Limits: **Standard 2, everyone else 4** - migration 086). The greeting line stays.
+
+- **Chosen on ☰ Stats** (`statsHomeView`): every stat is a card there, in groups - Practice time (this week,
+  this month, this year - or this practice year when that's on), Streaks (current, longest), Sessions (this week,
+  this month), Concerts (days to the nearest practice list with a date, `practice_levels`), Tools (last Theory score,
+  `theory_practice`; tools last played). A card whose feature is off is hidden. ★ marks the ones on Home.
+- **Choose Home stats** works exactly like Choose Home tools: tap cards to add or take off ("Home holds 2 stats -
+  take one off first"), a pinned **My Home screen** card shows them in Home's order - tap one for Move earlier /
+  Move later / Take off Home (the same `#homeToolMenu`) - and Done.
+- **Default:** Practice time this week and Current practise streak. **Hidden** until the player has logged a
+  session, so a new player never sees a row of zeros.
+- Tapping a Home stat opens its full page, as on the Stats page. Weeks start on Monday, as everywhere else.
+- Saved on the account: `accounts.home_stats` (migration 086, null = the default), `PUT /api/account { homeStats }`,
+  checked against `HOME_STAT_IDS` in server/services/accounts.js. Past the limit, choices are kept, just not shown.
+- Code: `renderStatsHome` (fills every card), `renderHomeStats` (Home's copies), `renderStatStars` (choosing) in
+  public/app.js; styles in `specs/components/stat-card.md`; `server/test/homeStats.test.js` keeps the cards, the
+  server's list, the defaults and the seeded limits in step.
 
 **All tools** (`toolsView`) - every tool, in groups: **Everyday** (Metronome, Tuner, Timer) · **My routine**
 in the order it's practised (**Warm-ups → Scales → Rehearse**, as the practice session templates) · **Ear and
 rhythm** (Pitch, Tempo, Pulse, Rhythm) · **Theory and range** (Theory, Range). A ★ marks the ones on Home.
-**Choose Home tools** turns the tiles into toggles (tap to add or take off, four at most - "Home holds 4
+**Choose Home tools** turns the tiles into toggles (tap to add or take off, up to your limit - "Home holds 4
 tools"), **Done** to finish. **Order:** Home shows them in your order - a new one goes at the end - and while
 choosing, a boxed **"My Home screen"** card - pinned under the top bar as you scroll, with the "3 of 4 on Home"
 line under it, and **Done** pinned to the bottom - shows them as Home will: tap one for **Move earlier / Move

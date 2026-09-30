@@ -776,8 +776,8 @@ router.put('/account/practice-year', requireAuth, resolveAccount, async (req, re
 
 router.put('/account', requireAuth, resolveAccount, async (req, res) => {
   try {
-    const { firstName, surname, displayName, avatar, homeTools } = req.body || {};
-    await updateAccountProfile(req.accountId, { firstName, surname, displayName, avatar, homeTools });
+    const { firstName, surname, displayName, avatar, homeTools, homeStats } = req.body || {};
+    await updateAccountProfile(req.accountId, { firstName, surname, displayName, avatar, homeTools, homeStats });
     res.json({ message: 'Account updated' });
   } catch (error) {
     sendError(res, error);

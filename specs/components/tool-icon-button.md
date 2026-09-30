@@ -9,7 +9,7 @@
 Square launcher tiles on the home screen for the practice tools (Timer, Metronome, Tuner, Quick
 play, Flow…). **Don't use** for in-page actions. They always navigate to a tool.
 
-**Home and All tools (ML-378):** Home shows only **My tools** - up to four favourites in one `.tool-icon-row`
+**Home and All tools (ML-378):** Home shows only **My tools** - up to the `home_tools` limit of favourites (ML-388: 4 Standard, 8 others) in one `.tool-icon-row`
 (`#homeToolsRow`, copies of the All tools tiles made by `renderHomeTools`; default Metronome, Tuner, Timer,
 Warm-ups) and an **All tools** row (a `.settings-link`). The tiles themselves live on the **All tools** page
 (`#toolsView.tools-page`), in four groups, each a `.tool-group` with a small label (`.tool-group-title`:
@@ -45,7 +45,7 @@ choosing: `--primary-action-tint`, `--primary-action-strong`.
 
 ## 5. Props / API
 - Custom SVG glyphs are inlined (not `<img>`) so `fill: currentColor` follows the theme. JS adds the `viewBox`.
-- The row is a 4-column grid (`repeat(4, minmax(0, 1fr))`, ML-260): a 5th tool starts a second row in the same columns. Never make a row of 5 narrower tiles. Home's My tools is never more than one row (four).
+- The row is a 4-column grid (`repeat(4, minmax(0, 1fr))`, ML-260): a 5th tool starts a second row in the same columns. Never make a row of 5 narrower tiles. Home's My tools holds as many as the account type's `home_tools` limit (ML-388: Standard 4 = one row, others 8 = two rows).
 - The `--space-3` row gap is the app's gutter ([stat-card](stat-card.md) grids use the same gap).
 - Each tile has `data-tool` (its id - `HOME_TOOL_IDS` in server/services/accounts.js; `server/test/homeTools.test.js` keeps them in step).
 

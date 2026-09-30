@@ -39,6 +39,8 @@ function toProfile(row, bands) {
     avatar: row.avatar || null,
     // ML-378: the tools on your home screen (ids from HOME_TOOL_IDS) - null = the default four
     homeTools: row.home_tools || null,
+    // ML-387: the stats on your home screen (ids from HOME_STAT_IDS) - null = the default two
+    homeStats: row.home_stats || null,
     email: row.email,
     accountLevel: row.account_level,
     createdAt: row.created_at,
@@ -51,7 +53,7 @@ function toProfile(row, bands) {
 // directory section).
 export async function getAccountProfile(accountId) {
   const { rows } = await pool.query(
-    'SELECT id, first_name, surname, display_name, avatar, home_tools, email, account_level, created_at FROM accounts WHERE id = $1',
+    'SELECT id, first_name, surname, display_name, avatar, home_tools, home_stats, email, account_level, created_at FROM accounts WHERE id = $1',
     [accountId]
   );
   if (!rows.length) { const e = new Error('Account not found'); e.status = 404; throw e; }
@@ -77,7 +79,17 @@ export function normaliseHomeTools(list) {
   if (unknown !== undefined) { const e = new Error('Unknown tool.'); e.status = 400; throw e; }
   return [...new Set(list)];
 }
-export async function updateAccountProfile(accountId, { firstName, surname, displayName, avatar, homeTools } = {}) {
+// ML-387: the stats that can be on the home screen (the Stats page's data-stat ids - keep in step with
+// public/index.html). As with the tools, the list can hold more than the account type's limit shows.
+export const HOME_STAT_IDS = ['time_week', 'time_month', 'time_year', 'streak_current', 'streak_longest', 'sessions_week', 'sessions_month', 'concert', 'theory_last', 'tools_last'];
+export function normaliseHomeStats(list) {
+  if (list === null) return null;
+  if (!Array.isArray(list)) { const e = new Error('Home stats must be a list.'); e.status = 400; throw e; }
+  const unknown = list.find(id => !HOME_STAT_IDS.includes(id));
+  if (unknown !== undefined) { const e = new Error('Unknown stat.'); e.status = 400; throw e; }
+  return [...new Set(list)];
+}
+export async function updateAccountProfile(accountId, { firstName, surname, displayName, avatar, homeTools, homeStats } = {}) {
   const sets = [];
   const values = [];
   const add = (column, value) => { values.push(value); sets.push(`${column} = $${values.length}`); };
@@ -93,6 +105,7 @@ export async function updateAccountProfile(accountId, { firstName, surname, disp
     add('avatar', avatar);
   }
   if (homeTools !== undefined) add('home_tools', normaliseHomeTools(homeTools));
+  if (homeStats !== undefined) add('home_stats', normaliseHomeStats(homeStats));
   if (!sets.length) return;
   values.push(accountId);
   await pool.query(`UPDATE accounts SET ${sets.join(', ')} WHERE id = $${values.length}`, values);

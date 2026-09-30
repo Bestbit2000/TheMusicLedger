@@ -41,7 +41,7 @@ every user (feature-gated), and PDF/OMR import; read
 admin always) have each feature - Admin → Feature access. A new feature is Super admin only until it's
 switched on there. Read [`docs/feature-access-plan.md`](docs/feature-access-plan.md) before adding or
 checking a gate. Back-tests: local-dev is a beta tester on dev; `/auth/login?as=standard` is a standard member.
-The **home greeting** (your avatar - initials or one of 12 drawings in `public/avatars.js`, `accounts.avatar`; a greeting that follows the moment; one encouraging line picked at random, positive only - `public/homeGreeting.js`) and the **home layout** (Start a practice session, "Your tools" - up to four favourites - and the **All tools** page, `accounts.home_tools`, ML-378) are in [`docs/home-greeting.md`](docs/home-greeting.md) (ML-377/378). The in-app notification centre (red dot on ☰, admin announcements,
+The **home greeting** (your avatar - initials or one of 12 drawings in `public/avatars.js`, `accounts.avatar`; a greeting that follows the moment; one encouraging line picked at random, positive only - `public/homeGreeting.js`) and the **home layout** (Start a practice session, "Your tools" - up to four favourites - and the **All tools** page, `accounts.home_tools`, ML-378; **My stats** - numbers chosen on ☰ Stats, `accounts.home_stats`, how many by the `home_stats` limit, ML-387) are in [`docs/home-greeting.md`](docs/home-greeting.md) (ML-377/378/387). The in-app notification centre (red dot on ☰, admin announcements,
 automatic "update available - reload" notice) is described in
 [`docs/notifications.md`](docs/notifications.md) (`ML-201`). The rest of the schema (practice lists, scales, technique,
 monetization) remains provisioned but not wired up to any endpoint. The full
