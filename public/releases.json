@@ -1,5 +1,76 @@
 [
   {
+    "version": "0.33.0",
+    "date": "2026-09-30",
+    "changes": [
+      {
+        "key": "ML-361",
+        "type": "New",
+        "summary": "Warm-ups in the Scales layout, with range locking and slurs"
+      },
+      {
+        "key": "ML-359",
+        "type": "New",
+        "summary": "Dyslexia and dark mode"
+      },
+      {
+        "key": "ML-357",
+        "type": "New",
+        "summary": "Scales redesign for grades"
+      },
+      {
+        "key": "ML-356",
+        "type": "New",
+        "summary": "Dyslexic accessibility check"
+      },
+      {
+        "key": "ML-355",
+        "type": "New",
+        "summary": "username / password authentication"
+      },
+      {
+        "key": "ML-354",
+        "type": "New",
+        "summary": "Theory test to have fixed length which is then just multiplied for longer ones"
+      },
+      {
+        "key": "ML-353",
+        "type": "Fixes",
+        "summary": "Add a skill to have multi select and fixed save button at the bottom"
+      },
+      {
+        "key": "ML-352",
+        "type": "Fixes",
+        "summary": "Add a skill filter should have filter icon to the left"
+      },
+      {
+        "key": "ML-351",
+        "type": "New",
+        "summary": "Pieces in rehearsal list pop up needs better multi select and locked save button"
+      },
+      {
+        "key": "ML-350",
+        "type": "Fixes",
+        "summary": "my instruments list has wrong format for 3 dot menu"
+      },
+      {
+        "key": "ML-349",
+        "type": "New",
+        "summary": "Pieces listed for rehearsal should have menu option"
+      },
+      {
+        "key": "ML-348",
+        "type": "Fixes",
+        "summary": "Practise list concert date button needs to be fixed size"
+      },
+      {
+        "key": "ML-303",
+        "type": "Fixes",
+        "summary": "when the timer is up, stop the metronome immediately "
+      }
+    ]
+  },
+  {
     "version": "0.32.0",
     "date": "2026-09-29",
     "changes": [
