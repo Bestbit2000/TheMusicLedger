@@ -18167,6 +18167,21 @@
         // width so the notes line up down the page. Stems go down from the middle line up.
         const perRow = scales.npb === 3 ? 6 : 8;
         const steps = notes.map(n => Notation.staffStep(n.pitch, scales.clef));
+        // ML-386: a last bar that isn't full is made up with rests, one per missing note (the notes are drawn
+        // as crotchets), so every bar has the right count - in 4/4 a missing 3rd and 4th beat is one minim
+        // rest, as it's engraved. Each rest carries the note-slot classes it covers, so it lights up as the
+        // metronome plays through it.
+        const restSlots = (barLength - (notes.length % barLength)) % barLength;
+        const rests = [];
+        for (let s = 0; s < restSlots;) {
+            const idx = notes.length + s;
+            const beatInBar = idx % barLength;
+            const minim = scales.npb === 1 && beatInBar % 2 === 0 && restSlots - s >= 2;
+            const width = minim ? 2 : 1;
+            rests.push({ type: 'mark', glyph: minim ? 'restHalf' : 'restQuarter', step: 4,
+                cls: `scales-note scales-rest ${Array.from({ length: width }, (_, k) => `scales-note-${idx + k}`).join(' ')}` });
+            s += width;
+        }
         const stepRange = [Math.min(-3, ...steps) - 1, Math.max(10, ...steps) + 1];
         const rows = [];
         for (let i = 0; i < notes.length; i += perRow) {
@@ -18177,7 +18192,7 @@
                 const idx = i + j;
                 items.push({ type: 'note', pitch: n.pitch, accidental: n.accidental, head: steps[idx] >= 4 ? 'noteQuarterDown' : 'noteQuarterUp', cls: `scales-note scales-note-${idx}` });
                 const endOfBar = (idx + 1) % barLength === 0;
-                if (idx === notes.length - 1) items.push({ type: 'barline', glyph: 'barlineFinal' });
+                if (idx === notes.length - 1) items.push(...rests, { type: 'barline', glyph: 'barlineFinal' });
                 else if (endOfBar) items.push({ type: 'barline', glyph: 'barlineSingle' });
             });
             rows.push({ items, last, from: i + 1, to: Math.min(i + perRow, notes.length) });
@@ -18200,7 +18215,7 @@
         document.querySelectorAll('#scalesStaff .is-now').forEach(el => el.classList.remove('is-now'));
         if (i >= 0) document.querySelectorAll(`#scalesStaff .scales-note-${i}`).forEach(el => el.classList.add('is-now'));
         const progress = document.getElementById('scalesMemoryProgress');
-        if (progress) progress.textContent = i >= 0 && scalesWritten ? `Note ${i + 1} of ${scalesWritten.notes.length}` : '';
+        if (progress) progress.textContent = i >= 0 && scalesWritten ? (i < scalesWritten.notes.length ? `Note ${i + 1} of ${scalesWritten.notes.length}` : 'Rest') : '';
     }
     let scalesCountdown = 0;
     function scalesShowSub() {
@@ -18225,10 +18240,10 @@
             return;
         }
         if (scalesCountdown) { scalesCountdown = 0; scalesShowSub(); }
-        // The last note holds to the end of its bar, then round again from the first.
+        // The last bar is made up with rests (ML-386) - they light up in turn - then round again from the first.
         const pass = Math.ceil(w.notes.length / w.barLength) * w.barLength;
         const pos = k % pass;
-        scalesLight(pos < w.notes.length ? pos : w.notes.length - 1);
+        scalesLight(pos);
     });
     function scalesUpdatePlayUi() {
         const playing = scalesPlayer.isPlaying();

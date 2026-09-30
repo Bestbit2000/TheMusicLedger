@@ -1,7 +1,7 @@
 # Scales practice
 
 ## 1. Metadata
-- **Name:** Scales practice (`.scales-setting-row`, `.scales-setting-btn`, `.scales-dir-flip`, `.scales-choice-grid`, `.scales-pick-row`, `.is-centred`, `.scales-staff-heading`, `.scales-memory`, `.scales-memory-name`, `.scales-memory-detail`, `.scales-memory-progress`, `.scales-staff-card`, `.scales-staff-head`, `.scales-staff-title`, `.scales-staff-sub`, `.scales-staff`, `.scales-staff-row-short`, `.scales-note`, `.scales-note-*`, `.is-now`, `.scales-metronome-card`, `.scales-choose-group`, `.scales-choose-label`, `.scales-choose-keys`, `.scales-pool-line`, `.scales-pool-count`, `.scales-range-link`, `.scale-grid`, `.scale-grid-head`, `.scale-grid-acc`, `.scale-grid-row`, `.scale-grid-label`, `.scale-grid-sub`, `.scale-grid-cell`, `.is-ready`, `.is-other`, `.is-locked`, `.is-beyond`, `.is-no`, `.scale-grid-legend`, `.scales-range-staff`, `.scales-grade-options`)
+- **Name:** Scales practice (`.scales-setting-row`, `.scales-setting-btn`, `.scales-dir-flip`, `.scales-choice-grid`, `.scales-pick-row`, `.is-centred`, `.scales-staff-heading`, `.scales-memory`, `.scales-memory-name`, `.scales-memory-detail`, `.scales-memory-progress`, `.scales-staff-card`, `.scales-staff-head`, `.scales-staff-title`, `.scales-staff-sub`, `.scales-staff`, `.scales-staff-row-short`, `.scales-note`, `.scales-note-*`, `.scales-rest`, `.is-now`, `.scales-metronome-card`, `.scales-choose-group`, `.scales-choose-label`, `.scales-choose-keys`, `.scales-pool-line`, `.scales-pool-count`, `.scales-range-link`, `.scale-grid`, `.scale-grid-head`, `.scale-grid-acc`, `.scale-grid-row`, `.scale-grid-label`, `.scale-grid-sub`, `.scale-grid-cell`, `.is-ready`, `.is-other`, `.is-locked`, `.is-beyond`, `.is-no`, `.scale-grid-legend`, `.scales-range-staff`, `.scales-grade-options`)
 - **Category:** Tool screen
 - **Status:** New (ML-9); grade lists, the grade grid and this layout ML-357
 
@@ -107,6 +107,7 @@ plus the tokens of the components it reuses (flow tiles, buttons, metronome tran
   natural) and `writeScale` (which notes still need an accidental against the key signature, lasting
   a bar); the list from `ScaleGrades.grid(listId, grades, ctx)` (`public/scaleGrades.js`: the ABRSM
   lists and the placement rules - `docs/scales-grades.md`). See `docs/theory-practice.md` ("Scales practice").
+- **Rests to fill the last bar (ML-386):** when the last bar is short (15 notes in 4/4), rests make it up - one `restQuarter` per missing note, or a `restHalf` for a missing 3rd and 4th beat in 4/4 (as engraved), drawn by Notation as `mark`s on the middle line before the final bar line. Each is `.scales-note.scales-rest` with the `scales-note-<i>` of the slots it covers, so it lights up (`.is-now`) as the metronome plays through the bar; Name mode says "Rest".
 - The note to play: each note's glyphs carry `scales-note scales-note-<i>` (Notation `note.cls`);
   `scalesLight(i)` adds `.is-now`.
 - Playing: its own metronome player, one click per note (`setNotesPerBeat(npb)`), a count-in bar at

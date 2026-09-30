@@ -1137,7 +1137,11 @@
        unconditionally since it's harmless while collapsed too. */
     .metroBlk-mini-tuner { box-sizing: border-box; margin-top: calc(-1 * var(--space-3)); background: var(--container-bg); border: 2px solid var(--input-border); border-width: 0; border-radius: var(--radius-md); padding: 0 var(--space-4); margin-bottom: 0; max-height: 0; opacity: 0; overflow: hidden; pointer-events: none; transition: max-height var(--duration-base) ease, opacity var(--duration-base) ease, padding var(--duration-base) ease, margin-bottom var(--duration-base) ease, border-width var(--duration-base) ease, background var(--duration-fast) linear, border-color var(--duration-fast) linear; }
     .metroBlk-mini-tuner.metroBlk-mini-tuner-open { border-width: 2px; padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); max-height: 220px; opacity: 1; pointer-events: auto; }
-    .metroBlk-mini-tuner.in-tune { border-color: var(--tuner-in-tune-text); background: var(--tuner-in-tune-tint); }
+    /* ML-385: while open it stays pinned under the top bar (--header-h, measured by app.js) as the page
+       scrolls, like the Display preview - so the note is always in view while you play. Opaque, so nothing
+       shows through: the in-tune tint (translucent) is laid over the plain surface. */
+    .metroBlk-mini-tuner.metroBlk-mini-tuner-open { position: sticky; top: var(--header-h, var(--space-0)); z-index: var(--z-sticky); box-shadow: var(--shadow-md); }
+    .metroBlk-mini-tuner.in-tune { border-color: var(--tuner-in-tune-text); background: linear-gradient(var(--tuner-in-tune-tint), var(--tuner-in-tune-tint)), var(--container-bg); }
     /* One big note on the left (not concert-and-instrument side by side any more - ML-84: showing both
        at once meant nothing to read the note against without already knowing which was which) at a
        fixed width, so the box no longer changes size as different note names come and go; the bar
