@@ -1,5 +1,7 @@
 // ML-320 (epic ML-314): unit tests for the practice session builder's rules (public/practicePlan.js) -
 // the blocks a session gets, who fills them and the 4:30 nudge. Loaded with vm, like flowJourney.test.js.
+// ML-390: plans at any length, open-ended sessions, the Pieces pool (Prepare, focus bits, play-through),
+// the 30-second rest and its message deck.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -13,9 +15,10 @@ const PP = new Proxy(sandbox.self.PracticePlan, {
 const count = (kinds, k) => kinds.filter(x => x === k).length;
 
 describe('blocks', () => {
-    test('5 and 10 minutes: you choose every block', () => {
-        assert.deepEqual(PP.blockKinds(5, 'standard', 'both'), ['choose']);
-        assert.deepEqual(PP.blockKinds(10, 'standard', 'both'), ['choose', 'choose']);
+    test('5 and 10 minutes: the plan still fills them, keeping a focus block (ML-390)', () => {
+        assert.deepEqual(PP.blockKinds(5, 'standard', 'both'), ['rehearsal']);
+        assert.deepEqual(PP.blockKinds(10, 'standard', 'both'), ['warmup', 'rehearsal']);
+        assert.deepEqual(PP.blockKinds(10, 'concert', 'rehearsal'), ['warmup', 'rehearsal']);
     });
     test('Standard starts Warm-up, Scales; Concert drops Scales', () => {
         assert.deepEqual(PP.blockKinds(15, 'standard', 'rehearsal'), ['warmup', 'scales', 'rehearsal']);
@@ -70,11 +73,8 @@ describe('the 4:30 nudge', () => {
         assert.equal(PP.blockState(299), 'nudge');
         assert.equal(PP.blockState(300), 'next');
     });
-    test('Keep going pushes the next nudge 5 minutes on', () => {
-        const at = 270 + PP.KEEP_GOING_SECONDS;
-        assert.equal(PP.blockState(400, at), 'play');
-        assert.equal(PP.blockState(at, at), 'nudge');
-        assert.equal(PP.blockState(at + 30, at), 'next');
+    test('a Prepare block runs as long as it needs (ML-390)', () => {
+        assert.equal(PP.blockState(10000, Infinity), 'play');
     });
 });
 
@@ -88,12 +88,14 @@ describe('the readiness forecast (ML-319)', () => {
         { title: 'Mack and Mabel', chunks: [] },
     ];
     const base = { pieces: cobham, eventDate: '2026-10-11', today: '2026-09-27' };
-    test('one block per chunk per Level; a piece not set up takes one preparation block (ML-334)', () => {
+    test('one block per chunk per Level up to 4, then a play-through (ML-390); a piece not set up takes one preparation block (ML-334)', () => {
         const f = PP.forecast(base);
-        assert.deepEqual(f.pieces.map(p => p.blocks), [6, 13, 1, 0, 1]);
+        // Slaidburn 0 + 2 + 1, then its play-through; Floral Dance 3 + 2 + 1 + 3 + play-through; Deep Harmony
+        // just its play-through; Nimrod is all at 5; Mack and Mabel is still to prepare.
+        assert.deepEqual(f.pieces.map(p => p.blocks), [4, 10, 1, 0, 1]);
         assert.deepEqual(f.pieces.map(p => p.prep), [false, false, false, false, true]);
-        assert.equal(f.total, 21);
-        assert.equal(f.minutes, 105);
+        assert.equal(f.total, 16);
+        assert.equal(f.minutes, 80);
         assert.deepEqual(f.notCounted, ['Floral Dance: 1 chunk with no Level yet', 'Mack and Mabel: after preparing it, its Levels decide the rest']);
     });
     test('with a target date: the daily pace, rounded up (ML-333)', () => {
@@ -164,4 +166,89 @@ describe('your own templates and the skills list (ML-320 follow-up, ML-321)', ()
         assert.equal(PP.plan(15, 'concert', 'skills', [], []).filter(b => b.kind === 'skills')[0].tool, 'tapTempo');
     });
 
+});
+
+describe('plans (ML-390)', () => {
+    test('your own plan is its row of blocks, repeating from its first Skills or Pieces block', () => {
+        const mine = { blocks: ['warmup', 'scales', 'skills', 'rehearsal', 'rehearsal'] };
+        assert.deepEqual(PP.blockKinds(15, mine), ['warmup', 'scales', 'skills']);
+        assert.deepEqual(PP.blockKinds(40, mine), ['warmup', 'scales', 'skills', 'rehearsal', 'rehearsal', 'skills', 'rehearsal', 'rehearsal']);
+        assert.deepEqual(PP.stretch(['warmup', 'scales'], 4), ['warmup', 'scales', 'warmup', 'scales']);
+    });
+    test('an open-ended session starts with 4 blocks and follows the pattern', () => {
+        assert.deepEqual(PP.blockKinds(null, 'standard', 'both'), ['warmup', 'scales', 'skills', 'rehearsal']);
+        assert.deepEqual(PP.blockKinds(null, 'concert', 'rehearsal'), ['warmup', 'rehearsal', 'rehearsal', 'rehearsal']);
+        assert.deepEqual([4, 5, 6, 7].map(i => PP.openKindAt('standard', 'both', i)), ['skills', 'rehearsal', 'skills', 'rehearsal']);
+        assert.equal(PP.openKindAt({ blocks: ['warmup', 'rehearsal', 'skills'] }, null, 5), 'rehearsal'); // w r s | r s r
+    });
+    test('the first blocks never change as an open-ended session grows', () => {
+        const pat = PP.planPattern('standard', 'both');
+        assert.deepEqual(PP.stretch(pat, 6).slice(0, 4), PP.stretch(pat, 4));
+    });
+});
+
+describe('the Pieces pool (ML-390 Auto)', () => {
+    const bit = (id, level, a, z, lastPractised = null) => ({ id, kind: 'chunk', level, startBar: a, endBar: z, lastPractised });
+    const pieces = [
+        { scoreId: 1, title: 'Floral Dance', chunks: [bit(1, 2, 1, 8), bit(2, 1, 9, 16, '2026-09-29T10:00:00Z'), bit(3, 4, 17, 24), bit(4, 1, 25, 32)] },
+        { scoreId: 2, title: 'Deep Harmony', chunks: [] },
+        { scoreId: 3, title: 'Slaidburn', chunks: [bit(5, 4, 1, 16), bit(6, 4, 17, 32), { id: 7, kind: 'group', level: null, startBar: 1, endBar: 16 }, { id: 8, kind: 'group', level: 5, startBar: 17, endBar: 32 }] },
+        { scoreId: 4, title: 'Nimrod', chunks: [bit(9, 4, 1, 20)] },
+    ];
+    const pool = PP.piecePool(pieces);
+    test('a piece with no Levels is prepared first; then everyone up to the next Level', () => {
+        assert.deepEqual(pool.map(p => [p.stage, p.chunk ? p.chunk.id : p.scoreId]), [
+            ['prepare', 2],
+            ['practise', 4], ['practise', 2], // the 1s, never-practised first
+            ['practise', 1],                  // then the 2
+            ['playthrough', 7],               // Slaidburn's first half is ready; its second is done
+            ['playthrough', 4],               // Nimrod is all at 4 with no parts yet
+        ]);
+    });
+    test('focus bits at 4 or more wait for the play-through', () => {
+        assert.ok(!pool.some(p => p.chunk && p.chunk.id === 3));
+    });
+    test('blocks take the Prepare once, then go round', () => {
+        const blocks = PP.fillBlocks(['rehearsal', 'rehearsal', 'rehearsal', 'rehearsal', 'rehearsal', 'rehearsal', 'rehearsal'], pool);
+        assert.deepEqual(blocks.map(b => b.stage), ['prepare', 'practise', 'practise', 'practise', 'playthrough', 'playthrough', 'practise']);
+        assert.equal(blocks[0].scoreId, 2);
+        assert.equal(blocks[0].chunk, null);
+    });
+    test('a long play-through part takes a 10-minute block', () => {
+        const p = PP.piecePool([{ scoreId: 5, title: 'Snowman', chunks: [bit(1, 4, 1, 90), { id: 2, kind: 'group', level: 4, startBar: 1, endBar: 90, minutes: 10 }] }]);
+        assert.equal(PP.fillBlocks(['rehearsal'], p)[0].minutes, 10);
+    });
+});
+
+describe('the 30-second rest (ML-390)', () => {
+    const b = (kind, stage) => ({ kind, stage, minutes: 5 });
+    const blocks = [b('warmup'), b('scales'), b('rehearsal', 'prepare'), b('rehearsal', 'practise'), b('rehearsal', 'playthrough'), b('skills')];
+    test('before every playing block but the first, never before a Prepare or Play-through', () => {
+        assert.deepEqual(blocks.map((x, i) => PP.restBefore(blocks, i)), [false, true, false, true, false, true]);
+    });
+    test('the sound stops 30 seconds early when a rest follows; a Prepare has no end', () => {
+        const raw = sandbox.self.PracticePlan; // not through PP: JSON would turn Infinity into null
+        assert.deepEqual(blocks.map((x, i) => raw.playSeconds(blocks, i)), [270, 300, Infinity, 300, 270, 300]);
+    });
+    test('the message deck: once each, never the same kind twice running, a breath at least every third rest', () => {
+        const msgs = [];
+        ['why', 'breathe', 'body', 'think', 'fact', 'care', 'kind'].forEach((kind, k) => { for (let i = 0; i < 4; i++) msgs.push({ id: k * 10 + i, kind }); });
+        let deck = null, seed = 1;
+        const rand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+        const drawn = [];
+        for (let i = 0; i < 60; i++) { const r = PP.drawRest(msgs, deck, rand); drawn.push(r.id); deck = r.deck; }
+        const kinds = drawn.map(id => msgs.find(m => m.id === id).kind);
+        // every other message once before any comes round again (breathing ones can come back sooner)
+        const others = drawn.filter(id => msgs.find(m => m.id === id).kind !== 'breathe');
+        assert.equal(new Set(others.slice(0, 24)).size, 24);
+        for (let i = 1; i < kinds.length; i++) assert.ok(kinds[i] !== kinds[i - 1] || kinds[i] === 'breathe', `same kind twice at ${i}`);
+        let since = 0;
+        for (const k of kinds) { since = k === 'breathe' ? 0 : since + 1; assert.ok(since <= 2, 'a breath at least every third rest'); }
+    });
+    test('no messages: nothing to draw', () => {
+        assert.equal(PP.drawRest([], null).id, null);
+    });
+    test('a looping warm-up gets 10% faster each round', () => {
+        assert.deepEqual([1, 2, 3].map(r => PP.warmupRoundBpm(60, r)), [60, 66, 72]);
+    });
 });

@@ -7,12 +7,14 @@ import vm from 'node:vm';
 import pool from '../config/db.js';
 import { withStatus, assertFlowReadAccess } from './flows.js';
 import { isFeatureEnabled } from './features.js';
+import { listFlowBlocksUnchecked } from './flowBlocks.js';
 
 const sandbox = { self: {} };
 vm.runInNewContext(fs.readFileSync(new URL('../../public/flowJourney.js', import.meta.url), 'utf8'), sandbox);
 const FlowJourney = sandbox.self.FlowJourney;
 
 const KINDS = ['whole', 'hard', 'chunk', 'group'];
+const TARGET = FlowJourney.LEVELS.TARGET; // ML-390: focus bits go up to Level 4, then the play-through
 const SOURCES = ['setup', 'edit', 'during', 'rating'];
 
 export async function assertPracticeLevelsEnabled() {
@@ -137,6 +139,7 @@ export async function replacePieceChunks(accountId, scoreId, chunks) {
     }
     const gone = [...existing.keys()].filter(id => !keep.has(id));
     if (gone.length) await client.query('DELETE FROM piece_chunks WHERE id = ANY($1::bigint[])', [gone]);
+    await tidyPlaythrough(client, accountId, scoreId);
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK');
@@ -149,22 +152,120 @@ export async function replacePieceChunks(accountId, scoreId, chunks) {
 
 // One chunk's Level changes in practice: a Level up during a block, or the rating after it (up one,
 // stay, down one, or a jump). percentPlayed is the speed it was played at.
+// ML-390: a play-through part (a 'group' chunk) that reaches Level 5 takes the bars inside it up to 5 too
+// - the whole piece moves up together.
 export async function setChunkLevel(accountId, chunkId, { level, source, percentPlayed } = {}) {
   const lvl = Number(level);
   if (!Number.isInteger(lvl) || lvl < 1 || lvl > 5) throw withStatus(400, 'Level must be 1-5.');
   const src = SOURCES.includes(source) ? source : 'rating';
   const pct = percentPlayed == null ? null : Math.round(Number(percentPlayed));
   if (pct !== null && !(pct >= 1 && pct <= 100)) throw withStatus(400, 'percentPlayed must be 1-100.');
-  const { rows } = await pool.query('SELECT * FROM piece_chunks WHERE id = $1 AND account_id = $2', [chunkId, accountId]);
-  if (!rows.length) throw withStatus(404, 'Chunk not found');
-  const prev = rows[0];
-  await pool.query('UPDATE piece_chunks SET level = $2, updated_at = now() WHERE id = $1', [chunkId, lvl]);
-  await pool.query(
-    `INSERT INTO chunk_level_changes (chunk_id, account_id, score_id, level_before, level_after, source, percent_played)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [chunkId, accountId, prev.score_id, prev.level, lvl, src, pct]
-  );
-  return getPieceLevels(accountId, Number(prev.score_id));
+  const client = await pool.connect();
+  let scoreId;
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query('SELECT * FROM piece_chunks WHERE id = $1 AND account_id = $2 FOR UPDATE', [chunkId, accountId]);
+    if (!rows.length) throw withStatus(404, 'Chunk not found');
+    const prev = rows[0];
+    scoreId = Number(prev.score_id);
+    const log = (id, before, after) => client.query(
+      `INSERT INTO chunk_level_changes (chunk_id, account_id, score_id, level_before, level_after, source, percent_played)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [id, accountId, scoreId, before, after, src, pct]);
+    await client.query('UPDATE piece_chunks SET level = $2, updated_at = now() WHERE id = $1', [chunkId, lvl]);
+    await log(chunkId, prev.level, lvl);
+    if (prev.kind === 'group' && lvl === 5) {
+      const { rows: inside } = await client.query(
+        `SELECT id, level FROM piece_chunks WHERE account_id = $1 AND score_id = $2 AND kind <> 'group'
+            AND start_bar >= $3 AND end_bar <= $4 AND (level IS NULL OR level < 5) FOR UPDATE`,
+        [accountId, scoreId, prev.start_bar, prev.end_bar]);
+      for (const r of inside) {
+        await client.query('UPDATE piece_chunks SET level = 5, updated_at = now() WHERE id = $1', [r.id]);
+        await log(r.id, r.level, 5);
+      }
+    }
+    await tidyPlaythrough(client, accountId, scoreId);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+  return getPieceLevels(accountId, scoreId);
+}
+
+// ML-390: the play-through. Once every bar of a piece is at Level 4 (and it isn't all at 5), it's played
+// straight through: its join-up groups are the parts, and a piece without any gets them made here - the
+// whole piece when it plays once in a block at Level 4, otherwise the fewest equal parts that do (two
+// halves for most pieces; FlowJourney.playthroughParts). A part is at Level 4 once every bar inside it is,
+// has no Level while any bar inside is below 4, and drops back from 5 to 4 if a bar inside is painted
+// down again. Runs inside the caller's transaction.
+async function tidyPlaythrough(client, accountId, scoreId) {
+  const { rows } = await client.query('SELECT * FROM piece_chunks WHERE account_id = $1 AND score_id = $2 ORDER BY sort_order, start_bar, id FOR UPDATE', [accountId, scoreId]);
+  const chunks = rows.map(toChunk);
+  const base = chunks.filter(c => c.kind !== 'group');
+  const groups = chunks.filter(c => c.kind === 'group');
+  if (!base.length) return;
+  const ready = base.every(c => c.level != null && c.level >= TARGET);
+  if (!groups.length) {
+    if (!ready || base.every(c => c.level >= 5)) return;
+    const blocks = (await listFlowBlocksUnchecked(scoreId)).filter(b => !b.isLeadIn);
+    const total = FlowJourney.totalBars(blocks);
+    if (!total) return;
+    const parts = FlowJourney.playthroughParts(blocks, TARGET);
+    const label = (k) => (parts.length === 1 ? 'Play-through' : parts.length === 2 ? `Play-through, ${k ? 'second' : 'first'} half` : `Play-through, part ${k + 1} of ${parts.length}`);
+    const order = Math.max(0, ...chunks.map(c => c.sortOrder)) + 1;
+    for (let k = 0; k < parts.length; k++) {
+      await client.query(
+        `INSERT INTO piece_chunks (account_id, score_id, kind, start_bar, end_bar, level, label, sort_order, bars_total_at_setup)
+         VALUES ($1, $2, 'group', $3, $4, $5, $6, $7, $8)`,
+        [accountId, scoreId, parts[k][0], parts[k][1], TARGET, label(k), order + k, total]);
+    }
+    return;
+  }
+  for (const g of groups) {
+    const inside = base.filter(c => c.startBar >= g.startBar && c.endBar <= g.endBar);
+    if (!inside.length) continue;
+    const low = Math.min(...inside.map(c => (c.level == null ? 0 : c.level)));
+    let want = g.level;
+    if (low < TARGET) want = null;
+    else if (g.level == null) want = TARGET;
+    else if (g.level === 5 && low < 5) want = TARGET;
+    if (want !== g.level) await client.query('UPDATE piece_chunks SET level = $2, updated_at = now() WHERE id = $1', [g.id, want]);
+  }
+}
+
+// ML-390: the pieces a practice session can use, with every chunk and when it was last practised - what
+// PracticePlan.piecePool picks the Pieces blocks from. scoreIds: a practice list's or your own choice of
+// pieces (in that order); null = every piece you've given Levels. A play-through part that needs longer
+// than a block says so (minutes: 10). Pieces you can't see are left out.
+export async function listPracticePieces(accountId, scoreIds) {
+  let ids = Array.isArray(scoreIds) ? scoreIds.map(Number).filter(n => Number.isInteger(n) && n > 0).slice(0, 60) : null;
+  if (!ids) {
+    const { rows } = await pool.query('SELECT DISTINCT score_id FROM piece_chunks WHERE account_id = $1', [accountId]);
+    ids = rows.map(r => Number(r.score_id));
+  }
+  const out = [];
+  for (const scoreId of [...new Set(ids)]) {
+    let score;
+    try { score = await assertFlowReadAccess(accountId, scoreId); } catch (e) { continue; }
+    const [{ rows }, totalBars] = await Promise.all([
+      pool.query(
+        `SELECT pc.*, (SELECT MAX(c.created_at) FROM chunk_level_changes c
+                        WHERE c.chunk_id = pc.id AND c.source IN ('during', 'rating')) AS last_practised
+           FROM piece_chunks pc WHERE pc.account_id = $1 AND pc.score_id = $2 ORDER BY pc.sort_order, pc.start_bar, pc.id`,
+        [accountId, scoreId]),
+      pieceBarCount(scoreId),
+    ]);
+    const chunks = rows.map(r => ({ ...toChunk(r), lastPractised: r.last_practised }));
+    if (chunks.some(c => c.kind === 'group')) {
+      const blocks = (await listFlowBlocksUnchecked(scoreId)).filter(b => !b.isLeadIn);
+      chunks.filter(c => c.kind === 'group').forEach(g => { g.minutes = FlowJourney.partBlockMinutes(blocks, g.startBar, g.endBar, TARGET) || 10; });
+    }
+    out.push({ scoreId, title: score.title, totalBars, chunks, barsChanged: rows.some(r => r.bars_total_at_setup !== totalBars) });
+  }
+  return out;
 }
 
 // Settings -> practice: the speed below which session sub-beats switch on.

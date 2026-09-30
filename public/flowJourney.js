@@ -365,8 +365,12 @@
     // A Level (1-5) is a % of the piece's own tempo, so ramps and tempo changes keep their shape.
     // Level 5 = 100%. Level 1 = as slow as it goes without any bar in the chunk dropping below 40 bpm
     // (rounded UP to 5%). Levels 2-4 are equal steps in between, rounded to 5%.
+    // ML-390: a focus bit must play 5 times in a block (4:30, a gap bar between goes) - it was 3 (ideally 4).
+    // A play-through part only has to play once; one that needs longer than a block gets a 10-minute block
+    // (LONG_BLOCK_SECONDS of playing).
     const LEVELS = {
-        MIN_BPM: 40, STEP: 5, BLOCK_SECONDS: 270, MIN_RUNS: 3, GOOD_RUNS: 4, SUB_BEATS_BELOW: 100
+        MIN_BPM: 40, STEP: 5, BLOCK_SECONDS: 270, MIN_RUNS: 5, GOOD_RUNS: 5, SUB_BEATS_BELOW: 100,
+        TARGET: 4, PLAYTHROUGH_RUNS: 1, LONG_BLOCK_SECONDS: 570, SECTION_BARS: 8
     };
     const clampLevel = (level) => Math.max(1, Math.min(5, Math.round(Number(level) || 1)));
 
@@ -433,8 +437,8 @@
 
     // Does a chunk fit a 4:30 block? One run follows the piece's order (repeats inside the chunk play as
     // written, via loopPlan), plus one gap bar between runs. Returns { ok, percent, runSeconds,
-    // gapSeconds, runs, fits } - fits: 'good' (4+ runs), 'ok' (3), 'tooLong' (fewer) - or
-    // { ok: false, reason } from loopPlan.
+    // gapSeconds, runs, fits } - fits: 'good' (5+ runs since ML-390; 'ok' is only there if MIN_RUNS and
+    // GOOD_RUNS ever differ again), 'tooLong' (fewer) - or { ok: false, reason } from loopPlan.
     function chunkFit(blocks, opts) {
         const { startBar, endBar } = opts;
         const plan = loopPlan(blocks, { startBar, endBar });
@@ -448,7 +452,7 @@
         return { ok: true, percent, runSeconds, gapSeconds, runs, fits };
     }
 
-    // A too-long chunk split into the fewest equal-ish parts that each fit 3+ runs at that Level. Each
+    // A too-long chunk split into the fewest equal-ish parts that each fit 5+ runs at that Level. Each
     // part's own Level 1 speed is used when level is 1, so the answer holds as the chunk levels up.
     // Returns [[startBar, endBar], ...] (the chunk itself when it already fits or can't be split).
     function suggestSplit(blocks, opts) {
@@ -477,6 +481,74 @@
             }
         });
         return out;
+    }
+
+    // --- Getting a piece ready (ML-390): the run-through, painting bars, focus bits, the play-through ---
+    // The whole piece once, as it's played (repeats, jumps, intro and pauses; not the lead-in), at percent %.
+    function pieceRunSeconds(blocks, percent) {
+        return buildJourney(blocks, {}).steps
+            .filter(st => st.kind !== 'leadIn' && st.blockIndex >= 0)
+            .reduce((sum, st) => sum + barSeconds(blocks, st.blockIndex, st.bar, percent), 0);
+    }
+    // The piece's sections, for painting and cutting: a new one at every rehearsal mark and after every
+    // section boundary, or every 8 bars when the piece has none of those. [{ startBar, endBar, label }].
+    function pieceSections(blocks) {
+        const total = totalBars(blocks);
+        if (!total) return [];
+        const starts = new Set([1]);
+        const labels = {};
+        blocks.forEach((b, i) => {
+            const first = barNumberOf(blocks, i, 0);
+            if (b.rehearsalMark) { starts.add(first); labels[first] = b.rehearsalMark; }
+            (b.rehearsalMarks || []).forEach(m => { const n = barNumberOf(blocks, i, m.barOffset || 0); starts.add(n); labels[n] = m.mark; });
+            if ((b.isSectionBoundary || b.isFinalBarline) && i < blocks.length - 1) starts.add(first + Math.max(1, barCountOf(b)));
+        });
+        let s = [...starts].filter(n => n >= 1 && n <= total).sort((a, z) => a - z);
+        if (s.length < 2) {
+            s = [];
+            for (let a = 1; a <= total; a += LEVELS.SECTION_BARS) s.push(a);
+        }
+        return s.map((a, k) => ({ startBar: a, endBar: (s[k + 1] || total + 1) - 1, label: labels[a] || null }));
+    }
+    // Painted bars -> focus bits. levels: each bar's Level (index 0 = bar 1; null = not painted yet);
+    // sectionStarts: the first bar of each section; cuts: bars where the knife starts a new bit. A bit is a
+    // run of bars with the same Level inside one section, split again at every cut.
+    // Returns [{ startBar, endBar, level }] covering every bar, in order.
+    function bitsFromBars(levels, sectionStarts, cuts) {
+        const breaks = new Set([...(sectionStarts || []), ...(cuts || [])]);
+        const out = [];
+        (levels || []).forEach((raw, k) => {
+            const n = k + 1;
+            const level = raw == null ? null : clampLevel(raw);
+            const last = out[out.length - 1];
+            if (last && last.level === level && !breaks.has(n)) last.endBar = n;
+            else out.push({ startBar: n, endBar: n, level });
+        });
+        return out;
+    }
+    // The play-through (once every bar is at Level 4): the whole piece in one part when it plays through
+    // once in a block at that Level, otherwise the fewest equal parts that each do - two halves for most
+    // pieces. Returns [[startBar, endBar], ...].
+    function playthroughParts(blocks, level) {
+        const total = totalBars(blocks);
+        if (!total) return [];
+        const lv = level || LEVELS.TARGET;
+        const fits = (a, z) => { const f = chunkFit(blocks, { startBar: a, endBar: z, level: lv }); return !f.ok || f.runs >= LEVELS.PLAYTHROUGH_RUNS; };
+        for (let parts = 1; parts <= total; parts++) {
+            const size = Math.ceil(total / parts);
+            const out = [];
+            for (let a = 1; a <= total; a += size) out.push([a, Math.min(total, a + size - 1)]);
+            if (out.every(([a, z]) => fits(a, z))) return out;
+        }
+        return [[1, total]];
+    }
+    // How long a block a part needs: 5 minutes when it plays once in 4:30, 10 when it needs up to 9:30
+    // ("one long go"), null when even that isn't enough (make the parts smaller).
+    function partBlockMinutes(blocks, startBar, endBar, level) {
+        const f = chunkFit(blocks, { startBar, endBar, level: level || LEVELS.TARGET });
+        if (!f.ok) return 5;
+        const one = f.runSeconds + f.gapSeconds;
+        return one <= LEVELS.BLOCK_SECONDS ? 5 : one <= LEVELS.LONG_BLOCK_SECONDS ? 10 : null;
     }
 
     // --- Stale settings (a block shortened after a setting was made) - the same four checks that turn
@@ -661,6 +733,7 @@
         buildJourney, passagesOf, loopPlan, barNumberOf, totalBars, tempoAt, rampSpans, pausesInBar,
         repeatBarInvalid, introInvalid, pauseInvalid, rampInvalid,
         barRangeLabel, checkFlow,
-        LEVELS, levelPercents, levelPercent, sessionSubBeats, slowestTempo, barSeconds, chunkFit, suggestSplit, barLevels
+        LEVELS, levelPercents, levelPercent, sessionSubBeats, slowestTempo, barSeconds, chunkFit, suggestSplit, barLevels,
+        pieceRunSeconds, pieceSections, bitsFromBars, playthroughParts, partBlockMinutes
     };
 }));

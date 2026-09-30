@@ -6,7 +6,8 @@
 
 import express from 'express';
 import { assertWarmupsEnabled, listActiveWarmups } from '../services/warmups.js';
-import { assertPracticeLevelsEnabled, getPieceLevels, replacePieceChunks, setChunkLevel, setSubBeatsBelow } from '../services/practiceLevels.js';
+import { assertPracticeLevelsEnabled, getPieceLevels, replacePieceChunks, setChunkLevel, setSubBeatsBelow, listPracticePieces } from '../services/practiceLevels.js';
+import { nextRestMessage } from '../services/restMessages.js';
 import { listPracticeChunks, savePracticeSession, listTemplates, saveTemplate, deleteTemplate, getActivePractice, putActivePractice, clearActivePractice } from '../services/practiceSessions.js';
 import { recordSkillResult, getSkillsAndLists, createSkillList, updateSkillList, deleteSkillList, listWarmupLists, saveWarmupList, deleteWarmupList } from '../services/skills.js';
 import { listPracticeLists, createPracticeList, updatePracticeList, deletePracticeList, setPracticeListPieces, getPracticeList } from '../services/practiceLists.js';
@@ -181,6 +182,28 @@ router.get('/practice/chunks', requireAuth, resolveAccount, async (req, res) => 
   try {
     await assertPracticeLevelsEnabled();
     res.json({ chunks: await listPracticeChunks(req.accountId) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-390: the pieces a session's Pieces blocks come from (a practice list's, your own choice, or every
+// piece you've given Levels), with all their chunks - PracticePlan.piecePool picks from these.
+router.get('/practice/pieces', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertPracticeLevelsEnabled();
+    const ids = req.query.scoreIds ? String(req.query.scoreIds).split(',').filter(Boolean) : null;
+    res.json({ pieces: await listPracticePieces(req.accountId, ids) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-390: the message for the 30-second rest between blocks - the next one from this player's deck.
+router.get('/practice/rest-message', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertPracticeLevelsEnabled();
+    res.json(await nextRestMessage(req.accountId));
   } catch (error) {
     sendError(res, error);
   }

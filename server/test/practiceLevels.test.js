@@ -93,11 +93,12 @@ describe('chunk fit in a 4:30 block', () => {
         assert.equal(f.runs, 1);
         assert.equal(f.fits, 'tooLong');
     });
-    test('the same bars split into 3 x 20 fit 3 runs each', () => {
-        assert.deepEqual(FJ.suggestSplit(snowman(), { startBar: 1, endBar: 60, level: 1 }), [[1, 20], [21, 40], [41, 60]]);
-        const f = FJ.chunkFit(snowman(), { startBar: 1, endBar: 20, level: 1 });
-        assert.equal(f.runs, 3);
-        assert.equal(f.fits, 'ok');
+    test('the same bars split into 5 x 12 fit 5 goes each (ML-390: 5 goes, was 3)', () => {
+        assert.deepEqual(FJ.suggestSplit(snowman(), { startBar: 1, endBar: 60, level: 1 }), [[1, 12], [13, 24], [25, 36], [37, 48], [49, 60]]);
+        const f = FJ.chunkFit(snowman(), { startBar: 1, endBar: 12, level: 1 });
+        assert.equal(f.runs, 5);
+        assert.equal(f.fits, 'good');
+        assert.equal(FJ.chunkFit(snowman(), { startBar: 1, endBar: 15, level: 1 }).fits, 'tooLong'); // 4 goes
     });
     test('a chunk that fits is left alone, and fits better at higher Levels', () => {
         const blocks = [blk({ barCount: 8, bpm: 120 })];
@@ -137,5 +138,39 @@ describe('the per-bar Level map', () => {
     test('unset chunks and bars stay null', () => {
         const map = FJ.barLevels(6, [{ startBar: 1, endBar: 3, level: 1 }, { startBar: 4, endBar: 5, level: null }]);
         assert.deepEqual(map, [1, 1, 1, null, null, null]);
+    });
+});
+
+// ML-390: getting a piece ready - the run-through, sections for painting, painted bars -> focus bits, and
+// the play-through parts.
+describe('getting a piece ready (ML-390)', () => {
+    test('the run-through: the whole piece once, as played', () => {
+        close(FJ.pieceRunSeconds([blk({ barCount: 60, numerator: 3, bpm: 132 })], 100), 60 * 3 * 60 / 132);
+        const repeated = [blk({ barCount: 4, bpm: 120, isRepeatStart: true, isRepeatEnd: true, repeatPlayCount: 2 }), blk({ barCount: 1, bpm: 120 })];
+        close(FJ.pieceRunSeconds(repeated, 100), 18); // 4 bars twice + 1, 2 s a bar
+        close(FJ.pieceRunSeconds(repeated, 50), 36);
+    });
+    test('sections: rehearsal marks and section boundaries, or every 8 bars', () => {
+        assert.deepEqual(FJ.pieceSections([blk({ barCount: 8, rehearsalMark: 'A' }), blk({ barCount: 8, rehearsalMark: 'B' })]),
+            [{ startBar: 1, endBar: 8, label: 'A' }, { startBar: 9, endBar: 16, label: 'B' }]);
+        assert.deepEqual(FJ.pieceSections([blk({ barCount: 20 })]).map(x => [x.startBar, x.endBar]), [[1, 8], [9, 16], [17, 20]]);
+        assert.deepEqual(FJ.pieceSections([blk({ barCount: 6, isSectionBoundary: true }), blk({ barCount: 6 })]).map(x => [x.startBar, x.endBar]), [[1, 6], [7, 12]]);
+    });
+    test('painted bars -> focus bits: same Level in a section, split at every cut', () => {
+        assert.deepEqual(FJ.bitsFromBars([3, 3, 1, 1, null, null, 3, 3], [1, 5], [8]), [
+            { startBar: 1, endBar: 2, level: 3 }, { startBar: 3, endBar: 4, level: 1 },
+            { startBar: 5, endBar: 6, level: null }, { startBar: 7, endBar: 7, level: 3 }, { startBar: 8, endBar: 8, level: 3 }
+        ]);
+        assert.deepEqual(FJ.bitsFromBars([2, 2, 2, 2], [1], []), [{ startBar: 1, endBar: 4, level: 2 }]);
+    });
+    test('the play-through: the whole piece when it fits a block once at Level 4', () => {
+        assert.deepEqual(FJ.playthroughParts([blk({ barCount: 60, numerator: 3, bpm: 132 })]), [[1, 60]]);
+    });
+    test('a longer piece: the fewest equal parts that each play once in a block - two halves', () => {
+        const long = [blk({ barCount: 96, bpm: 80 })]; // 96 x 3 s = 4:48 at full speed
+        assert.deepEqual(FJ.playthroughParts(long), [[1, 48], [49, 96]]);
+        assert.equal(FJ.partBlockMinutes(long, 1, 48), 5);
+        assert.equal(FJ.partBlockMinutes(long, 1, 96), 10); // one long go needs a 10-minute block
+        assert.equal(FJ.partBlockMinutes([blk({ barCount: 300, bpm: 60 })], 1, 300), null); // too long even for that
     });
 });

@@ -27,6 +27,7 @@ import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitIm
 import { listNotificationsForAdmin, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
 import { getSecurityReview, runSecurityReviewNow } from '../services/securityReview.js';
 import { getInstrumentUsageStats } from '../services/instruments.js';
+import { listRestMessages, createRestMessage, updateRestMessage, setRestMessageActive, deleteRestMessage, moveRestMessage } from '../services/restMessages.js';
 
 const router = express.Router();
 
@@ -709,6 +710,24 @@ router.delete('/notifications/:id', requireAuth, resolveAccount, requireSuperAdm
     sendError(res, error);
   }
 });
+
+// ========================================
+// REST MESSAGES (ML-390) - what the 30-second rest between practice blocks shows. Changed here, no
+// release needed. Players draw from their own shuffled deck (services/restMessages.js).
+// ========================================
+const restRoute = (fn) => async (req, res) => {
+  try {
+    res.json(await fn(req));
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+router.get('/rest-messages', requireAuth, resolveAccount, requireSuperAdmin, restRoute(async () => ({ messages: await listRestMessages() })));
+router.post('/rest-messages', requireAuth, resolveAccount, requireSuperAdmin, restRoute(req => createRestMessage(req.body || {})));
+router.put('/rest-messages/:id', requireAuth, resolveAccount, requireSuperAdmin, restRoute(req => updateRestMessage(Number(req.params.id), req.body || {})));
+router.put('/rest-messages/:id/active', requireAuth, resolveAccount, requireSuperAdmin, restRoute(req => setRestMessageActive(Number(req.params.id), !!req.body?.active)));
+router.put('/rest-messages/:id/move', requireAuth, resolveAccount, requireSuperAdmin, restRoute(async req => ({ messages: await moveRestMessage(Number(req.params.id), req.body?.dir) })));
+router.delete('/rest-messages/:id', requireAuth, resolveAccount, requireSuperAdmin, restRoute(req => deleteRestMessage(Number(req.params.id))));
 
 // ========================================
 // FLOW TRANSFER (ML-204) - copying flows between environments (e.g. production -> dev/sandbox for
