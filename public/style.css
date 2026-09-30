@@ -2611,3 +2611,129 @@
     .session-seg.is-done { background: var(--primary-action); }
     .session-seg.is-now { background: var(--primary-action-strong); }
     .session-block-time { flex-shrink: 0; min-width: var(--space-9); font-variant-numeric: tabular-nums; }
+
+    /* Stepped practice sessions (ML-390) - see specs/components/practice-steps.md. One question a screen,
+       a gold progress bar for the three steps, time as 5-minute blocks you can count, and the kinds of
+       block (Warm-up, Scales, Skills, Pieces) as coloured tiles that always carry their icon (and name). */
+    .steps-progress { display: flex; gap: var(--space-2); list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+    .steps-progress-step { flex: 1; display: grid; gap: var(--space-1); font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--label-color); }
+    .steps-progress-step::before { content: ""; display: block; height: var(--space-1); border-radius: var(--radius-pill); background: var(--input-border); }
+    .steps-progress-step.is-done::before, .steps-progress-step.is-now::before { background: var(--primary-action); }
+    .steps-progress-step.is-now { color: var(--text-color); }
+    .step-question { font-size: var(--font-lg); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); margin: 0 0 var(--space-3); text-wrap: balance; }
+    .time-blocks { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-2); margin: var(--space-3) 0 var(--space-4); }
+    .time-block { aspect-ratio: 1; border-radius: var(--radius-md); border: 2px solid var(--primary-action); background: var(--primary-action-tint); color: var(--primary-action-strong); display: grid; place-items: center; font-size: var(--font-sm); font-weight: var(--font-weight-bold); }
+    .time-block.is-new { animation: block-pop var(--duration-base) ease-out; }
+    .time-block.is-more { border-style: dashed; border-color: var(--control-border); background: transparent; color: var(--label-color); }
+    @keyframes block-pop { from { transform: scale(0.4); opacity: var(--opacity-muted); } to { transform: scale(1); opacity: 1; } }
+    .open-ended-option { justify-content: flex-start; gap: var(--space-3); }
+    .open-ended-option .open-ended-icon { font-size: var(--icon-xl); }
+    .plan-card-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+    .plan-card-row .plan-card { margin-bottom: 0; }
+    .plan-card { flex: 1; min-width: 0; flex-direction: column; align-items: stretch; gap: var(--space-2); }
+    .plan-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+    .kind-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-1); }
+    .kind-strip .kind-block { aspect-ratio: auto; min-height: var(--icon-xl); }
+    .kind-strip-more { display: grid; place-items: center; font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: var(--label-color); }
+    .kind-block { display: grid; place-items: center; align-content: center; gap: var(--space-0-5); box-sizing: border-box; border-radius: var(--radius-md); border: 2px solid var(--control-border); background: var(--input-bg); color: var(--text-color); font: inherit; padding: var(--space-1); }
+    .kind-block .material-symbols-outlined { font-size: var(--icon-md); font-variation-settings: 'FILL' 1; }
+    .kind-block-label { font-size: var(--font-xs); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); text-align: center; }
+    .kind-block.is-empty { border-style: dashed; background: transparent; color: var(--label-color); }
+    .kind-block.is-empty .material-symbols-outlined { font-variation-settings: 'FILL' 0; }
+    .kind-warmup { border-color: var(--kind-warmup); background: var(--kind-warmup-tint); }
+    .kind-warmup .material-symbols-outlined, .kind-warmup .kind-block-label { color: var(--kind-warmup-text); }
+    .kind-scales { border-color: var(--kind-scales); background: var(--kind-scales-tint); }
+    .kind-scales .material-symbols-outlined, .kind-scales .kind-block-label { color: var(--kind-scales-text); }
+    .kind-skills { border-color: var(--kind-skills); background: var(--kind-skills-tint); }
+    .kind-skills .material-symbols-outlined, .kind-skills .kind-block-label { color: var(--kind-skills-text); }
+    .kind-pieces { border-color: var(--kind-pieces); background: var(--kind-pieces-tint); }
+    .kind-pieces .material-symbols-outlined, .kind-pieces .kind-block-label { color: var(--kind-pieces-text); }
+    .kind-block-icon { flex-shrink: 0; width: var(--touch-target); height: var(--touch-target); padding: 0; }
+    .history-item .kind-block, .level-row-body .kind-block { flex-shrink: 0; width: var(--icon-xl); height: var(--icon-xl); padding: 0; }
+    .build-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); margin-bottom: var(--space-4); }
+    .build-slot { position: relative; min-height: calc(var(--touch-target) + var(--space-5)); cursor: pointer; }
+    .build-slot.is-new { animation: block-pop var(--duration-base) ease-out; }
+    .build-slot-time { position: absolute; top: var(--space-0-5); left: var(--space-1); font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--label-color); font-variant-numeric: tabular-nums; }
+    .build-palette { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); padding: var(--space-2); margin-bottom: var(--space-3); border: 1px solid var(--input-border); border-radius: var(--radius-lg); background: var(--input-bg); }
+    .build-add { min-height: calc(var(--touch-target) + var(--space-3)); cursor: pointer; }
+    .session-goal { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-2) var(--space-3); margin: 0 0 var(--space-3); border-radius: var(--radius-md); background: var(--primary-action-tint); font-size: var(--font-sm); font-weight: var(--font-weight-semibold); }
+    .session-goal .level-chip, .session-goal-card .level-chip { width: var(--icon-lg); height: var(--icon-lg); font-size: var(--font-xs); }
+    .session-piece { display: grid; gap: var(--space-1); padding: var(--space-2) 0; border-top: 1px solid var(--input-border); }
+    .session-piece-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+    .session-goal-card { display: grid; gap: var(--space-1); margin-top: var(--space-4); padding: var(--space-3); border-radius: var(--radius-md); background: var(--primary-action-tint); }
+
+    /* The 30-second rest between blocks (ML-390) - a calm panel of its own colours: the countdown ring (the
+       Timer ring's pattern: --rest-left 0-1 from renderRest), one message with a picture - a breathing
+       circle that grows over 4 seconds and shrinks over 6, three breaths in the rest - and Next up. */
+    .rest-screen { display: grid; justify-items: center; gap: var(--space-4); padding: var(--space-5) var(--space-4); border-radius: var(--radius-xl); background: var(--rest-bg); color: var(--text-color); }
+    .rest-ring { position: relative; width: calc(var(--touch-target) * 3); aspect-ratio: 1; }
+    .rest-ring-svg { width: 100%; height: 100%; display: block; }
+    .rest-ring-track, .rest-ring-left { fill: none; stroke-width: 9; }
+    .rest-ring-track { stroke: var(--rest-track); }
+    .rest-ring-left { stroke: var(--rest-ring); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 60px 60px; stroke-dasharray: 100 100; stroke-dashoffset: calc(100 - var(--rest-left, 1) * 100); transition: stroke-dashoffset var(--duration-pulse) linear; }
+    .rest-ring-num { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; font-size: var(--font-sm); color: var(--label-color); }
+    .rest-ring-num strong { font-size: var(--font-2xl); line-height: var(--line-height-tight); color: var(--rest-text); font-variant-numeric: tabular-nums; }
+    .rest-card { width: 100%; box-sizing: border-box; display: grid; justify-items: center; gap: var(--space-2); padding: var(--space-5) var(--space-4); border-radius: var(--radius-xl); background: var(--rest-surface); text-align: center; }
+    .rest-art { min-height: calc(var(--touch-target) * 2); display: grid; place-items: center; }
+    .rest-art .material-symbols-outlined { font-size: calc(var(--icon-xl) * 2); color: var(--rest-text); }
+    .rest-kind { margin: 0; font-size: var(--font-xs); font-weight: var(--font-weight-bold); text-transform: uppercase; color: var(--rest-text); }
+    .rest-title { margin: 0; font-size: var(--font-lg); line-height: var(--line-height-tight); text-wrap: balance; }
+    .rest-body { margin: 0; max-width: 32ch; text-wrap: pretty; }
+    .rest-breath { width: var(--touch-target); height: var(--touch-target); border-radius: var(--radius-circle); border: 3px solid var(--rest-ring); background: var(--rest-bg); display: grid; place-items: center; animation: rest-breathe var(--duration-breath) ease-in-out infinite; }
+    .rest-breath-word { font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--rest-text); }
+    @keyframes rest-breathe { 0% { transform: scale(1); } 40% { transform: scale(1.9); } 100% { transform: scale(1); } }
+    .rest-next { width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-lg); background: var(--rest-surface); }
+
+    /* A piece's path (ML-390) - three stops like a game map: done ones gold with a tick, the one now
+       ringed, joined by a line. */
+    .piece-path { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+    .path-stage { position: relative; display: grid; grid-template-columns: var(--touch-target) 1fr; gap: var(--space-3); padding-bottom: var(--space-4); }
+    .path-stage::before { content: ""; position: absolute; left: calc(var(--touch-target) / 2 - var(--space-0-5)); top: var(--touch-target); bottom: 0; width: var(--space-1); background: var(--input-border); }
+    .path-stage:last-child::before { display: none; }
+    .path-dot { width: var(--touch-target); height: var(--touch-target); border-radius: var(--radius-circle); border: 3px solid var(--input-border); background: var(--container-bg); color: var(--label-color); display: grid; place-items: center; box-sizing: border-box; }
+    .path-stage.is-done .path-dot { background: var(--primary-action); border-color: var(--primary-action); color: var(--primary-action-text); }
+    .path-stage.is-now .path-dot { border-color: var(--primary-action-strong); color: var(--primary-action-strong); box-shadow: var(--focus-ring); }
+    .path-text { min-width: 0; padding-top: var(--space-2); }
+    .path-steps { display: grid; gap: var(--space-1); margin-top: var(--space-2); }
+    .path-step { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-sm); }
+    .path-step .material-symbols-outlined { font-size: var(--icon-md); color: var(--label-color); }
+    .path-step.is-done .material-symbols-outlined { color: var(--success-text); font-variation-settings: 'FILL' 1; }
+    .focus-summary { display: flex; flex-wrap: wrap; gap: var(--space-1); margin: var(--space-2) 0; }
+
+    /* Painting the bars (ML-390): each section's bars as big squares (the bar number small, the Level big -
+       colour and number together), and the paint box pinned to the bottom of the screen. */
+    .paint-section { display: grid; gap: var(--space-2); margin-bottom: var(--space-4); }
+    .paint-section-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+    .paint-bars { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--touch-target), 1fr)); gap: var(--space-1); }
+    .paint-bar { position: relative; aspect-ratio: 1; min-height: var(--touch-target); border-radius: var(--radius-md); border-width: 2px; font: inherit; font-size: var(--font-md); font-weight: var(--font-weight-bold); display: grid; place-items: center; cursor: pointer; padding: 0; }
+    .paint-bar.lv-0 { border-width: 2px; }
+    .paint-bar:not(.lv-0) { border: 2px solid transparent; }
+    .paint-bar-num { position: absolute; top: var(--space-0-5); left: var(--space-1); font-size: var(--font-xs); font-weight: var(--font-weight-semibold); line-height: var(--line-height-tight); }
+    .paint-bar.is-cut-before { box-shadow: inset var(--space-1) 0 0 var(--danger-color); }
+    .paint-toolbox { position: sticky; bottom: 0; z-index: var(--z-sticky); display: grid; gap: var(--space-2); padding: var(--space-3) 0; background: var(--container-bg); border-top: 1px solid var(--input-border); }
+    .paint-tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
+    .paint-tool { min-height: var(--touch-target); display: grid; place-items: center; gap: var(--space-0-5); padding: var(--space-1); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font: inherit; cursor: pointer; }
+    .paint-tool[aria-pressed="true"] { border-color: var(--primary-action-strong); background: var(--primary-action-tint); }
+    .paint-tool-label { font-size: var(--font-xs); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); }
+    .paint-pots { margin-bottom: 0; }
+    .cut-bit { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--input-border); border-radius: var(--radius-md); }
+    .cut-bit.is-too-long { border: 2px solid var(--danger-color); }
+
+    /* "Did you nail it?" (ML-390): the Level pair (1 -> 2) and a short star celebration on a Yes. */
+    .levelup { display: grid; justify-items: center; gap: var(--space-2); text-align: center; }
+    .levelup h2 { margin: 0; text-wrap: balance; }
+    .levelup-stars { display: flex; gap: var(--space-1); color: var(--primary-action); }
+    .levelup-stars .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
+    .levelup.is-celebrating .levelup-stars .material-symbols-outlined { animation: block-pop var(--duration-slow) ease-out; }
+    .levelup.is-celebrating .levelup-pair .level-chip:last-child { animation: block-pop var(--duration-slow) ease-out; }
+    .levelup-pair { display: flex; align-items: center; gap: var(--space-2); color: var(--label-color); }
+    .levelup-pair .level-chip { width: calc(var(--touch-target) + var(--space-2)); height: calc(var(--touch-target) + var(--space-2)); font-size: var(--font-xl); border-radius: var(--radius-lg); }
+
+    /* A session's Warm-up block on a loop (ML-390) */
+    .warmup-loop { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); margin-bottom: var(--space-3); border: 2px solid var(--kind-warmup); border-radius: var(--radius-lg); background: var(--kind-warmup-tint); }
+    .warmup-loop-icon { color: var(--kind-warmup-text); font-size: var(--icon-lg); }
+    @media (prefers-reduced-motion: reduce) {
+        .time-block.is-new, .build-slot.is-new, .levelup.is-celebrating .levelup-stars .material-symbols-outlined, .levelup.is-celebrating .levelup-pair .level-chip:last-child { animation: none; }
+        .rest-breath { animation: none; transform: scale(1.6); }
+        .rest-ring-left { transition: none; }
+    }

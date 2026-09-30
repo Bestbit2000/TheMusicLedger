@@ -300,6 +300,9 @@
         // ML-320: the practice session builder
         practice: {
             chunks: () => apiCall('/api/practice/chunks'),
+            // ML-390: the pieces a session's Pieces blocks come from (null = every piece with Levels)
+            pieces: (scoreIds) => apiCall(`/api/practice/pieces${scoreIds ? `?scoreIds=${scoreIds.map(Number).join(',')}` : ''}`),
+            restMessage: () => apiCall('/api/practice/rest-message'), // ML-390: the next message for the rest
             saveSession: (data) => apiCall('/api/practice/sessions', 'POST', data),
             templates: () => apiCall('/api/practice/templates'),
             addTemplate: (data) => apiCall('/api/practice/templates', 'POST', data),
@@ -1418,7 +1421,7 @@
     }
     // The current screen: its own item, or for a screen the menu doesn't list directly (a tool's inner
     // screens, Flow's editor...), the item it belongs under.
-    const NAV_PARENT_VIEW = { statsView: 'statsHomeView', streakStatsView: 'statsHomeView', historyView: 'statsHomeView', toolResultsView: 'statsHomeView', flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView', pieceLevelsView: 'rehearseView', practiceListView: 'rehearseView',
+    const NAV_PARENT_VIEW = { statsView: 'statsHomeView', streakStatsView: 'statsHomeView', historyView: 'statsHomeView', toolResultsView: 'statsHomeView', flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView', piecePathView: 'rehearseView', prepareRunView: 'rehearseView', levelsPaintView: 'rehearseView', levelsCutView: 'rehearseView', practiceListView: 'rehearseView',
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
         accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountBandsView: 'accountView', accountTeachersView: 'accountView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
@@ -1683,7 +1686,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'pieceLevelsView', 'sessionPlanView', 'sessionRunView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
+    const views = ['mainView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -1874,17 +1877,23 @@
         }
 
         if (viewName === 'rehearseView') { document.getElementById('topTitle').innerText = 'Rehearse'; renderRehearseList(); rehearseRefresh(); renderRehearseLists(); }
-        if (viewName === 'pieceLevelsView') document.getElementById('topTitle').innerText = 'My Levels';
+        // ML-390: a piece's path and its Prepare steps (the path's own title is the piece's, set as it renders).
+        if (viewName === 'piecePathView') { document.getElementById('topTitle').innerText = levels.title || 'My Levels'; if (isBack) renderPiecePath(); }
+        if (viewName === 'prepareRunView') document.getElementById('topTitle').innerText = 'Prepare · 2 of 4';
+        if (viewName === 'levelsPaintView') document.getElementById('topTitle').innerText = pieceStage() === 'prepare' ? 'Prepare · 3 of 4' : 'Paint the bars';
+        if (viewName === 'levelsCutView') document.getElementById('topTitle').innerText = pieceStage() === 'prepare' ? 'Prepare · 4 of 4' : 'Focus bits';
         // ML-317: leaving the play screen any other way than Finish ends the practice without a rating.
         if (flowSession && viewName !== 'flowPlayView') endLevelPractice();
-        if (viewName === 'sessionPlanView') document.getElementById('topTitle').innerText = 'Practice session';
-        if (viewName === 'sessionRunView') document.getElementById('topTitle').innerText = 'Practice session';
+        if (['sessionLengthView', 'sessionPickView', 'sessionContentView', 'sessionPlanView', 'sessionRunView'].includes(viewName)) document.getElementById('topTitle').innerText = 'Practice session';
+        if (viewName === 'sessionBuildView') document.getElementById('topTitle').innerText = 'Build my plan';
+        if (viewName === 'sessionRestView') { document.getElementById('topTitle').innerText = 'Rest'; renderRestMessage(); renderRest(); }
+        if (viewName === 'sessionContentView' && isBack) openSessionContent(); // back from My skills - the lists may have changed
         if (viewName === 'practiceListView') document.getElementById('topTitle').innerText = plState.list ? plState.list.name : 'Practice list';
-        // Back from a piece's My Levels: its chunks may have changed, so the forecast is worked out again.
+        // Back from a piece's path: its chunks may have changed, so the forecast is worked out again.
         if (viewName === 'practiceListView' && isBack && plState.list) API.practiceLists.get(plState.list.id).then(l => { plState.list = l; renderPracticeList(); }).catch(() => { /* keeps what it had */ });
         if (practiceRun) renderPracticeRun(); // ML-320: the session bar on every screen but the session's own
-        if (viewName === 'sessionPlanView' && isBack) sessReplan(); // ML-339/343: back from My skills - the lists may have changed
-        if (viewName !== 'warmupsView') { skillWarmupsKind = null; sessionWarmupIds = null; }
+        if (viewName === 'sessionPlanView' && isBack) sessReplan();
+        if (viewName !== 'warmupsView') { skillWarmupsKind = null; sessionWarmupIds = null; sessionWarmupLoop = null; }
         if (viewName === 'skillsView') document.getElementById('topTitle').innerText = 'My skills';
         if (viewName === 'metroBuilderView') {
             // No title text here any more (ML-91) - the tuner toggle takes that spot in the top bar
@@ -6104,276 +6113,423 @@
     }
     document.getElementById('rehearseAddBtn')?.addEventListener('click', () => switchView('metroBuilderView'));
 
-    // ===== ML-316 (epic ML-314): a piece's practice Levels =====
-    // "How well can you play it?" -> the whole piece at a Level, hard passages on top of it, or chunks.
-    // One square per bar (FlowJourney.barLevels), silver (1) to gold (5), the Level number in each so it
-    // never relies on colour. Every chunk shows how many times it plays in a 4:30 block at its Level
-    // (FlowJourney.chunkFit); fewer than 3 gets a split. Saved per account (PUT /api/flows/:id/levels).
-    // Opened from Play Flow's menu, so currentFlowId/currentFlowBlocks/currentFlowDetail are loaded.
-    const levels = { flowId: null, blocks: [], total: 0, mode: null, whole: null, hard: [], chunks: [], groups: [], hardEdit: null, groupEdit: null, selected: -1, barsChanged: false };
+    // ===== ML-390 (was ML-316's My Levels): a piece's path - Prepare, Practise, Play-through =====
+    // Prepare (once): the music, a run-through at a speed you can manage, paint how each bar went, cut
+    // anything too long into focus bits. Practise: five-minute blocks on the focus bits until every bar is
+    // at Level 4. Play-through: the whole piece (or its parts) from Level 4 up to 5. The Level maths is
+    // FlowJourney's; the chunks are saved per account (PUT /api/flows/:id/levels) and the server makes the
+    // play-through parts once every bar is at 4. See docs/practice-sessions.md "Getting a piece ready".
+    const levels = { flowId: null, blocks: [], total: 0, chunks: [], groups: [], barsChanged: false, subBeatsBelow: null, title: '' };
     const fmtMinSec = (s) => { const t = Math.round(s); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
     const levelsRange = (a, z) => (a === z ? `Bar ${a}` : `Bars ${a}–${z}`);
+    const LEVEL_WORDS = ['Very slow', 'Slow', 'Steady', 'Nearly there', 'Full speed'];
+    // Prepare in progress: fromSession (a session's Prepare block - Done goes back to the session), pot
+    // (the Level the run-through was played at - the paint pot to start with).
+    const prep = { fromSession: false, runLevel: 2 };
 
-    function openPieceLevels() {
-        if (!currentFlowId) return;
-        levels.flowId = currentFlowId;
+    function applyPieceLevels(data) {
+        const cs = (data && data.chunks) || [];
+        levels.chunks = cs.filter(c => c.kind !== 'group');
+        levels.groups = cs.filter(c => c.kind === 'group');
+        levels.barsChanged = !!(data && data.barsChanged);
+        levels.subBeatsBelow = data ? data.subBeatsBelow : null;
+    }
+    // Load a piece as Play Flow would (its details and blocks), then its Levels.
+    async function loadPieceLevels(scoreId) {
+        const [detail, blocks, lv] = await Promise.all([API.flows.get(scoreId), API.flows.blocks.list(scoreId), API.levels.get(scoreId)]);
+        currentFlowId = scoreId;
+        currentFlowDetail = detail;
+        flowLeadInBlock = blocks.find(b => b.isLeadIn) || null;
+        currentFlowBlocks = blocks.filter(b => !b.isLeadIn);
+        levels.flowId = scoreId;
         levels.blocks = currentFlowBlocks.slice();
         levels.total = FlowJourney.totalBars(levels.blocks);
-        levels.mode = null; levels.hardEdit = null; levels.selected = -1;
-        switchView('pieceLevelsView');
-        document.getElementById('levelsSub').textContent = `${currentFlowDetail?.title || 'This piece'} · ${levels.total} bar${levels.total === 1 ? '' : 's'}`;
-        API.levels.get(levels.flowId).then(applyPieceLevels).catch(e => showWarningToast('Levels not loaded: ' + e.message));
-        renderPieceLevels();
+        levels.title = detail.title || 'This piece';
+        applyPieceLevels(lv);
     }
-    function applyPieceLevels(data) {
-        const cs = data.chunks || [];
-        levels.whole = cs.find(c => c.kind === 'whole') || null;
-        levels.hard = cs.filter(c => c.kind === 'hard');
-        levels.chunks = cs.filter(c => c.kind === 'chunk');
-        levels.groups = cs.filter(c => c.kind === 'group'); // ML-319 join-up groups
-        levels.groupEdit = null;
-        levels.mode = levels.chunks.length ? 'chunk' : levels.hard.length ? 'hard' : levels.whole ? 'whole' : null;
-        levels.barsChanged = !!data.barsChanged;
-        levels.subBeatsBelow = data.subBeatsBelow;
-        levels.selected = -1; levels.hardEdit = null;
-        renderPieceLevels();
+    const levelsMap = () => FlowJourney.barLevels(levels.total, [...levels.chunks, ...levels.groups]);
+    // Where the piece is on its path.
+    function pieceStage() {
+        const set = levels.chunks.filter(c => c.level != null);
+        if (!set.length) return 'prepare';
+        if (set.some(c => c.level < PracticePlan.TARGET_LEVEL) || set.length < levels.chunks.length) return 'practise';
+        const parts = levels.groups;
+        if (parts.length ? parts.some(g => g.level !== 5) : set.some(c => c.level < 5)) return 'playthrough';
+        return 'ready';
     }
-    function levelsCurrentChunks() {
-        if (levels.mode === 'chunk') return [...levels.chunks, ...levels.groups];
-        if (levels.mode === 'hard') return [levels.whole, ...levels.hard].filter(Boolean);
-        if (levels.mode === 'whole') return levels.whole ? [levels.whole] : [];
-        return [];
+    const focusBits = () => levels.chunks.filter(c => c.level != null && c.level < PracticePlan.TARGET_LEVEL);
+    function levelsWeakest() {
+        const cs = focusBits().filter(c => c.id);
+        return cs.length ? cs.slice().sort((a, b) => a.level - b.level || a.startBar - b.startBar)[0] : null;
     }
-    function levelsFit(c) {
-        if (!c || c.level == null) return null;
-        const f = FlowJourney.chunkFit(levels.blocks, { startBar: c.startBar, endBar: c.endBar, level: c.level });
-        return f.ok ? f : null;
-    }
-    function levelsFitText(f) {
-        if (!f) return '';
-        const runs = `${f.runs}× in a 5-minute block`;
-        return f.fits === 'tooLong' ? `${fmtMinSec(f.runSeconds)} a run - only ${runs}` : `${fmtMinSec(f.runSeconds)} a run · ${runs}`;
-    }
-    // The five Level buttons for a bar range, each showing its % of the piece's tempo.
-    function renderLevelPicker(el, range, value, onPick) {
-        const pct = FlowJourney.levelPercents(FlowJourney.slowestTempo(levels.blocks, range[0], range[1]));
-        el.innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" class="level-pick lv-${n}${value === n ? ' selected' : ''}" aria-pressed="${value === n}" data-level="${n}" aria-label="Level ${n}, ${pct[n - 1]}% speed">${n}<small>${pct[n - 1]}%</small></button>`).join('');
-        el.querySelectorAll('[data-level]').forEach(b => b.addEventListener('click', () => onPick(Number(b.dataset.level))));
-    }
-    function levelsRow(c, i, { selected, actions }) {
-        const f = levelsFit(c);
-        const lv = c.level == null ? 0 : c.level;
-        const fit = f ? `<br><span class="text-sm ${f.fits === 'tooLong' ? 'level-fit-warn' : 'text-muted'}">${levelsFitText(f)}</span>` : (c.level == null ? '<br><span class="text-sm text-muted">Not set yet</span>' : '');
-        return `<div class="history-item${selected ? ' level-row-selected' : ''}" data-row="${i}">
-            <button type="button" class="level-row-body grow text-left" data-select="${i}" aria-pressed="${!!selected}">
-                <span class="level-chip lv-${lv}" aria-hidden="true">${lv || ''}</span>
-                <span><strong>${escapeHtml(c.label || levelsRange(c.startBar, c.endBar))}</strong>${c.label ? `<br><span class="text-sm text-muted">${levelsRange(c.startBar, c.endBar)}</span>` : ''}${fit}</span>
-            </button>
-            ${actions}
-        </div>`;
-    }
+    const nextPart = () => levels.groups.filter(g => g.id && g.level != null && g.level < 5).sort((a, b) => a.level - b.level || a.startBar - b.startBar)[0] || null;
 
-    function renderPieceLevels() {
-        const cs = levelsCurrentChunks();
-        const map = FlowJourney.barLevels(levels.total, cs);
-        const marked = levels.hardEdit ? [levels.hardEdit.startBar, levels.hardEdit.endBar]
-            : (levels.mode === 'chunk' && levels.chunks[levels.selected]) ? [levels.chunks[levels.selected].startBar, levels.chunks[levels.selected].endBar] : null;
-        const mapEl = document.getElementById('levelsMap');
-        // ML-336: 10 bars a row, as bars are counted in music, with the row's bars on the left ("1 - 10";
-        // just "1" when the map is too narrow - CSS hides the "- 10").
-        mapEl.innerHTML = map.map((lv, k) => {
+    async function openPiecePath(scoreId) {
+        try { await loadPieceLevels(scoreId); } catch (e) { showWarningToast('Piece not loaded: ' + e.message); return; }
+        prep.fromSession = false;
+        switchView('piecePathView');
+        renderPiecePath();
+    }
+    function renderLevelMapInto(el, map) {
+        el.innerHTML = map.map((lv, k) => {
             const n = k + 1;
-            const on = marked && n >= Math.min(...marked) && n <= Math.max(...marked);
             const label = k % 10 === 0 ? `<span class="level-map-bars" aria-hidden="true">${n}<span class="level-map-bars-to"> - ${Math.min(n + 9, map.length)}</span></span>` : '';
-            return `${label}<span class="level-cell lv-${lv || 0}${on ? ' is-marked' : ''}">${lv || ''}</span>`;
+            return `${label}<span class="level-cell lv-${lv || 0}">${lv || ''}</span>`;
         }).join('');
         const set = map.filter(v => v).length;
-        mapEl.setAttribute('aria-label', !set ? 'No Levels set yet' : `Levels by bar: ${[1, 2, 3, 4, 5].map(n => [n, map.filter(v => v === n).length]).filter(([, c]) => c).map(([n, c]) => `${c} bar${c === 1 ? '' : 's'} at Level ${n}`).join(', ')}${set < map.length ? `, ${map.length - set} not set` : ''}`);
-
-        setShown('levelsBarsChanged', levels.barsChanged);
-        setShown('levelsAsk', levels.mode === null);
-        document.getElementById('levelsAskTitle').textContent = `How well can you play ${currentFlowDetail?.title || 'it'}?`;
-        setShown('levelsWhole', levels.mode === 'whole' || levels.mode === 'hard');
-        setShown('levelsHard', levels.mode === 'hard');
-        setShown('levelsChunks', levels.mode === 'chunk');
-        setShown('levelsSaveBtn', levels.mode !== null);
-        setShown('levelsPractiseWeakestBtn', levels.mode !== null && cs.some(c => c.level != null));
-        setShown('levelsWholePractiseBtn', levels.mode === 'whole' && !!levels.whole && levels.whole.level != null);
-        setShown('levelsChangeAnswerBtn', levels.mode !== null);
-
-        if (levels.mode === 'whole' || levels.mode === 'hard') {
-            if (!levels.whole) levels.whole = { kind: 'whole', startBar: 1, endBar: levels.total, level: null };
-            document.getElementById('levelsWholeLabel').textContent = levels.mode === 'hard' ? 'The rest of the piece, at Level' : 'The whole piece, at Level';
-            renderLevelPicker(document.getElementById('levelsWholePicker'), [1, levels.total], levels.whole.level, (n) => { levels.whole.level = n; renderPieceLevels(); });
-            const f = levels.mode === 'whole' ? levelsFit(levels.whole) : null;
-            document.getElementById('levelsWholeFit').textContent = f ? (f.fits === 'tooLong' ? `At this Level the whole piece takes ${fmtMinSec(f.runSeconds)} - only ${f.runs}× in a 5-minute block. Aim for 3 or more: break it up.` : levelsFitText(f)) : '';
-            setShown('levelsWholeBreakBtn', !!f && f.fits === 'tooLong');
+        el.setAttribute('aria-label', !set ? 'No bars painted yet' : `Levels by bar: ${[1, 2, 3, 4, 5].map(n => [n, map.filter(v => v === n).length]).filter(([, c]) => c).map(([n, c]) => `${c} bar${c === 1 ? '' : 's'} at Level ${n}`).join(', ')}${set < map.length ? `, ${map.length - set} not painted` : ''}`);
+    }
+    function renderPiecePath() {
+        document.getElementById('topTitle').innerText = levels.title;
+        document.getElementById('pathSub').textContent = `${levels.total} bar${levels.total === 1 ? '' : 's'}`;
+        setShown('pathBarsChanged', levels.barsChanged);
+        renderLevelMapInto(document.getElementById('pathMap'), levelsMap());
+        const stage = pieceStage();
+        const order = ['prepare', 'practise', 'playthrough', 'ready'];
+        const at = order.indexOf(stage);
+        const bits = focusBits();
+        const byLevel = [1, 2, 3].map(n => [n, bits.filter(c => c.level === n).length]).filter(([, c]) => c);
+        const chips = (list) => `<span class="focus-summary">${list.map(c => `<span class="level-chip lv-${c.level || 0}">${c.level || ''}</span>`).join('')}</span>`;
+        const partsText = levels.groups.length
+            ? levels.groups.map(g => `${g.label || levelsRange(g.startBar, g.endBar)}: ${g.level == null ? 'not yet' : `Level ${g.level}`}`).join(' · ')
+            : 'The whole piece, or two halves if it\'s long';
+        const stages = [
+            { key: 'prepare', icon: 'construction', title: 'Prepare', sub: 'About 10 minutes, once: a run-through, then paint and cut the bars.',
+                steps: at === 0 ? ['Get the music (it\'s in My music)', 'Play it through once', 'Paint how each bar went', 'Cut it into focus bits'] : null },
+            { key: 'practise', icon: 'music_note', title: 'Practise', sub: bits.length ? `${bits.length} focus bit${bits.length === 1 ? '' : 's'} below Level ${PracticePlan.TARGET_LEVEL}: ${byLevel.map(([n, c]) => `${c} at ${n}`).join(', ')}.` : `Five-minute blocks until every bar is at Level ${PracticePlan.TARGET_LEVEL}.`, extra: bits.length ? chips(bits) : '' },
+            { key: 'playthrough', icon: 'play_circle', title: 'Play-through', sub: `The whole piece, Level ${PracticePlan.TARGET_LEVEL} up to 5 (full speed). ${partsText}.` }
+        ];
+        document.getElementById('piecePath').innerHTML = stages.map((s, i) => {
+            const state = i < at ? 'is-done' : i === at ? 'is-now' : '';
+            return `<li class="path-stage ${state}"${i === at ? ' aria-current="step"' : ''}>
+                <span class="path-dot" aria-hidden="true"><span class="material-symbols-outlined">${i < at ? 'check' : s.icon}</span></span>
+                <span class="path-text"><strong>${i + 1} · ${s.title}</strong>${i < at ? ' <span class="text-sm text-muted">- done</span>' : ''}<br><span class="text-sm text-muted">${escapeHtml(s.sub)}</span>
+                ${s.steps ? `<span class="path-steps">${s.steps.map((t, k) => `<span class="path-step${k === 0 ? ' is-done' : ''}"><span class="material-symbols-outlined" aria-hidden="true">${k === 0 ? 'check_circle' : 'radio_button_unchecked'}</span>${escapeHtml(t)}</span>`).join('')}</span>` : ''}
+                ${s.extra || ''}</span>
+            </li>`;
+        }).join('') + (stage === 'ready' ? '<li class="path-stage is-now" aria-current="step"><span class="path-dot" aria-hidden="true"><span class="material-symbols-outlined">workspace_premium</span></span><span class="path-text"><strong>Ready!</strong><br><span class="text-sm text-muted">Every bar at full speed. Keep it there with a play-through now and then.</span></span></li>' : '');
+        const go = document.getElementById('pathGoBtn');
+        go.textContent = { prepare: 'Start preparing', practise: 'Practise the weakest bars', playthrough: 'Play it through', ready: 'Play it through again' }[stage];
+        setShown('pathPaintBtn', stage !== 'prepare');
+        setShown('pathCutBtn', stage !== 'prepare');
+        renderPathThrough(stage);
+    }
+    // How the piece is played through: one part when it fits a block, else two halves (suggested) or one
+    // long go (a 10-minute block). Your own join-up groups count as parts too.
+    function renderPathThrough(stage) {
+        const card = document.getElementById('pathThroughCard');
+        const show = (stage === 'playthrough' || stage === 'ready') && levels.total > 0;
+        setShown(card, show);
+        if (!show) return;
+        const whole = FlowJourney.partBlockMinutes(levels.blocks, 1, levels.total, PracticePlan.TARGET_LEVEL);
+        const auto = FlowJourney.playthroughParts(levels.blocks, PracticePlan.TARGET_LEVEL);
+        const isWhole = levels.groups.length === 1 && levels.groups[0].startBar === 1 && levels.groups[0].endBar === levels.total;
+        const opts = [];
+        if (whole === 5) opts.push(['whole', 'The whole piece', 'It fits in one five-minute block']);
+        else {
+            opts.push(['auto', auto.length === 2 ? 'Two halves (suggested)' : `${auto.length} parts (suggested)`, `Each part is its own five-minute block`]);
+            if (whole === 10) opts.push(['whole', 'One long go', 'The whole piece in a 10-minute block']);
         }
-        if (levels.mode === 'hard') renderHardPassages();
-        if (levels.mode === 'chunk') { renderChunks(); renderGroups(); }
+        document.getElementById('pathThroughNote').textContent = levels.groups.length ? `Now: ${levels.groups.map(g => `${g.label || levelsRange(g.startBar, g.endBar)} (${g.level == null ? 'not yet' : `Level ${g.level}`})`).join(', ')}.` : 'Once every bar is at Level 4 the piece gets its play-through parts.';
+        const box = document.getElementById('pathThroughOptions');
+        box.innerHTML = opts.length > 1 ? opts.map(([k, t, s]) => {
+            const on = k === 'whole' ? isWhole : !isWhole && levels.groups.length === auto.length;
+            return `<button type="button" class="flow-choice-option level-answer${on ? ' selected' : ''}" aria-pressed="${on}" data-through="${k}"><span><strong>${t}</strong><br><span class="text-sm text-muted">${s}</span></span></button>`;
+        }).join('') : '';
+        box.querySelectorAll('[data-through]').forEach(b => b.addEventListener('click', () => setPlaythroughParts(b.dataset.through === 'whole' ? [[1, levels.total]] : auto)));
+    }
+    async function setPlaythroughParts(parts) {
+        const level = Math.min(...levels.chunks.map(c => c.level || 0)) >= PracticePlan.TARGET_LEVEL ? PracticePlan.TARGET_LEVEL : null;
+        const label = (k) => (parts.length === 1 ? 'Play-through' : parts.length === 2 ? `Play-through, ${k ? 'second' : 'first'} half` : `Play-through, part ${k + 1} of ${parts.length}`);
+        const body = [...levels.chunks.map(c => ({ id: c.id, kind: c.kind, startBar: c.startBar, endBar: c.endBar, level: c.level, label: c.label })),
+            ...parts.map(([a, z], k) => ({ kind: 'group', startBar: a, endBar: z, level, label: label(k) }))];
+        try { applyPieceLevels(await API.levels.save(levels.flowId, body)); renderPiecePath(); showSuccessToast('Play-through saved'); }
+        catch (e) { showWarningToast('Not saved: ' + e.message); }
+    }
+    document.getElementById('pathGoBtn')?.addEventListener('click', () => {
+        const stage = pieceStage();
+        if (stage === 'prepare') { openPrepareRun(); return; }
+        if (stage === 'practise') { const c = levelsWeakest(); if (c) startLevelPractice(c); else openPaint(); return; }
+        const part = nextPart() || levels.groups[0];
+        if (part) startLevelPractice({ ...part, level: part.level || PracticePlan.TARGET_LEVEL });
+    });
+    document.getElementById('pathPaintBtn')?.addEventListener('click', () => openPaint());
+    document.getElementById('pathCutBtn')?.addEventListener('click', () => { openPaintState(); openCut(); });
+    document.getElementById('flowPlayMenuLevels')?.addEventListener('click', (e) => { e.stopPropagation(); closeFlowPlayMenu(); if (currentFlowId) openPiecePath(currentFlowId); });
+
+    // --- Prepare 2 of 4: the run-through ---
+    function openPrepareRun() {
+        switchView('prepareRunView');
+        renderPrepareRun();
+    }
+    function renderPrepareRun() {
+        const pct = FlowJourney.levelPercents(FlowJourney.slowestTempo(levels.blocks, 1, levels.total));
+        const lv = Math.max(1, Math.min(5, prep.runLevel || 2));
+        const el = document.getElementById('prepSpeedPicker');
+        el.innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" class="level-pick lv-${n}${lv === n ? ' selected' : ''}" aria-pressed="${lv === n}" data-level="${n}" aria-label="Level ${n}, ${pct[n - 1]}% speed">${n}<small>${pct[n - 1]}%</small></button>`).join('');
+        el.querySelectorAll('[data-level]').forEach(b => b.addEventListener('click', () => { prep.runLevel = Number(b.dataset.level); renderPrepareRun(); }));
+        document.getElementById('prepTime').textContent = fmtMinSec(FlowJourney.pieceRunSeconds(levels.blocks, pct[lv - 1]));
+        document.getElementById('prepSpeedWord').textContent = pct[lv - 1] === 100 ? 'Full speed' : `${LEVEL_WORDS[lv - 1]} · ${pct[lv - 1]}%`;
+    }
+    document.getElementById('prepPlayBtn')?.addEventListener('click', () => {
+        const lv = prep.runLevel || 2;
+        startLevelPractice({ id: null, kind: 'runthrough', startBar: 1, endBar: levels.total, level: lv, label: 'The whole piece' }, 'runthrough');
+    });
+    document.getElementById('prepSkipBtn')?.addEventListener('click', () => openPaint({ pot: prep.runLevel || 3 }));
+    // The run-through has reached the end (or Done): on to painting, with the Level it was played at.
+    function runThroughDone() {
+        const lv = flowSession ? flowSession.level : prep.runLevel;
+        endLevelPractice();
+        if (viewStack[viewStack.length - 1] === 'flowPlayView') viewStack.pop();
+        openPaint({ pot: lv, afterRun: true });
     }
 
-    function renderHardPassages() {
-        const list = document.getElementById('levelsHardList');
-        list.innerHTML = levels.hard.length ? levels.hard.map((c, i) => levelsRow(c, i, {
-            selected: levels.hardEdit && levels.hardEdit.index === i,
-            actions: `<button type="button" class="flow-delete-btn" data-remove="${i}" aria-label="Remove ${levelsRange(c.startBar, c.endBar)}"><span class="material-symbols-outlined" aria-hidden="true">delete</span></button>`
-        })).join('') : '<p class="text-sm text-muted">None yet. Add each passage you find hard, as many as you need.</p>';
-        list.querySelectorAll('[data-select]').forEach(b => b.addEventListener('click', () => { const i = Number(b.dataset.select); levels.hardEdit = { index: i, ...levels.hard[i] }; renderPieceLevels(); }));
-        list.querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', () => { levels.hard.splice(Number(b.dataset.remove), 1); levels.hardEdit = null; renderPieceLevels(); }));
-        const e = levels.hardEdit;
-        setShown('levelsHardEditor', !!e);
-        setShown('levelsHardAddBtn', !e);
-        if (!e) return;
-        const from = document.getElementById('levelsHardFrom'), to = document.getElementById('levelsHardTo');
-        from.max = to.max = String(levels.total);
-        if (document.activeElement !== from) from.value = e.startBar;
-        if (document.activeElement !== to) to.value = e.endBar;
-        document.getElementById('levelsHardDoneBtn').textContent = e.index == null ? 'Add' : 'Update';
-        renderLevelPicker(document.getElementById('levelsHardPicker'), [e.startBar, e.endBar], e.level, (n) => { e.level = n; renderPieceLevels(); });
-        document.getElementById('levelsHardFit').textContent = levelsFitText(levelsFit(e));
+    // --- Prepare 3 of 4: paint how each bar went ---
+    const paint = { levels: [], sections: [], tool: 'brush', pot: 3, undo: [], afterRun: false };
+    const PAINT_HINTS = {
+        brush: 'Tap a bar to paint it.',
+        section: 'Tap any bar: the empty bars in its section fill up.',
+        all: 'Tap any bar: the whole piece gets this Level. Then brush the bars that went wrong.',
+        rubber: 'Tap a bar to take its paint off.'
+    };
+    function openPaintState() {
+        paint.levels = FlowJourney.barLevels(levels.total, levels.chunks);
+        paint.sections = FlowJourney.pieceSections(levels.blocks);
+        paint.undo = [];
     }
-    function levelsHardInput() {
-        const e = levels.hardEdit;
-        if (!e) return;
-        const clamp = (v) => Math.max(1, Math.min(levels.total, Math.round(Number(v) || 1)));
-        e.startBar = clamp(document.getElementById('levelsHardFrom').value);
-        e.endBar = clamp(document.getElementById('levelsHardTo').value);
-        renderPieceLevels();
+    function openPaint(opts) {
+        const o = opts || {};
+        openPaintState();
+        const painted = paint.levels.filter(v => v);
+        paint.pot = o.pot || (painted.length ? [1, 2, 3, 4, 5].sort((a, b) => painted.filter(v => v === b).length - painted.filter(v => v === a).length)[0] : 3);
+        paint.tool = painted.length ? 'brush' : 'all';
+        paint.afterRun = !!o.afterRun;
+        switchView('levelsPaintView');
+        renderPaint();
     }
-
-    // Suggested chunks: the piece's own sections - a new chunk at every rehearsal mark and after every
-    // section boundary - or every 4 bars when it has none. Anything too long to play 3 times in a block
-    // at Level 1 is split further.
-    function levelsSections() {
-        const starts = new Set([1]);
-        const labels = {};
-        levels.blocks.forEach((b, i) => {
-            const first = FlowJourney.barNumberOf(levels.blocks, i, 0);
-            if (b.rehearsalMark) { starts.add(first); labels[first] = b.rehearsalMark; }
-            (b.rehearsalMarks || []).forEach(m => { const n = FlowJourney.barNumberOf(levels.blocks, i, m.barOffset || 0); starts.add(n); labels[n] = m.mark; });
-            if ((b.isSectionBoundary || b.isFinalBarline) && i < levels.blocks.length - 1) starts.add(first + Math.max(1, b.barCount || 1));
-        });
-        const s = [...starts].filter(n => n <= levels.total).sort((a, z) => a - z);
-        if (s.length < 2) return null;
-        return s.map((a, k) => ({ startBar: a, endBar: (s[k + 1] || levels.total + 1) - 1, label: labels[a] || null }));
+    const sectionName = (s) => s.label || levelsRange(s.startBar, s.endBar);
+    function paintBarHtml(n, lv, extraClass, label) {
+        return `<button type="button" class="paint-bar lv-${lv || 0}${extraClass || ''}" data-bar="${n}" aria-label="${label}"><span class="paint-bar-num">${n}</span><span class="paint-bar-level">${lv || ''}</span></button>`;
     }
-    function levelsEvery(n) {
-        const out = [];
-        for (let a = 1; a <= levels.total; a += n) out.push({ startBar: a, endBar: Math.min(levels.total, a + n - 1), label: null });
-        return out;
-    }
-    function levelsSplitToFit(list) {
-        return list.flatMap(c => FlowJourney.suggestSplit(levels.blocks, { startBar: c.startBar, endBar: c.endBar, level: c.level || 1 })
-            .map(([a, z], k, all) => ({ ...c, id: k === 0 && all.length === 1 ? c.id : undefined, startBar: a, endBar: z, label: all.length > 1 && c.label ? `${c.label} ${k + 1}` : c.label })));
-    }
-    function levelsSuggest(kind) {
-        const base = (kind === 'every4' ? null : levelsSections()) || levelsEvery(4);
-        levels.chunks = levelsSplitToFit(base.map(c => ({ kind: 'chunk', ...c, level: 1 })));
-        levels.selected = -1;
-        renderPieceLevels();
-    }
-    function renderChunks() {
-        const list = document.getElementById('levelsChunkList');
-        const parked = document.getElementById('levelsChunkEditor');
-        if (parked && list.contains(parked)) list.after(parked); // take the picker out before the list is redrawn
-        list.innerHTML = levels.chunks.map((c, i) => {
-            const f = levelsFit(c);
-            const split = f && f.fits === 'tooLong' ? FlowJourney.suggestSplit(levels.blocks, { startBar: c.startBar, endBar: c.endBar, level: c.level }) : null;
-            // The split sits under its row, full width, so the row's own text keeps its room.
-            return levelsRow(c, i, { selected: levels.selected === i, actions: '' })
-                + (split && split.length > 1 ? `<button type="button" class="btn-nav" data-split="${i}">Split ${escapeHtml(c.label || levelsRange(c.startBar, c.endBar))} into ${split.length}</button>` : '');
+    function renderPaint() {
+        const hint = document.getElementById('paintHint');
+        hint.textContent = paint.afterRun
+            ? `The bars you played cleanly are Level ${paint.pot}: tap Fill all, then brush the bars that went wrong with a lower Level.`
+            : 'Give every bar a Level: 1 means very slow, 5 means full speed. The colours and numbers go together.';
+        document.getElementById('paintSections').innerHTML = paint.sections.map((s, k) => {
+            const done = paint.levels.slice(s.startBar - 1, s.endBar).filter(v => v).length;
+            const bars = [];
+            for (let n = s.startBar; n <= s.endBar; n++) {
+                const lv = paint.levels[n - 1];
+                bars.push(paintBarHtml(n, lv, '', `Bar ${n}, ${lv ? `Level ${lv}` : 'not painted'}`));
+            }
+            return `<section class="paint-section" aria-labelledby="paintSec${k}">
+                <div class="paint-section-head"><strong id="paintSec${k}">${escapeHtml(sectionName(s))}</strong><span class="text-sm text-muted">${s.label ? `${levelsRange(s.startBar, s.endBar)} · ` : ''}${done} of ${s.endBar - s.startBar + 1} painted</span></div>
+                <div class="paint-bars">${bars.join('')}</div>
+            </section>`;
         }).join('');
-        list.querySelectorAll('[data-select]').forEach(b => b.addEventListener('click', () => { const i = Number(b.dataset.select); levels.selected = levels.selected === i ? -1 : i; renderPieceLevels(); }));
-        list.querySelectorAll('[data-split]').forEach(b => b.addEventListener('click', () => {
-            const i = Number(b.dataset.split);
-            levels.chunks.splice(i, 1, ...levelsSplitToFit([levels.chunks[i]]));
-            levels.selected = -1;
-            renderPieceLevels();
-        }));
-        const c = levels.chunks[levels.selected];
-        const editor = document.getElementById('levelsChunkEditor');
-        setShown(editor, !!c);
-        if (!c) { list.after(editor); return; }
-        // The picker sits right under the chunk it's for, not at the bottom of a long list.
-        list.querySelector(`[data-row="${levels.selected}"]`)?.after(editor);
-        document.getElementById('levelsChunkLevelLabel').textContent = `${c.label || levelsRange(c.startBar, c.endBar)} at Level`;
-        renderLevelPicker(document.getElementById('levelsChunkPicker'), [c.startBar, c.endBar], c.level, (n) => { c.level = n; renderPieceLevels(); });
+        document.querySelectorAll('#paintTools [data-paint-tool]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.paintTool === paint.tool)));
+        const pots = document.getElementById('paintPots');
+        pots.innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" class="level-pick lv-${n}${paint.pot === n && paint.tool !== 'rubber' ? ' selected' : ''}" aria-pressed="${paint.pot === n && paint.tool !== 'rubber'}" data-pot="${n}" aria-label="Paint with Level ${n}">${n}</button>`).join('');
+        document.getElementById('paintToolHint').textContent = PAINT_HINTS[paint.tool];
+        document.getElementById('paintUndoBtn').disabled = !paint.undo.length;
+        const unpainted = paint.levels.filter(v => !v).length;
+        document.getElementById('paintNextBtn').textContent = unpainted ? `Next (${unpainted} not painted)` : 'Next: cut into bits';
     }
+    function paintApply(n) {
+        const before = paint.levels.slice();
+        if (paint.tool === 'brush') paint.levels[n - 1] = paint.pot;
+        else if (paint.tool === 'rubber') paint.levels[n - 1] = null;
+        else if (paint.tool === 'all') paint.levels = paint.levels.map(() => paint.pot);
+        else if (paint.tool === 'section') {
+            const s = paint.sections.find(x => n >= x.startBar && n <= x.endBar);
+            if (s) for (let k = s.startBar; k <= s.endBar; k++) if (!paint.levels[k - 1]) paint.levels[k - 1] = paint.pot;
+        }
+        if (before.some((v, i) => v !== paint.levels[i])) { paint.undo.push(before); if (paint.undo.length > 30) paint.undo.shift(); }
+        if (paint.tool === 'all') paint.tool = 'brush'; // then brush the bars that went wrong
+        renderPaint();
+        document.querySelector(`#paintSections [data-bar="${n}"]`)?.focus();
+    }
+    document.getElementById('paintSections')?.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-bar]');
+        if (b) paintApply(Number(b.dataset.bar));
+    });
+    document.getElementById('paintTools')?.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-paint-tool]');
+        if (!b) return;
+        paint.tool = b.dataset.paintTool;
+        renderPaint();
+    });
+    document.getElementById('paintPots')?.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-pot]');
+        if (!b) return;
+        paint.pot = Number(b.dataset.pot);
+        if (paint.tool === 'rubber') paint.tool = 'brush';
+        renderPaint();
+    });
+    document.getElementById('paintUndoBtn')?.addEventListener('click', () => { const last = paint.undo.pop(); if (last) { paint.levels = last; renderPaint(); } });
+    document.getElementById('paintNextBtn')?.addEventListener('click', () => openCut());
+    // Type bars instead - the typed way of painting (bars from-to at a Level).
+    let paintTypeLevel = 3;
+    function renderPaintTypePicker() {
+        const el = document.getElementById('paintTypePicker');
+        el.innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" class="level-pick lv-${n}${paintTypeLevel === n ? ' selected' : ''}" aria-pressed="${paintTypeLevel === n}" data-level="${n}" aria-label="Level ${n}">${n}</button>`).join('');
+        el.querySelectorAll('[data-level]').forEach(b => b.addEventListener('click', () => { paintTypeLevel = Number(b.dataset.level); renderPaintTypePicker(); }));
+    }
+    document.getElementById('paintTypeBtn')?.addEventListener('click', () => {
+        const from = document.getElementById('paintTypeFrom'), to = document.getElementById('paintTypeTo');
+        from.max = to.max = String(levels.total);
+        from.value = 1; to.value = Math.min(levels.total, 4);
+        paintTypeLevel = paint.pot;
+        renderPaintTypePicker();
+        showModal('paintTypeModal');
+        from.focus();
+    });
+    document.getElementById('paintTypeCloseBtn')?.addEventListener('click', () => hideModal('paintTypeModal'));
+    document.getElementById('paintTypeDoneBtn')?.addEventListener('click', () => {
+        const clamp = (v) => Math.max(1, Math.min(levels.total, Math.round(Number(v) || 1)));
+        const a = clamp(document.getElementById('paintTypeFrom').value), z = clamp(document.getElementById('paintTypeTo').value);
+        paint.undo.push(paint.levels.slice());
+        for (let n = Math.min(a, z); n <= Math.max(a, z); n++) paint.levels[n - 1] = paintTypeLevel;
+        hideModal('paintTypeModal');
+        renderPaint();
+        showSuccessToast(`${levelsRange(Math.min(a, z), Math.max(a, z))} painted Level ${paintTypeLevel}`);
+    });
 
-    function levelsPickMode(mode) {
-        levels.mode = mode;
-        levels.hardEdit = null; levels.selected = -1;
-        if ((mode === 'whole' || mode === 'hard') && !levels.whole) levels.whole = { kind: 'whole', startBar: 1, endBar: levels.total, level: null };
-        if (mode === 'chunk' && !levels.chunks.length) { levelsSuggest('sections'); return; }
-        renderPieceLevels();
+    // --- Prepare 4 of 4: cut into focus bits (the knife) ---
+    const cut = { cuts: new Set() };
+    const sectionStarts = () => paint.sections.map(s => s.startBar);
+    function openCut() {
+        // The old chunks' own starts stay as cuts (unless a section or a Level change already starts a bit
+        // there), so re-painting keeps the bits you'd made.
+        const starts = new Set(sectionStarts());
+        cut.cuts = new Set();
+        levels.chunks.forEach(c => {
+            const n = c.startBar;
+            if (n > 1 && !starts.has(n) && paint.levels[n - 1] === paint.levels[n - 2]) cut.cuts.add(n);
+        });
+        switchView('levelsCutView');
+        renderCut();
     }
-    // Returns true when saved. quiet: no "Levels saved" toast (Practise saves first, then moves on).
-    async function savePieceLevels(quiet) {
-        const out = levelsCurrentChunks();
-        if (levels.mode !== 'chunk' && (!levels.whole || levels.whole.level == null)) { showWarningToast(levels.mode === 'hard' ? 'Pick a Level for the rest of the piece first.' : 'Pick a Level first.'); return false; }
-        const body = out.map(c => ({ id: c.id, kind: c.kind, startBar: c.startBar, endBar: c.endBar, level: c.level, label: c.label }));
+    const currentBits = () => FlowJourney.bitsFromBars(paint.levels, sectionStarts(), [...cut.cuts]);
+    function bitFit(b) {
+        if (b.level == null) return null;
+        const f = FlowJourney.chunkFit(levels.blocks, { startBar: b.startBar, endBar: b.endBar, level: b.level });
+        return f.ok ? f : null;
+    }
+    function renderCut() {
+        const bits = currentBits();
+        document.getElementById('cutSections').innerHTML = paint.sections.map((s, k) => {
+            const mine = bits.filter(b => b.startBar >= s.startBar && b.endBar <= s.endBar);
+            const bars = [];
+            for (let n = s.startBar; n <= s.endBar; n++) {
+                const lv = paint.levels[n - 1];
+                const isCut = cut.cuts.has(n);
+                bars.push(paintBarHtml(n, lv, isCut ? ' is-cut-before' : '', `Bar ${n}, ${lv ? `Level ${lv}` : 'not painted'}${isCut ? ' - a focus bit starts here, tap to join it back up' : n === s.startBar ? '' : ' - tap to start a new focus bit here'}`));
+            }
+            const rows = mine.map(b => {
+                const f = bitFit(b);
+                const focus = b.level != null && b.level < PracticePlan.TARGET_LEVEL;
+                const tooLong = focus && f && f.fits === 'tooLong';
+                const text = b.level == null ? 'Not painted yet' : !focus ? `Level ${b.level} - ready for the play-through` : f ? `${fmtMinSec(f.runSeconds)} a go · ${tooLong ? `only ${f.runs} go${f.runs === 1 ? '' : 'es'} in a block - too long` : `fits ${f.runs} goes`}` : '';
+                return `<div class="cut-bit${tooLong ? ' is-too-long' : ''}">
+                    <span class="level-chip lv-${b.level || 0}" aria-hidden="true">${b.level || ''}</span>
+                    <span class="grow"><strong>${levelsRange(b.startBar, b.endBar)}</strong><br><span class="text-sm${tooLong ? ' level-fit-warn' : ' text-muted'}">${text}</span></span>
+                    ${tooLong && b.endBar > b.startBar ? `<button type="button" class="btn-nav no-margin" data-split="${b.startBar}-${b.endBar}-${b.level}">Split it for me</button>` : ''}
+                </div>`;
+            }).join('');
+            return `<section class="paint-section" aria-labelledby="cutSec${k}">
+                <div class="paint-section-head"><strong id="cutSec${k}">${escapeHtml(sectionName(s))}</strong><span class="text-sm text-muted">${levelsRange(s.startBar, s.endBar)}</span></div>
+                <div class="paint-bars">${bars.join('')}</div>
+                ${rows}
+            </section>`;
+        }).join('');
+        const focus = bits.filter(b => b.level != null && b.level < PracticePlan.TARGET_LEVEL);
+        document.getElementById('cutSummaryChips').innerHTML = focus.map(b => `<span class="level-chip lv-${b.level}">${b.level}</span>`).join('');
+        const blocks = focus.reduce((n, b) => n + (PracticePlan.TARGET_LEVEL - b.level), 0);
+        const long = focus.filter(b => { const f = bitFit(b); return f && f.fits === 'tooLong'; }).length;
+        const unpainted = paint.levels.filter(v => !v).length;
+        document.getElementById('cutSummaryText').textContent = (focus.length
+            ? `${focus.length} focus bit${focus.length === 1 ? '' : 's'} below Level ${PracticePlan.TARGET_LEVEL} · about ${blocks} five-minute block${blocks === 1 ? '' : 's'} to get them all there.`
+            : unpainted === paint.levels.length ? 'Paint the bars first.' : `Every painted bar is at Level ${PracticePlan.TARGET_LEVEL} or more - on to the play-through!`)
+            + (long ? ` ${long} still too long - cut ${long === 1 ? 'it' : 'them'} smaller.` : '')
+            + (unpainted && unpainted < paint.levels.length ? ` ${unpainted} bar${unpainted === 1 ? '' : 's'} not painted yet.` : '');
+    }
+    document.getElementById('cutSections')?.addEventListener('click', (e) => {
+        const split = e.target.closest('[data-split]');
+        if (split) {
+            const [a, z, lv] = split.dataset.split.split('-').map(Number);
+            FlowJourney.suggestSplit(levels.blocks, { startBar: a, endBar: z, level: lv }).forEach(([s], k) => { if (k > 0) cut.cuts.add(s); });
+            renderCut();
+            return;
+        }
+        const b = e.target.closest('[data-bar]');
+        if (!b) return;
+        const n = Number(b.dataset.bar);
+        if (sectionStarts().includes(n)) { showWarningToast('A new section starts here already.'); return; }
+        if (cut.cuts.has(n)) cut.cuts.delete(n); else cut.cuts.add(n);
+        renderCut();
+        document.querySelector(`#cutSections [data-bar="${n}"]`)?.focus();
+    });
+    document.getElementById('cutTypeBtn')?.addEventListener('click', () => {
+        const from = document.getElementById('cutTypeFrom'), to = document.getElementById('cutTypeTo');
+        from.max = to.max = String(levels.total);
+        from.value = 1; to.value = Math.min(levels.total, 4);
+        showModal('cutTypeModal');
+        from.focus();
+    });
+    document.getElementById('cutTypeCloseBtn')?.addEventListener('click', () => hideModal('cutTypeModal'));
+    document.getElementById('cutTypeDoneBtn')?.addEventListener('click', () => {
+        const clamp = (v) => Math.max(1, Math.min(levels.total, Math.round(Number(v) || 1)));
+        const a = clamp(document.getElementById('cutTypeFrom').value), z = clamp(document.getElementById('cutTypeTo').value);
+        const [s, e] = [Math.min(a, z), Math.max(a, z)];
+        if (s > 1) cut.cuts.add(s);
+        if (e < levels.total) cut.cuts.add(e + 1);
+        hideModal('cutTypeModal');
+        renderCut();
+    });
+    // Done preparing: the bits are saved as the piece's chunks (an old chunk with the same bars keeps its
+    // id, so its history stays), with its play-through parts; then back to the path, or the session.
+    document.getElementById('cutDoneBtn')?.addEventListener('click', async () => {
+        const bits = currentBits();
+        if (!bits.some(b => b.level != null)) { showWarningToast('Paint some bars first.'); return; }
+        const old = new Map(levels.chunks.map(c => [`${c.startBar}-${c.endBar}`, c.id]));
+        const labelOf = (b) => { const s = paint.sections.find(x => x.startBar === b.startBar && x.endBar === b.endBar); return s && s.label ? s.label : null; };
+        const body = [...bits.map(b => ({ id: old.get(`${b.startBar}-${b.endBar}`), kind: 'chunk', startBar: b.startBar, endBar: b.endBar, level: b.level, label: labelOf(b) })),
+            ...levels.groups.map(g => ({ id: g.id, kind: 'group', startBar: g.startBar, endBar: g.endBar, level: g.level, label: g.label }))];
+        const btn = document.getElementById('cutDoneBtn');
+        btn.disabled = true;
         try {
             applyPieceLevels(await API.levels.save(levels.flowId, body));
-            if (quiet !== true && sessPlan.setupReturn) { backToPlanAfterSetup(); return true; } // came from the session planner
-            if (quiet !== true) showSuccessToast('Levels saved');
-            return true;
+            showSuccessToast('Your bars are saved');
+            if (prep.fromSession && practiceRun && !practiceRun.done) { prep.fromSession = false; prepareDoneInSession(); return; }
+            backToView('piecePathView');
+            renderPiecePath();
         } catch (e) {
-            showWarningToast('Levels not saved: ' + e.message);
-            return false;
+            showWarningToast('Not saved: ' + e.message);
+        } finally {
+            btn.disabled = false;
         }
+    });
+    // Back down the screens to one already open (the path), or open it.
+    function backToView(view) {
+        const k = viewStack.lastIndexOf(view);
+        if (k >= 0) { viewStack.length = k + 1; switchView(view, true); } else switchView(view);
     }
-    document.querySelectorAll('[data-levels-mode]').forEach(b => b.addEventListener('click', () => levelsPickMode(b.dataset.levelsMode)));
-    document.getElementById('levelsWholeBreakBtn')?.addEventListener('click', () => levelsPickMode('chunk'));
-    document.getElementById('levelsHardAddBtn')?.addEventListener('click', () => {
-        const a = Math.min(levels.total, 1);
-        levels.hardEdit = { index: null, kind: 'hard', startBar: a, endBar: Math.min(levels.total, a + 3), level: 2 };
-        renderPieceLevels();
-        document.getElementById('levelsHardFrom')?.focus();
-    });
-    document.getElementById('levelsHardFrom')?.addEventListener('input', levelsHardInput);
-    document.getElementById('levelsHardTo')?.addEventListener('input', levelsHardInput);
-    document.getElementById('levelsHardCancelBtn')?.addEventListener('click', () => { levels.hardEdit = null; renderPieceLevels(); });
-    document.getElementById('levelsHardDoneBtn')?.addEventListener('click', () => {
-        const e = levels.hardEdit;
-        if (!e) return;
-        if (e.level == null) { showWarningToast('Pick a Level for these bars.'); return; }
-        const c = { id: e.id, kind: 'hard', startBar: Math.min(e.startBar, e.endBar), endBar: Math.max(e.startBar, e.endBar), level: e.level, label: e.label || null };
-        if (e.index == null) levels.hard.push(c); else levels.hard[e.index] = c;
-        levels.hard.sort((x, y) => x.startBar - y.startBar);
-        levels.hardEdit = null;
-        renderPieceLevels();
-    });
-    document.getElementById('levelsFromSectionsBtn')?.addEventListener('click', () => levelsSuggest('sections'));
-    document.getElementById('levelsEvery4Btn')?.addEventListener('click', () => levelsSuggest('every4'));
-    document.getElementById('levelsChunkUnsetBtn')?.addEventListener('click', () => { const c = levels.chunks[levels.selected]; if (c) { c.level = null; renderPieceLevels(); } });
-    document.getElementById('levelsSaveBtn')?.addEventListener('click', () => savePieceLevels());
-    document.getElementById('levelsChangeAnswerBtn')?.addEventListener('click', () => { levels.mode = null; levels.hardEdit = null; levels.selected = -1; renderPieceLevels(); });
-    document.getElementById('flowPlayMenuLevels')?.addEventListener('click', (e) => { e.stopPropagation(); closeFlowPlayMenu(); openPieceLevels(); });
 
 
-    // ===== ML-317: practising a chunk at its Level - Rehearse's session mode =====
-    // The play screen loops the chunk (one gap bar between runs) at its Level's speed, sub-beats come on
+    // ===== ML-317: practising some bars at their Level - Rehearse's session mode =====
+    // The play screen loops the bars (one gap bar between goes) at their Level's speed, sub-beats come on
     // by themselves below the account's speed (flowShouldSubdivide), and the repeat / sub beats / speed
-    // tiles become Level, Level up and Finish. Finish asks how it went; every change is saved
+    // tiles become Level, Level up and Finish. Finish asks "Did you nail it?"; every change is saved
     // (chunk_level_changes). Leaving any other way puts the player's own settings back, unrated.
-    function levelsWeakest() {
-        const cs = levelsCurrentChunks().filter(c => c.id && c.level != null);
-        if (!cs.length) return null;
-        // Lowest Level first; on a tie a hard passage or chunk before "the rest of the piece".
-        return cs.slice().sort((a, b) => a.level - b.level || (a.kind === 'whole') - (b.kind === 'whole') || a.startBar - b.startBar)[0];
-    }
-    async function practiseLevels(pick) {
-        // Saved first, so the chunk has its id and the history starts from what's on screen.
-        if (!(await savePieceLevels(true))) return;
-        const chunk = pick();
-        if (!chunk || chunk.level == null) { showWarningToast('Pick a Level for those bars first.'); return; }
-        startLevelPractice(chunk);
-    }
-    function startLevelPractice(chunk) {
+    // ML-390: mode 'runthrough' (Prepare) plays the whole piece once at the chosen Level - no loop, no
+    // Level up - and at the end goes on to painting.
+    function startLevelPractice(chunk, mode) {
         if (flowSession) endLevelPractice(); // one practice at a time - put the player's own settings back first
         const slow = FlowJourney.slowestTempo(levels.blocks, chunk.startBar, chunk.endBar);
         flowSession = {
+            mode: mode || 'practise',
             flowId: levels.flowId, chunk: { ...chunk }, level: chunk.level,
             percents: FlowJourney.levelPercents(slow),
             subBeatsBelow: levels.subBeatsBelow || FlowJourney.LEVELS.SUB_BEATS_BELOW,
@@ -6398,16 +6554,19 @@
     function renderFlowSessionControls() {
         const s = flowSession;
         ['flowLoopBtn', 'flowSubdivideBtn', 'flowSpeedBtn'].forEach(id => setShown(id, !s));
-        ['flowSessionLevelBtn', 'flowSessionUpBtn', 'flowSessionFinishBtn'].forEach(id => setShown(id, !!s));
+        ['flowSessionLevelBtn', 'flowSessionFinishBtn'].forEach(id => setShown(id, !!s));
+        setShown('flowSessionUpBtn', !!s && s.mode !== 'runthrough');
         if (!s) return;
         const pct = s.percents[s.level - 1];
         document.getElementById('flowSessionLevelLbl').textContent = s.level;
         document.getElementById('flowSessionLevelSub').textContent = `level · ${pct}%`;
         document.getElementById('flowSessionUpBtn').disabled = s.level >= 5;
+        document.getElementById('flowSessionFinishLbl').textContent = s.mode === 'runthrough' ? 'done' : 'finish';
+        document.getElementById('flowSessionFinishBtn').setAttribute('aria-label', s.mode === 'runthrough' ? 'Done - paint how each bar went' : 'Finish - say how it went');
     }
     async function flowSessionLevelUp() {
         const s = flowSession;
-        if (!s || s.level >= 5) return;
+        if (!s || s.level >= 5 || s.mode === 'runthrough') return;
         const played = s.percents[s.level - 1];
         s.level++;
         setFlowSpeedPercent(s.percents[s.level - 1]);
@@ -6417,25 +6576,34 @@
         renderFlowPlaybackRow();
         renderFlowSessionControls();
         showSuccessToast(`Level ${s.level} - ${s.percents[s.level - 1]}%`);
+        if (!s.chunk.id) return;
         try { await API.levels.setChunk(s.chunk.id, { level: s.level, source: 'during', percentPlayed: played }); }
         catch (e) { showWarningToast('Level not saved: ' + e.message); }
     }
+    // "Did you nail it?" - Yes (up one) and Not yet (stay) are one tap; Other answers holds down one and
+    // the jumps. Under it, the piece's next goal: every bit up to the next Level.
     function openLevelRating() {
         const s = flowSession;
         if (!s) return;
         if (flowPlayer.isPlaying()) flowPlayer.pause();
+        if (s.mode === 'runthrough') { runThroughDone(); return; }
         const n = s.level;
         const pct = (k) => s.percents[k - 1];
-        const name = s.chunk.label || levelsRange(s.chunk.startBar, s.chunk.endBar).replace(/^Bar/, 'bar');
-        document.getElementById('levelRateTitle').textContent = `How did ${name} go?`;
-        document.getElementById('levelRateSub').textContent = `Played at Level ${n} (${pct(n)}%)`;
-        const opts = [];
-        if (n < 5) opts.push([n + 1, `Clean - up to Level ${n + 1}`, `${pct(n + 1)}% next time`]);
-        opts.push([n, `Getting there - stay at Level ${n}`, 'Same speed next time']);
-        if (n > 1) opts.push([n - 1, `Too fast - back to Level ${n - 1}`, `${pct(n - 1)}% next time`]);
+        const through = s.chunk.kind === 'group';
+        const name = s.chunk.label && !through ? s.chunk.label : levelsRange(s.chunk.startBar, s.chunk.endBar).replace(/^Bar/, 'bar');
+        document.getElementById('levelRateTitle').textContent = n >= 5 ? 'Still solid at full speed?' : through ? `Did you play ${name} all the way through?` : `Did you nail ${name}?`;
+        document.getElementById('levelRatePair').innerHTML = n < 5 ? `<span class="level-chip lv-${n}">${n}</span><span class="material-symbols-outlined">arrow_forward</span><span class="level-chip lv-${n + 1}">${n + 1}</span>` : `<span class="level-chip lv-5">5</span>`;
+        document.getElementById('levelRatePair').setAttribute('aria-label', n < 5 ? `Level ${n} to Level ${n + 1}` : 'Level 5');
+        document.getElementById('levelRateSub').textContent = `Played at Level ${n} (${pct(n)}%).`;
+        const main = n < 5
+            ? [[n + 1, `Yes! Level up to ${n + 1}`, 'btn-submit'], [n, `Not yet, keep it at ${n}`, 'btn-nav']]
+            : [[5, 'Yes - keep it at 5', 'btn-submit'], [4, 'Not quite - back to 4', 'btn-nav']];
         const box = document.getElementById('levelRateOptions');
-        box.innerHTML = opts.map(([lv, title, sub], i) => `<button type="button" class="flow-choice-option level-answer${i === opts.length - 1 ? ' no-margin' : ''}" data-rate="${lv}"><span><strong>${title}</strong><br><span class="text-sm text-muted">${sub}</span></span></button>`).join('');
+        box.innerHTML = main.map(([lv, t, cls]) => `<button type="button" class="${cls}" data-rate="${lv}">${t}</button>`).join('');
         box.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => rateLevelPractice(Number(b.dataset.rate))));
+        const down = document.getElementById('levelRateDown');
+        down.innerHTML = n > 1 && n < 5 ? `<button type="button" class="flow-choice-option level-answer" data-rate="${n - 1}"><span><strong>Too fast - back to Level ${n - 1}</strong><br><span class="text-sm text-muted">${pct(n - 1)}% next time</span></span></button>` : '';
+        down.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => rateLevelPractice(Number(b.dataset.rate))));
         const jumps = [];
         for (let k = n + 2; k <= 5; k++) jumps.push(k);
         setShown('levelRateJumpLabel', jumps.length > 0);
@@ -6443,168 +6611,531 @@
         const jumpEl = document.getElementById('levelRateJump');
         jumpEl.innerHTML = jumps.map(k => `<button type="button" class="level-pick lv-${k}" data-rate="${k}" aria-label="Jump to Level ${k}, ${pct(k)}% speed">${k}<small>${pct(k)}%</small></button>`).join('');
         jumpEl.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => rateLevelPractice(Number(b.dataset.rate))));
+        setShown('levelRateMoreBtn', !!(down.innerHTML || jumps.length));
+        setShown('levelRateMore', false);
+        document.getElementById('levelRateMoreBtn').setAttribute('aria-expanded', 'false');
+        // The piece's next goal - "Everyone up to 2" and its bar map.
+        const bits = levels.flowId === s.flowId ? focusBits() : [];
+        setShown('levelRateGoal', bits.length > 0);
+        if (bits.length) {
+            const low = Math.min(...bits.map(c => c.level));
+            const there = levels.chunks.filter(c => c.level != null).length - bits.filter(c => c.level === low).length;
+            document.getElementById('levelRateGoalText').textContent = `Next goal for ${levels.title}: every bit up to Level ${low + 1} (${there} of ${levels.chunks.filter(c => c.level != null).length} there)`;
+            document.getElementById('levelRateGoalStrip').innerHTML = levelsMap().map(v => `<span class="level-cell lv-${v || 0}"></span>`).join('');
+        }
+        document.getElementById('levelRateUp').classList.remove('is-celebrating');
         showModal('levelRateModal');
         document.getElementById('flowSessionFinishBtn').setAttribute('aria-expanded', 'true');
     }
+    document.getElementById('levelRateMoreBtn')?.addEventListener('click', (e) => {
+        const open = e.currentTarget.getAttribute('aria-expanded') !== 'true';
+        e.currentTarget.setAttribute('aria-expanded', String(open));
+        setShown('levelRateMore', open);
+    });
+    const prefersReducedMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
     async function rateLevelPractice(level) {
         const s = flowSession;
         if (!s) return;
+        // A Level up gets a short star celebration first (none with reduced motion).
+        if (level > s.level && !prefersReducedMotion()) {
+            document.getElementById('levelRateUp').classList.add('is-celebrating');
+            await new Promise(r => setTimeout(r, 700));
+        }
         hideModal('levelRateModal');
         document.getElementById('flowSessionFinishBtn').setAttribute('aria-expanded', 'false');
-        try {
-            await API.levels.setChunk(s.chunk.id, { level, source: 'rating', percentPlayed: s.percents[s.level - 1] });
-            showSuccessToast(level > s.level ? `Up to Level ${level}` : level < s.level ? `Back to Level ${level}` : `Staying at Level ${level}`);
-        } catch (e) {
-            showWarningToast('Rating not saved: ' + e.message);
+        if (s.chunk.id) {
+            try {
+                applyPieceLevels(await API.levels.setChunk(s.chunk.id, { level, source: 'rating', percentPlayed: s.percents[s.level - 1] }));
+                showSuccessToast(level > s.level ? `Up to Level ${level}` : level < s.level ? `Back to Level ${level}` : `Staying at Level ${level}`);
+            } catch (e) {
+                showWarningToast('Not saved: ' + e.message);
+            }
         }
-        goBack(); // to My Levels (or the session screen) - switchView ends the practice
-        API.levels.get(levels.flowId).then(applyPieceLevels).catch(() => { /* the screen keeps what it had */ });
-        if (practiceRun && practiceRun.waitingForRating) sessionAdvance(); // ML-320: rated at the nudge - on to the next block
+        goBack(); // to the path (or the session screen) - switchView ends the practice
+        if (isShown('piecePathView')) renderPiecePath();
+        if (practiceRun && practiceRun.waitingForRating) { practiceRun.waitingForRating = false; refreshSessionPieces(); sessionAfterBlock(); } // ML-390: on to the rest
     }
     document.getElementById('flowSessionUpBtn')?.addEventListener('click', flowSessionLevelUp);
     document.getElementById('flowSessionFinishBtn')?.addEventListener('click', openLevelRating);
     document.getElementById('levelRateCloseBtn')?.addEventListener('click', () => {
         hideModal('levelRateModal');
         document.getElementById('flowSessionFinishBtn').setAttribute('aria-expanded', 'false');
-        // ML-320: closed unrated at the end of a session block - the session still moves on.
-        if (practiceRun && practiceRun.waitingForRating) { goBack(); sessionAdvance(); }
-    });
-    document.getElementById('levelsPractiseWeakestBtn')?.addEventListener('click', () => practiseLevels(levelsWeakest));
-    document.getElementById('levelsWholePractiseBtn')?.addEventListener('click', () => practiseLevels(() => levels.whole));
-    document.getElementById('levelsChunkPractiseBtn')?.addEventListener('click', () => {
-        const c = levels.chunks[levels.selected];
-        if (!c) return;
-        const [a, z] = [c.startBar, c.endBar];
-        practiseLevels(() => levels.chunks.find(x => x.startBar === a && x.endBar === z));
+        // Closed unanswered at the end of a session block - the session still moves on.
+        if (practiceRun && practiceRun.waitingForRating) { practiceRun.waitingForRating = false; goBack(); sessionAfterBlock(); }
     });
 
-
-    // ===== ML-320 (epic ML-314): the practice session - plan it, run it, log it =====
-    // Rules (blocks, template, focus, who fills them, the 4:30 nudge) are PracticePlan's
-    // (public/practicePlan.js). The runner counts each block by the wall clock; at 4:30 the sound stops
-    // and a 30-second nudge moves you on, Keep going nudges again 5 minutes later. A session that ends
-    // (or is ended) is logged as one practice session with its blocks (POST /api/practice/sessions).
+    // ===== ML-390 (was ML-320's planner): the practice session - three steps, Ready, then run it =====
+    // 1 How long (5-minute blocks, or Keep going), 2 Pick a plan (or build your own), 3 What goes in
+    // (warm-up list, skills list, where the pieces come from; Pieces on Auto), then Ready and Start. The
+    // rules are PracticePlan's (public/practicePlan.js). The runner counts each block by the wall clock:
+    // the sound stops 30 seconds before a block's end when a rest follows, Pieces blocks ask "Did you nail
+    // it?", then the 30-second rest (sessionRestView) - no Skip - and the next block starts by itself. A
+    // Prepare runs as long as it needs. A session that ends (or is ended) is logged as one practice
+    // session with its blocks (POST /api/practice/sessions).
     const SESSION_TOOL_VIEWS = { warmups: 'warmupsView', scales: 'scalesView', tapTempo: 'tapTempoView', gapTrainer: 'gapTrainerView', ear: 'earView', range: 'rangeView', rhythm: 'rhythmView' };
-    const sessPlan = { minutes: 45, template: 'standard', focus: 'both', blocks: [], chunks: [], edited: false };
+    const SESS_LAST_STORE = 'tml.session.last'; // "Same as last time" - per device
+    const SESS_QUICK_MINUTES = [10, 20, 30, 45, 60];
+    // source: where the Pieces blocks come from - { type: 'all' } (every piece you've given Levels),
+    // { type: 'list', listId, listName } or { type: 'pieces', scoreIds }.
+    const sessPlan = { minutes: 20, open: false, template: 'standard', focus: 'both', blocks: [], pieces: [], source: { type: 'all' }, auto: true, lastBlockCount: 0 };
     var practiceRun = null; // var: switchView checks it before this line has run
     let practiceTick = null;
 
+    // --- Blocks, drawn: the kinds' colours always come with their icon and name ---
+    const KIND_ICONS = { warmup: 'local_fire_department', scales: 'stairs', skills: 'bolt', rehearsal: 'music_note', choose: 'add' };
+    const STAGE_ICONS = { prepare: 'construction', practise: 'music_note', playthrough: 'play_circle' };
+    const KIND_CLASS = { warmup: 'kind-warmup', scales: 'kind-scales', skills: 'kind-skills', rehearsal: 'kind-pieces' };
+    const blockIcon = (b) => (b.kind === 'rehearsal' ? STAGE_ICONS[b.stage] || KIND_ICONS.rehearsal : KIND_ICONS[b.kind] || 'add');
+    const blockTitle = (b) => (b.kind === 'rehearsal' && b.stage && b.stage !== 'practise' ? PracticePlan.STAGES[b.stage] : PracticePlan.KINDS[b.kind] || 'Block');
+    function kindBlockHtml(b, label) {
+        return `<span class="kind-block ${KIND_CLASS[b.kind] || 'is-empty'}" aria-hidden="true"><span class="material-symbols-outlined">${blockIcon(b)}</span>${label ? `<span class="kind-block-label">${escapeHtml(label)}</span>` : ''}</span>`;
+    }
+    function setKindIcon(el, b) {
+        if (!el) return;
+        el.className = `kind-block kind-block-icon ${b ? KIND_CLASS[b.kind] || 'is-empty' : 'is-empty'}`;
+        el.innerHTML = `<span class="material-symbols-outlined">${b ? blockIcon(b) : 'add'}</span>`;
+    }
     function sessBlockText(b) {
-        if (b.kind === 'rehearsal') return b.chunk ? `${b.chunk.title} · ${b.chunk.label || levelsRange(b.chunk.startBar, b.chunk.endBar)} · Level ${b.chunk.level}` : 'Any piece - you pick it in Rehearse';
+        if (b.kind === 'rehearsal') {
+            if (b.stage === 'prepare') return `Prepare ${b.title || 'a new piece'} - a run-through, then paint the bars`;
+            if (b.stage === 'playthrough') return b.chunk ? `${b.chunk.title} · ${b.chunk.label || levelsRange(b.chunk.startBar, b.chunk.endBar)}` : `${b.title} - the whole piece`;
+            return b.chunk ? `${b.chunk.title} · ${b.chunk.label || levelsRange(b.chunk.startBar, b.chunk.endBar)} · Level ${b.chunk.level}` : 'Any piece - you pick it in Rehearse';
+        }
         if (b.kind === 'skills' && b.skill) { const s = skillsData.find(x => x.key === b.skill.key) || b.skill; const def = SKILLS[b.skill.key]; return `${def ? def.label : b.skill.key}${s.step ? ` - ${s.step.label}` : ''}`; }
         if (b.kind === 'skills') return PracticePlan.toolLabel(b.tool);
-        if (b.kind === 'warmup') return b.warmup ? b.warmup.name : 'The Warm-ups tool';
-        if (b.kind === 'scales') return 'The Scales tool';
+        if (b.kind === 'warmup') return b.warmup ? (b.warmup.external ? 'Your own warm-up - just the timer' : `${b.warmup.name}, on a loop`) : 'The Warm-ups tool';
+        if (b.kind === 'scales') return 'Your scales in the Scales tool';
         return 'Tap to choose';
     }
-    // A block in a sentence: "Scales", "Skills - Tempo", "Rehearsal - Floral Dance...".
-    const sessBlockName = (b) => (b.kind === 'warmup' || b.kind === 'scales' ? PracticePlan.KINDS[b.kind] : `${PracticePlan.KINDS[b.kind]} - ${sessBlockText(b)}`);
+    // A block in a sentence: "Scales", "Skills - Tempo", "Pieces - Floral Dance...".
+    const sessBlockName = (b) => (b.kind === 'warmup' || b.kind === 'scales' ? PracticePlan.KINDS[b.kind] : `${blockTitle(b)} - ${sessBlockText(b)}`);
     function sessStripHtml(blocks, index) {
         return blocks.map((b, i) => `<span class="session-seg${index == null ? '' : i < index ? ' is-done' : i === index ? ' is-now' : ''}"></span>`).join('');
     }
-    function sessReplan() {
-        sessPlan.blocks = PracticePlan.plan(sessPlan.minutes, sessPlan.template, sessPlan.focus, sessPlan.chunks, skillsData.map(s => ({ key: s.key, stepIndex: s.stepIndex, lastPractised: s.lastPractised, done: s.done, step: s.step })));
-        sessApplyWarmupList();
-        renderSessionPlan();
+    const templateKey = (t) => (t && typeof t === 'object' ? `t:${t.id}` : t || 'standard');
+    function setTemplateByKey(key) {
+        if (key && String(key).startsWith('t:')) {
+            const mine = sessTemplates.find(t => `t:${t.id}` === key);
+            if (!mine) return false;
+            sessPlan.template = { ...mine };
+        } else sessPlan.template = PracticePlan.TEMPLATES[key] ? key : 'standard';
+        sessPlan.focus = PracticePlan.templateFocus(sessPlan.template); // ML-342: the plan's own focus
+        return true;
     }
-    // ML-343: every Warm-up block carries the warm-up list it plays (kept with the running session).
-    function sessApplyWarmupList() {
-        const wl = currentWarmupList();
-        const plain = wl ? { key: wl.key, name: wl.name, external: !!wl.external, each: !!wl.each, kinds: wl.kinds || null, random: !!wl.random } : null;
-        sessPlan.blocks.forEach(b => { if (b.kind === 'warmup') b.warmup = plain; });
+    const planName = (t) => (t && typeof t === 'object' ? t.name : (PracticePlan.TEMPLATES[t] || PracticePlan.TEMPLATES.standard).label);
+    const sessKinds = () => PracticePlan.blockKinds(sessPlan.open ? null : sessPlan.minutes, sessPlan.template, sessPlan.focus);
+    function sessLoadLast() { try { return JSON.parse(localStorage.getItem(SESS_LAST_STORE) || 'null'); } catch (e) { return null; } }
+    function sessSaveLast() {
+        try { localStorage.setItem(SESS_LAST_STORE, JSON.stringify({ minutes: sessPlan.minutes, open: sessPlan.open, template: templateKey(sessPlan.template), source: sessPlan.source, auto: sessPlan.auto })); } catch (e) { /* per-device convenience */ }
     }
-    function renderSessionPlan() {
-        const templated = sessPlan.minutes >= 15;
-        document.getElementById('sessLenValue').textContent = sessPlan.minutes;
-        // ML-337: the slider under it
+
+    // --- Step 1: how long ---
+    // opts: { source, template } - e.g. from a practice list's "Plan a session for this".
+    async function openSessionSetup(opts) {
+        const o = opts || {};
+        const last = sessLoadLast();
+        if (last) { sessPlan.minutes = PracticePlan.clampMinutes(last.minutes || 20); sessPlan.open = !!last.open; sessPlan.auto = last.auto !== false; }
+        sessPlan.source = o.source || (last && last.source) || { type: 'all' };
+        sessPlan.lastBlockCount = 0;
+        switchView('sessionLengthView');
+        renderSessLength();
+        await loadTemplates();
+        if (o.template) setTemplateByKey(o.template);
+        else if (last && last.template) setTemplateByKey(last.template);
+        renderSessLength();
+    }
+    function renderSessLength() {
+        const n = sessPlan.open ? PracticePlan.OPEN_START_BLOCKS : sessPlan.minutes / PracticePlan.BLOCK_MINUTES;
+        document.getElementById('sessLenValue').textContent = sessPlan.open ? '∞' : sessPlan.minutes;
+        document.getElementById('sessLenSub').textContent = sessPlan.open ? 'Keep going · 4 blocks to start' : `minutes · ${n} block${n === 1 ? '' : 's'} of 5`;
         const lenPct = ((sessPlan.minutes - PracticePlan.MIN_MINUTES) / (PracticePlan.MAX_MINUTES - PracticePlan.MIN_MINUTES)) * 100;
         document.getElementById('sessLenSliderFill').style.setProperty('--pct', `${lenPct}%`);
         const lenThumb = document.getElementById('sessLenSliderThumb');
         lenThumb.style.setProperty('--pct', `${lenPct}%`);
         lenThumb.setAttribute('aria-valuenow', sessPlan.minutes);
         lenThumb.setAttribute('aria-valuetext', `${sessPlan.minutes} minutes`);
-        document.getElementById('sessLenMinus').disabled = sessPlan.minutes <= PracticePlan.MIN_MINUTES;
-        document.getElementById('sessLenPlus').disabled = sessPlan.minutes >= PracticePlan.MAX_MINUTES;
-        setShown('sessTemplateGroup', templated);
-        setShown('sessTemplateNote', templated);
-        const lead = (sessPlan.template && sessPlan.template.lead) || (PracticePlan.TEMPLATES[sessPlan.template] || PracticePlan.TEMPLATES.standard).lead;
-        document.getElementById('sessTemplateNote').textContent = `${[...lead.map(k => PracticePlan.KINDS[k]), `then ${PracticePlan.FOCUS_LABELS[sessPlan.focus] || 'Rehearsal'}`].join(', ')}.`;
-        const pills = (el, options, value, onPick) => {
-            el.innerHTML = options.map(([k, label]) => `<button type="button" class="filter-pill${value === k ? ' active' : ''}" aria-pressed="${value === k}" data-k="${k}">${label}</button>`).join('');
-            el.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => onPick(b.dataset.k)));
-        };
-        const tplKey = sessPlan.template && sessPlan.template.id ? `t:${sessPlan.template.id}` : sessPlan.template;
-        pills(document.getElementById('sessTemplatePills'), [['standard', 'Standard'], ['concert', 'Concert (no Scales)'], ...sessTemplates.map(t => [`t:${t.id}`, t.name])], tplKey, (k) => {
-            const mine = k.startsWith('t:') ? sessTemplates.find(t => `t:${t.id}` === k) : null;
-            if (mine) { sessPlan.template = { ...mine }; sessPlan.minutes = mine.minutes; } else sessPlan.template = k;
-            sessPlan.focus = PracticePlan.templateFocus(sessPlan.template); // ML-342
-            sessReplan();
-        });
-        // ML-339 / ML-343: which skills list and which warm-up list this session uses.
-        const hasSkills = sessPlan.blocks.some(b => b.kind === 'skills');
-        setShown('sessSkillListGroup', hasSkills && skillLists.length > 0);
-        const sl = currentSkillList();
-        pills(document.getElementById('sessSkillListPills'), skillLists.map(l => [String(l.id), l.name]), sl ? String(sl.id) : '', (k) => { setSkillList(Number(k)); sessReplan(); });
-        setShown('sessWarmupListGroup', sessPlan.blocks.some(b => b.kind === 'warmup'));
-        const wl = currentWarmupList();
-        pills(document.getElementById('sessWarmupListPills'), allWarmupLists().map(l => [l.key, l.name]), wl ? wl.key : '', (k) => { setWarmupList(k); sessReplan(); });
-        setShown('sessListNote', !!sessPlan.listName);
-        document.getElementById('sessListNote').textContent = sessPlan.listName ? `Rehearsal blocks come from ${sessPlan.listName}.` : '';
-
-        document.getElementById('sessPlanStrip').innerHTML = sessStripHtml(sessPlan.blocks, null);
-        const list = document.getElementById('sessBlockList');
-        list.innerHTML = sessPlan.blocks.map((b, i) => `
-            <div class="history-item">
-                <button type="button" class="level-row-body grow text-left" data-block="${i}" aria-haspopup="dialog">
-                    <span class="session-block-time text-sm text-muted">${i * 5}–${i * 5 + 5}</span>
-                    <span><strong>${PracticePlan.KINDS[b.kind]}</strong><br><span class="text-sm text-muted">${escapeHtml(sessBlockText(b))}</span></span>
-                </button>
-            </div>`).join('');
-        list.querySelectorAll('[data-block]').forEach(b => b.addEventListener('click', () => openSessionBlockModal(Number(b.dataset.block))));
-        setShown('sessNoChunks', !sessPlan.chunks.length && sessPlan.blocks.some(b => b.kind === 'rehearsal'));
-        setShown('sessSetupPieceBtn', !sessPlan.chunks.length && sessPlan.blocks.some(b => b.kind === 'rehearsal'));
-        // Only blocks still to choose (5 and 10 minutes) hold the start - a Rehearsal block with no Levels
-        // set just opens Rehearse to pick a piece.
-        const unchosen = sessPlan.blocks.some(b => b.kind === 'choose');
-        const start = document.getElementById('sessStartBtn');
-        start.disabled = unchosen;
-        start.textContent = unchosen ? 'Choose every block first' : `Start - ${sessPlan.minutes} minutes`;
+        document.getElementById('sessLenMinus').disabled = !sessPlan.open && sessPlan.minutes <= PracticePlan.MIN_MINUTES;
+        document.getElementById('sessLenPlus').disabled = !sessPlan.open && sessPlan.minutes >= PracticePlan.MAX_MINUTES;
+        // The blocks you can count - a new one pops in (only the new ones animate).
+        const prev = sessPlan.lastBlockCount;
+        const blocks = [];
+        for (let i = 0; i < n; i++) blocks.push(`<span class="time-block${i >= prev ? ' is-new' : ''}">${i + 1}</span>`);
+        if (sessPlan.open) blocks.push('<span class="time-block is-more">+</span>');
+        document.getElementById('sessLenBlocks').innerHTML = blocks.join('');
+        sessPlan.lastBlockCount = n;
+        const chips = document.getElementById('sessLenChips');
+        chips.innerHTML = SESS_QUICK_MINUTES.map(m => { const on = !sessPlan.open && sessPlan.minutes === m; return `<button type="button" class="filter-pill${on ? ' active' : ''}" aria-pressed="${on}" data-min="${m}">${m === 60 ? '1 hour' : `${m} min`}</button>`; }).join('');
+        chips.querySelectorAll('[data-min]').forEach(b => b.addEventListener('click', () => sessSetMinutes(Number(b.dataset.min))));
+        const openBtn = document.getElementById('sessOpenBtn');
+        openBtn.classList.toggle('selected', sessPlan.open);
+        openBtn.setAttribute('aria-pressed', String(sessPlan.open));
+        const last = sessLoadLast();
+        const same = document.getElementById('sessSameBtn');
+        setShown(same, !!last);
+        if (last) same.textContent = `Same as last time (${last.open ? 'Keep going' : `${last.minutes} min`}, ${planName(String(last.template || '').startsWith('t:') ? sessTemplates.find(t => `t:${t.id}` === last.template) || 'standard' : last.template)})`;
     }
-    // opts (ML-319, from a practice list): { scoreIds, minutes, template, focus, listName } - only that
-    // list's pieces fill the Rehearsal blocks.
-    async function openSessionPlanner(opts) {
-        const o = opts || {};
-        sessPlan.scoreIds = o.scoreIds || null;
-        sessPlan.listName = o.listName || null;
-        if (o.minutes) sessPlan.minutes = PracticePlan.clampMinutes(o.minutes);
-        if (o.template) sessPlan.template = o.template;
-        sessPlan.focus = PracticePlan.templateFocus(sessPlan.template); // ML-342: the template's own focus
+    function sessSetMinutes(m) {
+        sessPlan.open = false;
+        sessPlan.minutes = PracticePlan.clampMinutes(m);
+        renderSessLength();
+    }
+    document.getElementById('sessLenMinus')?.addEventListener('click', () => sessSetMinutes(sessPlan.open ? 20 : sessPlan.minutes - 5));
+    document.getElementById('sessLenPlus')?.addEventListener('click', () => sessSetMinutes(sessPlan.open ? 25 : sessPlan.minutes + 5));
+    setupSliderInteraction(document.getElementById('sessLenSliderTrack'), document.getElementById('sessLenSliderThumb'), {
+        onDragRatio: (ratio) => sessSetMinutes(PracticePlan.MIN_MINUTES + ratio * (PracticePlan.MAX_MINUTES - PracticePlan.MIN_MINUTES)),
+        onArrowStep: (dir) => sessSetMinutes(sessPlan.minutes + dir * PracticePlan.BLOCK_MINUTES)
+    });
+    document.getElementById('sessOpenBtn')?.addEventListener('click', () => { sessPlan.open = !sessPlan.open; renderSessLength(); });
+    document.getElementById('sessToPlanBtn')?.addEventListener('click', () => openSessionPick());
+    document.getElementById('sessSameBtn')?.addEventListener('click', async () => {
+        const last = sessLoadLast();
+        if (!last) return;
+        sessPlan.minutes = PracticePlan.clampMinutes(last.minutes || 20);
+        sessPlan.open = !!last.open;
+        sessPlan.auto = last.auto !== false;
+        sessPlan.source = last.source || { type: 'all' };
+        setTemplateByKey(last.template);
+        await sessLoadContentData();
+        openSessionReady();
+    });
+
+    // --- Step 2: pick a plan ---
+    function planChoices() {
+        return [
+            ...Object.entries(PracticePlan.TEMPLATES).map(([k, t]) => ({ key: k, name: t.label, blurb: t.blurb, template: k })),
+            ...sessTemplates.map(t => ({ key: `t:${t.id}`, name: t.name, blurb: 'My plan', template: t, own: true }))
+        ];
+    }
+    function openSessionPick() {
+        switchView('sessionPickView');
+        renderSessPick();
+    }
+    function renderSessPick() {
+        document.getElementById('sessPickTitle').textContent = sessPlan.open ? 'Pick a plan - it keeps going' : `Pick a plan for your ${sessPlan.minutes} minutes`;
+        const cur = templateKey(sessPlan.template);
+        const box = document.getElementById('sessPlanCards');
+        box.innerHTML = planChoices().map(p => {
+            const kinds = PracticePlan.blockKinds(sessPlan.open ? null : sessPlan.minutes, p.template, PracticePlan.templateFocus(p.template));
+            const shown = kinds.slice(0, 12);
+            const on = p.key === cur;
+            const names = kinds.map(k => PracticePlan.KINDS[k]).join(', ');
+            return `<div class="plan-card-row">
+                <button type="button" class="flow-choice-option level-answer plan-card${on ? ' selected' : ''}" aria-pressed="${on}" data-plan="${escapeHtml(p.key)}" aria-label="${escapeHtml(p.name)}: ${escapeHtml(names)}">
+                    <span class="plan-card-head"><strong>${escapeHtml(p.name)}</strong><span class="text-sm text-muted">${escapeHtml(p.blurb)}</span></span>
+                    <span class="kind-strip">${shown.map(k => kindBlockHtml({ kind: k })).join('')}${kinds.length > 12 ? `<span class="kind-strip-more">+${kinds.length - 12}</span>` : ''}${sessPlan.open ? '<span class="kind-strip-more">…</span>' : ''}</span>
+                </button>
+                ${p.own ? `<button type="button" class="list-item-menu-btn" data-plan-edit="${escapeHtml(p.key)}" aria-label="Change or delete ${escapeHtml(p.name)}"><span class="material-symbols-outlined" aria-hidden="true">edit</span></button>` : ''}
+            </div>`;
+        }).join('');
+        box.querySelectorAll('[data-plan]').forEach(b => b.addEventListener('click', () => { setTemplateByKey(b.dataset.plan); renderSessPick(); }));
+        box.querySelectorAll('[data-plan-edit]').forEach(b => b.addEventListener('click', () => openBuilder(sessTemplates.find(t => `t:${t.id}` === b.dataset.planEdit) || null)));
+    }
+    document.getElementById('sessBuildBtn')?.addEventListener('click', () => openBuilder(null));
+    document.getElementById('sessToContentBtn')?.addEventListener('click', () => openSessionContent());
+
+    // --- Build my plan: snap blocks in like a puzzle ---
+    const BUILD_MAX = 12;
+    const build = { id: null, name: '', slots: [] };
+    function openBuilder(template) {
+        const n = Math.min(BUILD_MAX, Math.max(1, sessPlan.open ? PracticePlan.OPEN_START_BLOCKS : sessPlan.minutes / PracticePlan.BLOCK_MINUTES));
+        if (template) {
+            const kinds = template.blocks && template.blocks.length ? template.blocks.slice(0, BUILD_MAX) : PracticePlan.blockKinds(template.minutes || sessPlan.minutes, template, template.focus).slice(0, BUILD_MAX);
+            build.id = template.id;
+            build.name = template.name;
+            build.slots = [...kinds, ...new Array(Math.max(0, n - kinds.length)).fill(null)];
+        } else {
+            build.id = null;
+            build.name = '';
+            build.slots = new Array(n).fill(null);
+            build.slots[0] = 'warmup';
+            if (n > 2) build.slots[1] = 'scales';
+        }
+        switchView('sessionBuildView');
+        document.getElementById('sessBuildName').value = build.name;
+        renderBuild();
+    }
+    function renderBuild() {
+        const n = build.slots.length;
+        document.getElementById('sessBuildTitle').textContent = `Fill your ${n} block${n === 1 ? '' : 's'}`;
+        const left = build.slots.filter(s => !s).length;
+        document.getElementById('sessBuildHint').textContent = left
+            ? `${left} space${left === 1 ? '' : 's'} left. Tap a block below to drop it into the next space; tap a space to empty it.`
+            : `All full! Tap a space to change it. Longer sessions repeat your plan from its first Skills or Pieces block.`;
+        const slots = document.getElementById('sessBuildSlots');
+        slots.innerHTML = build.slots.map((k, i) => {
+            const label = k ? PracticePlan.KINDS[k] : 'empty';
+            return `<button type="button" class="kind-block build-slot ${k ? KIND_CLASS[k] : 'is-empty'}" data-slot="${i}" aria-label="${i * 5} to ${i * 5 + 5} minutes: ${label}${k ? '. Tap to empty' : ''}">
+                <span class="build-slot-time" aria-hidden="true">${i * 5}–${i * 5 + 5}</span>
+                <span class="material-symbols-outlined" aria-hidden="true">${k ? KIND_ICONS[k] : 'add'}</span>
+                <span class="kind-block-label" aria-hidden="true">${label}</span>
+            </button>`;
+        }).join('');
+        const palette = document.getElementById('sessBuildPalette');
+        palette.innerHTML = PracticePlan.PLAN_KINDS.map(k => `<button type="button" class="kind-block build-add ${KIND_CLASS[k]}" data-add="${k}" aria-label="Add ${PracticePlan.KINDS[k]}"><span class="material-symbols-outlined" aria-hidden="true">${KIND_ICONS[k]}</span><span class="kind-block-label" aria-hidden="true">${PracticePlan.KINDS[k]}</span></button>`).join('');
+        setShown('sessBuildDeleteBtn', !!build.id);
+        document.getElementById('sessBuildSaveBtn').textContent = build.id ? 'Save my plan and use it' : 'Save my plan and use it';
+    }
+    document.getElementById('sessBuildSlots')?.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-slot]');
+        if (!b) return;
+        const i = Number(b.dataset.slot);
+        if (!build.slots[i]) return;
+        build.slots[i] = null;
+        renderBuild();
+        document.querySelector(`#sessBuildSlots [data-slot="${i}"]`)?.focus();
+    });
+    document.getElementById('sessBuildPalette')?.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-add]');
+        if (!b) return;
+        const i = build.slots.indexOf(null);
+        if (i < 0) { showWarningToast('All full - tap a space to empty it first.'); return; }
+        build.slots[i] = b.dataset.add;
+        renderBuild();
+        const slot = document.querySelector(`#sessBuildSlots [data-slot="${i}"]`);
+        if (slot && !prefersReducedMotion()) slot.classList.add('is-new');
+        document.querySelector(`#sessBuildPalette [data-add="${b.dataset.add}"]`)?.focus();
+    });
+    document.getElementById('sessBuildSurpriseBtn')?.addEventListener('click', () => {
+        const mix = ['scales', 'skills', 'rehearsal', 'rehearsal', 'skills', 'rehearsal'];
+        let k = 0;
+        build.slots = build.slots.map((s, i) => s || (i === 0 ? 'warmup' : mix[k++ % mix.length]));
+        renderBuild();
+    });
+    document.getElementById('sessBuildClearBtn')?.addEventListener('click', () => { build.slots = build.slots.map(() => null); renderBuild(); });
+    document.getElementById('sessBuildName')?.addEventListener('input', (e) => { build.name = e.target.value; });
+    document.getElementById('sessBuildSaveBtn')?.addEventListener('click', async () => {
+        const blocks = build.slots.filter(Boolean);
+        if (!blocks.length) { showWarningToast('Put at least one block in first.'); return; }
+        const body = { name: (build.name || '').trim() || 'My plan', blocks };
+        try {
+            const saved = build.id ? await API.practice.saveTemplate(build.id, body) : await API.practice.addTemplate(body);
+            await loadTemplates();
+            setTemplateByKey(`t:${saved.id}`);
+            showSuccessToast(`"${saved.name}" saved`);
+            goBack();
+            renderSessPick();
+        } catch (e) { showWarningToast('Not saved: ' + e.message); }
+    });
+    document.getElementById('sessBuildDeleteBtn')?.addEventListener('click', () => {
+        if (!build.id) return;
+        showConfirmModal('Delete this plan?', `"${build.name || 'My plan'}" goes. Your practice history stays.`, async () => {
+            try {
+                await API.practice.deleteTemplate(build.id);
+                if (templateKey(sessPlan.template) === `t:${build.id}`) setTemplateByKey('standard');
+                await loadTemplates();
+                goBack();
+                renderSessPick();
+            } catch (e) { showWarningToast('Not deleted: ' + e.message); }
+        }, true, 'Delete');
+    });
+
+    // --- Step 3: what goes in ---
+    let sessPracticeLists = [];
+    async function refreshSessionPieces() {
+        const src = sessPlan.source || { type: 'all' };
+        let ids = null;
+        try {
+            if (src.type === 'list' && src.listId) {
+                const l = await API.practiceLists.get(src.listId);
+                src.listName = l.name;
+                ids = l.pieces.map(p => p.scoreId);
+            } else if (src.type === 'pieces') ids = src.scoreIds || [];
+            sessPlan.pieces = ids && !ids.length ? [] : (await API.practice.pieces(ids)).pieces || [];
+        } catch (e) {
+            if (src.type === 'list') sessPlan.source = { type: 'all' }; // the list has gone
+            sessPlan.pieces = [];
+        }
+    }
+    async function sessLoadContentData() {
+        await Promise.all([
+            loadTemplates(), loadSkills(), loadWarmupLists(), refreshSessionPieces(),
+            API.practiceLists.list().then(r => { sessPracticeLists = (r && r.lists) || []; }).catch(() => { sessPracticeLists = []; })
+        ]);
+    }
+    async function openSessionContent() {
+        switchView('sessionContentView');
+        renderSessContent();
+        await sessLoadContentData();
+        renderSessContent();
+    }
+    // A piece's place on its path, from its chunks (as the path screen works it out).
+    function pieceStatus(p) {
+        const base = (p.chunks || []).filter(c => c.kind !== 'group');
+        const set = base.filter(c => c.level != null);
+        if (!set.length) return 'Needs preparing - it gets a Prepare block first';
+        const bits = set.filter(c => c.level < PracticePlan.TARGET_LEVEL);
+        if (bits.length) return `${bits.length} focus bit${bits.length === 1 ? '' : 's'} below Level ${PracticePlan.TARGET_LEVEL}`;
+        const groups = (p.chunks || []).filter(c => c.kind === 'group');
+        if ((groups.length && groups.every(g => g.level === 5)) || (!groups.length && set.every(c => c.level >= 5))) return 'Ready - every bar at full speed';
+        return 'Ready for a play-through';
+    }
+    function renderSessContent() {
+        const kinds = sessKinds();
+        const order = [...new Set(kinds)];
+        const rows = [];
+        order.forEach(k => {
+            if (k === 'warmup') {
+                const wl = currentWarmupList();
+                rows.push(`<button type="button" class="history-item settings-link" data-content="warmup" aria-haspopup="dialog">${kindBlockHtml({ kind: 'warmup' })}<span class="settings-link-text"><span class="settings-link-title">Warm-up</span><span class="settings-link-sub">${escapeHtml(wl ? (wl.external ? 'Your own warm-up - just the timer' : `${wl.name} · on a loop for 4½ minutes`) : 'The Warm-ups tool')}</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>`);
+            }
+            if (k === 'scales') {
+                rows.push(`<div class="history-item settings-link">${kindBlockHtml({ kind: 'scales' })}<span class="settings-link-text"><span class="settings-link-title">Scales</span><span class="settings-link-sub">Your grade's scales in the Scales tool</span></span></div>`);
+            }
+            if (k === 'skills') {
+                const sl = currentSkillList();
+                const next = skillsData.filter(s => !s.done).sort((a, b) => (a.lastPractised ? Date.parse(a.lastPractised) : 0) - (b.lastPractised ? Date.parse(b.lastPractised) : 0))[0];
+                rows.push(`<button type="button" class="history-item settings-link" data-content="skills" aria-haspopup="dialog">${kindBlockHtml({ kind: 'skills' })}<span class="settings-link-text"><span class="settings-link-title">Skills</span><span class="settings-link-sub">${escapeHtml(sl ? `${sl.name}${next ? ` · ${next.def.label} next` : ''}` : 'Tempo, Pulse, Pitch - one after another')}</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>`);
+            }
+        });
+        const box = document.getElementById('sessContentRows');
+        box.innerHTML = rows.join('');
+        box.querySelectorAll('[data-content]').forEach(b => b.addEventListener('click', () => openContentChooser(b.dataset.content)));
+        const hasPieces = kinds.includes('rehearsal');
+        setShown('sessPiecesCard', hasPieces);
+        if (!hasPieces) return;
+        const src = sessPlan.source || { type: 'all' };
+        document.getElementById('sessPiecesSource').textContent = src.type === 'list' ? `From ${src.listName || 'your practice list'}` : src.type === 'pieces' ? `${(src.scoreIds || []).length} piece${(src.scoreIds || []).length === 1 ? '' : 's'} you picked` : 'All your pieces with Levels';
+        document.getElementById('sessAutoToggle').checked = sessPlan.auto;
+        document.getElementById('sessAutoNote').textContent = sessPlan.auto ? 'Auto: picks the bars that need you most, and gets every piece up a Level together.' : 'You\'ll pick each Pieces block\'s bars on the next screen.';
+        const pool = PracticePlan.piecePool(sessPlan.pieces);
+        const practise = pool.filter(x => x.stage === 'practise');
+        const goal = document.getElementById('sessGoal');
+        const low = practise.length ? Math.min(...practise.map(x => x.level)) : null;
+        goal.innerHTML = low != null ? `<span class="material-symbols-outlined" aria-hidden="true">trending_up</span> Next goal: every <span class="level-chip lv-${low}">${low}</span> up to <span class="level-chip lv-${low + 1}">${low + 1}</span>`
+            : pool.some(x => x.stage === 'prepare') ? '<span class="material-symbols-outlined" aria-hidden="true">construction</span> First: prepare the new pieces'
+            : pool.some(x => x.stage === 'playthrough') ? '<span class="material-symbols-outlined" aria-hidden="true">play_circle</span> Next: play them through' : '';
+        setShown(goal, sessPlan.auto && !!goal.innerHTML);
+        const list = document.getElementById('sessPiecesList');
+        list.innerHTML = sessPlan.pieces.length ? sessPlan.pieces.map(p => {
+            const map = FlowJourney.barLevels(p.totalBars, p.chunks);
+            return `<div class="session-piece"><span class="session-piece-head"><strong>${escapeHtml(p.title)}</strong><span class="text-sm text-muted">${escapeHtml(pieceStatus(p))}</span></span><span class="level-strip" aria-hidden="true">${map.map(v => `<span class="level-cell lv-${v || 0}"></span>`).join('')}</span></div>`;
+        }).join('') : `<p class="text-sm text-muted">${src.type === 'all' ? 'No pieces have Levels yet. Choose a practice list or some pieces and each gets a Prepare block first.' : 'No pieces here yet.'}</p>`;
+    }
+    document.getElementById('sessAutoToggle')?.addEventListener('change', (e) => { sessPlan.auto = e.target.checked; renderSessContent(); });
+    // One pop-up for step 3's choices (the warm-up list, the skills list, where the pieces come from).
+    function openChooser(title, options, onPick, extra) {
+        document.getElementById('sessionBlockTitle').textContent = title;
+        const box = document.getElementById('sessionBlockOptions');
+        box.innerHTML = options.map(o => `<button type="button" class="flow-choice-option level-answer${o.selected ? ' selected' : ''}" aria-pressed="${!!o.selected}" data-opt="${escapeHtml(String(o.key))}"><span><strong>${escapeHtml(o.title)}</strong>${o.sub ? `<br><span class="text-sm text-muted">${escapeHtml(o.sub)}</span>` : ''}</span></button>`).join('')
+            + (extra ? `<button type="button" class="btn-nav mt-3" data-extra>${escapeHtml(extra.label)}</button>` : '');
+        box.querySelectorAll('[data-opt]').forEach(b => b.addEventListener('click', () => { hideModal('sessionBlockModal'); onPick(b.dataset.opt); }));
+        box.querySelector('[data-extra]')?.addEventListener('click', () => { hideModal('sessionBlockModal'); extra.run(); });
+        showModal('sessionBlockModal');
+    }
+    function openContentChooser(what) {
+        if (what === 'warmup') {
+            const cur = currentWarmupList();
+            openChooser('Which warm-up?', allWarmupLists().map(l => ({ key: l.key, title: l.name, sub: l.desc, selected: cur && cur.key === l.key })),
+                (k) => { setWarmupList(k); renderSessContent(); }, { label: 'My warm-up lists', run: openSkillsView });
+        }
+        if (what === 'skills') {
+            const cur = currentSkillList();
+            openChooser('Which skills list?', skillLists.map(l => ({ key: l.id, title: l.name, sub: `${(l.keys || []).length} skill${(l.keys || []).length === 1 ? '' : 's'}`, selected: cur && cur.id === l.id })),
+                (k) => { setSkillList(Number(k)); renderSessContent(); }, { label: 'My skills', run: openSkillsView });
+        }
+        if (what === 'pieces') {
+            const src = sessPlan.source || { type: 'all' };
+            openChooser('Where do the pieces come from?', [
+                ...sessPracticeLists.map(l => ({ key: `list:${l.id}`, title: l.name, sub: `Practice list · ${l.pieceCount} piece${l.pieceCount === 1 ? '' : 's'}`, selected: src.type === 'list' && src.listId === l.id })),
+                { key: 'pieces', title: 'Pieces I choose', sub: src.type === 'pieces' ? `${(src.scoreIds || []).length} picked - tap to change` : 'Pick one or several', selected: src.type === 'pieces' },
+                { key: 'all', title: 'All my pieces', sub: 'Every piece you\'ve given Levels', selected: src.type === 'all' }
+            ], async (k) => {
+                if (k === 'pieces') { openSessPiecesModal(); return; }
+                if (k.startsWith('list:')) { const l = sessPracticeLists.find(x => x.id === Number(k.slice(5))); sessPlan.source = { type: 'list', listId: l.id, listName: l.name }; }
+                else sessPlan.source = { type: 'all' };
+                await refreshSessionPieces();
+                renderSessContent();
+            });
+        }
+    }
+    document.getElementById('sessPiecesSourceBtn')?.addEventListener('click', () => openContentChooser('pieces'));
+    // Pieces I choose - the same pick list as a practice list's Add pieces.
+    const sessPick = { picked: new Set(), query: '' };
+    async function openSessPiecesModal() {
+        if (!flowsListCache.length) await rehearseRefresh();
+        const src = sessPlan.source || {};
+        sessPick.picked = new Set(src.type === 'pieces' ? src.scoreIds || [] : []);
+        sessPick.query = '';
+        document.getElementById('sessPiecesSearch').value = '';
+        renderSessPiecesModal();
+        showModal('sessPiecesModal');
+    }
+    function renderSessPiecesModal() {
+        const q = sessPick.query;
+        const shown = rehearsePlayable().filter(f => !q || f.title.toLowerCase().includes(q) || (f.composer || '').toLowerCase().includes(q));
+        const rows = shown.map(f => ({ key: f.id, html: `<strong>${escapeHtml(f.title)}</strong><br><span class="text-sm text-muted">${f.composer ? escapeHtml(f.composer) + ' · ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'}</span>` }));
+        renderPickList(document.getElementById('sessPiecesOptions'), document.getElementById('sessPiecesPickBar'), rows, sessPick.picked, () => {
+            const btn = document.getElementById('sessPiecesDoneBtn');
+            btn.disabled = !sessPick.picked.size;
+            btn.textContent = sessPick.picked.size ? `Use ${sessPick.picked.size} piece${sessPick.picked.size === 1 ? '' : 's'}` : 'Use these pieces';
+        }, `<p class="metro-help-text">${rehearsePlayable().length ? 'No pieces match.' : 'No pieces yet - add one in My music.'}</p>`);
+    }
+    document.getElementById('sessPiecesSearch')?.addEventListener('input', (e) => { sessPick.query = e.target.value.trim().toLowerCase(); renderSessPiecesModal(); });
+    document.getElementById('sessPiecesCloseBtn')?.addEventListener('click', () => hideModal('sessPiecesModal'));
+    document.getElementById('sessPiecesDoneBtn')?.addEventListener('click', async () => {
+        if (!sessPick.picked.size) return;
+        hideModal('sessPiecesModal');
+        sessPlan.source = { type: 'pieces', scoreIds: [...sessPick.picked] };
+        await refreshSessionPieces();
+        renderSessContent();
+    });
+    document.getElementById('sessToReadyBtn')?.addEventListener('click', () => openSessionReady());
+
+    // --- Ready: the whole session at a glance ---
+    const skillsForPlan = () => skillsData.map(s => ({ key: s.key, stepIndex: s.stepIndex, lastPractised: s.lastPractised, done: s.done, step: s.step }));
+    function openSessionReady() {
         switchView('sessionPlanView');
         sessReplan();
-        await Promise.all([loadTemplates(), loadSkills()]);
-        try {
-            const all = (await API.practice.chunks()).chunks || [];
-            sessPlan.chunks = sessPlan.scoreIds ? all.filter(c => sessPlan.scoreIds.includes(c.scoreId)) : all;
-        } catch (e) {
-            sessPlan.chunks = [];
-            showWarningToast('Your Levels could not be loaded: ' + e.message);
-        }
-        sessReplan();
     }
-    // Change one block: its kind, then for Skills the tool and for Rehearsal the bars.
-    // startAt 'rehearsal' opens straight on the Rehearsal choices (the planner's "Set up a piece").
-    function openSessionBlockModal(i, startAt) {
+    function sessReplan() {
+        const pool = sessPlan.auto ? PracticePlan.piecePool(sessPlan.pieces) : [];
+        sessPlan.blocks = PracticePlan.fillBlocks(sessKinds(), pool, skillsForPlan());
+        sessApplyWarmupList();
+        renderSessionPlan();
+    }
+    // ML-343: every Warm-up block carries the warm-up list it plays (kept with the running session).
+    function sessWarmupPlain() {
+        const wl = currentWarmupList();
+        return wl ? { key: wl.key, name: wl.name, external: !!wl.external, each: !!wl.each, kinds: wl.kinds || null, random: !!wl.random } : null;
+    }
+    function sessApplyWarmupList() {
+        const plain = sessWarmupPlain();
+        sessPlan.blocks.forEach(b => { if (b.kind === 'warmup') b.warmup = plain; });
+    }
+    function renderSessionPlan() {
+        document.getElementById('sessReadyTitle').textContent = sessPlan.open ? 'Here\'s how it starts - it keeps going' : `Here's your ${sessPlan.minutes} minutes`;
+        document.getElementById('sessPlanStrip').innerHTML = sessPlan.blocks.map(b => kindBlockHtml(b)).join('') + (sessPlan.open ? '<span class="kind-strip-more">…</span>' : '');
+        let t = 0;
+        document.getElementById('sessBlockList').innerHTML = sessPlan.blocks.map((b, i) => {
+            const open = b.kind === 'rehearsal' && b.stage === 'prepare';
+            const time = open ? `${t}+` : `${t}–${t + b.minutes}`;
+            t += b.minutes;
+            return `<div class="history-item">
+                <button type="button" class="level-row-body grow text-left" data-block="${i}" aria-haspopup="dialog" aria-label="Block ${i + 1}, ${time} minutes: ${escapeHtml(blockTitle(b))} - ${escapeHtml(sessBlockText(b))}. Tap to swap it">
+                    <span class="session-block-time text-sm text-muted" aria-hidden="true">${time}</span>
+                    ${kindBlockHtml(b)}
+                    <span><strong>${escapeHtml(blockTitle(b))}</strong><br><span class="text-sm text-muted">${escapeHtml(sessBlockText(b))}</span></span>
+                </button>
+            </div>`;
+        }).join('');
+        document.getElementById('sessBlockList').querySelectorAll('[data-block]').forEach(b => b.addEventListener('click', () => openSessionBlockModal(Number(b.dataset.block))));
+        document.getElementById('sessReadyNote').textContent = sessPlan.open ? 'Tap any block to swap it. More blocks follow the same pattern as you play.' : 'Tap any block to swap it.';
+        document.getElementById('sessStartBtn').textContent = sessPlan.open ? 'Start - keep going' : `Start - ${sessPlan.minutes} minutes`;
+    }
+    // Change one block: its kind, then for Skills the skill and for Pieces the bars.
+    function openSessionBlockModal(i) {
         const b = sessPlan.blocks[i];
-        document.getElementById('sessionBlockTitle').textContent = `Block ${i + 1} (${i * 5}–${i * 5 + 5} min)`;
+        document.getElementById('sessionBlockTitle').textContent = `Block ${i + 1}`;
         const box = document.getElementById('sessionBlockOptions');
         const option = (key, title, sub, selected) => `<button type="button" class="flow-choice-option level-answer${selected ? ' selected' : ''}" data-opt="${key}"><span><strong>${escapeHtml(title)}</strong>${sub ? `<br><span class="text-sm text-muted">${escapeHtml(sub)}</span>` : ''}</span></button>`;
+        const done = () => { hideModal('sessionBlockModal'); sessApplyWarmupList(); renderSessionPlan(); };
         const kinds = () => {
-            box.innerHTML = [['warmup', 'Warm-up', 'The Warm-ups tool'], ['scales', 'Scales', 'The Scales tool'], ['skills', 'Skills', 'Tempo, Pulse, Warm-ups or Pitch'], ['rehearsal', 'Rehearsal', 'Bars you\'ve given a Level, at that Level']]
+            box.innerHTML = [['warmup', 'Warm-up', 'Your warm-up list'], ['scales', 'Scales', 'The Scales tool'], ['skills', 'Skills', 'A skill from your list'], ['rehearsal', 'Pieces', 'Bars from your pieces, at their Level']]
                 .map(([k, t, s]) => option(k, t, s, b.kind === k)).join('');
             box.querySelectorAll('[data-opt]').forEach(o => o.addEventListener('click', () => {
                 const k = o.dataset.opt;
                 if (k === 'skills') return tools();
-                if (k === 'rehearsal') return chunks();
+                if (k === 'rehearsal') return pieces();
                 sessPlan.blocks[i] = { kind: k, minutes: 5 };
                 done();
             }));
@@ -6621,128 +7152,201 @@
                 done();
             }));
         };
-        const chunks = async () => {
-            // Bars you've given a Level; then "Set up ..." for each piece with none yet - that takes you
-            // through its "How well can you play it?" and brings you back here with the block filled in;
-            // then "Any piece" (opens Rehearse to pick one and play it your way).
-            await rehearseRefresh();
-            const withLevels = new Set(sessPlan.chunks.map(c => c.scoreId));
-            const toSetUp = rehearsePlayable().filter(f => !withLevels.has(f.id) && (!sessPlan.scoreIds || sessPlan.scoreIds.includes(f.id)));
-            box.innerHTML = sessPlan.chunks.map(c => option(String(c.id), `${c.title} · ${c.label || levelsRange(c.startBar, c.endBar)}`, `Level ${c.level}`, b.kind === 'rehearsal' && b.chunk && b.chunk.id === c.id)).join('')
-                + (toSetUp.length ? `<p class="text-sm fw-bold mt-3 mb-2">${sessPlan.chunks.length ? 'Or prepare another piece for practice' : 'Prepare a piece for practice first - say how well you can play it'}</p>` : '')
-                + toSetUp.map(f => option(`setup:${f.id}`, `Prepare ${f.title} for practice`, 'How well can you play it? Then back here', false)).join('')
-                + option('any', 'Any piece', 'Pick it in Rehearse and play it your way', b.kind === 'rehearsal' && !b.chunk);
+        const pieces = () => {
+            const pool = PracticePlan.piecePool(sessPlan.pieces);
+            const keyOf = (x) => (x.chunk ? `c:${x.chunk.id}` : `p:${x.stage}:${x.scoreId}`);
+            const text = (x) => (x.stage === 'prepare' ? [`Prepare ${x.title}`, 'A run-through, then paint the bars'] : x.stage === 'playthrough' ? [`Play-through: ${x.title}`, x.chunk ? x.chunk.label || levelsRange(x.chunk.startBar, x.chunk.endBar) : 'The whole piece'] : [`${x.title} · ${x.chunk.label || levelsRange(x.chunk.startBar, x.chunk.endBar)}`, `Level ${x.chunk.level}`]);
+            box.innerHTML = pool.map(x => { const [t, s] = text(x); return option(keyOf(x), t, s, b.kind === 'rehearsal' && ((b.chunk && x.chunk && b.chunk.id === x.chunk.id) || (!b.chunk && !x.chunk && b.scoreId === x.scoreId && b.stage === x.stage))); }).join('')
+                + option('any', 'Any piece', 'Pick it in Rehearse and play it your way', b.kind === 'rehearsal' && !b.chunk && !b.stage);
             box.querySelectorAll('[data-opt]').forEach(o => o.addEventListener('click', () => {
                 const k = o.dataset.opt;
-                if (k.startsWith('setup:')) { hideModal('sessionBlockModal'); setUpPieceForBlock(Number(k.slice(6)), i); return; }
-                sessPlan.blocks[i] = { kind: 'rehearsal', minutes: 5, chunk: k === 'any' ? null : sessPlan.chunks.find(c => c.id === Number(k)) };
+                const x = pool.find(p => keyOf(p) === k);
+                sessPlan.blocks[i] = x ? { kind: 'rehearsal', minutes: x.minutes || 5, stage: x.stage, chunk: x.chunk, scoreId: x.scoreId, title: x.title } : { kind: 'rehearsal', minutes: 5, stage: 'practise', chunk: null };
                 done();
             }));
         };
-        const done = () => { hideModal('sessionBlockModal'); renderSessionPlan(); };
-        if (startAt === 'rehearsal') chunks(); else kinds();
+        if (b.kind === 'rehearsal') pieces(); else kinds();
         showModal('sessionBlockModal');
     }
-    // Set up a piece's Levels from the planner: My Levels for that piece; saving brings you back to the
-    // plan with this block (and any other Rehearsal block with nothing to practise) on the new bars.
-    function setUpPieceForBlock(scoreId, blockIndex) {
-        sessPlan.setupReturn = { scoreId, blockIndex };
-        openLevelsForPiece(scoreId);
-    }
-    async function backToPlanAfterSetup() {
-        const ret = sessPlan.setupReturn;
-        sessPlan.setupReturn = null;
-        if (viewStack[viewStack.length - 1] === 'pieceLevelsView') goBack();
-        try {
-            const all = (await API.practice.chunks()).chunks || [];
-            sessPlan.chunks = sessPlan.scoreIds ? all.filter(c => sessPlan.scoreIds.includes(c.scoreId)) : all;
-        } catch (e) { /* keeps what it had */ }
-        const mine = sessPlan.chunks.filter(c => c.scoreId === ret.scoreId);
-        let k = 0;
-        sessPlan.blocks.forEach((b, j) => {
-            if (b.kind === 'rehearsal' && (j === ret.blockIndex || !b.chunk) && mine.length) b.chunk = mine[k++ % mine.length];
-        });
-        renderSessionPlan();
-        showSuccessToast(mine.length ? 'Levels saved - your Rehearsal blocks now use them' : 'Levels saved');
-    }
+    document.getElementById('sessionBlockCloseBtn')?.addEventListener('click', () => hideModal('sessionBlockModal'));
+    document.getElementById('sessStartBtn')?.addEventListener('click', () => { sessSaveLast(); startPracticeRun(); startSessionBlock(); });
 
     // --- Running it ---
     function startPracticeRun() {
         if (practiceRun) { switchView('sessionRunView'); return; }
-        practiceRun = { blocks: sessPlan.blocks.map(b => ({ ...b, seconds: 0, started: false })), index: 0, blockStart: Date.now(), nudgeAt: PracticePlan.NUDGE_SECONDS, nudged: false, startedAt: Date.now(), done: false };
+        const r = {
+            blocks: sessPlan.blocks.map(b => ({ ...b, seconds: 0, started: false })), index: 0, blockStart: Date.now(), nudgeAt: 0, nudged: false,
+            phase: 'play', restStart: 0, restMessage: null, startedAt: Date.now(), done: false,
+            open: sessPlan.open, template: sessPlan.template, focus: sessPlan.focus, auto: sessPlan.auto, source: sessPlan.source
+        };
+        practiceRun = r;
+        sessExtendOpen(r);
+        r.nudgeAt = PracticePlan.playSeconds(r.blocks, 0);
         clearInterval(practiceTick);
         practiceTick = setInterval(practiceRunTick, 1000);
         switchView('sessionRunView');
         renderPracticeRun();
         practiceRunSave();
     }
+    // Keep going: there's always the next block planned (the rest needs to know what comes next). A new
+    // Pieces block takes what needs you most now, not one of the last few; a new Skills block the skill
+    // practised longest ago that isn't one of the last two.
+    function sessExtendOpen(r) {
+        if (!r || !r.open) return;
+        while (r.blocks.length < r.index + 2) r.blocks.push(nextOpenBlock(r));
+    }
+    function nextOpenBlock(r) {
+        const kind = PracticePlan.openKindAt(r.template, r.focus, r.blocks.length);
+        const b = { kind, minutes: 5, seconds: 0, started: false };
+        if (kind === 'warmup') b.warmup = sessWarmupPlain();
+        if (kind === 'rehearsal') {
+            const pool = r.auto ? PracticePlan.piecePool(sessPlan.pieces) : [];
+            const keyOf = (x) => (x.chunk ? `c:${x.chunk.id}` : `p:${x.stage}:${x.scoreId}`);
+            const recent = r.blocks.filter(x => x.kind === 'rehearsal').slice(-3).map(x => (x.chunk ? `c:${x.chunk.id}` : `p:${x.stage}:${x.scoreId}`));
+            const prepared = new Set(r.blocks.filter(x => x.stage === 'prepare').map(x => x.scoreId));
+            const x = pool.find(p => !recent.includes(keyOf(p)) && !(p.stage === 'prepare' && prepared.has(p.scoreId))) || pool.find(p => p.stage !== 'prepare') || null;
+            b.stage = x ? x.stage : 'practise';
+            b.chunk = x ? x.chunk : null;
+            if (x && x.stage !== 'practise') { b.scoreId = x.scoreId; b.title = x.title; }
+            if (x && x.minutes) b.minutes = x.minutes;
+        }
+        if (kind === 'skills') {
+            const recent = r.blocks.filter(x => x.kind === 'skills').slice(-2).map(x => (x.skill ? x.skill.key : x.tool));
+            const pool = skillsForPlan().filter(s => !s.done).sort((a, c) => (a.lastPractised ? Date.parse(a.lastPractised) : 0) - (c.lastPractised ? Date.parse(c.lastPractised) : 0));
+            const s = pool.find(x => !recent.includes(x.key)) || pool[0];
+            if (s) b.skill = s;
+            else b.tool = (PracticePlan.SKILL_TOOLS.find(t => !recent.includes(t.tool)) || PracticePlan.SKILL_TOOLS[0]).tool;
+        }
+        return b;
+    }
     const runElapsed = () => Math.floor((Date.now() - practiceRun.blockStart) / 1000);
+    const restElapsed = () => Math.floor((Date.now() - practiceRun.restStart) / 1000);
     function practiceRunTick() {
         const r = practiceRun;
         if (!r || r.done) return;
-        const state = PracticePlan.blockState(runElapsed(), r.nudgeAt);
-        if (state !== 'play' && !r.nudged) sessionNudge();
-        if (state === 'next' && !r.waitingForRating) sessionMoveOn();
+        if (r.phase === 'rest') {
+            if (restElapsed() >= PracticePlan.REST_SECONDS) endRest();
+            else renderRest();
+            renderPracticeRun();
+            return;
+        }
+        if (!r.nudged && Number.isFinite(r.nudgeAt) && runElapsed() >= r.nudgeAt) sessionTimeUp();
         renderPracticeRun();
     }
-    // 4:30: the sound stops - Play Flow pauses where it is, any other tool is left for the session
-    // screen (leaving a tool stops it) - and the nudge counts the last 30 seconds down.
-    function sessionNudge() {
+    // The block's time is up (or Next block): the sound stops - Play Flow pauses where it is, any other tool
+    // is left for the session screen (leaving a tool stops it) - then "Did you nail it?" / "Got it?", then
+    // the rest or the next block.
+    function sessionTimeUp() {
         const r = practiceRun;
+        if (!r || r.done || r.phase === 'rest') return;
         r.nudged = true;
         const view = viewStack[viewStack.length - 1];
         if (view === 'flowPlayView') { if (flowPlayer.isPlaying()) flowPlayer.pause(); }
-        else if (view !== 'sessionRunView') switchView('sessionRunView');
-        const next = r.blocks[r.index + 1];
-        document.getElementById('sessionNudgeText').textContent = next ? `Take a breath. Next up: ${sessBlockName(next)}.` : 'Take a breath - that was the last block.';
-        showModal('sessionNudgeModal');
-    }
-    function sessionKeepGoing() {
-        const r = practiceRun;
-        if (!r) return;
-        hideModal('sessionNudgeModal');
-        r.nudgeAt = runElapsed() + PracticePlan.KEEP_GOING_SECONDS;
-        r.nudged = false;
-        renderPracticeRun();
-        practiceRunSave();
-    }
-    // Move on: a Levels practice asks how it went first (its rating sends you on); anything else goes now.
-    function sessionMoveOn() {
-        const r = practiceRun;
-        if (!r || r.done) return;
-        hideModal('sessionNudgeModal');
-        if (flowSession) { r.waitingForRating = true; openLevelRating(); return; }
-        // ML-321: a Warm-ups / Scales skill asks "Got it?" before moving on (drills rate themselves).
+        else if (view !== 'sessionRunView' && !(prep.fromSession && ['piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView'].includes(view))) switchView('sessionRunView');
+        if (flowSession && flowSession.mode !== 'runthrough') { r.waitingForRating = true; openLevelRating(); return; }
         const b = r.blocks[r.index];
         const s = b && b.kind === 'skills' && b.skill && b.started && !b.skillRated ? skillsData.find(x => x.key === b.skill.key) : null;
-        if (s && !s.def.graded && !s.done) { r.waitingForRating = true; askSkillRating(s, () => { b.skillRated = true; sessionAdvance(); }); return; }
-        sessionAdvance();
+        if (s && !s.def.graded && !s.done) { r.waitingForRating = true; askSkillRating(s, () => { b.skillRated = true; r.waitingForRating = false; sessionAfterBlock(); }); return; }
+        sessionAfterBlock();
+    }
+    // A block is over: count its time, then the rest (before a playing block) or straight on.
+    function sessionAfterBlock() {
+        const r = practiceRun;
+        if (!r || r.done || r.phase === 'rest') return;
+        const b = r.blocks[r.index];
+        b.seconds += runElapsed();
+        b.started = true;
+        sessExtendOpen(r);
+        if (r.index >= r.blocks.length - 1) { finishPracticeRun(); return; }
+        if (PracticePlan.restBefore(r.blocks, r.index + 1)) startRest();
+        else sessionAdvance();
     }
     function sessionAdvance() {
         const r = practiceRun;
         if (!r || r.done) return;
         r.waitingForRating = false;
-        const b = r.blocks[r.index];
-        b.seconds += runElapsed();
-        b.started = true;
+        r.phase = 'play';
         r.index++;
+        sessExtendOpen(r);
         if (r.index >= r.blocks.length) { finishPracticeRun(); return; }
         r.blockStart = Date.now();
-        r.nudgeAt = PracticePlan.NUDGE_SECONDS;
+        r.nudgeAt = PracticePlan.playSeconds(r.blocks, r.index);
         r.nudged = false;
         practiceRunSave();
         startSessionBlock(); // the next block starts on its own
     }
+    // A session's Prepare block is done (its bars are saved) - back to the session, and on.
+    function prepareDoneInSession() {
+        backToView('sessionRunView');
+        const r = practiceRun;
+        if (!r || r.done) return;
+        r.nudged = true;
+        refreshSessionPieces().then(() => sessionAfterBlock());
+    }
+
+    // --- The 30-second rest (ML-390) ---
+    const REST_KIND_LABELS = { why: 'Why we stop', breathe: 'Breathe', body: 'Loosen up', think: 'Think like a musician', fact: 'Did you know?', care: 'Look after yourself', kind: 'Kind words' };
+    const REST_FALLBACK = { kind: 'breathe', icon: 'air', title: 'Breathe with the circle', body: 'Breathe in as the circle grows, and out as it shrinks.' };
+    function startRest() {
+        const r = practiceRun;
+        r.phase = 'rest';
+        r.restStart = Date.now();
+        r.restMessage = null;
+        switchView('sessionRestView');
+        renderRestMessage();
+        renderRest();
+        practiceRunSave();
+        API.practice.restMessage().then(res => { if (practiceRun === r && r.phase === 'rest') { r.restMessage = (res && res.message) || REST_FALLBACK; renderRestMessage(); practiceRunSave(); } })
+            .catch(() => { if (practiceRun === r) { r.restMessage = REST_FALLBACK; renderRestMessage(); } });
+    }
+    function renderRestMessage() {
+        const r = practiceRun;
+        if (!r) return;
+        const m = r.restMessage;
+        document.getElementById('restKind').textContent = m ? REST_KIND_LABELS[m.kind] || '' : '';
+        document.getElementById('restTitle').textContent = m ? m.title : 'Rest';
+        document.getElementById('restBody').textContent = m ? m.body : 'The rest is part of the music.';
+        document.getElementById('restArt').innerHTML = !m ? '' : m.kind === 'breathe'
+            ? '<span class="rest-breath"><span class="rest-breath-word" id="restBreathWord">in</span></span>'
+            : `<span class="material-symbols-outlined">${escapeHtml(m.icon || 'self_improvement')}</span>`;
+        const next = r.blocks[r.index + 1];
+        setKindIcon(document.getElementById('restNextIcon'), next);
+        document.getElementById('restNextText').textContent = next ? sessBlockName(next) : '';
+    }
+    function renderRest() {
+        const r = practiceRun;
+        if (!r || r.phase !== 'rest') return;
+        const left = Math.max(0, PracticePlan.REST_SECONDS - restElapsed());
+        document.getElementById('restSecs').textContent = left;
+        document.getElementById('restRing')?.style.setProperty('--rest-left', (left / PracticePlan.REST_SECONDS).toFixed(4));
+        const word = document.getElementById('restBreathWord');
+        if (word) word.textContent = restElapsed() % 10 < 4 ? 'in' : 'out';
+    }
+    function endRest() {
+        const r = practiceRun;
+        if (!r || r.phase !== 'rest') return;
+        r.blocks[r.index].seconds += Math.min(PracticePlan.REST_SECONDS, restElapsed()); // the rest counts as practice time
+        sessionAdvance();
+    }
+
+    // --- Starting a block ---
     async function startSessionBlock() {
         const r = practiceRun;
         if (!r) return;
         const b = r.blocks[r.index];
         b.started = true;
-        if (b.kind === 'rehearsal' && b.chunk) {
-            try { await startChunkPractice(b.chunk); } catch (e) { showWarningToast('Could not open those bars: ' + e.message); switchView('sessionRunView'); }
-            return;
+        if (b.kind === 'rehearsal') {
+            if (b.stage === 'prepare' && b.scoreId) { practiceRunSave(); await startPrepareInSession(b.scoreId); return; }
+            if (b.stage === 'playthrough') {
+                try { await startPlaythroughBlock(b); } catch (e) { showWarningToast('Could not open the piece: ' + e.message); switchView('sessionRunView'); }
+                return;
+            }
+            if (b.chunk) {
+                try { await startChunkPractice(b.chunk); } catch (e) { showWarningToast('Could not open those bars: ' + e.message); switchView('sessionRunView'); }
+                return;
+            }
+            practiceRunSave(); switchView('rehearseView'); return; // no Levels yet: pick any piece
         }
-        if (b.kind === 'rehearsal') { practiceRunSave(); switchView('rehearseView'); return; } // no Levels yet: pick any piece
         if (b.kind === 'skills' && b.skill) {
             const s = skillsData.find(x => x.key === b.skill.key) || skillWithSteps({ key: b.skill.key, stepIndex: b.skill.stepIndex || 0 });
             if (s && !s.done) { openSkillStep(s); practiceRunSave(); return; }
@@ -6759,43 +7363,62 @@
             const seq = PracticePlan.warmupSequence(b.warmup, (warmupsAll || []).map(ex => ({ id: ex.id, kind: ex.kind })), Warmups.KIND_IDS);
             switchView('warmupsView');
             sessionWarmupIds = seq.length ? seq : null; // after switchView, which clears it when leaving the tool
-            if (seq.length) { warmups.currentId = seq[0]; renderWarmups(); }
+            sessionWarmupLoop = seq.length ? { round: 1 } : null; // ML-390: the list plays on a loop until the block ends
+            if (seq.length) { warmups.currentId = seq[0]; warmupsShow(warmupsList()[0]); }
             return;
         }
         const view = b.kind === 'warmup' ? 'warmupsView' : b.kind === 'scales' ? 'scalesView' : SESSION_TOOL_VIEWS[b.tool];
         switchView(view || 'sessionRunView');
     }
+    // A session's Prepare block: the piece's path, straight into its run-through.
+    async function startPrepareInSession(scoreId) {
+        try { await loadPieceLevels(scoreId); } catch (e) { showWarningToast('Piece not loaded: ' + e.message); switchView('sessionRunView'); return; }
+        switchView('piecePathView');
+        renderPiecePath();
+        prep.fromSession = true;
+        openPrepareRun();
+    }
+    // A Play-through block: the part given, or - for a piece whose parts aren't made yet - the first part
+    // once saving the piece's Levels has made them.
+    async function startPlaythroughBlock(b) {
+        let chunk = b.chunk;
+        if (!chunk) {
+            await loadPieceLevels(b.scoreId);
+            if (!levels.groups.length) {
+                const body = levels.chunks.map(c => ({ id: c.id, kind: c.kind, startBar: c.startBar, endBar: c.endBar, level: c.level, label: c.label }));
+                applyPieceLevels(await API.levels.save(levels.flowId, body));
+            }
+            const part = nextPart();
+            if (!part) throw new Error('there is nothing to play through yet');
+            chunk = { ...part, scoreId: b.scoreId, title: b.title };
+            b.chunk = chunk;
+        }
+        await startChunkPractice(chunk);
+    }
     // Open a chunk's piece and practise it at its Level (ML-317), from a session.
     async function startChunkPractice(chunk) {
-        const [detail, blocks, lv] = await Promise.all([API.flows.get(chunk.scoreId), API.flows.blocks.list(chunk.scoreId), API.levels.get(chunk.scoreId)]);
-        currentFlowId = chunk.scoreId;
-        currentFlowDetail = detail;
-        flowLeadInBlock = blocks.find(b => b.isLeadIn) || null;
-        currentFlowBlocks = blocks.filter(b => !b.isLeadIn);
-        setShown('flowPlayMenuEditDetails', detail.canEdit);
-        setShown('flowPlayMenuEditFlow', detail.canEdit);
-        setShown('flowPlayMenuCopy', !detail.canEdit && detail.isPublic);
+        await loadPieceLevels(chunk.scoreId);
+        setShown('flowPlayMenuEditDetails', currentFlowDetail.canEdit);
+        setShown('flowPlayMenuEditFlow', currentFlowDetail.canEdit);
+        setShown('flowPlayMenuCopy', !currentFlowDetail.canEdit && currentFlowDetail.isPublic);
         setShown('flowPlayMenuLevels', isFeatureEnabled('practice_levels'));
-        levels.flowId = chunk.scoreId;
-        levels.blocks = currentFlowBlocks.slice();
-        levels.total = FlowJourney.totalBars(levels.blocks);
-        applyPieceLevels(lv);
-        const c = [levels.whole, ...levels.hard, ...levels.chunks].find(x => x && x.id === chunk.id);
-        if (!c || c.level == null) throw new Error('those bars have changed - check My Levels');
-        startLevelPractice(c);
+        const c = [...levels.chunks, ...levels.groups].find(x => x && x.id === chunk.id);
+        if (!c) throw new Error('those bars have changed - check the piece\'s Levels');
+        const level = c.level != null ? c.level : c.kind === 'group' ? PracticePlan.TARGET_LEVEL : null;
+        if (level == null) throw new Error('those bars have no Level yet');
+        startLevelPractice({ ...c, level });
     }
     async function finishPracticeRun(early) {
         const r = practiceRun;
         if (!r || r.done) return;
-        if (early) { const b = r.blocks[r.index]; b.seconds += runElapsed(); b.started = true; }
+        if (early && r.phase !== 'rest') { const b = r.blocks[r.index]; b.seconds += runElapsed(); b.started = true; }
         r.done = true;
         clearInterval(practiceTick);
-        hideModal('sessionNudgeModal');
         API.practice.clearActive().catch(() => { /* gone when it goes stale */ });
         if (flowSession) endLevelPractice();
         const played = r.blocks.filter(b => b.started && b.seconds > 0);
         const minutes = Math.max(1, Math.round(played.reduce((s, b) => s + b.seconds, 0) / 60));
-        document.getElementById('sessRunDoneTitle').textContent = early ? 'Session ended' : 'Session done';
+        document.getElementById('sessRunDoneTitle').textContent = early ? 'Session ended' : 'Session done - well played!';
         document.getElementById('sessRunDoneText').textContent = `${minutes} minute${minutes === 1 ? '' : 's'}, ${played.length} block${played.length === 1 ? '' : 's'}. Saving to your practice history...`;
         switchView('sessionRunView');
         renderPracticeRun();
@@ -6814,8 +7437,8 @@
     function renderPracticeRun() {
         const r = practiceRun;
         const bar = document.getElementById('sessionBar');
-        const onRunView = viewStack[viewStack.length - 1] === 'sessionRunView';
-        setShown(bar, !!r && !r.done && !onRunView);
+        const top = viewStack[viewStack.length - 1];
+        setShown(bar, !!r && !r.done && top !== 'sessionRunView' && top !== 'sessionRestView');
         if (!r) return;
         const strip = sessStripHtml(r.blocks, r.done ? r.blocks.length : r.index);
         document.getElementById('sessRunStrip').innerHTML = strip;
@@ -6824,56 +7447,43 @@
         setShown('sessRunDone', r.done);
         if (r.done) return;
         const b = r.blocks[r.index];
-        const left = Math.max(0, PracticePlan.BLOCK_MINUTES * 60 - runElapsed());
-        const nudgeLeft = Math.max(0, r.nudgeAt + (PracticePlan.BLOCK_MINUTES * 60 - PracticePlan.NUDGE_SECONDS) - runElapsed());
-        const count = `Block ${r.index + 1} of ${r.blocks.length}`;
+        const count = r.open ? `Block ${r.index + 1} · keep going` : `Block ${r.index + 1} of ${r.blocks.length}`;
+        const isPrepare = b.kind === 'rehearsal' && b.stage === 'prepare';
+        const resting = r.phase === 'rest';
+        const time = resting ? `${Math.max(0, PracticePlan.REST_SECONDS - restElapsed())}s` : isPrepare ? fmtMinSec(runElapsed()) : fmtMinSec(Math.max(0, (Number.isFinite(r.nudgeAt) ? r.nudgeAt : 0) - runElapsed()));
         document.getElementById('sessRunCount').textContent = count;
-        document.getElementById('sessRunKind').textContent = PracticePlan.KINDS[b.kind];
-        document.getElementById('sessRunDetail').textContent = sessBlockText(b);
-        document.getElementById('sessRunTime').textContent = fmtMinSec(r.nudgeAt > PracticePlan.NUDGE_SECONDS ? Math.max(0, r.nudgeAt - runElapsed()) : left);
-        document.getElementById('sessRunGoBtn').textContent = b.started ? 'Back to this block' : 'Start this block';
+        setKindIcon(document.getElementById('sessRunIcon'), b);
+        document.getElementById('sessRunKind').textContent = resting ? 'Rest' : blockTitle(b);
+        document.getElementById('sessRunDetail').textContent = resting ? 'The rest is part of the music.' : sessBlockText(b);
+        document.getElementById('sessRunTime').textContent = time;
+        document.getElementById('sessRunTimeSub').textContent = resting ? 'of rest left' : isPrepare ? 'so far - take as long as you need' : 'left in this block';
+        const go = document.getElementById('sessRunGoBtn');
+        go.textContent = resting ? 'Back to the rest' : isPrepare ? (b.started ? 'Back to preparing' : 'Start preparing') : b.started ? 'Back to this block' : 'Start this block';
         const next = r.blocks[r.index + 1];
         document.getElementById('sessRunUpNext').textContent = next ? `Up next: ${sessBlockName(next)}` : 'This is the last block.';
-        document.getElementById('sessRunNextBtn').textContent = next ? 'Next block' : 'Finish the session';
-        document.getElementById('sessionBarText').textContent = `${count} · ${PracticePlan.KINDS[b.kind]}`;
-        document.getElementById('sessionBarTime').textContent = fmtMinSec(r.nudgeAt > PracticePlan.NUDGE_SECONDS ? Math.max(0, r.nudgeAt - runElapsed()) : left);
-        document.getElementById('sessionNudgeCount').textContent = fmtMinSec(Math.min(30, nudgeLeft));
+        const nextBtn = document.getElementById('sessRunNextBtn');
+        nextBtn.textContent = next ? 'Next block' : 'Finish the session';
+        setShown(nextBtn, !resting);
+        document.getElementById('sessionBarText').textContent = `${count} · ${resting ? 'Rest' : blockTitle(b)}`;
+        document.getElementById('sessionBarTime').textContent = time;
     }
 
-    document.getElementById('startPracticeSessionBtn')?.addEventListener('click', () => (practiceRun && !practiceRun.done ? switchView('sessionRunView') : openSessionPlanner({})));
-    document.getElementById('sessLenMinus')?.addEventListener('click', () => { sessPlan.minutes = PracticePlan.clampMinutes(sessPlan.minutes - 5); sessReplan(); });
-    document.getElementById('sessLenPlus')?.addEventListener('click', () => { sessPlan.minutes = PracticePlan.clampMinutes(sessPlan.minutes + 5); sessReplan(); });
-    // ML-337: drag or tap the slider (snaps to 5 minutes); arrows step 5.
-    function sessSetMinutes(m) {
-        const next = PracticePlan.clampMinutes(m);
-        if (next === sessPlan.minutes) return;
-        sessPlan.minutes = next;
-        sessReplan();
-    }
-    setupSliderInteraction(document.getElementById('sessLenSliderTrack'), document.getElementById('sessLenSliderThumb'), {
-        onDragRatio: (ratio) => sessSetMinutes(PracticePlan.MIN_MINUTES + ratio * (PracticePlan.MAX_MINUTES - PracticePlan.MIN_MINUTES)),
-        onArrowStep: (dir) => sessSetMinutes(sessPlan.minutes + dir * PracticePlan.BLOCK_MINUTES)
-    });
-    document.getElementById('sessionBlockCloseBtn')?.addEventListener('click', () => hideModal('sessionBlockModal'));
-    document.getElementById('sessSetupPieceBtn')?.addEventListener('click', () => openSessionBlockModal(Math.max(0, sessPlan.blocks.findIndex(b => b.kind === 'rehearsal')), 'rehearsal'));
-    document.getElementById('sessStartBtn')?.addEventListener('click', () => { startPracticeRun(); startSessionBlock(); });
-    document.getElementById('sessRunGoBtn')?.addEventListener('click', startSessionBlock);
-    document.getElementById('sessRunNextBtn')?.addEventListener('click', sessionMoveOn);
+    document.getElementById('startPracticeSessionBtn')?.addEventListener('click', () => (practiceRun && !practiceRun.done ? switchView(practiceRun.phase === 'rest' ? 'sessionRestView' : 'sessionRunView') : openSessionSetup({})));
+    document.getElementById('sessRunGoBtn')?.addEventListener('click', () => { if (practiceRun && practiceRun.phase === 'rest') switchView('sessionRestView'); else startSessionBlock(); });
+    document.getElementById('sessRunNextBtn')?.addEventListener('click', () => sessionTimeUp());
     document.getElementById('sessRunEndBtn')?.addEventListener('click', () => finishPracticeRun(true));
     document.getElementById('sessRunDoneBtn')?.addEventListener('click', () => { practiceRun = null; renderPracticeRun(); switchView('mainView'); });
-    document.getElementById('sessionBar')?.addEventListener('click', () => switchView('sessionRunView'));
-    document.getElementById('sessionNudgeKeepBtn')?.addEventListener('click', sessionKeepGoing);
-    document.getElementById('sessionNudgeNextBtn')?.addEventListener('click', sessionMoveOn);
+    document.getElementById('sessionBar')?.addEventListener('click', () => switchView(practiceRun && practiceRun.phase === 'rest' ? 'sessionRestView' : 'sessionRunView'));
     // Practice session test hook - LOCAL DEVELOPMENT ONLY, the same switch as the Flow and Theory hooks
-    // (localhost + localStorage 'tml.testClock' = '1'): read the run and move a block's clock on.
+    // (localhost + localStorage 'tml.testClock' = '1'): read the run and move a block's (or the rest's) clock on.
     (function sessionTestHook() {
         let on = false;
         try { on = ['localhost', '127.0.0.1'].includes(location.hostname) && localStorage.getItem('tml.testClock') === '1'; } catch (e) { on = false; }
         if (!on) return;
         window.__sessionTest = {
-            run: () => (practiceRun ? JSON.parse(JSON.stringify({ ...practiceRun, elapsed: runElapsed() })) : null),
+            run: () => (practiceRun ? JSON.parse(JSON.stringify({ ...practiceRun, elapsed: practiceRun.phase === 'rest' ? restElapsed() : runElapsed() })) : null),
             plan: () => JSON.parse(JSON.stringify(sessPlan)),
-            skip: (seconds) => { if (practiceRun) { practiceRun.blockStart -= seconds * 1000; practiceRunTick(); } },
+            skip: (seconds) => { if (!practiceRun) return; if (practiceRun.phase === 'rest') practiceRun.restStart -= seconds * 1000; else practiceRun.blockStart -= seconds * 1000; practiceRunTick(); },
             skills: () => JSON.parse(JSON.stringify(skillsData.map(x => ({ key: x.key, stepIndex: x.stepIndex, done: x.done, step: x.step })))),
             skillContext: () => skillContext,
             drillSaved: (tool, level, grade) => skillDrillSaved(tool, level, grade)
@@ -7006,16 +7616,16 @@
             const pb = f.pieces[i];
             // ML-334: a piece not set up yet is fine on a list - its first block is preparation for
             // practice (giving it Levels), which you can do now.
-            const note = pb.prep ? `Not set up - ${PracticePlan.PREP_BLOCKS} block to prepare it` : pb.blocks === 0 ? 'Ready' : `${pb.blocks} block${pb.blocks === 1 ? '' : 's'} to Level 5${pb.joinUp ? ' (with join-up)' : ''}`;
+            const note = pb.prep ? 'Not prepared yet - a Prepare block first' : pb.blocks === 0 ? 'Ready' : `${pb.blocks} block${pb.blocks === 1 ? '' : 's'} to be ready`;
             return `<div class="history-item">
-                <button type="button" class="level-row-body grow text-left" data-piece="${p.scoreId}" aria-label="${escapeHtml(p.title)} - ${note}. ${pb.prep ? 'Prepare it now' : 'Open My Levels'}">
+                <button type="button" class="level-row-body grow text-left" data-piece="${p.scoreId}" aria-label="${escapeHtml(p.title)} - ${note}. ${pb.prep ? 'Prepare it now' : 'Open its path'}">
                     <span class="grow"><strong>${escapeHtml(p.title)}</strong><br><span class="text-sm text-muted">${note}</span>
                     ${pb.prep ? '<span class="text-sm fw-bold">Prepare it now &rsaquo;</span>' : `<span class="level-strip mt-1" aria-hidden="true">${map.map(v => `<span class="level-cell lv-${v || 0}"></span>`).join('')}</span>`}</span>
                 </button>
                 <button type="button" class="list-item-menu-btn" data-piece-menu="${p.scoreId}" aria-label="Options for ${escapeHtml(p.title)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined" aria-hidden="true">more_vert</span></button>
             </div>`;
         }).join('') : '<p class="text-sm text-muted">No pieces yet.</p>';
-        box.querySelectorAll('[data-piece]').forEach(b => b.addEventListener('click', () => openLevelsForPiece(Number(b.dataset.piece))));
+        box.querySelectorAll('[data-piece]').forEach(b => b.addEventListener('click', () => openPiecePath(Number(b.dataset.piece))));
         box.querySelectorAll('[data-piece-menu]').forEach(b => b.addEventListener('click', (e) => {
             e.stopPropagation();
             openPlPieceMenu(b, Number(b.dataset.pieceMenu));
@@ -7029,7 +7639,7 @@
         const i = plState.list.pieces.findIndex(p => p.scoreId === id);
         if (!menu || i < 0) return;
         plPieceMenuTargetId = id;
-        document.getElementById('plPieceMenuLevelsText').textContent = plForecast(plState.list).pieces[i].prep ? 'Prepare levels' : 'Edit levels';
+        document.getElementById('plPieceMenuLevelsText').textContent = plForecast(plState.list).pieces[i].prep ? 'Prepare this piece' : 'Its path and Levels';
         menu.classList.add('show');
         const r = btnEl.getBoundingClientRect();
         placeAt(menu, Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8)),
@@ -7040,7 +7650,7 @@
     document.getElementById('plPieceMenuLevels')?.addEventListener('click', (e) => {
         e.stopPropagation();
         closePlPieceMenu();
-        openLevelsForPiece(plPieceMenuTargetId);
+        openPiecePath(plPieceMenuTargetId);
     });
     document.getElementById('plPieceMenuDelete')?.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -7067,19 +7677,6 @@
             try { plState.list = await API.practiceLists.update(l.id, body); renderPracticeList(); }
             catch (e) { showWarningToast('List not saved: ' + e.message); }
         }, 600);
-    }
-    // A piece's My Levels, from a list: load it as Play Flow would, then open the Levels screen.
-    async function openLevelsForPiece(scoreId) {
-        try {
-            const [detail, blocks] = await Promise.all([API.flows.get(scoreId), API.flows.blocks.list(scoreId)]);
-            currentFlowId = scoreId;
-            currentFlowDetail = detail;
-            flowLeadInBlock = blocks.find(b => b.isLeadIn) || null;
-            currentFlowBlocks = blocks.filter(b => !b.isLeadIn);
-            openPieceLevels();
-        } catch (e) {
-            showWarningToast('Piece not loaded: ' + e.message);
-        }
     }
     // ML-351: Add pieces - a pick list of the pieces not on the list yet, filtered like My music (All /
     // Mine / each band / Public, plus a title/composer search; flowLibraryFilterKey), both per visit.
@@ -7128,9 +7725,9 @@
         plSetPieces([...plState.list.pieces.map(p => p.scoreId), ...plState.picked]);
     });
     document.getElementById('plPlanBtn')?.addEventListener('click', () => {
-        // ML-333/342: a session for a list is the Concert template (Warm-up, then Rehearsal) on its pieces.
+        // ML-333/342: a session for a list is the Concert plan (Warm-up, then Pieces) on its pieces (ML-390: the steps).
         const l = plState.list;
-        openSessionPlanner({ scoreIds: l.pieces.map(p => p.scoreId), template: 'concert', listName: l.name });
+        openSessionSetup({ source: { type: 'list', listId: l.id, listName: l.name }, template: 'concert' });
     });
     document.getElementById('plDeleteBtn')?.addEventListener('click', () => {
         const l = plState.list;
@@ -7140,77 +7737,7 @@
         }, true, 'Delete');
     });
 
-    // --- Join-up groups on My Levels (chunk answer only) ---
-    function levelsGroupStatus(g) {
-        const inside = levels.chunks.filter(c => c.startBar >= g.startBar && c.endBar <= g.endBar);
-        const below = inside.filter(c => c.level == null || c.level < 4).length;
-        return { inside: inside.length, below, ready: inside.length > 0 && below === 0 };
-    }
-    function renderGroups() {
-        const list = document.getElementById('levelsGroupList');
-        if (!list) return;
-        list.innerHTML = levels.groups.map((g, i) => {
-            const st = levelsGroupStatus(g);
-            const fit = FlowJourney.chunkFit(levels.blocks, { startBar: g.startBar, endBar: g.endBar, level: g.level || 4 });
-            const tooLong = fit.ok && fit.runs < 1;
-            const status = tooLong ? `<span class="text-sm level-fit-warn">${fmtMinSec(fit.runSeconds)} a run - too long for one block, make it smaller</span>`
-                : st.ready ? `<span class="text-sm text-muted">Ready - all ${st.inside} chunks at Level 4 or more${fit.ok ? ` · ${fmtMinSec(fit.runSeconds)} a run` : ''}</span>`
-                : `<span class="text-sm text-muted">${st.below} of ${st.inside} chunk${st.inside === 1 ? '' : 's'} still below Level 4</span>`;
-            return `<div class="history-item">
-                <div class="grow">
-                    <span class="level-row-body">
-                        <span class="level-chip lv-${g.level || 0}" aria-hidden="true">${g.level || ''}</span>
-                        <span><strong>${escapeHtml(g.label || levelsRange(g.startBar, g.endBar))}</strong><br>${status}</span>
-                    </span>
-                    ${st.ready && !tooLong ? `<button type="button" class="btn-nav no-margin mt-2" data-group-practise="${i}">Practise this group</button>` : ''}
-                </div>
-                <button type="button" class="flow-delete-btn" data-group-remove="${i}" aria-label="Remove the join-up group ${levelsRange(g.startBar, g.endBar)}"><span class="material-symbols-outlined" aria-hidden="true">delete</span></button>
-            </div>`;
-        }).join('');
-        list.querySelectorAll('[data-group-remove]').forEach(b => b.addEventListener('click', () => { levels.groups.splice(Number(b.dataset.groupRemove), 1); renderPieceLevels(); }));
-        list.querySelectorAll('[data-group-practise]').forEach(b => b.addEventListener('click', () => {
-            const g = levels.groups[Number(b.dataset.groupPractise)];
-            if (g.level == null) g.level = 4; // joined up at Level 4 first, then on to full speed
-            const [a, z] = [g.startBar, g.endBar];
-            practiseLevels(() => levels.groups.find(x => x.startBar === a && x.endBar === z));
-        }));
-        const e = levels.groupEdit;
-        setShown('levelsGroupEditor', !!e);
-        setShown('levelsGroupAddBtn', !e);
-        if (!e) return;
-        const from = document.getElementById('levelsGroupFrom'), to = document.getElementById('levelsGroupTo');
-        from.max = to.max = String(levels.total);
-        if (document.activeElement !== from) from.value = e.startBar;
-        if (document.activeElement !== to) to.value = e.endBar;
-        const fit = FlowJourney.chunkFit(levels.blocks, { startBar: Math.min(e.startBar, e.endBar), endBar: Math.max(e.startBar, e.endBar), level: 4 });
-        document.getElementById('levelsGroupFit').textContent = fit.ok ? (fit.runs < 1 ? `${fmtMinSec(fit.runSeconds)} a run at Level 4 - too long for one block. Make it smaller.` : `${fmtMinSec(fit.runSeconds)} a run at Level 4 - fits in a block.`) : '';
-    }
-    document.getElementById('levelsGroupAddBtn')?.addEventListener('click', () => {
-        const first = levels.chunks[0], second = levels.chunks[1] || first;
-        levels.groupEdit = { startBar: first ? first.startBar : 1, endBar: second ? second.endBar : Math.min(levels.total, 8) };
-        renderPieceLevels();
-    });
-    ['levelsGroupFrom', 'levelsGroupTo'].forEach(id => document.getElementById(id)?.addEventListener('input', () => {
-        const e = levels.groupEdit;
-        if (!e) return;
-        const clamp = (v) => Math.max(1, Math.min(levels.total, Math.round(Number(v) || 1)));
-        e.startBar = clamp(document.getElementById('levelsGroupFrom').value);
-        e.endBar = clamp(document.getElementById('levelsGroupTo').value);
-        renderPieceLevels();
-    }));
-    document.getElementById('levelsGroupCancelBtn')?.addEventListener('click', () => { levels.groupEdit = null; renderPieceLevels(); });
-    document.getElementById('levelsGroupDoneBtn')?.addEventListener('click', () => {
-        const e = levels.groupEdit;
-        if (!e) return;
-        const g = { kind: 'group', startBar: Math.min(e.startBar, e.endBar), endBar: Math.max(e.startBar, e.endBar), level: null, label: null };
-        const fit = FlowJourney.chunkFit(levels.blocks, { startBar: g.startBar, endBar: g.endBar, level: 4 });
-        if (fit.ok && fit.runs < 1) { showWarningToast('Too long to play through in one block - make the group smaller.'); return; }
-        levels.groups.push(g);
-        levels.groups.sort((x, y) => x.startBar - y.startBar);
-        levels.groupEdit = null;
-        renderPieceLevels();
-    });
-
+    // (ML-390: join-up groups are now a piece's play-through parts - chosen on its path, piecePathView.)
 
     // ===== ML-321 (epic ML-314): your skills list =====
     // A skill is a playing tool plus its steps in order (SKILLS below - Range ML-305 and Rhythm ML-306
@@ -7506,6 +8033,8 @@
     });
     // While a session's Warm-up block plays a list, the Warm-ups tool goes through just these exercises.
     var sessionWarmupIds = null; // var: warmupsList reads it
+    // ML-390: a session's Warm-up block plays its list on a loop until the block ends - { round }.
+    var sessionWarmupLoop = null;
     // Open a skill's tool at the step you're on.
     function openSkillStep(s) {
         if (!s || s.done || !s.step) return;
@@ -7580,82 +8109,13 @@
     }
     document.getElementById('skillsAddBtn')?.addEventListener('click', openSkillsAddModal);
     document.getElementById('skillsAddCloseBtn')?.addEventListener('click', () => hideModal('skillsAddModal'));
-    document.getElementById('sessSkillsBtn')?.addEventListener('click', openSkillsView);
 
-    // ===== ML-320 follow-up: your own session templates =====
+    // ===== ML-320 follow-up: your own session templates - "plans" since ML-390 (made in Build my plan) =====
     let sessTemplates = [];
-    let tplDraft = null; // { id?, name, lead: [], focus, minutes }
     async function loadTemplates() {
         try { sessTemplates = (await API.practice.templates()).templates || []; } catch (e) { sessTemplates = []; }
         return sessTemplates;
     }
-    function renderTemplateModal() {
-        const list = document.getElementById('sessTplList');
-        list.innerHTML = sessTemplates.length ? sessTemplates.map((t, i) => `<button type="button" class="flow-choice-option level-answer${tplDraft && tplDraft.id === t.id ? ' selected' : ''}" data-tpl="${i}"><span><strong>${escapeHtml(t.name)}</strong><br><span class="text-sm text-muted">${t.lead.map(k => PracticePlan.KINDS[k]).join(', ') || 'No opening blocks'}, then ${t.focus === 'both' ? 'Skills and Rehearsal' : PracticePlan.KINDS[t.focus]} · ${t.minutes} min</span></span></button>`).join('')
-            : '<p class="metro-help-text">Standard and Concert are built in. Make your own - e.g. "Chops day": Warm-up, Scales, Skills, Skills, then Both.</p>';
-        list.querySelectorAll('[data-tpl]').forEach(b => b.addEventListener('click', () => { const t = sessTemplates[Number(b.dataset.tpl)]; tplDraft = { ...t, lead: t.lead.slice() }; renderTemplateModal(); }));
-        setShown('sessTplEditor', !!tplDraft);
-        setShown('sessTplNewBtn', !tplDraft);
-        if (!tplDraft) return;
-        const d = tplDraft;
-        const name = document.getElementById('sessTplName');
-        if (document.activeElement !== name) name.value = d.name;
-        document.getElementById('sessTplMinutes').value = d.minutes;
-        const lead = document.getElementById('sessTplLead');
-        lead.innerHTML = d.lead.length ? d.lead.map((k, i) => `<button type="button" class="filter-pill active" data-lead="${i}" aria-label="Take out ${PracticePlan.KINDS[k]} (block ${i + 1})">${i + 1}. ${PracticePlan.KINDS[k]}</button>`).join('') : '<span class="text-sm text-muted">None - the focus starts straight away.</span>';
-        lead.querySelectorAll('[data-lead]').forEach(b => b.addEventListener('click', () => { d.lead.splice(Number(b.dataset.lead), 1); renderTemplateModal(); }));
-        const add = document.getElementById('sessTplAdd');
-        add.innerHTML = ['warmup', 'scales', 'skills', 'rehearsal'].map(k => `<button type="button" class="filter-pill" data-add="${k}">+ ${PracticePlan.KINDS[k]}</button>`).join('');
-        add.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => { if (d.lead.length < 24) d.lead.push(b.dataset.add); renderTemplateModal(); }));
-        const focus = document.getElementById('sessTplFocus');
-        focus.innerHTML = [['skills', 'Skills'], ['both', 'Both'], ['rehearsal', 'Rehearsal']].map(([k, l]) => `<button type="button" class="filter-pill${d.focus === k ? ' active' : ''}" aria-pressed="${d.focus === k}" data-f="${k}">${l}</button>`).join('');
-        focus.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => { d.focus = b.dataset.f; renderTemplateModal(); }));
-        setShown('sessTplDeleteBtn', !!d.id);
-    }
-    async function openTemplateModal() {
-        tplDraft = null;
-        await loadTemplates();
-        renderTemplateModal();
-        showModal('sessionTemplateModal');
-    }
-    document.getElementById('sessTemplatesBtn')?.addEventListener('click', openTemplateModal);
-    document.getElementById('sessionTemplateCloseBtn')?.addEventListener('click', () => hideModal('sessionTemplateModal'));
-    document.getElementById('sessTplNewBtn')?.addEventListener('click', () => {
-        const cur = sessPlan.template;
-        tplDraft = { name: '', lead: (cur && cur.lead ? cur.lead : (PracticePlan.TEMPLATES[cur] || PracticePlan.TEMPLATES.standard).lead).slice(), focus: sessPlan.focus, minutes: sessPlan.minutes };
-        renderTemplateModal();
-        document.getElementById('sessTplName')?.focus();
-    });
-    document.getElementById('sessTplName')?.addEventListener('input', (e) => { if (tplDraft) tplDraft.name = e.target.value; });
-    document.getElementById('sessTplMinutes')?.addEventListener('input', (e) => { if (tplDraft) tplDraft.minutes = Number(e.target.value) || tplDraft.minutes; });
-    document.getElementById('sessTplSaveBtn')?.addEventListener('click', async () => {
-        const d = tplDraft;
-        if (!d) return;
-        try {
-            const saved = d.id ? await API.practice.saveTemplate(d.id, d) : await API.practice.addTemplate(d);
-            await loadTemplates();
-            tplDraft = null;
-            renderTemplateModal();
-            hideModal('sessionTemplateModal');
-            sessPlan.template = { ...saved };
-            sessPlan.focus = saved.focus;
-            sessPlan.minutes = saved.minutes;
-            sessReplan();
-            showSuccessToast(`Template "${saved.name}" saved`);
-        } catch (e) { showWarningToast('Not saved: ' + e.message); }
-    });
-    document.getElementById('sessTplDeleteBtn')?.addEventListener('click', async () => {
-        const d = tplDraft;
-        if (!d || !d.id) return;
-        try {
-            await API.practice.deleteTemplate(d.id);
-            if (sessPlan.template && sessPlan.template.id === d.id) sessPlan.template = 'standard';
-            await loadTemplates();
-            tplDraft = null;
-            renderTemplateModal();
-            sessReplan();
-        } catch (e) { showWarningToast('Not deleted: ' + e.message); }
-    });
 
     // ===== ML-320 follow-up: a running session carries on after a reload, or on another device =====
     // The runner's state is kept on the server (active_practice_sessions) whenever it changes; the
@@ -7666,8 +8126,13 @@
     function practiceRunSave() {
         const r = practiceRun;
         if (!r || r.done) return;
-        const state = { blocks: r.blocks, index: r.index, nudgeAt: r.nudgeAt, nudged: r.nudged, startedAt: r.startedAt, scoreIds: sessPlan.scoreIds || null };
-        API.practice.putActive({ state, blockElapsedSeconds: runElapsed() }).catch(() => { /* not kept - it still runs here */ });
+        // ML-390: the rest (phase 'rest', timed from its own start), Keep going (open + the plan to follow)
+        // and where the pieces come from are kept too. A Prepare's endless nudgeAt is kept as null.
+        const state = {
+            blocks: r.blocks, index: r.index, nudgeAt: Number.isFinite(r.nudgeAt) ? r.nudgeAt : null, nudged: r.nudged, startedAt: r.startedAt,
+            phase: r.phase, restMessage: r.restMessage, open: !!r.open, template: r.template, focus: r.focus, auto: r.auto, source: r.source || null
+        };
+        API.practice.putActive({ state, blockElapsedSeconds: r.phase === 'rest' ? restElapsed() : runElapsed() }).catch(() => { /* not kept - it still runs here */ });
     }
     async function resumePracticeRun() {
         if (!isFeatureEnabled('practice_levels') || practiceRun) return;
@@ -7688,13 +8153,20 @@
             } catch (e) { /* nothing to save it to */ }
             return;
         }
-        practiceRun = { blocks: st.blocks, index: st.index, blockStart: Date.now() - active.elapsedSeconds * 1000, nudgeAt: st.nudgeAt, nudged: false, startedAt: st.startedAt, done: false };
+        const at = Date.now() - active.elapsedSeconds * 1000;
+        const resting = st.phase === 'rest';
+        practiceRun = {
+            blocks: st.blocks, index: st.index, blockStart: resting ? Date.now() : at, restStart: resting ? at : 0, phase: resting ? 'rest' : 'play',
+            restMessage: st.restMessage || null, nudgeAt: st.nudgeAt == null ? PracticePlan.playSeconds(st.blocks, st.index) : st.nudgeAt, nudged: !!st.nudged && !resting,
+            startedAt: st.startedAt, done: false, open: !!st.open, template: st.template || 'standard', focus: st.focus || 'both', auto: st.auto !== false, source: st.source || { type: 'all' }
+        };
         loadSkills().catch(() => {}); // Skills blocks need your list (their steps, and Got it? for Warm-ups / Scales)
-        sessPlan.scoreIds = st.scoreIds || null;
+        sessPlan.source = practiceRun.source;
+        if (practiceRun.open) refreshSessionPieces().catch(() => {}); // Keep going plans new Pieces blocks from them
         clearInterval(practiceTick);
         practiceTick = setInterval(practiceRunTick, 1000);
         renderPracticeRun();
-        showSuccessToast(`Practice session carried on - block ${st.index + 1} of ${st.blocks.length}. Tap the bar at the top.`);
+        showSuccessToast(`Practice session carried on - block ${st.index + 1}${practiceRun.open ? '' : ` of ${st.blocks.length}`}. Tap the bar at the top.`);
     }
 
     // ===== ML-319 follow-up: band practice lists =====
@@ -11962,6 +12434,8 @@
     }
 
     function onFlowBeat(beatInfo) {
+        // ML-390: a Prepare run-through that has reached the end goes on to painting the bars.
+        if (beatInfo.ended && flowSession && flowSession.mode === 'runthrough') { flowPlayer.stop(); jumpFlowToStart(); runThroughDone(); return; }
         if (beatInfo.ended) {
             // ML-250: the end of the piece - stop and go back to the start, ready to play again.
             flowPlayer.stop();
@@ -12714,7 +13188,8 @@
         flowLoop = saved && saved.on ? { startBar: saved.startBar, endBar: saved.endBar, restBars: saved.restBars || 0 } : null;
         // ML-317: a practice loops its chunk with one gap bar between runs (what the chunk length rule
         // assumes) - never saved over the piece's own repeat setting.
-        if (flowSession && flowSession.flowId === Number(flowLoopPieceKey())) flowLoop = { startBar: flowSession.chunk.startBar, endBar: flowSession.chunk.endBar, restBars: 1 };
+        // ML-390: a run-through plays the whole piece once - no loop.
+        if (flowSession && flowSession.flowId === Number(flowLoopPieceKey())) flowLoop = flowSession.mode === 'runthrough' ? null : { startBar: flowSession.chunk.startBar, endBar: flowSession.chunk.endBar, restBars: 1 };
         flowComputeLoopPlan();
     }
     function flowPassagesFor(steps, loopPass) {
@@ -18875,7 +19350,28 @@
 
     // --- The exercise ---
     let warmupsTimeline = null;
+    // ML-390: a session's looping warm-up - the next exercise in the list, and a new, slightly faster round
+    // after the last one. It keeps playing until the block ends (the session leaves the tool, which stops it).
+    function warmupsLoopNext() {
+        const list = warmupsList();
+        if (!list.length || !sessionWarmupLoop) { warmupsReset(); return; }
+        const i = list.indexOf(warmupsCurrent());
+        if (i + 1 >= list.length) sessionWarmupLoop.round++;
+        const next = list[(i + 1) % list.length];
+        warmupsShow(next);
+        warmupsSetBpm(PracticePlan.warmupRoundBpm(next.bpm, sessionWarmupLoop.round));
+        warmupsPlay();
+    }
+    function renderWarmupsLoop() {
+        const on = !!sessionWarmupLoop;
+        setShown('warmupsLoopCard', on);
+        if (!on) return;
+        const list = warmupsList();
+        const i = list.indexOf(warmupsCurrent());
+        document.getElementById('warmupsLoopText').textContent = `Round ${sessionWarmupLoop.round} · warm-up ${Math.max(1, i + 1)} of ${list.length}. Press play: one follows another until the block ends, each round a little faster.`;
+    }
     function renderWarmups() {
+        renderWarmupsLoop();
         const ex = warmupsCurrent();
         const list = warmupsList();
         const staff = document.getElementById('warmupsStaff');
@@ -18944,7 +19440,9 @@
         }
         if (warmupsCountdown) { warmupsCountdown = 0; warmupsShowSub(); }
         const pass = Math.floor(k / tl.totalClicks);
-        if (warmups.repeat && pass >= warmups.repeat) { warmupsReset(); return; } // played it the chosen number of times
+        // ML-390: in a session's Warm-up block each exercise plays once, then the next one follows.
+        const reps = sessionWarmupLoop ? 1 : warmups.repeat;
+        if (reps && pass >= reps) { if (sessionWarmupLoop) { warmupsLoopNext(); return; } warmupsReset(); return; } // played it the chosen number of times
         warmupsLight(Warmups.noteAt(tl, k % tl.totalClicks));
     });
     function warmupsUpdatePlayUi() {
@@ -18954,7 +19452,7 @@
         document.getElementById('warmupsPlayBtn').setAttribute('aria-pressed', String(playing));
     }
     function warmupsPlay() {
-        if (warmups.metronome !== true) return;
+        if (warmups.metronome !== true && !sessionWarmupLoop) return;
         const ex = warmupsCurrent();
         if (!ex || !warmupsTimeline) return;
         if (warmupsTick === 0) warmupsCountInClicks = warmups.countIn ? ex.beatsPerBar * warmupsTimeline.notesPerBeat : 0;
@@ -18980,7 +19478,7 @@
     }
     // Use metronome (ML-361, as Scales): off hides the transport, the tempo and the volume, and stops it.
     function warmupsShowMetronome() {
-        const on = warmups.metronome === true;
+        const on = warmups.metronome === true || !!sessionWarmupLoop; // a session's looping warm-up needs the click
         document.getElementById('warmupsMetronomeToggle').checked = on;
         setShown('warmupsMetronomeControls', on);
         setShown('warmupsVolumeBtn', on);

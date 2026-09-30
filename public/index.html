@@ -1039,62 +1039,119 @@
         </div>
     </div>
 
-    <!-- ML-320 (epic ML-314): plan a practice session - 5-minute blocks, a template from 15 minutes, a
-         focus for the rest. Rules: public/practicePlan.js. -->
-    <div id="sessionPlanView" class="hidden-group">
-        <p class="metro-help-text">Five-minute blocks. From 15 minutes a template fills them in - tap a block to change it.</p>
-        <div class="form-group">
-            <label id="sessLenLabel">How long?</label>
-            <div class="metro-speed-row no-margin" role="group" aria-labelledby="sessLenLabel">
-                <button type="button" class="metro-bpm-step" id="sessLenMinus" aria-label="5 minutes less">&minus;</button>
-                <div class="metro-speed-readout" aria-live="polite"><div id="sessLenValue">45</div><div class="metro-speed-sub">minutes</div></div>
-                <button type="button" class="metro-bpm-step" id="sessLenPlus" aria-label="5 minutes more">+</button>
+    <!-- ML-390 (was ML-320's one-page planner): starting a practice session is three steps, one question
+         each - how long, which plan, what goes in - then Ready. Rules: public/practicePlan.js; screens:
+         the PRACTICE SESSION section of app.js; docs/practice-sessions.md. Step 1: time as 5-minute
+         blocks you can count, quick picks, or Keep going (open-ended). -->
+    <div id="sessionLengthView" class="hidden-group">
+        <ol class="steps-progress" aria-label="Setting up your practice, step 1 of 3">
+            <li class="steps-progress-step is-now" aria-current="step">How long</li>
+            <li class="steps-progress-step">Plan</li>
+            <li class="steps-progress-step">What's in it</li>
+        </ol>
+        <h2 class="step-question" id="sessLenLabel">How long do you want to practise?</h2>
+        <div class="metro-speed-row no-margin" role="group" aria-labelledby="sessLenLabel">
+            <button type="button" class="metro-bpm-step" id="sessLenMinus" aria-label="5 minutes less">&minus;</button>
+            <div class="metro-speed-readout" aria-live="polite"><div id="sessLenValue">20</div><div class="metro-speed-sub" id="sessLenSub">minutes · 4 blocks of 5</div></div>
+            <button type="button" class="metro-bpm-step" id="sessLenPlus" aria-label="5 minutes more">+</button>
+        </div>
+        <!-- ML-337: the standard slider under the number, in 5-minute steps (5-120). -->
+        <div class="slider-wrap no-margin">
+            <div class="slider-track" id="sessLenSliderTrack">
+                <div class="slider-fill" id="sessLenSliderFill"></div>
+                <div class="slider-thumb" id="sessLenSliderThumb" tabindex="0" role="slider" aria-label="Session length in minutes" aria-valuemin="5" aria-valuemax="120" aria-valuenow="20"></div>
             </div>
-            <!-- ML-337: the standard slider under the number, in 5-minute steps (5-120). -->
-            <div class="slider-wrap no-margin">
-                <div class="slider-track" id="sessLenSliderTrack">
-                    <div class="slider-fill" id="sessLenSliderFill"></div>
-                    <div class="slider-thumb" id="sessLenSliderThumb" tabindex="0" role="slider" aria-label="Session length in minutes" aria-valuemin="5" aria-valuemax="120" aria-valuenow="45"></div>
-                </div>
-                <div class="slider-scale"><span>5</span><span>120</span></div>
-            </div>
+            <div class="slider-scale"><span>5</span><span>120</span></div>
         </div>
-        <div class="form-group" id="sessTemplateGroup">
-            <label id="sessTemplateLabel">Template</label>
-            <div class="filter-strip-pills" id="sessTemplatePills" role="group" aria-labelledby="sessTemplateLabel"></div>
-        </div>
-        <!-- ML-342: the focus is part of the template - this line says what the chosen one does. -->
-        <p class="text-sm text-muted" id="sessTemplateNote"></p>
-        <!-- ML-339 / ML-343: which skills list the Skills blocks use, and which warm-up list the Warm-up blocks play. -->
-        <div class="form-group hidden-group" id="sessSkillListGroup">
-            <label id="sessSkillListLabel">Skills list</label>
-            <div class="filter-strip-pills" id="sessSkillListPills" role="group" aria-labelledby="sessSkillListLabel"></div>
-        </div>
-        <div class="form-group hidden-group" id="sessWarmupListGroup">
-            <label id="sessWarmupListLabel">Warm-up list</label>
-            <div class="filter-strip-pills" id="sessWarmupListPills" role="group" aria-labelledby="sessWarmupListLabel"></div>
-        </div>
-        <div class="flex-row gap-sm">
-            <button type="button" class="btn-nav grow" id="sessSkillsBtn">My skills</button>
-            <button type="button" class="btn-nav grow" id="sessTemplatesBtn" aria-haspopup="dialog">Templates</button>
-        </div>
-        <p class="text-sm text-muted hidden-group" id="sessListNote"></p>
-        <div class="session-strip mb-3" id="sessPlanStrip" aria-hidden="true"></div>
-        <div id="sessBlockList"></div>
-        <p class="text-sm text-muted hidden-group" id="sessNoChunks">No pieces have Levels yet, so Rehearsal blocks would just open Rehearse. Prepare a piece for practice - say how well you can play it - and they'll practise your weakest bars at the right speed.</p>
-        <button type="button" class="btn-nav hidden-group" id="sessSetupPieceBtn" aria-haspopup="dialog">Prepare a piece for practice</button>
-        <button type="button" class="btn-submit" id="sessStartBtn">Start session</button>
+        <div class="time-blocks" id="sessLenBlocks" aria-hidden="true"></div>
+        <div class="flex-row flex-wrap gap-sm mb-3" id="sessLenChips" role="group" aria-label="Quick picks"></div>
+        <button type="button" class="flow-choice-option level-answer open-ended-option" id="sessOpenBtn" aria-pressed="false">
+            <span class="material-symbols-outlined open-ended-icon" aria-hidden="true">all_inclusive</span>
+            <span><strong>Keep going</strong><br><span class="text-sm text-muted">No end time. Starts with 4 blocks and adds more as you play.</span></span>
+        </button>
+        <button type="button" class="btn-submit" id="sessToPlanBtn">Next: pick a plan</button>
+        <button type="button" class="btn-text hidden-group" id="sessSameBtn">Same as last time</button>
     </div>
 
-    <!-- ML-320: the running session - the block now, time left, the 4:30 nudge (sessionNudgeModal),
-         and the summary when it's done. -->
+    <!-- ML-390 step 2: which plan. Each plan is drawn as its row of coloured blocks at the length picked;
+         your own plans have a ⋮ to change or delete them in Build my plan. -->
+    <div id="sessionPickView" class="hidden-group">
+        <ol class="steps-progress" aria-label="Setting up your practice, step 2 of 3">
+            <li class="steps-progress-step is-done">How long</li>
+            <li class="steps-progress-step is-now" aria-current="step">Plan</li>
+            <li class="steps-progress-step">What's in it</li>
+        </ol>
+        <h2 class="step-question" id="sessPickTitle">Pick a plan</h2>
+        <div id="sessPlanCards" role="group" aria-labelledby="sessPickTitle"></div>
+        <button type="button" class="btn-nav" id="sessBuildBtn">Build my own plan</button>
+        <button type="button" class="btn-submit" id="sessToContentBtn">Next: what goes in</button>
+    </div>
+
+    <!-- ML-390: Build my plan - tap a kind of block to drop it into the next space, tap a space to empty
+         it. Saved as your own plan (practice_templates.blocks); past its end it repeats from its first
+         Skills or Pieces block. -->
+    <div id="sessionBuildView" class="hidden-group">
+        <h2 class="step-question" id="sessBuildTitle">Fill your blocks</h2>
+        <p class="metro-help-text" id="sessBuildHint" aria-live="polite"></p>
+        <div class="build-slots" id="sessBuildSlots" role="group" aria-label="Your plan, block by block"></div>
+        <div class="build-palette" id="sessBuildPalette" role="group" aria-label="Blocks you can add"></div>
+        <div class="flex-row gap-sm">
+            <button type="button" class="btn-nav grow" id="sessBuildSurpriseBtn">Surprise me</button>
+            <button type="button" class="btn-nav grow" id="sessBuildClearBtn">Clear</button>
+        </div>
+        <div class="form-group"><label for="sessBuildName">Name</label><input type="text" id="sessBuildName" maxlength="40" autocomplete="off" placeholder="e.g. Lesson prep"></div>
+        <button type="button" class="btn-submit" id="sessBuildSaveBtn">Save my plan and use it</button>
+        <button type="button" class="btn-text btn-text-danger hidden-group" id="sessBuildDeleteBtn">Delete this plan</button>
+    </div>
+
+    <!-- ML-390 step 3: what goes in each kind of block - the warm-up list, the scales, the skills list,
+         and where the pieces come from (a practice list, pieces you pick, or all your pieces). Pieces on
+         Auto pick the bars that need you most (PracticePlan.piecePool). -->
+    <div id="sessionContentView" class="hidden-group">
+        <ol class="steps-progress" aria-label="Setting up your practice, step 3 of 3">
+            <li class="steps-progress-step is-done">How long</li>
+            <li class="steps-progress-step is-done">Plan</li>
+            <li class="steps-progress-step is-now" aria-current="step">What's in it</li>
+        </ol>
+        <h2 class="step-question">What goes in each block?</h2>
+        <div id="sessContentRows"></div>
+        <section class="flow-card hidden-group" id="sessPiecesCard" aria-labelledby="sessPiecesTitle">
+            <div class="flex-row gap-sm items-center">
+                <span class="kind-block kind-pieces kind-block-icon" aria-hidden="true"><span class="material-symbols-outlined">music_note</span></span>
+                <span class="grow"><strong id="sessPiecesTitle">Pieces</strong><br><span class="text-sm text-muted" id="sessPiecesSource"></span></span>
+                <label class="toggle-switch"><input type="checkbox" id="sessAutoToggle" checked aria-describedby="sessAutoNote"><span class="toggle-slider"></span><span class="visually-hidden">Auto - pick the bars for me</span></label>
+            </div>
+            <button type="button" class="btn-nav mt-3" id="sessPiecesSourceBtn" aria-haspopup="dialog">Choose where the pieces come from</button>
+            <p class="text-sm text-muted" id="sessAutoNote"></p>
+            <p class="session-goal hidden-group" id="sessGoal"></p>
+            <div id="sessPiecesList"></div>
+        </section>
+        <button type="button" class="btn-submit" id="sessToReadyBtn">Ready! See my session</button>
+    </div>
+
+    <!-- ML-390: Ready - the whole session at a glance, then Start. Tap a block to swap it
+         (sessionBlockModal). -->
+    <div id="sessionPlanView" class="hidden-group">
+        <h2 class="step-question" id="sessReadyTitle">Here's your session</h2>
+        <div class="kind-strip mb-3" id="sessPlanStrip" aria-hidden="true"></div>
+        <div id="sessBlockList"></div>
+        <p class="text-sm text-muted" id="sessReadyNote">Tap any block to swap it.</p>
+        <button type="button" class="btn-submit" id="sessStartBtn">Start</button>
+    </div>
+
+    <!-- ML-320: the running session - the block now, time left, and the summary when it's done. ML-390:
+         the 30-second rest between blocks is its own screen (sessionRestView); a Prepare block has no end
+         and shows the time it's taken; a Keep-going session adds blocks as it goes. -->
     <div id="sessionRunView" class="hidden-group">
         <div class="session-strip mb-3" id="sessRunStrip" aria-hidden="true"></div>
         <div id="sessRunActive">
             <p class="text-sm text-muted no-margin" id="sessRunCount"></p>
-            <h2 class="no-margin" id="sessRunKind"></h2>
+            <div class="flex-row gap-sm items-center">
+                <span class="kind-block kind-block-icon" id="sessRunIcon" aria-hidden="true"></span>
+                <h2 class="no-margin" id="sessRunKind"></h2>
+            </div>
             <p class="metro-help-text" id="sessRunDetail"></p>
-            <div class="metro-speed-readout" aria-live="off"><div id="sessRunTime">5:00</div><div class="metro-speed-sub">left in this block</div></div>
+            <div class="metro-speed-readout" aria-live="off"><div id="sessRunTime">5:00</div><div class="metro-speed-sub" id="sessRunTimeSub">left in this block</div></div>
             <button type="button" class="btn-submit mt-4" id="sessRunGoBtn">Start this block</button>
             <button type="button" class="btn-nav" id="sessRunNextBtn">Next block</button>
             <p class="text-sm text-muted" id="sessRunUpNext"></p>
@@ -1104,6 +1161,30 @@
             <h2 id="sessRunDoneTitle">Session done</h2>
             <p class="metro-help-text" id="sessRunDoneText"></p>
             <button type="button" class="btn-submit" id="sessRunDoneBtn">Done</button>
+        </div>
+    </div>
+
+    <!-- ML-390: the 30-second rest between blocks - in music the rest is as important as the notes. The
+         sound has stopped; one message (why we stop, a breath, loosening up...) from the player's own deck
+         (GET /api/practice/rest-message, Admin -> Rest messages); breathing ones show a circle that grows
+         as you breathe in and shrinks as you breathe out (10 seconds a breath, three in the rest). No Skip
+         button - the next block starts by itself at 0. -->
+    <div id="sessionRestView" class="hidden-group">
+        <div class="rest-screen">
+            <div class="rest-ring" id="restRing" role="timer" aria-live="off" aria-label="Rest">
+                <svg class="rest-ring-svg" viewBox="0 0 120 120" aria-hidden="true" focusable="false"><circle class="rest-ring-track" cx="60" cy="60" r="52"></circle><circle class="rest-ring-left" cx="60" cy="60" r="52" pathLength="100"></circle></svg>
+                <div class="rest-ring-num"><strong id="restSecs">30</strong><span>seconds</span></div>
+            </div>
+            <section class="rest-card" aria-live="polite" aria-labelledby="restTitle">
+                <div class="rest-art" id="restArt" aria-hidden="true"></div>
+                <p class="rest-kind" id="restKind"></p>
+                <h2 class="rest-title" id="restTitle">Rest</h2>
+                <p class="rest-body" id="restBody"></p>
+            </section>
+            <div class="rest-next">
+                <span class="kind-block kind-block-icon" id="restNextIcon" aria-hidden="true"></span>
+                <span class="grow"><span class="text-sm text-muted">Next up</span><br><strong id="restNextText"></strong></span>
+            </div>
         </div>
     </div>
 
@@ -1205,91 +1286,86 @@
         <button type="button" class="btn-text btn-text-danger" id="plDeleteBtn">Delete this list</button>
     </div>
 
-    <!-- ML-316 (epic ML-314): a piece's practice Levels - "How well can you play it?", the bar map
-         (one square per bar, silver to gold), and the whole piece / hard passages / chunks with the
-         chunk length rule. Per account. Rendered by renderPieceLevels (app.js); the maths is
-         FlowJourney's (docs/flow-journey.md "Practice Levels"). Behind the practice_levels feature. -->
-    <div id="pieceLevelsView" class="hidden-group">
-        <p class="metro-help-text" id="levelsSub"></p>
-        <div class="level-notice hidden-group" id="levelsBarsChanged" role="status">This piece's bars have changed since you set your Levels. Check they still cover the right bars.</div>
-        <div class="level-map" id="levelsMap" role="img"></div>
+    <!-- ML-390 (was ML-316's My Levels): a piece's path - Prepare (the music, a run-through, paint the
+         bars, cut into focus bits), Practise (five-minute blocks until every bar is at Level 4), then the
+         Play-through (the whole piece, Level 4 up to 5). The heat map is the same silver-to-gold bar map
+         (FlowJourney.barLevels). Per account. Opened from a practice list, Play Flow's menu (My Levels)
+         and a session's Prepare block. Screens: the "piece's path" section of app.js. -->
+    <div id="piecePathView" class="hidden-group">
+        <p class="metro-help-text" id="pathSub"></p>
+        <div class="level-notice hidden-group" id="pathBarsChanged" role="status">This piece's bars have changed since you painted them. Paint them again to check they still match.</div>
+        <div class="level-map" id="pathMap" role="img"></div>
         <div class="level-legend" aria-hidden="true">
-            <span><span class="level-cell lv-0"></span>Not set</span>
+            <span><span class="level-cell lv-0"></span>Not painted</span>
             <span><span class="level-cell lv-1">1</span><span class="level-cell lv-2">2</span>Silver</span>
             <span><span class="level-cell lv-3">3</span><span class="level-cell lv-4">4</span>Gold</span>
             <span><span class="level-cell lv-5">5</span>Full speed</span>
         </div>
-
-        <section class="flow-card hidden-group" id="levelsAsk">
-            <div class="flow-card-header"><span class="flow-card-label" id="levelsAskTitle">How well can you play it?</span></div>
-            <button type="button" class="flow-choice-option level-answer" data-levels-mode="whole"><span><strong>All of it</strong><br><span class="text-sm text-muted">One Level for the whole piece</span></span></button>
-            <button type="button" class="flow-choice-option level-answer" data-levels-mode="hard"><span><strong>Most of it, but some bars are hard</strong><br><span class="text-sm text-muted">A Level for the piece, and the hard passages get their own</span></span></button>
-            <button type="button" class="flow-choice-option level-answer no-margin" data-levels-mode="chunk"><span><strong>Not yet - break it up</strong><br><span class="text-sm text-muted">Split it into chunks and build it up bit by bit</span></span></button>
+        <ol class="piece-path" id="piecePath" aria-label="Your path for this piece"></ol>
+        <section class="flow-card hidden-group" id="pathThroughCard" aria-labelledby="pathThroughTitle">
+            <div class="flow-card-header"><span class="flow-card-label" id="pathThroughTitle">How to play it through</span></div>
+            <p class="text-sm text-muted" id="pathThroughNote"></p>
+            <div id="pathThroughOptions"></div>
         </section>
+        <button type="button" class="btn-submit" id="pathGoBtn">Start preparing</button>
+        <button type="button" class="btn-nav hidden-group" id="pathPaintBtn">Paint the bars again</button>
+        <button type="button" class="btn-nav hidden-group" id="pathCutBtn">Focus bits</button>
+    </div>
 
-        <section class="flow-card hidden-group" id="levelsWhole">
-            <div class="flow-card-header"><span class="flow-card-label" id="levelsWholeLabel">The whole piece, at Level</span></div>
-            <div class="level-picker" id="levelsWholePicker" role="group" aria-labelledby="levelsWholeLabel"></div>
-            <p class="text-sm text-muted no-margin" id="levelsWholeFit"></p>
-            <button type="button" class="btn-nav mt-3 hidden-group" id="levelsWholePractiseBtn">Practise the whole piece</button>
-            <button type="button" class="btn-nav mt-3 hidden-group" id="levelsWholeBreakBtn">Break it up</button>
+    <!-- ML-390 Prepare 2 of 4: a run-through - pick a speed you can get to the end at (a Level's % of the
+         piece's own speed; Level 5 = 100%), see how long the whole piece takes, play it once. -->
+    <div id="prepareRunView" class="hidden-group">
+        <h2 class="step-question" id="prepSpeedLabel">How fast can you play it through?</h2>
+        <p class="metro-help-text">Pick a speed you can get to the end at. It's fine to go slow!</p>
+        <div class="level-picker" id="prepSpeedPicker" role="group" aria-labelledby="prepSpeedLabel"></div>
+        <div class="dashboard-grid" aria-live="polite">
+            <div class="stat-card"><span class="label">for the whole piece</span><span class="value" id="prepTime">-</span></div>
+            <div class="stat-card"><span class="label">every bar slows the same</span><span class="value" id="prepSpeedWord">-</span></div>
+        </div>
+        <button type="button" class="btn-submit" id="prepPlayBtn"><span class="material-symbols-outlined" aria-hidden="true">play_arrow</span> Play it through</button>
+        <p class="text-sm text-muted">After the last bar you'll paint the bars that went wrong.</p>
+        <button type="button" class="btn-text" id="prepSkipBtn">I know how it goes - go straight to painting</button>
+    </div>
+
+    <!-- ML-390 Prepare 3 of 4: paint how each bar went. The bars sit in the piece's sections; the paint
+         box stays pinned at the bottom: Brush (tap a bar), Fill section (its empty bars), Fill all (the
+         whole piece) and Rubber, with a Level pot (colour and number) to paint with. Type bars instead
+         keeps the old from-to entry. -->
+    <div id="levelsPaintView" class="paint-page hidden-group">
+        <h2 class="step-question">Paint how each bar went</h2>
+        <p class="metro-help-text" id="paintHint"></p>
+        <div id="paintSections"></div>
+        <button type="button" class="btn-text" id="paintTypeBtn" aria-haspopup="dialog">Type bars instead</button>
+        <div class="paint-toolbox" role="group" aria-label="Paint box">
+            <div class="paint-tools" id="paintTools" role="group" aria-label="Tool">
+                <button type="button" class="paint-tool" data-paint-tool="brush" aria-pressed="true"><span class="material-symbols-outlined" aria-hidden="true">brush</span><span class="paint-tool-label">Brush</span></button>
+                <button type="button" class="paint-tool" data-paint-tool="section" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">format_color_fill</span><span class="paint-tool-label">Fill section</span></button>
+                <button type="button" class="paint-tool" data-paint-tool="all" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span><span class="paint-tool-label">Fill all</span></button>
+                <button type="button" class="paint-tool" data-paint-tool="rubber" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">ink_eraser</span><span class="paint-tool-label">Rubber</span></button>
+            </div>
+            <div class="level-picker paint-pots" id="paintPots" role="group" aria-label="Level to paint with"></div>
+            <p class="text-sm text-muted no-margin" id="paintToolHint" aria-live="polite"></p>
+            <div class="flex-row gap-sm">
+                <button type="button" class="btn-nav grow no-margin" id="paintUndoBtn" disabled>Undo</button>
+                <button type="button" class="btn-submit grow no-margin" id="paintNextBtn">Next: cut into bits</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ML-390 Prepare 4 of 4: focus bits - runs of bars at the same Level in a section. Each has to play
+         5 times in a block (4:30, a gap bar between goes); a bit that can't is red, with Split it for me.
+         Tap the bar where a new bit should start (the knife); Type bars instead for from-to. -->
+    <div id="levelsCutView" class="hidden-group">
+        <h2 class="step-question">Cut it into focus bits</h2>
+        <p class="metro-help-text">Each bit has to fit 5 goes in a block (4½ minutes, with a gap bar between goes). Tap the bar where a new bit should start; tap it again to join it back up.</p>
+        <div id="cutSections"></div>
+        <button type="button" class="btn-text" id="cutTypeBtn" aria-haspopup="dialog">Type bars instead</button>
+        <section class="flow-card" aria-labelledby="cutSummaryTitle">
+            <div class="flow-card-header"><span class="flow-card-label" id="cutSummaryTitle">Your focus bits</span></div>
+            <div class="focus-summary" id="cutSummaryChips" aria-hidden="true"></div>
+            <p class="text-sm text-muted no-margin" id="cutSummaryText" aria-live="polite"></p>
         </section>
-
-        <section class="flow-card hidden-group" id="levelsHard">
-            <div class="flow-card-header"><span class="flow-card-label">Hard passages</span></div>
-            <div id="levelsHardList"></div>
-            <div class="hidden-group" id="levelsHardEditor">
-                <div class="flex-row gap-sm">
-                    <div class="form-group grow"><label for="levelsHardFrom">From bar</label><input type="number" id="levelsHardFrom" min="1" inputmode="numeric"></div>
-                    <div class="form-group grow"><label for="levelsHardTo">To bar</label><input type="number" id="levelsHardTo" min="1" inputmode="numeric"></div>
-                </div>
-                <p class="text-sm fw-bold mb-2" id="levelsHardLevelLabel">At Level</p>
-                <div class="level-picker" id="levelsHardPicker" role="group" aria-labelledby="levelsHardLevelLabel"></div>
-                <p class="text-sm text-muted" id="levelsHardFit"></p>
-                <div class="flex-row gap-sm">
-                    <button type="button" class="btn-nav grow" id="levelsHardCancelBtn">Cancel</button>
-                    <button type="button" class="btn-submit grow" id="levelsHardDoneBtn">Add</button>
-                </div>
-            </div>
-            <button type="button" class="btn-nav" id="levelsHardAddBtn">+ Add hard passage</button>
-        </section>
-
-        <section class="flow-card hidden-group" id="levelsChunks">
-            <div class="flow-card-header"><span class="flow-card-label">Chunks</span></div>
-            <p class="text-sm text-muted">Each chunk should play at least 3 times in a 5-minute block at its Level. Tap a chunk to set its Level.</p>
-            <div class="flex-row gap-sm mb-3">
-                <button type="button" class="btn-nav grow" id="levelsFromSectionsBtn">From sections</button>
-                <button type="button" class="btn-nav grow" id="levelsEvery4Btn">Every 4 bars</button>
-            </div>
-            <div id="levelsChunkList"></div>
-            <div class="hidden-group" id="levelsChunkEditor">
-                <p class="text-sm fw-bold mb-2" id="levelsChunkLevelLabel">At Level</p>
-                <div class="level-picker" id="levelsChunkPicker" role="group" aria-labelledby="levelsChunkLevelLabel"></div>
-                <button type="button" class="btn-nav" id="levelsChunkPractiseBtn">Practise this chunk</button>
-                <button type="button" class="btn-text" id="levelsChunkUnsetBtn">Leave this chunk for later</button>
-            </div>
-            <!-- ML-319: join-up groups (off unless the piece has one) - neighbouring chunks played
-                 through together once they're all at Level 4, then up to 5. -->
-            <p class="text-sm fw-bold mt-4 mb-2">Join-up groups</p>
-            <p class="text-sm text-muted">Optional. Group neighbouring chunks; once they're all at Level 4 you play the group straight through, so you practise the joins too. Each group has to fit in one block.</p>
-            <div id="levelsGroupList"></div>
-            <div class="hidden-group" id="levelsGroupEditor">
-                <div class="flex-row gap-sm">
-                    <div class="form-group grow"><label for="levelsGroupFrom">From bar</label><input type="number" id="levelsGroupFrom" min="1" inputmode="numeric"></div>
-                    <div class="form-group grow"><label for="levelsGroupTo">To bar</label><input type="number" id="levelsGroupTo" min="1" inputmode="numeric"></div>
-                </div>
-                <p class="text-sm text-muted" id="levelsGroupFit"></p>
-                <div class="flex-row gap-sm">
-                    <button type="button" class="btn-nav grow" id="levelsGroupCancelBtn">Cancel</button>
-                    <button type="button" class="btn-submit grow" id="levelsGroupDoneBtn">Add group</button>
-                </div>
-            </div>
-            <button type="button" class="btn-nav" id="levelsGroupAddBtn">+ Add join-up group</button>
-        </section>
-
-        <button type="button" class="btn-submit hidden-group" id="levelsPractiseWeakestBtn">Practise the weakest bars</button>
-        <button type="button" class="btn-nav hidden-group" id="levelsSaveBtn">Save my Levels</button>
-        <button type="button" class="btn-text hidden-group" id="levelsChangeAnswerBtn">Change my answer</button>
+        <button type="button" class="btn-submit" id="cutDoneBtn">Done preparing</button>
     </div>
 
     <div id="metroBuilderView" class="hidden-group">
@@ -1658,7 +1734,7 @@
                         </button>
                         <button type="button" class="metroBlk-ctrl-value-btn hidden-group" id="flowSessionFinishBtn" aria-label="Finish - say how it went" aria-haspopup="dialog" aria-expanded="false">
                             <span class="material-symbols-outlined" aria-hidden="true">flag</span>
-                            <span class="metroBlk-ctrl-value-label">finish</span>
+                            <span class="metroBlk-ctrl-value-label" id="flowSessionFinishLbl">finish</span>
                         </button>
                     </div>
                 </div>
@@ -2684,6 +2760,12 @@
          Previous / Next / Shuffle / Select under it; then Use metronome. Exercises come from /api/warmups
          (Admin -> Warm-ups); drawn by public/warmups.js + Notation.staff. See specs/components/warmups.md. -->
     <div id="warmupsView" class="hidden-group">
+        <!-- ML-390: in a practice session's Warm-up block the list plays on a loop until the block ends -
+             one exercise after another, each round a little faster (PracticePlan.warmupRoundBpm). -->
+        <section class="warmup-loop hidden-group" id="warmupsLoopCard" aria-live="polite">
+            <span class="material-symbols-outlined warmup-loop-icon" aria-hidden="true">sync</span>
+            <span class="grow"><strong id="warmupsLoopTitle">On a loop for the whole block</strong><br><span class="text-sm" id="warmupsLoopText"></span></span>
+        </section>
         <div class="metro-transport-grid scales-setting-row is-centred">
             <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="warmupsSettingsBtn" aria-haspopup="dialog" aria-label="Warm-ups - your instrument and the topics"><strong><span class="material-symbols-outlined" aria-hidden="true">playlist_add_check</span></strong><span class="metroBlk-ctrl-value-label">warm-ups</span></button>
             <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="warmupsClefBtn" aria-haspopup="dialog" aria-label="Clef - tap to change"><strong id="warmupsClefVal">Treble</strong><span class="metroBlk-ctrl-value-label">clef</span></button>
@@ -3196,24 +3278,48 @@
 </div>
 
 <!-- ML-320 follow-up: your own session templates - opening blocks in order, a focus and a length. -->
-<div class="modal" id="sessionTemplateModal" role="dialog" aria-modal="true" aria-labelledby="sessionTemplateTitle">
+<!-- ML-390: Type bars instead (painting) - bars from-to at a Level, the typed way of painting. -->
+<div class="modal" id="paintTypeModal" role="dialog" aria-modal="true" aria-labelledby="paintTypeTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" id="sessionTemplateCloseBtn" aria-label="Close">&times;</button>
-        <h2 id="sessionTemplateTitle">Templates</h2>
-        <div id="sessTplList"></div>
-        <div class="hidden-group" id="sessTplEditor">
-            <div class="form-group"><label for="sessTplName">Name</label><input type="text" id="sessTplName" maxlength="40" autocomplete="off" placeholder="e.g. Chops day"></div>
-            <p class="text-sm fw-bold mb-2">Opening blocks, in order <span class="text-muted fw-normal">(tap one to take it out)</span></p>
-            <div class="filter-strip-pills mb-2" id="sessTplLead"></div>
-            <p class="text-sm text-muted mb-2">Add:</p>
-            <div class="filter-strip-pills mb-3" id="sessTplAdd"></div>
-            <p class="text-sm fw-bold mb-2" id="sessTplFocusLabel">Then, for the rest</p>
-            <div class="filter-strip-pills mb-3" id="sessTplFocus" role="group" aria-labelledby="sessTplFocusLabel"></div>
-            <div class="form-group"><label for="sessTplMinutes">Minutes</label><input type="number" id="sessTplMinutes" min="5" max="120" step="5" inputmode="numeric"></div>
-            <button type="button" class="btn-submit" id="sessTplSaveBtn">Save template</button>
-            <button type="button" class="btn-text btn-text-danger hidden-group" id="sessTplDeleteBtn">Delete this template</button>
+        <button type="button" class="modal-close-x" id="paintTypeCloseBtn" aria-label="Close">&times;</button>
+        <h2 id="paintTypeTitle">Type bars instead</h2>
+        <div class="flex-row gap-sm">
+            <div class="form-group grow"><label for="paintTypeFrom">From bar</label><input type="number" id="paintTypeFrom" min="1" inputmode="numeric"></div>
+            <div class="form-group grow"><label for="paintTypeTo">To bar</label><input type="number" id="paintTypeTo" min="1" inputmode="numeric"></div>
         </div>
-        <button type="button" class="btn-nav" id="sessTplNewBtn">+ New template</button>
+        <p class="text-sm fw-bold mb-2" id="paintTypeLevelLabel">At Level</p>
+        <div class="level-picker" id="paintTypePicker" role="group" aria-labelledby="paintTypeLevelLabel"></div>
+        <button type="button" class="btn-submit" id="paintTypeDoneBtn">Paint these bars</button>
+    </div>
+</div>
+
+<!-- ML-390: Type bars instead (cutting) - make bars from-to a focus bit of their own. -->
+<div class="modal" id="cutTypeModal" role="dialog" aria-modal="true" aria-labelledby="cutTypeTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" id="cutTypeCloseBtn" aria-label="Close">&times;</button>
+        <h2 id="cutTypeTitle">Type bars instead</h2>
+        <p class="metro-help-text">These bars become a focus bit of their own.</p>
+        <div class="flex-row gap-sm">
+            <div class="form-group grow"><label for="cutTypeFrom">From bar</label><input type="number" id="cutTypeFrom" min="1" inputmode="numeric"></div>
+            <div class="form-group grow"><label for="cutTypeTo">To bar</label><input type="number" id="cutTypeTo" min="1" inputmode="numeric"></div>
+        </div>
+        <button type="button" class="btn-submit" id="cutTypeDoneBtn">Make it a focus bit</button>
+    </div>
+</div>
+
+<!-- ML-390: a session's pieces, picked one by one - the same pick list as Add pieces (renderPickList). -->
+<div class="modal" id="sessPiecesModal" role="dialog" aria-modal="true" aria-labelledby="sessPiecesTitleModal">
+    <div class="modal-content modal-content-sticky-footer">
+        <button type="button" class="modal-close-x" id="sessPiecesCloseBtn" aria-label="Close">&times;</button>
+        <div class="metroSeg-scroll-area">
+            <h2 id="sessPiecesTitleModal">Choose pieces</h2>
+            <input type="search" id="sessPiecesSearch" class="mb-3" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
+            <div class="pick-bar" id="sessPiecesPickBar"></div>
+            <div id="sessPiecesOptions"></div>
+        </div>
+        <div class="metroSeg-sticky-footer">
+            <button type="button" class="btn-submit no-margin" id="sessPiecesDoneBtn" disabled>Use these pieces</button>
+        </div>
     </div>
 </div>
 
@@ -3275,30 +3381,30 @@
     </div>
 </div>
 
-<!-- ML-320: the 4:30 nudge - the music has stopped; 30 seconds to breathe, then the next block starts.
-     Keep going stays on this block and nudges again 5 minutes later. -->
-<div class="modal" id="sessionNudgeModal" role="dialog" aria-modal="true" aria-labelledby="sessionNudgeTitle" aria-describedby="sessionNudgeText">
-    <div class="modal-content">
-        <h2 id="sessionNudgeTitle">Time to move on</h2>
-        <div class="metro-speed-readout"><div id="sessionNudgeCount">0:30</div><div class="metro-speed-sub">then the next block</div></div>
-        <p class="metro-help-text" id="sessionNudgeText"></p>
-        <div class="flex-row gap-sm">
-            <button type="button" class="btn-nav grow no-margin" id="sessionNudgeKeepBtn">Keep going</button>
-            <button type="button" class="btn-submit grow no-margin" id="sessionNudgeNextBtn">Move on now</button>
-        </div>
-    </div>
-</div>
-
-<!-- ML-317: after a Levels practice - how did it go? Up one Level is the default; the jump row is for
-     when it clicked all the way. Saved with API.levels.setChunk (source 'rating'). -->
+<!-- ML-317 / ML-390: after practising some bars - "Did you nail them?". One tap for the usual answers
+     (Yes, up a Level / Not yet, stay); Other answers holds down one and the jumps. A Yes gets a short
+     star celebration. Under it, the piece's next goal ("Everyone up to 2"). Saved with API.levels.setChunk
+     (source 'rating'). -->
 <div class="modal" id="levelRateModal" role="dialog" aria-modal="true" aria-labelledby="levelRateTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" id="levelRateCloseBtn" aria-label="Close without rating">&times;</button>
-        <h2 id="levelRateTitle">How did it go?</h2>
+        <button type="button" class="modal-close-x" id="levelRateCloseBtn" aria-label="Close without answering">&times;</button>
+        <div class="levelup" id="levelRateUp">
+            <span class="levelup-stars" aria-hidden="true"><span class="material-symbols-outlined">star</span><span class="material-symbols-outlined">star</span><span class="material-symbols-outlined">star</span></span>
+            <h2 id="levelRateTitle">Did you nail it?</h2>
+            <span class="levelup-pair" id="levelRatePair" aria-hidden="true"></span>
+        </div>
         <p class="metro-help-text" id="levelRateSub"></p>
         <div id="levelRateOptions"></div>
-        <p class="text-sm fw-bold mb-2 hidden-group" id="levelRateJumpLabel">Nailed it? Jump to</p>
-        <div class="level-picker hidden-group" id="levelRateJump" role="group" aria-labelledby="levelRateJumpLabel"></div>
+        <button type="button" class="btn-text" id="levelRateMoreBtn" aria-expanded="false" aria-controls="levelRateMore">Other answers</button>
+        <div class="hidden-group" id="levelRateMore">
+            <div id="levelRateDown"></div>
+            <p class="text-sm fw-bold mb-2 hidden-group" id="levelRateJumpLabel">It was easy - jump to</p>
+            <div class="level-picker hidden-group" id="levelRateJump" role="group" aria-labelledby="levelRateJumpLabel"></div>
+        </div>
+        <div class="session-goal-card hidden-group" id="levelRateGoal">
+            <p class="text-sm fw-bold no-margin" id="levelRateGoalText"></p>
+            <span class="level-strip mt-1" id="levelRateGoalStrip" aria-hidden="true"></span>
+        </div>
     </div>
 </div>
 

@@ -50,6 +50,8 @@
         <button class="admin-nav-item" data-section="warmups" type="button">Warm-ups</button>
         <button class="admin-nav-item" data-section="theory-grades" type="button">Theory grades</button>
         <button class="admin-nav-item" data-section="notifications" type="button">Notifications</button>
+        <!-- ML-390: what the 30-second rest between practice blocks shows -->
+        <button class="admin-nav-item" data-section="rest-messages" type="button">Rest messages</button>
         <!-- ML-170: the untriaged count rides on the nav item itself - the whole value of this tab
              is noticing there's something waiting without having to go and look. -->
         <button class="admin-nav-item" data-section="feedback" type="button">Feedback <span id="feedbackNavCount" class="admin-nav-count hidden-group"></span></button>
@@ -253,6 +255,15 @@
             <button class="btn-submit no-margin admin-add-btn" id="addWarmupBtn" type="button">+ New exercise</button>
             <div id="warmupsAdminList">Loading&hellip;</div>
         </section>
+        <!-- ML-390: the messages for the 30-second rest between practice-session blocks. Each player draws
+             from their own shuffled deck, so every message comes round once before any repeats; a breathing
+             one at least every third rest. Changes take effect straight away - no release. -->
+        <section id="rest-messages-section" class="admin-section hidden-group">
+            <h1>Rest messages</h1>
+            <p class="admin-intro">What the <strong>30-second rest</strong> between practice-session blocks shows - one message at a time, with its icon (breathing ones show a breathing circle instead). Every player gets them in their own shuffled order, each once before any comes round again, never the same kind twice running, and a breathing one at least every third rest. <strong>For</strong> picks who sees it: everyone, brass players (lip messages) or brass and woodwind players (breath and air). Keep them short enough to read in a few seconds, and written for a ten-year-old. Icons are <a href="https://fonts.google.com/icons" target="_blank" rel="noopener">Material Symbols</a> names. Changes show straight away - no release needed.</p>
+            <button class="btn-submit no-margin admin-add-btn" id="addRestMessageBtn" type="button">+ New message</button>
+            <div id="restMessagesAdminList">Loading&hellip;</div>
+        </section>
         <section id="notifications-section" class="admin-section hidden-group">
             <h1>Notifications</h1>
             <p class="admin-intro">Announcements shown to <strong>every account</strong> under ☰ &rarr; Notifications, with a red dot on ☰ until they've read it. Publish now or schedule a time - anyone with the app open sees it within about a minute, everyone else next time they open it. <strong>Urgent</strong> ones also pop up over whatever they're doing until they tap "Got it". Optional expiry hides it from everyone afterwards. Plain text; line breaks are kept. The "update available - reload" notice after a release is automatic and doesn't need a notification here.</p>
@@ -435,6 +446,43 @@
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="notificationFormCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="notificationFormSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ML-390: add or change a rest message. -->
+<div class="modal" id="restMessageFormModal" role="dialog" aria-modal="true" aria-labelledby="restMessageFormTitle">
+    <div class="modal-content">
+        <h2 id="restMessageFormTitle">New rest message</h2>
+        <div class="form-group">
+            <label for="restMessageKindInput">Kind</label>
+            <select id="restMessageKindInput">
+                <option value="why">Why we stop</option>
+                <option value="breathe">Breathe (shows the breathing circle)</option>
+                <option value="body">Loosen up</option>
+                <option value="think">Think like a musician</option>
+                <option value="fact">Did you know?</option>
+                <option value="care">Look after yourself</option>
+                <option value="kind">Kind words</option>
+            </select>
+        </div>
+        <div class="form-group"><label for="restMessageTitleInput">Title</label><input type="text" id="restMessageTitleInput" maxlength="80" placeholder="e.g. Shoulder drop"></div>
+        <div class="form-group"><label for="restMessageBodyInput">Words (up to 240 characters)</label><textarea id="restMessageBodyInput" rows="3" maxlength="240" placeholder="e.g. Lift your shoulders up to your ears, hold... and let them drop."></textarea></div>
+        <div class="form-group">
+            <label for="restMessageIconInput">Icon (a Material Symbols name)</label>
+            <div class="flex-row gap-sm items-center"><input type="text" id="restMessageIconInput" maxlength="40" autocomplete="off" placeholder="self_improvement"><span class="material-symbols-outlined" id="restMessageIconPreview" aria-hidden="true">self_improvement</span></div>
+        </div>
+        <div class="form-group">
+            <label for="restMessageAudienceInput">For</label>
+            <select id="restMessageAudienceInput">
+                <option value="all">Everyone</option>
+                <option value="brass">Brass players (lips)</option>
+                <option value="wind">Brass and woodwind players (breath and air)</option>
+            </select>
+        </div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="restMessageFormCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="restMessageFormSaveBtn" type="button">Save</button>
         </div>
     </div>
 </div>

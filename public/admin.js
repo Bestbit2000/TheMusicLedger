@@ -2154,6 +2154,126 @@
     }
 
     // ========================================
+    // Rest messages (ML-390) - what the 30-second rest between practice blocks shows. Add, change,
+    // switch off, move up/down, delete - straight away, no release. Grouped by kind, in the order kept here
+    // (players get their own shuffle; see services/restMessages.js).
+    // ========================================
+    const REST_KIND_ADMIN = { why: 'Why we stop', breathe: 'Breathe', body: 'Loosen up', think: 'Think like a musician', fact: 'Did you know?', care: 'Look after yourself', kind: 'Kind words' };
+    const REST_AUDIENCE_ADMIN = { all: 'Everyone', brass: 'Brass players', wind: 'Brass and woodwind' };
+    let restMessagesAdmin = [];
+    let editingRestMessageId = null;
+    function renderRestMessagesAdmin() {
+        const el = document.getElementById('restMessagesAdminList');
+        if (!el) return;
+        if (!restMessagesAdmin.length) { el.innerHTML = '<p>No messages yet - the rest shows a breathing circle on its own.</p>'; return; }
+        const order = Object.keys(REST_KIND_ADMIN);
+        const sorted = restMessagesAdmin.slice().sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+        let html = '', lastKind = null;
+        sorted.forEach(m => {
+            if (m.kind !== lastKind) {
+                const all = restMessagesAdmin.filter(x => x.kind === m.kind);
+                html += `<h2 class="admin-warmup-kind">${escapeHtml(REST_KIND_ADMIN[m.kind] || m.kind)} (${all.filter(x => x.active).length} on${all.some(x => !x.active) ? `, ${all.filter(x => !x.active).length} off` : ''})</h2>`;
+                lastKind = m.kind;
+            }
+            const i = restMessagesAdmin.indexOf(m);
+            html += `
+            <div class="admin-feature${m.active ? '' : ' admin-warmup-off'}">
+                <div class="admin-feature-header">
+                    <div class="admin-feature-header-text">
+                        <h2><span class="material-symbols-outlined" aria-hidden="true">${escapeHtml(m.kind === 'breathe' ? 'air' : m.icon)}</span> ${escapeHtml(m.title)}</h2>
+                        <p>${escapeHtml(m.body)}</p>
+                        <p class="admin-test-case-meta">For ${escapeHtml(REST_AUDIENCE_ADMIN[m.audience] || m.audience)}${m.active ? '' : ' &bull; switched off'}</p>
+                    </div>
+                    <div class="admin-feature-actions">
+                        <button class="btn-edit" type="button" data-rest-move="${m.id}" data-dir="-1" aria-label="Move ${escapeHtml(m.title)} earlier"${i === 0 ? ' disabled' : ''}>&uarr;</button>
+                        <button class="btn-edit" type="button" data-rest-move="${m.id}" data-dir="1" aria-label="Move ${escapeHtml(m.title)} later"${i === restMessagesAdmin.length - 1 ? ' disabled' : ''}>&darr;</button>
+                        <button class="btn-edit" type="button" data-rest-edit="${m.id}">Edit</button>
+                        <button class="btn-edit" type="button" data-rest-active="${m.id}">${m.active ? 'Switch off' : 'Switch on'}</button>
+                        <button class="btn-delete" type="button" data-rest-delete="${m.id}">Delete</button>
+                    </div>
+                </div>
+            </div>`;
+        });
+        el.innerHTML = html;
+        const byId = (id) => restMessagesAdmin.find(x => x.id === Number(id));
+        el.querySelectorAll('[data-rest-edit]').forEach(b => b.addEventListener('click', () => openRestMessageForm(byId(b.dataset.restEdit))));
+        el.querySelectorAll('[data-rest-move]').forEach(b => b.addEventListener('click', async () => {
+            try { restMessagesAdmin = (await apiCall(`/api/admin/rest-messages/${b.dataset.restMove}/move`, 'PUT', { dir: Number(b.dataset.dir) })).messages; renderRestMessagesAdmin(); }
+            catch (error) { showToast('Error: ' + error.message); }
+        }));
+        el.querySelectorAll('[data-rest-active]').forEach(b => b.addEventListener('click', async () => {
+            const m = byId(b.dataset.restActive);
+            try { await apiCall(`/api/admin/rest-messages/${m.id}/active`, 'PUT', { active: !m.active }); await reloadRestMessagesAdmin(); }
+            catch (error) { showToast('Error: ' + error.message); }
+        }));
+        el.querySelectorAll('[data-rest-delete]').forEach(b => b.addEventListener('click', () => {
+            const m = byId(b.dataset.restDelete);
+            showConfirmModal('Delete message?', `"${m.title}" won't be shown in any rest again. Switch it off instead to keep it.`, async () => {
+                try { await apiCall(`/api/admin/rest-messages/${m.id}`, 'DELETE'); await reloadRestMessagesAdmin(); showToast('Message deleted', 'success'); }
+                catch (error) { showToast('Error: ' + error.message); }
+            });
+        }));
+    }
+    async function reloadRestMessagesAdmin() {
+        try {
+            restMessagesAdmin = (await apiCall('/api/admin/rest-messages')).messages;
+            renderRestMessagesAdmin();
+        } catch (error) {
+            const el = document.getElementById('restMessagesAdminList');
+            if (el) el.innerHTML = `<p>Error loading rest messages: ${escapeHtml(error.message)}</p>`;
+        }
+    }
+    function syncRestMessageIconPreview() {
+        const kind = document.getElementById('restMessageKindInput').value;
+        const icon = document.getElementById('restMessageIconInput').value.trim();
+        document.getElementById('restMessageIconPreview').textContent = kind === 'breathe' ? 'air' : (icon || 'self_improvement');
+    }
+    function openRestMessageForm(m) {
+        editingRestMessageId = m ? m.id : null;
+        document.getElementById('restMessageFormTitle').innerText = m ? 'Edit rest message' : 'New rest message';
+        document.getElementById('restMessageKindInput').value = m ? m.kind : 'why';
+        document.getElementById('restMessageTitleInput').value = m ? m.title : '';
+        document.getElementById('restMessageBodyInput').value = m ? m.body : '';
+        document.getElementById('restMessageIconInput').value = m ? m.icon : '';
+        document.getElementById('restMessageAudienceInput').value = m ? m.audience : 'all';
+        syncRestMessageIconPreview();
+        showModal('restMessageFormModal');
+        document.getElementById('restMessageTitleInput').focus();
+    }
+    async function saveRestMessageForm() {
+        const existing = editingRestMessageId ? restMessagesAdmin.find(x => x.id === editingRestMessageId) : null;
+        const body = {
+            kind: document.getElementById('restMessageKindInput').value,
+            title: document.getElementById('restMessageTitleInput').value,
+            body: document.getElementById('restMessageBodyInput').value,
+            icon: document.getElementById('restMessageIconInput').value.trim() || 'self_improvement',
+            audience: document.getElementById('restMessageAudienceInput').value,
+            active: existing ? existing.active : true
+        };
+        const btn = document.getElementById('restMessageFormSaveBtn');
+        btn.disabled = true;
+        try {
+            if (editingRestMessageId) await apiCall(`/api/admin/rest-messages/${editingRestMessageId}`, 'PUT', body);
+            else await apiCall('/api/admin/rest-messages', 'POST', body);
+            hideModal('restMessageFormModal');
+            editingRestMessageId = null;
+            await reloadRestMessagesAdmin();
+            showToast('Rest message saved', 'success');
+        } catch (error) {
+            showToast(error.message);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+    function initRestMessagesAdmin() {
+        document.getElementById('addRestMessageBtn')?.addEventListener('click', () => openRestMessageForm(null));
+        document.getElementById('restMessageFormCancelBtn')?.addEventListener('click', () => { hideModal('restMessageFormModal'); editingRestMessageId = null; });
+        document.getElementById('restMessageFormSaveBtn')?.addEventListener('click', saveRestMessageForm);
+        document.getElementById('restMessageIconInput')?.addEventListener('input', syncRestMessageIconPreview);
+        document.getElementById('restMessageKindInput')?.addEventListener('change', syncRestMessageIconPreview);
+    }
+
+    // ========================================
     // Security (ML-192) - repeatable review of the OMR service. Everything below is read-only
     // except "Run now", which re-runs the automated checks server-side and records them. The deep
     // review's results come from the repo (server/securityReviews/), shown alongside.
@@ -2501,6 +2621,7 @@
         initFeedback();
         initFlows();
         initNotificationsAdmin();
+        initRestMessagesAdmin();
         document.getElementById('adminShell').classList.remove('hidden-group');
         try {
             const [backtest, featuresRes] = await Promise.all([
@@ -2511,7 +2632,7 @@
             renderFeatures(backtest);
             renderFeaturesCatalog(featuresRes.features);
             await Promise.all([
-                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadInstrumentUsage(), Promise.resolve(renderTheoryGrades()), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadNotificationsAdmin(), reloadWarmupsAdmin(), reloadPosthogLink(),
+                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadInstrumentUsage(), Promise.resolve(renderTheoryGrades()), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadNotificationsAdmin(), reloadRestMessagesAdmin(), reloadWarmupsAdmin(), reloadPosthogLink(),
                 reloadSecurityReview().catch((error) => { document.getElementById('securityReview').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`; }),
                 reloadFlowDefaultName(), reloadFlowDefaultTimeSig(), reloadFlowDefaultBpm(), reloadFlowDefaultBarCount(), reloadFlowDefaultNoteValue()
             ]);

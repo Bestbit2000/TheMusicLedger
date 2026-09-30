@@ -64,7 +64,7 @@ body.admin-body { display: block; background: var(--bg-color); }
    the admin sidebar (.admin-sidebar, 220px fixed) leaves very little width for content on a phone-
    width screen, and a plain no-wrap flex row has nowhere else to put a sibling that doesn't fit. */
 .admin-feature-header { background: var(--input-bg); padding: var(--space-4); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: var(--space-3); }
-.admin-feature-header-text { flex: 1; min-width: 0; }
+.admin-feature-header-text { flex: 1 1 calc(var(--touch-target) * 5); min-width: 0; } /* ML-390: a basis, so on a phone the buttons wrap under the text instead of squeezing it to one letter wide */
 .admin-feature-header h2 { margin: 0 0 var(--space-1) 0; font-size: var(--font-md); color: var(--text-color); }
 .admin-feature-header p { margin: 0; color: var(--label-color); font-size: var(--font-sm); }
 /* Bare <a> tags (band website links) otherwise fall back to the browser's default link blue/purple,

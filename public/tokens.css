@@ -85,6 +85,19 @@
     /* ML-316: practice Levels 1-5 - silver (1-2) rising to gold (5); the brighter, the better. */
     --ds-level-1: #8f9398; --ds-level-2: #c9cdd2; --ds-level-3: #f6e7ad; --ds-level-4: #eccf62; --ds-level-5: #f5c211;
     --ds-level-dark-1: #50545a; --ds-level-dark-2: #80858c; --ds-level-dark-3: #6f5f22; --ds-level-dark-4: #b8952b; --ds-level-dark-5: #ffd23f;
+    /* ML-390: the kinds of practice block - orange, teal, violet, blue - kept well away from the Levels'
+       silver and gold, and always shown with the block's icon and name. */
+    --ds-kind-warmup: #c2410c; --ds-kind-warmup-deep: #9a3412; --ds-kind-warmup-a14: rgba(194, 65, 12, 0.14);
+    --ds-kind-scales: #0f766e; --ds-kind-scales-deep: #115e59; --ds-kind-scales-a14: rgba(15, 118, 110, 0.14);
+    --ds-kind-skills: #6d28d9; --ds-kind-skills-deep: #5b21b6; --ds-kind-skills-a14: rgba(109, 40, 217, 0.14);
+    --ds-kind-pieces: #1d4ed8; --ds-kind-pieces-deep: #1e40af; --ds-kind-pieces-a14: rgba(29, 78, 216, 0.14);
+    --ds-kind-warmup-dark: #fb923c; --ds-kind-warmup-a22-dark: rgba(251, 146, 60, 0.22);
+    --ds-kind-scales-dark: #2dd4bf; --ds-kind-scales-a22-dark: rgba(45, 212, 191, 0.22);
+    --ds-kind-skills-dark: #a78bfa; --ds-kind-skills-a22-dark: rgba(167, 139, 250, 0.22);
+    --ds-kind-pieces-dark: #60a5fa; --ds-kind-pieces-a22-dark: rgba(96, 165, 250, 0.22);
+    /* ML-390: the 30-second rest - a calm blue screen, light and dark */
+    --ds-rest-page: #e6f0f3; --ds-rest-card: #ffffff; --ds-rest-ink: #235b6e; --ds-rest-ring: #3d8aa3; --ds-rest-track: #cfe0e6;
+    --ds-rest-page-dark: #14232a; --ds-rest-card-dark: #1b2e36; --ds-rest-ink-dark: #9fd3e3; --ds-rest-ring-dark: #6fb6cc; --ds-rest-track-dark: #27414b;
 
     /* Translucent */
     --ds-black-a20: rgba(0, 0, 0, 0.2);
@@ -209,6 +222,7 @@
     --ds-duration-250: 250ms;
     --ds-duration-400: 400ms;
     --ds-duration-1000: 1000ms;
+    --ds-duration-10000: 10000ms;
 
     /* -------------------------------------------------------------------------
        LAYER 2 - project aliases (the only tokens components may use)
@@ -322,6 +336,25 @@
     --level-4-text: var(--ds-neutral-875, #1a1a1a);              /* the Level number on --level-4 */
     --level-5-text: var(--ds-neutral-875, #1a1a1a);              /* the Level number on --level-5 */
     --level-unset-border: var(--ds-neutral-550, #858585);        /* dashed outline of a bar with no Level yet (3:1 on the page) */
+    /* ML-390: the kinds of practice block (Warm-up, Scales, Skills, Pieces) - edge, icon/text and fill */
+    --kind-warmup: var(--ds-kind-warmup, #c2410c);               /* a Warm-up block's edge (3:1 on the page) */
+    --kind-warmup-text: var(--ds-kind-warmup-deep, #9a3412);     /* a Warm-up block's icon and name (4.5:1 on its tint) */
+    --kind-warmup-tint: var(--ds-kind-warmup-a14, rgba(194, 65, 12, 0.14)); /* a Warm-up block's fill */
+    --kind-scales: var(--ds-kind-scales, #0f766e);               /* a Scales block's edge */
+    --kind-scales-text: var(--ds-kind-scales-deep, #115e59);     /* a Scales block's icon and name */
+    --kind-scales-tint: var(--ds-kind-scales-a14, rgba(15, 118, 110, 0.14)); /* a Scales block's fill */
+    --kind-skills: var(--ds-kind-skills, #6d28d9);               /* a Skills block's edge */
+    --kind-skills-text: var(--ds-kind-skills-deep, #5b21b6);     /* a Skills block's icon and name */
+    --kind-skills-tint: var(--ds-kind-skills-a14, rgba(109, 40, 217, 0.14)); /* a Skills block's fill */
+    --kind-pieces: var(--ds-kind-pieces, #1d4ed8);               /* a Pieces block's edge (Prepare and Play-through too) */
+    --kind-pieces-text: var(--ds-kind-pieces-deep, #1e40af);     /* a Pieces block's icon and name */
+    --kind-pieces-tint: var(--ds-kind-pieces-a14, rgba(29, 78, 216, 0.14)); /* a Pieces block's fill */
+    /* ML-390: the 30-second rest screen */
+    --rest-bg: var(--ds-rest-page, #e6f0f3);                     /* the rest screen's calm page */
+    --rest-surface: var(--ds-rest-card, #ffffff);                /* the message card and "Next up" on the rest screen */
+    --rest-text: var(--ds-rest-ink, #235b6e);                    /* the countdown, the message's kind and its icon (4.5:1 on both) */
+    --rest-ring: var(--ds-rest-ring, #3d8aa3);                   /* the countdown ring and the breathing circle's edge (3:1 on --rest-bg) */
+    --rest-track: var(--ds-rest-track, #cfe0e6);                 /* the ring's empty track (decorative) */
 
     /* Spacing */
     --space-0: var(--ds-size-0, 0);                              /* reset only */
@@ -432,6 +465,7 @@
     --duration-base: var(--ds-duration-250, 250ms);    /* slides, fades, toggles, expanding panels */
     --duration-slow: var(--ds-duration-400, 400ms);    /* chart bar growth */
     --duration-pulse: var(--ds-duration-1000, 1000ms); /* looping attention animations */
+    --duration-breath: var(--ds-duration-10000, 10000ms); /* one slow breath on the practice rest screen (ML-390): 4 s in, 6 s out */
     --ease-standard: ease;                                       /* default easing for UI transitions */
     --ease-in-out: ease-in-out;                                  /* looping/pulsing animations */
     --ease-linear: linear;                                       /* colour/opacity tracking a live value (meters, metronome dots) */
@@ -484,6 +518,23 @@ body.dark-mode {
     --level-1-text: var(--ds-neutral-0, #ffffff);
     --level-3-text: var(--ds-neutral-0, #ffffff);
     --level-unset-border: var(--ds-neutral-500b, #808080);
+    --kind-warmup: var(--ds-kind-warmup-dark, #fb923c);
+    --kind-warmup-text: var(--ds-kind-warmup-dark, #fb923c);
+    --kind-warmup-tint: var(--ds-kind-warmup-a22-dark, rgba(251, 146, 60, 0.22));
+    --kind-scales: var(--ds-kind-scales-dark, #2dd4bf);
+    --kind-scales-text: var(--ds-kind-scales-dark, #2dd4bf);
+    --kind-scales-tint: var(--ds-kind-scales-a22-dark, rgba(45, 212, 191, 0.22));
+    --kind-skills: var(--ds-kind-skills-dark, #a78bfa);
+    --kind-skills-text: var(--ds-kind-skills-dark, #a78bfa);
+    --kind-skills-tint: var(--ds-kind-skills-a22-dark, rgba(167, 139, 250, 0.22));
+    --kind-pieces: var(--ds-kind-pieces-dark, #60a5fa);
+    --kind-pieces-text: var(--ds-kind-pieces-dark, #60a5fa);
+    --kind-pieces-tint: var(--ds-kind-pieces-a22-dark, rgba(96, 165, 250, 0.22));
+    --rest-bg: var(--ds-rest-page-dark, #14232a);
+    --rest-surface: var(--ds-rest-card-dark, #1b2e36);
+    --rest-text: var(--ds-rest-ink-dark, #9fd3e3);
+    --rest-ring: var(--ds-rest-ring-dark, #6fb6cc);
+    --rest-track: var(--ds-rest-track-dark, #27414b);
     --status-amber-bg: var(--ds-status-amber-bg-dark, #4a3c0c);
     --status-amber-fg: var(--ds-status-amber-fg-dark, #f2dd90);
     --status-green-bg: var(--ds-status-green-bg-dark, #17431f);
