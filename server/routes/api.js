@@ -18,7 +18,7 @@ import { getAccountProfile, updateAccountProfile, getPracticeYearSetting, update
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
 import { listDurationOptions, getDefaultDurationMinutes } from '../services/durationOptions.js';
 import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSignaturesWithUsage, setCustomTimeSignatureActive, deleteCustomTimeSignature } from '../services/timeSignatures.js';
-import { renameAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, createQuickPlaySetup, listQuickPlayHistory, setAdhocSetupFavorite, overwriteQuickPlayHistorySegments, duplicateQuickPlayHistory } from '../services/metronomeSetups.js';
+import { renameAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, createQuickPlaySetup, listQuickPlayHistory, HISTORY_SHOWN_DEFAULT, setAdhocSetupFavorite, overwriteQuickPlayHistorySegments, duplicateQuickPlayHistory } from '../services/metronomeSetups.js';
 import { listActivePlaybackSpeeds } from '../services/playbackSpeeds.js';
 import { handleUpload } from '@vercel/blob/client';
 import { put } from '@vercel/blob';
@@ -27,7 +27,7 @@ import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../
 import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, addUploadedRecording, addYouTubeRecording, deleteRecording, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks } from '../services/flowBlocks.js';
 import { importScoreFromFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/scoreImport.js';
-import { isFeatureEnabled, listEnabledFeatureKeys } from '../services/features.js';
+import { isFeatureEnabled, listEnabledFeatureKeys, getLimit, listLimits } from '../services/features.js';
 import { getActiveTimerSession, upsertActiveTimerSession, clearActiveTimerSession } from '../services/timerSessions.js';
 import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from '../services/flowAuthoringStats.js';
 import { exportFlowForUser } from '../services/flowTransfer.js';
@@ -343,7 +343,7 @@ router.post('/drills/:tool/attempts', requireAuth, resolveAccount, async (req, r
 // ========================================
 router.get('/dropdown-options', requireAuth, resolveAccount, async (req, res) => {
   try {
-    const [organisations, teachers, durations, enabledFeatures, defaultDuration, practiceYear] = await Promise.all([
+    const [organisations, teachers, durations, enabledFeatures, defaultDuration, practiceYear, limits] = await Promise.all([
       listBands(req.accountId),
       listTutors(),
       listDurationOptions(),
@@ -353,9 +353,11 @@ router.get('/dropdown-options', requireAuth, resolveAccount, async (req, res) =>
       // ML-236: the quick timer's fallback length when there's no practise history to go on.
       getDefaultDurationMinutes(),
       // ML-234: loaded with the rest of the app's startup data since the stats screen needs it.
-      getPracticeYearSetting(req.accountId)
+      getPracticeYearSetting(req.accountId),
+      // ML-383: this account type's limits ({ metronome_history_shown: 10, ... }) - Admin -> Feature access
+      listLimits()
     ]);
-    res.json({ organisations, teachers, durations, enabledFeatures, defaultDuration, practiceYear });
+    res.json({ organisations, teachers, durations, enabledFeatures, defaultDuration, practiceYear, limits });
   } catch (error) {
     console.error('Dropdown options error:', error);
     sendError(res, error);
@@ -1164,7 +1166,8 @@ router.delete('/time-signatures/custom/:id', requireAuth, resolveAccount, async 
 // own setup/segment routes were removed on 2026-09-27.
 router.get('/metronome/history', requireAuth, resolveAccount, async (req, res) => {
   try {
-    res.json(await listQuickPlayHistory(req.accountId));
+    // ML-383: how many plays this account type sees (Admin -> Feature access, Limits)
+    res.json(await listQuickPlayHistory(req.accountId, await getLimit('metronome_history_shown', HISTORY_SHOWN_DEFAULT)));
   } catch (error) {
     sendError(res, error);
   }

@@ -13,7 +13,7 @@ environment in Admin → Features). It may become a paid feature.
 - **No progress tracking here.** Rounds save and score exactly as custom rounds do (the settings key
   starts `grade=N;`). Grade progress belongs to practice sessions later, not the quick tools.
 - **Server:** `theoryPractice.js` treats a round as custom (`grade: 0`) while the feature is off.
-- **My instrument** (Theory page, from My account → My instruments) sets the clef each quiz
+- **My instrument** (Theory page, from My instruments (☰ menu, ML-382)) sets the clef each quiz
   starts on: the instrument's `theory_clef` (brass band treble for baritone/euphonium/basses, bass
   clef for bass trombone, both clefs for keyboards). Picking another instrument there moves every
   quiz to its clef. Per device (`tml.theory.instrument`).

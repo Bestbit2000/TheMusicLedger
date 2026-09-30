@@ -2312,7 +2312,22 @@
         ['My music', ['flow_create', 'flow_import_musicxml', 'flow_import_from_file', 'flow_export_musicxml', 'flow_playback', 'flow_editor', 'flow_consistency_check']],
         ['Metronome and tuner', ['metronome_history', 'metronome_save_to_flow', 'tuner_rewind']]
     ];
-    const access = { data: null, view: 'all', live: new Map(), cells: new Map() };
+    // ML-383: limits (a number per account type, e.g. how many Metronome plays history lists) wait in
+    // access.limits ('limitId|level' -> value) and save with the rest.
+    const access = { data: null, view: 'all', live: new Map(), cells: new Map(), limits: new Map() };
+    function accessLimitValue(l, level) {
+        const k = accessCellKey(l.id, level);
+        return access.limits.has(k) ? access.limits.get(k) : l.values[level];
+    }
+    function accessSetLimit(l, level, value) {
+        const k = accessCellKey(l.id, level);
+        if (value === l.values[level]) access.limits.delete(k); else access.limits.set(k, value);
+    }
+    function accessLimitInput(l, t) {
+        const changed = access.limits.has(accessCellKey(l.id, t.key));
+        const v = accessLimitValue(l, t.key);
+        return `<input type="number" class="admin-access-limit${changed ? ' is-changed' : ''}" min="0" max="100000" step="1" inputmode="numeric" data-limit="${l.id}|${t.key}" value="${v === null || v === undefined ? '' : v}" aria-label="${escapeHtml(l.name)} for ${escapeHtml(t.label)}">`;
+    }
     const accessCellKey = (id, level) => `${id}|${level}`;
     function accessLive(f) { return access.live.has(f.id) ? access.live.get(f.id) : f.live; }
     function accessOn(f, level) {
@@ -2342,6 +2357,7 @@
             access.data = await apiCall('/api/admin/feature-access');
             access.live.clear();
             access.cells.clear();
+            access.limits.clear();
             renderFeatureAccess();
         } catch (error) {
             body.innerHTML = `<p>Error loading feature access: ${escapeHtml(error.message)}</p>`;
@@ -2380,8 +2396,26 @@
             renderFeatureAccess();
         }));
         body.querySelectorAll('[data-copy-premium]').forEach(b => b.addEventListener('click', () => accessCopy('premium_member', 'beta_tester')));
-
-        const changes = access.live.size + access.cells.size;
+        body.querySelectorAll('[data-limit]').forEach(input => input.addEventListener('change', () => {
+            const [id, level] = input.dataset.limit.split('|');
+            const l = access.data.limits.find(x => x.id === Number(id));
+            const n = Number(input.value);
+            if (input.value === '' || !Number.isInteger(n) || n < 0 || n > 100000) {
+                showToast('A limit is a whole number from 0 to 100000.');
+                input.value = accessLimitValue(l, level) ?? '';
+                return;
+            }
+            accessSetLimit(l, level, n);
+            // Not a full re-render: 'change' fires as the box loses focus, and replacing it mid-blur throws.
+            const changed = access.limits.has(accessCellKey(l.id, level));
+            input.classList.toggle('is-changed', changed);
+            input.closest('.admin-access-row')?.classList.toggle('is-changed', changed);
+            renderAccessSaveBar();
+        }));
+        renderAccessSaveBar();
+    }
+    function renderAccessSaveBar() {
+        const changes = access.live.size + access.cells.size + access.limits.size;
         document.getElementById('accessSaveBar').classList.toggle('hidden-group', changes === 0);
         document.getElementById('accessSaveText').innerHTML = `<strong>${changes} change${changes === 1 ? '' : 's'}</strong> not saved yet`;
     }
@@ -2397,7 +2431,10 @@
                     return `<td><label class="admin-access-cell${changed ? ' is-changed' : ''}"><input type="checkbox"${locked ? ' disabled' : ` data-cell="${f.id}|${t.key}"`}${accessOn(f, t.key) ? ' checked' : ''} aria-label="${escapeHtml(f.name)} for ${escapeHtml(t.label)}${locked ? ' (always)' : ''}"></label></td>`;
                 }).join('')}</tr>`;
         }).join('')).join('');
-        return `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-access-table"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
+        const limits = access.data.limits || [];
+        const limitRows = limits.length ? `<tr class="admin-access-group"><th scope="rowgroup" colspan="${types.length + 2}">Limits</th></tr>` + limits.map(l =>
+            `<tr><th scope="row"><strong>${escapeHtml(l.name)}</strong><small title="${escapeHtml(l.description || '')}">${escapeHtml(l.description || l.limitKey)}</small></th><td class="admin-access-live"></td>${types.map(t => `<td>${accessLimitInput(l, t)}</td>`).join('')}</tr>`).join('') : '';
+        return `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-access-table"><thead>${head}</thead><tbody>${rows}${limitRows}</tbody></table></div>`;
     }
     function renderAccessType(type) {
         const locked = type.key === 'super_admin';
@@ -2407,7 +2444,9 @@
                 const live = accessLive(f);
                 return `<div class="admin-access-row${changed ? ' is-changed' : ''}"><div class="grow"><strong>${escapeHtml(f.name)}</strong><small title="${escapeHtml(f.description || '')}">${escapeHtml(f.description || f.featureKey)}${live ? '' : ' - off for everyone (Live is off)'}</small></div>
                     <label class="toggle-switch"><input type="checkbox"${locked ? ' disabled' : ` data-cell="${f.id}|${type.key}"`}${accessOn(f, type.key) ? ' checked' : ''} aria-label="${escapeHtml(f.name)} for ${escapeHtml(type.label)}"><span class="toggle-slider"></span></label></div>`;
-            }).join('')).join('');
+            }).join('')).join('')
+            + ((access.data.limits || []).length ? '<div class="admin-stat-section-title">Limits</div>' + access.data.limits.map(l =>
+                `<div class="admin-access-row${access.limits.has(accessCellKey(l.id, type.key)) ? ' is-changed' : ''}"><div class="grow"><strong>${escapeHtml(l.name)}</strong><small title="${escapeHtml(l.description || '')}">${escapeHtml(l.description || l.limitKey)}</small></div>${accessLimitInput(l, type)}</div>`).join('') : '');
     }
     function accessCopy(from, to) {
         access.data.features.forEach(f => accessSetCell(f, to, accessOn(f, from)));
@@ -2424,17 +2463,19 @@
             if (!level) { showToast('Choose an account type to preview.'); return; }
             window.open(`/?preview=${encodeURIComponent(level)}`, '_blank', 'noopener');
         });
-        document.getElementById('accessDiscardBtn')?.addEventListener('click', () => { access.live.clear(); access.cells.clear(); renderFeatureAccess(); });
+        document.getElementById('accessDiscardBtn')?.addEventListener('click', () => { access.live.clear(); access.cells.clear(); access.limits.clear(); renderFeatureAccess(); });
         document.getElementById('accessSaveBtn')?.addEventListener('click', async () => {
             const btn = document.getElementById('accessSaveBtn');
             btn.disabled = true;
             try {
                 access.data = await apiCall('/api/admin/feature-access', 'PUT', {
                     live: [...access.live].map(([featureId, enabled]) => ({ featureId, enabled })),
-                    access: [...access.cells].map(([k, enabled]) => { const [featureId, level] = k.split('|'); return { featureId: Number(featureId), level, enabled }; })
+                    access: [...access.cells].map(([k, enabled]) => { const [featureId, level] = k.split('|'); return { featureId: Number(featureId), level, enabled }; }),
+                    limits: [...access.limits].map(([k, value]) => { const [limitId, level] = k.split('|'); return { limitId: Number(limitId), level, value }; })
                 });
                 access.live.clear();
                 access.cells.clear();
+                access.limits.clear();
                 renderFeatureAccess();
                 showToast('Feature access saved', 'success');
             } catch (error) {

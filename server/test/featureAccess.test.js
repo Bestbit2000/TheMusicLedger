@@ -6,7 +6,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 process.env.DATABASE_URL ||= 'postgres://test@localhost/test';
-const { featureOn, ACCOUNT_TYPE_KEYS } = await import('../services/features.js');
+const { featureOn, limitFor, ACCOUNT_TYPE_KEYS } = await import('../services/features.js');
 
 const entry = (live, levels) => ({ live, levels });
 
@@ -37,5 +37,28 @@ describe('featureOn', () => {
   });
   test('six account types, Teacher among them (ML-346)', () => {
     assert.deepEqual([...ACCOUNT_TYPE_KEYS], ['standard_member', 'premium_member', 'beta_tester', 'teacher', 'band_admin', 'super_admin']);
+  });
+});
+
+// ML-383: limits by account type (limitFor) - the type's own number; a type with no number gets the
+// fallback; no account in context gets the lowest (safest); an unknown limit gets the fallback.
+describe('feature limits (ML-383)', () => {
+  const values = { standard_member: 10, premium_member: 100, super_admin: 100 };
+  test("the account type's own number", () => {
+    assert.equal(limitFor(values, 'standard_member', 50), 10);
+    assert.equal(limitFor(values, 'premium_member', 50), 100);
+    assert.equal(limitFor(values, 'super_admin', 50), 100);
+  });
+  test('a type with no number gets the fallback', () => {
+    assert.equal(limitFor(values, 'teacher', 50), 50);
+  });
+  test('no account in context gets the lowest', () => {
+    assert.equal(limitFor(values, null, 50), 10);
+  });
+  test('an unknown limit gets the fallback', () => {
+    assert.equal(limitFor(undefined, 'standard_member', 7), 7);
+  });
+  test('0 is a real limit, not "missing"', () => {
+    assert.equal(limitFor({ standard_member: 0 }, 'standard_member', 10), 0);
   });
 });

@@ -1254,7 +1254,7 @@
     // screens, Flow's editor...), the item it belongs under.
     const NAV_PARENT_VIEW = { statsView: 'statsHomeView', streakStatsView: 'statsHomeView', historyView: 'statsHomeView', toolResultsView: 'statsHomeView', flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView', pieceLevelsView: 'rehearseView', practiceListView: 'rehearseView',
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
-        accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountInstrumentsView: 'accountView', accountBandsView: 'accountView', accountTeachersView: 'accountView',
+        accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountBandsView: 'accountView', accountTeachersView: 'accountView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
         tapTempoPlayView: 'tapTempoView', gapTrainerPlayView: 'gapTrainerView', earPlayView: 'earView', rhythmPlayView: 'rhythmView',
         challengeSelectView: 'manageChallengesView', challengePlayView: 'manageChallengesView', challengeSummaryView: 'manageChallengesView', editChallengeView: 'manageChallengesView' };
@@ -3692,12 +3692,18 @@
             showWarningToast('Error loading instruments: ' + error.message);
         }
     }
+    // ML-384: your range inside the instrument's, as the slim range bar under the row's text - in the
+    // instrument's own written pitch, like the notes named beside it. Only once your range is set.
+    function accountInstrumentRangeBar(i) {
+        if (!isFeatureEnabled('range_trainer') || !i.bottomNote || !i.topNote || !i.rangeLow || !i.rangeHigh) return '';
+        return RangeBar.html(i, RangeBar.ctxOf(i, i.bottomNote, i.topNote), { slim: true }).html;
+    }
     function renderAccountInstruments() {
         const list = document.getElementById('accountInstrumentsList');
         if (!list) return;
         list.innerHTML = myInstruments.length ? myInstruments.map(i => `
             <div class="history-item">
-                <span class="grow"><strong>${escapeHtml(i.name)}</strong><br><span class="text-sm text-muted">${i.isPrimary ? 'Main instrument' : escapeHtml(i.family)}${isFeatureEnabled('range_trainer') && i.bottomNote && i.topNote ? ` · range ${PlayRange.label(i.bottomNote)} to ${PlayRange.label(i.topNote)}` : ''}</span></span>
+                <span class="grow"><strong>${escapeHtml(i.name)}</strong><br><span class="text-sm text-muted">${i.isPrimary ? 'Main instrument' : escapeHtml(i.family)}${isFeatureEnabled('range_trainer') && i.bottomNote && i.topNote ? ` · range ${PlayRange.label(i.bottomNote)} to ${PlayRange.label(i.topNote)}` : ''}</span>${accountInstrumentRangeBar(i)}</span>
                 <button type="button" class="list-item-menu-btn" data-instrument-menu-id="${i.id}" aria-label="Options for ${escapeHtml(i.name)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
             </div>`).join('') : '<div class="text-muted">No instruments yet - choose the one you play below.</div>';
         list.querySelectorAll('[data-instrument-menu-id]').forEach(btn => btn.addEventListener('click', (e) => {
@@ -14434,6 +14440,13 @@
         const list = document.getElementById('qpHistoryList');
         if (!list) return;
         const rows = qpHistoryFilter === 'favorites' ? qpHistoryData.filter(r => r.isFavorite) : qpHistoryData;
+        // ML-383: the list stops at this account type's limit (favourites included) - say so under it
+        const limit = appData.limits?.metronome_history_shown;
+        const note = document.getElementById('qpHistoryLimitNote');
+        if (note) {
+            note.textContent = Number.isFinite(limit) ? `Limited to the last ${limit} metronome play${limit === 1 ? '' : 's'}` : '';
+            setShown(note, Number.isFinite(limit));
+        }
         if (!rows.length) {
             list.innerHTML = `<p class="text-muted">${qpHistoryFilter === 'favorites' ? 'No favourites yet.' : 'No history yet - play something for a couple of seconds and it\'ll show up here.'}</p>`;
         } else {
@@ -17505,7 +17518,7 @@
     // ========================================
     // RANGE (Jira ML-305 / ML-322)
     // ========================================
-    // Your comfortable range per instrument (My account -> My instruments -> My range..., or the
+    // Your comfortable range per instrument (My instruments (☰ menu) -> My range..., or the
     // Range screen's own button) and the Range tool: play the scale to your top note (or down to your
     // bottom one), then hold the next note - the tuner counts the beats (or you say Held it / Not yet),
     // each note beyond your range gets a Level, and at Level 5 it asks to move your range. Rules in
@@ -17545,7 +17558,7 @@
         const setBtn = document.getElementById('rangeSetBtn');
         if (!inst) {
             renderDrillOptions('range', [], () => {});
-            document.getElementById('rangeSummary').textContent = 'Range works on a wind, brass or string instrument. Add the one you play in My account → My instruments.';
+            document.getElementById('rangeSummary').textContent = 'Range works on a wind, brass or string instrument. Add the one you play in ☰ → My instruments.';
             setBtn.textContent = 'My instruments';
             setBtn.onclick = () => switchView('accountInstrumentsView');
             setShown('rangeWork', false);
@@ -17722,7 +17735,7 @@
     }
 
     // --- The range picker: two staves (bottom, top) - tap near a note, then -/+ a semitone - or measure
-    // it with the tuner. Used from the Range screen and from My account -> My instruments.
+    // it with the tuner. Used from the Range screen and from My instruments (☰ menu).
     async function openRangePicker(instrumentId, then) {
         if (!rangeData) await rangeLoad();
         const inst = ((rangeData && rangeData.instruments) || []).find(i => i.instrumentId === instrumentId && i.outer);
@@ -17750,6 +17763,14 @@
             document.getElementById(`range${cap}Stave`).setAttribute('aria-label', `${cap} note: ${rangeLabel(pitch)}. Tap the stave near a note to pick it`);
             document.getElementById(`range${cap}Value`).textContent = rangeLabel(pitch);
         }
+        // ML-384: the range bar under the two staves, as See your range draws it, redrawn as the notes move -
+        // in the instrument's written pitch, like the staves. The outer limit comes with the instrument.
+        const m = (x) => (x ? PlayRange.midiOf(x) : null);
+        const o = p.inst.outer;
+        const bar = RangeBar.html(p.inst, { low: m(o.low), usualHigh: m(o.usualHigh || o.high), bottom: m(p.bottom), top: m(p.top),
+            stretch: m(o.high) - m(o.usualHigh || o.high) });
+        document.getElementById('rangePickerBar').innerHTML = bar.html;
+        document.getElementById('rangePickerBarText').textContent = bar.text;
     }
     // A tap's height on the stave -> the staff step there -> that natural note (inside the range).
     function rangePickerTap(edge, e) {
@@ -18414,7 +18435,7 @@
             const pitchNote = group.clef === 'bass' && inst.theoryClef === 'treble' && inst.family === 'Brass' ? ', concert pitch' : '';
             name.textContent = `ABRSM list: ${group.name}${pitchNote}.`;
         } else {
-            name.textContent = (inst ? `There's no ABRSM brass or woodwind list for ${inst.name} in the ${scales.clef} clef` : 'Add the instrument you play in My account → My instruments for its grade lists')
+            name.textContent = (inst ? `There's no ABRSM brass or woodwind list for ${inst.name} in the ${scales.clef} clef` : 'Add the instrument you play in ☰ → My instruments for its grade lists')
                 + (everything ? ' - Everything else has every scale.' : ' - tick Everything else for every scale.');
         }
         const row = (r) => {
@@ -18447,36 +18468,8 @@
     // in that clef's pitch world: bottom / top your range, low / high the instrument's, shift if moved to
     // concert pitch), what counts as in your list until a range is set, the pop-up it opens over, and what
     // to redraw once a range is saved.
-    // ML-370: your range inside the instrument's, as one bar with the key under it (.range-bar, specs/
-    // components/range-bar.md). ctx as renderMyRange's: low / usualHigh the instrument's range, bottom / top
-    // yours. On brass and woodwind the bar runs on a 4th past the usual top, open-ended, with the usual top
-    // ticked. Returns { html, text } - text is the "still to learn" line. No bar without the instrument's range.
-    function rangeBarHtml(inst, ctx) {
-        const named = (m) => PlayRange.label(PlayRange.pitchOf(m, 'usual'));
-        if (ctx.low == null || ctx.usualHigh == null) return { html: '', text: '' };
-        const stretch = PlayRange.STRETCH_FAMILIES.includes(inst.family) ? PlayRange.STRETCH_ABOVE : 0;
-        const lo = Math.min(ctx.low, ctx.bottom), usual = ctx.usualHigh, end = Math.max(usual + stretch, ctx.top);
-        const pct = (m) => `${Math.round(((m - lo) / (end - lo)) * 1000) / 10}%`;
-        const part = (cls, from, to) => `<div class="range-bar-part ${cls}" style="--rb-from:${from};--rb-to:${to}"></div>`;
-        const open = end > usual;
-        const label = `Your range, ${named(ctx.bottom)} to ${named(ctx.top)}, inside the instrument's ${named(lo)} to ${named(usual)}${open ? ` - and up to ${named(end)} with experience` : ''}`;
-        const html = `<div class="range-bar" role="img" aria-label="${escapeHtml(label)}">`
-            + part(`range-bar-potential${open ? ' is-open' : ''}`, '0%', pct(usual))
-            + (open ? part('range-bar-stretch', pct(usual), '100%') : '')
-            + part('range-bar-yours', pct(ctx.bottom), pct(ctx.top))
-            + (open ? `<div class="range-bar-tick" style="--rb-at:${pct(usual)}"></div>` : '')
-            + '</div>'
-            + `<div class="range-bar-ends" aria-hidden="true"><span class="range-bar-end is-start">${named(lo)}</span>`
-            + (open ? `<span class="range-bar-end is-at" style="--rb-at:${pct(usual)}">${named(usual)} usual top</span>` : `<span class="range-bar-end is-end">${named(usual)}</span>`)
-            + '</div>'
-            + '<ul class="range-bar-key" aria-hidden="true"><li><span class="range-bar-swatch is-yours"></span>Your range</li><li><span class="range-bar-swatch is-potential"></span>Potential range</li></ul>';
-        const below = Math.max(0, ctx.bottom - ctx.low), above = usual - ctx.top;
-        const n = (k) => `${k} note${k === 1 ? '' : 's'}`;
-        const parts = [below ? `${n(below)} below` : '', above > 0 ? `${n(above)} up to the usual top` : ''].filter(Boolean);
-        let text = parts.length ? `Still to learn: ${parts.join(', ')}.` : 'You play the whole of the usual range.';
-        if (above < 0) text += ` You're ${n(-above)} past the usual top${open ? ' - keep going if it\'s comfortable' : ''}.`;
-        return { html, text };
-    }
+    // ML-370: your range inside the instrument's, as one bar with the key under it - drawn by
+    // public/rangeBar.js (RangeBar.html; ML-384 moved it there so every screen draws it the same way).
     function renderMyRange({ inst, clef, ctx, what, over, after }) {
         // ML-370: "Your range" on its own, the instrument under it in smaller type (a long name didn't fit).
         const instLine = document.getElementById('scalesMyRangeInstrument');
@@ -18491,14 +18484,14 @@
             const notes = [ctx.bottom, ctx.top].map(m => PlayRange.pitchOf(m, 'usual'));
             staff.innerHTML = Notation.staff({ clef, noteGap: 3, label: `Your range: ${named(ctx.bottom)} to ${named(ctx.top)}`,
                 items: notes.map(pitch => ({ type: 'note', pitch })) });
-            const bar = rangeBarHtml(inst, ctx);
+            const bar = RangeBar.html(inst, ctx);
             barBox.innerHTML = bar.html;
             text.textContent = (ctx.shift ? 'At concert pitch, as the bass-clef grade lists are written. ' : '') + bar.text;
             setBtn.textContent = 'Change your range';
         } else {
             staff.innerHTML = '';
             barBox.innerHTML = '';
-            text.textContent = inst ? `You haven't set the notes you can play comfortably on ${inst.name} yet - until you do, ${what} counts as in your list.` : 'Add the instrument you play in My account → My instruments first.';
+            text.textContent = inst ? `You haven't set the notes you can play comfortably on ${inst.name} yet - until you do, ${what} counts as in your list.` : 'Add the instrument you play in ☰ → My instruments first.';
             setBtn.textContent = inst ? 'Set your range' : 'My instruments';
         }
         setShown(setBtn, true);

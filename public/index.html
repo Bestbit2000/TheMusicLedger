@@ -163,6 +163,8 @@
                 <div class="nav-section-title">You</div>
                 <!-- ML-299: create, import, library and edit pieces (the old Flow start screen). Gated by flow_manage. -->
                 <button type="button" class="dropdown-item nav-item hidden-group" id="myMusicNavItem" data-view="metroBuilderView" onclick="switchView('metroBuilderView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">library_music</span><span class="nav-item-text">My music</span></button>
+                <!-- ML-382: your instruments and each one's range - about your playing, so next to My music, not in My account -->
+                <button type="button" class="dropdown-item nav-item" data-view="accountInstrumentsView" onclick="switchView('accountInstrumentsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">music_note</span><span class="nav-item-text">My instruments</span></button>
                 <button type="button" class="dropdown-item nav-item" data-view="accountView" onclick="switchView('accountView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">person</span><span class="nav-item-text">My account</span></button>
                 <button type="button" class="dropdown-item nav-item" data-view="settingsView" onclick="switchView('settingsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">settings</span><span class="nav-item-text">Settings</span></button>
                 <!-- ML-77: admin.html itself gates to Super admin accounts - this link is
@@ -771,7 +773,6 @@
         <button type="button" class="history-item settings-link" onclick="switchView('accountDetailsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">badge</span><span class="settings-link-text"><span class="settings-link-title">My details</span><span class="settings-link-sub" id="accountDetailsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <!-- ML-355: shown once email + password login is on -->
         <button type="button" class="history-item settings-link hidden-group" id="accountSecurityRow" onclick="switchView('accountSecurityView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">lock</span><span class="settings-link-text"><span class="settings-link-title">Sign-in and security</span><span class="settings-link-sub" id="accountSecuritySummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link" onclick="switchView('accountInstrumentsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">music_note</span><span class="settings-link-text"><span class="settings-link-title">My instruments</span><span class="settings-link-sub" id="accountInstrumentsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" onclick="switchView('accountBandsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">groups</span><span class="settings-link-text"><span class="settings-link-title">My bands</span><span class="settings-link-sub" id="accountBandsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link hidden-group" id="accountTeachersRow" onclick="switchView('accountTeachersView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">school</span><span class="settings-link-text"><span class="settings-link-title">My teachers</span><span class="settings-link-sub" id="accountTeachersSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
     </div>
@@ -3135,6 +3136,9 @@
                 <button type="button" class="metro-bpm-step" id="rangeTopPlus" aria-label="Top note a semitone higher">+</button>
             </div>
         </div>
+        <!-- ML-384: your range inside the instrument's (public/rangeBar.js), redrawn as you change the notes -->
+        <div id="rangePickerBar"></div>
+        <p class="text-sm" id="rangePickerBarText"></p>
         <button type="button" class="btn-nav" id="rangeMeasureBtn">Measure it with the tuner</button>
         <p class="metro-help-text" id="rangeMeasureStatus" role="status" aria-live="polite"></p>
         <div class="flex-row gap-sm">
@@ -3299,6 +3303,8 @@
                 <label for="qpHistoryFilterFavorites">Favourites</label>
             </div>
             <div id="qpHistoryList"></div>
+            <!-- ML-383: how many plays this account type sees (Admin -> Feature access, Limits); favourites count -->
+            <p class="text-sm text-muted mt-4 hidden-group" id="qpHistoryLimitNote"></p>
         </div>
         <div class="metroSeg-sticky-footer">
             <button type="button" class="btn-cancel btn-nav no-margin" id="qpHistoryCloseBtn">Close</button>
@@ -3720,6 +3726,7 @@
 <script src="practicePlan.js"></script>
 <script src="notation.js"></script>
 <script src="range.js"></script>
+<script src="rangeBar.js"></script>
 <script src="avatars.js"></script>
 <script src="homeGreeting.js"></script>
 <script src="theoryEngine.js"></script>

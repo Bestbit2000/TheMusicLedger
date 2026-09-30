@@ -2124,6 +2124,11 @@
     .range-bar-potential.is-open { border-right: none; border-radius: var(--radius-pill) 0 0 var(--radius-pill); }
     .range-bar-stretch { background: var(--input-bg); border: 2px dashed var(--control-border); border-left: none; border-right: none; }
     .range-bar-yours { background: var(--primary-action); border: 2px solid var(--primary-action-strong); border-radius: var(--radius-pill); }
+    /* ML-384: the slim bar - on its own under a list row's text (My instruments), no names or key */
+    .range-bar.is-slim { height: var(--space-2); margin: var(--space-2) 0 0; }
+    .range-bar.is-slim .range-bar-potential, .range-bar.is-slim .range-bar-yours { border-width: 1px; }
+    .range-bar.is-slim .range-bar-stretch { border-width: 1px; }
+    .range-bar.is-slim .range-bar-tick { top: calc(-1 * var(--space-0-5)); bottom: calc(-1 * var(--space-0-5)); }
     .range-bar-tick { position: absolute; top: calc(-1 * var(--space-1)); bottom: calc(-1 * var(--space-1)); left: var(--rb-at); width: 2px; background: var(--text-color); }
     .range-bar-ends { position: relative; height: 1.5em; font-size: var(--font-xs); color: var(--label-color); }
     .range-bar-end { position: absolute; top: 0; white-space: nowrap; }

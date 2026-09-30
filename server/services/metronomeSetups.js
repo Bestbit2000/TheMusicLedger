@@ -92,16 +92,17 @@ export async function duplicateQuickPlayHistory(accountId, sourceId, name) {
 // expression is NULL for every non-favourite row, so ORDER BY ties on it and
 // falls through to created_at for that whole group - only favourites actually
 // sort by name.
-// ML-366: every row is kept (to see what people play), but the list shows every favourite and only the
-// HISTORY_SHOWN most recent of the rest - it would otherwise grow for ever. Nothing on screen says so.
-export const HISTORY_SHOWN = 50;
-export async function listQuickPlayHistory(accountId) {
+// ML-366: every row is kept (to see what people play), but the list only shows so many.
+// ML-383: how many depends on the account type - the 'metronome_history_shown' limit on Admin -> Feature
+// access (10 Standard, 100 Premium to start) - and favourites count towards it: favourites first, then
+// the most recent, `limit` in all. The app says "Limited to the last N metronome plays".
+export const HISTORY_SHOWN_DEFAULT = 10;
+export async function listQuickPlayHistory(accountId, limit = HISTORY_SHOWN_DEFAULT) {
   const { rows } = await pool.query(
     `WITH shown AS (
-       (SELECT id FROM adhoc_metronome_setups WHERE account_id = $1 AND is_quick_play = true AND is_favorite)
-       UNION ALL
-       (SELECT id FROM adhoc_metronome_setups WHERE account_id = $1 AND is_quick_play = true AND NOT is_favorite
-        ORDER BY created_at DESC LIMIT $2)
+       SELECT id FROM adhoc_metronome_setups WHERE account_id = $1 AND is_quick_play = true
+        ORDER BY is_favorite DESC, CASE WHEN is_favorite THEN name END ASC, created_at DESC
+        LIMIT $2
      )
      SELECT s.id, s.name, s.created_at, s.is_favorite,
             COUNT(ms.id) AS block_count
@@ -110,7 +111,7 @@ export async function listQuickPlayHistory(accountId) {
      LEFT JOIN metronome_segments ms ON ms.parent_adhoc_setup_id = s.id
      GROUP BY s.id
      ORDER BY s.is_favorite DESC, CASE WHEN s.is_favorite THEN s.name END ASC, s.created_at DESC`,
-    [accountId, HISTORY_SHOWN]
+    [accountId, limit]
   );
   return rows.map(r => ({
     id: Number(r.id),

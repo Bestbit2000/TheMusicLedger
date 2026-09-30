@@ -334,6 +334,9 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-access-cell input { width: var(--icon-md); height: var(--icon-md); accent-color: var(--primary-action); cursor: pointer; }
 .admin-access-cell, .admin-access-row { border: 2px solid transparent; }
 .admin-access-cell.is-changed, .admin-access-row.is-changed { border-color: var(--primary-action); }
+/* ML-383: a limit - a number per account type (Limits group). Changed = the same gold outline as a changed cell */
+.admin-access-limit { width: 5.5em; min-height: var(--touch-target); box-sizing: border-box; padding: var(--space-1) var(--space-2); font: inherit; text-align: right; color: var(--text-color); background: var(--input-bg); border: 1px solid var(--control-border); border-radius: var(--radius-sm); }
+.admin-access-limit.is-changed { border: 2px solid var(--primary-action); }
 .admin-access-copy { display: block; margin: var(--space-1) auto 0; font-size: var(--font-xs); font-weight: var(--font-weight-normal); }
 .admin-access-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-2); border-bottom: 1px solid var(--input-border); border-radius: var(--radius-sm); }
 .admin-access-savebar { position: sticky; bottom: var(--space-3); z-index: var(--z-float); display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-4); padding: var(--space-3) var(--space-4); background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }

@@ -144,3 +144,24 @@ When Challenges and Practice sessions are both off, the home screen keeps just *
 
 Related: [database-schema.md](database-schema.md) (`features`, the dormant `plan_feature_flags` for
 billing later), [ML-190 gates](sheets-to-database-cutover.md).
+
+## Limits (ML-383)
+
+Some things aren't on/off but **how much**: a number per account type, set on Admin → Feature access
+(a **Limits** group, last in both layouts, saved with the rest) - so it can change without a code update.
+
+- Tables: `feature_limits` (`limit_key`, name, description, optional `feature_id`) and
+  `feature_limit_values` (`limit_id`, `account_level`, `value` 0-100000) - `084_feature_limits.sql`.
+  Unlike `feature_access`, Super admin has a value too.
+- Server: `getLimit('key', fallback)` (server/services/features.js) for the request's account type;
+  a type with no value gets the fallback. The app gets its own type's limits at startup as
+  `appData.limits` (`GET /api/dropdown-options`). Cached for 30 seconds like the features.
+- **`metronome_history_shown`** - how many plays the Metronome's Show history lists: Standard 10,
+  everyone else 100 to start. **Favourites count towards it** (owner decision): favourites first, then the
+  most recent, that many in all. Every play is still kept (ML-366), so moving up a type shows the older
+  ones straight away. Under the list: "Limited to the last N metronome plays". Standard members only see
+  it once `metronome_history` is switched on for them.
+
+**Adding a limit:** a migration inserting the `feature_limits` row and a value per type, then
+`getLimit('your_key', default)` where it's used (and `appData.limits.your_key` in the app if the app
+shows it).

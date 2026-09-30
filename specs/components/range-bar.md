@@ -3,14 +3,16 @@
 ## 1. Metadata
 - **Name:** Range bar (`.range-bar`, `.range-bar-part`, `.range-bar-potential`, `.range-bar-stretch`,
   `.range-bar-yours`, `.range-bar-tick`, `.range-bar-ends`, `.range-bar-end`, `.range-bar-key`, `.range-bar-swatch`;
-  modifiers `.is-open` (potential part, open at the top), `.is-start` / `.is-at` / `.is-end` (end notes),
+  modifiers `.is-slim` (the bar alone, thin - ML-384), `.is-open` (potential part, open at the top), `.is-start` / `.is-at` / `.is-end` (end notes),
   `.is-yours` / `.is-potential` (key swatches))
 - **Category:** Data display
 - **Status:** Stable (ML-370)
 
 ## 2. Overview
 Your playing range drawn inside the instrument's, so you can see what's left to learn. It sits in the
-See your range pop-up (Scales and Warm-ups), under the stave that shows your bottom and top notes.
+See your range pop-up (Scales and Warm-ups), under the stave that shows your bottom and top notes, and in the
+My range… pop-up (the range picker) under the two staves, redrawn as you change your notes (ML-384). Every one is
+drawn by `public/rangeBar.js` (`RangeBar.html(inst, ctx, { slim })`), so they always match. **Slim** (`.range-bar.is-slim`, ML-384): the bar alone, `--space-2` tall with 1px edges, under each instrument's text on My instruments - no note names or key (the row names the notes), in the instrument's written pitch like that text. `rangeBarHtml(inst, ctx, { slim: true })`.
 **Don't use** it for anything that isn't a range of notes; for a single amount use a [slider](slider.md)
 or a [chart](charts.md).
 

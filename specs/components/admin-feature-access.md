@@ -1,7 +1,7 @@
 # Admin feature access
 
 ## 1. Metadata
-- **Name:** Admin feature access (`admin.css`: `.admin-access-toolbar`, `.admin-access-table`, `.admin-access-group`, `.admin-access-live`, `.admin-access-cell`, `.admin-access-copy`, `.admin-access-row`, `.admin-access-savebar`, `.is-changed`)
+- **Name:** Admin feature access (`admin.css`: `.admin-access-toolbar`, `.admin-access-table`, `.admin-access-group`, `.admin-access-live`, `.admin-access-cell`, `.admin-access-copy`, `.admin-access-row`, `.admin-access-limit`, `.admin-access-savebar`, `.is-changed`)
 - **Category:** Admin panel page
 - **Status:** New (ML-345, 2026-09-29)
 
@@ -23,6 +23,7 @@ people. The rules are in [docs/feature-access-plan.md](../../docs/feature-access
     - Live - a `.toggle-switch`
     - one `label.admin-access-cell` › checkbox per type; Super admin's are ticked and disabled
 - **One type:** `.admin-stat-section-title` per group › `.admin-access-row` per feature (name, description, `.toggle-switch`).
+- **Limits** (ML-383) - last, in both layouts: a "Limits" group with a row per limit (e.g. Metronome history - how many plays Show history lists). Instead of a checkbox, each type has an `input[type=number].admin-access-limit` (0-100000, whole numbers; Super admin's is editable too - it's a number, not an on/off). The Live column is empty for a limit. A changed one gets `.is-changed`, and it saves with the rest (`feature_limits` / `feature_limit_values`, docs/feature-access-plan.md "Limits").
 - `.admin-access-savebar` (sticky at the bottom, hidden with nothing to save): "N changes not saved yet", Discard, Save.
 
 ## 4. Tokens used
@@ -30,7 +31,7 @@ people. The rules are in [docs/feature-access-plan.md](../../docs/feature-access
 (checkbox accent, the changed outline), `--touch-target` (each cell), `--icon-md` (the checkbox),
 `--radius-sm`, `--radius-md`, `--shadow-md` (the Save bar), `--z-sticky` (the feature column),
 `--z-float` (the Save bar), `--space-1`…`--space-4`, `--font-xs`, `--font-weight-normal`,
-`--font-weight-bold`.
+`--font-weight-bold`. Limits: `--control-border`, `--touch-target` (the box's height), `--space-1`/`--space-2`, `--radius-sm`.
 
 ## 5. Props / API
 - A changed cell or row gets `.is-changed` (a `--primary-action` outline) until it's saved or discarded.

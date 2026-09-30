@@ -43,7 +43,41 @@ export function featureOn(entry, level) {
 const TTL_MS = 30000;
 let cache = null;
 let cacheAt = 0;
-export function clearFeatureCache() { cache = null; }
+let limitsCache = null;
+let limitsCacheAt = 0;
+export function clearFeatureCache() { cache = null; limitsCache = null; }
+
+// ---- ML-383: limits by account type (feature_limits / feature_limit_values) ----
+// A number per account type, set on Admin -> Feature access (Limits) - e.g. how many Metronome plays
+// Show history lists. Cached like the feature matrix.
+async function loadLimits() {
+  if (limitsCache && Date.now() - limitsCacheAt < TTL_MS) return limitsCache;
+  const { rows } = await pool.query(
+    'SELECT l.limit_key, v.account_level, v.value FROM feature_limits l JOIN feature_limit_values v ON v.limit_id = l.id');
+  const byKey = new Map();
+  for (const r of rows) {
+    if (!byKey.has(r.limit_key)) byKey.set(r.limit_key, {});
+    byKey.get(r.limit_key)[r.account_level] = Number(r.value);
+  }
+  limitsCache = byKey;
+  limitsCacheAt = Date.now();
+  return limitsCache;
+}
+// Pure - unit tested. values: { [type]: n } or undefined. No account in context -> the lowest (safest).
+export function limitFor(values, level, fallback) {
+  if (!values) return fallback;
+  if (level) return Number.isFinite(values[level]) ? values[level] : fallback;
+  const all = Object.values(values).filter(Number.isFinite);
+  return all.length ? Math.min(...all) : fallback;
+}
+export async function getLimit(limitKey, fallback, level = contextLevel()) {
+  return limitFor((await loadLimits()).get(limitKey), level, fallback);
+}
+// For the client's startup bootstrap - every limit for this account's type, { key: n }.
+export async function listLimits(level = contextLevel()) {
+  const limits = await loadLimits();
+  return Object.fromEntries([...limits.entries()].map(([key, values]) => [key, limitFor(values, level, null)]));
+}
 
 async function loadMatrix() {
   if (cache && Date.now() - cacheAt < TTL_MS) return cache;
@@ -87,11 +121,20 @@ export async function listEnabledFeatureKeys(level = contextLevel()) {
 }
 
 // ---- Admin -> Feature access (super admins only - server/routes/admin.js) ----
+export const LIMIT_MAX = 100000;
 export async function getFeatureAccess() {
-  const [features, access] = await Promise.all([
+  const [features, access, limits, limitValues] = await Promise.all([
     pool.query('SELECT id, feature_key, name, description, enabled FROM features ORDER BY name'),
-    pool.query('SELECT feature_id, account_level, enabled FROM feature_access')
+    pool.query('SELECT feature_id, account_level, enabled FROM feature_access'),
+    pool.query('SELECT l.id, l.limit_key, l.name, l.description, f.feature_key FROM feature_limits l LEFT JOIN features f ON f.id = l.feature_id ORDER BY l.name'),
+    pool.query('SELECT limit_id, account_level, value FROM feature_limit_values')
   ]);
+  const valuesByLimit = new Map();
+  for (const v of limitValues.rows) {
+    const k = String(v.limit_id);
+    if (!valuesByLimit.has(k)) valuesByLimit.set(k, {});
+    valuesByLimit.get(k)[v.account_level] = Number(v.value);
+  }
   const byFeature = new Map();
   for (const a of access.rows) {
     const k = String(a.feature_id);
@@ -106,17 +149,30 @@ export async function getFeatureAccess() {
         id: Number(f.id), featureKey: f.feature_key, name: f.name, description: f.description, live: f.enabled,
         access: Object.fromEntries(ACCOUNT_TYPE_KEYS.map(t => [t, t === 'super_admin' ? true : levels[t] === true]))
       };
+    }),
+    // ML-383: a number per account type (null = no value set yet)
+    limits: limits.rows.map(l => {
+      const values = valuesByLimit.get(String(l.id)) || {};
+      return {
+        id: Number(l.id), limitKey: l.limit_key, name: l.name, description: l.description, featureKey: l.feature_key || null,
+        values: Object.fromEntries(ACCOUNT_TYPE_KEYS.map(t => [t, Number.isFinite(values[t]) ? values[t] : null]))
+      };
     })
   };
 }
 
-// changes: { live: [{ featureId, enabled }], access: [{ featureId, level, enabled }] } - saved together.
-export async function saveFeatureAccess({ live = [], access = [] } = {}) {
-  if (!Array.isArray(live) || !Array.isArray(access) || live.length + access.length > 2000) {
+// changes: { live: [{ featureId, enabled }], access: [{ featureId, level, enabled }],
+// limits: [{ limitId, level, value }] (ML-383) } - saved together.
+export async function saveFeatureAccess({ live = [], access = [], limits = [] } = {}) {
+  if (!Array.isArray(live) || !Array.isArray(access) || !Array.isArray(limits) || live.length + access.length + limits.length > 2000) {
     const e = new Error('Bad changes.'); e.status = 400; throw e;
   }
   for (const a of access) {
     if (!EDITABLE_TYPES.includes(a.level)) { const e = new Error('Super admin always has every feature.'); e.status = 400; throw e; }
+  }
+  for (const l of limits) {
+    if (!ACCOUNT_TYPE_KEYS.includes(l.level)) { const e = new Error('Unknown account type.'); e.status = 400; throw e; }
+    if (!Number.isInteger(l.value) || l.value < 0 || l.value > LIMIT_MAX) { const e = new Error(`A limit is a whole number from 0 to ${LIMIT_MAX}.`); e.status = 400; throw e; }
   }
   const client = await pool.connect();
   try {
@@ -129,6 +185,12 @@ export async function saveFeatureAccess({ live = [], access = [] } = {}) {
         `INSERT INTO feature_access (feature_id, account_level, enabled) VALUES ($1, $2, $3)
          ON CONFLICT (feature_id, account_level) DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = now()`,
         [Number(a.featureId), a.level, !!a.enabled]);
+    }
+    for (const l of limits) {
+      await client.query(
+        `INSERT INTO feature_limit_values (limit_id, account_level, value) VALUES ($1, $2, $3)
+         ON CONFLICT (limit_id, account_level) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+        [Number(l.limitId), l.level, l.value]);
     }
     await client.query('COMMIT');
   } catch (error) {
