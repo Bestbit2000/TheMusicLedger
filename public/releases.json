@@ -1,5 +1,131 @@
 [
   {
+    "version": "0.34.0",
+    "date": "2026-09-30",
+    "changes": [
+      {
+        "key": "ML-386",
+        "type": "New",
+        "summary": "Complete scales lists with rest"
+      },
+      {
+        "key": "ML-385",
+        "type": "New",
+        "summary": "ensure tuner is sticky at the top when displayed"
+      },
+      {
+        "key": "ML-384",
+        "type": "New",
+        "summary": "Range bar on My instruments: a slim bar per instrument, and the full bar in the My range pop-up"
+      },
+      {
+        "key": "ML-383",
+        "type": "New",
+        "summary": "Metronome history limited by account type (10 Standard / 100 Premium), adjustable in Admin"
+      },
+      {
+        "key": "ML-382",
+        "type": "New",
+        "summary": "Move My instruments out of My account into the ☰ menu, next to My music"
+      },
+      {
+        "key": "ML-379",
+        "type": "New",
+        "summary": "Make edit anywhere on the My account details menus, not just hte edit menu."
+      },
+      {
+        "key": "ML-378",
+        "type": "New",
+        "summary": "Change layout on home page"
+      },
+      {
+        "key": "ML-377",
+        "type": "New",
+        "summary": "Home greeting: avatar, a greeting that follows the moment, and one encouraging line"
+      },
+      {
+        "key": "ML-376",
+        "type": "New",
+        "summary": "Display name blank but not blank"
+      },
+      {
+        "key": "ML-375",
+        "type": "New",
+        "summary": "See more info about each band"
+      },
+      {
+        "key": "ML-374",
+        "type": "New",
+        "summary": "Notifications empty state: \"You're all caught up!\", line drawing and Start practising button"
+      },
+      {
+        "key": "ML-373",
+        "type": "New",
+        "summary": "Put tenor clef into the warm up options."
+      },
+      {
+        "key": "ML-372",
+        "type": "New",
+        "summary": "Display and reading: remove dyslexia preset, add Reset to standard, pinned compact preview"
+      },
+      {
+        "key": "ML-371",
+        "type": "New",
+        "summary": "background scrolls when menu open"
+      },
+      {
+        "key": "ML-370",
+        "type": "New",
+        "summary": "Title on your range pop up"
+      },
+      {
+        "key": "ML-369",
+        "type": "New",
+        "summary": "Instrument pop up in warmups selection is a standard pop up and not a designed one."
+      },
+      {
+        "key": "ML-368",
+        "type": "New",
+        "summary": "Default use metronome to off on warm ups"
+      },
+      {
+        "key": "ML-367",
+        "type": "Fixes",
+        "summary": "Scroll on the 4-col play version is awkward"
+      },
+      {
+        "key": "ML-366",
+        "type": "New",
+        "summary": "Show history in metronome will get too long, limit showing results to last 50 only"
+      },
+      {
+        "key": "ML-365",
+        "type": "New",
+        "summary": "If beat note is crotchet, allow the crotchet to be used in pauses not just the minims"
+      },
+      {
+        "key": "ML-364",
+        "type": "Fixes",
+        "summary": "Adding bars on slider moving off to the left closes the pop up"
+      },
+      {
+        "key": "ML-363",
+        "type": "New",
+        "summary": "Adding bars, need to be able to use Enter as Save button for pop ups"
+      },
+      {
+        "key": "ML-362",
+        "type": "New",
+        "summary": "Adding bars, beat note isn't copying to new one"
+      },
+      {
+        "key": "ML-167",
+        "type": "New",
+        "summary": "Notifications"
+      }
+    ]
+  },
+  {
     "version": "0.33.0",
     "date": "2026-09-30",
     "changes": [
