@@ -571,38 +571,54 @@
 
     <!-- ML-356: Display and reading - saved on the account, so it follows you to every device. -->
     <div id="settingsDisplayView" class="settings-subview hidden-group">
-        <div class="setting-row">
-            <span id="dyslexiaToggleLabel">Dyslexia-friendly reading</span><label class="toggle-switch"><input type="checkbox" id="dyslexiaToggle" aria-labelledby="dyslexiaToggleLabel" aria-describedby="dyslexiaToggleHelp"><span class="toggle-slider"></span></label>
+        <!-- ML-359: a live preview (a line of music and a sentence), the dyslexia-friendly preset (a button,
+             undoable), then two cards - Display & theme and Reading & typography. Every choice applies at once. -->
+        <div class="flow-card display-preview">
+            <span class="display-preview-label" id="displayPreviewLabel">Preview</span>
+            <div class="display-preview-staff" id="displayPreviewStaff"></div>
+            <p class="display-preview-text">Play the scale slowly, then build the tempo a little at a time until it feels easy.</p>
         </div>
-        <p class="text-sm mb-4" id="dyslexiaToggleHelp">More space between lines, letters and words, and no italics. Choose the font, background and text size that suit you below - turning this on picks Lexend and cream to start with.</p>
-        <div class="form-group" role="group" aria-labelledby="readingFontLabel"><label id="readingFontLabel">Reading font</label>
-            <div class="radio-group compact" id="readingFontOptions">
-                <input type="radio" name="readingFont" id="readingFont-standard" value="standard"><label for="readingFont-standard" class="font-preview-standard">Standard</label>
-                <input type="radio" name="readingFont" id="readingFont-lexend" value="lexend"><label for="readingFont-lexend" class="font-preview-lexend">Lexend</label>
-                <input type="radio" name="readingFont" id="readingFont-opendyslexic" value="opendyslexic"><label for="readingFont-opendyslexic" class="font-preview-opendyslexic">OpenDyslexic</label>
+        <button type="button" class="btn-nav btn-cancel display-preset-btn" id="dyslexiaPresetBtn" aria-describedby="dyslexiaPresetHelp"><span class="material-symbols-outlined" aria-hidden="true">auto_fix_high</span>Apply dyslexia-friendly preset</button>
+        <p class="text-sm display-preset-help" id="dyslexiaPresetHelp">Lexend font, cream background, large text and more spacing. You can change any of them below.</p>
+        <section class="flow-card display-card" aria-labelledby="displayThemeCardTitle">
+            <h2 class="display-card-title" id="displayThemeCardTitle"><span class="material-symbols-outlined" aria-hidden="true">palette</span>Display &amp; theme</h2>
+            <div class="form-group" role="radiogroup" aria-labelledby="displayThemeLabel"><label id="displayThemeLabel">Theme</label>
+                <div class="radio-group is-segmented" id="displayThemeOptions">
+                    <input type="radio" name="displayTheme" id="displayTheme-light" value="light"><label for="displayTheme-light"><span class="material-symbols-outlined" aria-hidden="true">light_mode</span>Light</label>
+                    <input type="radio" name="displayTheme" id="displayTheme-dark" value="dark"><label for="displayTheme-dark"><span class="material-symbols-outlined" aria-hidden="true">dark_mode</span>Dark</label>
+                </div>
             </div>
-        </div>
-        <!-- ML-359: dark mode lives with the background colours - each colour has a dark version too. -->
-        <div class="form-group" role="group" aria-labelledby="readingBackgroundLabel"><label id="readingBackgroundLabel">Background</label>
-            <div class="setting-row mb-3">
-                <span id="darkModeToggleLabel">Dark mode</span><label class="toggle-switch"><input type="checkbox" id="darkModeToggle" aria-labelledby="darkModeToggleLabel"><span class="toggle-slider"></span></label>
+            <div class="form-group" role="radiogroup" aria-labelledby="readingBackgroundLabel"><label id="readingBackgroundLabel">Background tint</label>
+                <div class="radio-group is-tiles" id="readingBackgroundOptions">
+                    <input type="radio" name="readingBackground" id="readingBackground-standard" value="standard"><label for="readingBackground-standard"><span class="bg-swatch bg-swatch-standard" aria-hidden="true"></span><span class="material-symbols-outlined bg-tile-tick" aria-hidden="true">check_circle</span><span class="bg-tile-name">Default</span></label>
+                    <input type="radio" name="readingBackground" id="readingBackground-cream" value="cream"><label for="readingBackground-cream"><span class="bg-swatch bg-swatch-cream" aria-hidden="true"></span><span class="material-symbols-outlined bg-tile-tick" aria-hidden="true">check_circle</span><span class="bg-tile-name">Cream</span></label>
+                    <input type="radio" name="readingBackground" id="readingBackground-blue" value="blue"><label for="readingBackground-blue"><span class="bg-swatch bg-swatch-blue" aria-hidden="true"></span><span class="material-symbols-outlined bg-tile-tick" aria-hidden="true">check_circle</span><span class="bg-tile-name">Pale blue</span></label>
+                    <input type="radio" name="readingBackground" id="readingBackground-green" value="green"><label for="readingBackground-green"><span class="bg-swatch bg-swatch-green" aria-hidden="true"></span><span class="material-symbols-outlined bg-tile-tick" aria-hidden="true">check_circle</span><span class="bg-tile-name">Pale green</span></label>
+                    <input type="radio" name="readingBackground" id="readingBackground-yellow" value="yellow"><label for="readingBackground-yellow"><span class="bg-swatch bg-swatch-yellow" aria-hidden="true"></span><span class="material-symbols-outlined bg-tile-tick" aria-hidden="true">check_circle</span><span class="bg-tile-name">Soft yellow</span></label>
+                    <input type="radio" name="readingBackground" id="readingBackground-peach" value="peach"><label for="readingBackground-peach"><span class="bg-swatch bg-swatch-peach" aria-hidden="true"></span><span class="material-symbols-outlined bg-tile-tick" aria-hidden="true">check_circle</span><span class="bg-tile-name">Peach</span></label>
+                </div>
             </div>
-            <div class="radio-group" id="readingBackgroundOptions">
-                <input type="radio" name="readingBackground" id="readingBackground-standard" value="standard"><label for="readingBackground-standard"><span class="bg-swatch bg-swatch-standard" aria-hidden="true"></span>Standard</label>
-                <input type="radio" name="readingBackground" id="readingBackground-cream" value="cream"><label for="readingBackground-cream"><span class="bg-swatch bg-swatch-cream" aria-hidden="true"></span>Cream</label>
-                <input type="radio" name="readingBackground" id="readingBackground-blue" value="blue"><label for="readingBackground-blue"><span class="bg-swatch bg-swatch-blue" aria-hidden="true"></span>Pale blue</label>
-                <input type="radio" name="readingBackground" id="readingBackground-green" value="green"><label for="readingBackground-green"><span class="bg-swatch bg-swatch-green" aria-hidden="true"></span>Pale green</label>
-                <input type="radio" name="readingBackground" id="readingBackground-yellow" value="yellow"><label for="readingBackground-yellow"><span class="bg-swatch bg-swatch-yellow" aria-hidden="true"></span>Soft yellow</label>
-                <input type="radio" name="readingBackground" id="readingBackground-peach" value="peach"><label for="readingBackground-peach"><span class="bg-swatch bg-swatch-peach" aria-hidden="true"></span>Peach</label>
+        </section>
+        <section class="flow-card display-card" aria-labelledby="readingCardTitle">
+            <h2 class="display-card-title" id="readingCardTitle"><span class="material-symbols-outlined" aria-hidden="true">text_fields</span>Reading &amp; typography</h2>
+            <div class="form-group" role="radiogroup" aria-labelledby="readingFontLabel"><label id="readingFontLabel">Font</label>
+                <div class="radio-group compact is-fit" id="readingFontOptions">
+                    <input type="radio" name="readingFont" id="readingFont-standard" value="standard"><label for="readingFont-standard" class="font-preview-standard">Standard</label>
+                    <input type="radio" name="readingFont" id="readingFont-lexend" value="lexend"><label for="readingFont-lexend" class="font-preview-lexend">Lexend</label>
+                    <input type="radio" name="readingFont" id="readingFont-opendyslexic" value="opendyslexic"><label for="readingFont-opendyslexic" class="font-preview-opendyslexic">OpenDyslexic</label>
+                </div>
             </div>
-        </div>
-        <div class="form-group" role="group" aria-labelledby="readingTextSizeLabel"><label id="readingTextSizeLabel">Text size</label>
-            <div class="radio-group compact" id="readingTextSizeOptions">
-                <input type="radio" name="readingTextSize" id="readingTextSize-standard" value="standard"><label for="readingTextSize-standard">Standard</label>
-                <input type="radio" name="readingTextSize" id="readingTextSize-large" value="large"><label for="readingTextSize-large">Large</label>
-                <input type="radio" name="readingTextSize" id="readingTextSize-larger" value="larger"><label for="readingTextSize-larger">Larger</label>
+            <div class="form-group" role="radiogroup" aria-labelledby="readingTextSizeLabel"><label id="readingTextSizeLabel">Text size</label>
+                <div class="radio-group compact is-centred" id="readingTextSizeOptions">
+                    <input type="radio" name="readingTextSize" id="readingTextSize-standard" value="standard"><label for="readingTextSize-standard">Standard</label>
+                    <input type="radio" name="readingTextSize" id="readingTextSize-large" value="large"><label for="readingTextSize-large" class="text-size-preview-large">Large</label>
+                    <input type="radio" name="readingTextSize" id="readingTextSize-larger" value="larger"><label for="readingTextSize-larger" class="text-size-preview-larger">Extra large</label>
+                </div>
             </div>
-        </div>
+            <div class="display-toggle-row">
+                <span id="readingSpacingLabel">Increased spacing<span class="display-toggle-help" id="readingSpacingHelp">Lines, letters and words, and no italics</span></span><label class="toggle-switch"><input type="checkbox" id="readingSpacingToggle" aria-labelledby="readingSpacingLabel"><span class="toggle-slider"></span></label>
+            </div>
+        </section>
     </div>
 
     <div id="settingsStatsView" class="settings-subview hidden-group">

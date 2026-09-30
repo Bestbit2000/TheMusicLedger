@@ -15957,7 +15957,8 @@
     // ===== ML-356: Display and reading (docs/display-and-reading.md) =====
     // Saved on the account so they follow you to every device; a copy stays on the device
     // (tml.display) so display-prefs.js can apply them before the page draws next time.
-    const DISPLAY_DEFAULTS = { darkMode: false, dyslexia: false, font: 'standard', background: 'standard', textSize: 'standard', beforeDyslexia: null };
+    // dyslexia is the "Increased spacing" switch (more line, letter and word spacing, no italics) - ML-359.
+    const DISPLAY_DEFAULTS = { darkMode: false, dyslexia: false, font: 'standard', background: 'standard', textSize: 'standard' };
     let displayPrefs = { ...DISPLAY_DEFAULTS };
     try { displayPrefs = { ...DISPLAY_DEFAULTS, ...JSON.parse(localStorage.getItem('tml.display') || '{}') }; } catch (e) { /* defaults */ }
     if (localStorage.getItem('tml.display') === null && localStorage.getItem('darkMode') === 'true') displayPrefs.darkMode = true;
@@ -15985,41 +15986,47 @@
     }
     function displaySummary() {
         const bits = [displayPrefs.darkMode ? 'Dark mode' : 'Light mode'];
-        if (displayPrefs.dyslexia) bits.push('dyslexia-friendly');
+        if (displayPrefs.dyslexia) bits.push('more spacing');
         if (displayPrefs.font !== 'standard') bits.push(displayPrefs.font === 'lexend' ? 'Lexend' : 'OpenDyslexic');
-        if (displayPrefs.textSize !== 'standard') bits.push(displayPrefs.textSize + ' text');
+        if (displayPrefs.textSize !== 'standard') bits.push(displayPrefs.textSize === 'larger' ? 'extra large text' : 'large text');
         return bits.join(', ');
     }
+    // The preview's line of music: a C major scale, up an octave (drawn by Notation, so it follows the colours).
+    const DISPLAY_PREVIEW_SCALE = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
+    function renderDisplayPreview() {
+        const el = document.getElementById('displayPreviewStaff');
+        if (!el || el.firstChild) return; // drawn once - colour, font and size come from the page
+        const items = [];
+        DISPLAY_PREVIEW_SCALE.forEach((pitch, i) => {
+            items.push({ type: 'note', pitch, head: Notation.staffStep(pitch, 'treble') >= 4 ? 'noteQuarterDown' : 'noteQuarterUp' });
+            if (i === 3) items.push({ type: 'barline', glyph: 'barlineSingle' });
+        });
+        items.push({ type: 'barline', glyph: 'barlineFinal' });
+        el.innerHTML = Notation.staff({ clef: 'treble', items: [{ type: 'timeSig', top: 4, bottom: 4 }, ...items], noteGap: 2.4, label: 'Preview: a C major scale, one octave up' });
+    }
     function renderDisplaySettings() {
-        const dark = document.getElementById('darkModeToggle');
-        if (!dark) return;
-        dark.checked = displayPrefs.darkMode;
-        document.getElementById('dyslexiaToggle').checked = displayPrefs.dyslexia;
+        const light = document.getElementById('displayTheme-light');
+        if (!light) return;
+        light.checked = !displayPrefs.darkMode;
+        document.getElementById('displayTheme-dark').checked = displayPrefs.darkMode;
+        document.getElementById('readingSpacingToggle').checked = displayPrefs.dyslexia;
         [['readingFont', 'font'], ['readingBackground', 'background'], ['readingTextSize', 'textSize']].forEach(([name, key]) => {
             const r = document.getElementById(`${name}-${displayPrefs[key]}`);
             if (r) r.checked = true;
         });
         const sum = document.getElementById('settingsDisplaySummary');
         if (sum) sum.textContent = displaySummary();
+        renderDisplayPreview();
     }
-    document.getElementById('darkModeToggle')?.addEventListener('change', (e) => saveDisplayPrefs({ darkMode: e.target.checked }));
-    document.getElementById('dyslexiaToggle')?.addEventListener('change', (e) => {
-        const changes = { dyslexia: e.target.checked };
-        if (e.target.checked) {
-            // Turning it on starts you off with Lexend and cream (unless you've chosen your own already),
-            // remembering what they were (ML-359) ...
-            const before = {};
-            if (displayPrefs.font === 'standard') { changes.font = 'lexend'; before.font = 'standard'; }
-            if (displayPrefs.background === 'standard') { changes.background = 'cream'; before.background = 'standard'; }
-            changes.beforeDyslexia = Object.keys(before).length ? before : null;
-        } else {
-            // ... so turning it off puts them back - unless you've changed them yourself since.
-            const before = displayPrefs.beforeDyslexia || {};
-            if (before.font && displayPrefs.font === 'lexend') changes.font = before.font;
-            if (before.background && displayPrefs.background === 'cream') changes.background = before.background;
-            changes.beforeDyslexia = null;
-        }
-        saveDisplayPrefs(changes);
+    document.querySelectorAll('input[name="displayTheme"]').forEach(r => r.addEventListener('change', () => { if (r.checked) saveDisplayPrefs({ darkMode: r.value === 'dark' }); }));
+    document.getElementById('readingSpacingToggle')?.addEventListener('change', (e) => saveDisplayPrefs({ dyslexia: e.target.checked }));
+    // ML-359: dyslexia-friendly is a preset, not a setting - it sets four of the choices below (each can
+    // still be changed on its own), and Undo puts all four back as they were.
+    const DYSLEXIA_PRESET = { font: 'lexend', background: 'cream', textSize: 'large', dyslexia: true };
+    document.getElementById('dyslexiaPresetBtn')?.addEventListener('click', () => {
+        const before = Object.fromEntries(Object.keys(DYSLEXIA_PRESET).map(k => [k, displayPrefs[k]]));
+        saveDisplayPrefs(DYSLEXIA_PRESET);
+        showUndoToast('Dyslexia-friendly preset applied', () => saveDisplayPrefs(before));
     });
     [['readingFont', 'font'], ['readingBackground', 'background'], ['readingTextSize', 'textSize']].forEach(([name, key]) => {
         document.querySelectorAll(`input[name="${name}"]`).forEach(r => r.addEventListener('change', () => { if (r.checked) saveDisplayPrefs({ [key]: r.value }); }));

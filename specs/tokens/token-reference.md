@@ -243,6 +243,7 @@ see specs/foundations/radius.md. --radius-md is THE button radius.
 | `--shadow-top` | `0 -2px 8px rgba(0, 0, 0, 0.1)` | bars docked to the bottom edge |
 | `--shadow-info` | `0 4px 12px rgba(33, 150, 243, 0.4)` | info toast only |
 | `--focus-ring` | `0 0 0 2px #ffffff, 0 0 0 4px #7a6214` | keyboard focus outline, selected-swatch ring |
+| `--selected-ring-inset` | `inset 0 0 0 1px #7a6214` | ML-359 thickens a chosen colour tile's outline inside it (the tile is filled with its colour, so no tint wash) |
 | `--shadow-ring-surface` | `0 0 0 2px #ffffff` | separates a dot/badge from whatever it overlaps |
 | `--shadow-glow` | `0 0 10px 5px rgba(212, 175, 55, 0.55)` | peak of the pulsing gold glow |
 | `--shadow-glow-rest` | `0 0 0 0 rgba(212, 175, 55, 0.55)` | rest frame of the pulsing gold glow |

@@ -407,6 +407,84 @@
       "fg": "--status-amber-fg",
       "bg": "--container-bg",
       "use": "Scales grade grid (ML-357): the edge of an outside-your-range cell"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-color",
+      "bg": "--swatch-standard",
+      "use": "ML-359 a Background tint tile's name on its own colour (standard)"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--primary-action-strong",
+      "bg": "--swatch-standard",
+      "use": "ML-359 the chosen tint tile's outline and tick (standard)"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-color",
+      "bg": "--swatch-cream",
+      "use": "ML-359 a Background tint tile's name on its own colour (cream)"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--primary-action-strong",
+      "bg": "--swatch-cream",
+      "use": "ML-359 the chosen tint tile's outline and tick (cream)"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-color",
+      "bg": "--swatch-blue",
+      "use": "ML-359 a Background tint tile's name on its own colour (blue)"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--primary-action-strong",
+      "bg": "--swatch-blue",
+      "use": "ML-359 the chosen tint tile's outline and tick (blue)"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-color",
+      "bg": "--swatch-green",
+      "use": "ML-359 a Background tint tile's name on its own colour (green)"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--primary-action-strong",
+      "bg": "--swatch-green",
+      "use": "ML-359 the chosen tint tile's outline and tick (green)"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-color",
+      "bg": "--swatch-yellow",
+      "use": "ML-359 a Background tint tile's name on its own colour (yellow)"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--primary-action-strong",
+      "bg": "--swatch-yellow",
+      "use": "ML-359 the chosen tint tile's outline and tick (yellow)"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-color",
+      "bg": "--swatch-peach",
+      "use": "ML-359 a Background tint tile's name on its own colour (peach)"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--primary-action-strong",
+      "bg": "--swatch-peach",
+      "use": "ML-359 the chosen tint tile's outline and tick (peach)"
+    },
+    {
+      "kind": "text",
+      "fg": "--label-color",
+      "bg": "--input-bg",
+      "use": "ML-359 an unchosen option in a segmented radio group (Theme: Light / Dark)"
     }
   ]
 }

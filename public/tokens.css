@@ -405,6 +405,7 @@
     --shadow-top: 0 -2px 8px var(--ds-black-a10, rgba(0, 0, 0, 0.1));   /* bars docked to the bottom edge */
     --shadow-info: 0 4px 12px var(--ds-blue-a40, rgba(33, 150, 243, 0.4)); /* info toast only */
     --focus-ring: 0 0 0 2px var(--container-bg), 0 0 0 4px var(--primary-action-strong);               /* keyboard focus outline, selected-swatch ring */
+    --selected-ring-inset: inset 0 0 0 1px var(--primary-action-strong);                                /* ML-359 thickens a chosen colour tile's outline inside it (the tile is filled with its colour, so no tint wash) */
     --shadow-ring-surface: 0 0 0 2px var(--container-bg);           /* separates a dot/badge from whatever it overlaps */
     --shadow-glow: 0 0 10px 5px var(--ds-gold-a55, rgba(212, 175, 55, 0.55)); /* peak of the pulsing gold glow */
     --shadow-glow-rest: 0 0 0 0 var(--ds-gold-a55, rgba(212, 175, 55, 0.55)); /* rest frame of the pulsing gold glow */
@@ -493,6 +494,13 @@ body.dark-mode {
     --status-grey-fg: var(--ds-status-grey-fg-dark, #c4c4c4);
     --status-purple-bg: var(--ds-status-purple-bg-dark, #2f2557);
     --status-purple-fg: var(--ds-status-purple-fg-dark, #c3b6f0);
+    /* ML-359: the Background tint tiles show the dark shades you would get */
+    --swatch-standard: var(--ds-neutral-900, #121212);
+    --swatch-cream: var(--ds-cream-page-dark, #2b2517);
+    --swatch-blue: var(--ds-blue-page-dark, #16222f);
+    --swatch-green: var(--ds-green-page-dark, #17261b);
+    --swatch-yellow: var(--ds-yellow-page-dark, #29260f);
+    --swatch-peach: var(--ds-peach-page-dark, #2e1f1b);
 }
 
 /* =============================================================================
@@ -528,5 +536,3 @@ html[data-bg="blue"] body.dark-mode { --bg-color: var(--ds-blue-page-dark, #1622
 html[data-bg="green"] body.dark-mode { --bg-color: var(--ds-green-page-dark, #17261b); --container-bg: var(--ds-green-card-dark, #213225); --input-bg: var(--ds-green-field-dark, #27372a); }
 html[data-bg="yellow"] body.dark-mode { --bg-color: var(--ds-yellow-page-dark, #29260f); --container-bg: var(--ds-yellow-card-dark, #343118); --input-bg: var(--ds-yellow-field-dark, #37341d); }
 html[data-bg="peach"] body.dark-mode { --bg-color: var(--ds-peach-page-dark, #2e1f1b); --container-bg: var(--ds-peach-card-dark, #3a2823); --input-bg: var(--ds-peach-field-dark, #422f2a); }
-/* ML-359: in dark mode the swatches show the dark shades you'd get */
-body.dark-mode { --swatch-standard: var(--ds-neutral-900, #121212); --swatch-cream: var(--ds-cream-page-dark, #2b2517); --swatch-blue: var(--ds-blue-page-dark, #16222f); --swatch-green: var(--ds-green-page-dark, #17261b); --swatch-yellow: var(--ds-yellow-page-dark, #29260f); --swatch-peach: var(--ds-peach-page-dark, #2e1f1b); }

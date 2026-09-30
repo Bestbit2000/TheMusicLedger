@@ -147,7 +147,7 @@ export async function setAccountLevel(accountId, level) {
 // device. Only these keys and values are kept; anything else is dropped. {} = nothing chosen yet.
 export const DISPLAY_PREF_CHOICES = {
   darkMode: [true, false],
-  dyslexia: [true, false],                       // more line / letter / word spacing, no italics
+  dyslexia: [true, false],                       // 'Increased spacing': more line / letter / word spacing, no italics
   font: ['standard', 'lexend', 'opendyslexic'],
   background: ['standard', 'cream', 'blue', 'green', 'yellow', 'peach'], // ML-359: + soft yellow, peach
   textSize: ['standard', 'large', 'larger']
@@ -163,14 +163,6 @@ export async function saveDisplayPrefs(accountId, prefs) {
       if (!allowed.includes(prefs[key])) { const e = new Error(`Unknown ${key} setting.`); e.status = 400; throw e; }
       clean[key] = prefs[key];
     }
-  }
-  // ML-359: what turning dyslexia-friendly reading on changed (the font / background it picked), so
-  // turning it off can put them back - null once put back.
-  if (prefs && 'beforeDyslexia' in prefs) {
-    const b = prefs.beforeDyslexia;
-    const ok = b === null || (typeof b === 'object' && !Array.isArray(b) && Object.keys(b).every(k => ['font', 'background'].includes(k) && DISPLAY_PREF_CHOICES[k].includes(b[k])));
-    if (!ok) { const e = new Error('Unknown beforeDyslexia setting.'); e.status = 400; throw e; }
-    clean.beforeDyslexia = b;
   }
   // Merged, so one screen can save one setting without resending the others.
   const { rows } = await pool.query(

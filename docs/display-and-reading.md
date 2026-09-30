@@ -1,14 +1,29 @@
 # Display and reading (ML-356)
 
-Settings → **Display and reading** - for dyslexic players first, and useful to anyone:
+Settings → **Display and reading** - for dyslexic players first, and useful to anyone. Since ML-359
+the screen is, top to bottom:
+
+1. **Preview** - a line of music (a C major scale, drawn by `Notation`) and a sentence, so you see
+   the tint, font, size and spacing on both music and words as you choose. Every choice applies at
+   once (to the whole app, not just the preview).
+2. **Apply dyslexia-friendly preset** - a button, not a setting. It sets Lexend, Cream, Large text and
+   Increased spacing in one go, and an **Undo** toast puts all four back as they were. Each of the four
+   can still be changed on its own below; nothing remembers that the preset was used.
+3. **Display & theme** card - Theme (Light / Dark) and Background tint.
+4. **Reading & typography** card - Font, Text size and Increased spacing.
 
 | Setting | Choices | What it does |
 |---|---|---|
-| Dark mode | on / off | Saved on the account. Since ML-359 it sits in the **Background** box: every colour below has a dark version, so dark mode and a colour go together |
-| Dyslexia-friendly reading | on / off | Line spacing 1.7 (1.85 for long text), a little more letter (0.035em) and word (0.12em) spacing, no italics - the British Dyslexia Association style guide. Turning it on picks Lexend and cream if the font and background are still standard, remembering them (`beforeDyslexia`), so turning it off puts them back - unless you changed them yourself in between (ML-359) |
-| Reading font | Standard (Inter) · Lexend · OpenDyslexic | The font for all UI text (buttons too). Music notation always stays in Bravura |
-| Background colour | Standard · Cream · Pale blue · Pale green · Soft yellow · Peach | Page, cards and fields, with a dark version of each for dark mode (ML-359: stronger, so a colour shows in the dark too). Soft yellow and peach/rose are the overlays most often asked for for visual stress - which colour helps differs from person to person |
-| Text size | Standard · Large (112.5%) · Larger (125%) | The root font size - everything sized in rem grows |
+| Theme | Light · Dark | Dark mode (`darkMode`). Every tint has a dark version, so the theme and a tint go together - the tint tiles show the dark shades while Dark is on |
+| Background tint | Default · Cream · Pale blue · Pale green · Soft yellow · Peach | Page, cards and fields, with a dark version of each for dark mode (ML-359: stronger, so a colour shows in the dark too). Soft yellow and peach/rose are the overlays most often asked for for visual stress - which colour helps differs from person to person. Each choice is a tile filled with its colour |
+| Font | Standard (Inter) · Lexend · OpenDyslexic | The font for all UI text (buttons too). Music notation always stays in Bravura |
+| Text size | Standard · Large (112.5%) · Extra large (125%) | The root font size - everything sized in rem grows. Stored as `standard` / `large` / `larger` |
+| Increased spacing | on / off | Stored as `dyslexia` (`html[data-reading="on"]`). Line spacing 1.7 (1.85 for long text), a little more letter (0.035em) and word (0.12em) spacing, no italics - the British Dyslexia Association style guide |
+
+Before ML-359 "Dyslexia-friendly reading" was an on/off switch that also picked Lexend and cream (and a
+`beforeDyslexia` field remembered what to put back). That switch is now the preset button plus the
+Increased spacing switch; the server no longer keeps `beforeDyslexia` (an old copy left in an account's
+`display_prefs` does nothing).
 
 **Saved on the account** (`accounts.display_prefs`, migration 077; `GET/PUT /api/account/display`,
 values checked by `DISPLAY_PREF_CHOICES` in `server/services/accounts.js`), so they follow the person
