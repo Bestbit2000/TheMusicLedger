@@ -698,6 +698,11 @@
     .setting-row-grouped { margin-bottom: var(--space-3); }
     .info-row { margin-bottom: var(--space-3); padding: var(--space-3) var(--space-4); }
     .info-row-end { margin-bottom: var(--space-5); }
+    /* ML-379: an editable info row (My details' Name, Display name, Avatar) is one button - the tappable
+       surface like any tappable row. The pencil is only a sign it can be changed, so it wears the quiet grey
+       circle of the list-row ⋮ (.list-item-menu-btn), not .btn-icon-edit's bold brown ring */
+    button.info-row-edit { width: 100%; box-sizing: border-box; font: inherit; color: var(--text-color); text-align: left; background: var(--input-bg); border-color: var(--control-border); cursor: pointer; }
+    .info-row-edit-icon { width: 40px; height: 40px; box-sizing: border-box; border: 1px solid var(--control-border); border-radius: var(--radius-circle); background: var(--input-bg); color: var(--label-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     /* ML-282: Settings is a list of groups (.settings-link, a tappable list row with the neutral
        stripe), each opening its own screen (.settings-subview - starts .hidden-group like every other
        screen, and switchView shows it). .setting-field-pair: two fields side by side (practice year

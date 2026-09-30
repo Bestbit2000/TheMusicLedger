@@ -11,6 +11,7 @@ A bordered surface that groups related content inside the app column. Cards are 
 (`--container-bg` with an `--input-border` outline, one radius step smaller) for the inner level.
 
 **Info rows** (`.info-row`, `.info-row-end` on the last of a group): a label and its read-only value, e.g. My account's Email / Account type / Member since - `--container-bg`, `--input-border` outline, label left, value right.
+**Editable info rows** (ML-379, `button.info-row.info-row-edit` › label › value + `.info-row-edit-icon`): My details' Name, Display name and Avatar. The whole row is one button (tap anywhere - it opens a pop-up: Name, Display name (Save / Cancel, × = Cancel) or Choose an avatar), on the tappable surface (`--input-bg`, `--control-border`) so it reads differently from the read-only rows. The pencil wears the list-row ⋮'s quiet grey circle (`.list-item-menu-btn`: `--control-border`, `--input-bg`, `--label-color`, `--radius-circle`), not `.btn-icon-edit`'s bold brown ring - the whole row is the button, the pencil only a hint but is decorative (`aria-hidden`); a visually hidden ", edit" / ", change" ends the button's name. Only one action, so no ⋮ menu.
 
 **A card is never `--input-bg` (ML-286).** Cards are display surfaces; the lighter `--input-bg` means *you can tap this* ([color](../foundations/color.md)), so it belongs on the buttons and inputs inside a card, not on the card.
 

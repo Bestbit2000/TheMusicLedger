@@ -4373,8 +4373,8 @@
     })();
     function setAccountNameEditing(which, editing) {
         const ids = which === 'name'
-            ? { panel: 'accountNameEdit', btn: 'accountEditNameBtn', focus: 'accountFirstNameInput' }
-            : { panel: 'accountDisplayNameEdit', btn: 'accountEditDisplayNameBtn', focus: 'accountDisplayNameInput' };
+            ? { panel: 'accountNameModal', btn: 'accountEditNameBtn', focus: 'accountFirstNameInput' }
+            : { panel: 'accountDisplayNameModal', btn: 'accountEditDisplayNameBtn', focus: 'accountDisplayNameInput' };
         if (editing) {
             const p = accountProfile || {};
             if (which === 'name') {
@@ -4385,8 +4385,8 @@
                 document.getElementById('accountDisplayNameInput').value = p.displayName || p.firstName || '';
             }
         }
-        setShown(ids.panel, editing);
-        document.getElementById(ids.btn).setAttribute('aria-expanded', String(editing));
+        // ML-379: a pop-up, like every other input - closing it any way but Save is Cancel
+        if (editing) showModal(ids.panel); else hideModal(ids.panel);
         document.getElementById(editing ? ids.focus : ids.btn)?.focus();
     }
     async function saveAccountNames(which, changes) {
@@ -4401,14 +4401,19 @@
             showWarningToast('Error updating account: ' + error.message);
         }
     }
-    document.getElementById('accountEditNameBtn')?.addEventListener('click', () => setAccountNameEditing('name', !isShown('accountNameEdit')));
-    document.getElementById('accountCancelNameBtn')?.addEventListener('click', () => setAccountNameEditing('name', false));
+    document.getElementById('accountEditNameBtn')?.addEventListener('click', () => setAccountNameEditing('name', true));
+    // ML-379: Cancel, the × and tapping outside all just close the pop-up (nothing is saved)
+    [['accountNameModal', 'name'], ['accountDisplayNameModal', 'display']].forEach(([id, which]) => {
+        const modal = document.getElementById(id);
+        if (!modal) return;
+        modal.querySelectorAll('[data-account-name-cancel]').forEach(b => b.addEventListener('click', () => setAccountNameEditing(which, false)));
+        modal.addEventListener('click', (e) => { if (e.target === e.currentTarget) setAccountNameEditing(which, false); });
+    });
     document.getElementById('accountSaveNameBtn')?.addEventListener('click', () => saveAccountNames('name', {
         firstName: document.getElementById('accountFirstNameInput').value.trim(),
         surname: document.getElementById('accountSurnameInput').value.trim()
     }));
-    document.getElementById('accountEditDisplayNameBtn')?.addEventListener('click', () => setAccountNameEditing('display', !isShown('accountDisplayNameEdit')));
-    document.getElementById('accountCancelDisplayNameBtn')?.addEventListener('click', () => setAccountNameEditing('display', false));
+    document.getElementById('accountEditDisplayNameBtn')?.addEventListener('click', () => setAccountNameEditing('display', true));
     // ML-376: the display name follows your first name until you make it something else - so saving it
     // as your first name (or blank) keeps it following (stored as null), and anything else is kept separate.
     document.getElementById('accountSaveDisplayNameBtn')?.addEventListener('click', () => {

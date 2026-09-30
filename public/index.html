@@ -785,45 +785,22 @@
          Save and Cancel. The display name is what the app calls you (the home greeting, and to people
          in your bands) - blank means your first name. -->
     <div id="accountDetailsView" class="hidden-group">
-        <div class="info-row">
+        <!-- ML-379: each editable row is one button - tap anywhere on it; the pencil is just the sign it can be changed.
+             Like every other input in the app, the change happens in a pop-up (Save / Cancel, × = Cancel). -->
+        <button type="button" class="info-row info-row-edit" id="accountEditNameBtn" aria-haspopup="dialog">
             <span>Name</span>
-            <span class="flex-row gap-sm items-center"><strong id="accountNameReadout">-</strong><button type="button" class="btn-icon-edit" id="accountEditNameBtn" aria-label="Edit name" aria-expanded="false" aria-controls="accountNameEdit"><span class="material-symbols-outlined" aria-hidden="true">edit</span></button></span>
-        </div>
-        <div class="hidden-group" id="accountNameEdit">
-            <div class="form-group">
-                <label for="accountFirstNameInput">First name</label>
-                <input type="text" id="accountFirstNameInput" placeholder="First name" autocomplete="given-name">
-            </div>
-            <div class="form-group">
-                <label for="accountSurnameInput">Last name</label>
-                <input type="text" id="accountSurnameInput" placeholder="Last name" autocomplete="family-name">
-            </div>
-            <div class="flex-row gap-sm mb-4">
-                <button type="button" class="btn-submit btn-inline" id="accountSaveNameBtn">Save</button>
-                <button type="button" class="btn-nav btn-cancel btn-inline" id="accountCancelNameBtn">Cancel</button>
-            </div>
-        </div>
-        <div class="info-row">
+            <span class="flex-row gap-sm items-center"><strong id="accountNameReadout">-</strong><span class="material-symbols-outlined info-row-edit-icon" aria-hidden="true">edit</span><span class="visually-hidden">, edit</span></span>
+        </button>
+        <button type="button" class="info-row info-row-edit" id="accountEditDisplayNameBtn" aria-haspopup="dialog">
             <span>Display name</span>
-            <span class="flex-row gap-sm items-center"><strong id="accountDisplayNameReadout">-</strong><button type="button" class="btn-icon-edit" id="accountEditDisplayNameBtn" aria-label="Edit display name" aria-expanded="false" aria-controls="accountDisplayNameEdit"><span class="material-symbols-outlined" aria-hidden="true">edit</span></button></span>
-        </div>
-        <div class="hidden-group" id="accountDisplayNameEdit">
-            <div class="form-group">
-                <label for="accountDisplayNameInput">Display name</label>
-                <input type="text" id="accountDisplayNameInput" maxlength="40" autocomplete="nickname" aria-describedby="accountDisplayNameHelp">
-                <p class="metro-help-text mt-2" id="accountDisplayNameHelp">What the app calls you - on the home screen, and to people in your bands. It's your first name unless you change it.</p>
-            </div>
-            <div class="flex-row gap-sm mb-4">
-                <button type="button" class="btn-submit btn-inline" id="accountSaveDisplayNameBtn">Save</button>
-                <button type="button" class="btn-nav btn-cancel btn-inline" id="accountCancelDisplayNameBtn">Cancel</button>
-            </div>
-        </div>
+            <span class="flex-row gap-sm items-center"><strong id="accountDisplayNameReadout">-</strong><span class="material-symbols-outlined info-row-edit-icon" aria-hidden="true">edit</span><span class="visually-hidden">, edit</span></span>
+        </button>
         <!-- ML-377: your avatar - after the names, since it defaults to their initials: initials, or one of
              the drawings (the Choose an avatar pop-up). -->
-        <div class="info-row">
+        <button type="button" class="info-row info-row-edit" id="accountEditAvatarBtn" aria-haspopup="dialog">
             <span>Avatar</span>
-            <span class="flex-row gap-sm items-center"><span class="avatar" id="accountAvatarReadout"></span><button type="button" class="btn-icon-edit" id="accountEditAvatarBtn" aria-label="Change avatar" aria-haspopup="dialog"><span class="material-symbols-outlined" aria-hidden="true">edit</span></button></span>
-        </div>
+            <span class="flex-row gap-sm items-center"><span class="avatar" id="accountAvatarReadout"></span><span class="material-symbols-outlined info-row-edit-icon" aria-hidden="true">edit</span><span class="visually-hidden">, change</span></span>
+        </button>
 
         <div class="section-title mt-6">Account</div>
         <div class="info-row">
@@ -2489,6 +2466,42 @@
     <!-- ML-357: See your range - the notes you can play comfortably, named and on a stave in the clef the
          scales are in (for bass or tenor clef brass that's concert pitch, like the ABRSM lists). -->
     <!-- ML-377: Choose an avatar - your initials, or one of the drawings (public/avatars.js). Tap one to use it. -->
+    <!-- ML-379: change your name / display name - pop-ups like every other input (× and tapping outside = Cancel) -->
+    <div class="modal" id="accountNameModal" role="dialog" aria-modal="true" aria-labelledby="accountNameModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-account-name-cancel aria-label="Close">&times;</button>
+            <h2 id="accountNameModalTitle">Name</h2>
+            <div class="form-group">
+                <label for="accountFirstNameInput">First name</label>
+                <input type="text" id="accountFirstNameInput" placeholder="First name" autocomplete="given-name">
+            </div>
+            <div class="form-group">
+                <label for="accountSurnameInput">Last name</label>
+                <input type="text" id="accountSurnameInput" placeholder="Last name" autocomplete="family-name">
+            </div>
+            <div class="flex-row gap-sm mt-4">
+                <button type="button" class="btn-nav btn-cancel grow no-margin" id="accountCancelNameBtn" data-account-name-cancel>Cancel</button>
+                <button type="button" class="btn-submit grow no-margin" id="accountSaveNameBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="accountDisplayNameModal" role="dialog" aria-modal="true" aria-labelledby="accountDisplayNameModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-account-name-cancel aria-label="Close">&times;</button>
+            <h2 id="accountDisplayNameModalTitle">Display name</h2>
+            <div class="form-group">
+                <label for="accountDisplayNameInput" class="visually-hidden">Display name</label>
+                <input type="text" id="accountDisplayNameInput" maxlength="40" autocomplete="nickname" aria-describedby="accountDisplayNameHelp">
+                <p class="metro-help-text mt-2" id="accountDisplayNameHelp">What the app calls you - on the home screen, and to people in your bands. It's your first name unless you change it.</p>
+            </div>
+            <div class="flex-row gap-sm mt-4">
+                <button type="button" class="btn-nav btn-cancel grow no-margin" id="accountCancelDisplayNameBtn" data-account-name-cancel>Cancel</button>
+                <button type="button" class="btn-submit grow no-margin" id="accountSaveDisplayNameBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal" id="avatarModal" role="dialog" aria-modal="true" aria-labelledby="avatarModalTitle">
         <div class="modal-content">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
