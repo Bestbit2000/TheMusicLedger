@@ -2628,8 +2628,6 @@
     @keyframes block-pop { from { transform: scale(0.4); opacity: var(--opacity-muted); } to { transform: scale(1); opacity: 1; } }
     .open-ended-option { justify-content: flex-start; gap: var(--space-3); }
     .open-ended-option .open-ended-icon { font-size: var(--icon-xl); }
-    .plan-card-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
-    .plan-card-row .plan-card { margin-bottom: 0; }
     .plan-card { flex: 1; min-width: 0; flex-direction: column; align-items: stretch; gap: var(--space-2); }
     .plan-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
     .kind-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-1); }
@@ -2722,7 +2720,7 @@
     /* "Did you nail it?" (ML-390): the Level pair (1 -> 2) and a short star celebration on a Yes. */
     .levelup { display: grid; justify-items: center; gap: var(--space-2); text-align: center; }
     .levelup h2 { margin: 0; text-wrap: balance; }
-    .levelup-stars { display: flex; gap: var(--space-1); color: var(--primary-action); }
+    .levelup-stars { display: flex; gap: var(--space-1); color: var(--primary-action-strong); }
     .levelup-stars .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
     .levelup.is-celebrating .levelup-stars .material-symbols-outlined { animation: block-pop var(--duration-slow) ease-out; }
     .levelup.is-celebrating .levelup-pair .level-chip:last-child { animation: block-pop var(--duration-slow) ease-out; }

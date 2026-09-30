@@ -6,9 +6,10 @@ it).
 
 | Part | Ticket | Where |
 |---|---|---|
-| Levels 1-5 per chunk of bars, the chunk length rule, the heat map | ML-315, ML-316 | `public/flowJourney.js` ("Practice Levels" in [flow-journey.md](flow-journey.md)), My Levels screen (`#pieceLevelsView`), `piece_chunks` |
+| Levels 1-5 per chunk of bars, the chunk length rule, the heat map | ML-315, ML-316 | `public/flowJourney.js` ("Practice Levels" in [flow-journey.md](flow-journey.md)), a piece's path (`#piecePathView`, was My Levels), `piece_chunks` |
 | Practising a chunk at its Level (Rehearse's practice mode) | ML-317 | `flowSession` in app.js |
 | The session: planner, runner, 4:30 nudge, templates, resume | ML-320 | `public/practicePlan.js`, `#sessionPlanView`, `#sessionRunView`, the session bar |
+| Stepped sessions: three steps to set up, plans, Keep going, the 30-second rest and its messages, Prepare (run-through, paint, knife), Play-through, the warm-up loop | ML-390 | `public/practicePlan.js`, `public/flowJourney.js`, the "ML-390" sections of app.js, `server/services/restMessages.js`, Admin → Rest messages, migration 087 |
 | Practice lists, readiness forecast, join-up groups, band lists | ML-319 | `PracticePlan.forecast`, `#practiceListView` (on Rehearse), `server/services/practiceLists.js` |
 | Skills lists | ML-321 | `SKILLS` in app.js, `#skillsView`, `server/services/skills.js` |
 | Other "Level" labels renamed (Help, Notes, Difficulty, Account type) | ML-318 | - |
@@ -17,50 +18,117 @@ it).
 Everything is behind the `practice_levels` feature. With it on, **Start a practice session**
 replaces **Start a challenge** on the home screen.
 
-## The session (ML-320)
+## The session (ML-320, made into steps by ML-390)
 
-- **Blocks:** a session is 5-120 minutes (−/+ and a slider in 5-minute steps, ML-337), one 5-minute
-  block per 5 minutes. At 5 and 10 minutes you choose every block yourself. From 15 minutes a template
-  fills them:
-  - **Standard:** Warm-up, Scales, then Skills and Rehearsal (focus Both).
-  - **Concert:** Warm-up, then Rehearsal (focus Rehearsal).
-  - **Your own:** saved as a name, the opening blocks in order, a focus and a length
-    (`practice_templates`).
-- **Focus** is part of the template (ML-342) - the planner doesn't ask. Skills, Rehearsal or Both;
-  Both splits the rest in half, and an odd block goes to Rehearsal. A line under the template pills
-  says what the chosen one does (`PracticePlan.templateFocus`).
-- **Skills list and warm-up list** (ML-339 / ML-343): the planner picks which of your skills lists
-  the Skills blocks use and which warm-up list the Warm-up blocks play (both remembered per device).
-- **What fills the blocks:**
-  - **Rehearsal** blocks take chunks weakest first, then the one practised longest ago
-    (`/api/practice/chunks`).
-  - **Skills** blocks take the skill on your list practised longest ago. With an empty list they
-    rotate through the playing tools.
-  - From a practice list, only that list's pieces are used.
-  - **Warm-up** blocks play the chosen warm-up list: its exercises (`PracticePlan.warmupSequence`)
-    in the Warm-ups tool, or with **External warm-up** nothing at all - you stay on the session
-    screen while the block's timer runs.
-  - **A Rehearsal block with no Levels to use** never holds up the start. Its choices are:
-    - **Prepare <piece> for practice** (ML-334's name for it) for each piece with no Levels yet. This goes through that piece's "How well can you play it?" on My Levels, and saving comes straight back to the plan with the block on the new bars (`setUpPieceForBlock` / `backToPlanAfterSetup`). The planner also has a **Set up a piece** button when you have no Levels at all.
-    - **Any piece**, which opens Rehearse to pick one and play it your way.
-- **The runner** counts each block by the wall clock.
-  - **At 4:30** the sound stops. Play Flow pauses; any other tool is left for the session screen,
-    and leaving a tool stops it. A 30-second nudge then moves you on.
-  - **Keep going** nudges again 5 minutes later.
-  - **A Rehearsal block** asks "How did it go?" before moving on. **A Warm-ups or Scales skill**
-    asks "Got it?".
-- **Logging:** a session that ends, or is ended early, is saved as one `sessions` row plus a
-  `session_segments` row per block (with the block's seconds, chunk and tool), so Stats and history
-  see it.
-- **Resume:** the running session is kept on the server (`active_practice_sessions`, one per account)
-  whenever it changes. The current block's start is stored by the database clock, so a reload, or
-  another device, picks it up with the right time left.
-  - A session untouched for 3 hours or more is saved as it stood (the block you stopped in counts up
-    to its 5 minutes) and cleared.
-- **Rules and tests:** `public/practicePlan.js` (blocks, filling, the nudge states, the forecast), in
-  `server/test/practicePlan.test.js`.
-- **Local test hook:** with `tml.testClock` on localhost, `window.__sessionTest` gives `run()`,
-  `plan()`, `skip(seconds)`, `skills()` and `drillSaved(tool, level, grade)`.
+Designed for a ten-year-old who knows nothing about music: one question a screen, time you can see, colours
+that always come with an icon or a number, and a real rest between blocks. The design run-through the owner
+agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practicePlan.js`.
+
+### Setting it up - three steps, then Ready
+
+1. **How long?** (`#sessionLengthView`) The minutes as **5-minute blocks you can count** (a new one pops in),
+   − / + and the slider (5-120), quick picks (10, 20, 30, 45 min, 1 hour) and **Keep going** - no end time: it
+   starts with 4 blocks and adds one each time you finish one, following the plan's pattern.
+   **Same as last time** (per device, `tml.session.last`) jumps straight to Ready.
+2. **Pick a plan** (`#sessionPickView`) - a "template" is a **plan** on screen. Each plan is drawn as its row of
+   coloured blocks at the length picked (Warm-up orange, Scales teal, Skills violet, Pieces blue - always with
+   the icon). Built in: **Standard** (Warm-up, Scales, then half Skills / half Pieces, an odd block to Pieces) and
+   **Concert** (Warm-up, then Pieces). Short sessions keep at least one focus block (10 min Standard = Warm-up,
+   Pieces). Your own plans are listed too; the one picked can be changed ("Change my plan").
+   - **Build my plan** (`#sessionBuildView`): tap a kind of block to drop it into the next space, tap a space to
+     empty it, **Surprise me** fills the gaps, **Clear**; up to 12 spaces. Saved as your own plan
+     (`practice_templates.blocks`); past its end it repeats from its first Skills or Pieces block
+     (`PracticePlan.stretch`), so a warm-up isn't repeated. Plans saved before ML-390 (opening blocks + a focus)
+     still work.
+3. **What goes in?** (`#sessionContentView`) One row per kind of block in the plan: **Warm-up** (which warm-up
+   list - it plays on a loop), **Scales** (your grade's scales in the Scales tool), **Skills** (which skills
+   list). **Pieces** come from a **practice list**, **pieces you choose** (one or several, the Add pieces pick
+   list) or **all your pieces** with Levels. **Auto** (on by default) picks the bars; off, you pick each Pieces
+   block's bars on Ready. The card shows the next goal ("every 1 up to 2") and each piece's Level strip and where
+   it is on its path.
+4. **Ready** (`#sessionPlanView`) - the strip and the timeline; tap a block to swap it; **Start**.
+
+"Plan a session for this" on a practice list opens the steps on that list with the Concert plan.
+
+### What fills the Pieces blocks (Auto - `PracticePlan.piecePool`)
+
+- A piece with **no Levels yet** gets a **Prepare** block first (each once) - see "Getting a piece ready".
+- Then every **focus bit** (a chunk below **Level 4**) across the pieces, **lowest Level first**, then practised
+  longest ago - so all the 1s go up to 2 before any 2 goes to 3 ("everyone up to the next Level").
+- Then **play-through parts** that are ready (every bar inside them at 4 or more), at Level 4 → 5. A part too long
+  for a block gets a **10-minute block** ("one long go").
+- With more blocks than items they come round again; with nothing at all, "Any piece" (opens Rehearse).
+- Skills blocks take the skill on your list practised longest ago (or rotate through the playing tools).
+
+### Running it
+
+- **The block clock:** 5 minutes a block (10 for a long play-through). **The sound stops 30 seconds early when a
+  rest follows** (`PracticePlan.playSeconds`); otherwise it runs the full 5 minutes. A **Prepare** has no end -
+  you move on when it's done (the time it took is logged).
+- **When a block's time is up** (or Next block): Play Flow pauses where it is and any other tool is left (which
+  stops it). A Pieces block asks **"Did you nail it?"** - one tap: **Yes! Level up** (a short star celebration) or
+  **Not yet**; Other answers holds "Too fast - back one" and the jumps. Under it, the piece's next goal. A
+  Warm-ups/Scales skill asks "Got it?". Then the rest, or the next block.
+- **No "Keep going" on a block** any more (owner, 30 Sept 2026): the rest always happens. For more time, pick a
+  longer session or Keep going (open-ended).
+- **Keep going sessions:** there's always the next block planned (the rest needs to know what's next); a new
+  Pieces block takes what needs you most that isn't one of the last three, a new Skills block the skill practised
+  longest ago that isn't one of the last two.
+- **A Warm-up block loops its list** (`sessionWarmupLoop`): one exercise after another with the click on, round
+  after round, each round 10% faster (`PracticePlan.warmupRoundBpm`), until the block ends.
+- **Logging:** a session that ends, or is ended early, is one `sessions` row plus a `session_segments` row per
+  block (seconds - the rest counts with the block before it - chunk and tool), so Stats and history see it.
+- **Resume:** the running session is kept on the server (`active_practice_sessions`) whenever it changes,
+  including the rest (timed from its own start) and Keep going's plan. A reload or another device picks it up;
+  one untouched for 3 hours is saved as it stood and cleared.
+
+### The 30-second rest (ML-390)
+
+In music the rest is as important as the notes. **Before every playing block except the first** (Warm-up,
+Scales, Skills, Pieces practice), **never before a Prepare or a Play-through**, and none at the end
+(`PracticePlan.restBefore`). A calm screen (`#sessionRestView`, [rest-screen](../specs/components/rest-screen.md)):
+the countdown ring, **one message** with a picture, and Next up. **No Skip** - the next block starts by itself at 0.
+
+- **The messages** (`rest_messages`, 80 to start in seven kinds: why we stop 12, breathe 12, loosen up 14, think
+  like a musician 12, did you know? 12, look after yourself 8, kind words 10) are changed on **Admin → Rest
+  messages** - add, edit, switch off, move, delete; no release needed.
+- **Each player's deck** (`account_rest_decks`, `PracticePlan.drawRest`): every message once before any comes round
+  again; never the same kind twice running; a breathing one at least every third rest (when the deck has none left,
+  any breathing exercise again - they come round more often on purpose). A 45-minute session has 8 rests, so the
+  other 68 messages last about 12 sessions.
+- **Who gets what** by the player's instruments: lip messages (`brass`) to brass players, breath and air (`wind`) to
+  brass and woodwind; no instruments set = everything.
+- **Breathing ones** show a circle that grows for 4 seconds and shrinks for 6 (three breaths in the rest).
+
+### Getting a piece ready: Prepare, Practise, Play-through (ML-390)
+
+Every piece follows three stops on **its path** (`#piecePathView`, [piece-path](../specs/components/piece-path.md)),
+opened from a practice list, Play Flow's menu (My Levels) and a session's Prepare block:
+
+1. **Prepare** (once, as long as it needs):
+   - **the music** - it's in My music;
+   - **a run-through** (`#prepareRunView`): pick a speed you can get to the end at - Level 1-5, shown **as a % of
+     the piece's own speed** (Level 5 = 100%; never bpm - a piece changes speed from bar to bar), with how long the
+     whole piece takes at that speed (`FlowJourney.pieceRunSeconds`). It plays once (no loop); at the end, painting.
+     "I know how it goes" skips it;
+   - **paint the bars** (`#levelsPaintView`): the bars in the piece's sections (`FlowJourney.pieceSections`), a
+     paint box pinned to the bottom - **Brush**, **Fill section** (its empty bars), **Fill all** (the power fill;
+     then Brush comes back on), **Rubber**, **Undo**, and a Level pot. After a run-through the pot starts at the
+     Level it was played at: Fill all, then brush the bars that went wrong lower. **Type bars instead** keeps the
+     from-to entry;
+   - **cut it into focus bits** (`#levelsCutView`): a bit is a run of bars at the same Level in a section
+     (`FlowJourney.bitsFromBars`). **A focus bit must fit 5 goes in a block** (4:30, a gap bar between goes - was 3,
+     ideally 4); one that doesn't is red, with **Split it for me** (`suggestSplit`). **The knife:** tap the bar where
+     a new bit should start (tap again to join it up); Type bars instead for from-to. The summary shows the focus
+     bits (below Level 4) and about how many blocks to get them all to 4.
+   Saving replaces the piece's chunks with the bits (an old chunk with the same bars keeps its id and history).
+2. **Practise** - five-minute blocks on the focus bits until **every bar is at Level 4**.
+3. **Play-through** - once every bar is at 4 the server makes the piece's **play-through parts** (its join-up groups,
+   `piece_chunks` kind `group`): the whole piece when it plays once in a block at Level 4, otherwise the fewest equal
+   parts that do - **two halves** for most pieces (`FlowJourney.playthroughParts`). On the path you can choose
+   **one long go** instead (a 10-minute block) when the piece fits one. Each part goes from 4 to 5; **a part that
+   reaches 5 takes every bar inside it to 5** (the whole piece moves up together). Painting a bar back down puts
+   its part back to 4 (or no Level while a bar inside is below 4).
 
 ## Levels (ML-315/316/317)
 
@@ -72,7 +140,7 @@ sub-beats, the 4:30 chunk length rule, the heat map, and the practice mode.
 - **A list** is the pieces you're working towards, with an optional **target date** (a concert, an
   exam, a lesson - ML-332: a button opening a pop-up, "No target date" or "Pick a date"; ML-348: the
   button is one fixed quarter-width cell of the 4-across grid, showing dd mmm yy). Each piece row
-  has a ⋮ menu (ML-349): **Prepare levels** (**Edit levels** once it has them), then **Delete**,
+  has a ⋮ menu (ML-349): **Prepare this piece** (**Its path and Levels** once it has them - ML-390), then **Delete**,
   which asks first and offers Undo. **Add pieces** (ML-351) is the same pick list as Add skills,
   offering only pieces not on the list yet, filtered like My music (All / Mine / each band / Public,
   plus search); Select all / Unselect all act on what the filter shows. It's
@@ -81,14 +149,14 @@ sub-beats, the 4:30 chunk length rule, the heat map, and the practice mode.
 - **The forecast** (`PracticePlan.forecast`) counts five-minute blocks, assuming one block moves one
   chunk up one Level:
   - **A piece not set up yet** is fine on a list: it counts one block, **preparation for practice**
-    (ML-334 - giving it its Levels). Its row says so and "Prepare it now" opens My Levels. After
+    (ML-334 - giving it its Levels). Its row says so and "Prepare it now" opens its path. After
     that its Levels decide.
   - **Nothing else is guessed:** chunks with no Level are named as "not counted".
-  - **Join-up groups** (`piece_chunks` kind `group`): the chunks only need Level 4, then each group
-    needs a run-through block until it's at Level 5.
+  - **ML-390:** chunks only need Level 4, then the piece is played through: one block for each
+    play-through part (join-up group) still below 5, or one play-through block while it has no parts yet.
   - **With a target date** it shows the pace: blocks a day (rounded up) and the minutes that is. No
     on-track / behind verdict - there's nothing to compare against.
-  - **"Plan a session for this"** opens the planner on the list's pieces with the Concert template.
+  - **"Plan a session for this"** opens the three steps on the list's pieces with the Concert plan (ML-390).
 - **Each member's forecast** uses their own Levels.
 
 ## Skills (ML-321; lists ML-339, grades ML-338)

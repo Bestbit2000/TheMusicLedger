@@ -6819,18 +6819,19 @@
             const shown = kinds.slice(0, 12);
             const on = p.key === cur;
             const names = kinds.map(k => PracticePlan.KINDS[k]).join(', ');
-            return `<div class="plan-card-row">
-                <button type="button" class="flow-choice-option level-answer plan-card${on ? ' selected' : ''}" aria-pressed="${on}" data-plan="${escapeHtml(p.key)}" aria-label="${escapeHtml(p.name)}: ${escapeHtml(names)}">
+            return `<button type="button" class="flow-choice-option level-answer plan-card${on ? ' selected' : ''}" aria-pressed="${on}" data-plan="${escapeHtml(p.key)}" aria-label="${escapeHtml(p.name)}: ${escapeHtml(names)}">
                     <span class="plan-card-head"><strong>${escapeHtml(p.name)}</strong><span class="text-sm text-muted">${escapeHtml(p.blurb)}</span></span>
                     <span class="kind-strip">${shown.map(k => kindBlockHtml({ kind: k })).join('')}${kinds.length > 12 ? `<span class="kind-strip-more">+${kinds.length - 12}</span>` : ''}${sessPlan.open ? '<span class="kind-strip-more">…</span>' : ''}</span>
-                </button>
-                ${p.own ? `<button type="button" class="list-item-menu-btn" data-plan-edit="${escapeHtml(p.key)}" aria-label="Change or delete ${escapeHtml(p.name)}"><span class="material-symbols-outlined" aria-hidden="true">edit</span></button>` : ''}
-            </div>`;
+                </button>`;
         }).join('');
         box.querySelectorAll('[data-plan]').forEach(b => b.addEventListener('click', () => { setTemplateByKey(b.dataset.plan); renderSessPick(); }));
-        box.querySelectorAll('[data-plan-edit]').forEach(b => b.addEventListener('click', () => openBuilder(sessTemplates.find(t => `t:${t.id}` === b.dataset.planEdit) || null)));
+        // Your own plan, when it's the one picked, can be changed or deleted in Build my plan.
+        const mine = typeof sessPlan.template === 'object' ? sessPlan.template : null;
+        setShown('sessEditPlanBtn', !!mine);
+        if (mine) document.getElementById('sessEditPlanBtn').textContent = `Change "${mine.name}"`;
     }
     document.getElementById('sessBuildBtn')?.addEventListener('click', () => openBuilder(null));
+    document.getElementById('sessEditPlanBtn')?.addEventListener('click', () => { const t = sessPlan.template; if (t && typeof t === 'object') openBuilder(sessTemplates.find(x => x.id === t.id) || t); });
     document.getElementById('sessToContentBtn')?.addEventListener('click', () => openSessionContent());
 
     // --- Build my plan: snap blocks in like a puzzle ---

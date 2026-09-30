@@ -142,6 +142,35 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 | `--level-5-text` | `#1a1a1a` | (same) | the Level number on --level-5 |
 | `--level-unset-border` | `#858585` | `#808080` | dashed outline of a bar with no Level yet (3:1 on the page) |
 
+## ML-390: the kinds of practice block (Warm-up, Scales, Skills, Pieces)
+
+edge, icon/text and fill
+
+| Token | Light | Dark | Use for |
+|---|---|---|---|
+| `--kind-warmup` | `#c2410c` | `#fb923c` | a Warm-up block's edge (3:1 on the page) |
+| `--kind-warmup-text` | `#9a3412` | `#fdba74` | a Warm-up block's icon and name (4.5:1 on its tint) |
+| `--kind-warmup-tint` | `rgba(194, 65, 12, 0.14)` | `rgba(251, 146, 60, 0.16)` | a Warm-up block's fill |
+| `--kind-scales` | `#0f766e` | `#2dd4bf` | a Scales block's edge |
+| `--kind-scales-text` | `#115e59` | `#5eead4` | a Scales block's icon and name |
+| `--kind-scales-tint` | `rgba(15, 118, 110, 0.14)` | `rgba(45, 212, 191, 0.16)` | a Scales block's fill |
+| `--kind-skills` | `#6d28d9` | `#a78bfa` | a Skills block's edge |
+| `--kind-skills-text` | `#5b21b6` | `#c4b5fd` | a Skills block's icon and name |
+| `--kind-skills-tint` | `rgba(109, 40, 217, 0.14)` | `rgba(167, 139, 250, 0.16)` | a Skills block's fill |
+| `--kind-pieces` | `#1d4ed8` | `#60a5fa` | a Pieces block's edge (Prepare and Play-through too) |
+| `--kind-pieces-text` | `#1e40af` | `#93c5fd` | a Pieces block's icon and name |
+| `--kind-pieces-tint` | `rgba(29, 78, 216, 0.14)` | `rgba(96, 165, 250, 0.16)` | a Pieces block's fill |
+
+## ML-390: the 30-second rest screen
+
+| Token | Light | Dark | Use for |
+|---|---|---|---|
+| `--rest-bg` | `#e6f0f3` | `#14232a` | the rest screen's calm page |
+| `--rest-surface` | `#ffffff` | `#1b2e36` | the message card and "Next up" on the rest screen |
+| `--rest-text` | `#235b6e` | `#9fd3e3` | the countdown, the message's kind and its icon (4.5:1 on both) |
+| `--rest-ring` | `#3d8aa3` | `#6fb6cc` | the countdown ring and the breathing circle's edge (3:1 on --rest-bg) |
+| `--rest-track` | `#cfe0e6` | `#27414b` | the ring's empty track (decorative) |
+
 ## Spacing
 
 | Token | Value | Use for |
@@ -278,6 +307,7 @@ one ladder, low to high. Never invent a number in a component.
 | `--duration-base` | `250ms` | slides, fades, toggles, expanding panels |
 | `--duration-slow` | `400ms` | chart bar growth |
 | `--duration-pulse` | `1000ms` | looping attention animations |
+| `--duration-breath` | `10000ms` | one slow breath on the practice rest screen (ML-390): 4 s in, 6 s out |
 | `--ease-standard` | `ease` | default easing for UI transitions |
 | `--ease-in-out` | `ease-in-out` | looping/pulsing animations |
 | `--ease-linear` | `linear` | colour/opacity tracking a live value (meters, metronome dots) |
@@ -360,6 +390,40 @@ one ladder, low to high. Never invent a number in a component.
 | `--ds-level-dark-3` | `#6f5f22` |
 | `--ds-level-dark-4` | `#b8952b` |
 | `--ds-level-dark-5` | `#ffd23f` |
+| `--ds-kind-warmup` | `#c2410c` |
+| `--ds-kind-warmup-deep` | `#9a3412` |
+| `--ds-kind-warmup-a14` | `rgba(194, 65, 12, 0.14)` |
+| `--ds-kind-scales` | `#0f766e` |
+| `--ds-kind-scales-deep` | `#115e59` |
+| `--ds-kind-scales-a14` | `rgba(15, 118, 110, 0.14)` |
+| `--ds-kind-skills` | `#6d28d9` |
+| `--ds-kind-skills-deep` | `#5b21b6` |
+| `--ds-kind-skills-a14` | `rgba(109, 40, 217, 0.14)` |
+| `--ds-kind-pieces` | `#1d4ed8` |
+| `--ds-kind-pieces-deep` | `#1e40af` |
+| `--ds-kind-pieces-a14` | `rgba(29, 78, 216, 0.14)` |
+| `--ds-kind-warmup-dark` | `#fb923c` |
+| `--ds-kind-warmup-soft-dark` | `#fdba74` |
+| `--ds-kind-warmup-a16-dark` | `rgba(251, 146, 60, 0.16)` |
+| `--ds-kind-scales-dark` | `#2dd4bf` |
+| `--ds-kind-scales-soft-dark` | `#5eead4` |
+| `--ds-kind-scales-a16-dark` | `rgba(45, 212, 191, 0.16)` |
+| `--ds-kind-skills-dark` | `#a78bfa` |
+| `--ds-kind-skills-soft-dark` | `#c4b5fd` |
+| `--ds-kind-skills-a16-dark` | `rgba(167, 139, 250, 0.16)` |
+| `--ds-kind-pieces-dark` | `#60a5fa` |
+| `--ds-kind-pieces-soft-dark` | `#93c5fd` |
+| `--ds-kind-pieces-a16-dark` | `rgba(96, 165, 250, 0.16)` |
+| `--ds-rest-page` | `#e6f0f3` |
+| `--ds-rest-card` | `#ffffff` |
+| `--ds-rest-ink` | `#235b6e` |
+| `--ds-rest-ring` | `#3d8aa3` |
+| `--ds-rest-track` | `#cfe0e6` |
+| `--ds-rest-page-dark` | `#14232a` |
+| `--ds-rest-card-dark` | `#1b2e36` |
+| `--ds-rest-ink-dark` | `#9fd3e3` |
+| `--ds-rest-ring-dark` | `#6fb6cc` |
+| `--ds-rest-track-dark` | `#27414b` |
 | `--ds-black-a20` | `rgba(0, 0, 0, 0.2)` |
 | `--ds-black-a10` | `rgba(0, 0, 0, 0.1)` |
 | `--ds-black-a30` | `rgba(0, 0, 0, 0.3)` |
@@ -484,3 +548,4 @@ one ladder, low to high. Never invent a number in a component.
 | `--ds-duration-250` | `250ms` |
 | `--ds-duration-400` | `400ms` |
 | `--ds-duration-1000` | `1000ms` |
+| `--ds-duration-10000` | `10000ms` |

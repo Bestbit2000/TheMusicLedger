@@ -8,8 +8,9 @@
 ## 2. Overview
 A piece's practice **Levels 1-5**, bar by bar. Level 1 is the slowest speed and Level 5 is full speed.
 The colours run from silver to gold: the brighter the square, the better you can play those bars.
-Used on the **My Levels** screen (`#pieceLevelsView`, opened from Play Flow's ⋮ menu). Later it will
-also appear on practice lists (the strip) and in a practice session.
+Used on a piece's **path** (`#piecePathView` - ML-390; it was the My Levels screen, opened from Play Flow's ⋮
+menu), on practice lists and a session's step 3 (the strip), and in "Did you nail it?". Painting the bars uses
+the same colours on bigger squares ([piece-path](piece-path.md)).
 
 - **Use** it only for the practice Levels 1-5, and the same scale for Skills steps later (ML-321).
 - **Don't use** it for the Stats practice heatmap. That counts time, not how well you play, and
@@ -30,9 +31,9 @@ also appear on practice lists (the strip) and in a practice session.
 - **Picker:** `.level-picker` › `.level-pick.lv-N` × 5. Each button shows the number and, under it
   (`small`), that Level's speed as a % of the piece's tempo.
 - **Selected row:** `.history-item.level-row-selected` (gold border and focus ring). The Level picker opens straight under it.
-- **Setup answers:** the three "How well can you play it?" answers are `.flow-choice-option.level-answer` buttons: full width, left-aligned title and caption.
-- **Fit line:** "0:32 a run · 8× in a 5-minute block". It turns amber (`.level-fit-warn`) when the
-  chunk plays fewer than 3 times.
+- **Choice rows:** `.flow-choice-option.level-answer` buttons (full width, left-aligned title and caption) - e.g. "Too fast - back to Level 1" in "Did you nail it?". (ML-390 replaced the three "How well can you play it?" answers with painting.)
+- **Fit line:** "0:32 a go · fits 8 goes". It turns amber (`.level-fit-warn`) when the bit plays fewer than
+  5 times in a block (ML-390; it was 3).
 - **Notice:** `.level-notice`, the amber "bars have changed" message.
 
 ## 4. Tokens used

@@ -322,7 +322,7 @@ own numbers (lead-in excluded), as Repeat bars uses. Maths and rules: `docs/flow
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `piece_chunks` | (063: kind `group` = a join-up group - neighbouring chunks played through together once they're all at Level 4; groups may overlap each other) One account's chunks of one piece: the whole piece (`whole`), a hard passage on top of it (`hard`) or a separate chunk (`chunk`, never overlapping another). Level null = not set yet | id, account_id, score_id, kind, start_bar, end_bar, level, label, sort_order, **bars_total_at_setup** (the piece's length when saved - a mismatch later = "bars changed") |
+| `piece_chunks` | (063: kind `group` = a join-up group - neighbouring chunks played through together once they're all at Level 4; groups may overlap each other. ML-390: groups are a piece's **play-through parts** - made by the server once every bar is at Level 4 when a piece has none; painting saves `chunk` rows, a run of bars at one Level in a section, cut by the knife) One account's chunks of one piece: the whole piece (`whole`), a hard passage on top of it (`hard`) or a separate chunk (`chunk`, never overlapping another). Level null = not set yet | id, account_id, score_id, kind, start_bar, end_bar, level, label, sort_order, **bars_total_at_setup** (the piece's length when saved - a mismatch later = "bars changed") |
 | `chunk_level_changes` | Every Level change: setup, edit, a Level up during a block, the rating after it. Kept when its chunk is deleted (`chunk_id` null). Later gives each player's own rate for the readiness forecast | id, chunk_id, account_id, score_id, level_before, level_after, source, percent_played, created_at |
 
 `accounts.practice_sub_beats_below` (default 100): in a practice session sub-beats switch on for a bar
@@ -334,7 +334,9 @@ See [practice-sessions.md](practice-sessions.md) for how they fit together.
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `practice_templates` | Your own session templates (Standard and Concert are built in, in code) | id, account_id, name, lead_blocks (text[] of warmup/scales/skills/rehearsal), focus, minutes |
+| `practice_templates` | Your own session templates - "plans" on screen since ML-390 (Standard and Concert are built in, in code). A plan made in Build my plan is its whole row of blocks (`blocks`); one saved before ML-390 is opening blocks + a focus | id, account_id, name, lead_blocks (text[] of warmup/scales/skills/rehearsal), focus, minutes, blocks (text[], 087, null = lead + focus) |
+| `rest_messages` | ML-390: what the 30-second rest between practice blocks shows - one message at a time. Changed on Admin -> Rest messages (no release). Seeded with 80 (087) | id, kind (why/breathe/body/think/fact/care/kind), icon (a Material Symbols name), title, body, audience (all/brass/wind), active, sort_order |
+| `account_rest_decks` | ML-390: each player's shuffled deck of rest messages still to come, so every message is shown once before any repeats (`PracticePlan.drawRest`) | account_id (PK), remaining (bigint[]), last_kind, since_breath, updated_at |
 | `active_practice_sessions` | The practice session running now, one per account, so it carries on after a reload or on another device; saved as it stood and cleared after 3 hours idle | account_id (PK), state (jsonb), block_started_at (database clock), updated_at |
 | `skill_list_items` | Your skills list and the step you're on in each | id, account_id, skill_key (e.g. tapTempo, warmups:lip-slurs, scales:major), step_index, sort_order, last_practised |
 | `skill_step_results` | Every go at a skill step - drill grade 4+ or "Got it" passes | id, account_id, skill_key, step_index, passed, grade, created_at |

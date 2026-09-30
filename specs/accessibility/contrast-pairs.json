@@ -485,6 +485,160 @@
       "fg": "--label-color",
       "bg": "--input-bg",
       "use": "ML-359 an unchosen option in a segmented radio group (Theme: Light / Dark)"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-warmup-text",
+      "bg": "--kind-warmup-tint",
+      "over": "--container-bg",
+      "use": "ML-390: a warmup block's icon and name on its tint"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-warmup-text",
+      "bg": "--kind-warmup-tint",
+      "over": "--input-bg",
+      "use": "ML-390: a warmup block's icon and name on its tint, inside a tappable card"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--kind-warmup",
+      "bg": "--container-bg",
+      "use": "ML-390: a warmup block's edge on the page"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--kind-warmup",
+      "bg": "--input-bg",
+      "use": "ML-390: a warmup block's edge inside a tappable card"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-scales-text",
+      "bg": "--kind-scales-tint",
+      "over": "--container-bg",
+      "use": "ML-390: a scales block's icon and name on its tint"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-scales-text",
+      "bg": "--kind-scales-tint",
+      "over": "--input-bg",
+      "use": "ML-390: a scales block's icon and name on its tint, inside a tappable card"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--kind-scales",
+      "bg": "--container-bg",
+      "use": "ML-390: a scales block's edge on the page"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--kind-scales",
+      "bg": "--input-bg",
+      "use": "ML-390: a scales block's edge inside a tappable card"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-skills-text",
+      "bg": "--kind-skills-tint",
+      "over": "--container-bg",
+      "use": "ML-390: a skills block's icon and name on its tint"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-skills-text",
+      "bg": "--kind-skills-tint",
+      "over": "--input-bg",
+      "use": "ML-390: a skills block's icon and name on its tint, inside a tappable card"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--kind-skills",
+      "bg": "--container-bg",
+      "use": "ML-390: a skills block's edge on the page"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--kind-skills",
+      "bg": "--input-bg",
+      "use": "ML-390: a skills block's edge inside a tappable card"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-pieces-text",
+      "bg": "--kind-pieces-tint",
+      "over": "--container-bg",
+      "use": "ML-390: a pieces block's icon and name on its tint"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-pieces-text",
+      "bg": "--kind-pieces-tint",
+      "over": "--input-bg",
+      "use": "ML-390: a pieces block's icon and name on its tint, inside a tappable card"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--kind-pieces",
+      "bg": "--container-bg",
+      "use": "ML-390: a pieces block's edge on the page"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--kind-pieces",
+      "bg": "--input-bg",
+      "use": "ML-390: a pieces block's edge inside a tappable card"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-color",
+      "bg": "--kind-warmup-tint",
+      "over": "--container-bg",
+      "use": "ML-390: the warm-up loop card's words on its tint"
+    },
+    {
+      "kind": "text",
+      "fg": "--rest-text",
+      "bg": "--rest-bg",
+      "use": "ML-390: the rest countdown on the rest screen"
+    },
+    {
+      "kind": "text",
+      "fg": "--rest-text",
+      "bg": "--rest-surface",
+      "use": "ML-390: a rest message's kind and icon on its card"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-color",
+      "bg": "--rest-surface",
+      "use": "ML-390: a rest message and Next up on their cards"
+    },
+    {
+      "kind": "text",
+      "fg": "--label-color",
+      "bg": "--rest-surface",
+      "use": "ML-390: \"Next up\" on the rest screen"
+    },
+    {
+      "kind": "text",
+      "fg": "--label-color",
+      "bg": "--rest-bg",
+      "use": "ML-390: \"seconds\" under the rest countdown"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--rest-ring",
+      "bg": "--rest-bg",
+      "use": "ML-390: the rest countdown ring and the breathing circle's edge"
+    },
+    {
+      "kind": "text",
+      "fg": "--text-color",
+      "bg": "--primary-action-tint",
+      "over": "--container-bg",
+      "use": "ML-390: the session goal line and the next-goal card on their gold wash"
     }
   ]
 }

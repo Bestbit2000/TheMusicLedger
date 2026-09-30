@@ -70,6 +70,7 @@ That's the only inline style allowed, and the audit lets it through. The propert
 | `--sample` | Admin → Design and style guide token tables | the table's sample class |
 | `--header-h` | a ResizeObserver on `.top-bar-sticky-group` (app.js, Display and reading) | `.flow-card.display-preview` (sticky `top`) |
 | `--rb-from`, `--rb-to`, `--rb-at` | `rangeBarHtml` (ML-370) | `.range-bar-part`, `.range-bar-tick`, `.range-bar-end.is-at` |
+| `--rest-left` | `renderRest` (ML-390), the practice rest's time left 0-1 | `.rest-ring-left` |
 
 A new run-time value gets a row here.
 

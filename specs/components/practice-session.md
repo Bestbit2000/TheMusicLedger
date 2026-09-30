@@ -6,14 +6,15 @@
 - **Status:** New (ML-320, epic ML-314)
 
 ## 2. Overview
-The practice session builder plans a session of 5-minute blocks (Warm-up, Scales, Skills, Rehearsal) and
-runs it with a 4:30 nudge. These classes are the only new visuals. Everything else reuses existing
-components:
+The practice session builder plans a session of 5-minute blocks (Warm-up, Scales, Skills, Pieces) and
+runs it: the sound stops at 4:30 when a rest follows, then the 30-second rest (ML-390, [rest-screen](rest-screen.md)).
+Setting it up is three steps since ML-390 ([practice-steps](practice-steps.md)). These classes are the bar and strip
+while it runs. Everything else reuses existing components:
 - the stepper: `.metro-speed-row` / `.metro-bpm-step` / `.metro-speed-readout`
 - the choices: `.filter-pill`
 - the block rows: `.history-item` + `.level-row-body`
 - the choice pop-ups: `.flow-choice-option.level-answer` in a `.modal`
-- the nudge: an `alertdialog` `.modal`
+- the rest: its own screen, `#sessionRestView` ([rest-screen](rest-screen.md))
 
 **Session bar.** While a session runs it sits under the top bar, inside `.top-bar-sticky-group`, so it
 stays put on every screen except the session's own. It shows which block, the time left in it and the
@@ -38,8 +39,9 @@ and the rest are grey. It's used on the planner, the session screen and the bar.
 
 ## 5. Props / API
 - Rules: `public/practicePlan.js` (PracticePlan.blockKinds / fillBlocks / blockState).
-- Runner: app.js, the "ML-320" section: `practiceRun`, `renderPracticeRun` (keeps the bar and strips in
-  step every second and on every `switchView`), `sessionNudge`, `sessionMoveOn`, `finishPracticeRun`.
+- Runner: app.js, the "ML-390 (was ML-320's planner)" section: `practiceRun`, `renderPracticeRun` (keeps the bar
+  and strips in step every second and on every `switchView`), `sessionTimeUp`, `sessionAfterBlock`, `startRest`,
+  `finishPracticeRun`.
 - Home: `#startPracticeSessionBtn` replaces `#startChallengeBtn` when `practice_levels` is on.
 
 ## 6. States
@@ -67,6 +69,5 @@ and the rest are grey. It's used on the planner, the session screen and the bar.
 ## 9. Accessibility
 - **The bar** is a real `<button>` with a label and a 44px minimum height. Its text says the block and
   the time, so nothing depends on the strip's colours. The strip is `aria-hidden`.
-- **The nudge** is a `role="dialog"` modal with its text as the description (`aria-describedby`). Keep going and Move on now
-  are both buttons, so the countdown never forces anything without a way to answer.
+- **The rest** (ML-390) is its own screen - see [rest-screen](rest-screen.md). There's no Skip: the rest is the point.
 - **The minutes readout** on the planner is `aria-live="polite"`.
