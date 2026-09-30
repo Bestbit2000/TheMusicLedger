@@ -1723,6 +1723,11 @@
 
     window.switchView = function(viewName, isBack = false) {
         if (viewAliasMap[viewName]) viewName = viewAliasMap[viewName];
+        // ML-390: the rest screen only while a rest is on - Back onto an old one lands on the session screen.
+        if (viewName === 'sessionRestView' && !(practiceRun && !practiceRun.done && practiceRun.phase === 'rest')) {
+            viewName = 'sessionRunView';
+            if (isBack) viewStack[viewStack.length - 1] = viewName;
+        }
 
         // ML-260: leaving a Theory round part-way asks first - only finished rounds are saved. The
         // clock keeps running while the question is up (it's a timed round). goBack() has already
@@ -7282,7 +7287,21 @@
         const r = practiceRun;
         if (!r || r.done) return;
         r.nudged = true;
-        refreshSessionPieces().then(() => sessionAfterBlock());
+        refreshSessionPieces().then(() => { refillPiecesBlocks(r); sessionAfterBlock(); });
+    }
+    // After a Prepare (the piece has its focus bits now), the session's Pieces blocks still to come are
+    // filled again from what needs you most - so a new piece can join the same session.
+    function refillPiecesBlocks(r) {
+        if (!r || !r.auto) return;
+        const pool = PracticePlan.piecePool(sessPlan.pieces).filter(x => x.stage !== 'prepare');
+        if (!pool.length) return;
+        let k = 0;
+        r.blocks.forEach((b, i) => {
+            if (i <= r.index || b.started || b.kind !== 'rehearsal' || b.stage === 'prepare') return;
+            const x = pool[k++ % pool.length];
+            Object.assign(b, { stage: x.stage, chunk: x.chunk, minutes: x.minutes || PracticePlan.BLOCK_MINUTES });
+            if (x.stage !== 'practise') { b.scoreId = x.scoreId; b.title = x.title; }
+        });
     }
 
     // --- The 30-second rest (ML-390) ---
@@ -7327,6 +7346,8 @@
         const r = practiceRun;
         if (!r || r.phase !== 'rest') return;
         r.blocks[r.index].seconds += Math.min(PracticePlan.REST_SECONDS, restElapsed()); // the rest counts as practice time
+        r.phase = 'play';
+        if (viewStack[viewStack.length - 1] === 'sessionRestView') viewStack.pop(); // the next block takes its place
         sessionAdvance();
     }
 
