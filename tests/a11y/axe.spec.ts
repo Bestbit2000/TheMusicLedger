@@ -29,6 +29,7 @@ const SCREENS: { view: string; name: string }[] = [
     { view: 'settingsView', name: 'Settings' },
     { view: 'settingsStatsView', name: 'Stats settings' },
     { view: 'settingsTunerView', name: 'Tuner settings' },
+    { view: 'settingsDisplayView', name: 'Display and reading' }, // ML-356 / ML-359
     { view: 'aboutView', name: 'About' },
     { view: 'scalesView', name: 'Scales' }, // ML-9
     { view: 'warmupsView', name: 'Warm-ups' }, // ML-294
