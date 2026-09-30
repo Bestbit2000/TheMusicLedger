@@ -1365,6 +1365,7 @@
     // element both ends share) - that isn't a tap on the backdrop, so it's stopped here, before any
     // pop-up's own "tap the backdrop to close" handler.
     let modalPressTarget = null;
+    // a11y: records where a press started - activates nothing; closing still happens on the click (release)
     document.addEventListener('pointerdown', (e) => { modalPressTarget = e.target; }, true);
     window.addEventListener('click', (e) => {
         const t = e.target;
@@ -3735,6 +3736,26 @@
     }
     const sessionInstrumentValue = (groupId, selectId) => isShown(groupId) ? Number(document.getElementById(selectId).value) || null : undefined;
 
+    // ML-375: a band's website as a link out of the app - just the address (no https://www.), ↗ after it,
+    // opening in a new tab. Only http(s) addresses; anything else shows nothing.
+    function bandWebsiteLinkHtml(url) {
+        if (!url) return '';
+        let href;
+        try { href = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).href; } catch { return ''; }
+        if (!/^https?:\/\//i.test(href)) return '';
+        const shown = href.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '');
+        return `<a class="external-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer"><span class="external-link-text">${escapeHtml(shown)}</span><span class="material-symbols-outlined external-link-icon" aria-hidden="true">open_in_new</span><span class="visually-hidden"> (opens in a new tab)</span></a>`;
+    }
+    // The band chosen in "Choose a band to join" shows its website under the list, to look before joining.
+    function renderBandPickerWebsite() {
+        const box = document.getElementById('accountBandPickerWebsite');
+        const picker = document.getElementById('accountBandPicker');
+        if (!box || !picker) return;
+        const band = accountBandsData.allBands.find(b => String(b.id) === picker.value);
+        box.innerHTML = band ? bandWebsiteLinkHtml(band.website) : '';
+        setShown(box, !!box.innerHTML);
+    }
+    document.getElementById('accountBandPicker')?.addEventListener('change', renderBandPickerWebsite);
     function renderAccountBandsList() {
         const container = document.getElementById('accountBandsList');
         if (!container) return;
@@ -3743,7 +3764,7 @@
         } else {
             container.innerHTML = accountBandsData.myBands.map(b => `
                 <div class="history-item">
-                    <span>${b.displayName}</span>
+                    <span class="band-row-text"><span>${b.displayName}</span>${bandWebsiteLinkHtml(b.website)}</span>
                     <button type="button" class="list-item-menu-btn" data-band-menu-id="${b.id}" aria-label="Options for ${b.displayName}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 </div>
             `).join('');
@@ -3774,6 +3795,7 @@
                     return inGroup.length ? `<optgroup label="${title}">${inGroup.map(b => `<option value="${b.id}">${label(b)}</option>`).join('')}</optgroup>` : '';
                 }).join('');
         }
+        renderBandPickerWebsite();
     }
 
     // One shared floating menu for every band row (ML-89 follow-up), repositioned against whichever

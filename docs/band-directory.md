@@ -37,6 +37,6 @@ again: it only updates.
 ## Later (not built)
 
 - **Distance search:** latitude/longitude from each postcode (postcodes.io, free) so "bands near me"
-  is a distance query - worth doing before going national.
+  is a distance query - worth doing before going national. Written up with rehearsal nights as **ML-380** (Find a local band).
 - **A yearly refresh:** re-check each list (step 6 of the skill), flag folded bands and section changes.
 - **Player suggestions:** "add a band" on the account page could go to Admin → Bands for review.

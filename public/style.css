@@ -2071,6 +2071,12 @@
     /* The Scales pop-up: the count and See your range (a text link) on one line */
     .scales-pool-line { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
     .scales-pool-line .scales-pool-count { margin: 0; }
+    /* ML-375: a link that leaves the app (a band's website) - the address in the link colour, underlined,
+       with ↗ after it; opens in a new tab. Tall enough to tap (--touch-target) even inside a list row. */
+    .external-link { display: inline-flex; align-items: center; gap: var(--space-1); min-height: var(--touch-target); color: var(--link-color); font-size: var(--font-sm); text-decoration: none; overflow-wrap: anywhere; }
+    .external-link-text { text-decoration: underline; } /* the address only - not under the ↗ */
+    .external-link-icon { font-size: var(--icon-sm); text-decoration: none; }
+    .band-row-text { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
     .scales-range-link { flex: none; min-height: var(--touch-target); padding: var(--space-2) 0; background: none; border: none; color: var(--link-color); font: inherit; font-weight: var(--font-weight-bold); text-decoration: underline; cursor: pointer; }
     .scales-pool-count { margin: var(--space-2) 0 0 0; font-size: var(--font-sm); color: var(--label-color); }
     /* ML-357: the grade grid in My scales (specs/components/scales.md) - a label column, then the 15 keys
