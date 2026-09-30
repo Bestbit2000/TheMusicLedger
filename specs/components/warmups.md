@@ -14,12 +14,13 @@ block of practice sessions (like Scales). The layout **is Scales'** (ML-361) - i
 
 1. **The setting row** (`.scales-setting-row.is-centred`: two value boxes, each a quarter wide, centred):
    - **Warm-ups** - a pop-up with the **instrument** (whose range and clef count; your main one to start
-     with), the **kinds** as the standard [pick list](pick-list.md) (tick boxes, Select all / Unselect all;
-     each "Lip slurs / 12 warm-ups · 9 locked"; "Kinds · long tones & lip slurs" over them), then "10
+     with), the **topics** (the kinds of warm-up) as the standard [pick list](pick-list.md) (tick boxes, Select all / Unselect all;
+     each "Lip slurs / 12 warm-ups · 9 locked", headed "Topics" - no summary line, the ticked rows say it), then "10
      warm-ups in your list (of 22), about 5 minutes" with **See your range** (the Scales pop-up), and a
      line on how many are locked - outside your range for now - or beyond the instrument.
-   - **Clef** - Treble / Bass, a pick-one pop-up (`.scales-choice-grid`). It's the instrument's own clef
-     until one is chosen here (a euphonium can read either); changing the instrument goes back to it.
+   - **Clef** - Treble / Bass / Tenor (ML-373), a pick-one pop-up (`.scales-choice-grid`). It's the instrument's own clef
+     until one is chosen here (a euphonium can read any of them); changing the instrument goes back to it. Tenor
+     reads the same pitches as bass, so it takes the same 9th down.
    No Detail: Warm-ups always shows the notes (owner's call).
 2. **The exercise card**: title with the volume button on its line (hidden while the metronome is off),
    "Lip slurs · 3 of 12" (of the ones you can play), the tip, then the stave - rows of whole bars (up to 8
@@ -31,7 +32,7 @@ block of practice sessions (like Scales). The layout **is Scales'** (ML-361) - i
    (`.flow-choice-option.level-answer.warmups-choose-row`, the title in the body weight, the one playing
    selected), a locked one in place and not playable (`.is-locked`: muted, a lock, "goes down to B3 - outside
    your range"), and **Change your warm-ups** at the bottom.
-3. **Use metronome** (`.scales-metronome-card`, on / off, remembered): Play (hold to go back to the start),
+3. **Use metronome** (`.scales-metronome-card`, on / off, starts off - ML-368 - and remembered): Play (hold to go back to the start),
    Reset, Repeat (1×, 2×, loop) and Count-in, then the tempo box, which starts at each exercise's own
    tempo. Off hides them and the volume, and stops it.
 
@@ -52,7 +53,7 @@ length (semibreve / minim / crotchet / quaver, dotted), an octave, then a key on
 (gold, `.is-selected`) and the next tap replaces it; ← → move the selection, Delete note, Add at end,
 Undo, and **Slur to next note** / **Remove slur** on the selected note (ML-361 - off for a rest or the last
 note). Problems (a note over a bar line, out of range, a slur that doesn't lead to a note) show under the stave and Save is off until
-there are none. The stave can be previewed in bass clef.
+there are none. The stave can be previewed in bass or tenor clef.
 
 ## 3. Anatomy
 Tool: `#warmupsView` › `.scales-setting-row.is-centred` · `section.flow-card.scales-staff-card` (`.scales-staff-head`,

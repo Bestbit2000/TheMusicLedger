@@ -58,10 +58,22 @@
     // A written beat (1-based, "beat 4 of 6") -> the 0-based click within its bar, for a bar that the
     // metronome plays as clicksPerBar clicks. Exact whenever clicksPerBar is a multiple of the written
     // beats (sub-beats on); otherwise lands on the click that contains that beat (ML-255).
+    // ML-365: a pause can sit between written beats (beat 1.5), so the cap is "before the next bar", not
+    // the last whole beat.
     function writtenBeatToClick(block, writtenBeat, clicksPerBar) {
         const w = writtenBeatsPerBar(block);
-        const beat = Math.min(w, Math.max(1, writtenBeat || 1));
-        return Math.floor(((beat - 1) * clicksPerBar) / w);
+        const beat = Math.min(w + 1 - 1e-9, Math.max(1, writtenBeat || 1));
+        return Math.min(clicksPerBar - 1, Math.floor(((beat - 1) * clicksPerBar) / w));
+    }
+    // ML-365: how many pause positions each written beat has - the bar's beat note (noteValue) steps, when
+    // it's shorter than the written beat: 2/2 counted in crotchets = 2 (pauses at beats 1, 1.5, 2, 2.5), 2/2
+    // in quavers = 4. Otherwise 1 (whole written beats, as before). At most 4 (positions are quarter beats).
+    const NOTE_CROTCHETS = { semiquaver: 0.25, quaver: 0.5, 'dotted-quaver': 0.75, crotchet: 1, 'dotted-crotchet': 1.5, minim: 2, 'dotted-minim': 3, semibreve: 4 };
+    function pauseStepsPerBeat(block) {
+        const note = NOTE_CROTCHETS[block && block.noteValue];
+        if (!note) return 1;
+        const steps = (4 / ((block && block.denominator) || 4)) / note;
+        return steps === 2 || steps === 4 ? steps : 1;
     }
 
     const hasVoltas = (b) => !!(b && Array.isArray(b.repeatEndingNumbers) && b.repeatEndingNumbers.length);
@@ -645,7 +657,7 @@
     }
 
     return {
-        METER_TABLE, meterInfo, writtenBeatsPerBar, writtenBeatToClick,
+        METER_TABLE, meterInfo, writtenBeatsPerBar, writtenBeatToClick, pauseStepsPerBeat,
         buildJourney, passagesOf, loopPlan, barNumberOf, totalBars, tempoAt, rampSpans, pausesInBar,
         repeatBarInvalid, introInvalid, pauseInvalid, rampInvalid,
         barRangeLabel, checkFlow,

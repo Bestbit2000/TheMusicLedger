@@ -11,7 +11,7 @@ play. A building block of practice sessions, alongside Scales (ML-9).
 | [`server/services/warmups.js`](../server/services/warmups.js) | Reads them (`GET /api/warmups`, switched-on only) and saves them for super admins (`/api/admin/warmups`). Every save goes through the engine's `check`. |
 | `app.js` "WARM-UPS" / `admin.js` "Warm-ups" | The tool and the Admin → Warm-ups editor. |
 | [`specs/components/warmups.md`](../specs/components/warmups.md) | The design spec. |
-| `server/test/warmups.test.js` | Engine tests, including every seeded exercise in both clefs. Back-test case 21. |
+| `server/test/warmups.test.js` | Engine tests, including every seeded exercise in all three clefs. Back-test case 21. |
 
 ## Exercises
 
@@ -21,6 +21,9 @@ play. A building block of practice sessions, alongside Scales (ML-9).
 - **Bass clef** (trombone, euphonium) is the same exercise **down a major 9th**
   (`Warmups.toBassClef`). That's how a treble-clef B♭ part and its bass-clef part relate, so a lip slur
   stays on the same harmonics (written C-G-C-E-G is B♭-F-B♭-D-F in bass clef).
+- **Tenor clef** (ML-373: trombone and euphonium up high) reads the same pitches as bass clef, so it takes
+  the same 9th down - only the clef it's drawn in differs. The Clef pop-up offers Treble, Bass and Tenor, as
+  Scales does; an instrument whose own clef is tenor starts on it.
 - **Stored** as `notes`: `[{ p: 'G4' | null (rest), d: 'w'|'h'|'q'|'e', dot?: true, sl?: true }]` and
   `beats_per_bar` (2-6). Bars come from the lengths; a note can't run over a bar line; the last bar
   may be short.
@@ -42,13 +45,17 @@ play. A building block of practice sessions, alongside Scales (ML-9).
 
 ## The tool (ML-361: the Scales layout)
 
-- **Warm-ups** (top left) picks the **instrument** and the **kinds** (the standard pick list); **Clef**
+- **Warm-ups** (top left) picks the **instrument** and the **topics** (the kinds, as the standard pick list, headed "Topics"); **Clef**
   (top right) is the instrument's own clef (its `theoryClef`) until you choose one - a euphonium can
-  read either. **Select** (under the stave) opens Choose a warm-up. **Use metronome** switches the
-  transport, tempo and volume on or off.
+  read any of them. **Select** (under the stave) opens Choose a warm-up. **Use metronome** switches the
+  transport, tempo and volume on or off. It starts **off** (ML-368, to keep the screen simple on
+  arrival) and whatever you last chose is remembered on the device (`tml.warmups`). Settings saved
+  before ML-368 were switched off once (`metronomeOffOnce`), since the old default had it on.
 - **Range locking.** A warm-up whose notes go outside your comfortable range (the Range tool's
   `bottomNote` / `topNote`) is **locked**, and one outside the instrument's own range (`rangeLow` /
   `rangeHigh`) is **beyond** - both checked in the instrument's own clef, where those ranges are written.
+  On brass and woodwind the top of that is a 4th above `rangeHigh` once your range is set (the usual top
+  is soft, ML-370, docs/range.md), so a warm-up up there is locked until your range reaches it.
   They're left out of Previous / Next / Shuffle (and a practice session's warm-up list), counted in the
   Warm-ups pop-up ("12 warm-ups · 9 locked"), and shown in Choose a warm-up with a lock and why. With no
   range set nothing is locked. The seeded warm-ups (F♯3 to G5) are never beyond a baritone or euphonium;

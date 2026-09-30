@@ -64,7 +64,7 @@ describe('warm-ups (ML-294)', () => {
         assert.equal(rows[1].items[rows[1].items.length - 1].glyph, 'barlineFinal');
         assert.ok(rows.flatMap(r => r.items).filter(i => i.cls).every(i => /^warmup-note warmup-note-\d+$/.test(i.cls)));
     });
-    test('every seeded exercise checks and draws in both clefs', () => {
+    test('every seeded exercise checks and draws in all three clefs (ML-373: tenor too)', () => {
         const sql = fs.readFileSync(new URL('../../db/migrations/055_warmups.sql', import.meta.url), 'utf8');
         const found = [...sql.matchAll(/'(\[\{.*?\}\])'::jsonb, (\d)/g)];
         assert.ok(found.length >= 60, 'expected the seeded exercises');
@@ -72,7 +72,7 @@ describe('warm-ups (ML-294)', () => {
             const e = { beatsPerBar: Number(bpb), notes: JSON.parse(json.replace(/''/g, "'")) };
             const c = W.check(e);
             assert.ok(c.ok, c.errors.join(' '));
-            for (const clef of ['treble', 'bass']) for (const r of W.rows(e, clef)) N.staff({ clef, items: r.items, stepRange: W.stepRange(e, clef) });
+            for (const clef of ['treble', 'bass', 'tenor']) for (const r of W.rows(e, clef)) N.staff({ clef, items: r.items, stepRange: W.stepRange(e, clef) });
         }
     });
 });
@@ -101,6 +101,7 @@ describe('warm-ups: slurs and the range (ML-361)', () => {
         const e = ex('C4q G4q C5q E5q G5w');
         assert.deepEqual(plain(W.span(e)), [W.midi('C4'), W.midi('G5')]);
         assert.deepEqual(plain(W.span(e, 'bass')), [W.midi('C4') - 14, W.midi('G5') - 14]);
+        assert.deepEqual(plain(W.span(e, 'tenor')), plain(W.span(e, 'bass')), 'tenor reads the same pitches as bass (ML-373)');
         assert.equal(W.span(ex('rw')), null);
     });
     test('the 078 migration: 22 lip slurs and flexibility warm-ups, every slur valid, the same notes as 055', () => {

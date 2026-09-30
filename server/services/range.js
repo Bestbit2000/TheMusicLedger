@@ -22,11 +22,12 @@ export async function assertRangeEnabled() {
   if (!(await isFeatureEnabled('range_trainer'))) throw withStatus(404, 'Range is not switched on.');
 }
 
-const outerOf = (r) => (r.range_low && r.range_high ? { low: r.range_low, high: r.range_high } : null);
+// ML-370: a 4th above the usual top on brass and woodwind (PlayRange.outerLimit).
+const outerOf = (r) => plain(PlayRange.outerLimit(r.range_low, r.range_high, r.family));
 
 async function accountInstrument(accountId, instrumentId, client = pool) {
   const { rows } = await client.query(
-    `SELECT ai.bottom_note, ai.top_note, i.id, i.name, i.theory_clef, i.written_to_concert, i.range_low, i.range_high
+    `SELECT ai.bottom_note, ai.top_note, i.id, i.name, i.theory_clef, i.written_to_concert, i.range_low, i.range_high, i.family
      FROM account_instruments ai JOIN instruments i ON i.id = ai.instrument_id
      WHERE ai.account_id = $1 AND ai.instrument_id = $2`,
     [accountId, instrumentId]
@@ -38,7 +39,7 @@ async function accountInstrument(accountId, instrumentId, client = pool) {
 // My instruments with their range, and the Level of every note beyond it that you've tried.
 export async function getRange(accountId) {
   const { rows } = await pool.query(
-    `SELECT ai.bottom_note, ai.top_note, ai.is_primary, i.id, i.name, i.theory_clef, i.written_to_concert, i.range_low, i.range_high
+    `SELECT ai.bottom_note, ai.top_note, ai.is_primary, i.id, i.name, i.theory_clef, i.written_to_concert, i.range_low, i.range_high, i.family
      FROM account_instruments ai JOIN instruments i ON i.id = ai.instrument_id
      WHERE ai.account_id = $1 ORDER BY ai.is_primary DESC, ai.created_at, i.name`,
     [accountId]

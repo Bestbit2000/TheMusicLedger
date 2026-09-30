@@ -249,7 +249,7 @@
         <!-- ML-294: the Warm-ups tool's exercises. Super admins only (every /api/admin route is). -->
         <section id="warmups-section" class="admin-section hidden-group">
             <h1>Warm-ups</h1>
-            <p class="admin-intro">The exercises in the Warm-ups tool, in the order it plays them. Written for treble-clef brass (brass band parts); the tool shows bass clef by moving the same notes down a major 9th, so lip slurs stay on the same harmonics. Switched-off exercises stay here but aren't shown in the tool.</p>
+            <p class="admin-intro">The exercises in the Warm-ups tool, in the order it plays them. Written for treble-clef brass (brass band parts); the tool shows bass and tenor clef by moving the same notes down a major 9th, so lip slurs stay on the same harmonics. Switched-off exercises stay here but aren't shown in the tool.</p>
             <button class="btn-submit no-margin admin-add-btn" id="addWarmupBtn" type="button">+ New exercise</button>
             <div id="warmupsAdminList">Loading&hellip;</div>
         </section>
@@ -380,7 +380,7 @@
 
         <div class="admin-warmup-preview-head">
             <strong>Notes</strong>
-            <div class="radio-group"><input type="radio" id="warmupPreviewClef-treble" name="warmupPreviewClef" value="treble"><label for="warmupPreviewClef-treble">Treble</label><input type="radio" id="warmupPreviewClef-bass" name="warmupPreviewClef" value="bass"><label for="warmupPreviewClef-bass">Bass</label></div>
+            <div class="radio-group"><input type="radio" id="warmupPreviewClef-treble" name="warmupPreviewClef" value="treble"><label for="warmupPreviewClef-treble">Treble</label><input type="radio" id="warmupPreviewClef-bass" name="warmupPreviewClef" value="bass"><label for="warmupPreviewClef-bass">Bass</label><input type="radio" id="warmupPreviewClef-tenor" name="warmupPreviewClef" value="tenor"><label for="warmupPreviewClef-tenor">Tenor</label></div>
         </div>
         <div class="admin-warmup-preview" id="warmupPreview"></div>
         <p class="admin-warmup-status" id="warmupStatus" aria-live="polite"></p>
@@ -593,6 +593,7 @@
 <script src="theoryEngine.js"></script>
 <script src="scaleGrades.js"></script>
 <script src="warmups.js"></script>
+<script src="avatars.js"></script>
 <script src="admin.js"></script>
 <script src="admin-design.js"></script>
 <script src="a11y.js"></script>

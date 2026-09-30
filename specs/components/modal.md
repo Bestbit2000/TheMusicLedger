@@ -46,6 +46,7 @@ Closed (`display: none`) · Open · Destructive confirm (primary action uses `--
 ## 9. Accessibility
 - `role="dialog" aria-modal="true"` + `aria-labelledby` pointing at its heading (or `aria-label`).
 - a11y.js: focus moves into the dialog on open, Tab is trapped, Escape closes (via its own Cancel/close control), focus returns to the opener.
+- The page behind stays still while one is open (ML-371): `html:has(.modal.show)` hides its overflow, and `.modal-content` has `overscroll-behavior: contain`, so scrolling to the end of a long pop-up doesn't carry on into the page.
 - Close button (✕) needs `aria-label="Close"`.
 
 See [accessibility foundation](../foundations/accessibility.md).

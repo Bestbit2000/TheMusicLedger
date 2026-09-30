@@ -245,97 +245,116 @@
     </div>
 
     <div id="mainView">
-        <!-- ML-330: "Hi, <display name>" - your display name, or your first name; hidden with neither. -->
-        <p class="text-md fw-bold mt-0 mb-3 hidden-group" id="homeGreeting"></p>
+        <!-- ML-330 / ML-377: your avatar (initials, or the drawing chosen in My details - tap it to go there),
+             a greeting that follows the moment, and one encouraging line under it (public/homeGreeting.js).
+             Hidden without a name. -->
+        <div class="home-greeting hidden-group" id="homeGreetingRow">
+            <button type="button" class="avatar" id="homeAvatar" aria-label="Your avatar - change it in My details"></button>
+            <div class="home-greeting-text">
+                <p class="home-greeting-hello" id="homeGreeting"></p>
+                <p class="home-greeting-line hidden-group" id="homeGreetingLine"></p>
+            </div>
+        </div>
         <!-- ML-320: Start a practice session replaces Start a challenge (behind practice_levels; ML-324
              cleans challenges up later). renderFeatureGates shows one or the other. -->
         <button type="button" class="btn-large hidden-group" id="startPracticeSessionBtn">Start a practice session</button>
         <button class="btn-large hidden-group" id="startChallengeBtn" onclick="switchView('challengeSelectView')">Start a challenge</button>
-        <button class="btn-nav" onclick="switchView('entryForm')">Add session time</button>
+        <!-- ML-378: logging time you've already played is a link, not a second button - Start a practice
+             session is the one action that stands out. -->
+        <button type="button" class="btn-text" onclick="switchView('entryForm')">Log time you've already played</button>
+        <!-- ML-378: My tools - up to four favourites, in the All tools page's order (renderHomeTools copies
+             their tiles from #toolsView). Chosen on the All tools page, saved on the account (accounts.home_tools);
+             default Metronome, Tuner, Timer, Warm-ups. Only tools that are switched on show. -->
+        <div class="section-title tools-title" id="homeToolsTitle">My tools</div>
+        <div class="tool-icon-row" id="homeToolsRow"></div>
+        <button type="button" class="history-item settings-link" onclick="switchView('toolsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">apps</span><span class="settings-link-text"><span class="settings-link-title">All tools</span><span class="settings-link-sub" id="homeAllToolsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+    </div>
 
-        <div class="section-title tools-title">Tools</div>
-        <!-- Tool groups: the tools in three groups - Everyday (used alongside everything else), Practise (pieces and
-             routines) and Learn (scored drills and quizzes). A group hides when none of its tools are on
-             (renderToolGroups); the ☰ menu's Tools rows are built from these (renderNavToolsRow). -->
+    <!-- ML-378: All tools - every tool, grouped, the routine in the order it's practised (Warm-ups, Scales,
+         Rehearse - as the session templates). Each tile is gated as before (renderFeatureGates; Rehearse once
+         there's a piece), a group hides when none of its tools are on (renderToolGroups), and the ☰ menu's
+         Tools rows are built from these groups (renderNavToolsRow). "Choose Home tools" turns the tiles
+         into ★ toggles for Home (up to four). -->
+    <div id="toolsView" class="tools-page hidden-group">
+        <!-- ML-378: while choosing - your Home tools in Home's order. Tap one for Move earlier / Move later /
+             Take off Home (#homeToolMenu); ← / → move it from the keyboard. Not a .tool-group, so the ☰ menu
+             and renderToolGroups leave it alone. Pinned under the top bar while you scroll (.tools-home-card). -->
+        <section class="flow-card display-card tools-home-card hidden-group" id="toolsHomeOrder" aria-labelledby="toolsHomeOrderTitle">
+            <span class="display-preview-label" id="toolsHomeOrderTitle">My Home screen</span>
+            <div class="tool-icon-row no-margin" id="toolsHomeOrderRow"></div>
+        </section>
+        <p class="text-sm text-muted mt-0 mb-3" id="toolsHint" aria-live="polite"></p>
         <div class="tool-group" id="toolGroup-everyday" role="group" aria-labelledby="toolGroupTitle-everyday">
             <div class="tool-group-title" id="toolGroupTitle-everyday">Everyday</div>
             <div class="tool-icon-row">
-                <button class="tool-icon-btn" onclick="switchView('quickPlayView')" aria-label="Metronome">
+                <button data-tool="metronome" class="tool-icon-btn" onclick="switchView('quickPlayView')" aria-label="Metronome">
                     <svg class="tool-icon-svg" viewBox="0 0 883 1025" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><g transform="translate(-2956 -1363)"><path d="M3299.02 1831.86 3528.57 1965.12 3299.02 2098.38ZM3329.89 1454.01 3064.12 2264.42 3731.24 2264.42 3465.47 1454.01ZM3297.05 1363 3499.94 1363C3518.77 1363 3534.93 1374.46 3541.83 1390.79L3544.05 1401.79 3839 2301.17 3837.74 2301.58 3839 2309.93C3839 2328.77 3827.55 2344.95 3811.23 2351.86L3795.05 2355.12 3795.05 2355.43 3793.53 2355.43 3793.53 2355.43 3793.53 2355.43 3702.53 2355.43 3701.57 2360.21C3694.67 2376.54 3678.51 2388 3659.68 2388 3640.84 2388 3624.68 2376.54 3617.78 2360.21L3616.82 2355.43 3186.33 2355.43 3185.37 2360.21C3178.47 2376.54 3162.31 2388 3143.47 2388 3124.64 2388 3108.48 2376.54 3101.58 2360.21L3100.62 2355.43 3008.1 2355.43 3008.1 2354.09 3001.47 2355.43C2976.36 2355.43 2956 2335.06 2956 2309.93L2957.68 2301.6 2956.37 2301.17 3254.77 1391.26 3255.04 1391.35 3255.16 1390.79C3262.06 1374.46 3278.22 1363 3297.05 1363Z" fill-rule="evenodd"/></g></svg>
                     <span class="tool-icon-label">Metronome</span>
                 </button>
-                <button class="tool-icon-btn" onclick="switchView('tunerView')" aria-label="Tuner">
+                <button data-tool="tuner" class="tool-icon-btn" onclick="switchView('tunerView')" aria-label="Tuner">
                     <svg class="tool-icon-svg" viewBox="0 0 521 902" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><defs><clipPath id="clipFrontpageTuner"><rect x="1753" y="271" width="521" height="902"/></clipPath></defs><g clip-path="url(#clipFrontpageTuner)" transform="translate(-1753 -271)"><rect x="0" y="0" width="101" height="278" transform="matrix(1 0 0 -1 1963 1123)"/><path d="M0 50C-6.42931e-15 22.3858 22.6096-6.36567e-15 50.4999-1.27313e-14 78.3902-2.54627e-14 101 22.3858 101 50 101 77.6143 78.3902 100 50.4999 100 22.6096 100-3.21465e-14 77.6143 0 50Z" fill-rule="evenodd" transform="matrix(1 0 0 -1 1963 1173)"/><path d="M1753 594 1853.77 594C1853.77 682.384 1925.29 754.034 2013.5 754.034 2101.71 754.034 2173.23 682.384 2173.23 594L2274 594C2274 738.146 2157.37 855 2013.5 855 1869.63 855 1753 738.146 1753 594Z" fill-rule="evenodd"/><rect x="1753" y="321" width="100" height="278"/><path d="M1753 321C1753 293.386 1775.39 271 1803 271 1830.61 271 1853 293.386 1853 321 1853 348.614 1830.61 371 1803 371 1775.39 371 1753 348.614 1753 321Z" fill-rule="evenodd"/><rect x="2174" y="321" width="100" height="278"/><path d="M2174 321C2174 293.386 2196.39 271 2224 271 2251.61 271 2274 293.386 2274 321 2274 348.614 2251.61 371 2224 371 2196.39 371 2174 348.614 2174 321Z" fill-rule="evenodd"/></g></svg>
                     <span class="tool-icon-label">Tuner</span>
                 </button>
-                <button class="tool-icon-btn" onclick="switchView('timerView')" aria-label="Timer">
+                <button data-tool="timer" class="tool-icon-btn" onclick="switchView('timerView')" aria-label="Timer">
                     <span class="material-symbols-outlined">timer</span>
                     <span class="tool-icon-label">Timer</span>
                 </button>
             </div>
         </div>
-        <div class="tool-group" id="toolGroup-practise" role="group" aria-labelledby="toolGroupTitle-practise">
-            <div class="tool-group-title" id="toolGroupTitle-practise">Practise</div>
+        <div class="tool-group" id="toolGroup-routine" role="group" aria-labelledby="toolGroupTitle-routine">
+            <div class="tool-group-title" id="toolGroupTitle-routine">My routine</div>
             <div class="tool-icon-row">
-                <!-- ML-299: was "Flow". Play a piece you can see - shown only once there is one (rehearseRefresh).
-                     Creating, importing and editing pieces moved to the ☰ menu's My music. -->
-                <button class="tool-icon-btn hidden-group" id="rehearseToolBtn" onclick="switchView('rehearseView')" aria-label="Rehearse">
-                    <svg class="tool-icon-svg" viewBox="0 0 1247 1246" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><defs><clipPath id="clipFrontpageFlow"><rect x="2535" y="380" width="1247" height="1246"/></clipPath></defs><g clip-path="url(#clipFrontpageFlow)" transform="translate(-2535 -380)"><rect x="3006" y="1338" width="351" height="82.0001"/><rect x="2782" y="962" width="788" height="81.9998"/><rect x="2742" y="1001" width="81.9998" height="187"/><rect x="3525" y="834" width="81.9998" height="167"/><path d="M2742 1003C2742 980.356 2760.36 962 2783 962 2805.64 962 2824 980.356 2824 1003 2824 1025.64 2805.64 1044 2783 1044 2760.36 1044 2742 1025.64 2742 1003Z" fill-rule="evenodd"/><path d="M3524 1002.5C3524 979.58 3542.58 961 3565.5 961 3588.42 961 3607 979.58 3607 1002.5 3607 1025.42 3588.42 1044 3565.5 1044 3542.58 1044 3524 1025.42 3524 1002.5Z" fill-rule="evenodd"/><path d="M3363.38 1208.22 3363.38 1547.78 3703.62 1547.78 3703.62 1208.22ZM3324.21 1130 3742.79 1130C3764.44 1130 3782 1147.52 3782 1169.13L3782 1586.87C3782 1608.48 3764.44 1626 3742.79 1626L3324.21 1626C3302.56 1626 3285 1608.48 3285 1586.87L3285 1169.13C3285 1147.52 3302.56 1130 3324.21 1130Z" fill-rule="evenodd"/><rect x="3006" y="588" width="351" height="80.9998"/><path d="M3363.38 458.378 3363.38 798.622 3703.62 798.622 3703.62 458.378ZM3324.21 380 3742.79 380C3764.44 380 3782 397.556 3782 419.213L3782 837.787C3782 859.443 3764.44 877 3742.79 877L3324.21 877C3302.56 877 3285 859.443 3285 837.787L3285 419.213C3285 397.556 3302.56 380 3324.21 380Z" fill-rule="evenodd"/><path d="M2613.22 458.378 2613.22 798.622 2952.78 798.622 2952.78 458.378ZM2574.13 380 2991.87 380C3013.48 380 3031 397.556 3031 419.213L3031 837.787C3031 859.443 3013.48 877 2991.87 877L2574.13 877C2552.52 877 2535 859.443 2535 837.787L2535 419.213C2535 397.556 2552.52 380 2574.13 380Z" fill-rule="evenodd"/><path d="M2613.22 1208.22 2613.22 1547.78 2952.78 1547.78 2952.78 1208.22ZM2574.13 1130 2991.87 1130C3013.48 1130 3031 1147.52 3031 1169.13L3031 1586.87C3031 1608.48 3013.48 1626 2991.87 1626L2574.13 1626C2552.52 1626 2535 1608.48 2535 1586.87L2535 1169.13C2535 1147.52 2552.52 1130 2574.13 1130Z" fill-rule="evenodd"/></g></svg>
-                    <span class="tool-icon-label">Rehearse</span>
-                </button>
-                <!-- ML-294: Warm-ups - a rising sun: the first few minutes of the day's playing. -->
-                <button class="tool-icon-btn hidden-group" id="warmupsToolBtn" onclick="switchView('warmupsView')" aria-label="Warm-ups">
+                <button data-tool="warmups" class="tool-icon-btn hidden-group" id="warmupsToolBtn" onclick="switchView('warmupsView')" aria-label="Warm-ups">
                     <span class="material-symbols-outlined">wb_twilight</span>
                     <span class="tool-icon-label">Warm-ups</span>
                 </button>
-                <!-- ML-9: Scales - its icon is three rising Bravura noteheads on a scrap of staff (renderScalesToolIcon). -->
-                <button class="tool-icon-btn hidden-group" id="scalesToolBtn" onclick="switchView('scalesView')" aria-label="Scales">
+                <button data-tool="scales" class="tool-icon-btn hidden-group" id="scalesToolBtn" onclick="switchView('scalesView')" aria-label="Scales">
                     <span id="scalesToolIcon" aria-hidden="true"></span>
                     <span class="tool-icon-label">Scales</span>
                 </button>
+                <button data-tool="rehearse" class="tool-icon-btn hidden-group" id="rehearseToolBtn" onclick="switchView('rehearseView')" aria-label="Rehearse">
+                    <svg class="tool-icon-svg" viewBox="0 0 1247 1246" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><defs><clipPath id="clipFrontpageFlow"><rect x="2535" y="380" width="1247" height="1246"/></clipPath></defs><g clip-path="url(#clipFrontpageFlow)" transform="translate(-2535 -380)"><rect x="3006" y="1338" width="351" height="82.0001"/><rect x="2782" y="962" width="788" height="81.9998"/><rect x="2742" y="1001" width="81.9998" height="187"/><rect x="3525" y="834" width="81.9998" height="167"/><path d="M2742 1003C2742 980.356 2760.36 962 2783 962 2805.64 962 2824 980.356 2824 1003 2824 1025.64 2805.64 1044 2783 1044 2760.36 1044 2742 1025.64 2742 1003Z" fill-rule="evenodd"/><path d="M3524 1002.5C3524 979.58 3542.58 961 3565.5 961 3588.42 961 3607 979.58 3607 1002.5 3607 1025.42 3588.42 1044 3565.5 1044 3542.58 1044 3524 1025.42 3524 1002.5Z" fill-rule="evenodd"/><path d="M3363.38 1208.22 3363.38 1547.78 3703.62 1547.78 3703.62 1208.22ZM3324.21 1130 3742.79 1130C3764.44 1130 3782 1147.52 3782 1169.13L3782 1586.87C3782 1608.48 3764.44 1626 3742.79 1626L3324.21 1626C3302.56 1626 3285 1608.48 3285 1586.87L3285 1169.13C3285 1147.52 3302.56 1130 3324.21 1130Z" fill-rule="evenodd"/><rect x="3006" y="588" width="351" height="80.9998"/><path d="M3363.38 458.378 3363.38 798.622 3703.62 798.622 3703.62 458.378ZM3324.21 380 3742.79 380C3764.44 380 3782 397.556 3782 419.213L3782 837.787C3782 859.443 3764.44 877 3742.79 877L3324.21 877C3302.56 877 3285 859.443 3285 837.787L3285 419.213C3285 397.556 3302.56 380 3324.21 380Z" fill-rule="evenodd"/><path d="M2613.22 458.378 2613.22 798.622 2952.78 798.622 2952.78 458.378ZM2574.13 380 2991.87 380C3013.48 380 3031 397.556 3031 419.213L3031 837.787C3031 859.443 3013.48 877 2991.87 877L2574.13 877C2552.52 877 2535 859.443 2535 837.787L2535 419.213C2535 397.556 2552.52 380 2574.13 380Z" fill-rule="evenodd"/><path d="M2613.22 1208.22 2613.22 1547.78 2952.78 1547.78 2952.78 1208.22ZM2574.13 1130 2991.87 1130C3013.48 1130 3031 1147.52 3031 1169.13L3031 1586.87C3031 1608.48 3013.48 1626 2991.87 1626L2574.13 1626C2552.52 1626 2535 1608.48 2535 1586.87L2535 1169.13C2535 1147.52 2552.52 1130 2574.13 1130Z" fill-rule="evenodd"/></g></svg>
+                    <span class="tool-icon-label">Rehearse</span>
+                </button>
             </div>
         </div>
-        <div class="tool-group" id="toolGroup-learn" role="group" aria-labelledby="toolGroupTitle-learn">
-            <div class="tool-group-title" id="toolGroupTitle-learn">Learn</div>
+        <div class="tool-group" id="toolGroup-ear" role="group" aria-labelledby="toolGroupTitle-ear">
+            <div class="tool-group-title" id="toolGroupTitle-ear">Ear and rhythm</div>
             <div class="tool-icon-row">
-                <!-- ML-260: Theory - its icon is a Bravura treble clef (renderTheoryToolIcon). -->
-                <button class="tool-icon-btn hidden-group" id="theoryToolBtn" onclick="switchView('theoryView')" aria-label="Theory">
-                    <span id="theoryToolIcon" aria-hidden="true"></span>
-                    <span class="tool-icon-label">Theory</span>
-                </button>
-                <button class="tool-icon-btn hidden-group" id="earToolBtn" onclick="switchView('earView')" aria-label="Pitch">
+                <button data-tool="pitch" class="tool-icon-btn hidden-group" id="earToolBtn" onclick="switchView('earView')" aria-label="Pitch">
                     <span class="material-symbols-outlined" aria-hidden="true">hearing</span>
                     <span class="tool-icon-label">Pitch</span>
                 </button>
-                <!-- ML-298 / ML-295 / ML-296: the drill tools Pitch (above), Tempo and Pulse - Ear, Tap tempo and
-                     Gap trainer in the code and features (ear_training, tap_tempo, gap_trainer). docs/drills.md. -->
-                <button class="tool-icon-btn hidden-group" id="tapTempoToolBtn" onclick="switchView('tapTempoView')" aria-label="Tempo">
+                <button data-tool="tempo" class="tool-icon-btn hidden-group" id="tapTempoToolBtn" onclick="switchView('tapTempoView')" aria-label="Tempo">
                     <span class="material-symbols-outlined" aria-hidden="true">touch_app</span>
                     <span class="tool-icon-label">Tempo</span>
                 </button>
-                <button class="tool-icon-btn hidden-group" id="gapTrainerToolBtn" onclick="switchView('gapTrainerView')" aria-label="Pulse">
+                <button data-tool="pulse" class="tool-icon-btn hidden-group" id="gapTrainerToolBtn" onclick="switchView('gapTrainerView')" aria-label="Pulse">
                     <span class="material-symbols-outlined" aria-hidden="true">graphic_eq</span>
                     <span class="tool-icon-label">Pulse</span>
                 </button>
-                <!-- ML-305 / ML-322: Range - stretch your top and bottom notes a note at a time (feature range_trainer). docs/range.md. -->
-                <button class="tool-icon-btn hidden-group" id="rangeToolBtn" onclick="switchView('rangeView')" aria-label="Range">
-                    <span class="material-symbols-outlined" aria-hidden="true">height</span>
-                    <span class="tool-icon-label">Range</span>
-                </button>
-                <!-- ML-306: Rhythm - word rhythms and the Takadimi crib sheet, tapped or played (feature rhythm_trainer). docs/rhythm.md. -->
-                <button class="tool-icon-btn hidden-group" id="rhythmToolBtn" onclick="switchView('rhythmView')" aria-label="Rhythm">
+                <button data-tool="rhythm" class="tool-icon-btn hidden-group" id="rhythmToolBtn" onclick="switchView('rhythmView')" aria-label="Rhythm">
                     <span class="material-symbols-outlined" aria-hidden="true">music_note</span>
                     <span class="tool-icon-label">Rhythm</span>
                 </button>
             </div>
         </div>
-
-        <div class="section-title progress-title">Progress</div>
-        <div class="dashboard-grid">
-            <button type="button" class="stat-card clickable" onclick="switchView('statsView')"><span class="label">Total time</span><span class="value" id="mainTotalTime">Loading...</span></button>
-            <button type="button" class="stat-card clickable" onclick="switchView('historyView')"><span class="label">Total sessions</span><span class="value" id="mainTotalSessions">...</span></button>
-            <button type="button" class="stat-card clickable" onclick="switchView('streakStatsView')"><span class="label">Current practise streak</span><span class="value" id="mainPractiseStreak">...</span></button>
-            <button type="button" class="stat-card clickable" onclick="switchView('streakStatsView')"><span class="label">Current playing streak</span><span class="value" id="mainPlayingStreak">...</span></button>
+        <div class="tool-group" id="toolGroup-theory" role="group" aria-labelledby="toolGroupTitle-theory">
+            <div class="tool-group-title" id="toolGroupTitle-theory">Theory and range</div>
+            <div class="tool-icon-row">
+                <button data-tool="theory" class="tool-icon-btn hidden-group" id="theoryToolBtn" onclick="switchView('theoryView')" aria-label="Theory">
+                    <span id="theoryToolIcon" aria-hidden="true"></span>
+                    <span class="tool-icon-label">Theory</span>
+                </button>
+                <button data-tool="range" class="tool-icon-btn hidden-group" id="rangeToolBtn" onclick="switchView('rangeView')" aria-label="Range">
+                    <span class="material-symbols-outlined" aria-hidden="true">height</span>
+                    <span class="tool-icon-label">Range</span>
+                </button>
+            </div>
+        </div>
+        <!-- Pinned to the bottom while choosing (Done), so it's always to hand -->
+        <div class="tools-done-bar">
+            <button type="button" class="btn-nav btn-cancel no-margin" id="toolsEditBtn" aria-pressed="false">Choose Home tools</button>
         </div>
     </div>
 
@@ -571,15 +590,14 @@
 
     <!-- ML-356: Display and reading - saved on the account, so it follows you to every device. -->
     <div id="settingsDisplayView" class="settings-subview hidden-group">
-        <!-- ML-359: a live preview (a line of music and a sentence), the dyslexia-friendly preset (a button,
-             undoable), then two cards - Display & theme and Reading & typography. Every choice applies at once. -->
+        <!-- ML-359: a compact live preview (a line of music and a sentence) pinned under the top bar, then two
+             cards - Display & theme and Reading & typography - and Reset to standard. Every choice applies at once. The one-tap dyslexia
+             preset was taken out: what helps differs person to person, so each is chosen on its own. -->
         <div class="flow-card display-preview">
             <span class="display-preview-label" id="displayPreviewLabel">Preview</span>
             <div class="display-preview-staff" id="displayPreviewStaff"></div>
-            <p class="display-preview-text">Play the scale slowly, then build the tempo a little at a time until it feels easy.</p>
+            <p class="display-preview-text">Play it slowly, then build the tempo.</p>
         </div>
-        <button type="button" class="btn-nav btn-cancel display-preset-btn" id="dyslexiaPresetBtn" aria-describedby="dyslexiaPresetHelp"><span class="material-symbols-outlined" aria-hidden="true">auto_fix_high</span>Apply dyslexia-friendly preset</button>
-        <p class="text-sm display-preset-help" id="dyslexiaPresetHelp">Lexend font, cream background, large text and more spacing. You can change any of them below.</p>
         <section class="flow-card display-card" aria-labelledby="displayThemeCardTitle">
             <h2 class="display-card-title" id="displayThemeCardTitle"><span class="material-symbols-outlined" aria-hidden="true">palette</span>Display &amp; theme</h2>
             <div class="form-group" role="radiogroup" aria-labelledby="displayThemeLabel"><label id="displayThemeLabel">Theme</label>
@@ -590,7 +608,7 @@
             </div>
             <div class="form-group" role="radiogroup" aria-labelledby="readingBackgroundLabel"><label id="readingBackgroundLabel">Background tint</label>
                 <div class="radio-group is-tiles" id="readingBackgroundOptions">
-                    <input type="radio" name="readingBackground" id="readingBackground-standard" value="standard"><label for="readingBackground-standard"><span class="bg-swatch bg-swatch-standard" aria-hidden="true"></span><span class="material-symbols-outlined bg-tile-tick" aria-hidden="true">check_circle</span><span class="bg-tile-name">Default</span></label>
+                    <input type="radio" name="readingBackground" id="readingBackground-standard" value="standard"><label for="readingBackground-standard"><span class="bg-swatch bg-swatch-standard" aria-hidden="true"></span><span class="material-symbols-outlined bg-tile-tick" aria-hidden="true">check_circle</span><span class="bg-tile-name">Standard</span></label>
                     <input type="radio" name="readingBackground" id="readingBackground-cream" value="cream"><label for="readingBackground-cream"><span class="bg-swatch bg-swatch-cream" aria-hidden="true"></span><span class="material-symbols-outlined bg-tile-tick" aria-hidden="true">check_circle</span><span class="bg-tile-name">Cream</span></label>
                     <input type="radio" name="readingBackground" id="readingBackground-blue" value="blue"><label for="readingBackground-blue"><span class="bg-swatch bg-swatch-blue" aria-hidden="true"></span><span class="material-symbols-outlined bg-tile-tick" aria-hidden="true">check_circle</span><span class="bg-tile-name">Pale blue</span></label>
                     <input type="radio" name="readingBackground" id="readingBackground-green" value="green"><label for="readingBackground-green"><span class="bg-swatch bg-swatch-green" aria-hidden="true"></span><span class="material-symbols-outlined bg-tile-tick" aria-hidden="true">check_circle</span><span class="bg-tile-name">Pale green</span></label>
@@ -602,7 +620,7 @@
         <section class="flow-card display-card" aria-labelledby="readingCardTitle">
             <h2 class="display-card-title" id="readingCardTitle"><span class="material-symbols-outlined" aria-hidden="true">text_fields</span>Reading &amp; typography</h2>
             <div class="form-group" role="radiogroup" aria-labelledby="readingFontLabel"><label id="readingFontLabel">Font</label>
-                <div class="radio-group compact is-fit" id="readingFontOptions">
+                <div class="radio-group compact is-fit is-centred" id="readingFontOptions">
                     <input type="radio" name="readingFont" id="readingFont-standard" value="standard"><label for="readingFont-standard" class="font-preview-standard">Standard</label>
                     <input type="radio" name="readingFont" id="readingFont-lexend" value="lexend"><label for="readingFont-lexend" class="font-preview-lexend">Lexend</label>
                     <input type="radio" name="readingFont" id="readingFont-opendyslexic" value="opendyslexic"><label for="readingFont-opendyslexic" class="font-preview-opendyslexic">OpenDyslexic</label>
@@ -619,6 +637,7 @@
                 <span id="readingSpacingLabel">Increased spacing<span class="display-toggle-help" id="readingSpacingHelp">Lines, letters and words, and no italics</span></span><label class="toggle-switch"><input type="checkbox" id="readingSpacingToggle" aria-labelledby="readingSpacingLabel"><span class="toggle-slider"></span></label>
             </div>
         </section>
+        <button type="button" class="btn-text" id="displayResetBtn" disabled>Reset to standard</button>
     </div>
 
     <div id="settingsStatsView" class="settings-subview hidden-group">
@@ -792,12 +811,18 @@
             <div class="form-group">
                 <label for="accountDisplayNameInput">Display name</label>
                 <input type="text" id="accountDisplayNameInput" maxlength="40" autocomplete="nickname" aria-describedby="accountDisplayNameHelp">
-                <p class="metro-help-text" id="accountDisplayNameHelp">What the app calls you - on the home screen, and to people in your bands. Leave it blank to use your first name.</p>
+                <p class="metro-help-text mt-2" id="accountDisplayNameHelp">What the app calls you - on the home screen, and to people in your bands. It's your first name unless you change it.</p>
             </div>
             <div class="flex-row gap-sm mb-4">
                 <button type="button" class="btn-submit btn-inline" id="accountSaveDisplayNameBtn">Save</button>
                 <button type="button" class="btn-nav btn-cancel btn-inline" id="accountCancelDisplayNameBtn">Cancel</button>
             </div>
+        </div>
+        <!-- ML-377: your avatar - after the names, since it defaults to their initials: initials, or one of
+             the drawings (the Choose an avatar pop-up). -->
+        <div class="info-row">
+            <span>Avatar</span>
+            <span class="flex-row gap-sm items-center"><span class="avatar" id="accountAvatarReadout"></span><button type="button" class="btn-icon-edit" id="accountEditAvatarBtn" aria-label="Change avatar" aria-haspopup="dialog"><span class="material-symbols-outlined" aria-hidden="true">edit</span></button></span>
         </div>
 
         <div class="section-title mt-6">Account</div>
@@ -1658,6 +1683,12 @@
         <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowBlockMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete bar</span></button>
     </div>
     <!-- ML-210: tap alternative to drag-to-reorder on the challenge / practice lists (openReorderMenu). -->
+    <!-- ML-378: a Home tool's menu, from All tools' "On Home, in this order" row -->
+    <div class="dropdown-menu account-band-menu" id="homeToolMenu" role="menu">
+        <button type="button" class="dropdown-item" id="homeToolMenuEarlier" role="menuitem"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">arrow_back</span><span class="dropdown-item-text">Move earlier</span></button>
+        <button type="button" class="dropdown-item" id="homeToolMenuLater" role="menuitem"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">arrow_forward</span><span class="dropdown-item-text">Move later</span></button>
+        <button type="button" class="dropdown-item" id="homeToolMenuRemove" role="menuitem"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">star</span><span class="dropdown-item-text">Take off Home</span></button>
+    </div>
     <div class="dropdown-menu account-band-menu" id="reorderMenu">
         <button type="button" class="dropdown-item" id="reorderMenuUp"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">arrow_upward</span><span class="dropdown-item-text">Move up</span></button>
         <button type="button" class="dropdown-item" id="reorderMenuDown"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">arrow_downward</span><span class="dropdown-item-text">Move down</span></button>
@@ -2303,9 +2334,9 @@
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
             <div class="metroSeg-scroll-area">
                 <h2 id="warmupsSettingsModalTitle">Warm-ups</h2>
-                <div class="form-group"><label for="warmupsInstrument">Instrument</label><select id="warmupsInstrument"></select></div>
+                <div class="form-group" role="group" aria-labelledby="warmupsInstrumentLabel"><label id="warmupsInstrumentLabel">Instrument</label><div id="warmupsInstrument"></div></div>
                 <div class="form-group" role="group" aria-labelledby="warmupsKindsLabel">
-                    <label id="warmupsKindsLabel">Kinds <span class="text-muted" id="warmupsKindsSummary"></span></label>
+                    <label id="warmupsKindsLabel">Topics</label>
                     <div class="pick-bar" id="warmupsKindsBar"></div>
                     <div id="warmupsKindsList"></div>
                 </div>
@@ -2324,8 +2355,7 @@
         <div class="modal-content">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
             <h2 id="warmupsClefModalTitle">Clef</h2>
-            <p class="text-muted modal-intro">Starts on your instrument's clef - change it here (a euphonium reads either). Bass clef is the same exercise a 9th lower, so a lip slur stays on the same harmonics.</p>
-            <div class="flow-tile-grid flow-tile-grid-2-centered scales-choice-grid" id="warmupsClefGrid"></div>
+            <div class="flow-tile-grid flow-tile-grid-3 scales-choice-grid" id="warmupsClefGrid"></div>
         </div>
     </div>
     <!-- ML-361: Choose a warm-up (from Select): the list by kind; the locked ones in place with a lock. -->
@@ -2414,7 +2444,7 @@
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
             <div class="metroSeg-scroll-area">
                 <h2 id="scalesPoolModalTitle">Scales</h2>
-                <div class="form-group"><label for="scalesGradeInstrument">Instrument</label><select id="scalesGradeInstrument"></select></div>
+                <div class="form-group" role="group" aria-labelledby="scalesGradeInstrumentLabel"><label id="scalesGradeInstrumentLabel">Instrument</label><div id="scalesGradeInstrument"></div></div>
                 <div class="form-group" role="group" aria-labelledby="scalesGradesLabel"><label id="scalesGradesLabel">Grades <span class="text-muted" id="scalesGradesSummary"></span></label>
                     <div class="radio-group compact scales-grade-options" id="scalesGradeOptions"><input type="checkbox" id="scalesGrade-1" name="scalesGrade" value="1"><label for="scalesGrade-1">1</label><input type="checkbox" id="scalesGrade-2" name="scalesGrade" value="2"><label for="scalesGrade-2">2</label><input type="checkbox" id="scalesGrade-3" name="scalesGrade" value="3"><label for="scalesGrade-3">3</label><input type="checkbox" id="scalesGrade-4" name="scalesGrade" value="4"><label for="scalesGrade-4">4</label><input type="checkbox" id="scalesGrade-5" name="scalesGrade" value="5"><label for="scalesGrade-5">5</label><input type="checkbox" id="scalesGrade-6" name="scalesGrade" value="6"><label for="scalesGrade-6">6</label><input type="checkbox" id="scalesGrade-7" name="scalesGrade" value="7"><label for="scalesGrade-7">7</label><input type="checkbox" id="scalesGrade-8" name="scalesGrade" value="8"><label for="scalesGrade-8">8</label><input type="checkbox" id="scalesGrade-else" name="scalesGrade" value="else"><label for="scalesGrade-else">Everything else</label></div>
                 </div>
@@ -2456,11 +2486,22 @@
 
     <!-- ML-357: See your range - the notes you can play comfortably, named and on a stave in the clef the
          scales are in (for bass or tenor clef brass that's concert pitch, like the ABRSM lists). -->
+    <!-- ML-377: Choose an avatar - your initials, or one of the drawings (public/avatars.js). Tap one to use it. -->
+    <div class="modal" id="avatarModal" role="dialog" aria-modal="true" aria-labelledby="avatarModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="avatarModalTitle">Choose an avatar</h2>
+            <div class="flow-tile-grid flow-tile-grid-3" id="avatarGrid"></div>
+        </div>
+    </div>
+
     <div class="modal" id="scalesMyRangeModal" role="dialog" aria-modal="true" aria-labelledby="scalesMyRangeTitle">
         <div class="modal-content">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
             <h2 id="scalesMyRangeTitle">Your range</h2>
+            <p class="text-muted modal-intro hidden-group" id="scalesMyRangeInstrument"></p>
             <div class="scales-range-staff" id="scalesMyRangeStaff"></div>
+            <div id="scalesMyRangeBar"></div>
             <p class="text-sm" id="scalesMyRangeText"></p>
             <button type="button" class="btn-nav hidden-group" id="scalesMyRangeSetBtn">Set your range</button>
             <button type="button" class="btn-submit no-margin mt-4" data-modal-close>Done</button>
@@ -2569,7 +2610,7 @@
          (Admin -> Warm-ups); drawn by public/warmups.js + Notation.staff. See specs/components/warmups.md. -->
     <div id="warmupsView" class="hidden-group">
         <div class="metro-transport-grid scales-setting-row is-centred">
-            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="warmupsSettingsBtn" aria-haspopup="dialog" aria-label="Warm-ups - your instrument and the kinds"><strong><span class="material-symbols-outlined" aria-hidden="true">playlist_add_check</span></strong><span class="metroBlk-ctrl-value-label">warm-ups</span></button>
+            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="warmupsSettingsBtn" aria-haspopup="dialog" aria-label="Warm-ups - your instrument and the topics"><strong><span class="material-symbols-outlined" aria-hidden="true">playlist_add_check</span></strong><span class="metroBlk-ctrl-value-label">warm-ups</span></button>
             <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="warmupsClefBtn" aria-haspopup="dialog" aria-label="Clef - tap to change"><strong id="warmupsClefVal">Treble</strong><span class="metroBlk-ctrl-value-label">clef</span></button>
         </div>
         <section class="flow-card scales-staff-card" aria-labelledby="warmupsTitle">
@@ -2578,7 +2619,7 @@
                     <h2 class="scales-staff-title" id="warmupsTitle">Warm-ups</h2>
                     <span class="scales-staff-sub" id="warmupsSub"></span>
                 </div>
-                <button type="button" class="metroBlk-row-volume-btn" id="warmupsVolumeBtn" aria-label="Volume - tap to change" aria-haspopup="dialog" aria-expanded="false"><span class="material-symbols-outlined" id="warmupsVolumeIcon">volume_up</span></button>
+                <button type="button" class="metroBlk-row-volume-btn hidden-group" id="warmupsVolumeBtn" aria-label="Volume - tap to change" aria-haspopup="dialog" aria-expanded="false"><span class="material-symbols-outlined" id="warmupsVolumeIcon">volume_up</span></button>
             </div>
             <p class="warmups-tip" id="warmupsTip"></p>
             <div class="scales-staff" id="warmupsStaff"></div>
@@ -2594,7 +2635,7 @@
                 <h2 class="scales-staff-title" id="warmupsMetronomeLbl">Use metronome</h2>
                 <label class="toggle-switch"><input type="checkbox" id="warmupsMetronomeToggle" aria-labelledby="warmupsMetronomeLbl"><span class="toggle-slider"></span></label>
             </div>
-            <div id="warmupsMetronomeControls">
+            <div id="warmupsMetronomeControls" class="hidden-group">
         <div class="metro-transport-grid">
             <button type="button" class="metro-play-grid-btn" id="warmupsPlayBtn" aria-label="Play - press and hold to go back to the start" aria-pressed="false">
                 <span class="material-symbols-outlined" id="warmupsPlayIcon">play_arrow</span>
@@ -3019,7 +3060,7 @@
         <h2 id="warmupListTitle">Warm-up list</h2>
         <div class="form-group"><label for="warmupListName">Name</label><input type="text" id="warmupListName" maxlength="60" autocomplete="off" placeholder="e.g. Before band"></div>
         <div class="form-group">
-            <label id="warmupListKindsLabel">Kinds of warm-up</label>
+            <label id="warmupListKindsLabel">Warm-up topics</label>
             <div class="radio-group" role="group" aria-labelledby="warmupListKindsLabel" id="warmupListKinds"></div>
         </div>
         <div class="form-group">
@@ -3652,6 +3693,8 @@
 <script src="practicePlan.js"></script>
 <script src="notation.js"></script>
 <script src="range.js"></script>
+<script src="avatars.js"></script>
+<script src="homeGreeting.js"></script>
 <script src="theoryEngine.js"></script>
 <script src="scaleGrades.js"></script>
 <script src="warmups.js"></script>

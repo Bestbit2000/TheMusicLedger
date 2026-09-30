@@ -18,7 +18,15 @@ before changing a rule. Owner decisions: 2026-09-28 (this release's chat).
     (still to save). Notes outside the instrument's limit are ignored.
 - **The instrument's typical range** (`instruments.range_low` / `range_high`, written, generous - brass
   pedal notes included) is only the **outer limit**: the picker and the Range tool never go past it. It's
-  never a player's starting point. Instruments where holding a note doesn't apply (keyboards, harp,
+  never a player's starting point.
+- **The usual top is soft on brass and woodwind (ML-370).** `range_high` there is the *usual* top: an
+  experienced player goes higher (altissimo on woodwind), so the outer limit is **a 4th (5 semitones)
+  above it** - `PlayRange.outerLimit(low, high, family)` gives `{ low, high, usualHigh }`, and the server
+  (`server/services/range.js`), the picker, the Range tool, Scales and Warm-ups all use it. The bottom
+  stays a hard limit, and other families keep `range_high` as it is. A scale or warm-up above the usual
+  top is **locked** until your range reaches it, not beyond the instrument - but only once your range is
+  set (with no range, where everything the instrument plays counts as in your list, the usual top is
+  still the limit). See your range draws it as one bar (`specs/components/range-bar.md`). Instruments where holding a note doesn't apply (keyboards, harp,
   percussion) have none, and Range isn't offered for them. Review the list on **Admin → Usage →
   Instruments** ("Typical ranges").
 - **Written vs sounding:** `instruments.written_to_concert` is the transposition in semitones

@@ -60,6 +60,14 @@ a beat lands on the conducted beat that contains it. A fermata held N beats is e
 beat. After the hold, playback carries on from the next conducted beat. A caesura's beat plays, then its
 length in beats of silence, then the next beat.
 
+**Pauses between beats (ML-365).** A pause's position can fall between written beats, in quarter-beat
+steps (`beat_offset` NUMERIC, migration 081). The pause picker steps in the bar's **pause steps**
+(`pauseStepsPerBeat`): whole written beats, or the beat note when it's shorter - 2/2 counted in crotchets
+has 2 per beat, so its positions are 1, 1.5, 2, 2.5, shown as "Beat 1-4 of 4"; 2/2 in quavers has 4. A
+caesura "after beat" is after one pause step (after that crotchet, not the whole minim). With sub-beats on
+the pause lands exactly; with them off, on the conducted beat that contains it (as above). Whole-beat bars
+are unchanged.
+
 **Screen.** A glyph above the dots (fermata or caesura) shows for the whole bar it's in and clears at
 the next bar's first beat. "Bar X of Y", the highlighted bar and the bpm update from each click's own
 position, never early.

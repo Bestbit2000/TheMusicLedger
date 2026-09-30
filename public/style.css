@@ -49,12 +49,13 @@
     .bg-swatch-peach { background: var(--swatch-peach); }
     .radio-group.compact label.text-size-preview-large { font-size: var(--font-md); }
     .radio-group.compact label.text-size-preview-larger { font-size: var(--font-lg); }
-    /* ML-359 screen: the live preview (a line of music and a sentence), the preset button, two cards */
-    .display-preview-label { display: block; font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: var(--label-color); margin-bottom: var(--space-2); }
-    .display-preview-staff svg { display: block; width: 100%; height: auto; margin-bottom: var(--space-3); }
-    .display-preview-text { margin: 0; }
-    .btn-nav.display-preset-btn { display: flex; align-items: center; justify-content: center; gap: var(--space-2); margin-bottom: 0; }
-    .display-preset-help { margin: var(--space-2) 0 var(--space-5); }
+    /* ML-359 screen: the live preview (a line of music and a sentence), two cards */
+    /* Compact and pinned under the top bar (--header-h, measured by app.js) so the effect of every choice
+       stays in view while you scroll the settings; the shadow lifts it off the cards passing under it. */
+    .flow-card.display-preview { position: sticky; top: var(--header-h, var(--space-0)); z-index: var(--z-sticky); padding: var(--space-2) var(--space-4) var(--space-3); box-shadow: var(--shadow-md); }
+    .display-preview-label { display: block; font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--label-color); margin-bottom: var(--space-1); }
+    .display-preview-staff svg { display: block; width: auto; max-width: 100%; height: var(--space-10); margin: 0 auto var(--space-2); }
+    .display-preview-text { margin: 0; text-align: center; }
     .display-card > :last-child { margin-bottom: 0; }
     .display-card-title { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-lg); margin: 0 0 var(--space-4); }
     .display-toggle-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); font-size: var(--font-md); }
@@ -122,6 +123,12 @@
        what's underneath); on a phone it also dims the page so the long menu keeps the focus. */
     .nav-menu-backdrop { position: fixed; inset: 0; z-index: var(--z-menu-backdrop); background: transparent; opacity: 0; visibility: hidden; transition: opacity var(--duration-fast) ease, visibility var(--duration-fast); }
     body:has(#burgerDropdown.show) .nav-menu-backdrop { opacity: 1; visibility: visible; } /* flush with its anchor's right edge instead of the default 20px in */
+    /* ML-371: while the ☰ menu or a pop-up is open the page behind stays still - a swipe on the backdrop
+       doesn't scroll it, and scrolling to the end of the menu or pop-up doesn't carry on into it
+       (overscroll-behavior on .nav-menu / .modal-content). The gutter keeps a desktop page from shifting
+       sideways as its scrollbar goes. */
+    html:has(#burgerDropdown.show), html:has(.modal.show) { overflow: hidden; scrollbar-gutter: stable; }
+    .nav-menu-backdrop, .modal { overscroll-behavior: contain; }
     /* ML-201: notification centre - red dot on ☰, count badge in the menu, the Notifications list */
     #navBurgerMenuBtn { position: relative; }
     .notif-dot { position: absolute; top: 4px; right: 4px; width: 10px; height: 10px; border-radius: var(--radius-circle); background: var(--danger-color); box-shadow: var(--shadow-ring-surface); }
@@ -138,7 +145,25 @@
     .notification-update { cursor: default; border-color: var(--primary-action-strong); }
     .notification-update .btn-submit { margin-top: var(--space-4); }
     .notification-release { margin-top: var(--space-3); font-size: var(--font-sm); }
+    /* ML-377: avatar - a gold circle holding your initials or a drawing (public/avatars.js). The drawing's
+       lines take the circle's colour; its .is-solid parts are filled with the circle's own tint so they
+       hide what's behind them; .is-dot parts are filled dots. A button on the home screen, a span elsewhere. */
+    .avatar { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--touch-target); height: var(--touch-target); padding: 0; box-sizing: border-box; border-radius: var(--radius-circle); border: 2px solid var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); font: inherit; }
+    .avatar svg { width: 80%; height: 80%; fill: none; stroke: currentColor; }
+    .avatar .is-solid { fill: var(--primary-action-tint); }
+    .avatar .is-dot { fill: currentColor; stroke: none; }
+    .avatar-initials { font-size: var(--font-sm); font-weight: var(--font-weight-bold); }
+    /* The home greeting: avatar, then the greeting with one line of encouragement under it */
+    .home-greeting { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
+    .home-greeting-text { min-width: 0; }
+    .home-greeting-hello { margin: 0; font-size: var(--font-md); font-weight: var(--font-weight-bold); }
+    .home-greeting-line { margin: 0; font-size: var(--font-sm); color: var(--label-color); }
     .notifications-empty { text-align: center; margin-top: var(--space-6); }
+    /* The empty state's line drawing (someone relaxing with a euphonium): lines in the label colour, the
+       instrument filled with the page colour so it hides the lines behind it - both follow the theme/tint. */
+    .notifications-empty-art { display: block; width: 70%; height: auto; margin: 0 auto var(--space-5); fill: none; stroke: var(--label-color); }
+    .notifications-empty-art .is-solid { fill: var(--container-bg); }
+    .notifications-empty-title { font-size: var(--font-lg); margin: 0 0 var(--space-2); }
     .about-running-note { background: var(--input-bg); border: 1px solid var(--primary-action-strong); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); font-size: var(--font-sm); }
     /* Menu items are <button>s (ML-210) - reset the native button look so they match the old rows. */
     .dropdown-item { width: 100%; box-sizing: border-box; text-align: left; background: none; border: none; font-family: inherit; font-size: inherit; display: block; padding: var(--space-3) var(--space-4); cursor: pointer; font-weight: var(--font-weight-bold); color: var(--text-color); text-decoration: none; }
@@ -163,7 +188,7 @@
        specs/components/dropdown-menu.md ("Navigation menu"). The ID keeps these rules above the
        generic per-row separator above. */
     /* ML-291: right edge flush with the ☰ button, i.e. the top bar's own right margin. */
-    .nav-menu { right: 0; min-width: 320px; max-width: calc(100vw - var(--space-6)); max-height: calc(100dvh - var(--touch-target) - var(--space-6)); overflow-y: auto; padding: var(--space-1) 0; }
+    .nav-menu { right: 0; min-width: 320px; max-width: calc(100vw - var(--space-6)); max-height: calc(100dvh - var(--touch-target) - var(--space-6)); overflow-y: auto; overscroll-behavior: contain; padding: var(--space-1) 0; }
     #burgerDropdown .dropdown-item { border-bottom: none; }
     .nav-item { display: flex; align-items: center; gap: var(--space-3); min-height: var(--touch-target); font-weight: var(--font-weight-semibold); }
     .nav-item-icon { font-size: var(--icon-md); color: var(--label-color); flex: 0 0 auto; }
@@ -191,7 +216,8 @@
 
     .container { width: 100%; max-width: var(--app-max-width); background: var(--container-bg); padding: var(--space-5); box-sizing: border-box; min-height: calc(100vh - 60px); }
 
-    .btn-large, .btn-submit, .btn-nav { display: block; width: 100%; color: var(--text-on-accent); border: none; padding: var(--space-4); font-size: var(--font-md); font-weight: var(--font-weight-bold); border-radius: var(--radius-md); cursor: pointer; margin-bottom: var(--space-4); box-sizing: border-box; text-align: center; }
+    /* min-height: the small-phone padding (below) left these at 41px - under the 44px touch target (ML-210) */
+    .btn-large, .btn-submit, .btn-nav { display: block; width: 100%; min-height: var(--touch-target); color: var(--text-on-accent); border: none; padding: var(--space-4); font-size: var(--font-md); font-weight: var(--font-weight-bold); border-radius: var(--radius-md); cursor: pointer; margin-bottom: var(--space-4); box-sizing: border-box; text-align: center; }
     /* A plain ">" at the same weight/size language as the top bar's own "<" back button (.top-btn-back)
        - stronger than a "&rarr;" glyph, and visually pairs with it as forward's counterpart to back. */
     .btn-nav-arrow { font-size: 1.2em; font-weight: var(--font-weight-bold); }
@@ -223,6 +249,7 @@
        plain .btn-text use was silently affected. */
     .btn-text { display: block; width: 100%; background: none; border: none; padding: var(--space-3); min-height: 48px; font-size: var(--font-base); font-weight: var(--font-weight-bold); text-decoration: underline; cursor: pointer; text-align: center; box-sizing: border-box; color: var(--primary-action-strong); }
     .btn-text-danger { color: var(--danger-text); }
+    .btn-text:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; } /* button spec: Disabled */
 
     .tools-title { margin-top: 0; }
     /* A 4-column grid (ML-260): a 5th tool starts a second row of the same columns, so every tile still
@@ -236,6 +263,22 @@
     .tool-icon-btn { flex: 1 1 0; min-width: 0; aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); background: var(--nav-action); color: var(--nav-action-text); border: none; border-radius: var(--radius-md); cursor: pointer; box-sizing: border-box; padding: var(--space-2) var(--space-1); }
     .tool-icon-btn .material-symbols-outlined { font-size: var(--icon-xl); }
     .tool-icon-btn .tool-icon-label { font-size: var(--font-sm); font-weight: var(--font-weight-bold); }
+    /* ML-378: All tools (.tools-page) - a filled ★ in the corner of each tool that's on Home. While choosing
+       (.is-editing) every tile shows one (outline = not on Home), and the ones on Home take the selected look.
+       The star is the tile's own text colour (it passes on the tile in both themes; gold on silver doesn't in dark). */
+    .tools-page .tool-icon-btn { position: relative; }
+    .tool-icon-btn .tool-fav-star { display: none; position: absolute; top: var(--space-1); right: var(--space-1); font-size: var(--icon-sm); color: inherit; }
+    .tool-icon-btn.is-fav .tool-fav-star { display: block; font-variation-settings: 'FILL' 1; }
+    .tools-page.is-editing .tool-icon-btn .tool-fav-star { display: block; }
+    .tools-page.is-editing .tool-icon-btn.is-fav { background: var(--primary-action-tint); color: var(--primary-action-strong); }
+    /* While choosing, "My Home screen" stays pinned under the top bar (--header-h, as the Display and reading
+       preview) and Done stays pinned to the bottom, so both are in reach however far you scroll. */
+    .tools-home-card { position: sticky; top: var(--header-h, var(--space-0)); z-index: var(--z-sticky); box-shadow: var(--shadow-md); padding: var(--space-2) var(--space-4) var(--space-3); }
+    /* ⋮ in the corner of each tile in My Home screen - it has options (tap anywhere on the tile: Move earlier /
+       later, Take off Home), as the app's other ⋮ menus; same place and size as the ★ on the tiles below */
+    .tool-icon-btn .tool-move-icon { position: absolute; top: var(--space-1); right: var(--space-1); font-size: var(--icon-sm); color: inherit; }
+    .tools-done-bar { margin-top: var(--space-4); }
+    .tools-page.is-editing .tools-done-bar { position: sticky; bottom: 0; z-index: var(--z-sticky); background: var(--container-bg); padding: var(--space-3) 0; }
     /* Custom front-page tool glyphs (Quick play, Flow) - inlined SVGs (not <img>, so `fill:
        currentColor` can pick up the button's own themed text color like the material icons already
        do) with a JS-added viewBox and preserveAspectRatio so any source aspect ratio scales to fit
@@ -363,7 +406,8 @@
     .radio-group.compact.is-fit label { flex: 1 1 auto; padding-inline: var(--space-3); white-space: nowrap; }
     /* ML-359: .is-segmented - two or three options in one inset bar (Light / Dark) */
     .radio-group.is-segmented { flex-wrap: nowrap; gap: var(--space-0-5); background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-lg); padding: var(--space-1); }
-    .radio-group.is-segmented label { flex: 1; display: flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: var(--touch-target); padding: var(--space-2); border-color: transparent; background: transparent; color: var(--label-color); }
+    /* margin-bottom: 0 - the page-wide label margin pushed the options up off centre in the bar */
+    .radio-group.is-segmented label { flex: 1; display: flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: var(--touch-target); padding: var(--space-2); margin-bottom: 0; border-color: transparent; background: transparent; color: var(--label-color); }
     .radio-group.is-segmented input[type="radio"]:checked + label { background: var(--container-bg); color: var(--text-color); box-shadow: var(--shadow-sm); }
     /* ML-359: .is-tiles - colour tiles, three to a row: the colour fills the tile (.bg-swatch), the chosen
        one gets the strong outline and a tick; its words stay the normal text colour, readable on every tint */
@@ -720,7 +764,7 @@
     /* Hidden by default; .show opens it (showModal/hideModal, app.js - ML-288). */
     .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--overlay-bg); z-index: var(--z-modal); justify-content: center; align-items: center; padding: 0 var(--space-5); box-sizing: border-box; }
     .modal.show { display: flex; }
-    .modal-content { background: var(--container-bg); width: 100%; max-width: 400px; padding: var(--space-6); border-radius: var(--radius-xl); box-shadow: var(--shadow-xl); max-height: 90vh; overflow-y: auto;}
+    .modal-content { background: var(--container-bg); width: 100%; max-width: 400px; padding: var(--space-6); border-radius: var(--radius-xl); box-shadow: var(--shadow-xl); max-height: 90vh; overflow-y: auto; overscroll-behavior: contain; }
     /* A short explanatory line straight under a pop-up's title - pulled up into the title's bottom margin. */
     .modal-content .modal-intro { margin: calc(-1 * var(--space-2)) 0 var(--space-4) 0; font-size: var(--font-sm); }
     .modal-content h2 { margin-top: 0; margin-bottom: var(--space-5); font-size: var(--font-lg); font-weight: var(--font-weight-semibold); }
@@ -739,7 +783,8 @@
     .toast.warning { background-color: var(--warning-color); color: var(--text-on-warning); font-weight: var(--font-weight-bold); }
     .toast.info { background-color: var(--info-color); color: var(--text-on-accent); font-weight: var(--font-weight-bold); box-shadow: var(--shadow-info); }
     .toast.undo { background-color: var(--surface-inverse); }
-    .toast button { background: var(--button-overlay); border: none; color: inherit; border-radius: var(--radius-xs); cursor: pointer; font-weight: var(--font-weight-bold); padding: var(--space-2) var(--space-3); }
+    /* min 44px (--touch-target): Undo at 32px was easy to miss on a phone (ML-359 follow-up) */
+    .toast button { background: var(--button-overlay); border: none; color: inherit; border-radius: var(--radius-xs); cursor: pointer; font-weight: var(--font-weight-bold); padding: var(--space-2) var(--space-3); min-height: var(--touch-target); min-width: var(--touch-target); }
     /* Visual auto-dismiss countdown (startToastCountdownBar) - a thin bar along the toast's own
        bottom edge that shrinks from full width to nothing over the toast's configured lifetime
        (TOAST_DURATIONS_MS), rather than a ticking number: the shrink itself reads as "time left"
@@ -1145,12 +1190,11 @@
        scrolling row would hide most of them off-screen. Grid (not flex-wrap) so the columns stay
        even regardless of how many tiles end up in the last row. */
     .metroBlk-tile-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); padding: var(--space-2) 0 var(--space-4) 0; }
-    /* touch-action: none (ML-81) does two things for touch input, both needed since the tile stays
-       draggable="true" for mouse: stops the browser's own touch-scroll gesture from winning over the
-       Pointer-Events-based reorder drag, AND stops the browser recognising a long-press as the start of
-       its OWN native (touch-incapable, ghost-outline-only) HTML5 drag - without it the two drag
-       implementations fight over the same gesture on a touchscreen. */
-    .metroBlk-tile { position: relative; min-height: 100px; min-width: 0; background: var(--input-bg); border: 2px solid var(--control-border); border-radius: var(--radius-md); padding: var(--space-2); cursor: pointer; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: var(--space-1); text-align: center; touch-action: none; }
+    /* ML-367: touch-action: manipulation, not the old Metronome Blocks editor's none (ML-81, for its
+       reorder drag - that editor is gone). none stopped a swipe that started on a tile from scrolling
+       the page, so Rehearse's 4-column strip - nearly all tiles - was hard to scroll. The tile is only
+       tapped now; no text selection or long-press callout, so a press and hold then swipe just scrolls. */
+    .metroBlk-tile { position: relative; min-height: 100px; min-width: 0; background: var(--input-bg); border: 2px solid var(--control-border); border-radius: var(--radius-md); padding: var(--space-2); cursor: pointer; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: var(--space-1); text-align: center; touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     .metroBlk-tile.dragging { opacity: 0.5; box-shadow: var(--shadow-lg); }
     /* ML-302: Rehearse's 4-column tiles line up row by row - heading, bpm, bars - whatever the heading
        is (a boxed rehearsal mark, a 2-line long mark, a bar number, "Lead-in"). Each tile is a subgrid
@@ -1677,7 +1721,7 @@
 
     /* ML-206: 4-column layout - #flowBlocksList takes .metroBlk-tile-strip (Play Flow's grid) and each
        bar is a Play Flow .metroBlk-tile, as a real <button>. touch-action: pan-y (not the tile's
-       usual none) so a swipe still scrolls the page - a drag only starts after a press and hold,
+       usual manipulation) so only a vertical swipe scrolls the page - a drag only starts after a press and hold,
        at which point flowBarGridBlockScroll stops the scroll instead. */
     .flow-bar-grid-tile { width: 100%; font: inherit; color: var(--text-color); touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     .flow-bar-grid-tile-held { position: relative; z-index: var(--z-raised); pointer-events: none; border-color: var(--primary-action-strong); box-shadow: var(--shadow-lg); }
@@ -1971,9 +2015,15 @@
     /* ML-361: fewer than four (Warm-ups: warm-ups and clef) - each still a quarter wide, centred */
     .scales-setting-row.is-centred { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: calc((100% - 3 * var(--space-2)) / 4); justify-content: center; }
     .scales-setting-btn strong { font-size: var(--font-base); line-height: var(--line-height-snug); text-align: center; }
-    /* The Scales pickers (clef, direction, detail): the value at the top and the caption under it, so the
-       values line up across the row even when a caption wraps on a narrow phone */
-    .scales-choice-grid .flow-picker-tile-icon-row { flex: none; }
+    /* The Scales and Warm-ups pickers (clef, direction, detail): the value with its caption right under it,
+       centred up and down in the tile like every other picker tile (owner, 2026-09-30 - it used to sit at
+       the top, leaving a gap below). Each tile is a subgrid over two shared rows (value, caption - as
+       Rehearse's tiles), so the values still line up across a row when one caption wraps. A subgrid tile
+       doesn't keep the picker tile's own min-height, so the two rows hold it instead: a 32px value row and
+       a 24px caption row, + 12px padding and 2px border top and bottom = the same 84px as every picker tile. */
+    .scales-choice-grid .flow-picker-tile { display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 0; align-content: center; justify-items: center; }
+    .scales-choice-grid .flow-picker-tile-icon-row { align-self: end; align-items: flex-end; min-height: var(--space-7); }
+    .scales-choice-grid .flow-picker-tile-label { align-self: start; min-height: var(--space-6); }
     /* Direction: "down & up" is the up & down arrows flipped, so the first arrow is the first way you go */
     .scales-dir-flip { transform: scaleX(-1); }
     /* Previous / Next / Shuffle / Select sit under the stave, inside the scale's box */
@@ -2048,6 +2098,29 @@
        radio group's labels are content-box, so four would wrap. A last one on its own (Everything else) fills its row. */
     .scales-grade-options label { flex: 1 1 calc(25% - var(--space-2)); min-width: 0; box-sizing: border-box; }
     .scales-range-staff { display: flex; justify-content: center; margin: var(--space-3) 0; }
+    /* ML-370: See your range - one bar, the instrument's range (Potential range) with yours inside it, the
+       key under it. Positions are run-time percentages of the bar (--rb-from / --rb-to / --rb-at). On brass
+       and woodwind the part past the usual top (a 4th, where an experienced player goes) is open-ended:
+       a dashed edge with no end cap, and the usual top is a tick. Colours are the selected tile's (gold
+       fill, strong-gold edge) on a tappable surface's (input bg, control border) - both 3:1 edges. */
+    .range-bar { position: relative; height: var(--space-5); margin: var(--space-4) 0 var(--space-1); }
+    .range-bar-part { position: absolute; top: 0; bottom: 0; left: var(--rb-from); right: calc(100% - var(--rb-to)); box-sizing: border-box; }
+    .range-bar-potential { background: var(--input-bg); border: 2px solid var(--control-border); border-radius: var(--radius-pill); }
+    .range-bar-potential.is-open { border-right: none; border-radius: var(--radius-pill) 0 0 var(--radius-pill); }
+    .range-bar-stretch { background: var(--input-bg); border: 2px dashed var(--control-border); border-left: none; border-right: none; }
+    .range-bar-yours { background: var(--primary-action); border: 2px solid var(--primary-action-strong); border-radius: var(--radius-pill); }
+    .range-bar-tick { position: absolute; top: calc(-1 * var(--space-1)); bottom: calc(-1 * var(--space-1)); left: var(--rb-at); width: 2px; background: var(--text-color); }
+    .range-bar-ends { position: relative; height: 1.5em; font-size: var(--font-xs); color: var(--label-color); }
+    .range-bar-end { position: absolute; top: 0; white-space: nowrap; }
+    .range-bar-end.is-start { left: 0; }
+    /* The usual top is always near the right (the stretch is only a 4th), so its label ends at the tick */
+    .range-bar-end.is-at { left: var(--rb-at); transform: translateX(-100%); }
+    .range-bar-end.is-end { right: 0; }
+    .range-bar-key { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); list-style: none; padding: 0; margin: var(--space-2) 0 var(--space-3); font-size: var(--font-sm); }
+    .range-bar-key li { display: flex; align-items: center; gap: var(--space-2); }
+    .range-bar-swatch { width: var(--space-4); height: var(--space-3); box-sizing: border-box; border-radius: var(--radius-pill); }
+    .range-bar-swatch.is-yours { background: var(--primary-action); border: 2px solid var(--primary-action-strong); }
+    .range-bar-swatch.is-potential { background: var(--input-bg); border: 2px solid var(--control-border); }
 
     .flow-picker-tile-label { display: block; font-size: var(--font-xs); color: var(--label-color); min-height: 1em; }
     .flow-picker-tile.selected .flow-picker-tile-label { color: var(--primary-action-strong); }

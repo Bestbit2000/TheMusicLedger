@@ -25,8 +25,10 @@ Top to bottom (owner's layout, ML-357):
      **Key** (the name and a blank stave with the clef and key signature - you find the notes), **Name** (no
      stave: the name and what to play, `.scales-memory` - it was the "From memory" switch). 
    Clef, direction and detail are pick-one pop-ups (`.flow-tile-grid.scales-choice-grid` of
-   `.flow-picker-tile`s) that close when you choose; each value sits at the top of its tile, so they line up
-   even when a caption wraps on a phone.
+   `.flow-picker-tile`s) that close when you choose; the value and its caption are centred up and down in the
+   tile, 84px tall like every picker tile, and each tile is a subgrid over two shared rows so the values
+   still line up across a row when a caption wraps on a phone (owner, 2026-09-30). The same pop-up style is
+   Warm-ups' Clef (no help text).
 2. **The scale's box** (`.flow-card.scales-staff-card`): the scale's name (`h2.scales-staff-title`) with
    "2 octaves · treble" under it (or "Get ready… 3" during the count-in) and the metronome's volume button
    (`.metroBlk-row-volume-btn`) at the right of that line - hidden while the metronome is off. Then the

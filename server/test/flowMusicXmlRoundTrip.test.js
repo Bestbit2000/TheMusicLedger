@@ -39,6 +39,29 @@ for (const fixture of flowFixtures) {
   });
 }
 
+// ML-365: pauses between beats - a 2/2 bar counted in crotchets with a caesura after the 1st crotchet (1.5)
+// and a fermata on the 4th (2.5). Standard notation gets crotchet rests with the pause on its own rest; the
+// positions come back exactly, and a validation rejects anything off the quarter-beat grid.
+test('round-trip: pauses between beats (2/2 counted in crotchets)', () => {
+  const block = {
+    barCount: 2, bpm: 80, noteValue: 'crotchet', timeSignature: { numerator: 2, denominator: 2 },
+    fermatas: [
+      { kind: 'caesura', barOffset: 0, beatOffset: 1.5, holdBeats: 2 },
+      { kind: 'fermata', barOffset: 1, beatOffset: 2.5, holdBeats: 2, playbackMode: 'tone' }
+    ], ramps: [], rehearsalMarks: []
+  };
+  const fixture = { title: 'Pauses between beats', blocks: [block] };
+  const xml = flowToMusicXml(fixtureFlow(fixture), fixtureBlocksAsDtos(fixture));
+  const firstBar = xml.slice(xml.indexOf('<measure number="1"'), xml.indexOf('</measure>') + 10);
+  assert.equal((firstBar.match(/<type>quarter<\/type>/g) || []).length, 4, 'four crotchet rests');
+  assert.match(firstBar, /<note>(?:(?!<\/note>)[\s\S])*<caesura\/>/);
+  const parsed = musicXmlToFlow(xml);
+  assert.deepEqual(parsed.warnings, []);
+  assert.deepEqual(parsed.blocks[0].fermatas.map(f => f.beatOffset), [1.5, 2.5]);
+  assert.deepEqual(normalise(parsed.blocks[0]), normalise(block));
+  assert.throws(() => validateSegmentPayload({ ...block, timeSignatureId: 1, accountTimeSignatureId: null, fermatas: [{ kind: 'fermata', barOffset: 0, beatOffset: 1.3, holdBeats: 2 }] }), /quarter-beat steps/);
+});
+
 test('round-trip: legacy columns (single rehearsal mark, 1st/2nd-time flags, single ramp) and stale offsets', () => {
   const ts = { numerator: 4, denominator: 4 };
   const fixture = {

@@ -92,16 +92,25 @@ export async function duplicateQuickPlayHistory(accountId, sourceId, name) {
 // expression is NULL for every non-favourite row, so ORDER BY ties on it and
 // falls through to created_at for that whole group - only favourites actually
 // sort by name.
+// ML-366: every row is kept (to see what people play), but the list shows every favourite and only the
+// HISTORY_SHOWN most recent of the rest - it would otherwise grow for ever. Nothing on screen says so.
+export const HISTORY_SHOWN = 50;
 export async function listQuickPlayHistory(accountId) {
   const { rows } = await pool.query(
-    `SELECT s.id, s.name, s.created_at, s.is_favorite,
+    `WITH shown AS (
+       (SELECT id FROM adhoc_metronome_setups WHERE account_id = $1 AND is_quick_play = true AND is_favorite)
+       UNION ALL
+       (SELECT id FROM adhoc_metronome_setups WHERE account_id = $1 AND is_quick_play = true AND NOT is_favorite
+        ORDER BY created_at DESC LIMIT $2)
+     )
+     SELECT s.id, s.name, s.created_at, s.is_favorite,
             COUNT(ms.id) AS block_count
      FROM adhoc_metronome_setups s
+     JOIN shown ON shown.id = s.id
      LEFT JOIN metronome_segments ms ON ms.parent_adhoc_setup_id = s.id
-     WHERE s.account_id = $1 AND s.is_quick_play = true
      GROUP BY s.id
      ORDER BY s.is_favorite DESC, CASE WHEN s.is_favorite THEN s.name END ASC, s.created_at DESC`,
-    [accountId]
+    [accountId, HISTORY_SHOWN]
   );
   return rows.map(r => ({
     id: Number(r.id),
@@ -218,7 +227,7 @@ export async function getAdhocSetupWithSegments(accountId, id) {
         for (const f of fRows) {
           const key = String(f.segment_id);
           if (!map[key]) map[key] = [];
-          map[key].push({ barOffset: f.bar_offset, beatOffset: f.beat_offset, holdBeats: f.hold_beats, playbackMode: f.playback_mode });
+          map[key].push({ barOffset: f.bar_offset, beatOffset: Number(f.beat_offset), holdBeats: f.hold_beats, playbackMode: f.playback_mode });
         }
         return map;
       })

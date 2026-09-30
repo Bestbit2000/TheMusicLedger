@@ -44,6 +44,7 @@ Full-width, text-labelled buttons. The app has **three levels** and one corner r
 | Active | Native press |
 | Focus | Browser focus ring. If restyled, use `box-shadow: var(--focus-ring)` |
 | Disabled | `opacity: var(--opacity-disabled); cursor: not-allowed` |
+| Size | `.btn-large`, `.btn-submit`, `.btn-nav` are at least `min-height: var(--touch-target)` - the small-phone padding would otherwise leave them at 41px |
 | Error | Not a button state. Report errors with a warning toast |
 
 ## 7. Code example

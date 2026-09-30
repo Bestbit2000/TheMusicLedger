@@ -194,7 +194,9 @@ function validateSegmentPayload(data) {
     const fPlaybackMode = fKind === 'caesura' ? 'silent' : (f.playbackMode === undefined || f.playbackMode === null ? 'tone' : f.playbackMode);
     if (!FERMATA_KINDS.includes(fKind)) throw withStatus(400, 'Pause kind must be one of ' + FERMATA_KINDS.join(', ') + '.');
     if (!Number.isInteger(fBarOffset) || fBarOffset < 0) throw withStatus(400, 'Pause bar offset must be a non-negative integer.');
-    if (!Number.isInteger(fBeatOffset) || fBeatOffset < 1) throw withStatus(400, 'Pause beat offset must be a positive integer.');
+    // ML-365: a written-beat position that can fall between beats, in quarter-beat steps (1, 1.25, 1.5 ...) -
+    // a 2/2 bar counted in crotchets has pauses at 1, 1.5, 2, 2.5 (migration 081).
+    if (!Number.isFinite(fBeatOffset) || fBeatOffset < 1 || !Number.isInteger(fBeatOffset * 4)) throw withStatus(400, 'Pause beat position must be 1 or more, in quarter-beat steps.');
     // 2 is the floor, not 1 - a 1-beat "hold" is indistinguishable from no hold at all. Both UIs that
     // set this (Flow's Pauses picker duration stepper, the ad-hoc Metronome Blocks tool's own fermata
     // hold options - #metroSegFermataHoldOptions) were updated to match; this is the defense-in-depth
@@ -347,7 +349,7 @@ async function getFermatasForSegmentIds(segmentIds) {
   for (const row of rows) {
     const key = String(row.segment_id);
     if (!bySegment[key]) bySegment[key] = [];
-    bySegment[key].push({ barOffset: row.bar_offset, beatOffset: row.beat_offset, holdBeats: row.hold_beats, playbackMode: row.playback_mode, kind: row.kind });
+    bySegment[key].push({ barOffset: row.bar_offset, beatOffset: Number(row.beat_offset), holdBeats: row.hold_beats, playbackMode: row.playback_mode, kind: row.kind });
   }
   return bySegment;
 }

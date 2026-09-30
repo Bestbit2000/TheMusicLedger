@@ -235,18 +235,24 @@ export function flowToMusicXml(flow, blocks, opts = {}) {
 
     // Beat-positioned events, keyed "bar:beat" (bar 0-based, beat 1-based). Anything whose offsets
     // fall outside the block (stale after a shortening) is left to the extension alone.
-    const inRange = (bar, beat) => bar >= 0 && bar < barCount && beat >= 1 && beat <= (isPickup ? b.pickupBeats : numerator);
+    // ML-365: a pause can sit between beats (beat 1.5 = the 2nd crotchet of a 2/2 bar), so "in the bar"
+    // runs up to (not including) the beat after the last one.
+    const inRange = (bar, beat) => bar >= 0 && bar < barCount && beat >= 1 && beat < (isPickup ? b.pickupBeats : numerator) + 1;
     const beatEvents = new Map();
     const eventAt = (bar, beat) => {
       const key = `${bar}:${beat}`;
       if (!beatEvents.has(key)) beatEvents.set(key, { before: [], notations: [] });
       return beatEvents.get(key);
     };
+    // The finest split of a beat a rest can show here (whole divisions only): a half or quarter beat. A pause
+    // between beats sits on that grid in the printed notation (the extension keeps its exact position).
+    const finestSplit = [4, 2, 1].find(k => Number.isInteger(beatDuration(denominator) / k));
+    const onGrid = (beat) => Math.floor(beat * finestSplit + 1e-9) / finestSplit;
     const splitBars = new Set();
     for (const f of b.fermatas || []) {
       const bar = f.barOffset || 0;
       if (!inRange(bar, f.beatOffset)) continue;
-      eventAt(bar, f.beatOffset).notations.push(f.kind === 'caesura'
+      eventAt(bar, onGrid(f.beatOffset)).notations.push(f.kind === 'caesura'
         ? '<articulations><caesura/></articulations>'
         : '<fermata type="upright"/>');
       splitBars.add(bar);
@@ -330,10 +336,16 @@ export function flowToMusicXml(flow, blocks, opts = {}) {
       // with any beat-1 directions simply placed in front of it.
       const beatsInBar = isPickup ? b.pickupBeats : numerator;
       if (isPickup || splitBars.has(bar)) {
-        for (let beat = 1; beat <= beatsInBar; beat++) {
-          const ev = beatEvents.get(`${bar}:${beat}`);
+        // ML-365: a bar with a pause between beats is written in half- or quarter-beat rests (k per beat), so
+        // the pause sits on its own rest; otherwise one rest per beat, as before.
+        const inBar = [...beatEvents.keys()].filter(key => key.startsWith(`${bar}:`)).map(key => Number(key.split(':')[1]));
+        let k = 1;
+        while (k < finestSplit && inBar.some(beat => !Number.isInteger(beat * k))) k *= 2;
+        const restType = DENOMINATOR_TO_TYPE[denominator * k] || null;
+        for (let step = 0; step < beatsInBar * k; step++) {
+          const ev = beatEvents.get(`${bar}:${1 + step / k}`);
           if (ev) parts.push(...ev.before);
-          parts.push(restXml(beatDur, { type: beatType, notations: ev ? ev.notations.join('') : '' }));
+          parts.push(restXml(beatDur / k, { type: k === 1 ? beatType : restType, notations: ev ? ev.notations.join('') : '' }));
         }
       } else {
         const ev = beatEvents.get(`${bar}:1`);

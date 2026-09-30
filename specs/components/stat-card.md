@@ -7,7 +7,7 @@
 
 ## 2. Overview
 A compact labelled number (total time, current streak, sessions this month) in a two-column
-grid on the home and stats screens. **Don't use** for anything that needs more than a value and a
+grid on the Stats screens (Home had a Progress grid until ML-378). **Don't use** for anything that needs more than a value and a
 short caption. Use a [card](card.md).
 
 ## 3. Anatomy

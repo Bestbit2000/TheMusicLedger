@@ -232,7 +232,9 @@ function analyseBars(structure, extraParts) {
 
     for (const e of events) {
       if (e.kind === 'fermata' || e.kind === 'caesura') {
-        const beat = Math.min(beatOf(e.posQ), numerator);
+        // ML-365: a pause can sit between beats - its position to the nearest quarter beat (a fermata on the
+        // 2nd crotchet of a 2/2 bar is beat 1.5), rather than the beat it falls in.
+        const beat = Math.min(Math.floor((e.posQ / beatQ) * 4 + EPS) / 4 + 1, numerator + 0.75);
         if (once(`${e.kind}:${beat}`)) bar.pauses.push({ kind: e.kind, beat });
         continue;
       }

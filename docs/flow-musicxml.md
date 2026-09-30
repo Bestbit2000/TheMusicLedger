@@ -54,7 +54,7 @@ to sit on a specific beat. One part, one-line percussion staff.
 | `gotoSegno` / `gotoSegnoThenCoda` | words "D.S." / "D.S. al Coda" + `<sound dalsegno="segno">` |
 | `gotoStartDc` / `gotoStartDcThenCoda` | words "D.C." / "D.C. al Coda" + `<sound dacapo="yes">` |
 | `isFine` | words "Fine" + `<sound fine="yes">` |
-| fermata / caesura (bar + beat) | `<fermata>` / `<articulations><caesura/>` on that beat's rest |
+| fermata / caesura (bar + beat) | `<fermata>` / `<articulations><caesura/>` on that beat's rest. ML-365: a pause between beats (beat 1.5) splits its bar into half- or quarter-beat rests (the finest a rest can show there) so it has its own rest; reading takes a pause's position to the nearest quarter beat, and the extension keeps the exact value |
 | tempo ramps | words "accel." / "rit." + `<dashes type="start">` at the start beat; `<dashes type="stop">` + `<sound tempo>` (the target) at the end |
 
 ### Extension data (app-only - other software ignores it)

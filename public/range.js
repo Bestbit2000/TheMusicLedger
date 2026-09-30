@@ -62,12 +62,26 @@
         for (let m = midiOf(edge) + step; direction === 'down' ? m >= stop : m <= stop; m += step) out.push({ midi: m, pitch: pitchOf(m, 'usual') });
         return out;
     }
+    // ML-370: the outer limit from the instrument's typical written range (the catalogue's range_low /
+    // range_high). The bottom is a hard limit; on brass and woodwind the top is only the usual top - an
+    // experienced player goes higher (altissimo on woodwind) - so the limit is a 4th above it there.
+    // { low, high, usualHigh }, or null when the range doesn't apply.
+    const STRETCH_ABOVE = 5;
+    const STRETCH_FAMILIES = ['Brass', 'Woodwind'];
+    function outerLimit(low, high, family) {
+        if (!low || !high) return null;
+        const stretch = STRETCH_FAMILIES.includes(family) ? STRETCH_ABOVE : 0;
+        return { low, high: stretch ? pitchOf(midiOf(high) + stretch, 'usual') : high, usualHigh: high };
+    }
     // Is this a usable range? Both notes set, bottom below top, both inside the outer limit.
     function checkRange(range, outer) {
         if (!range || !range.bottom || !range.top) return 'Set both your bottom and top notes.';
         const b = midiOf(range.bottom), t = midiOf(range.top);
         if (b >= t) return 'Your bottom note has to be lower than your top note.';
-        if (outer && (b < midiOf(outer.low) || t > midiOf(outer.high))) return `This instrument's range is ${label(outer.low)} to ${label(outer.high)}.`;
+        if (outer && (b < midiOf(outer.low) || t > midiOf(outer.high))) {
+            const usual = outer.usualHigh || outer.high;
+            return `This instrument's range is ${label(outer.low)} to ${label(usual)}${usual !== outer.high ? ` (up to ${label(outer.high)} with experience)` : ''}.`;
+        }
         return null;
     }
 
@@ -221,8 +235,8 @@
     }
 
     return {
-        DIRECTIONS, LEVEL_BEATS, HOLD_BEATS, IN_A_ROW, MAX_BEATS, SELF_BEATS, HOLD, MEASURE,
-        midiOf, pitchOf, label, target, notesBeyond, checkRange, run, writeRun,
+        DIRECTIONS, LEVEL_BEATS, HOLD_BEATS, IN_A_ROW, MAX_BEATS, SELF_BEATS, HOLD, MEASURE, STRETCH_ABOVE, STRETCH_FAMILIES,
+        midiOf, pitchOf, label, outerLimit, target, notesBeyond, checkRange, run, writeRun,
         levelForBeats, applyGo, heardWritten, holdTracker, rangeMeasurer, pitchAtStep, stepSemitone,
     };
 }));

@@ -359,6 +359,26 @@ describe('tempo ramps (ML-251)', () => {
     });
 });
 
+describe('pauses between written beats (ML-365)', () => {
+    test('a bar counted in a shorter beat note has that many pause steps per written beat', () => {
+        assert.equal(FJ.pauseStepsPerBeat(blk('A', { numerator: 2, denominator: 2, noteValue: 'crotchet' })), 2);
+        assert.equal(FJ.pauseStepsPerBeat(blk('A', { numerator: 2, denominator: 2, noteValue: 'quaver' })), 4);
+        assert.equal(FJ.pauseStepsPerBeat(blk('A', { numerator: 4, denominator: 4, noteValue: 'quaver' })), 2);
+        assert.equal(FJ.pauseStepsPerBeat(blk('A', { numerator: 3, denominator: 4, noteValue: 'crotchet' })), 1);
+        assert.equal(FJ.pauseStepsPerBeat(blk('A', { numerator: 6, denominator: 8, noteValue: 'dotted-crotchet' })), 1);
+        assert.equal(FJ.pauseStepsPerBeat(blk('A', { numerator: 2, denominator: 2, noteValue: null })), 1);
+    });
+    test('2/2 in crotchets: beat 1.5 is the 2nd crotchet, and 2.5 the 4th - not pulled back to beat 2', () => {
+        const b = blk('A', { numerator: 2, denominator: 2, noteValue: 'crotchet' });
+        assert.equal(FJ.writtenBeatToClick(b, 1.5, 4), 1); // crotchet clicks
+        assert.equal(FJ.writtenBeatToClick(b, 2.5, 4), 3);
+        assert.equal(FJ.writtenBeatToClick(b, 1.5, 2), 0); // minim clicks: the minim it falls in
+        assert.equal(FJ.writtenBeatToClick(b, 2.5, 2), 1);
+        const pauses = FJ.pausesInBar({ ...b, fermatas: [{ kind: 'caesura', barOffset: 0, beatOffset: 1.5, holdBeats: 2 }] }, 0, 4);
+        assert.equal(pauses[0].click, 1);
+    });
+});
+
 describe('written beats to metronome clicks (ML-255)', () => {
     test('simple metre', () => {
         const b = blk('A');

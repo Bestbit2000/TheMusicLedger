@@ -137,7 +137,9 @@ because the catalogue's outer ranges include pedal notes, which would put every 
 pedals. An extended-range scale is always at its printed pitches: ready if they're in your range,
 locked if not, beyond if the instrument can't reach them.
 
-The instrument's outer range is `rangeLow` / `rangeHigh` from the catalogue. Your range is
+The instrument's outer range is `rangeLow` / `rangeHigh` from the catalogue - on brass and woodwind
+up to a 4th above `rangeHigh` once your range is set (the usual top is soft, ML-370, docs/range.md), so a
+scale up there is locked until your range reaches it rather than beyond. Your range is
 `bottomNote` / `topNote` from the Range tool (ML-322). If your range isn't set, everything the
 instrument can play counts as ready, and "See your range" offers to set it.
 

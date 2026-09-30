@@ -35,6 +35,10 @@ function toProfile(row, bands) {
     surname: row.surname,
     // ML-330: what the app calls you (home greeting, band members) - null = use the first name
     displayName: row.display_name || null,
+    // ML-377: the chosen avatar (one of AVATAR_IDS) - null = your initials
+    avatar: row.avatar || null,
+    // ML-378: the tools on your home screen (ids from HOME_TOOL_IDS) - null = the default four
+    homeTools: row.home_tools || null,
     email: row.email,
     accountLevel: row.account_level,
     createdAt: row.created_at,
@@ -47,7 +51,7 @@ function toProfile(row, bands) {
 // directory section).
 export async function getAccountProfile(accountId) {
   const { rows } = await pool.query(
-    'SELECT id, first_name, surname, display_name, email, account_level, created_at FROM accounts WHERE id = $1',
+    'SELECT id, first_name, surname, display_name, avatar, home_tools, email, account_level, created_at FROM accounts WHERE id = $1',
     [accountId]
   );
   if (!rows.length) { const e = new Error('Account not found'); e.status = 404; throw e; }
@@ -59,7 +63,21 @@ export async function getAccountProfile(accountId) {
 // optional (ML-330: the name and the display name are saved separately), so
 // only the ones sent are changed. A blank display name clears it.
 export const DISPLAY_NAME_MAX = 40;
-export async function updateAccountProfile(accountId, { firstName, surname, displayName } = {}) {
+// ML-377: the avatars you can choose (drawn in public/avatars.js - keep the two lists in step). null = initials.
+export const AVATAR_IDS = ['cornet', 'euphonium', 'trombone', 'french-horn', 'saxophone', 'clarinet', 'flute',
+  'snare-drum', 'metronome', 'music-stand', 'tuning-fork', 'headphones'];
+// ML-378: the tools that can be on the home screen (the All tools page's data-tool ids - keep in step with
+// public/index.html). The app shows up to four of the ones switched on; a tool that's off for a while stays
+// chosen, so the list can hold more than four, but never more than there are tools.
+export const HOME_TOOL_IDS = ['metronome', 'tuner', 'timer', 'warmups', 'scales', 'rehearse', 'pitch', 'tempo', 'pulse', 'rhythm', 'theory', 'range'];
+export function normaliseHomeTools(list) {
+  if (list === null) return null;
+  if (!Array.isArray(list)) { const e = new Error('Home tools must be a list.'); e.status = 400; throw e; }
+  const unknown = list.find(id => !HOME_TOOL_IDS.includes(id));
+  if (unknown !== undefined) { const e = new Error('Unknown tool.'); e.status = 400; throw e; }
+  return [...new Set(list)];
+}
+export async function updateAccountProfile(accountId, { firstName, surname, displayName, avatar, homeTools } = {}) {
   const sets = [];
   const values = [];
   const add = (column, value) => { values.push(value); sets.push(`${column} = $${values.length}`); };
@@ -70,6 +88,11 @@ export async function updateAccountProfile(accountId, { firstName, surname, disp
     if (name.length > DISPLAY_NAME_MAX) { const e = new Error(`Display name can be up to ${DISPLAY_NAME_MAX} characters.`); e.status = 400; throw e; }
     add('display_name', name || null);
   }
+  if (avatar !== undefined) {
+    if (avatar !== null && !AVATAR_IDS.includes(avatar)) { const e = new Error('Unknown avatar.'); e.status = 400; throw e; }
+    add('avatar', avatar);
+  }
+  if (homeTools !== undefined) add('home_tools', normaliseHomeTools(homeTools));
   if (!sets.length) return;
   values.push(accountId);
   await pool.query(`UPDATE accounts SET ${sets.join(', ')} WHERE id = $${values.length}`, values);

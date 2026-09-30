@@ -395,6 +395,13 @@
     // ========================================
     let rawData = [];
     let appData = { organisations: [], teachers: [], durations: [], enabledFeatures: [] };
+    // ML-377: the home greeting's state (renderHomeGreeting) - up here because renderAllViews uses it.
+    let homeSessionsLoaded = false;   // rawData has arrived (before that, a new player's welcome would be wrong)
+    let homeExtras = null;            // concert, pace, Level 5s, range note - loaded once
+    let homeExtrasLoading = false;
+    let homeLineKey = null;
+    const homeGreetingRoll = Math.random(); // one roll per visit, so "Ready to practise?" doesn't flicker
+    let toolsEditing = false;          // ML-378: All tools is in "Choose Home tools" mode (switchView uses it)
     let currentHistDate = new Date();
     let activeFilters = { 'Practise': true, 'Rehearsal': true, 'Lesson': true, 'Performance': true };
     // ML-288: a session category's colours come from a class (.category-practise etc., style.css), which
@@ -573,7 +580,7 @@
             return `<button type="button" class="history-item settings-link" data-tool-view="${r.tool.view}"><span class="settings-link-icon" data-tool-icon="${r.tool.view}" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">${escapeHtml(r.tool.title)}</span><span class="settings-link-sub">${escapeHtml(sub)}</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>`;
         }).join('') : '<div class="text-muted">No scored tools are switched on.</div>';
         list.querySelectorAll('[data-tool-icon]').forEach(slot => {
-            const tile = document.querySelector('#mainView .tool-icon-btn[onclick*="' + slot.dataset.toolIcon + '"] .tool-icon-svg, #mainView .tool-icon-btn[onclick*="' + slot.dataset.toolIcon + '"] .material-symbols-outlined');
+            const tile = document.querySelector('#toolsView .tool-icon-btn[onclick*="' + slot.dataset.toolIcon + '"] .tool-icon-svg, #toolsView .tool-icon-btn[onclick*="' + slot.dataset.toolIcon + '"] .material-symbols-outlined:not(.tool-fav-star)');
             if (tile) { const c = tile.cloneNode(true); c.removeAttribute('id'); slot.appendChild(c); }
         });
         list.querySelectorAll('[data-tool-view]').forEach(b => b.addEventListener('click', () => switchView(b.dataset.toolView)));
@@ -1032,10 +1039,12 @@
         document.getElementById('qpSaveToFlowBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('metronome_save_to_flow'));
         rehearseRefresh();
         renderToolGroups();
+        renderToolStars();
+        renderHomeTools(); // ML-378: Home's copies follow the gates
     }
     // Tool groups: a home tool group shows only while at least one of its tools does.
     function renderToolGroups() {
-        document.querySelectorAll('#mainView .tool-group').forEach(g => setShown(g, [...g.querySelectorAll('.tool-icon-btn')].some(t => !t.classList.contains('hidden-group'))));
+        document.querySelectorAll('#toolsView .tool-group').forEach(g => setShown(g, [...g.querySelectorAll('.tool-icon-btn')].some(t => !t.classList.contains('hidden-group'))));
     }
 
     // ML-204: one start-screen option and one import screen, shared by two gates - MusicXML
@@ -1199,7 +1208,7 @@
     function fillSettingsToolIcons() {
         document.querySelectorAll('#settingsView [data-tool-icon]').forEach(slot => {
             if (slot.firstChild) return;
-            const tile = document.querySelector('#mainView .tool-icon-btn[onclick*="' + slot.dataset.toolIcon + '"] .tool-icon-svg');
+            const tile = document.querySelector('#toolsView .tool-icon-btn[onclick*="' + slot.dataset.toolIcon + '"] .tool-icon-svg');
             if (tile) { const c = tile.cloneNode(true); c.removeAttribute('id'); slot.appendChild(c); }
         });
     }
@@ -1209,7 +1218,7 @@
         const host = document.getElementById('navToolsRow');
         if (!host) return;
         host.innerHTML = '';
-        document.querySelectorAll('#mainView .tool-group').forEach(group => {
+        document.querySelectorAll('#toolsView .tool-group').forEach(group => {
             const tiles = [...group.querySelectorAll('.tool-icon-btn')];
             if (!tiles.some(t => !t.classList.contains('hidden-group'))) return;
             const title = document.createElement('div');
@@ -1231,7 +1240,7 @@
             b.className = 'nav-tool' + (tile.classList.contains('hidden-group') ? ' hidden-group' : '');
             const view = (/switchView\('([^']+)'\)/.exec(tile.getAttribute('onclick') || '') || [])[1];
             if (view) b.dataset.view = view;
-            const icon = tile.querySelector('.tool-icon-svg, .material-symbols-outlined');
+            const icon = tile.querySelector('.tool-icon-svg, .material-symbols-outlined:not(.tool-fav-star)');
             if (icon) { const c = icon.cloneNode(true); c.removeAttribute('id'); c.setAttribute('aria-hidden', 'true'); b.appendChild(c); }
             const label = document.createElement('span');
             label.className = 'nav-tool-label';
@@ -1332,6 +1341,35 @@
     // ========================================
     // CUSTOM MODALS LOGIC
     // ========================================
+    // ML-363: Enter in a pop-up's text or number box does what Save would - presses the pop-up's Save
+    // (its .btn-submit), or, for a pop-up that applies as you go (Tempo, Bars...), closes it. A box that
+    // handles Enter itself (preventDefault) is left alone; the slider readouts call enterSavesModal.
+    function enterSavesModal(fromEl) {
+        const modal = fromEl && fromEl.closest('.modal.show');
+        if (!modal) return false;
+        const save = [...modal.querySelectorAll('.btn-submit')].find(b => b.offsetParent !== null && !b.disabled);
+        const close = modal.querySelector('.modal-close-x, [data-modal-close]');
+        const target = save || close;
+        if (!target) return false;
+        target.click();
+        return true;
+    }
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || e.defaultPrevented || e.isComposing || e.shiftKey) return;
+        const input = e.target instanceof HTMLInputElement ? e.target : null;
+        if (!input || ['checkbox', 'radio', 'button', 'submit', 'range', 'file'].includes(input.type)) return;
+        if (enterSavesModal(input)) e.preventDefault();
+    });
+    // ML-364: a pop-up closes on a tap outside it only if the press started outside it too. Dragging a
+    // slider and letting go past the pop-up's edge makes the browser report a click on the backdrop (the
+    // element both ends share) - that isn't a tap on the backdrop, so it's stopped here, before any
+    // pop-up's own "tap the backdrop to close" handler.
+    let modalPressTarget = null;
+    document.addEventListener('pointerdown', (e) => { modalPressTarget = e.target; }, true);
+    window.addEventListener('click', (e) => {
+        const t = e.target;
+        if (t instanceof Element && t.classList.contains('modal') && e.detail > 0 && modalPressTarget !== t) e.stopPropagation();
+    }, true);
     let confirmCallback = null;
     // actionLabel overrides the default Delete/Confirm text - e.g. "Leave" for leaving a band, which
     // isn't a delete at all (the band itself isn't removed, just this account's own membership) and
@@ -1478,7 +1516,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'pieceLevelsView', 'sessionPlanView', 'sessionRunView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
+    const views = ['mainView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'pieceLevelsView', 'sessionPlanView', 'sessionRunView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -1637,6 +1675,8 @@
         if (viewName === 'theoryOptionsView') { document.getElementById('topTitle').innerText = TheoryEngine.quiz(theoryQuizId).title; renderTheoryOptions(); }
         if (viewName === 'theoryPlayView') { document.getElementById('topTitle').innerText = TheoryEngine.quiz(theoryQuizId).title; }
         if (viewName === 'theoryResultsView') { document.getElementById('topTitle').innerText = 'Results'; }
+        if (viewName === 'toolsView') { document.getElementById('topTitle').innerText = 'All tools'; renderToolStars(); }
+        if (viewName !== 'toolsView' && toolsEditing) { toolsEditing = false; renderToolStars(); } // ML-378: leaving ends choosing
         if (viewName === 'notificationsView') { document.getElementById('topTitle').innerText = 'Notifications'; renderNotificationsView(); checkNotifications(true); }
         if (viewName === 'flowFromFileView') { document.getElementById('topTitle').innerText = flowImportTitle(); resetFlowFromFileScreen(); }
         if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
@@ -1970,13 +2010,33 @@
         } catch { /* the notice itself is what matters - notes are a bonus */ }
     }
 
+    // Nothing to show: a friendly "all caught up" with a line drawing of someone relaxing back in a deckchair
+    // with a euphonium. What feeds the list today is new releases and announcements from a super admin
+    // (docs/notifications.md) - so that's what the line promises, nothing more.
+    const NOTIFICATIONS_EMPTY_HTML = `<div class="notifications-empty">
+        <svg class="notifications-empty-art" viewBox="0 0 240 170" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M18 40 L66 152"/><path d="M66 134 C102 128 140 126 176 128"/><path d="M158 128 L176 156"/><path d="M90 132 L70 156"/><path d="M12 158 H228"/>
+            <circle cx="48" cy="46" r="14"/><path d="M36 38 C40 28 54 26 60 34"/><path d="M45 45 q3 -2.5 6 0"/><path d="M50 53 q4 3.5 9 0"/>
+            <path d="M38 60 C46 86 58 110 70 130"/><path d="M60 58 C70 78 82 98 96 122"/>
+            <path d="M96 122 C110 108 124 98 138 94 C150 104 164 118 176 126"/><path d="M82 132 C102 124 120 114 134 110 C146 118 158 128 170 136"/><path d="M176 126 C184 122 194 122 198 128 C196 134 184 136 170 136"/>
+            <path d="M52 64 C72 80 96 80 112 70"/>
+            <g class="is-solid"><path d="M77 22 C86 38 89 56 89 90 C89 114 122 116 122 94 L122 72 L113 72 L113 94 C113 104 102 104 102 90 C102 56 105 38 115 22 Z"/><ellipse cx="96" cy="22" rx="19" ry="5"/><rect x="110" y="56" width="15" height="17" rx="2.5"/></g>
+            <path d="M113.5 56 v-5 M117.5 56 v-5 M121.5 56 v-5"/><path d="M110 62 C94 56 80 54 62 52"/>
+            <path d="M56 70 C62 88 72 100 92 100"/>
+        </svg>
+        <h2 class="notifications-empty-title">You're all caught up!</h2>
+        <p class="text-muted no-margin">This is where you'll see what's new in each release, and news from the Music Ledger team.</p>
+        <button type="button" class="btn-nav mt-5" data-notifications-home>Start practising</button>
+    </div>`;
     function renderNotificationsView() {
         renderNotificationsUpdateCard();
         const list = document.getElementById('notificationsList');
         if (!list) return;
         document.getElementById('notificationsToolbar')?.classList.toggle('hidden-group', !notificationsUnreadCount);
         if (!notificationsCache.length) {
-            list.innerHTML = isAppUpdateAvailable() ? '' : '<p class="text-muted notifications-empty">No notifications yet.</p>';
+            list.innerHTML = isAppUpdateAvailable() ? '' : NOTIFICATIONS_EMPTY_HTML;
+            // Not a dead end: Home has everything next - a practice session, the tools, the timer.
+            list.querySelector('[data-notifications-home]')?.addEventListener('click', () => switchView('mainView'));
             return;
         }
         list.innerHTML = notificationsCache.map(n => {
@@ -3021,6 +3081,8 @@
             if(mainTotalTime) mainTotalTime.innerText = formatMins(tMins);
             if(mainTotalSessions) mainTotalSessions.innerText = tSess;
             updateStreakBoxes();
+            homeSessionsLoaded = true; // ML-377: the greeting's line can now be worked out
+            renderHomeGreeting();
             renderStatsHome();
             renderStatsBoxes();
             renderFilteredVisuals();
@@ -3562,6 +3624,27 @@
         try { myInstruments = await API.account.getInstruments(); } catch { /* offline - keep the last list */ }
         return myInstruments;
     }
+    // ML-370: the instrument's outer limit - hard bottom, and on brass and woodwind a top a 4th above the
+    // usual one (PlayRange.outerLimit, the same rule the Range tool and the server use). null = no range.
+    const instrumentOuter = (inst) => (inst ? PlayRange.outerLimit(inst.rangeLow, inst.rangeHigh, inst.family) : null);
+    // ML-369: your instruments as a choice list (one ticked), not a plain <select> - the Scales and
+    // Warm-ups pop-ups. Tapping one calls onPick(id); with none yet, a line pointing to My account.
+    function renderInstrumentChoice(box, current, onPick) {
+        if (!box) return;
+        if (!(myInstruments || []).length) {
+            box.innerHTML = '<p class="text-sm text-muted">Add your instrument in My account.</p>';
+            return;
+        }
+        box.innerHTML = myInstruments.map((inst, i) => {
+            const on = !!current && inst.id === current.id;
+            return `<button type="button" class="flow-choice-option level-answer${on ? ' selected' : ''}${i === myInstruments.length - 1 ? ' no-margin' : ''}" aria-pressed="${on}" data-instrument-id="${inst.id}"><span><strong>${escapeHtml(inst.name)}</strong></span>${on ? '<span class="material-symbols-outlined" aria-hidden="true">check</span>' : ''}</button>`;
+        }).join('');
+        box.querySelectorAll('[data-instrument-id]').forEach(b => b.addEventListener('click', () => {
+            if (current && Number(b.dataset.instrumentId) === current.id) return;
+            onPick(Number(b.dataset.instrumentId));
+            box.querySelector('.selected')?.focus(); // onPick redraws the list
+        }));
+    }
     async function loadAccountInstruments() {
         try {
             if (!instrumentCatalogue) instrumentCatalogue = await API.instruments.list();
@@ -3971,14 +4054,264 @@
         const full = [p.firstName, p.surname].filter(Boolean).join(' ');
         document.getElementById('accountNameReadout').textContent = full || 'Not set';
         document.getElementById('accountDisplayNameReadout').textContent = p.displayName || p.firstName || 'Not set'; // blank = your first name
+        const avatar = document.getElementById('accountAvatarReadout');
+        if (avatar) { avatar.innerHTML = Avatars.inner(p); avatar.setAttribute('role', 'img'); avatar.setAttribute('aria-label', Avatars.label(p)); }
         renderHomeGreeting();
     }
-    function renderHomeGreeting() {
-        const name = accountProfile && (accountProfile.displayName || accountProfile.firstName);
-        const el = document.getElementById('homeGreeting');
-        if (el) el.textContent = name ? `Hi, ${name}` : '';
-        setShown('homeGreeting', !!name);
+
+    // ===== ML-377: the home greeting - avatar, a greeting that follows the moment, one encouraging line =====
+    // The rules are in public/homeGreeting.js (docs/home-greeting.md). The line waits for the sessions and,
+    // for features that are on, the extras below - then one is picked and kept while it's still true.
+    // Its state (homeSessionsLoaded, homeExtras, homeLineKey, homeGreetingRoll) is declared with rawData.
+    async function loadHomeExtras() {
+        const out = {};
+        const jobs = [];
+        if (isFeatureEnabled('practice_levels')) {
+            // The nearest practice list with a date still to come: "Spring concert in 12 days", and the pace
+            // to be ready for it (the Rehearse screen's own forecast).
+            jobs.push((async () => {
+                const today = todayIso();
+                const next = ((await API.practiceLists.list()) || []).find(l => l.eventDate && l.eventDate > today);
+                if (!next) return;
+                out.concert = { name: next.name, days: Math.round((Date.parse(`${next.eventDate}T12:00:00`) - Date.parse(`${today}T12:00:00`)) / 86400000) };
+                const f = plForecast(await API.practiceLists.get(next.id));
+                if (f && f.perDay) out.pace = { name: next.name, perDay: f.perDay };
+            })());
+            jobs.push(API.practice.chunks().then(chunks => { out.levelFive = (chunks || []).filter(c => c.level === 5).length; }));
+        }
+        if (isFeatureEnabled('range_trainer')) {
+            // The note you're stretching up to on your main instrument, once it has a Level.
+            jobs.push(API.range.get().then(r => {
+                const list = ((r && r.instruments) || []).filter(i => i.outer && i.bottom && i.top);
+                const inst = list.find(i => i.isPrimary) || list[0];
+                const t = inst && PlayRange.target({ bottom: inst.bottom, top: inst.top }, inst.outer, 'up');
+                const lv = t && inst.levels.find(l => l.midi === t.midi);
+                if (lv && lv.level >= 1) out.rangeNote = { note: PlayRange.label(t.pitch), level: lv.level };
+            }));
+        }
+        await Promise.allSettled(jobs); // a missing extra just isn't offered
+        return out;
     }
+    function renderHomeGreeting() {
+        renderHomeTools(); // ML-378: the account's favourites arrive with the profile
+        const p = accountProfile;
+        const name = p && (p.displayName || p.firstName);
+        setShown('homeGreetingRow', !!name);
+        if (!name) return;
+        const now = new Date();
+        document.getElementById('homeGreeting').textContent = HomeGreeting.greeting({ name, now, sessions: rawData, random: () => homeGreetingRoll });
+        const avatar = document.getElementById('homeAvatar');
+        avatar.innerHTML = Avatars.inner(p);
+        avatar.setAttribute('aria-label', `${Avatars.label(p)} - change it in My details`);
+        const lineEl = document.getElementById('homeGreetingLine');
+        if (homeSessionsLoaded && !homeExtras && !homeExtrasLoading) {
+            homeExtrasLoading = true;
+            loadHomeExtras().then(x => { homeExtras = x; renderHomeGreeting(); });
+        }
+        if (!homeSessionsLoaded || !homeExtras) { setShown(lineEl, false); return; }
+        const line = HomeGreeting.pickLine(HomeGreeting.lines({
+            now, sessions: rawData, showProjection: statsShowProjection(),
+            practiceYearStart: practiceYearEnabled() ? formatLocalDateStr(practiceYearStartFor(now)) : null,
+            ...homeExtras,
+        }), homeLineKey);
+        homeLineKey = line ? line.key : null;
+        lineEl.textContent = line ? line.text : '';
+        setShown(lineEl, !!line);
+    }
+    document.getElementById('homeAvatar')?.addEventListener('click', () => switchView('accountDetailsView'));
+
+    // ===== ML-378: Home's "My tools" (up to four favourites) and the All tools page =====
+    // The tiles live on the All tools page (#toolsView, each with a data-tool id); Home shows copies of the
+    // chosen ones that are switched on, in your order. Chosen with "Choose Home tools" (the tiles
+    // become ★ toggles), saved on the account (accounts.home_tools, HOME_TOOL_IDS on the server).
+    const HOME_TOOLS_DEFAULT = ['metronome', 'tuner', 'timer', 'warmups'];
+    const HOME_TOOLS_MAX = 4;
+    const toolTiles = () => [...document.querySelectorAll('#toolsView .tool-icon-btn[data-tool]')];
+    const toolShown = (t) => !t.classList.contains('hidden-group');
+    const homeToolIds = () => (accountProfile && Array.isArray(accountProfile.homeTools) ? accountProfile.homeTools : HOME_TOOLS_DEFAULT);
+    // The favourites that are showing (switched on) - at most four, in your order (a new one goes at the end;
+    // move them on the All tools page while choosing).
+    const homeToolsShown = () => {
+        const byId = new Map(toolTiles().map(t => [t.dataset.tool, t]));
+        return homeToolIds().map(id => byId.get(id)).filter(t => t && toolShown(t)).slice(0, HOME_TOOLS_MAX);
+    };
+    function renderHomeTools() {
+        const row = document.getElementById('homeToolsRow');
+        if (!row) return;
+        const tiles = homeToolsShown();
+        row.innerHTML = '';
+        tiles.forEach(t => {
+            const c = t.cloneNode(true);
+            c.removeAttribute('id');
+            c.removeAttribute('aria-pressed');
+            c.classList.remove('is-fav');
+            c.querySelector('.tool-fav-star')?.remove();
+            // The copy's own ids (e.g. an icon slot) would clash with the real tile's; a drawing's ids stay
+            c.querySelectorAll('[id]').forEach(el => { if (!el.closest('svg')) el.removeAttribute('id'); });
+            row.appendChild(c);
+        });
+        setShown('homeToolsTitle', tiles.length > 0);
+        setShown(row, tiles.length > 0);
+        const others = toolTiles().filter(t => toolShown(t) && !tiles.includes(t)).map(t => t.getAttribute('aria-label'));
+        const sum = document.getElementById('homeAllToolsSummary');
+        if (sum) sum.textContent = others.length > 3 ? `${others.slice(0, 3).join(', ')} and ${others.length - 3} more` : others.join(', ') || 'Every tool you have';
+    }
+    // The ★ on each All tools tile that's on Home; while choosing, every tile shows one (filled = on Home)
+    // and is a toggle (aria-pressed).
+    function renderToolStars() {
+        const view = document.getElementById('toolsView');
+        if (!view) return;
+        const onHome = new Set(homeToolsShown().map(t => t.dataset.tool));
+        toolTiles().forEach(t => {
+            let star = t.querySelector('.tool-fav-star');
+            if (!star) {
+                star = document.createElement('span');
+                star.className = 'material-symbols-outlined tool-fav-star';
+                star.setAttribute('aria-hidden', 'true');
+                star.textContent = 'star';
+                t.appendChild(star);
+            }
+            t.classList.toggle('is-fav', onHome.has(t.dataset.tool));
+            if (toolsEditing) t.setAttribute('aria-pressed', String(onHome.has(t.dataset.tool)));
+            else t.removeAttribute('aria-pressed');
+        });
+        view.classList.toggle('is-editing', toolsEditing);
+        document.getElementById('toolsHint').textContent = toolsEditing
+            ? `${onHome.size} of ${HOME_TOOLS_MAX} on Home. Tap a tool in the lists below to add it or take it off.`
+            : 'Tap a tool to open it. The ones marked ★ are on Home.';
+        renderToolsHomeOrder();
+        const btn = document.getElementById('toolsEditBtn');
+        btn.textContent = toolsEditing ? 'Done' : 'Choose Home tools';
+        btn.setAttribute('aria-pressed', String(toolsEditing));
+    }
+    // While choosing: your Home tools in Home's order, each a button that opens Move earlier / Move later /
+    // Take off Home (← / → move it directly). data-order-tool, not data-tool, so a tap doesn't toggle it.
+    function renderToolsHomeOrder() {
+        const box = document.getElementById('toolsHomeOrder');
+        const row = document.getElementById('toolsHomeOrderRow');
+        if (!box || !row) return;
+        const tiles = homeToolsShown();
+        setShown(box, toolsEditing && tiles.length > 0);
+        row.innerHTML = '';
+        if (!toolsEditing) return;
+        tiles.forEach((t, i) => {
+            const c = t.cloneNode(true);
+            c.removeAttribute('id');
+            c.removeAttribute('aria-pressed');
+            c.removeAttribute('onclick');
+            c.classList.remove('is-fav');
+            c.querySelector('.tool-fav-star')?.remove();
+            c.querySelectorAll('[id]').forEach(el => { if (!el.closest('svg')) el.removeAttribute('id'); });
+            const id = t.dataset.tool;
+            delete c.dataset.tool;
+            c.dataset.orderTool = id;
+            c.setAttribute('aria-haspopup', 'menu');
+            c.insertAdjacentHTML('beforeend', '<span class="material-symbols-outlined tool-move-icon" aria-hidden="true">more_vert</span>');
+            c.setAttribute('aria-label', `${t.getAttribute('aria-label')}, ${i + 1} of ${tiles.length} on Home - move it or take it off`);
+            c.addEventListener('click', (e) => { e.stopPropagation(); openHomeToolMenu(c, id); });
+            c.addEventListener('keydown', (e) => {
+                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                e.preventDefault();
+                moveHomeTool(id, e.key === 'ArrowLeft' ? -1 : 1, true);
+            });
+            row.appendChild(c);
+        });
+    }
+    let homeToolMenuId = null;
+    function openHomeToolMenu(tile, id) {
+        const menu = document.getElementById('homeToolMenu');
+        const ids = homeToolsShown().map(t => t.dataset.tool), i = ids.indexOf(id);
+        homeToolMenuId = id;
+        setShown('homeToolMenuEarlier', i > 0);
+        setShown('homeToolMenuLater', i < ids.length - 1);
+        menu.classList.add('show');
+        const r = tile.getBoundingClientRect();
+        placeAt(menu, Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)), Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8));
+        menu.querySelector('.dropdown-item:not(.hidden-group)')?.focus();
+    }
+    const closeHomeToolMenu = () => document.getElementById('homeToolMenu')?.classList.remove('show');
+    document.addEventListener('click', closeHomeToolMenu);
+    // One place earlier (-1) or later (+1) among the Home tools that show; a switched-off favourite keeps its place.
+    async function moveHomeTool(id, dir, refocus = false) {
+        if (!accountProfile) return;
+        const shown = homeToolsShown().map(t => t.dataset.tool);
+        const i = shown.indexOf(id), other = shown[i + dir];
+        if (i < 0 || !other) return;
+        const before = accountProfile.homeTools ?? null;
+        const next = homeToolIds().slice();
+        const a = next.indexOf(id), b = next.indexOf(other);
+        [next[a], next[b]] = [next[b], next[a]];
+        accountProfile.homeTools = next;
+        renderToolStars();
+        renderHomeTools();
+        if (refocus) document.querySelector(`#toolsHomeOrderRow [data-order-tool="${id}"]`)?.focus();
+        try { await API.account.update({ homeTools: next }); }
+        catch (e) { accountProfile.homeTools = before; renderToolStars(); renderHomeTools(); showWarningToast('Home tools not saved - ' + e.message); }
+    }
+    [['homeToolMenuEarlier', -1], ['homeToolMenuLater', 1]].forEach(([btnId, dir]) => document.getElementById(btnId)?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeHomeToolMenu();
+        if (homeToolMenuId) moveHomeTool(homeToolMenuId, dir);
+    }));
+    document.getElementById('homeToolMenuRemove')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeHomeToolMenu();
+        if (homeToolMenuId) toggleHomeTool(homeToolMenuId);
+    });
+    async function toggleHomeTool(id) {
+        if (!accountProfile) return;
+        const shown = homeToolsShown().map(t => t.dataset.tool);
+        const on = shown.includes(id);
+        if (!on && shown.length >= HOME_TOOLS_MAX) { showWarningToast(`Home holds ${HOME_TOOLS_MAX} tools - take one off first.`); return; }
+        const before = accountProfile.homeTools ?? null;
+        // Kept: favourites that are switched off for now (they come back when they're on again)
+        const next = on ? homeToolIds().filter(x => x !== id) : [...homeToolIds(), id];
+        accountProfile.homeTools = next;
+        renderToolStars();
+        renderHomeTools();
+        try { await API.account.update({ homeTools: next }); }
+        catch (e) { accountProfile.homeTools = before; renderToolStars(); renderHomeTools(); showWarningToast('Home tools not saved - ' + e.message); }
+    }
+    document.getElementById('toolsEditBtn')?.addEventListener('click', () => { toolsEditing = !toolsEditing; renderToolStars(); });
+    // While choosing, a tap on a tile toggles it instead of opening the tool (caught before the tile's own click).
+    document.getElementById('toolsView')?.addEventListener('click', (e) => {
+        if (!toolsEditing) return;
+        const t = e.target.closest('.tool-icon-btn[data-tool]');
+        if (!t) return;
+        e.preventDefault();
+        e.stopPropagation();
+        toggleHomeTool(t.dataset.tool);
+    }, true);
+
+    // Choose an avatar (My details): Initials first, then the drawings. Tap one to use it - saved straight away.
+    function renderAvatarGrid() {
+        const p = accountProfile || {};
+        const options = [{ id: null, name: 'Initials' }, ...Avatars.LIST];
+        const grid = document.getElementById('avatarGrid');
+        grid.innerHTML = options.map(o => {
+            const on = (p.avatar || null) === o.id;
+            return `<button type="button" class="flow-picker-tile${on ? ' selected' : ''}" aria-pressed="${on}" data-avatar="${o.id || ''}"><span class="flow-picker-tile-icon-row"><span class="avatar">${Avatars.inner({ ...p, avatar: o.id })}</span></span><span class="flow-picker-tile-label">${escapeHtml(o.name)}</span></button>`;
+        }).join('');
+        grid.querySelectorAll('[data-avatar]').forEach(b => b.addEventListener('click', () => saveAvatar(b.dataset.avatar || null)));
+    }
+    async function saveAvatar(id) {
+        if (!accountProfile) return;
+        const before = accountProfile.avatar || null;
+        hideModal('avatarModal');
+        if (before === id) return;
+        accountProfile.avatar = id;
+        renderAccountNames();
+        try { await API.account.update({ avatar: id }); }
+        catch (e) { accountProfile.avatar = before; renderAccountNames(); showWarningToast('Avatar not saved - ' + e.message); }
+    }
+    document.getElementById('accountEditAvatarBtn')?.addEventListener('click', () => { renderAvatarGrid(); showModal('avatarModal'); });
+    // Closes on its ×, or a tap on the backdrop (as the Scales and Warm-ups pop-ups).
+    (() => {
+        const modal = document.getElementById('avatarModal');
+        if (!modal) return;
+        modal.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', () => hideModal(modal)));
+        modal.addEventListener('click', (e) => { if (e.target === e.currentTarget) hideModal(modal); });
+    })();
     function setAccountNameEditing(which, editing) {
         const ids = which === 'name'
             ? { panel: 'accountNameEdit', btn: 'accountEditNameBtn', focus: 'accountFirstNameInput' }
@@ -3989,7 +4322,8 @@
                 document.getElementById('accountFirstNameInput').value = p.firstName || '';
                 document.getElementById('accountSurnameInput').value = p.surname || '';
             } else {
-                document.getElementById('accountDisplayNameInput').value = p.displayName || '';
+                // ML-376: never an empty box - with no display name of your own it's your first name
+                document.getElementById('accountDisplayNameInput').value = p.displayName || p.firstName || '';
             }
         }
         setShown(ids.panel, editing);
@@ -4016,9 +4350,13 @@
     }));
     document.getElementById('accountEditDisplayNameBtn')?.addEventListener('click', () => setAccountNameEditing('display', !isShown('accountDisplayNameEdit')));
     document.getElementById('accountCancelDisplayNameBtn')?.addEventListener('click', () => setAccountNameEditing('display', false));
-    document.getElementById('accountSaveDisplayNameBtn')?.addEventListener('click', () => saveAccountNames('display', {
-        displayName: document.getElementById('accountDisplayNameInput').value.trim()
-    }));
+    // ML-376: the display name follows your first name until you make it something else - so saving it
+    // as your first name (or blank) keeps it following (stored as null), and anything else is kept separate.
+    document.getElementById('accountSaveDisplayNameBtn')?.addEventListener('click', () => {
+        const typed = document.getElementById('accountDisplayNameInput').value.trim();
+        const first = ((accountProfile && accountProfile.firstName) || '').trim();
+        saveAccountNames('display', { displayName: typed === first ? '' : typed });
+    });
 
     document.getElementById('accountJoinBandBtn')?.addEventListener('click', async () => {
         const picker = document.getElementById('accountBandPicker');
@@ -4188,7 +4526,8 @@
     // How long each toast type stays up before auto-dismissing - the one place to change a toast's
     // lifetime, since the countdown bar's own animation and the actual dismiss timer both read from
     // here rather than a duration hardcoded into each show*Toast call.
-    const TOAST_DURATIONS_MS = { success: 4000, warning: 5000, info: 4000, undo: 3000 };
+    // undo: 6s - long enough to read the message and reach Undo on a phone (3s was too short to catch)
+    const TOAST_DURATIONS_MS = { success: 4000, warning: 5000, info: 4000, undo: 6000 };
 
     // Per-toast-id pending dismiss timer, so opening the same toast again (or closing it early)
     // cancels whatever auto-dismiss was already scheduled instead of stacking another one.
@@ -5263,7 +5602,8 @@
                 if (input.value !== '' && !Number.isNaN(val)) setValue(val);
             });
             input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+                // ML-363: Enter keeps the number and, in a pop-up, saves it (enterSavesModal - Tempo, Bars...)
+                if (e.key === 'Enter') { e.preventDefault(); input.blur(); enterSavesModal(displayEl); }
                 if (e.key === 'Escape') { e.preventDefault(); input.value = ''; input.blur(); }
             });
         }
@@ -5483,6 +5823,7 @@
         tile.classList.toggle('hidden-group', hidden);
         renderToolGroups();
         renderNavToolsRow();
+        renderHomeTools(); // ML-378
     }
     var rehearseLoading = null, rehearseLoaded = false; // var: switchView can call rehearseRefresh before this line has run
     function rehearseRefresh() {
@@ -10048,6 +10389,11 @@
     function flowPauseSorted(fermatas) {
         return [...fermatas].sort((a, b) => (a.barOffset || 0) - (b.barOffset || 0) || a.beatOffset - b.beatOffset);
     }
+    // ML-365: a pause's position counted in the bar's pause steps (FlowJourney.pauseStepsPerBeat) - whole
+    // written beats, or beat notes when they're shorter: in 2/2 counted in crotchets, beat 1.5 is "beat 2 of 4".
+    const flowPauseStep = (b) => 1 / FlowJourney.pauseStepsPerBeat(b);
+    const flowPauseBeatNumber = (b, beat) => Math.round((beat - 1) / flowPauseStep(b)) + 1;
+    const flowPauseBeatCount = (b) => Math.max(1, (b && b.numerator) || 4) * FlowJourney.pauseStepsPerBeat(b);
     function renderFlowFermataList() {
         const b = flowFindBlockById(flowFermataTargetBlockId);
         const list = document.getElementById('flowFermataList');
@@ -10095,7 +10441,7 @@
                     <div class="flow-fermata-row">
                         <button type="button" class="flow-list-row-body flow-fermata-row-text${invalid ? ' flow-fermata-row-text-invalid' : ''}" data-pause-edit>
                             ${invalid ? flowWarningIconSvg('flow-warning-icon') : flowPauseIconSvg(kind, true)}
-                            <span>Bar ${(f.barOffset || 0) + 1}, beat ${f.beatOffset} &middot; <span class="flow-fermata-row-tag">${durationTag}</span></span>
+                            <span>Bar ${(f.barOffset || 0) + 1}, beat ${flowPauseBeatNumber(b, f.beatOffset)} &middot; <span class="flow-fermata-row-tag">${durationTag}</span></span>
                         </button>
                         <button type="button" class="list-item-menu-btn" data-pause-menu aria-label="Pause options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                     </div>
@@ -10256,7 +10602,8 @@
         barValueEl.classList.toggle('flow-bar-readout-invalid', barInvalid);
         barValueEl.innerText = `Bar ${draft.bar} of ${draft.maxBar}`;
         document.getElementById('flowFermataBarWarning').innerHTML = barInvalid ? flowWarningIconSvg('flow-warning-icon') : '';
-        document.getElementById('flowFermataBeatValue').innerText = `Beat ${draft.beat} of ${draft.maxBeat}`;
+        const pauseBlock = flowFindBlockById(flowFermataTargetBlockId);
+        document.getElementById('flowFermataBeatValue').innerText = `Beat ${flowPauseBeatNumber(pauseBlock, draft.beat)} of ${flowPauseBeatCount(pauseBlock)}`;
         document.getElementById('flowFermataDurationValue').innerText = `${draft.duration} beat${draft.duration === 1 ? '' : 's'}`;
         document.getElementById('flowFermataBeatLabel').innerText = draft.kind === 'caesura' ? 'After beat' : 'On beat';
         document.getElementById('flowFermataDurationLabel').innerText = draft.kind === 'caesura' ? 'Silence duration' : 'Hold duration';
@@ -10381,12 +10728,13 @@
     });
     setupHoldStepper(document.getElementById('flowFermataBeatMinus'), -1, (amount) => {
         if (!flowFermataDraft) return;
-        flowFermataDraft.beat = Math.max(1, flowFermataDraft.beat + amount);
+        flowFermataDraft.beat = Math.max(1, flowFermataDraft.beat + amount * flowPauseStep(flowFindBlockById(flowFermataTargetBlockId)));
         renderFlowFermataAddSection();
     });
     setupHoldStepper(document.getElementById('flowFermataBeatPlus'), 1, (amount) => {
         if (!flowFermataDraft) return;
-        flowFermataDraft.beat = Math.max(1, Math.min(flowFermataDraft.maxBeat, flowFermataDraft.beat + amount));
+        const step = flowPauseStep(flowFindBlockById(flowFermataTargetBlockId)); // ML-365: in the bar's pause steps
+        flowFermataDraft.beat = Math.max(1, Math.min(flowFermataDraft.maxBeat + 1 - step, flowFermataDraft.beat + amount * step));
         renderFlowFermataAddSection();
     });
     setupHoldStepper(document.getElementById('flowFermataDurationMinus'), -1, (amount) => {
@@ -10958,7 +11306,10 @@
             barCount: lastBlock ? lastBlock.barCount : 4,
             bpm: lastBlock ? lastBlock.bpm : 120,
             timeSignatureId: lastBlock && lastBlock.timeSignatureId ? lastBlock.timeSignatureId : (metroBlkTimeSigCache.public[0] ? metroBlkTimeSigCache.public[0].id : null),
-            accountTimeSignatureId: lastBlock ? lastBlock.accountTimeSignatureId : null
+            accountTimeSignatureId: lastBlock ? lastBlock.accountTimeSignatureId : null,
+            // ML-362: the beat note (the note the bpm counts - crotchet, minim...) carries on too, so a new
+            // bar at the same bpm plays at the same speed
+            noteValue: lastBlock ? lastBlock.noteValue ?? null : null
         };
         if (flowEditMode === 'edit') {
             currentFlowBlocks.push(buildLocalFlowBlockDto(data));
@@ -11238,8 +11589,11 @@
                     } else {
                         // A caesura's silence comes after the last click of its written beat.
                         const f = p.block.fermatas.find(x => x.kind === 'caesura' && (x.barOffset || 0) === bar && FlowJourney.writtenBeatToClick(p.block, x.beatOffset, cpb) === pause.click);
+                        // ML-365: "after beat" means after one of the bar's pause steps - a whole written beat, or
+                        // one beat note when it's shorter (2/2 counted in crotchets: after that crotchet).
                         const w = FlowJourney.writtenBeatsPerBar(p.block);
-                        const lastClick = f && f.beatOffset < w ? FlowJourney.writtenBeatToClick(p.block, f.beatOffset + 1, cpb) - 1 : cpb - 1;
+                        const next = f ? f.beatOffset + 1 / FlowJourney.pauseStepsPerBeat(p.block) : null;
+                        const lastClick = f && next < w + 1 ? FlowJourney.writtenBeatToClick(p.block, next, cpb) - 1 : cpb - 1;
                         gaps.set(base + Math.max(pause.click, lastClick), pause.holdBeats);
                     }
                 });
@@ -15991,6 +16345,13 @@
         if (displayPrefs.textSize !== 'standard') bits.push(displayPrefs.textSize === 'larger' ? 'extra large text' : 'large text');
         return bits.join(', ');
     }
+    // The preview is pinned under the top bar, whose height changes with text size and a wrapping title:
+    // --header-h follows it (a run-time value, specs/components/utilities-and-states.md).
+    (() => {
+        const header = document.querySelector('.top-bar-sticky-group');
+        if (!header || typeof ResizeObserver === 'undefined') return;
+        new ResizeObserver(() => document.documentElement.style.setProperty('--header-h', `${header.offsetHeight}px`)).observe(header);
+    })();
     // The preview's line of music: a C major scale, up an octave (drawn by Notation, so it follows the colours).
     const DISPLAY_PREVIEW_SCALE = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
     function renderDisplayPreview() {
@@ -16016,17 +16377,21 @@
         });
         const sum = document.getElementById('settingsDisplaySummary');
         if (sum) sum.textContent = displaySummary();
+        const reset = document.getElementById('displayResetBtn');
+        if (reset) reset.disabled = readingIsStandard();
         renderDisplayPreview();
     }
     document.querySelectorAll('input[name="displayTheme"]').forEach(r => r.addEventListener('change', () => { if (r.checked) saveDisplayPrefs({ darkMode: r.value === 'dark' }); }));
     document.getElementById('readingSpacingToggle')?.addEventListener('change', (e) => saveDisplayPrefs({ dyslexia: e.target.checked }));
-    // ML-359: dyslexia-friendly is a preset, not a setting - it sets four of the choices below (each can
-    // still be changed on its own), and Undo puts all four back as they were.
-    const DYSLEXIA_PRESET = { font: 'lexend', background: 'cream', textSize: 'large', dyslexia: true };
-    document.getElementById('dyslexiaPresetBtn')?.addEventListener('click', () => {
-        const before = Object.fromEntries(Object.keys(DYSLEXIA_PRESET).map(k => [k, displayPrefs[k]]));
-        saveDisplayPrefs(DYSLEXIA_PRESET);
-        showUndoToast('Dyslexia-friendly preset applied', () => saveDisplayPrefs(before));
+    // Reset to standard: the reading choices (background, font, text size, spacing) back to standard, with
+    // an Undo. Light / Dark is left alone - it's a theme, not a reading aid. Always at the bottom; disabled
+    // while they're all standard already.
+    const READING_KEYS = ['font', 'background', 'textSize', 'dyslexia'];
+    const readingIsStandard = () => READING_KEYS.every(k => displayPrefs[k] === DISPLAY_DEFAULTS[k]);
+    document.getElementById('displayResetBtn')?.addEventListener('click', () => {
+        const before = Object.fromEntries(READING_KEYS.map(k => [k, displayPrefs[k]]));
+        saveDisplayPrefs(Object.fromEntries(READING_KEYS.map(k => [k, DISPLAY_DEFAULTS[k]])));
+        showUndoToast('Reading settings back to standard', () => saveDisplayPrefs(before));
     });
     [['readingFont', 'font'], ['readingBackground', 'background'], ['readingTextSize', 'textSize']].forEach(([name, key]) => {
         document.querySelectorAll(`input[name="${name}"]`).forEach(r => r.addEventListener('change', () => { if (r.checked) saveDisplayPrefs({ [key]: r.value }); }));
@@ -17941,7 +18306,10 @@
     function scalesGradeContext(inst) {
         const shift = inst && inst.family === 'Brass' && inst.theoryClef === 'treble' && scales.clef !== 'treble' ? Number(inst.writtenToConcert) || 0 : 0;
         const at = (pitch) => { const m = pitch ? ScaleGrades.midiOf(pitch) : null; return m == null ? null : m + shift; };
-        return { clef: scales.clef, shift, low: at(inst && inst.rangeLow), high: at(inst && inst.rangeHigh), bottom: at(inst && inst.bottomNote), top: at(inst && inst.topNote) };
+        // high: the outer limit, a 4th above the usual top on brass and woodwind (ML-370) - once your range
+        // is set; until then (when every scale the instrument plays counts as in your list) the usual top.
+        const outer = instrumentOuter(inst);
+        return { clef: scales.clef, shift, low: at(inst && inst.rangeLow), high: at(inst && (inst.topNote && outer ? outer.high : inst.rangeHigh)), usualHigh: at(inst && inst.rangeHigh), bottom: at(inst && inst.bottomNote), top: at(inst && inst.topNote) };
     }
     // No ABRSM list for the instrument (or no instrument): Everything else is still every scale.
     function scalesGradeGrid() {
@@ -17967,11 +18335,12 @@
     function scalesRenderPool() {
         document.querySelectorAll('input[name="scalesGrade"]').forEach(el => { el.checked = scales.grades.includes(el.value === ScaleGrades.EVERYTHING ? el.value : Number(el.value)); });
         document.getElementById('scalesGradesSummary').textContent = scales.grades.length ? `· ${scalesGradesText(scales.grades)}` : '';
-        const sel = document.getElementById('scalesGradeInstrument');
         const inst = scalesGradeInstrument();
-        sel.innerHTML = (myInstruments || []).length
-            ? myInstruments.map(i => `<option value="${i.id}"${inst && i.id === inst.id ? ' selected' : ''}>${escapeHtml(i.name)}</option>`).join('')
-            : '<option value="">Add your instrument in My account</option>';
+        renderInstrumentChoice(document.getElementById('scalesGradeInstrument'), inst, (id) => {
+            scales.gradeInstrumentId = id;
+            scalesSave();
+            scalesRenderPool();
+        });
         const { group, grid, pool } = scalesGradeGrid();
         const name = document.getElementById('scalesGradeListName');
         const box = document.getElementById('scalesGradeGrid');
@@ -18003,11 +18372,6 @@
         scalesSave();
         scalesRenderPool();
     }));
-    document.getElementById('scalesGradeInstrument')?.addEventListener('change', (e) => {
-        scales.gradeInstrumentId = Number(e.target.value) || null;
-        scalesSave();
-        scalesRenderPool();
-    });
     document.getElementById('scalesPoolBtn')?.addEventListener('click', async () => {
         if (!myInstruments || !myInstruments.length) await loadMyInstruments();
         scalesRenderPool();
@@ -18019,9 +18383,43 @@
     // in that clef's pitch world: bottom / top your range, low / high the instrument's, shift if moved to
     // concert pitch), what counts as in your list until a range is set, the pop-up it opens over, and what
     // to redraw once a range is saved.
+    // ML-370: your range inside the instrument's, as one bar with the key under it (.range-bar, specs/
+    // components/range-bar.md). ctx as renderMyRange's: low / usualHigh the instrument's range, bottom / top
+    // yours. On brass and woodwind the bar runs on a 4th past the usual top, open-ended, with the usual top
+    // ticked. Returns { html, text } - text is the "still to learn" line. No bar without the instrument's range.
+    function rangeBarHtml(inst, ctx) {
+        const named = (m) => PlayRange.label(PlayRange.pitchOf(m, 'usual'));
+        if (ctx.low == null || ctx.usualHigh == null) return { html: '', text: '' };
+        const stretch = PlayRange.STRETCH_FAMILIES.includes(inst.family) ? PlayRange.STRETCH_ABOVE : 0;
+        const lo = Math.min(ctx.low, ctx.bottom), usual = ctx.usualHigh, end = Math.max(usual + stretch, ctx.top);
+        const pct = (m) => `${Math.round(((m - lo) / (end - lo)) * 1000) / 10}%`;
+        const part = (cls, from, to) => `<div class="range-bar-part ${cls}" style="--rb-from:${from};--rb-to:${to}"></div>`;
+        const open = end > usual;
+        const label = `Your range, ${named(ctx.bottom)} to ${named(ctx.top)}, inside the instrument's ${named(lo)} to ${named(usual)}${open ? ` - and up to ${named(end)} with experience` : ''}`;
+        const html = `<div class="range-bar" role="img" aria-label="${escapeHtml(label)}">`
+            + part(`range-bar-potential${open ? ' is-open' : ''}`, '0%', pct(usual))
+            + (open ? part('range-bar-stretch', pct(usual), '100%') : '')
+            + part('range-bar-yours', pct(ctx.bottom), pct(ctx.top))
+            + (open ? `<div class="range-bar-tick" style="--rb-at:${pct(usual)}"></div>` : '')
+            + '</div>'
+            + `<div class="range-bar-ends" aria-hidden="true"><span class="range-bar-end is-start">${named(lo)}</span>`
+            + (open ? `<span class="range-bar-end is-at" style="--rb-at:${pct(usual)}">${named(usual)} usual top</span>` : `<span class="range-bar-end is-end">${named(usual)}</span>`)
+            + '</div>'
+            + '<ul class="range-bar-key" aria-hidden="true"><li><span class="range-bar-swatch is-yours"></span>Your range</li><li><span class="range-bar-swatch is-potential"></span>Potential range</li></ul>';
+        const below = Math.max(0, ctx.bottom - ctx.low), above = usual - ctx.top;
+        const n = (k) => `${k} note${k === 1 ? '' : 's'}`;
+        const parts = [below ? `${n(below)} below` : '', above > 0 ? `${n(above)} up to the usual top` : ''].filter(Boolean);
+        let text = parts.length ? `Still to learn: ${parts.join(', ')}.` : 'You play the whole of the usual range.';
+        if (above < 0) text += ` You're ${n(-above)} past the usual top${open ? ' - keep going if it\'s comfortable' : ''}.`;
+        return { html, text };
+    }
     function renderMyRange({ inst, clef, ctx, what, over, after }) {
-        document.getElementById('scalesMyRangeTitle').textContent = inst ? `Your range on ${inst.name}` : 'Your range';
+        // ML-370: "Your range" on its own, the instrument under it in smaller type (a long name didn't fit).
+        const instLine = document.getElementById('scalesMyRangeInstrument');
+        instLine.textContent = inst ? inst.name : '';
+        setShown(instLine, !!inst);
         const staff = document.getElementById('scalesMyRangeStaff');
+        const barBox = document.getElementById('scalesMyRangeBar');
         const text = document.getElementById('scalesMyRangeText');
         const setBtn = document.getElementById('scalesMyRangeSetBtn');
         const named = (m) => PlayRange.label(PlayRange.pitchOf(m, 'usual'));
@@ -18029,11 +18427,13 @@
             const notes = [ctx.bottom, ctx.top].map(m => PlayRange.pitchOf(m, 'usual'));
             staff.innerHTML = Notation.staff({ clef, noteGap: 3, label: `Your range: ${named(ctx.bottom)} to ${named(ctx.top)}`,
                 items: notes.map(pitch => ({ type: 'note', pitch })) });
-            text.textContent = `Lowest ${named(ctx.bottom)}, highest ${named(ctx.top)}${ctx.shift ? ' - at concert pitch, as the bass-clef grade lists are written' : ''}.`
-                + (ctx.low != null ? ` The instrument goes from ${named(ctx.low)} to ${named(ctx.high)}.` : '');
+            const bar = rangeBarHtml(inst, ctx);
+            barBox.innerHTML = bar.html;
+            text.textContent = (ctx.shift ? 'At concert pitch, as the bass-clef grade lists are written. ' : '') + bar.text;
             setBtn.textContent = 'Change your range';
         } else {
             staff.innerHTML = '';
+            barBox.innerHTML = '';
             text.textContent = inst ? `You haven't set the notes you can play comfortably on ${inst.name} yet - until you do, ${what} counts as in your list.` : 'Add the instrument you play in My account → My instruments first.';
             setBtn.textContent = inst ? 'Set your range' : 'My instruments';
         }
@@ -18150,13 +18550,16 @@
     // grows. See specs/components/warmups.md.
     const WARMUPS_STORE = 'tml.warmups';
     // clef is only used once clefSet (chosen with the Clef button) - until then it's the instrument's own.
-    const WARMUPS_DEFAULTS = { kinds: Warmups.KIND_IDS.slice(), clef: 'treble', clefSet: false, instrumentId: null, metronome: true, repeat: 1, countIn: 1, volume: 80, currentId: null };
+    // metronome starts off (ML-368) so the screen is as simple as it can be on arrival; switching it on is remembered.
+    // metronomeOffOnce: settings saved before ML-368 had it on (the old default) - switched off once, then remembered.
+    const WARMUPS_DEFAULTS = { kinds: Warmups.KIND_IDS.slice(), clef: 'treble', clefSet: false, instrumentId: null, metronome: false, metronomeOffOnce: true, repeat: 1, countIn: 1, volume: 80, currentId: null };
     const WARMUPS_REPEATS = [[1, 'once', 'once'], [2, 'twice', 'twice'], [0, 'loop', 'until stopped']];
     let warmups = (() => {
         try {
             const saved = JSON.parse(localStorage.getItem(WARMUPS_STORE) || 'null');
             // A bass clef chosen before ML-361 stays chosen.
             if (saved && saved.clefSet === undefined) saved.clefSet = saved.clef === 'bass';
+            if (saved && !saved.metronomeOffOnce) { saved.metronome = false; saved.metronomeOffOnce = true; }
             if (saved) return { ...WARMUPS_DEFAULTS, ...saved, kinds: Array.isArray(saved.kinds) ? saved.kinds : WARMUPS_DEFAULTS.kinds.slice() };
         } catch (e) { /* unreadable - defaults */ }
         return { ...WARMUPS_DEFAULTS, kinds: WARMUPS_DEFAULTS.kinds.slice() };
@@ -18174,13 +18577,17 @@
     // ML-361: the instrument (Warm-ups pop-up; your main one to start with) and its range. The clef is the
     // instrument's own until one is chosen with the Clef button (a euphonium can read either).
     const warmupsInstrument = () => (myInstruments || []).find(i => i.id === warmups.instrumentId) || (myInstruments || []).find(i => i.isPrimary) || (myInstruments || [])[0] || null;
-    const warmupsOwnClef = (inst) => (inst && inst.theoryClef === 'bass' ? 'bass' : 'treble');
+    const warmupsOwnClef = (inst) => (inst && ['bass', 'tenor'].includes(inst.theoryClef) ? inst.theoryClef : 'treble');
     const warmupsClef = () => (warmups.clefSet ? warmups.clef : warmupsOwnClef(warmupsInstrument()));
     // In the instrument's own clef, where its range and yours are written: ready / locked (outside your
     // range for now) / beyond (the instrument can't play it).
+    // high is the outer limit - a 4th above the usual top on brass and woodwind (ML-370) - so a warm-up up
+    // there is locked until your range reaches it, not beyond the instrument. Until your range is set
+    // (every warm-up the instrument plays counts as in your list) it's the usual top.
     function warmupsRangeOf(inst) {
         const m = (x) => (x ? Warmups.midi(x) : null);
-        return inst ? { low: m(inst.rangeLow), high: m(inst.rangeHigh), bottom: m(inst.bottomNote), top: m(inst.topNote) } : {};
+        const outer = instrumentOuter(inst);
+        return inst ? { low: m(inst.rangeLow), high: m(inst.topNote && outer ? outer.high : inst.rangeHigh), usualHigh: m(inst.rangeHigh), bottom: m(inst.bottomNote), top: m(inst.topNote) } : {};
     }
     function warmupsState(ex, inst = warmupsInstrument()) {
         const sp = inst && Warmups.span(ex, warmupsOwnClef(inst));
@@ -18223,7 +18630,7 @@
         document.getElementById('warmupsShuffleBtn').disabled = list.length < 2;
         document.getElementById('warmupsRepeatVal').textContent = (WARMUPS_REPEATS.find(r => r[0] === warmups.repeat) || WARMUPS_REPEATS[0])[1];
         document.getElementById('warmupsCountInVal').textContent = warmups.countIn ? '1 bar' : 'none';
-        document.getElementById('warmupsClefVal').textContent = warmupsClef() === 'bass' ? 'Bass' : 'Treble';
+        document.getElementById('warmupsClefVal').textContent = (SCALES_CLEFS.find(([v]) => v === warmupsClef()) || SCALES_CLEFS[0])[1];
         warmupsShowMetronome();
         if (!ex) {
             warmupsTimeline = null;
@@ -18293,7 +18700,7 @@
         document.getElementById('warmupsPlayBtn').setAttribute('aria-pressed', String(playing));
     }
     function warmupsPlay() {
-        if (warmups.metronome === false) return;
+        if (warmups.metronome !== true) return;
         const ex = warmupsCurrent();
         if (!ex || !warmupsTimeline) return;
         if (warmupsTick === 0) warmupsCountInClicks = warmups.countIn ? ex.beatsPerBar * warmupsTimeline.notesPerBeat : 0;
@@ -18319,7 +18726,7 @@
     }
     // Use metronome (ML-361, as Scales): off hides the transport, the tempo and the volume, and stops it.
     function warmupsShowMetronome() {
-        const on = warmups.metronome !== false;
+        const on = warmups.metronome === true;
         document.getElementById('warmupsMetronomeToggle').checked = on;
         setShown('warmupsMetronomeControls', on);
         setShown('warmupsVolumeBtn', on);
@@ -18415,15 +18822,18 @@
 
     // --- Warm-ups (instrument + kinds), Clef, Choose a warm-up, repeat, count-in ---
     const warmupsKindLabel = (k) => (Warmups.KINDS.find(x => x.id === k) || {}).label || k;
-    const warmupsAnd = (parts) => (parts.length > 1 ? `${parts.slice(0, -1).join(', ')} & ${parts[parts.length - 1]}` : (parts[0] || ''));
     // About how long a list takes, each at its own tempo
     const warmupsMinutes = (list) => Math.max(1, Math.round(list.reduce((t, ex) => t + (ex.notes || []).reduce((b, n) => b + Warmups.beatsOf(n), 0) / (ex.bpm || 72), 0)));
     function warmupsRenderSettings() {
-        const sel = document.getElementById('warmupsInstrument');
         const inst = warmupsInstrument();
-        sel.innerHTML = (myInstruments || []).length
-            ? myInstruments.map(i => `<option value="${i.id}"${inst && i.id === inst.id ? ' selected' : ''}>${escapeHtml(i.name)}</option>`).join('')
-            : '<option value="">Add your instrument in My account</option>';
+        renderInstrumentChoice(document.getElementById('warmupsInstrument'), inst, (id) => {
+            warmups.instrumentId = id;
+            warmups.clefSet = false; // the new instrument's own clef
+            warmupsSave();
+            warmupsReset();
+            warmupsRenderSettings();
+            renderWarmups();
+        });
         setShown('warmupsSeeRangeBtn', !!inst);
         const all = warmupsAll || [];
         const rows = Warmups.KINDS.map(k => {
@@ -18433,7 +18843,6 @@
         });
         const picked = new Set(warmups.kinds);
         const summarise = () => {
-            document.getElementById('warmupsKindsSummary').textContent = warmups.kinds.length ? `· ${warmupsAnd(warmups.kinds.map(k => warmupsKindLabel(k).toLowerCase()))}` : '';
             const chosen = warmupsChosen(), mine = warmupsList();
             document.getElementById('warmupsCount').textContent = !warmupsAll ? ''
                 : `${mine.length} warm-up${mine.length === 1 ? '' : 's'} in your list${chosen.length > mine.length ? ` (of ${chosen.length})` : ''}${mine.length ? `, about ${warmupsMinutes(mine)} minute${warmupsMinutes(mine) === 1 ? '' : 's'}` : ''}`;
@@ -18451,14 +18860,6 @@
             summarise();
         }, '');
     }
-    document.getElementById('warmupsInstrument')?.addEventListener('change', (e) => {
-        warmups.instrumentId = Number(e.target.value) || null;
-        warmups.clefSet = false; // the new instrument's own clef
-        warmupsSave();
-        warmupsReset();
-        warmupsRenderSettings();
-        renderWarmups();
-    });
     document.getElementById('warmupsSettingsBtn')?.addEventListener('click', async () => {
         if (!myInstruments || !myInstruments.length) await loadMyInstruments();
         warmupsRenderSettings();
@@ -18469,7 +18870,7 @@
         renderMyRange({ inst, clef: warmupsOwnClef(inst), ctx: { shift: 0, ...warmupsRangeOf(inst) }, what: 'every warm-up', over: 'warmupsSettingsModal', after: () => { warmupsRenderSettings(); renderWarmups(); } });
     });
     document.getElementById('warmupsClefBtn')?.addEventListener('click', () => {
-        scalesFillGrid('warmupsClefGrid', [['treble', 'Treble'], ['bass', 'Bass']].map(([v, l]) => ({ value: l, caption: 'clef', selected: warmupsClef() === v, v })),
+        scalesFillGrid('warmupsClefGrid', SCALES_CLEFS.map(([v, l]) => ({ value: l, caption: 'clef', selected: warmupsClef() === v, v })),
             (o) => { warmups.clef = o.v; warmups.clefSet = true; warmupsSave(); hideModal('warmupsClefModal'); renderWarmups(); });
         showModal('warmupsClefModal');
     });
@@ -18478,7 +18879,7 @@
     function warmupsRenderChoose() {
         const chosen = warmupsChosen(), mine = warmupsList(), cur = warmupsCurrent();
         const locked = chosen.length - mine.length;
-        document.getElementById('warmupsChooseIntro').textContent = !chosen.length ? 'Nothing chosen yet - choose some kinds in Warm-ups.'
+        document.getElementById('warmupsChooseIntro').textContent = !chosen.length ? 'Nothing chosen yet - choose some topics in Warm-ups.'
             : `The ${mine.length} warm-up${mine.length === 1 ? '' : 's'} in your list. Tap one to play it${locked ? ' - the locked ones are outside your range for now' : ''}.`;
         const list = document.getElementById('warmupsChooseList');
         list.innerHTML = Warmups.KINDS.filter(k => chosen.some(ex => ex.kind === k.id)).map(k => {

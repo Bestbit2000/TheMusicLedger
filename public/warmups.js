@@ -82,7 +82,9 @@
         const alter = midi(p) - 14 - ((octave + 1) * 12 + NATURAL[letter]);
         return letter + ({ '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: 'x' })[alter] + octave;
     }
-    const pitchFor = (p, clef) => (p === null ? null : clef === 'bass' ? toBassClef(p) : p);
+    // ML-373: tenor clef reads the same pitches as bass clef (trombone and euphonium up high), so it takes
+    // the same 9th down - only the clef it's drawn in differs.
+    const pitchFor = (p, clef) => (p === null ? null : clef === 'bass' || clef === 'tenor' ? toBassClef(p) : p);
 
     // When each note starts and how long it lasts, in clicks: the metronome clicks every crotchet, or
     // every quaver when the exercise has quavers or dotted crotchets. The gold note follows this.
