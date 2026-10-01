@@ -6604,8 +6604,8 @@
         try { await API.levels.setChunk(s.chunk.id, { level: s.level, source: 'during', percentPlayed: played }); }
         catch (e) { showWarningToast('Level not saved: ' + e.message); }
     }
-    // "Did you nail it?" - Yes (up one) and Not yet (stay) are one tap; Other answers holds down one and
-    // the jumps. Under it, the piece's next goal: every bit up to the next Level.
+    // "Did you nail it?" - Yes (up one) and Not yet (stay) are one tap; "Too fast? Back to Level N" is a link
+    // under them, and "Move up even further" opens the jumps. Under it, the piece's next goal: every bit up to the next Level.
     function openLevelRating() {
         const s = flowSession;
         if (!s) return;
@@ -6626,7 +6626,7 @@
         box.innerHTML = main.map(([lv, t, cls]) => `<button type="button" class="${cls}" data-rate="${lv}">${t}</button>`).join('');
         box.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => rateLevelPractice(Number(b.dataset.rate))));
         const down = document.getElementById('levelRateDown');
-        down.innerHTML = n > 1 && n < 5 ? `<button type="button" class="flow-choice-option level-answer" data-rate="${n - 1}"><span><strong>Too fast - back to Level ${n - 1}</strong><br><span class="text-sm text-muted">${pct(n - 1)}% next time</span></span></button>` : '';
+        down.innerHTML = n > 1 && n < 5 ? `<button type="button" class="btn-text" data-rate="${n - 1}">Too fast? Back to Level ${n - 1} (${pct(n - 1)}%)</button>` : '';
         down.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => rateLevelPractice(Number(b.dataset.rate))));
         const jumps = [];
         for (let k = n + 2; k <= 5; k++) jumps.push(k);
@@ -6635,7 +6635,7 @@
         const jumpEl = document.getElementById('levelRateJump');
         jumpEl.innerHTML = jumps.map(k => `<button type="button" class="level-pick lv-${k}" data-rate="${k}" aria-label="Jump to Level ${k}, ${pct(k)}% speed">${k}<small>${pct(k)}%</small></button>`).join('');
         jumpEl.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => rateLevelPractice(Number(b.dataset.rate))));
-        setShown('levelRateMoreBtn', !!(down.innerHTML || jumps.length));
+        setShown('levelRateMoreBtn', jumps.length > 0);
         setShown('levelRateMore', false);
         document.getElementById('levelRateMoreBtn').setAttribute('aria-expanded', 'false');
         // The piece's next goal - "Everyone up to 2" and its bar map.

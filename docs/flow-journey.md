@@ -138,7 +138,7 @@ Level up; at the end (or Done) it goes on to painting the bars.
 - **The tiles:** repeat, sub beats and speed are swapped for **Level** (a live status), **Level up** (the
   same bars at the next Level straight away, saved as `during`) and **Finish**.
 - **Finish:** "Did you nail it?" (ML-390) - Yes (up one, a short star celebration) / Not yet (stay) in one tap;
-  Other answers holds down one and the jumps to higher Levels. Saved as `rating` with the speed played.
+  "Too fast? Back to Level N" is a link under them, and "Move up even further" opens the jumps to higher Levels. Saved as `rating` with the speed played.
 - **Leaving:** leaving the play screen any other way ends the practice unrated. The player's own speed,
   sub-beat setting and repeat come back.
 

@@ -2731,7 +2731,7 @@
     .cut-bit.is-too-long { border: 2px solid var(--danger-color); }
 
     /* "Did you nail it?" (ML-390): the Level pair (1 -> 2) and a short star celebration on a Yes. */
-    .levelup { display: grid; justify-items: center; gap: var(--space-2); text-align: center; }
+    .levelup { display: grid; justify-items: center; gap: var(--space-2); text-align: center; margin-bottom: var(--space-4); } /* room under the 1 -> 2 pair before "Played at..." (owner, 1 Oct 2026) */
     .levelup h2 { margin: 0; text-wrap: balance; }
     .levelup-stars { display: flex; gap: var(--space-1); color: var(--primary-action-strong); }
     .levelup-stars .material-symbols-outlined { font-variation-settings: 'FILL' 1; }

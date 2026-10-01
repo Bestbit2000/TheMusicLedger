@@ -39,7 +39,7 @@ the same colours on bigger squares ([piece-path](piece-path.md)).
 - **Picker:** `.level-picker` › `.level-pick.lv-N` × 5. Each button shows the number and, under it
   (`small`), that Level's speed as a % of the piece's tempo.
 - **Selected row:** `.history-item.level-row-selected` (gold border and focus ring). The Level picker opens straight under it.
-- **Choice rows:** `.flow-choice-option.level-answer` buttons (full width, left-aligned title and caption) - e.g. "Too fast - back to Level 1" in "Did you nail it?". (ML-390 replaced the three "How well can you play it?" answers with painting.)
+- **Choice rows:** `.flow-choice-option.level-answer` buttons (full width, left-aligned title and caption) - e.g. "Got it - next step" when a skill is rated. In "Did you nail it?", "Too fast? Back to Level N" is a `.btn-text` link under Yes / Not yet, and "Move up even further" opens the jump picker (owner, 1 Oct 2026). (ML-390 replaced the three "How well can you play it?" answers with painting.)
 - **Fit line:** "0:32 a go · fits 8 goes". It turns amber (`.level-fit-warn`) when the bit plays fewer than
   5 times in a block (ML-390; it was 3).
 - **Notice:** `.level-notice`, the amber "bars have changed" message.

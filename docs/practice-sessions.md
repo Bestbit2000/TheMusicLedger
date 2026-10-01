@@ -44,8 +44,8 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
    list - it plays on a loop), **Scales** (your grade's scales in the Scales tool), **Skills** (which skills
    list). **Pieces** come from a **practice list**, **pieces you choose** (one or several, the Add pieces pick
    list) or **all your pieces** with Levels. **Auto** (on by default) picks the bars; off, you pick each Pieces
-   block's bars on Ready. The card shows the next goal ("every 1 up to 2") and each piece's Level strip and where
-   it is on its path.
+   block's bars on Ready. The card shows the next goal ("every 1 up to 2") and each piece's Level bar (how many bars at each Level,
+   the key under the list) and where it is on its path.
 4. **Ready** (`#sessionPlanView`) - the strip and the timeline; tap a block to swap it; **Start**.
 
 "Plan a session for this" on a practice list opens the steps on that list with the Concert plan.
@@ -67,8 +67,8 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
   you move on when it's done (the time it took is logged).
 - **When a block's time is up** (or Next block): Play Flow pauses where it is and any other tool is left (which
   stops it). A Pieces block asks **"Did you nail it?"** - one tap: **Yes! Level up** (a short star celebration) or
-  **Not yet**; Other answers holds "Too fast - back one" and the jumps. Under it, the piece's next goal. A
-  Warm-ups/Scales skill asks "Got it?". Then the rest, or the next block.
+  **Not yet**; "Too fast? Back to Level N" is a link under them, and **Move up even further** opens the jumps to
+  higher Levels (owner, 1 Oct 2026). Under it, the piece's next goal with its Level bar. A Warm-ups/Scales skill asks "Got it?". Then the rest, or the next block.
 - **No "Keep going" on a block** any more (owner, 30 Sept 2026): the rest always happens. For more time, pick a
   longer session or Keep going (open-ended).
 - **Keep going sessions:** there's always the next block planned (the rest needs to know what's next); a new

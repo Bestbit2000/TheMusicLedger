@@ -3384,7 +3384,8 @@
 </div>
 
 <!-- ML-317 / ML-390: after practising some bars - "Did you nail them?". One tap for the usual answers
-     (Yes, up a Level / Not yet, stay); Other answers holds down one and the jumps. A Yes gets a short
+     (Yes, up a Level / Not yet, stay); "Too fast? Back to Level N" is a link under them, and "Move up even
+     further" opens the jumps to higher Levels (owner, 1 Oct 2026). A Yes gets a short
      star celebration. Under it, the piece's next goal ("Everyone up to 2"). Saved with API.levels.setChunk
      (source 'rating'). -->
 <div class="modal" id="levelRateModal" role="dialog" aria-modal="true" aria-labelledby="levelRateTitle">
@@ -3397,9 +3398,9 @@
         </div>
         <p class="metro-help-text" id="levelRateSub"></p>
         <div id="levelRateOptions"></div>
-        <button type="button" class="btn-text" id="levelRateMoreBtn" aria-expanded="false" aria-controls="levelRateMore">Other answers</button>
+        <div id="levelRateDown"></div>
+        <button type="button" class="btn-text" id="levelRateMoreBtn" aria-expanded="false" aria-controls="levelRateMore">Move up even further</button>
         <div class="hidden-group" id="levelRateMore">
-            <div id="levelRateDown"></div>
             <p class="text-sm fw-bold mb-2 hidden-group" id="levelRateJumpLabel">It was easy - jump to</p>
             <div class="level-picker hidden-group" id="levelRateJump" role="group" aria-labelledby="levelRateJumpLabel"></div>
         </div>
