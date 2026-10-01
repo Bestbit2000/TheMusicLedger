@@ -1,16 +1,21 @@
 import pool from '../config/db.js';
 import { getAccountBands } from './bands.js';
+import { sendSignupAlert } from './signupAlert.js';
 
 // The whole app has only ever dealt in email strings - this is the one place
 // that resolves one to a real accounts.id, creating the row on first sight.
-export async function getOrCreateAccount(email, firstName = '', surname = '') {
+// ML-392: a new row is a sign-up (a first Google login) - the owner is emailed, with the device from
+// `client` ({ userAgent, model }). ON CONFLICT: two first requests at once make one row and one email.
+export async function getOrCreateAccount(email, firstName = '', surname = '', client = {}) {
   const existing = await pool.query('SELECT id FROM accounts WHERE email = $1', [email]);
   if (existing.rows.length) return existing.rows[0].id;
 
   const inserted = await pool.query(
-    'INSERT INTO accounts (email, first_name, surname) VALUES ($1, $2, $3) RETURNING id',
+    'INSERT INTO accounts (email, first_name, surname) VALUES ($1, $2, $3) ON CONFLICT (email) DO NOTHING RETURNING id',
     [email, firstName, surname]
   );
+  if (!inserted.rows.length) return (await pool.query('SELECT id FROM accounts WHERE email = $1', [email])).rows[0].id;
+  await sendSignupAlert({ firstName, surname, email, method: 'Google', ...client });
   return inserted.rows[0].id;
 }
 

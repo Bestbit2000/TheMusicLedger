@@ -80,10 +80,14 @@ export async function requireAuthFromQueryOrHeader(req, res, next) {
 // A super admin can preview the app as another type (Admin -> Feature access, "Preview the app as")
 // with the X-Preview-Level header - only a super admin's is honoured, and admin routes still check
 // the real level (requireSuperAdmin reads the database).
+// ML-392: what a sign-up alert says about the device - the browser's User-Agent, and Chrome's phone model
+// when it sends it (asked for with Accept-CH, server/app.js).
+export const clientDevice = (req) => ({ userAgent: req.get('user-agent') || '', model: req.get('sec-ch-ua-model') || '' });
+
 export async function resolveAccount(req, res, next) {
   let level;
   try {
-    req.accountId = await getOrCreateAccount(req.userId, req.firstName, req.surname);
+    req.accountId = await getOrCreateAccount(req.userId, req.firstName, req.surname, clientDevice(req));
     level = await getAccountLevel(req.accountId);
   } catch (error) {
     console.error('Account resolution error:', error.message);

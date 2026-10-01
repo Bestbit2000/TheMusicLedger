@@ -38,6 +38,10 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // protection uses its own signed, session-less store (server/utils/stateStore.js).
 app.use(passport.initialize());
 
+// ML-392: Chrome hides an Android phone's model unless the site asks for it - then the app's own
+// requests carry it (Sec-CH-UA-Model), for the owner's new sign-up email. Other browsers ignore this.
+app.use((req, res, next) => { res.set('Accept-CH', 'Sec-CH-UA-Model'); next(); });
+
 // Routes FIRST (before static files)
 app.use('/auth', authRoutes);
 app.use('/api', apiRoutes);

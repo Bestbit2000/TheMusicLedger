@@ -105,6 +105,13 @@ Plus `MAIL_FROM` (e.g. `The Music Ledger <musicledger.mail@gmail.com>`) and `APP
 `https://the-music-ledger.vercel.app`) wherever real email is sent. Gmail allows ~500 emails a day,
 plenty for invite-only.
 
+**New sign-up alerts (ML-392):** when an account is created - a first Google login, or an invite accepted
+with a password - `server/services/signupAlert.js` emails `SIGNUP_ALERT_EMAIL` the name, email, date (UK
+time), how they signed up and the device (from the User-Agent; Chrome on Android adds the model through the
+`Sec-CH-UA-Model` hint, asked for with `Accept-CH` in `server/app.js` - iPhones never say their model).
+Unset = no alert. Set in Vercel for Production only (2026-10-01), so sandbox and dev don't alert; on dev it
+would go to `email_outbox` like every other email. A failed alert is logged and never stops the sign-up.
+
 ## Turning it on (sandbox, then production)
 
 1. Create the Gmail account, turn on 2-step verification, make an app password.

@@ -4,6 +4,7 @@ import { signToken } from '../utils/authToken.js';
 import { currentTokenVersion, forgetTokenVersion } from '../services/tokenVersions.js';
 import { passwordLoginEnabled, login, forgotPassword, resetPassword, describeLink, acceptInvite, appUrl, secondStep, setupFromChallenge, confirmSetupFromChallenge } from '../services/passwordAuth.js';
 import { sendError } from '../utils/httpErrors.js';
+import { clientDevice } from '../middleware/auth.js';
 
 // ML-355: every login token carries the account's token version (tv) - read fresh, not from the cache,
 // so a login straight after a password reset isn't signed with the old number.
@@ -143,7 +144,7 @@ router.get('/link/:purpose/:secret', async (req, res) => {
 
 router.post('/invite/accept', async (req, res) => {
   try {
-    res.json(await acceptInvite(req.body?.token, req.body?.password, req.ip));
+    res.json(await acceptInvite(req.body?.token, req.body?.password, req.ip, clientDevice(req)));
   } catch (error) {
     sendError(res, error);
   }

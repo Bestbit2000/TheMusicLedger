@@ -14,6 +14,7 @@ import { sendMail, mailIsReal } from './mail.js';
 import { isFeatureLive } from './features.js';
 import { forgetTokenVersion, currentTokenVersion } from './tokenVersions.js';
 import { twoStepStatus, beginSetup, confirmSetup, verifyLoginCode } from './twoStep.js';
+import { sendSignupAlert } from './signupAlert.js';
 
 const INVITE_DAYS = 7;
 const RESET_MINUTES = 60;
@@ -202,7 +203,8 @@ async function setPassword(client, accountId, password) {
     [accountId, hash]);
 }
 
-export async function acceptInvite(secret, password, ip) {
+// ML-392: a new account here is a sign-up - the owner is emailed (device from `device`, { userAgent, model }).
+export async function acceptInvite(secret, password, ip, device = {}) {
   await requireEnabled();
   if (await overLimit('link', ip, 60, 15)) throw fail(429, TOO_MANY);
   const problem = await passwordProblem(password);
@@ -213,6 +215,7 @@ export async function acceptInvite(secret, password, ip) {
     const link = await liveLink(client, String(secret || ''), 'invite', true);
     if (!link) throw fail(404, 'This invite has expired or already been used - ask for a new one.');
     let account = await accountByEmail(client, link.email);
+    const isNew = !account;
     if (!account) {
       // A new account gets the invite's name and type; an existing (Google) one keeps its own.
       await client.query('INSERT INTO accounts (email, first_name, surname, account_level) VALUES ($1, $2, $3, $4)',
@@ -223,6 +226,7 @@ export async function acceptInvite(secret, password, ip) {
     await client.query('UPDATE auth_email_links SET used_at = now() WHERE id = $1', [link.id]);
     await client.query('UPDATE account_passwords SET last_login_at = now() WHERE account_id = $1', [account.id]);
     await client.query('COMMIT');
+    if (isNew) await sendSignupAlert({ firstName: link.first_name, surname: link.surname, email: link.email, method: 'Email and password (invite)', ...device });
     return completeLogin(account);
   } catch (e) {
     await client.query('ROLLBACK').catch(() => {});
