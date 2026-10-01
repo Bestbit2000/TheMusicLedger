@@ -124,6 +124,16 @@ Run `npm run backtest` (starts the local server against `dev` if one isn't
 already running - see `playwright.config.ts`'s `webServer`). Report the
 passed/failed counts.
 
+`scripts/record-backtest-run.mjs` writes **one row per test case**, from every
+test in the spec file (describe blocks included): **FAIL** if any test failed
+(`error_message` says how many, how many didn't run after it, and names the
+first failed test), **SKIPPED** if nothing failed but some test didn't run,
+**PASS** only when every test meant to run passed (a deliberate `test.skip` is
+fine). `test_runs` totals count those rows. To check a report without writing
+anything: `node scripts/record-backtest-run.mjs --report <path> --dry-run`.
+(Before 1 Oct 2026 it read only each file's first test - runs up to 56 can show
+PASS for a file whose later tests failed; run 57 was corrected.)
+
 ## When a test fails
 
 This is the step the blueprint had Claude Haiku do via a separate billed API
