@@ -6190,16 +6190,17 @@
     // bar is hidden from screen readers (its row's button already says it). sizeLevelBars sets the widths.
     function levelBarHtml(map, { label = true, cls = '' } = {}) {
         const parts = [1, 2, 3, 4, 5, 0].map(l => [l, map.filter(v => (v || 0) === l).length]).filter(([, n]) => n);
-        const words = parts.map(([l, n]) => `${n} bar${n === 1 ? '' : 's'} ${l ? `at Level ${l}` : 'not painted'}`).join(', ');
+        const words = parts.map(([l, n]) => `${n} bar${n === 1 ? '' : 's'} ${l ? `at Level ${l}` : 'not known yet'}`).join(', ');
         return `<span class="level-bar${cls ? ' ' + cls : ''}" ${label ? `role="img" aria-label="Levels: ${words}"` : 'aria-hidden="true"'}>${parts.map(([l, n]) =>
             `<span class="level-bar-part lv-${l}" data-bars="${n}">${l ? `<span class="level-bar-num">${l}</span>` : ''}</span>`).join('')}</span>`;
     }
     function sizeLevelBars(root) {
         root.querySelectorAll('.level-bar-part[data-bars]').forEach(p => p.style.setProperty('--bars', p.dataset.bars));
     }
-    // The key under Level bars - the same as under a piece's map on its path.
+    // The key under Level bars - as under a piece's map on its path, but an unset bar is "Not known" here (owner,
+    // 1 Oct 2026); "Not painted" stays on the path, where you paint them.
     const levelLegendHtml = () => `<div class="level-legend mt-2" aria-hidden="true">
-        <span><span class="level-cell lv-0"></span>Not painted</span>
+        <span><span class="level-cell lv-0"></span>Not known</span>
         <span><span class="level-cell lv-1">1</span><span class="level-cell lv-2">2</span>Silver</span>
         <span><span class="level-cell lv-3">3</span><span class="level-cell lv-4">4</span>Gold</span>
         <span><span class="level-cell lv-5">5</span>Full speed</span></div>`;

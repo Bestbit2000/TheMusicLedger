@@ -23,7 +23,8 @@ the same colours on bigger squares ([piece-path](piece-path.md)).
   The Level number is inside each square, and an unset bar is empty with a dashed outline.
   - `.is-marked` rings the bars being edited: the hard passage being added, or the chunk selected.
 - **Level bar (list rows):** `.level-bar` › `.level-bar-part.lv-N` (› `.level-bar-num`) - one bar chart of the
-  piece: how many of its bars are at each Level, 1 to 5 left to right, then the bars not painted (`lv-0`, dashed).
+  piece: how many of its bars are at each Level, 1 to 5 left to right, then the bars not known yet (`lv-0`, dashed - the key
+  says "Not known" under a Level bar, "Not painted" on a piece's path where you paint them; owner, 1 Oct 2026).
   At most six parts, so a 243-bar piece reads as easily as a 16-bar one (a square a bar turned a long piece
   into a row of lines - owner, 1 Oct 2026). Each part's width is its share of the bars (`--bars`, set by
   `sizeLevelBars`), never less than `--space-1`; the Level number shows inside when the part is at least 14px
@@ -32,8 +33,8 @@ the same colours on bigger squares ([piece-path](piece-path.md)).
 - **Strip:** `.level-strip` › `.level-cell.lv-N` × items. One thin row with no numbers - now only the Range
   tool's notes past your range. In a strip an unset item is a plain `--level-unset-border` fill, not a dashed
   outline (ML-334). The strip never overflows its row.
-- **Legend (the key):** `.level-legend` › `span` › `.level-cell` + label: Not painted, 1 2 Silver, 3 4 Gold, 5 Full speed.
-  Under a piece's map and under Level bars (`levelLegendHtml`). No bottom margin when it's the last thing in its box.
+- **Legend (the key):** `.level-legend` › `span` › `.level-cell` + label: Not painted (Not known under a Level bar), 1 2
+  Silver, 3 4 Gold, 5 Full speed. Under a piece's map and under Level bars (`levelLegendHtml`). No bottom margin when it's the last thing in its box.
 - **Chip:** `.level-chip.lv-N`, the Level at the start of a chunk / hard-passage row. The row is a
   `.history-item` with a `.level-row-body` button (the chip plus text) and any action buttons.
 - **Picker:** `.level-picker` › `.level-pick.lv-N` × 5. Each button shows the number and, under it

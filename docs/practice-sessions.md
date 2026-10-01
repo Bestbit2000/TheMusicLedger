@@ -46,7 +46,7 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
    list). **Pieces** come from a **practice list**, **pieces you choose** (one or several, the Add pieces pick
    list) or **all your pieces** with Levels. **Auto** (on by default) picks the bars; off, you pick each Pieces
    block's bars on Ready. The card shows the next goal ("every 1 up to 2") and each piece's Level bar (how many bars at each Level,
-   the key under the list) and where it is on its path.
+   the key under the list - an unset bar is "Not known" there) and where it is on its path.
 4. **Ready** (`#sessionPlanView`) - the strip and the timeline; tap a block to swap it; **Start**.
 
 "Plan a session for this" on a practice list opens the steps on that list with the Concert plan.
