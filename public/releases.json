@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.36.0",
+    "date": "2026-10-01",
+    "changes": [
+      {
+        "key": "ML-393",
+        "type": "New",
+        "summary": "Theory options: Content and Length boxes that open pop-ups, and \"Both\" for sharps and flats"
+      },
+      {
+        "key": "ML-392",
+        "type": "New",
+        "summary": "Email me if a user signs up"
+      }
+    ]
+  },
+  {
     "version": "0.35.0",
     "date": "2026-10-01",
     "changes": [
