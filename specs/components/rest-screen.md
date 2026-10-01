@@ -22,7 +22,8 @@ next block starts by itself at 0.
 `.rest-screen` › `.rest-ring` (`svg.rest-ring-svg` › `circle.rest-ring-track` + `circle.rest-ring-left`
 (`pathLength="100"`), `.rest-ring-num` › `strong` seconds + "seconds") › `section.rest-card` (`.rest-art` › an icon
 or `.rest-breath` › `.rest-breath-word`, `.rest-kind`, `h2.rest-title`, `.rest-body`) › `.rest-next` (a
-`.kind-block.kind-block-icon` + "Next up" and the block).
+`.kind-block.kind-block-icon` + "Next up" and the block; when the next block is a piece, a `p.text-sm` under it -
+"Get the music ready: Floral Dance, open at bar 33." - owner, 1 Oct 2026).
 
 ## 4. Tokens used
 `--rest-bg` (the panel), `--rest-surface` (the card and Next up), `--rest-text` (the countdown, the kind, the icon),

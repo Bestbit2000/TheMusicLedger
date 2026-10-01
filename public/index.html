@@ -198,6 +198,7 @@
     <button type="button" class="session-bar hidden-group" id="sessionBar" aria-label="Practice session - open">
         <span class="session-bar-row"><span id="sessionBarText">Block 1 of 1</span><strong id="sessionBarTime">5:00</strong></span>
         <span class="session-strip" id="sessionBarStrip" aria-hidden="true"></span>
+        <span class="session-bar-next hidden-group" id="sessionBarNext"></span>
     </button>
 
     <!-- ML-129 follow-up: opened by tapping either the running pill or the idle icon above - a true
@@ -1184,7 +1185,7 @@
             </section>
             <div class="rest-next">
                 <span class="kind-block kind-block-icon" id="restNextIcon" aria-hidden="true"></span>
-                <span class="grow"><span class="text-sm text-muted">Next up</span><br><strong id="restNextText"></strong></span>
+                <div class="grow"><span class="text-sm text-muted">Next up</span><br><strong id="restNextText"></strong><p class="text-sm no-margin mt-1 hidden-group" id="restNextMusic"></p></div>
             </div>
         </div>
     </div>
@@ -3404,7 +3405,7 @@
         </div>
         <div class="session-goal-card hidden-group" id="levelRateGoal">
             <p class="text-sm fw-bold no-margin" id="levelRateGoalText"></p>
-            <span class="level-strip mt-1" id="levelRateGoalStrip" aria-hidden="true"></span>
+            <div class="mt-1" id="levelRateGoalBar"></div>
         </div>
     </div>
 </div>

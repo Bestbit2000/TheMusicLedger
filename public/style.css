@@ -2579,6 +2579,14 @@
        the strip off the page, so in a strip an unset bar is a plain fill instead. */
     .level-strip { overflow: hidden; }
     .level-strip .lv-0 { border: none; background: var(--level-unset-border); }
+    /* ML-390: a piece's Levels as one bar chart on a list row (.level-bar) - how many of its bars are at each
+       Level, 1 to 5 left to right, then the bars not painted (dashed). At most six parts however long the
+       piece is. Each part's width is its share of the bars (--bars, set by sizeLevelBars), never less than
+       a sliver; the Level number shows inside when the part is wide enough to hold it. */
+    .level-bar { display: flex; gap: var(--space-0-5); height: var(--level-bar-height); }
+    .level-bar-part { flex: var(--bars, 1) 1 0; min-width: var(--space-1); border-radius: var(--radius-2xs); display: grid; place-items: center; font-size: var(--font-xs); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); box-sizing: border-box; overflow: hidden; container-type: inline-size; }
+    @container (max-width: 14px) { .level-bar-num { display: none; } }
+    .level-legend:last-child { margin-bottom: 0; }
     .lv-0 { background: transparent; border: 1px dashed var(--level-unset-border); color: var(--label-color); }
     .lv-1 { background: var(--level-1); color: var(--level-1-text); }
     .lv-2 { background: var(--level-2); color: var(--level-2-text); }
@@ -2606,10 +2614,15 @@
     .session-bar { width: 100%; max-width: var(--app-max-width); box-sizing: border-box; display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-5); min-height: var(--touch-target); background: var(--container-bg); color: var(--text-color); border: none; border-bottom: 2px solid var(--primary-action-strong); font: inherit; text-align: left; cursor: pointer; }
     .session-bar-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); font-size: var(--font-sm); font-weight: var(--font-weight-semibold); }
     .session-bar-row strong { font-variant-numeric: tabular-nums; }
+    /* The piece coming next, so its music can be got ready (owner, 1 Oct 2026) - one line, cut short with ... */
+    .session-bar-next { font-size: var(--font-xs); color: var(--label-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .session-strip { display: flex; gap: var(--space-0-5); height: var(--space-2); }
     .session-seg { flex: 1; border-radius: var(--radius-2xs); background: var(--control-border); }
     .session-seg.is-done { background: var(--primary-action); }
-    .session-seg.is-now { background: var(--primary-action-strong); }
+    /* The block you're on fills in from the left as its time goes (--seg-fill 0-1, set by renderPracticeRun),
+       ringed so it shows even before it starts filling. */
+    .session-seg.is-now { position: relative; overflow: hidden; box-sizing: border-box; border: 1px solid var(--primary-action-strong); }
+    .session-seg.is-now::after { content: ''; position: absolute; inset: 0; background: var(--primary-action-strong); transform: scaleX(var(--seg-fill, 1)); transform-origin: left; }
     .session-block-time { flex-shrink: 0; min-width: var(--space-9); font-variant-numeric: tabular-nums; }
 
     /* Stepped practice sessions (ML-390) - see specs/components/practice-steps.md. One question a screen,

@@ -54,12 +54,13 @@ function validated(body) {
   const kind = String(body.kind || '');
   const beatsPerBar = Number(body.beatsPerBar);
   const bpm = Math.round(Number(body.bpm));
-  const notes = (Array.isArray(body.notes) ? body.notes : []).map((n) => {
+  // Rests after the last note are dropped - no point in a silent bar at the end (owner, 1 Oct 2026).
+  const notes = Warmups.trimEndRests((Array.isArray(body.notes) ? body.notes : []).map((n) => {
     const out = { p: n && n.p ? String(n.p) : null, d: n && n.d };
     if (n && n.dot) out.dot = true;
     if (n && n.sl) out.sl = true; // ML-361: slurred to the next note
     return out;
-  });
+  }));
   const errors = [];
   if (!title || title.length > 80) errors.push('A title (up to 80 characters) is needed.');
   if (tip.length > 200) errors.push('Keep the tip to 200 characters.');

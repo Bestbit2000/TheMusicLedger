@@ -1,7 +1,7 @@
 # Practice session (bar and block strip)
 
 ## 1. Metadata
-- **Name:** Practice session (`.session-bar`, `.session-bar-row`, `.session-strip`, `.session-seg`, `.session-block-time`; states `.is-done`, `.is-now` on `.session-seg`)
+- **Name:** Practice session (`.session-bar`, `.session-bar-row`, `.session-bar-next`, `.session-strip`, `.session-seg`, `.session-block-time`; states `.is-done`, `.is-now` on `.session-seg`)
 - **Category:** Navigation / status
 - **Status:** New (ML-320, epic ML-314)
 
@@ -26,8 +26,13 @@ and the rest are grey. It's used on the planner, the session screen and the bar.
 - **Don't use** these for anything that isn't a practice session.
 
 ## 3. Anatomy
-- **Bar:** `button.session-bar` › `.session-bar-row` (text + `strong` time) › `.session-strip`.
-- **Strip:** `.session-strip` › `.session-seg` (+ `.is-done` / `.is-now`) × blocks.
+- **Bar:** `button.session-bar` › `.session-bar-row` (text + `strong` time) › `.session-strip` › `.session-bar-next`.
+  The last line names the piece coming next - "Next: Floral Dance · Bars 33–34" - while a block plays, only when the
+  next block is a piece (Pieces, Prepare or Play-through), so its music can be got ready (owner, 1 Oct 2026). One
+  line, `--font-xs` in `--label-color`, cut short with an ellipsis.
+- **Strip:** `.session-strip` › `.session-seg` (+ `.is-done` / `.is-now`) × blocks. The block you're on fills in from
+  the left as its time goes (`--seg-fill`, 0-1, set each second by `renderPracticeRun` - owner, 1 Oct 2026): full in the
+  rest after it and for a Prepare (no end). It's ringed so it shows before it starts to fill.
 - **Block row (planner):** `.history-item` › `.level-row-body` › `.session-block-time` ("10–15") + kind
   and detail.
 
@@ -48,7 +53,7 @@ and the rest are grey. It's used on the planner, the session screen and the bar.
 | State | Treatment |
 |---|---|
 | Block done | `.session-seg.is-done` - `--primary-action` |
-| Block now | `.session-seg.is-now` - `--primary-action-strong` |
+| Block now | `.session-seg.is-now` - a 1px `--primary-action-strong` ring, filling with `--primary-action-strong` (`::after`, `scaleX(--seg-fill)`) over `--control-border` |
 | Block to come | `.session-seg` - `--control-border` |
 | Bar hidden | No session, the session has ended, or you're on the session screen itself |
 | Focus | The global `--focus-ring` on the bar |

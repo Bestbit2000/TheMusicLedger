@@ -75,6 +75,21 @@ describe('warm-ups (ML-294)', () => {
             for (const clef of ['treble', 'bass', 'tenor']) for (const r of W.rows(e, clef)) N.staff({ clef, items: r.items, stepRange: W.stepRange(e, clef) });
         }
     });
+    test('no rests after the last note: trimEndRests, and the eight seeded long tones lose their rest bar (088)', () => {
+        assert.deepEqual(plain(W.trimEndRests(W.parse('C4h rh G4w rw rq'))), plain(W.parse('C4h rh G4w')));
+        assert.deepEqual(plain(W.trimEndRests(W.parse('rq C4q'))), plain(W.parse('rq C4q')), 'a rest before the first note stays');
+        assert.deepEqual(plain(W.trimEndRests(W.parse('rw'))), []);
+        const sql = fs.readFileSync(new URL('../../db/migrations/055_warmups.sql', import.meta.url), 'utf8');
+        const seeded = [...sql.matchAll(/'(\[\{.*?\}\])'::jsonb, (\d)/g)].map(([, json, bpb]) => ({ beatsPerBar: Number(bpb), notes: JSON.parse(json.replace(/''/g, "'")) }));
+        const trimmed = seeded.filter(e => W.trimEndRests(e.notes).length < e.notes.length);
+        assert.equal(trimmed.length, 8);
+        for (const e of trimmed) {
+            const t = { ...e, notes: W.trimEndRests(e.notes) };
+            const c = W.check(t);
+            assert.ok(c.ok && !c.shortLast, 'still whole bars, still valid');
+            assert.equal(W.timeline(t).totalClicks, W.timeline(e).totalClicks - e.beatsPerBar, 'one bar shorter');
+        }
+    });
 });
 
 describe('warm-ups: slurs and the range (ML-361)', () => {

@@ -71,6 +71,14 @@
         return { ok: errors.length === 0, errors, bars, shortLast };
     }
 
+    // Rests after the last note are dropped (owner, 1 Oct 2026): a rest bar at the end only adds a silent bar
+    // before the next go or the next warm-up. Saving trims them; migration 088 trimmed the seeded long tones.
+    function trimEndRests(notes) {
+        const out = Array.isArray(notes) ? notes.slice() : [];
+        while (out.length && (!out[out.length - 1] || out[out.length - 1].p == null)) out.pop();
+        return out;
+    }
+
     // Down a major 9th (14 semitones, 8 letter-steps): treble-clef B♭ brass written pitch to the same
     // sound written for a bass-clef instrument. Spelled from the letter, so C -> B♭, G -> F, F# -> E.
     const LETTERS = 'CDEFGAB';
@@ -193,6 +201,6 @@
     // The other way round (tests, and the migration that added the seed exercises' slurs).
     const format = (notes) => notes.map(n => `${n.p === null ? 'r' : n.p}${n.d}${n.dot ? '.' : ''}${n.sl ? '^' : ''}`).join(' ');
 
-    const api = { KINDS, KIND_IDS, LENGTHS, LENGTH_NAMES, RANGE, beatsOf, midi, check, toBassClef, pitchFor, timeline, noteAt, rows, span, stepRange, parse, format };
+    const api = { KINDS, KIND_IDS, LENGTHS, LENGTH_NAMES, RANGE, beatsOf, midi, check, trimEndRests, toBassClef, pitchFor, timeline, noteAt, rows, span, stepRange, parse, format };
     root.Warmups = api;
 })(typeof self !== 'undefined' ? self : globalThis);

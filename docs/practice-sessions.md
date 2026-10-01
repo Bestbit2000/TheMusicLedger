@@ -75,7 +75,8 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
   Pieces block takes what needs you most that isn't one of the last three, a new Skills block the skill practised
   longest ago that isn't one of the last two.
 - **A Warm-up block loops its list** (`sessionWarmupLoop`): one exercise after another with the click on, round
-  after round, each round 10% faster (`PracticePlan.warmupRoundBpm`), until the block ends.
+  after round, each round 10% faster (`PracticePlan.warmupRoundBpm`), until the block ends. It's one metronome
+  sequence, so the next warm-up comes in on the beat with a single bar-start click (docs/warmups.md, "Playing").
 - **Logging:** a session that ends, or is ended early, is one `sessions` row plus a `session_segments` row per
   block (seconds - the rest counts with the block before it - chunk and tool), so Stats and history see it.
 - **Resume:** the running session is kept on the server (`active_practice_sessions`) whenever it changes,

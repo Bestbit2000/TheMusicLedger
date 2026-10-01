@@ -6184,6 +6184,25 @@
         const set = map.filter(v => v).length;
         el.setAttribute('aria-label', !set ? 'No bars painted yet' : `Levels by bar: ${[1, 2, 3, 4, 5].map(n => [n, map.filter(v => v === n).length]).filter(([, c]) => c).map(([n, c]) => `${c} bar${c === 1 ? '' : 's'} at Level ${n}`).join(', ')}${set < map.length ? `, ${map.length - set} not painted` : ''}`);
     }
+    // A piece's Levels as one bar chart (.level-bar) for a list row: how many of its bars are at each Level,
+    // 1 to 5, then the ones not painted - each part as wide as its share. A square a bar turned a long piece
+    // (Teddy Bears Picnic, 243 bars) into a row of lines. map: FlowJourney.barLevels. With label: false the
+    // bar is hidden from screen readers (its row's button already says it). sizeLevelBars sets the widths.
+    function levelBarHtml(map, { label = true, cls = '' } = {}) {
+        const parts = [1, 2, 3, 4, 5, 0].map(l => [l, map.filter(v => (v || 0) === l).length]).filter(([, n]) => n);
+        const words = parts.map(([l, n]) => `${n} bar${n === 1 ? '' : 's'} ${l ? `at Level ${l}` : 'not painted'}`).join(', ');
+        return `<span class="level-bar${cls ? ' ' + cls : ''}" ${label ? `role="img" aria-label="Levels: ${words}"` : 'aria-hidden="true"'}>${parts.map(([l, n]) =>
+            `<span class="level-bar-part lv-${l}" data-bars="${n}">${l ? `<span class="level-bar-num">${l}</span>` : ''}</span>`).join('')}</span>`;
+    }
+    function sizeLevelBars(root) {
+        root.querySelectorAll('.level-bar-part[data-bars]').forEach(p => p.style.setProperty('--bars', p.dataset.bars));
+    }
+    // The key under Level bars - the same as under a piece's map on its path.
+    const levelLegendHtml = () => `<div class="level-legend mt-2" aria-hidden="true">
+        <span><span class="level-cell lv-0"></span>Not painted</span>
+        <span><span class="level-cell lv-1">1</span><span class="level-cell lv-2">2</span>Silver</span>
+        <span><span class="level-cell lv-3">3</span><span class="level-cell lv-4">4</span>Gold</span>
+        <span><span class="level-cell lv-5">5</span>Full speed</span></div>`;
     function renderPiecePath() {
         document.getElementById('topTitle').innerText = levels.title;
         document.getElementById('pathSub').textContent = `${levels.total} bar${levels.total === 1 ? '' : 's'}`;
@@ -6626,7 +6645,9 @@
             const low = Math.min(...bits.map(c => c.level));
             const there = levels.chunks.filter(c => c.level != null).length - bits.filter(c => c.level === low).length;
             document.getElementById('levelRateGoalText').textContent = `Next goal for ${levels.title}: every bit up to Level ${low + 1} (${there} of ${levels.chunks.filter(c => c.level != null).length} there)`;
-            document.getElementById('levelRateGoalStrip').innerHTML = levelsMap().map(v => `<span class="level-cell lv-${v || 0}"></span>`).join('');
+            const goalBar = document.getElementById('levelRateGoalBar');
+            goalBar.innerHTML = levelBarHtml(levelsMap()) + levelLegendHtml();
+            sizeLevelBars(goalBar);
         }
         document.getElementById('levelRateUp').classList.remove('is-celebrating');
         showModal('levelRateModal');
@@ -6714,6 +6735,13 @@
     }
     // A block in a sentence: "Scales", "Skills - Tempo", "Pieces - Floral Dance...".
     const sessBlockName = (b) => (b.kind === 'warmup' || b.kind === 'scales' ? PracticePlan.KINDS[b.kind] : `${blockTitle(b)} - ${sessBlockText(b)}`);
+    // The piece a block plays, so its music can be got ready before it starts (owner, 1 Oct 2026): { title, from, to }
+    // - from/to its bars, or null when the block isn't a piece (or is 'Any piece').
+    function nextMusic(b) {
+        if (!b || b.kind !== 'rehearsal') return null;
+        if (b.chunk) return { title: b.chunk.title || b.title, from: b.chunk.startBar, to: b.chunk.endBar };
+        return b.title ? { title: b.title, from: 1, to: null } : null;
+    }
     function sessStripHtml(blocks, index) {
         return blocks.map((b, i) => `<span class="session-seg${index == null ? '' : i < index ? ' is-done' : i === index ? ' is-now' : ''}"></span>`).join('');
     }
@@ -6952,7 +6980,14 @@
             sessPlan.pieces = [];
         }
     }
-    async function sessLoadContentData() {
+    // Step 3's loading, kept so Ready can wait for it - a quick tap on Ready planned before the pieces had
+    // come in, and every Pieces block became "Any piece".
+    let sessContentLoad = null;
+    function sessLoadContentData() {
+        sessContentLoad = sessLoadContentDataNow();
+        return sessContentLoad;
+    }
+    async function sessLoadContentDataNow() {
         await Promise.all([
             loadTemplates(), loadSkills(), loadWarmupLists(), refreshSessionPieces(),
             API.practiceLists.list().then(r => { sessPracticeLists = (r && r.lists) || []; }).catch(() => { sessPracticeLists = []; })
@@ -7014,8 +7049,9 @@
         const list = document.getElementById('sessPiecesList');
         list.innerHTML = sessPlan.pieces.length ? sessPlan.pieces.map(p => {
             const map = FlowJourney.barLevels(p.totalBars, p.chunks);
-            return `<div class="session-piece"><span class="session-piece-head"><strong>${escapeHtml(p.title)}</strong><span class="text-sm text-muted">${escapeHtml(pieceStatus(p))}</span></span><span class="level-strip" aria-hidden="true">${map.map(v => `<span class="level-cell lv-${v || 0}"></span>`).join('')}</span></div>`;
-        }).join('') : `<p class="text-sm text-muted">${src.type === 'all' ? 'No pieces have Levels yet. Choose a practice list or some pieces and each gets a Prepare block first.' : 'No pieces here yet.'}</p>`;
+            return `<div class="session-piece"><span class="session-piece-head"><strong>${escapeHtml(p.title)}</strong><span class="text-sm text-muted">${escapeHtml(pieceStatus(p))}</span></span>${levelBarHtml(map)}</div>`;
+        }).join('') + levelLegendHtml() : `<p class="text-sm text-muted">${src.type === 'all' ? 'No pieces have Levels yet. Choose a practice list or some pieces and each gets a Prepare block first.' : 'No pieces here yet.'}</p>`;
+        sizeLevelBars(list);
     }
     document.getElementById('sessAutoToggle')?.addEventListener('change', (e) => { sessPlan.auto = e.target.checked; renderSessContent(); });
     // One pop-up for step 3's choices (the warm-up list, the skills list, where the pieces come from).
@@ -7089,7 +7125,13 @@
 
     // --- Ready: the whole session at a glance ---
     const skillsForPlan = () => skillsData.map(s => ({ key: s.key, stepIndex: s.stepIndex, lastPractised: s.lastPractised, done: s.done, step: s.step }));
-    function openSessionReady() {
+    async function openSessionReady() {
+        const btn = document.getElementById('sessToReadyBtn');
+        if (sessContentLoad) {
+            btn.disabled = true;
+            await sessContentLoad.catch(() => { /* planned with whatever came in */ });
+            btn.disabled = false;
+        }
         switchView('sessionPlanView');
         sessReplan();
     }
@@ -7175,7 +7217,7 @@
         showModal('sessionBlockModal');
     }
     document.getElementById('sessionBlockCloseBtn')?.addEventListener('click', () => hideModal('sessionBlockModal'));
-    document.getElementById('sessStartBtn')?.addEventListener('click', () => { sessSaveLast(); startPracticeRun(); startSessionBlock(); });
+    document.getElementById('sessStartBtn')?.addEventListener('click', () => { if (!(sessPlan.blocks || []).length) return; sessSaveLast(); startPracticeRun(); startSessionBlock(); });
 
     // --- Running it ---
     function startPracticeRun() {
@@ -7332,6 +7374,10 @@
         const next = r.blocks[r.index + 1];
         setKindIcon(document.getElementById('restNextIcon'), next);
         document.getElementById('restNextText').textContent = next ? sessBlockName(next) : '';
+        const music = next && nextMusic(next);
+        const line = document.getElementById('restNextMusic');
+        line.textContent = music ? `Get the music ready: ${music.title}${music.from > 1 ? `, open at bar ${music.from}` : ', from the start'}.` : '';
+        setShown(line, !!music);
     }
     function renderRest() {
         const r = practiceRun;
@@ -7488,6 +7534,16 @@
         setShown(nextBtn, !resting);
         document.getElementById('sessionBarText').textContent = `${count} · ${resting ? 'Rest' : blockTitle(b)}`;
         document.getElementById('sessionBarTime').textContent = time;
+        // While a block plays, the bar names the piece coming next.
+        const nextUp = r.blocks[r.index + 1];
+        const music = !resting && nextMusic(nextUp);
+        const barNext = document.getElementById('sessionBarNext');
+        barNext.textContent = music ? `Next: ${music.title}${music.to ? ` · ${levelsRange(music.from, music.to)}` : ''}` : '';
+        setShown(barNext, !!music);
+        // The block you're on fills in as its time goes (owner, 1 Oct 2026) - full in the rest after it, and
+        // full for a Prepare, which has no end.
+        const fill = resting || isPrepare || !(r.nudgeAt > 0) ? 1 : Math.min(1, Math.max(0, runElapsed() / r.nudgeAt));
+        document.querySelectorAll('#sessRunStrip .session-seg.is-now, #sessionBarStrip .session-seg.is-now').forEach(s => s.style.setProperty('--seg-fill', fill.toFixed(3)));
     }
 
     document.getElementById('startPracticeSessionBtn')?.addEventListener('click', () => (practiceRun && !practiceRun.done ? switchView(practiceRun.phase === 'rest' ? 'sessionRestView' : 'sessionRunView') : openSessionSetup({})));
@@ -7642,11 +7698,12 @@
             return `<div class="history-item">
                 <button type="button" class="level-row-body grow text-left" data-piece="${p.scoreId}" aria-label="${escapeHtml(p.title)} - ${note}. ${pb.prep ? 'Prepare it now' : 'Open its path'}">
                     <span class="grow"><strong>${escapeHtml(p.title)}</strong><br><span class="text-sm text-muted">${note}</span>
-                    ${pb.prep ? '<span class="text-sm fw-bold">Prepare it now &rsaquo;</span>' : `<span class="level-strip mt-1" aria-hidden="true">${map.map(v => `<span class="level-cell lv-${v || 0}"></span>`).join('')}</span>`}</span>
+                    ${pb.prep ? '<span class="text-sm fw-bold">Prepare it now &rsaquo;</span>' : levelBarHtml(map, { label: false, cls: 'mt-1' })}</span>
                 </button>
                 <button type="button" class="list-item-menu-btn" data-piece-menu="${p.scoreId}" aria-label="Options for ${escapeHtml(p.title)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined" aria-hidden="true">more_vert</span></button>
             </div>`;
-        }).join('') : '<p class="text-sm text-muted">No pieces yet.</p>';
+        }).join('') + (f.pieces.some(pb => !pb.prep) ? levelLegendHtml() : '') : '<p class="text-sm text-muted">No pieces yet.</p>';
+        sizeLevelBars(box);
         box.querySelectorAll('[data-piece]').forEach(b => b.addEventListener('click', () => openPiecePath(Number(b.dataset.piece))));
         box.querySelectorAll('[data-piece-menu]').forEach(b => b.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -19374,15 +19431,40 @@
     let warmupsTimeline = null;
     // ML-390: a session's looping warm-up - the next exercise in the list, and a new, slightly faster round
     // after the last one. It keeps playing until the block ends (the session leaves the tool, which stops it).
-    function warmupsLoopNext() {
+    // The loop is one metronome sequence (the player's ML-193 sequence mode): each exercise is a passage
+    // (its count-in bar, then its notes), and the player asks for the next one on the beat the last one
+    // ends - so it carries straight on in time. Stopping and restarting the player between exercises
+    // sounded the next bar's first click twice (owner, 1 Oct 2026).
+    // sessionWarmupLoop: { round, tag (the passage on screen), queued (the last one handed to the player) }.
+    function warmupsPassage(ex, round, tag) {
+        const tl = Warmups.timeline(ex);
+        const countIn = warmups.countIn ? ex.beatsPerBar * tl.notesPerBeat : 0;
+        return { bpm: PracticePlan.warmupRoundBpm(ex.bpm, round), beatsPerBar: ex.beatsPerBar, notesPerBeat: tl.notesPerBeat, startClick: 0, boundaryClicks: countIn + tl.totalClicks, tag };
+    }
+    // The player's boundary call - a little ahead of the beat, while the clicks are being scheduled.
+    function warmupsLoopBoundary() {
+        const L = sessionWarmupLoop;
         const list = warmupsList();
-        if (!list.length || !sessionWarmupLoop) { warmupsReset(); return; }
-        const i = list.indexOf(warmupsCurrent());
-        if (i + 1 >= list.length) sessionWarmupLoop.round++;
-        const next = list[(i + 1) % list.length];
-        warmupsShow(next);
-        warmupsSetBpm(PracticePlan.warmupRoundBpm(next.bpm, sessionWarmupLoop.round));
-        warmupsPlay();
+        if (!L || !L.queued || !list.length) return null;
+        const i = list.findIndex(ex => ex.id === L.queued.ex.id);
+        const round = L.queued.round + (i + 1 >= list.length ? 1 : 0);
+        const ex = list[(i + 1) % list.length];
+        L.queued = { ex, round, tag: `${ex.id}:${round}:${++L.n}` };
+        return warmupsPassage(ex, round, L.queued.tag);
+    }
+    // The next exercise's first click has sounded: show it (without stopping the player).
+    function warmupsLoopArrive() {
+        const L = sessionWarmupLoop, q = L.queued;
+        L.tag = q.tag;
+        L.round = q.round;
+        warmups.currentId = q.ex.id;
+        warmupsBpm = PracticePlan.warmupRoundBpm(q.ex.bpm, q.round);
+        warmupsSave();
+        warmupsTick = 0;
+        warmupsCountdown = 0;
+        renderWarmups();
+        warmupsCountInClicks = warmups.countIn ? q.ex.beatsPerBar * warmupsTimeline.notesPerBeat : 0;
+        warmupsRenderBpm();
     }
     function renderWarmupsLoop() {
         const on = !!sessionWarmupLoop;
@@ -19450,7 +19532,8 @@
     warmupsPlayer.setVisualLatencyMs(metroState.latencyMs);
     warmupsPlayer.setVolume((warmups.volume ?? 80) / 100);
     let warmupsTick = 0, warmupsCountInClicks = 0, warmupsCountdown = 0;
-    warmupsPlayer.onBeat(() => {
+    warmupsPlayer.onBeat((info) => {
+        if (sessionWarmupLoop && sessionWarmupLoop.tag && info && info.tag && info.tag !== sessionWarmupLoop.tag) warmupsLoopArrive();
         const tl = warmupsTimeline;
         if (!tl) return;
         const k = warmupsTick++ - warmupsCountInClicks;
@@ -19462,9 +19545,8 @@
         }
         if (warmupsCountdown) { warmupsCountdown = 0; warmupsShowSub(); }
         const pass = Math.floor(k / tl.totalClicks);
-        // ML-390: in a session's Warm-up block each exercise plays once, then the next one follows.
-        const reps = sessionWarmupLoop ? 1 : warmups.repeat;
-        if (reps && pass >= reps) { if (sessionWarmupLoop) { warmupsLoopNext(); return; } warmupsReset(); return; } // played it the chosen number of times
+        // (In a session's Warm-up block each exercise plays once - the sequence moves on by itself.)
+        if (!sessionWarmupLoop && warmups.repeat && pass >= warmups.repeat) { warmupsReset(); return; } // played it the chosen number of times
         warmupsLight(Warmups.noteAt(tl, k % tl.totalClicks));
     });
     function warmupsUpdatePlayUi() {
@@ -19478,6 +19560,15 @@
         const ex = warmupsCurrent();
         if (!ex || !warmupsTimeline) return;
         if (warmupsTick === 0) warmupsCountInClicks = warmups.countIn ? ex.beatsPerBar * warmupsTimeline.notesPerBeat : 0;
+        const L = sessionWarmupLoop;
+        if (L && L.tag) { warmupsPlayer.play(); warmupsUpdatePlayUi(); return; } // carrying on where the loop paused
+        if (L) {
+            // The loop starts from the warm-up on screen, at the tempo showing.
+            L.n = (L.n || 0) + 1;
+            L.tag = `${ex.id}:${L.round}:${L.n}`;
+            L.queued = { ex, round: L.round, tag: L.tag };
+            warmupsPlayer.setSequence({ ...warmupsPassage(ex, L.round, L.tag), bpm: warmupsBpm }, warmupsLoopBoundary);
+        } else warmupsPlayer.clearSequence();
         warmupsPlayer.setConductorBpm(warmupsBpm);
         warmupsPlayer.setConductorBeatsPerBar(ex.beatsPerBar);
         warmupsPlayer.setNotesPerBeat(warmupsTimeline.notesPerBeat);
@@ -19492,6 +19583,7 @@
     function warmupsReset() {
         if (warmupsPlayer.isPlaying()) warmupsPlayer.pause();
         warmupsPlayer.resetToBarStart();
+        if (sessionWarmupLoop) sessionWarmupLoop.tag = null; // the next Play starts the loop again from the warm-up on screen
         warmupsTick = 0;
         warmupsCountdown = 0;
         warmupsLight(-1);

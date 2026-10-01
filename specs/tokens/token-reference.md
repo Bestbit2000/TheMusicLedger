@@ -243,7 +243,8 @@ edge, icon/text and fill
 | Token | Value | Use for |
 |---|---|---|
 | `--level-cell-size` | `24px` | one bar's square in a piece's Level map (display only, not a tap target) |
-| `--level-strip-height` | `12px` | the thin one-row Level strip on a list row |
+| `--level-strip-height` | `12px` | the thin one-row strip (Range's notes past your range) |
+| `--level-bar-height` | `20px` | ML-390 a piece's Levels bar chart on a list row - holds the Level number |
 
 ## Radius
 

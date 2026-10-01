@@ -24,6 +24,9 @@ play. A building block of practice sessions, alongside Scales (ML-9).
 - **Tenor clef** (ML-373: trombone and euphonium up high) reads the same pitches as bass clef, so it takes
   the same 9th down - only the clef it's drawn in differs. The Clef pop-up offers Treble, Bass and Tenor, as
   Scales does; an instrument whose own clef is tenor starts on it.
+- **No rests after the last note** (owner, 1 Oct 2026): a rest bar at the end only adds a silent bar before the
+  next go or the next warm-up. Saving trims them (`Warmups.trimEndRests`, server and editor alike); migration 088
+  trimmed the eight seeded long tones that had one.
 - **Stored** as `notes`: `[{ p: 'G4' | null (rest), d: 'w'|'h'|'q'|'e', dot?: true, sl?: true }]` and
   `beats_per_bar` (2-6). Bars come from the lengths; a note can't run over a bar line; the last bar
   may be short.
@@ -76,3 +79,9 @@ hide it from the tool without losing it.
 or dotted crotchets (`setNotesPerBeat(2)`), and each note lights for its own length (a semibreve for
 four clicks). A count-in bar first (optional), then once, twice or looped, at the exercise's own
 tempo unless you change it.
+
+In a practice session's Warm-up block (ML-390) the list plays on a loop: the whole loop is one metronome
+**sequence** (the player's ML-193 sequence mode) - each warm-up is a passage (its count-in bar, then its notes),
+and the player asks for the next one on the beat the last ends, so it carries straight on in time and the screen
+moves on with the next warm-up's first click. (Stopping and restarting the player between warm-ups played the
+next bar's first click twice.)
