@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.35.0",
+    "date": "2026-10-01",
+    "changes": [
+      {
+        "key": "ML-390",
+        "type": "New",
+        "summary": "Start practise session to be made into steps"
+      },
+      {
+        "key": "ML-388",
+        "type": "New",
+        "summary": "Add up 8 tools for premium mode, 4 for standard on home page"
+      },
+      {
+        "key": "ML-387",
+        "type": "New",
+        "summary": "Be able to show some stats on the front page, choose what gets shown as summary tile / bar (up to 2?)"
+      }
+    ]
+  },
+  {
     "version": "0.34.0",
     "date": "2026-09-30",
     "changes": [
