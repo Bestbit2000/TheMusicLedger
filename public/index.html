@@ -2395,6 +2395,21 @@
          bolted onto it. Reopens on itself every time the extended 5 minutes also runs out (or Stop is
          pressed again), any number of times - see timerPendingFinish/finishTimerSession for how the
          elapsed time survives each round trip so the eventual save always reflects the full total. -->
+    <!-- Theory options (owner, 2026-10-01): Clef is the one multi-select box, so it's a pick list - each
+         tick applies at once, at least one stays ticked (openTheoryPick). The other boxes use #flowChoiceModal. -->
+    <div class="modal" id="theoryPickModal" role="dialog" aria-modal="true" aria-labelledby="theoryPickTitle">
+        <div class="modal-content modal-content-sticky-footer">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <div class="metroSeg-scroll-area">
+                <h2 id="theoryPickTitle">Clef</h2>
+                <p class="metro-help-text">Tick one or more.</p>
+                <div id="theoryPickList"></div>
+            </div>
+            <div class="metroSeg-sticky-footer">
+                <button type="button" class="btn-submit no-margin" data-modal-close>Done</button>
+            </div>
+        </div>
+    </div>
     <!-- ML-357: the Scales setting row's pickers - tap one to choose (it closes). -->
     <div class="modal" id="scalesClefModal" role="dialog" aria-modal="true" aria-labelledby="scalesClefModalTitle">
         <div class="modal-content">

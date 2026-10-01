@@ -91,7 +91,7 @@ All answers are **one tap on a button**. Four quizzes with their own options (co
 
 | Quiz | Asks | Options |
 |---|---|---|
-| **Note names** | A whole note on a staff → 7 letters, or with sharps/flats on the keyboard: 5 sharps above the 7 naturals and 5 flats below, in their keys' columns (ML-292 - no E♯/B♯/C♭/F♭; the written note shows which spelling is right) | Clef (multi-select), range (on the staff / 2 / 4 / 6 ledger lines, above and below), sharps and flats (none / sharps / flats) |
+| **Note names** | A whole note on a staff → 7 letters, or with sharps/flats on the keyboard: 5 sharps above the 7 naturals and 5 flats below, in their keys' columns (ML-292 - no E♯/B♯/C♭/F♭; the written note shows which spelling is right) | Clef (multi-select), range (on the staff / 2 / 4 / 6 ledger lines, above and below), sharps and flats (none / sharps / flats / both - each black key asked in either spelling, as Grade 2 does) |
 | **Keys** | A key signature → "Which major/minor key?"; or a scale written out with accidentals → "Which scale is this?". 4 keys each | Clef, show (key signatures / scales / both), up to 3 / 5 / 7 ♯/♭ (C major and A minor always in), sharp / flat keys / both, major or major + minor, minor scales: harmonic / melodic / both (only with minor keys and scales) |
 | **Notation** (id `symbols`; "Symbols and speeds", ML-301) | A symbol → its name, or a meaning → the symbol (terms: the word → its meaning, or a meaning → the word). 4 choices | Set: Basics / Dynamics / Rhythm / Structure / Terms / Speeds / Everything; ask: names / meanings / both |
 | **Mixed** | Every question type in turn: a note, a key signature, a scale, a symbol name, a symbol meaning | Clef, difficulty (beginner / intermediate / advanced) |
@@ -158,6 +158,11 @@ own questions the same way. A small selection still repeats in a long round, but
   because here the spelling matters.
 - **Seeded:** `questionSource(quiz, options, { seed })` - the same seed deals the same round.
 - **Options** are remembered per quiz on the device (`localStorage` `tml.theory.<quiz>`).
+- **The options screen** (owner, 2026-10-01 - a row of pills per option was too much at once): two
+  sections of value boxes, two to a row. **Content** is the Theory grade (Grade 1-5, Custom last), the
+  Clef, and on Custom the quiz's own options; **Length** is Round and Repeat. Each box opens a pop-up -
+  a choice list, or for Clef (several can be on) a pick list where at least one stays ticked. Sharps
+  and flats show as the Bravura signs. `specs/components/theory-quiz.md`.
 
 ## Smart learn (ML-269)
 

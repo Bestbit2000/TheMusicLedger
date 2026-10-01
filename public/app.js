@@ -517,14 +517,6 @@
         return `${d.getDate()} ${mNames[d.getMonth()]} ${d.getFullYear()}`;
     }
 
-    function updateStreakBoxes() {
-        const data = getStreakData();
-        const p = document.getElementById('mainPractiseStreak');
-        const pl = document.getElementById('mainPlayingStreak');
-        if (p) p.innerText = dayLabel(data.currentPractise);
-        if (pl) pl.innerText = dayLabel(data.currentPlaying);
-    }
-
     // ML-327: the Stats dashboard - one number per stat, each card opening its full page. ML-387: grouped,
     // and any of them can go on Home (renderHomeStats copies the cards, so it runs after this).
     // Practice time, sessions and the streaks come from the sessions already loaded (rawData, weeks start
@@ -3293,13 +3285,6 @@
 
     function renderAllViews() {
         try {
-            let tMins = 0, tSess = 0;
-            rawData.forEach(d => { tMins += d.duration; tSess++; });
-            const mainTotalTime = document.getElementById('mainTotalTime');
-            const mainTotalSessions = document.getElementById('mainTotalSessions');
-            if(mainTotalTime) mainTotalTime.innerText = formatMins(tMins);
-            if(mainTotalSessions) mainTotalSessions.innerText = tSess;
-            updateStreakBoxes();
             homeSessionsLoaded = true; // ML-377: the greeting's line can now be worked out
             renderHomeGreeting();
             renderStatsHome();
@@ -7977,11 +7962,10 @@
     // ML-351/353: a pick list - rows you tick (tapping anywhere on a row toggles its tick box), and a
     // Select all / Unselect all bar that acts only on the rows showing (the current filter/search).
     // rows: [{ key, html }]; picked: a Set of keys, kept by the caller across filter changes;
-    // onChange runs after any change (to update the "Add N ..." button).
+    // onChange runs after any change (to update the "Add N ..." button). barEl null = no Select all bar
+    // (Theory's Clef, which always keeps one ticked).
     function renderPickList(listEl, barEl, rows, picked, onChange, emptyHtml) {
         listEl.innerHTML = rows.length ? rows.map((r, i) => `<button type="button" class="flow-choice-option level-answer pick-row" data-pick-row="${i}"><span class="material-symbols-outlined pick-row-check" aria-hidden="true"></span><span class="grow">${r.html}</span></button>`).join('') : emptyHtml;
-        barEl.innerHTML = '<button type="button" class="btn-text" data-pick-all>Select all</button><button type="button" class="btn-text" data-pick-none>Unselect all</button>';
-        setShown(barEl, rows.length > 1);
         const sync = () => {
             listEl.querySelectorAll('[data-pick-row]').forEach(b => {
                 const on = picked.has(rows[Number(b.dataset.pickRow)].key);
@@ -7996,8 +7980,12 @@
             if (picked.has(k)) picked.delete(k); else picked.add(k);
             sync();
         }));
-        barEl.querySelector('[data-pick-all]').addEventListener('click', () => { rows.forEach(r => picked.add(r.key)); sync(); });
-        barEl.querySelector('[data-pick-none]').addEventListener('click', () => { rows.forEach(r => picked.delete(r.key)); sync(); });
+        if (barEl) {
+            barEl.innerHTML = '<button type="button" class="btn-text" data-pick-all>Select all</button><button type="button" class="btn-text" data-pick-none>Unselect all</button>';
+            setShown(barEl, rows.length > 1);
+            barEl.querySelector('[data-pick-all]').addEventListener('click', () => { rows.forEach(r => picked.add(r.key)); sync(); });
+            barEl.querySelector('[data-pick-none]').addEventListener('click', () => { rows.forEach(r => picked.delete(r.key)); sync(); });
+        }
         sync();
     }
     const pickCountLabel = (n, word) => n ? `Add ${n} ${word}${n === 1 ? '' : 's'}` : 'Add';
@@ -17356,71 +17344,108 @@
         switchView('theoryOptionsView');
     }
 
-    // --- Options: the standard radio-group pills; clef is the checkbox (multi-select) version. ---
-    // .compact shows three to a row on a phone, so it suits exactly three choices; two or four go two
-    // to a row (2 x 2) rather than wrapping 3 + 1.
-    const theoryPillsCompact = (choices) => choices.length === 3;
+    // --- Options: two sections of value boxes, two to a row (owner, 2026-10-01 - a row of pills per option
+    // was too much at once). Content: Theory grade, Clef, and on Custom the quiz's own options; Length:
+    // Round and Repeat. Each box opens a pop-up: the choice list (openFlowChoiceModal), or for Clef - a
+    // multi-select - a pick list (#theoryPickModal). docs/theory-practice.md.
     const theoryRepeatsText = (n) => (n === 1 ? '×1 - one round' : `×${n} - best of ${n} rounds`);
     // ML-309: Theory grades (feature theory_grades) - "Custom" is the quiz's own options, 1-5 a grade.
     const theoryGradesOn = () => isFeatureEnabled('theory_grades');
-    const THEORY_GRADE_GROUP = { key: 'grade', label: 'Theory grade', multi: false, choices: [{ value: 0, label: 'Custom' }, ...TheoryEngine.GRADE_CHOICES.map(g => ({ value: g, label: `Grade ${g}` }))] };
+    // Grade 1 at the top, Custom at the bottom.
+    const THEORY_GRADE_DEF = { key: 'grade', label: 'Theory grade', choices: [...TheoryEngine.GRADE_CHOICES.map(g => ({ value: g, label: `Grade ${g}` })), { value: 0, label: 'Custom' }] };
+    // The caption under a box's value: the option's name, shorter where the name is long.
+    const THEORY_CAPTIONS = { grade: 'grade', range: 'range', upTo: 'sharps or flats', round: 'round', repeats: 'repeat' };
+    const theoryCaption = (def) => THEORY_CAPTIONS[def.key] || def.label.toLowerCase();
+    // Sharps and flats are drawn as the Bravura signs, so "both" fits in the box.
+    const THEORY_ACCIDENTAL_GLYPHS = { sharps: ['accidentalSharp'], flats: ['accidentalFlat'], both: ['accidentalSharp', 'accidentalFlat'] };
+    const theoryGlyphs = (names) => names.map(n => theoryScaleSvg(Notation.symbol(n), 0.6)).join(' ');
+    function theoryChoiceLabel(def, value) {
+        const label = def.choices.find(c => c.value === value).label;
+        return def.key === 'upTo' ? `Up to ${label}` : label;
+    }
+    function theoryValueText(def, value) {
+        if (!def.multi) return theoryChoiceLabel(def, value);
+        const labels = value.map(v => theoryChoiceLabel(def, v));
+        return labels.length <= 2 ? labels.join(', ') : `${labels.length} clefs`;
+    }
+    const theoryValueHtml = (def, value) => (def.key === 'accidentals' && THEORY_ACCIDENTAL_GLYPHS[value]
+        ? theoryGlyphs(THEORY_ACCIDENTAL_GLYPHS[value]) : escapeHtml(theoryValueText(def, value)));
+    // { def, valueHtml, ariaValue } -> a value box
+    const theoryOptionBox = (b) => `
+        <button type="button" class="metroBlk-ctrl-value-btn" id="theoryOptBtn-${b.def.key}" data-theory-opt="${b.def.key}" aria-haspopup="dialog" aria-label="${escapeHtml(`${b.def.label}: ${b.ariaValue} - tap to change`)}">
+            <strong>${b.valueHtml}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(theoryCaption(b.def))}</span>
+        </button>`;
     function renderTheoryOptions() {
         const quiz = TheoryEngine.quiz(theoryQuizId);
         const gradeClefs = theoryOptions.grade ? TheoryEngine.gradeContent(theoryOptions.grade).clefs : null;
-        const groups = quiz.options.filter(d => TheoryEngine.optionVisible(d, theoryOptions)).map(d => ({
-            key: d.key, label: d.label, multi: !!d.multi,
-            choices: d.key === 'clefs' && gradeClefs ? d.choices.filter(c => gradeClefs.includes(c.value)) : d.choices,
-            isOn: (v) => (d.multi ? theoryOptions[d.key].includes(v) : theoryOptions[d.key] === v)
-        }));
-        // A grade-only quiz (ML-309 C) offers just its own grades - no Custom.
-        const gradeGroup = quiz.gradeOnly ? { ...THEORY_GRADE_GROUP, choices: THEORY_GRADE_GROUP.choices.filter(c => quiz.grades.includes(c.value)) } : THEORY_GRADE_GROUP;
-        if (theoryGradesOn() && quiz.options.length) groups.unshift({ ...gradeGroup, isOn: (v) => theoryOptions.grade === v });
-        groups.push({ key: 'round', label: 'Round', multi: false, choices: TheoryEngine.ROUNDS.map(r => ({ value: r.value, label: r.label })), isOn: (v) => theoryRoundId === v });
-        const form = document.getElementById('theoryOptionsForm');
-        form.innerHTML = groups.map(g => `
-            <div class="form-group" role="group" aria-labelledby="theoryOptLabel-${g.key}"><label id="theoryOptLabel-${g.key}">${escapeHtml(g.label)}</label>
-                <div class="radio-group${theoryPillsCompact(g.choices) ? ' compact' : ''}">
-                    ${g.choices.map((c, i) => `<input type="${g.multi ? 'checkbox' : 'radio'}" id="theoryOpt-${g.key}-${i}" name="theoryOpt-${g.key}" data-key="${g.key}" data-index="${i}"${g.isOn(c.value) ? ' checked' : ''}><label for="theoryOpt-${g.key}-${i}">${escapeHtml(c.label)}</label>`).join('')}
-                </div>
-            </div>`).join('') + `
-            <div class="form-group" role="group" aria-labelledby="theoryRepeatLabel"><label id="theoryRepeatLabel">Repeat</label>
-                <div class="metro-transport-grid">
-                    <button type="button" class="metroBlk-ctrl-value-btn" id="theoryRepeatBtn" aria-haspopup="dialog" aria-label="Repeat: ${theoryRepeatsText(theoryRepeats)} - tap to change">
-                        <strong>&times;${theoryRepeats}</strong><span class="metroBlk-ctrl-value-label">${theoryRepeats === 1 ? 'once' : `best of ${theoryRepeats}`}</span>
-                    </button>
-                </div>
-            </div>`;
-        // ML-354: the repeat count is a pop-up choice (x1-x5), not another row of pills.
-        document.getElementById('theoryRepeatBtn').addEventListener('click', () => openFlowChoiceModal('Repeat',
-            TheoryEngine.REPEATS.map(n => ({ value: n, label: theoryRepeatsText(n), selected: n === theoryRepeats })),
-            (opt) => { theoryRepeats = opt.value; theoryStoreChoice(); renderTheoryOptions(); }));
-        form.querySelectorAll('input').forEach(input => input.addEventListener('change', () => {
-            const key = input.dataset.key;
-            const g = groups.find(x => x.key === key);
-            const value = g.choices[Number(input.dataset.index)].value;
-            if (key === 'round') theoryRoundId = value;
-            else if (key === 'grade') {
-                theoryOptions = TheoryEngine.normaliseOptions(theoryQuizId, { ...theoryOptions, grade: value });
-                theoryStoreChoice();
-                renderTheoryOptions(); // a different set of options shows
-                return;
-            } else if (g.multi) {
-                const now = g.choices.filter((c, i) => form.querySelector(`#theoryOpt-${key}-${i}`).checked).map(c => c.value);
-                if (!now.length) { input.checked = true; return; } // at least one clef
-                theoryOptions = TheoryEngine.normaliseOptions(theoryQuizId, { ...theoryOptions, [key]: now });
-            } else {
-                theoryOptions = TheoryEngine.normaliseOptions(theoryQuizId, { ...theoryOptions, [key]: value });
-            }
+        const choose = (key, value) => {
+            theoryOptions = TheoryEngine.normaliseOptions(theoryQuizId, { ...theoryOptions, [key]: value });
             theoryStoreChoice();
-            // Showing/hiding a dependent option (minor form) needs a redraw; otherwise just the best line.
-            const visibleNow = quiz.options.filter(d => TheoryEngine.optionVisible(d, theoryOptions)).length + 1 + (theoryGradesOn() && quiz.options.length ? 1 : 0);
-            if (visibleNow !== groups.length) renderTheoryOptions();
-            else renderTheoryOptionsBest();
-        }));
+            renderTheoryOptions(); // a grade, or the minor form's showIf, changes which boxes show
+        };
+        // A single choice: the choice list, the one on now ticked. rowHtml adds to a row's label (the signs).
+        const pickOne = (def, current, onPick, rowHtml) => () => openFlowChoiceModal(def.label, def.choices.map(c => ({
+            value: c.value, label: c.label, selected: c.value === current,
+            html: rowHtml ? `<span>${escapeHtml(c.label)}${rowHtml(c.value)}</span>${c.value === current ? '<span class="material-symbols-outlined" aria-hidden="true">check</span>' : ''}` : undefined
+        })), (opt) => onPick(opt.value));
+        const content = [];
+        // A grade-only quiz (ML-309 C) offers just its own grades - no Custom.
+        if (theoryGradesOn() && quiz.options.length) {
+            const def = quiz.gradeOnly ? { ...THEORY_GRADE_DEF, choices: THEORY_GRADE_DEF.choices.filter(c => quiz.grades.includes(c.value)) } : THEORY_GRADE_DEF;
+            content.push({ def, value: theoryOptions.grade, open: pickOne(def, theoryOptions.grade, (v) => choose('grade', v)) });
+        }
+        for (const d of quiz.options.filter(x => TheoryEngine.optionVisible(x, theoryOptions))) {
+            const def = d.key === 'clefs' && gradeClefs ? { ...d, choices: d.choices.filter(c => gradeClefs.includes(c.value)) } : d;
+            const value = theoryOptions[d.key];
+            const signs = d.key === 'accidentals' ? (v) => (THEORY_ACCIDENTAL_GLYPHS[v] ? ` ${theoryGlyphs(THEORY_ACCIDENTAL_GLYPHS[v])}` : '') : null;
+            content.push({ def, value, open: d.multi ? () => openTheoryPick(def) : pickOne(def, value, (v) => choose(d.key, v), signs) });
+        }
+        const roundDef = { key: 'round', label: 'Round', choices: TheoryEngine.ROUNDS.map(r => ({ value: r.value, label: r.label })) };
+        const repeatsDef = { key: 'repeats', label: 'Repeat', choices: TheoryEngine.REPEATS.map(n => ({ value: n, label: theoryRepeatsText(n) })) };
+        const length = [
+            { def: roundDef, value: theoryRoundId, open: pickOne(roundDef, theoryRoundId, (v) => { theoryRoundId = v; theoryStoreChoice(); renderTheoryOptions(); }) },
+            // ML-354: a longer test is the same round again, x1-x5, the best one counting
+            { def: repeatsDef, value: theoryRepeats, valueHtml: `&times;${theoryRepeats}`, ariaValue: theoryRepeatsText(theoryRepeats),
+                open: pickOne(repeatsDef, theoryRepeats, (v) => { theoryRepeats = v; theoryStoreChoice(); renderTheoryOptions(); }) },
+        ];
+        for (const b of [...content, ...length]) {
+            b.valueHtml = b.valueHtml || theoryValueHtml(b.def, b.value);
+            b.ariaValue = b.ariaValue || theoryValueText(b.def, b.value);
+        }
+        const section = (id, title, boxes) => (boxes.length ? `
+            <div class="tool-group" role="group" aria-labelledby="theoryOptTitle-${id}">
+                <div class="tool-group-title" id="theoryOptTitle-${id}">${title}</div>
+                <div class="metro-transport-grid metro-transport-grid-2">${boxes.map(theoryOptionBox).join('')}</div>
+            </div>` : '');
+        const form = document.getElementById('theoryOptionsForm');
+        form.innerHTML = section('content', 'Content', content) + section('length', 'Length', length);
+        for (const b of [...content, ...length]) form.querySelector(`[data-theory-opt="${b.def.key}"]`).addEventListener('click', b.open);
         renderTheoryOptionsBest();
         renderTheorySmartLearnNote();
         renderTheoryWeakList();
     }
+    // Clef is a multi-select: a pick list, each tick applied as it's made (at least one clef stays ticked).
+    function openTheoryPick(def) {
+        const picked = new Set(theoryOptions[def.key]);
+        const rows = def.choices.map(c => ({ key: c.value, html: escapeHtml(c.label) }));
+        document.getElementById('theoryPickTitle').textContent = def.label;
+        const draw = () => renderPickList(document.getElementById('theoryPickList'), null, rows, picked, () => {
+            if (!picked.size) { theoryOptions[def.key].forEach(v => picked.add(v)); draw(); return; }
+            const now = def.choices.map(c => c.value).filter(v => picked.has(v));
+            if (now.join() === theoryOptions[def.key].join()) return;
+            theoryOptions = TheoryEngine.normaliseOptions(theoryQuizId, { ...theoryOptions, [def.key]: now });
+            theoryStoreChoice();
+            renderTheoryOptions();
+        });
+        draw();
+        showModal('theoryPickModal');
+    }
+    (() => {
+        const modal = document.getElementById('theoryPickModal');
+        if (!modal) return;
+        modal.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', () => hideModal(modal)));
+        modal.addEventListener('click', (e) => { if (e.target === e.currentTarget) hideModal(modal); });
+    })();
     async function renderTheoryOptionsBest() {
         const el = document.getElementById('theoryOptionsBest');
         const key = TheoryEngine.settingsKey(theoryQuizId, theoryOptions, theoryRoundId);

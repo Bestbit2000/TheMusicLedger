@@ -19,7 +19,9 @@ In a popup: `.modal-content.modal-content-sticky-footer` › `.metroSeg-scroll-a
   (`.pick-row-check`, the Material Symbol `check_box` / `check_box_outline_blank`) and the item's text
   (bold name over a `.text-sm.text-muted` line). Tapping anywhere on the row toggles it.
 - **Select all / Unselect all:** `.pick-bar`, two `.btn-text` buttons, right-aligned. They act **only on
-  the rows showing** under the current filter and search. Hidden when there's one row or none.
+  the rows showing** under the current filter and search. Hidden when there's one row or none. Left out
+  altogether (`barEl` null) where one row must stay ticked - a Theory quiz's Clef, whose ticks apply at
+  once and whose button is Done, not Add.
 - **Button:** "Add" (disabled) with nothing ticked, then "Add 1 piece" / "Add 3 pieces" - the count is
   everything ticked, including rows the filter is hiding.
 - Things already added aren't offered at all (they're taken off from the list itself).

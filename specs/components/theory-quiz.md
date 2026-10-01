@@ -8,7 +8,7 @@
 ## 2. Overview
 The Theory tool's four screens: quiz list (Note names, Keys, Notation, Intervals and Chords - the last two only while Theory grades are on, ML-309 C - then Mixed - each with a subtitle so the rows match; one not tried yet has a "New" pill, `.flow-pill.flow-pill-accent`, where the grade dots go, ML-301) → options → question → results. Everything reuses the
 shared components where one fits - list rows ([list-row](list-row.md)) for the quiz list, the
-[radio-group](radio-group.md) pills (and their multi-select variant) for options, primary/secondary
+the metronome's value boxes and pop-ups for options ([metronome](metronome.md), [pick-list](pick-list.md)), primary/secondary
 [buttons](button.md), [stat cards](stat-card.md) and the stats [bar chart](charts.md) pieces on the
 results screen. Notation is always [notation](notation.md). The classes here only cover what's
 particular to a timed quiz.
@@ -38,8 +38,13 @@ particular to a timed quiz.
 - Grade: 5 dots, filled = the grade (`.theory-grade-dot-on`). `.theory-grade-lg` on the results screen.
 - Timed rounds show the countdown bar (`transform: scaleX()` from JS); fixed rounds hide it and the
   clock counts up.
-- Options: single choices are radio pills; Clef is the checkbox variant. `.compact` only for exactly
-  three options (it's three to a row on a phone); two or four go two to a row.
+- Options (owner, 2026-10-01): two sections, each a `.tool-group` with a `.tool-group-title` - **Content**
+  (Theory grade, Clef, and on Custom the quiz's own options) and **Length** (Round, Repeat) - of value
+  boxes two to a row (`.metro-transport-grid.metro-transport-grid-2` › `.metroBlk-ctrl-value-btn`: the
+  value over a lower-case caption). Each box opens a pop-up: the choice list (`#flowChoiceModal`, the one
+  on now ticked; Theory grade lists Grade 1 first and Custom last), or for Clef - the one multi-select -
+  a [pick list](pick-list.md) (`#theoryPickModal`, no Select all bar, at least one clef stays ticked).
+  Note names' sharps and flats show the Bravura signs (♯, ♭, ♯ ♭ for Both) in the box and in the rows.
 - Scoring, grades and every rule: `docs/theory-practice.md`.
 
 ## 6. States

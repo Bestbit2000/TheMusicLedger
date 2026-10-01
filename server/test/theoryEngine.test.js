@@ -153,13 +153,21 @@ describe('note names', () => {
         assert.deepEqual(q.answers.map(a => a.label), ['Do♯', 'Re♯', 'Fa♯', 'Sol♯', 'La♯', 'Do', 'Re', 'Mi', 'Fa', 'Sol', 'La', 'Ti', 'Re♭', 'Mi♭', 'Sol♭', 'La♭', 'Ti♭']);
     });
     test('ML-292: sharps/flats questions show the keyboard - 5 sharps, 7 naturals, 5 flats, no E#/B#/Cb/Fb', () => {
-        for (const acc of ['sharps', 'flats']) {
+        for (const acc of ['sharps', 'flats', 'both']) {
             const q = clone(source('noteNames', { accidentals: acc }, { seed: 3 }).next());
             assert.equal(q.layout, 'keyboard');
             assert.deepEqual(q.answers.map(a => a.id), T.KEYBOARD_BUTTONS);
             for (const x of ['E#', 'B#', 'Cb', 'Fb']) assert.ok(!q.answers.some(a => a.id === x));
         }
         assert.equal(clone(source('noteNames', { accidentals: 'none' }, { seed: 3 }).next()).layout, 'notes');
+    });
+    test('sharps and flats "Both": the naturals once, every black key in both spellings', () => {
+        const src = source('noteNames', { accidentals: 'both' }, { seed: 5 });
+        const names = new Set(take(src, src.size).map(q => q.correct));
+        for (const n of ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C#', 'Db', 'F#', 'Gb', 'A#', 'Bb']) assert.ok(names.has(n), `${n} never asked`);
+        const size = (acc) => source('noteNames', { accidentals: acc }, { seed: 5 }).size;
+        assert.equal(size('both'), size('sharps') + size('flats') - size('none'));
+        assert.equal(T.describeOptions('noteNames', { accidentals: 'both' }, 'q10'), 'Treble · On the staff · Sharps and flats · 10 questions');
     });
 });
 

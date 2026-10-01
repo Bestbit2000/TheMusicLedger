@@ -71,7 +71,8 @@
     const OPT = {
         clefs: { key: 'clefs', label: 'Clef', multi: true, gradeKeep: true, default: ['treble'], choices: [{ value: 'treble', label: 'Treble' }, { value: 'bass', label: 'Bass' }, { value: 'alto', label: 'Alto' }, { value: 'tenor', label: 'Tenor' }] },
         range: { key: 'range', label: 'Range, above and below', default: 0, choices: [{ value: 0, label: 'On the staff' }, { value: 2, label: '2 ledger lines' }, { value: 4, label: '4 ledger lines' }, { value: 6, label: '6 ledger lines' }] },
-        accidentals: { key: 'accidentals', label: 'Sharps and flats', default: 'none', choices: [{ value: 'none', label: 'None' }, { value: 'sharps', label: 'Sharps' }, { value: 'flats', label: 'Flats' }] },
+        // 'both': each note asked in either spelling (as Theory Grade 2 does).
+        accidentals: { key: 'accidentals', label: 'Sharps and flats', default: 'none', choices: [{ value: 'none', label: 'None' }, { value: 'sharps', label: 'Sharps' }, { value: 'flats', label: 'Flats' }, { value: 'both', label: 'Both' }] },
         show: { key: 'show', label: 'Show', gradeKeep: true, default: 'both', choices: [{ value: 'keySignatures', label: 'Key signatures' }, { value: 'scales', label: 'Scales' }, { value: 'both', label: 'Both' }] },
         upTo: { key: 'upTo', label: 'Up to (sharps or flats)', default: 3, choices: [{ value: 3, label: '3' }, { value: 5, label: '5' }, { value: 7, label: '7' }] },
         keyTypes: { key: 'keyTypes', label: 'Keys', default: 'both', choices: [{ value: 'sharp', label: 'Sharp keys' }, { value: 'flat', label: 'Flat keys' }, { value: 'both', label: 'Both' }] },
@@ -155,6 +156,7 @@
             const label = (v) => d.choices.find(c => c.value === v).label;
             if (d.multi) return opts[d.key].map(label).join(', ');
             if (d.key === 'upTo') return `Up to ${opts.upTo} ♯/♭`;
+            if (d.key === 'accidentals' && opts.accidentals === 'both') return 'Sharps and flats';
             if (d.key === 'ask') return `Ask: ${label(opts.ask).toLowerCase()}`;
             return label(opts[d.key]);
         });
@@ -1443,7 +1445,7 @@
             return { weak: Object.keys(weights || {}).filter(id => weights[id] > 0).map(itemFromId).filter(Boolean) };
         }
         if (opts.grade) return gradeItems(quizId, opts);
-        if (quizId === 'noteNames') return { note: noteItems(opts.clefs, opts.range, [opts.accidentals]) };
+        if (quizId === 'noteNames') return { note: noteItems(opts.clefs, opts.range, opts.accidentals === 'both' ? ['sharps', 'flats'] : [opts.accidentals]) };
         if (quizId === 'keys') return { keys: keyItems(opts.clefs, opts) };
         if (quizId === 'symbols') return { symbols: symbolItems(opts.set === 'everything' ? ['everything'] : [opts.set], opts.ask) };
         if (quizId === 'mixed') {

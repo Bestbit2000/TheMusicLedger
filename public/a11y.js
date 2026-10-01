@@ -8,6 +8,8 @@
 //   - .dropdown-menu: Escape closes it, arrow keys move between items, focus returns to the opener
 //   - aria-expanded is kept in sync on any [aria-haspopup] trigger while its popup is open
 //   - a row holding a single toggle switch flips it when tapped anywhere (ML-211)
+//   - the page behind an open dialog or the ☰ menu keeps its scrollbar's gutter only if it shows a
+//     scrollbar that takes room (--scroll-lock-gutter, ML-371)
 //
 // See specs/foundations/accessibility.md.
 (function () {
@@ -179,8 +181,27 @@
         }).observe(document.body, { subtree: true, childList: true, characterData: true });
     }
 
+    // ------------------------------------------------------------------ the page behind a dialog or the ☰ menu
+    // ML-371: while one is open the page stays still (style.css hides html's overflow) and keeps its
+    // scrollbar's gutter so it doesn't shift sideways - but only a page showing a scrollbar that takes
+    // room has one to lose (not a page that fits, nor a phone's overlay scrollbar). --scroll-lock-gutter
+    // (a run-time value) says which, kept up to date as the page's content or the window changes. It's
+    // left alone while the page is held still - there's no scrollbar to measure then - and measured again
+    // when the page is let go (the scrollbar coming back resizes the body).
+    function watchScrollLockGutter() {
+        const html = document.documentElement;
+        const sync = () => {
+            if (document.querySelector('.modal.show, #burgerDropdown.show')) return;
+            html.style.setProperty('--scroll-lock-gutter', window.innerWidth - html.clientWidth > 1 ? 'stable' : 'auto');
+        };
+        new ResizeObserver(sync).observe(document.body);
+        window.addEventListener('resize', sync);
+        sync();
+    }
+
     function init() {
         watchIcons();
+        watchScrollLockGutter();
         document.querySelectorAll('.modal').forEach(watchModal);
         document.querySelectorAll('.dropdown-menu').forEach(watchMenu);
         // Modals/menus added later (rare) get picked up too.

@@ -126,8 +126,9 @@
     /* ML-371: while the ☰ menu or a pop-up is open the page behind stays still - a swipe on the backdrop
        doesn't scroll it, and scrolling to the end of the menu or pop-up doesn't carry on into it
        (overscroll-behavior on .nav-menu / .modal-content). The gutter keeps a desktop page from shifting
-       sideways as its scrollbar goes. */
-    html:has(#burgerDropdown.show), html:has(.modal.show) { overflow: hidden; scrollbar-gutter: stable; }
+       sideways as its scrollbar goes - only when there's a scrollbar to lose (--scroll-lock-gutter, set by
+       a11y.js): on a page without one, a kept gutter would push it sideways instead and leave an undimmed strip. */
+    html:has(#burgerDropdown.show), html:has(.modal.show) { overflow: hidden; scrollbar-gutter: var(--scroll-lock-gutter, auto); }
     .nav-menu-backdrop, .modal { overscroll-behavior: contain; }
     /* ML-201: notification centre - red dot on ☰, count badge in the menu, the Notifications list */
     #navBurgerMenuBtn { position: relative; }
@@ -1052,6 +1053,10 @@
     /* Narrower cells: less side padding, and a value like "12–16" stays on one line. */
     .metro-transport-grid-5 .metroBlk-ctrl-value-btn { padding: 0 var(--space-1); }
     .metro-transport-grid-5 .metroBlk-ctrl-value-btn strong { white-space: nowrap; }
+    /* Two to a row - a Theory quiz's options (Content / Length), where a value can be words ("2 ledger lines"). */
+    .metro-transport-grid-2 { grid-template-columns: repeat(2, 1fr); }
+    /* A sign drawn in a value or a choice next to words (Theory's ♯ ♭): centred on the line, not sat on it. */
+    .metroBlk-ctrl-value-btn svg, .flow-choice-option svg { vertical-align: middle; }
     /* ML-348: a date value box (a practice list's target date, "30 May 26"). Its cell is a fixed
        quarter of the grid and never grows with the date, so the date steps its size down to stay on one
        line in a narrow cell: --font-sm, then --font-base and --font-md as the cell gets wider. */

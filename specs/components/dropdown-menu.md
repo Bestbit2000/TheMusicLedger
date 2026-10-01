@@ -54,7 +54,7 @@ Default · Hover (`--input-bg`) · Focus (`--focus-ring`) · Destructive item (`
 
 ## 9. Accessibility
 - Items are `<button type="button" class="dropdown-item">` (or `<a href>` for real links).
-- The ☰ menu (`.nav-menu`) holds the page still while it's open (ML-371): `html:has(#burgerDropdown.show)` hides its overflow and the menu has `overscroll-behavior: contain`, so a swipe on the backdrop or past the menu's end doesn't scroll the page.
+- The ☰ menu (`.nav-menu`) holds the page still while it's open (ML-371): `html:has(#burgerDropdown.show)` hides its overflow and the menu has `overscroll-behavior: contain`, so a swipe on the backdrop or past the menu's end doesn't scroll the page. As with a pop-up, the page keeps its scrollbar's gutter only if it shows a scrollbar that takes room (`--scroll-lock-gutter`).
 - a11y.js: Escape closes and returns focus to the opener; ↑/↓ move between items; opened from the keyboard, focus lands on the first item.
 - Hide inapplicable items with `.hidden-group` (removes them from the Tab order too).
 - Navigation menu: section titles and dividers aren't focusable (`role="separator"` on dividers); Tools › has `aria-haspopup`, `aria-controls` and `aria-expanded`, and opening or closing its panel moves focus to the Back row / back to Tools ›; each tools row is a `role="group"` named by its title; the slide is switched off by reduced motion; the current screen is `aria-current="page"`, which is announced, and never colour alone (the icon and text change too). Tapping a title or divider leaves the menu open. It scrolls inside itself on a short screen.
