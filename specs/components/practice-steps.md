@@ -37,7 +37,8 @@ or Build my plan), **What goes in** (warm-up list, skills list, where the pieces
   under the plans, **the key** (`.kind-key` › `span` › a small `.kind-block.kind-*` + its name): Warm-up, Scales, Skills,
   Pieces - the first screen the symbols appear on (owner, 1 Oct 2026). `aria-hidden`: each plan card already says its
   blocks in words.
-- Build: `.build-slots` › `button.kind-block.build-slot` (`.build-slot-time`, icon, `.kind-block-label`) ›
+- Build: `.build-slots` › `button.kind-block.build-slot` (`.build-slot-time` - in the kind's `-text` colour on a filled
+  slot, `--label-color` on an empty one - icon, `.kind-block-label`) ›
   `.build-palette` › `button.kind-block.build-add` × 4.
 - Step 3: `.history-item.settings-link` rows with a `.kind-block` in the icon slot; the Pieces `.flow-card` ›
   `.session-goal` ("Next goal: every 1 up to 2") › `.session-piece` rows with a `.level-strip`.
