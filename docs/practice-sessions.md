@@ -26,10 +26,11 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
 
 ### Setting it up - three steps, then Ready
 
-1. **How long?** (`#sessionLengthView`) The minutes as **5-minute blocks you can count** (a new one pops in),
-   − / + and the slider (5-120), quick picks (10, 20, 30, 45 min, 1 hour) and **Keep going** - no end time: it
-   starts with 4 blocks and adds one each time you finish one, following the plan's pattern.
-   **Same as last time** (per device, `tml.session.last`) jumps straight to Ready.
+1. **How long?** (`#sessionLengthView`) The minutes - − / +, the slider (5-120), or **tap the number and type it**
+   (rounded to the nearest 5). Under them, "N blocks of 5 minutes" over a strip across the width - one block per
+   5 minutes, thinner as the minutes go up (a new one pops in). **Keep going** - no end time: it starts with 4 blocks and adds one
+   each time you finish one, following the plan's pattern. **Same as last time** (per device, `tml.session.last`)
+   jumps straight to Ready. (The quick picks and numbered squares went on 1 Oct 2026 - the owner wanted it simpler.)
 2. **Pick a plan** (`#sessionPickView`) - a "template" is a **plan** on screen. Each plan is drawn as its row of
    coloured blocks at the length picked (Warm-up orange, Scales teal, Skills violet, Pieces blue - always with
    the icon). Built in: **Standard** (Warm-up, Scales, then half Skills / half Pieces, an odd block to Pieces) and

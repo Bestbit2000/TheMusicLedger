@@ -3,7 +3,7 @@
 ## 1. Metadata
 - **Name:** Practice steps (`.steps-progress`, `.steps-progress-step` with `.is-done` / `.is-now`, `.step-question`,
   `.time-blocks`, `.time-block` with `.is-new` / `.is-more`, `.open-ended-option`, `.open-ended-icon`, `.plan-card`,
-  `.plan-card-head`, `.kind-strip`, `.kind-strip-more`, `.kind-block`, `.kind-block-label`, `.kind-block-icon`,
+  `.plan-card-head`, `.kind-strip`, `.kind-strip-more`, `.kind-key`, `.kind-block`, `.kind-block-label`, `.kind-block-icon`,
   `.is-empty`, `.kind-warmup`, `.kind-scales`, `.kind-skills`, `.kind-pieces`, `.build-slots`, `.build-slot`,
   `.build-slot-time`, `.build-palette`, `.build-add`, `.session-goal`, `.session-goal-card`, `.session-piece`,
   `.session-piece-head`, `.levelup`, `.levelup-stars`, `.levelup-pair`, `.is-celebrating`, `.warmup-loop`,
@@ -28,9 +28,15 @@ or Build my plan), **What goes in** (warm-up list, skills list, where the pieces
 - **Don't use** the kind colours for anything but kinds of practice block.
 
 ## 3. Anatomy
-- Step 1: `.steps-progress` › `.step-question` › the stepper and slider › `.time-blocks` › `.time-block` × blocks
-  (+ `.is-more` "+" when open-ended) › quick-pick `.filter-pill`s › `.flow-choice-option.open-ended-option`.
-- Step 2: `.flow-choice-option.plan-card` › `.plan-card-head` (name, blurb) + `.kind-strip` › `.kind-block` × blocks.
+- Step 1: `.steps-progress` › `.step-question` › the stepper (the number is tap-to-type, rounded to 5 minutes; under it
+  just "minutes") and slider › "N blocks of 5 minutes" › `.time-blocks` › `.time-block` × blocks (+ a dashed `.is-more`
+  when open-ended) › `.flow-choice-option.open-ended-option`. The blocks are **one strip across the width**, thinner
+  as the minutes go up, with no numbers - display only, so nothing on it looks tappable (owner, 1 Oct 2026; the
+  quick picks went too).
+- Step 2: `.flow-choice-option.plan-card` › `.plan-card-head` (name, blurb) + `.kind-strip` › `.kind-block` × blocks;
+  under the plans, **the key** (`.kind-key` › `span` › a small `.kind-block.kind-*` + its name): Warm-up, Scales, Skills,
+  Pieces - the first screen the symbols appear on (owner, 1 Oct 2026). `aria-hidden`: each plan card already says its
+  blocks in words.
 - Build: `.build-slots` › `button.kind-block.build-slot` (`.build-slot-time`, icon, `.kind-block-label`) ›
   `.build-palette` › `button.kind-block.build-add` × 4.
 - Step 3: `.history-item.settings-link` rows with a `.kind-block` in the icon slot; the Pieces `.flow-card` ›
@@ -58,7 +64,7 @@ or Build my plan), **What goes in** (warm-up list, skills list, where the pieces
 |---|---|
 | Step done / now / to come | `.steps-progress-step.is-done` / `.is-now` (gold bar; now = text colour) / plain (grey) |
 | New time block | `.time-block.is-new` pops in (`block-pop`); only the new ones animate |
-| Open-ended | `.time-block.is-more` dashed "+"; `.open-ended-option.selected` |
+| Open-ended | `.time-block.is-more` dashed, empty; `.open-ended-option.selected` |
 | Plan picked | `.plan-card.selected` (the `.flow-choice-option` selected state) |
 | Empty slot | `.kind-block.is-empty` - dashed, outline icon |
 | Levelled up | `.levelup.is-celebrating` - the stars and the new Level pop once |

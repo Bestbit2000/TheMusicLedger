@@ -2634,10 +2634,12 @@
     .steps-progress-step.is-done::before, .steps-progress-step.is-now::before { background: var(--primary-action); }
     .steps-progress-step.is-now { color: var(--text-color); }
     .step-question { font-size: var(--font-lg); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); margin: 0 0 var(--space-3); text-wrap: balance; }
-    .time-blocks { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-2); margin: var(--space-3) 0 var(--space-4); }
-    .time-block { aspect-ratio: 1; border-radius: var(--radius-md); border: 2px solid var(--primary-action); background: var(--primary-action-tint); color: var(--primary-action-strong); display: grid; place-items: center; font-size: var(--font-sm); font-weight: var(--font-weight-bold); }
+    /* One strip across the width, a block per 5 minutes - more minutes, thinner blocks (owner, 1 Oct 2026: numbered
+       squares looked like buttons). Display only. */
+    .time-blocks { display: flex; gap: var(--space-1); height: var(--time-strip-height); margin: 0 0 var(--space-4); }
+    .time-block { flex: 1 1 0; min-width: 0; border-radius: var(--radius-xs); background: var(--primary-action); border: 1px solid var(--primary-action-strong); box-sizing: border-box; }
     .time-block.is-new { animation: block-pop var(--duration-base) ease-out; }
-    .time-block.is-more { border-style: dashed; border-color: var(--control-border); background: transparent; color: var(--label-color); }
+    .time-block.is-more { border: 2px dashed var(--control-border); background: transparent; }
     @keyframes block-pop { from { transform: scale(0.4); opacity: var(--opacity-muted); } to { transform: scale(1); opacity: 1; } }
     .open-ended-option { justify-content: flex-start; gap: var(--space-3); }
     .open-ended-option .open-ended-icon { font-size: var(--icon-xl); }
@@ -2645,6 +2647,11 @@
     .plan-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
     .kind-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-1); }
     .kind-strip .kind-block { aspect-ratio: auto; min-height: var(--icon-xl); }
+    /* The key under the plans on Pick a plan: each kind of block's symbol and its name. */
+    .kind-key { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--touch-target) * 3), 1fr)); gap: var(--space-2) var(--space-4); margin: 0 0 var(--space-4); font-size: var(--font-sm); color: var(--label-color); }
+    .kind-key > span { display: inline-flex; align-items: center; gap: var(--space-2); }
+    .kind-key .kind-block { width: var(--icon-xl); height: var(--icon-lg); padding: 0; border-radius: var(--radius-sm); }
+    .kind-key .kind-block .material-symbols-outlined { font-size: var(--icon-sm); }
     .kind-strip-more { display: grid; place-items: center; font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: var(--label-color); }
     .kind-block { display: grid; place-items: center; align-content: center; gap: var(--space-0-5); box-sizing: border-box; border-radius: var(--radius-md); border: 2px solid var(--control-border); background: var(--input-bg); color: var(--text-color); font: inherit; padding: var(--space-1); }
     .kind-block .material-symbols-outlined { font-size: var(--icon-md); font-variation-settings: 'FILL' 1; }

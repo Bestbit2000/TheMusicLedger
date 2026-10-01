@@ -6700,7 +6700,6 @@
     // session with its blocks (POST /api/practice/sessions).
     const SESSION_TOOL_VIEWS = { warmups: 'warmupsView', scales: 'scalesView', tapTempo: 'tapTempoView', gapTrainer: 'gapTrainerView', ear: 'earView', range: 'rangeView', rhythm: 'rhythmView' };
     const SESS_LAST_STORE = 'tml.session.last'; // "Same as last time" - per device
-    const SESS_QUICK_MINUTES = [10, 20, 30, 45, 60];
     // source: where the Pieces blocks come from - { type: 'all' } (every piece you've given Levels),
     // { type: 'list', listId, listName } or { type: 'pieces', scoreIds }.
     const sessPlan = { minutes: 20, open: false, template: 'standard', focus: 'both', blocks: [], pieces: [], source: { type: 'all' }, auto: true, lastBlockCount: 0 };
@@ -6780,7 +6779,8 @@
     function renderSessLength() {
         const n = sessPlan.open ? PracticePlan.OPEN_START_BLOCKS : sessPlan.minutes / PracticePlan.BLOCK_MINUTES;
         document.getElementById('sessLenValue').textContent = sessPlan.open ? '∞' : sessPlan.minutes;
-        document.getElementById('sessLenSub').textContent = sessPlan.open ? 'Keep going · 4 blocks to start' : `minutes · ${n} block${n === 1 ? '' : 's'} of 5`;
+        document.getElementById('sessLenSub').textContent = sessPlan.open ? 'no end time' : 'minutes';
+        document.getElementById('sessLenBlocksLabel').textContent = sessPlan.open ? 'Keep going · 4 blocks of 5 minutes to start' : `${n} block${n === 1 ? '' : 's'} of 5 minutes`;
         const lenPct = ((sessPlan.minutes - PracticePlan.MIN_MINUTES) / (PracticePlan.MAX_MINUTES - PracticePlan.MIN_MINUTES)) * 100;
         document.getElementById('sessLenSliderFill').style.setProperty('--pct', `${lenPct}%`);
         const lenThumb = document.getElementById('sessLenSliderThumb');
@@ -6792,13 +6792,10 @@
         // The blocks you can count - a new one pops in (only the new ones animate).
         const prev = sessPlan.lastBlockCount;
         const blocks = [];
-        for (let i = 0; i < n; i++) blocks.push(`<span class="time-block${i >= prev ? ' is-new' : ''}">${i + 1}</span>`);
-        if (sessPlan.open) blocks.push('<span class="time-block is-more">+</span>');
+        for (let i = 0; i < n; i++) blocks.push(`<span class="time-block${i >= prev ? ' is-new' : ''}"></span>`);
+        if (sessPlan.open) blocks.push('<span class="time-block is-more"></span>');
         document.getElementById('sessLenBlocks').innerHTML = blocks.join('');
         sessPlan.lastBlockCount = n;
-        const chips = document.getElementById('sessLenChips');
-        chips.innerHTML = SESS_QUICK_MINUTES.map(m => { const on = !sessPlan.open && sessPlan.minutes === m; return `<button type="button" class="filter-pill${on ? ' active' : ''}" aria-pressed="${on}" data-min="${m}">${m === 60 ? '1 hour' : `${m} min`}</button>`; }).join('');
-        chips.querySelectorAll('[data-min]').forEach(b => b.addEventListener('click', () => sessSetMinutes(Number(b.dataset.min))));
         const openBtn = document.getElementById('sessOpenBtn');
         openBtn.classList.toggle('selected', sessPlan.open);
         openBtn.setAttribute('aria-pressed', String(sessPlan.open));
@@ -6807,6 +6804,7 @@
         setShown(same, !!last);
         if (last) same.textContent = `Same as last time (${last.open ? 'Keep going' : `${last.minutes} min`}, ${planName(String(last.template || '').startsWith('t:') ? sessTemplates.find(t => `t:${t.id}` === last.template) || 'standard' : last.template)})`;
     }
+    makeSliderReadoutEditable('sessLenValue', () => (sessPlan.open ? 20 : sessPlan.minutes), (v) => sessSetMinutes(v), { label: 'Session length in minutes', min: PracticePlan.MIN_MINUTES, max: PracticePlan.MAX_MINUTES });
     function sessSetMinutes(m) {
         sessPlan.open = false;
         sessPlan.minutes = PracticePlan.clampMinutes(m);

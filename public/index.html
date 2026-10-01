@@ -1053,7 +1053,7 @@
         <h2 class="step-question" id="sessLenLabel">How long do you want to practise?</h2>
         <div class="metro-speed-row no-margin" role="group" aria-labelledby="sessLenLabel">
             <button type="button" class="metro-bpm-step" id="sessLenMinus" aria-label="5 minutes less">&minus;</button>
-            <div class="metro-speed-readout" aria-live="polite"><div id="sessLenValue">20</div><div class="metro-speed-sub" id="sessLenSub">minutes · 4 blocks of 5</div></div>
+            <div class="metro-speed-readout" aria-live="polite"><div id="sessLenValue">20</div><div class="metro-speed-sub" id="sessLenSub">minutes</div></div>
             <button type="button" class="metro-bpm-step" id="sessLenPlus" aria-label="5 minutes more">+</button>
         </div>
         <!-- ML-337: the standard slider under the number, in 5-minute steps (5-120). -->
@@ -1064,8 +1064,10 @@
             </div>
             <div class="slider-scale"><span>5</span><span>120</span></div>
         </div>
+        <!-- The minutes as one strip of 5-minute blocks across the same width - more blocks, thinner (owner,
+             1 Oct 2026: numbered squares looked like buttons). Tap the number to type the minutes. -->
+        <p class="text-sm text-muted mt-3 mb-1" id="sessLenBlocksLabel">4 blocks of 5 minutes</p>
         <div class="time-blocks" id="sessLenBlocks" aria-hidden="true"></div>
-        <div class="flex-row flex-wrap gap-sm mb-3" id="sessLenChips" role="group" aria-label="Quick picks"></div>
         <button type="button" class="flow-choice-option level-answer open-ended-option" id="sessOpenBtn" aria-pressed="false">
             <span class="material-symbols-outlined open-ended-icon" aria-hidden="true">all_inclusive</span>
             <span><strong>Keep going</strong><br><span class="text-sm text-muted">No end time. Starts with 4 blocks and adds more as you play.</span></span>
@@ -1084,6 +1086,13 @@
         </ol>
         <h2 class="step-question" id="sessPickTitle">Pick a plan</h2>
         <div id="sessPlanCards" role="group" aria-labelledby="sessPickTitle"></div>
+        <!-- The key for the blocks' symbols - this is the first screen they appear on (owner, 1 Oct 2026). -->
+        <div class="kind-key" aria-hidden="true">
+            <span><span class="kind-block kind-warmup"><span class="material-symbols-outlined">local_fire_department</span></span>Warm-up</span>
+            <span><span class="kind-block kind-scales"><span class="material-symbols-outlined">stairs</span></span>Scales</span>
+            <span><span class="kind-block kind-skills"><span class="material-symbols-outlined">bolt</span></span>Skills</span>
+            <span><span class="kind-block kind-pieces"><span class="material-symbols-outlined">music_note</span></span>Pieces</span>
+        </div>
         <button type="button" class="btn-nav hidden-group" id="sessEditPlanBtn">Change my plan</button>
         <button type="button" class="btn-nav" id="sessBuildBtn">Build my own plan</button>
         <button type="button" class="btn-submit" id="sessToContentBtn">Next: what goes in</button>
