@@ -51,7 +51,7 @@ a too-long bit - 3:1 non-text), `--focus-ring`; `--touch-target` (every bar is a
 | Stop done / now / to come | `.path-stage.is-done` (gold dot, tick) / `.is-now` (ringed) / plain |
 | Bar painted / not | `.paint-bar.lv-N` / `.lv-0` (dashed) |
 | Tool / pot chosen | `.paint-tool[aria-pressed="true"]` / `.level-pick.selected` |
-| Knife cut | `.paint-bar.is-cut-before` - a red inside edge on the left |
+| Knife cut | `.paint-bar.is-cut-before` - a red inside edge on the left (`--shadow-cut-line`) |
 | Bit too long | `.cut-bit.is-too-long` - red border, the fit line in the warning colour |
 
 ## 7. Code example

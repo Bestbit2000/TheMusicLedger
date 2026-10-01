@@ -2727,7 +2727,7 @@
     .paint-bar.lv-0 { border-width: 2px; }
     .paint-bar:not(.lv-0) { border: 2px solid transparent; }
     .paint-bar-num { position: absolute; top: var(--space-0-5); left: var(--space-1); font-size: var(--font-xs); font-weight: var(--font-weight-semibold); line-height: var(--line-height-tight); }
-    .paint-bar.is-cut-before { box-shadow: inset var(--space-1) 0 0 var(--danger-color); }
+    .paint-bar.is-cut-before { box-shadow: var(--shadow-cut-line); }
     .paint-toolbox { position: sticky; bottom: 0; z-index: var(--z-sticky); display: grid; gap: var(--space-2); padding: var(--space-3) 0; background: var(--container-bg); border-top: 1px solid var(--input-border); }
     .paint-tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
     .paint-tool { min-height: var(--touch-target); display: grid; place-items: center; gap: var(--space-0-5); padding: var(--space-1); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font: inherit; cursor: pointer; }
