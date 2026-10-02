@@ -1,8 +1,34 @@
 [
   {
+    "version": "0.37.0",
+    "date": "2026-10-02",
+    "changes": [
+      {
+        "key": "ML-399",
+        "type": "New",
+        "summary": "SmartLearn: use how long each answer took - bring back the ones you hesitated on, even when right"
+      },
+      {
+        "key": "ML-396",
+        "type": "New",
+        "summary": "Notes theory - change grade to levels and use the 5 levels for practise"
+      }
+    ]
+  },
+  {
     "version": "0.36.0",
     "date": "2026-10-01",
     "changes": [
+      {
+        "key": "ML-395",
+        "type": "New",
+        "summary": "Back-tests brought up to date with 0.34.0, and dead Home stats code removed"
+      },
+      {
+        "key": "ML-394",
+        "type": "Fixes",
+        "summary": "Pop-ups and the menu shift the page and leave an undimmed strip on desktop browsers"
+      },
       {
         "key": "ML-393",
         "type": "New",
