@@ -33,9 +33,10 @@ import { getActiveTimerSession, upsertActiveTimerSession, clearActiveTimerSessio
 import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from '../services/flowAuthoringStats.js';
 import { exportFlowForUser } from '../services/flowTransfer.js';
 import { submitFeedback } from '../services/feedback.js';
+import { requestUpgrade } from '../services/upgradeRequest.js';
 import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead } from '../services/notifications.js';
-import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryWeights } from '../services/theoryPractice.js';
-import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getRhythmLevels, setRhythmWord } from '../services/drills.js';
+import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryWeights, getTheoryPlayed } from '../services/theoryPractice.js';
+import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getDrillWeights, getRhythmLevels, setRhythmWord } from '../services/drills.js';
 import { securityStatus, requirePasswordAccount, changeOwnPassword } from '../services/passwordAuth.js';
 import { beginSetup, confirmSetup, newRecoveryCodes, turnOff } from '../services/twoStep.js';
 
@@ -300,6 +301,16 @@ router.get('/theory/attempts', requireAuth, resolveAccount, async (req, res) => 
   }
 });
 
+// ML-396: the sets of options played in one quiz, each with its last round - the options screen's list.
+router.get('/theory/played', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertTheoryEnabled();
+    res.json(await getTheoryPlayed(req.accountId, req.query.quizId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.post('/theory/attempts', requireAuth, resolveAccount, async (req, res) => {
   try {
     await assertTheoryEnabled();
@@ -338,6 +349,16 @@ router.get('/drills/:tool/summary', requireAuth, resolveAccount, async (req, res
   try {
     await assertDrillEnabled(req.params.tool);
     res.json(await getDrillSummary(req.accountId, req.params.tool));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-399: what SmartLearn deals a Pitch or Tempo round by, for one level.
+router.get('/drills/:tool/weights', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertDrillEnabled(req.params.tool);
+    res.json(await getDrillWeights(req.accountId, req.params.tool, req.query.level));
   } catch (error) {
     sendError(res, error);
   }
@@ -1712,6 +1733,16 @@ router.post('/feedback', requireAuth, resolveAccount, async (req, res) => {
     res.json(await submitFeedback(req.accountId, {
       message, route, deviceKind, userAgent: req.get('user-agent')
     }));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-396: "Upgrade now" on a feature's Learn more pop-up (SmartLearn) - emails the owner that this
+// account asked for it. See server/services/upgradeRequest.js.
+router.post('/upgrade-requests', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await requestUpgrade(req.accountId, String((req.body && req.body.feature) || '')));
   } catch (error) {
     sendError(res, error);
   }

@@ -1,7 +1,7 @@
 # Theory practice (ML-260)
 
 A home-screen tool for practising music theory without an instrument: short quizzes, against the
-clock or a set number of questions, with a 1-5 grade and personal bests. Read this before touching the
+clock or a set number of questions, with a Level 1-5 for each round and a list of what you've played. Read this before touching the
 quizzes, their scoring, the notation renderer or the Bravura font.
 
 Related tickets:
@@ -12,7 +12,8 @@ Related tickets:
 - **ML-264:** the screens.
 - **ML-265:** saving results.
 - **ML-266:** back-tests and docs.
-- **ML-269:** Smart learn (weak questions dealt first; gated for the paid tier).
+- **ML-269:** SmartLearn (weak questions dealt first; gated for the paid tier). Called "SmartLearn" until ML-396.
+- **ML-396:** a round's result is a Level 1-5 (not a "grade"); "What I've played" and "What's included" on the options screen.
 
 ## Files
 
@@ -124,7 +125,11 @@ All answers are **one tap on a button**. Four quizzes with their own options (co
 | 4 ledger lines | D3-G6 | F1-B4 |
 | 6 ledger lines | G2-D7 | B0-F5 |
 
-The staff stays the same height for the whole round.
+The staff stays the same height for the whole round, and so do the answer buttons (ML-396): if any
+note in the round has a sharp or flat - Theory Grade 2 and up, where naturals, sharps and flats are all
+asked - every note question shows the keyboard, the naturals too, so the buttons never change or move
+between questions. A weak spots round does the same across its notes (the keyboard if any needs it, and
+the widest staff any needs).
 
 **How many different questions** (`questionSource(...).size`), for one clef - double for both clefs,
 except Symbols:
@@ -147,7 +152,7 @@ own questions the same way. A small selection still repeats in a long round, but
   for much the same speed (Grave / Largo, Adagio / Lento, Presto / Prestissimo): each question picks one,
   so either name counts as right and a question never shows both. A mark's bpm is a round number (a
   multiple of 5) inside the band, different each time. Wrong answers are the neighbouring bands, listed
-  slow to fast. Question ids are per band (`speedName:moderato`, `speedBpm:moderato`), so Smart learn
+  slow to fast. Question ids are per band (`speedName:moderato`, `speedBpm:moderato`), so SmartLearn
   weighs the band, not the number. The same bands give every tempo box its speed name
   (`speedLabel`, see specs/components/metronome.md). Mixed's Advanced difficulty (Everything) includes them.
 - **Minor scales** are shown harmonic or melodic, because a natural minor scale has exactly its relative
@@ -163,8 +168,9 @@ own questions the same way. A small selection still repeats in a long round, but
   Clef, and on Custom the quiz's own options; **Length** is Round and Repeat. Each box opens a pop-up -
   a choice list, or for Clef (several can be on) a pick list where at least one stays ticked. Sharps
   and flats show as the Bravura signs. `specs/components/theory-quiz.md`.
+- **What I've played and What's included (ML-396)** - see "Levels" below.
 
-## Smart learn (ML-269)
+## SmartLearn (ML-269)
 
 Behind its own gate, **`theory_smart_learn`** (intended for the paid tier; on for now). Without it, rounds
 are the plain shuffle above, with no memory.
@@ -185,7 +191,13 @@ are the plain shuffle above, with no memory.
   (The first idea, 0.75 × random + 0.25 × random × weight/10, caps the boost at a quarter of the range:
   in simulation a weight-10 question in 30 moved only from 15th to 11th on average, against 5th here.)
   Tune with `SMART.strength`.
-- **On screen:** the options screen says Smart learn is on; the results screen says how many of the
+- **On screen (ML-396):** it's written **SmartLearn**, one word. The options screen has its strip
+  (`.smartlearn-note`): "SmartLearn applied" on a gold wash where the account has it, "Learn faster with
+  SmartLearn" where it doesn't, each with **Learn more** - a pop-up (`#smartLearnModal`) saying what it
+  does and why it works. Without it the pop-up ends in **Upgrade now**. There is no payment screen yet,
+  so that emails the owner the request (`POST /api/upgrade-requests`, `server/services/upgradeRequest.js`,
+  to `UPGRADE_REQUEST_EMAIL` or else `SIGNUP_ALERT_EMAIL`; one request per device) and says "Thanks -
+  we'll be in touch". The results screen has the same strip in its plain outline, just above Again, saying how many of the
   round's questions it will bring back.
 - **Retry in the round:** a missed question comes back `SMART.retryGap` (3) questions later in the same
   round (the 3rd question after), and again if it's missed again. Retries count like any answer.
@@ -193,12 +205,31 @@ are the plain shuffle above, with no memory.
   +1 more each further week, up to +3 (`reviewBoost`, `effectiveWeight`). So things you knew a while ago
   come back to be checked. Every answered question is stored (weight 0 included), and `updated_at` is
   when it was last asked. The stored weight itself only moves with answers.
-- **Slow right answers:** a right answer slower than 2 × its question's par time (`SMART.slowFactor`)
-  leaves the weight where it is: you got there, but it isn't known yet.
-- **Your weak spots:** with Smart learn on, the quiz list ends with a "Your weak spots" row (`WEAK_SPOTS`,
+- **Other tools (ML-399):** the same switch and rules work in Pitch and Tempo - see docs/drills.md,
+  "SmartLearn in Pitch and Tempo". Their weights share this table (`ear:…`, `tap:…` ids), which the
+  Theory weak spots list ignores.
+- **Hesitation (ML-399, owner 2026-10-02):** a right answer you took well longer over than **your own
+  usual speed** says you're less sure of it, so it comes back more often too - but less than a wrong one.
+  - Your usual speed is the median time of your right answers of that question type in that round
+    (each round of a repeated test on its own), leaving out the round's first question.
+  - Hesitated: more than 1.5 × that, and at least 1 second longer (`HESITATION`, `hesitationMarks`).
+    Your own speed, not a fixed time: a beginner is over par on everything, and a quick player never is.
+  - It adds **+1** to the weight (a wrong is +2), and hesitations alone never take it above **4** - about
+    3× as likely as a known question at most, against 6× for one you keep missing. One quick right
+    answer clears it.
+  - Fewer than 5 right answers of that type to go by: the old fixed rule - a right answer slower than
+    2 × its par time (`SMART.slowFactor`) just leaves the weight where it is.
+  - **Not a weak spot.** `theory_question_weights.miss_weight` (migration 089) is the part of the weight
+    that came from wrong answers; "Your weak spots" lists and asks only questions with a miss weight.
+    `applyAnswer` moves both: wrong +2 to both, a quick right −1 from both, a hesitation +1 to the weight only.
+  - Worked out by the server when a finished round is saved (`applySmartLearn`). Inside a round only a
+    wrong answer comes back; the in-round deal still uses `nextWeight`.
+  - The results box says it kindly: "SmartLearn will bring back 3 questions: 1 to get right, 2 you took
+    a little longer over." Never "too slow".
+- **Your weak spots:** with SmartLearn on, the quiz list ends with a "Your weak spots" row (`WEAK_SPOTS`,
   quiz id `weakSpots`). Its options screen lists every question with a stored weight above 0, weakest
   first (`describeQuestion`: "B♭4 on the treble staff", "Needs work: 6 of 10 · missed 3, right 0"), and
-  its round asks only those, dealt by their stored weights (a review boost isn't a weak spot). Any
+  its round asks only those, dealt by their miss weights (a review boost or a hesitation isn't a weak spot). Any
   question can be rebuilt from its id (`itemFromId`), whichever quiz first asked it. With nothing to
   work on it says so and offers no Start.
 
@@ -252,9 +283,9 @@ everyone started fresh.
 | Inversion | 3 s | 20 |
 | Cadence | 5 s | 12 |
 
-**Grade:**
+**Level** (the stored column is `grade`):
 
-| Score | Grade |
+| Score | Level |
 |---|---|
 | 90 or more | 5 |
 | 70-89 | 4 |
@@ -263,6 +294,42 @@ everyone started fresh.
 | Below 30 | 1 |
 
 The limits live in `TheoryEngine` (`PAR`, `GRADE_LIMITS`, `TIMING`).
+
+## Levels, What I've played, What's included (ML-396)
+
+Owner decisions, 2026-10-02. The mock-ups are linked from the ticket.
+
+- **A round's result is a Level 1-5, never a "grade".** On screen "grade" only means the Theory grade
+  picked on the options screen. The database column, the API field and `gradeFor` are still `grade`.
+  Levels use the practice Level colours (`--level-1`…`--level-5`: silver 1-2, gold 3-5).
+- **The score is not shown.** The Level is worked out from it, so showing both said the same thing
+  twice. It's still stored, and still picks the best round (and the best of a repeated test).
+- **Keep it positive.** One "Right" box ("17 out of 18" - the total says there was a slip without a
+  Wrong box), and "2 more right answers for Level 5" (`nextLevelGap`). No Accuracy, no Wrong, and
+  nothing on screen about what a slip costs.
+- **Results screen:** one grey line of what was played (`describeOptions`; a Custom round lists its
+  inputs) › five steps, yours ringed, the ones above dashed › "Level 4 · your first round / your best yet
+  with these options" › the next-Level line (not at Level 5) › Right and Time › "My last rounds" (a bar
+  per round, coloured and sized by Level, this one ringed) › Again, then Change options / Another quiz
+  (the Theory list) / Home.
+- **What I've played** (options screen, under Start): a row per set of options played in this quiz,
+  newest first, from `GET /api/theory/played?quizId=` - the set (`describeSet`: "Grade 1 · Treble · 30 s",
+  or "Custom · …" with its inputs on a second line), when it was last played, how many times, and the
+  **last** Level (not the best). The row matching the boxes is ringed. Six rows, then "Show more".
+  Nothing shows before the first round. Repeat isn't part of a set. It replaced the "Your best with
+  these options / You haven't tried these options yet" line.
+- **A row's pop-up** (`#theorySetModal`): "My last rounds" (the 8 from `GET /api/theory/attempts`),
+  "What's included" (`includedFor`: for Note names a staff per clef with the lowest and highest note,
+  then a line per thing asked - never how you answer, which differs between grades), "Levels for this
+  round" (`levelTargets`: 6 / 10 / 14 / 18 right for a 30 s Note names round, 3 / 5 / 7 / 9 for 10
+  questions), and "Use these options", which sets the boxes. A timed round that mixes par times (Mixed,
+  Keys with both shown…) has no single count, so that strip is left out.
+- **"What's included in Grade N?"** is a link under the Content boxes, shown until any round of that
+  Theory grade has been played in this quiz (after that the row says it). Never for Custom. It opens
+  the same pop-up without the chart, with Close.
+- **Elsewhere:** the quiz list shows the last Level as the chip alone (no "Level 4 · today" line - the chip says it, and when doesn't matter there); Stats' "Last Theory Level".
+- **Not yet:** Tap tempo, Gap trainer, Ear and Rhythm still show grade dots and scores; linking a
+  set's Level to practice sessions.
 
 ## Saving and history
 
@@ -278,6 +345,8 @@ The limits live in `TheoryEngine` (`PAR`, `GRADE_LIMITS`, `TIMING`).
   - It returns: `isFirst`, `isNewBest`, `previousBest`, `best`, and `recent` (the last 8 rounds, oldest
     first).
 - **History:** `GET /api/theory/attempts?settingsKey=` returns the recent rounds and the best.
+- **Played sets (ML-396):** `GET /api/theory/played?quizId=` returns one row per settings key in that
+  quiz - its last round and `rounds`, how many it has had - newest first.
 - **Quiz list:** `GET /api/theory/summary` returns the last round per quiz.
 - **The settings key** groups comparable rounds: quiz, round type, and every visible option. Hidden
   options, like minor scales when minor is off, don't count, and neither does letters/solfège.
@@ -293,7 +362,8 @@ The limits live in `TheoryEngine` (`PAR`, `GRADE_LIMITS`, `TIMING`).
 - **Notation:** pitch to staff position, ledger lines for every range, and key-signature order.
 - **Engine:** every quiz with every option combination (the answer buttons, right answer included,
   no repeats); every question dealt once before any repeat; Mixed takes each type in turn; every
-  scale's step pattern in both clefs; key tables; symbol sets; par scoring.
+  scale's step pattern in both clefs; key tables; symbol sets; par scoring; Levels (ML-396: what each
+  Level takes, the next-Level gap, a set's name, what it includes).
 
 **Test hook (local only):** with `localStorage['tml.testClock'] = '1'` on localhost,
 `window.__theoryTest` offers:
@@ -306,8 +376,9 @@ The limits live in `TheoryEngine` (`PAR`, `GRADE_LIMITS`, `TIMING`).
 | `advance(ms)` | Moves the round's clock on. |
 | `result()` | The finished round's result. |
 
-The back-test helpers `setWeights` / `getWeights` (`tests/helpers/theory.ts`) read and write Smart learn
+The back-test helpers `setWeights` / `getWeights` (`tests/helpers/theory.ts`) read and write SmartLearn
 weights directly; `clearTheoryAttempts` clears them too.
 
 **Back-test:** case #18 in the Neon `test_cases` table. It covers each quiz on screen, right and wrong
-feedback, both round types, Mixed, rhythm and terms, saving, and screenshot baselines.
+feedback, both round types, Mixed, rhythm and terms, saving, the Level results, What I've played,
+What's included, and screenshot baselines.

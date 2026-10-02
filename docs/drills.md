@@ -84,6 +84,33 @@ are no recordings to licence, and they're tuned to the tuner's A4 setting.
 - After each answer the note is shown on a treble staff (Bravura), right or wrong.
 - **Score:** 10 points a right answer (there's Play again, so no penalty for a wrong one).
 
+## SmartLearn in Pitch and Tempo (ML-399)
+
+SmartLearn is one switch for every tool it works in (the `theory_smart_learn` feature - Theory, Pitch,
+Tempo). Its rules are Theory's (docs/theory-practice.md, "SmartLearn"): a weight 0-10 per item, wrong +2,
+a quick right −1, a hesitation +1 up to 4. Pulse and Rhythm have nothing for it to deal: the player
+picks one drill or rhythm (owner, 2026-10-02: left out).
+
+**Pitch** - the item is a note in a mode and note set (`ear:reference:triad:7`, any octave).
+- A wrong answer is a wrong answer. A right one is **hesitated** when it took well longer than your own
+  usual speed in the round (Theory's rule, timed from the end of the note), or you used **Play again**
+  first. Play it back has no answer time - only Play again marks it.
+- Notes with a weight come up more (`earQuestions(..., weights)`: 1 + weight × 0.5 times as likely), and
+  a note you get wrong comes back three notes later in the same round (`earRetry`).
+- Each answer keeps `ms` and `replays` in the round's details. They never change the score.
+
+**Tempo** - the item is a speed band at a level (`tap:solo:andante`). There's no right or wrong and no
+answer time, so a speed's points stand in (`TAP_SMART`): under 70 is "to work on" (as a wrong answer),
+70-89 is "close" (as a hesitation), 90 or more is known. Later rounds take more of their speeds from
+your weaker bands (`tapTargets(..., weights)`).
+
+**Where:** the weights sit with Theory's in `theory_question_weights`. `GET /api/drills/:tool/weights?level=`
+loads them at the start of a round (3 s timeout, else the plain round); saving a round moves them
+(`server/services/drills.js` → `applySmartLearn`) and returns `smartLearn: { learning, missed, slower }`.
+The setup screens have Theory's SmartLearn strip, and the results screen its box above Again ("SmartLearn
+will bring back 2 notes you took a little longer over" / "...2 speeds: 1 to get right, 1 you were close
+on"). With no weights a round is exactly what it was, so a seed still gives the same round.
+
 ## Saving
 
 `drill_attempts`: tool, level (Tap tempo's level id, the Gap trainer's drill id, or Ear's
@@ -95,4 +122,5 @@ isn't saved. Bests and history are per tool and level.
 
 `server/test/drills.test.js` (engine). Back-test case 23 drives the screens with
 `window.__drillTest` (localhost only): it starts rounds with a fixed seed and feeds taps in directly,
-since real taps can't be timed from a script.
+since real taps can't be timed from a script. A fixed-seed round is the plain one - no SmartLearn weights
+or retries - unless the test sets `__drillTest.smart = true`.

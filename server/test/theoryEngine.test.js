@@ -576,7 +576,7 @@ describe('Theory grades (ML-309)', () => {
         const keys = T.QUIZZES.find(q => q.id === 'keys');
         assert.deepEqual(keys.options.filter(d => T.optionVisible(d, o)).map(d => d.key), ['clefs', 'show']);
         assert.equal(T.settingsKey('keys', o, 't30'), 'keys|t30|grade=2;clefs=bass;show=both');
-        assert.equal(T.describeOptions('keys', o, 't30'), 'Grade 2 syllabus · Bass · Both · 30 s');
+        assert.equal(T.describeOptions('keys', o, 't30'), 'Grade 2 · Bass · Both · 30 s');
         // custom settings keys are unchanged by the grade option
         assert.equal(T.settingsKey('keys', {}, 't30'), 'keys|t30|clefs=treble;show=both;upTo=3;keyTypes=both;modes=major');
         assert.equal(T.normaliseOptions('weakSpots', { grade: 3 }).grade, 0);
@@ -620,7 +620,7 @@ describe('intervals, technical names, chromatic scale, chords, cadences (ML-309 
         assert.equal(T.normaliseOptions('chords', { grade: 3 }).grade, 4);
         assert.equal(T.normaliseOptions('chords', { grade: 5 }).grade, 5);
         assert.equal(T.settingsKey('intervals', { grade: 3 }, 't30'), 'intervals|t30|grade=3;clefs=treble');
-        assert.equal(T.describeOptions('chords', { grade: 5, clefs: ['bass'] }, 'q10'), 'Grade 5 syllabus · Bass · 10 questions');
+        assert.equal(T.describeOptions('chords', { grade: 5, clefs: ['bass'] }, 'q10'), 'Grade 5 · Bass · 10 questions');
     });
     test('naming intervals', () => {
         const name = (a, b) => { const iv = T.intervalBetween(a, b); return T.intervalLabel(iv.quality, iv.number); };
@@ -732,5 +732,131 @@ describe('intervals, technical names, chromatic scale, chords, cadences (ML-309 
         assert.ok(!types(3).has('degree'));
         for (const t of ['interval', 'degree', 'chord', 'inversion', 'cadence']) assert.ok(types(5).has(t), t);
         assert.deepEqual(T.gradeSummary().map(g => g.topics.map(t => t.label)), [[], ['Intervals'], ['Intervals'], ['Intervals', 'Technical names', 'Chromatic scale', 'Chords'], ['Intervals', 'Chords', 'Inversions', 'Cadences']]);
+    });
+});
+
+// ML-396: a round's result is a Level 1-5; the options screen lists the sets you've played.
+describe('one set of note buttons for the whole round (ML-396)', () => {
+    const layouts = (quiz, options, weights) => {
+        const src = source(quiz, options, { seed: 4, weights });
+        return new Set(take(src, 60).filter(q => typeOf(q.id) === 'note').map(q => `${q.layout}:${q.answers.length}:${q.prompt.staff.stepRange.join()}`));
+    };
+    test('a grade that mixes naturals with sharps and flats shows the keyboard for every note', () => {
+        assert.deepEqual([...layouts('noteNames', { grade: 2, clefs: ['treble'] })], ['keyboard:17:-5,13']);
+        assert.deepEqual([...layouts('noteNames', { grade: 1, clefs: ['treble'] })], ['notes:7:-2,10']);
+        assert.equal(layouts('mixed', { grade: 3, clefs: ['treble'] }).size, 1);
+        // a natural is still answered with its natural button
+        const src = source('noteNames', { grade: 2, clefs: ['treble'] }, { seed: 9 });
+        const natural = take(src, 60).find(q => !/[#b]/.test(q.id.split(':')[2]));
+        assert.equal(natural.correct, natural.id.split(':')[2][0]);
+        assert.ok(natural.answers.some(a => a.id === natural.correct));
+    });
+    test('a weak spots round: its notes share the keyboard and the widest staff', () => {
+        assert.deepEqual([...layouts('weakSpots', {}, { 'note:treble:C5': 4, 'note:treble:F#4': 2, 'note:treble:A3': 2 })], ['keyboard:17:-5,13']);
+        assert.deepEqual([...layouts('weakSpots', {}, { 'note:treble:C5': 4, 'note:treble:E4': 2 })], ['notes:7:-2,10']);
+    });
+});
+
+describe('Levels (ML-396)', () => {
+    const note = (correct) => ({ questionId: 'note:treble:C5', correct });
+    const answers = (right, wrong) => [...Array(right).fill(note(true)), ...Array(wrong).fill(note(false))];
+
+    test('right answers each Level takes', () => {
+        assert.deepEqual(T.levelTargets('noteNames', { grade: 1 }, 't30'), [{ level: 2, right: 6 }, { level: 3, right: 10 }, { level: 4, right: 14 }, { level: 5, right: 18 }]);
+        assert.deepEqual(T.levelTargets('noteNames', {}, 'q10').map(t => t.right), [3, 5, 7, 9]);
+        // each target really is the lowest count that reaches its Level
+        for (const t of T.levelTargets('noteNames', {}, 't30')) {
+            assert.equal(T.scoreRound('t30', answers(t.right, 0)).grade, t.level);
+            assert.ok(T.scoreRound('t30', answers(t.right - 1, 0)).grade < t.level);
+        }
+        assert.equal(T.levelTargets('mixed', {}, 't30'), null, 'a timed round that mixes par times has no one count');
+        assert.equal(T.levelTargets('mixed', {}, 'q10').length, 4);
+        assert.equal(T.levelTargets('weakSpots', {}, 't30'), null);
+    });
+
+    test('how many more right answers reach the next Level', () => {
+        assert.deepEqual(T.nextLevelGap('t30', answers(17, 1)), { level: 5, more: 2 });
+        assert.deepEqual(T.nextLevelGap('t30', answers(5, 0)), { level: 2, more: 1 });
+        assert.equal(T.nextLevelGap('t30', answers(18, 0)), null, 'nothing above Level 5');
+        assert.equal(T.nextLevelGap('t30', []), null);
+        // fixed: one more right is one fewer wrong
+        assert.deepEqual(T.nextLevelGap('q10', answers(8, 2)), { level: 4, more: 1 });
+        assert.deepEqual(T.nextLevelGap('q10', answers(5, 5)), { level: 2, more: 2 });
+        for (const [r, w] of [[17, 1], [5, 0], [9, 4], [0, 3]]) {
+            const gap = T.nextLevelGap('t30', answers(r, w));
+            assert.equal(T.scoreRound('t30', answers(r + gap.more, w)).grade >= gap.level, true);
+            assert.ok(T.scoreRound('t30', answers(r + gap.more - 1, w)).grade < gap.level);
+        }
+    });
+
+    test('a set of options as a list row', () => {
+        assert.deepEqual(T.describeSet('noteNames', { grade: 1, clefs: ['treble'] }, 't30'), { title: 'Grade 1 · Treble · 30 s', detail: '' });
+        assert.deepEqual(T.describeSet('noteNames', { clefs: ['treble', 'bass'], range: 2, accidentals: 'both' }, 'q10'),
+            { title: 'Custom · Treble, Bass · 10 questions', detail: '2 ledger lines · Sharps and flats' });
+        assert.deepEqual(T.describeSet('symbols', {}, 't30'), { title: 'Custom · 30 s', detail: 'Basics · Ask: both' });
+        assert.deepEqual(T.describeSet('noteNames', {}, 't30', { grades: false }), { title: 'Treble · On the staff · None · 30 s', detail: '' });
+    });
+
+    test('what a set includes', () => {
+        const g1 = T.includedFor('noteNames', { grade: 1, clefs: ['treble'] }, 't30');
+        assert.deepEqual(g1.staffs, [{ clef: 'treble', low: 'D4', high: 'G5', stepRange: [-2, 10] }]);
+        assert.deepEqual(g1.lines, [
+            { label: 'Clef', text: 'Treble' },
+            { label: 'Notes', text: '11 different notes, all on the staff' },
+            { label: 'Sharps and flats', text: 'none' },
+            { label: 'Round', text: '30 seconds, as many as you can' },
+        ]);
+        const g2 = T.includedFor('noteNames', { grade: 2, clefs: ['treble', 'bass'] }, 'q10');
+        assert.equal(g2.staffs.length, 2);
+        assert.equal(g2.lines.find(l => l.label === 'Sharps and flats').text, 'both');
+        assert.match(g2.lines.find(l => l.label === 'Notes').text, /up to 2 ledger lines/);
+        assert.equal(g2.lines.at(-1).text, '10 questions, no time limit');
+        // every quiz, grade and custom, has something to say and never mentions how you answer
+        for (const q of T.QUIZZES) for (const grade of q.gradeOnly ? q.grades : [0, 1, 5]) {
+            const inc = T.includedFor(q.id, { grade }, 't30');
+            assert.ok(inc.lines.length >= 2, `${q.id} grade ${grade}`);
+            assert.ok(inc.lines.every(l => l.label && l.text), `${q.id} grade ${grade}`);
+        }
+    });
+});
+
+// ML-399: SmartLearn also brings back what you got right but hesitated on.
+describe('SmartLearn hesitation (ML-399)', () => {
+    const a = (id, ms, correct = true, block = 1) => ({ questionId: `note:treble:${id}`, correct, ms, block });
+    test('a right answer well over your own usual speed in the round is marked slow', () => {
+        const round = [a('C5', 5000), a('D5', 800), a('E5', 900), a('F5', 2600), a('G5', 850), a('A4', 700), a('B4', 1500), a('E4', 900, false), a('F4', 950)];
+        // usual speed: the median of the right answers after the first = 900 ms
+        assert.deepEqual(T.hesitationMarks(round), [null, null, null, 'slow', null, null, null, null, null]);
+        // the first question of the round is never marked, however slow; a wrong answer never is
+        // 1.5x isn't enough on its own: it must also be a second longer (B4, 1500 ms, isn't)
+    });
+    test('compared with your own pace: a slow player is not marked on everything, a quick one still is', () => {
+        const slowPlayer = ['C5', 'D5', 'E5', 'F5', 'G5', 'A4', 'B4'].map(n => a(n, 4000));
+        assert.ok(T.hesitationMarks(slowPlayer).every(m => m === null));
+        const quick = [a('C5', 400), a('D5', 400), a('E5', 420), a('F5', 380), a('G5', 1900), a('A4', 410), a('B4', 400)];
+        assert.deepEqual(T.hesitationMarks(quick).filter(Boolean), ['slow']);
+    });
+    test('each round of a repeated test, and each question type, has its own usual speed', () => {
+        const two = [...['C5', 'D5', 'E5', 'F5', 'G5', 'A4'].map(n => a(n, 500, true, 1)), ...['C5', 'D5', 'E5', 'F5', 'G5', 'A4'].map(n => a(n, 3000, true, 2))];
+        assert.ok(T.hesitationMarks(two).every(m => m === null));
+        const mixed = [a('C5', 500), a('D5', 500), a('E5', 500), a('F5', 500), a('G5', 500), a('A4', 500), { questionId: 'scale:treble:C major:major', correct: true, ms: 3500, block: 1 }];
+        assert.equal(T.hesitationMarks(mixed)[6], null, 'one scale has nothing to be compared with, and is under 2x its par');
+    });
+    test('too few right answers to go by: the fixed rule - over 2x par holds the weight, never raises it', () => {
+        assert.deepEqual(T.hesitationMarks([a('C5', 900), a('D5', 3500), a('E5', 900), a('F5', 900)]), [null, 'hold', null, null]);
+    });
+    test('the weights: wrong +2 to both, quick right -1 from both, hesitated +1 up to 4 and never a weak spot', () => {
+        assert.deepEqual(T.applyAnswer({ weight: 0, miss: 0 }, false), { weight: 2, miss: 2 });
+        assert.deepEqual(T.applyAnswer({ weight: 9, miss: 9 }, false), { weight: 10, miss: 10 });
+        assert.deepEqual(T.applyAnswer({ weight: 2, miss: 2 }, true, null), { weight: 1, miss: 1 });
+        assert.deepEqual(T.applyAnswer({ weight: 0, miss: 0 }, true, 'slow'), { weight: 1, miss: 0 });
+        assert.deepEqual(T.applyAnswer({ weight: 3, miss: 2 }, true, 'hold'), { weight: 3, miss: 2 });
+        let s = { weight: 0, miss: 0 };
+        for (let i = 0; i < 8; i++) s = T.applyAnswer(s, true, 'slow');
+        assert.deepEqual(s, { weight: 4, miss: 0 }, 'hesitations alone stop at 4');
+        assert.deepEqual(T.applyAnswer({ weight: 6, miss: 6 }, true, 'slow'), { weight: 6, miss: 6 }, 'above 4 already: left where it is');
+        assert.deepEqual(T.applyAnswer({ weight: 1, miss: 0 }, true, null), { weight: 0, miss: 0 }, 'one quick right answer clears a hesitation');
+        assert.deepEqual(T.applyAnswer({ weight: 3, miss: 0 }, false), { weight: 5, miss: 2 });
+        assert.deepEqual(T.applyAnswer({ weight: 3 }, true, null), { weight: 2, miss: 0 });
     });
 });

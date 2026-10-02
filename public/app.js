@@ -343,7 +343,8 @@
         drills: {
             summary: (tool) => apiCall(`/api/drills/${tool}/summary`),
             history: (tool, level) => apiCall(`/api/drills/${tool}/attempts?level=${encodeURIComponent(level)}`),
-            save: (tool, data) => apiCall(`/api/drills/${tool}/attempts`, 'POST', data)
+            save: (tool, data) => apiCall(`/api/drills/${tool}/attempts`, 'POST', data),
+            weights: (tool, level) => apiCall(`/api/drills/${tool}/weights?level=${encodeURIComponent(level)}`)
         },
         // ML-306: each rhythm's speed Level and your own word for it.
         rhythm: {
@@ -353,6 +354,7 @@
         theory: {
             summary: () => apiCall('/api/theory/summary'),
             history: (settingsKey) => apiCall(`/api/theory/attempts?settingsKey=${encodeURIComponent(settingsKey)}`),
+            played: (quizId) => apiCall(`/api/theory/played?quizId=${encodeURIComponent(quizId)}`),
             save: (data) => apiCall('/api/theory/attempts', 'POST', data),
             weights: () => apiCall('/api/theory/weights')
         },
@@ -364,6 +366,9 @@
         // ML-170 - capture only. Triage is admin-panel-side (public/admin.js).
         feedback: {
             submit: (data) => apiCall('/api/feedback', 'POST', data)
+        },
+        upgrade: {
+            request: (feature) => apiCall('/api/upgrade-requests', 'POST', { feature })
         },
         instruments: {
             list: () => apiCall('/api/instruments')
@@ -548,7 +553,7 @@
         set('statsHomeConcert', c ? dayLabel(c.days) : 'None');
         set('statsHomeConcertLabel', c ? `to ${c.name}` : 'Next concert');
         setShown(statCard('theory_last'), isFeatureEnabled('theory_practice'));
-        set('statsHomeTheory', statsTheoryLast === null ? '-' : statsTheoryLast.score === undefined ? 'Not yet' : String(statsTheoryLast.score));
+        set('statsHomeTheory', statsTheoryLast === null ? '-' : statsTheoryLast.level === undefined ? 'Not yet' : `Level ${statsTheoryLast.level}`);
         setShown(statCard('tools_last'), scoredTools().length > 0);
         set('statsHomeTools', statsToolsLast === null ? '-' : statsToolsLast ? formatToolResultDate(statsToolsLast) : 'Not yet');
         document.querySelectorAll('#statsHomeView .tool-group').forEach(g => setShown(g, [...g.querySelectorAll('.stat-card')].some(isStatShown)));
@@ -566,7 +571,7 @@
         }));
         if (statsTheoryLast === null && isFeatureEnabled('theory_practice') && wanted('theory_last')) jobs.push(API.theory.summary().then(s => {
             const last = Object.values((s && s.quizzes) || {}).sort((a, b) => String(a.startedAt).localeCompare(String(b.startedAt))).pop();
-            statsTheoryLast = last ? { score: last.score } : {};
+            statsTheoryLast = last ? { level: last.grade } : {}; // ML-396: a round's result is a Level
         }).catch(() => { statsTheoryLast = {}; })); // a failed load shows "Not yet" rather than asking again and again
         if (!homeExtras && !homeExtrasLoading && homeSessionsLoaded && (isShown('statsHomeView') || homeStatsShown().some(c => c.dataset.stat === 'concert'))) {
             homeExtrasLoading = true;
@@ -17246,9 +17251,19 @@
         else svg = Notation.textMark(render.text, { italic: render.italic, bold: render.bold, label });
         return theoryScaleSvg(svg, k);
     }
-    function theoryGradeHtml(grade, label) {
-        const dots = [1, 2, 3, 4, 5].map(i => `<span class="theory-grade-dot${i <= grade ? ' theory-grade-dot-on' : ''}"></span>`).join('');
-        return `<span class="theory-grade" role="img" aria-label="${escapeHtml(label || `Grade ${grade} of 5`)}">${dots}</span>`;
+    // ML-396: a round's result is a Level 1-5, in the practice Level colours (silver 1-2, gold 3-5). On
+    // screen "grade" only ever means the Theory grade picked; the stored column is still `grade`.
+    const theoryLevelChip = (level, label) => `<span class="level-chip lv-${level}" role="img" aria-label="${escapeHtml(label || `Level ${level} of 5`)}">${level}</span>`;
+    // The result itself: five steps rising in height and colour, yours ringed, the ones above it dashed.
+    const theoryStepsHtml = (level) => [1, 2, 3, 4, 5].map(i => `<span class="theory-step theory-lv-h${i} ${i <= level ? `lv-${i}` : 'lv-0'}${i === level ? ' is-got' : ''}">${i}</span>`).join('');
+    // The last rounds with one set of options, oldest first: a bar per round, coloured and sized by its
+    // Level, the number inside. nowLast rings the newest and calls it "Now" (the results screen).
+    function theoryLevelBarsHtml(recent, nowLast) {
+        const when = (a) => new Date(a.startedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        return `<div class="theory-level-bars" role="img" aria-label="Levels of your last ${recent.length} ${recent.length === 1 ? 'round' : 'rounds'}: ${recent.map(a => a.grade).join(', ')}">${recent.map((a, i) => {
+            const now = nowLast && i === recent.length - 1;
+            return `<span class="theory-level-slot${now ? ' is-now' : ''}"><span class="theory-level-bar theory-lv-h${a.grade} lv-${a.grade}">${a.grade}</span><span class="theory-level-when">${now ? 'Now' : when(a)}</span></span>`;
+        }).join('')}</div>`;
     }
     function theoryWhen(iso) {
         const d = new Date(iso);
@@ -17306,14 +17321,14 @@
         renderTheoryInstrument();
         const list = document.getElementById('theoryQuizList');
         // ML-301: every quiz has a subtitle (so the rows are the same height); one you haven't tried has
-        // a "New" pill where the grade dots go.
+        // a "New" pill where the last Level goes. The Level chip says it all - no "Level 2 · today" line (owner, ML-396).
         const row = (q, last) => `
             <button type="button" class="history-item clickable theory-quiz-row" data-quiz="${q.id}">
                 <span class="theory-quiz-icon">${theoryScaleSvg(Notation.symbol(q.icon), 0.8)}</span>
-                <span class="history-details"><strong>${escapeHtml(q.title)}</strong>${escapeHtml(q.subtitle || '')}${last ? `<br>Last grade ${last.grade} · ${theoryWhen(last.startedAt)}` : ''}</span>
-                ${last ? theoryGradeHtml(last.grade, `Last grade ${last.grade} of 5`) : loaded ? '<span class="flow-pill flow-pill-accent">New</span>' : ''}
+                <span class="history-details"><strong>${escapeHtml(q.title)}</strong>${escapeHtml(q.subtitle || '')}</span>
+                ${last ? theoryLevelChip(last.grade, `Last Level ${last.grade} of 5`) : loaded ? '<span class="flow-pill flow-pill-accent">New</span>' : ''}
             </button>`;
-        // Smart learn adds "Your weak spots" at the end: a round of only the questions you've been missing.
+        // SmartLearn adds "Your weak spots" at the end: a round of only the questions you've been missing.
         const weakRow = (weak) => {
             const n = weak.length, q = TheoryEngine.WEAK_SPOTS;
             return `
@@ -17341,6 +17356,8 @@
         theoryOptions = TheoryEngine.normaliseOptions(quizId, { ...first, ...(stored.options || {}), ...(theoryGradesOn() ? {} : { grade: 0 }) });
         theoryRoundId = TheoryEngine.round(stored.round).value;
         theoryRepeats = TheoryEngine.repeatsOf(stored.repeats);
+        theoryPlayedStale = true;
+        theoryPlayedAll = false;
         switchView('theoryOptionsView');
     }
 
@@ -17420,7 +17437,7 @@
         const form = document.getElementById('theoryOptionsForm');
         form.innerHTML = section('content', 'Content', content) + section('length', 'Length', length);
         for (const b of [...content, ...length]) form.querySelector(`[data-theory-opt="${b.def.key}"]`).addEventListener('click', b.open);
-        renderTheoryOptionsBest();
+        renderTheoryPlayed();
         renderTheorySmartLearnNote();
         renderTheoryWeakList();
     }
@@ -17446,16 +17463,92 @@
         modal.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', () => hideModal(modal)));
         modal.addEventListener('click', (e) => { if (e.target === e.currentTarget) hideModal(modal); });
     })();
-    async function renderTheoryOptionsBest() {
-        const el = document.getElementById('theoryOptionsBest');
-        const key = TheoryEngine.settingsKey(theoryQuizId, theoryOptions, theoryRoundId);
-        el.textContent = '';
-        try {
-            const h = await API.theory.history(key);
-            if (key !== TheoryEngine.settingsKey(theoryQuizId, theoryOptions, theoryRoundId)) return; // options changed meanwhile
-            el.textContent = h.best ? `Your best with these options: ${h.best.score} (grade ${h.best.grade})` : "You haven't tried these options yet.";
-        } catch (e) { /* not essential */ }
+    // --- What I've played (ML-396): under Start, a row per set of options played in this quiz, newest
+    // first, with the last Level. The row matching the boxes is ringed. Tapping one opens its pop-up
+    // (the last rounds, what's included, what each Level takes, "Use these options"). Nothing shows
+    // before the first round. Repeat isn't part of a set (x1 and x4 share one history).
+    // "What's included in Grade N?" sits under the Content boxes until any round of that grade has
+    // been played here - after that its row says it. Never for Custom: you chose those yourself.
+    let theoryPlayed = null;       // { quizId, sets } from GET /api/theory/played
+    var theoryPlayedStale = true;  // load again on the next draw: another quiz, or a round just saved
+    let theoryPlayedAll = false;   // "Show more" tapped
+    const THEORY_PLAYED_ROWS = 6;
+    const theoryTimes = (n) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`);
+    const theoryCapital = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+    function renderTheoryPlayed() {
+        const el = document.getElementById('theoryPlayed');
+        const link = document.getElementById('theoryIncludedBtn');
+        const sets = theoryPlayed && theoryPlayed.quizId === theoryQuizId ? theoryPlayed.sets : null;
+        const grade = theoryOptions.grade;
+        setShown(link, !!(sets && grade && !sets.some(s => s.options && s.options.grade === grade)));
+        link.textContent = `What's included in Grade ${grade}?`;
+        if (!sets || !sets.length) el.innerHTML = '';
+        else {
+            const key = TheoryEngine.settingsKey(theoryQuizId, theoryOptions, theoryRoundId);
+            const shown = theoryPlayedAll ? sets : sets.slice(0, THEORY_PLAYED_ROWS);
+            el.innerHTML = `<div class="section-title">What I've played</div>` + shown.map((s, i) => {
+                const d = TheoryEngine.describeSet(theoryQuizId, s.options, s.roundType, { grades: theoryGradesOn() });
+                const current = s.settingsKey === key;
+                return `
+                <button type="button" class="history-item clickable theory-quiz-row${current ? ' level-row-selected' : ''}" data-set="${i}"${current ? ' aria-current="true"' : ''}>
+                    <span class="history-details"><strong>${escapeHtml(d.title)}</strong>${d.detail ? `${escapeHtml(d.detail)}<br>` : ''}${theoryCapital(theoryWhen(s.startedAt))} · played ${theoryTimes(s.rounds)}</span>
+                    ${theoryLevelChip(s.grade, `Last Level ${s.grade} of 5`)}
+                </button>`;
+            }).join('') + (sets.length > shown.length ? '<button type="button" class="btn-text" id="theoryPlayedMoreBtn">Show more</button>' : '');
+            el.querySelectorAll('[data-set]').forEach(b => b.addEventListener('click', () => openTheorySet(shown[Number(b.dataset.set)])));
+            document.getElementById('theoryPlayedMoreBtn')?.addEventListener('click', () => { theoryPlayedAll = true; renderTheoryPlayed(); });
+        }
+        if (!theoryPlayedStale || theoryQuizId === TheoryEngine.WEAK_SPOTS.id) return;
+        theoryPlayedStale = false;
+        const quizId = theoryQuizId;
+        API.theory.played(quizId).then(res => {
+            theoryPlayed = { quizId, sets: (res && res.sets) || [] };
+            if (theoryQuizId === quizId && isShown('theoryOptionsView')) renderTheoryPlayed();
+        }).catch(() => { /* not essential */ });
     }
+    document.getElementById('theoryIncludedBtn')?.addEventListener('click', () => openTheorySet(null));
+    // The pop-up for one set of options: a played row (its last rounds, then "Use these options"), or
+    // null = what the boxes say now (the "What's included" link - nothing played yet, so no chart).
+    let theorySetShown = null;     // { options, roundId } "Use these options" applies, or null (Close)
+    async function openTheorySet(set) {
+        const options = set ? TheoryEngine.normaliseOptions(theoryQuizId, { ...set.options, ...(theoryGradesOn() ? {} : { grade: 0 }) }) : theoryOptions;
+        const roundId = set ? TheoryEngine.round(set.roundType).value : theoryRoundId;
+        let recent = [];
+        if (set) { try { recent = (await API.theory.history(set.settingsKey)).recent || []; } catch (e) { /* the rest still shows */ } }
+        theorySetShown = set ? { options, roundId } : null;
+        const d = TheoryEngine.describeSet(theoryQuizId, options, roundId, { grades: theoryGradesOn() });
+        document.getElementById('theorySetTitle').textContent = d.title;
+        const sub = document.getElementById('theorySetSub');
+        sub.textContent = [d.detail, set ? `Played ${theoryTimes(set.rounds)} · last played ${theoryWhen(set.startedAt)}` : ''].filter(Boolean).join(' · ');
+        setShown(sub, !!sub.textContent);
+        const inc = TheoryEngine.includedFor(theoryQuizId, options, roundId);
+        const targets = TheoryEngine.levelTargets(theoryQuizId, options, roundId);
+        document.getElementById('theorySetBody').innerHTML =
+            (recent.length ? `<div class="section-title">My last rounds</div><div class="theory-level-trend">${theoryLevelBarsHtml(recent, false)}</div>` : '')
+            + `<div class="section-title">What's included</div>`
+            + (inc.staffs.length ? `<div class="theory-included-staffs">${inc.staffs.map(st => Notation.staff({ clef: st.clef, items: [{ type: 'note', pitch: st.low }, { type: 'note', pitch: st.high }], stepRange: st.stepRange, label: `The lowest and highest notes asked on the ${st.clef} staff` })).join('')}</div>` : '')
+            + `<ul class="theory-included">${inc.lines.map(l => `<li><strong>${escapeHtml(l.label)}:</strong> ${escapeHtml(l.text)}</li>`).join('')}</ul>`
+            + (targets ? `<div class="section-title">Levels for this round</div><div class="theory-level-key"><span><span class="level-chip lv-1">1</span>start</span>${targets.map(t => `<span><span class="level-chip lv-${t.level}">${t.level}</span>${t.right} right</span>`).join('')}</div>` : '');
+        const use = document.getElementById('theorySetUseBtn');
+        use.textContent = set ? 'Use these options' : 'Close';
+        use.classList.toggle('btn-submit', !!set);
+        use.classList.toggle('btn-nav', !set);
+        showModal('theorySetModal');
+    }
+    (() => {
+        const modal = document.getElementById('theorySetModal');
+        if (!modal) return;
+        modal.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', () => hideModal(modal)));
+        modal.addEventListener('click', (e) => { if (e.target === e.currentTarget) hideModal(modal); });
+        document.getElementById('theorySetUseBtn').addEventListener('click', () => {
+            hideModal(modal);
+            if (!theorySetShown) return;
+            theoryOptions = theorySetShown.options;
+            theoryRoundId = theorySetShown.roundId;
+            theoryStoreChoice();
+            renderTheoryOptions();
+        });
+    })();
     document.getElementById('theoryStartBtn')?.addEventListener('click', () => theoryStartRound());
 
     // --- Smart learn (ML-269, theory_smart_learn): the questions you get wrong are dealt first and more
@@ -17490,12 +17583,73 @@
             : '<p class="theory-intro">Nothing to work on yet. Questions you get wrong in any quiz collect here, and leave once you\'ve got them right twice for every miss.</p>';
         document.getElementById('theoryStartBtn').classList.toggle('hidden-group', !weak.length);
     }
-    function renderTheorySmartLearnNote() {
-        const el = document.getElementById('theoryOptionsSmart');
+    // ML-396: SmartLearn has its own strip on the options screen - "SmartLearn applied" where the account
+    // has it, "Learn faster with SmartLearn" where it doesn't - with Learn more, a pop-up saying what it
+    // does and why it works. Without it the pop-up ends in "Upgrade now": there's no payment screen
+    // yet, so that emails the owner the request (POST /api/upgrade-requests), once per device.
+    const SMARTLEARN_ASKED_KEY = 'tml.upgradeAsked.theory_smart_learn';
+    // The same strip on Theory's options and the Pitch and Tempo setup screens (ML-399: one switch for all).
+    function renderSmartLearnStrip(boxId, textId) {
+        const el = document.getElementById(boxId);
         if (!el) return;
-        el.classList.toggle('hidden-group', !theorySmartLearnOn());
-        el.textContent = 'Smart learn is on: anything you get wrong comes back sooner and more often, until you get it right.';
+        const on = theorySmartLearnOn();
+        el.classList.toggle('is-on', on);
+        document.getElementById(textId).textContent = on ? 'SmartLearn applied' : 'Learn faster with SmartLearn';
     }
+    const renderTheorySmartLearnNote = () => renderSmartLearnStrip('theoryOptionsSmart', 'theorySmartText');
+    // What SmartLearn took from a round, for the results box. s: { learning, missed, slower } from the
+    // server; noun: 'question' / 'note' / 'speed'; nearly: what the not-quite ones are called.
+    function smartLearnMessage(s, noun, nearly) {
+        const learning = (s && s.learning) || 0, missed = (s && s.missed) || 0, slower = (s && s.slower) || 0;
+        const n = (k) => `${k} ${noun}${k === 1 ? '' : 's'}`;
+        return !learning ? 'SmartLearn: nothing from this round left to work on.'
+            : !slower ? `SmartLearn will bring back ${n(learning)} from this round sooner, until you've got ${learning === 1 ? 'it' : 'them'} right.`
+            : !missed ? `SmartLearn will bring back ${n(slower)} ${nearly}.`
+            : `SmartLearn will bring back ${n(learning)}: ${missed} to get right, ${slower} ${nearly}.`;
+    }
+    // A drill's weights for one level, or null (SmartLearn off, slow, or failed) = the plain round.
+    async function drillLoadWeights(tool, level) {
+        if (!theorySmartLearnOn()) return null;
+        try {
+            const res = await Promise.race([API.drills.weights(tool, level), new Promise((_, no) => setTimeout(() => no(new Error('slow')), 3000))]);
+            return res && res.enabled ? res.weights : null;
+        } catch (e) { return null; }
+    }
+    // A back-test's fixed-seed round is the plain one unless it asks for SmartLearn (__drillTest.smart).
+    const drillSmartFor = (seed) => seed === undefined || seed === null || !!(window.__drillTest && window.__drillTest.smart);
+    function openSmartLearn() {
+        const on = theorySmartLearnOn();
+        let asked = false;
+        try { asked = localStorage.getItem(SMARTLEARN_ASKED_KEY) === '1'; } catch (e) { /* per-device only */ }
+        document.getElementById('smartLearnStatus').textContent = on ? 'SmartLearn is applied to every Theory, Pitch and Tempo round you play.' : 'SmartLearn is an upgrade - it isn\'t part of your account yet.';
+        const btn = document.getElementById('smartLearnActionBtn');
+        btn.textContent = on ? 'Close' : asked ? 'Upgrade requested' : 'Upgrade now';
+        btn.disabled = !on && asked;
+        btn.classList.toggle('btn-submit', !on);
+        btn.classList.toggle('btn-nav', on);
+        showModal('smartLearnModal');
+    }
+    document.querySelectorAll('.smartlearn-more').forEach(b => b.addEventListener('click', openSmartLearn)); // options and results
+    (() => {
+        const modal = document.getElementById('smartLearnModal');
+        if (!modal) return;
+        modal.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', () => hideModal(modal)));
+        modal.addEventListener('click', (e) => { if (e.target === e.currentTarget) hideModal(modal); });
+        const btn = document.getElementById('smartLearnActionBtn');
+        btn.addEventListener('click', async () => {
+            if (theorySmartLearnOn()) { hideModal(modal); return; }
+            btn.disabled = true;
+            try {
+                await API.upgrade.request('theory_smart_learn');
+                try { localStorage.setItem(SMARTLEARN_ASKED_KEY, '1'); } catch (e) { /* per-device only */ }
+                hideModal(modal);
+                showSuccessToast("Thanks - we'll be in touch about SmartLearn");
+            } catch (error) {
+                btn.disabled = false;
+                showWarningToast("Couldn't send your request: " + error.message);
+            }
+        });
+    })();
 
     // --- The round ---
     function theoryRoundInProgress() { return !!(theoryRound && !theoryRound.ended); }
@@ -17668,6 +17822,7 @@
         } catch (e) {
             showWarningToast("Couldn't save this round. Your result is below, but it won't be in your history.");
         }
+        theoryPlayedStale = true; // the options screen's list has a new last round
         theoryLastResult.saving = false;
         renderTheoryResults();
     }
@@ -17676,43 +17831,45 @@
         if (!res) return;
         const r = res.round;
         const saved = res.saved;
-        const score = saved ? saved.attempt.score : res.score;
-        const grade = saved ? saved.attempt.grade : res.grade;
-        // ML-354: right/wrong, accuracy and time are the best round's - the one the score comes from.
+        // ML-396: the result is a Level (the stored grade). The score isn't shown - the Level is worked
+        // out from it, so both would say the same thing twice; it still decides which round is the best.
+        const level = saved ? saved.attempt.grade : res.grade;
+        // ML-354: right and time are the best round's - the one the Level comes from.
         const right = saved ? saved.attempt.right : res.right;
         const wrong = saved ? saved.attempt.wrong : res.wrong;
-        const answered = right + wrong;
         document.getElementById('theoryResultsOptions').textContent = `${TheoryEngine.quiz(r.quizId).title} · ${TheoryEngine.describeOptions(r.quizId, r.options, r.roundId)}${r.repeats > 1 ? ` × ${r.repeats}` : ''}`;
         const rounds = document.getElementById('theoryResultRounds');
         setShown(rounds, r.repeats > 1);
-        rounds.textContent = `Your rounds: ${res.blockScores.join(', ')}. Round ${res.bestBlock} was the best, so it counts.`;
-        const gradeEl = document.getElementById('theoryResultGrade');
-        gradeEl.outerHTML = theoryGradeHtml(grade).replace('class="theory-grade"', 'class="theory-grade theory-grade-lg" id="theoryResultGrade"');
-        document.getElementById('theoryResultScore').textContent = `${score}`;
-        document.getElementById('theoryResultRight').textContent = wrong ? `${right} (${wrong} wrong)` : `${right}`;
-        document.getElementById('theoryResultAccuracy').textContent = answered ? `${Math.round(100 * right / answered)}%` : '-';
+        rounds.textContent = `Your rounds: ${res.blockScores.map(s => `Level ${TheoryEngine.gradeFor(s)}`).join(', ')}. Round ${res.bestBlock} was the best, so it counts.`;
+        const levelEl = document.getElementById('theoryResultLevel');
+        levelEl.innerHTML = theoryStepsHtml(level);
+        levelEl.setAttribute('aria-label', `Level ${level} of 5`);
+        // One box, kept positive: how many were right out of how many were answered.
+        document.getElementById('theoryResultRight').textContent = `${right} out of ${right + wrong}`;
         const secs = Math.round(res.durationMs / 1000);
         document.getElementById('theoryResultTime').textContent = r.seconds ? `${r.seconds} s` : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
         const best = document.getElementById('theoryResultBest');
-        if (res.saving) best.textContent = `Grade ${grade} of 5`;
-        else if (!saved) best.textContent = `Grade ${grade} of 5 (not saved)`;
-        else if (saved.isFirst) best.textContent = `Grade ${grade} of 5 · your first round with these options`;
-        else if (saved.isNewBest) best.textContent = `Grade ${grade} of 5 · new personal best (was ${saved.previousBest.score})`;
-        else best.textContent = `Grade ${grade} of 5 · your best is ${saved.best.score} (grade ${saved.best.grade})`;
+        if (res.saving) best.textContent = `Level ${level}`;
+        else if (!saved) best.textContent = `Level ${level} (not saved)`;
+        else if (saved.isFirst) best.textContent = `Level ${level} · your first round with these options`;
+        else if (saved.isNewBest) best.textContent = `Level ${level} · your best yet with these options`;
+        else best.textContent = saved.best.grade > level ? `Level ${level} · your best is Level ${saved.best.grade}` : `Level ${level}`;
+        // "2 more right answers for Level 5" - what to do next, from the best round's own answers.
+        const gap = TheoryEngine.nextLevelGap(r.roundId, r.answers.filter(a => a.block === res.bestBlock));
+        const next = document.getElementById('theoryResultNext');
+        setShown(next, !!gap);
+        if (gap) next.textContent = `${gap.more} more right ${gap.more === 1 ? 'answer' : 'answers'} for Level ${gap.level}`;
         const smart = document.getElementById('theoryResultSmart');
         const learning = saved && saved.smartLearn ? saved.smartLearn.learning : null;
-        smart.classList.toggle('hidden-group', learning === null || learning === undefined);
-        smart.textContent = learning ? `Smart learn will bring back ${learning} ${learning === 1 ? 'question' : 'questions'} from this round sooner, until you've got ${learning === 1 ? 'it' : 'them'} right.`
-            : 'Smart learn: nothing from this round left to work on.';
+        setShown('theoryResultSmartBox', learning !== null && learning !== undefined);
+        // ML-399: what it brings back is what you missed, and what you got right but took longer over.
+        smart.textContent = smartLearnMessage(saved && saved.smartLearn, 'question', 'you took a little longer over');
         renderTheoryTrend(saved ? saved.recent : []);
     }
-    // The last rounds with these options, oldest first - reuses the stats bar-chart pieces.
+    // The last rounds with these options, oldest first, this one ringed.
     function renderTheoryTrend(recent) {
         const el = document.getElementById('theoryTrend');
-        if (!recent.length) { el.innerHTML = '<p class="text-muted">Your rounds with these options will show here.</p>'; return; }
-        el.innerHTML = `<div class="theory-trend-bars" role="img" aria-label="Scores of your last ${recent.length} rounds: ${recent.map(a => a.score).join(', ')}">${recent.map((a, i) => `
-            <div class="chart-bar-container"><div class="chart-bar series-hours" style="--bar-h:${Math.max(2, a.score)}%;"></div>
-            <span class="chart-x-label">${i === recent.length - 1 ? 'Now' : a.score}</span></div>`).join('')}</div>`;
+        el.innerHTML = recent.length ? theoryLevelBarsHtml(recent, true) : '<p class="text-muted">Your rounds with these options will show here.</p>';
     }
     document.getElementById('theoryAgainBtn')?.addEventListener('click', () => {
         // Results is replaced by the new round, so Back still goes to the options.
@@ -17720,6 +17877,9 @@
         theoryStartRound();
     });
     document.getElementById('theoryChangeBtn')?.addEventListener('click', () => goBack());
+    // ML-396: two more ways out of the results - the Theory list, and Home.
+    document.getElementById('theoryOtherBtn')?.addEventListener('click', () => backToView('theoryView'));
+    document.getElementById('theoryHomeBtn')?.addEventListener('click', () => backToView('mainView'));
 
     // ========================================
     // DRILLS (Jira ML-298 Tap tempo, ML-295 Gap trainer, ML-296 Ear - on screen Tempo, Pulse, Pitch)
@@ -17784,8 +17944,12 @@
 
     // --- The shared results screen ---
     let drillLast = null; // { tool, again }
-    function showDrillResults({ tool, levelLabel, result, saved, stats, rows, again, playView }) {
+    function showDrillResults({ tool, levelLabel, result, saved, stats, rows, again, playView, smart }) {
         drillLast = { tool, again };
+        // ML-399: smart = { noun, nearly } for a tool SmartLearn works in (Pitch, Tempo) - its box above Again.
+        const smartLearn = smart && saved && saved.smartLearn;
+        setShown('drillResultSmartBox', !!smartLearn);
+        if (smartLearn) document.getElementById('drillResultSmart').textContent = smartLearnMessage(smartLearn, smart.noun, smart.nearly);
         document.getElementById('drillResultsLevel').textContent = `${DRILL_TITLES[tool]} · ${levelLabel}`;
         const grade = result.grade;
         const g = document.getElementById('drillResultGrade');
@@ -17825,6 +17989,7 @@
             (k, v) => { tapState.level = v; drillStore('tapTempo', tapState); renderTapTempoSetup(); });
         const lv = tapState.level;
         renderDrillBest('tapTempo', lv, 'tapTempoBest', () => tapState.level === lv);
+        renderSmartLearnStrip('tapTempoSmart', 'tapTempoSmartText');
     }
     document.getElementById('tapTempoStartBtn')?.addEventListener('click', () => tapStart());
 
@@ -17838,10 +18003,12 @@
         if (tapCountIn === 0) { tapPlayer.pause(); tapPlayer.setClickFilter(null); if (tapRound && !tapRound.locked) document.getElementById('tapTempoFeedback').textContent = 'Keep it going'; }
     });
     let tapRound = null;
-    function tapStart(seed) {
+    async function tapStart(seed) {
         const level = Drills.tapLevel(tapState.level);
+        // ML-399 SmartLearn: more of the speed bands you've been off on.
+        const weights = drillSmartFor(seed) ? await drillLoadWeights('tapTempo', level.id) : null;
         seed = seed ?? drillSeed();
-        tapRound = { level, seed, targets: Drills.tapTargets(level.id, seed), taps: [], i: 0, current: [], locked: false, startedAt: new Date().toISOString(), t0: drillNow() };
+        tapRound = { level, seed, targets: Drills.tapTargets(level.id, seed, weights), taps: [], i: 0, current: [], locked: false, startedAt: new Date().toISOString(), t0: drillNow() };
         switchView('tapTempoPlayView');
         tapShowTarget();
     }
@@ -17932,6 +18099,7 @@
         tapStop();
         showDrillResults({
             tool: 'tapTempo', levelLabel: r.level.label, result, saved, playView: 'tapTempoPlayView',
+            smart: { noun: 'speed', nearly: 'you were close on' },
             stats: [['Score', result.score], ['Average miss', errs.length ? `${(errs.reduce((a, b) => a + b, 0) / errs.length).toFixed(1)}%` : '-'],
                 ['Spot on', `${result.results.filter(x => x.error !== null && x.error <= 2).length} of ${r.targets.length}`], ['Steadiness', errs.length ? `${Math.round(100 - result.results.reduce((a, x) => a + (x.spread || 0), 0) / r.targets.length)}%` : '-']],
             rows: r.targets.map((t, i) => [`${tapTargetText(t)}${t.band ? ` (${t.min}-${t.max}${t.max === 200 ? '+' : ''})` : ''}`, result.results[i].bpm === null ? 'not finished' : `${Math.round(result.results[i].bpm)} bpm · ${result.results[i].points}`]),
@@ -18069,6 +18237,7 @@
         note.textContent = tr ? `Notes are named for your ${earSpell(Drills.NAME_OF[(12 - tr) % 12])} instrument (the tuner's setting), so your home note C sounds concert ${earSpell(Drills.NAME_OF[(12 - tr) % 12])}.` : '';
         const key = Drills.earLevelKey(earState.mode, setId);
         renderDrillBest('ear', key, 'earBest', () => Drills.earLevelKey(earState.mode, earState.sets[earState.mode]) === key);
+        renderSmartLearnStrip('earSmart', 'earSmartText');
     }
     document.getElementById('earStartBtn')?.addEventListener('click', () => earStart());
 
@@ -18109,10 +18278,14 @@
     let earRound = null, earTuner = null;
     async function earStart(seed) {
         const mode = earState.mode, setId = earState.sets[mode];
+        // ML-399 SmartLearn: the notes you've missed or hesitated on come up more, and (smart) a note
+        // you get wrong comes back three notes later.
+        const smart = drillSmartFor(seed) && theorySmartLearnOn();
+        const weights = smart ? await drillLoadWeights('ear', Drills.earLevelKey(mode, setId)) : null;
         seed = seed ?? drillSeed();
         earRound = {
-            mode, setId, key: Drills.earLevelKey(mode, setId), label: `${Drills.earMode(mode).label} · ${Drills.earSet(mode, setId).label}`,
-            qs: Drills.earQuestions(mode, setId, seed), i: 0, answers: [], right: 0, transposition: ((tunerTransposition % 12) + 12) % 12,
+            mode, setId, smart, key: Drills.earLevelKey(mode, setId), label: `${Drills.earMode(mode).label} · ${Drills.earSet(mode, setId).label}`,
+            qs: Drills.earQuestions(mode, setId, seed, weights), i: 0, answers: [], right: 0, transposition: ((tunerTransposition % 12) + 12) % 12,
             startedAt: new Date().toISOString(), t0: drillNow(), locked: false,
         };
         switchView('earPlayView');
@@ -18135,6 +18308,8 @@
         r.locked = false;
         r.stable = 0;
         r.lastPc = null;
+        r.replays = 0;        // Play again taps on this note - a hesitation (SmartLearn)
+        r.answerFrom = null;  // when the note first finished playing - the answer is timed from there
         document.getElementById('earStep').textContent = `${r.i + 1} of ${r.qs.length}`;
         document.getElementById('earTally').textContent = `${r.right} right`;
         document.getElementById('earAsk').textContent = r.mode === 'reference' ? 'Home note, then the mystery note. Which is it?' : playback ? 'Listen, then play or sing it back' : 'Which note is this?';
@@ -18166,6 +18341,7 @@
         let at = 0.05;
         if (r.mode === 'reference') { earPlayTone(f(Drills.EAR.HOME_MIDI), at, 0.9); at += 1.2; }
         earPlayTone(f(q.midi), at, 1.2);
+        if (r.answerFrom === null) r.answerFrom = drillNow() + (at + 1.2) * 1000;
         if (r.mode === 'playback' && !r.locked) {
             // Don't listen to the phone's own note - only once it has finished.
             r.listenFrom = drillNow() + (at + 1.4) * 1000;
@@ -18174,7 +18350,7 @@
             setTimeout(() => { if (earRound === r && !r.locked) { setShown('earListen', true); document.getElementById('earHeard').textContent = ''; } }, (at + 1.4) * 1000);
         }
     }
-    document.getElementById('earReplayBtn')?.addEventListener('click', () => earPlayQuestion());
+    document.getElementById('earReplayBtn')?.addEventListener('click', () => { if (earRound && !earRound.locked) earRound.replays++; earPlayQuestion(); });
     document.getElementById('earSkipBtn')?.addEventListener('click', () => earPlaybackAnswer(null));
     const earPitchName = (q) => `${q.name}${Math.floor(q.midi / 12) - 1}`;
     function earReveal(correct, youText) {
@@ -18203,7 +18379,8 @@
         const q = r.qs[r.i];
         const pc = ((q.midi % 12) + 12) % 12;
         const correct = Drills.pcOf(name) === pc;
-        r.answers.push({ midi: q.midi, answer: name });
+        r.answers.push({ midi: q.midi, answer: name, ms: Math.max(0, Math.round(drillNow() - r.answerFrom)), replays: r.replays });
+        if (!correct && r.smart) Drills.earRetry(r.qs, r.i);
         if (!correct) earMark(name, 'wrong');
         // The right button: the note's own spelling, or its other name on the keyboard (C# for Db).
         const rightId = [...document.querySelectorAll('#earAnswers .theory-answer')].map(b => b.dataset.id).find(id => id === q.name) ||
@@ -18225,8 +18402,9 @@
         const r = earRound;
         if (!r || r.locked) return;
         const q = r.qs[r.i];
-        r.answers.push({ midi: q.midi, answer: writtenMidi });
+        r.answers.push({ midi: q.midi, answer: writtenMidi, replays: r.replays });
         const correct = writtenMidi !== null && ((writtenMidi % 12) + 12) % 12 === ((q.midi % 12) + 12) % 12;
+        if (!correct && r.smart) Drills.earRetry(r.qs, r.i);
         earReveal(correct, writtenMidi === null ? 'nothing heard' : `you played ${earSpell(Drills.NAME_OF[((writtenMidi % 12) + 12) % 12])}`);
     }
     document.getElementById('earNextBtn')?.addEventListener('click', () => {
@@ -18246,6 +18424,7 @@
         const answerText = (a) => (a.answer === null ? 'nothing heard' : typeof a.answer === 'number' ? earSpell(Drills.NAME_OF[((a.answer % 12) + 12) % 12]) : earSpell(a.answer));
         showDrillResults({
             tool: 'ear', levelLabel: r.label, result, saved, playView: 'earPlayView',
+            smart: { noun: 'note', nearly: 'you took a little longer over' },
             stats: [['Score', result.score], ['Right', `${result.right} of ${r.qs.length}`]],
             rows: r.answers.map((a, i) => [`${i + 1}. ${earSpell(r.qs[i].name)}`, result.results[i].correct ? 'right' : `you: ${answerText(a)}`]),
             again: () => earStart(),
@@ -18271,6 +18450,7 @@
             ear: {
                 start: (mode, set, seed) => { earState.mode = mode; earState.sets[mode] = set; return earStart(seed); },
                 question: () => earRound && JSON.parse(JSON.stringify(earRound.qs[earRound.i])),
+                round: () => earRound && JSON.parse(JSON.stringify(earRound.qs)), // every note of the round, in order
             },
         };
     }

@@ -26,7 +26,7 @@ limit (Admin → Feature access, Limits: **Standard 2, everyone else 4** - migra
 
 - **Chosen on ☰ Stats** (`statsHomeView`): every stat is a card there, in groups - Practice time (this week,
   this month, this year - or this practice year when that's on), Streaks (current, longest), Sessions (this week,
-  this month), Concerts (days to the nearest practice list with a date, `practice_levels`), Tools (last Theory score,
+  this month), Concerts (days to the nearest practice list with a date, `practice_levels`), Tools (last Theory Level,
   `theory_practice`; tools last played). A card whose feature is off is hidden. ★ marks the ones on Home.
 - **Choose Home stats** works exactly like Choose Home tools: tap cards to add or take off ("Home holds 2 stats -
   take one off first"), a pinned **My Home screen** card shows them in Home's order - tap one for Move earlier /

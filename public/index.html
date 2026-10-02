@@ -409,7 +409,7 @@
         <div class="tool-group" id="statGroup-tools" role="group" aria-labelledby="statGroupTitle-tools">
             <div class="tool-group-title" id="statGroupTitle-tools">Tools</div>
             <div class="dashboard-grid">
-            <button type="button" class="stat-card clickable hidden-group" data-stat="theory_last" onclick="switchView('theoryView')"><span class="label">Last Theory score</span><span class="value" id="statsHomeTheory">-</span></button>
+            <button type="button" class="stat-card clickable hidden-group" data-stat="theory_last" onclick="switchView('theoryView')"><span class="label">Last Theory Level</span><span class="value" id="statsHomeTheory">-</span></button>
             <button type="button" class="stat-card clickable hidden-group" data-stat="tools_last" onclick="switchView('toolResultsView')"><span class="label">Tools last played</span><span class="value" id="statsHomeTools">-</span></button>
             </div>
         </div>
@@ -2410,6 +2410,50 @@
             </div>
         </div>
     </div>
+    <!-- ML-396: one set of Theory options - its last rounds (a played row only), what's included and what
+         each Level takes. "Use these options" sets the boxes; from the "What's included" link it's Close. -->
+    <div class="modal" id="theorySetModal" role="dialog" aria-modal="true" aria-labelledby="theorySetTitle">
+        <div class="modal-content modal-content-sticky-footer">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <div class="metroSeg-scroll-area">
+                <h2 id="theorySetTitle"></h2>
+                <p class="text-muted modal-intro" id="theorySetSub"></p>
+                <div id="theorySetBody"></div>
+            </div>
+            <div class="metroSeg-sticky-footer">
+                <button type="button" class="btn-submit no-margin" id="theorySetUseBtn">Use these options</button>
+            </div>
+        </div>
+    </div>
+    <!-- ML-396: what SmartLearn does and why it works. With it: Close. Without: "Upgrade now", which
+         emails the owner the request (openSmartLearn). -->
+    <div class="modal" id="smartLearnModal" role="dialog" aria-modal="true" aria-labelledby="smartLearnTitle">
+        <div class="modal-content modal-content-sticky-footer">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <div class="metroSeg-scroll-area">
+                <h2 id="smartLearnTitle">SmartLearn</h2>
+                <p class="text-muted modal-intro" id="smartLearnStatus"></p>
+                <div class="section-title">What it does</div>
+                <ul class="theory-included">
+                    <li>Anything you get wrong comes back sooner and more often, until you get it right.</li>
+                    <li>A question you miss comes round again a few questions later, while it&#39;s fresh.</li>
+                    <li>It notices the ones you hesitate on, and brings those back too.</li>
+                    <li>Things you learnt a while ago come back now and then, to check they&#39;ve stuck.</li>
+                    <li>In Theory, <strong>Your weak spots</strong> gathers everything you&#39;re still learning into a round of its own.</li>
+                    <li>In Pitch it&#39;s the notes you miss; in Tempo, the speeds you&#39;re furthest off.</li>
+                </ul>
+                <div class="section-title">Why it works</div>
+                <ul class="theory-included">
+                    <li>Your time goes on what you don&#39;t know yet, not on what you already do.</li>
+                    <li>Having to remember something again, just as it starts to fade, is what makes it stay.</li>
+                    <li>It remembers for you, round after round, so every round picks up where you left off.</li>
+                </ul>
+            </div>
+            <div class="metroSeg-sticky-footer">
+                <button type="button" class="btn-submit no-margin" id="smartLearnActionBtn">Upgrade now</button>
+            </div>
+        </div>
+    </div>
     <!-- ML-357: the Scales setting row's pickers - tap one to choose (it closes). -->
     <div class="modal" id="scalesClefModal" role="dialog" aria-modal="true" aria-labelledby="scalesClefModalTitle">
         <div class="modal-content">
@@ -2881,6 +2925,12 @@
         <p class="theory-intro">You're given a speed - a metronome mark, or just its Italian name - and tap it on the pad. Five speeds a round.</p>
         <div id="tapTempoOptions"></div>
         <p class="theory-best-line" id="tapTempoBest"></p>
+        <!-- ML-399: SmartLearn works in Tempo too - the same strip as Theory's options. -->
+        <div class="smartlearn-note" id="tapTempoSmart">
+            <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
+            <span class="smartlearn-note-text" id="tapTempoSmartText">SmartLearn</span>
+            <button type="button" class="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
+        </div>
         <button type="button" class="btn-submit" id="tapTempoStartBtn">Start</button>
     </div>
     <div id="tapTempoPlayView" class="hidden-group">
@@ -2915,6 +2965,12 @@
         <div id="earOptions"></div>
         <p class="metro-help-text hidden-group" id="earTransposeNote"></p>
         <p class="theory-best-line" id="earBest"></p>
+        <!-- ML-399: SmartLearn works in Pitch too - the same strip as Theory's options. -->
+        <div class="smartlearn-note" id="earSmart">
+            <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
+            <span class="smartlearn-note-text" id="earSmartText">SmartLearn</span>
+            <button type="button" class="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
+        </div>
         <button type="button" class="btn-submit" id="earStartBtn">Start</button>
     </div>
     <div id="earPlayView" class="hidden-group">
@@ -2941,16 +2997,30 @@
         <ul class="drill-result-list" id="drillResultDetail"></ul>
         <div class="section-title">Your last rounds</div>
         <div class="theory-trend" id="drillTrend"></div>
+        <!-- ML-399: what SmartLearn took from a Pitch or Tempo round - plain outline, just above Again. -->
+        <div class="smartlearn-note hidden-group" id="drillResultSmartBox">
+            <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
+            <span class="smartlearn-note-text" id="drillResultSmart"></span>
+            <button type="button" class="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
+        </div>
         <button type="button" class="btn-submit" id="drillAgainBtn">Again</button>
         <button type="button" class="btn-nav" id="drillChangeBtn">Change settings</button>
     </div>
 
     <div id="theoryOptionsView" class="hidden-group">
         <div id="theoryOptionsForm"></div>
-        <p class="theory-best-line" id="theoryOptionsBest"></p>
-        <p class="theory-best-line hidden-group" id="theoryOptionsSmart"></p>
+        <!-- ML-396: shown until a round of the picked Theory grade has been played (renderTheoryPlayed). -->
+        <button type="button" class="btn-text hidden-group" id="theoryIncludedBtn" aria-haspopup="dialog">What&#39;s included?</button>
+        <!-- ML-396: SmartLearn's strip - "SmartLearn applied" (.is-on), or what it is for an account without it. -->
+        <div class="smartlearn-note" id="theoryOptionsSmart">
+            <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
+            <span class="smartlearn-note-text" id="theorySmartText">SmartLearn</span>
+            <button type="button" class="smartlearn-more" id="theorySmartMoreBtn" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
+        </div>
         <button type="button" class="btn-submit" id="theoryStartBtn">Start</button>
         <div id="theoryWeakList"></div>
+        <!-- ML-396: "What I've played" - a row per set of options played, with its last Level. -->
+        <div id="theoryPlayed"></div>
     </div>
 
     <div id="theoryPlayView" class="hidden-group">
@@ -2965,22 +3035,32 @@
     <div id="theoryResultsView" class="hidden-group">
         <p class="theory-results-options" id="theoryResultsOptions"></p>
         <div class="theory-grade-block">
-            <div class="theory-grade theory-grade-lg" id="theoryResultGrade" role="img"></div>
+            <!-- ML-396: the result is a Level 1-5 - five steps, yours ringed. -->
+            <div class="theory-steps" id="theoryResultLevel" role="img"></div>
             <p class="theory-best-line" id="theoryResultBest"></p>
-            <!-- ML-354: a repeated test lists every round's score; the best one counts. -->
+            <p class="theory-best-line hidden-group" id="theoryResultNext"></p>
+            <!-- ML-354: a repeated test lists every round's Level; the best one counts. -->
             <p class="theory-best-line hidden-group" id="theoryResultRounds"></p>
-            <p class="theory-best-line hidden-group" id="theoryResultSmart"></p>
         </div>
         <div class="dashboard-grid">
-            <div class="stat-card"><span class="label">Score</span><span class="value" id="theoryResultScore"></span></div>
             <div class="stat-card"><span class="label" id="theoryResultRightLabel">Right</span><span class="value" id="theoryResultRight"></span></div>
-            <div class="stat-card"><span class="label">Accuracy</span><span class="value" id="theoryResultAccuracy"></span></div>
             <div class="stat-card"><span class="label" id="theoryResultTimeLabel">Time</span><span class="value" id="theoryResultTime"></span></div>
         </div>
-        <div class="section-title">Your last rounds</div>
-        <div class="theory-trend" id="theoryTrend"></div>
+        <div class="section-title">My last rounds</div>
+        <div class="theory-level-trend" id="theoryTrend"></div>
+        <!-- ML-396: what SmartLearn took from this round, in the options screen's strip - just above Again, as a
+             reason to go again; plain outline here (no gold wash) so it doesn't stack on the gold button. -->
+        <div class="smartlearn-note hidden-group" id="theoryResultSmartBox">
+            <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
+            <span class="smartlearn-note-text" id="theoryResultSmart"></span>
+            <button type="button" class="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
+        </div>
         <button type="button" class="btn-submit" id="theoryAgainBtn">Again</button>
-        <button type="button" class="btn-nav" id="theoryChangeBtn">Change options</button>
+        <div class="theory-exits">
+            <button type="button" class="btn-nav no-margin" id="theoryChangeBtn">Change options</button>
+            <button type="button" class="btn-nav no-margin" id="theoryOtherBtn">Another quiz</button>
+            <button type="button" class="btn-nav no-margin" id="theoryHomeBtn">Home</button>
+        </div>
     </div>
 
     <div id="entryForm" class="hidden-group">

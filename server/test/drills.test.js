@@ -164,3 +164,78 @@ describe('Ear (ML-296)', () => {
         assert.throws(() => raw.scoreRound('ear', 'reference:root5', { questions: [{ midi: 64, answer: 'E' }] }), /Bad Ear question/);
     });
 });
+
+// ML-399: SmartLearn in the drills it can work in - Pitch (notes) and Tempo (speed bands).
+describe('SmartLearn in Pitch and Tempo (ML-399)', () => {
+    const count = (list, f) => list.filter(f).length;
+    test('Pitch: no weights is the same round as before; a weighted note comes up more', () => {
+        assert.deepEqual(D.earQuestions('reference', 'major', 5), D.earQuestions('reference', 'major', 5, {}));
+        assert.deepEqual(D.earQuestions('reference', 'major', 5), D.earQuestions('reference', 'major', 5, { 4: 0 }));
+        let plain = 0, weighted = 0;
+        for (let seed = 1; seed <= 200; seed++) {
+            plain += count(D.earQuestions('reference', 'major', seed), q => q.midi === 64);
+            weighted += count(D.earQuestions('reference', 'major', seed, { 4: 10 }), q => q.midi === 64);
+        }
+        assert.ok(weighted > plain * 2, `E came up ${weighted} times weighted against ${plain}`);
+        for (let seed = 1; seed <= 50; seed++) {
+            const qs = D.earQuestions('reference', 'major', seed, { 4: 10 });
+            for (let i = 1; i < qs.length; i++) assert.notEqual(qs[i].midi, qs[i - 1].midi);
+        }
+    });
+    test('Pitch: a missed note comes back three notes later, never twice running', () => {
+        const qs = [60, 64, 67, 62, 65, 69, 71, 60, 64, 67].map(midi => ({ midi, name: '?' }));
+        assert.equal(raw.earRetry(qs, 0), true);
+        assert.equal(qs[3].midi, 60);
+        const near = [60, 64, 60, 62, 65].map(midi => ({ midi, name: '?' }));
+        assert.equal(raw.earRetry(near, 0), false, 'it is already due just before');
+        assert.equal(raw.earRetry(qs, 8), false, 'too near the end of the round');
+    });
+    test('Pitch: the answer time and Play again taps are kept, and never change the score', () => {
+        const questions = [{ midi: 60, answer: 'C', ms: 900.4, replays: 2 }, { midi: 67, answer: 'G' }];
+        const r = D.scoreRound('ear', 'reference:root5', { questions });
+        assert.deepEqual(r.results.map(x => [x.ms, x.replays]), [[900, 2], [null, 0]]);
+        assert.equal(r.score, D.scoreRound('ear', 'reference:root5', { questions: questions.map(q => ({ midi: q.midi, answer: q.answer })) }).score);
+    });
+    test('Pitch: hesitated = well over your own speed, or Play again first; a wrong answer is never marked', () => {
+        const q = (midi, answer, ms, replays = 0) => ({ midi, answer, ms, replays });
+        const details = { questions: [q(60, 'C', 3000), q(64, 'E', 800), q(67, 'G', 900), q(64, 'E', 2600), q(60, 'C', 850), q(67, 'G', 700, 1), q(64, 'E', 900), q(60, 'G', 5000), q(67, 'G', 950), q(64, 'E', 800)] };
+        const result = D.scoreRound('ear', 'reference:triad', details);
+        const s = D.earSmartAnswers('reference:triad', result);
+        assert.equal(s.answers[0].questionId, 'ear:reference:triad:0');
+        assert.equal(s.answers[1].questionId, 'ear:reference:triad:4');
+        assert.deepEqual(s.marks, [null, null, null, 'slow', null, 'slow', null, null, null, null]);
+        assert.equal(s.answers[7].correct, false);
+        // Play it back has no answer time: only Play again marks it
+        const pb = D.earSmartAnswers('playback:naturals', D.scoreRound('ear', 'playback:naturals', { questions: [{ midi: 60, answer: 60 }, { midi: 62, answer: 62, replays: 1 }] }));
+        assert.deepEqual(pb.marks, [null, 'slow']);
+    });
+    test('Tempo: no weights is the same round as before; a weighted band comes up more, still 5 speeds 8 apart', () => {
+        for (const level of ['solo', 'names']) {
+            assert.deepEqual(D.tapTargets(level, 7), D.tapTargets(level, 7, {}));
+            assert.deepEqual(D.tapTargets(level, 7), D.tapTargets(level, 7, { andante: 0 }));
+        }
+        let plain = 0, weighted = 0;
+        for (let seed = 1; seed <= 200; seed++) {
+            const inBand = (t) => t.bpm >= 56 && t.bpm <= 75;
+            plain += count(D.tapTargets('solo', seed), inBand);
+            const round = D.tapTargets('solo', seed, { adagio: 10 });
+            weighted += count(round, inBand);
+            assert.equal(round.length, 5);
+            for (const a of round) { assert.ok(a.bpm >= 50 && a.bpm <= 180 && a.bpm % 2 === 0); for (const b of round) if (a !== b) assert.ok(Math.abs(a.bpm - b.bpm) >= 8); }
+        }
+        assert.ok(weighted > plain * 1.5, `Adagio speeds: ${weighted} weighted against ${plain}`);
+        let named = 0;
+        for (let seed = 1; seed <= 200; seed++) {
+            const round = D.tapTargets('names', seed, { presto: 10 });
+            assert.equal(new Set(round.map(t => t.band)).size, 5);
+            named += count(round, t => t.band === 'presto');
+        }
+        assert.ok(named > 175, `Presto in ${named} of 200 rounds (5 of 7 bands a round is 143 by chance)`);
+    });
+    test('Tempo: a speed\'s points stand in - under 70 to work on, 70-89 nearly, 90 or more known', () => {
+        const details = { targets: [{ bpm: 60 }, { bpm: 100 }, { band: 'allegro' }] };
+        const s = D.tapSmartAnswers('solo', details, { results: [{ points: 95 }, { points: 80 }, { points: 40 }] });
+        assert.deepEqual(s.answers.map(a => [a.questionId, a.correct]), [['tap:solo:adagio', true], ['tap:solo:andante', true], ['tap:solo:allegro', false]]);
+        assert.deepEqual(s.marks, [null, 'slow', null]);
+    });
+});

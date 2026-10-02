@@ -9,6 +9,7 @@ import vm from 'node:vm';
 import pool from '../config/db.js';
 import { withStatus } from './flows.js';
 import { isFeatureEnabled } from './features.js';
+import { applySmartLearn } from './theoryPractice.js';
 
 const sandbox = { self: {} };
 for (const f of ['notation.js', 'theoryEngine.js', 'drills.js', 'rhythm.js']) {
@@ -19,6 +20,13 @@ const Rhythm = sandbox.self.Rhythm; // ML-306: the Rhythm tool's rounds are dril
 const plain = (v) => JSON.parse(JSON.stringify(v));
 
 const FEATURE = { tapTempo: 'tap_tempo', gapTrainer: 'gap_trainer', ear: 'ear_training', rhythm: 'rhythm_trainer' };
+// ML-399 SmartLearn (one switch for every tool: the theory_smart_learn feature) in the drills that can
+// use it - Pitch (the notes you miss or hesitate on) and Tempo (the speed bands you're off on). The
+// weights live with Theory's (theory_question_weights), under "ear:<level>:<note>" and
+// "tap:<level>:<band>". Pulse and Rhythm have nothing for it to deal.
+const SMART_FEATURE = 'theory_smart_learn';
+const SMART_PREFIX = { ear: 'ear', tapTempo: 'tap' };
+const Theory = sandbox.self.TheoryEngine;
 const HISTORY_LENGTH = 8;
 const MAX_DETAILS_BYTES = 20000;
 
@@ -74,6 +82,25 @@ export async function getDrillSummary(accountId, tool) {
   return { levels };
 }
 
+// What a round is dealt by: { enabled, weights: { note or band: 0-10 } } for one tool and level, with
+// Theory's review boost for anything not asked for a week or more.
+export async function getDrillWeights(accountId, tool, level) {
+  if (!SMART_PREFIX[tool] || !plain(Drills.TOOLS[tool].levels).includes(level)) throw withStatus(400, 'Unknown level.');
+  if (!(await isFeatureEnabled(SMART_FEATURE))) return { enabled: false, weights: {} };
+  const prefix = `${SMART_PREFIX[tool]}:${level}:`;
+  const { rows } = await pool.query(
+    `SELECT question_id, weight, EXTRACT(EPOCH FROM (now() - updated_at)) / 86400 AS days_since
+     FROM theory_question_weights WHERE account_id = $1 AND left(question_id, length($2)) = $2`,
+    [accountId, prefix]
+  );
+  const weights = {};
+  for (const r of rows) {
+    const w = Theory.effectiveWeight(r.weight, Number(r.days_since));
+    if (w > 0) weights[r.question_id.slice(prefix.length)] = w;
+  }
+  return { enabled: true, weights };
+}
+
 // body: { tool, level, startedAt, durationMs, details }. Re-scored here; returns the saved round, the
 // score breakdown, and the level's history (with whether this was a new best).
 export async function saveDrillAttempt(accountId, body) {
@@ -102,8 +129,14 @@ export async function saveDrillAttempt(accountId, body) {
         Number.isFinite(durationMs) && durationMs >= 0 ? Math.round(durationMs) : null, started.toISOString()]
     );
     const history = await historyFor(client, accountId, tool, level);
+    // ML-399: Pitch and Tempo rounds move the SmartLearn weights - { learning, missed, slower }.
+    let smartLearn = null;
+    if (SMART_PREFIX[tool] && await isFeatureEnabled(SMART_FEATURE)) {
+      const { answers, marks } = plain(tool === 'ear' ? Drills.earSmartAnswers(level, result) : Drills.tapSmartAnswers(level, plain(details), result));
+      if (answers.length) smartLearn = await applySmartLearn(client, accountId, answers, marks);
+    }
     const rhythmLevels = tool === 'rhythm' ? await raiseRhythmLevels(client, accountId, plain(Rhythm.levelsFromRound(level, plain(details), result))) : undefined;
-    return { attempt: toDto(rows[0]), result, previousBest: prevBest, newBest: prevBest === null || result.score > prevBest, ...history, rhythmLevels };
+    return { attempt: toDto(rows[0]), result, previousBest: prevBest, newBest: prevBest === null || result.score > prevBest, ...history, rhythmLevels, smartLearn };
   } finally {
     client.release();
   }

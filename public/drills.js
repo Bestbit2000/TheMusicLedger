@@ -44,19 +44,54 @@
 
     // The round's speeds. Numbers: five different ones across 50-180 (multiples of 2, at least 8 apart).
     // Names: five different bands, each shown by one of its names.
-    function tapTargets(levelId, seed) {
+    // weights (ML-399 SmartLearn, optional): { speed band id: 0-10 } - a band you've been off on comes up
+    // more: names take the weighted order Theory deals by; numbers pick the band first, by its width x
+    // (1 + weight x strength), then a speed inside it. None = the plain round.
+    function tapTargets(levelId, seed, weights) {
         const level = tapLevel(levelId);
         const rng = makeRng(seed);
+        const w = (id) => (weights && weights[id]) || 0;
+        const weighted = TheoryEngine.SPEEDS.some(s => w(s.id) > 0);
         if (level.prompt === 'name') {
-            return rng.shuffle(TheoryEngine.SPEEDS.slice()).slice(0, TAP.TARGETS)
-                .map(s => ({ band: s.id, name: rng.pick(s.names), min: s.min, max: s.max }));
+            const order = weighted ? TheoryEngine.smartOrder(TheoryEngine.SPEEDS.slice(), rng, (s) => w(s.id)) : rng.shuffle(TheoryEngine.SPEEDS.slice());
+            return order.slice(0, TAP.TARGETS).map(s => ({ band: s.id, name: rng.pick(s.names), min: s.min, max: s.max }));
         }
         const out = [];
-        while (out.length < TAP.TARGETS) {
+        if (!weighted) {
+            while (out.length < TAP.TARGETS) {
+                const bpm = TAP.MIN_BPM + 2 * rng.int((TAP.MAX_BPM - TAP.MIN_BPM) / 2 + 1);
+                if (out.every(t => Math.abs(t.bpm - bpm) >= 8)) out.push({ bpm });
+            }
+            return out;
+        }
+        // Each band's even speeds inside 50-180.
+        const bands = TheoryEngine.SPEEDS.map(s => {
+            const lo = Math.max(TAP.MIN_BPM, s.min + (s.min % 2)), hi = Math.min(TAP.MAX_BPM, s.max - (s.max % 2));
+            return { id: s.id, lo, count: Math.max(0, (hi - lo) / 2 + 1) };
+        }).filter(b => b.count > 0);
+        const share = (b) => b.count * (1 + TheoryEngine.SMART.strength * w(b.id));
+        const total = bands.reduce((sum, b) => sum + share(b), 0);
+        for (let tries = 0; out.length < TAP.TARGETS && tries < 500; tries++) {
+            let x = rng() * total, band = bands[bands.length - 1];
+            for (const b of bands) { x -= share(b); if (x < 0) { band = b; break; } }
+            const bpm = band.lo + 2 * rng.int(band.count);
+            if (out.every(t => Math.abs(t.bpm - bpm) >= 8)) out.push({ bpm });
+        }
+        while (out.length < TAP.TARGETS) { // never short: fall back to the plain pick
             const bpm = TAP.MIN_BPM + 2 * rng.int((TAP.MAX_BPM - TAP.MIN_BPM) / 2 + 1);
             if (out.every(t => Math.abs(t.bpm - bpm) >= 8)) out.push({ bpm });
         }
         return out;
+    }
+    // SmartLearn for Tempo: there's no right or wrong and no answer time, so a speed's points stand in.
+    // Under SMART_MISS points is "to work on" (as a wrong answer), under SMART_KNOWN is "nearly" (as a
+    // hesitation), anything better is known. Kept per level and speed band ("tap:solo:andante").
+    const TAP_SMART = { miss: 70, known: 90 };
+    const tapBandOf = (target) => target.band || TheoryEngine.speedFor(target.bpm).id;
+    function tapSmartAnswers(levelId, details, result) {
+        const answers = details.targets.map((t, i) => ({ questionId: `tap:${levelId}:${tapBandOf(t)}`, correct: result.results[i].points >= TAP_SMART.miss, ms: 0, block: 1 }));
+        const marks = result.results.map(r => (r.points >= TAP_SMART.miss && r.points < TAP_SMART.known ? 'slow' : null));
+        return { answers, marks };
     }
     // The speed of a run of taps (ms timestamps): 60000 / the median gap, so one fumbled tap doesn't
     // wreck it; steadiness is how much the gaps vary (0 = perfectly even).
@@ -245,13 +280,24 @@
     // The round: 10 written notes (MIDI), never the same one twice running. With a home note they sit in
     // the octave from written C4; on their own they range over two octaves (C4 to B5) so the octave
     // gives nothing away.
-    function earQuestions(modeId, setId, seed) {
+    // weights (ML-399 SmartLearn, optional): { pitch class: 0-10 } - a note you've missed or hesitated on
+    // is (1 + weight x strength) times as likely as one you know, as in Theory. None = the plain pick.
+    function earQuestions(modeId, setId, seed, weights) {
         const set = earSet(modeId, setId);
         const rng = makeRng(seed);
         const out = [];
         let last = null;
+        const share = (d) => 1 + TheoryEngine.SMART.strength * ((weights && weights[d]) || 0);
+        const weighted = set.degrees.some(d => share(d) > 1);
+        const total = set.degrees.reduce((sum, d) => sum + share(d), 0);
+        const pick = () => {
+            if (!weighted) return rng.pick(set.degrees);
+            let x = rng() * total;
+            for (const d of set.degrees) { x -= share(d); if (x < 0) return d; }
+            return set.degrees[set.degrees.length - 1];
+        };
         while (out.length < EAR.QUESTIONS) {
-            const deg = rng.pick(set.degrees);
+            const deg = pick();
             const octave = modeId === 'reference' ? 0 : 12 * rng.int(2);
             const midi = EAR.HOME_MIDI + deg + octave;
             if (set.degrees.length > 1 && midi === last) continue;
@@ -259,6 +305,25 @@
             out.push({ midi, name: NAME_OF[deg] });
         }
         return out;
+    }
+    // SmartLearn: a note you got wrong comes back gap notes later in the same round (in place of the
+    // one that was due), unless that would play it twice running. Changes qs; true if it did.
+    function earRetry(qs, i, gap = TheoryEngine.SMART.retryGap) {
+        const at = i + gap, q = qs[i];
+        if (!q || at >= qs.length) return false;
+        if ([at - 1, at, at + 1].some(k => qs[k] && qs[k].midi === q.midi)) return false;
+        qs[at] = { ...q };
+        return true;
+    }
+    // SmartLearn's key for a note: per mode and note set, any octave ("ear:reference:triad:7").
+    const earItemId = (levelKey, midi) => `ear:${levelKey}:${((midi % 12) + 12) % 12}`;
+    // A scored round as SmartLearn answers and their hesitation marks. A right answer is hesitated
+    // ('slow') when it took well longer than your own usual speed in the round (Theory's rule), or you
+    // used Play again first. Play it back has no answer time - the wait there is the microphone's.
+    function earSmartAnswers(levelKey, result) {
+        const answers = result.results.map(r => ({ questionId: earItemId(levelKey, r.midi), correct: r.correct, ms: r.ms || 0, block: 1 }));
+        const marks = TheoryEngine.hesitationMarks(answers).map((m, i) => (result.results[i].correct && result.results[i].replays > 0 ? 'slow' : m));
+        return { answers, marks };
     }
     // The buttons: the level's own notes (reference), letters (naturals), or all twelve.
     function earAnswers(modeId, setId) {
@@ -276,8 +341,10 @@
         const nearest = Math.round(concert);
         return { writtenMidi: nearest + ((transposition % 12) + 12) % 12, cents: Math.round((concert - nearest) * 100) };
     }
-    // questions: [{ midi, answer }] - answer a note name (tapped) or, for Play it back, the written MIDI
-    // the tuner settled on (null if nothing was heard). Right = the same note, in any octave.
+    // questions: [{ midi, answer, ms, replays }] - answer a note name (tapped) or, for Play it back, the
+    // written MIDI the tuner settled on (null if nothing was heard). Right = the same note, in any
+    // octave. ms (from the end of the note to the answer) and replays (Play again taps) are for
+    // SmartLearn only - they never change the score.
     function earScoreRound(levelKey, details) {
         const [modeId, setId] = String(levelKey).split(':');
         const set = earSet(modeId, setId);
@@ -289,7 +356,11 @@
             let got = null;
             if (modeId === 'playback') got = isNum(q.answer) ? ((Math.round(q.answer) % 12) + 12) % 12 : null;
             else got = typeof q.answer === 'string' ? pcOf(q.answer) : null;
-            return { midi: q.midi, answer: q.answer ?? null, correct: got === want };
+            return {
+                midi: q.midi, answer: q.answer ?? null, correct: got === want,
+                ms: isNum(q.ms) ? Math.max(0, Math.min(600000, Math.round(q.ms))) : null,
+                replays: isNum(q.replays) ? Math.max(0, Math.min(20, Math.round(q.replays))) : 0,
+            };
         });
         const right = results.filter(r => r.correct).length;
         const score = Math.round(100 * right / EAR.QUESTIONS);
@@ -317,7 +388,8 @@
 
     return {
         TAP, GAP, EAR, TOOLS,
-        tapLevel, tapTargets, tapMeasure, tapError, tapScoreOne, tapLive, tapScoreRound,
+        tapLevel, tapTargets, tapMeasure, tapError, tapScoreOne, tapLive, tapScoreRound, TAP_SMART, tapBandOf, tapSmartAnswers,
+        earRetry, earItemId, earSmartAnswers,
         gapPattern, gapSchedule, gapScoreRound,
         earMode, earSet, earLevelKey, earQuestions, earAnswers, earConcertMidi, earHeard, earScoreRound, midiToFreq, NAME_OF, pcOf,
         scoreRound, gradeFor,

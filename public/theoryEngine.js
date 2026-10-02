@@ -149,19 +149,35 @@
         if (opts.grade) parts.unshift(`grade=${opts.grade}`);
         return `${quizId}|${round(roundId).value}|${parts.join(';')}`;
     }
-    // "Treble, Bass · 2 ledger lines · None · 60 s" - the results screen's subtitle.
+    // One option's value in words, for the lines below.
+    function optionText(d, opts) {
+        const label = (v) => d.choices.find(c => c.value === v).label;
+        if (d.multi) return opts[d.key].map(label).join(', ');
+        if (d.key === 'upTo') return `Up to ${opts.upTo} ♯/♭`;
+        if (d.key === 'accidentals' && opts.accidentals === 'both') return 'Sharps and flats';
+        if (d.key === 'ask') return `Ask: ${label(opts.ask).toLowerCase()}`;
+        return label(opts[d.key]);
+    }
+    // "Treble, Bass · 2 ledger lines · None · 30 s", or "Grade 1 · Treble · 30 s" - the results screen's
+    // subtitle. ("Grade" on screen is only ever the Theory grade picked; a round's result is a Level, ML-396.)
     function describeOptions(quizId, rawOptions, roundId) {
         const opts = normaliseOptions(quizId, rawOptions);
-        const parts = quiz(quizId).options.filter(d => optionVisible(d, opts)).map(d => {
-            const label = (v) => d.choices.find(c => c.value === v).label;
-            if (d.multi) return opts[d.key].map(label).join(', ');
-            if (d.key === 'upTo') return `Up to ${opts.upTo} ♯/♭`;
-            if (d.key === 'accidentals' && opts.accidentals === 'both') return 'Sharps and flats';
-            if (d.key === 'ask') return `Ask: ${label(opts.ask).toLowerCase()}`;
-            return label(opts[d.key]);
-        });
-        if (opts.grade) parts.unshift(`Grade ${opts.grade} syllabus`);
+        const parts = quiz(quizId).options.filter(d => optionVisible(d, opts)).map(d => optionText(d, opts));
+        if (opts.grade) parts.unshift(`Grade ${opts.grade}`);
         return [...parts, round(roundId).label].join(' · ');
+    }
+    // ML-396: a set of options as a list row - { title, detail }. A grade: "Grade 1 · Treble · 30 s".
+    // Custom: "Custom · Treble, Bass · 30 s" with its own inputs as the detail line. While Theory grades
+    // are off (grades: false) there's no "Custom" to tell apart, so it's the one line.
+    function describeSet(quizId, rawOptions, roundId, { grades = true } = {}) {
+        const opts = normaliseOptions(quizId, rawOptions);
+        if (opts.grade || !grades) return { title: describeOptions(quizId, opts, roundId), detail: '' };
+        const visible = quiz(quizId).options.filter(d => optionVisible(d, opts));
+        const clefs = visible.find(d => d.key === 'clefs');
+        return {
+            title: ['Custom', clefs ? optionText(clefs, opts) : null, round(roundId).label].filter(Boolean).join(' · '),
+            detail: visible.filter(d => d !== clefs).map(d => optionText(d, opts)).join(' · '),
+        };
     }
 
     // ---------------------------------------------------------------- random
@@ -234,6 +250,47 @@
         const slow = answer && answer.ms > SMART.slowFactor * parOf(answer.questionId) * 1000;
         return slow ? w : Math.max(0, w - SMART.rightStep);
     }
+    // ML-399 hesitation: a right answer you took well longer over than your own usual speed says you're
+    // less sure of it, so it comes back more often too - but less than a wrong one.
+    //  - Your usual speed: the median time of your right answers of that question type in that round
+    //    (block), leaving out the round's first question (everyone is slower on it).
+    //  - Hesitated ('slow'): more than slowOwnFactor x that, and at least slowOwnMinMs longer.
+    //  - Fewer than slowOwnMin right answers of the type to go by: the old fixed rule - slower than
+    //    slowFactor x par just doesn't lower the weight ('hold').
+    // Returns one mark per answer, in order: 'slow', 'hold' or null.
+    const HESITATION = { slowOwnFactor: 1.5, slowOwnMinMs: 1000, slowOwnMin: 5, step: 1, cap: 4 };
+    function hesitationMarks(answers) {
+        const firstOfBlock = new Set();
+        const seen = new Set();
+        answers.forEach((a, i) => { const b = a.block || 1; if (!seen.has(b)) { seen.add(b); firstOfBlock.add(i); } });
+        const groups = new Map(); // "block|type" -> the times of its right answers
+        answers.forEach((a, i) => {
+            if (!a.correct || firstOfBlock.has(i)) return;
+            const k = `${a.block || 1}|${typeOf(a.questionId)}`;
+            if (!groups.has(k)) groups.set(k, []);
+            groups.get(k).push(a.ms);
+        });
+        const median = (list) => { const s = list.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+        const usual = new Map([...groups].filter(([, t]) => t.length >= HESITATION.slowOwnMin).map(([k, t]) => [k, median(t)]));
+        return answers.map((a, i) => {
+            if (!a.correct) return null;
+            const m = usual.get(`${a.block || 1}|${typeOf(a.questionId)}`);
+            if (m === undefined) return a.ms > SMART.slowFactor * parOf(a.questionId) * 1000 ? 'hold' : null;
+            if (firstOfBlock.has(i)) return null;
+            return a.ms > HESITATION.slowOwnFactor * m && a.ms - m >= HESITATION.slowOwnMinMs ? 'slow' : null;
+        });
+    }
+    // One answer applied to a question's stored weights: { weight, miss } -> { weight, miss }.
+    //  weight: what rounds deal by (0-10). miss: the part of it from wrong answers - what makes a
+    //  question a weak spot. Wrong +2 to both; a quick right -1 from both; a hesitated right +1 to the
+    //  weight only, and never above HESITATION.cap; 'hold' leaves both.
+    function applyAnswer(state, correct, mark) {
+        const weight = Number(state && state.weight) || 0, miss = Math.min(weight, Number(state && state.miss) || 0);
+        if (!correct) return { weight: Math.min(SMART.max, weight + SMART.wrongStep), miss: Math.min(SMART.max, miss + SMART.wrongStep) };
+        if (mark === 'hold') return { weight, miss };
+        if (mark === 'slow') return { weight: Math.max(weight, Math.min(HESITATION.cap, weight + HESITATION.step)), miss };
+        return { weight: Math.max(0, weight - SMART.rightStep), miss: Math.max(0, miss - SMART.rightStep) };
+    }
     function reviewBoost(daysSinceSeen) {
         if (!(daysSinceSeen >= SMART.reviewAfterDays)) return 0;
         return Math.min(SMART.reviewMax, 1 + Math.floor((daysSinceSeen - SMART.reviewAfterDays) / SMART.reviewStepDays));
@@ -263,15 +320,19 @@
     const KEYBOARD_BUTTONS = ['C#', 'D#', 'F#', 'G#', 'A#', ...NOTE_BUTTONS.none, 'Db', 'Eb', 'Gb', 'Ab', 'Bb'];
     // accidentals: one or more of none/sharps/flats (Mixed advanced asks both sharps and flats; each
     // question then shows that spelling's 12 buttons).
+    // keyboard (ML-396): one set of answer buttons for the whole round. If any note in it has a sharp or
+    // flat (Theory Grade 2 and up ask naturals, sharps and flats), every question shows the keyboard -
+    // the naturals too - so the buttons never change or move between questions.
     function noteItems(clefs, range, accidentals) {
         const [lo, hi] = RANGE_STEPS[range];
+        const keyboard = accidentals.some(a => a !== 'none');
         const out = [];
         for (const acc of accidentals) for (const clef of clefs) {
             for (let st = lo; st <= hi; st++) {
                 const natural = Notation.pitchAtStep(st, clef);
                 const letter = natural[0], octave = natural.slice(1);
                 for (const n of NOTE_BUTTONS[acc].filter(x => x[0] === letter && (acc === accidentals[0] || x.length > 1))) {
-                    out.push({ type: 'note', clef, name: n, pitch: n + octave, acc, range });
+                    out.push({ type: 'note', clef, name: n, pitch: n + octave, acc, range, keyboard });
                 }
             }
         }
@@ -279,6 +340,7 @@
     }
     function noteQuestion(item, naming) {
         const [lo, hi] = RANGE_STEPS[item.range];
+        const keyboard = item.keyboard ?? item.acc !== 'none';
         return {
             id: `note:${item.clef}:${item.pitch}`,
             prompt: {
@@ -286,8 +348,8 @@
                 staff: { clef: item.clef, items: [{ type: 'note', pitch: item.pitch }], stepRange: [lo - 1, hi + 1] },
                 label: `A note on the ${item.clef} staff`,
             },
-            layout: item.acc === 'none' ? 'notes' : 'keyboard',
-            answers: (item.acc === 'none' ? NOTE_BUTTONS.none : KEYBOARD_BUTTONS).map(n => ({ id: n, label: spellName(n, naming) })),
+            layout: keyboard ? 'keyboard' : 'notes',
+            answers: (keyboard ? KEYBOARD_BUTTONS : NOTE_BUTTONS.none).map(n => ({ id: n, label: spellName(n, naming) })),
             correct: item.name,
         };
     }
@@ -1442,7 +1504,13 @@
     // a Smart learn weight (from the weights passed in), nothing else.
     function itemsFor(quizId, opts, weights) {
         if (quizId === 'weakSpots') {
-            return { weak: Object.keys(weights || {}).filter(id => weights[id] > 0).map(itemFromId).filter(Boolean) };
+            const weak = Object.keys(weights || {}).filter(id => weights[id] > 0).map(itemFromId).filter(Boolean);
+            // The note questions among them share one set of buttons and one staff height (ML-396): the
+            // keyboard if any has a sharp or flat, and the widest range any of them needs.
+            const notes = weak.filter(it => it.type === 'note');
+            const keyboard = notes.some(it => it.acc !== 'none'), range = Math.max(0, ...notes.map(it => it.range));
+            for (const it of notes) { it.keyboard = keyboard; it.range = range; }
+            return { weak };
         }
         if (opts.grade) return gradeItems(quizId, opts);
         if (quizId === 'noteNames') return { note: noteItems(opts.clefs, opts.range, opts.accidentals === 'both' ? ['sharps', 'flats'] : [opts.accidentals]) };
@@ -1573,7 +1641,82 @@
         return { right, wrong, score, grade, ms, bestBlock: best + 1, blockScores: blocks.map(b => b.score) };
     }
 
+    // ---------------------------------------------------------------- Levels (ML-396)
+    // A round's result is shown as a Level 1-5 (the stored `grade`), in the practice Level colours.
+
+    // How many right answers (with no slips) each Level takes: [{ level, right }], Level 2 to 5. A timed
+    // round only has a count when every question has the same par time (Note names: 6, 10, 14, 18 in
+    // 30 s); a round that mixes pars returns null.
+    function levelTargets(quizId, rawOptions, roundId) {
+        const r = round(roundId);
+        let per; // score points per right answer
+        if (r.questions) per = 100 / r.questions;
+        else {
+            if (quizId === WEAK_SPOTS.id) return null;
+            const pars = new Set(Object.values(itemsFor(quizId, normaliseOptions(quizId, rawOptions))).flat().map(it => parOf(itemKey(it))));
+            if (pars.size !== 1) return null;
+            per = 100 * [...pars][0] / r.seconds;
+        }
+        return GRADE_LIMITS.map(([min, level]) => {
+            let right = 1;
+            while (clamp(right * per) < min) right++;
+            return { level, right };
+        }).reverse();
+    }
+    // "2 more right answers for Level 5": { level, more } for one round's answers, or null at Level 5 (or
+    // when nothing was answered in a timed round - there's no pace to go by). Fixed: each more right is
+    // one fewer wrong. Timed: more right answers at this round's own par, in the same time.
+    function nextLevelGap(roundId, answers) {
+        const r = round(roundId);
+        const now = scoreRound(roundId, answers);
+        if (now.grade >= 5) return null;
+        const target = GRADE_LIMITS.find(([, g]) => g === now.grade + 1)[0];
+        if (r.questions) {
+            for (let n = 1; now.right + n <= r.questions; n++) {
+                if (clamp(100 * (now.right + n - Math.max(0, now.wrong - n)) / r.questions) >= target) return { level: now.grade + 1, more: n };
+            }
+            return null;
+        }
+        if (!answers.length) return null;
+        const net = answers.reduce((sum, a) => sum + (a.correct ? 1 : -1) * parOf(a.questionId), 0);
+        const par = answers.reduce((sum, a) => sum + parOf(a.questionId), 0) / answers.length;
+        for (let n = 1; n <= 200; n++) if (clamp(100 * (net + n * par) / r.seconds) >= target) return { level: now.grade + 1, more: n };
+        return null;
+    }
+    // "What's included" in a set of options, for its pop-up: { staffs, lines }.
+    //  - staffs: Note names only - per clef, the lowest and highest note asked ({ clef, low, high, stepRange }).
+    //  - lines: [{ label, text }] - what's asked, then the round. Nothing about how you answer.
+    function includedFor(quizId, rawOptions, roundId) {
+        const opts = normaliseOptions(quizId, rawOptions);
+        const r = round(roundId);
+        const G = opts.grade ? gradeContent(opts.grade) : null;
+        const count = quizId === WEAK_SPOTS.id ? 0 : new Set(Object.values(itemsFor(quizId, opts)).flat().map(itemKey)).size;
+        const lines = [], staffs = [];
+        const defs = quiz(quizId).options.filter(d => optionVisible(d, opts));
+        const line = (d) => lines.push({ label: d.key === 'clefs' ? (opts.clefs.length > 1 ? 'Clefs' : 'Clef') : d.label, text: optionText(d, opts) });
+        defs.filter(d => d.key === 'clefs').forEach(line);
+        if (quizId === 'noteNames') {
+            const range = G ? G.range : opts.range;
+            const acc = (G ? G.accidentals : opts.accidentals === 'both' ? ['sharps', 'flats'] : [opts.accidentals]).filter(a => a !== 'none');
+            const [lo, hi] = RANGE_STEPS[range];
+            for (const clef of opts.clefs) staffs.push({ clef, low: Notation.pitchAtStep(lo, clef), high: Notation.pitchAtStep(hi, clef), stepRange: [lo - 1, hi + 1] });
+            lines.push({ label: 'Notes', text: `${count} different notes, ${range ? `up to ${range} ledger lines above and below the staff` : 'all on the staff'}` });
+            lines.push({ label: 'Sharps and flats', text: acc.length > 1 ? 'both' : acc[0] || 'none' });
+        } else {
+            if (G && quizId === 'keys') lines.push({ label: 'Keys', text: G.keyIds.join(', ') });
+            if (G && quizId === 'symbols') lines.push({ label: 'Symbols and terms', text: `everything up to Grade ${opts.grade}` });
+            if (G && quizId === 'intervals') lines.push({ label: 'Intervals', text: INTERVAL_TEXT[G.intervals] });
+            if (G && quizId === 'chords') lines.push({ label: 'Chords', text: `${G.chords.map(d => CHORD_ROMAN[d]).join(', ')} triads${G.inversions ? ', inversions' : ''}${G.cadences ? ', cadences' : ''}` });
+            if (G && quizId === 'mixed') lines.push({ label: 'Asks', text: `a bit of everything up to Grade ${opts.grade}` });
+            defs.filter(d => d.key !== 'clefs').forEach(line);
+            if (count) lines.push({ label: 'Questions', text: `${count} different ones` });
+        }
+        lines.push({ label: 'Round', text: r.seconds ? `${r.seconds} seconds, as many as you can` : `${r.questions} questions, no time limit` });
+        return { staffs, lines };
+    }
+
     return {
+        describeSet, levelTargets, nextLevelGap, includedFor, HESITATION, hesitationMarks, applyAnswer,
         QUIZZES, ROUNDS, DEFAULT_ROUND, REPEATS, DEFAULT_REPEATS, repeatsOf, scoreBlocks, SYMBOLS, SET_IDS, SPEEDS, speedFor, speedLabel, KEY_TABLE, RANGE_STEPS, NOTE_BUTTONS, KEYBOARD_BUTTONS, MIXED_LEVELS, SCALE_FORMS, SCALE_FORM_LABEL, SCALE_TYPES, SCALE_TYPE_LABEL, buildScale, writeScale, scalePool, TIMING, GRADE_LIMITS, PAR,
         quiz, round, normaliseOptions, optionVisible, settingsKey, describeOptions,
         makeRng, questionSource, itemsFor, SMART, nextWeight, smartOrder, reviewBoost, effectiveWeight, itemFromId, describeQuestion, WEAK_SPOTS, scalePitches, keyPool, keyAlters, noteItems, parOf,

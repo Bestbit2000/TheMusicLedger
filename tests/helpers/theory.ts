@@ -67,9 +67,9 @@ export async function setWeights(weights: Record<string, number>) {
     await withClient(async (c) => {
         for (const [id, w] of Object.entries(weights)) {
             await c.query(
-                `INSERT INTO theory_question_weights (account_id, question_id, weight)
-                 VALUES ((SELECT id FROM accounts WHERE email = $1), $2, $3)
-                 ON CONFLICT (account_id, question_id) DO UPDATE SET weight = EXCLUDED.weight`,
+                `INSERT INTO theory_question_weights (account_id, question_id, weight, miss_weight)
+                 VALUES ((SELECT id FROM accounts WHERE email = $1), $2, $3, $3)
+                 ON CONFLICT (account_id, question_id) DO UPDATE SET weight = EXCLUDED.weight, miss_weight = EXCLUDED.miss_weight`,
                 [TEST_ACCOUNT_EMAIL, id, w]
             );
         }
@@ -84,3 +84,12 @@ export async function getWeights(): Promise<Record<string, number>> {
         return Object.fromEntries(rows.map((r: any) => [r.question_id, r.weight]));
     });
 }
+
+// ML-396: the "Upgrade now" emails in the dev outbox (MAIL_PROVIDER=log writes them to email_outbox).
+async function outbox<T>(sql: string): Promise<T[]> {
+    const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+    try { return (await client.query(sql)).rows as T[]; } finally { await client.end(); }
+}
+export const upgradeRequests = () => outbox<{ subject: string; body_text: string }>("SELECT subject, body_text FROM email_outbox WHERE subject LIKE 'Upgrade request:%' ORDER BY id");
+export const clearUpgradeRequests = () => outbox("DELETE FROM email_outbox WHERE subject LIKE 'Upgrade request:%'");

@@ -1,28 +1,31 @@
 # Theory quiz
 
 ## 1. Metadata
-- **Name:** Theory quiz (`.theory-intro`, `.theory-quiz-row`, `.theory-quiz-icon`, `.theory-grade`, `.theory-grade-dot`, `.theory-grade-dot-on`, `.theory-grade-lg`, `.theory-best-line`, `.theory-status`, `.theory-countdown`, `.theory-countdown-fill`, `.theory-question`, `.theory-prompt`, `.theory-meaning`, `.theory-feedback`, `.theory-answers`, `.theory-answers-notes`, `.theory-answers-symbols`, `.theory-answer`, `.theory-answer-right`, `.theory-answer-wrong`, `.theory-results-options`, `.theory-grade-block`, `.theory-trend`, `.theory-trend-bars`)
+- **Name:** Theory quiz (`.theory-intro`, `.theory-quiz-row`, `.theory-quiz-icon`, `.theory-grade`, `.theory-grade-dot`, `.theory-grade-dot-on`, `.theory-grade-lg`, `.theory-best-line`, `.theory-status`, `.theory-countdown`, `.theory-countdown-fill`, `.theory-question`, `.theory-prompt`, `.theory-meaning`, `.theory-feedback`, `.theory-answers`, `.theory-answers-notes`, `.theory-answers-symbols`, `.theory-answer`, `.theory-answer-right`, `.theory-answer-wrong`, `.theory-results-options`, `.theory-grade-block`, `.theory-trend`, `.theory-trend-bars`; ML-396 Levels: `.theory-steps`, `.theory-step`, `.theory-lv-h1`…`.theory-lv-h5`, `.theory-level-trend`, `.theory-level-bars`, `.theory-level-slot`, `.theory-level-bar`, `.theory-level-when`, `.theory-exits`, `.theory-included-staffs`, `.theory-included`, `.theory-level-key`; SmartLearn: `.smartlearn-note`, `.smartlearn-note-text`, `.smartlearn-more`)
 - **Category:** System specific (the Theory tool)
-- **Status:** New (ML-260 / ML-264)
+- **Status:** New (ML-260 / ML-264; a round's result as a Level, ML-396)
 
 ## 2. Overview
-The Theory tool's four screens: quiz list (Note names, Keys, Notation, Intervals and Chords - the last two only while Theory grades are on, ML-309 C - then Mixed - each with a subtitle so the rows match; one not tried yet has a "New" pill, `.flow-pill.flow-pill-accent`, where the grade dots go, ML-301) → options → question → results. Everything reuses the
+The Theory tool's four screens: quiz list (Note names, Keys, Notation, Intervals and Chords - the last two only while Theory grades are on, ML-309 C - then Mixed - each with a subtitle so the rows match; one not tried yet has a "New" pill, `.flow-pill.flow-pill-accent`, where the last Level goes, ML-301) → options → question → results. Everything reuses the
 shared components where one fits - list rows ([list-row](list-row.md)) for the quiz list, the
 the metronome's value boxes and pop-ups for options ([metronome](metronome.md), [pick-list](pick-list.md)), primary/secondary
 [buttons](button.md), [stat cards](stat-card.md) and the stats [bar chart](charts.md) pieces on the
-results screen. Notation is always [notation](notation.md). The classes here only cover what's
+results screen. A round's result is a **Level 1-5** in the practice Level colours (`.level-chip`, `.lv-N` - [practice-session](practice-session.md)); "grade" on screen only ever means the Theory grade picked (ML-396). Notation is always [notation](notation.md). The classes here only cover what's
 particular to a timed quiz.
 
 ## 3. Anatomy
-- **Quiz list:** `.theory-intro` › `.history-item.clickable.theory-quiz-row` × 4-6 (`.theory-quiz-icon` (a Bravura glyph) › `.history-details` (title, subtitle line, last grade) › `.theory-grade` last grade).
+- **Quiz list:** `.theory-intro` › `.history-item.clickable.theory-quiz-row` × 4-6 (`.theory-quiz-icon` (a Bravura glyph) › `.history-details` (title, subtitle line) › `.level-chip.lv-N` the last Level - the chip alone, no "Level 4 · today" line).
+- **Options (ML-396):** the boxes › `.btn-text` "What's included in Grade N?" (only until a round of that grade has been played; never for Custom) › the SmartLearn strip (`.smartlearn-note` › sparkle icon › `.smartlearn-note-text` › `.smartlearn-more` "Learn more"; `.is-on` = "SmartLearn applied" on the gold wash, without it "Learn faster with SmartLearn" in a quiet outline) › Start › `.section-title` "What I've played" › `.history-item.clickable.theory-quiz-row` per set of options played, newest first (`.history-details`: the set, a Custom set's inputs, "Today · played twice" › `.level-chip.lv-N` the last Level); the row matching the boxes is `.level-row-selected`; six rows, then a `.btn-text` "Show more".
+- **Set pop-up (`#theorySetModal`, ML-396):** title (the set) › `.modal-intro` (played, last played) › `.section-title` "My last rounds" › `.theory-level-trend` › `.theory-level-bars` (a played row only) › "What's included" › `.theory-included-staffs` (Note names: a staff per clef with the lowest and highest note) › `.theory-included` (a line per thing asked - never how you answer) › "Levels for this round" › `.theory-level-key` (five `.level-chip`s, each over the right answers it takes - nothing about slips) › sticky footer: "Use these options" (`.btn-submit`), or Close (`.btn-nav`) from the "What's included" link.
 - **Question:** `.theory-status` (clock left, tally right) › `.theory-countdown` › `.theory-countdown-fill` (timed rounds only) › `.theory-question` › `.theory-prompt` (a staff, a symbol, or `.theory-meaning` text) › `.theory-feedback` (always takes its line) › `.theory-answers` › `.theory-answer` × n.
-- **Answer grids:** `.theory-answers` is 2 across (keys, symbol names, term meanings); `.theory-answers-notes` 7 across on the 8-column width, centred (the 7 naturals, ML-292); `.theory-answers-keyboard` the same 7 columns in three rows - sharps above, naturals, flats below, each placed in its black key's column by `data-id` (17 buttons, ML-292); `.theory-answers-symbols` 2 across, taller, each button drawing a symbol or term. The layout follows each question, so a Mixed round changes it question by question.
-- **Results:** `.theory-results-options` › `.theory-grade-block` (`.theory-grade.theory-grade-lg` + `.theory-best-line`) › `.dashboard-grid` of 4 `.stat-card`s › `.section-title` › `.theory-trend` › `.theory-trend-bars` (8 fixed slots of `.chart-bar-container`/`.chart-bar`) › Again (`.btn-submit`) / Change options (`.btn-nav`).
+- **Answer grids:** `.theory-answers` is 2 across (keys, symbol names, term meanings); `.theory-answers-notes` 7 across on the 8-column width, centred (the 7 naturals, ML-292); `.theory-answers-keyboard` the same 7 columns in three rows - sharps above, naturals, flats below, each placed in its black key's column by `data-id` (17 buttons, ML-292); `.theory-answers-symbols` 2 across, taller, each button drawing a symbol or term. The layout follows each question type, so a Mixed round changes it between a note and a key; but every note question in one round has the same buttons in the same places (ML-396) - the keyboard throughout if any note in the round has a sharp or flat.
+- **SmartLearn pop-up (`#smartLearnModal`, ML-396):** title › `.modal-intro` (applied, or "an upgrade") › "What it does" and "Why it works", each a `.theory-included` list › sticky footer: Close (`.btn-nav`) where the account has it, "Upgrade now" (`.btn-submit`; "Upgrade requested", disabled, once sent) where it doesn't.
+- **Results (ML-396):** `.theory-results-options` (one quiet line: what was played) › `.theory-grade-block` (`.theory-steps` › 5 `.theory-step.theory-lv-hN` + `.theory-best-line` "Level 4 · your best yet with these options" + `.theory-best-line` "2 more right answers for Level 5") › `.dashboard-grid` of 2 `.stat-card`s (Right "17 out of 18", Time - no score, wrong or accuracy) › `.section-title` "My last rounds" › `.theory-level-trend` › `.theory-level-bars` (8 fixed `.theory-level-slot`s: `.theory-level-bar.theory-lv-hN.lv-N` over `.theory-level-when`) › the SmartLearn strip (`.smartlearn-note`, plain outline - no gold wash next to the gold button: what it will bring back from this round, with Learn more; only with SmartLearn) › Again (`.btn-submit`) › `.theory-exits` (Change options / Another quiz / Home, three `.btn-nav`). The drill tools' results still use `.theory-grade` dots and `.theory-trend-bars`.
 
 ## 4. Tokens used
 `--input-bg`, `--control-border`, `--text-color`, `--label-color`, `--success-text`, `--danger-text`,
 `--primary-action-strong` (filled grade dots, countdown), `--input-border` (countdown track),
-`--chart-hours` (trend bars), `--radius-md`, `--radius-circle`, `--touch-target`, `--icon-md`,
+`--chart-hours` (the drills' trend bars), `--level-1`…`--level-5` and their `-text` (through `.lv-N`), `--level-unset-border`, `--focus-ring` (your Level, this round), `--radius-xs`, `--line-height-tight`, `--line-height-base`, `--font-xs`, `--radius-md`, `--radius-circle`, `--touch-target`, `--icon-md`,
 `--icon-xl`, `--space-1`…`--space-5`, `--font-sm`, `--font-base`, `--font-md`, `--font-lg`,
 `--font-weight-bold`, `--duration-fast`.
 
@@ -35,7 +38,9 @@ particular to a timed quiz.
   `feedback`, which says why - the chromatic scale's Yes/No, ML-309 C), and moves on after 1.5 s.
 - ML-309 C question types use the same `.theory-answers` grid with 2, 3 or 4 buttons (chromatic scale
   Yes/No; inversions and cadences 3; Grade 4 chords I/IV/V 3). An odd button sits alone on the last row. Taps in the first 0.3 s of a question are ignored (double taps).
-- Grade: 5 dots, filled = the grade (`.theory-grade-dot-on`). `.theory-grade-lg` on the results screen.
+- Level (ML-396): five steps rising in height and colour (`.theory-lv-hN` is N+1 units tall; the unit, `--theory-lv-unit`, is set by `.theory-steps` and, smaller, by `.theory-level-bars`). Steps up to yours are filled `.lv-N`, yours is ringed (`.is-got`), the ones above are dashed outlines (`.lv-0`). The same bars, one per round, are the last-rounds chart; the newest is ringed and labelled "Now" on the results screen (`.is-now`). The score is never shown - the Level is worked out from it.
+- Wording stays positive: "17 out of 18" right (no wrong count), "2 more right answers for Level 5", and nothing about what a slip costs.
+- The drill tools keep the grade dots (`.theory-grade-dot-on`, `.theory-grade-lg`) until they move to Levels.
 - Timed rounds show the countdown bar (`transform: scaleX()` from JS); fixed rounds hide it and the
   clock counts up.
 - Options (owner, 2026-10-01): two sections, each a `.tool-group` with a `.tool-group-title` - **Content**
@@ -53,7 +58,10 @@ particular to a timed quiz.
 | Answer default | `--input-bg`, 2px `--control-border`, `--text-color` |
 | Right | border + text `--success-text`, tick icon |
 | Wrong (tapped) | border + text `--danger-text`, cross icon, plus the "Not quite" line |
-| Grade dot on / off | filled `--primary-action-strong` / 2px `--control-border` outline |
+| Grade dot on / off (drills) | filled `--primary-action-strong` / 2px `--control-border` outline |
+| Level step reached / yours / still ahead | `.lv-N` fill / `.lv-N` + `--focus-ring` / 2px dashed `--level-unset-border`, `--label-color` number |
+| SmartLearn strip with / without it | `--primary-action-tint` fill + `--primary-action-strong` border / no fill, `--control-border`; icon `--primary-action-strong`, text `--text-color`, Learn more `--link-color` underlined |
+| Played row matching the boxes | `.level-row-selected` (`--primary-action-strong` border + `--focus-ring`), `aria-current="true"` |
 
 ## 7. Code example
 ```html
@@ -71,9 +79,10 @@ particular to a timed quiz.
   `aria-label` (for a screen reader the question becomes meaning-to-name).
 - Right/wrong is never colour alone: tick/cross icons plus the "Not quite: it's X" text, which is a
   polite live region (`role="status"`).
-- WCAG 2.2.1 (timing adjustable): the fixed 10/20-question rounds have no time limit at all.
+- WCAG 2.2.1 (timing adjustable): the fixed 10-question round has no time limit at all.
 - The staff prompt is labelled without giving the answer away ("A note on the treble staff").
-- Grade dots are `role="img"` with "Grade N of 5"; the trend is `role="img"` listing the scores.
+- The Level steps are `role="img"` with "Level N of 5"; a Level chip says "Last Level N of 5"; the last-rounds bars are `role="img"` listing the Levels. Level is never colour alone: every bar and chip carries its number, and height follows it.
+- The set pop-up is a dialog (`showModal`): focus moves in, Escape and the backdrop close it, focus returns to the row or link. The staff is labelled "The lowest and highest notes asked on the treble staff".
 - Leaving a round part-way asks first (the standard confirm modal).
 
 See [accessibility foundation](../foundations/accessibility.md).

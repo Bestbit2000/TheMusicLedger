@@ -373,7 +373,7 @@ See [practice-sessions.md](practice-sessions.md) for how they fit together.
 |---|---|---|
 | `theory_quiz_attempts` | One finished quiz round (the Theory tool). Score/grade recomputed by the server with `public/theoryEngine.js`; `settings_key` = quiz + round type + visible options, what history and personal bests group by. ML-354: a test is the round done 1-5 times (`repeats`); score, grade, right/wrong and duration are the best round's, `block_scores` every round's. Counts as practice time, but not linked to sessions yet (`session_segment_id` nullable, for later) | id, account_id, quiz_id, round_type (t30 or q10), repeats (1-5), block_scores (SMALLINT[]), options (JSONB), settings_key, naming, right_count, wrong_count, score, grade, duration_ms, started_at, session_segment_id |
 | `theory_quiz_answers` | Every answer in a round, in order - for a later "practise your weakest notes" mode | attempt_id, seq, question_id, answer_id, correct, ms, block (which round, ML-354) |
-| `theory_question_weights` | Smart learn (ML-269, gated `theory_smart_learn`): how much each person still needs each question, 0-10 (wrong +2, right −1). Rounds deal higher weights first | account_id, question_id (PK together), weight, wrong_count, right_count, updated_at |
+| `theory_question_weights` | SmartLearn (ML-269, gated `theory_smart_learn`; `miss_weight` ML-399 = the part of the weight from wrong answers, what makes a weak spot): how much each person still needs each question, 0-10 (wrong +2, right −1). Rounds deal higher weights first | account_id, question_id (PK together), weight, wrong_count, right_count, updated_at |
 
 See `docs/theory-practice.md`.
 

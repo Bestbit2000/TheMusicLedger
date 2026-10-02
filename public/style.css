@@ -355,6 +355,42 @@
     .theory-answer-right { border-color: var(--success-text); color: var(--success-text); }
     .theory-answer-wrong { border-color: var(--danger-text); color: var(--danger-text); }
     .theory-results-options { color: var(--label-color); font-size: var(--font-sm); text-align: center; margin: 0 0 var(--space-3); }
+    /* ML-396: a round's result is a Level 1-5 in the practice Level colours (.lv-N). Size as well as colour:
+       .theory-lv-hN is N+1 units tall, the unit set by what holds it (the result's steps, the smaller
+       last-rounds bars). The number sits at the foot of its bar. */
+    .theory-lv-h1 { height: calc(var(--theory-lv-unit) * 2); }
+    .theory-lv-h2 { height: calc(var(--theory-lv-unit) * 3); }
+    .theory-lv-h3 { height: calc(var(--theory-lv-unit) * 4); }
+    .theory-lv-h4 { height: calc(var(--theory-lv-unit) * 5); }
+    .theory-lv-h5 { height: calc(var(--theory-lv-unit) * 6); }
+    /* The result: five steps, yours ringed (.is-got), the ones above it dashed outlines (.lv-0). */
+    .theory-steps { --theory-lv-unit: var(--space-5); display: flex; align-items: flex-end; justify-content: center; gap: var(--space-3); margin: var(--space-2) 0 var(--space-3); }
+    .theory-step, .theory-level-bar { display: flex; align-items: flex-end; justify-content: center; padding-bottom: var(--space-1); border-radius: var(--radius-xs); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); box-sizing: border-box; font-variant-numeric: tabular-nums; }
+    .theory-step { width: var(--touch-target); font-size: var(--font-md); }
+    .theory-step.lv-0 { border-width: 2px; }
+    .theory-step.is-got, .theory-level-slot.is-now .theory-level-bar { box-shadow: var(--focus-ring); }
+    /* The last rounds: eight fixed slots (so one round is one bar-width), the date under each bar. */
+    .theory-level-trend { padding-top: var(--space-2); margin-bottom: var(--space-4); }
+    .theory-level-bars { --theory-lv-unit: var(--space-3); display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: var(--space-1); align-items: end; }
+    .theory-level-slot { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+    .theory-level-bar { font-size: var(--font-sm); }
+    .theory-level-when { font-size: var(--font-xs); color: var(--label-color); text-align: center; white-space: nowrap; }
+    .theory-level-slot.is-now .theory-level-when { color: var(--text-color); font-weight: var(--font-weight-bold); }
+    /* ML-396 SmartLearn's strip on the options screen: sparkle, "SmartLearn applied", Learn more. Quiet
+       outline where the account doesn't have it; the gold wash and outline (.is-on) where it does. */
+    .smartlearn-note { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3); margin: var(--space-2) 0 var(--space-3); border: 1px solid var(--control-border); border-radius: var(--radius-md); font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: var(--text-color); }
+    .smartlearn-note.is-on { background: var(--primary-action-tint); border-color: var(--primary-action-strong); }
+    .smartlearn-note .material-symbols-outlined { font-size: var(--icon-md); color: var(--primary-action-strong); }
+    .smartlearn-note-text { flex: 1 1 auto; min-width: 0; }
+    .smartlearn-more { flex: 0 0 auto; min-height: var(--touch-target); padding: 0 var(--space-2); background: none; border: none; font: inherit; color: var(--link-color); text-decoration: underline; cursor: pointer; }
+    /* The three ways out under Again: Change options / Another quiz / Home. */
+    .theory-exits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); margin-top: var(--space-2); }
+    /* The set pop-up: the range on a staff per clef, the lines of what's asked, what each Level takes. */
+    .theory-included-staffs { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); color: var(--text-color); margin-bottom: var(--space-2); }
+    .theory-included-staffs svg { max-width: 100%; height: auto; }
+    .theory-included { margin: 0 0 var(--space-3); padding-left: var(--space-5); font-size: var(--font-sm); line-height: var(--line-height-base); }
+    .theory-level-key { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-1); margin-bottom: var(--space-3); }
+    .theory-level-key > span { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); font-size: var(--font-xs); color: var(--label-color); white-space: nowrap; }
     .theory-grade-block { display: flex; flex-direction: column; align-items: center; margin-bottom: var(--space-3); }
     /* The bar labels (.chart-x-label) hang below the bars absolutely, so reserve their line here, then the usual gap before the buttons. */
     .theory-trend { padding: var(--space-2) 0 var(--space-5); margin-bottom: var(--space-4); }

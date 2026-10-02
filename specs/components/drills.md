@@ -91,6 +91,13 @@ Leaving a play screen stops the round (and the mic); it isn't saved.
 ## 8. Cross-references
 [theory-quiz](theory-quiz.md) · [notation](notation.md) · [metronome](metronome.md) · [button](button.md) · [stat-card](stat-card.md)
 
+### SmartLearn (ML-399)
+Pitch and Tempo carry Theory's SmartLearn pieces unchanged ([theory-quiz](theory-quiz.md)): the strip
+(`.smartlearn-note`, `.is-on` = "SmartLearn applied") on their setup screens under the best line, and on
+the shared results screen its box (`#drillResultSmartBox`, plain outline) just above Again - "SmartLearn
+will bring back 2 notes you took a little longer over". Both have Learn more (`#smartLearnModal`). Pulse
+and Rhythm don't show them. No new classes.
+
 ## 9. Accessibility
 - The pad is a `<button>` (Space / Enter tap it) at 4 touch targets; its label says what to do ("Tap",
   "Tap the beat").
