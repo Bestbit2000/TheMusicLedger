@@ -25,7 +25,7 @@ import { handleUpload } from '@vercel/blob/client';
 import { put } from '@vercel/blob';
 import { listInstruments, listAccountInstruments, setAccountInstruments, resolveSessionInstrument } from '../services/instruments.js';
 import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../services/range.js';
-import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, addUploadedRecording, addYouTubeRecording, deleteRecording, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
+import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks } from '../services/flowBlocks.js';
 import { importScoreFromFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/scoreImport.js';
 import { isFeatureEnabled, listEnabledFeatureKeys, getLimit, listLimits } from '../services/features.js';
@@ -1566,8 +1566,10 @@ router.post('/flows/from-file', requireAuth, resolveAccount, async (req, res) =>
   try {
     const gates = await fileImportGates();
     if (!gates.pdf && !gates.musicxml) throw withStatus(403, "This feature isn't available right now.");
-    const { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType } = req.body || {};
+    const { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType, bandId } = req.body || {};
     if (!blobUrl || !blobPathname || !fileName) throw withStatus(400, 'Missing uploaded file details.');
+    // ML-400: the band picked on Add a piece - checked before the file is read, not after the parse.
+    if (bandId) await assertBandMembership(req.accountId, bandId);
     // ML-192: only ever fetch from this app's own Blob store, at the pathname the upload returned -
     // never an arbitrary URL from the request body (server-side request forgery).
     if (!isOwnBlobUrl(blobUrl, blobPathname)) throw withStatus(400, "That doesn't look like a file uploaded to this app.");
@@ -1585,7 +1587,7 @@ router.post('/flows/from-file', requireAuth, resolveAccount, async (req, res) =>
 
     const { flow: parsed, blocks, omrXmlText } = await importScoreFromFile(req.accountId, buffer);
 
-    const flow = await createFlow(req.accountId, { name: parsed.title || undefined });
+    const flow = await createFlow(req.accountId, { name: parsed.title || undefined, bandId: bandId || undefined });
     const { composer, arranger, publisher, description } = parsed;
     if (composer || arranger || publisher || description) {
       await updateFlowMetadata(req.accountId, flow.id, { composer, arranger, publisher, description });

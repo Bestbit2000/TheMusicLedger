@@ -51,7 +51,7 @@ account type**, not per person.
 | Challenges in the menu | `challenges` | yes | **no - to wire** (menu item and "Start a challenge") |
 | My music in the menu | `flow_manage` | yes | yes |
 | Export to MusicXML | `flow_export_musicxml` | yes | yes |
-| Add a piece in My music | `flow_create` | **new** | - |
+| Add a piece (the tool, and in My music - ML-400) | `flow_create` | **new** | - |
 | My teachers in My account | `manage_tutor` | yes | **no - to wire** |
 
 Standard member starts with all of these **off**. Everything else (Metronome, Tuner, Timer, Log time,
@@ -81,7 +81,7 @@ Wire the new and unwired gates in `renderFeatureGates`:
 
 - the Rehearse tile, the Metronome's Show history link, the Tuner's rewind controls
 - Challenges (menu item and "Start a challenge")
-- My music's Add a piece
+- Add a piece (the All tools tile and My music's button, ML-400)
 - My account's My teachers row
 
 When Challenges and Practice sessions are both off, the home screen keeps just **Add session time**.

@@ -29,6 +29,43 @@ JS sets it as a custom property and a class reads it -
 `el.style.setProperty('--bar-h', '40%')` with `.chart-bar { height: var(--bar-h); }`.
 `npm run token-audit` reports any other inline style as an error.
 
+**One button, one pop-up (owner rule, 3 Oct 2026, ML-400).** A choice from a set of options is **one
+button that shows the current answer and opens a pop-up** to change it - never the whole list of
+options laid out on the page. A page full of options is overwhelming; the page should show only what's
+picked. This is the starting point for every new screen:
+- Single choice: the button opens the choice list (`openFlowChoiceModal`, `#flowChoiceModal`, the one
+  on now ticked). Multi-select: a [pick list](components/pick-list.md) pop-up.
+- The button is **the value box** (`.metroBlk-ctrl-value-btn`): the answer big and bold, and what it is
+  in small lower-case under it ("Treble" over "clef"). Two to a row (`.metro-transport-grid-2`, Theory
+  options), or full width (`.w-full`) where an answer can be long (Add a piece). No arrows or carets on
+  it. **Re-use this box - don't invent another style of picker button** (owner, 3 Oct 2026).
+- **Not covered:** buttons that *go somewhere* (navigation, like Add a piece's "Create your own" /
+  "Import"), a yes/no pair, and options inside a pop-up that is itself the picker.
+- Laying a list out on the page needs the owner's say-so first.
+- If an option needs more than a tap (a name for a new list), it's asked **inside the pop-up, in that
+  option's own box** (`openFlowChoiceModal`'s `extra`) - never a field left on the page behind it.
+
+**Every pop-up closes the same three ways (owner rule, 3 Oct 2026, ML-400).** Any pop-up (`.modal`):
+- has a close **X** in its top right corner - the first thing in `.modal-content` - whether or not it also
+  has a Cancel button. The X only closes (it does what Cancel does); it never saves. With no close code of
+  its own, write it as `<button type="button" class="modal-close-x" data-modal-x aria-label="Close">` and the
+  shared code closes the pop-up;
+- closes on a **tap on the dark backdrop** outside it;
+- closes on **Escape**.
+
+The last two are automatic for every `.modal` (`public/a11y.js`, `closeModal`) - don't wire them up per
+pop-up. Two kinds of pop-up **don't** close on a backdrop tap (the X, Cancel and Escape still work):
+- **A pop-up with a form showing** - anything to type or pick into (a text, number or date field, a text
+  area, a drop-down), which usually means there's a Save button. A stray tap would lose the entry
+  without your noticing. This is automatic too, and checked at the moment of the tap, so a pop-up that
+  only grows a form part-way (Add a piece's "+ New practice list") is protected from then on. A pop-up
+  that is only a selection still closes - you just open it and pick again. A search box, ticks and
+  radio pills don't count as a form.
+- **A pop-up that must be answered**, marked `data-no-dismiss` on the `.modal`: today the urgent notice,
+  timer finished, "Are you sure?" and "Did you nail it?". Adding another needs the owner's say-so.
+
+See [modal](components/modal.md).
+
 Dark mode is Layer 2 only: `body.dark-mode` in `tokens.css` points an alias at a different primitive.
 A component never needs its own `body.dark-mode` colour override, so if you find yourself writing
 one, you're probably missing an alias. Add the alias instead.

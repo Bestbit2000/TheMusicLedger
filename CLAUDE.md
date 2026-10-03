@@ -23,7 +23,7 @@ Metronome & playback. `scores` itself is now wired up too, as a **Flow**
 note: the table stays `scores`, but the product concept/service file
 (`server/services/flows.js`)/endpoints (`/api/flows/*`)/UI are "Flow"
 throughout (on screen it is a "piece": the home tool **Rehearse** plays them and the ☰ menu's **My music**,
-feature `flow_manage`, creates/imports/edits them - ML-299), since a Flow is rhythm/structure only — "Score" is reserved for a
+feature `flow_manage`, creates/imports/edits them - ML-299; the **Add a piece** tool, ML-400, is the way in to making one - who it's for, which practice list, create or import - `specs/components/add-piece.md`), since a Flow is rhythm/structure only — "Score" is reserved for a
 future feature that attaches real notation to the same piece). That covers
 Flow metadata, recordings (`score_recordings`, mp3/mp4 via Vercel Blob or a
 YouTube link), documents (`score_documents`, PDF/MusicXML/Sibelius/MuseScore
@@ -96,6 +96,18 @@ specifically so a Claude session without Jira access still has full context.
   custom property that a class reads (`el.style.setProperty('--bar-h', ...)`).
   `npm run token-audit` fails on anything else. Details and the list of run-time
   properties: `specs/components/utilities-and-states.md`.
+- **One button, one pop-up (owner rule, ML-400).** A choice from a set of options is one button
+  showing the current answer that opens a pop-up to change it (`openFlowChoiceModal`, or a pick
+  list for multi-select) - never the whole list of options laid out on the page. Navigation
+  buttons and a yes/no pair are the exceptions. The button is the existing value box
+  (`.metroBlk-ctrl-value-btn`: the answer over what it is) - no new picker styles. Start every new
+  screen this way; see `specs/README.md` ("One button, one pop-up").
+- **Every pop-up closes the same three ways (owner rule, ML-400).** A `.modal` has `.modal-close-x` top
+  right (as well as any Cancel; it only closes - `data-modal-x` if it has no close code of its own), and
+  closes on a tap on the backdrop and on Escape. Those two are automatic (`public/a11y.js`) - never wire
+  them per pop-up. A pop-up with a form showing (a field to type or pick into) ignores the backdrop tap -
+  also automatic - so a stray tap can't lose an entry; `data-no-dismiss` does the same for a must-answer
+  pop-up (owner's say-so).
 - If no token fits, add a Layer 2 alias (with a usage comment) to
   `tokens.css` and re-run `npm run token-reference`. Don't reach for a raw value.
 - **Admin → Design** (`public/admin-design.js`) renders every component spec

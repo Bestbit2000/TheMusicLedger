@@ -12,7 +12,7 @@ const serverIds = JSON.parse(/HOME_TOOL_IDS = (\[[^\]]*\])/.exec(accounts)[1].re
 const pageIds = [...html.matchAll(/data-tool="([a-z-]+)"/g)].map(m => m[1]);
 
 test('every tool on the All tools page is one the server accepts, and the other way round', () => {
-    assert.equal(pageIds.length, 12);
+    assert.equal(pageIds.length, 13);
     assert.equal([...pageIds].sort().join(), [...serverIds].sort().join());
 });
 
@@ -22,9 +22,9 @@ test('the tiles live on the All tools page, not on Home', () => {
     assert.match(main, /id="homeToolsRow"/);
 });
 
-test('the routine is in the order it is practised: Warm-ups, Scales, Rehearse', () => {
+test('the routine is in the order it is practised: Warm-ups, Scales, Add a piece, Rehearse', () => {
     const routine = html.slice(html.indexOf('id="toolGroup-routine"'), html.indexOf('id="toolGroup-ear"'));
-    assert.deepEqual([...routine.matchAll(/data-tool="([a-z-]+)"/g)].map(m => m[1]), ['warmups', 'scales', 'rehearse']);
+    assert.deepEqual([...routine.matchAll(/data-tool="([a-z-]+)"/g)].map(m => m[1]), ['warmups', 'scales', 'add-piece', 'rehearse']); // ML-400: Add a piece sits before Rehearse
 });
 
 // ML-388: how many fit comes from the home_tools limit (Admin -> Feature access), not a number in the code.

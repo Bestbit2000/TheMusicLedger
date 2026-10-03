@@ -1234,6 +1234,14 @@
        comments on each for why they ended up different shapes. Background matches the block tiles
        below (.metroBlk-tile's --input-bg/--input-border) rather than the silver of Reset - these two
        are secondary adjustments, not transport controls, and shouldn't visually compete with Play. */
+    /* Add a piece's "how do you want to make it" tiles (ML-400) - the square, icon-topped tiles My music's
+       start screen had until ML-329, brought back: two to a row, so they read as ways to go on rather than
+       as more options to pick. grid-auto-rows keeps every row the same height (ML-223), so a tile whose
+       help text wraps further doesn't grow taller than the others. See specs/components/add-piece.md. */
+    .metroBlk-entry-choices { display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: 1fr; gap: var(--space-3); }
+    .metroBlk-entry-choice { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); min-height: 140px; padding: var(--space-4); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font: inherit; cursor: pointer; text-align: center; box-sizing: border-box; }
+    .metroBlk-entry-choice .material-symbols-outlined { font-size: var(--icon-xl); color: var(--primary-action-strong); }
+    .metroBlk-entry-choice strong { font-size: var(--font-md); }
     .metroBlk-ctrl-value-btn { position: relative; height: 60px; min-width: 74px; padding: 0 var(--space-3); border: 1px solid var(--control-border); border-radius: var(--radius-lg); background: var(--input-bg); color: var(--text-color); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: var(--line-height-snug); box-sizing: border-box; }
     .metroBlk-ctrl-value-btn strong { font-size: var(--font-md); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
     /* Caption under a control's icon/value. Inherits the button's text colour so it always matches the

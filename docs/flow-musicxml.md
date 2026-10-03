@@ -122,9 +122,9 @@ marking at all (100 bpm).
   file *content* (a PDF is detected by its `%PDF` header, not its name). Any reader warnings are
   listed on the result card under "Worth checking". "Continue to flow" then hands over to **exactly the same Create flow
   journey as "Create your own"** - Create mode, Details tab first, the same sticky-bar buttons ("Add
-  media" / "Open player >" on Bars) - the only difference being "Review bars >" instead of "Add bars >"
+  media" / "Done" on Bars, which ends on My music - ML-400) - the only difference being "Review bars >" instead of "Add bars >"
   on Details when the file brought bars with it. The import screen is taken off the back stack, so
-  Back lands on the Flow start screen, as it does from "Create your own".
+  Back lands where the journey was started, as it does from "Create your own". The band and practice list picked on the Add a piece screen (ML-400, `specs/components/add-piece.md`) apply to an import too (`bandId` on `/flows/from-file`).
 - **Export to MusicXML** (library ⋮ menu): **personal and band flows** only - not public library
   flows, the content most likely to be commercialised (`exportFlowForUser`, `flowTransfer.js`).
   Band flows get a ⋮ menu with just this item; Edit/Duplicate/Delete stay personal-only.

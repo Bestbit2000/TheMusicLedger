@@ -132,7 +132,7 @@ async function canEditFlow(accountId, scoreId) {
   try { await assertFlowAccess(accountId, scoreId); return true; } catch (error) { return false; }
 }
 
-async function assertBandMembership(accountId, bandId) {
+export async function assertBandMembership(accountId, bandId) {
   const { rows } = await pool.query('SELECT 1 FROM band_members WHERE band_id = $1 AND account_id = $2', [bandId, accountId]);
   if (!rows.length) throw withStatus(403, 'You are not a member of that band.');
 }

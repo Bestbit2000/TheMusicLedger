@@ -1195,6 +1195,7 @@
         document.getElementById('flowPlayMenuCreateNew')?.classList.toggle('hidden-group', !create);
         document.getElementById('rehearseAddBtn')?.classList.toggle('hidden-group', !create);
         document.getElementById('myMusicAddBtn')?.classList.toggle('hidden-group', !create);
+        document.getElementById('addPieceToolBtn')?.classList.toggle('hidden-group', !create); // ML-400
         // ML-345: the other gates by account type
         document.getElementById('qpShowHistoryBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('metronome_history'));
         document.getElementById('tunerRewindGroup')?.classList.toggle('hidden-group', !isFeatureEnabled('tuner_rewind'));
@@ -1683,7 +1684,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
+    const views = ['mainView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -1852,6 +1853,7 @@
         if (viewName !== 'statsHomeView' && statsEditing) { statsEditing = false; renderStatStars(); } // ML-387: the same for Home stats
         if (viewName === 'notificationsView') { document.getElementById('topTitle').innerText = 'Notifications'; renderNotificationsView(); checkNotifications(true); }
         if (viewName === 'flowFromFileView') { document.getElementById('topTitle').innerText = flowImportTitle(); resetFlowFromFileScreen(); }
+        if (viewName === 'addPieceView') { document.getElementById('topTitle').innerText = 'Add a piece'; openAddPiece(isBack); }
         if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
         if (viewName === 'challengeSelectView') { document.getElementById('topTitle').innerText = 'Select challenge'; renderChallengeSelect(); }
         if (viewName === 'challengePlayView') { document.getElementById('topTitle').innerText = 'Practise'; }
@@ -6003,9 +6005,8 @@
         return block.isLeadIn ? block.numerator : metroBlkMeterInfo(block).macroBeatsPerBar;
     }
 
-    // ML-329: My music opens straight on the library (filter, search, pieces). Add a piece sits at the
-    // top: with an import gate on it opens a small menu (Create your own / Import...); with none, it
-    // just creates. The filter and search start fresh on each visit.
+    // ML-329: My music opens straight on the library (filter, search, pieces), with Add a piece at the
+    // top (ML-400: it opens the Add a piece screen). The filter and search start fresh on each visit.
     function metroBlkShowEntryScreen() {
         document.getElementById('metroBlkEntryScreen')?.classList.remove('hidden-group');
         flowLibraryFilter = 'all';
@@ -6013,33 +6014,134 @@
         const search = document.getElementById('flowLibrarySearch');
         if (search) search.value = '';
     }
-    function closeMyMusicAddMenu() {
-        document.getElementById('myMusicAddMenu')?.classList.remove('show');
-        document.getElementById('myMusicAddBtn')?.setAttribute('aria-expanded', 'false');
+    document.getElementById('myMusicAddBtn')?.addEventListener('click', () => switchView('addPieceView'));
+
+    // ---------------------------------------------------------------- ADD A PIECE (ML-400)
+    // One screen before a piece is made: who it's for (you / one of your bands), whether it goes on a
+    // practice list (an existing one, or a new one named and saved in the pop-up), and how to make it (Create your own /
+    // Import...). The answers ride along as addPieceTarget into createAndOpenFlow / handleFromFileUpload,
+    // which make the piece in that band and put it on that list; the journey then ends on My music
+    // (flowCreateDone). A band's list only takes that band's pieces - the rest of the band couldn't
+    // open a piece that's just yours - so the lists offered follow the "who for" answer.
+    let addPiece = { bandId: null, listId: null, bands: [], lists: [] };
+    let addPieceTarget = null; // { bandId, listId, listName } for the piece being made, else null
+    const addPieceListsOn = () => isFeatureEnabled('practice_levels');
+    const addPieceListsOffered = () => addPiece.lists.filter(l => l.bandId == null || l.bandId === addPiece.bandId);
+    const addPieceBandName = (id) => { const b = addPiece.bands.find(x => Number(x.id) === id); return b ? (b.displayName || b.name) : 'the band'; };
+    // Each answer is one value box showing what's picked; tapping it opens the choice pop-up
+    // (#flowChoiceModal) - never the whole list on the page (specs/README.md, "One button, one pop-up").
+    const addPieceRow = (title, sub) => `<span><strong>${escapeHtml(title)}</strong><br><span class="text-sm text-muted">${escapeHtml(sub)}</span></span>`;
+    const addPieceListSub = (l) => `${l.bandName ? `${l.bandName} · ` : ''}${plDateText(l.eventDate)} · ${l.pieceCount} piece${l.pieceCount === 1 ? '' : 's'}`;
+    function addPieceOwnerChoices() {
+        return [{ value: null, title: 'Just me', sub: 'Only you see it' },
+            ...addPiece.bands.map(b => ({ value: Number(b.id), title: b.displayName || b.name, sub: 'Shared with the band' }))];
     }
-    document.addEventListener('click', closeMyMusicAddMenu);
-    document.getElementById('myMusicAddBtn')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const { pdf, musicxml } = flowImportGates();
-        if (!pdf && !musicxml) { createAndOpenFlow(); return; }
-        const menu = document.getElementById('myMusicAddMenu');
-        if (menu.classList.contains('show')) { closeMyMusicAddMenu(); return; }
-        menu.classList.add('show');
-        e.currentTarget.setAttribute('aria-expanded', 'true');
-        const r = e.currentTarget.getBoundingClientRect();
-        placeAt(menu, Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)), Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8));
-    });
+    function addPieceListChoices() {
+        return [{ value: null, title: 'On its own', sub: 'A single piece, not part of a list' },
+            ...addPieceListsOffered().map(l => ({ value: l.id, title: l.name, sub: addPieceListSub(l) })),
+            { value: 'new', title: '+ New practice list', sub: addPiece.bandId === null ? 'Just yours' : `Shared with ${addPieceBandName(addPiece.bandId)}`, extra: addPieceNewListForm }];
+    }
+    // "+ New practice list", inside its own box in the pop-up: its name and Save (the pop-up's Cancel backs out).
+    // Save makes the list there and then - yours, or the band's the piece is for - and picks it.
+    // The label avoids the word "name" and the field says data-form-type="other": a lone text box labelled
+    // "Name..." was taken for a person's name by a password manager (Dashlane), which offered to fill it.
+    function addPieceNewListForm(el, close) {
+        el.innerHTML = `<div class="form-group mt-2"><label for="addPieceNewListInput">What is the list called?</label><input type="text" id="addPieceNewListInput" autocomplete="off" data-form-type="other" maxlength="80" placeholder="e.g. Christmas concert"></div><button type="button" class="btn-submit no-margin" id="addPieceNewListSaveBtn">Save</button>`;
+        const input = el.querySelector('input'), saveBtn = el.querySelector('button');
+        const save = async () => {
+            const name = input.value.trim();
+            if (!name) { showWarningToast('Give the new practice list a name.'); input.focus(); return; }
+            if (saveBtn.disabled) return;
+            saveBtn.disabled = true;
+            try {
+                const list = await API.practiceLists.create({ name, bandId: addPiece.bandId });
+                addPiece.lists = [...addPiece.lists, { ...list, pieceCount: 0 }];
+                addPiece.listId = list.id;
+                close();
+                renderAddPiece();
+            } catch (e) { showWarningToast('List not created: ' + e.message); saveBtn.disabled = false; }
+        };
+        saveBtn.addEventListener('click', save);
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+        input.focus();
+    }
+    // The app's value box (as Theory's options): the answer, and under it what it is.
+    function addPieceDrawButton(id, what, choices, current) {
+        const c = choices.find(x => x.value === current) || choices[0];
+        const btn = document.getElementById(id);
+        btn.innerHTML = `<strong>${escapeHtml(c.title)}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(what.toLowerCase())}</span>`;
+        btn.setAttribute('aria-label', `${what}: ${c.title} - tap to change`);
+    }
+    function addPieceOpenChoice(title, choices, current, onPick) {
+        openFlowChoiceModal(title, choices.map(c => ({
+            value: c.value, selected: c.value === current, extra: c.extra,
+            html: `${addPieceRow(c.title, c.sub)}${c.value === current ? '<span class="material-symbols-outlined" aria-hidden="true">check</span>' : ''}`
+        })), (opt) => onPick(opt.value));
+    }
+    function renderAddPiece() {
+        setShown('addPieceOwnerGroup', addPiece.bands.length > 0);
+        addPieceDrawButton('addPieceOwnerBtn', "Who it's for", addPieceOwnerChoices(), addPiece.bandId);
+        setShown('addPieceListGroup', addPieceListsOn());
+        addPieceDrawButton('addPieceListBtn', 'Practice list', addPieceListChoices(), addPiece.listId);
+    }
+    document.getElementById('addPieceOwnerBtn')?.addEventListener('click', () => addPieceOpenChoice('Who is this piece for?', addPieceOwnerChoices(), addPiece.bandId, (v) => {
+        addPiece.bandId = v;
+        if (typeof addPiece.listId === 'number' && !addPieceListsOffered().some(l => l.id === addPiece.listId)) addPiece.listId = null;
+        renderAddPiece();
+    }));
+    document.getElementById('addPieceListBtn')?.addEventListener('click', () => addPieceOpenChoice('Add it to a practice list?', addPieceListChoices(), addPiece.listId, (v) => {
+        addPiece.listId = v;
+        renderAddPiece();
+    }));
+    // A fresh visit starts from "Just me" / "On its own"; coming Back keeps the answers.
+    async function openAddPiece(isBack) {
+        if (!isBack) {
+            addPieceTarget = null;
+            addPiece = { bandId: null, listId: null, bands: addPiece.bands, lists: addPiece.lists };
+        }
+        renderAddPiece();
+        const [bands, lists] = await Promise.all([
+            API.account.getBands().then(r => r.myBands || []).catch(() => addPiece.bands),
+            addPieceListsOn() ? API.practiceLists.list().then(r => (r && r.lists) || []).catch(() => addPiece.lists) : []
+        ]);
+        addPiece.bands = bands;
+        addPiece.lists = lists;
+        if (addPiece.bandId !== null && !bands.some(b => Number(b.id) === addPiece.bandId)) addPiece.bandId = null;
+        if (typeof addPiece.listId === 'number' && !addPieceListsOffered().some(l => l.id === addPiece.listId)) addPiece.listId = null;
+        renderAddPiece();
+    }
+    // The answers as a target for the new piece.
+    function addPieceTakeTarget() {
+        const listId = addPieceListsOn() ? addPiece.listId : null;
+        return { bandId: addPiece.bandId, listId, listName: listId === null ? null : addPiece.lists.find(l => l.id === listId)?.name || null };
+    }
+    // Puts the new piece on the list it was made for. The piece is already made, so a failure here
+    // only says so - it can still be added from the list itself.
+    async function addPieceToTargetList(flowId) {
+        if (!addPieceTarget || addPieceTarget.listId === null) return;
+        try {
+            const list = await API.practiceLists.get(addPieceTarget.listId);
+            await API.practiceLists.setPieces(list.id, [...list.pieces.map(p => p.scoreId), flowId]);
+        } catch (e) {
+            showWarningToast("The piece was made, but it couldn't be added to the practice list: " + e.message);
+            addPieceTarget.listName = null;
+        }
+    }
     // ML-179: "Create your own" creates a score-backed Flow (Flow Details Hub).
-    document.getElementById('metroBlkEntryCreateBtn')?.addEventListener('click', () => {
-        closeMyMusicAddMenu();
-        createAndOpenFlow();
+    document.getElementById('metroBlkEntryCreateBtn')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        if (btn.disabled) return;
+        btn.disabled = true;
+        try {
+            await createAndOpenFlow(addPieceTakeTarget());
+        } finally { btn.disabled = false; }
     });
     // Behind the import gates (applyFlowImportFormats shows/hides it once appData has loaded - this
     // listener just needs to agree, in case it's clicked before that's resolved).
     document.getElementById('metroBlkEntryFromFileBtn')?.addEventListener('click', () => {
-        closeMyMusicAddMenu();
         const { pdf, musicxml } = flowImportGates();
         if (!pdf && !musicxml) return;
+        addPieceTarget = addPieceTakeTarget();
         switchView('flowFromFileView');
     });
 
@@ -6106,7 +6208,7 @@
             </button>`).join('');
         ui.querySelectorAll('[data-rehearse-id]').forEach(b => b.addEventListener('click', () => openFlow(Number(b.dataset.rehearseId))));
     }
-    document.getElementById('rehearseAddBtn')?.addEventListener('click', () => switchView('metroBuilderView'));
+    document.getElementById('rehearseAddBtn')?.addEventListener('click', () => switchView('addPieceView')); // ML-400
 
     // ===== ML-390 (was ML-316's My Levels): a piece's path - Prepare, Practise, Play-through =====
     // Prepare (once): the music, a run-through at a speed you can manage, paint how each bar went, cut
@@ -8519,18 +8621,34 @@
         }
     };
 
-    // No name required up front - personal-by-default, same no-friction feel as the old
-    // loadMetroBlkDefaultSetup's scratch setup.
-    async function createAndOpenFlow() {
+    // No name required up front. ML-400: `target` is the Add a piece screen's answers - the piece is
+    // made in that band (else personal) and put on that practice list. The Add a piece screen comes
+    // off the back stack, so Back from the new piece doesn't land on a form that would make another.
+    async function createAndOpenFlow(target = null) {
         try {
-            const created = await API.flows.create({});
+            const created = await API.flows.create(target && target.bandId ? { bandId: target.bandId } : {});
+            addPieceTarget = target;
+            await addPieceToTargetList(created.id);
             currentFlowId = created.id;
             flowEditMode = 'create';
             flowStatsPendingKind = 'create';
+            if (viewStack[viewStack.length - 1] === 'addPieceView') viewStack.pop();
             switchView('flowDetailsHubView');
         } catch (error) {
             showWarningToast('Error creating flow: ' + error.message);
         }
+    }
+    // ML-400: the end of the Create flow journey - My music, with the new piece in the list (it used to
+    // open the player). The journey's own screens come off the back stack first, so Back from My music
+    // goes to wherever the journey was started from, not back into it.
+    function flowCreateDone() {
+        const title = currentFlowDetail?.title || 'Your piece';
+        const listName = addPieceTarget?.listName || null;
+        addPieceTarget = null;
+        while (['flowDetailsHubView', 'flowFromFileView', 'addPieceView'].includes(viewStack[viewStack.length - 1])) viewStack.pop();
+        const back = viewStack[viewStack.length - 1] === 'metroBuilderView';
+        switchView('metroBuilderView', back);
+        showSuccessToast(listName ? `${title} is in My music and on ${listName}.` : `${title} is in My music.`);
     }
 
     // ========================================
@@ -8775,8 +8893,10 @@
 
             const flow = await API.flows.fromFile.create({
                 blobUrl: blob.url, blobPathname: blob.pathname,
-                fileName: file.name, fileSizeBytes: file.size, mimeType: blob.contentType || file.type
+                fileName: file.name, fileSizeBytes: file.size, mimeType: blob.contentType || file.type,
+                bandId: addPieceTarget?.bandId || undefined // ML-400: the band chosen on Add a piece
             });
+            await addPieceToTargetList(flow.id);
 
             flowFromFilePendingId = flow.id;
             document.getElementById('flowFromFileResultTitle').innerText = flow.title ? 'Extracted' : 'Not found';
@@ -8817,6 +8937,7 @@
         // The import screen has done its job - taken off the back stack so Back from the flow lands
         // on the Flow start screen, the same place Back from "Create your own" does.
         if (viewStack[viewStack.length - 1] === 'flowFromFileView') viewStack.pop();
+        if (viewStack[viewStack.length - 1] === 'addPieceView') viewStack.pop(); // ML-400: nor on Add a piece
         // ML-199: still the flow's initial creation, just import-assisted rather than typed - so
         // kind stays 'create' and creationSource carries the difference. Keeping these in one
         // bucket would quietly drag the manual-entry baseline down towards import speed.
@@ -8902,12 +9023,12 @@
             primaryBtn.classList.remove('hidden-group');
         } else if (flowEditActiveTab === 'blocks') {
             secondaryBtn.classList.remove('hidden-group');
-            primaryBtn.innerHTML = 'Open player <span class="btn-nav-arrow">&gt;</span>';
+            primaryBtn.innerHTML = 'Done'; // ML-400: ends on My music, not the player
             // Same "nothing to play yet" gate as before - a lead-in alone still isn't playable.
             primaryBtn.classList.toggle('hidden-group', currentFlowBlocks.length === 0);
         } else {
             secondaryBtn.classList.add('hidden-group');
-            primaryBtn.innerHTML = 'Open player <span class="btn-nav-arrow">&gt;</span>';
+            primaryBtn.innerHTML = 'Done';
             primaryBtn.classList.toggle('hidden-group', currentFlowBlocks.length === 0);
         }
     }
@@ -8924,8 +9045,8 @@
             // session already closed rather than recording it as abandoned.
             flowReviewBeforeLeaving(() => {
                 flowStatsFinish('completed');
-                switchView('flowPlayView');
-            }, 'Open player anyway');
+                flowCreateDone();
+            }, 'Finish anyway');
         }
     });
     // Cancel needs no *server* revert - in Edit mode nothing is written to the server until Save
@@ -10524,7 +10645,11 @@
 
     // --- Generic choice-list modal - every discrete-option tile shares this one modal rather
     // than each getting its own bespoke picker. An option can pass `html` instead of `label` for
-    // cases that need more than plain escaped text (the jump tile's inline segno/coda glyphs). ---
+    // cases that need more than plain escaped text (the jump tile's inline segno/coda glyphs). An
+    // option with `extra(el, close)` needs more than a tap (ML-400's "+ New practice list" - its name):
+    // picking it keeps the pop-up open and turns its row into a box (the same selected look, stacked -
+    // .plan-card) holding the row's words and, under them, its own fields and Save, so it's plain what
+    // they belong to (owner, 3 Oct 2026); it calls close() itself when it's done. ---
     function openFlowChoiceModal(title, options, onSelect) {
         document.getElementById('flowChoiceTitle').innerText = title;
         const inlineExtra = document.getElementById('flowChoiceInlineExtra');
@@ -10539,8 +10664,20 @@
         `).join('');
         container.querySelectorAll('[data-choice-idx]').forEach(el => {
             el.addEventListener('click', () => {
+                const opt = options[Number(el.dataset.choiceIdx)];
+                if (opt.extra) {
+                    container.querySelectorAll('[data-choice-idx]').forEach(o => { o.classList.remove('selected'); o.setAttribute('aria-pressed', 'false'); });
+                    const box = document.createElement('div');
+                    box.className = 'flow-choice-option plan-card selected';
+                    box.setAttribute('role', 'group');
+                    box.setAttribute('aria-label', el.innerText.split('\n')[0].trim());
+                    box.innerHTML = `${opt.html ? opt.html : `<span>${escapeHtml(opt.label)}</span>`}<div></div>`;
+                    el.replaceWith(box);
+                    opt.extra(box.lastElementChild, () => hideModal('flowChoiceModal'));
+                    return;
+                }
                 hideModal('flowChoiceModal');
-                onSelect(options[Number(el.dataset.choiceIdx)]);
+                onSelect(opt);
             });
         });
         showModal('flowChoiceModal');
@@ -10548,6 +10685,8 @@
     function closeFlowChoiceModal() {
         hideModal('flowChoiceModal');
     }
+    // Closes on its X, Cancel, or a tap on the backdrop (ML-400 - as the other pop-ups).
+    document.getElementById('flowChoiceModal')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeFlowChoiceModal(); });
 
     // --- Repeat bar / volta - which repeat pass(es) (1-9) this bar plays on, multi-select rather
     // than the old binary 1st/2nd pair (some pieces use a section on passes 1, 3, 5 and a different
@@ -13566,7 +13705,7 @@
     document.getElementById('flowPlayMenuCreateNew')?.addEventListener('click', (e) => {
         e.stopPropagation();
         closeFlowPlayMenu();
-        createAndOpenFlow();
+        switchView('addPieceView'); // ML-400
     });
 
     // ML-103: the old "+ Add new" button (a second, name-prompt-first "new setup" path alongside

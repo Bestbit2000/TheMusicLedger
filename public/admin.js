@@ -1067,7 +1067,7 @@
         if (!h.n) {
             el.innerHTML = `<p class="admin-stat-empty">No completed manual Flow builds recorded yet.${
                 o.live || o.stale ? ` (${o.live} in progress, ${o.stale} never finished.)` : ''
-            } Build a Flow from &ldquo;Create your own&rdquo; through to Open player and it'll appear here.</p>`;
+            } Build a Flow from &ldquo;Create your own&rdquo; through to Done and it'll appear here.</p>`;
             return;
         }
 

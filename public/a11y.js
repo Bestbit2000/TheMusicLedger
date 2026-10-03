@@ -3,7 +3,8 @@
 // than individual screens, so new modals/menus/buttons get it for free:
 //
 //   - Enter/Space activate any role="button" element that isn't a real <button>
-//   - .modal (role="dialog"): focus moves into it on open, Tab is trapped inside it, Escape closes it,
+//   - .modal (role="dialog"): focus moves into it on open, Tab is trapped inside it, Escape, its X or a tap
+//     on the backdrop closes it (ML-400; data-no-dismiss opts out of the backdrop tap),
 //     and focus returns to whatever opened it
 //   - .dropdown-menu: Escape closes it, arrow keys move between items, focus returns to the opener
 //   - aria-expanded is kept in sync on any [aria-haspopup] trigger while its popup is open
@@ -83,10 +84,37 @@
     }
     function closeModal(modal) {
         // Use the dialog's own close control so its cleanup code runs; hide it directly only as a fallback.
+        // A shared X (data-modal-x, wired below) has no code of its own - it comes back here - so it's skipped.
         const btns = [...modal.querySelectorAll('button')].filter(visible);
-        const close = modal.querySelector('.modal-close-x, [data-modal-close]') || btns.find(b => /^(cancel|close|done|not now|back|no)$/i.test(b.textContent.trim()));
+        const close = modal.querySelector('.modal-close-x:not([data-modal-x]), [data-modal-close]') || btns.find(b => /^(cancel|close|done|not now|back|no)$/i.test(b.textContent.trim()));
         if (close) close.click(); else modal.classList.remove('show');
     }
+    // ML-400: every pop-up closes the same three ways - its X, Escape (below), and a tap on the dark
+    // backdrop outside it - all through closeModal, so the pop-up's own close/cancel code runs. A pop-up
+    // that must be answered opts out of the backdrop tap with data-no-dismiss (the urgent notice, timer
+    // finished, "Are you sure?", "Did you nail it?"). A pop-up with its own backdrop handler has already
+    // closed by the time the tap gets here. app.js stops a drag that merely ends on the backdrop (ML-364)
+    // before it reaches this.
+    // A pop-up with a form showing (something to type or pick into - Add a piece's new list name, edit a
+    // session, feedback) never closes on a backdrop tap: a stray tap would lose the entry without your
+    // noticing (owner, 3 Oct 2026). Checked at the moment of the tap, so a pop-up that only grows a form
+    // part-way (the choice list's "+ New practice list") is protected from then on. Caught on the way
+    // down, so it also holds for pop-ups with a backdrop handler of their own, and for data-no-dismiss.
+    // A search box or a tick/radio isn't a form - nothing is lost by closing those.
+    const ENTRY_FIELDS = 'textarea, select, input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit]):not([type=file]):not([type=search])';
+    const hasForm = (modal) => [...modal.querySelectorAll(ENTRY_FIELDS)].some(visible);
+    const keepsOpen = (modal) => modal.hasAttribute('data-no-dismiss') || hasForm(modal);
+    document.addEventListener('click', (e) => {
+        const t = e.target;
+        if (t instanceof Element && t.classList.contains('modal') && keepsOpen(t)) e.stopPropagation();
+    }, true);
+    document.addEventListener('click', (e) => {
+        const t = e.target;
+        if (!(t instanceof Element)) return;
+        const x = t.closest('.modal-close-x[data-modal-x]');
+        if (x) { const modal = x.closest('.modal'); if (modal) closeModal(modal); return; }
+        if (t.classList.contains('modal') && t.classList.contains('show') && !t.hasAttribute('data-no-dismiss')) closeModal(t);
+    });
 
     // ------------------------------------------------------------------ dropdown menus
     const menuOpeners = new Map();

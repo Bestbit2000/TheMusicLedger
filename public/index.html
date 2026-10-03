@@ -320,6 +320,12 @@
                     <span id="scalesToolIcon" aria-hidden="true"></span>
                     <span class="tool-icon-label">Scales</span>
                 </button>
+                <!-- ML-400: Add a piece - the way into making a piece (create / import), which used to be only
+                     under ☰ My music. Shown with the same gates as My music's own "+ Add a piece". -->
+                <button data-tool="add-piece" class="tool-icon-btn hidden-group" id="addPieceToolBtn" onclick="switchView('addPieceView')" aria-label="Add a piece">
+                    <span class="material-symbols-outlined" aria-hidden="true">library_add</span>
+                    <span class="tool-icon-label">Add a piece</span>
+                </button>
                 <button data-tool="rehearse" class="tool-icon-btn hidden-group" id="rehearseToolBtn" onclick="switchView('rehearseView')" aria-label="Rehearse">
                     <svg class="tool-icon-svg" viewBox="0 0 1247 1246" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><defs><clipPath id="clipFrontpageFlow"><rect x="2535" y="380" width="1247" height="1246"/></clipPath></defs><g clip-path="url(#clipFrontpageFlow)" transform="translate(-2535 -380)"><rect x="3006" y="1338" width="351" height="82.0001"/><rect x="2782" y="962" width="788" height="81.9998"/><rect x="2742" y="1001" width="81.9998" height="187"/><rect x="3525" y="834" width="81.9998" height="167"/><path d="M2742 1003C2742 980.356 2760.36 962 2783 962 2805.64 962 2824 980.356 2824 1003 2824 1025.64 2805.64 1044 2783 1044 2760.36 1044 2742 1025.64 2742 1003Z" fill-rule="evenodd"/><path d="M3524 1002.5C3524 979.58 3542.58 961 3565.5 961 3588.42 961 3607 979.58 3607 1002.5 3607 1025.42 3588.42 1044 3565.5 1044 3542.58 1044 3524 1025.42 3524 1002.5Z" fill-rule="evenodd"/><path d="M3363.38 1208.22 3363.38 1547.78 3703.62 1547.78 3703.62 1208.22ZM3324.21 1130 3742.79 1130C3764.44 1130 3782 1147.52 3782 1169.13L3782 1586.87C3782 1608.48 3764.44 1626 3742.79 1626L3324.21 1626C3302.56 1626 3285 1608.48 3285 1586.87L3285 1169.13C3285 1147.52 3302.56 1130 3324.21 1130Z" fill-rule="evenodd"/><rect x="3006" y="588" width="351" height="80.9998"/><path d="M3363.38 458.378 3363.38 798.622 3703.62 798.622 3703.62 458.378ZM3324.21 380 3742.79 380C3764.44 380 3782 397.556 3782 419.213L3782 837.787C3782 859.443 3764.44 877 3742.79 877L3324.21 877C3302.56 877 3285 859.443 3285 837.787L3285 419.213C3285 397.556 3302.56 380 3324.21 380Z" fill-rule="evenodd"/><path d="M2613.22 458.378 2613.22 798.622 2952.78 798.622 2952.78 458.378ZM2574.13 380 2991.87 380C3013.48 380 3031 397.556 3031 419.213L3031 837.787C3031 859.443 3013.48 877 2991.87 877L2574.13 877C2552.52 877 2535 859.443 2535 837.787L2535 419.213C2535 397.556 2552.52 380 2574.13 380Z" fill-rule="evenodd"/><path d="M2613.22 1208.22 2613.22 1547.78 2952.78 1547.78 2952.78 1208.22ZM2574.13 1130 2991.87 1130C3013.48 1130 3031 1147.52 3031 1169.13L3031 1586.87C3031 1608.48 3013.48 1626 2991.87 1626L2574.13 1626C2552.52 1626 2535 1608.48 2535 1586.87L2535 1169.13C2535 1147.52 2552.52 1130 2574.13 1130Z" fill-rule="evenodd"/></g></svg>
                     <span class="tool-icon-label">Rehearse</span>
@@ -1036,7 +1042,7 @@
         <div id="rehearseList">Loading...</div>
         <div class="hidden-group mt-4" id="rehearseEmpty">
             <p>No pieces to play yet.</p>
-            <button type="button" class="btn-nav no-margin hidden-group" id="rehearseAddBtn">Add one in My music</button>
+            <button type="button" class="btn-nav no-margin hidden-group" id="rehearseAddBtn">+ Add a piece</button>
         </div>
     </div>
 
@@ -1408,15 +1414,8 @@
         <div id="metroBlkEntryScreen">
             <div class="section-title">My music</div>
             <p class="metro-help-text">Your pieces, your bands' and the public library. To practise one, use Rehearse.</p>
-            <button type="button" class="btn-nav" id="myMusicAddBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="myMusicAddMenu">+ Add a piece</button>
-            <!-- One floating menu under Add a piece (placed by JS, like the row menus). -->
-            <div class="dropdown-menu metroBlk-tile-menu" id="myMusicAddMenu">
-                <button type="button" class="dropdown-item" id="metroBlkEntryCreateBtn"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">add</span><span class="dropdown-item-text">Create your own</span></button>
-                <!-- ML-204: two gates share this item - flow_import_musicxml ("Import from MusicXML") and
-                     flow_import_from_file (PDF/scan via OMR, ML-190). Starts hidden; its label follows
-                     whichever are on (applyFlowImportFormats). -->
-                <button type="button" class="dropdown-item hidden-group" id="metroBlkEntryFromFileBtn"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">upload_file</span><span class="dropdown-item-text" id="metroBlkEntryFromFileLabel">Import from MusicXML</span></button>
-            </div>
+            <!-- ML-400: opens the Add a piece screen (#addPieceView), the same one as the Add a piece tool. -->
+            <button type="button" class="btn-nav" id="myMusicAddBtn">+ Add a piece</button>
             <div id="metroBlkEntryLibrary">
                 <div class="filter-strip" id="flowLibraryFilterStrip">
                     <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
@@ -1439,6 +1438,32 @@
             <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowLibraryItemMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete</span></button>
         </div>
 
+    </div>
+
+    <!-- ML-400: Add a piece - one screen, asked before the piece is made: who it's for (you or one of
+         your bands; hidden with no bands), whether it goes on a practice list (hidden without
+         practice_levels; "New practice list" is named and saved inside the pop-up), and how to make it. The first two are one value box each (.metroBlk-ctrl-value-btn,
+         as Theory's options: the answer over what it is) opening the choice pop-up (#flowChoiceModal) -
+         never the whole list on the page (specs/README.md, "One button, one pop-up"). The two "how"
+         buttons carry on into the Create flow journey (createAndOpenFlow / flowFromFileView), which
+         ends on My music. Reached from the Add a piece tool, My music and Rehearse. app.js: ADD A PIECE. -->
+    <div id="addPieceView" class="hidden-group">
+        <div class="hidden-group mb-2" id="addPieceOwnerGroup">
+            <button type="button" class="metroBlk-ctrl-value-btn w-full" id="addPieceOwnerBtn" aria-haspopup="dialog" aria-label="Who it's for: Just me - tap to change"><strong>Just me</strong><span class="metroBlk-ctrl-value-label">who it's for</span></button>
+        </div>
+        <div class="hidden-group mb-4" id="addPieceListGroup">
+            <button type="button" class="metroBlk-ctrl-value-btn w-full" id="addPieceListBtn" aria-haspopup="dialog" aria-label="Practice list: On its own - tap to change"><strong>On its own</strong><span class="metroBlk-ctrl-value-label">practice list</span></button>
+        </div>
+        <h2 class="step-question" id="addPieceHowLabel">How do you want to make it?</h2>
+        <!-- The square icon tiles My music's start screen had until ML-329, two to a row - they go
+             somewhere, so they look different from the two value boxes above. -->
+        <div class="metroBlk-entry-choices" role="group" aria-labelledby="addPieceHowLabel">
+            <button type="button" class="metroBlk-entry-choice" id="metroBlkEntryCreateBtn"><span class="material-symbols-outlined" aria-hidden="true">add_circle</span><strong>Create your own</strong><span class="metro-help-text">Put the bars in yourself</span></button>
+            <!-- ML-204: two gates share this tile - flow_import_musicxml ("Import from MusicXML") and
+                 flow_import_from_file (PDF/scan via OMR, ML-190). Starts hidden; its label and help line
+                 follow whichever are on (applyFlowImportFormats). -->
+            <button type="button" class="metroBlk-entry-choice hidden-group" id="metroBlkEntryFromFileBtn"><span class="material-symbols-outlined" aria-hidden="true">upload_file</span><strong id="metroBlkEntryFromFileLabel">Import from MusicXML</strong><span class="metro-help-text" id="metroBlkEntryFromFileHelp">Open a MusicXML or .mxl file from notation software</span></button>
+        </div>
     </div>
 
     <!-- ML-79: "Create from file". Phase 1 (MusicXML/.mxl, parsed directly - server/services/
@@ -1881,10 +1906,13 @@
          populated per-tile in JS. -->
     <div class="modal" id="flowChoiceModal" role="dialog" aria-modal="true" aria-labelledby="flowChoiceTitle">
         <div class="modal-content">
+            <!-- Every pop-up has an X, top right (owner rule, 3 Oct 2026 - specs/README.md). -->
+            <button type="button" class="modal-close-x" aria-label="Close" onclick="hideModal('flowChoiceModal')">&times;</button>
             <h2 id="flowChoiceTitle">Choose an option</h2>
             <div id="flowChoiceOptions"></div>
-            <!-- Extra inline UI shown below the choice list itself once a choice needs more detail
-                 (the "end of bar" repeat count slider) - never a second popup stacked on top. -->
+            <!-- Spare room under the choice list (unused for now). An option that needs more than a tap
+                 (`extra` - Add a piece's "+ New practice list" name and Save, ML-400) grows its own row
+                 into a box instead - never a second popup stacked on top, nor a field left on the page. -->
             <div id="flowChoiceInlineExtra" class="flow-choice-inline-extra hidden-group"></div>
             <button class="btn-cancel btn-nav" onclick="hideModal('flowChoiceModal')">Cancel</button>
         </div>
@@ -2056,7 +2084,7 @@
     </div>
 
     <div class="modal" id="flowBandPickerModal" role="dialog" aria-modal="true" aria-labelledby="flowBandPickerModalTitle">
-        <div class="modal-content">
+        <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
             <h2 id="flowBandPickerModalTitle">Move to a band</h2>
             <div class="form-group no-margin">
                 <label for="flowBandPickerSelect">Band</label>
@@ -2069,7 +2097,7 @@
 
     <!-- ML-179: Add YouTube link - mirrors the mp3/mp4 upload card's other action. -->
     <div class="modal" id="flowYouTubeModal" role="dialog" aria-modal="true" aria-labelledby="flowYouTubeModalTitle">
-        <div class="modal-content">
+        <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
             <h2 id="flowYouTubeModalTitle">Add YouTube reference</h2>
             <div class="form-group">
                 <label for="flowYouTubeUrlInput">YouTube link <span class="flow-required">*</span></label>
@@ -2706,7 +2734,7 @@
 
     <!-- ML-167: an urgent notification - pops up over whatever you're doing until "Got it" (which marks it read).
          Filled in by showNextUrgentNotification (app.js). -->
-    <div class="modal" id="urgentNotificationModal" role="dialog" aria-modal="true" aria-labelledby="urgentNotificationTitle" aria-describedby="urgentNotificationBody">
+    <div class="modal" data-no-dismiss id="urgentNotificationModal" role="dialog" aria-modal="true" aria-labelledby="urgentNotificationTitle" aria-describedby="urgentNotificationBody">
         <div class="modal-content notification-urgent">
             <span class="notification-urgent-tag">Urgent</span>
             <h2 id="urgentNotificationTitle"></h2>
@@ -2729,7 +2757,7 @@
         </div>
     </div>
 
-    <div class="modal" id="timerFinishedModal" role="dialog" aria-modal="true" aria-labelledby="timerFinishedModalTitle">
+    <div class="modal" data-no-dismiss id="timerFinishedModal" role="dialog" aria-modal="true" aria-labelledby="timerFinishedModalTitle">
         <div class="modal-content">
             <h2 id="timerFinishedModalTitle">Session finished!</h2>
             <p id="timerFinishedMessage" class="mb-6 leading-base"></p>
@@ -3087,7 +3115,7 @@
 </div>
 
 <div class="modal" id="addChallengeModal" role="dialog" aria-modal="true" aria-labelledby="addChallengeModalTitle">
-    <div class="modal-content">
+    <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
         <h2 id="addChallengeModalTitle">New challenge</h2>
         <div class="form-group">
             <div class="radio-group" id="challTypeRadios">
@@ -3157,7 +3185,7 @@
 </div>
 
 <div class="modal" id="itemDetailModal" role="dialog" aria-modal="true" aria-labelledby="itemModalTitle">
-    <div class="modal-content">
+    <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
         <h2 id="itemModalTitle">Edit task</h2>
         <input type="hidden" id="itemEditId">
         <div class="form-group"><label for="iPiece">Piece / exercise name</label><input type="text" id="iPiece"></div>
@@ -3492,7 +3520,7 @@
      further" opens the jumps to higher Levels (owner, 1 Oct 2026). A Yes gets a short
      star celebration. Under it, the piece's next goal ("Everyone up to 2"). Saved with API.levels.setChunk
      (source 'rating'). -->
-<div class="modal" id="levelRateModal" role="dialog" aria-modal="true" aria-labelledby="levelRateTitle">
+<div class="modal" data-no-dismiss id="levelRateModal" role="dialog" aria-modal="true" aria-labelledby="levelRateTitle">
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="levelRateCloseBtn" aria-label="Close without answering">&times;</button>
         <div class="levelup" id="levelRateUp">
@@ -3553,7 +3581,7 @@
      reachable at the bottom regardless of how long the list gets, same pattern as the Blocks
      segment editor modal (metroSeg-sticky-footer). -->
 <div class="modal" id="qpHistoryModal" role="dialog" aria-modal="true" aria-labelledby="qpHistoryModalTitle">
-    <div class="modal-content modal-content-sticky-footer">
+    <div class="modal-content modal-content-sticky-footer"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
         <div class="metroSeg-scroll-area">
             <h2 id="qpHistoryModalTitle">History</h2>
             <div class="radio-group compact mb-4" id="qpHistoryFilterRadios">
@@ -3584,7 +3612,7 @@
      is just a flat confirmation list instead - nothing to decide, so no arrows/blocks column
      (qpMergeFlatMode). "Go to flows?" decides whether Save lands on the new flow or stays here. -->
 <div class="modal" id="qpMergeBarsModal" role="dialog" aria-modal="true" aria-labelledby="qpMergeBarsModalTitle">
-    <div class="modal-content modal-content-sticky-footer">
+    <div class="modal-content modal-content-sticky-footer"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
         <div class="metroSeg-scroll-area">
             <h2 id="qpMergeBarsModalTitle">Merge bars?</h2>
             <p class="metro-help-text" id="qpMergeBarsSubtitle"></p>
@@ -3884,7 +3912,7 @@
 </div>
 
 <div class="modal" id="listItemModal" role="dialog" aria-modal="true" aria-labelledby="listItemModalTitle">
-    <div class="modal-content">
+    <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
         <h2 id="listItemModalTitle">Edit item</h2>
         <input type="hidden" id="liType">
         <input type="hidden" id="liOriginalName">
@@ -3912,8 +3940,8 @@
     </div>
 </div>
 
-<div class="modal" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
-    <div class="modal-content"><h2 id="confirmTitle">Confirm</h2><p id="confirmMessage" class="mb-6 leading-base"></p><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" id="confirmCancelBtn" onclick="closeConfirmModal()">Cancel</button><button class="btn-submit no-margin" id="confirmActionBtn">Confirm</button></div></div>
+<div class="modal" data-no-dismiss id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button><h2 id="confirmTitle">Confirm</h2><p id="confirmMessage" class="mb-6 leading-base"></p><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" id="confirmCancelBtn" onclick="closeConfirmModal()">Cancel</button><button class="btn-submit no-margin" id="confirmActionBtn">Confirm</button></div></div>
 </div>
 
 <!-- ML-170: the whole capture form. A text box and a button, nothing else - no category picker, no
@@ -3922,7 +3950,7 @@
      down is a reason not to bother. The current screen, device and app version are attached
      silently on submit, which is what lets a note written in five seconds still make sense later. -->
 <div class="modal" id="feedbackModal" role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
-    <div class="modal-content">
+    <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
         <h2 id="feedbackModalTitle">Send feedback</h2>
         <p class="text-muted modal-intro">Spotted a bug or thought of something? Jot it down here. The screen you were on, your device and the app version are included automatically.</p>
         <textarea id="feedbackInput" class="w-full mb-2" aria-labelledby="feedbackModalTitle" rows="6" placeholder="What's on your mind?"></textarea>
@@ -3935,7 +3963,7 @@
 </div>
 
 <div class="modal" id="promptModal" role="dialog" aria-modal="true" aria-labelledby="promptTitle">
-    <div class="modal-content"><h2 id="promptTitle">Enter value</h2><input type="text" id="promptInput" aria-labelledby="promptTitle" class="mb-6"><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" onclick="closePromptModal()">Cancel</button><button class="btn-submit no-margin" id="promptActionBtn">Save</button></div></div>
+    <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button><h2 id="promptTitle">Enter value</h2><input type="text" id="promptInput" aria-labelledby="promptTitle" class="mb-6"><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" onclick="closePromptModal()">Cancel</button><button class="btn-submit no-margin" id="promptActionBtn">Save</button></div></div>
 </div>
 
 <!-- ML-175: one shared floating menu for every session history row (same pattern as
@@ -3948,7 +3976,7 @@
 </div>
 
 <div class="modal" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
-    <div class="modal-content">
+    <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
         <h2 class="no-margin mb-5" id="editModalTitle">Edit record</h2>
         <input type="hidden" id="editRow"><input type="hidden" id="editCat">
         <div class="form-group"><label for="editDuration">Duration (mins)</label><input type="number" id="editDuration"></div>
