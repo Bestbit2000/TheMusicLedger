@@ -17748,7 +17748,8 @@
     function smartLearnMessage(s, noun, nearly) {
         const learning = (s && s.learning) || 0, missed = (s && s.missed) || 0, slower = (s && s.slower) || 0;
         const n = (k) => `${k} ${noun}${k === 1 ? '' : 's'}`;
-        return !learning ? 'SmartLearn: nothing from this round left to work on.'
+        // ML-407: learning counts only what this round gave it - a perfect round brings nothing back.
+        return !learning ? 'SmartLearn: nothing from this round to bring back.'
             : !slower ? `SmartLearn will bring back ${n(learning)} from this round sooner, until you've got ${learning === 1 ? 'it' : 'them'} right.`
             : !missed ? `SmartLearn will bring back ${n(slower)} ${nearly}.`
             : `SmartLearn will bring back ${n(learning)}: ${missed} to get right, ${slower} ${nearly}.`;

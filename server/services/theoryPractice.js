@@ -119,23 +119,36 @@ export async function getTheoryWeights(accountId) {
 
 // Applies a finished round's answers, in order, to the weights - the engine's applyAnswer: wrong +2, a
 // quick right -1, and (ML-399) a right answer well over the player's own usual speed in that round +1,
-// up to 4 (hesitationMarks). Inside the round's own transaction. Returns how many of the round's
-// questions are still being learned: { learning, missed (still to get right), slower (only slow) }.
+// up to 4 (hesitationMarks). Inside the round's own transaction. Returns what THIS round gave SmartLearn
+// to bring back (ML-407): { learning, missed (got wrong in it), slower (right, but slow or only close) }.
+// A question that was right this round but still carries weight from an earlier one isn't counted - a
+// perfect round brings nothing back "from this round", whatever is left over from before.
 // marks (optional): the hesitation mark per answer, for a tool that works them out its own way (Pitch,
 // Tempo - server/services/drills.js); Theory's are the engine's hesitationMarks.
+// What a round's questions - each { weight (after the round), wrong, slow (counts in this round) } - gave
+// SmartLearn to bring back. Only questions still carrying weight count, and only for what happened in
+// this round: wrong in it = missed; right but slow = slower.
+export function smartLearnSummary(states) {
+  const left = states.filter(s => s.weight > 0);
+  const missed = left.filter(s => s.wrong > 0).length;
+  const slower = left.filter(s => !s.wrong && s.slow > 0).length;
+  return { learning: missed + slower, missed, slower };
+}
+
 export async function applySmartLearn(client, accountId, answers, marks) {
   const ids = [...new Set(answers.map(a => a.questionId))];
   const { rows } = await client.query(
     'SELECT question_id, weight, miss_weight FROM theory_question_weights WHERE account_id = $1 AND question_id = ANY($2)',
     [accountId, ids]
   );
-  const state = new Map(ids.map(id => [id, { weight: 0, miss: 0, right: 0, wrong: 0 }]));
+  const state = new Map(ids.map(id => [id, { weight: 0, miss: 0, right: 0, wrong: 0, slow: 0 }]));
   for (const r of rows) Object.assign(state.get(r.question_id), { weight: r.weight, miss: r.miss_weight });
   marks = marks || plain(Theory.hesitationMarks(answers));
   answers.forEach((a, i) => {
     const s = state.get(a.questionId);
     Object.assign(s, plain(Theory.applyAnswer(s, a.correct, marks[i])));
     if (a.correct) s.right++; else s.wrong++;
+    if (a.correct && marks[i] === 'slow') s.slow++;
   });
   const values = [];
   const params = [accountId];
@@ -155,9 +168,7 @@ export async function applySmartLearn(client, accountId, answers, marks) {
        updated_at = now()`,
     params
   );
-  const left = [...state.values()].filter(s => s.weight > 0);
-  const missed = left.filter(s => s.miss > 0).length;
-  return { learning: left.length, missed, slower: left.length - missed };
+  return smartLearnSummary([...state.values()]);
 }
 
 export async function saveTheoryAttempt(accountId, body) {
