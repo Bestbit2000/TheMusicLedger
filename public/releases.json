@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.38.0",
+    "date": "2026-10-03",
+    "changes": [
+      {
+        "key": "ML-407",
+        "type": "Fixes",
+        "summary": "SmartLearn says it will bring speeds back after a perfect round"
+      },
+      {
+        "key": "ML-406",
+        "type": "New",
+        "summary": "Skills section: Pitch, Tempo, Pulse and Rhythm under one Skills tool, set up with value boxes and pop-ups, results as Levels"
+      },
+      {
+        "key": "ML-402",
+        "type": "New",
+        "summary": "Add an invite to app menu item on the main menu"
+      },
+      {
+        "key": "ML-401",
+        "type": "New",
+        "summary": "Set up prepare tool"
+      },
+      {
+        "key": "ML-400",
+        "type": "New",
+        "summary": "Set up create flow tool"
+      }
+    ]
+  },
+  {
     "version": "0.37.0",
     "date": "2026-10-02",
     "changes": [
