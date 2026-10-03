@@ -12,10 +12,10 @@ play, Flow…). **Don't use** for in-page actions. They always navigate to a too
 **Home and All tools (ML-378):** Home shows only **My tools** - up to the `home_tools` limit of favourites (ML-388: 4 Standard, 8 others) in one `.tool-icon-row`
 (`#homeToolsRow`, copies of the All tools tiles made by `renderHomeTools`; default Metronome, Tuner, Timer,
 Warm-ups) and an **All tools** row (a `.settings-link`). The tiles themselves live on the **All tools** page
-(`#toolsView.tools-page`), in four groups, each a `.tool-group` with a small label (`.tool-group-title`:
+(`#toolsView.tools-page`), in three groups, each a `.tool-group` with a small label (`.tool-group-title`:
 `--font-sm` bold, `--label-color`) over its own 4-column row: **Everyday** (Metronome, Tuner, Timer), **My
-routine** in the order it's practised (Warm-ups, Scales, Rehearse - as the session templates - with Add a piece, ML-400, just before Rehearse: see [add-piece](add-piece.md)), **Ear and rhythm**
-(Pitch, Tempo, Pulse, Rhythm) and **Theory and range** (Theory, Range). A group hides when none of its tools
+routine** in the order it's practised (Warm-ups, Scales, Rehearse - as the session templates - with Add a piece, ML-400, just before Rehearse: see [add-piece](add-piece.md)) and **Learn**
+(Theory, Skills, Range - ML-406: Skills opens Pitch, Tempo, Pulse and Rhythm from one list, see [drills](drills.md)). A group hides when none of its tools
 are on (`renderToolGroups`), and the ☰ menu's tools are one labelled row per group (`renderNavToolsRow`).
 A tile on Home has a filled **★** (`.tool-fav-star` on `.is-fav`, the tile's own text colour).
 **Choose Home tools** (a `.btn-nav.btn-cancel`, "Done" while choosing) puts the page in `.is-editing`:

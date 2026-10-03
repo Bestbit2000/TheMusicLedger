@@ -42,7 +42,8 @@ Taps and heard starts are timed on the metronome's audio clock, less the output 
 
 ## Speed Levels
 
-Each rhythm has a **Level 1-5**: the fastest Level speed you've played it at **with grade 4 or 5**.
+Each rhythm has a **Level 1-5**: the fastest Level speed you've played it well at (a round the engine grades 4
+or 5 - the grade itself is never shown, ML-406; the screens only say "play it well at this speed").
 Levels never go down.
 
 | Level | 1 | 2 | 3 | 4 | 5 |
@@ -50,7 +51,7 @@ Levels never go down.
 | 4/4 (crotchets a minute) | 60 | 72 | 84 | 96 | 108 |
 | 6/8 (dotted crotchets a minute) | 40 | 48 | 56 | 64 | 72 |
 
-The speed pills are the five Level speeds; picking a rhythm starts on your next Level's speed, and
+The speed box's pop-up lists the five Level speeds; picking a rhythm starts on your next Level's speed, and
 reaching it moves you on. Playing through a set gives each rhythm its own Level from its own bar.
 
 ## Saving

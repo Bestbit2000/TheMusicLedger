@@ -12,7 +12,7 @@ const serverIds = JSON.parse(/HOME_TOOL_IDS = (\[[^\]]*\])/.exec(accounts)[1].re
 const pageIds = [...html.matchAll(/data-tool="([a-z-]+)"/g)].map(m => m[1]);
 
 test('every tool on the All tools page is one the server accepts, and the other way round', () => {
-    assert.equal(pageIds.length, 13);
+    assert.equal(pageIds.length, 10); // ML-406: Pitch, Tempo, Pulse and Rhythm are one Skills tile
     assert.equal([...pageIds].sort().join(), [...serverIds].sort().join());
 });
 
@@ -23,7 +23,7 @@ test('the tiles live on the All tools page, not on Home', () => {
 });
 
 test('the routine is in the order it is practised: Warm-ups, Scales, Add a piece, Rehearse', () => {
-    const routine = html.slice(html.indexOf('id="toolGroup-routine"'), html.indexOf('id="toolGroup-ear"'));
+    const routine = html.slice(html.indexOf('id="toolGroup-routine"'), html.indexOf('id="toolGroup-learn"'));
     assert.deepEqual([...routine.matchAll(/data-tool="([a-z-]+)"/g)].map(m => m[1]), ['warmups', 'scales', 'add-piece', 'rehearse']); // ML-400: Add a piece sits before Rehearse
 });
 
@@ -40,4 +40,12 @@ test('the default Home tools are real tools, four of them', () => {
     const defaults = JSON.parse(/HOME_TOOLS_DEFAULT = (\[[^\]]*\])/.exec(app)[1].replace(/'/g, '"'));
     assert.deepEqual(defaults, ['metronome', 'tuner', 'timer', 'rehearse']); // Everyday + Rehearse (four or fewer tools on: all of them)
     assert.ok(defaults.every(id => serverIds.includes(id)));
+});
+
+// ML-406: one Learn group - Theory, Skills, Range - and Skills lists the four drill tools.
+test('Learn holds Theory, Skills and Range, and the four drill tools have no tile of their own', () => {
+    const learn = html.slice(html.indexOf('id="toolGroup-learn"'), html.indexOf('class="tools-done-bar"'));
+    assert.deepEqual([...learn.matchAll(/data-tool="([a-z-]+)"/g)].map(m => m[1]), ['theory', 'skills', 'range']);
+    for (const id of ['pitch', 'tempo', 'pulse', 'rhythm']) assert.ok(!pageIds.includes(id) && !serverIds.includes(id));
+    assert.match(html, /id="skillsHubView"/);
 });

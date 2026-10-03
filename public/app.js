@@ -707,12 +707,14 @@
     // The scored tools (their results are saved on the account), in home-screen order, that are on.
     const SCORED_TOOLS = [
         { id: 'theory', view: 'theoryView', feature: 'theory_practice', title: 'Theory' },
-        { id: 'ear', view: 'earView', feature: 'ear_training', title: 'Pitch' },
-        { id: 'tapTempo', view: 'tapTempoView', feature: 'tap_tempo', title: 'Tempo' },
-        { id: 'gapTrainer', view: 'gapTrainerView', feature: 'gap_trainer', title: 'Pulse' },
-        { id: 'rhythm', view: 'rhythmView', feature: 'rhythm_trainer', title: 'Rhythm' }
+        { id: 'ear', view: 'earView', feature: 'ear_training', title: 'Pitch', icon: 'hearing', about: 'Name the note you hear' },
+        { id: 'tapTempo', view: 'tapTempoView', feature: 'tap_tempo', title: 'Tempo', icon: 'touch_app', about: 'Tap a speed from its number or name' },
+        { id: 'gapTrainer', view: 'gapTrainerView', feature: 'gap_trainer', title: 'Pulse', icon: 'graphic_eq', about: 'Keep the beat when the click goes quiet' },
+        { id: 'rhythm', view: 'rhythmView', feature: 'rhythm_trainer', title: 'Rhythm', icon: 'music_note', about: 'Tap, clap or play a rhythm' }
     ];
     function scoredTools() { return SCORED_TOOLS.filter(t => isFeatureEnabled(t.feature)); }
+    // ML-406: the Skills list's tools (every scored tool but Theory) that are on.
+    function skillsHubTools() { return scoredTools().filter(t => t.id !== 'theory'); }
     // One row per tool: { tool, rounds, lastAt } - Theory counts the quizzes you've tried (its summary
     // holds each quiz's latest round), the drills count every round.
     async function loadToolResults() {
@@ -742,11 +744,12 @@
         list.innerHTML = rows.length ? rows.map(r => {
             const sub = r.failed ? "Couldn't load" : !r.lastAt ? 'Not tried yet'
                 : `${count(r)} · last played ${formatToolResultDate(r.lastAt)}`;
-            return `<button type="button" class="history-item settings-link" data-tool-view="${r.tool.view}"><span class="settings-link-icon" data-tool-icon="${r.tool.view}" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">${escapeHtml(r.tool.title)}</span><span class="settings-link-sub">${escapeHtml(sub)}</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>`;
+            return `<button type="button" class="history-item settings-link" data-tool-view="${r.tool.view}"><span class="settings-link-icon" data-tool-icon="${r.tool.view}" data-icon="${r.tool.icon || ''}" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">${escapeHtml(r.tool.title)}</span><span class="settings-link-sub">${escapeHtml(sub)}</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>`;
         }).join('') : '<div class="text-muted">No scored tools are switched on.</div>';
         list.querySelectorAll('[data-tool-icon]').forEach(slot => {
             const tile = document.querySelector('#toolsView .tool-icon-btn[onclick*="' + slot.dataset.toolIcon + '"] .tool-icon-svg, #toolsView .tool-icon-btn[onclick*="' + slot.dataset.toolIcon + '"] .material-symbols-outlined:not(.tool-fav-star)');
             if (tile) { const c = tile.cloneNode(true); c.removeAttribute('id'); slot.appendChild(c); }
+            else if (slot.dataset.icon) slot.innerHTML = `<span class="material-symbols-outlined">${slot.dataset.icon}</span>`;
         });
         list.querySelectorAll('[data-tool-view]').forEach(b => b.addEventListener('click', () => switchView(b.dataset.toolView)));
     }
@@ -1184,11 +1187,9 @@
         document.getElementById('startChallengeBtn')?.classList.toggle('hidden-group', isFeatureEnabled('practice_levels') || !isFeatureEnabled('challenges'));
         document.getElementById('warmupsToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('warmups'));
         // ML-299: My music (create / import / library / edit) and Play Flow's "Create new".
-        document.getElementById('tapTempoToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('tap_tempo'));
-        document.getElementById('gapTrainerToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('gap_trainer'));
-        document.getElementById('earToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('ear_training'));
+        // ML-406: Skills (Pitch, Tempo, Pulse, Rhythm) shows while at least one of its tools is on.
+        document.getElementById('skillsToolBtn')?.classList.toggle('hidden-group', !skillsHubTools().length);
         document.getElementById('rangeToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('range_trainer'));
-        document.getElementById('rhythmToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('rhythm_trainer'));
         const manage = isFeatureEnabled('flow_manage');
         const create = manage && isFeatureEnabled('flow_create'); // ML-345: Add a piece
         document.getElementById('myMusicNavItem')?.classList.toggle('hidden-group', !manage);
@@ -1423,7 +1424,9 @@
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
         accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountBandsView: 'accountView', accountTeachersView: 'accountView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
-        tapTempoPlayView: 'tapTempoView', gapTrainerPlayView: 'gapTrainerView', earPlayView: 'earView', rhythmPlayView: 'rhythmView',
+        // ML-406: Pitch, Tempo, Pulse and Rhythm live under Skills
+        tapTempoView: 'skillsHubView', gapTrainerView: 'skillsHubView', earView: 'skillsHubView', rhythmView: 'skillsHubView', drillResultsView: 'skillsHubView',
+        tapTempoPlayView: 'skillsHubView', gapTrainerPlayView: 'skillsHubView', earPlayView: 'skillsHubView', rhythmPlayView: 'skillsHubView',
         challengeSelectView: 'manageChallengesView', challengePlayView: 'manageChallengesView', challengeSummaryView: 'manageChallengesView', editChallengeView: 'manageChallengesView' };
     function markNavCurrent() {
         const top = viewStack[viewStack.length - 1] || 'mainView';
@@ -1684,7 +1687,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
+    const views = ['mainView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -1841,6 +1844,7 @@
         if (viewName === 'rangeView') { document.getElementById('topTitle').innerText = 'Range'; renderRangeView(); rangePlayer.prewarm(); }
         if (viewName === 'rhythmView') { document.getElementById('topTitle').innerText = 'Rhythm'; renderRhythmView(); rhythmPlayer.prewarm(); }
         if (viewName === 'rhythmPlayView') document.getElementById('topTitle').innerText = 'Rhythm';
+        if (viewName === 'skillsHubView') { document.getElementById('topTitle').innerText = 'Skills'; renderSkillsHub(); }
         if (viewName === 'tapTempoPlayView') document.getElementById('topTitle').innerText = DRILL_TITLES.tapTempo;
         if (viewName === 'gapTrainerPlayView') document.getElementById('topTitle').innerText = DRILL_TITLES.gapTrainer;
         if (viewName === 'earPlayView') document.getElementById('topTitle').innerText = DRILL_TITLES.ear;
@@ -17649,9 +17653,11 @@
     // The pop-up for one set of options: a played row (its last rounds, then "Use these options"), or
     // null = what the boxes say now (the "What's included" link - nothing played yet, so no chart).
     let theorySetShown = null;     // { options, roundId } "Use these options" applies, or null (Close)
+    let drillSetApply = null;      // ML-406: a drill's played row is showing - what "Use these options" does
     async function openTheorySet(set) {
         const options = set ? TheoryEngine.normaliseOptions(theoryQuizId, { ...set.options, ...(theoryGradesOn() ? {} : { grade: 0 }) }) : theoryOptions;
         const roundId = set ? TheoryEngine.round(set.roundType).value : theoryRoundId;
+        drillSetApply = null;
         let recent = [];
         if (set) { try { recent = (await API.theory.history(set.settingsKey)).recent || []; } catch (e) { /* the rest still shows */ } }
         theorySetShown = set ? { options, roundId } : null;
@@ -17681,6 +17687,7 @@
         modal.addEventListener('click', (e) => { if (e.target === e.currentTarget) hideModal(modal); });
         document.getElementById('theorySetUseBtn').addEventListener('click', () => {
             hideModal(modal);
+            if (drillSetApply) { const apply = drillSetApply; drillSetApply = null; apply(); return; }
             if (!theorySetShown) return;
             theoryOptions = theorySetShown.options;
             theoryRoundId = theorySetShown.roundId;
@@ -18036,28 +18043,106 @@
     const drillSeed = () => (window.__drillTest && window.__drillTest.seed) || (Date.now() % 2147483647);
 
     // Option groups as one-tap pills (the Theory options look), each with an optional line under it.
+    // ML-406: each option is a value box (the answer over what it is, two to a row - as Theory's options)
+    // opening the choice pop-up, where each choice has its explanation under it. A group with `open`
+    // brings its own pop-up (Rhythm's rhythm tiles). "One button, one pop-up" - specs/README.md.
     function renderDrillOptions(tool, groups, onChange) {
         const form = document.getElementById(`${tool}Options`);
-        form.innerHTML = groups.map(g => `
-            <div class="form-group" role="group" aria-labelledby="${tool}OptLabel-${g.key}"><label id="${tool}OptLabel-${g.key}">${escapeHtml(g.label)}</label>
-                <div class="radio-group${g.choices.length > 4 ? ' compact' : ''}">
-                    ${g.choices.map((c, i) => `<input type="radio" id="${tool}Opt-${g.key}-${i}" name="${tool}Opt-${g.key}" data-key="${g.key}" data-index="${i}"${c.value === g.value ? ' checked' : ''}><label for="${tool}Opt-${g.key}-${i}">${escapeHtml(c.label)}</label>`).join('')}
-                </div>
-                ${g.help ? `<p class="metro-help-text">${escapeHtml(g.help)}</p>` : ''}
-            </div>`).join('');
-        form.querySelectorAll('input').forEach(input => input.addEventListener('change', () => {
-            const g = groups.find(x => x.key === input.dataset.key);
-            onChange(g.key, g.choices[Number(input.dataset.index)].value);
+        const text = (g) => { const c = g.choices && g.choices.find(x => x.value === g.value); return g.valueText || (c ? c.label : ''); };
+        form.innerHTML = `<div class="metro-transport-grid metro-transport-grid-2">${groups.map(g => `
+            <button type="button" class="metroBlk-ctrl-value-btn" data-drill-opt="${g.key}" aria-haspopup="dialog" aria-label="${escapeHtml(`${g.label}: ${text(g)} - tap to change`)}">
+                <strong>${escapeHtml(text(g))}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml((g.caption || g.label).toLowerCase())}</span>
+            </button>`).join('')}</div>`;
+        groups.forEach(g => form.querySelector(`[data-drill-opt="${g.key}"]`).addEventListener('click', () => {
+            if (g.open) { g.open(); return; }
+            openFlowChoiceModal(g.label, g.choices.map(c => ({
+                value: c.value, selected: c.value === g.value,
+                html: `<span><strong>${escapeHtml(c.label)}</strong>${c.desc ? `<br><span class="text-sm text-muted">${escapeHtml(c.desc)}</span>` : ''}</span>${c.value === g.value ? '<span class="material-symbols-outlined" aria-hidden="true">check</span>' : ''}`
+            })), (opt) => onChange(g.key, opt.value));
         }));
     }
+    // A round's result is a Level 1-5 (the stored grade), as Theory's - the score isn't shown.
     async function renderDrillBest(tool, level, elId, stillCurrent) {
         const el = document.getElementById(elId);
+        if (!el) return;
         el.textContent = '';
         try {
             const h = await API.drills.history(tool, level);
             if (stillCurrent && !stillCurrent()) return;
-            el.textContent = h.best ? `Your best with these settings: ${h.best.score} (grade ${h.best.grade})` : "You haven't tried these settings yet.";
+            el.textContent = h.best ? `Your best with these options: Level ${h.best.grade}` : "You haven't tried these options yet.";
         } catch (e) { /* not essential */ }
+    }
+    // "What I've played" under Start, as Theory's: a row per set of options played, newest first, with
+    // its last Level. describe(key) -> { title, detail } (null = no longer offered); a row opens the
+    // shared set pop-up (its last rounds, then "Use these options" -> apply(key)). levelOf, when given,
+    // says the Level to show for a key (Rhythm: the rhythm's own Level) instead of the last round's.
+    const DRILL_PLAYED_ROWS = 5;
+    const drillPlayedAll = {};
+    async function renderDrillPlayed(tool, { describe, apply, currentKey, levelOf }) {
+        const el = document.getElementById(`${tool}Played`);
+        if (!el) return;
+        let levels = {};
+        try { levels = (await API.drills.summary(tool)).levels || {}; } catch (e) { return; }
+        const sets = Object.entries(levels).map(([key, v]) => ({ key, ...v, d: describe(key), level: levelOf ? levelOf(key) : v.lastGrade }))
+            .filter(x => x.d && x.level >= 1).sort((a, b) => String(b.lastAt).localeCompare(String(a.lastAt)));
+        if (!sets.length) { el.innerHTML = ''; return; }
+        const shown = drillPlayedAll[tool] ? sets : sets.slice(0, DRILL_PLAYED_ROWS);
+        el.innerHTML = `<div class="section-title">What I've played</div>` + shown.map((x, i) => {
+            const current = x.key === currentKey;
+            return `
+            <button type="button" class="history-item clickable theory-quiz-row${current ? ' level-row-selected' : ''}" data-set="${i}"${current ? ' aria-current="true"' : ''} aria-haspopup="dialog">
+                <span class="history-details"><strong>${escapeHtml(x.d.title)}</strong>${x.d.detail ? `${escapeHtml(x.d.detail)}<br>` : ''}${theoryCapital(theoryWhen(x.lastAt))} · played ${theoryTimes(x.rounds)}</span>
+                ${theoryLevelChip(x.level, `Last Level ${x.level} of 5`)}
+            </button>`;
+        }).join('') + (sets.length > shown.length ? `<button type="button" class="btn-text" data-more>Show more</button>` : '');
+        el.querySelectorAll('[data-set]').forEach(b => b.addEventListener('click', () => openDrillSet(tool, shown[Number(b.dataset.set)], apply, !levelOf)));
+        el.querySelector('[data-more]')?.addEventListener('click', () => { drillPlayedAll[tool] = true; renderDrillPlayed(tool, { describe, apply, currentKey, levelOf }); });
+    }
+    async function openDrillSet(tool, x, apply, withRounds) {
+        let recent = [];
+        if (withRounds) { try { recent = (await API.drills.history(tool, x.key)).recent || []; } catch (e) { /* the rest still shows */ } }
+        theorySetShown = null;
+        drillSetApply = () => apply(x.key);
+        document.getElementById('theorySetTitle').textContent = x.d.title;
+        const sub = document.getElementById('theorySetSub');
+        sub.textContent = [x.d.detail, `Played ${theoryTimes(x.rounds)} · last played ${theoryWhen(x.lastAt)}`].filter(Boolean).join(' · ');
+        setShown(sub, true);
+        document.getElementById('theorySetBody').innerHTML = recent.length
+            ? `<div class="section-title">My last rounds</div><div class="theory-level-trend">${theoryLevelBarsHtml(recent, false)}</div>`
+            : `<p class="theory-best-line">${theoryLevelChip(x.level, `Level ${x.level} of 5`)}</p>`;
+        const use = document.getElementById('theorySetUseBtn');
+        use.textContent = 'Use these options';
+        use.classList.add('btn-submit');
+        use.classList.remove('btn-nav');
+        showModal('theorySetModal');
+    }
+    // ML-406: the Skills list - Theory's list style, a row per tool that's on, with the Level of the last
+    // round played in it (or "New"). Rhythm shows the Level of the rhythm played last.
+    async function renderSkillsHub() {
+        const list = document.getElementById('skillsHubList');
+        if (!list) return;
+        const tools = skillsHubTools();
+        const draw = (last, loaded) => {
+            list.innerHTML = tools.map(t => `
+            <button type="button" class="history-item clickable theory-quiz-row" data-skill-view="${t.view}">
+                <span class="theory-quiz-icon"><span class="material-symbols-outlined" aria-hidden="true">${t.icon}</span></span>
+                <span class="history-details"><strong>${escapeHtml(t.title)}</strong>${escapeHtml(t.about)}</span>
+                ${last[t.id] ? theoryLevelChip(last[t.id], `Last Level ${last[t.id]} of 5`) : loaded ? '<span class="flow-pill flow-pill-accent">New</span>' : ''}
+            </button>`).join('') || '<p class="text-muted">No skills tools are switched on.</p>';
+            list.querySelectorAll('[data-skill-view]').forEach(b => b.addEventListener('click', () => switchView(b.dataset.skillView)));
+        };
+        draw({}, false);
+        const last = {};
+        await Promise.all(tools.map(async t => {
+            try {
+                const newest = Object.entries((await API.drills.summary(t.id)).levels || {}).sort((a, b) => String(b[1].lastAt).localeCompare(String(a[1].lastAt)))[0];
+                if (!newest) return;
+                if (t.id !== 'rhythm') { last[t.id] = newest[1].lastGrade; return; }
+                const mine = (await API.rhythm.levels()).patterns || {};
+                last[t.id] = (mine[newest[0]] && mine[newest[0]].level) || Math.max(0, ...Object.values(mine).map(m => m.level || 0)) || 0;
+            } catch (e) { /* the row still opens the tool */ }
+        }));
+        if (isShown('skillsHubView')) draw(last, true);
     }
     async function saveDrill(tool, level, startedAt, t0, details) {
         try {
@@ -18083,31 +18168,34 @@
 
     // --- The shared results screen ---
     let drillLast = null; // { tool, again }
-    function showDrillResults({ tool, levelLabel, result, saved, stats, rows, again, playView, smart }) {
+    // ML-406: the result is a Level 1-5 (the stored grade), shown as Theory's five steps with its last
+    // rounds as Level bars - no score and no "grade" on screen, and the words stay positive. `level` /
+    // `bestText` let a tool say its own (Rhythm: the rhythm's Level, reached by speed); noTrend hides
+    // the last rounds where a round has no Level of its own.
+    function showDrillResults({ tool, levelLabel, result, saved, stats, rows, again, playView, smart, level, bestText, noTrend }) {
         drillLast = { tool, again };
         // ML-399: smart = { noun, nearly } for a tool SmartLearn works in (Pitch, Tempo) - its box above Again.
         const smartLearn = smart && saved && saved.smartLearn;
         setShown('drillResultSmartBox', !!smartLearn);
         if (smartLearn) document.getElementById('drillResultSmart').textContent = smartLearnMessage(smartLearn, smart.noun, smart.nearly);
         document.getElementById('drillResultsLevel').textContent = `${DRILL_TITLES[tool]} · ${levelLabel}`;
-        const grade = result.grade;
-        const g = document.getElementById('drillResultGrade');
-        g.setAttribute('aria-label', `Grade ${grade} of 5`);
-        g.innerHTML = [1, 2, 3, 4, 5].map(i => `<span class="theory-grade-dot${i <= grade ? ' theory-grade-dot-on' : ''}"></span>`).join('');
+        const lv = level === undefined ? result.grade : level;
+        const steps = document.getElementById('drillResultSteps');
+        steps.innerHTML = theoryStepsHtml(lv);
+        steps.setAttribute('aria-label', lv ? `Level ${lv} of 5` : 'No Level yet');
         const best = document.getElementById('drillResultBest');
-        if (!saved) best.textContent = `Grade ${grade} of 5 · not saved`;
-        else if (saved.previousBest === null) best.textContent = `Grade ${grade} of 5 · your first round with these settings`;
-        else if (saved.newBest) best.textContent = `Grade ${grade} of 5 · new personal best (was ${saved.previousBest})`;
-        else best.textContent = `Grade ${grade} of 5 · your best is ${saved.best ? saved.best.score : saved.previousBest}`;
+        const bestLevel = saved && saved.best ? saved.best.grade : null;
+        if (bestText) best.textContent = bestText;
+        else if (!saved) best.textContent = `Level ${lv} (not saved)`;
+        else if (saved.previousBest === null) best.textContent = `Level ${lv} · your first round with these options`;
+        else if (saved.newBest) best.textContent = `Level ${lv} · your best yet with these options`;
+        else best.textContent = bestLevel > lv ? `Level ${lv} · your best is Level ${bestLevel}` : `Level ${lv}`;
         document.getElementById('drillResultStats').innerHTML = stats.map(([label, value]) => `<div class="stat-card"><span class="label">${escapeHtml(label)}</span><span class="value">${escapeHtml(String(value))}</span></div>`).join('');
         document.getElementById('drillResultDetail').innerHTML = rows.map(([a, b]) => `<li><span>${escapeHtml(a)}</span><strong>${escapeHtml(b)}</strong></li>`).join('');
         const recent = saved ? saved.recent : [];
-        const trend = document.getElementById('drillTrend');
-        trend.innerHTML = !recent.length ? '<p class="text-muted">Your rounds with these settings will show here.</p>'
-            : `<div class="theory-trend-bars" role="img" aria-label="Scores of your last ${recent.length} rounds: ${recent.map(a => a.score).join(', ')}">${recent.map((a, i) => `
-                <div class="chart-bar-container"><div class="chart-bar series-hours" style="--bar-h:${Math.max(2, a.score)}%;"></div>
-                <span class="chart-x-label">${i === recent.length - 1 ? 'Now' : a.score}</span></div>`).join('')}</div>`;
-        // Results replaces the play screen, so Back (and "Change settings") lands on the setup screen.
+        setShown('drillTrendBlock', !noTrend);
+        document.getElementById('drillTrend').innerHTML = recent.length ? theoryLevelBarsHtml(recent, true) : '<p class="text-muted">Your rounds with these options will show here.</p>';
+        // Results replaces the play screen, so Back (and "Change options") lands on the setup screen.
         if (viewStack[viewStack.length - 1] === playView) viewStack.pop();
         switchView('drillResultsView');
     }
@@ -18116,6 +18204,9 @@
         drillLast?.again();
     });
     document.getElementById('drillChangeBtn')?.addEventListener('click', () => goBack());
+    // ML-406: two more ways out, as Theory's results - the Skills list, and Home.
+    document.getElementById('drillOtherBtn')?.addEventListener('click', () => backToView('skillsHubView'));
+    document.getElementById('drillHomeBtn')?.addEventListener('click', () => backToView('mainView'));
 
     // ---------------------------------------- Tap tempo (ML-298)
     const tapState = (() => {
@@ -18123,12 +18214,16 @@
         return { level: Drills.TAP.LEVELS.some(l => l.id === s.level) ? s.level : 'listen' };
     })();
     function renderTapTempoSetup() {
-        const level = Drills.tapLevel(tapState.level);
-        renderDrillOptions('tapTempo', [{ key: 'level', label: 'Help', value: tapState.level, choices: Drills.TAP.LEVELS.map(l => ({ value: l.id, label: l.label })), help: level.desc }],
+        renderDrillOptions('tapTempo', [{ key: 'level', label: 'Help', value: tapState.level, choices: Drills.TAP.LEVELS.map(l => ({ value: l.id, label: l.label, desc: l.desc })) }],
             (k, v) => { tapState.level = v; drillStore('tapTempo', tapState); renderTapTempoSetup(); });
         const lv = tapState.level;
         renderDrillBest('tapTempo', lv, 'tapTempoBest', () => tapState.level === lv);
         renderSmartLearnStrip('tapTempoSmart', 'tapTempoSmartText');
+        renderDrillPlayed('tapTempo', {
+            currentKey: lv,
+            describe: (key) => { const l = Drills.TAP.LEVELS.find(x => x.id === key); return l ? { title: l.label, detail: l.desc } : null; },
+            apply: (key) => { tapState.level = key; drillStore('tapTempo', tapState); renderTapTempoSetup(); },
+        });
     }
     document.getElementById('tapTempoStartBtn')?.addEventListener('click', () => tapStart());
 
@@ -18239,9 +18334,9 @@
         showDrillResults({
             tool: 'tapTempo', levelLabel: r.level.label, result, saved, playView: 'tapTempoPlayView',
             smart: { noun: 'speed', nearly: 'you were close on' },
-            stats: [['Score', result.score], ['Average miss', errs.length ? `${(errs.reduce((a, b) => a + b, 0) / errs.length).toFixed(1)}%` : '-'],
+            stats: [['Average miss', errs.length ? `${(errs.reduce((a, b) => a + b, 0) / errs.length).toFixed(1)}%` : '-'],
                 ['Spot on', `${result.results.filter(x => x.error !== null && x.error <= 2).length} of ${r.targets.length}`], ['Steadiness', errs.length ? `${Math.round(100 - result.results.reduce((a, x) => a + (x.spread || 0), 0) / r.targets.length)}%` : '-']],
-            rows: r.targets.map((t, i) => [`${tapTargetText(t)}${t.band ? ` (${t.min}-${t.max}${t.max === 200 ? '+' : ''})` : ''}`, result.results[i].bpm === null ? 'not finished' : `${Math.round(result.results[i].bpm)} bpm · ${result.results[i].points}`]),
+            rows: r.targets.map((t, i) => [`${tapTargetText(t)}${t.band ? ` (${t.min}-${t.max}${t.max === 200 ? '+' : ''})` : ''}`, result.results[i].bpm === null ? 'not finished' : `${Math.round(result.results[i].bpm)} bpm`]),
             again: () => tapStart(),
         });
     }
@@ -18255,13 +18350,17 @@
         };
     })();
     function renderGapTrainerSetup() {
-        const p = Drills.gapPattern(gapState.pattern);
         renderDrillOptions('gapTrainer', [
-            { key: 'pattern', label: 'Drill', value: gapState.pattern, choices: Drills.GAP.PATTERNS.map(x => ({ value: x.id, label: x.label })), help: `${p.group}: ${p.desc}` },
-            { key: 'bpm', label: 'Speed (bpm)', value: gapState.bpm, choices: Drills.GAP.BPMS.map(b => ({ value: b, label: String(b) })), help: TheoryEngine.speedLabel(gapState.bpm) },
+            { key: 'pattern', label: 'Drill', value: gapState.pattern, choices: Drills.GAP.PATTERNS.map(x => ({ value: x.id, label: x.label, desc: x.desc })) },
+            { key: 'bpm', label: 'Speed (bpm)', value: gapState.bpm, choices: Drills.GAP.BPMS.map(b => ({ value: b, label: String(b), desc: TheoryEngine.speedLabel(b) })) },
         ], (k, v) => { gapState[k] = v; drillStore('gapTrainer', gapState); renderGapTrainerSetup(); });
         const pat = gapState.pattern;
         renderDrillBest('gapTrainer', pat, 'gapTrainerBest', () => gapState.pattern === pat);
+        renderDrillPlayed('gapTrainer', {
+            currentKey: pat,
+            describe: (key) => { const x = Drills.GAP.PATTERNS.find(q => q.id === key); return x ? { title: x.label, detail: x.desc } : null; },
+            apply: (key) => { gapState.pattern = key; drillStore('gapTrainer', gapState); renderGapTrainerSetup(); },
+        });
     }
     document.getElementById('gapTrainerStartBtn')?.addEventListener('click', () => gapStart());
 
@@ -18344,7 +18443,7 @@
         const ms = (v) => (v === null ? '-' : Math.abs(v) <= result.onTimeMs ? 'on the beat' : `${Math.abs(v)} ms ${v < 0 ? 'early' : 'late'}`);
         showDrillResults({
             tool: 'gapTrainer', levelLabel: `${r.pattern.label} · ${r.bpm} bpm`, result, saved, playView: 'gapTrainerPlayView',
-            stats: [['Score', result.score], ['In the silence', result.silentScore === null ? '-' : result.silentScore], ['Drift in the gaps', ms(result.drift)], ['Beats missed', result.missed]],
+            stats: [['Drift in the gaps', ms(result.drift)], ['Beats tapped', `${result.results.length - result.missed} of ${result.results.length}`]],
             rows: result.landings.length
                 ? result.landings.map((v, i) => [`Back in after gap ${i + 1}`, v === null ? 'no tap' : ms(v)])
                 : [['Silent beats', `${result.results.filter(x => x.silent).length} of ${result.results.length}`]],
@@ -18361,13 +18460,11 @@
     })();
     const earSpell = (name) => TheoryEngine.spellName(name, theoryNaming());
     function renderEarSetup() {
-        const mode = Drills.earMode(earState.mode);
         const setId = earState.sets[earState.mode];
         const list = earState.mode === 'reference' ? Drills.EAR.LEVELS : Drills.EAR.NOTE_SETS;
-        const set = Drills.earSet(earState.mode, setId);
         renderDrillOptions('ear', [
-            { key: 'mode', label: 'How', value: earState.mode, choices: Drills.EAR.MODES.map(m => ({ value: m.id, label: m.label })), help: mode.desc },
-            { key: 'set', label: 'Notes', value: setId, choices: list.map(x => ({ value: x.id, label: x.label })), help: set.desc || '' },
+            { key: 'mode', label: 'How', value: earState.mode, choices: Drills.EAR.MODES.map(m => ({ value: m.id, label: m.label, desc: m.desc })) },
+            { key: 'set', label: 'Notes', value: setId, choices: list.map(x => ({ value: x.id, label: x.label, desc: x.desc || '' })) },
         ], (k, v) => { if (k === 'mode') earState.mode = v; else earState.sets[earState.mode] = v; drillStore('ear', earState); renderEarSetup(); });
         // Notes are named in written pitch for the tuner's instrument (a B-flat cornet's C sounds B-flat).
         const tr = ((tunerTransposition % 12) + 12) % 12;
@@ -18377,6 +18474,13 @@
         const key = Drills.earLevelKey(earState.mode, setId);
         renderDrillBest('ear', key, 'earBest', () => Drills.earLevelKey(earState.mode, earState.sets[earState.mode]) === key);
         renderSmartLearnStrip('earSmart', 'earSmartText');
+        // A played row's key is "how:notes".
+        const parts = (k) => { const i = k.indexOf(':'); return [k.slice(0, i), k.slice(i + 1)]; };
+        renderDrillPlayed('ear', {
+            currentKey: key,
+            describe: (k) => { try { const [m, st] = parts(k); return { title: `${Drills.earMode(m).label} · ${Drills.earSet(m, st).label}`, detail: Drills.earSet(m, st).desc || '' }; } catch (e) { return null; } },
+            apply: (k) => { const [m, st] = parts(k); earState.mode = m; earState.sets[m] = st; drillStore('ear', earState); renderEarSetup(); },
+        });
     }
     document.getElementById('earStartBtn')?.addEventListener('click', () => earStart());
 
@@ -18564,7 +18668,7 @@
         showDrillResults({
             tool: 'ear', levelLabel: r.label, result, saved, playView: 'earPlayView',
             smart: { noun: 'note', nearly: 'you took a little longer over' },
-            stats: [['Score', result.score], ['Right', `${result.right} of ${r.qs.length}`]],
+            stats: [['Right', `${result.right} out of ${r.qs.length}`]],
             rows: r.answers.map((a, i) => [`${i + 1}. ${earSpell(r.qs[i].name)}`, result.results[i].correct ? 'right' : `you: ${answerText(a)}`]),
             again: () => earStart(),
         });
@@ -18646,7 +18750,7 @@
         const groups = [];
         if (list.length > 1) groups.push({ key: 'instrument', label: 'Instrument', value: inst.instrumentId, choices: list.map(i => ({ value: i.instrumentId, label: i.name })) });
         groups.push({ key: 'direction', label: 'Work on', value: rangeState.direction, choices: [{ value: 'up', label: 'Top notes' }, { value: 'down', label: 'Bottom notes' }] });
-        groups.push({ key: 'bpm', label: 'Speed', value: rangeState.bpm, choices: RANGE_BPMS.map(b => ({ value: b, label: `${b} bpm` })), help: 'One beat of the hold is one click.' });
+        groups.push({ key: 'bpm', label: 'Speed', value: rangeState.bpm, choices: RANGE_BPMS.map(b => ({ value: b, label: `${b} bpm`, desc: 'One beat of the hold is one click' })) });
         renderDrillOptions('range', groups, (key, value) => {
             if (key === 'instrument') rangeState.instrumentId = value; else rangeState[key] = value;
             rangeStore();
@@ -18956,49 +19060,66 @@
         try { rhythmMine = (await API.rhythm.levels()).patterns || {}; } catch (e) { rhythmMine = {}; }
         renderRhythmSetup();
     }
+    const rhythmName = (q) => (rhythmMine[q.id] && rhythmMine[q.id].word) || q.name;
     function renderRhythmSetup() {
         const p = Rhythm.pattern(rhythmState.pattern);
         const bpms = Rhythm.levelBpms(p);
         if (!bpms.includes(rhythmState.bpm)) rhythmState.bpm = Rhythm.nextBpm(p, rhythmLevel(p.id));
         const set = Rhythm.setOf(rhythmState.set);
         renderDrillOptions('rhythm', [
-            { key: 'set', label: 'Rhythms', value: rhythmState.set, choices: Rhythm.SETS.map(x => ({ value: x.id, label: x.label })), help: set.desc },
-            { key: 'method', label: 'How', value: rhythmState.method, choices: [{ value: 'tap', label: 'Tap' }, { value: 'mic', label: 'Clap, sing or play' }], help: rhythmState.method === 'tap' ? 'Tap the pad on every note. Scored exactly.' : 'The microphone listens for each note starting - scored more forgivingly than tapping.' },
-            { key: 'bpm', label: `Speed (${p.meter === Rhythm.COMPOUND ? 'dotted crotchets' : 'crotchets'} a minute)`, value: rhythmState.bpm, choices: bpms.map((b, i) => ({ value: b, label: `L${i + 1} · ${b}` })), help: `Level ${bpms.indexOf(rhythmState.bpm) + 1} speed. Grade 4 or 5 here reaches it.` },
+            { key: 'set', label: 'Rhythms', value: rhythmState.set, choices: Rhythm.SETS.map(x => ({ value: x.id, label: x.label, desc: x.desc })) },
+            // The rhythm itself is picked from its notation, in a pop-up.
+            { key: 'pattern', label: 'Rhythm', valueText: rhythmName(p), open: openRhythmPicker },
+            { key: 'method', label: 'How', value: rhythmState.method, choices: [
+                { value: 'tap', label: 'Tap', desc: 'Tap the pad on every note. Scored exactly.' },
+                { value: 'mic', label: 'Clap, sing or play', desc: 'The microphone listens for each note starting - scored more forgivingly than tapping.' }] },
+            { key: 'bpm', label: `Speed (${p.meter === Rhythm.COMPOUND ? 'dotted crotchets' : 'crotchets'} a minute)`, caption: 'speed', value: rhythmState.bpm,
+                choices: bpms.map((b, i) => ({ value: b, label: `Level ${i + 1} · ${b}`, desc: `Play it well at this speed to reach Level ${i + 1}` })) },
         ], (k, v) => {
             rhythmState[k] = v;
             if (k === 'set') { rhythmState.pattern = Rhythm.patternsIn(v)[0].id; rhythmState.bpm = null; }
             drillStore('rhythm', rhythmState);
             renderRhythmSetup();
         });
-        // The set's rhythms, each drawn as one beat (or two), with its name and your Level.
-        const grid = document.getElementById('rhythmPatterns');
-        grid.innerHTML = Rhythm.patternsIn(rhythmState.set).map(q => {
-            const lv = rhythmLevel(q.id), mine = rhythmMine[q.id] && rhythmMine[q.id].word;
+        const lv = rhythmLevel(p.id);
+        document.getElementById('rhythmPatternLine').textContent = `${rhythmName(p)}: ${lv ? `Level ${lv}` : 'not tried yet'}${lv < 5 ? ` · next: Level ${lv + 1} at ${bpms[lv]} bpm` : ' · top Level'}`;
+        setShown('rhythmWordBtn', p.set !== 'words');
+        document.getElementById('rhythmSheetBtn').textContent = `Play through all ${Rhythm.patternsIn(rhythmState.set).length} (${set.label.toLowerCase()})`;
+        renderDrillPlayed('rhythm', {
+            currentKey: p.id,
+            levelOf: (key) => rhythmLevel(key),
+            describe: (key) => { try { const q = Rhythm.pattern(key); return { title: rhythmName(q), detail: Rhythm.setOf(q.set).label }; } catch (e) { return null; } },
+            apply: (key) => { const q = Rhythm.pattern(key); rhythmState.set = q.set; rhythmState.pattern = q.id; rhythmState.bpm = null; drillStore('rhythm', rhythmState); renderRhythmSetup(); },
+        });
+    }
+    // The set's rhythms in the choice pop-up, each drawn as one beat (or two), with its name and Level.
+    function openRhythmPicker() {
+        openFlowChoiceModal('Rhythm', [], () => {});
+        const box = document.getElementById('flowChoiceOptions');
+        box.innerHTML = `<div class="flow-tile-grid flow-tile-grid-3 mb-4" role="group" aria-label="Rhythms">${Rhythm.patternsIn(rhythmState.set).map(q => {
+            const lv = rhythmLevel(q.id), on = q.id === rhythmState.pattern;
             const items = Rhythm.barItems({ ...q, meter: { ...q.meter, beats: q.beats } }, { withTimeSig: false, barline: null, words: false });
-            return `<button type="button" class="flow-picker-tile${q.id === p.id ? ' selected' : ''}" data-rhythm="${q.id}" aria-pressed="${q.id === p.id}" aria-label="${escapeHtml(q.name)}${mine ? ` (${escapeHtml(mine)})` : ''}, ${lv ? `Level ${lv}` : 'not tried'}">
+            return `<button type="button" class="flow-picker-tile${on ? ' selected' : ''}" data-rhythm="${q.id}" aria-pressed="${on}" aria-label="${escapeHtml(rhythmName(q))}, ${lv ? `Level ${lv}` : 'not tried yet'}">
                 <span class="flow-picker-tile-icon-row">${rhythmSvg(items, 0.8)}</span>
-                <span class="flow-picker-tile-label">${escapeHtml(mine || q.name)}${lv ? ` · L${lv}` : ''}</span>
+                <span class="flow-picker-tile-label">${escapeHtml(rhythmName(q))}${lv ? ` · L${lv}` : ''}</span>
             </button>`;
-        }).join('');
-        grid.querySelectorAll('[data-rhythm]').forEach(b => b.addEventListener('click', () => {
+        }).join('')}</div>`;
+        box.querySelectorAll('[data-rhythm]').forEach(b => b.addEventListener('click', () => {
+            hideModal('flowChoiceModal');
             rhythmState.pattern = b.dataset.rhythm;
             rhythmState.bpm = Rhythm.nextBpm(Rhythm.pattern(b.dataset.rhythm), rhythmLevel(b.dataset.rhythm));
             drillStore('rhythm', rhythmState);
             renderRhythmSetup();
         }));
-        const lv = rhythmLevel(p.id);
-        document.getElementById('rhythmPatternLine').textContent = `${p.name}: ${lv ? `Level ${lv} (${bpms[lv - 1]} bpm)` : 'not tried yet'}${lv < 5 ? ` · next: Level ${lv + 1} at ${bpms[lv]} bpm` : ' · top Level'}`;
-        setShown('rhythmWordGroup', p.set !== 'words');
-        document.getElementById('rhythmWord').value = (rhythmMine[p.id] && rhythmMine[p.id].word) || '';
-        document.getElementById('rhythmSheetBtn').textContent = `Play through all ${Rhythm.patternsIn(rhythmState.set).length} (${set.label.toLowerCase()})`;
-        const id = p.id;
-        renderDrillBest('rhythm', id, 'rhythmBest', () => rhythmState.pattern === id);
     }
-    document.getElementById('rhythmWord')?.addEventListener('change', async (e) => {
+    // Your own word for a rhythm - a small extra, behind a link (owner, 3 Oct 2026: the point is to play
+    // the notes, not the wording).
+    document.getElementById('rhythmWordBtn')?.addEventListener('click', () => {
         const id = rhythmState.pattern;
-        try { rhythmMine = (await API.rhythm.setWord(id, e.target.value)).patterns || {}; renderRhythmSetup(); }
-        catch (err) { showWarningToast('Not saved: ' + err.message); }
+        showPromptModal('My own word for this rhythm', (rhythmMine[id] && rhythmMine[id].word) || '', async (word) => {
+            try { rhythmMine = (await API.rhythm.setWord(id, word)).patterns || {}; renderRhythmSetup(); }
+            catch (err) { showWarningToast('Not saved: ' + err.message); }
+        });
     });
 
     // --- A round: a bar's count-in, then the bars; the note playing is lit as it goes. ---
@@ -19123,11 +19244,19 @@
         const ms = (v) => (v === null ? '-' : Math.abs(v) <= result.onTimeMs ? 'on time' : `${Math.abs(v)} ms ${v < 0 ? 'early' : 'late'}`);
         const sheet = r.level.startsWith('sheet:');
         const label = sheet ? `All ${Rhythm.setOf(r.level.slice(6)).label.toLowerCase()}` : Rhythm.pattern(r.level).name;
+        // ML-406: the Level shown is the rhythm's own - the fastest speed it's been played well at (for
+        // the whole set, the lowest of its rhythms).
+        const ids = sheet ? Rhythm.patternsIn(r.level.slice(6)).map(q => q.id) : [r.level];
+        const lvNow = Math.min(...ids.map(rhythmLevel));
+        const went = ups.filter(x => ids.includes(x.pattern)).length;
         showDrillResults({
             tool: 'rhythm', levelLabel: `${label} · ${r.bpm} bpm · ${r.method === 'tap' ? 'tapped' : 'listened'}`, result, saved, playView: 'rhythmPlayView',
-            stats: [['Score', result.score], ['Notes on time', `${result.onTime} of ${result.results.length}`], ['Missed', result.missed], [r.method === 'tap' ? 'Extra taps' : 'Extra notes', result.extra]],
+            level: lvNow, noTrend: true,
+            bestText: !saved ? 'Not saved' : sheet ? (went ? `${went} ${went === 1 ? 'rhythm' : 'rhythms'} went up a Level` : 'Keep going - each rhythm goes up a Level when you play it well at this speed')
+                : went ? `Level ${lvNow} reached` : lvNow >= 5 ? 'Level 5 - the top Level' : `Level ${lvNow + 1} is next - play it well at its speed to reach it`,
+            stats: [['Notes on time', `${result.onTime} out of ${result.results.length}`]],
             rows: sheet
-                ? result.perPattern.map(pp => [Rhythm.pattern(pp.pattern).name, `${pp.score}`])
+                ? result.perPattern.map(pp => [Rhythm.pattern(pp.pattern).name, rhythmLevel(pp.pattern) ? `Level ${rhythmLevel(pp.pattern)}` : 'not there yet'])
                 : [['On average', ms(result.drift)], ...(r.method === 'mic' ? [['Steady delay taken out', `${result.shift} ms`]] : [])],
             again: () => rhythmStart(r.level),
         });

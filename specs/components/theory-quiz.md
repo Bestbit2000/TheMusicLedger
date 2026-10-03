@@ -40,7 +40,7 @@ particular to a timed quiz.
   Yes/No; inversions and cadences 3; Grade 4 chords I/IV/V 3). An odd button sits alone on the last row. Taps in the first 0.3 s of a question are ignored (double taps).
 - Level (ML-396): five steps rising in height and colour (`.theory-lv-hN` is N+1 units tall; the unit, `--theory-lv-unit`, is set by `.theory-steps` and, smaller, by `.theory-level-bars`). Steps up to yours are filled `.lv-N`, yours is ringed (`.is-got`), the ones above are dashed outlines (`.lv-0`). The same bars, one per round, are the last-rounds chart; the newest is ringed and labelled "Now" on the results screen (`.is-now`). The score is never shown - the Level is worked out from it.
 - Wording stays positive: "17 out of 18" right (no wrong count), "2 more right answers for Level 5", and nothing about what a slip costs.
-- The drill tools keep the grade dots (`.theory-grade-dot-on`, `.theory-grade-lg`) until they move to Levels.
+- The drill tools show Levels too (ML-406): the same steps, bars, chips, list rows and set pop-up - see [drills](drills.md).
 - Timed rounds show the countdown bar (`transform: scaleX()` from JS); fixed rounds hide it and the
   clock counts up.
 - Options (owner, 2026-10-01): two sections, each a `.tool-group` with a `.tool-group-title` - **Content**

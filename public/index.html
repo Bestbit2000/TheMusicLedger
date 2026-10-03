@@ -332,33 +332,17 @@
                 </button>
             </div>
         </div>
-        <div class="tool-group" id="toolGroup-ear" role="group" aria-labelledby="toolGroupTitle-ear">
-            <div class="tool-group-title" id="toolGroupTitle-ear">Ear and rhythm</div>
-            <div class="tool-icon-row">
-                <button data-tool="pitch" class="tool-icon-btn hidden-group" id="earToolBtn" onclick="switchView('earView')" aria-label="Pitch">
-                    <span class="material-symbols-outlined" aria-hidden="true">hearing</span>
-                    <span class="tool-icon-label">Pitch</span>
-                </button>
-                <button data-tool="tempo" class="tool-icon-btn hidden-group" id="tapTempoToolBtn" onclick="switchView('tapTempoView')" aria-label="Tempo">
-                    <span class="material-symbols-outlined" aria-hidden="true">touch_app</span>
-                    <span class="tool-icon-label">Tempo</span>
-                </button>
-                <button data-tool="pulse" class="tool-icon-btn hidden-group" id="gapTrainerToolBtn" onclick="switchView('gapTrainerView')" aria-label="Pulse">
-                    <span class="material-symbols-outlined" aria-hidden="true">graphic_eq</span>
-                    <span class="tool-icon-label">Pulse</span>
-                </button>
-                <button data-tool="rhythm" class="tool-icon-btn hidden-group" id="rhythmToolBtn" onclick="switchView('rhythmView')" aria-label="Rhythm">
-                    <span class="material-symbols-outlined" aria-hidden="true">music_note</span>
-                    <span class="tool-icon-label">Rhythm</span>
-                </button>
-            </div>
-        </div>
-        <div class="tool-group" id="toolGroup-theory" role="group" aria-labelledby="toolGroupTitle-theory">
-            <div class="tool-group-title" id="toolGroupTitle-theory">Theory and range</div>
+        <!-- ML-406: Learn - Theory, Skills (Pitch, Tempo, Pulse and Rhythm, one list like Theory's) and Range. -->
+        <div class="tool-group" id="toolGroup-learn" role="group" aria-labelledby="toolGroupTitle-learn">
+            <div class="tool-group-title" id="toolGroupTitle-learn">Learn</div>
             <div class="tool-icon-row">
                 <button data-tool="theory" class="tool-icon-btn hidden-group" id="theoryToolBtn" onclick="switchView('theoryView')" aria-label="Theory">
                     <span id="theoryToolIcon" aria-hidden="true"></span>
                     <span class="tool-icon-label">Theory</span>
+                </button>
+                <button data-tool="skills" class="tool-icon-btn hidden-group" id="skillsToolBtn" onclick="switchView('skillsHubView')" aria-label="Skills">
+                    <span class="material-symbols-outlined" aria-hidden="true">fitness_center</span>
+                    <span class="tool-icon-label">Skills</span>
                 </button>
                 <button data-tool="range" class="tool-icon-btn hidden-group" id="rangeToolBtn" onclick="switchView('rangeView')" aria-label="Range">
                     <span class="material-symbols-outlined" aria-hidden="true">height</span>
@@ -1233,17 +1217,14 @@
          clap / sing / play it into the microphone with a bar's count-in. Each rhythm has a speed Level.
          Rules: public/rhythm.js; screen: the RHYTHM section of app.js; docs/rhythm.md. -->
     <div id="rhythmView" class="hidden-group">
-        <p class="metro-help-text">Pick a rhythm, then tap it - or clap, sing or play it - along with the click. Each rhythm has a Level: play it at that Level's speed and score grade 4 or 5 to reach it.</p>
+        <p class="theory-intro">Pick a rhythm, then tap it - or clap, sing or play it - along with the click. Each rhythm has five Levels, each a little faster: play it well at a Level's speed to reach it.</p>
         <div id="rhythmOptions"></div>
-        <div class="flow-tile-grid flow-tile-grid-3" id="rhythmPatterns" role="group" aria-label="Rhythms"></div>
         <p class="theory-best-line" id="rhythmPatternLine"></p>
-        <div class="form-group hidden-group" id="rhythmWordGroup">
-            <label for="rhythmWord">Your own word for it (optional)</label>
-            <input type="text" id="rhythmWord" maxlength="40" autocomplete="off" placeholder="e.g. Pine-ap-ple">
-        </div>
-        <p class="theory-best-line" id="rhythmBest"></p>
         <button type="button" class="btn-submit" id="rhythmStartBtn">Start</button>
         <button type="button" class="btn-nav" id="rhythmSheetBtn">Play through the whole set</button>
+        <!-- The word for a rhythm is a small extra now (owner, 3 Oct 2026): a link to a pop-up. -->
+        <button type="button" class="btn-text hidden-group" id="rhythmWordBtn" aria-haspopup="dialog">My own word for this rhythm</button>
+        <div id="rhythmPlayed"></div>
     </div>
     <div id="rhythmPlayView" class="hidden-group">
         <div class="theory-status"><span id="rhythmBar"></span><span id="rhythmState"></span></div>
@@ -2945,6 +2926,13 @@
         <div class="theory-quiz-list" id="theoryQuizList"></div>
     </div>
 
+    <!-- ML-406: Skills - the four drill tools in one list, in Theory's list style (a row each: what it is,
+         its last Level or "New"). renderSkillsHub, app.js. Each row opens that tool's set-up screen. -->
+    <div id="skillsHubView" class="hidden-group">
+        <p class="theory-intro">Short drills for your ear and your sense of time. Pick one, choose how hard, and see what Level you reach.</p>
+        <div class="theory-quiz-list" id="skillsHubList"></div>
+    </div>
+
     <!-- ML-298 / ML-295 / ML-296: the drill tools. Each has a setup screen (level pills, your best,
          Start), its own play screen, and they share the results screen (drillResultsView). Glue: the
          DRILLS section of app.js; levels, rounds and scoring: public/drills.js. See docs/drills.md and
@@ -2960,6 +2948,7 @@
             <button type="button" class="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
         </div>
         <button type="button" class="btn-submit" id="tapTempoStartBtn">Start</button>
+        <div id="tapTempoPlayed"></div>
     </div>
     <div id="tapTempoPlayView" class="hidden-group">
         <div class="theory-status"><span id="tapTempoStep"></span><span id="tapTempoCount"></span></div>
@@ -2979,6 +2968,7 @@
         <div id="gapTrainerOptions"></div>
         <p class="theory-best-line" id="gapTrainerBest"></p>
         <button type="button" class="btn-submit" id="gapTrainerStartBtn">Start</button>
+        <div id="gapTrainerPlayed"></div>
     </div>
     <div id="gapTrainerPlayView" class="hidden-group">
         <div class="theory-status"><span id="gapTrainerBar"></span><span id="gapTrainerState"></span></div>
@@ -3000,6 +2990,7 @@
             <button type="button" class="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
         </div>
         <button type="button" class="btn-submit" id="earStartBtn">Start</button>
+        <div id="earPlayed"></div>
     </div>
     <div id="earPlayView" class="hidden-group">
         <div class="theory-status"><span id="earStep"></span><span id="earTally"></span></div>
@@ -3018,13 +3009,16 @@
     <div id="drillResultsView" class="hidden-group">
         <p class="theory-results-options" id="drillResultsLevel"></p>
         <div class="theory-grade-block">
-            <div class="theory-grade theory-grade-lg" id="drillResultGrade" role="img"></div>
+            <!-- ML-406: the result is a Level 1-5, as Theory's - five steps, yours ringed. No score. -->
+            <div class="theory-steps" id="drillResultSteps" role="img"></div>
             <p class="theory-best-line" id="drillResultBest"></p>
         </div>
         <div class="dashboard-grid" id="drillResultStats"></div>
         <ul class="drill-result-list" id="drillResultDetail"></ul>
-        <div class="section-title">Your last rounds</div>
-        <div class="theory-trend" id="drillTrend"></div>
+        <div id="drillTrendBlock">
+            <div class="section-title">My last rounds</div>
+            <div class="theory-level-trend" id="drillTrend"></div>
+        </div>
         <!-- ML-399: what SmartLearn took from a Pitch or Tempo round - plain outline, just above Again. -->
         <div class="smartlearn-note hidden-group" id="drillResultSmartBox">
             <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
@@ -3032,7 +3026,11 @@
             <button type="button" class="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
         </div>
         <button type="button" class="btn-submit" id="drillAgainBtn">Again</button>
-        <button type="button" class="btn-nav" id="drillChangeBtn">Change settings</button>
+        <div class="theory-exits">
+            <button type="button" class="btn-nav no-margin" id="drillChangeBtn">Change options</button>
+            <button type="button" class="btn-nav no-margin" id="drillOtherBtn">Another skill</button>
+            <button type="button" class="btn-nav no-margin" id="drillHomeBtn">Home</button>
+        </div>
     </div>
 
     <div id="theoryOptionsView" class="hidden-group">

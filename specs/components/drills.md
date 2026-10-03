@@ -12,12 +12,24 @@ Ear (`ear`, `ear_training`).
 ## 2. Overview
 **Rhythm (ML-306)** shares this screen set too: its setup screen adds a `.flow-tile-grid.flow-tile-grid-3` of `.flow-picker-tile` rhythms (each a small Bravura stave, its name and Level) and an optional "your own word" field; its play screen is `.theory-status`, the bar on a `.scales-staff` (the note playing `.is-now`), `.drill-feedback`, the `.drill-pad` (Tap) and Stop; its rounds use the drill results screen. Rules: [`public/rhythm.js`](../../public/rhythm.js), docs/rhythm.md.
 
-Three home-screen tools built on one engine ([`public/drills.js`](../../public/drills.js)) and one results
-screen. Each tool has:
+The drill tools (Pitch, Tempo, Pulse, and Rhythm - see docs/rhythm.md), built on one engine
+([`public/drills.js`](../../public/drills.js)) and one results screen. **They open from Skills (ML-406)** - one
+tile in All tools › Learn, between Theory and Range - not from tiles of their own.
 
-1. **A setup screen**: a short intro (`.theory-intro`), one-tap option pills (the Theory options look:
-   `.form-group` › `.radio-group`, with a `.metro-help-text` line describing the chosen option), your best
-   with those settings (`.theory-best-line`) and **Start** (`.btn-submit`).
+0. **The Skills list** (`#skillsHubView`, `renderSkillsHub`): Theory's list, reused as it is - a
+   `.theory-quiz-row` per tool that's switched on (a Material icon in `.theory-quiz-icon`, the name, one line
+   saying what it is) with the Level of the last round played (`.level-chip`) or a "New" pill. Back from a tool
+   lands here; the results screen's **Another skill** comes back here too.
+1. **A setup screen**: a short intro (`.theory-intro`), then **one value box per option, two to a row**
+   (`.metro-transport-grid.metro-transport-grid-2` › `.metroBlk-ctrl-value-btn`: the choice over what it is -
+   as Theory's options, owner 3 Oct 2026: rows of pills were overwhelming). A box opens the choice pop-up
+   (`#flowChoiceModal`), where **each choice has its explanation under it** (what the help line under the
+   pills used to say). Rhythm's "rhythm" box opens the same pop-up holding the set's notation tiles
+   (`.flow-tile-grid-3` › `.flow-picker-tile`); its "your own word" is a `.btn-text` link to the prompt
+   pop-up, nothing more. Then your best with those options as a Level (`.theory-best-line`), the SmartLearn
+   strip where it applies, **Start** (`.btn-submit`), and **What I've played** - Theory's rows again: a row per
+   set of options played, newest first, with its last Level; a row opens the set pop-up (`#theorySetModal`:
+   its last rounds as Level bars, then "Use these options").
 2. **A play screen**:
    - **Tap tempo:** "Speed 2 of 5 · 4 of 9 taps" (`.theory-status`), the speed as a Bravura metronome
      mark (`Notation.tempoMark`) or an Italian speed name (`.theory-prompt`), the live meter
@@ -30,10 +42,14 @@ screen. Each tool has:
      note on a treble staff once answered, then the answer buttons (Theory's `.theory-answer`: 2-5
      notes in two columns, 7 letters, or the 12-note keyboard `.theory-answers-keyboard`), **Play again**,
      **Skip** (*Play it back* only, with "Listening… G", `.drill-listen`), then **Next note**.
-3. **The results screen** (`#drillResultsView`, shared): the tool and level, the grade dots
-   (`.theory-grade-lg`), best-line, four stat cards (`.stat-card`), a line per speed / gap / note
-   (`.drill-result-list`), your last rounds with these settings (the Theory trend bars), **Again** and
-   **Change settings**.
+3. **The results screen** (`#drillResultsView`, shared): **a Level 1-5, exactly as Theory's (ML-406)** - the
+   five steps with yours ringed (`.theory-steps`), a positive best-line ("Level 3 · your best yet with these
+   options"), a stat card or two that says what happened without a score ("Right 8 out of 10", "Drift in the
+   gaps"), a line per speed / gap / note (`.drill-result-list`), **My last rounds** as Level bars
+   (`.theory-level-trend` › `.theory-level-bars`), **Again**, then **Change options / Another skill / Home**
+   (`.theory-exits`). No score and no "grade" on screen; the stored column is still `grade`. **Rhythm** shows the
+   rhythm's own Level (the fastest Level speed it's been played well at) and says "Level 2 reached" or what's
+   next; a Rhythm round has no Level of its own, so it has no last-rounds bars.
 
 **The pad** is the one big target a drill is played on: gold like Play (`--primary-action`), round,
 4 touch targets wide, and it gives under the finger (`.is-hit`, scale 0.94, `--duration-instant`). It

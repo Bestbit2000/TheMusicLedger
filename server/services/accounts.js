@@ -76,7 +76,7 @@ export const AVATAR_IDS = ['cornet', 'euphonium', 'trombone', 'french-horn', 'sa
 // ML-378: the tools that can be on the home screen (the All tools page's data-tool ids - keep in step with
 // public/index.html). The app shows up to four of the ones switched on; a tool that's off for a while stays
 // chosen, so the list can hold more than four, but never more than there are tools.
-export const HOME_TOOL_IDS = ['metronome', 'tuner', 'timer', 'warmups', 'scales', 'add-piece', 'rehearse', 'pitch', 'tempo', 'pulse', 'rhythm', 'theory', 'range'];
+export const HOME_TOOL_IDS = ['metronome', 'tuner', 'timer', 'warmups', 'scales', 'add-piece', 'rehearse', 'theory', 'skills', 'range'];
 export function normaliseHomeTools(list) {
   if (list === null) return null;
   if (!Array.isArray(list)) { const e = new Error('Home tools must be a list.'); e.status = 400; throw e; }

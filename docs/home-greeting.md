@@ -41,8 +41,9 @@ limit (Admin → Feature access, Limits: **Standard 2, everyone else 4** - migra
   server's list, the defaults and the seeded limits in step.
 
 **All tools** (`toolsView`) - every tool, in groups: **Everyday** (Metronome, Tuner, Timer) · **My routine**
-in the order it's practised (**Warm-ups → Scales → Rehearse**, as the practice session templates; **Add a piece**, ML-400, sits just before Rehearse - `specs/components/add-piece.md`) · **Ear and
-rhythm** (Pitch, Tempo, Pulse, Rhythm) · **Theory and range** (Theory, Range). A ★ marks the ones on Home.
+in the order it's practised (**Warm-ups → Scales → Rehearse**, as the practice session templates; **Add a piece**, ML-400, sits just before Rehearse - `specs/components/add-piece.md`) · **Learn**
+(Theory, Skills, Range - ML-406: **Skills** is one tile that lists Pitch, Tempo, Pulse and Rhythm, as Theory lists
+its quizzes; anyone who had one of the four on Home got Skills there instead, migration 091). A ★ marks the ones on Home.
 **Choose Home tools** turns the tiles into toggles (tap to add or take off, up to your limit - "Home holds 4
 tools"), **Done** to finish. **Order:** Home shows them in your order - a new one goes at the end - and while
 choosing, a boxed **"My Home screen"** card - pinned under the top bar as you scroll, with the "3 of 4 on Home"

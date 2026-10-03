@@ -1,6 +1,10 @@
 # Drills: Tempo, Pulse, Pitch (ML-298, ML-295, ML-296)
 
-**Names:** on screen the tools are **Tempo**, **Pulse** and **Pitch**, in the Learn group with Theory (tool groups, 2026-09-26).
+**Names:** on screen the tools are **Tempo**, **Pulse** and **Pitch**. **ML-406:** with Rhythm they open from one
+**Skills** tile (All tools › Learn: Theory, Skills, Range) that lists them as Theory lists its quizzes; their set-up
+screens are value boxes opening the choice pop-up, and a round's result is a **Level 1-5** shown exactly as Theory's
+(steps, Level bars, What I've played) - the stored `grade`, never called a grade or shown with its score. Screens:
+`specs/components/drills.md`.
 In the code, ids, features and saved rounds they keep their first names: Tap tempo (`tapTempo`, `tap_tempo`),
 Gap trainer (`gapTrainer`, `gap_trainer`) and Ear (`ear`, `ear_training`). This doc uses the first names.
 
