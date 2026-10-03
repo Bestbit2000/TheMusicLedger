@@ -35,7 +35,10 @@ export async function listFlowsForAdmin() {
             (SELECT COALESCE(SUM(ms.bar_count), 0) FROM metronome_segments ms WHERE ms.parent_score_id = s.id AND NOT ms.is_lead_in) AS total_bars, -- lead-in excluded from bar counts
             (SELECT COUNT(*) FROM score_recordings r WHERE r.score_id = s.id AND r.type = 'youtube') AS youtube_count,
             (SELECT COUNT(*) FROM score_recordings r WHERE r.score_id = s.id AND r.type <> 'youtube')
-              + (SELECT COUNT(*) FROM score_documents d WHERE d.score_id = s.id) AS file_media_count
+              + (SELECT COUNT(*) FROM score_documents d WHERE d.score_id = s.id) AS file_media_count,
+            -- ML-401: a public piece's take-up - people who prepared it as it is, and copies in libraries
+            (SELECT COUNT(DISTINCT pc.account_id) FROM piece_chunks pc WHERE pc.score_id = s.id AND pc.level IS NOT NULL) AS prepared_by,
+            (SELECT COUNT(*) FROM scores c WHERE c.copied_from_score_id = s.id) AS copy_count
      FROM scores s
      LEFT JOIN accounts a ON a.id = s.owner_account_id
      LEFT JOIN bands b ON b.id = s.owner_band_id
@@ -53,6 +56,8 @@ export async function listFlowsForAdmin() {
     totalBars: Number(r.total_bars),
     youtubeCount: Number(r.youtube_count),
     fileMediaCount: Number(r.file_media_count),
+    preparedBy: Number(r.prepared_by),
+    copyCount: Number(r.copy_count),
     createdAt: r.created_at
   }));
 }

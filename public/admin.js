@@ -1706,6 +1706,8 @@
                 `${plural(f.blockCount, 'block')}, ${plural(f.totalBars, 'bar')}`,
                 f.ownFormat ? 'TheMusicLedger export' : 'other software',
                 f.youtubeCount ? plural(f.youtubeCount, 'YouTube link') : null,
+                // ML-401: how often a public piece has been taken up - prepared as it is, or copied to a library
+                f.ownership === 'public' ? `taken up ${f.preparedBy + f.copyCount} ${f.preparedBy + f.copyCount === 1 ? 'time' : 'times'} (${f.preparedBy} prepared it, ${f.copyCount} ${f.copyCount === 1 ? 'copy' : 'copies'})` : null,
                 f.importTitle !== f.title ? 'renamed - title already in use' : null
             ].filter(Boolean).join(' &bull; ');
             return `

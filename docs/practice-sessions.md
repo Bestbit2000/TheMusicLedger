@@ -104,6 +104,10 @@ the countdown ring, **one message** with a picture, and Next up. **No Skip** - t
 
 ### Getting a piece ready: Prepare, Practise, Play-through (ML-390)
 
+**The Prepare tool (ML-401)** is a second way in: All tools › My routine › Prepare lists the pieces you can see that
+you haven't prepared yet (a filter adds the rest) and opens a piece's path. A public piece can be prepared as it is
+or copied to your library first; a copy keeps `scores.copied_from_score_id`. See `specs/components/prepare-list.md`.
+
 Every piece follows three stops on **its path** (`#piecePathView`, [piece-path](../specs/components/piece-path.md)),
 opened from a practice list, Play Flow's menu (My Levels) and a session's Prepare block:
 

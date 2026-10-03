@@ -1198,6 +1198,7 @@
         document.getElementById('rehearseAddBtn')?.classList.toggle('hidden-group', !create);
         document.getElementById('myMusicAddBtn')?.classList.toggle('hidden-group', !create);
         document.getElementById('addPieceToolBtn')?.classList.toggle('hidden-group', !create); // ML-400
+        document.getElementById('prepareToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('practice_levels')); // ML-401
         // ML-345: the other gates by account type
         document.getElementById('qpShowHistoryBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('metronome_history'));
         document.getElementById('tunerRewindGroup')?.classList.toggle('hidden-group', !isFeatureEnabled('tuner_rewind'));
@@ -1688,7 +1689,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
+    const views = ['mainView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -1835,6 +1836,7 @@
             if (viewName === 'settingsView') { fillSettingsToolIcons(); renderSettingsSummaries(); }
             if (viewName === 'settingsPlaybackView') renderMetroCalibRow(); // ML-347
         }
+        if (viewName === 'prepareListView') { document.getElementById('topTitle').innerText = 'Prepare'; openPrepareList(isBack); }
         if (viewName === 'inviteView') { document.getElementById('topTitle').innerText = 'Invite someone'; openInviteView(isBack); }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
         if (viewName === 'theoryView') { document.getElementById('topTitle').innerText = 'Theory'; renderTheoryList(); }
@@ -6022,6 +6024,57 @@
     }
     document.getElementById('myMusicAddBtn')?.addEventListener('click', () => switchView('addPieceView'));
 
+    // ---------------------------------------------------------------- PREPARE (ML-401)
+    // The Prepare tool: the pieces you can see (yours, your bands', public) that have bars to play. To
+    // start with only the ones you haven't prepared (flows' `prepared` - none of its bars has a Level
+    // from you yet); "All pieces" adds the rest. A piece opens its path (openPiecePath), where the
+    // run-through, painting and cutting already live. A public piece first asks whether to prepare it
+    // as it is (your Levels are your own either way) or copy it into your library and prepare the copy.
+    let prepareFilter = 'todo';
+    let prepareQuery = '';
+    const preparePieces = () => (flowsListCache || []).filter(f => f.blockCount > 0);
+    function renderPrepareList() {
+        const all = preparePieces(), todo = all.filter(f => !f.prepared);
+        const pills = document.getElementById('prepareFilterPills');
+        pills.innerHTML = [['todo', 'To prepare', todo.length], ['all', 'All pieces', all.length]].map(([key, label, n]) =>
+            `<button type="button" class="filter-pill${prepareFilter === key ? ' active' : ''}" data-prepare-filter="${key}" aria-pressed="${prepareFilter === key}">${label} <span class="filter-pill-count">${n}</span></button>`).join('');
+        pills.querySelectorAll('[data-prepare-filter]').forEach(b => b.addEventListener('click', () => { prepareFilter = b.dataset.prepareFilter; renderPrepareList(); }));
+        const q = prepareQuery.trim().toLowerCase();
+        const shown = (prepareFilter === 'todo' ? todo : all).filter(f => !q || `${f.title} ${f.composer || ''}`.toLowerCase().includes(q));
+        const ui = document.getElementById('prepareList');
+        ui.innerHTML = shown.length ? shown.map(f => `
+            <button type="button" class="history-item clickable" data-prepare-id="${f.id}"${f.isPublic && !f.prepared ? ' aria-haspopup="dialog"' : ''}>
+                <span class="grow">
+                    <strong>${escapeHtml(f.title)}</strong>
+                    <br><span class="text-sm text-muted">${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)} &bull; ${f.prepared ? 'Prepared' : 'Needs preparing'}</span>
+                </span>
+                <span class="material-symbols-outlined" aria-hidden="true">${f.prepared ? 'check_circle' : 'construction'}</span>
+            </button>`).join('')
+            : `<p class="text-muted">${q ? 'No pieces match that search.' : prepareFilter === 'todo' && all.length ? 'Every piece is prepared. Tap All pieces to see them.' : 'No pieces to prepare yet - add one with Add a piece.'}</p>`;
+        ui.querySelectorAll('[data-prepare-id]').forEach(b => b.addEventListener('click', () => preparePiece(shown.find(f => f.id === Number(b.dataset.prepareId)))));
+    }
+    function preparePiece(f) {
+        if (!f) return;
+        if (!f.isPublic || f.prepared) { openPiecePath(f.id); return; }
+        openFlowChoiceModal(f.title, [
+            { value: 'direct', html: '<span><strong>Prepare it as it is</strong><br><span class="text-sm text-muted">It stays in the public library; your Levels are your own</span></span>' },
+            { value: 'copy', html: '<span><strong>Copy it to my library first</strong><br><span class="text-sm text-muted">You get your own copy to change, and prepare that</span></span>' },
+        ], async (opt) => {
+            if (opt.value === 'direct') { openPiecePath(f.id); return; }
+            const copy = await copyFlowToMyLibrary(f.id);
+            if (copy) openPiecePath(copy.id);
+        });
+    }
+    // A fresh visit starts on "To prepare" with no search; coming Back (from a piece's path) keeps the
+    // filter and re-reads the pieces, as one may just have been prepared.
+    async function openPrepareList(isBack) {
+        if (!isBack) { prepareFilter = 'todo'; prepareQuery = ''; document.getElementById('prepareSearch').value = ''; }
+        if (flowsListCache.length) renderPrepareList();
+        try { flowsListCache = await API.flows.list(); } catch (e) { showWarningToast('Pieces not loaded: ' + e.message); }
+        if (isShown('prepareListView')) renderPrepareList();
+    }
+    document.getElementById('prepareSearch')?.addEventListener('input', (e) => { prepareQuery = e.target.value; renderPrepareList(); });
+
     // ---------------------------------------------------------------- INVITE SOMEONE (ML-402)
     // The main menu's Invite someone (feature invite_members; only while email-and-password login is
     // on - an invite is that kind of account). A page: email and name, Send, how many are left today
@@ -6165,17 +6218,20 @@
         setShown('addPieceListGroup', addPieceListsOn());
         addPieceDrawButton('addPieceListBtn', 'Practice list', addPieceListChoices(), addPiece.listId);
     }
-    document.getElementById('addPieceOwnerBtn')?.addEventListener('click', () => addPieceOpenChoice('Who is this piece for?', addPieceOwnerChoices(), addPiece.bandId, (v) => {
+    // Opened straight after arriving, the pop-up waits for the bands and lists so none is missing.
+    document.getElementById('addPieceOwnerBtn')?.addEventListener('click', async () => { await addPieceLoading; addPieceOpenChoice('Who is this piece for?', addPieceOwnerChoices(), addPiece.bandId, (v) => {
         addPiece.bandId = v;
         if (typeof addPiece.listId === 'number' && !addPieceListsOffered().some(l => l.id === addPiece.listId)) addPiece.listId = null;
         renderAddPiece();
-    }));
-    document.getElementById('addPieceListBtn')?.addEventListener('click', () => addPieceOpenChoice('Add it to a practice list?', addPieceListChoices(), addPiece.listId, (v) => {
+    }); });
+    document.getElementById('addPieceListBtn')?.addEventListener('click', async () => { await addPieceLoading; addPieceOpenChoice('Add it to a practice list?', addPieceListChoices(), addPiece.listId, (v) => {
         addPiece.listId = v;
         renderAddPiece();
-    }));
+    }); });
     // A fresh visit starts from "Just me" / "On its own"; coming Back keeps the answers.
-    async function openAddPiece(isBack) {
+    let addPieceLoading = Promise.resolve(); // the bands and lists being fetched - a pop-up waits for it
+    function openAddPiece(isBack) { addPieceLoading = loadAddPiece(isBack); return addPieceLoading; }
+    async function loadAddPiece(isBack) {
         if (!isBack) {
             addPieceTarget = null;
             addPiece = { bandId: null, listId: null, bands: addPiece.bands, lists: addPiece.lists };

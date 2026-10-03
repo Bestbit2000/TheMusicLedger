@@ -46,6 +46,8 @@ function toFlowSummaryDto(row, canEdit) {
     createdAt: row.created_at,
     blockCount: Number(row.block_count || 0),
     totalBars: Number(row.total_bars || 0),
+    // ML-401: this account has prepared it (has given at least one of its bars a Level)
+    prepared: !!row.prepared,
     canEdit: !!canEdit // ML-310: a public piece is view/play/copy for everyone, edit for super admins
   };
 }
@@ -207,7 +209,8 @@ export async function listFlows(accountId) {
             BOOL_OR(bm.account_id IS NOT NULL) AS is_band_member,
             COUNT(ms.id) AS block_count,
             -- Bar counts exclude the lead-in: it's a count-in, not part of the piece.
-            COALESCE(SUM(ms.bar_count) FILTER (WHERE NOT ms.is_lead_in), 0) AS total_bars
+            COALESCE(SUM(ms.bar_count) FILTER (WHERE NOT ms.is_lead_in), 0) AS total_bars,
+            EXISTS (SELECT 1 FROM piece_chunks pc WHERE pc.account_id = $1 AND pc.score_id = s.id AND pc.level IS NOT NULL) AS prepared
      FROM scores s
      LEFT JOIN metronome_segments ms ON ms.parent_score_id = s.id
      LEFT JOIN band_members bm ON bm.band_id = s.owner_band_id AND bm.account_id = $1
@@ -314,10 +317,13 @@ export async function duplicateFlow(accountId, scoreId) {
   if (!ownPersonal && !source.is_public) {
     throw withStatus(400, 'Only your own pieces and public pieces can be copied.');
   }
+  // ML-401: a copy keeps a link to the public piece it came from - and a copy of that copy keeps the
+  // same one - so a public piece's take-up can be counted (Admin -> Flows). Never shown to the player.
+  const original = source.is_public ? source.id : (source.copied_from_score_id ?? null);
   const { rows } = await pool.query(
-    `INSERT INTO scores (title, composer, arranger, publisher, description, owner_account_id)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-    [`${source.title} (copy)`, source.composer, source.arranger, source.publisher, source.description, accountId]
+    `INSERT INTO scores (title, composer, arranger, publisher, description, owner_account_id, copied_from_score_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+    [`${source.title} (copy)`, source.composer, source.arranger, source.publisher, source.description, accountId, original]
   );
   return Number(rows[0].id);
 }
