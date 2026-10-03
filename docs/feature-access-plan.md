@@ -52,6 +52,7 @@ account type**, not per person.
 | My music in the menu | `flow_manage` | yes | yes |
 | Export to MusicXML | `flow_export_musicxml` | yes | yes |
 | Add a piece (the tool, and in My music - ML-400) | `flow_create` | **new** | - |
+| Invite someone in the menu (ML-402; also needs `password_login` Live) | `invite_members` | **new** | yes |
 | My teachers in My account | `manage_tutor` | yes | **no - to wire** |
 
 Standard member starts with all of these **off**. Everything else (Metronome, Tuner, Timer, Log time,

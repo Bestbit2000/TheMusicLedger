@@ -173,6 +173,9 @@
                 <a class="dropdown-item nav-item hidden-group" id="adminNavLink" href="/admin.html"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">admin_panel_settings</span><span class="nav-item-text">Administration</span></a>
 
                 <div class="nav-divider" role="separator"></div>
+                <!-- ML-402: invite someone to the app by email. Feature invite_members; shown only while
+                     email-and-password login is on (renderInviteNav). -->
+                <button type="button" class="dropdown-item nav-item hidden-group" id="inviteNavItem" data-view="inviteView" onclick="switchView('inviteView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">person_add</span><span class="nav-item-text">Invite someone</span></button>
                 <!-- ML-170: deliberately here rather than on a view of its own - the point is to
                      be reachable from wherever the problem was just noticed, without navigating
                      away from it first. Gated by the `feedback` feature (renderFeatureGates). -->
@@ -922,6 +925,24 @@
             <button type="button" class="btn-cancel btn-nav no-margin" id="notificationsMarkAllBtn">Mark all as read</button>
         </div>
         <div id="notificationsList"></div>
+    </div>
+
+    <!-- ML-402: Invite someone - a page off the main menu (not a pop-up: a super admin's account type is
+         a value box with its own pop-up, and two pop-ups don't stack). Email and name, Send, how many are
+         left today, then your own invites that are waiting, each with Cancel. app.js: INVITE SOMEONE. -->
+    <div id="inviteView" class="hidden-group">
+        <p class="theory-intro">Invite someone to The Music Ledger. They get an email with a link to choose a password - it works once, for 7 days.</p>
+        <p class="level-notice mb-4"><strong>Tell them to look in their junk folder.</strong> The email comes from themusicledgerapp@gmail.com and will probably land there.</p>
+        <div class="form-group"><label for="inviteEmailInput">Their email</label><input type="email" id="inviteEmailInput" autocomplete="off" data-form-type="other" maxlength="200" placeholder="e.g. sam@example.com"></div>
+        <div class="form-group"><label for="inviteFirstInput">Their first name</label><input type="text" id="inviteFirstInput" autocomplete="off" data-form-type="other" maxlength="80"></div>
+        <div class="form-group"><label for="inviteSurnameInput">Their surname</label><input type="text" id="inviteSurnameInput" autocomplete="off" data-form-type="other" maxlength="80"></div>
+        <!-- Super admin only: the account type, as a value box opening the choice pop-up. -->
+        <div class="hidden-group mb-4" id="inviteLevelGroup">
+            <button type="button" class="metroBlk-ctrl-value-btn w-full" id="inviteLevelBtn" aria-haspopup="dialog" aria-label="Account type: Standard member - tap to change"><strong>Standard member</strong><span class="metroBlk-ctrl-value-label">account type</span></button>
+        </div>
+        <button type="button" class="btn-submit" id="inviteSendBtn">Send invite</button>
+        <p class="theory-best-line" id="inviteLeftLine" role="status" aria-live="polite"></p>
+        <div id="invitePending"></div>
     </div>
 
     <div id="aboutView" class="hidden-group">

@@ -18,7 +18,9 @@ Gmail account (SMTP) until then.
 
 - **One account per email address**, however you log in. Accepting an invite for an email that already
   logs in with Google adds a password to that same account (its name and type stay as they are).
-- **Invite-only.** Admin → Accounts → "+ Invite by email": email, name, account type (not super admin -
+- **Invite-only.** Any member can invite from the main menu's **Invite someone** (ML-402: feature `invite_members`,
+  always a Standard member, 5 a day - the `invites_per_day` limit - and you see and cancel only your own; a super admin
+  also picks the type there; `/api/invites`, `specs/components/invite.md`). The admin page keeps its own: Admin → Accounts → "+ Invite by email": email, name, account type (not super admin -
   promoting a super admin stays a deliberate change there). The email's link (`/?invite=…`, 7 days, once) opens "choose a password"; saving it
   creates the account (with the invite's name and type) and logs in. A newer invite replaces an older
   one. Unused invites are listed there and can be cancelled.

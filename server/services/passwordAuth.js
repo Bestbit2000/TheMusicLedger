@@ -182,6 +182,28 @@ export async function listPendingInvites() {
   return rows.map(r => ({ id: Number(r.id), email: r.email, firstName: r.first_name, surname: r.surname, accountLevel: r.account_level, createdAt: r.created_at, expiresAt: r.expires_at }));
 }
 
+// ---- invites from the main menu (ML-402): your own, and how many you've sent in the last day ----
+export async function listMyInvites(accountId) {
+  const { rows } = await pool.query(
+    `SELECT l.id, l.email, l.first_name, l.surname, l.account_level, l.created_at, l.expires_at
+       FROM auth_email_links l
+      WHERE l.purpose = 'invite' AND l.used_at IS NULL AND l.expires_at > now() AND l.created_by_account_id = $1
+      ORDER BY l.created_at DESC`, [accountId]);
+  return rows.map(r => ({ id: Number(r.id), email: r.email, firstName: r.first_name, surname: r.surname, accountLevel: r.account_level, createdAt: r.created_at, expiresAt: r.expires_at }));
+}
+// Every invite sent counts, whether it's since been used, cancelled or replaced.
+export async function invitesSentToday(accountId) {
+  const { rows } = await pool.query(
+    "SELECT COUNT(*)::int AS n FROM auth_email_links WHERE purpose = 'invite' AND created_by_account_id = $1 AND created_at > now() - interval '24 hours'", [accountId]);
+  return rows[0].n;
+}
+// Only your own: someone else's invite is "not found", not "not allowed".
+export async function cancelMyInvite(accountId, id) {
+  const { rowCount } = await pool.query(
+    "UPDATE auth_email_links SET used_at = now() WHERE id = $1 AND purpose = 'invite' AND used_at IS NULL AND created_by_account_id = $2", [id, accountId]);
+  if (!rowCount) throw fail(404, 'Invite not found.');
+}
+
 export async function cancelInvite(id) {
   await pool.query("UPDATE auth_email_links SET used_at = now() WHERE id = $1 AND purpose = 'invite' AND used_at IS NULL", [id]);
 }

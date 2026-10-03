@@ -1180,6 +1180,7 @@
         document.getElementById('notificationsNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('notifications'));
         renderNotificationIndicators();
         document.getElementById('feedbackNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('feedback'));
+        renderInviteNav(); // ML-402
         document.getElementById('theoryToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('theory_practice'));
         document.getElementById('scalesToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('scales_practice'));
         // ML-320: Start a practice session replaces Start a challenge.
@@ -1687,7 +1688,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
+    const views = ['mainView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -1834,6 +1835,7 @@
             if (viewName === 'settingsView') { fillSettingsToolIcons(); renderSettingsSummaries(); }
             if (viewName === 'settingsPlaybackView') renderMetroCalibRow(); // ML-347
         }
+        if (viewName === 'inviteView') { document.getElementById('topTitle').innerText = 'Invite someone'; openInviteView(isBack); }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
         if (viewName === 'theoryView') { document.getElementById('topTitle').innerText = 'Theory'; renderTheoryList(); }
         if (viewName === 'scalesView') { document.getElementById('topTitle').innerText = 'Scales'; renderScales(); scalesRenderBpm(); scalesRenderVolume(); scalesUpdatePlayUi(); scalesPlayer.prewarm(); }
@@ -6019,6 +6021,81 @@
         if (search) search.value = '';
     }
     document.getElementById('myMusicAddBtn')?.addEventListener('click', () => switchView('addPieceView'));
+
+    // ---------------------------------------------------------------- INVITE SOMEONE (ML-402)
+    // The main menu's Invite someone (feature invite_members; only while email-and-password login is
+    // on - an invite is that kind of account). A page: email and name, Send, how many are left today
+    // (the invites_per_day limit), then your own invites that are waiting, each with Cancel. A member's
+    // invite always makes a Standard member; a super admin gets an account type value box as well
+    // (data.levels - only sent to a super admin, and only honoured from one). Server: /api/invites.
+    let invitePasswordLoginOn = null; // asked once (/auth/methods) - the menu item needs it
+    let inviteData = null;            // { enabled, limit, left, invites, levels }
+    let inviteLevel = 'standard_member';
+    function renderInviteNav() {
+        const show = () => document.getElementById('inviteNavItem')?.classList.toggle('hidden-group', !(isFeatureEnabled('invite_members') && invitePasswordLoginOn));
+        if (invitePasswordLoginOn !== null) { show(); return; }
+        fetch(`${API_BASE_URL}/auth/methods`).then(r => r.json()).then(m => { invitePasswordLoginOn = !!m.password; show(); }).catch(() => { /* stays hidden */ });
+    }
+    function renderInvite() {
+        const d = inviteData;
+        const on = !!(d && d.enabled);
+        const levels = (d && d.levels) || null;
+        setShown('inviteLevelGroup', on && !!levels);
+        const btn = document.getElementById('inviteLevelBtn');
+        btn.innerHTML = `<strong>${escapeHtml(ACCOUNT_LEVEL_LABELS[inviteLevel] || inviteLevel)}</strong><span class="metroBlk-ctrl-value-label">account type</span>`;
+        btn.setAttribute('aria-label', `Account type: ${ACCOUNT_LEVEL_LABELS[inviteLevel] || inviteLevel} - tap to change`);
+        document.getElementById('inviteSendBtn').disabled = !on || d.left <= 0;
+        document.getElementById('inviteLeftLine').textContent = !d ? '' : !on ? "Invites aren't switched on at the moment."
+            : d.left <= 0 ? `You've sent ${d.limit} invites in the last day - you can send more tomorrow.`
+            : `You can send ${d.left} more ${d.left === 1 ? 'invite' : 'invites'} today.`;
+        const list = document.getElementById('invitePending');
+        const invites = (on && d.invites) || [];
+        const when = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        list.innerHTML = !invites.length ? '' : `<div class="section-title">My invites that are waiting</div>` + invites.map(i => {
+            const who = [i.firstName, i.surname].filter(Boolean).join(' ');
+            return `
+            <div class="history-item">
+                <span class="history-details"><strong>${escapeHtml(i.email)}</strong>${who ? `${escapeHtml(who)} · ` : ''}${levels ? `${escapeHtml(ACCOUNT_LEVEL_LABELS[i.accountLevel] || i.accountLevel)} · ` : ''}sent ${when(i.createdAt)} · works until ${when(i.expiresAt)}</span>
+                <button type="button" class="btn-text btn-text-danger" data-cancel-invite="${i.id}" aria-label="Cancel the invite to ${escapeHtml(i.email)}">Cancel</button>
+            </div>`;
+        }).join('');
+        list.querySelectorAll('[data-cancel-invite]').forEach(b => b.addEventListener('click', () => {
+            showConfirmModal('Cancel invite', 'Cancel this invite? The link in their email stops working.', async () => {
+                try { const res = await apiCall(`/api/invites/${b.dataset.cancelInvite}`, 'DELETE'); inviteData.invites = res.invites; renderInvite(); showSuccessToast('Invite cancelled.'); }
+                catch (e) { showWarningToast('Not cancelled: ' + e.message); }
+            }, true, 'Cancel invite', 'Keep it');
+        }));
+    }
+    // A fresh visit starts with an empty form; coming Back keeps what was typed.
+    async function openInviteView(isBack) {
+        if (!isBack) {
+            ['inviteEmailInput', 'inviteFirstInput', 'inviteSurnameInput'].forEach(id => { document.getElementById(id).value = ''; });
+            inviteLevel = 'standard_member';
+        }
+        renderInvite();
+        try { inviteData = await apiCall('/api/invites'); } catch (e) { inviteData = { enabled: false, invites: [], left: 0, limit: 0, levels: null }; }
+        renderInvite();
+    }
+    document.getElementById('inviteLevelBtn')?.addEventListener('click', () => {
+        const levels = (inviteData && inviteData.levels) || [];
+        openFlowChoiceModal('Account type', levels.map(l => ({ value: l, label: ACCOUNT_LEVEL_LABELS[l] || l, selected: l === inviteLevel })), (opt) => { inviteLevel = opt.value; renderInvite(); });
+    });
+    document.getElementById('inviteSendBtn')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        const email = document.getElementById('inviteEmailInput');
+        if (!email.value.trim()) { showWarningToast('Type their email address first.'); email.focus(); return; }
+        btn.disabled = true;
+        try {
+            const res = await apiCall('/api/invites', 'POST', {
+                email: email.value.trim(), firstName: document.getElementById('inviteFirstInput').value.trim(),
+                surname: document.getElementById('inviteSurnameInput').value.trim(), accountLevel: inviteData && inviteData.levels ? inviteLevel : undefined });
+            inviteData.invites = res.invites;
+            inviteData.left = res.left;
+            ['inviteEmailInput', 'inviteFirstInput', 'inviteSurnameInput'].forEach(id => { document.getElementById(id).value = ''; });
+            showSuccessToast(`Invite sent to ${res.invite.email}. Remind them to look in their junk folder.`);
+        } catch (err) { showWarningToast('Invite not sent: ' + err.message); }
+        renderInvite();
+    });
 
     // ---------------------------------------------------------------- ADD A PIECE (ML-400)
     // One screen before a piece is made: who it's for (you / one of your bands), whether it goes on a

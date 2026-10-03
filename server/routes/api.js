@@ -37,7 +37,7 @@ import { requestUpgrade } from '../services/upgradeRequest.js';
 import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead } from '../services/notifications.js';
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryWeights, getTheoryPlayed } from '../services/theoryPractice.js';
 import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getDrillWeights, getRhythmLevels, setRhythmWord } from '../services/drills.js';
-import { securityStatus, requirePasswordAccount, changeOwnPassword } from '../services/passwordAuth.js';
+import { securityStatus, requirePasswordAccount, changeOwnPassword, passwordLoginEnabled, appUrl, createInvite, listMyInvites, invitesSentToday, cancelMyInvite, INVITE_LEVELS } from '../services/passwordAuth.js';
 import { beginSetup, confirmSetup, newRecoveryCodes, turnOff } from '../services/twoStep.js';
 
 const router = express.Router();
@@ -1301,6 +1301,51 @@ router.post('/metronome/history/:id/duplicate', requireAuth, resolveAccount, asy
 // route here is "Flow". Recordings/documents live in Vercel Blob, not Postgres -
 // see server/services/flows.js.
 // ========================================
+// ========================================
+// INVITES FROM THE MAIN MENU (Jira ML-402) - any member (feature invite_members) can invite someone to
+// the app: always as a Standard member, unless a super admin picks the type. Up to the invites_per_day
+// limit in 24 hours; you see and cancel only your own. Needs password_login Live (an invite is an
+// email-and-password account). The admin page's own invite routes are unchanged (server/routes/admin.js).
+// ========================================
+const INVITES_PER_DAY_DEFAULT = 5;
+async function inviteState(req) {
+  const on = (await isFeatureEnabled('invite_members')) && (await passwordLoginEnabled());
+  const limit = await getLimit('invites_per_day', INVITES_PER_DAY_DEFAULT);
+  const sent = on ? await invitesSentToday(req.accountId) : 0;
+  return { on, limit, left: Math.max(0, limit - sent) };
+}
+router.get('/invites', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { on, limit, left } = await inviteState(req);
+    res.json({ enabled: on, limit, left, invites: on ? await listMyInvites(req.accountId) : [], levels: req.accountLevel === 'super_admin' ? INVITE_LEVELS : null });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/invites', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { on, limit, left } = await inviteState(req);
+    if (!on) throw withStatus(403, "This feature isn't available right now.");
+    if (left <= 0) throw withStatus(429, `You've sent ${limit} invites in the last day - you can send more tomorrow.`);
+    const { email, firstName, surname, accountLevel } = req.body || {};
+    // Only a super admin chooses the type; anyone else's invite is a Standard member whatever was sent.
+    const level = req.accountLevel === 'super_admin' && accountLevel ? accountLevel : 'standard_member';
+    const invite = await createInvite({ email, firstName, surname, accountLevel: level, createdBy: req.accountId, origin: appUrl(req) });
+    res.json({ invite, left: left - 1, invites: await listMyInvites(req.accountId), message: `Invite sent to ${invite.email}` });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.delete('/invites/:id', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    if (!(await isFeatureEnabled('invite_members'))) throw withStatus(403, "This feature isn't available right now.");
+    await cancelMyInvite(req.accountId, req.params.id);
+    res.json({ invites: await listMyInvites(req.accountId), message: 'Invite cancelled' });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.get('/flows', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await listFlows(req.accountId));
