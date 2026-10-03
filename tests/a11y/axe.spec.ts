@@ -36,6 +36,11 @@ const SCREENS: { view: string; name: string }[] = [
     { view: 'theoryView', name: 'Theory' }, // ML-260 (Intervals and Chords with theory_grades on, ML-325)
     { view: 'rangeView', name: 'Range' }, // ML-305 (range_trainer)
     { view: 'rhythmView', name: 'Rhythm' }, // ML-306 (rhythm_trainer)
+    { view: 'toolsView', name: 'All tools' }, // ML-378
+    { view: 'addPieceView', name: 'Add a piece' }, // ML-400
+    { view: 'skillsHubView', name: 'Skills' }, // ML-406
+    { view: 'prepareListView', name: 'Prepare' }, // ML-401
+    { view: 'inviteView', name: 'Invite someone' }, // ML-402
 ];
 
 async function show(page: Page, view: string, dark: boolean) {
