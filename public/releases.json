@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.40.0",
+    "date": "2026-10-04",
+    "changes": [
+      {
+        "key": "ML-428",
+        "type": "New",
+        "summary": "Quick entry makes the whole piece: details first, extras and media as questions, no edit screen after Save"
+      },
+      {
+        "key": "ML-427",
+        "type": "New",
+        "summary": "Admin → Usage: per-bar time for each piece in Recent sessions; tables use the full desktop width"
+      },
+      {
+        "key": "ML-267",
+        "type": "New",
+        "summary": "Third party licence and influences"
+      }
+    ]
+  },
+  {
     "version": "0.39.1",
     "date": "2026-10-04",
     "changes": [
