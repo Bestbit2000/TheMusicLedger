@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.43.0",
+    "date": "2026-10-04",
+    "changes": [
+      {
+        "key": "ML-437",
+        "type": "New",
+        "summary": "Practising: a count-in you choose before a run-through or a practice block; no sub-beats in the run-through"
+      },
+      {
+        "key": "ML-436",
+        "type": "New",
+        "summary": "Practice session: give a Pieces block any piece (\"A different piece...\")"
+      },
+      {
+        "key": "ML-277",
+        "type": "New",
+        "summary": "Admin menu shouldn't scroll with admin page on right"
+      }
+    ]
+  },
+  {
     "version": "0.42.0",
     "date": "2026-10-04",
     "changes": [
