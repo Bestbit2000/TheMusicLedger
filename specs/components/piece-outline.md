@@ -3,9 +3,8 @@
 ## 1. Metadata
 - **Name:** Piece outline (`#pieceOutlineView`, `#outlineExtraModal`: `.step-dots`, `.step-dots-list`, `.step-dot` with `.is-now`, `.outline`, `.outline-pair`, `.outline-three`,
   `.outline-field`, `.outline-field-label`, `.outline-th`, `.outline-list`, `.outline-chips`, `.outline-chip`,
-  `.outline-table`, `.outline-row` with `.outline-row-marks` / `.outline-row-speed`, `.outline-cell-fixed`,
-  `.outline-cell-btn`, `.outline-section-btn`, `.outline-all`, `.outline-bar` with `.is-exception` / `.is-from`,
-  `.outline-bar-sig`, `.outline-tool`, `.outline-shorts`, `.outline-short`, `.outline-sum`, `.outline-extra` with
+  `.outline-table`, `.outline-row` with `.outline-row-marks` / `.outline-row-time` / `.outline-row-speed`, `.outline-sig-cell`, `.outline-cell-fixed`,
+  `.outline-cell-btn`, `.outline-sum`, `.outline-extra` with
   `.has-clash`, `.outline-extra-text`, `.outline-extra-clash`, `.outline-add`)
 - **Category:** Form / stepped set-up
 - **Status:** New (ML-424)
@@ -40,13 +39,15 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   - *Letters or words:* `.outline-table` › `.outline-row.outline-row-marks` (bar, mark). Enter or Tab moves on; a
     new row appears when the last one is typed in.
   - *None:* one line; the step is otherwise empty.
-- **Time:** `.outline-sum` (the exceptions so far) › one `.paint-section` per rehearsal mark: its heading is an
-  `.outline-section-btn` (chevron, "Mark 21", its bars, how many are marked) that opens and closes it - a piece
-  over 60 bars with marks starts with only the first open - and, when open, `.btn-text.outline-all` "All of this
-  section" › `.paint-bars` › `.outline-bar` per bar (`.paint-bar-num` + `.outline-bar-sig`). With no marks there
-  is one section with no heading. Pinned at the bottom (`.paint-toolbox`): `.outline-tool` (the value box "marking
-  bars as", and "Used in this piece" `.outline-shorts` › `.outline-short`) › a pill pair "One bar at a time / From
-  a bar to a bar" › a hint line › Next.
+- **Time (ML-425, a table like Speed):** a line saying what the piece starts in › `.outline-table` ›
+  `.outline-row.outline-row-time` (from bar, the time, for how many bars). The first row is the start
+  (`.outline-cell-fixed` × 3). In a row the time is `.outline-sig-cell`: a text box you type the time signature into
+  ("3/4"; "3 4" is read too) with an `.outline-cell-btn` (the list icon) that opens the shared time signature pop-up
+  - on a phone, tapping the empty box opens the pop-up, since the number keyboard has no slash. A row with "for bars"
+  empty carries on to the next row; with a number it lasts that many bars and then goes back to what it was. A new
+  row appears when the last one is typed in › a check line naming the rows that can't be used ("Row 2") ›
+  `.outline-sum` (what it comes to: "So far: 2/4 1 bar · everything else is 4/4") › Next. It replaced tapping every
+  bar (0.39-0.41): on production no piece had more than five changes, but that step took up to 41 taps.
 - **Speed:** a row for bar 1 changes the fixed Start row (it is the starting speed) and is never an error; the
   check line names the rows that can't be used ("Row 3 can't be used yet"); the blank last row is ignored.
 - **Speed:** `.outline-table` › `.outline-row.outline-row-speed` (from bar, bpm, beat note). The first row is the

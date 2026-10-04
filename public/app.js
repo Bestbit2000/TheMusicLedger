@@ -18680,7 +18680,7 @@
         { key: 'about', name: 'About', stage: 0, label: 'about the piece', question: () => 'What is the piece?' },
         { key: 'howLong', name: 'How long', stage: 1, label: 'how long', question: () => 'How long is the piece?' },
         { key: 'marks', name: 'Rehearsal marks', stage: 1, label: 'rehearsal marks', question: () => 'Where are the rehearsal marks?' },
-        { key: 'time', name: 'Time signatures', stage: 2, label: 'time signatures', question: () => `Which bars aren't ${outlineSigLabel(outline.o.mainSig)}?` },
+        { key: 'time', name: 'Time signatures', stage: 2, label: 'time signatures', question: () => 'Where does the time signature change?' },
         { key: 'speed', name: 'Speed', stage: 2, label: 'speed', question: () => 'Where does the speed change?' },
         { key: 'xIntro', name: 'Intro', stage: 3, label: 'extras', kinds: ['intro'], one: true, add: 'Add the intro', question: () => 'Is there an intro?' },
         { key: 'xRepeats', name: 'Repeats', stage: 3, label: 'repeats', kinds: ['repeat', 'repeatEndings'], add: 'Add a repeat', addMore: 'Add another repeat', question: () => 'Are there any repeats?' },
@@ -18704,7 +18704,6 @@
         sign: { label: 'Sign and jump', sub: 'D.S., D.C., Coda, Fine', icon: 'redo' },
         intro: { label: 'Intro', sub: 'Bars played once before the piece proper', icon: 'first_page' }
     };
-    const OUTLINE_COLLAPSE_OVER_BARS = 60; // a longer piece with marks starts with its sections closed
     var outline = null; // var: switchView and goBack read it
 
     function outlineSigInfo(key) {
@@ -18727,7 +18726,7 @@
                 media: { audio: [], video: [], docs: [] }, // files and links held until Save
                 o: { bars: 32, leadIn: false, mainSig: common ? `public:${common.id}` : null, mainBpm: 120, mainNote: null, markKind: 'numbers', marks: [], time: {}, speeds: [], extras: [] },
                 marksText: '', markRows: [{ bar: '', label: '' }], speedRows: [{ bar: '', bpm: '', noteValue: undefined }],
-                brush: null, mode: 'single', from: null, openSecs: null,
+                timeRows: [{ bar: '', sig: '', key: '', bars: '' }],
                 stats: { startedAtMs: Date.now(), lastInputAtMs: Date.now(), active: 0, taps: 0, keys: 0, tick: null, steps: OUTLINE_STEPS.map(s => ({ step: s.key, seconds: 0, taps: 0, keys: 0, visits: 0 })) }
             };
             outline.stats.steps[0].visits = 1;
@@ -18761,7 +18760,6 @@
 
     function outlineGoStep(n) {
         outline.step = Math.max(0, Math.min(OUTLINE_STEPS.length - 1, n));
-        outline.from = null;
         outline.stats.steps[outline.step].visits += 1;
         renderOutline();
         window.scrollTo({ top: 0 });
@@ -18769,6 +18767,7 @@
     // The outline as blocks, each with its time signature's beats (the journey engine's check needs them),
     // plus what won't work: the extras that clash, and anything the bar-by-bar editor's own check refuses.
     function outlineBuild() {
+        outlineTimeApply(); // the time rows as bars, whatever step is showing
         const built = PieceOutline.buildBlocks(outline.o);
         const blocks = built.blocks.map(b => { const s = outlineSigInfo(b.sig); return { ...b, numerator: s ? s.numerator : 4, denominator: s ? s.denominator : 4, timeSignatureLabel: s ? s.label : '' }; });
         const errors = FlowJourney.checkFlow(blocks).filter(i => i.severity === 'error').map(i => i.message);
@@ -18802,6 +18801,7 @@
             : { about: outlineAboutHtml, howLong: outlineHowLongHtml, marks: outlineMarksHtml, time: outlineTimeHtml, speed: outlineSpeedHtml }[cur.key]();
         document.getElementById('outlineBody').innerHTML = html;
         if (cur.key === 'marks') outlineMarksRefresh();
+        if (cur.key === 'time') outlineTimeRefresh();
         if (cur.key === 'speed') outlineSpeedRefresh();
     }
     // What the Next button says: the step it goes to, or Save on the last one
@@ -18908,72 +18908,89 @@
         chips.innerHTML = o.markKind === 'numbers' ? marks.map(m => `<span class="outline-chip">${escapeHtml(m.label)}</span>`).join('') : '';
     }
 
-    // --- Step 3: time (the exceptions) ---
-    function outlineUsedSigs() {
-        const used = [];
-        Object.values(outline.o.time).forEach(s => { if (s && s !== outline.o.mainSig && !used.includes(s)) used.push(s); });
-        return [...used, outline.o.mainSig];
+    // --- Tempo, 1 of 2: time signatures (ML-425) - a table you type down, like Speed. A row says "from this bar it
+    // is in this time" and carries on until the next row - or, with "for bars" filled in, lasts just that many bars
+    // and then goes back to what it was (one 2/4 bar is one row). The time is typed like 3/4, or picked from the
+    // usual pop-up. It replaced tapping every bar: on production no piece had more than five changes, but that
+    // step took up to 41 taps.
+    // key is '' (not null) while nothing usable is typed: a row counts as blank only when every value is ''
+    const outlineTimeBlank = () => ({ bar: '', sig: '', key: '', bars: '' });
+    // What was typed -> one of the app's time signatures ('public:3' / 'custom:7'), or null
+    function outlineSigFromText(text) {
+        const m = String(text || '').trim().match(/^(\d{1,2})\s*[\/ ]\s*(\d{1,2})$/);
+        if (!m) return null;
+        const hit = (list) => (list || []).find(t => Number(t.numerator) === Number(m[1]) && Number(t.denominator) === Number(m[2]));
+        const shared = hit(metroBlkTimeSigCache.public);
+        if (shared) return `public:${shared.id}`;
+        const own = hit(metroBlkTimeSigCache.custom);
+        return own ? `custom:${own.id}` : null;
+    }
+    const outlineTimeUsable = (r, o) => !!r.key && r.bar !== '' && Number.isInteger(Number(r.bar)) && Number(r.bar) >= 1 && Number(r.bar) <= o.bars
+        && (r.bars === '' || (Number.isInteger(Number(r.bars)) && Number(r.bars) >= 1 && Number(r.bar) + Number(r.bars) - 1 <= o.bars));
+    // The rows -> o.time (the bars that aren't in the main time). Needs no screen, so Save can rely on it.
+    function outlineTimeApply() {
+        const o = outline.o;
+        if (!outline.timeRows || !outline.timeRows.length) outline.timeRows = [outlineTimeBlank()];
+        const rows = outline.timeRows.filter(r => outlineTimeUsable(r, o))
+            .map(r => ({ bar: Number(r.bar), key: r.key, bars: r.bars === '' ? null : Number(r.bars) })).sort((a, b) => a.bar - b.bar);
+        const time = {};
+        const carry = rows.filter(r => r.bars === null);
+        let cur = o.mainSig;
+        let next = 0;
+        for (let b = 1; b <= o.bars; b++) {
+            while (next < carry.length && carry[next].bar === b) { cur = carry[next].key; next++; }
+            if (cur !== o.mainSig) time[b] = cur;
+        }
+        // A row with "for bars" sits on top of that, then the time it interrupted carries on
+        rows.filter(r => r.bars !== null).forEach(r => {
+            for (let b = r.bar; b < r.bar + r.bars; b++) { if (r.key === o.mainSig) delete time[b]; else time[b] = r.key; }
+        });
+        o.time = time;
     }
     function outlineTimeHtml() {
         const o = outline.o;
-        const secs = PieceOutline.sections(o);
-        const multi = secs.length > 1;
-        if (!outline.openSecs) outline.openSecs = new Set(multi && o.bars > OUTLINE_COLLAPSE_OVER_BARS ? [0] : secs.map((s, i) => i));
+        outlineTimeApply();
+        return `
+            <p class="text-sm text-muted no-margin">The piece starts in ${escapeHtml(outlineSigLabel(o.mainSig))}. Add a row for each bar where the time signature changes - type it like 3/4. It carries on from there.</p>
+            <div class="outline-table" id="outlineTimeRows">
+                <div class="outline-row outline-row-time" aria-hidden="true"><span class="outline-th">From bar</span><span class="outline-th">Time</span><span class="outline-th">For bars</span></div>
+                <div class="outline-row outline-row-time"><span class="outline-cell-fixed">Start</span><span class="outline-cell-fixed">${escapeHtml(outlineSigLabel(o.mainSig))}</span><span class="outline-cell-fixed">all</span></div>
+                ${outline.timeRows.map((r, i) => outlineTimeRowHtml(r, i)).join('')}
+            </div>
+            <p class="text-sm text-muted no-margin">Leave "for bars" empty and it carries on to the next change. Fill it in for a bar or two that then go back to what it was - a single 2/4 bar is 1.</p>
+            <p class="text-sm text-muted no-margin" id="outlineTimeCheck" aria-live="polite"></p>
+            <p class="outline-sum no-margin" id="outlineTimeSum"></p>
+            <button type="button" class="btn-submit" data-outline="next">${outlineNextLabel()}</button>`;
+    }
+    const outlineTimeRowHtml = (r, i) => `<div class="outline-row outline-row-time">
+        <input type="number" inputmode="numeric" data-time-row="${i}" data-time-col="bar" value="${escapeHtml(String(r.bar))}" placeholder="bar" aria-label="Row ${i + 1}: from bar" enterkeyhint="next">
+        <span class="outline-sig-cell"><input type="text" data-time-row="${i}" data-time-col="sig" value="${escapeHtml(r.sig)}" placeholder="3/4" maxlength="7" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Row ${i + 1}: time signature, typed like 3/4" enterkeyhint="next"><button type="button" class="outline-cell-btn" data-time-pick="${i}" aria-haspopup="dialog" aria-label="Row ${i + 1}: choose the time signature from the list"><span class="material-symbols-outlined" aria-hidden="true">list</span></button></span>
+        <input type="number" inputmode="numeric" data-time-row="${i}" data-time-col="bars" value="${escapeHtml(String(r.bars))}" placeholder="-" aria-label="Row ${i + 1}: for how many bars - leave empty to carry on" enterkeyhint="next"></div>`;
+    // Reads the rows, says which can't be used yet, and what the piece comes to
+    function outlineTimeRefresh() {
+        const o = outline.o;
+        outlineTimeApply();
+        const bad = outline.timeRows.map((r, i) => ((r.bar !== '' || r.sig !== '' || r.bars !== '') && !outlineTimeUsable(r, o) ? i + 1 : 0)).filter(Boolean);
+        const check = document.getElementById('outlineTimeCheck');
+        if (check) check.innerHTML = bad.length ? `<span class="text-danger">${bad.length === 1 ? `Row ${bad[0]}` : `Rows ${bad.join(', ')}`} can't be used yet: ${bad.length === 1 ? 'it needs' : 'each needs'} a bar from 1 to ${o.bars}, a time signature like 3/4 (or one from the list), and to finish inside the piece.</span>` : '';
         const sum = PieceOutline.timeSummary(o);
         const main = outlineSigLabel(o.mainSig);
-        const barHtml = (b) => {
-            const sig = PieceOutline.sigAt(o, b);
-            const exc = sig !== o.mainSig;
-            return `<button type="button" class="outline-bar${exc ? ' is-exception' : ''}${outline.from === b ? ' is-from' : ''}" data-outline-bar="${b}" aria-pressed="${exc}" aria-label="Bar ${b}, ${escapeHtml(outlineSigLabel(sig))}"><span class="paint-bar-num" aria-hidden="true">${b}</span><span class="outline-bar-sig" aria-hidden="true">${exc ? escapeHtml(outlineSigLabel(sig)) : ''}</span></button>`;
-        };
-        const sections = secs.map((s, i) => {
-            const open = outline.openSecs.has(i);
-            let marked = 0;
-            for (let b = s.from; b <= s.to; b++) if (PieceOutline.sigAt(o, b) !== o.mainSig) marked++;
-            const head = multi ? `<div class="paint-section-head">
-                    <button type="button" class="outline-section-btn" data-outline-toggle="${i}" aria-expanded="${open}"><span class="material-symbols-outlined" aria-hidden="true">${open ? 'expand_more' : 'chevron_right'}</span><strong>${s.label ? `Mark ${escapeHtml(s.label)}` : 'Start'}</strong><span class="text-sm text-muted">bars ${s.from}-${s.to}${marked ? ` · ${marked} marked` : ''}</span></button>
-                    ${open ? `<button type="button" class="btn-text outline-all" data-outline-all="${i}">All of this section</button>` : ''}
-                </div>` : '';
-            let bars = '';
-            if (open) for (let b = s.from; b <= s.to; b++) bars += barHtml(b);
-            return `<div class="paint-section">${head}${open ? `<div class="paint-bars">${bars}</div>` : ''}</div>`;
-        }).join('');
-        const brush = outline.brush;
-        const hint = !brush ? 'Pick what you are marking bars as, then tap the bars.'
-            : outline.mode === 'run'
-                ? (outline.from ? `From bar ${outline.from} - now tap the last bar.` : `Tap the first bar, then the last bar, to mark everything between as ${outlineSigLabel(brush)}.`)
-                : (brush === o.mainSig ? `Tap a marked bar to put it back to ${main}.` : `Tap a bar to mark it ${outlineSigLabel(brush)}. Tap it again to put it back to ${main}.`);
-        return `
-            <p class="outline-sum no-margin" id="outlineTimeSum">${sum.length ? `Marked so far: ${sum.map(x => `<strong>${escapeHtml(outlineSigLabel(x.sig))}</strong> ${x.bars} bar${x.bars === 1 ? '' : 's'}`).join(' · ')} · everything else is ${escapeHtml(main)}` : `Every bar is ${escapeHtml(main)} so far. If that's right, go straight on.`}</p>
-            ${sections}
-            <div class="paint-toolbox">
-                <div class="outline-tool">
-                    ${outlineValueBtn('brush', brush ? outlineSigLabel(brush) : 'Choose', 'marking bars as')}
-                    <div><span class="outline-th">Used in this piece</span><div class="outline-shorts">${outlineUsedSigs().map(s => `<button type="button" class="outline-short${s === brush ? ' selected' : ''}" data-outline-brush="${escapeHtml(s)}" aria-pressed="${s === brush}">${escapeHtml(outlineSigLabel(s))}</button>`).join('')}</div></div>
-                </div>
-                <div class="radio-group" role="radiogroup" aria-label="How to mark the bars">
-                    <input type="radio" id="outlineModeSingle" name="outlineMode" value="single"${outline.mode === 'single' ? ' checked' : ''}><label for="outlineModeSingle">One bar at a time</label>
-                    <input type="radio" id="outlineModeRun" name="outlineMode" value="run"${outline.mode === 'run' ? ' checked' : ''}><label for="outlineModeRun">From a bar to a bar</label>
-                </div>
-                <p class="text-sm text-muted no-margin" aria-live="polite">${escapeHtml(hint)}</p>
-                <button type="button" class="btn-submit no-margin" data-outline="next">Next: speed</button>
-            </div>`;
+        const el = document.getElementById('outlineTimeSum');
+        if (el) el.innerHTML = sum.length ? `So far: ${sum.map(x => `<strong>${escapeHtml(outlineSigLabel(x.sig))}</strong> ${x.bars} bar${x.bars === 1 ? '' : 's'}`).join(' · ')} · everything else is ${escapeHtml(main)}` : `Every bar is ${escapeHtml(main)} so far. If that's right, go straight on.`;
+        return !bad.length;
     }
-    function outlineSetBar(bar, sig) {
-        if (sig === outline.o.mainSig) delete outline.o.time[bar];
-        else outline.o.time[bar] = sig;
+    // The pop-up's answer goes into the row's box as words, exactly as if it had been typed
+    function outlineTimePick(i) {
+        const row = outline.timeRows[i];
+        if (!row) return;
+        outlinePickSig(row.key || outline.o.mainSig, (value) => {
+            row.key = value;
+            row.sig = outlineSigLabel(value);
+            outlineGrowTable(outline.timeRows, outlineTimeBlank, outlineTimeRowHtml, 'outlineTimeRows');
+            outlineRerenderKeeping(`[data-time-row="${i}"][data-time-col="bars"]`);
+        });
     }
-    function outlineTapBar(bar) {
-        const o = outline.o;
-        if (!outline.brush) { showWarningToast('Pick what you are marking bars as first.'); return; }
-        if (outline.mode === 'run') {
-            if (outline.from === null) outline.from = bar;
-            else { for (let b = Math.min(outline.from, bar); b <= Math.max(outline.from, bar); b++) outlineSetBar(b, outline.brush); outline.from = null; }
-        } else {
-            outlineSetBar(bar, PieceOutline.sigAt(o, bar) === outline.brush ? o.mainSig : outline.brush);
-        }
-        outlineRerenderKeeping(`[data-outline-bar="${bar}"]`);
-    }
+
     // Redraws the step and puts keyboard focus back where it was (a redraw throws the buttons away)
     function outlineRerenderKeeping(selector) {
         const y = window.scrollY;
@@ -19333,16 +19350,7 @@
             outlineGoStep(to);
             return;
         }
-        if (t.dataset.outlineBar) { outlineTapBar(Number(t.dataset.outlineBar)); return; }
-        if (t.dataset.outlineToggle !== undefined) { const i = Number(t.dataset.outlineToggle); if (outline.openSecs.has(i)) outline.openSecs.delete(i); else outline.openSecs.add(i); outlineRerenderKeeping(`[data-outline-toggle="${i}"]`); return; }
-        if (t.dataset.outlineAll !== undefined) {
-            if (!outline.brush) { showWarningToast('Pick what you are marking bars as first.'); return; }
-            const s = PieceOutline.sections(o)[Number(t.dataset.outlineAll)];
-            for (let b = s.from; b <= s.to; b++) outlineSetBar(b, outline.brush);
-            outlineRerenderKeeping(`[data-outline-all="${t.dataset.outlineAll}"]`);
-            return;
-        }
-        if (t.dataset.outlineBrush) { outline.brush = t.dataset.outlineBrush; outline.from = null; outlineRerenderKeeping(`[data-outline-brush="${t.dataset.outlineBrush}"]`); return; }
+        if (t.dataset.timePick !== undefined) { outlineTimePick(Number(t.dataset.timePick)); return; }
         if (t.dataset.outlineExtra !== undefined) { outlineOpenExtra(Number(t.dataset.outlineExtra)); return; }
         if (t.dataset.outlineMediaRemove !== undefined) { outline.media[OUTLINE_STEPS[outline.step].media].splice(Number(t.dataset.outlineMediaRemove), 1); renderOutline(); return; }
         if (t.dataset.speedNote !== undefined) {
@@ -19366,9 +19374,7 @@
             outlineHowLongKeep();
             outlinePickNote(o.mainNote, (note) => { o.mainNote = note; renderOutline(); });
         } else if (action === 'markKind') {
-            openFlowChoiceModal('The marks are', OUTLINE_MARK_KINDS.map(k => ({ key: k.key, selected: k.key === o.markKind, html: `<span><strong>${k.label}</strong><br><span class="text-sm text-muted">${k.sub}</span></span>` })), (opt) => { o.markKind = opt.key; outline.openSecs = null; renderOutline(); });
-        } else if (action === 'brush') {
-            outlinePickSig(outline.brush, (value) => { outline.brush = value; outline.from = null; outlineRerenderKeeping('[data-outline="brush"]'); });
+            openFlowChoiceModal('The marks are', OUTLINE_MARK_KINDS.map(k => ({ key: k.key, selected: k.key === o.markKind, html: `<span><strong>${k.label}</strong><br><span class="text-sm text-muted">${k.sub}</span></span>` })), (opt) => { o.markKind = opt.key; renderOutline(); });
         } else if (action === 'addExtra' || action === 'pickFile') {
             outlineAddForStep(OUTLINE_STEPS[outline.step]);
         } else if (action === 'addVideo') {
@@ -19384,7 +19390,8 @@
         if (cur.key === 'about') Object.keys(outline.about).forEach(k => { outline.about[k] = outline.about[k].trim(); });
         if (cur.kinds && outlineStepExtras(cur).some(({ i }) => outlineBuild().clashes.find(c => c.extra === i))) { showWarningToast('Fix what is marked before going on.'); return false; }
         if (cur.key === 'howLong' && !outlineHowLongRead()) return false;
-        if (cur.key === 'marks') { outlineMarksRefresh(); outline.openSecs = null; }
+        if (cur.key === 'marks') outlineMarksRefresh();
+        if (cur.key === 'time' && !outlineTimeRefresh()) { showWarningToast('Finish or empty the rows that are marked.'); return false; }
         if (cur.key === 'speed' && !outlineSpeedRefresh()) { showWarningToast('Finish or empty the rows that are marked.'); return false; }
         // A bar 1 row has done its job (it set the starting speed) - it doesn't stay to undo a later change on step 1
         if (cur.key === 'speed') outline.speedRows = outline.speedRows.filter(r => Number(r.bar) !== 1 || r.bar === '');
@@ -19399,7 +19406,6 @@
         if (!outline) return;
         if (e.target.name === 'outlineLeadIn') outline.o.leadIn = e.target.value === 'yes';
         if (e.target.name === 'outlineAnswer') outlineAnswer(e.target.value);
-        if (e.target.name === 'outlineMode') { outline.mode = e.target.value; outline.from = null; outlineRerenderKeeping(`#${e.target.id}`); }
     });
     // A table's last row filling in adds the next one (the rows already there are left alone, so typing isn't interrupted)
     function outlineGrowTable(rows, blank, rowHtml, tableId) {
@@ -19419,11 +19425,25 @@
             outlineMarksRefresh();
             return;
         }
+        if (t.dataset.timeRow !== undefined) {
+            const row = outline.timeRows[Number(t.dataset.timeRow)];
+            row[t.dataset.timeCol] = t.value;
+            if (t.dataset.timeCol === 'sig') row.key = outlineSigFromText(t.value) || '';
+            outlineGrowTable(outline.timeRows, outlineTimeBlank, outlineTimeRowHtml, 'outlineTimeRows');
+            outlineTimeRefresh();
+            return;
+        }
         if (t.dataset.speedRow !== undefined) {
             outline.speedRows[Number(t.dataset.speedRow)][t.dataset.speedCol] = t.value;
             outlineGrowTable(outline.speedRows, () => ({ bar: '', bpm: '', noteValue: undefined }), outlineSpeedRowHtml, 'outlineSpeedRows');
             outlineSpeedRefresh();
         }
+    });
+    outlineView?.addEventListener('focusin', (e) => {
+        const t = e.target;
+        if (!outline || t.dataset.timeCol !== 'sig' || t.value || !window.matchMedia('(pointer: coarse)').matches) return;
+        t.blur();
+        outlineTimePick(Number(t.dataset.timeRow));
     });
     // Enter (Next / Done on a phone's keyboard) moves to the next box, like Tab
     [outlineView, document.getElementById('outlineExtraForm')].forEach(root => root?.addEventListener('keydown', (e) => {

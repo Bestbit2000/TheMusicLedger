@@ -26,7 +26,7 @@ whole piece is made in Quick entry - it never opens the edit screen, so one piec
 | About | `about` | Name (**required**), composer, arranger, publisher, notes | `outline.about` |
 | Structure | `howLong` | Bars, a count-in bar (yes/no), the time signature, bpm and beat note most of it is in | `bars`, `leadIn`, `mainSig`, `mainBpm`, `mainNote` |
 | | `marks` | Bar numbers (a typed list - spaces, commas, semicolons, full stops all separate; each mark is named after its bar), letters or words (a table: bar, mark), or none | `markKind`, `marks: [{ bar, label }]` |
-| Tempo (was "Time and speed") | `time` | The bars that aren't the main time signature - tap a bar, or a first and a last bar; "All of this section" | `time: { bar: sig }` |
+| Tempo (was "Time and speed") | `time` | A table: from bar, the time signature (typed like `3/4`, or picked from the usual pop-up), for how many bars. "For bars" empty: it carries on to the next row. Filled in: it lasts that many bars, then goes back to what it was (one 2/4 bar is one row). ML-425 - it replaced tapping every bar | `outline.timeRows` → `time: { bar: sig }` (`outlineTimeApply`) |
 | | `speed` | A table: from bar, bpm, beat note. A row's beat note carries on from the row above unless set. A row for bar 1 sets the starting speed (`mainBpm`) instead of being a change; a wholly blank row is ignored; a row that can't be used is named ("Row 3") | `speeds: [...]` |
 | Extras | `xIntro` | Is there an intro? (one at most) | `extras: [...]` |
 | | `xRepeats` | Are there any repeats? (plain, or with 1st and 2nd endings) | |

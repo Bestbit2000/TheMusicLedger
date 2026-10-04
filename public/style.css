@@ -2748,22 +2748,13 @@
     .outline-row { display: grid; gap: var(--space-2); align-items: center; }
     .outline-row-marks { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
     .outline-row-speed { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    /* ML-425: the time signature table - from bar, the time (a box you type 3/4 into, with the list button beside it), for how many bars */
+    .outline-row-time { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 2fr); }
+    .outline-sig-cell { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1); align-items: center; }
+    .outline-sig-cell input { text-align: center; }
     .outline-cell-fixed, .outline-cell-btn { min-height: var(--touch-target); display: grid; place-items: center; padding: 0 var(--space-2); border-radius: var(--radius-lg); font: inherit; font-size: var(--font-sm); color: var(--label-color); box-sizing: border-box; }
     .outline-cell-fixed { border: 1px dashed var(--control-border); }
     .outline-cell-btn { border: 2px solid var(--control-border); background: var(--input-bg); color: var(--text-color); font-weight: var(--font-weight-bold); cursor: pointer; }
-    /* A section's heading is a button that opens and closes it (long pieces start closed) */
-    .outline-section-btn { flex: 1; min-width: 0; min-height: var(--touch-target); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding: 0; border: 0; background: none; font: inherit; color: var(--text-color); text-align: left; cursor: pointer; }
-    .outline-all { flex: none; width: auto; margin: 0; padding: 0; }
-    /* A bar: its number, and its time signature when it isn't the main one */
-    .outline-bar { position: relative; aspect-ratio: 1; min-height: var(--touch-target); display: grid; place-items: center; padding: 0; border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--label-color); font: inherit; cursor: pointer; }
-    .outline-bar.is-exception { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
-    .outline-bar.is-from { box-shadow: var(--focus-ring); }
-    .outline-bar-sig { margin-top: var(--space-2); font-size: var(--font-xs); font-weight: var(--font-weight-bold); }
-    /* The tool: what you're marking bars as (a value box), and the ones already used as shortcuts */
-    .outline-tool { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: var(--space-3); align-items: center; }
-    .outline-shorts { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
-    .outline-short { min-width: var(--touch-target); min-height: var(--touch-target); padding: 0 var(--space-2); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font: inherit; font-size: var(--font-sm); font-weight: var(--font-weight-bold); cursor: pointer; }
-    .outline-short.selected { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
     .outline-sum { font-size: var(--font-xs); color: var(--label-color); }
     .outline-sum strong { color: var(--text-color); }
     /* An extra, in words; one that clashes is red with the bar editor's warning triangle */
