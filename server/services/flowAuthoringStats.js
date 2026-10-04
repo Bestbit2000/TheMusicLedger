@@ -44,7 +44,8 @@ export function currentAppVersion() {
 
 const KINDS = ['create', 'edit'];
 const CREATION_SOURCES = ['manual', 'from_file', 'quick']; // quick: ML-424, a piece entered as an outline
-const QUICK_STEPS = ['howLong', 'marks', 'time', 'speed', 'extras'];
+// 'extras' is the single Extras step of 0.39 (ML-424); ML-428 split it into one question a step and added About and Media.
+const QUICK_STEPS = ['about', 'howLong', 'marks', 'time', 'speed', 'extras', 'xIntro', 'xRepeats', 'xPauses', 'xRamps', 'xSigns', 'mAudio', 'mVideo', 'mDocs'];
 // ML-424: the per-step figures and what the piece held - only known shapes are kept
 function cleanSteps(steps) {
   if (!Array.isArray(steps)) return null;

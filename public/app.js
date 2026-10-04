@@ -7020,7 +7020,22 @@
         try { localStorage.setItem(SESS_LAST_STORE, JSON.stringify({ minutes: sessPlan.minutes, open: sessPlan.open, template: templateKey(sessPlan.template), source: sessPlan.source, auto: sessPlan.auto })); } catch (e) { /* per-device convenience */ }
     }
 
-    // --- Step 1: how long ---
+    // --- About: what the piece is. Only the name is needed. ---
+    function outlineAboutHtml() {
+        const a = outline.about;
+        // "title", not "name", in the ids: some password managers fill a "name" box with the person's own
+        const field = (key, label, placeholder, required) => `<div class="form-group no-margin"><label for="outlineAbout-${key}">${label}${required ? ' <span class="flow-required">(required)</span>' : ''}</label><input type="text" id="outlineAbout-${key}" data-about="${key}" value="${escapeHtml(a[key])}" maxlength="${key === 'title' ? 120 : 200}" placeholder="${placeholder}" autocomplete="off" enterkeyhint="next"></div>`;
+        return `
+            ${field('title', 'Name of the piece', 'e.g. Symphony No. 5', true)}
+            ${field('composer', 'Composer', 'e.g. Ralph Vaughan Williams')}
+            ${field('arranger', 'Arranger', 'e.g. Gordon Langford')}
+            ${field('publisher', 'Publisher', 'e.g. Studio Music Co.')}
+            <div class="form-group no-margin"><label for="outlineAbout-notes">Notes</label><textarea id="outlineAbout-notes" data-about="notes" rows="3" maxlength="2000" placeholder="Rehearsal notes, solo cues...">${escapeHtml(a.notes)}</textarea></div>
+            <button type="button" class="btn-submit" data-outline="next">${outlineNextLabel()}</button>
+            <button type="button" class="btn-text" data-outline="restart">Start again</button>`;
+    }
+
+    // --- Structure: how long ---
     // opts: { source, template } - e.g. from a practice list's "Plan a session for this".
     async function openSessionSetup(opts) {
         const o = opts || {};
@@ -18589,20 +18604,36 @@
     document.getElementById('theoryBlockNextBtn')?.addEventListener('click', theoryBlockNext);
 
     // ========================================
-    // QUICK PIECE ENTRY (Jira ML-424) - a new piece entered as an outline, by the bar numbers on the music:
-    // 1 How long (bars, count-in, the main time and speed), 2 Marks (bar numbers / letters or words / none),
-    // 3 Time (the bars that aren't the main time signature), 4 Speed (the bars where it changes),
-    // 5 Extras (repeats, pauses, speeding up, signs, intro). Save turns the outline into the same blocks
-    // "Create your own" makes - the rules are public/pieceOutline.js (docs/quick-piece-entry.md) - and
-    // opens the piece's details so it can be named. New pieces only; a piece is changed afterwards in the
-    // bar-by-bar editor. Timed, step by step, as an ML-199 authoring session (creation source 'quick').
+    // QUICK PIECE ENTRY (Jira ML-424, ML-428) - a new piece entered as an outline, by the bar numbers on the
+    // music. Five stages across the top, with steps inside each (ML-428, owner 4 Oct 2026):
+    //   About          - name (required), composer, arranger, publisher, notes
+    //   Structure      - how long (bars, count-in, the main time and speed), then the rehearsal marks
+    //   Time and speed - the bars that aren't the main time signature, then the bars where the speed changes
+    //   Extras         - one yes/no question at a time: an intro? repeats? pauses? speeding up? signs and jumps?
+    //   Media          - a recording? a YouTube link? a score or part? - then Save
+    // Save turns the outline into the same blocks "Create your own" makes - the rules are
+    // public/pieceOutline.js (docs/quick-piece-entry.md) - saves the details and the media with it, and
+    // goes back to where Add a piece was opened from. It never opens the edit screen, so the whole piece
+    // is one ML-199 authoring session (creation source 'quick'), timed step by step. New pieces only; a
+    // piece is changed afterwards in the bar-by-bar editor.
     // ========================================
+    const OUTLINE_STAGES = [{ name: 'About' }, { name: 'Structure' }, { name: 'Time and speed' }, { name: 'Extras' }, { name: 'Media' }];
+    // `label` is what the step before calls it on its Next button. An Extras step has `kinds` (the extras
+    // it asks about); a Media step has `media` (which list in outline.media).
     const OUTLINE_STEPS = [
-        { key: 'howLong', name: 'How long', question: () => 'How long is the piece?' },
-        { key: 'marks', name: 'Marks', question: () => 'Where are the rehearsal marks?' },
-        { key: 'time', name: 'Time', question: () => `Which bars aren't ${outlineSigLabel(outline.o.mainSig)}?` },
-        { key: 'speed', name: 'Speed', question: () => 'Where does the speed change?' },
-        { key: 'extras', name: 'Extras', question: () => 'Anything else in the piece?' }
+        { key: 'about', stage: 0, label: 'about the piece', question: () => 'What is the piece?' },
+        { key: 'howLong', stage: 1, label: 'how long', question: () => 'How long is the piece?' },
+        { key: 'marks', stage: 1, label: 'rehearsal marks', question: () => 'Where are the rehearsal marks?' },
+        { key: 'time', stage: 2, label: 'time signatures', question: () => `Which bars aren't ${outlineSigLabel(outline.o.mainSig)}?` },
+        { key: 'speed', stage: 2, label: 'speed', question: () => 'Where does the speed change?' },
+        { key: 'xIntro', stage: 3, label: 'extras', kinds: ['intro'], one: true, add: 'Add the intro', question: () => 'Is there an intro?' },
+        { key: 'xRepeats', stage: 3, label: 'repeats', kinds: ['repeat', 'repeatEndings'], add: 'Add a repeat', addMore: 'Add another repeat', question: () => 'Are there any repeats?' },
+        { key: 'xPauses', stage: 3, label: 'pauses', kinds: ['pause'], add: 'Add a pause or break', addMore: 'Add another pause or break', question: () => 'Are there any pauses or breaks?' },
+        { key: 'xRamps', stage: 3, label: 'speeding up and slowing down', kinds: ['ramp'], add: 'Add one', addMore: 'Add another', question: () => 'Does it speed up or slow down anywhere?' },
+        { key: 'xSigns', stage: 3, label: 'signs and jumps', kinds: ['sign'], add: 'Add a sign or jump', addMore: 'Add another sign or jump', question: () => 'Are there any signs or jumps?' },
+        { key: 'mAudio', stage: 4, label: 'media', media: 'audio', icon: 'music_note', add: 'Choose a recording', addMore: 'Add another recording', question: () => 'Is there a recording to add?' },
+        { key: 'mVideo', stage: 4, label: 'YouTube', media: 'video', icon: 'smart_display', question: () => 'Is there a YouTube link to add?' },
+        { key: 'mDocs', stage: 4, label: 'scores and parts', media: 'docs', icon: 'description', add: 'Choose a file', addMore: 'Add another file', question: () => 'Is there a score or part to add?' }
     ];
     const OUTLINE_MARK_KINDS = [
         { key: 'numbers', label: 'Bar numbers', sub: 'Each mark is the number of its bar - 7, 21, 30...' },
@@ -18634,7 +18665,10 @@
         if (!outline) {
             const common = metroBlkTimeSigCache.public.find(t => t.numerator === 4 && t.denominator === 4) || metroBlkTimeSigCache.public[0];
             outline = {
-                step: 0, target, name: '',
+                step: 0, target,
+                about: { title: '', composer: '', arranger: '', publisher: '', notes: '' },
+                answers: {}, // step key -> 'yes' | 'no', for the Extras and Media questions
+                media: { audio: [], video: [], docs: [] }, // files and links held until Save
                 o: { bars: 32, leadIn: false, mainSig: common ? `public:${common.id}` : null, mainBpm: 120, mainNote: null, markKind: 'numbers', marks: [], time: {}, speeds: [], extras: [] },
                 marksText: '', markRows: [{ bar: '', label: '' }], speedRows: [{ bar: '', bpm: '', noteValue: undefined }],
                 brush: null, mode: 'single', from: null, openSecs: null,
@@ -18689,18 +18723,24 @@
         if (!outline) return;
         const st = outline.stats;
         if (!st.tick) st.tick = setInterval(outlineStatsTick, 1000);
-        const step = outline.step;
+        const cur = OUTLINE_STEPS[outline.step];
         const steps = document.getElementById('outlineSteps');
-        steps.setAttribute('aria-label', `Adding a piece, step ${step + 1} of ${OUTLINE_STEPS.length}`);
-        steps.innerHTML = OUTLINE_STEPS.map((s, i) => (i < step
-            ? `<li class="steps-progress-step is-done"><button type="button" class="steps-progress-back" data-outline-step="${i}" aria-label="Back to ${s.name}"><span class="material-symbols-outlined" aria-hidden="true">check</span>${s.name}</button></li>`
-            : `<li class="steps-progress-step${i === step ? ' is-now" aria-current="step' : ''}">${s.name}</li>`)).join('');
-        document.getElementById('outlineQuestion').textContent = OUTLINE_STEPS[step].question();
-        const body = document.getElementById('outlineBody');
-        body.innerHTML = { howLong: outlineHowLongHtml, marks: outlineMarksHtml, time: outlineTimeHtml, speed: outlineSpeedHtml, extras: outlineExtrasHtml }[outlineStepKey()]();
-        if (outlineStepKey() === 'marks') outlineMarksRefresh();
-        if (outlineStepKey() === 'speed') outlineSpeedRefresh();
+        steps.setAttribute('aria-label', `Adding a piece, stage ${cur.stage + 1} of ${OUTLINE_STAGES.length}: ${OUTLINE_STAGES[cur.stage].name}`);
+        // A finished stage is a button back to its first step
+        steps.innerHTML = OUTLINE_STAGES.map((s, i) => (i < cur.stage
+            ? `<li class="steps-progress-step is-done"><button type="button" class="steps-progress-back" data-outline-step="${OUTLINE_STEPS.findIndex(x => x.stage === i)}" aria-label="Back to ${s.name}"><span class="material-symbols-outlined" aria-hidden="true">check</span>${s.name}</button></li>`
+            : `<li class="steps-progress-step${i === cur.stage ? ' is-now" aria-current="step' : ''}">${s.name}</li>`)).join('');
+        document.getElementById('outlineQuestion').textContent = cur.question();
+        const inStage = OUTLINE_STEPS.filter(x => x.stage === cur.stage);
+        const where = inStage.length > 1 ? `<p class="text-sm text-muted no-margin">${OUTLINE_STAGES[cur.stage].name}: ${inStage.indexOf(cur) + 1} of ${inStage.length}</p>` : '';
+        const html = cur.kinds ? outlineExtrasStepHtml(cur) : cur.media ? outlineMediaStepHtml(cur)
+            : { about: outlineAboutHtml, howLong: outlineHowLongHtml, marks: outlineMarksHtml, time: outlineTimeHtml, speed: outlineSpeedHtml }[cur.key]();
+        document.getElementById('outlineBody').innerHTML = where + html;
+        if (cur.key === 'marks') outlineMarksRefresh();
+        if (cur.key === 'speed') outlineSpeedRefresh();
     }
+    // What the Next button says: the step it goes to, or Save on the last one
+    const outlineNextLabel = () => { const next = OUTLINE_STEPS[outline.step + 1]; return next ? `Next: ${next.label}` : 'Save the piece'; };
     const outlineValueBtn = (action, value, label) => `<button type="button" class="metroBlk-ctrl-value-btn w-full" data-outline="${action}" aria-haspopup="dialog" aria-label="${escapeHtml(label)}: ${escapeHtml(value)} - tap to change"><strong>${escapeHtml(value)}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(label)}</span></button>`;
     const outlineNumField = (id, value, label, attrs = '') => `<label class="outline-field"><input type="number" inputmode="numeric" id="${id}" value="${value === null || value === undefined ? '' : escapeHtml(String(value))}" enterkeyhint="next" ${attrs}><span class="outline-field-label">${escapeHtml(label)}</span></label>`;
     function outlineSummaryText() {
@@ -18713,7 +18753,6 @@
     function outlineHowLongHtml() {
         const o = outline.o;
         return `
-            <label class="outline-field"><input type="text" id="outlineName" value="${escapeHtml(outline.name)}" maxlength="120" placeholder="Name it now or later" autocomplete="off" enterkeyhint="next"><span class="outline-field-label">name of the piece</span></label>
             ${outlineNumField('outlineBars', o.bars, 'bars in the piece', 'min="1" max="2000"')}
             <div>
                 <span class="outline-th" id="outlineLeadInLabel">A count-in bar before bar 1?</span>
@@ -18729,15 +18768,13 @@
                 ${outlineValueBtn('mainNote', outlineNoteLabel(o.mainNote), 'beat note')}
             </div>
             <p class="text-sm text-muted no-margin">The bars that are different come in steps 3 and 4.</p>
-            <button type="button" class="btn-submit" data-outline="next">Next: rehearsal marks</button>
-            <button type="button" class="btn-text" data-outline="restart">Start again</button>`;
+            <button type="button" class="btn-submit" data-outline="next">Next: rehearsal marks</button>`;
     }
     function outlineHowLongRead() {
         const bars = Number(document.getElementById('outlineBars')?.value);
         if (!Number.isInteger(bars) || bars < 1 || bars > PieceOutline.MAX_BARS) { showWarningToast(`How many bars? 1 to ${PieceOutline.MAX_BARS}.`); return false; }
         if (!outline.o.mainSig) { showWarningToast('Pick the time signature most of it is in.'); return false; }
         outline.o.bars = bars;
-        outline.name = (document.getElementById('outlineName')?.value || '').trim();
         return true;
     }
     function outlinePickSig(current, onPick) {
@@ -18893,7 +18930,7 @@
             <p class="text-sm text-muted no-margin">The beat note stays the same as the row above unless you change it.</p>
             <p class="text-sm text-muted no-margin" id="outlineSpeedCheck" aria-live="polite"></p>
             <p class="outline-sum no-margin" id="outlineSpeedSum"></p>
-            <button type="button" class="btn-submit" data-outline="next">Next: extras</button>`;
+            <button type="button" class="btn-submit" data-outline="next">${outlineNextLabel()}</button>`;
     }
     const outlineSpeedRowHtml = (r, i) => `<div class="outline-row outline-row-speed">
         <input type="number" inputmode="numeric" data-speed-row="${i}" data-speed-col="bar" value="${escapeHtml(String(r.bar))}" placeholder="bar" aria-label="Row ${i + 1}: from bar" enterkeyhint="next">
@@ -18922,12 +18959,23 @@
         return !bad.length;
     }
 
-    // --- Step 5: extras ---
-    function outlineExtrasHtml() {
-        const o = outline.o;
+    // --- Extras and Media: one yes/no question a step. Yes lets you add as many as there are; No moves on. ---
+    const outlineStepExtras = (step) => outline.o.extras.map((x, i) => ({ x, i })).filter(e => step.kinds.includes(e.x.type));
+    const outlineStepCount = (step) => (step.kinds ? outlineStepExtras(step).length : outline.media[step.media].length);
+    // Anything already added answers the question; otherwise it's what was tapped (or nothing yet)
+    const outlineAnswerOf = (step) => (outlineStepCount(step) ? 'yes' : (outline.answers[step.key] || ''));
+    const outlineYesNo = (step) => {
+        const a = outlineAnswerOf(step);
+        return `<div class="radio-group" role="radiogroup" aria-labelledby="outlineQuestion">
+                <input type="radio" id="outlineAnswerYes" name="outlineAnswer" value="yes"${a === 'yes' ? ' checked' : ''}><label for="outlineAnswerYes">Yes</label>
+                <input type="radio" id="outlineAnswerNo" name="outlineAnswer" value="no"${a === 'no' ? ' checked' : ''}><label for="outlineAnswerNo">No</label>
+            </div>`;
+    };
+    function outlineExtrasStepHtml(step) {
         const built = outlineBuild();
+        const mine = outlineStepExtras(step);
         const clashOf = (i) => built.clashes.find(c => c.extra === i);
-        const rows = o.extras.map((x, i) => {
+        const rows = mine.map(({ x, i }) => {
             const d = PieceOutline.describeExtra(x);
             const clash = clashOf(i);
             return `<button type="button" class="outline-extra${clash ? ' has-clash' : ''}" data-outline-extra="${i}" aria-haspopup="dialog">
@@ -18935,17 +18983,97 @@
                 <span class="outline-extra-text"><strong>${escapeHtml(d.title)}</strong><span class="text-sm text-muted">${escapeHtml(d.sub)}</span>${clash ? `<span class="outline-extra-clash">${flowWarningIconSvg('flow-tile-warning-icon')}<span>${escapeHtml(clash.message)}</span></span>` : ''}</span>
                 <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span></button>`;
         }).join('');
-        const blocked = built.clashes.length || built.errors.length;
-        const other = built.clashes.length ? '' : built.errors.map(m => `<p class="outline-extra-clash">${flowWarningIconSvg('flow-tile-warning-icon')}<span>${escapeHtml(m)}</span></p>`).join('');
+        const yes = outlineAnswerOf(step) === 'yes';
+        const canAdd = yes && !(step.one && mine.length);
+        const blocked = mine.some(({ i }) => clashOf(i));
         return `
-            <p class="text-sm text-muted no-margin">Repeats, pauses, speeding up or slowing down, signs and jumps. Add each one by its bar numbers. None? Just save.</p>
-            ${rows}
-            <button type="button" class="outline-add" data-outline="addExtra" aria-haspopup="dialog">+ Add an extra</button>
-            ${other}
+            ${outlineYesNo(step)}
+            ${yes ? rows : ''}
+            ${canAdd ? `<button type="button" class="outline-add" data-outline="addExtra" aria-haspopup="dialog">+ ${mine.length ? step.addMore : step.add}</button>` : ''}
+            ${blocked ? '<p class="text-sm text-danger no-margin" role="alert">Fix what is marked before going on.</p>' : ''}
             <p class="outline-sum no-margin">${outlineSummaryText()}</p>
-            ${blocked ? `<p class="text-sm text-danger no-margin" role="alert">${built.clashes.length === 1 ? 'One extra needs' : built.clashes.length ? `${built.clashes.length} extras need` : 'Something needs'} fixing before the piece can be saved.</p>` : ''}
-            <button type="button" class="btn-submit" data-outline="save"${blocked ? ' disabled' : ''}>Save the piece</button>`;
+            <button type="button" class="btn-submit" data-outline="next">${outlineNextLabel()}</button>`;
     }
+    function outlineMediaStepHtml(step) {
+        const items = outline.media[step.media];
+        const yes = outlineAnswerOf(step) === 'yes';
+        const sizeOf = (f) => (f.size ? `${(f.size / (1024 * 1024)).toFixed(1)} MB` : '');
+        // A row is the button that takes it out again
+        const rows = items.map((f, i) => {
+            const title = step.media === 'video' ? (f.title || 'YouTube video') : f.name;
+            return `<button type="button" class="outline-extra" data-outline-media-remove="${i}" aria-label="Remove ${escapeHtml(title)}">
+                <span class="material-symbols-outlined" aria-hidden="true">${step.icon}</span>
+                <span class="outline-extra-text"><strong>${escapeHtml(title)}</strong><span class="text-sm text-muted">${escapeHtml(step.media === 'video' ? f.url : sizeOf(f))}</span></span>
+                <span class="material-symbols-outlined" aria-hidden="true">close</span></button>`;
+        }).join('');
+        const add = step.media === 'video'
+            ? `<div class="form-group no-margin"><label for="outlineVideoUrl">YouTube link</label><input type="url" id="outlineVideoUrl" inputmode="url" placeholder="https://youtu.be/..." autocomplete="off" enterkeyhint="next"></div>
+               <div class="form-group no-margin"><label for="outlineVideoTitle">What to call it (optional)</label><input type="text" id="outlineVideoTitle" maxlength="120" autocomplete="off" enterkeyhint="done"></div>
+               <button type="button" class="outline-add" data-outline="addVideo">+ Add the link</button>`
+            : `<button type="button" class="outline-add" data-outline="pickFile">+ ${items.length ? step.addMore : step.add}</button>
+               <p class="text-sm text-muted no-margin">Files are uploaded when you save the piece.</p>`;
+        const last = outline.step === OUTLINE_STEPS.length - 1;
+        let end = '';
+        let blocked = false;
+        if (last) {
+            const built = outlineBuild();
+            blocked = !!(built.clashes.length || built.errors.length);
+            const other = built.clashes.length ? '' : built.errors.map(m => `<p class="outline-extra-clash">${flowWarningIconSvg('flow-tile-warning-icon')}<span>${escapeHtml(m)}</span></p>`).join('');
+            end = `${other}<p class="outline-sum no-margin">${outlineSummaryText()}</p>
+                ${blocked ? '<p class="text-sm text-danger no-margin" role="alert">Something in Extras needs fixing before the piece can be saved. Tap Extras at the top to go back to it.</p>' : ''}`;
+        }
+        return `
+            ${outlineYesNo(step)}
+            ${yes ? rows + add : ''}
+            ${end}
+            <button type="button" class="btn-submit" data-outline="${last ? 'save' : 'next'}"${blocked ? ' disabled' : ''}>${outlineNextLabel()}</button>`;
+    }
+    // Yes opens the way to add one straight away; No moves on (after taking out anything added here)
+    function outlineAddForStep(step) {
+        if (step.kinds) {
+            if (step.kinds.length === 1) { outlineOpenExtra(null, step.kinds[0]); return; }
+            openFlowChoiceModal('Which kind?', step.kinds.map(k => ({ key: k, html: `<span class="material-symbols-outlined" aria-hidden="true">${OUTLINE_EXTRAS[k].icon}</span><span><strong>${OUTLINE_EXTRAS[k].label}</strong><br><span class="text-sm text-muted">${OUTLINE_EXTRAS[k].sub}</span></span>` })), (opt) => outlineOpenExtra(null, opt.key));
+        } else if (step.media === 'video') {
+            document.getElementById('outlineVideoUrl')?.focus();
+        } else {
+            document.getElementById(step.media === 'audio' ? 'outlineAudioInput' : 'outlineDocsInput')?.click();
+        }
+    }
+    function outlineAnswer(value) {
+        const step = OUTLINE_STEPS[outline.step];
+        const count = outlineStepCount(step);
+        const moveOn = () => { if (outline.step < OUTLINE_STEPS.length - 1) outlineGoStep(outline.step + 1); else renderOutline(); };
+        if (value === 'no' && count) {
+            showConfirmModal('Take them out?', `No takes out what you added here (${count}).`, () => {
+                if (step.kinds) outline.o.extras = outline.o.extras.filter(x => !step.kinds.includes(x.type));
+                else outline.media[step.media] = [];
+                outline.answers[step.key] = 'no';
+                moveOn();
+            }, true, 'Take out');
+            renderOutline(); // Yes stays showing until that's confirmed
+            return;
+        }
+        outline.answers[step.key] = value;
+        if (value === 'no') { moveOn(); return; }
+        outlineRerenderKeeping('#outlineAnswerYes');
+        if (!count) outlineAddForStep(step);
+    }
+    function outlineAddVideo() {
+        const url = (document.getElementById('outlineVideoUrl')?.value || '').trim();
+        const title = (document.getElementById('outlineVideoTitle')?.value || '').trim();
+        if (!url) { showWarningToast('Paste the YouTube link first.'); return; }
+        if (!flowParseYouTubeId(url)) { showWarningToast("That doesn't look like a YouTube link."); return; }
+        outline.media.video.push({ url, title });
+        outlineRerenderKeeping('#outlineVideoUrl');
+    }
+    ['outlineAudioInput', 'outlineDocsInput'].forEach(id => document.getElementById(id)?.addEventListener('change', (e) => {
+        const files = [...e.target.files];
+        e.target.value = '';
+        if (!outline || !files.length) return;
+        outline.media[id === 'outlineAudioInput' ? 'audio' : 'docs'].push(...files);
+        outlineRerenderKeeping('[data-outline="pickFile"]');
+    }));
+
     let outlineExtraDraft = null; // { index (null = new), x }
     const OUTLINE_EXTRA_DEFAULTS = {
         repeat: () => ({ type: 'repeat', from: '', to: '', times: 2 }),
@@ -19049,49 +19177,80 @@
         renderOutline();
     });
 
-    // --- Save: the piece is made, its blocks in one go, and its details open so it can be named ---
+    // --- Save: the piece, its blocks, its details and its media, in one go - then back where you came from ---
     async function outlineSave(btn) {
         const built = outlineBuild();
         if (built.clashes.length || built.errors.length) { showWarningToast('Fix what is marked before saving.'); return; }
         const target = outline.target;
+        const about = outline.about;
+        const media = outline.media;
         const payload = built.blocks.map(b => {
             const [type, id] = String(b.sig).split(':');
             return { ...flowBlockPayload(b), timeSignatureId: type === 'public' ? Number(id) : null, accountTimeSignatureId: type === 'public' ? null : Number(id) };
         });
+        const say = (text) => { btn.textContent = text; };
         btn.disabled = true;
-        btn.textContent = 'Saving...';
+        say('Saving...');
+        let created;
         try {
-            const created = await API.flows.create({ ...(target && target.bandId ? { bandId: target.bandId } : {}), ...(outline.name ? { name: outline.name } : {}) });
+            created = await API.flows.create({ ...(target && target.bandId ? { bandId: target.bandId } : {}), name: about.title });
             try {
                 await API.flows.blocks.replaceAll(created.id, payload);
             } catch (error) {
                 await API.flows.delete(created.id).catch(() => { /* left as an empty piece in My music */ });
                 throw error;
             }
-            addPieceTarget = target;
-            await addPieceToTargetList(created.id);
-            const st = outline.stats;
-            const counts = PieceOutline.summary(outline.o);
-            const totalBars = outline.o.bars;
-            // The stopwatch (ML-199): one finished 'create' row, source 'quick', with the steps
-            flowStatsRequest(`/api/flows/${created.id}/authoring-sessions`, 'POST', { kind: 'create', creationSource: 'quick', deviceKind: flowStatsDeviceKind(), idleThresholdSeconds: FLOW_STATS_IDLE_THRESHOLD_SECONDS, blockCountStart: 0 })
-                .then(row => row && flowStatsRequest(`/api/flows/authoring-sessions/${row.id}`, 'PUT', {
-                    activeSeconds: st.active, barsActiveSeconds: st.active, elapsedSeconds: Math.round((Date.now() - st.startedAtMs) / 1000),
-                    blockCountEnd: payload.length, totalBarsEnd: totalBars, blocksAdded: payload.length, blocksEdited: 0, blocksDeleted: 0,
-                    tapCount: st.taps, keyCount: st.keys, steps: st.steps, outlineCounts: counts, outcome: 'completed'
-                }));
-            showSuccessToast(`Piece made: ${payload.length} blocks. Entered in ${fmtMinSec(st.active)} · ${st.taps} taps · ${st.keys} keys.${outline.name ? '' : ' Give it a name.'}`);
-            outlineClose();
-            currentFlowId = created.id;
-            flowEditMode = 'create';
-            flowStatsPendingKind = 'edit'; // naming it afterwards is its own, separate stint
-            while (['pieceOutlineView', 'addPieceView'].includes(viewStack[viewStack.length - 1])) viewStack.pop();
-            switchView('flowDetailsHubView');
         } catch (error) {
             btn.disabled = false;
-            btn.textContent = 'Save the piece';
+            say('Save the piece');
             showWarningToast("The piece couldn't be saved: " + error.message);
+            return;
         }
+        // The piece exists from here on: anything below that fails is said at the end, not undone.
+        const failed = [];
+        const details = {};
+        if (about.composer) details.composer = about.composer;
+        if (about.arranger) details.arranger = about.arranger;
+        if (about.publisher) details.publisher = about.publisher;
+        if (about.notes) details.description = about.notes;
+        if (Object.keys(details).length) await API.flows.update(created.id, details).catch(() => failed.push('the composer and notes'));
+        addPieceTarget = target;
+        await addPieceToTargetList(created.id);
+        for (const v of media.video) await API.flows.recordings.addYouTube(created.id, { url: v.url, title: v.title }).catch(() => failed.push(v.title || v.url));
+        const files = [...media.audio.map(f => ['recordings', f]), ...media.docs.map(f => ['documents', f])];
+        for (let i = 0; i < files.length; i++) {
+            const [kind, file] = files[i];
+            say(`Uploading ${i + 1} of ${files.length}...`);
+            try {
+                // Straight from this browser to Blob storage, then attached to the piece - as the edit screen's Media tab does
+                const blob = await window.vercelBlobUpload(`flows/${created.id}/${kind}/${file.name}`, file, {
+                    access: 'public',
+                    handleUploadUrl: `${API_BASE_URL}/api/flows/${created.id}/${kind}/upload-token?token=${encodeURIComponent(auth.token)}`,
+                    onUploadProgress: (progress) => say(`Uploading ${i + 1} of ${files.length}: ${Math.round(progress.percentage)}%`)
+                });
+                const uploaded = { blobUrl: blob.url, blobPathname: blob.pathname, fileName: file.name, fileSizeBytes: file.size, mimeType: blob.contentType || file.type };
+                if (kind === 'recordings') await API.flows.recordings.addUploaded(created.id, uploaded);
+                else await API.flows.documents.add(created.id, uploaded);
+            } catch (error) {
+                failed.push(file.name);
+            }
+        }
+        const st = outline.stats;
+        const counts = PieceOutline.summary(outline.o);
+        const totalBars = outline.o.bars;
+        // The stopwatch (ML-199): one finished 'create' row, source 'quick', with the steps - the whole piece,
+        // since nothing is left to do on the edit screen (ML-428)
+        flowStatsRequest(`/api/flows/${created.id}/authoring-sessions`, 'POST', { kind: 'create', creationSource: 'quick', deviceKind: flowStatsDeviceKind(), idleThresholdSeconds: FLOW_STATS_IDLE_THRESHOLD_SECONDS, blockCountStart: 0 })
+            .then(row => row && flowStatsRequest(`/api/flows/authoring-sessions/${row.id}`, 'PUT', {
+                activeSeconds: st.active, barsActiveSeconds: st.active, elapsedSeconds: Math.round((Date.now() - st.startedAtMs) / 1000),
+                blockCountEnd: payload.length, totalBarsEnd: totalBars, blocksAdded: payload.length, blocksEdited: 0, blocksDeleted: 0,
+                tapCount: st.taps, keyCount: st.keys, steps: st.steps, outlineCounts: counts, outcome: 'completed'
+            }));
+        if (failed.length) showWarningToast(`"${about.title}" is saved, but these couldn't be added: ${failed.join(', ')}. Add them from My music.`);
+        else showSuccessToast(`"${about.title}" is saved: ${payload.length} blocks. Entered in ${fmtMinSec(st.active)} · ${st.taps} taps · ${st.keys} keys.`);
+        outlineClose();
+        while (['pieceOutlineView', 'addPieceView'].includes(viewStack[viewStack.length - 1])) viewStack.pop();
+        switchView(viewStack[viewStack.length - 1] || 'mainView', true);
     }
 
     // --- One listener for the whole screen ---
@@ -19113,6 +19272,7 @@
         }
         if (t.dataset.outlineBrush) { outline.brush = t.dataset.outlineBrush; outline.from = null; outlineRerenderKeeping(`[data-outline-brush="${t.dataset.outlineBrush}"]`); return; }
         if (t.dataset.outlineExtra !== undefined) { outlineOpenExtra(Number(t.dataset.outlineExtra)); return; }
+        if (t.dataset.outlineMediaRemove !== undefined) { outline.media[OUTLINE_STEPS[outline.step].media].splice(Number(t.dataset.outlineMediaRemove), 1); renderOutline(); return; }
         if (t.dataset.speedNote !== undefined) {
             const i = Number(t.dataset.speedNote);
             outlinePickNote(outline.speedRows[i].noteValue || PieceOutline.speedAt(o, Number(outline.speedRows[i].bar) || 1).noteValue, (note) => { outline.speedRows[i].noteValue = note; outlineRerenderKeeping(`[data-speed-note="${i}"]`); });
@@ -19120,6 +19280,10 @@
         }
         const action = t.dataset.outline;
         if (action === 'next') {
+            const cur = OUTLINE_STEPS[outline.step];
+            if (cur.key === 'about' && !outline.about.title.trim()) { showWarningToast('Give the piece a name first.'); document.getElementById('outlineAbout-title')?.focus(); return; }
+            if (cur.key === 'about') Object.keys(outline.about).forEach(k => { outline.about[k] = outline.about[k].trim(); });
+            if (cur.kinds && outlineStepExtras(cur).some(({ i }) => outlineBuild().clashes.find(c => c.extra === i))) { showWarningToast('Fix what is marked before going on.'); return; }
             if (outlineStepKey() === 'howLong' && !outlineHowLongRead()) return;
             if (outlineStepKey() === 'marks') { outlineMarksRefresh(); outline.openSecs = null; }
             if (outlineStepKey() === 'speed' && !outlineSpeedRefresh()) { showWarningToast('Finish or empty the rows that are marked.'); return; }
@@ -19142,8 +19306,10 @@
             openFlowChoiceModal('The marks are', OUTLINE_MARK_KINDS.map(k => ({ key: k.key, selected: k.key === o.markKind, html: `<span><strong>${k.label}</strong><br><span class="text-sm text-muted">${k.sub}</span></span>` })), (opt) => { o.markKind = opt.key; outline.openSecs = null; renderOutline(); });
         } else if (action === 'brush') {
             outlinePickSig(outline.brush, (value) => { outline.brush = value; outline.from = null; outlineRerenderKeeping('[data-outline="brush"]'); });
-        } else if (action === 'addExtra') {
-            openFlowChoiceModal('Add an extra', PieceOutline.EXTRA_KINDS.map(k => ({ key: k, html: `<span class="material-symbols-outlined" aria-hidden="true">${OUTLINE_EXTRAS[k].icon}</span><span><strong>${OUTLINE_EXTRAS[k].label}</strong><br><span class="text-sm text-muted">${OUTLINE_EXTRAS[k].sub}</span></span>` })), (opt) => outlineOpenExtra(null, opt.key));
+        } else if (action === 'addExtra' || action === 'pickFile') {
+            outlineAddForStep(OUTLINE_STEPS[outline.step]);
+        } else if (action === 'addVideo') {
+            outlineAddVideo();
         } else if (action === 'save') {
             outlineSave(t);
         }
@@ -19152,12 +19318,11 @@
     function outlineHowLongKeep() {
         const bars = Number(document.getElementById('outlineBars')?.value);
         if (Number.isInteger(bars) && bars >= 1 && bars <= PieceOutline.MAX_BARS) outline.o.bars = bars;
-        const name = document.getElementById('outlineName');
-        if (name) outline.name = name.value.trim();
     }
     outlineView?.addEventListener('change', (e) => {
         if (!outline) return;
         if (e.target.name === 'outlineLeadIn') outline.o.leadIn = e.target.value === 'yes';
+        if (e.target.name === 'outlineAnswer') outlineAnswer(e.target.value);
         if (e.target.name === 'outlineMode') { outline.mode = e.target.value; outline.from = null; outlineRerenderKeeping(`#${e.target.id}`); }
     });
     // A table's last row filling in adds the next one (the rows already there are left alone, so typing isn't interrupted)
@@ -19170,6 +19335,7 @@
     outlineView?.addEventListener('input', (e) => {
         if (!outline) return;
         const t = e.target;
+        if (t.dataset.about) { outline.about[t.dataset.about] = t.value; return; }
         if (t.id === 'outlineMarksText') { outline.marksText = t.value; outlineMarksRefresh(); return; }
         if (t.dataset.markRow !== undefined) {
             outline.markRows[Number(t.dataset.markRow)][t.dataset.markCol] = t.value;

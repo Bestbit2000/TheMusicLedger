@@ -1491,6 +1491,9 @@
         <ol class="steps-progress" id="outlineSteps"></ol>
         <h2 class="step-question" id="outlineQuestion"></h2>
         <div class="outline" id="outlineBody"></div>
+        <!-- ML-428: the Media steps' file pickers. The files are held until Save, when the piece exists. -->
+        <input type="file" id="outlineAudioInput" class="hidden-group" accept="audio/*,video/mp4" multiple>
+        <input type="file" id="outlineDocsInput" class="hidden-group" accept=".pdf,.musicxml,.mxl,.sib,.musx,application/pdf" multiple>
     </div>
 
     <div id="addPieceView" class="hidden-group">

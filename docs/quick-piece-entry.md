@@ -13,15 +13,43 @@ afterwards in the bar-by-bar editor, which is the precision tool.
 - Feature: `piece_quick_entry` (Super admin only until switched on - Admin → Feature access). The way in is the
   **Quick entry** tile on Add a piece.
 
-## The five steps
+## The five stages (ML-428)
 
-| Step | Asks | Stored in the outline as |
-|---|---|---|
-| How long | The piece's name (optional; saved with the piece), bars, a count-in bar (yes/no), the time signature, bpm and beat note most of it is in | `bars`, `leadIn`, `mainSig`, `mainBpm`, `mainNote` |
-| Marks | Bar numbers (a typed list - spaces, commas, semicolons, full stops all separate; each mark is named after its bar), letters or words (a table: bar, mark), or none | `markKind`, `marks: [{ bar, label }]` |
-| Time | The bars that aren't the main time signature - tap a bar, or a first and a last bar; "All of this section" | `time: { bar: sig }` |
-| Speed | A table: from bar, bpm, beat note. A row's beat note carries on from the row above unless set. A row for bar 1 sets the starting speed (`mainBpm`) instead of being a change; a wholly blank row is ignored; a row that can't be used is named ("Row 3") | `speeds: [{ bar, bpm, noteValue }]` |
-| Extras | Repeat; repeat with 1st and 2nd endings; pause; speed up or slow down; sign and jump; intro | `extras: [...]` |
+Five stages show across the top; each has one or more steps inside it ("Extras: 2 of 5"). A finished stage is a
+button back to its first step, and Back goes back one step. Decided with the owner on 4 Oct 2026 so that the
+whole piece is made in Quick entry - it never opens the edit screen, so one piece is **one** timed session.
+
+| Stage | Step | Asks | Kept as |
+|---|---|---|---|
+| About | `about` | Name (**required**), composer, arranger, publisher, notes | `outline.about` |
+| Structure | `howLong` | Bars, a count-in bar (yes/no), the time signature, bpm and beat note most of it is in | `bars`, `leadIn`, `mainSig`, `mainBpm`, `mainNote` |
+| | `marks` | Bar numbers (a typed list - spaces, commas, semicolons, full stops all separate; each mark is named after its bar), letters or words (a table: bar, mark), or none | `markKind`, `marks: [{ bar, label }]` |
+| Time and speed | `time` | The bars that aren't the main time signature - tap a bar, or a first and a last bar; "All of this section" | `time: { bar: sig }` |
+| | `speed` | A table: from bar, bpm, beat note. A row's beat note carries on from the row above unless set. A row for bar 1 sets the starting speed (`mainBpm`) instead of being a change; a wholly blank row is ignored; a row that can't be used is named ("Row 3") | `speeds: [...]` |
+| Extras | `xIntro` | Is there an intro? (one at most) | `extras: [...]` |
+| | `xRepeats` | Are there any repeats? (plain, or with 1st and 2nd endings) | |
+| | `xPauses` | Are there any pauses or breaks? | |
+| | `xRamps` | Does it speed up or slow down anywhere? | |
+| | `xSigns` | Are there any signs or jumps? (D.S., D.C., Coda, Fine) | |
+| Media | `mAudio` | Is there a recording to add? (mp3 / mp4 files) | `outline.media.audio` (File objects) |
+| | `mVideo` | Is there a YouTube link to add? | `outline.media.video` (`{ url, title }`) |
+| | `mDocs` | Is there a score or part to add? (PDF, MusicXML, Sibelius, MuseScore) | `outline.media.docs` (File objects) |
+
+**The yes/no steps.** **No** moves straight on. **Yes** opens the way to add one at once (the extra's pop-up, the
+file picker, or the link boxes) and then offers "+ Add another". Anything already added counts as Yes; answering
+No after adding asks before taking them out. An extra that clashes is marked where it was added and stops Next;
+the last step's Save is off while anything anywhere clashes.
+
+**Save** (the last Media step) does, in order: make the piece with its name, write the blocks (if that fails the
+piece is taken away again), save composer / arranger / publisher / notes, put it on the practice list it was
+made for, add the YouTube links, then upload each file (the button shows the progress) and attach it. From the
+moment the blocks are written the piece is kept: anything after that which fails is named in one message ("saved,
+but these couldn't be added...") and can be added from My music. Then it goes **back to where Add a piece was
+opened from** (home, tools or My music).
+
+**Timing.** One `create` session, source `quick`, with seconds / taps / keys / visits for each of the 13 steps
+(`QUICK_STEPS` in `server/services/flowAuthoringStats.js`; `extras` there is the single Extras step that pieces
+made on 0.39 recorded). Admin → Usage shows them stage by stage.
 
 A time signature is the same `public:<id>` / `custom:<id>` string the shared time signature pop-up hands back.
 

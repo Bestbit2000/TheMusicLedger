@@ -15,19 +15,23 @@ A new piece entered as an **outline**, by the bar numbers printed on the music, 
 steps, one question each, with the [practice steps'](practice-steps.md) bar across the top (a done step is a way
 back): **How long** (bars, count-in, the time and speed most of it is in), **Marks** (bar numbers, letters or
 words, or none), **Time** (the bars that aren't the main time signature), **Speed** (the bars where it changes),
-**Extras** (repeats, endings, pauses, speeding up, signs, intro). Save makes the same blocks "Create your own"
-makes and opens the piece's details so it can be named. New pieces only. Rules: `public/pieceOutline.js`
+**Extras** (repeats, endings, pauses, speeding up, signs, intro). Since ML-428 it is five stages across the top - About, Structure, Time and speed, Extras, Media - with steps
+inside each, and it makes the whole piece: Save makes the same blocks "Create your own" makes, with the details
+and media, and goes back to where Add a piece was opened from (never the edit screen). New pieces only. Rules: `public/pieceOutline.js`
 (`docs/quick-piece-entry.md`). The way in is the **Quick entry** tile on [Add a piece](add-piece.md), shown when
 `piece_quick_entry` is on for you.
 
 ## 3. Anatomy
-- **Every step:** `.steps-progress` › `.step-question` › `.outline` (a column of rows, `--space-3` apart).
-- **How long:** the name of the piece (a text box in the same `.outline-field`; optional - blank gets the default name
-  and is asked for after saving) › a number box (`.outline-field` › `input` + `.outline-field-label`) for the bars › a Yes / No pill
+- **Every step:** `.steps-progress` (the five **stages**; a finished one is a `.steps-progress-back` button to its
+  first step) › `.step-question` › `.outline` (a column of rows, `--space-3` apart). In a stage with more than one
+  step the first row says where you are ("Extras: 2 of 5", `.text-sm.text-muted`).
+- **About:** `.form-group` × 5 (label over the box, as everywhere): name of the piece (required, `.flow-required`),
+  composer, arranger, publisher, notes (a `textarea`) › Next › "Start again" (`.btn-text`).
+- **How long:** a number box (`.outline-field` › `input` + `.outline-field-label`) for the bars › a Yes / No pill
   pair (`.radio-group`) for the count-in › "Most of it is in..." › `.outline-three`: the time (a value box,
   `.metroBlk-ctrl-value-btn`, opening the shared time signature pop-up), the bpm (a value box too, with "bpm"
   inside it like its neighbours, opening the shared Tempo pop-up `#flowBpmModal` - owner, 4 Oct 2026), the beat note (a
-  value box opening the shared beat note pop-up) › Next › "Start again" (`.btn-text`).
+  value box opening the shared beat note pop-up) › Next.
 - **Marks:** one value box "the marks are" (opens `#flowChoiceModal`: Bar numbers / Letters or words / None) ›
   - *Bar numbers:* a `textarea.outline-list` - spaces, commas, semicolons and full stops all separate - › a line
     saying what was understood › `.outline-chips` › `.outline-chip` per mark.
@@ -45,9 +49,14 @@ makes and opens the piece's details so it can be named. New pieces only. Rules: 
   check line names the rows that can't be used ("Row 3 can't be used yet"); the blank last row is ignored.
 - **Speed:** `.outline-table` › `.outline-row.outline-row-speed` (from bar, bpm, beat note). The first row is the
   start (`.outline-cell-fixed` × 3); the beat note of a row is an `.outline-cell-btn` ("same" until changed).
-- **Extras:** an `.outline-extra` per extra (icon › `.outline-extra-text`: what it is in words › chevron; tap to
-  change or remove) › `.outline-add` "+ Add an extra" (opens `#flowChoiceModal` with the six kinds) ›
-  `.outline-sum` › Save the piece. The form is `#outlineExtraModal`: number boxes in `.outline-three` /
+- **Extras (five steps, one question each):** a Yes / No pill pair (`.radio-group`, named by the question) › when
+  Yes: an `.outline-extra` per extra of that kind (icon › `.outline-extra-text`: what it is in words › chevron; tap
+  to change or remove) › `.outline-add` "+ Add a repeat" / "+ Add another repeat" (repeats open `#flowChoiceModal`
+  to pick plain or with endings; the others open the form directly) › `.outline-sum` › Next. No moves straight on.
+- **Media (three steps, one question each):** the same Yes / No pair › when Yes: an `.outline-extra` per file or
+  link (icon › name over its size or address › a close icon; tapping the row takes it out) › `.outline-add`
+  "+ Choose a recording" (opens the file picker) or, for YouTube, two `.form-group` boxes (the link, what to call
+  it) and `.outline-add` "+ Add the link" › on the last step `.outline-sum` › Save the piece. The form is `#outlineExtraModal`: number boxes in `.outline-three` /
   `.outline-pair`, pill pairs for the either/or answers, a line in plain words, Add it, Remove this extra.
 
 ## 4. Tokens used
