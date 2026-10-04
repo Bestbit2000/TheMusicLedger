@@ -9,15 +9,19 @@ The register covers five groups:
 
 | Group | What | Examples |
 |---|---|---|
-| `service` | Services the live app needs | Neon, Vercel, Vercel Blob, Google sign-in, Google Fonts, PostHog, Resend, Have I Been Pwned, jsDelivr, YouTube, the OMR service |
+| `service` | Services the live app needs | Neon, Vercel, Vercel Blob, Google sign-in, PostHog, Resend, Have I Been Pwned, jsDelivr, YouTube, the OMR service |
 | `asset` | Fonts and icons | Bravura, OpenDyslexic, Lexend, Inter, Noto Music, Material Symbols |
 | `content` | Other people's material and ideas | ABRSM syllabuses (ML-313), Takadimi, MusicXML, band directory sources |
 | `library` | npm packages named in `package.json` and `server/package.json` | express, pg, @vercel/blob... |
-| `build` | Tools used to build the app | GitHub, Jira, Claude Code, OSV, Node.js and npm |
+| `build` | Tools used to build the app, and duties that come with running it | GitHub, Jira, Claude Code, OSV, Node.js and npm, the ICO data protection fee |
 
 Each entry says who they are, what they give us, the plan and cost, links to their terms with the date
 printed on each, **what the terms say** (in our own words), **what they ask of us**, things that need
 the owner's attention, and the plan's limits. The field list is at the top of `register.js`.
+
+**Every font is hosted by us** (ML-430): Inter, Noto Music and Material Symbols were loaded from Google Fonts until
+0.41, which sent each visitor's IP address to Google. Don't add a font, script or stylesheet loaded from someone
+else's server without the owner's say-so - it has to go in the privacy policy.
 
 ## Copies of terms
 

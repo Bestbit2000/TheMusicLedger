@@ -198,6 +198,7 @@ edge, icon/text and fill
 | `--font-sans` | `'Inter', 'Segoe UI', Tahoma, sans-serif` | `'OpenDyslexic', 'Comic Sans MS', sans-serif` | all UI text |
 | `--font-mono` | `ui-monospace, 'SFMono-Regular', Consolas, monospace` | (same) | code, IDs, timestamps in admin |
 | `--font-music` | `'Noto Music', serif` | (same) | Unicode musical symbols (segno, coda) |
+| `--font-icons` | `'Material Symbols Outlined'` | (same) | the icon font - every .material-symbols-outlined icon (self-hosted, ML-430) |
 | `--font-notation` | `'Bravura'` | (same) | music notation glyphs (notes, clefs, symbols) - Bravura via public/notation.js (ML-262) |
 | `--font-notation-text` | `Georgia, 'Times New Roman', serif` | (same) | words printed in music: Fine, 1./2. time-bar numbers (ML-262) |
 | `--font-2xs` | `0.6rem` | (same) | heatmap day labels only |
@@ -488,6 +489,7 @@ one ladder, low to high. Never invent a number in a component.
 | `--ds-font-inter` | `'Inter', 'Segoe UI', Tahoma, sans-serif` |
 | `--ds-font-mono` | `ui-monospace, 'SFMono-Regular', Consolas, monospace` |
 | `--ds-font-music` | `'Noto Music', serif` |
+| `--ds-font-icons` | `'Material Symbols Outlined'` |
 | `--ds-font-bravura` | `'Bravura'` |
 | `--ds-font-serif` | `Georgia, 'Times New Roman', serif` |
 | `--ds-font-lexend` | `'Lexend', 'Segoe UI', sans-serif` |

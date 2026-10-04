@@ -81,15 +81,18 @@ export const assets = [
     status: 'in_use',
     who: 'Rasmus Andersson and the Inter Project authors',
     provides: 'The font for all the app\'s ordinary text.',
-    usedIn: 'Loaded from Google Fonts by every page - not hosted by us',
+    usedIn: 'public/tokens.css (--font-sans), declared in public/style.css; hosted by us in public/fonts/ since ML-430',
     cost: 'Free',
-    licence: 'SIL Open Font License 1.1',
-    terms: [{ label: 'Inter', url: 'https://rsms.me/inter/' }, ...OFL],
+    licence: 'SIL Open Font License 1.1 - reserved name "Inter"',
+    terms: [{ label: 'Inter', url: 'https://rsms.me/inter/' }, { label: 'Source', url: 'https://github.com/rsms/inter' }, ...OFL],
+    licenceFile: 'public/fonts/Inter-LICENSE.txt',
     termsCheckedOn: CHECKED,
     says: OFL_SAYS,
-    asks: [],
-    watch: ['Nothing is asked while it is loaded from Google. If we host it ourselves, store its licence next to it like the others.'],
-    googleFonts: ['Inter']
+    asks: [
+      { text: 'Keep the copyright notice and licence with the font.', check: { path: 'public/fonts/Inter-LICENSE.txt' } },
+      { text: 'Use the published files unchanged (Google Fonts\' own Latin files, downloaded 4 Oct 2026).' }
+    ],
+    files: ['public/fonts/inter-latin.woff2', 'public/fonts/inter-latin-ext.woff2']
   },
   {
     key: 'font-noto-music',
@@ -98,15 +101,18 @@ export const assets = [
     status: 'in_use',
     who: 'Google LLC - the Noto Project authors',
     provides: 'A few music symbols written as text (segno, coda).',
-    usedIn: 'Loaded from Google Fonts by public/index.html - not hosted by us',
+    usedIn: 'public/tokens.css (--font-music), declared in public/style.css; hosted by us in public/fonts/ since ML-430',
     cost: 'Free',
     licence: 'SIL Open Font License 1.1',
-    terms: [{ label: 'Noto Music', url: 'https://fonts.google.com/noto/specimen/Noto+Music' }, ...OFL],
+    terms: [{ label: 'Noto Music', url: 'https://fonts.google.com/noto/specimen/Noto+Music' }, { label: 'Source', url: 'https://github.com/notofonts/music' }, ...OFL],
+    licenceFile: 'public/fonts/NotoMusic-LICENSE.txt',
     termsCheckedOn: CHECKED,
     says: OFL_SAYS,
-    asks: [],
-    watch: ['Nothing is asked while it is loaded from Google. If we host it ourselves, store its licence next to it like the others.'],
-    googleFonts: ['Noto Music']
+    asks: [
+      { text: 'Keep the copyright notice and licence with the font.', check: { path: 'public/fonts/NotoMusic-LICENSE.txt' } },
+      { text: 'Use the published files unchanged (Google Fonts\' own files, downloaded 4 Oct 2026).' }
+    ],
+    files: ['public/fonts/noto-music.woff2', 'public/fonts/noto-music-latin.woff2', 'public/fonts/noto-music-latin-ext.woff2']
   },
   {
     key: 'icons-material-symbols',
@@ -115,9 +121,10 @@ export const assets = [
     status: 'in_use',
     who: 'Google LLC',
     provides: 'Every icon in the app.',
-    usedIn: 'Loaded from Google Fonts by every page - not hosted by us',
+    usedIn: 'Every .material-symbols-outlined icon (public/tokens.css --font-icons, declared in public/style.css); hosted by us in public/fonts/ since ML-430',
     cost: 'Free',
     licence: 'Apache License 2.0',
+    licenceFile: 'public/fonts/MaterialSymbols-LICENSE.txt',
     terms: [
       { label: 'Material Symbols', url: 'https://fonts.google.com/icons' },
       { label: 'Apache License 2.0', url: 'https://www.apache.org/licenses/LICENSE-2.0' }
@@ -128,9 +135,13 @@ export const assets = [
       'If we pass the files on (host or copy them), a copy of the licence and any notices must go with them, and changed files must be marked.',
       'No right to use Google\'s names or trade marks.'
     ],
-    asks: [],
-    watch: ['Nothing is asked while it is loaded from Google. If we host or copy the icons, include the Apache 2.0 licence and any NOTICE file.'],
-    googleFonts: ['Material Symbols Outlined']
+    asks: [
+      { text: 'Keep a copy of the Apache 2.0 licence with the font.', check: { path: 'public/fonts/MaterialSymbols-LICENSE.txt' } },
+      { text: 'Use the published file unchanged (Google Fonts\' own file, every icon, downloaded 4 Oct 2026). A changed file would have to be marked as changed.' }
+    ],
+    watch: ['The file holds every icon Google publishes (4 MB); the app uses about 100. A smaller file with only our icons is possible, but a missed icon would show as blank.'],
+    files: ['public/fonts/material-symbols-outlined.woff2'],
+    hosts: ['fonts.google.com']
   }
 ];
 

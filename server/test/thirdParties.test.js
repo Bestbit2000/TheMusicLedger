@@ -15,10 +15,11 @@ test('the register passes its own audit against this repo', () => {
   assert.deepEqual(errors, []);
 });
 
-test('every package, outside host and Google font in the code is found', () => {
+test('every package and outside host in the code is found; nothing is loaded from Google Fonts (ML-430)', () => {
   assert.ok(findPackages(ROOT).has('express'));
-  assert.ok(findHosts(ROOT).has('fonts.googleapis.com'));
-  assert.ok(findGoogleFontFamilies(ROOT).has('Inter'));
+  assert.ok(findHosts(ROOT).has('cdn.jsdelivr.net'));
+  assert.equal(findHosts(ROOT).has('fonts.googleapis.com'), false);
+  assert.equal(findGoogleFontFamilies(ROOT).size, 0);
 });
 
 // A tiny made-up repo, so each rule can be shown failing.

@@ -145,6 +145,7 @@
     --ds-font-inter: 'Inter', 'Segoe UI', Tahoma, sans-serif;
     --ds-font-mono: ui-monospace, 'SFMono-Regular', Consolas, monospace;
     --ds-font-music: 'Noto Music', serif;
+    --ds-font-icons: 'Material Symbols Outlined';
     --ds-font-bravura: 'Bravura';
     --ds-font-serif: Georgia, 'Times New Roman', serif;
     --ds-font-lexend: 'Lexend', 'Segoe UI', sans-serif;          /* ML-356 reading font (self-hosted, SIL OFL) */
@@ -379,6 +380,7 @@
     --font-sans: var(--ds-font-inter, 'Inter', 'Segoe UI', Tahoma, sans-serif); /* all UI text */
     --font-mono: var(--ds-font-mono, monospace);                 /* code, IDs, timestamps in admin */
     --font-music: var(--ds-font-music, 'Noto Music', serif);     /* Unicode musical symbols (segno, coda) */
+    --font-icons: var(--ds-font-icons, 'Material Symbols Outlined');   /* the icon font - every .material-symbols-outlined icon (self-hosted, ML-430) */
     --font-notation: var(--ds-font-bravura, 'Bravura');          /* music notation glyphs (notes, clefs, symbols) - Bravura via public/notation.js (ML-262) */
     --font-notation-text: var(--ds-font-serif, serif);           /* words printed in music: Fine, 1./2. time-bar numbers (ML-262) */
     --font-2xs: var(--ds-text-0-6, 0.6rem);                      /* heatmap day labels only */

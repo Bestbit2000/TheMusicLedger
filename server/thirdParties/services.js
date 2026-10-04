@@ -187,38 +187,7 @@ export default [
     limits: [
       { what: 'Users while in "Testing"', allowance: '100 test users' }
     ],
-    hosts: ['accounts.google.com', 'googleapis.com']
-  },
-  {
-    key: 'google-fonts',
-    name: 'Google Fonts (delivery)',
-    group: 'service',
-    status: 'attention',
-    who: 'Google LLC (USA)',
-    provides: 'Sends the Inter, Noto Music and Material Symbols fonts to each visitor\'s browser. The fonts themselves are listed under Fonts and icons.',
-    usedIn: 'public/index.html, public/admin.html, public/styleguide.html (the fonts.googleapis.com link)',
-    plan: 'No plan',
-    cost: 'Free',
-    licence: 'Google APIs Terms of Service',
-    terms: [
-      { label: 'Fonts API terms', url: 'https://developers.google.com/fonts/terms' },
-      { label: 'Privacy questions', url: 'https://fonts.google.com/faq#privacy' }
-    ],
-    termsCheckedOn: CHECKED,
-    attention: [
-      'Every visitor\'s IP address goes to Google when the fonts load. A German court (Munich, January 2022) ruled that doing this without consent broke GDPR. Hosting the three fonts ourselves - as we already do for Bravura, Lexend and OpenDyslexic - removes the issue.'
-    ],
-    says: [
-      'Google says the fonts service sets no cookies; each request shows it the visitor\'s IP address, browser and the page asking.',
-      'The fonts may be used commercially, including in a paid product.'
-    ],
-    asks: [
-      { text: 'Say in the privacy policy that visitors\' IP addresses go to Google when fonts load (until we host them ourselves).' }
-    ],
-    watch: [
-      'Google\'s privacy page could not be read directly - these points come from search excerpts of it.'
-    ],
-    hosts: ['fonts.googleapis.com', 'fonts.gstatic.com', 'fonts.google.com']
+    hosts: ['accounts.google.com']
   },
   {
     key: 'posthog',

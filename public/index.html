@@ -18,12 +18,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Music Ledger">
 
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Noto Music covers the real Segno (U+1D10B)/Coda (U+1D10C) glyphs from Unicode's Musical
-         Symbols block - loaded as a proper web font (not left to whatever's on the system) so the
-         Jump sign picker/tile can use the actual notation characters instead of a hand-drawn
-         approximation - see flowSignIconSvg (app.js). -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&family=Noto+Music" />
+    <!-- ML-430: every font is self-hosted (public/fonts/, declared in style.css) - nothing is loaded from
+         Google Fonts. Noto Music covers the real Segno (U+1D10B)/Coda (U+1D10C) glyphs from Unicode's
+         Musical Symbols block - a proper web font (not left to whatever's on the system) so the Jump sign
+         picker/tile can use the actual notation characters - see flowSignIconSvg (app.js). -->
     <link rel="stylesheet" href="tokens.css">
     <link rel="stylesheet" href="style.css">
 </head>

@@ -6,6 +6,17 @@
        falls back to a phone font. font-display: block - a note in the wrong font is worse than a
        brief blank. Everything drawn with it comes from public/notation.js. */
     @font-face { font-family: 'Bravura'; src: url('/fonts/bravura.woff2') format('woff2'); font-display: block; }
+
+    /* ML-430: the text font (Inter), the music symbols (Noto Music) and the icons (Material Symbols) are
+       hosted here too, so no visitor's address goes to Google Fonts. The files are Google Fonts' own,
+       unchanged, with the same character ranges; licences in public/fonts/*-LICENSE.txt and the third-party
+       register. The icon font is font-display: block - an icon's name as words is worse than a brief blank. */
+    @font-face { font-family: 'Inter'; src: url('/fonts/inter-latin.woff2') format('woff2'); font-weight: 100 900; /* token-audit-ignore: an @font-face descriptor - CSS allows no var() here */ font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: 'Inter'; src: url('/fonts/inter-latin-ext.woff2') format('woff2'); font-weight: 100 900; /* token-audit-ignore: an @font-face descriptor - CSS allows no var() here */ font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+    @font-face { font-family: 'Noto Music'; src: url('/fonts/noto-music.woff2') format('woff2'); font-display: swap; unicode-range: U+25CC, U+2669-266F, U+1D000-1D0F5, U+1D100-1D126, U+1D129-1D1EA, U+1D200-1D245; }
+    @font-face { font-family: 'Noto Music'; src: url('/fonts/noto-music-latin.woff2') format('woff2'); font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: 'Noto Music'; src: url('/fonts/noto-music-latin-ext.woff2') format('woff2'); font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+    @font-face { font-family: 'Material Symbols Outlined'; src: url('/fonts/material-symbols-outlined.woff2') format('woff2'); font-weight: 100 700; /* token-audit-ignore: an @font-face descriptor - CSS allows no var() here */ font-display: block; }
     .notation-glyph { font-family: var(--font-notation); }
     .notation-text { font-family: var(--font-notation-text); }
     .notation-text-italic { font-style: italic; font-weight: var(--font-weight-bold); }
@@ -585,6 +596,7 @@
     .history-details { font-size: var(--font-base); flex-grow:1;} .history-details strong { display: block; font-size: var(--font-base); margin-bottom: var(--space-1); }
     .btn-edit { background: var(--selection-color); color: var(--text-on-accent); border: none; padding: var(--space-2) var(--space-4); min-height: 48px; border-radius: var(--radius-md); font-weight: var(--font-weight-bold); cursor: pointer; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
     .btn-delete { background: var(--danger-color); color: var(--text-on-accent); border: none; padding: var(--space-2) var(--space-3); min-height: 48px; border-radius: var(--radius-md); font-weight: var(--font-weight-bold); cursor: pointer; font-size: var(--font-base); box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
+    .material-symbols-outlined { font-family: var(--font-icons); font-weight: var(--font-weight-normal); font-style: normal; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
     .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; font-size: var(--icon-md); line-height: var(--line-height-tight); vertical-align: middle; }
     /* 48x48 touch target minimum - was 36x36. */
     /* Icon colour matches its own border (not the hardcoded white every other button on this page
