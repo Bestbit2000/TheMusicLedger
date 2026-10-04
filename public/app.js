@@ -6596,6 +6596,7 @@
         renderPrepareRun();
     }
     function renderPrepareRun() {
+        renderCountInControls();
         const pct = FlowJourney.levelPercents(FlowJourney.slowestTempo(levels.blocks, 1, levels.total));
         const lv = Math.max(1, Math.min(5, prep.runLevel || 2));
         const el = document.getElementById('prepSpeedPicker');
@@ -6858,6 +6859,37 @@
     // (chunk_level_changes). Leaving any other way puts the player's own settings back, unrated.
     // ML-390: mode 'runthrough' (Prepare) plays the whole piece once at the chosen Level - no loop, no
     // Level up - and at the end goes on to painting.
+    // The count-in before a run-through or a practice block starts (owner, 4 Oct 2026): clicking bars to give
+    // you time to press play and get back to the instrument. It is the player's own setting (0-4 bars, 1 unless
+    // changed; remembered on this device) - not the piece's lead-in, which is stored with the piece for the
+    // notes before bar 1 and still plays after it.
+    const COUNT_IN_KEY = 'tml.practice.countIn';
+    const COUNT_IN_MAX = 4;
+    function practiceCountInBars() {
+        let raw = null;
+        try { raw = localStorage.getItem(COUNT_IN_KEY); } catch (e) { raw = null; }
+        const n = Number(raw);
+        return raw !== null && Number.isInteger(n) && n >= 0 && n <= COUNT_IN_MAX ? n : 1;
+    }
+    const countInText = (n) => (n === 0 ? 'None' : `${n} bar${n === 1 ? '' : 's'}`);
+    function setPracticeCountInBars(n) {
+        try { localStorage.setItem(COUNT_IN_KEY, String(Math.max(0, Math.min(COUNT_IN_MAX, n)))); } catch (e) { /* not remembered - this go still uses the default */ }
+        renderCountInControls();
+    }
+    function renderCountInControls() {
+        const n = practiceCountInBars();
+        const btn = document.getElementById('prepCountInBtn');
+        if (btn) { btn.querySelector('strong').textContent = countInText(n); btn.setAttribute('aria-label', `Count-in before it starts: ${countInText(n)} - tap to change`); }
+        const select = document.getElementById('practiceCountInSetting');
+        if (select) select.value = String(n);
+    }
+    document.getElementById('prepCountInBtn')?.addEventListener('click', () => {
+        const cur = practiceCountInBars();
+        openFlowChoiceModal('Count-in before it starts', [0, 1, 2, 3, 4].map(n => ({ key: String(n), selected: n === cur, html: `<span><strong>${countInText(n)}</strong>${n === 0 ? '<br><span class="text-sm text-muted">It starts as soon as you press play</span>' : ''}</span>` })), (opt) => setPracticeCountInBars(Number(opt.key)));
+    });
+    document.getElementById('practiceCountInSetting')?.addEventListener('change', (e) => setPracticeCountInBars(Number(e.target.value)));
+    renderCountInControls(); // the Settings drop-down and the run-through's box show what's remembered
+
     function startLevelPractice(chunk, mode) {
         if (flowSession) endLevelPractice(); // one practice at a time - put the player's own settings back first
         const slow = FlowJourney.slowestTempo(levels.blocks, chunk.startBar, chunk.endBar);
@@ -13224,8 +13256,10 @@
         // ML-302: "Repeat 3 · ..." while repeating; rest bars count in before the first pass.
         const loopPrefix = flowLoopPlan ? `Repeat ${p.loopPass} · ` : '';
         if (p.kind === 'rest') {
-            const restBars = flowLoop ? flowLoop.restBars : 1;
-            return `${loopPrefix}${p.loopPass === 1 ? 'Count-in' : 'Rest'} ${p.restIndex + 1} of ${restBars} · ${timeSig} · ${bpm} bpm`;
+            // The first pass's clicking bars are the count-in (in a practice or run-through, the number you chose)
+            const first = p.loopPass === 1 || !flowLoopPlan;
+            const restBars = first && flowSession ? practiceCountInBars() : flowLoop ? flowLoop.restBars : 1;
+            return `${loopPrefix}${first ? 'Count-in' : 'Rest'} ${p.restIndex + 1} of ${restBars} · ${timeSig} · ${bpm} bpm`;
         }
         if (p.kind === 'leadIn') {
             return `${loopPrefix}Lead-in · ${block.timeSignatureLabel} · ${bpm} bpm`;
@@ -13980,7 +14014,7 @@
         } catch (e) { /* not remembered - fine */ }
     }
     function flowLoopOpts(settings) {
-        return { startBar: settings.startBar, endBar: settings.endBar, restBars: settings.restBars, leadIn: flowLeadInBlock };
+        return { startBar: settings.startBar, endBar: settings.endBar, restBars: settings.restBars, countInBars: flowSession ? practiceCountInBars() : undefined, leadIn: flowLeadInBlock };
     }
     // Recomputes the plan for flowLoop - drops the repeat if the piece has changed so it no longer fits.
     function flowComputeLoopPlan() {
@@ -14009,7 +14043,8 @@
     // Back to the start: the piece, or the loop's first pass (count-in included).
     function flowResetPlayQueue() {
         flowLoopPassCount = 1;
-        flowPlayQueue = flowLoopPlan ? flowPassagesFor(flowLoopPlan.countIn, 1) : flowPassagesFor(flowJourney.steps, null);
+        const countIn = flowSession && flowSession.mode === 'runthrough' ? FlowJourney.countInSteps(flowJourney.steps, practiceCountInBars()) : [];
+        flowPlayQueue = flowLoopPlan ? flowPassagesFor(flowLoopPlan.countIn, 1) : flowPassagesFor([...countIn, ...flowJourney.steps], null);
     }
     function flowAppendLoopPass() {
         flowLoopPassCount++;

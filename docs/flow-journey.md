@@ -12,7 +12,9 @@ Related tickets:
 - **ML-248:** consistency check.
 - **Playback features:** ML-249 alternate endings, ML-250 jumps/Fine/stop at end, ML-251 ramps,
   ML-252 intro, ML-253 caesura, ML-302 repeat bars.
-- **Lead-in:** ML-113 (always one bar).
+- **Lead-in:** ML-113 (always one bar). It belongs to the piece - the notes before bar 1. **It is not the count-in:**
+  the clicking bars that give a player time to get from the play button to the instrument are the player's own
+  setting (see `countInBars` / `countInSteps` under Repeat bars) and play before the lead-in.
 - **Bugs:** ML-254 glyph/label one beat early, ML-255 compound-metre beats, ML-256 fermata one pulse
   too long.
 
@@ -90,6 +92,11 @@ works it out:
   start bar's time signature at the tempo in force there; play speed % still applies. They count in
   before the first pass and sit between every pass after it.
 - **The lead-in** plays on the first pass only, and only when the loop starts where the piece does.
+- **`countInBars`** (optional): how many clicking bars come before the *first* pass when that differs from the
+  rest between passes. A practice block passes the player's own count-in (0-4 bars) and keeps one gap bar
+  between goes. Left out, the count-in is the rest bars, as Rehearse's repeat has always done.
+- **`countInSteps(steps, n)`**: the same clicking bars for playing a piece through *once* (the Prepare
+  run-through, which has no loop) - `n` rest steps on bar 1, to put before `buildJourney`'s steps.
 
 It returns `countIn` (first pass: rest bars, lead-in if any, the loop), `between` (every pass after:
 rest bars, the loop) and `runs` (the loop as bar-number stretches, for "Plays 7–8, then 1–2"). Rest

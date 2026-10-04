@@ -168,6 +168,11 @@ opened from a practice list, Play Flow's menu (My Levels) and a session's Prepar
      the piece's own speed** (Level 5 = 100%; never bpm - a piece changes speed from bar to bar), with how long the
      whole piece takes at that speed (`FlowJourney.pieceRunSeconds`). It plays once (no loop), **without sub-beats**
      (owner, 4 Oct 2026 - practice blocks keep the session's sub-beats at slow Levels); at the end, painting.
+     **Count-in** (owner, 4 Oct 2026): a box under the speed, "1 bar · count-in before it starts" - None or 1-4
+     clicking bars before it starts, to get from the play button back to the instrument. It is the player's own
+     setting (`tml.practice.countIn` on the device, also in Settings → Metronome & playback), **used by practice
+     blocks too** (then one gap bar between goes, as before). It is not the piece's lead-in, which is stored with
+     the piece for the notes before bar 1 and plays after the count-in;
      "I know how it goes" skips it;
    - **paint the bars** (`#levelsPaintView`): the bars in the piece's sections (`FlowJourney.pieceSections`), a
      paint box pinned to the bottom - **Brush**, **Fill section** (its empty bars), **Fill all** (the power fill;

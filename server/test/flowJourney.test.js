@@ -427,6 +427,30 @@ describe('repeat bars (ML-302)', () => {
         assert.equal(p.countIn[0].bar, 0);
         assert.equal(p.between[0].via, 'loop');
     });
+    test('a count-in can differ from the rest between passes (a practice block: your count-in, then one gap bar)', () => {
+        const blocks = plain();
+        const p = FJ.loopPlan(blocks, { startBar: 5, endBar: 6, restBars: 1, countInBars: 3 });
+        assert.equal(nums(blocks, p.countIn), 'r r r 5 6');
+        assert.equal(nums(blocks, p.between), 'r 5 6');
+        const none = FJ.loopPlan(blocks, { startBar: 5, endBar: 6, restBars: 1, countInBars: 0 });
+        assert.equal(nums(blocks, none.countIn), '5 6');
+        assert.equal(none.countIn[0].via, null); // straight in: the first bar isn't a jump
+        assert.equal(nums(blocks, none.between), 'r 5 6');
+        // left out, the count-in is the rest bars, as before
+        assert.equal(nums(blocks, FJ.loopPlan(blocks, { startBar: 5, endBar: 6, restBars: 2 }).countIn), 'r r 5 6');
+    });
+    test('a count-in for playing the piece through once: clicking bars on bar 1, before everything', () => {
+        const blocks = plain();
+        const steps = FJ.buildJourney(blocks, {}).steps;
+        const count = FJ.countInSteps(steps, 2);
+        assert.equal(count.length, 2);
+        assert.deepEqual(count.map(s => [s.kind, s.blockIndex, s.bar, s.restIndex]), [['rest', 0, 0, 0], ['rest', 0, 0, 1]]);
+        assert.equal(FJ.countInSteps(steps, 0).length, 0);
+        assert.equal(FJ.countInSteps(steps, 9).length, 5);
+        assert.equal(FJ.countInSteps([], 2).length, 0);
+        // they queue with the piece like any other passages
+        assert.equal(FJ.passagesOf([...count, ...steps])[0].kind, 'rest');
+    });
     test('rest bars are clamped to 0-5', () => {
         const blocks = plain();
         assert.equal(FJ.loopPlan(blocks, { startBar: 1, endBar: 1, restBars: 9 }).between.filter(s => s.kind === 'rest').length, 5);

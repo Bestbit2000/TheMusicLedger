@@ -286,9 +286,27 @@
     // (rest bars are kind 'rest', on the start bar's block) and runs, the loop's [from, to] bar-number
     // stretches for "Plays 7-8, then 1-2" - or { ok: false, reason } with reason 'range' (not a bar in
     // the piece), 'startNeverPlays' or 'endNotReached'.
+    // n clicking bars before `step` plays: kind 'rest', on that step's block, in its time and at its tempo.
+    function restSteps(step, n) {
+        const rest = [];
+        for (let bar = 0; bar < n; bar++) {
+            rest.push({ kind: 'rest', blockIndex: step.blockIndex, blockId: step.blockId, bar: step.bar, restIndex: bar, pass: step.pass, via: bar === 0 ? 'loop' : null });
+        }
+        return rest;
+    }
+    // A count-in for playing the piece through once (a Prepare run-through): n clicking bars in bar 1's time, to
+    // put before buildJourney's steps. They come before the piece's own lead-in, which belongs to the music.
+    function countInSteps(steps, n) {
+        const first = (steps || []).find(st => st.kind === 'main');
+        const bars = Math.max(0, Math.min(5, Math.floor(Number(n) || 0)));
+        return first ? restSteps(first, bars).map(st => ({ ...st, via: null })) : [];
+    }
     function loopPlan(blocks, opts) {
         const { startBar, endBar } = opts;
         const restBars = Math.max(0, Math.min(5, Math.floor(Number(opts.restBars) || 0)));
+        // countInBars: how many of those clicking bars come before the FIRST pass, when that differs from the rest
+        // between passes (a practice block: a count-in you choose, then one gap bar between goes). Left out, it is restBars.
+        const countBars = opts.countInBars === undefined || opts.countInBars === null ? restBars : Math.max(0, Math.min(5, Math.floor(Number(opts.countInBars) || 0)));
         const total = totalBars(blocks);
         if (!Number.isInteger(startBar) || !Number.isInteger(endBar) || startBar < 1 || endBar < 1 || startBar > total || endBar > total) {
             return { ok: false, reason: 'range' };
@@ -305,14 +323,12 @@
 
         const body = steps.slice(s, e + 1).map((st, k) => (k === 0 ? { ...st, via: 'loop' } : st));
         const first = body[0];
-        const rest = [];
-        for (let bar = 0; bar < restBars; bar++) {
-            rest.push({ kind: 'rest', blockIndex: first.blockIndex, blockId: first.blockId, bar: first.bar, restIndex: bar, pass: first.pass, via: bar === 0 ? 'loop' : null });
-        }
+        const rest = restSteps(first, restBars);
+        const countRest = restSteps(first, countBars);
         const firstMain = steps.findIndex(st => st.kind === 'main');
         const leadIn = s === firstMain ? steps.filter(st => st.kind === 'leadIn') : [];
         // The first pass carries on straight from the count-in, so its first bar isn't a jump.
-        const countIn = [...rest, ...leadIn, ...body.map((st, k) => (k === 0 && !rest.length && !leadIn.length ? { ...st, via: null } : st))];
+        const countIn = [...countRest, ...leadIn, ...body.map((st, k) => (k === 0 && !countRest.length && !leadIn.length ? { ...st, via: null } : st))];
 
         const runs = [];
         body.forEach(st => {
@@ -730,7 +746,7 @@
 
     return {
         METER_TABLE, meterInfo, writtenBeatsPerBar, writtenBeatToClick, pauseStepsPerBeat,
-        buildJourney, passagesOf, loopPlan, barNumberOf, totalBars, tempoAt, rampSpans, pausesInBar,
+        buildJourney, passagesOf, loopPlan, countInSteps, barNumberOf, totalBars, tempoAt, rampSpans, pausesInBar,
         repeatBarInvalid, introInvalid, pauseInvalid, rampInvalid,
         barRangeLabel, checkFlow,
         LEVELS, levelPercents, levelPercent, sessionSubBeats, slowestTempo, barSeconds, chunkFit, suggestSplit, barLevels,

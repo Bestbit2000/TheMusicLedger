@@ -771,6 +771,17 @@
                 <option value="count">Count through</option>
             </select>
         </div>
+        <!-- The same choice as the run-through screen's count-in box: clicking bars before a run-through or a practice block starts -->
+        <div class="form-group">
+            <label for="practiceCountInSetting">Count-in before practising</label>
+            <select id="practiceCountInSetting">
+                <option value="0">None</option>
+                <option value="1">1 bar</option>
+                <option value="2">2 bars</option>
+                <option value="3">3 bars</option>
+                <option value="4">4 bars</option>
+            </select>
+        </div>
 
         <!-- Headphone delay: one shared value (metroState.latencyMs) for every metronome - Quick Play,
              Rehearse, Scales, Warm-ups. It used to sit in the old Metronome Blocks volume pop-up, which
@@ -1380,6 +1391,9 @@
         <h2 class="step-question" id="prepSpeedLabel">How fast can you play it through?</h2>
         <p class="metro-help-text">Pick a speed you can get to the end at. It's fine to go slow!</p>
         <div class="level-picker" id="prepSpeedPicker" role="group" aria-labelledby="prepSpeedLabel"></div>
+        <!-- Owner, 4 Oct 2026: clicking bars before it starts, to get from the play button back to the instrument.
+             One button, one pop-up; remembered, and used by practice blocks too. -->
+        <button type="button" class="metroBlk-ctrl-value-btn w-full mb-3" id="prepCountInBtn" aria-haspopup="dialog" aria-label="Count-in before it starts: 1 bar - tap to change"><strong>1 bar</strong><span class="metroBlk-ctrl-value-label">count-in before it starts</span></button>
         <div class="dashboard-grid" aria-live="polite">
             <div class="stat-card"><span class="label">for the whole piece</span><span class="value" id="prepTime">-</span></div>
             <div class="stat-card"><span class="label">every bar slows the same</span><span class="value" id="prepSpeedWord">-</span></div>
