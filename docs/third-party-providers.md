@@ -56,6 +56,10 @@ It fails (and so does the release gate, `npm run design-gate`, which runs it on 
 It warns (without failing) when an entry's terms haven't been re-read for a while: 6 months for a
 service, a year for build tools and content, two years for a fixed font or library.
 
+- a service in use isn't named in the privacy policy (`public/privacy.html`): each service entry says what the
+  policy calls it (`policyName`), or why it isn't in it (`notInPolicy`). **Adding a service that sees anyone's
+  information means adding it to the policy in the same change** (ML-430).
+
 What a script can't check is printed as **Check by hand before a release**, and shown on the admin
 page. Walk it when a release touches the thing concerned.
 

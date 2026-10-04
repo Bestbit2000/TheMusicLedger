@@ -141,6 +141,18 @@ export function auditThirdParties({ root, register, today = new Date() }) {
     }
   }
 
+  // 1b. The privacy policy names every service that handles people's information (ML-430). A service in
+  //     use says what it is called there (policyName), or why it isn't there (notInPolicy).
+  const policyPath = path.join(root, 'public/privacy.html');
+  const policy = fs.existsSync(policyPath) ? fs.readFileSync(policyPath, 'utf8') : null;
+  if (policy !== null) {
+    for (const e of entries) {
+      if (e.group !== 'service' || e.status === 'not_in_use') continue;
+      if (e.policyName) { if (!policy.includes(e.policyName)) errors.push(`${e.name}: the privacy policy (public/privacy.html) doesn't name "${e.policyName}"`); }
+      else if (!e.notInPolicy) errors.push(`${e.name}: say what the privacy policy calls it (policyName), or why it isn't in it (notInPolicy)`);
+    }
+  }
+
   // 2. Every npm package is registered, with the licence it really has.
   const claimed = new Map();
   for (const e of entries) for (const p of e.packages || []) claimed.set(p, e);

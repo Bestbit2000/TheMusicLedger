@@ -23,6 +23,9 @@
 //   asks            what they ask of us: { text, check? }. A check is { path, includes? } - a file
 //                   that must exist and, optionally, text it must contain - and is run on every
 //                   release. With no check it is listed to be checked by hand.
+//   policyName      (services) the name the privacy policy (public/privacy.html) uses for it - the audit
+//                   fails if the policy doesn't say it. notInPolicy: the reason, for one that handles nobody's
+//                   information.
 //   attention       things the owner needs to do or decide
 //   watch           things to keep an eye on
 //   limits, overLimit, nextTier, usageSource

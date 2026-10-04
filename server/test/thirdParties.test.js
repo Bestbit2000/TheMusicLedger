@@ -85,6 +85,17 @@ test('something a licence asks of us going missing is an error', () => {
   assert.match(audit(root, [noFile]).errors.join('\n'), /Acme-LICENSE\.txt is missing/);
 });
 
+test('the privacy policy has to name every service in use (ML-430)', () => {
+  const root = fakeRepo({ 'public/privacy.html': '<p>Acme Cloud holds the database.</p>' });
+  assert.deepEqual(audit(root, [entry({ policyName: 'Acme Cloud' })]).errors, []);
+  assert.match(audit(root, [entry({ policyName: 'Other Co' })]).errors.join('
+'), /doesn't name "Other Co"/);
+  assert.match(audit(root, [entry()]).errors.join('
+'), /policyName/);
+  assert.deepEqual(audit(root, [entry({ notInPolicy: 'handles nobody's information' })]).errors, []);
+  assert.deepEqual(audit(root, [entry({ status: 'not_in_use' })]).errors, []);
+});
+
 test('terms not re-checked for too long are a warning, not an error', () => {
   const root = fakeRepo({});
   const stale = audit(root, [entry({ termsCheckedOn: '2025-01-01' })]);

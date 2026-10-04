@@ -3,12 +3,10 @@
 
 const CHECKED = '2026-10-04';
 
-// The app has no privacy policy or terms page yet - several sets of terms below need one.
-const NO_PRIVACY_PAGE = 'The app has no privacy policy page yet.';
-
 export default [
   {
     key: 'neon',
+    policyName: 'Neon',
     name: 'Neon',
     group: 'service',
     status: 'in_use',
@@ -57,6 +55,7 @@ export default [
   },
   {
     key: 'vercel',
+    policyName: 'Vercel',
     name: 'Vercel',
     group: 'service',
     status: 'attention',
@@ -87,7 +86,7 @@ export default [
     ],
     asks: [
       { text: 'Stay non-commercial while on Hobby: no payments, no advertising of a paid product, no ads.' },
-      { text: 'No content that infringes someone\'s rights - members upload recordings and sheet music, so we need a way to take something down when asked.' },
+      { text: 'No content that infringes someone\'s rights - members upload recordings and sheet music, so the terms say how to ask for something to be taken down.', check: { path: 'public/terms.html', includes: 'take it down' } },
       { text: 'One account only - no second account to get round the limits.' }
     ],
     watch: [
@@ -111,6 +110,7 @@ export default [
   },
   {
     key: 'vercel-blob',
+    policyName: 'Vercel',
     name: 'Vercel Blob',
     group: 'service',
     status: 'in_use',
@@ -148,6 +148,7 @@ export default [
   },
   {
     key: 'google-sign-in',
+    policyName: 'Google',
     name: 'Google sign-in',
     group: 'service',
     status: 'attention',
@@ -165,7 +166,8 @@ export default [
     ],
     termsCheckedOn: CHECKED,
     attention: [
-      `${NO_PRIVACY_PAGE} Google's rules need one that says what Google data we collect and how it is used, linked from the home page and from the sign-in consent screen.`
+      'The privacy policy now exists (/privacy.html, linked from the sign-in screen). Still to do in the Google Cloud console: put its address, and the home page, on the sign-in consent screen.',
+      'Google\'s guidelines want the button to say "Sign in with Google" with their coloured G. Ours says "Log in to Google" with no logo.'
     ],
     says: [
       'Google can end access at any time.',
@@ -174,7 +176,8 @@ export default [
       'Asking for more than profile and email later (Drive, Calendar...) brings a much heavier review.'
     ],
     asks: [
-      { text: 'A privacy policy that says what Google data we collect and how we use it - on the home page and on the consent screen.' },
+      { text: 'A privacy policy that says what Google data we collect and how we use it, linked from the home page.', check: { path: 'public/index.html', includes: 'href="/privacy.html"' } },
+      { text: 'The same privacy policy address on the sign-in consent screen (set in the Google Cloud console).' },
       { text: 'Ask only for what we need: profile and email.', check: { path: 'server/config/passport.js', includes: ['profile', 'email'] } },
       { text: 'The button says "Sign in with Google" (or "Continue with Google") with Google\'s standard coloured G, and is no less prominent than any other sign-in choice.' },
       { text: 'Keep the client secret out of the code - it lives in the environment settings only.' },
@@ -187,10 +190,11 @@ export default [
     limits: [
       { what: 'Users while in "Testing"', allowance: '100 test users' }
     ],
-    hosts: ['accounts.google.com']
+    hosts: ['accounts.google.com', 'policies.google.com']
   },
   {
     key: 'posthog',
+    policyName: 'PostHog',
     name: 'PostHog',
     group: 'service',
     status: 'attention',
@@ -210,7 +214,6 @@ export default [
     termsCheckedOn: CHECKED,
     attention: [
       'The data processing agreement is free on any plan but is not automatic - it has to be filled in and signed on PostHog\'s site. UK data law expects one.',
-      `${NO_PRIVACY_PAGE} PostHog's terms make us responsible for telling users and having any consent needed (UK cookie rules).`
     ],
     says: [
       'Price rises need 30 days\' notice. Either side can end it with 30 days\' notice.',
@@ -219,7 +222,7 @@ export default [
       'No credit or attribution is asked for.'
     ],
     asks: [
-      { text: 'Tell users about PostHog in the privacy policy.' },
+      { text: 'Tell users about PostHog in the privacy policy.', check: { path: 'public/privacy.html', includes: 'PostHog' } },
       { text: 'No cookie and nothing kept in the browser, so no consent banner is needed.', check: { path: 'public/analytics.js', includes: "persistence: 'memory'" } },
       { text: 'Set it up so it doesn\'t collect sensitive personal data.' },
       { text: 'Don\'t try to get round the plan limits.' }
@@ -241,6 +244,7 @@ export default [
   },
   {
     key: 'resend',
+    policyName: 'Resend',
     name: 'Resend',
     group: 'service',
     status: 'in_use',
@@ -287,6 +291,7 @@ export default [
   },
   {
     key: 'pwned-passwords',
+    policyName: 'Have I Been Pwned',
     name: 'Have I Been Pwned - Pwned Passwords',
     group: 'service',
     status: 'in_use',
@@ -315,6 +320,7 @@ export default [
   },
   {
     key: 'jsdelivr',
+    policyName: 'jsDelivr',
     name: 'jsDelivr',
     group: 'service',
     status: 'in_use',
@@ -335,7 +341,7 @@ export default [
     ],
     asks: [
       { text: 'Keep the script pinned to an exact version.', check: { path: 'public/index.html', includes: 'cdn.jsdelivr.net/npm/@vercel/blob@' } },
-      { text: 'Mention in the privacy policy that the browser fetches a script from jsDelivr.' }
+      { text: 'Mention in the privacy policy that the browser fetches a script from jsDelivr.', check: { path: 'public/privacy.html', includes: 'jsDelivr' } }
     ],
     watch: [
       'A script from someone else\'s server runs inside the app. Hosting that one file ourselves would remove both the risk and the dependency for uploads.'
@@ -344,6 +350,7 @@ export default [
   },
   {
     key: 'youtube',
+    policyName: 'YouTube',
     name: 'YouTube',
     group: 'service',
     status: 'attention',
@@ -361,7 +368,6 @@ export default [
     ],
     termsCheckedOn: CHECKED,
     attention: [
-      'There are no terms of use or privacy policy in the app. YouTube\'s policies ask that our terms link to YouTube\'s Terms of Service, and that our privacy policy says we use YouTube and links to Google\'s privacy policy.',
       'Don\'t make YouTube playback a paid-only feature: the policies don\'t allow charging for what YouTube gives free. Selling the app itself is fine.'
     ],
     says: [
@@ -373,7 +379,8 @@ export default [
       { text: 'Use the privacy-enhanced player.', check: { path: 'public/app.js', includes: 'www.youtube-nocookie.com/embed/' } },
       { text: 'The player is at least 200 by 200 pixels, with nothing laid over it and none of its controls or branding hidden.' },
       { text: 'No background play, and no splitting the sound from the picture.' },
-      { text: 'Our terms link to YouTube\'s Terms of Service; our privacy policy says we use YouTube and links to Google\'s privacy policy.' },
+      { text: 'Our terms link to YouTube\'s Terms of Service.', check: { path: 'public/terms.html', includes: 'https://www.youtube.com/t/terms' } },
+      { text: 'Our privacy policy says we use YouTube and links to Google\'s privacy policy.', check: { path: 'public/privacy.html', includes: 'https://policies.google.com/privacy' } },
       { text: 'No ads or sponsorship on or around the player.' }
     ],
     watch: [
