@@ -192,6 +192,47 @@ export async function createFlowBlock(accountId, scoreId, data) {
   return getBlockDtoById(segmentId);
 }
 
+// ML-425: a whole piece's blocks in one go (Quick piece entry's Save). The same checks as createFlowBlock,
+// block by block, but written together: one access check, one transaction, one INSERT for every block,
+// then the pauses / speed changes / marks of the blocks that have any. Making them one at a time took about
+// 14 database calls a block - half a minute for a real piece when the server and the database were an
+// ocean apart. The piece's existing blocks are replaced.
+export async function replaceAllFlowBlocks(accountId, scoreId, blocks) {
+  await assertFlowAccess(accountId, scoreId);
+  const normalized = blocks.map((b) => asFlowLeadIn(validateSegmentPayload(b)));
+  if (normalized.filter((b) => b.isLeadIn).length > 1) throw withStatus(400, 'This flow already has a lead-in block.');
+
+  await withTransaction(async (client) => {
+    await client.query('DELETE FROM metronome_segments WHERE parent_score_id = $1', [scoreId]);
+    // The lead-in always sorts first (as createFlowBlock puts it); the rest keep the order they came in
+    let next = 0;
+    const order = normalized.map((b) => (b.isLeadIn ? -1 : next++));
+    const columns = ['parent_score_id', 'order_index', ...SEGMENT_COLUMNS];
+    const values = [];
+    const rows = normalized.map((b, i) => {
+      const row = [scoreId, order[i], ...segmentColumnValues(b)];
+      const base = values.length;
+      values.push(...row);
+      return `(${row.map((_, j) => `$${base + j + 1}`).join(', ')})`;
+    });
+    const inserted = await client.query(
+      `INSERT INTO metronome_segments (${columns.join(', ')}) VALUES ${rows.join(', ')} RETURNING id, order_index`,
+      values
+    );
+    const idByOrder = new Map(inserted.rows.map((r) => [Number(r.order_index), r.id]));
+    for (let i = 0; i < normalized.length; i++) {
+      const id = idByOrder.get(order[i]);
+      const b = normalized[i];
+      // New rows have nothing to replace, so only the blocks that carry any are touched
+      if (b.fermatas.length) await replaceFermatas(client, id, b.fermatas);
+      if (b.ramps.length) await replaceRamps(client, id, b.ramps);
+      if (b.rehearsalMarks.length) await replaceRehearsalMarks(client, id, b.rehearsalMarks);
+    }
+  });
+
+  return listFlowBlocksUnchecked(scoreId);
+}
+
 // Partial update - same "merge only what's present, re-validate the whole row" shape as
 // metronomeSegments.js's own updateSegment (the exactly-one-time-signature and lead-in/pickup
 // rules can't be checked field-by-field).

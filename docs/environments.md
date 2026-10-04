@@ -11,6 +11,14 @@ and [`docs/migrations.md`](migrations.md) is "how the schema itself gets
 applied". Written here (not just in Jira `ML-21`) specifically so a future
 Claude session without access to Jira still has this context.
 
+## Where things run (ML-425)
+
+The database (Neon) is in **London** (AWS `eu-west-2`). The server is a Vercel function, set to run in **London**
+too (`"regions": ["lhr1"]` in `vercel.json`). Keep them together: until 0.42 the function ran in Vercel's
+default region (Washington DC, `iad1`), so every database call crossed the Atlantic - about 80 ms each, and a
+request that made 300 of them (saving a Quick entry piece) took half a minute. To check where a deployment
+runs, look at the `X-Vercel-Id` response header: `lhr1::lhr1::...` is edge::function.
+
 ## Neon project
 
 - Project: `little-haze-42527245`, org: `org-noisy-tooth-38400253`

@@ -29,7 +29,7 @@ import { put } from '@vercel/blob';
 import { listInstruments, listAccountInstruments, setAccountInstruments, resolveSessionInstrument } from '../services/instruments.js';
 import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../services/range.js';
 import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
-import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks } from '../services/flowBlocks.js';
+import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
 import { importScoreFromFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/scoreImport.js';
 import { isFeatureEnabled, listEnabledFeatureKeys, getLimit, listLimits } from '../services/features.js';
 import { getActiveTimerSession, upsertActiveTimerSession, clearActiveTimerSession } from '../services/timerSessions.js';
@@ -1731,17 +1731,13 @@ router.post('/flows/:id/blocks', requireAuth, resolveAccount, async (req, res) =
 });
 
 // ML-424: Quick piece entry saves a whole piece's blocks in one go - the piece's bars are replaced by the
-// ones sent, made one after another by the same createFlowBlock the bar-by-bar editor uses (so every
-// rule and check is the same). Only for a piece you can edit; refused when the feature is off for you.
+// ones sent, each checked by the same rules as the bar-by-bar editor's createFlowBlock (replaceAllFlowBlocks). Only for a piece you can edit; refused when the feature is off for you.
 router.put('/flows/:id/blocks/all', requireAuth, resolveAccount, async (req, res) => {
   try {
     if (!(await isFeatureEnabled('piece_quick_entry'))) return res.status(403).json({ error: 'Quick piece entry is not switched on for you.' });
     const blocks = Array.isArray(req.body && req.body.blocks) ? req.body.blocks : null;
     if (!blocks || !blocks.length || blocks.length > 600) return res.status(400).json({ error: 'Send between 1 and 600 blocks.' });
-    for (const old of await listFlowBlocks(req.accountId, req.params.id)) await deleteFlowBlock(req.accountId, old.id);
-    const made = [];
-    for (const b of blocks) made.push(await createFlowBlock(req.accountId, req.params.id, b));
-    res.json({ blocks: made });
+    res.json({ blocks: await replaceAllFlowBlocks(req.accountId, req.params.id, blocks) }); // ML-425: written together, not one at a time
   } catch (error) {
     sendError(res, error);
   }

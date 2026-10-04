@@ -37,7 +37,7 @@ export default [
       { text: 'We must have the right to hold the data we put in it.' }
     ],
     watch: [
-      'Which region the project is in (London and Frankfurt exist) - it is fixed when the project is made. Not checked yet.',
+      'The production database is in London (AWS eu-west-2), checked 4 Oct 2026. The region is fixed when the project is made.',
       'The data processing agreement is a PDF that could not be read - whether it applies automatically on the Free plan is not confirmed.',
       'Free keeps only 6 hours of history to restore from.'
     ],
@@ -82,7 +82,7 @@ export default [
       'Hobby is for personal, non-commercial use. Asking for donations is not commercial; taking payment, advertising a sale, being paid to build the site, or carrying ads is.',
       'They can disable or remove a Hobby project with or without notice, and end the account at once if limits are passed.',
       'Changes to the terms apply when posted or emailed.',
-      'Processing is mainly in the USA. Functions run in US East unless the region was changed.'
+      'Vercel is a US company and processes mainly in the USA; our server code is set to run in London (vercel.json).'
     ],
     asks: [
       { text: 'Stay non-commercial while on Hobby: no payments, no advertising of a paid product, no ads.' },
@@ -90,7 +90,7 @@ export default [
       { text: 'One account only - no second account to get round the limits.' }
     ],
     watch: [
-      'Which region the function runs in - not checked.',
+      'The server runs in London (lhr1, set in vercel.json since ML-425) - next to the database. It ran in Washington DC before, which made every database call cross the Atlantic.',
       'A scheduled job (cron) on Hobby can run at most once a day.'
     ],
     limits: [
