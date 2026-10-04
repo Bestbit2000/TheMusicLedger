@@ -1069,18 +1069,24 @@
     <!-- ML-299: Rehearse - the pieces you can see (with bars to play), one tap to Play Flow. Nothing to
          create or import here: that's My music (☰ menu). Rows are the library's list rows. -->
     <div id="rehearseView" class="hidden-group">
-        <!-- ML-319: practice lists (a concert's pieces and date) - behind practice_levels. -->
-        <div class="hidden-group" id="practiceListsSection">
-            <div class="section-title">Practice lists</div>
-            <div id="practiceListsList"></div>
-            <button type="button" class="btn-nav" id="practiceListNewBtn">+ New practice list</button>
-            <div class="section-title">Pieces</div>
+        <!-- ML-403: Pieces and Practice lists are tabs (Pieces opens first). Shown when practice lists are on for you
+             (practice_levels); without them there is only the pieces, as before. -->
+        <div class="flow-edit-tabs hidden-group" role="tablist" aria-label="Pieces or practice lists" data-music-tabs="rehearse">
+            <button type="button" class="flow-edit-tab active" role="tab" aria-selected="true" data-music-tab="pieces">Pieces</button>
+            <button type="button" class="flow-edit-tab" role="tab" aria-selected="false" data-music-tab="lists">Practice lists <span class="flow-edit-tab-count" data-list-count></span></button>
         </div>
-        <p class="metro-help-text">Pick a piece to play along with.</p>
-        <div id="rehearseList">Loading...</div>
-        <div class="hidden-group mt-4" id="rehearseEmpty">
-            <p>No pieces to play yet.</p>
-            <button type="button" class="btn-nav no-margin hidden-group" id="rehearseAddBtn">+ Add a piece</button>
+        <div data-music-panel="pieces" data-music-screen="rehearse">
+            <p class="metro-help-text">Pick a piece to play along with.</p>
+            <div id="rehearseList">Loading...</div>
+            <div class="hidden-group mt-4" id="rehearseEmpty">
+                <p>No pieces to play yet.</p>
+                <button type="button" class="btn-nav no-margin hidden-group" id="rehearseAddBtn">+ Add a piece</button>
+            </div>
+        </div>
+        <!-- ML-319: practice lists (a concert's pieces and date) -->
+        <div class="hidden-group" data-music-panel="lists" data-music-screen="rehearse">
+            <div data-practice-lists id="practiceListsList"></div>
+            <button type="button" class="btn-nav" data-new-list id="practiceListNewBtn">+ New practice list</button>
         </div>
     </div>
 
@@ -1453,9 +1459,19 @@
         <div id="metroBlkEntryScreen">
             <div class="section-title">My music</div>
             <p class="metro-help-text">Your pieces, your bands' and the public library. To practise one, use Rehearse.</p>
+            <!-- ML-403: Pieces and Practice lists are tabs (Pieces opens first). Shown when practice lists are on for you
+                 (practice_levels); without them there is only the pieces, as before. -->
+            <div class="flow-edit-tabs hidden-group" role="tablist" aria-label="Pieces or practice lists" data-music-tabs="mymusic">
+                <button type="button" class="flow-edit-tab active" role="tab" aria-selected="true" data-music-tab="pieces">Pieces</button>
+                <button type="button" class="flow-edit-tab" role="tab" aria-selected="false" data-music-tab="lists">Practice lists <span class="flow-edit-tab-count" data-list-count></span></button>
+            </div>
+            <div class="hidden-group" data-music-panel="lists" data-music-screen="mymusic">
+                <div data-practice-lists></div>
+                <button type="button" class="btn-nav" data-new-list>+ New practice list</button>
+            </div>
             <!-- ML-400: opens the Add a piece screen (#addPieceView), the same one as the Add a piece tool. -->
-            <button type="button" class="btn-nav" id="myMusicAddBtn">+ Add a piece</button>
-            <div id="metroBlkEntryLibrary">
+            <button type="button" class="btn-nav" id="myMusicAddBtn" data-music-panel="pieces" data-music-screen="mymusic">+ Add a piece</button>
+            <div id="metroBlkEntryLibrary" data-music-panel="pieces" data-music-screen="mymusic">
                 <div class="filter-strip" id="flowLibraryFilterStrip">
                     <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
                     <div class="filter-strip-pills" id="flowLibraryFilterPills" role="group" aria-label="Show pieces"></div>

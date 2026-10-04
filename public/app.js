@@ -1956,7 +1956,7 @@
             }
         }
 
-        if (viewName === 'rehearseView') { document.getElementById('topTitle').innerText = 'Rehearse'; renderRehearseList(); rehearseRefresh(); renderRehearseLists(); }
+        if (viewName === 'rehearseView') { document.getElementById('topTitle').innerText = 'Rehearse'; renderRehearseList(); rehearseRefresh(); openMusicTabs('rehearse', isBack); }
         // ML-390: a piece's path and its Prepare steps (the path's own title is the piece's, set as it renders).
         if (viewName === 'piecePathView') { document.getElementById('topTitle').innerText = levels.title || 'My Levels'; if (isBack) renderPiecePath(); }
         if (viewName === 'prepareRunView') document.getElementById('topTitle').innerText = 'Prepare · 2 of 4';
@@ -1986,6 +1986,7 @@
             // My music: create / import / the library of pieces (ML-179/ML-299). The old ad-hoc
             // Metronome Blocks editor that used to live on this view was removed on 2026-09-27.
             metroBlkShowEntryScreen();
+            openMusicTabs('mymusic', isBack); // ML-403: Pieces / Practice lists
             // The band pills need your bands' names - re-drawn once both are in.
             Promise.all([loadFlowLibraryBandNames(), loadFlowsList()]).then(renderFlowsList);
         }
@@ -8108,22 +8109,54 @@
         const when = days < 0 ? 'past' : days === 0 ? 'today' : `${days} day${days === 1 ? '' : 's'} to go`;
         return `${DAYS_SHORT[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} · ${when}`;
     }
-    async function renderRehearseLists() {
+    // ML-403: Rehearse and My music both show Pieces and Practice lists as tabs, from this one place.
+    // 'rehearse' / 'mymusic' -> which tab is showing. Pieces opens first; a way in can ask for the other
+    // (musicTabNext - after adding a piece to a list, My music opens on Practice lists).
+    const musicTab = { rehearse: 'pieces', mymusic: 'pieces' };
+    let musicTabNext = null; // { screen, tab } for the next time that screen opens
+    function setMusicTab(screen, tab) {
         const on = isFeatureEnabled('practice_levels');
-        setShown('practiceListsSection', on);
-        if (!on) return;
-        const box = document.getElementById('practiceListsList');
+        musicTab[screen] = on ? tab : 'pieces';
+        const bar = document.querySelector(`[data-music-tabs="${screen}"]`);
+        setShown(bar, on);
+        bar?.querySelectorAll('[data-music-tab]').forEach(b => {
+            const active = b.dataset.musicTab === musicTab[screen];
+            b.classList.toggle('active', active);
+            b.setAttribute('aria-selected', String(active));
+        });
+        document.querySelectorAll(`[data-music-panel][data-music-screen="${screen}"]`).forEach(p => setShown(p, p.dataset.musicPanel === musicTab[screen]));
+    }
+    // Opening the screen fresh starts on Pieces (or what was asked for); coming Back keeps the tab you left
+    function openMusicTabs(screen, isBack) {
+        const asked = musicTabNext && musicTabNext.screen === screen ? musicTabNext.tab : null;
+        if (asked) musicTabNext = null;
+        setMusicTab(screen, asked || (isBack ? musicTab[screen] : 'pieces'));
+        renderPracticeListRows();
+    }
+    document.querySelectorAll('[data-music-tabs]').forEach(bar => bar.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-music-tab]');
+        if (b) setMusicTab(bar.dataset.musicTabs, b.dataset.musicTab);
+    }));
+    document.querySelectorAll('[data-new-list]').forEach(b => b.addEventListener('click', () => newPracticeList()));
+    // The practice lists, drawn into both screens' Practice lists tab
+    async function renderPracticeListRows() {
+        if (!isFeatureEnabled('practice_levels')) return;
+        const boxes = document.querySelectorAll('[data-practice-lists]');
         try {
             const { lists } = await API.practiceLists.list();
-            box.innerHTML = lists.length ? lists.map(l => `
+            const html = lists.length ? lists.map(l => `
                 <div class="history-item">
                     <button type="button" class="level-row-body grow text-left" data-list="${l.id}">
                         <span><strong>${escapeHtml(l.name)}</strong><br><span class="text-sm text-muted">${l.bandName ? `${escapeHtml(l.bandName)} · ` : ''}${plDateText(l.eventDate)} · ${l.pieceCount} piece${l.pieceCount === 1 ? '' : 's'}</span></span>
                     </button>
                 </div>`).join('') : '<p class="text-sm text-muted">A list is the pieces you\'re working towards - give it a target date and it shows the pace you need.</p>';
-            box.querySelectorAll('[data-list]').forEach(b => b.addEventListener('click', () => openPracticeList(Number(b.dataset.list))));
+            boxes.forEach(box => {
+                box.innerHTML = html;
+                box.querySelectorAll('[data-list]').forEach(b => b.addEventListener('click', () => openPracticeList(Number(b.dataset.list))));
+            });
+            document.querySelectorAll('[data-list-count]').forEach(el => { el.textContent = lists.length ? String(lists.length) : ''; });
         } catch (e) {
-            box.innerHTML = '';
+            boxes.forEach(box => { box.innerHTML = ''; });
         }
     }
     async function openPracticeList(id) {
@@ -8317,7 +8350,6 @@
         btn.textContent = pickCountLabel(plState.picked.size, 'piece');
     }
     document.getElementById('plPiecesSearch')?.addEventListener('input', (e) => { plPick.query = e.target.value.trim().toLowerCase(); renderPlPiecesModal(); });
-    document.getElementById('practiceListNewBtn')?.addEventListener('click', () => newPracticeList());
     document.getElementById('plName')?.addEventListener('input', plFieldChanged);
     document.getElementById('plAddPiecesBtn')?.addEventListener('click', () => { if (!flowsListCache.length) rehearseRefresh(); openPlPiecesModal(); });
     document.getElementById('plPiecesCloseBtn')?.addEventListener('click', () => hideModal('plPiecesModal'));
@@ -8334,7 +8366,7 @@
     document.getElementById('plDeleteBtn')?.addEventListener('click', () => {
         const l = plState.list;
         showConfirmModal('Delete this list?', `"${l.name}" goes, but its pieces and your Levels stay.`, async () => {
-            try { await API.practiceLists.remove(l.id); plState.list = null; goBack(); renderRehearseLists(); }
+            try { await API.practiceLists.remove(l.id); plState.list = null; goBack(); renderPracticeListRows(); }
             catch (e) { showWarningToast('List not deleted: ' + e.message); }
         }, true, 'Delete');
     });
@@ -19334,7 +19366,13 @@
         else showSuccessToast(`"${about.title}" is saved: ${payload.length} blocks. Entered in ${fmtMinSec(st.active)} · ${st.taps} taps · ${st.keys} keys.`);
         outlineClose();
         while (['pieceOutlineView', 'addPieceView'].includes(viewStack[viewStack.length - 1])) viewStack.pop();
-        switchView(viewStack[viewStack.length - 1] || 'mainView', true);
+        if (target && target.listId !== null && target.listName && isFeatureEnabled('practice_levels')) {
+            // ML-403: made for a practice list - My music opens on Practice lists, where the list now has it
+            musicTabNext = { screen: 'mymusic', tab: 'lists' };
+            switchView('metroBuilderView');
+        } else {
+            switchView(viewStack[viewStack.length - 1] || 'mainView', true);
+        }
     }
 
     // --- One listener for the whole screen ---

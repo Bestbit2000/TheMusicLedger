@@ -10,7 +10,7 @@ it).
 | Practising a chunk at its Level (Rehearse's practice mode) | ML-317 | `flowSession` in app.js |
 | The session: planner, runner, 4:30 nudge, templates, resume | ML-320 | `public/practicePlan.js`, `#sessionPlanView`, `#sessionRunView`, the session bar |
 | Stepped sessions: three steps to set up, plans, open ended, the 30-second rest and its messages, Prepare (run-through, paint, knife), Play-through, the warm-up loop | ML-390 | `public/practicePlan.js`, `public/flowJourney.js`, the "ML-390" sections of app.js, `server/services/restMessages.js`, Admin → Rest messages, migration 087 |
-| Practice lists, readiness forecast, join-up groups, band lists | ML-319 | `PracticePlan.forecast`, `#practiceListView` (on Rehearse), `server/services/practiceLists.js` |
+| Practice lists, readiness forecast, join-up groups, band lists | ML-319 | `PracticePlan.forecast`, `#practiceListView` (opened from the Practice lists tab on Rehearse or My music - ML-403), `server/services/practiceLists.js` |
 | Skills lists | ML-321 | `SKILLS` in app.js, `#skillsView`, `server/services/skills.js` |
 | Scales Levels: a Scales block's three scales, each at its Level | ML-391 | `PracticePlan.scale*`, `scalesLadder` in app.js, `server/services/scaleLevels.js`, migration 096 |
 | Other "Level" labels renamed (Help, Notes, Difficulty, Account type) | ML-318 | - |
@@ -310,3 +310,17 @@ sub-beats, the 4:30 chunk length rule, the heat map, and the practice mode.
   holds every go.
 - **Range (ML-305)** is built: moving your range passes its step ([range.md](range.md)). **Rhythm
   (ML-306, with its crib sheet)** is built too ([rhythm.md](rhythm.md)).
+
+## Pieces and Practice lists tabs (ML-403)
+
+Rehearse and My music both show **Pieces** and **Practice lists** as two tabs (the segmented `.flow-edit-tabs`),
+drawn by one piece of code (`setMusicTab`, `openMusicTabs`, `renderPracticeListRows` in `app.js`; the markup is
+`[data-music-tabs]` / `[data-music-panel]`). Owner's decisions, 4 Oct 2026:
+
+- **Pieces opens first** on both, every time the screen is opened fresh. Coming **Back** to it (from a list or a
+  piece) keeps the tab you left.
+- **Rehearse keeps its own Practice lists tab** - it is where a list is played from - and My music has the same
+  one, with "+ New practice list" on both.
+- With practice lists off for the account type (`practice_levels`) there are no tabs: just the pieces.
+- **Adding a piece:** Quick entry's Save goes back to where Add a piece was opened from, **unless the piece was
+  made for a practice list** - then it opens My music on the Practice lists tab, where the list now has it.

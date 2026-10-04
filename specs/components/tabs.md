@@ -11,6 +11,9 @@ Switches between sibling views within one screen.
 - **Underline** (`.admin-subtabs`) in the admin panel: gold underline on the active tab.
 - **Sidebar** (`.admin-nav-item`) for admin top-level sections: gold left border.
 
+Also the two tabs on **Rehearse and My music**, Pieces / Practice lists (ML-403): the same segmented tray, with the
+number of lists after the label (`.flow-edit-tab-count`). Pieces opens first.
+
 **Don't use** tabs for sequential steps (use screens + [buttons](button.md)) or more than ~5 options in the app.
 
 ## 3. Anatomy
