@@ -2685,10 +2685,11 @@
     .steps-progress-step.is-done::before, .steps-progress-step.is-now::before { background: var(--primary-action); }
     .steps-progress-step.is-now { color: var(--text-color); }
     /* ML-420: a step already done is a button back to it. It looks like the other steps, in the link colour (the
-       gold of its bar) - no chevron or underline, which read as a stray link (owner, 4 Oct 2026); the underline
+       gold of its bar) - with a tick for done; no chevron or underline, which read as a stray link (owner, 4 Oct 2026); the underline
        comes on hover and keyboard focus. Its tap area is the shared 44px one (A6). Steps to come are never buttons. */
-    .steps-progress-back { justify-self: start; padding: 0; border: 0; background: none; font: inherit; color: var(--link-color); cursor: pointer; }
+    .steps-progress-back { display: inline-flex; align-items: center; gap: var(--space-0-5); justify-self: start; padding: 0; border: 0; background: none; font: inherit; color: var(--link-color); cursor: pointer; }
     .steps-progress-back:hover, .steps-progress-back:focus-visible { text-decoration: underline; }
+    .steps-progress-back .material-symbols-outlined { font-size: var(--icon-sm); } /* the tick: done */
     .step-question { font-size: var(--font-lg); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); margin: 0 0 var(--space-3); text-wrap: balance; }
     /* One strip across the width, a block per 5 minutes - more minutes, thinner blocks (owner, 1 Oct 2026: numbered
        squares looked like buttons). Display only. */
