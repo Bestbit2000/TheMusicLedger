@@ -177,11 +177,11 @@ export const build = [
     name: 'ICO data protection fee',
     group: 'build',
     status: 'attention',
-    who: 'Information Commissioner's Office (UK)',
-    provides: 'The UK regulator for personal data. Anyone who holds people's personal information - sole traders included - pays a yearly fee unless exempt.',
-    usedIn: 'Not in the code: it applies because the app holds members' names and email addresses',
+    who: 'Information Commissioner\'s Office (UK)',
+    provides: 'The UK regulator for personal data. Anyone who holds people\'s personal information - sole traders included - pays a yearly fee unless exempt.',
+    usedIn: 'Not in the code: it applies because the app holds members\' names and email addresses',
     plan: 'Smallest tier',
-    cost: 'Not paid yet. The owner's figure: £52 a year, £47 by direct debit',
+    cost: 'Not paid yet. The owner\'s figure: £52 a year, £47 by direct debit',
     licence: 'A legal duty, not a licence (Data Protection (Charges and Information) Regulations 2018)',
     terms: [
       { label: 'Data protection fee', url: 'https://ico.org.uk/for-organisations/data-protection-fee/' },
@@ -189,7 +189,7 @@ export const build = [
     ],
     termsCheckedOn: CHECKED,
     attention: [
-      'Not registered yet. The ICO says organisations, sole traders included, that use personal information must pay unless exempt. Take the self-assessment on the ICO's site and pay if it says so.'
+      'Not registered yet. The ICO says organisations, sole traders included, that use personal information must pay unless exempt. Take the self-assessment on the ICO\'s site and pay if it says so.'
     ],
     says: [
       'Organisations (including sole traders) that use personal information need to pay, unless they are exempt.',
