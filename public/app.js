@@ -18618,22 +18618,22 @@
     // piece is changed afterwards in the bar-by-bar editor.
     // ========================================
     const OUTLINE_STAGES = [{ name: 'About' }, { name: 'Structure' }, { name: 'Time and speed' }, { name: 'Extras' }, { name: 'Media' }];
-    // `label` is what the step before calls it on its Next button. An Extras step has `kinds` (the extras
+    // `name` is the step's own name (its dot); `label` is what the step before calls it on its Next button. An Extras step has `kinds` (the extras
     // it asks about); a Media step has `media` (which list in outline.media).
     const OUTLINE_STEPS = [
-        { key: 'about', stage: 0, label: 'about the piece', question: () => 'What is the piece?' },
-        { key: 'howLong', stage: 1, label: 'how long', question: () => 'How long is the piece?' },
-        { key: 'marks', stage: 1, label: 'rehearsal marks', question: () => 'Where are the rehearsal marks?' },
-        { key: 'time', stage: 2, label: 'time signatures', question: () => `Which bars aren't ${outlineSigLabel(outline.o.mainSig)}?` },
-        { key: 'speed', stage: 2, label: 'speed', question: () => 'Where does the speed change?' },
-        { key: 'xIntro', stage: 3, label: 'extras', kinds: ['intro'], one: true, add: 'Add the intro', question: () => 'Is there an intro?' },
-        { key: 'xRepeats', stage: 3, label: 'repeats', kinds: ['repeat', 'repeatEndings'], add: 'Add a repeat', addMore: 'Add another repeat', question: () => 'Are there any repeats?' },
-        { key: 'xPauses', stage: 3, label: 'pauses', kinds: ['pause'], add: 'Add a pause or break', addMore: 'Add another pause or break', question: () => 'Are there any pauses or breaks?' },
-        { key: 'xRamps', stage: 3, label: 'speeding up and slowing down', kinds: ['ramp'], add: 'Add one', addMore: 'Add another', question: () => 'Does it speed up or slow down anywhere?' },
-        { key: 'xSigns', stage: 3, label: 'signs and jumps', kinds: ['sign'], add: 'Add a sign or jump', addMore: 'Add another sign or jump', question: () => 'Are there any signs or jumps?' },
-        { key: 'mAudio', stage: 4, label: 'media', media: 'audio', icon: 'music_note', add: 'Choose a recording', addMore: 'Add another recording', question: () => 'Is there a recording to add?' },
-        { key: 'mVideo', stage: 4, label: 'YouTube', media: 'video', icon: 'smart_display', question: () => 'Is there a YouTube link to add?' },
-        { key: 'mDocs', stage: 4, label: 'scores and parts', media: 'docs', icon: 'description', add: 'Choose a file', addMore: 'Add another file', question: () => 'Is there a score or part to add?' }
+        { key: 'about', name: 'About', stage: 0, label: 'about the piece', question: () => 'What is the piece?' },
+        { key: 'howLong', name: 'How long', stage: 1, label: 'how long', question: () => 'How long is the piece?' },
+        { key: 'marks', name: 'Rehearsal marks', stage: 1, label: 'rehearsal marks', question: () => 'Where are the rehearsal marks?' },
+        { key: 'time', name: 'Time signatures', stage: 2, label: 'time signatures', question: () => `Which bars aren't ${outlineSigLabel(outline.o.mainSig)}?` },
+        { key: 'speed', name: 'Speed', stage: 2, label: 'speed', question: () => 'Where does the speed change?' },
+        { key: 'xIntro', name: 'Intro', stage: 3, label: 'extras', kinds: ['intro'], one: true, add: 'Add the intro', question: () => 'Is there an intro?' },
+        { key: 'xRepeats', name: 'Repeats', stage: 3, label: 'repeats', kinds: ['repeat', 'repeatEndings'], add: 'Add a repeat', addMore: 'Add another repeat', question: () => 'Are there any repeats?' },
+        { key: 'xPauses', name: 'Pauses and breaks', stage: 3, label: 'pauses', kinds: ['pause'], add: 'Add a pause or break', addMore: 'Add another pause or break', question: () => 'Are there any pauses or breaks?' },
+        { key: 'xRamps', name: 'Speeding up and slowing down', stage: 3, label: 'speeding up and slowing down', kinds: ['ramp'], add: 'Add one', addMore: 'Add another', question: () => 'Does it speed up or slow down anywhere?' },
+        { key: 'xSigns', name: 'Signs and jumps', stage: 3, label: 'signs and jumps', kinds: ['sign'], add: 'Add a sign or jump', addMore: 'Add another sign or jump', question: () => 'Are there any signs or jumps?' },
+        { key: 'mAudio', name: 'Recording', stage: 4, label: 'media', media: 'audio', icon: 'music_note', add: 'Choose a recording', addMore: 'Add another recording', question: () => 'Is there a recording to add?' },
+        { key: 'mVideo', name: 'YouTube link', stage: 4, label: 'YouTube', media: 'video', icon: 'smart_display', question: () => 'Is there a YouTube link to add?' },
+        { key: 'mDocs', name: 'Score or part', stage: 4, label: 'scores and parts', media: 'docs', icon: 'description', add: 'Choose a file', addMore: 'Add another file', question: () => 'Is there a score or part to add?' }
     ];
     const OUTLINE_MARK_KINDS = [
         { key: 'numbers', label: 'Bar numbers', sub: 'Each mark is the number of its bar - 7, 21, 30...' },
@@ -18732,7 +18732,15 @@
             : `<li class="steps-progress-step${i === cur.stage ? ' is-now" aria-current="step' : ''}">${s.name}</li>`)).join('');
         document.getElementById('outlineQuestion').textContent = cur.question();
         const inStage = OUTLINE_STEPS.filter(x => x.stage === cur.stage);
-        document.getElementById('outlineWhere').textContent = `${OUTLINE_STAGES[cur.stage].name}: ${inStage.indexOf(cur) + 1} of ${inStage.length}`;
+        document.getElementById('outlineWhereText').textContent = `${OUTLINE_STAGES[cur.stage].name}: ${inStage.indexOf(cur) + 1} of ${inStage.length}`;
+        // The stage's steps as dots (owner, 4 Oct 2026): the big one is this step; a step you've been to is a way
+        // back (or on) to it; one you haven't reached yet waits.
+        document.getElementById('outlineDots').innerHTML = inStage.map((s) => {
+            const i = OUTLINE_STEPS.indexOf(s);
+            const now = s === cur;
+            const been = st.steps[i].visits > 0;
+            return `<li><button type="button" class="step-dot${now ? ' is-now' : ''}" data-outline-step="${i}"${now ? ' aria-current="step"' : ''}${been || now ? '' : ' disabled'} aria-label="${escapeHtml(s.name)}${now ? ', this step' : been ? '' : ', not reached yet'}" title="${escapeHtml(s.name)}"></button></li>`;
+        }).join('');
         setShown('outlineWhere', inStage.length > 1);
         const html = cur.kinds ? outlineExtrasStepHtml(cur) : cur.media ? outlineMediaStepHtml(cur)
             : { about: outlineAboutHtml, howLong: outlineHowLongHtml, marks: outlineMarksHtml, time: outlineTimeHtml, speed: outlineSpeedHtml }[cur.key]();
@@ -19261,7 +19269,14 @@
         const t = e.target.closest('button');
         if (!t) return;
         const o = outline.o;
-        if (t.dataset.outlineStep !== undefined) { outlineGoStep(Number(t.dataset.outlineStep)); return; }
+        if (t.dataset.outlineStep !== undefined) {
+            const to = Number(t.dataset.outlineStep);
+            if (to === outline.step) return;
+            // On to a later step is checked like Next; back just keeps what's typed
+            if (to > outline.step) { if (!outlineLeaveStep()) return; } else if (outlineStepKey() === 'howLong') outlineHowLongKeep();
+            outlineGoStep(to);
+            return;
+        }
         if (t.dataset.outlineBar) { outlineTapBar(Number(t.dataset.outlineBar)); return; }
         if (t.dataset.outlineToggle !== undefined) { const i = Number(t.dataset.outlineToggle); if (outline.openSecs.has(i)) outline.openSecs.delete(i); else outline.openSecs.add(i); outlineRerenderKeeping(`[data-outline-toggle="${i}"]`); return; }
         if (t.dataset.outlineAll !== undefined) {
@@ -19281,16 +19296,7 @@
         }
         const action = t.dataset.outline;
         if (action === 'next') {
-            const cur = OUTLINE_STEPS[outline.step];
-            if (cur.key === 'about' && !outline.about.title.trim()) { showWarningToast('Give the piece a name first.'); document.getElementById('outlineAbout-title')?.focus(); return; }
-            if (cur.key === 'about') Object.keys(outline.about).forEach(k => { outline.about[k] = outline.about[k].trim(); });
-            if (cur.kinds && outlineStepExtras(cur).some(({ i }) => outlineBuild().clashes.find(c => c.extra === i))) { showWarningToast('Fix what is marked before going on.'); return; }
-            if (outlineStepKey() === 'howLong' && !outlineHowLongRead()) return;
-            if (outlineStepKey() === 'marks') { outlineMarksRefresh(); outline.openSecs = null; }
-            if (outlineStepKey() === 'speed' && !outlineSpeedRefresh()) { showWarningToast('Finish or empty the rows that are marked.'); return; }
-            // A bar 1 row has done its job (it set the starting speed) - it doesn't stay to undo a later change on step 1
-            if (outlineStepKey() === 'speed') outline.speedRows = outline.speedRows.filter(r => Number(r.bar) !== 1 || r.bar === '');
-            outlineGoStep(outline.step + 1);
+            if (outlineLeaveStep()) outlineGoStep(outline.step + 1);
         } else if (action === 'restart') {
             showConfirmModal('Start again?', 'Everything typed for this piece so far is thrown away.', () => { const target = outline.target; outlineClose(); openPieceOutline(target); }, true, 'Start again');
         } else if (action === 'mainSig') {
@@ -19315,6 +19321,19 @@
             outlineSave(t);
         }
     });
+    // Leaving a step for a later one (Next, or a dot further on): reads what's typed and says what stops it
+    function outlineLeaveStep() {
+        const cur = OUTLINE_STEPS[outline.step];
+        if (cur.key === 'about' && !outline.about.title.trim()) { showWarningToast('Give the piece a name first.'); document.getElementById('outlineAbout-title')?.focus(); return false; }
+        if (cur.key === 'about') Object.keys(outline.about).forEach(k => { outline.about[k] = outline.about[k].trim(); });
+        if (cur.kinds && outlineStepExtras(cur).some(({ i }) => outlineBuild().clashes.find(c => c.extra === i))) { showWarningToast('Fix what is marked before going on.'); return false; }
+        if (cur.key === 'howLong' && !outlineHowLongRead()) return false;
+        if (cur.key === 'marks') { outlineMarksRefresh(); outline.openSecs = null; }
+        if (cur.key === 'speed' && !outlineSpeedRefresh()) { showWarningToast('Finish or empty the rows that are marked.'); return false; }
+        // A bar 1 row has done its job (it set the starting speed) - it doesn't stay to undo a later change on step 1
+        if (cur.key === 'speed') outline.speedRows = outline.speedRows.filter(r => Number(r.bar) !== 1 || r.bar === '');
+        return true;
+    }
     // What's typed on step 1 is kept when a pop-up redraws the step
     function outlineHowLongKeep() {
         const bars = Number(document.getElementById('outlineBars')?.value);

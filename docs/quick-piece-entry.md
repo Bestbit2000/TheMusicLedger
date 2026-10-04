@@ -16,7 +16,9 @@ afterwards in the bar-by-bar editor, which is the precision tool.
 ## The five stages (ML-428)
 
 Five stages show across the top; each has one or more steps inside it ("Extras: 2 of 5"). A finished stage is a
-button back to its first step, and Back goes back one step. Decided with the owner on 4 Oct 2026 so that the
+button back to its first step, Back goes back one step, and the dots beside "Extras: 2 of 5" are the steps of the
+stage: the big one is where you are, and a step you've been to is a tap away (going on to a later one is checked
+like Next). Decided with the owner on 4 Oct 2026 so that the
 whole piece is made in Quick entry - it never opens the edit screen, so one piece is **one** timed session.
 
 | Stage | Step | Asks | Kept as |

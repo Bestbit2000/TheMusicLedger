@@ -1490,7 +1490,11 @@
     <div id="pieceOutlineView" class="hidden-group">
         <ol class="steps-progress" id="outlineSteps"></ol>
         <!-- ML-428: where you are inside a stage ("Extras: 2 of 5") - above the question (owner, 4 Oct 2026) -->
-        <p class="text-sm text-muted no-margin hidden-group" id="outlineWhere"></p>
+        <div class="step-dots hidden-group" id="outlineWhere">
+            <span class="text-sm text-muted" id="outlineWhereText"></span>
+            <!-- A dot a step: the big one is where you are; one you've been to takes you back to it -->
+            <ol class="step-dots-list" id="outlineDots"></ol>
+        </div>
         <h2 class="step-question" id="outlineQuestion"></h2>
         <div class="outline" id="outlineBody"></div>
         <!-- ML-428: the Media steps' file pickers. The files are held until Save, when the piece exists. -->

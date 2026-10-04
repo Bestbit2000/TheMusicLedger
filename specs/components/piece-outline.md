@@ -1,7 +1,7 @@
 # Quick piece entry (the outline)
 
 ## 1. Metadata
-- **Name:** Piece outline (`#pieceOutlineView`, `#outlineExtraModal`: `.outline`, `.outline-pair`, `.outline-three`,
+- **Name:** Piece outline (`#pieceOutlineView`, `#outlineExtraModal`: `.step-dots`, `.step-dots-list`, `.step-dot` with `.is-now`, `.outline`, `.outline-pair`, `.outline-three`,
   `.outline-field`, `.outline-field-label`, `.outline-th`, `.outline-list`, `.outline-chips`, `.outline-chip`,
   `.outline-table`, `.outline-row` with `.outline-row-marks` / `.outline-row-speed`, `.outline-cell-fixed`,
   `.outline-cell-btn`, `.outline-section-btn`, `.outline-all`, `.outline-bar` with `.is-exception` / `.is-from`,
@@ -23,8 +23,10 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
 
 ## 3. Anatomy
 - **Every step:** `.steps-progress` (the five **stages**; a finished one is a `.steps-progress-back` button to its
-  first step) › in a stage with more than one step, a line saying where you are ("Extras: 2 of 5",
-  `.text-sm.text-muted`, above the question) › `.step-question` › `.outline` (a column of rows, `--space-3` apart).
+  first step) › in a stage with more than one step, `.step-dots` above the question: where you are in words
+  ("Extras: 4 of 5", `.text-sm.text-muted`) and `.step-dots-list`, a `.step-dot` per step of the stage - the big one
+  (`.is-now`) is this step, a small gold one is a step you've been to and takes you to it, a grey one (disabled)
+  hasn't been reached yet (owner, 4 Oct 2026) › `.step-question` › `.outline` (a column of rows, `--space-3` apart).
 - **About:** `.form-group` × 5 (label over the box, as everywhere): name of the piece (required, `.flow-required`),
   composer, arranger, publisher, notes (a `textarea`) › Next › "Start again" (`.btn-text`).
 - **How long:** a number box (`.outline-field` › `input` + `.outline-field-label`) for the bars › a Yes / No pill
@@ -66,6 +68,8 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
 - Surfaces: `--input-bg`, `--control-border`.
 - A bar or shortcut that's marked / picked: `--primary-action-strong` on `--primary-action-tint` (the
   `.flow-choice-option.selected` pair). The first bar of a run: `--focus-ring`.
+- Step dots: `--touch-target` (the button), `--space-3` (a dot), `--space-5` (this step's dot), `--radius-pill`,
+  `--primary-action-strong` (been to / this step), `--control-border` (not reached yet).
 - A clash: `--danger-text` on `--danger-tint`, with the bar editor's warning triangle (`flowWarningIconSvg`,
   `--icon-md`).
 
@@ -117,3 +121,7 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   Enter moves to the next box. What was understood, and what's wrong, is in `aria-live="polite"` lines; the
   "needs fixing" line before Save is `role="alert"`.
 - A clash is red **and** carries the warning triangle and the reason in words.
+- Each step dot is a real `<button>` with a full 44px target round the small dot, named after its step ("Pauses and
+  breaks"); this step's has `aria-current="step"` and ", this step"; one not reached yet is `disabled` and says so.
+  Size and name carry the meaning, not colour alone; the words "Extras: 4 of 5" say the same beside them. Going on
+  to a later step by its dot runs the same checks as Next. Top-bar Back still goes back one step.
