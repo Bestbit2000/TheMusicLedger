@@ -12376,8 +12376,11 @@
         const data = {
             barCount: lastBlock ? lastBlock.barCount : 4,
             bpm: lastBlock ? lastBlock.bpm : 120,
-            timeSignatureId: lastBlock && lastBlock.timeSignatureId ? lastBlock.timeSignatureId : (metroBlkTimeSigCache.public[0] ? metroBlkTimeSigCache.public[0].id : null),
-            accountTimeSignatureId: lastBlock ? lastBlock.accountTimeSignatureId : null,
+            // The new bar copies the last bar's time signature - public OR your own, never both. ML-423: when the
+            // last bar had one of your own (no public id), this fell back to the first public one as well, so the
+            // new bar asked for two and the server refused it ("Choose exactly one time signature").
+            timeSignatureId: lastBlock ? (lastBlock.accountTimeSignatureId ? null : lastBlock.timeSignatureId) : (metroBlkTimeSigCache.public[0] ? metroBlkTimeSigCache.public[0].id : null),
+            accountTimeSignatureId: lastBlock ? lastBlock.accountTimeSignatureId ?? null : null,
             // ML-362: the beat note (the note the bpm counts - crotchet, minim...) carries on too, so a new
             // bar at the same bpm plays at the same speed
             noteValue: lastBlock ? lastBlock.noteValue ?? null : null
