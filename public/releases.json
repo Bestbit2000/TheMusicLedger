@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.39.1",
+    "date": "2026-10-04",
+    "changes": [
+      {
+        "key": "ML-426",
+        "type": "Fixes",
+        "summary": "Quick entry: a speed row for bar 1 blocks the Speed step"
+      }
+    ]
+  },
+  {
     "version": "0.39.0",
     "date": "2026-10-04",
     "changes": [
