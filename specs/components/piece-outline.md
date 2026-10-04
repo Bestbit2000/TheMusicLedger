@@ -24,7 +24,8 @@ makes and opens the piece's details so it can be named. New pieces only. Rules: 
 - **Every step:** `.steps-progress` › `.step-question` › `.outline` (a column of rows, `--space-3` apart).
 - **How long:** a number box (`.outline-field` › `input` + `.outline-field-label`) for the bars › a Yes / No pill
   pair (`.radio-group`) for the count-in › "Most of it is in..." › `.outline-three`: the time (a value box,
-  `.metroBlk-ctrl-value-btn`, opening the shared time signature pop-up), the bpm (a number box), the beat note (a
+  `.metroBlk-ctrl-value-btn`, opening the shared time signature pop-up), the bpm (a value box too, with "bpm"
+  inside it like its neighbours, opening the shared Tempo pop-up `#flowBpmModal` - owner, 4 Oct 2026), the beat note (a
   value box opening the shared beat note pop-up) › Next › "Start again" (`.btn-text`).
 - **Marks:** one value box "the marks are" (opens `#flowChoiceModal`: Bar numbers / Letters or words / None) ›
   - *Bar numbers:* a `textarea.outline-list` - spaces, commas, semicolons and full stops all separate - › a line
@@ -39,6 +40,8 @@ makes and opens the piece's details so it can be named. New pieces only. Rules: 
   is one section with no heading. Pinned at the bottom (`.paint-toolbox`): `.outline-tool` (the value box "marking
   bars as", and "Used in this piece" `.outline-shorts` › `.outline-short`) › a pill pair "One bar at a time / From
   a bar to a bar" › a hint line › Next.
+- **Speed:** a row for bar 1 changes the fixed Start row (it is the starting speed) and is never an error; the
+  check line names the rows that can't be used ("Row 3 can't be used yet"); the blank last row is ignored.
 - **Speed:** `.outline-table` › `.outline-row.outline-row-speed` (from bar, bpm, beat note). The first row is the
   start (`.outline-cell-fixed` × 3); the beat note of a row is an `.outline-cell-btn` ("same" until changed).
 - **Extras:** an `.outline-extra` per extra (icon › `.outline-extra-text`: what it is in words › chevron; tap to

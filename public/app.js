@@ -18724,7 +18724,7 @@
             <p class="text-sm text-muted no-margin">Most of it is in...</p>
             <div class="outline-three">
                 ${outlineValueBtn('mainSig', outlineSigLabel(o.mainSig), 'time')}
-                ${outlineNumField('outlineBpm', o.mainBpm, 'bpm', 'min="20" max="400"')}
+                ${outlineValueBtn('mainBpm', String(o.mainBpm), 'bpm')}
                 ${outlineValueBtn('mainNote', outlineNoteLabel(o.mainNote), 'beat note')}
             </div>
             <p class="text-sm text-muted no-margin">The bars that are different come in steps 3 and 4.</p>
@@ -18733,12 +18733,9 @@
     }
     function outlineHowLongRead() {
         const bars = Number(document.getElementById('outlineBars')?.value);
-        const bpm = Number(document.getElementById('outlineBpm')?.value);
         if (!Number.isInteger(bars) || bars < 1 || bars > PieceOutline.MAX_BARS) { showWarningToast(`How many bars? 1 to ${PieceOutline.MAX_BARS}.`); return false; }
-        if (!Number.isInteger(bpm) || bpm < 20 || bpm > 400) { showWarningToast('What speed is most of it? 20 to 400 bpm.'); return false; }
         if (!outline.o.mainSig) { showWarningToast('Pick the time signature most of it is in.'); return false; }
         outline.o.bars = bars;
-        outline.o.mainBpm = bpm;
         return true;
     }
     function outlinePickSig(current, onPick) {
@@ -18885,10 +18882,10 @@
     function outlineSpeedHtml() {
         const o = outline.o;
         return `
-            <p class="text-sm text-muted no-margin">The piece starts at ${o.mainBpm}. Add a row for each bar where the speed changes - it carries on from there.</p>
+            <p class="text-sm text-muted no-margin">The piece starts at <span id="outlineSpeedStart">${o.mainBpm}</span>. Add a row for each bar where the speed changes - it carries on from there.</p>
             <div class="outline-table" id="outlineSpeedRows">
                 <div class="outline-row outline-row-speed" aria-hidden="true"><span class="outline-th">From bar</span><span class="outline-th">bpm</span><span class="outline-th">Beat note</span></div>
-                <div class="outline-row outline-row-speed"><span class="outline-cell-fixed">Start</span><span class="outline-cell-fixed">${o.mainBpm}</span><span class="outline-cell-fixed">${escapeHtml(outlineNoteLabel(o.mainNote))}</span></div>
+                <div class="outline-row outline-row-speed"><span class="outline-cell-fixed">Start</span><span class="outline-cell-fixed" id="outlineSpeedStartBpm">${o.mainBpm}</span><span class="outline-cell-fixed" id="outlineSpeedStartNote">${escapeHtml(outlineNoteLabel(o.mainNote))}</span></div>
                 ${outline.speedRows.map((r, i) => outlineSpeedRowHtml(r, i)).join('')}
             </div>
             <p class="text-sm text-muted no-margin">The beat note stays the same as the row above unless you change it.</p>
@@ -18902,11 +18899,22 @@
         <button type="button" class="outline-cell-btn" data-speed-note="${i}" aria-haspopup="dialog" aria-label="Row ${i + 1}: beat note, ${r.noteValue ? escapeHtml(outlineNoteLabel(r.noteValue)) : 'same as the row above'} - tap to change">${r.noteValue ? escapeHtml(outlineNoteLabel(r.noteValue)) : 'same'}</button></div>`;
     function outlineSpeedRefresh() {
         const o = outline.o;
+        // A row left wholly blank is ignored (the table always ends in one). A row for bar 1 is the
+        // starting speed, so it changes "Start" instead of being refused (owner, 4 Oct 2026).
         const rows = outline.speedRows.filter(r => r.bar !== '' || r.bpm !== '');
-        o.speeds = rows.filter(r => r.bar !== '' && r.bpm !== '').map(r => ({ bar: Number(r.bar), bpm: Number(r.bpm), noteValue: r.noteValue }));
-        const bad = rows.filter(r => r.bar === '' || r.bpm === '' || !(Number.isInteger(Number(r.bar)) && Number(r.bar) >= 2 && Number(r.bar) <= o.bars) || !(Number(r.bpm) >= 20 && Number(r.bpm) <= 400));
+        const usable = (r) => r.bar !== '' && r.bpm !== '' && Number.isInteger(Number(r.bar)) && Number(r.bar) >= 1 && Number(r.bar) <= o.bars && Number(r.bpm) >= 20 && Number(r.bpm) <= 400;
+        const start = rows.filter(r => usable(r) && Number(r.bar) === 1).pop();
+        if (start) {
+            o.mainBpm = Number(start.bpm);
+            if (start.noteValue !== undefined) o.mainNote = start.noteValue;
+            ['outlineSpeedStart', 'outlineSpeedStartBpm'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = o.mainBpm; });
+            const note = document.getElementById('outlineSpeedStartNote');
+            if (note) note.textContent = outlineNoteLabel(o.mainNote);
+        }
+        o.speeds = rows.filter(r => r.bar !== '' && r.bpm !== '' && Number(r.bar) !== 1).map(r => ({ bar: Number(r.bar), bpm: Number(r.bpm), noteValue: r.noteValue }));
+        const bad = outline.speedRows.map((r, i) => ((r.bar !== '' || r.bpm !== '') && !usable(r) ? i + 1 : 0)).filter(Boolean);
         const check = document.getElementById('outlineSpeedCheck');
-        if (check) check.innerHTML = bad.length ? `<span class="text-danger">${bad.length === 1 ? 'One row' : `${bad.length} rows`} can't be used yet: each needs a bar from 2 to ${o.bars} and a speed from 20 to 400.</span>` : '';
+        if (check) check.innerHTML = bad.length ? `<span class="text-danger">${bad.length === 1 ? `Row ${bad[0]}` : `Rows ${bad.join(', ')}`} can't be used yet: ${bad.length === 1 ? 'it needs' : 'each needs'} a bar from 1 to ${o.bars} and a speed from 20 to 400.</span>` : '';
         const sum = document.getElementById('outlineSpeedSum');
         if (sum) sum.innerHTML = outlineSummaryText();
         return !bad.length;
@@ -19114,12 +19122,18 @@
             if (outlineStepKey() === 'howLong' && !outlineHowLongRead()) return;
             if (outlineStepKey() === 'marks') { outlineMarksRefresh(); outline.openSecs = null; }
             if (outlineStepKey() === 'speed' && !outlineSpeedRefresh()) { showWarningToast('Finish or empty the rows that are marked.'); return; }
+            // A bar 1 row has done its job (it set the starting speed) - it doesn't stay to undo a later change on step 1
+            if (outlineStepKey() === 'speed') outline.speedRows = outline.speedRows.filter(r => Number(r.bar) !== 1 || r.bar === '');
             outlineGoStep(outline.step + 1);
         } else if (action === 'restart') {
             showConfirmModal('Start again?', 'Everything typed for this piece so far is thrown away.', () => { const target = outline.target; outlineClose(); openPieceOutline(target); }, true, 'Start again');
         } else if (action === 'mainSig') {
             outlineHowLongKeep();
             outlinePickSig(o.mainSig, (value) => { o.mainSig = value; renderOutline(); });
+        } else if (action === 'mainBpm') {
+            // The bpm is a value box like its neighbours (owner, 4 Oct 2026): the same Tempo pop-up as a block's bpm.
+            outlineHowLongKeep();
+            flowOpenBpmModal(null, { value: o.mainBpm, onApply: (bpm) => { o.mainBpm = Math.min(400, Math.max(20, bpm)); renderOutline(); } });
         } else if (action === 'mainNote') {
             outlineHowLongKeep();
             outlinePickNote(o.mainNote, (note) => { o.mainNote = note; renderOutline(); });
@@ -19136,9 +19150,7 @@
     // What's typed on step 1 is kept when a pop-up redraws the step
     function outlineHowLongKeep() {
         const bars = Number(document.getElementById('outlineBars')?.value);
-        const bpm = Number(document.getElementById('outlineBpm')?.value);
         if (Number.isInteger(bars) && bars >= 1 && bars <= PieceOutline.MAX_BARS) outline.o.bars = bars;
-        if (Number.isInteger(bpm) && bpm >= 20 && bpm <= 400) outline.o.mainBpm = bpm;
     }
     outlineView?.addEventListener('change', (e) => {
         if (!outline) return;
