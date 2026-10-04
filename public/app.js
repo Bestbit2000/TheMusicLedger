@@ -359,6 +359,7 @@
         },
         theory: {
             summary: () => apiCall('/api/theory/summary'),
+            levels: () => apiCall('/api/theory/levels'), // ML-418: the last Level of every quiz at every Theory grade
             history: (settingsKey) => apiCall(`/api/theory/attempts?settingsKey=${encodeURIComponent(settingsKey)}`),
             played: (quizId) => apiCall(`/api/theory/played?quizId=${encodeURIComponent(quizId)}`),
             save: (data) => apiCall('/api/theory/attempts', 'POST', data),
@@ -1917,6 +1918,7 @@
         if (viewName === 'sessionPlanView' && isBack) sessReplan();
         if (viewName !== 'warmupsView') { skillWarmupsKind = null; sessionWarmupIds = null; sessionWarmupLoop = null; }
         if (viewName !== 'scalesView' && scalesLadder) scalesLadderEnd(); // ML-391: your own Scales settings come back
+        if (theoryBlock && !['theoryOptionsView', 'theoryPlayView', 'theoryResultsView'].includes(viewName) && !theoryRoundInProgress()) theoryBlockEnd(); // ML-418: left the Theory block
         if (viewName === 'scalesView' && !scalesLadder && scaleLevelsOn()) loadScaleLevels().then(renderScalesLadder); // the scale's Level link
         if (viewName === 'skillsView') document.getElementById('topTitle').innerText = 'My skills';
         if (viewName === 'metroBuilderView') {
@@ -6954,9 +6956,9 @@
     let practiceTick = null;
 
     // --- Blocks, drawn: the kinds' colours always come with their icon and name ---
-    const KIND_ICONS = { warmup: 'local_fire_department', scales: 'stairs', skills: 'bolt', rehearsal: 'music_note', choose: 'add' };
+    const KIND_ICONS = { warmup: 'local_fire_department', scales: 'stairs', skills: 'bolt', rehearsal: 'music_note', theory: 'menu_book', choose: 'add' }; // theory: ML-418
     const STAGE_ICONS = { prepare: 'construction', practise: 'music_note', playthrough: 'play_circle' };
-    const KIND_CLASS = { warmup: 'kind-warmup', scales: 'kind-scales', skills: 'kind-skills', rehearsal: 'kind-pieces' };
+    const KIND_CLASS = { warmup: 'kind-warmup', scales: 'kind-scales', skills: 'kind-skills', rehearsal: 'kind-pieces', theory: 'kind-theory' };
     const blockIcon = (b) => (b.kind === 'rehearsal' ? STAGE_ICONS[b.stage] || KIND_ICONS.rehearsal : KIND_ICONS[b.kind] || 'add');
     const blockTitle = (b) => (b.kind === 'rehearsal' && b.stage && b.stage !== 'practise' ? PracticePlan.STAGES[b.stage] : PracticePlan.KINDS[b.kind] || 'Block');
     function kindBlockHtml(b, label) {
@@ -6976,6 +6978,7 @@
         if (b.kind === 'skills' && b.skill) { const s = skillsData.find(x => x.key === b.skill.key) || b.skill; const def = SKILLS[b.skill.key]; return `${def ? def.label : b.skill.key}${s.step ? ` - ${s.step.label}` : ''}`; }
         if (b.kind === 'skills') return PracticePlan.toolLabel(b.tool);
         if (b.kind === 'warmup') return b.warmup ? (b.warmup.external ? 'Your own warm-up - just the timer' : `${b.warmup.name}, on a loop`) : 'The Warm-ups tool';
+        if (b.kind === 'theory') return isFeatureEnabled('theory_smart_learn') ? 'Your lowest Levels first' : 'Quiz by quiz, in order'; // ML-418
         if (b.kind === 'scales') {
             // ML-391: the three scales it starts with
             const first = scaleLevelsOn() && scaleLevels.instrumentId ? PracticePlan.scalePool(scaleLevelItems().items, scaleLevels.records, Date.now()).slice(0, PracticePlan.SCALES_PER_BLOCK) : [];
@@ -7083,38 +7086,104 @@
     });
 
     // --- Step 2: pick a plan ---
+    // ML-418: a plan of your own in a few words - the kinds of block it has, in the order they first come
+    function planBlurb(template) {
+        const kinds = PracticePlan.blockKinds(120, template, PracticePlan.templateFocus(template));
+        return [...new Set(kinds)].map(k => PracticePlan.KINDS[k]).join(', ') || 'My plan';
+    }
     function planChoices() {
         return [
             ...Object.entries(PracticePlan.TEMPLATES).map(([k, t]) => ({ key: k, name: t.label, blurb: t.blurb, template: k })),
-            ...sessTemplates.map(t => ({ key: `t:${t.id}`, name: t.name, blurb: 'My plan', template: t, own: true }))
+            ...sessTemplates.map(t => ({ key: `t:${t.id}`, name: t.name, blurb: planBlurb(t), template: t, own: true }))
         ];
     }
     function openSessionPick() {
         switchView('sessionPickView');
         renderSessPick();
     }
+    // ML-418: what a plan does to the time - "16 blocks: 1 Warm-up, 1 Scales, 7 Skills, 7 Pieces"
+    function planKinds(template) { return PracticePlan.blockKinds(sessPlan.open ? null : sessPlan.minutes, template, PracticePlan.templateFocus(template)); }
+    function planSummary(kinds) {
+        const counts = PracticePlan.PLAN_KINDS.map(k => [k, kinds.filter(x => x === k).length]).filter(([, n]) => n);
+        const words = counts.map(([k, n]) => `${n} ${PracticePlan.KINDS[k]}`).join(', ');
+        return sessPlan.open ? `Open ended - starts with ${kinds.length} blocks: ${words}, and carries on the same way` : `${kinds.length} block${kinds.length === 1 ? '' : 's'}: ${words}`;
+    }
+    const planStripHtml = (kinds) => kinds.map(k => kindBlockHtml({ kind: k })).join('') + (sessPlan.open ? '<span class="kind-strip-more">…</span>' : '');
+    // Step 2: one button naming the plan, and under it what the plan gives you
     function renderSessPick() {
         document.getElementById('sessPickTitle').textContent = sessPlan.open ? 'Pick a plan - open ended' : `Pick a plan for your ${sessPlan.minutes} minutes`;
-        const cur = templateKey(sessPlan.template);
-        const box = document.getElementById('sessPlanCards');
-        box.innerHTML = planChoices().map(p => {
-            const kinds = PracticePlan.blockKinds(sessPlan.open ? null : sessPlan.minutes, p.template, PracticePlan.templateFocus(p.template));
-            const shown = kinds.slice(0, 12);
-            const on = p.key === cur;
-            const names = kinds.map(k => PracticePlan.KINDS[k]).join(', ');
-            return `<button type="button" class="flow-choice-option level-answer plan-card${on ? ' selected' : ''}" aria-pressed="${on}" data-plan="${escapeHtml(p.key)}" aria-label="${escapeHtml(p.name)}: ${escapeHtml(names)}">
-                    <span class="plan-card-head"><strong>${escapeHtml(p.name)}</strong><span class="text-sm text-muted">${escapeHtml(p.blurb)}</span></span>
-                    <span class="kind-strip">${shown.map(k => kindBlockHtml({ kind: k })).join('')}${kinds.length > 12 ? `<span class="kind-strip-more">+${kinds.length - 12}</span>` : ''}${sessPlan.open ? '<span class="kind-strip-more">…</span>' : ''}</span>
-                </button>`;
-        }).join('');
-        box.querySelectorAll('[data-plan]').forEach(b => b.addEventListener('click', () => { setTemplateByKey(b.dataset.plan); renderSessPick(); }));
-        // Your own plan, when it's the one picked, can be changed or deleted in Build my plan.
-        const mine = typeof sessPlan.template === 'object' ? sessPlan.template : null;
-        setShown('sessEditPlanBtn', !!mine);
-        if (mine) document.getElementById('sessEditPlanBtn').textContent = `Change "${mine.name}"`;
+        const picked = planChoices().find(p => p.key === templateKey(sessPlan.template)) || planChoices()[0];
+        const kinds = planKinds(picked.template);
+        document.getElementById('sessPlanBtnVal').textContent = picked.name;
+        document.getElementById('sessPlanBtn').setAttribute('aria-label', `Plan: ${picked.name} - tap to change`);
+        document.getElementById('sessPlanSummary').textContent = planSummary(kinds);
+        document.getElementById('sessPlanBlocks').innerHTML = planStripHtml(kinds);
+        document.getElementById('sessPlanKey').innerHTML = PracticePlan.PLAN_KINDS.filter(k => kinds.includes(k)).map(k => `<span>${kindBlockHtml({ kind: k })}${PracticePlan.KINDS[k]}</span>`).join('');
     }
-    document.getElementById('sessBuildBtn')?.addEventListener('click', () => openBuilder(null));
-    document.getElementById('sessEditPlanBtn')?.addEventListener('click', () => { const t = sessPlan.template; if (t && typeof t === 'object') openBuilder(sessTemplates.find(x => x.id === t.id) || t); });
+    // --- The Pick a plan pop-up: a tap selects, the footer shows it once, Use this plan saves it ---
+    let planPickKey = null;
+    function openPlanPick() {
+        planPickKey = templateKey(sessPlan.template);
+        renderPlanPick();
+        showModal('sessPlanModal');
+    }
+    function renderPlanPick() {
+        const all = planChoices();
+        if (!all.some(p => p.key === planPickKey)) planPickKey = all[0].key;
+        const row = (p) => {
+            const on = p.key === planPickKey;
+            return `<div class="plan-row${p.own ? ' has-menu' : ''}"><button type="button" class="flow-choice-option level-answer${on ? ' selected' : ''}" aria-pressed="${on}" data-plan="${escapeHtml(p.key)}"><span class="grow"><strong>${escapeHtml(p.name)}</strong><br><span class="text-sm text-muted">${escapeHtml(p.blurb)}</span></span></button>${p.own
+                ? `<button type="button" class="list-item-menu-btn" data-plan-menu="${escapeHtml(p.key)}" aria-label="Options for ${escapeHtml(p.name)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined" aria-hidden="true">more_vert</span></button>` : ''}</div>`;
+        };
+        document.getElementById('sessPlanStandard').innerHTML = all.filter(p => !p.own).map(row).join('');
+        const mine = all.filter(p => p.own);
+        document.getElementById('sessPlanMine').innerHTML = mine.length ? mine.map(row).join('') : '<p class="text-sm text-muted">None yet - + New plan builds one, block by block.</p>';
+        const modal = document.getElementById('sessPlanModal');
+        modal.querySelectorAll('[data-plan]').forEach(b => b.addEventListener('click', () => { planPickKey = b.dataset.plan; renderPlanPick(); }));
+        modal.querySelectorAll('[data-plan-menu]').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); openPlanMenu(b); }));
+        const picked = all.find(p => p.key === planPickKey);
+        const kinds = planKinds(picked.template);
+        document.getElementById('sessPlanPicked').innerHTML = `<strong>${escapeHtml(picked.name)}</strong> <span class="text-muted">· ${escapeHtml(planSummary(kinds))}</span>`;
+        document.getElementById('sessPlanPickedBlocks').innerHTML = planStripHtml(kinds);
+    }
+    // A plan of your own: its ⋮ - Change (Build my plan) and Delete
+    let planMenuKey = null;
+    function closePlanMenu() {
+        document.getElementById('sessPlanMenu')?.classList.remove('show');
+        document.querySelectorAll('#sessPlanModal [data-plan-menu]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+    }
+    function openPlanMenu(btn) {
+        const menu = document.getElementById('sessPlanMenu');
+        const wasOpen = menu.classList.contains('show') && planMenuKey === btn.dataset.planMenu;
+        closePlanMenu();
+        if (wasOpen) return;
+        planMenuKey = btn.dataset.planMenu;
+        menu.classList.add('show');
+        btn.setAttribute('aria-expanded', 'true');
+        const r = btn.getBoundingClientRect();
+        placeAt(menu, Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8)), Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8));
+        menu.querySelector('.dropdown-item')?.focus({ preventScroll: true });
+    }
+    document.addEventListener('click', closePlanMenu);
+    const planMenuTemplate = () => sessTemplates.find(t => `t:${t.id}` === planMenuKey) || null;
+    document.getElementById('sessPlanBtn')?.addEventListener('click', openPlanPick);
+    document.getElementById('sessPlanUseBtn')?.addEventListener('click', () => { setTemplateByKey(planPickKey); hideModal('sessPlanModal'); renderSessPick(); });
+    document.getElementById('sessPlanNewBtn')?.addEventListener('click', () => { hideModal('sessPlanModal'); openBuilder(null); });
+    document.getElementById('sessPlanMenuChange')?.addEventListener('click', () => { const t = planMenuTemplate(); closePlanMenu(); if (t) { hideModal('sessPlanModal'); openBuilder(t); } });
+    document.getElementById('sessPlanMenuDelete')?.addEventListener('click', () => {
+        const t = planMenuTemplate();
+        closePlanMenu();
+        if (!t) return;
+        showConfirmModal('Delete this plan?', `"${t.name}" goes. Your practice history stays.`, async () => {
+            try {
+                await API.practice.deleteTemplate(t.id);
+                if (templateKey(sessPlan.template) === `t:${t.id}`) setTemplateByKey('standard');
+                await loadTemplates();
+                renderPlanPick();
+                renderSessPick();
+            } catch (e) { showWarningToast('Not deleted: ' + e.message); }
+        }, true, 'Delete');
+    });
     document.getElementById('sessToContentBtn')?.addEventListener('click', () => openSessionContent());
 
     // --- Build my plan: snap blocks in like a puzzle ---
@@ -7144,7 +7213,7 @@
         const left = build.slots.filter(s => !s).length;
         document.getElementById('sessBuildHint').textContent = left
             ? `${left} space${left === 1 ? '' : 's'} left. Tap a block below to drop it into the next space; tap a space to empty it.`
-            : `All full! Tap a space to change it. Longer sessions repeat your plan from its first Skills or Pieces block.`;
+            : `All full! Tap a space to change it. Longer sessions repeat your plan from its first Skills, Pieces or Theory block.`;
         const slots = document.getElementById('sessBuildSlots');
         slots.innerHTML = build.slots.map((k, i) => {
             const label = k ? PracticePlan.KINDS[k] : 'empty';
@@ -7290,6 +7359,9 @@
                 const mine = scaleLevelsOn() && scaleLevels.instrumentId ? scaleLevelItems().items : [];
                 if (mine.length) rows.push(scalesContentCardHtml(mine)); // ML-391: Scales Levels
                 else rows.push(`<div class="history-item settings-link">${kindBlockHtml({ kind: 'scales' })}<span class="settings-link-text"><span class="settings-link-title">Scales</span><span class="settings-link-sub">Your grade's scales in the Scales tool</span></span></div>`);
+            }
+            if (k === 'theory') { // ML-418: nothing to choose - it picks the quizzes
+                rows.push(`<div class="history-item settings-link">${kindBlockHtml({ kind: 'theory' })}<span class="settings-link-text"><span class="settings-link-title">Theory</span><span class="settings-link-sub">${isFeatureEnabled('theory_smart_learn') ? 'Your lowest Levels first' : 'Quiz by quiz, in order'} · nothing to play</span></span></div>`);
             }
             if (k === 'skills') {
                 const sl = currentSkillList();
@@ -7540,11 +7612,13 @@
     }
     const runElapsed = () => Math.floor((Date.now() - practiceRun.blockStart) / 1000);
     const restElapsed = () => Math.floor((Date.now() - practiceRun.restStart) / 1000);
+    // ML-418: the rest is 30 seconds - or a 10-second break between two Theory blocks (the block after the one just finished)
+    const restLength = () => PracticePlan.restSeconds(practiceRun.blocks, practiceRun.index + 1);
     function practiceRunTick() {
         const r = practiceRun;
         if (!r || r.done) return;
         if (r.phase === 'rest') {
-            if (restElapsed() >= PracticePlan.REST_SECONDS) endRest();
+            if (restElapsed() >= restLength()) endRest();
             else renderRest();
             renderPracticeRun();
             return;
@@ -7563,6 +7637,7 @@
         const r = practiceRun;
         if (!r || r.done || r.phase === 'rest') return;
         r.nudged = true;
+        if (theoryBlock) theoryBlockEnd(); // ML-418: the Theory block's time is up - a round part-way through is dropped, unasked
         const view = viewStack[viewStack.length - 1];
         // ML-391: the scale a Scales block stopped on still gets its answer (taken before leaving ends the block)
         const scaleOpen = scalesLadder && scalesLadder.current && !scalesLadder.busy ? { cur: scalesLadder.current, items: scalesLadder.items } : null;
@@ -7636,6 +7711,13 @@
         renderRestMessage();
         renderRest();
         practiceRunSave();
+        // ML-418: the 10-second break between two Theory blocks has no message from your deck - just the countdown
+        if (restLength() < PracticePlan.REST_SECONDS) {
+            r.restMessage = { kind: 'think', icon: 'visibility', title: 'A ten-second break', body: 'Look away from the screen for a moment.' };
+            renderRestMessage();
+            practiceRunSave();
+            return;
+        }
         API.practice.restMessage().then(res => { if (practiceRun === r && r.phase === 'rest') { r.restMessage = (res && res.message) || REST_FALLBACK; renderRestMessage(); practiceRunSave(); } })
             .catch(() => { if (practiceRun === r) { r.restMessage = REST_FALLBACK; renderRestMessage(); } });
     }
@@ -7660,16 +7742,16 @@
     function renderRest() {
         const r = practiceRun;
         if (!r || r.phase !== 'rest') return;
-        const left = Math.max(0, PracticePlan.REST_SECONDS - restElapsed());
+        const left = Math.max(0, restLength() - restElapsed());
         document.getElementById('restSecs').textContent = left;
-        document.getElementById('restRing')?.style.setProperty('--rest-left', (left / PracticePlan.REST_SECONDS).toFixed(4));
+        document.getElementById('restRing')?.style.setProperty('--rest-left', (left / restLength()).toFixed(4));
         const word = document.getElementById('restBreathWord');
         if (word) word.textContent = restElapsed() % 10 < 4 ? 'in' : 'out';
     }
     function endRest() {
         const r = practiceRun;
         if (!r || r.phase !== 'rest') return;
-        r.blocks[r.index].seconds += Math.min(PracticePlan.REST_SECONDS, restElapsed()); // the rest counts as practice time
+        r.blocks[r.index].seconds += Math.min(restLength(), restElapsed()); // the rest counts as practice time
         r.phase = 'play';
         if (viewStack[viewStack.length - 1] === 'sessionRestView') viewStack.pop(); // the next block takes its place
         sessionAdvance();
@@ -7713,6 +7795,8 @@
             if (seq.length) { warmups.currentId = seq[0]; warmupsShow(warmupsList()[0]); }
             return;
         }
+        // ML-418: a Theory block - quizzes, each twice, nothing to play
+        if (b.kind === 'theory') { await startTheoryBlock(); return; }
         // ML-391: Scales Levels - three scales, each at its Level (the tool itself when the switch is off)
         if (b.kind === 'scales' && await startScalesLadder()) return;
         const view = b.kind === 'warmup' ? 'warmupsView' : b.kind === 'scales' ? 'scalesView' : SESSION_TOOL_VIEWS[b.tool];
@@ -7798,7 +7882,7 @@
         const count = r.open ? `Block ${r.index + 1} · open ended` : `Block ${r.index + 1} of ${r.blocks.length}`;
         const isPrepare = b.kind === 'rehearsal' && b.stage === 'prepare';
         const resting = r.phase === 'rest';
-        const time = resting ? `${Math.max(0, PracticePlan.REST_SECONDS - restElapsed())}s` : isPrepare ? fmtMinSec(runElapsed()) : fmtMinSec(Math.max(0, (Number.isFinite(r.nudgeAt) ? r.nudgeAt : 0) - runElapsed()));
+        const time = resting ? `${Math.max(0, restLength() - restElapsed())}s` : isPrepare ? fmtMinSec(runElapsed()) : fmtMinSec(Math.max(0, (Number.isFinite(r.nudgeAt) ? r.nudgeAt : 0) - runElapsed()));
         document.getElementById('sessRunCount').textContent = count;
         setKindIcon(document.getElementById('sessRunIcon'), b);
         document.getElementById('sessRunKind').textContent = resting ? 'Rest' : blockTitle(b);
@@ -18247,6 +18331,7 @@
         } catch (e) {
             showWarningToast("Couldn't save this round. Your result is below, but it won't be in your history.");
         }
+        if (theoryBlock && theoryLastResult.saved) theoryBlockRoundDone(theoryLastResult.saved.attempt.grade); // ML-418
         theoryPlayedStale = true; // the options screen's list has a new last round
         theoryLastResult.saving = false;
         renderTheoryResults();
@@ -18254,6 +18339,7 @@
     function renderTheoryResults() {
         const res = theoryLastResult;
         if (!res) return;
+        renderTheoryBlockResults(); // ML-418: Next quiz, in a session's Theory block
         const r = res.round;
         const saved = res.saved;
         // ML-396: the result is a Level (the stored grade). The score isn't shown - the Level is worked
@@ -18305,6 +18391,94 @@
     // ML-396: two more ways out of the results - the Theory list, and Home.
     document.getElementById('theoryOtherBtn')?.addEventListener('click', () => backToView('theoryView'));
     document.getElementById('theoryHomeBtn')?.addEventListener('click', () => backToView('mainView'));
+
+
+    // ===== ML-418: a practice session's Theory block =====
+    // Nothing to play: the block works through Theory quizzes, each done twice (two 30-second rounds, the
+    // better one counts), then the next - about three quizzes in the five minutes. Which ones is
+    // PracticePlan.theoryQueue: with SmartLearn, your lowest Levels in the lowest grade that isn't sorted
+    // (every quiz at Level 5); without it, quiz by quiz from the start, carrying on where you stopped.
+    // Your own Theory options and Repeat are left alone and come back when the block ends.
+    const THEORY_BLOCK_CURSOR = 'tml.theory.block.cursor';
+    var theoryBlock = null; // var: switchView and the session read it - { queue, i, levels, smart, saved }
+    // Every quiz at every Theory grade it has (the quiz's own options when Theory grades are off)
+    function theoryBlockItems() {
+        const quizzes = TheoryEngine.QUIZZES.filter(q => !q.gradeOnly || theoryGradesOn());
+        const grades = theoryGradesOn() ? [1, 2, 3, 4, 5] : [0];
+        const items = [];
+        grades.forEach(g => quizzes.forEach(q => {
+            if (g && q.grades && !q.grades.includes(g)) return;
+            let ok = true;
+            try { ok = (TheoryEngine.normaliseOptions(q.id, { grade: g }).grade || 0) === g; } catch (e) { ok = false; }
+            if (ok) items.push({ key: `${q.id}|${g}`, quizId: q.id, grade: g });
+        }));
+        return items;
+    }
+    const theoryBlockLabel = (it) => `${TheoryEngine.quiz(it.quizId).title}${it.grade ? ` · Grade ${it.grade}` : ''}`;
+    async function startTheoryBlock() {
+        let levels = {};
+        try { levels = (await API.theory.levels()).levels || {}; } catch (e) { /* starts from the top */ }
+        const smart = isFeatureEnabled('theory_smart_learn');
+        let cursor = null;
+        try { cursor = localStorage.getItem(THEORY_BLOCK_CURSOR); } catch (e) { /* from the start */ }
+        const queue = PracticePlan.theoryQueue(theoryBlockItems(), levels, smart, cursor);
+        if (!queue.length) { switchView('theoryView'); return; }
+        theoryBlock = { queue, i: 0, levels, smart, saved: { quizId: theoryQuizId, options: theoryOptions, roundId: theoryRoundId, repeats: theoryRepeats } };
+        await theoryBlockPlay();
+    }
+    async function theoryBlockPlay() {
+        const B = theoryBlock;
+        if (!B) return;
+        const it = B.queue[B.i % B.queue.length];
+        theoryStopRound();
+        theoryQuizId = it.quizId;
+        theoryOptions = TheoryEngine.normaliseOptions(it.quizId, { grade: it.grade });
+        theoryRoundId = TheoryEngine.round(TheoryEngine.DEFAULT_ROUND).value;
+        theoryRepeats = PracticePlan.THEORY_REPEATS;
+        if (viewStack[viewStack.length - 1] === 'theoryResultsView') viewStack.pop(); // the next quiz takes its place
+        theoryBlock = null; // (switchView would end the block while it changes screens)
+        if (viewStack[viewStack.length - 1] !== 'theoryOptionsView') switchView('theoryOptionsView');
+        theoryBlock = B;
+        await theoryStartRound();
+    }
+    // A quiz's rounds are done: remember its Level and where the walk has got to
+    function theoryBlockRoundDone(level) {
+        const B = theoryBlock;
+        if (!B) return;
+        const it = B.queue[B.i % B.queue.length];
+        B.levels[it.key] = level;
+        try { localStorage.setItem(THEORY_BLOCK_CURSOR, it.key); } catch (e) { /* per device */ }
+    }
+    function theoryBlockNext() {
+        const B = theoryBlock;
+        if (!B) return;
+        B.i++;
+        // SmartLearn: after a lap of the queue, look again - a grade may be sorted now
+        if (B.smart && B.i % B.queue.length === 0) { B.queue = PracticePlan.theoryQueue(theoryBlockItems(), B.levels, true, null); B.i = 0; }
+        theoryBlockPlay();
+    }
+    // The block is over (its time ran out, or you left Theory): your own options and Repeat come back
+    function theoryBlockEnd() {
+        const B = theoryBlock;
+        if (!B) return;
+        theoryBlock = null;
+        theoryStopRound(); // a round part-way through isn't saved - only finished rounds are
+        theoryQuizId = B.saved.quizId;
+        theoryOptions = B.saved.options;
+        theoryRoundId = B.saved.roundId;
+        theoryRepeats = B.saved.repeats;
+    }
+    // The results screen in a block: Next quiz, in place of Again and the ways out
+    function renderTheoryBlockResults() {
+        const B = theoryBlock;
+        setShown('theoryBlockNextBtn', !!B);
+        setShown('theoryAgainBtn', !B);
+        setShown('theoryExits', !B);
+        if (!B) return;
+        const next = B.queue[(B.i + 1) % B.queue.length];
+        document.getElementById('theoryBlockNextBtn').textContent = `Next: ${theoryBlockLabel(next)}`;
+    }
+    document.getElementById('theoryBlockNextBtn')?.addEventListener('click', theoryBlockNext);
 
     // ========================================
     // DRILLS (Jira ML-298 Tap tempo, ML-295 Gap trainer, ML-296 Ear - on screen Tempo, Pulse, Pitch)

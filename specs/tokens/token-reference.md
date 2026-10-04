@@ -160,6 +160,9 @@ edge, icon/text and fill
 | `--kind-pieces` | `#1d4ed8` | `#60a5fa` | a Pieces block's edge (Prepare and Play-through too) |
 | `--kind-pieces-text` | `#1e40af` | `#93c5fd` | a Pieces block's icon and name |
 | `--kind-pieces-tint` | `rgba(29, 78, 216, 0.14)` | `rgba(96, 165, 250, 0.16)` | a Pieces block's fill |
+| `--kind-theory` | `#be185d` | `#f472b6` | a Theory block's edge (ML-418 - deep pink, apart from the four playing kinds) |
+| `--kind-theory-text` | `#9d174d` | `#f9a8d4` | a Theory block's icon and name |
+| `--kind-theory-tint` | `rgba(190, 24, 93, 0.14)` | `rgba(244, 114, 182, 0.16)` | a Theory block's fill |
 
 ## ML-390: the 30-second rest screen
 
@@ -405,6 +408,9 @@ one ladder, low to high. Never invent a number in a component.
 | `--ds-kind-pieces` | `#1d4ed8` |
 | `--ds-kind-pieces-deep` | `#1e40af` |
 | `--ds-kind-pieces-a14` | `rgba(29, 78, 216, 0.14)` |
+| `--ds-kind-theory` | `#be185d` |
+| `--ds-kind-theory-deep` | `#9d174d` |
+| `--ds-kind-theory-a14` | `rgba(190, 24, 93, 0.14)` |
 | `--ds-kind-warmup-dark` | `#fb923c` |
 | `--ds-kind-warmup-soft-dark` | `#fdba74` |
 | `--ds-kind-warmup-a16-dark` | `rgba(251, 146, 60, 0.16)` |
@@ -417,6 +423,9 @@ one ladder, low to high. Never invent a number in a component.
 | `--ds-kind-pieces-dark` | `#60a5fa` |
 | `--ds-kind-pieces-soft-dark` | `#93c5fd` |
 | `--ds-kind-pieces-a16-dark` | `rgba(96, 165, 250, 0.16)` |
+| `--ds-kind-theory-dark` | `#f472b6` |
+| `--ds-kind-theory-soft-dark` | `#f9a8d4` |
+| `--ds-kind-theory-a16-dark` | `rgba(244, 114, 182, 0.16)` |
 | `--ds-rest-page` | `#e6f0f3` |
 | `--ds-rest-card` | `#ffffff` |
 | `--ds-rest-ink` | `#235b6e` |

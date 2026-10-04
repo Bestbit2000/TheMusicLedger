@@ -2694,6 +2694,14 @@
     @keyframes block-pop { from { transform: scale(0.4); opacity: var(--opacity-muted); } to { transform: scale(1); opacity: 1; } }
     .plan-card { flex: 1; min-width: 0; flex-direction: column; align-items: stretch; gap: var(--space-2); }
     .plan-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+    /* ML-418: a plan in the Pick a plan pop-up - its row is the button; one of your own has a ⋮ inside the box, top right */
+    .plan-row { position: relative; }
+    .plan-row .list-item-menu-btn { position: absolute; top: var(--space-2); right: var(--space-2); }
+    .plan-row.has-menu .flow-choice-option { padding-right: calc(var(--touch-target) + var(--space-3)); }
+    /* the picked plan's blocks in the pop-up's footer: eight to a row, lower */
+    .kind-strip-compact { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+    .kind-strip-compact .kind-block { min-height: var(--icon-lg); }
+    .kind-strip-compact .kind-block .material-symbols-outlined { font-size: var(--icon-sm); }
     .kind-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-1); }
     .kind-strip .kind-block { aspect-ratio: auto; min-height: var(--icon-xl); }
     /* The key under the plans on Pick a plan: each kind of block's symbol and its name. */
@@ -2715,6 +2723,8 @@
     .kind-skills .material-symbols-outlined, .kind-skills .kind-block-label, .kind-skills .build-slot-time { color: var(--kind-skills-text); }
     .kind-pieces { border-color: var(--kind-pieces); background: var(--kind-pieces-tint); }
     .kind-pieces .material-symbols-outlined, .kind-pieces .kind-block-label, .kind-pieces .build-slot-time { color: var(--kind-pieces-text); }
+    .kind-theory { border-color: var(--kind-theory); background: var(--kind-theory-tint); } /* ML-418 */
+    .kind-theory .material-symbols-outlined, .kind-theory .kind-block-label, .kind-theory .build-slot-time { color: var(--kind-theory-text); }
     .kind-block-icon { flex-shrink: 0; width: var(--touch-target); height: var(--touch-target); padding: 0; }
     .history-item .kind-block, .level-row-body .kind-block { flex-shrink: 0; width: var(--icon-xl); height: var(--icon-xl); padding: 0; }
     .build-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); margin-bottom: var(--space-4); }

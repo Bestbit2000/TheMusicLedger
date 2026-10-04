@@ -1076,7 +1076,7 @@
         <button type="button" class="history-item settings-link hidden-group" id="sessSameBtn"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">replay</span><span class="settings-link-text"><span class="settings-link-title">Same as last time</span><span class="settings-link-sub" id="sessSameSub"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <ol class="steps-progress" aria-label="Setting up your practice, step 1 of 3">
             <li class="steps-progress-step is-now" aria-current="step">How long</li>
-            <li class="steps-progress-step">Plan</li>
+            <li class="steps-progress-step">What kind</li>
             <li class="steps-progress-step">What's in it</li>
         </ol>
         <h2 class="step-question" id="sessLenLabel">How long do you want to practise?</h2>
@@ -1113,20 +1113,17 @@
     <div id="sessionPickView" class="hidden-group">
         <ol class="steps-progress" aria-label="Setting up your practice, step 2 of 3">
             <li class="steps-progress-step is-done">How long</li>
-            <li class="steps-progress-step is-now" aria-current="step">Plan</li>
+            <li class="steps-progress-step is-now" aria-current="step">What kind</li>
             <li class="steps-progress-step">What's in it</li>
         </ol>
         <h2 class="step-question" id="sessPickTitle">Pick a plan</h2>
-        <div id="sessPlanCards" role="group" aria-labelledby="sessPickTitle"></div>
+        <!-- ML-418: one button naming the plan (it opens #sessPlanModal), and under it what the plan does to
+             your time - a line of words and every block once. It was a card of blocks per plan. -->
+        <button type="button" class="metroBlk-ctrl-value-btn w-full" id="sessPlanBtn" aria-haspopup="dialog"><strong id="sessPlanBtnVal">Standard</strong><span class="metroBlk-ctrl-value-label">plan</span></button>
+        <p class="text-sm text-muted mt-3 mb-1" id="sessPlanSummary" aria-live="polite"></p>
+        <div class="kind-strip" id="sessPlanBlocks" aria-hidden="true"></div>
         <!-- The key for the blocks' symbols - this is the first screen they appear on (owner, 1 Oct 2026). -->
-        <div class="kind-key" aria-hidden="true">
-            <span><span class="kind-block kind-warmup"><span class="material-symbols-outlined">local_fire_department</span></span>Warm-up</span>
-            <span><span class="kind-block kind-scales"><span class="material-symbols-outlined">stairs</span></span>Scales</span>
-            <span><span class="kind-block kind-skills"><span class="material-symbols-outlined">bolt</span></span>Skills</span>
-            <span><span class="kind-block kind-pieces"><span class="material-symbols-outlined">music_note</span></span>Pieces</span>
-        </div>
-        <button type="button" class="btn-nav hidden-group" id="sessEditPlanBtn">Change my plan</button>
-        <button type="button" class="btn-nav" id="sessBuildBtn">Build my own plan</button>
+        <div class="kind-key" id="sessPlanKey" aria-hidden="true"></div>
         <button type="button" class="btn-submit" id="sessToContentBtn">Next: what goes in</button>
     </div>
 
@@ -1153,7 +1150,7 @@
     <div id="sessionContentView" class="hidden-group">
         <ol class="steps-progress" aria-label="Setting up your practice, step 3 of 3">
             <li class="steps-progress-step is-done">How long</li>
-            <li class="steps-progress-step is-done">Plan</li>
+            <li class="steps-progress-step is-done">What kind</li>
             <li class="steps-progress-step is-now" aria-current="step">What's in it</li>
         </ol>
         <h2 class="step-question">What goes in each block?</h2>
@@ -3168,8 +3165,10 @@
             <span class="smartlearn-note-text" id="theoryResultSmart"></span>
             <button type="button" class="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
         </div>
+        <!-- ML-418: in a practice session's Theory block the results lead on to the block's next quiz -->
+        <button type="button" class="btn-submit hidden-group" id="theoryBlockNextBtn">Next quiz</button>
         <button type="button" class="btn-submit" id="theoryAgainBtn">Again</button>
-        <div class="theory-exits">
+        <div class="theory-exits" id="theoryExits">
             <button type="button" class="btn-nav no-margin" id="theoryChangeBtn">Change options</button>
             <button type="button" class="btn-nav no-margin" id="theoryOtherBtn">Another quiz</button>
             <button type="button" class="btn-nav no-margin" id="theoryHomeBtn">Home</button>
@@ -3482,6 +3481,37 @@
         <div class="session-goal-card hidden-group" id="scaleUpGoal">
             <p class="text-sm fw-bold no-margin flex-row gap-sm items-center" id="scaleUpGoalText"></p>
             <div class="mt-1" id="scaleUpGoalBar"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ML-418: Pick a plan. The standard plans, then My plans (+ New plan beside the heading; each of yours has a
+     ⋮ inside its box - Change, Delete). A tap selects; the footer shows the selected plan once, in colour, and
+     Use this plan saves it. The X closes without changing the plan. -->
+<div class="modal" id="sessPlanModal" role="dialog" aria-modal="true" aria-labelledby="sessPlanModalTitle">
+    <div class="modal-content modal-content-sticky-footer">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <div class="metroSeg-scroll-area">
+            <h2 id="sessPlanModalTitle">Pick a plan</h2>
+            <div class="tool-group-title">Standard plans</div>
+            <div id="sessPlanStandard" role="group" aria-label="Standard plans"></div>
+            <div class="flex-row justify-between items-center mt-4">
+                <div class="tool-group-title no-margin" id="sessPlanMineTitle">My plans</div>
+                <button type="button" class="btn-text btn-inline-xs" id="sessPlanNewBtn">+ New plan</button>
+            </div>
+            <div id="sessPlanMine" role="group" aria-labelledby="sessPlanMineTitle"></div>
+        </div>
+        <div class="metroSeg-sticky-footer">
+            <div class="grow">
+                <p class="text-sm mt-0 mb-2" id="sessPlanPicked" aria-live="polite"></p>
+                <div class="kind-strip kind-strip-compact mb-3" id="sessPlanPickedBlocks" aria-hidden="true"></div>
+                <button type="button" class="btn-submit no-margin" id="sessPlanUseBtn">Use this plan</button>
+            </div>
+        </div>
+        <!-- one floating menu for a plan of your own -->
+        <div class="dropdown-menu account-band-menu" id="sessPlanMenu" role="menu">
+            <button type="button" class="dropdown-item" id="sessPlanMenuChange" role="menuitem"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">edit</span><span class="dropdown-item-text">Change</span></button>
+            <button type="button" class="dropdown-item account-band-menu-delete" id="sessPlanMenuDelete" role="menuitem"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete</span></button>
         </div>
     </div>
 </div>

@@ -5,7 +5,7 @@ import pool from '../config/db.js';
 import { withStatus } from './flows.js';
 import { resolveSessionInstrument } from './instruments.js';
 
-const KIND_TO_SEGMENT = { warmup: 'warm_up', scales: 'scales', skills: 'technique', rehearsal: 'performance' };
+const KIND_TO_SEGMENT = { warmup: 'warm_up', scales: 'scales', skills: 'technique', rehearsal: 'performance', theory: 'theory' }; // theory: ML-418
 const TOOLS = ['warmups', 'scales', 'tapTempo', 'gapTrainer', 'ear', 'range', 'rhythm'];
 
 // Every chunk this account has given a Level, weakest first, then the one practised longest ago -
@@ -81,7 +81,7 @@ export async function savePracticeSession(accountId, { minutes, segments, instru
 // --- Your own templates (ML-320 follow-up) - "plans" on screen since ML-390 ---
 // A plan made in Build my plan (ML-390) is its whole row of blocks (blocks); one saved before ML-390 is
 // opening blocks + a focus (lead, focus) and keeps working that way.
-const LEAD_KINDS = ['warmup', 'scales', 'skills', 'rehearsal'];
+const LEAD_KINDS = ['warmup', 'scales', 'skills', 'rehearsal', 'theory']; // theory: ML-418
 function toTemplate(r) {
   return { id: Number(r.id), name: r.name, lead: r.lead_blocks, focus: r.focus, minutes: Number(r.minutes), blocks: r.blocks || null };
 }
@@ -89,7 +89,7 @@ function validateTemplate(data) {
   const name = String(data.name || '').trim().slice(0, 40);
   if (!name) throw withStatus(400, 'Give your plan a name.');
   const blocks = Array.isArray(data.blocks) ? data.blocks.map(String) : null;
-  if (blocks && (!blocks.length || blocks.length > 24 || blocks.some(k => !LEAD_KINDS.includes(k)))) throw withStatus(400, 'A plan is 1-24 blocks of Warm-up, Scales, Skills or Pieces.');
+  if (blocks && (!blocks.length || blocks.length > 24 || blocks.some(k => !LEAD_KINDS.includes(k)))) throw withStatus(400, 'A plan is 1-24 blocks of Warm-up, Scales, Skills, Pieces or Theory.');
   const lead = blocks ? [] : Array.isArray(data.lead) ? data.lead.map(String) : [];
   if (lead.length > 24 || lead.some(k => !LEAD_KINDS.includes(k))) throw withStatus(400, 'Opening blocks must be Warm-up, Scales, Skills or Pieces (24 at most).');
   const focus = ['skills', 'both', 'rehearsal'].includes(data.focus) ? data.focus : 'both';

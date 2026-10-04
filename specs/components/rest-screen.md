@@ -9,7 +9,9 @@
 
 ## 2. Overview
 The 30-second rest between practice blocks - in music the rest is as important as the notes. It comes before
-every playing block except the first (never before a Prepare or a Play-through). The sound has stopped; a calm
+every playing block except the first (never before a Prepare or a Play-through). Between two **Theory** blocks
+(ML-418) the same screen is a **10-second break** instead - one fixed line ("A ten-second break"), nothing drawn
+from your message deck. The sound has stopped; a calm
 panel in its own colours shows a countdown ring, one message with a picture, and Next up. **No Skip button** - the
 next block starts by itself at 0.
 - **The message** comes from the player's own shuffled deck (`GET /api/practice/rest-message`, Admin -> Rest

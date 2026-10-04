@@ -34,9 +34,12 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
    time - it starts with 4 blocks and adds one each time you finish one, following the plan's pattern - and hides
    the minutes. **Same as last time** (per device, `tml.session.last`) is a row **above the steps**, because it
    skips all three and jumps straight to Ready with the last length, plan and pieces. (The quick picks and numbered squares went on 1 Oct 2026 - the owner wanted it simpler.)
-2. **Pick a plan** (`#sessionPickView`) - a "template" is a **plan** on screen. Each plan is drawn as its row of
-   coloured blocks at the length picked (Warm-up orange, Scales teal, Skills violet, Pieces blue - always with
-   the icon). Built in: **Standard** (Warm-up, Scales, then half Skills / half Pieces, an odd block to Pieces) and
+2. **What kind** (`#sessionPickView`; the step was "Plan" until ML-418 - all three steps are the plan) - a
+   "template" is a **plan** on screen. One button names the plan; under it the plan in a line and its row of
+   coloured blocks at the length picked (Warm-up orange, Scales teal, Skills violet, Pieces blue, Theory deep
+   pink - always with the icon). The button opens the **Pick a plan** pop-up: Standard plans, My plans (with
+   + New plan; each of yours has a ⋮ with Change and Delete), names only; tap one, see it once in the footer,
+   **Use this plan**. **Quiet practice** (ML-418) is Theory in every block - see "Theory blocks" below. Built in: **Standard** (Warm-up, Scales, then half Skills / half Pieces, an odd block to Pieces) and
    **Concert** (Warm-up, then Pieces). Short sessions keep at least one focus block (10 min Standard = Warm-up,
    Pieces). Your own plans are listed too; the one picked can be changed ("Change my plan").
    - **Build my plan** (`#sessionBuildView`): tap a kind of block to drop it into the next space, tap a space to
@@ -86,6 +89,28 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
 - **Resume:** the running session is kept on the server (`active_practice_sessions`) whenever it changes,
   including the rest (timed from its own start) and an open ended session's plan. A reload or another device picks it up;
   one untouched for 3 hours is saved as it stood and cleared.
+
+### Theory blocks and Quiet practice (ML-418)
+
+A fifth kind of block, **Theory** (`theory`; logged as a `theory` segment - it is practice time): nothing to play,
+no noise. The **Quiet practice** plan is Theory in every block (no warm-up, no scales), and Build my plan offers
+Theory alongside the other four. Step 3 has nothing to choose for it.
+
+A Theory block runs the Theory tool's quizzes itself (`startTheoryBlock` in app.js): each quiz is a 30-second
+round **done twice** (`THEORY_REPEATS`, the better one counts), then **Next quiz** - about three quizzes in five
+minutes. Which quizzes, in what order, is `PracticePlan.theoryQueue`:
+
+- **SmartLearn on** (`theory_smart_learn`): the lowest Theory grade that isn't *sorted* - sorted means every quiz
+  in it is at **Level 5** (`THEORY_SORTED_LEVEL`, owner 4 Oct 2026) - with your lowest Levels first; then the
+  grades above, each from the top. After a lap it looks again, so a grade that's now sorted is left behind.
+- **SmartLearn off**: quiz by quiz from the start to the end, carrying on after the one you played last (kept
+  per device, `tml.theory.block.cursor`).
+
+The Levels come from `GET /api/theory/levels` (the last Level of every quiz at every Theory grade). With Theory
+grades off there's one "grade" - each quiz's own options. Your own Theory options and Repeat are put back when
+the block ends; a round part-way through when the time runs out isn't saved. Between two Theory blocks the
+rest is a **10-second break** on the same screen (`PracticePlan.restSeconds`), with no message from the deck;
+a Theory block next to a playing block gets the usual 30 seconds.
 
 ### The 30-second rest (ML-390)
 

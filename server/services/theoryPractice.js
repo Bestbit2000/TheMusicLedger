@@ -63,6 +63,19 @@ export async function getTheoryHistory(accountId, settingsKey) {
   return historyFor(pool, accountId, settingsKey);
 }
 
+// ML-418: a practice session's Theory block - the last Level of every quiz at every Theory grade played
+// ({ "noteNames|1": 4, ... }; a round with the quiz's own options is grade 0).
+export async function getTheoryLevels(accountId) {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT ON (quiz_id, theory_grade) quiz_id, theory_grade, grade FROM (
+       SELECT quiz_id, COALESCE(NULLIF(options->>'grade', '')::int, 0) AS theory_grade, grade, started_at, id
+         FROM theory_quiz_attempts WHERE account_id = $1) a
+      ORDER BY quiz_id, theory_grade, started_at DESC, id DESC`,
+    [accountId]
+  );
+  return { levels: Object.fromEntries(rows.map(r => [`${r.quiz_id}|${r.theory_grade}`, Number(r.grade)])) };
+}
+
 // The quiz list: each quiz's most recent round (grade + when), or nothing if never tried.
 export async function getTheorySummary(accountId) {
   const { rows } = await pool.query(

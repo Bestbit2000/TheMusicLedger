@@ -3,8 +3,8 @@
 ## 1. Metadata
 - **Name:** Practice steps (`.steps-progress`, `.steps-progress-step` with `.is-done` / `.is-now`, `.step-question`,
   `.time-blocks`, `.time-block` with `.is-new` / `.is-more`, `.plan-card`,
-  `.plan-card-head`, `.kind-strip`, `.kind-strip-more`, `.kind-key`, `.kind-block`, `.kind-block-label`, `.kind-block-icon`,
-  `.is-empty`, `.kind-warmup`, `.kind-scales`, `.kind-skills`, `.kind-pieces`, `.build-slots`, `.build-slot`,
+  `.plan-card-head`, `.plan-row` with `.has-menu`, `.kind-strip`, `.kind-strip-compact`, `.kind-strip-more`, `.kind-key`, `.kind-block`, `.kind-block-label`, `.kind-block-icon`,
+  `.is-empty`, `.kind-warmup`, `.kind-scales`, `.kind-skills`, `.kind-pieces`, `.kind-theory`, `.build-slots`, `.build-slot`,
   `.build-slot-time`, `.build-palette`, `.build-add`, `.session-goal`, `.session-goal-card`, `.session-piece`,
   `.session-piece-head`, `.levelup`, `.levelup-stars`, `.levelup-pair`, `.is-celebrating`, `.warmup-loop`,
   `.warmup-loop-icon`)
@@ -13,11 +13,11 @@
 
 ## 2. Overview
 Starting a practice session is three steps with one question each, for a ten-year-old who knows nothing about
-music: **How long** (time as 5-minute blocks you can count), **Pick a plan** (each plan a row of coloured blocks,
-or Build my plan), **What goes in** (warm-up list, skills list, where the pieces come from, Auto), then **Ready**.
+music: **How long** (time as 5-minute blocks you can count), **What kind** (ML-418: one button naming the plan, which opens
+the Pick a plan pop-up; the plan's blocks in colour underneath), **What's in it** (warm-up list, skills list, where the pieces come from, Auto), then **Ready**.
 - **The steps bar** (`.steps-progress`) sits at the top of each step - gold for done and now, grey for to come.
-- **The kinds of block** (`.kind-block` + `.kind-warmup` / `.kind-scales` / `.kind-skills` / `.kind-pieces`)
-  are orange, teal, violet and blue - kept away from the Levels' silver and gold - and **always carry their icon**
+- **The kinds of block** (`.kind-block` + `.kind-warmup` / `.kind-scales` / `.kind-skills` / `.kind-pieces` / `.kind-theory`)
+  are orange, teal, violet, blue and (Theory, ML-418, a book) deep pink - kept away from the Levels' silver and gold - and **always carry their icon**
   (and, where there's room, their name), so the colour never works alone. A Pieces block's icon says its stage:
   music note (practice), construction (Prepare), play circle (Play-through).
 - **Build my plan** is tap-to-add, not drag: tap a kind in `.build-palette` to drop it in the next empty
@@ -33,9 +33,15 @@ or Build my plan), **What goes in** (warm-up list, skills list, where the pieces
   when open ended, under "No end time. Starts with 4 blocks of 5 minutes and adds more as you play." - the stepper and slider are hidden then). The blocks are **one strip across the width**, thinner
   as the minutes go up, with no numbers - display only, so nothing on it looks tappable (owner, 1 Oct 2026; the
   quick picks went too).
-- Step 2: `.flow-choice-option.plan-card` › `.plan-card-head` (name, blurb) + `.kind-strip` › `.kind-block` × blocks;
-  under the plans, **the key** (`.kind-key` › `span` › a small `.kind-block.kind-*` + its name): Warm-up, Scales, Skills,
-  Pieces - the first screen the symbols appear on (owner, 1 Oct 2026). `aria-hidden`: each plan card already says its
+- Step 2 (ML-418, "one button, one pop-up"): `#sessPlanBtn` (`.metroBlk-ctrl-value-btn.w-full`: the plan's name over "plan") › a line saying what's in it (`.text-sm.text-muted`) › `.kind-strip` › `.kind-block` × blocks. The button
+  opens **`#sessPlanModal`**: *Standard plans* and *My plans* (with **+ New plan** beside that heading), each plan a
+  `.plan-row` › `.flow-choice-option.level-answer` (name, a few words - no blocks, so the list stays short); one of
+  your own is `.plan-row.has-menu` with a `.list-item-menu-btn` ⋮ **inside the box, top right** (Change, Delete).
+  Tapping a row only selects it; the pop-up's sticky footer shows the plan picked once, small
+  (`.kind-strip.kind-strip-compact`), and **Use this plan**. + New plan and Change open Build my plan and come back
+  with that plan picked. (`.plan-card` / `.plan-card-head` are still used by Add a piece's open row.)
+  Under the blocks on the page, **the key** (`.kind-key` › `span` › a small `.kind-block.kind-*` + its name): the kinds this plan has, from Warm-up, Scales, Skills,
+  Pieces and Theory - the first screen the symbols appear on (owner, 1 Oct 2026). `aria-hidden`: each plan card already says its
   blocks in words.
 - Build: `.build-slots` › `button.kind-block.build-slot` (`.build-slot-time` - in the kind's `-text` colour on a filled
   slot, `--label-color` on an empty one - icon, `.kind-block-label`) ›
@@ -45,7 +51,7 @@ or Build my plan), **What goes in** (warm-up list, skills list, where the pieces
 - Ready: `.kind-strip` › block rows (`.history-item` › `.level-row-body` › `.session-block-time` + `.kind-block`).
 
 ## 4. Tokens used
-- **Kinds:** `--kind-warmup`, `--kind-scales`, `--kind-skills`, `--kind-pieces` (edges), their `-text` variants
+- **Kinds:** `--kind-warmup`, `--kind-scales`, `--kind-skills`, `--kind-pieces`, `--kind-theory` (edges), their `-text` variants
   (icon and name, 4.5:1 on the tint in both themes) and `-tint` fills.
 - **Steps and time blocks:** `--primary-action`, `--primary-action-tint`, `--primary-action-strong`, `--input-border`,
   `--control-border`, `--label-color`, `--text-color`.
@@ -66,7 +72,7 @@ or Build my plan), **What goes in** (warm-up list, skills list, where the pieces
 | Step done / now / to come | `.steps-progress-step.is-done` / `.is-now` (gold bar; now = text colour) / plain (grey) |
 | New time block | `.time-block.is-new` pops in (`block-pop`); only the new ones animate |
 | Open ended | the Open ended pill checked; the stepper and slider hidden; four blocks and a dashed, empty `.time-block.is-more` |
-| Plan picked | `.plan-card.selected` (the `.flow-choice-option` selected state) |
+| Plan picked (in the pop-up) | `.plan-row .flow-choice-option.selected` (`aria-pressed="true"`) |
 | Empty slot | `.kind-block.is-empty` - dashed, outline icon |
 | Levelled up | `.levelup.is-celebrating` - the stars and the new Level pop once |
 
@@ -74,16 +80,19 @@ or Build my plan), **What goes in** (warm-up list, skills list, where the pieces
 ```html
 <ol class="steps-progress" aria-label="Setting up your practice, step 2 of 3">
   <li class="steps-progress-step is-done">How long</li>
-  <li class="steps-progress-step is-now" aria-current="step">Plan</li>
+  <li class="steps-progress-step is-now" aria-current="step">What kind</li>
   <li class="steps-progress-step">What's in it</li>
 </ol>
-<button type="button" class="flow-choice-option level-answer plan-card selected" aria-pressed="true">
-  <span class="plan-card-head"><strong>Standard</strong><span class="text-sm text-muted">A bit of everything</span></span>
-  <span class="kind-strip">
-    <span class="kind-block kind-warmup" aria-hidden="true"><span class="material-symbols-outlined">local_fire_department</span></span>
-    <span class="kind-block kind-pieces" aria-hidden="true"><span class="material-symbols-outlined">music_note</span></span>
-  </span>
-</button>
+<button type="button" class="metroBlk-ctrl-value-btn w-full" id="sessPlanBtn" aria-haspopup="dialog"><strong>Standard</strong><span class="metroBlk-ctrl-value-label">plan</span></button>
+<div class="kind-strip">
+  <span class="kind-block kind-warmup" aria-hidden="true"><span class="material-symbols-outlined">local_fire_department</span></span>
+  <span class="kind-block kind-theory" aria-hidden="true"><span class="material-symbols-outlined">menu_book</span></span>
+</div>
+<!-- in the pop-up: one of your own plans, its ⋮ inside the box -->
+<div class="plan-row has-menu">
+  <button type="button" class="flow-choice-option level-answer" aria-pressed="false"><span><strong>Before band</strong><br><span class="text-sm text-muted">Warm-up, Pieces</span></span></button>
+  <button type="button" class="list-item-menu-btn" aria-label="Options for Before band" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined" aria-hidden="true">more_vert</span></button>
+</div>
 ```
 
 ## 8. Cross-references

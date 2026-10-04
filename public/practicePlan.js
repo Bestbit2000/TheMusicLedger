@@ -30,6 +30,9 @@
     const MAX_MINUTES = 120;
     const NUDGE_SECONDS = 270;     // 4:30 - the sound stops, then the 30-second rest
     const REST_SECONDS = 30;       // ML-390: the rest between blocks
+    const THEORY_BREAK_SECONDS = 10; // ML-418: between two Theory blocks, a short break instead
+    const THEORY_REPEATS = 2;      // ML-418: a Theory block does each quiz twice (two 30-second rounds), then the next
+    const THEORY_SORTED_LEVEL = 5; // ML-418: a Theory grade is sorted when every quiz in it is at Level 5
     const OPEN_START_BLOCKS = 4;   // ML-390: an open-ended session starts with 4 blocks (20 minutes)
     const TARGET_LEVEL = 4;        // ML-390: focus bits go up to Level 4, then the piece is played through
     const WARMUP_ROUND_STEP = 0.1; // ML-390: each round of a looping warm-up is 10% faster
@@ -37,15 +40,17 @@
     // half Pieces; Concert is all Pieces. Your own templates carry their own focus.
     const TEMPLATES = {
         standard: { label: 'Standard', lead: ['warmup', 'scales'], focus: 'both', blurb: 'A bit of everything' },
-        concert: { label: 'Concert', lead: ['warmup'], focus: 'rehearsal', blurb: 'Mostly your pieces' }
+        concert: { label: 'Concert', lead: ['warmup'], focus: 'rehearsal', blurb: 'Mostly your pieces' },
+        // ML-418: Theory in every block - no warm-up, no scales, nothing to play and no noise
+        quiet: { label: 'Quiet practice', lead: [], focus: 'theory', blurb: 'Theory only - no instrument, no noise' }
     };
-    const FOCUS_LABELS = { skills: 'Skills', both: 'Skills and Pieces', rehearsal: 'Pieces' };
+    const FOCUS_LABELS = { skills: 'Skills', both: 'Skills and Pieces', rehearsal: 'Pieces', theory: 'Theory' };
     const templateFocus = (template) => (template && template.focus) || (TEMPLATES[template] && TEMPLATES[template].focus) || 'both';
     // ML-390: "Rehearsal" blocks are called Pieces on screen (the stored id stays 'rehearsal').
     const KINDS = {
-        warmup: 'Warm-up', scales: 'Scales', skills: 'Skills', rehearsal: 'Pieces', choose: 'Choose a block'
+        warmup: 'Warm-up', scales: 'Scales', skills: 'Skills', rehearsal: 'Pieces', theory: 'Theory', choose: 'Choose a block'
     };
-    const PLAN_KINDS = ['warmup', 'scales', 'skills', 'rehearsal'];
+    const PLAN_KINDS = ['warmup', 'scales', 'skills', 'rehearsal', 'theory']; // ML-418: Theory - a block with nothing to play
     // A Pieces block's stage (ML-390): preparing a new piece, practising a focus bit, or a play-through.
     const STAGES = { prepare: 'Prepare', practise: 'Pieces', playthrough: 'Play-through' };
     // The playing tools a Skills block can open, in the order they rotate (ML-321 turns this into your own list).
@@ -69,6 +74,7 @@
     function leadFocusKinds(n, template, focus) {
         const lead = templateLead(template).slice(0, n > 1 ? n - 1 : 0);
         const rest = n - lead.length;
+        if (focus === 'theory' || templateFocus(template) === 'theory') return [...lead, ...new Array(rest).fill('theory')]; // ML-418: Quiet practice - the plan's own focus wins
         let skills = 0;
         if (focus === 'skills') skills = rest;
         else if (focus === 'both') skills = Math.floor(rest / 2);
@@ -80,7 +86,7 @@
         const p = (pattern || []).filter(k => PLAN_KINDS.includes(k));
         if (!p.length) return new Array(n).fill('rehearsal');
         if (n <= p.length) return p.slice(0, n);
-        let from = p.findIndex(k => k === 'skills' || k === 'rehearsal');
+        let from = p.findIndex(k => k === 'skills' || k === 'rehearsal' || k === 'theory');
         if (from < 0) from = 0;
         const loop = p.slice(from);
         const out = p.slice();
@@ -92,8 +98,8 @@
     function planPattern(template, focus) {
         const own = ownBlocks(template);
         if (own) return own;
-        const f = focus || templateFocus(template);
-        return [...templateLead(template), ...(f === 'both' ? ['skills', 'rehearsal'] : f === 'skills' ? ['skills'] : ['rehearsal'])];
+        const f = templateFocus(template) === 'theory' ? 'theory' : (focus || templateFocus(template));
+        return [...templateLead(template), ...(f === 'both' ? ['skills', 'rehearsal'] : f === 'skills' ? ['skills'] : f === 'theory' ? ['theory'] : ['rehearsal'])];
     }
 
     // The block kinds for a session, in order. minutes null = open-ended: the first n blocks
@@ -174,16 +180,21 @@
 
     // --- The rest and the block clock (ML-390) ---
     // A block you play: Warm-up, Scales, Skills, or Pieces practice (not Prepare / Play-through).
-    const isPlayingBlock = (b) => !!b && PLAN_KINDS.includes(b.kind) && !(b.kind === 'rehearsal' && (b.stage === 'prepare' || b.stage === 'playthrough'));
-    // The 30-second rest comes before every playing block except the first one.
-    const restBefore = (blocks, i) => i > 0 && isPlayingBlock(blocks[i]);
+    // A Theory block (ML-418) isn't one: there's nothing to play.
+    const isPlayingBlock = (b) => !!b && PLAN_KINDS.includes(b.kind) && b.kind !== 'theory' && !(b.kind === 'rehearsal' && (b.stage === 'prepare' || b.stage === 'playthrough'));
+    const isTheoryBlock = (b) => !!b && b.kind === 'theory';
+    // The rest comes before every playing block except the first one - and before a Theory block too.
+    const restBefore = (blocks, i) => i > 0 && (isPlayingBlock(blocks[i]) || isTheoryBlock(blocks[i]));
+    // How long the rest before block i is: 30 seconds, or a 10-second break between two Theory blocks
+    // (owner, 4 Oct 2026: the rest is for playing).
+    const restSeconds = (blocks, i) => (isTheoryBlock(blocks[i]) && isTheoryBlock(blocks[i - 1]) ? THEORY_BREAK_SECONDS : REST_SECONDS);
     // Seconds of playing in block i before the sound stops: its minutes, less the rest if one follows.
     // A Prepare runs as long as it needs (Infinity) - you move on when it's done.
     function playSeconds(blocks, i) {
         const b = blocks[i];
         if (!b) return 0;
         if (b.kind === 'rehearsal' && b.stage === 'prepare') return Infinity;
-        return (Number(b.minutes) || BLOCK_MINUTES) * 60 - (restBefore(blocks, i + 1) ? REST_SECONDS : 0);
+        return (Number(b.minutes) || BLOCK_MINUTES) * 60 - (restBefore(blocks, i + 1) ? restSeconds(blocks, i + 1) : 0);
     }
 
     // Where the runner is: elapsedSeconds into the current block, and the second the sound stops at.
@@ -303,6 +314,29 @@
             for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
         }
         return ids;
+    }
+
+    // ===== ML-418: a Theory block =====
+    // Which quizzes a Theory block works through, in order. items: every quiz at every Theory grade it has,
+    // in the list's order within a grade, lowest grade first - [{ key, quizId, grade }]; levels: { key: the
+    // last Level 1-5 } (a quiz never played has none).
+    //   SmartLearn on:  the lowest grade that isn't sorted yet (every quiz at Level 5), its lowest Levels
+    //                   first; then the grades above it, each from the top. With every grade sorted, all of
+    //                   them again, in order.
+    //   SmartLearn off: every quiz in order from the start, carrying on after the one played last (cursor).
+    function theoryQueue(items, levels, smart, cursor) {
+        const all = (items || []).slice();
+        if (!all.length) return [];
+        const level = (it) => Number((levels || {})[it.key]) || 0;
+        if (!smart) {
+            const at = all.findIndex(it => it.key === cursor);
+            return at < 0 ? all : [...all.slice(at + 1), ...all.slice(0, at + 1)];
+        }
+        const grades = [...new Set(all.map(it => it.grade))].sort((a, b) => a - b);
+        const open = grades.find(g => all.some(it => it.grade === g && level(it) < THEORY_SORTED_LEVEL));
+        if (open === undefined) return all;
+        const now = all.filter(it => it.grade === open).map((it, i) => ({ it, i })).sort((a, b) => level(a.it) - level(b.it) || a.i - b.i).map(x => x.it);
+        return [...now, ...all.filter(it => it.grade > open)];
     }
 
     // ===== ML-391: Scales Levels =====
@@ -433,6 +467,7 @@
     return {
         SCALE_LEVELS, SCALE_TOP_LEVEL, SCALES_PER_BLOCK, SCALE_SHARE_SECONDS, SCALE_REVISIT_DAYS, SCALE_SPEEDS,
         scaleLevelSpec, scaleSpeedRow, scaleSpeedFamily, scaleGrade, scaleSpeed, scaleKey, scaleRecord, scalePool, scaleAnswer, scaleProgress,
+        THEORY_BREAK_SECONDS, THEORY_REPEATS, THEORY_SORTED_LEVEL, isTheoryBlock, restSeconds, theoryQueue,
         WARMUP_LISTS, warmupSequence,
         BLOCK_MINUTES, MIN_MINUTES, MAX_MINUTES, NUDGE_SECONDS, REST_SECONDS, OPEN_START_BLOCKS, TARGET_LEVEL, TEMPLATES, KINDS, STAGES, PLAN_KINDS, SKILL_TOOLS,
         clampMinutes, blockKinds, stretch, planPattern, openKindAt, piecePool, fillBlocks, plan, blockState, toolLabel, pieceBlocks, forecast, PREP_BLOCKS, templateFocus, FOCUS_LABELS,

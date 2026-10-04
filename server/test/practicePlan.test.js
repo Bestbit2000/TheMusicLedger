@@ -252,3 +252,39 @@ describe('the 30-second rest (ML-390)', () => {
         assert.deepEqual([1, 2, 3].map(r => PP.warmupRoundBpm(60, r)), [60, 66, 72]);
     });
 });
+
+describe('Theory blocks and Quiet practice (ML-418)', () => {
+    const b = (kind) => ({ kind, minutes: 5 });
+    test('Quiet practice is Theory in every block, at any length', () => {
+        [5, 10, 30, 60].forEach(m => {
+            const kinds = PP.blockKinds(m, 'quiet');
+            assert.equal(kinds.length, m / 5);
+            assert.ok(kinds.every(k => k === 'theory'));
+        });
+    });
+    test('Build my plan can use Theory', () => {
+        assert.ok(PP.PLAN_KINDS.includes('theory'));
+        assert.equal(PP.KINDS.theory, 'Theory');
+    });
+    test('a 10-second break between two Theory blocks, the 30-second rest next to a playing block', () => {
+        const blocks = [b('theory'), b('theory'), b('warmup'), b('theory'), b('theory')];
+        assert.deepEqual(blocks.map((x, i) => PP.restBefore(blocks, i)), [false, true, true, true, true]);
+        assert.deepEqual([1, 2, 3, 4].map(i => PP.restSeconds(blocks, i)), [10, 30, 30, 10]);
+    });
+    const items = [1, 2].flatMap(g => ['noteNames', 'keys', 'symbols'].map(q => ({ key: q + '|' + g, quizId: q, grade: g })));
+    const keys = (q) => q.map(it => it.key);
+    test('SmartLearn: the lowest grade not sorted, lowest Levels first, then the grades above in order', () => {
+        const q = PP.theoryQueue(items, { 'noteNames|1': 5, 'keys|1': 2, 'symbols|1': 4 }, true, null);
+        assert.deepEqual(keys(q), ['keys|1', 'symbols|1', 'noteNames|1', 'noteNames|2', 'keys|2', 'symbols|2']);
+    });
+    test('SmartLearn: a grade is sorted when every quiz is at Level 5 - then it moves up', () => {
+        const q = PP.theoryQueue(items, { 'noteNames|1': 5, 'keys|1': 5, 'symbols|1': 5, 'keys|2': 3 }, true, null);
+        assert.deepEqual(keys(q), ['noteNames|2', 'symbols|2', 'keys|2']);
+        const all = PP.theoryQueue(items, Object.fromEntries(items.map(it => [it.key, 5])), true, null);
+        assert.deepEqual(keys(all), keys(items));
+    });
+    test('SmartLearn off: from the start to the end, carrying on after the one played last', () => {
+        assert.deepEqual(keys(PP.theoryQueue(items, {}, false, null)), keys(items));
+        assert.deepEqual(keys(PP.theoryQueue(items, { 'keys|1': 1 }, false, 'keys|1')), ['symbols|1', 'noteNames|2', 'keys|2', 'symbols|2', 'noteNames|1', 'keys|1']);
+    });
+});

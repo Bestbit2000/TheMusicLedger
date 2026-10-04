@@ -639,6 +639,32 @@
       "bg": "--primary-action-tint",
       "over": "--container-bg",
       "use": "ML-390: the session goal line and the next-goal card on their gold wash"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-theory-text",
+      "bg": "--kind-theory-tint",
+      "over": "--container-bg",
+      "use": "ML-418: a Theory block's icon and name on its tint"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-theory-text",
+      "bg": "--kind-theory-tint",
+      "over": "--input-bg",
+      "use": "ML-418: a Theory block's icon and name on its tint, inside a tappable card"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--kind-theory",
+      "bg": "--container-bg",
+      "use": "ML-418: a Theory block's edge on the page"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--kind-theory",
+      "bg": "--input-bg",
+      "use": "ML-418: a Theory block's edge inside a tappable card"
     }
   ]
 }
