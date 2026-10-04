@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.41.0",
+    "date": "2026-10-04",
+    "changes": [
+      {
+        "key": "ML-433",
+        "type": "New",
+        "summary": "My music lists pieces by name, A to Z"
+      },
+      {
+        "key": "ML-432",
+        "type": "Fixes",
+        "summary": "Admin → Usage: pieces made with Quick entry don't show under By app version"
+      },
+      {
+        "key": "ML-431",
+        "type": "New",
+        "summary": "Quick entry: step dots inside a stage, to go back to a step (and on again)"
+      },
+      {
+        "key": "ML-430",
+        "type": "New",
+        "summary": "Create privacy policy covering mine and 3rd parties requirements"
+      }
+    ]
+  },
+  {
     "version": "0.40.0",
     "date": "2026-10-04",
     "changes": [
