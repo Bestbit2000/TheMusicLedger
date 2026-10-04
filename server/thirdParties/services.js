@@ -154,7 +154,7 @@ export default [
     status: 'attention',
     who: 'Google LLC (USA)',
     provides: '"Sign in with Google" - login only. We ask for the basic profile and email address, nothing else.',
-    usedIn: 'server/config/passport.js (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)',
+    usedIn: 'server/config/passport.js (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET); the button picture public/icons/google-sign-in-light.svg',
     plan: 'No plan',
     cost: 'Free (no price is published)',
     licence: 'Google APIs Terms of Service and the API Services User Data Policy',
@@ -166,8 +166,8 @@ export default [
     ],
     termsCheckedOn: CHECKED,
     attention: [
-      'The privacy policy now exists (/privacy.html, linked from the sign-in screen). Still to do in the Google Cloud console: put its address, and the home page, on the sign-in consent screen.',
-      'Google\'s guidelines want the button to say "Sign in with Google" with their coloured G. Ours says "Log in to Google" with no logo.'
+      'The sign-in consent screen is still in "Testing" in the Google Cloud console: only listed test users can sign in with Google. Publishing it opens Google sign-in to anyone - the owner\'s decision.',
+      'Google may not accept a vercel.app address for brand verification - a domain of our own is needed for that.'
     ],
     says: [
       'Google can end access at any time.',
@@ -179,7 +179,9 @@ export default [
       { text: 'A privacy policy that says what Google data we collect and how we use it, linked from the home page.', check: { path: 'public/index.html', includes: 'href="/privacy.html"' } },
       { text: 'The same privacy policy address on the sign-in consent screen (set in the Google Cloud console).' },
       { text: 'Ask only for what we need: profile and email.', check: { path: 'server/config/passport.js', includes: ['profile', 'email'] } },
-      { text: 'The button says "Sign in with Google" (or "Continue with Google") with Google\'s standard coloured G, and is no less prominent than any other sign-in choice.' },
+      { text: 'The button is Google\'s own "Sign in with Google" picture, unaltered (from their asset pack, downloaded 4 Oct 2026) - never restyled, recoloured or redrawn.', check: { path: 'public/index.html', includes: ['icons/google-sign-in-light.svg', 'aria-label="Sign in with Google"'] } },
+      { text: 'Their picture is still in the repo.', check: { path: 'public/icons/google-sign-in-light.svg' } },
+      { text: 'It is no less prominent than any other third-party sign-in choice.' },
       { text: 'Keep the client secret out of the code - it lives in the environment settings only.' },
       { text: 'Never suggest Google endorses the app.' }
     ],

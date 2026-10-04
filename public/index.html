@@ -35,7 +35,9 @@
         <img src="images/LedgeSplash.jpg" alt="The Music Ledger" class="splash-image">
         <h1 class="splash-title">Welcome</h1>
         <p id="loginStatusText" class="splash-subtitle">Just a moment, getting ready to open&hellip;</p>
-        <button id="loginBtn" class="splash-login-btn">Log in to Google</button>
+        <!-- ML-430: Google's own "Sign in with Google" button - their picture (white theme), unaltered, as their
+             branding guidelines require. Not our gold button: the G may only sit on Google's white, dark or grey. -->
+        <button id="loginBtn" class="splash-google-btn" aria-label="Sign in with Google"><img src="icons/google-sign-in-light.svg" alt="" width="180" height="40"></button>
         <!-- ML-355: email + password (shown when password_login is on), forgot password, and the
              "choose a password" screen an emailed invite or reset link opens. -->
         <div id="passwordLogin" class="hidden-group">

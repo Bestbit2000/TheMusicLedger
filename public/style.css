@@ -880,7 +880,13 @@
     .splash-title { color: var(--splash-title-color); margin: 0 0 var(--space-2) 0; font-size: var(--font-2xl); letter-spacing: 1px; }
     .splash-subtitle { color: var(--splash-subtitle-color); font-size: var(--font-md); margin: 0 0 var(--space-6) 0; }
     .splash-login-btn { display: none; width: 100%; padding: var(--space-4) var(--space-5); font-size: var(--font-md); font-weight: var(--font-weight-bold); cursor: pointer; background: linear-gradient(135deg, var(--primary-action), var(--primary-action-gradient-end)); color: var(--primary-action-text); border: none; border-radius: var(--radius-sm); }
-    .splash-login-btn.show { display: inline-block; } /* revealed by displayLoginScreen once the silent sign-in has failed */
+    .splash-login-btn.show { display: inline-block; }
+    /* ML-430: the Google sign-in button is Google's own picture (public/icons/google-sign-in-light.svg) - its colours,
+       logo and wording are fixed by their branding guidelines, so it is scaled as a whole and never restyled. */
+    .splash-google-btn { display: none; padding: 0; border: 0; background: none; border-radius: var(--radius-xs); cursor: pointer; }
+    .splash-google-btn.show { display: inline-block; }
+    .splash-google-btn img { display: block; height: calc(var(--touch-target) * 1.25); width: auto; }
+    .splash-google-btn:disabled { opacity: var(--opacity-muted); cursor: default; } /* revealed by displayLoginScreen once the silent sign-in has failed */
     .splash-login-btn:disabled { opacity: var(--opacity-muted); cursor: default; }
     /* ML-355: the email + password forms on the (always dark) splash - labels and messages in the
        splash's own fixed colours, the fields and gold button as everywhere else. */
