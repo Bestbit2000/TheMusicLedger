@@ -7073,6 +7073,13 @@
     });
     document.querySelectorAll('input[name="sessLenKind"]').forEach(el => el.addEventListener('change', () => { sessPlan.open = el.value === 'open' && el.checked; renderSessLength(); }));
     document.getElementById('sessToPlanBtn')?.addEventListener('click', () => openSessionPick());
+    // ML-420: a step already done is a way back to it (never forwards) - what you chose since is kept
+    document.querySelectorAll('[data-step-back]').forEach(btn => btn.addEventListener('click', () => {
+        const to = btn.dataset.stepBack;
+        if (!viewStack.includes(to)) return;
+        while (viewStack.length > 1 && viewStack[viewStack.length - 1] !== to) viewStack.pop();
+        switchView(to, true);
+    }));
     document.getElementById('sessSameBtn')?.addEventListener('click', async () => {
         const last = sessLoadLast();
         if (!last) return;
@@ -7111,7 +7118,6 @@
     const planStripHtml = (kinds) => kinds.map(k => kindBlockHtml({ kind: k })).join('') + (sessPlan.open ? '<span class="kind-strip-more">…</span>' : '');
     // Step 2: one button naming the plan, and under it what the plan gives you
     function renderSessPick() {
-        document.getElementById('sessPickTitle').textContent = sessPlan.open ? 'Pick a plan - open ended' : `Pick a plan for your ${sessPlan.minutes} minutes`;
         const picked = planChoices().find(p => p.key === templateKey(sessPlan.template)) || planChoices()[0];
         const kinds = planKinds(picked.template);
         document.getElementById('sessPlanBtnVal').textContent = picked.name;

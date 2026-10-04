@@ -1105,26 +1105,27 @@
              1 Oct 2026: numbered squares looked like buttons). Tap the number to type the minutes. -->
         <p class="text-sm text-muted mt-3 mb-1" id="sessLenBlocksLabel">4 blocks of 5 minutes</p>
         <div class="time-blocks" id="sessLenBlocks" aria-hidden="true"></div>
-        <button type="button" class="btn-submit" id="sessToPlanBtn">Next: pick a plan</button>
+        <button type="button" class="btn-submit" id="sessToPlanBtn">Next: what kind of practice</button>
     </div>
 
     <!-- ML-390 step 2: which plan. Each plan is drawn as its row of coloured blocks at the length picked;
          your own plans have a ⋮ to change or delete them in Build my plan. -->
     <div id="sessionPickView" class="hidden-group">
         <ol class="steps-progress" aria-label="Setting up your practice, step 2 of 3">
-            <li class="steps-progress-step is-done">How long</li>
+            <li class="steps-progress-step is-done"><button type="button" class="steps-progress-back" data-step-back="sessionLengthView" aria-label="Back to How long"><span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>How long</button></li>
             <li class="steps-progress-step is-now" aria-current="step">What kind</li>
             <li class="steps-progress-step">What's in it</li>
         </ol>
-        <h2 class="step-question" id="sessPickTitle">Pick a plan</h2>
+        <h2 class="step-question" id="sessPickTitle">What kind of practice do you want to do?</h2>
         <!-- ML-418: one button naming the plan (it opens #sessPlanModal), and under it what the plan does to
              your time - a line of words and every block once. It was a card of blocks per plan. -->
         <button type="button" class="metroBlk-ctrl-value-btn w-full" id="sessPlanBtn" aria-haspopup="dialog"><strong id="sessPlanBtnVal">Standard</strong><span class="metroBlk-ctrl-value-label">plan</span></button>
         <p class="text-sm text-muted mt-3 mb-1" id="sessPlanSummary" aria-live="polite"></p>
         <div class="kind-strip" id="sessPlanBlocks" aria-hidden="true"></div>
-        <!-- The key for the blocks' symbols - this is the first screen they appear on (owner, 1 Oct 2026). -->
-        <div class="kind-key" id="sessPlanKey" aria-hidden="true"></div>
-        <button type="button" class="btn-submit" id="sessToContentBtn">Next: what goes in</button>
+        <!-- The key for the blocks' symbols - this is the first screen they appear on (owner, 1 Oct 2026).
+             ML-420: labelled "Key:" and on one line, with space above it - it ran straight on from the blocks. -->
+        <div class="kind-key" aria-hidden="true"><strong class="kind-key-label">Key:</strong><span class="kind-key-items" id="sessPlanKey"></span></div>
+        <button type="button" class="btn-submit" id="sessToContentBtn">Next: what's in it</button>
     </div>
 
     <!-- ML-390: Build my plan - tap a kind of block to drop it into the next space, tap a space to empty
@@ -1149,8 +1150,8 @@
          Auto pick the bars that need you most (PracticePlan.piecePool). -->
     <div id="sessionContentView" class="hidden-group">
         <ol class="steps-progress" aria-label="Setting up your practice, step 3 of 3">
-            <li class="steps-progress-step is-done">How long</li>
-            <li class="steps-progress-step is-done">What kind</li>
+            <li class="steps-progress-step is-done"><button type="button" class="steps-progress-back" data-step-back="sessionLengthView" aria-label="Back to How long"><span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>How long</button></li>
+            <li class="steps-progress-step is-done"><button type="button" class="steps-progress-back" data-step-back="sessionPickView" aria-label="Back to What kind"><span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>What kind</button></li>
             <li class="steps-progress-step is-now" aria-current="step">What's in it</li>
         </ol>
         <h2 class="step-question">What goes in each block?</h2>

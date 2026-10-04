@@ -1,7 +1,7 @@
 # Practice steps (setting up a session)
 
 ## 1. Metadata
-- **Name:** Practice steps (`.steps-progress`, `.steps-progress-step` with `.is-done` / `.is-now`, `.step-question`,
+- **Name:** Practice steps (`.steps-progress`, `.steps-progress-step` with `.is-done` / `.is-now`, `.steps-progress-back`, `.kind-key-label`, `.kind-key-items`, `.step-question`,
   `.time-blocks`, `.time-block` with `.is-new` / `.is-more`, `.plan-card`,
   `.plan-card-head`, `.plan-row` with `.has-menu`, `.kind-strip`, `.kind-strip-compact`, `.kind-strip-more`, `.kind-key`, `.kind-block`, `.kind-block-label`, `.kind-block-icon`,
   `.is-empty`, `.kind-warmup`, `.kind-scales`, `.kind-skills`, `.kind-pieces`, `.kind-theory`, `.build-slots`, `.build-slot`,
@@ -16,6 +16,9 @@ Starting a practice session is three steps with one question each, for a ten-yea
 music: **How long** (time as 5-minute blocks you can count), **What kind** (ML-418: one button naming the plan, which opens
 the Pick a plan pop-up; the plan's blocks in colour underneath), **What's in it** (warm-up list, skills list, where the pieces come from, Auto), then **Ready**.
 - **The steps bar** (`.steps-progress`) sits at the top of each step - gold for done and now, grey for to come.
+  **A step already done is a way back** (ML-420): its label is a `<button class="steps-progress-back" data-step-back="<view>">`
+  with a small back chevron and an underline; tapping it goes back to that step and keeps what you chose since.
+  The step you're on and the ones to come are plain text - you can't jump forwards.
 - **The kinds of block** (`.kind-block` + `.kind-warmup` / `.kind-scales` / `.kind-skills` / `.kind-pieces` / `.kind-theory`)
   are orange, teal, violet, blue and (Theory, ML-418, a book) deep pink - kept away from the Levels' silver and gold - and **always carry their icon**
   (and, where there's room, their name), so the colour never works alone. A Pieces block's icon says its stage:
@@ -40,7 +43,7 @@ the Pick a plan pop-up; the plan's blocks in colour underneath), **What's in it*
   Tapping a row only selects it; the pop-up's sticky footer shows the plan picked once, small
   (`.kind-strip.kind-strip-compact`), and **Use this plan**. + New plan and Change open Build my plan and come back
   with that plan picked. (`.plan-card` / `.plan-card-head` are still used by Add a piece's open row.)
-  Under the blocks on the page, **the key** (`.kind-key` › `span` › a small `.kind-block.kind-*` + its name): the kinds this plan has, from Warm-up, Scales, Skills,
+  Under the blocks on the page, with space between, **the key** (ML-420: `.kind-key-label` "Key:" then the kinds on one line, `.kind-key-items`; it wraps only with all five) (`.kind-key` › `span` › a small `.kind-block.kind-*` + its name): the kinds this plan has, from Warm-up, Scales, Skills,
   Pieces and Theory - the first screen the symbols appear on (owner, 1 Oct 2026). `aria-hidden`: each plan card already says its
   blocks in words.
 - Build: `.build-slots` › `button.kind-block.build-slot` (`.build-slot-time` - in the kind's `-text` colour on a filled
@@ -69,7 +72,7 @@ the Pick a plan pop-up; the plan's blocks in colour underneath), **What's in it*
 ## 6. States
 | State | Treatment |
 |---|---|
-| Step done / now / to come | `.steps-progress-step.is-done` / `.is-now` (gold bar; now = text colour) / plain (grey) |
+| Step done / now / to come | `.steps-progress-step.is-done` (its label a `.steps-progress-back` button) / `.is-now` (gold bar; now = text colour) / plain (grey) |
 | New time block | `.time-block.is-new` pops in (`block-pop`); only the new ones animate |
 | Open ended | the Open ended pill checked; the stepper and slider hidden; four blocks and a dashed, empty `.time-block.is-more` |
 | Plan picked (in the pop-up) | `.plan-row .flow-choice-option.selected` (`aria-pressed="true"`) |
@@ -79,7 +82,7 @@ the Pick a plan pop-up; the plan's blocks in colour underneath), **What's in it*
 ## 7. Code example
 ```html
 <ol class="steps-progress" aria-label="Setting up your practice, step 2 of 3">
-  <li class="steps-progress-step is-done">How long</li>
+  <li class="steps-progress-step is-done"><button type="button" class="steps-progress-back" data-step-back="sessionLengthView" aria-label="Back to How long"><span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>How long</button></li>
   <li class="steps-progress-step is-now" aria-current="step">What kind</li>
   <li class="steps-progress-step">What's in it</li>
 </ol>

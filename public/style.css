@@ -2495,8 +2495,8 @@
        controls listed in the first rule aren't otherwise positioned, so they become the ::before's
        containing block; the absolutely-positioned ones (.scroll-btn, .tuner-card-settings-btn,
        .metroBlk-tile-menu-btn) already are. */
-    :where(.top-tuner-toggle, .tuner-pause-btn, .metro-mute-btn, .metroBlk-row-volume-btn, .metroBlk-mini-tuner-close-btn, .qp-bar-menu-btn, .qp-merge-split-btn, .qp-merge-branch-btn, .qp-loaded-history-clear-btn, .qp-loaded-history-undo-btn, .list-item-menu-btn, .flow-bar-popup-icon-btn, .flow-delete-btn, .flow-block-grab-handle, .metro-bpm-step) { position: relative; }
-    :is(.top-tuner-toggle, .scroll-btn, .tuner-card-settings-btn, .tuner-pause-btn, .metro-mute-btn, .metroBlk-row-volume-btn, .metroBlk-mini-tuner-instrument-btn, .metroBlk-mini-tuner-close-btn, .qp-bar-menu-btn, .qp-merge-split-btn, .qp-merge-branch-btn, .qp-loaded-history-clear-btn, .qp-loaded-history-undo-btn, .list-item-menu-btn, .flow-bar-popup-icon-btn, .flow-delete-btn, .flow-block-grab-handle, .metro-bpm-step)::before { content: ''; position: absolute; top: 50%; left: 50%; width: max(100%, var(--touch-target)); height: max(100%, var(--touch-target)); transform: translate(-50%, -50%); }
+    :where(.top-tuner-toggle, .tuner-pause-btn, .metro-mute-btn, .metroBlk-row-volume-btn, .metroBlk-mini-tuner-close-btn, .qp-bar-menu-btn, .qp-merge-split-btn, .qp-merge-branch-btn, .qp-loaded-history-clear-btn, .qp-loaded-history-undo-btn, .list-item-menu-btn, .flow-bar-popup-icon-btn, .flow-delete-btn, .flow-block-grab-handle, .metro-bpm-step, .steps-progress-back) { position: relative; }
+    :is(.top-tuner-toggle, .scroll-btn, .tuner-card-settings-btn, .tuner-pause-btn, .metro-mute-btn, .metroBlk-row-volume-btn, .metroBlk-mini-tuner-instrument-btn, .metroBlk-mini-tuner-close-btn, .qp-bar-menu-btn, .qp-merge-split-btn, .qp-merge-branch-btn, .qp-loaded-history-clear-btn, .qp-loaded-history-undo-btn, .list-item-menu-btn, .flow-bar-popup-icon-btn, .flow-delete-btn, .flow-block-grab-handle, .metro-bpm-step, .steps-progress-back)::before { content: ''; position: absolute; top: 50%; left: 50%; width: max(100%, var(--touch-target)); height: max(100%, var(--touch-target)); transform: translate(-50%, -50%); }
 
     /* A7 - respect the OS "reduce motion" setting: no slides, fades, pulses or scale bounces. A near-zero
        duration (not 0) so any code waiting on transitionend/animationend still gets its event. Beat dots
@@ -2684,6 +2684,10 @@
     .steps-progress-step::before { content: ""; display: block; height: var(--space-1); border-radius: var(--radius-pill); background: var(--input-border); }
     .steps-progress-step.is-done::before, .steps-progress-step.is-now::before { background: var(--primary-action); }
     .steps-progress-step.is-now { color: var(--text-color); }
+    /* ML-420: a step already done is a button back to it - chevron and underline say so; its tap area is the
+       shared 44px one (A6). Steps to come are never buttons. */
+    .steps-progress-back { display: inline-flex; align-items: center; justify-self: start; padding: 0; border: 0; background: none; font: inherit; color: var(--text-color); text-decoration: underline; cursor: pointer; }
+    .steps-progress-back .material-symbols-outlined { font-size: var(--icon-sm); margin-left: calc(var(--space-1) * -1); }
     .step-question { font-size: var(--font-lg); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); margin: 0 0 var(--space-3); text-wrap: balance; }
     /* One strip across the width, a block per 5 minutes - more minutes, thinner blocks (owner, 1 Oct 2026: numbered
        squares looked like buttons). Display only. */
@@ -2707,9 +2711,12 @@
     .kind-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-1); }
     .kind-strip .kind-block { aspect-ratio: auto; min-height: var(--icon-xl); }
     /* The key under the plans on Pick a plan: each kind of block's symbol and its name. */
-    .kind-key { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--touch-target) * 3), 1fr)); gap: var(--space-2) var(--space-4); margin: 0 0 var(--space-4); font-size: var(--font-sm); color: var(--label-color); }
-    .kind-key > span { display: inline-flex; align-items: center; gap: var(--space-2); }
-    .kind-key .kind-block { width: var(--icon-xl); height: var(--icon-lg); padding: 0; border-radius: var(--radius-sm); }
+    /* ML-420: "Key:" and the kinds on one line (wrapping only with all five), with space above - it ran on from the blocks */
+    .kind-key { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: var(--space-4) 0; font-size: var(--font-xs); color: var(--label-color); }
+    .kind-key-label { color: var(--text-color); }
+    .kind-key-items { display: contents; }
+    .kind-key-items > span, .kind-key > span:not(.kind-key-items) { display: inline-flex; align-items: center; gap: var(--space-1); }
+    .kind-key .kind-block { width: var(--icon-lg); height: var(--icon-md); padding: 0; border-radius: var(--radius-xs); }
     .kind-key .kind-block .material-symbols-outlined { font-size: var(--icon-sm); }
     .kind-strip-more { display: grid; place-items: center; font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: var(--label-color); }
     .kind-block { display: grid; place-items: center; align-content: center; gap: var(--space-0-5); box-sizing: border-box; border-radius: var(--radius-md); border: 2px solid var(--control-border); background: var(--input-bg); color: var(--text-color); font: inherit; padding: var(--space-1); }
