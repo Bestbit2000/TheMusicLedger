@@ -2684,10 +2684,11 @@
     .steps-progress-step::before { content: ""; display: block; height: var(--space-1); border-radius: var(--radius-pill); background: var(--input-border); }
     .steps-progress-step.is-done::before, .steps-progress-step.is-now::before { background: var(--primary-action); }
     .steps-progress-step.is-now { color: var(--text-color); }
-    /* ML-420: a step already done is a button back to it - chevron and underline say so; its tap area is the
-       shared 44px one (A6). Steps to come are never buttons. */
-    .steps-progress-back { display: inline-flex; align-items: center; justify-self: start; padding: 0; border: 0; background: none; font: inherit; color: var(--text-color); text-decoration: underline; cursor: pointer; }
-    .steps-progress-back .material-symbols-outlined { font-size: var(--icon-sm); margin-left: calc(var(--space-1) * -1); }
+    /* ML-420: a step already done is a button back to it. It looks like the other steps, in the link colour (the
+       gold of its bar) - no chevron or underline, which read as a stray link (owner, 4 Oct 2026); the underline
+       comes on hover and keyboard focus. Its tap area is the shared 44px one (A6). Steps to come are never buttons. */
+    .steps-progress-back { justify-self: start; padding: 0; border: 0; background: none; font: inherit; color: var(--link-color); cursor: pointer; }
+    .steps-progress-back:hover, .steps-progress-back:focus-visible { text-decoration: underline; }
     .step-question { font-size: var(--font-lg); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); margin: 0 0 var(--space-3); text-wrap: balance; }
     /* One strip across the width, a block per 5 minutes - more minutes, thinner blocks (owner, 1 Oct 2026: numbered
        squares looked like buttons). Display only. */

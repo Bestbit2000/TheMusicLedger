@@ -17,7 +17,7 @@ music: **How long** (time as 5-minute blocks you can count), **What kind** (ML-4
 the Pick a plan pop-up; the plan's blocks in colour underneath), **What's in it** (warm-up list, skills list, where the pieces come from, Auto), then **Ready**.
 - **The steps bar** (`.steps-progress`) sits at the top of each step - gold for done and now, grey for to come.
   **A step already done is a way back** (ML-420): its label is a `<button class="steps-progress-back" data-step-back="<view>">`
-  with a small back chevron and an underline; tapping it goes back to that step and keeps what you chose since.
+  in the link colour (`--link-color`, the gold of its bar - no chevron or underline, which read as a stray link; the underline comes on hover and focus); tapping it goes back to that step and keeps what you chose since.
   The step you're on and the ones to come are plain text - you can't jump forwards.
 - **The kinds of block** (`.kind-block` + `.kind-warmup` / `.kind-scales` / `.kind-skills` / `.kind-pieces` / `.kind-theory`)
   are orange, teal, violet, blue and (Theory, ML-418, a book) deep pink - kept away from the Levels' silver and gold - and **always carry their icon**
@@ -82,7 +82,7 @@ the Pick a plan pop-up; the plan's blocks in colour underneath), **What's in it*
 ## 7. Code example
 ```html
 <ol class="steps-progress" aria-label="Setting up your practice, step 2 of 3">
-  <li class="steps-progress-step is-done"><button type="button" class="steps-progress-back" data-step-back="sessionLengthView" aria-label="Back to How long"><span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>How long</button></li>
+  <li class="steps-progress-step is-done"><button type="button" class="steps-progress-back" data-step-back="sessionLengthView" aria-label="Back to How long">How long</button></li>
   <li class="steps-progress-step is-now" aria-current="step">What kind</li>
   <li class="steps-progress-step">What's in it</li>
 </ol>
