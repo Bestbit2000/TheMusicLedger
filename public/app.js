@@ -18908,6 +18908,8 @@
         chips.innerHTML = o.markKind === 'numbers' ? marks.map(m => `<span class="outline-chip">${escapeHtml(m.label)}</span>`).join('') : '';
     }
 
+    // The main time signature (step "How long") is what MOST of the piece is in, not what it starts in (owner,
+    // 4 Oct 2026) - so a row for bar 1 is ordinary, and the bars before the first row are in the main time.
     // --- Tempo, 1 of 2: time signatures (ML-425) - a table you type down, like Speed. A row says "from this bar it
     // is in this time" and carries on until the next row - or, with "for bars" filled in, lasts just that many bars
     // and then goes back to what it was (one 2/4 bar is one row). The time is typed like 3/4, or picked from the
@@ -18951,10 +18953,10 @@
         const o = outline.o;
         outlineTimeApply();
         return `
-            <p class="text-sm text-muted no-margin">The piece starts in ${escapeHtml(outlineSigLabel(o.mainSig))}. Add a row for each bar where the time signature changes - type it like 3/4. It carries on from there.</p>
+            <p class="text-sm text-muted no-margin">Most of the piece is in ${escapeHtml(outlineSigLabel(o.mainSig))}. Add a row for each bar where it is something else - type it like 3/4. That can be bar 1, if it starts differently.</p>
             <div class="outline-table" id="outlineTimeRows">
                 <div class="outline-row outline-row-time" aria-hidden="true"><span class="outline-th">From bar</span><span class="outline-th">Time</span><span class="outline-th">For bars</span></div>
-                <div class="outline-row outline-row-time"><span class="outline-cell-fixed">Start</span><span class="outline-cell-fixed">${escapeHtml(outlineSigLabel(o.mainSig))}</span><span class="outline-cell-fixed">all</span></div>
+                <div class="outline-row outline-row-time"><span class="outline-cell-fixed">Most of it</span><span class="outline-cell-fixed">${escapeHtml(outlineSigLabel(o.mainSig))}</span><span class="outline-cell-fixed">-</span></div>
                 ${outline.timeRows.map((r, i) => outlineTimeRowHtml(r, i)).join('')}
             </div>
             <p class="text-sm text-muted no-margin">Leave "for bars" empty and it carries on to the next change. Fill it in for a bar or two that then go back to what it was - a single 2/4 bar is 1.</p>
