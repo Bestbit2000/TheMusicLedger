@@ -90,6 +90,19 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
   including the rest (timed from its own start) and an open ended session's plan. A reload or another device picks it up;
   one untouched for 3 hours is saved as it stood and cleared.
 
+### The Timer runs for the session (ML-421)
+
+Starting a practice session starts the **Timer** for the whole of it (`startSessionTimer`): a countdown of the
+session's length, or counting up when it's open ended. So the top bar's timer pill shows the session's time on
+every screen, with its usual pause and stop. That timer is marked `timerState.forSession`:
+
+- the session logs the time itself, so when the timer runs out or is stopped there is **no "save this as a
+  session?" pop-up** and the music isn't stopped - the session carries on with its own bar;
+- ending the session (finished, or ended early) stops the timer;
+- a timer already running when the session starts is replaced;
+- after a reload both come back (the timer by ML-197, the session by its own resume) and the timer is marked
+  as the session's again.
+
 ### Theory blocks and Quiet practice (ML-418)
 
 A fifth kind of block, **Theory** (`theory`; logged as a `theory` segment - it is practice time): nothing to play,

@@ -7569,6 +7569,18 @@
     document.getElementById('sessStartBtn')?.addEventListener('click', () => { if (!(sessPlan.blocks || []).length) return; sessSaveLast(); startPracticeRun(); startSessionBlock(); });
 
     // --- Running it ---
+    // ML-421: starting a practice session starts the Timer for the whole of it - a countdown of the session's
+    // length (or counting up, open ended) - so the top bar's timer pill shows it on every screen, with its usual
+    // pause and stop. It is the session's timer (forSession): the session logs the time itself, so when this
+    // timer runs out or is stopped it just goes - no "save this as a session?" and the music isn't stopped.
+    // A timer already running is replaced (its time isn't offered for saving - the session takes over).
+    function startSessionTimer() {
+        startTimerSession(sessPlan.open ? null : sessPlan.minutes * 60);
+        timerState.forSession = true;
+    }
+    function stopSessionTimer() {
+        if (timerState && timerState.forSession) finishTimerSession();
+    }
     function startPracticeRun() {
         if (practiceRun) { switchView('sessionRunView'); return; }
         const r = {
@@ -7577,6 +7589,7 @@
             open: sessPlan.open, template: sessPlan.template, focus: sessPlan.focus, auto: sessPlan.auto, source: sessPlan.source
         };
         practiceRun = r;
+        startSessionTimer(); // ML-421: the Timer runs for the whole session, in the top bar
         sessExtendOpen(r);
         r.nudgeAt = PracticePlan.playSeconds(r.blocks, 0);
         clearInterval(practiceTick);
@@ -7852,6 +7865,7 @@
         if (early && r.phase !== 'rest') { const b = r.blocks[r.index]; b.seconds += runElapsed(); b.started = true; }
         r.done = true;
         clearInterval(practiceTick);
+        stopSessionTimer(); // ML-421
         API.practice.clearActive().catch(() => { /* gone when it goes stale */ });
         if (flowSession) endLevelPractice();
         const played = r.blocks.filter(b => b.started && b.seconds > 0);
@@ -8613,6 +8627,7 @@
             restMessage: st.restMessage || null, nudgeAt: st.nudgeAt == null ? PracticePlan.playSeconds(st.blocks, st.index) : st.nudgeAt, nudged: !!st.nudged && !resting,
             startedAt: st.startedAt, done: false, open: !!st.open, template: st.template || 'standard', focus: st.focus || 'both', auto: st.auto !== false, source: st.source || { type: 'all' }
         };
+        if (timerState) timerState.forSession = true; // ML-421: the timer that came back with it is the session's
         loadSkills().catch(() => {}); // Skills blocks need your list (their steps, and Got it? for Warm-ups / Scales)
         sessPlan.source = practiceRun.source;
         if (practiceRun.open) refreshSessionPieces().catch(() => {}); // Keep going plans new Pieces blocks from them
@@ -17169,7 +17184,8 @@
             remainingSeconds: openEnded ? null : targetSeconds - elapsedSeconds,
             elapsedSeconds,
             running,
-            openEnded
+            openEnded,
+            forSession: !!(practiceRun && !practiceRun.done) // ML-421
         };
         clearInterval(timerIntervalId);
         if (running) timerIntervalId = setInterval(timerTick, 1000);
@@ -17519,7 +17535,8 @@
         if (!timerState) return;
         clearInterval(timerIntervalId);
         timerIntervalId = null;
-        const resumeMusic = timeUp === true ? pauseMusicForTimer() : []; // the Stop buttons pass their click event
+        const forSession = !!timerState.forSession; // ML-421: a practice session's timer - the session carries on and logs the time itself
+        const resumeMusic = timeUp === true && !forSession ? pauseMusicForTimer() : []; // the Stop buttons pass their click event
         const { elapsedSeconds, openEnded, targetSeconds } = timerState;
         timerState = null;
         renderTimerScreen();
@@ -17529,7 +17546,7 @@
         syncWakeLock();
         API.timer.clearActive().catch(() => {}); // ML-197: nothing left to resume once the session's actually over
 
-        if (elapsedSeconds < 1) return;
+        if (elapsedSeconds < 1 || forSession) return;
         timerPendingFinish = { elapsedSeconds, openEnded, targetSeconds, resumeMusic };
         openTimerFinishedModal();
     }
