@@ -30,7 +30,7 @@ the Pick a plan pop-up; the plan's blocks in colour underneath), **What's in it*
 ## 3. Anatomy
 - Step 1 (ML-413): **Same as last time** above everything - a `.history-item.settings-link` row (replay icon; "25 minutes · Lesson prep · skips the steps"), because it skips all three steps - then `.steps-progress` › `.step-question` › **Set a time / Open ended** (a two-pill `.radio-group`, the Timer's wording; it was a "Keep going" card under the blocks) › for a set time, the stepper (the number is tap-to-type, rounded to 5 minutes; under it
   just "minutes") and slider › "N blocks of 5 minutes" › `.time-blocks` › `.time-block` × blocks (+ a dashed `.is-more`
-  when open ended, under "No end time. Starts with 4 blocks of 5 minutes and adds more as you play." - the stepper and slider are hidden then). The blocks are **one strip across the width**, thinner
+  when open ended, under "No end time. Starts with 4 blocks of 5 minutes and adds more as you play." - the stepper and slider are hidden then). The blocks are **thin grey bars** (ML-419: `--time-strip-height`, `--control-border`, pill ends - the look of the running session's strip; they were gold boxes that read as buttons above the gold Next button), **one strip across the width**, thinner
   as the minutes go up, with no numbers - display only, so nothing on it looks tappable (owner, 1 Oct 2026; the
   quick picks went too).
 - Step 2 (ML-418, "one button, one pop-up"): `#sessPlanBtn` (`.metroBlk-ctrl-value-btn.w-full`: the plan's name over "plan") › a line saying what's in it (`.text-sm.text-muted`) › `.kind-strip` › `.kind-block` × blocks. The button

@@ -2688,7 +2688,9 @@
     /* One strip across the width, a block per 5 minutes - more minutes, thinner blocks (owner, 1 Oct 2026: numbered
        squares looked like buttons). Display only. */
     .time-blocks { display: flex; gap: var(--space-1); height: var(--time-strip-height); margin: 0 0 var(--space-4); }
-    .time-block { flex: 1 1 0; min-width: 0; border-radius: var(--radius-xs); background: var(--primary-action); border: 1px solid var(--primary-action-strong); box-sizing: border-box; }
+    /* ML-419: thin grey bars, like the strip on a running session's bar - they were gold boxes the height of a
+       button, right above the gold Next button, and looked tappable. Gold stays for things you tap. */
+    .time-block { flex: 1 1 0; min-width: 0; border-radius: var(--radius-pill); background: var(--control-border); box-sizing: border-box; }
     .time-block.is-new { animation: block-pop var(--duration-base) ease-out; }
     .time-block.is-more { border: 2px dashed var(--control-border); background: transparent; }
     @keyframes block-pop { from { transform: scale(0.4); opacity: var(--opacity-muted); } to { transform: scale(1); opacity: 1; } }
