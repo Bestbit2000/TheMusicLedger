@@ -43,7 +43,19 @@ export function currentAppVersion() {
 }
 
 const KINDS = ['create', 'edit'];
-const CREATION_SOURCES = ['manual', 'from_file'];
+const CREATION_SOURCES = ['manual', 'from_file', 'quick']; // quick: ML-424, a piece entered as an outline
+const QUICK_STEPS = ['howLong', 'marks', 'time', 'speed', 'extras'];
+// ML-424: the per-step figures and what the piece held - only known shapes are kept
+function cleanSteps(steps) {
+  if (!Array.isArray(steps)) return null;
+  const out = steps.filter(s => s && QUICK_STEPS.includes(s.step)).slice(0, QUICK_STEPS.length)
+    .map(s => ({ step: s.step, seconds: clampSeconds(s.seconds), taps: clampCount(s.taps), keys: clampCount(s.keys), visits: clampCount(s.visits) }));
+  return out.length ? JSON.stringify(out) : null;
+}
+function cleanOutlineCounts(c) {
+  if (!c || typeof c !== 'object') return null;
+  return JSON.stringify({ marks: clampCount(c.marks), exceptions: clampCount(c.exceptions), speeds: clampCount(c.speeds), extras: clampCount(c.extras) });
+}
 const DEVICE_KINDS = ['mobile', 'tablet', 'desktop'];
 const FINAL_OUTCOMES = ['completed', 'abandoned'];
 
@@ -129,6 +141,10 @@ export async function updateAuthoringSession(accountId, sessionId, {
   blocksAdded,
   blocksEdited,
   blocksDeleted,
+  tapCount,
+  keyCount,
+  steps,
+  outlineCounts,
   outcome = null
 } = {}) {
   if (outcome !== null && !FINAL_OUTCOMES.includes(outcome)) {
@@ -145,6 +161,10 @@ export async function updateAuthoringSession(accountId, sessionId, {
             blocks_added = $8,
             blocks_edited = $9,
             blocks_deleted = $10,
+            tap_count = $12,
+            key_count = $13,
+            steps = COALESCE($14::jsonb, steps),
+            outline_counts = COALESCE($15::jsonb, outline_counts),
             outcome = COALESCE($11, outcome),
             ended_at = CASE WHEN $11 IS NULL THEN ended_at ELSE now() END,
             last_heartbeat_at = now(),
@@ -166,7 +186,11 @@ export async function updateAuthoringSession(accountId, sessionId, {
       clampCount(blocksAdded),
       clampCount(blocksEdited),
       clampCount(blocksDeleted),
-      outcome
+      outcome,
+      clampCount(tapCount),
+      clampCount(keyCount),
+      cleanSteps(steps),
+      cleanOutlineCounts(outlineCounts)
     ]
   );
   // Not a 404: an already-closed row is the normal outcome of a racing keepalive write, and the
@@ -342,7 +366,7 @@ export async function getFlowAuthoringStats() {
       `SELECT fas.id, fas.flow_title, fas.kind, fas.creation_source, fas.outcome, fas.started_at,
               fas.active_seconds, fas.bars_active_seconds, fas.elapsed_seconds,
               fas.block_count_start, fas.block_count_end, fas.total_bars_end,
-              fas.blocks_added, fas.blocks_edited, fas.blocks_deleted,
+              fas.blocks_added, fas.blocks_edited, fas.blocks_deleted, fas.tap_count, fas.key_count, fas.steps, fas.outline_counts,
               fas.device_kind, fas.app_version, fas.is_excluded, fas.exclusion_reason,
               fas.score_id IS NULL AS flow_deleted,
               a.email
@@ -352,6 +376,28 @@ export async function getFlowAuthoringStats() {
         LIMIT 100`
     )
   ]);
+
+  // ML-424: quick entry, step by step - where the time and the taps go, over the completed quick runs
+  const quickSteps = await pool.query(
+    `SELECT s->>'step' AS step, COUNT(*)::int AS n,
+            ROUND(AVG((s->>'seconds')::numeric))::int AS seconds, ROUND(AVG((s->>'taps')::numeric))::int AS taps,
+            ROUND(AVG((s->>'keys')::numeric))::int AS keys, ROUND(AVG((s->>'visits')::numeric), 1)::float AS visits
+       FROM flow_authoring_sessions, jsonb_array_elements(steps) s
+      WHERE ${ELIGIBLE} AND creation_source = 'quick' AND steps IS NOT NULL
+      GROUP BY 1`
+  );
+  // Manual against quick: the whole create, with the work it took
+  const byMethod = await pool.query(
+    `SELECT creation_source, COUNT(*)::int AS n,
+            ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY active_seconds))::int AS seconds,
+            ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tap_count))::int AS taps,
+            ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY key_count))::int AS keys,
+            ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY total_bars_end))::int AS bars,
+            ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY active_seconds::numeric / NULLIF(total_bars_end, 0)))::numeric, 2)::float AS seconds_per_bar
+       FROM flow_authoring_sessions
+      WHERE ${ELIGIBLE} AND kind = 'create' AND creation_source IN ('manual', 'quick')
+      GROUP BY 1 ORDER BY 1`
+  );
 
   const o = outcomes.rows[0];
   const abandonedTotal = o.abandoned + o.stale;
@@ -364,6 +410,8 @@ export async function getFlowAuthoringStats() {
     byKind: byKind.rows.map(r => toStatsDto(r, { kind: r.kind, creationSource: r.creation_source })),
     byDevice: byDevice.rows.map(r => toStatsDto(r, { deviceKind: r.device_kind })),
     bySize: bySize.rows.map(r => toStatsDto(r, { bucket: r.bucket })),
+    byMethod: byMethod.rows.map(r => ({ creationSource: r.creation_source, n: r.n, seconds: r.seconds, taps: r.taps, keys: r.keys, bars: r.bars, secondsPerBar: r.seconds_per_bar })),
+    quickSteps: QUICK_STEPS.map(step => quickSteps.rows.find(r => r.step === step)).filter(Boolean).map(r => ({ step: r.step, n: r.n, seconds: r.seconds, taps: r.taps, keys: r.keys, visits: r.visits })),
     outcomes: {
       completed: o.completed,
       abandoned: o.abandoned,
@@ -392,6 +440,10 @@ export async function getFlowAuthoringStats() {
       blocksAdded: r.blocks_added,
       blocksEdited: r.blocks_edited,
       blocksDeleted: r.blocks_deleted,
+      tapCount: r.tap_count,
+      keyCount: r.key_count,
+      steps: r.steps,
+      outlineCounts: r.outline_counts,
       deviceKind: r.device_kind,
       appVersion: r.app_version,
       isExcluded: r.is_excluded,

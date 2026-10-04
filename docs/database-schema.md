@@ -472,6 +472,10 @@ one column, for whichever features opt into checking it.
 
 ### Flow authoring stats (`ML-199`)
 
+**ML-424:** `creation_source` may also be `quick` (a piece entered as an outline - `docs/quick-piece-entry.md`),
+and every row now counts the work as well as the time: `tap_count`, `key_count`, and for quick entry `steps`
+(per step: seconds, taps, keys, visits) and `outline_counts` (marks, exceptions, speeds, extras).
+
 | Table | Purpose | Key columns |
 |---|---|---|
 | `flow_authoring_sessions` | One row per Flow authoring attempt — how long it took to build or edit, so manual bar entry has a measured baseline to compare a redesigned UI against | id, account_id, score_id, flow_title, kind (create/edit), creation_source (manual/from_file), outcome (in_progress/completed/abandoned), started_at, ended_at, last_heartbeat_at, elapsed_seconds, active_seconds, bars_active_seconds, idle_threshold_seconds, block_count_start, block_count_end, total_bars_end, blocks_added, blocks_edited, blocks_deleted, device_kind, app_version, is_excluded, exclusion_reason |

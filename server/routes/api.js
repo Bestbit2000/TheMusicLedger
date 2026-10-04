@@ -1707,6 +1707,23 @@ router.post('/flows/:id/blocks', requireAuth, resolveAccount, async (req, res) =
   }
 });
 
+// ML-424: Quick piece entry saves a whole piece's blocks in one go - the piece's bars are replaced by the
+// ones sent, made one after another by the same createFlowBlock the bar-by-bar editor uses (so every
+// rule and check is the same). Only for a piece you can edit; refused when the feature is off for you.
+router.put('/flows/:id/blocks/all', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    if (!(await isFeatureEnabled('piece_quick_entry'))) return res.status(403).json({ error: 'Quick piece entry is not switched on for you.' });
+    const blocks = Array.isArray(req.body && req.body.blocks) ? req.body.blocks : null;
+    if (!blocks || !blocks.length || blocks.length > 600) return res.status(400).json({ error: 'Send between 1 and 600 blocks.' });
+    for (const old of await listFlowBlocks(req.accountId, req.params.id)) await deleteFlowBlock(req.accountId, old.id);
+    const made = [];
+    for (const b of blocks) made.push(await createFlowBlock(req.accountId, req.params.id, b));
+    res.json({ blocks: made });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.put('/flows/:id/blocks/reorder', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await reorderFlowBlocks(req.accountId, req.params.id, req.body?.orderedIds || []));

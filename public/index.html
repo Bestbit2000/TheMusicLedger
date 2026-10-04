@@ -1485,6 +1485,14 @@
          never the whole list on the page (specs/README.md, "One button, one pop-up"). The two "how"
          buttons carry on into the Create flow journey (createAndOpenFlow / flowFromFileView), which
          ends on My music. Reached from the Add a piece tool, My music and Rehearse. app.js: ADD A PIECE. -->
+    <!-- ML-424: Quick piece entry - five steps drawn into #outlineBody by the QUICK PIECE ENTRY section of
+         app.js (rules: public/pieceOutline.js, docs/quick-piece-entry.md, specs/components/piece-outline.md). -->
+    <div id="pieceOutlineView" class="hidden-group">
+        <ol class="steps-progress" id="outlineSteps"></ol>
+        <h2 class="step-question" id="outlineQuestion"></h2>
+        <div class="outline" id="outlineBody"></div>
+    </div>
+
     <div id="addPieceView" class="hidden-group">
         <div class="hidden-group mb-2" id="addPieceOwnerGroup">
             <button type="button" class="metroBlk-ctrl-value-btn w-full" id="addPieceOwnerBtn" aria-haspopup="dialog" aria-label="Who it's for: Just me - tap to change"><strong>Just me</strong><span class="metroBlk-ctrl-value-label">who it's for</span></button>
@@ -1497,6 +1505,9 @@
              somewhere, so they look different from the two value boxes above. -->
         <div class="metroBlk-entry-choices" role="group" aria-labelledby="addPieceHowLabel">
             <button type="button" class="metroBlk-entry-choice" id="metroBlkEntryCreateBtn"><span class="material-symbols-outlined" aria-hidden="true">add_circle</span><strong>Create your own</strong><span class="metro-help-text">Put the bars in yourself</span></button>
+            <!-- ML-424: Quick entry - the piece as an outline (bars, marks, what's different, extras). Hidden
+                 until piece_quick_entry is on for you (applyFlowImportFormats). -->
+            <button type="button" class="metroBlk-entry-choice hidden-group" id="metroBlkEntryQuickBtn"><span class="material-symbols-outlined" aria-hidden="true">bolt</span><strong>Quick entry</strong><span class="metro-help-text">Bars and marks first, then what's different</span></button>
             <!-- ML-204: two gates share this tile - flow_import_musicxml ("Import from MusicXML") and
                  flow_import_from_file (PDF/scan via OMR, ML-190). Starts hidden; its label and help line
                  follow whichever are on (applyFlowImportFormats). -->
@@ -3501,6 +3512,19 @@
 <!-- ML-418: Pick a plan. The standard plans, then My plans (+ New plan beside the heading; each of yours has a
      ⋮ inside its box - Change, Delete). A tap selects; the footer shows the selected plan once, in colour, and
      Use this plan saves it. The X closes without changing the plan. -->
+<!-- ML-424: one extra of a piece's outline (a repeat, a pause, a speed-up, a sign, the intro) - a short
+     form of bar numbers, with a line saying in plain words what it will do or what's wrong with it. -->
+<div class="modal" id="outlineExtraModal" role="dialog" aria-modal="true" aria-labelledby="outlineExtraTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="outlineExtraTitle">Extra</h2>
+        <div class="outline" id="outlineExtraForm"></div>
+        <p class="text-sm text-muted" id="outlineExtraCheck" aria-live="polite"></p>
+        <button type="button" class="btn-submit" id="outlineExtraSaveBtn">Add it</button>
+        <button type="button" class="btn-text btn-text-danger hidden-group" id="outlineExtraRemoveBtn">Remove this extra</button>
+    </div>
+</div>
+
 <div class="modal" id="sessPlanModal" role="dialog" aria-modal="true" aria-labelledby="sessPlanModalTitle">
     <div class="modal-content modal-content-sticky-footer">
         <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
@@ -4177,6 +4201,7 @@
 <!-- ML-193: the Flow journey engine (play order, tempo ramps, consistency checks) - app.js uses it. -->
 <script src="flowJourney.js"></script>
 <script src="practicePlan.js"></script>
+<script src="pieceOutline.js"></script>
 <script src="notation.js"></script>
 <script src="range.js"></script>
 <script src="rangeBar.js"></script>

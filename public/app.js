@@ -279,7 +279,8 @@
                 update: (blockId, data) => apiCall(`/api/flows/blocks/${blockId}`, 'PUT', data),
                 delete: (blockId) => apiCall(`/api/flows/blocks/${blockId}`, 'DELETE'),
                 duplicate: (blockId) => apiCall(`/api/flows/blocks/${blockId}/duplicate`, 'POST'),
-                reorder: (flowId, orderedIds) => apiCall(`/api/flows/${flowId}/blocks/reorder`, 'PUT', { orderedIds })
+                reorder: (flowId, orderedIds) => apiCall(`/api/flows/${flowId}/blocks/reorder`, 'PUT', { orderedIds }),
+                replaceAll: (flowId, blocks) => apiCall(`/api/flows/${flowId}/blocks/all`, 'PUT', { blocks }) // ML-424: a whole piece's bars in one go
             }
         },
         // ML-201 - every response also carries appVersion (the server's running release).
@@ -1241,6 +1242,7 @@
         const { pdf, musicxml } = flowImportGates();
         const btn = document.getElementById('metroBlkEntryFromFileBtn');
         btn?.classList.toggle('hidden-group', !pdf && !musicxml);
+        setShown('metroBlkEntryQuickBtn', isFeatureEnabled('piece_quick_entry')); // ML-424
         const label = flowImportTitle();
         const help = pdf && musicxml ? 'Import from a PDF or MusicXML score'
             : pdf ? 'Import from a PDF score' : 'Open a MusicXML or .mxl file from notation software';
@@ -1699,7 +1701,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -1873,6 +1875,7 @@
         if (viewName === 'notificationsView') { document.getElementById('topTitle').innerText = 'Notifications'; renderNotificationsView(); checkNotifications(true); }
         if (viewName === 'flowFromFileView') { document.getElementById('topTitle').innerText = flowImportTitle(); resetFlowFromFileScreen(); }
         if (viewName === 'addPieceView') { document.getElementById('topTitle').innerText = 'Add a piece'; openAddPiece(isBack); }
+        if (viewName === 'pieceOutlineView') { document.getElementById('topTitle').innerText = 'Add a piece'; renderOutline(); } // ML-424
         if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
         if (viewName === 'challengeSelectView') { document.getElementById('topTitle').innerText = 'Select challenge'; renderChallengeSelect(); }
         if (viewName === 'challengePlayView') { document.getElementById('topTitle').innerText = 'Practise'; }
@@ -2017,6 +2020,8 @@
     }
 
     window.goBack = function() {
+        // ML-424: quick piece entry's steps are one screen - Back goes back a step before it leaves
+        if (viewStack[viewStack.length - 1] === 'pieceOutlineView' && outline && outline.step > 0) { outlineGoStep(outline.step - 1); return; }
         if (viewStack.length > 1) {
             viewStack.pop();
             switchView(viewStack[viewStack.length - 1], true);
@@ -9189,6 +9194,8 @@
             activeSeconds: 0,
             barsActiveSeconds: 0,
             blocksAdded: 0,
+            taps: 0,
+            keys: 0,
             // A Set, not a counter: "average seconds per block" wants the number of distinct blocks
             // touched, not the number of individual field tweaks (one block can easily take a dozen
             // - bpm, bar count, time signature, a repeat flag), which would make the per-block
@@ -9217,7 +9224,10 @@
     // per-session - cheap, and there's no teardown to get wrong.
     ['pointerdown', 'keydown', 'wheel', 'input', 'change'].forEach(evt => {
         document.addEventListener(evt, () => {
-            if (flowStats) flowStats.lastInputAtMs = Date.now();
+            if (!flowStats) return;
+            flowStats.lastInputAtMs = Date.now();
+            if (evt === 'pointerdown') flowStats.taps += 1; // ML-424: how much work it was, not just how long
+            if (evt === 'keydown') flowStats.keys += 1;
         }, { capture: true, passive: true });
     });
 
@@ -9231,7 +9241,9 @@
             totalBarsEnd: currentFlowBlocks.reduce((sum, b) => sum + (b.barCount || 0), 0),
             blocksAdded: s.blocksAdded,
             blocksEdited: s.blocksEditedIds.size,
-            blocksDeleted: s.blocksDeleted
+            blocksDeleted: s.blocksDeleted,
+            tapCount: s.taps,
+            keyCount: s.keys
         };
     }
 
@@ -18575,6 +18587,598 @@
         document.getElementById('theoryBlockNextBtn').textContent = `Next: ${theoryBlockLabel(next)}`;
     }
     document.getElementById('theoryBlockNextBtn')?.addEventListener('click', theoryBlockNext);
+
+    // ========================================
+    // QUICK PIECE ENTRY (Jira ML-424) - a new piece entered as an outline, by the bar numbers on the music:
+    // 1 How long (bars, count-in, the main time and speed), 2 Marks (bar numbers / letters or words / none),
+    // 3 Time (the bars that aren't the main time signature), 4 Speed (the bars where it changes),
+    // 5 Extras (repeats, pauses, speeding up, signs, intro). Save turns the outline into the same blocks
+    // "Create your own" makes - the rules are public/pieceOutline.js (docs/quick-piece-entry.md) - and
+    // opens the piece's details so it can be named. New pieces only; a piece is changed afterwards in the
+    // bar-by-bar editor. Timed, step by step, as an ML-199 authoring session (creation source 'quick').
+    // ========================================
+    const OUTLINE_STEPS = [
+        { key: 'howLong', name: 'How long', question: () => 'How long is the piece?' },
+        { key: 'marks', name: 'Marks', question: () => 'Where are the rehearsal marks?' },
+        { key: 'time', name: 'Time', question: () => `Which bars aren't ${outlineSigLabel(outline.o.mainSig)}?` },
+        { key: 'speed', name: 'Speed', question: () => 'Where does the speed change?' },
+        { key: 'extras', name: 'Extras', question: () => 'Anything else in the piece?' }
+    ];
+    const OUTLINE_MARK_KINDS = [
+        { key: 'numbers', label: 'Bar numbers', sub: 'Each mark is the number of its bar - 7, 21, 30...' },
+        { key: 'text', label: 'Letters or words', sub: 'A, B, C... or Verse, Chorus' },
+        { key: 'none', label: 'None', sub: 'This piece has no rehearsal marks' }
+    ];
+    const OUTLINE_EXTRAS = {
+        repeat: { label: 'Repeat', sub: 'Some bars are played more than once', icon: 'repeat' },
+        repeatEndings: { label: 'Repeat with 1st and 2nd endings', sub: 'A different ending each time round', icon: 'repeat_one' },
+        pause: { label: 'Pause', sub: 'A held note or a break (fermata, caesura)', icon: 'pause_circle' },
+        ramp: { label: 'Speed up or slow down', sub: 'Accel. or rit. over some bars', icon: 'trending_up' },
+        sign: { label: 'Sign and jump', sub: 'D.S., D.C., Coda, Fine', icon: 'redo' },
+        intro: { label: 'Intro', sub: 'Bars played once before the piece proper', icon: 'first_page' }
+    };
+    const OUTLINE_COLLAPSE_OVER_BARS = 60; // a longer piece with marks starts with its sections closed
+    var outline = null; // var: switchView and goBack read it
+
+    function outlineSigInfo(key) {
+        if (!key) return null;
+        const [type, id] = String(key).split(':');
+        return (type === 'public' ? metroBlkTimeSigCache.public : metroBlkTimeSigCache.custom).find(t => t.id === Number(id)) || null;
+    }
+    const outlineSigLabel = (key) => { const s = outlineSigInfo(key); return s ? s.label : '?'; };
+    const outlineNoteLabel = (key) => { const t = METRO_NOTE_TYPES.find(n => n.key === key); return t ? t.label : 'Usual'; };
+    const outlineStepKey = () => OUTLINE_STEPS[outline.step].key;
+
+    async function openPieceOutline(target) {
+        if (!metroBlkTimeSigCache.public.length) { try { await loadMetroBlkTimeSignatures(); } catch (e) { /* the pickers say so */ } }
+        if (!outline) {
+            const common = metroBlkTimeSigCache.public.find(t => t.numerator === 4 && t.denominator === 4) || metroBlkTimeSigCache.public[0];
+            outline = {
+                step: 0, target,
+                o: { bars: 32, leadIn: false, mainSig: common ? `public:${common.id}` : null, mainBpm: 120, mainNote: null, markKind: 'numbers', marks: [], time: {}, speeds: [], extras: [] },
+                marksText: '', markRows: [{ bar: '', label: '' }], speedRows: [{ bar: '', bpm: '', noteValue: undefined }],
+                brush: null, mode: 'single', from: null, openSecs: null,
+                stats: { startedAtMs: Date.now(), lastInputAtMs: Date.now(), active: 0, taps: 0, keys: 0, tick: null, steps: OUTLINE_STEPS.map(s => ({ step: s.key, seconds: 0, taps: 0, keys: 0, visits: 0 })) }
+            };
+            outline.stats.steps[0].visits = 1;
+        } else {
+            outline.target = target;
+            showSuccessToast('Carried on with the piece you started. "Start again" is on the first step.');
+        }
+        if (viewStack[viewStack.length - 1] === 'addPieceView') viewStack.pop();
+        switchView('pieceOutlineView');
+    }
+    function outlineClose() {
+        if (outline && outline.stats.tick) clearInterval(outline.stats.tick);
+        outline = null;
+    }
+    // The stopwatch: active seconds (idle and a hidden page don't count), taps and keys, for the step you're on.
+    function outlineStatsTick() {
+        const s = outline && outline.stats;
+        if (!s || viewStack[viewStack.length - 1] !== 'pieceOutlineView' || document.visibilityState !== 'visible') return;
+        if (Date.now() - s.lastInputAtMs > FLOW_STATS_IDLE_THRESHOLD_SECONDS * 1000) return;
+        s.active += 1;
+        s.steps[outline.step].seconds += 1;
+    }
+    ['pointerdown', 'keydown'].forEach(evt => document.addEventListener(evt, () => {
+        if (!outline || viewStack[viewStack.length - 1] !== 'pieceOutlineView') return;
+        const s = outline.stats;
+        s.lastInputAtMs = Date.now();
+        const k = evt === 'pointerdown' ? 'taps' : 'keys';
+        s[k] += 1;
+        s.steps[outline.step][k] += 1;
+    }, { capture: true, passive: true }));
+
+    function outlineGoStep(n) {
+        outline.step = Math.max(0, Math.min(OUTLINE_STEPS.length - 1, n));
+        outline.from = null;
+        outline.stats.steps[outline.step].visits += 1;
+        renderOutline();
+        window.scrollTo({ top: 0 });
+    }
+    // The outline as blocks, each with its time signature's beats (the journey engine's check needs them),
+    // plus what won't work: the extras that clash, and anything the bar-by-bar editor's own check refuses.
+    function outlineBuild() {
+        const built = PieceOutline.buildBlocks(outline.o);
+        const blocks = built.blocks.map(b => { const s = outlineSigInfo(b.sig); return { ...b, numerator: s ? s.numerator : 4, denominator: s ? s.denominator : 4, timeSignatureLabel: s ? s.label : '' }; });
+        const errors = FlowJourney.checkFlow(blocks).filter(i => i.severity === 'error').map(i => i.message);
+        return { blocks, clashes: built.clashes, errors };
+    }
+
+    function renderOutline() {
+        if (!outline) return;
+        const st = outline.stats;
+        if (!st.tick) st.tick = setInterval(outlineStatsTick, 1000);
+        const step = outline.step;
+        const steps = document.getElementById('outlineSteps');
+        steps.setAttribute('aria-label', `Adding a piece, step ${step + 1} of ${OUTLINE_STEPS.length}`);
+        steps.innerHTML = OUTLINE_STEPS.map((s, i) => (i < step
+            ? `<li class="steps-progress-step is-done"><button type="button" class="steps-progress-back" data-outline-step="${i}" aria-label="Back to ${s.name}"><span class="material-symbols-outlined" aria-hidden="true">check</span>${s.name}</button></li>`
+            : `<li class="steps-progress-step${i === step ? ' is-now" aria-current="step' : ''}">${s.name}</li>`)).join('');
+        document.getElementById('outlineQuestion').textContent = OUTLINE_STEPS[step].question();
+        const body = document.getElementById('outlineBody');
+        body.innerHTML = { howLong: outlineHowLongHtml, marks: outlineMarksHtml, time: outlineTimeHtml, speed: outlineSpeedHtml, extras: outlineExtrasHtml }[outlineStepKey()]();
+        if (outlineStepKey() === 'marks') outlineMarksRefresh();
+        if (outlineStepKey() === 'speed') outlineSpeedRefresh();
+    }
+    const outlineValueBtn = (action, value, label) => `<button type="button" class="metroBlk-ctrl-value-btn w-full" data-outline="${action}" aria-haspopup="dialog" aria-label="${escapeHtml(label)}: ${escapeHtml(value)} - tap to change"><strong>${escapeHtml(value)}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(label)}</span></button>`;
+    const outlineNumField = (id, value, label, attrs = '') => `<label class="outline-field"><input type="number" inputmode="numeric" id="${id}" value="${value === null || value === undefined ? '' : escapeHtml(String(value))}" enterkeyhint="next" ${attrs}><span class="outline-field-label">${escapeHtml(label)}</span></label>`;
+    function outlineSummaryText() {
+        const s = PieceOutline.summary(outline.o);
+        const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+        return `<strong>${plural(s.bars, 'bar')} · ${plural(s.marks, 'mark')} · ${plural(s.speeds, 'speed')}${s.extras ? ` · ${plural(s.extras, 'extra')}` : ''}.</strong> Saving will make ${plural(s.blocks, 'block')} for you.`;
+    }
+
+    // --- Step 1: how long ---
+    function outlineHowLongHtml() {
+        const o = outline.o;
+        return `
+            ${outlineNumField('outlineBars', o.bars, 'bars in the piece', 'min="1" max="2000"')}
+            <div>
+                <span class="outline-th" id="outlineLeadInLabel">A count-in bar before bar 1?</span>
+                <div class="radio-group" role="radiogroup" aria-labelledby="outlineLeadInLabel">
+                    <input type="radio" id="outlineLeadInYes" name="outlineLeadIn" value="yes"${o.leadIn ? ' checked' : ''}><label for="outlineLeadInYes">Yes</label>
+                    <input type="radio" id="outlineLeadInNo" name="outlineLeadIn" value="no"${o.leadIn ? '' : ' checked'}><label for="outlineLeadInNo">No</label>
+                </div>
+            </div>
+            <p class="text-sm text-muted no-margin">Most of it is in...</p>
+            <div class="outline-three">
+                ${outlineValueBtn('mainSig', outlineSigLabel(o.mainSig), 'time')}
+                ${outlineNumField('outlineBpm', o.mainBpm, 'bpm', 'min="20" max="400"')}
+                ${outlineValueBtn('mainNote', outlineNoteLabel(o.mainNote), 'beat note')}
+            </div>
+            <p class="text-sm text-muted no-margin">The bars that are different come in steps 3 and 4.</p>
+            <button type="button" class="btn-submit" data-outline="next">Next: rehearsal marks</button>
+            <button type="button" class="btn-text" data-outline="restart">Start again</button>`;
+    }
+    function outlineHowLongRead() {
+        const bars = Number(document.getElementById('outlineBars')?.value);
+        const bpm = Number(document.getElementById('outlineBpm')?.value);
+        if (!Number.isInteger(bars) || bars < 1 || bars > PieceOutline.MAX_BARS) { showWarningToast(`How many bars? 1 to ${PieceOutline.MAX_BARS}.`); return false; }
+        if (!Number.isInteger(bpm) || bpm < 20 || bpm > 400) { showWarningToast('What speed is most of it? 20 to 400 bpm.'); return false; }
+        if (!outline.o.mainSig) { showWarningToast('Pick the time signature most of it is in.'); return false; }
+        outline.o.bars = bars;
+        outline.o.mainBpm = bpm;
+        return true;
+    }
+    function outlinePickSig(current, onPick) {
+        metroSegTimeSigValue = current;
+        metroSegTimeSigOnSelect = onPick;
+        renderMetroSegTimeSigPicker();
+        showModal('metroSegTimeSigModal');
+    }
+    // The same Beat note pop-up the bar-by-bar editor uses; `allowSame` adds "Same as the row above"
+    function outlinePickNote(current, onPick) {
+        const el = document.getElementById('metroSegNotePicker');
+        if (!el) return;
+        el.innerHTML = METRO_NOTE_TYPES.map(t => `<button type="button" class="metroBlk-note-btn${t.key === current ? ' selected' : ''}" data-note="${t.key}" aria-label="${t.label}" aria-pressed="${t.key === current}">${metroNoteIconSvg(t.key)}</button>`).join('');
+        el.querySelectorAll('.metroBlk-note-btn').forEach(btn => btn.addEventListener('click', () => { hideModal('metroSegNoteModal'); onPick(btn.dataset.note); }, { once: true }));
+        showModal('metroSegNoteModal');
+    }
+
+    // --- Step 2: marks ---
+    function outlineMarksHtml() {
+        const o = outline.o;
+        const kind = OUTLINE_MARK_KINDS.find(k => k.key === o.markKind);
+        let inner = '';
+        if (o.markKind === 'numbers') {
+            inner = `
+                <p class="text-sm text-muted no-margin" id="outlineMarksHelp">Type the bar numbers. Spaces, commas or semicolons between them all work.</p>
+                <textarea id="outlineMarksText" class="outline-list" rows="4" inputmode="decimal" aria-label="The bar numbers of the rehearsal marks" aria-describedby="outlineMarksHelp">${escapeHtml(outline.marksText)}</textarea>`;
+        } else if (o.markKind === 'text') {
+            inner = `
+                <p class="text-sm text-muted no-margin">Bar, then its mark. Enter (Next on a phone) moves on, and a new row appears by itself.</p>
+                <div class="outline-table" id="outlineMarkRows">
+                    <div class="outline-row outline-row-marks" aria-hidden="true"><span class="outline-th">At bar</span><span class="outline-th">Mark</span></div>
+                    ${outline.markRows.map((r, i) => outlineMarkRowHtml(r, i)).join('')}
+                </div>`;
+        } else {
+            inner = '<p class="text-sm text-muted no-margin">No rehearsal marks - the bars are shown as one block in the next step.</p>';
+        }
+        return `
+            ${outlineValueBtn('markKind', kind.label, 'the marks are')}
+            ${inner}
+            <p class="text-sm text-muted no-margin" id="outlineMarksCount" aria-live="polite"></p>
+            <div class="outline-chips" id="outlineMarksChips"></div>
+            <button type="button" class="btn-submit" data-outline="next">Next: time signatures</button>`;
+    }
+    const outlineMarkRowHtml = (r, i) => `<div class="outline-row outline-row-marks">
+        <input type="number" inputmode="numeric" data-mark-row="${i}" data-mark-col="bar" value="${escapeHtml(String(r.bar))}" placeholder="bar" aria-label="Row ${i + 1}: bar number" enterkeyhint="next">
+        <input type="text" data-mark-row="${i}" data-mark-col="label" value="${escapeHtml(r.label)}" placeholder="mark" maxlength="20" aria-label="Row ${i + 1}: the mark" enterkeyhint="next" autocapitalize="characters" autocomplete="off"></div>`;
+    // Reads what's typed into the outline and says what was understood (the count, the chips, what wasn't a bar).
+    function outlineMarksRefresh() {
+        const o = outline.o;
+        let bad = [];
+        if (o.markKind === 'numbers') {
+            const parsed = PieceOutline.parseBarList(outline.marksText, o.bars);
+            o.marks = parsed.bars.map(bar => ({ bar }));
+            bad = parsed.bad;
+        } else if (o.markKind === 'text') {
+            o.marks = outline.markRows.filter(r => r.bar !== '' && String(r.label).trim()).map(r => ({ bar: Number(r.bar), label: r.label }));
+            bad = outline.markRows.filter(r => r.bar !== '' && !(Number.isInteger(Number(r.bar)) && Number(r.bar) >= 1 && Number(r.bar) <= o.bars)).map(r => String(r.bar));
+        }
+        const marks = PieceOutline.marksOf(o);
+        const count = document.getElementById('outlineMarksCount');
+        const chips = document.getElementById('outlineMarksChips');
+        if (!count || !chips) return;
+        count.innerHTML = o.markKind === 'none' ? '' : (marks.length
+            ? `<strong>${marks.length} mark${marks.length === 1 ? '' : 's'} so far</strong> · last one at bar ${marks[marks.length - 1].bar} of ${o.bars}`
+            : 'No marks yet.') + (bad.length ? ` <span class="text-danger">Not a bar of this piece: ${escapeHtml(bad.slice(0, 6).join(', '))}</span>` : '');
+        chips.innerHTML = o.markKind === 'numbers' ? marks.map(m => `<span class="outline-chip">${escapeHtml(m.label)}</span>`).join('') : '';
+    }
+
+    // --- Step 3: time (the exceptions) ---
+    function outlineUsedSigs() {
+        const used = [];
+        Object.values(outline.o.time).forEach(s => { if (s && s !== outline.o.mainSig && !used.includes(s)) used.push(s); });
+        return [...used, outline.o.mainSig];
+    }
+    function outlineTimeHtml() {
+        const o = outline.o;
+        const secs = PieceOutline.sections(o);
+        const multi = secs.length > 1;
+        if (!outline.openSecs) outline.openSecs = new Set(multi && o.bars > OUTLINE_COLLAPSE_OVER_BARS ? [0] : secs.map((s, i) => i));
+        const sum = PieceOutline.timeSummary(o);
+        const main = outlineSigLabel(o.mainSig);
+        const barHtml = (b) => {
+            const sig = PieceOutline.sigAt(o, b);
+            const exc = sig !== o.mainSig;
+            return `<button type="button" class="outline-bar${exc ? ' is-exception' : ''}${outline.from === b ? ' is-from' : ''}" data-outline-bar="${b}" aria-pressed="${exc}" aria-label="Bar ${b}, ${escapeHtml(outlineSigLabel(sig))}"><span class="paint-bar-num" aria-hidden="true">${b}</span><span class="outline-bar-sig" aria-hidden="true">${exc ? escapeHtml(outlineSigLabel(sig)) : ''}</span></button>`;
+        };
+        const sections = secs.map((s, i) => {
+            const open = outline.openSecs.has(i);
+            let marked = 0;
+            for (let b = s.from; b <= s.to; b++) if (PieceOutline.sigAt(o, b) !== o.mainSig) marked++;
+            const head = multi ? `<div class="paint-section-head">
+                    <button type="button" class="outline-section-btn" data-outline-toggle="${i}" aria-expanded="${open}"><span class="material-symbols-outlined" aria-hidden="true">${open ? 'expand_more' : 'chevron_right'}</span><strong>${s.label ? `Mark ${escapeHtml(s.label)}` : 'Start'}</strong><span class="text-sm text-muted">bars ${s.from}-${s.to}${marked ? ` · ${marked} marked` : ''}</span></button>
+                    ${open ? `<button type="button" class="btn-text outline-all" data-outline-all="${i}">All of this section</button>` : ''}
+                </div>` : '';
+            let bars = '';
+            if (open) for (let b = s.from; b <= s.to; b++) bars += barHtml(b);
+            return `<div class="paint-section">${head}${open ? `<div class="paint-bars">${bars}</div>` : ''}</div>`;
+        }).join('');
+        const brush = outline.brush;
+        const hint = !brush ? 'Pick what you are marking bars as, then tap the bars.'
+            : outline.mode === 'run'
+                ? (outline.from ? `From bar ${outline.from} - now tap the last bar.` : `Tap the first bar, then the last bar, to mark everything between as ${outlineSigLabel(brush)}.`)
+                : (brush === o.mainSig ? `Tap a marked bar to put it back to ${main}.` : `Tap a bar to mark it ${outlineSigLabel(brush)}. Tap it again to put it back to ${main}.`);
+        return `
+            <p class="outline-sum no-margin" id="outlineTimeSum">${sum.length ? `Marked so far: ${sum.map(x => `<strong>${escapeHtml(outlineSigLabel(x.sig))}</strong> ${x.bars} bar${x.bars === 1 ? '' : 's'}`).join(' · ')} · everything else is ${escapeHtml(main)}` : `Every bar is ${escapeHtml(main)} so far. If that's right, go straight on.`}</p>
+            ${sections}
+            <div class="paint-toolbox">
+                <div class="outline-tool">
+                    ${outlineValueBtn('brush', brush ? outlineSigLabel(brush) : 'Choose', 'marking bars as')}
+                    <div><span class="outline-th">Used in this piece</span><div class="outline-shorts">${outlineUsedSigs().map(s => `<button type="button" class="outline-short${s === brush ? ' selected' : ''}" data-outline-brush="${escapeHtml(s)}" aria-pressed="${s === brush}">${escapeHtml(outlineSigLabel(s))}</button>`).join('')}</div></div>
+                </div>
+                <div class="radio-group" role="radiogroup" aria-label="How to mark the bars">
+                    <input type="radio" id="outlineModeSingle" name="outlineMode" value="single"${outline.mode === 'single' ? ' checked' : ''}><label for="outlineModeSingle">One bar at a time</label>
+                    <input type="radio" id="outlineModeRun" name="outlineMode" value="run"${outline.mode === 'run' ? ' checked' : ''}><label for="outlineModeRun">From a bar to a bar</label>
+                </div>
+                <p class="text-sm text-muted no-margin" aria-live="polite">${escapeHtml(hint)}</p>
+                <button type="button" class="btn-submit no-margin" data-outline="next">Next: speed</button>
+            </div>`;
+    }
+    function outlineSetBar(bar, sig) {
+        if (sig === outline.o.mainSig) delete outline.o.time[bar];
+        else outline.o.time[bar] = sig;
+    }
+    function outlineTapBar(bar) {
+        const o = outline.o;
+        if (!outline.brush) { showWarningToast('Pick what you are marking bars as first.'); return; }
+        if (outline.mode === 'run') {
+            if (outline.from === null) outline.from = bar;
+            else { for (let b = Math.min(outline.from, bar); b <= Math.max(outline.from, bar); b++) outlineSetBar(b, outline.brush); outline.from = null; }
+        } else {
+            outlineSetBar(bar, PieceOutline.sigAt(o, bar) === outline.brush ? o.mainSig : outline.brush);
+        }
+        outlineRerenderKeeping(`[data-outline-bar="${bar}"]`);
+    }
+    // Redraws the step and puts keyboard focus back where it was (a redraw throws the buttons away)
+    function outlineRerenderKeeping(selector) {
+        const y = window.scrollY;
+        renderOutline();
+        window.scrollTo({ top: y });
+        if (selector) document.querySelector(`#outlineBody ${selector}`)?.focus({ preventScroll: true });
+    }
+
+    // --- Step 4: speed (a table) ---
+    function outlineSpeedHtml() {
+        const o = outline.o;
+        return `
+            <p class="text-sm text-muted no-margin">The piece starts at ${o.mainBpm}. Add a row for each bar where the speed changes - it carries on from there.</p>
+            <div class="outline-table" id="outlineSpeedRows">
+                <div class="outline-row outline-row-speed" aria-hidden="true"><span class="outline-th">From bar</span><span class="outline-th">bpm</span><span class="outline-th">Beat note</span></div>
+                <div class="outline-row outline-row-speed"><span class="outline-cell-fixed">Start</span><span class="outline-cell-fixed">${o.mainBpm}</span><span class="outline-cell-fixed">${escapeHtml(outlineNoteLabel(o.mainNote))}</span></div>
+                ${outline.speedRows.map((r, i) => outlineSpeedRowHtml(r, i)).join('')}
+            </div>
+            <p class="text-sm text-muted no-margin">The beat note stays the same as the row above unless you change it.</p>
+            <p class="text-sm text-muted no-margin" id="outlineSpeedCheck" aria-live="polite"></p>
+            <p class="outline-sum no-margin" id="outlineSpeedSum"></p>
+            <button type="button" class="btn-submit" data-outline="next">Next: extras</button>`;
+    }
+    const outlineSpeedRowHtml = (r, i) => `<div class="outline-row outline-row-speed">
+        <input type="number" inputmode="numeric" data-speed-row="${i}" data-speed-col="bar" value="${escapeHtml(String(r.bar))}" placeholder="bar" aria-label="Row ${i + 1}: from bar" enterkeyhint="next">
+        <input type="number" inputmode="numeric" data-speed-row="${i}" data-speed-col="bpm" value="${escapeHtml(String(r.bpm))}" placeholder="bpm" aria-label="Row ${i + 1}: bpm" enterkeyhint="next">
+        <button type="button" class="outline-cell-btn" data-speed-note="${i}" aria-haspopup="dialog" aria-label="Row ${i + 1}: beat note, ${r.noteValue ? escapeHtml(outlineNoteLabel(r.noteValue)) : 'same as the row above'} - tap to change">${r.noteValue ? escapeHtml(outlineNoteLabel(r.noteValue)) : 'same'}</button></div>`;
+    function outlineSpeedRefresh() {
+        const o = outline.o;
+        const rows = outline.speedRows.filter(r => r.bar !== '' || r.bpm !== '');
+        o.speeds = rows.filter(r => r.bar !== '' && r.bpm !== '').map(r => ({ bar: Number(r.bar), bpm: Number(r.bpm), noteValue: r.noteValue }));
+        const bad = rows.filter(r => r.bar === '' || r.bpm === '' || !(Number.isInteger(Number(r.bar)) && Number(r.bar) >= 2 && Number(r.bar) <= o.bars) || !(Number(r.bpm) >= 20 && Number(r.bpm) <= 400));
+        const check = document.getElementById('outlineSpeedCheck');
+        if (check) check.innerHTML = bad.length ? `<span class="text-danger">${bad.length === 1 ? 'One row' : `${bad.length} rows`} can't be used yet: each needs a bar from 2 to ${o.bars} and a speed from 20 to 400.</span>` : '';
+        const sum = document.getElementById('outlineSpeedSum');
+        if (sum) sum.innerHTML = outlineSummaryText();
+        return !bad.length;
+    }
+
+    // --- Step 5: extras ---
+    function outlineExtrasHtml() {
+        const o = outline.o;
+        const built = outlineBuild();
+        const clashOf = (i) => built.clashes.find(c => c.extra === i);
+        const rows = o.extras.map((x, i) => {
+            const d = PieceOutline.describeExtra(x);
+            const clash = clashOf(i);
+            return `<button type="button" class="outline-extra${clash ? ' has-clash' : ''}" data-outline-extra="${i}" aria-haspopup="dialog">
+                <span class="material-symbols-outlined" aria-hidden="true">${OUTLINE_EXTRAS[x.type].icon}</span>
+                <span class="outline-extra-text"><strong>${escapeHtml(d.title)}</strong><span class="text-sm text-muted">${escapeHtml(d.sub)}</span>${clash ? `<span class="outline-extra-clash">${flowWarningIconSvg('flow-tile-warning-icon')}<span>${escapeHtml(clash.message)}</span></span>` : ''}</span>
+                <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span></button>`;
+        }).join('');
+        const blocked = built.clashes.length || built.errors.length;
+        const other = built.clashes.length ? '' : built.errors.map(m => `<p class="outline-extra-clash">${flowWarningIconSvg('flow-tile-warning-icon')}<span>${escapeHtml(m)}</span></p>`).join('');
+        return `
+            <p class="text-sm text-muted no-margin">Repeats, pauses, speeding up or slowing down, signs and jumps. Add each one by its bar numbers. None? Just save.</p>
+            ${rows}
+            <button type="button" class="outline-add" data-outline="addExtra" aria-haspopup="dialog">+ Add an extra</button>
+            ${other}
+            <p class="outline-sum no-margin">${outlineSummaryText()}</p>
+            ${blocked ? `<p class="text-sm text-danger no-margin" role="alert">${built.clashes.length === 1 ? 'One extra needs' : built.clashes.length ? `${built.clashes.length} extras need` : 'Something needs'} fixing before the piece can be saved.</p>` : ''}
+            <button type="button" class="btn-submit" data-outline="save"${blocked ? ' disabled' : ''}>Save the piece</button>`;
+    }
+    let outlineExtraDraft = null; // { index (null = new), x }
+    const OUTLINE_EXTRA_DEFAULTS = {
+        repeat: () => ({ type: 'repeat', from: '', to: '', times: 2 }),
+        repeatEndings: () => ({ type: 'repeatEndings', from: '', to: '', times: 2, e1From: '', e2To: '' }),
+        pause: () => ({ type: 'pause', kind: 'fermata', bar: '', beat: 1, holdBeats: 2, playbackMode: 'tone' }),
+        ramp: () => ({ type: 'ramp', from: '', to: '', startBeat: 1, target: 'next', bpm: '' }),
+        sign: () => ({ type: 'sign', sign: 'segno', bar: '' }),
+        intro: () => ({ type: 'intro', from: '', to: '' })
+    };
+    function outlineOpenExtra(index, type) {
+        const x = index === null ? OUTLINE_EXTRA_DEFAULTS[type]() : { ...outline.o.extras[index] };
+        if (x.type === 'intro' && x.to === null) x.to = '';
+        outlineExtraDraft = { index, x };
+        document.getElementById('outlineExtraTitle').textContent = OUTLINE_EXTRAS[x.type].label;
+        document.getElementById('outlineExtraSaveBtn').textContent = index === null ? 'Add it' : 'Save the change';
+        setShown('outlineExtraRemoveBtn', index !== null);
+        renderOutlineExtraForm();
+        showModal('outlineExtraModal');
+        document.querySelector('#outlineExtraForm input[type="number"]')?.focus();
+    }
+    function renderOutlineExtraForm() {
+        const x = outlineExtraDraft.x;
+        const num = (key, label, attrs = '') => `<label class="outline-field"><input type="number" inputmode="numeric" data-x="${key}" value="${escapeHtml(String(x[key] ?? ''))}" enterkeyhint="next" ${attrs}><span class="outline-field-label">${escapeHtml(label)}</span></label>`;
+        const pills = (key, options, label) => `<div class="radio-group" role="radiogroup" aria-label="${escapeHtml(label)}">${options.map(([v, l]) => `<input type="radio" id="outlineX-${key}-${v}" name="outlineX-${key}" data-x-radio="${key}" value="${v}"${x[key] === v ? ' checked' : ''}><label for="outlineX-${key}-${v}">${escapeHtml(l)}</label>`).join('')}</div>`;
+        const head = (t) => `<span class="outline-th">${t}</span>`;
+        let html = '';
+        if (x.type === 'repeat') html = `<div class="outline-three">${num('from', 'from bar')}${num('to', 'to bar')}${num('times', 'times played', 'min="2" max="9"')}</div>`;
+        if (x.type === 'repeatEndings') html = `${head('The repeat, up to the end of the 1st ending')}<div class="outline-three">${num('from', 'from bar')}${num('to', 'to bar')}${num('times', 'times played', 'min="2" max="9"')}</div>
+            <div class="outline-pair"><div>${head('1st ending')}${num('e1From', 'starts at bar')}</div><div>${head('2nd ending')}${num('e2To', 'ends at bar')}</div></div>`;
+        if (x.type === 'pause') html = `${pills('kind', [['fermata', 'Pause (held)'], ['caesura', 'Break (silent)']], 'What kind')}
+            <div class="outline-three">${num('bar', 'in bar')}${num('beat', 'on beat', 'min="1"')}${num('holdBeats', 'beats held', 'min="1" step="any"')}</div>
+            ${x.kind === 'fermata' ? pills('playbackMode', [['tone', 'With a tone'], ['silent', 'Silent']], 'How it sounds') : ''}`;
+        if (x.type === 'ramp') html = `<div class="outline-three">${num('from', 'from bar')}${num('to', 'to bar')}${num('startBeat', 'starting on beat', 'min="1"')}</div>
+            ${pills('target', [['next', 'To the next speed'], ['custom', 'To a speed I type']], 'What speed it reaches')}
+            ${x.target === 'custom' ? num('bpm', 'bpm to reach', 'min="20" max="400"') : ''}`;
+        if (x.type === 'sign') html = `${pills('sign', Object.entries(PieceOutline.SIGNS).map(([k, s]) => [k, s.label]), 'Which sign')}${num('bar', PieceOutline.SIGNS[x.sign].at === 'start' ? 'at the start of bar' : 'at the end of bar')}`;
+        if (x.type === 'intro') html = `<div class="outline-pair">${num('from', 'from bar')}${num('to', 'to bar (or leave empty)')}</div>`;
+        document.getElementById('outlineExtraForm').innerHTML = html;
+        outlineExtraCheck();
+    }
+    // The draft with its numbers as numbers (an empty box stays empty, so the check can say what's missing)
+    function outlineExtraClean() {
+        const x = { ...outlineExtraDraft.x };
+        ['from', 'to', 'times', 'e1From', 'e2To', 'bar', 'beat', 'holdBeats', 'startBeat', 'bpm'].forEach(k => { if (k in x) x[k] = x[k] === '' || x[k] === null ? NaN : Number(x[k]); });
+        if (x.type === 'intro') x.to = Number.isNaN(x.to) ? null : x.to;
+        if (x.type === 'ramp' && x.target !== 'custom') x.bpm = null;
+        return x;
+    }
+    // In plain words what it will do - or what's wrong with it
+    function outlineExtraCheck() {
+        const x = outlineExtraClean();
+        const el = document.getElementById('outlineExtraCheck');
+        const o = outline.o;
+        let problem = PieceOutline.extraProblem(o, x);
+        if (!problem) {
+            const extras = o.extras.slice();
+            const at = outlineExtraDraft.index === null ? extras.length : outlineExtraDraft.index;
+            extras[at] = x;
+            const clash = PieceOutline.buildBlocks({ ...o, extras }).clashes.find(c => c.extra === at);
+            if (clash) problem = clash.message;
+        }
+        const empty = Object.entries(outlineExtraDraft.x).some(([k, v]) => v === '' && !(x.type === 'intro' && k === 'to') && !(k === 'bpm' && x.target !== 'custom'));
+        if (empty) { el.textContent = 'Fill in the bar numbers.'; el.classList.remove('text-danger'); return false; }
+        if (problem) { el.textContent = problem; el.classList.add('text-danger'); return false; }
+        const d = PieceOutline.describeExtra(x);
+        let text = `${d.title}. ${d.sub}.`;
+        if (x.type === 'repeatEndings') text = `Plays bars ${x.from}-${x.to}, then ${x.e1From > x.from ? `${x.from}-${x.e1From - 1} and ` : ''}on to bar ${x.to + 1}${x.e2To > x.to + 1 ? `-${x.e2To}` : ''}.`;
+        el.textContent = text;
+        el.classList.remove('text-danger');
+        return true;
+    }
+    document.getElementById('outlineExtraForm')?.addEventListener('input', (e) => {
+        const key = e.target.dataset.x;
+        if (!key || !outlineExtraDraft) return;
+        outlineExtraDraft.x[key] = e.target.value;
+        outlineExtraCheck();
+    });
+    document.getElementById('outlineExtraForm')?.addEventListener('change', (e) => {
+        const key = e.target.dataset.xRadio;
+        if (!key || !outlineExtraDraft) return;
+        outlineExtraDraft.x[key] = e.target.value;
+        renderOutlineExtraForm();
+        document.getElementById(e.target.id)?.focus();
+    });
+    document.getElementById('outlineExtraSaveBtn')?.addEventListener('click', () => {
+        if (!outlineExtraDraft) return;
+        const filled = !Object.entries(outlineExtraDraft.x).some(([k, v]) => v === '' && !(outlineExtraDraft.x.type === 'intro' && k === 'to') && !(k === 'bpm' && outlineExtraDraft.x.target !== 'custom'));
+        if (!filled) { showWarningToast('Fill in the bar numbers first.'); return; }
+        const x = outlineExtraClean();
+        if (outlineExtraDraft.index === null) outline.o.extras.push(x);
+        else outline.o.extras[outlineExtraDraft.index] = x;
+        outline.o.extras.sort((a, b) => (a.from ?? a.bar) - (b.from ?? b.bar));
+        outlineExtraDraft = null;
+        hideModal('outlineExtraModal');
+        renderOutline();
+    });
+    document.getElementById('outlineExtraRemoveBtn')?.addEventListener('click', () => {
+        if (!outlineExtraDraft || outlineExtraDraft.index === null) return;
+        outline.o.extras.splice(outlineExtraDraft.index, 1);
+        outlineExtraDraft = null;
+        hideModal('outlineExtraModal');
+        renderOutline();
+    });
+
+    // --- Save: the piece is made, its blocks in one go, and its details open so it can be named ---
+    async function outlineSave(btn) {
+        const built = outlineBuild();
+        if (built.clashes.length || built.errors.length) { showWarningToast('Fix what is marked before saving.'); return; }
+        const target = outline.target;
+        const payload = built.blocks.map(b => {
+            const [type, id] = String(b.sig).split(':');
+            return { ...flowBlockPayload(b), timeSignatureId: type === 'public' ? Number(id) : null, accountTimeSignatureId: type === 'public' ? null : Number(id) };
+        });
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        try {
+            const created = await API.flows.create(target && target.bandId ? { bandId: target.bandId } : {});
+            try {
+                await API.flows.blocks.replaceAll(created.id, payload);
+            } catch (error) {
+                await API.flows.delete(created.id).catch(() => { /* left as an empty piece in My music */ });
+                throw error;
+            }
+            addPieceTarget = target;
+            await addPieceToTargetList(created.id);
+            const st = outline.stats;
+            const counts = PieceOutline.summary(outline.o);
+            const totalBars = outline.o.bars;
+            // The stopwatch (ML-199): one finished 'create' row, source 'quick', with the steps
+            flowStatsRequest(`/api/flows/${created.id}/authoring-sessions`, 'POST', { kind: 'create', creationSource: 'quick', deviceKind: flowStatsDeviceKind(), idleThresholdSeconds: FLOW_STATS_IDLE_THRESHOLD_SECONDS, blockCountStart: 0 })
+                .then(row => row && flowStatsRequest(`/api/flows/authoring-sessions/${row.id}`, 'PUT', {
+                    activeSeconds: st.active, barsActiveSeconds: st.active, elapsedSeconds: Math.round((Date.now() - st.startedAtMs) / 1000),
+                    blockCountEnd: payload.length, totalBarsEnd: totalBars, blocksAdded: payload.length, blocksEdited: 0, blocksDeleted: 0,
+                    tapCount: st.taps, keyCount: st.keys, steps: st.steps, outlineCounts: counts, outcome: 'completed'
+                }));
+            showSuccessToast(`Piece made: ${payload.length} blocks. Entered in ${fmtMinSec(st.active)} · ${st.taps} taps · ${st.keys} keys. Give it a name.`);
+            outlineClose();
+            currentFlowId = created.id;
+            flowEditMode = 'create';
+            flowStatsPendingKind = 'edit'; // naming it afterwards is its own, separate stint
+            while (['pieceOutlineView', 'addPieceView'].includes(viewStack[viewStack.length - 1])) viewStack.pop();
+            switchView('flowDetailsHubView');
+        } catch (error) {
+            btn.disabled = false;
+            btn.textContent = 'Save the piece';
+            showWarningToast("The piece couldn't be saved: " + error.message);
+        }
+    }
+
+    // --- One listener for the whole screen ---
+    const outlineView = document.getElementById('pieceOutlineView');
+    outlineView?.addEventListener('click', (e) => {
+        if (!outline) return;
+        const t = e.target.closest('button');
+        if (!t) return;
+        const o = outline.o;
+        if (t.dataset.outlineStep !== undefined) { outlineGoStep(Number(t.dataset.outlineStep)); return; }
+        if (t.dataset.outlineBar) { outlineTapBar(Number(t.dataset.outlineBar)); return; }
+        if (t.dataset.outlineToggle !== undefined) { const i = Number(t.dataset.outlineToggle); if (outline.openSecs.has(i)) outline.openSecs.delete(i); else outline.openSecs.add(i); outlineRerenderKeeping(`[data-outline-toggle="${i}"]`); return; }
+        if (t.dataset.outlineAll !== undefined) {
+            if (!outline.brush) { showWarningToast('Pick what you are marking bars as first.'); return; }
+            const s = PieceOutline.sections(o)[Number(t.dataset.outlineAll)];
+            for (let b = s.from; b <= s.to; b++) outlineSetBar(b, outline.brush);
+            outlineRerenderKeeping(`[data-outline-all="${t.dataset.outlineAll}"]`);
+            return;
+        }
+        if (t.dataset.outlineBrush) { outline.brush = t.dataset.outlineBrush; outline.from = null; outlineRerenderKeeping(`[data-outline-brush="${t.dataset.outlineBrush}"]`); return; }
+        if (t.dataset.outlineExtra !== undefined) { outlineOpenExtra(Number(t.dataset.outlineExtra)); return; }
+        if (t.dataset.speedNote !== undefined) {
+            const i = Number(t.dataset.speedNote);
+            outlinePickNote(outline.speedRows[i].noteValue || PieceOutline.speedAt(o, Number(outline.speedRows[i].bar) || 1).noteValue, (note) => { outline.speedRows[i].noteValue = note; outlineRerenderKeeping(`[data-speed-note="${i}"]`); });
+            return;
+        }
+        const action = t.dataset.outline;
+        if (action === 'next') {
+            if (outlineStepKey() === 'howLong' && !outlineHowLongRead()) return;
+            if (outlineStepKey() === 'marks') { outlineMarksRefresh(); outline.openSecs = null; }
+            if (outlineStepKey() === 'speed' && !outlineSpeedRefresh()) { showWarningToast('Finish or empty the rows that are marked.'); return; }
+            outlineGoStep(outline.step + 1);
+        } else if (action === 'restart') {
+            showConfirmModal('Start again?', 'Everything typed for this piece so far is thrown away.', () => { const target = outline.target; outlineClose(); openPieceOutline(target); }, true, 'Start again');
+        } else if (action === 'mainSig') {
+            outlineHowLongKeep();
+            outlinePickSig(o.mainSig, (value) => { o.mainSig = value; renderOutline(); });
+        } else if (action === 'mainNote') {
+            outlineHowLongKeep();
+            outlinePickNote(o.mainNote, (note) => { o.mainNote = note; renderOutline(); });
+        } else if (action === 'markKind') {
+            openFlowChoiceModal('The marks are', OUTLINE_MARK_KINDS.map(k => ({ key: k.key, selected: k.key === o.markKind, html: `<span><strong>${k.label}</strong><br><span class="text-sm text-muted">${k.sub}</span></span>` })), (opt) => { o.markKind = opt.key; outline.openSecs = null; renderOutline(); });
+        } else if (action === 'brush') {
+            outlinePickSig(outline.brush, (value) => { outline.brush = value; outline.from = null; outlineRerenderKeeping('[data-outline="brush"]'); });
+        } else if (action === 'addExtra') {
+            openFlowChoiceModal('Add an extra', PieceOutline.EXTRA_KINDS.map(k => ({ key: k, html: `<span class="material-symbols-outlined" aria-hidden="true">${OUTLINE_EXTRAS[k].icon}</span><span><strong>${OUTLINE_EXTRAS[k].label}</strong><br><span class="text-sm text-muted">${OUTLINE_EXTRAS[k].sub}</span></span>` })), (opt) => outlineOpenExtra(null, opt.key));
+        } else if (action === 'save') {
+            outlineSave(t);
+        }
+    });
+    // What's typed on step 1 is kept when a pop-up redraws the step
+    function outlineHowLongKeep() {
+        const bars = Number(document.getElementById('outlineBars')?.value);
+        const bpm = Number(document.getElementById('outlineBpm')?.value);
+        if (Number.isInteger(bars) && bars >= 1 && bars <= PieceOutline.MAX_BARS) outline.o.bars = bars;
+        if (Number.isInteger(bpm) && bpm >= 20 && bpm <= 400) outline.o.mainBpm = bpm;
+    }
+    outlineView?.addEventListener('change', (e) => {
+        if (!outline) return;
+        if (e.target.name === 'outlineLeadIn') outline.o.leadIn = e.target.value === 'yes';
+        if (e.target.name === 'outlineMode') { outline.mode = e.target.value; outline.from = null; outlineRerenderKeeping(`#${e.target.id}`); }
+    });
+    // A table's last row filling in adds the next one (the rows already there are left alone, so typing isn't interrupted)
+    function outlineGrowTable(rows, blank, rowHtml, tableId) {
+        const last = rows[rows.length - 1];
+        if (!Object.values(last).some(v => v !== '' && v !== undefined)) return;
+        rows.push(blank());
+        document.getElementById(tableId)?.insertAdjacentHTML('beforeend', rowHtml(rows[rows.length - 1], rows.length - 1));
+    }
+    outlineView?.addEventListener('input', (e) => {
+        if (!outline) return;
+        const t = e.target;
+        if (t.id === 'outlineMarksText') { outline.marksText = t.value; outlineMarksRefresh(); return; }
+        if (t.dataset.markRow !== undefined) {
+            outline.markRows[Number(t.dataset.markRow)][t.dataset.markCol] = t.value;
+            outlineGrowTable(outline.markRows, () => ({ bar: '', label: '' }), outlineMarkRowHtml, 'outlineMarkRows');
+            outlineMarksRefresh();
+            return;
+        }
+        if (t.dataset.speedRow !== undefined) {
+            outline.speedRows[Number(t.dataset.speedRow)][t.dataset.speedCol] = t.value;
+            outlineGrowTable(outline.speedRows, () => ({ bar: '', bpm: '', noteValue: undefined }), outlineSpeedRowHtml, 'outlineSpeedRows');
+            outlineSpeedRefresh();
+        }
+    });
+    // Enter (Next / Done on a phone's keyboard) moves to the next box, like Tab
+    [outlineView, document.getElementById('outlineExtraForm')].forEach(root => root?.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
+        const boxes = [...root.querySelectorAll('input:not([type="radio"])')];
+        const next = boxes[boxes.indexOf(e.target) + 1];
+        if (!next) return;
+        e.preventDefault();
+        next.focus();
+        next.select?.();
+    }));
+    document.getElementById('metroBlkEntryQuickBtn')?.addEventListener('click', () => openPieceOutline(addPieceTakeTarget()));
 
     // ========================================
     // DRILLS (Jira ML-298 Tap tempo, ML-295 Gap trainer, ML-296 Ear - on screen Tempo, Pulse, Pitch)

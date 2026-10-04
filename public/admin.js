@@ -1133,6 +1133,33 @@
             </div>`;
     }
 
+    // ML-424: bar by bar against quick entry (time and the work it took), and quick entry step by step -
+    // the step with the most seconds or taps is the next thing to speed up.
+    function quickEntryTables(data) {
+        const methods = data.byMethod || [];
+        const steps = data.quickSteps || [];
+        const stepNames = { howLong: '1 How long', marks: '2 Marks', time: '3 Time', speed: '4 Speed', extras: '5 Extras' };
+        const methodRows = methods.length
+            ? methods.map(m => `<tr><td>${m.creationSource === 'quick' ? 'Quick entry' : 'Bar by bar'}</td><td>${m.n}</td><td>${fmtSeconds(m.seconds)}</td><td>${m.taps || '–'}</td><td>${m.keys || '–'}</td><td>${m.bars}</td><td>${m.secondsPerBar === null ? '–' : fmtRate(m.secondsPerBar)}</td></tr>`).join('')
+            : '<tr><td colspan="7" class="admin-stat-empty">No completed pieces yet.</td></tr>';
+        const stepRows = steps.length
+            ? steps.map(s => `<tr><td>${stepNames[s.step] || escapeHtml(s.step)}</td><td>${s.n}</td><td>${fmtSeconds(s.seconds)}</td><td>${s.taps}</td><td>${s.keys}</td><td>${s.visits}</td></tr>`).join('')
+            : '<tr><td colspan="6" class="admin-stat-empty">No piece has been made with quick entry yet.</td></tr>';
+        return `
+            <div class="admin-stat-section-title">Bar by bar against quick entry</div>
+            <p class="admin-intro">New pieces only, medians. Taps and keys are counted from release 0.39 on, so older bar-by-bar runs show none &ndash; compare like with like.</p>
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table">
+                <thead><tr><th>Way in</th><th>Pieces</th><th>Time</th><th>Taps</th><th>Keys</th><th>Bars</th><th>Per bar</th></tr></thead>
+                <tbody>${methodRows}</tbody>
+            </table></div>
+            <div class="admin-stat-section-title">Quick entry, step by step</div>
+            <p class="admin-intro">Averages per piece. The step with the most seconds or taps is the next one to speed up; visits over 1 mean going back to it.</p>
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table">
+                <thead><tr><th>Step</th><th>Pieces</th><th>Time</th><th>Taps</th><th>Keys</th><th>Visits</th></tr></thead>
+                <tbody>${stepRows}</tbody>
+            </table></div>`;
+    }
+
     function renderFlowAuthoringStats(data) {
         const el = document.getElementById('flowAuthoringStats');
         const h = data.headline;
@@ -1183,24 +1210,27 @@
                 <tr class="${r.isExcluded ? 'admin-stat-row-excluded' : ''}">
                     <td>${escapeHtml(r.flowTitle || 'Untitled')}${r.flowDeleted ? ' <span class="admin-stat-pill">deleted</span>' : ''}</td>
                     <td>${escapeHtml(r.email)}</td>
-                    <td>${r.kind}${r.creationSource === 'from_file' ? ' (import)' : ''}</td>
+                    <td>${r.kind}${r.creationSource === 'from_file' ? ' (import)' : r.creationSource === 'quick' ? ' (quick entry)' : ''}</td>
                     <td>${r.outcome}</td>
                     <td>${fmtSeconds(r.activeSeconds)}</td>
                     <td>${fmtSeconds(r.barsActiveSeconds)}</td>
                     <td>${r.totalBarsEnd}</td>
                     <td>${r.blockCountEnd}</td>
                     <td>+${r.blocksAdded}/~${r.blocksEdited}/-${r.blocksDeleted}</td>
+                    <td>${r.tapCount || '–'}</td>
+                    <td>${r.keyCount || '–'}</td>
                     <td>${escapeHtml(r.deviceKind || '–')}</td>
                     <td>${escapeHtml(r.appVersion || '–')}</td>
                     <td><button class="admin-stat-exclude-btn" data-exclude-id="${r.id}" data-excluded="${r.isExcluded}" type="button">${r.isExcluded ? 'Include' : 'Exclude'}</button></td>
                 </tr>`).join('')
-            : `<tr><td colspan="12" class="admin-stat-empty">Nothing recorded yet.</td></tr>`;
+            : `<tr><td colspan="14" class="admin-stat-empty">Nothing recorded yet.</td></tr>`;
 
         el.innerHTML = `
             ${tiles}
             ${statTable('By app version', data.byVersion, 'Version', r => r.appVersion || 'unknown',
                 'The before/after comparison. Cut a release, keep building flows the same way, and compare the rows &ndash; anything else (a different device, a much longer piece) is a confound, which is what the two tables below are for.')}
-            ${statTable('Create vs edit', data.byKind, 'Session', r => `${r.kind}${r.creationSource === 'from_file' ? ' (import)' : ''}`,
+            ${quickEntryTables(data)}
+            ${statTable('Create vs edit', data.byKind, 'Session', r => `${r.kind}${r.creationSource === 'from_file' ? ' (import)' : r.creationSource === 'quick' ? ' (quick entry)' : ''}`,
                 'Initial creation against later editing stints, per ML-199. Per bar is blank for edits &ndash; see the note above.')}
             ${statTable('By length of music', data.bySize, 'Flow length', r => r.bucket,
                 'Whether a longer piece costs proportionally more or there&rsquo;s a fixed overhead. If per-bar holds steady across the buckets, the cost is genuinely per bar and the redesign should attack bar entry; if it falls as flows get longer, the overhead is in the setup around it.')}
@@ -1212,7 +1242,7 @@
                 <table class="admin-stat-table">
                     <thead><tr>
                         <th>Flow</th><th>Who</th><th>Type</th><th>Outcome</th><th>Active</th><th>Bars time</th>
-                        <th>Bars</th><th>Blocks</th><th>Changes</th><th>Device</th><th>Version</th><th></th>
+                        <th>Bars</th><th>Blocks</th><th>Changes</th><th>Taps</th><th>Keys</th><th>Device</th><th>Version</th><th></th>
                     </tr></thead>
                     <tbody>${recentRows}</tbody>
                 </table>

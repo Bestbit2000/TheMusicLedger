@@ -2702,6 +2702,50 @@
     @keyframes block-pop { from { transform: scale(0.4); opacity: var(--opacity-muted); } to { transform: scale(1); opacity: 1; } }
     .plan-card { flex: 1; min-width: 0; flex-direction: column; align-items: stretch; gap: var(--space-2); }
     .plan-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+    /* ML-424: Quick piece entry (specs/components/piece-outline.md). The steps bar, the question, the value
+       boxes, the sections of bars (.paint-section / .paint-bars) and the pinned toolbox (.paint-toolbox) are
+       the practice steps' and Prepare's own; these are what's new. */
+    .outline { display: grid; gap: var(--space-3); }
+    .outline-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); align-items: end; }
+    .outline-three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); align-items: end; }
+    .outline-field { display: grid; gap: var(--space-1); }
+    .outline-field input { text-align: center; font-weight: var(--font-weight-bold); }
+    .outline-field-label, .outline-th { font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--label-color); }
+    .outline-field-label { text-align: center; }
+    .outline-list { font-size: var(--font-lg); line-height: var(--line-height-relaxed); }
+    .outline-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+    .outline-chip { padding: var(--space-0-5) var(--space-2); border: 1px solid var(--control-border); border-radius: var(--radius-pill); font-size: var(--font-xs); font-weight: var(--font-weight-bold); }
+    /* A table you type down: bar, then what's there. Marks have two columns, speeds three. */
+    .outline-table { display: grid; gap: var(--space-2); }
+    .outline-row { display: grid; gap: var(--space-2); align-items: center; }
+    .outline-row-marks { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+    .outline-row-speed { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .outline-cell-fixed, .outline-cell-btn { min-height: var(--touch-target); display: grid; place-items: center; padding: 0 var(--space-2); border-radius: var(--radius-lg); font: inherit; font-size: var(--font-sm); color: var(--label-color); box-sizing: border-box; }
+    .outline-cell-fixed { border: 1px dashed var(--control-border); }
+    .outline-cell-btn { border: 2px solid var(--control-border); background: var(--input-bg); color: var(--text-color); font-weight: var(--font-weight-bold); cursor: pointer; }
+    /* A section's heading is a button that opens and closes it (long pieces start closed) */
+    .outline-section-btn { flex: 1; min-width: 0; min-height: var(--touch-target); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding: 0; border: 0; background: none; font: inherit; color: var(--text-color); text-align: left; cursor: pointer; }
+    .outline-all { flex: none; width: auto; margin: 0; padding: 0; }
+    /* A bar: its number, and its time signature when it isn't the main one */
+    .outline-bar { position: relative; aspect-ratio: 1; min-height: var(--touch-target); display: grid; place-items: center; padding: 0; border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--label-color); font: inherit; cursor: pointer; }
+    .outline-bar.is-exception { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
+    .outline-bar.is-from { box-shadow: var(--focus-ring); }
+    .outline-bar-sig { margin-top: var(--space-2); font-size: var(--font-xs); font-weight: var(--font-weight-bold); }
+    /* The tool: what you're marking bars as (a value box), and the ones already used as shortcuts */
+    .outline-tool { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: var(--space-3); align-items: center; }
+    .outline-shorts { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+    .outline-short { min-width: var(--touch-target); min-height: var(--touch-target); padding: 0 var(--space-2); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font: inherit; font-size: var(--font-sm); font-weight: var(--font-weight-bold); cursor: pointer; }
+    .outline-short.selected { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
+    .outline-sum { font-size: var(--font-xs); color: var(--label-color); }
+    .outline-sum strong { color: var(--text-color); }
+    /* An extra, in words; one that clashes is red with the bar editor's warning triangle */
+    .outline-extra { width: 100%; min-height: var(--touch-target); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; padding: var(--space-3); border: 1px solid var(--control-border); border-radius: var(--radius-lg); background: var(--input-bg); color: var(--text-color); font: inherit; text-align: left; cursor: pointer; }
+    .outline-extra > .material-symbols-outlined { color: var(--label-color); }
+    .outline-extra-text { display: grid; gap: var(--space-0-5); }
+    .outline-extra.has-clash { border-color: var(--danger-text); background: var(--danger-tint); }
+    .outline-extra-clash { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--font-sm); font-weight: var(--font-weight-semibold); color: var(--danger-text); }
+    .outline-extra-clash .flow-tile-warning-icon { flex: none; width: var(--icon-md); height: var(--icon-md); }
+    .outline-add { min-height: var(--touch-target); border: 2px dashed var(--control-border); border-radius: var(--radius-lg); background: transparent; color: var(--text-color); font: inherit; font-weight: var(--font-weight-bold); cursor: pointer; }
     /* ML-418: a plan in the Pick a plan pop-up - its row is the button; one of your own has a ⋮ inside the box, top right */
     .plan-row { position: relative; }
     .plan-row .list-item-menu-btn { position: absolute; top: var(--space-2); right: var(--space-2); }
