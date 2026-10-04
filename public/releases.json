@@ -1,5 +1,106 @@
 [
   {
+    "version": "0.39.0",
+    "date": "2026-10-04",
+    "changes": [
+      {
+        "key": "ML-424",
+        "type": "New",
+        "summary": "Quick piece entry: outline first (bars, marks), then exceptions (time, speed), then extras"
+      },
+      {
+        "key": "ML-422",
+        "type": "New",
+        "summary": "Practice session: pausing the timer pauses the blocks too, and \"Time's up!\" when the session runs over its time"
+      },
+      {
+        "key": "ML-421",
+        "type": "New",
+        "summary": "Starting a practice session starts the Timer for the whole session, shown in the top bar"
+      },
+      {
+        "key": "ML-420",
+        "type": "New",
+        "summary": "Practice session set-up: step 2 wording, a labelled key on one line, and steps you can tap to go back"
+      },
+      {
+        "key": "ML-419",
+        "type": "New",
+        "summary": "Practice session step 1: the time blocks look like buttons - draw them as thin grey bars"
+      },
+      {
+        "key": "ML-418",
+        "type": "New",
+        "summary": "Practice session step 2: one plan button with a pop-up, and a Quiet practice plan of Theory blocks"
+      },
+      {
+        "key": "ML-417",
+        "type": "New",
+        "summary": "How long practise session screen design update"
+      },
+      {
+        "key": "ML-416",
+        "type": "New",
+        "summary": "Admin - flows page doesn't fit on teh width"
+      },
+      {
+        "key": "ML-415",
+        "type": "New",
+        "summary": "Admin - Account list needs cope with many more members"
+      },
+      {
+        "key": "ML-414",
+        "type": "Fixes",
+        "summary": "in admin, is the Features access not a duplicate of the features section?"
+      },
+      {
+        "key": "ML-413",
+        "type": "New",
+        "summary": "Practice session step 1: Set a time / Open ended side by side, and Same as last time above the steps"
+      },
+      {
+        "key": "ML-412",
+        "type": "New",
+        "summary": "Change home tools to favourite tools on front page"
+      },
+      {
+        "key": "ML-411",
+        "type": "New",
+        "summary": "Band pieces: the person who added one can delete it (step 1 of band piece permissions)"
+      },
+      {
+        "key": "ML-410",
+        "type": "Fixes",
+        "summary": "Spelling: \"practice\" for the noun, \"practise\" for the verb, across the site"
+      },
+      {
+        "key": "ML-409",
+        "type": "New",
+        "summary": "All tools: regroup - My routine (Warm-ups, Scales) and Practise (Add a piece, Prepare, Rehearse)"
+      },
+      {
+        "key": "ML-408",
+        "type": "New",
+        "summary": "All tools: make \"Choose Home tools\" a quiet link, not a big button"
+      },
+      {
+        "key": "ML-405",
+        "type": "Fixes",
+        "summary": "When using band names, put the \"The\" at the start, only put at end for listings"
+      },
+      {
+        "key": "ML-404",
+        "type": "New",
+        "summary": "My music: abandoned new pieces, and multi-select delete to clean them up"
+      },
+      {
+        "key": "ML-391",
+        "type": "New",
+        "summary": "Scales ladder: a session's Scales block teaches one new scale and revises two, with stars"
+      }
+    ]
+  },
+  {
     "version": "0.38.1",
     "date": "2026-10-04",
     "changes": [
