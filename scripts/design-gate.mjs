@@ -15,6 +15,8 @@
 //      and that baseline may only shrink (ML-210)
 //   6. every component spec has a section on the Admin -> Design page (public/admin-design.js),
 //      and every Design page section points at a spec that exists
+//   7. third parties (scripts/third-party-audit.mjs): everything the app depends on is in the
+//      register, and what their terms ask of us is still in place (ML-267)
 //
 // Sign-off (exit 2 - must be shown to and approved by the product owner before pushing):
 //   anything that's new to the design system since <base>: new CSS classes, new or changed
@@ -104,6 +106,14 @@ const a11yBaseRef = argVal('--base') || (NO_SIGNOFF ? 'origin/main' : BASE);
 const a11yThen = baselineCount(readAt(a11yBaseRef, 'specs/accessibility/baseline.json') || '');
 if (a11yThen !== null && a11yNow > a11yThen) failures.push([`Accessibility baseline grew (${a11yThen} -> ${a11yNow} known violations since ${a11yBaseRef}) - it may only shrink`, ['fix the new violations instead of adding them to specs/accessibility/baseline.json']]);
 if (/fixed and removed|baseline entr/.test(a11y.stdout)) failures.push(['Accessibility baseline is stale (some entries are fixed)', ['run: npm run a11y-audit -- --update-baseline']]);
+
+// ML-267: the legal check - everything the app depends on is in the third-party register, and what
+// their terms ask of us is still in place (scripts/third-party-audit.mjs). Skipped for a commit that
+// predates the register.
+if (fs.existsSync(path.join(ROOT, 'scripts/third-party-audit.mjs'))) {
+    const thirdParty = spawnSync(process.execPath, [path.join(ROOT, 'scripts/third-party-audit.mjs'), '--quiet'], { cwd: ROOT, encoding: 'utf8' });
+    if (thirdParty.status !== 0) failures.push(['Third-party register is out of step with the code (npm run third-party-audit for detail)', (thirdParty.stdout + thirdParty.stderr).trim().split('\n').filter(l => /^\s{2}E /.test(l)).slice(0, 40)]);
+}
 
 const specs = fs.readdirSync(path.join(ROOT, 'specs/components')).map(f => f.replace(/\.md$/, ''));
 const noA11ySection = specs.filter(s => !/^## 9\. Accessibility/m.test(read(`specs/components/${s}.md`)));

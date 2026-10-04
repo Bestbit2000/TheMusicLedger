@@ -26,6 +26,7 @@ import { listFeedbackForAdmin, updateFeedbackAdmin } from '../services/feedback.
 import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitImport, MAX_IMPORT_BYTES } from '../services/flowTransfer.js';
 import { listNotificationsForAdmin, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
 import { getSecurityReview, runSecurityReviewNow } from '../services/securityReview.js';
+import thirdPartyRegister from '../thirdParties/register.js';
 import { getInstrumentUsageStats } from '../services/instruments.js';
 import { listRestMessages, createRestMessage, updateRestMessage, setRestMessageActive, deleteRestMessage, moveRestMessage } from '../services/restMessages.js';
 
@@ -800,6 +801,15 @@ router.post('/security-review/run', requireAuth, resolveAccount, requireSuperAdm
   } catch (error) {
     sendError(res, error);
   }
+});
+
+// ========================================
+// THIRD PARTIES (ML-267) - the register of everyone the app depends on, with their terms and what
+// those ask of us. Read-only: the register is a file in the repo (server/thirdParties/register.js),
+// checked on release by `npm run third-party-audit`. See docs/third-party-providers.md.
+// ========================================
+router.get('/third-parties', requireAuth, resolveAccount, requireSuperAdmin, (req, res) => {
+  res.json(thirdPartyRegister);
 });
 
 export default router;

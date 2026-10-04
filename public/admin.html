@@ -56,6 +56,8 @@
         <button class="admin-nav-item" data-section="feedback" type="button">Feedback <span id="feedbackNavCount" class="admin-nav-count hidden-group"></span></button>
         <!-- ML-192: repeatable security review of the OMR service behind PDF import. -->
         <button class="admin-nav-item" data-section="security" type="button">Security</button>
+        <!-- ML-267: everyone the app depends on, their terms and what those ask of us. -->
+        <button class="admin-nav-item" data-section="third-parties" type="button">Third parties</button>
         <!-- ML-198: read-only visual catalogue of the design system (public/admin-design.js). -->
         <button class="admin-nav-item" data-section="design" type="button">Design</button>
         </div>
@@ -308,6 +310,13 @@
                 <span id="securityRunStatus" class="admin-test-case-meta" role="status" aria-live="polite"></span>
             </div>
             <div id="securityReview"><p class="admin-intro">Loading&hellip;</p></div>
+        </section>
+        <!-- ML-267: the register of third parties (server/thirdParties/register.js) - read-only here; it
+             changes with a release, and `npm run third-party-audit` checks it (docs/third-party-providers.md). -->
+        <section id="third-parties-section" class="admin-section hidden-group">
+            <h1>Third parties</h1>
+            <p class="admin-intro">Every person and company The Music Ledger depends on: what they provide, which plan we're on, their terms and what those terms ask of us (ML-267). The list is kept with the code, so it changes with a release. A release is blocked if the app uses something that isn't listed here (<code>npm run third-party-audit</code>). How to add or re-check one: <code>docs/third-party-providers.md</code>.</p>
+            <div id="thirdParties"><p class="admin-intro">Loading&hellip;</p></div>
         </section>
         <section id="design-section" class="admin-section hidden-group">
             <h1>Design</h1>

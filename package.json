@@ -18,7 +18,9 @@
     "design-gate": "node scripts/design-gate.mjs",
     "design-signoff": "node --env-file=.env scripts/design-signoff-shots.mjs",
     "a11y-audit": "node scripts/a11y-audit.mjs",
-    "a11y-scan": "playwright test --config playwright.a11y.config.ts"
+    "a11y-scan": "playwright test --config playwright.a11y.config.ts",
+    "third-party-audit": "node scripts/third-party-audit.mjs",
+    "third-party-licences": "node scripts/third-party-licences.mjs"
   },
   "engines": {
     "node": "24.x"

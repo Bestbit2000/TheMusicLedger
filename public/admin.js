@@ -1138,7 +1138,8 @@
     function quickEntryTables(data) {
         const methods = data.byMethod || [];
         const steps = data.quickSteps || [];
-        const stepNames = { howLong: '1 How long', marks: '2 Marks', time: '3 Time', speed: '4 Speed', extras: '5 Extras' };
+        // ML-428: five stages with steps inside; 'extras' is the single Extras step pieces made on 0.39 recorded
+        const stepNames = { about: 'About', howLong: 'Structure: how long', marks: 'Structure: marks', time: 'Time and speed: time', speed: 'Time and speed: speed', extras: 'Extras (0.39, one step)', xIntro: 'Extras: intro', xRepeats: 'Extras: repeats', xPauses: 'Extras: pauses', xRamps: 'Extras: speeding up', xSigns: 'Extras: signs and jumps', mAudio: 'Media: recording', mVideo: 'Media: YouTube', mDocs: 'Media: score or part' };
         const methodRows = methods.length
             ? methods.map(m => `<tr><td>${m.creationSource === 'quick' ? 'Quick entry' : 'Bar by bar'}</td><td>${m.n}</td><td>${fmtSeconds(m.seconds)}</td><td>${m.taps || '–'}</td><td>${m.keys || '–'}</td><td>${m.bars}</td><td>${m.secondsPerBar === null ? '–' : fmtRate(m.secondsPerBar)}</td></tr>`).join('')
             : '<tr><td colspan="7" class="admin-stat-empty">No completed pieces yet.</td></tr>';
@@ -2501,6 +2502,128 @@
         el.innerHTML = tiles + verdictCard + sections + history;
     }
 
+    // ========================================
+    // Third parties (ML-267) - the register of everyone the app depends on. Read-only: it's a file
+    // in the repo (server/thirdParties/register.js), so it changes with a release. Built from the
+    // Security page's parts (cards, badges, evidence lists) - no styles of its own.
+    // ========================================
+    const THIRD_PARTY_GROUPS = [
+        ['service', 'Services the live app needs', 'If one of these stops or changes its terms, the app is affected straight away.'],
+        ['asset', 'Fonts and icons', 'Files the app shows or loads. Each licence is kept next to the file where we host it ourselves.'],
+        ['content', 'Content and influences', 'Other people\'s material and ideas the app follows.'],
+        ['library', 'Code libraries', 'Open-source code the app is built from (npm packages). A copy of each licence is kept in the app.'],
+        ['build', 'Tools used to build it', 'Not part of the running app, but the work depends on them.']
+    ];
+    const THIRD_PARTY_STATUS = { in_use: ['pass', 'In use'], not_in_use: ['never', 'Not in use yet'], attention: ['warn', 'Needs attention'] };
+
+    const thirdPartyList = (items) => `<ul class="admin-security-evidence">${items.map((i) => `<li>${i}</li>`).join('')}</ul>`;
+    const thirdPartyLinks = (e) => {
+        const links = (e.terms || []).map((t) => `<a href="${escapeHtml(t.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t.label)}</a>${t.dated ? ` (${escapeHtml(t.dated)})` : ''}`);
+        if (e.licenceFile) links.push(`<a href="${escapeHtml(e.licenceFile.replace(/^public/, ''))}" target="_blank" rel="noopener">Our copy of the licence</a>`);
+        return `<p class="admin-test-case-meta">${links.join(' &middot; ')}${links.length ? ' &middot; ' : ''}checked ${fmtDay(e.termsCheckedOn)}</p>`;
+    };
+    const thirdPartyAsks = (e) => (e.asks || []).map((a) => `<strong>${a.check ? 'Checked on every release' : 'Check by hand'}:</strong> ${escapeHtml(a.text)}`);
+
+    function renderThirdPartyDetails(e) {
+        const terms = [
+            e.says && e.says.length ? `<p class="admin-run-notes"><strong>What the terms say</strong></p>${thirdPartyList(e.says.map(escapeHtml))}` : '',
+            `<p class="admin-run-notes"><strong>What they ask of us</strong></p>${e.asks && e.asks.length ? thirdPartyList(thirdPartyAsks(e)) : '<p class="admin-run-notes">Nothing beyond keeping to the terms.</p>'}`,
+            e.watch && e.watch.length ? `<p class="admin-run-notes"><strong>Keep an eye on</strong></p>${thirdPartyList(e.watch.map(escapeHtml))}` : ''
+        ].join('');
+        const limits = e.limits && e.limits.length ? `
+            <details class="admin-security-details">
+                <summary>Limits on this plan and the next step up</summary>
+                ${thirdPartyList(e.limits.map((l) => `<strong>${escapeHtml(l.what)}:</strong> ${escapeHtml(l.allowance)}`))}
+                ${e.overLimit ? `<p class="admin-run-notes"><strong>If we go over:</strong> ${escapeHtml(e.overLimit)}</p>` : ''}
+                ${e.nextTier ? `<p class="admin-run-notes"><strong>Next step up:</strong> ${escapeHtml(e.nextTier)}</p>` : ''}
+            </details>` : '';
+        return `
+            <details class="admin-security-details">
+                <summary>Terms and what they ask of us</summary>
+                ${terms}
+            </details>${limits}`;
+    }
+
+    function renderThirdParty(e) {
+        const [badgeClass, badgeLabel] = THIRD_PARTY_STATUS[e.status] || THIRD_PARTY_STATUS.in_use;
+        return `
+            <div class="admin-feature">
+                <div class="admin-feature-header">
+                    <div class="admin-feature-header-text">
+                        <h2>${escapeHtml(e.name)}</h2>
+                        <p>${escapeHtml(e.who)}${e.plan ? ` &middot; ${escapeHtml(e.plan)}` : ''} &middot; ${escapeHtml(e.cost)}</p>
+                    </div>
+                    <span class="admin-badge ${badgeClass}">${badgeLabel}</span>
+                </div>
+                <div class="admin-test-case">
+                    ${(e.attention || []).map((a) => `<p class="admin-run-notes"><strong>Needs attention:</strong> ${escapeHtml(a)}</p>`).join('')}
+                    ${e.statusNote ? `<p class="admin-run-notes"><strong>${escapeHtml(e.statusNote)}</strong></p>` : ''}
+                    <p class="admin-run-notes"><strong>What it gives us:</strong> ${escapeHtml(e.provides)}</p>
+                    <p class="admin-run-notes"><strong>Where it's used:</strong> ${escapeHtml(e.usedIn)}</p>
+                    <p class="admin-run-notes"><strong>Licence or terms:</strong> ${escapeHtml(e.licence)}</p>
+                    ${e.noTermsLink ? `<p class="admin-run-notes">${escapeHtml(e.noTermsLink)}</p>` : ''}
+                    ${thirdPartyLinks(e)}
+                    ${renderThirdPartyDetails(e)}
+                </div>
+            </div>`;
+    }
+
+    // Libraries are many and alike, so they share one card: a row each.
+    function renderThirdPartyLibrary(e) {
+        return `
+            <div class="admin-test-case">
+                <div class="admin-security-head">
+                    <div class="admin-test-case-title">${escapeHtml(e.name)}</div>
+                    <span class="admin-badge never">${escapeHtml(e.licence)}</span>
+                </div>
+                <div class="admin-test-case-meta">${escapeHtml(e.who)} &middot; ${escapeHtml(e.usedIn)}</div>
+                <p class="admin-run-notes">${escapeHtml(e.provides)}</p>
+                ${(e.attention || []).map((a) => `<p class="admin-run-notes"><strong>Needs attention:</strong> ${escapeHtml(a)}</p>`).join('')}
+                ${e.noLicenceFile ? `<p class="admin-run-notes">${escapeHtml(e.noLicenceFile)}</p>` : ''}
+                ${thirdPartyLinks(e)}
+            </div>`;
+    }
+
+    function renderThirdParties(data) {
+        const entries = data.entries;
+        const attention = entries.flatMap((e) => (e.attention || []).map((a) => `<strong>${escapeHtml(e.name)}:</strong> ${escapeHtml(a)}`));
+        const byHand = entries.flatMap((e) => (e.asks || []).filter((a) => !a.check).map((a) => `<strong>${escapeHtml(e.name)}:</strong> ${escapeHtml(a.text)}`));
+        const paid = entries.filter((e) => e.paid);
+        const oldest = entries.map((e) => e.termsCheckedOn).filter(Boolean).sort()[0];
+
+        const tiles = `
+            <div class="admin-stat-tiles">
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">In the register</div><div class="admin-stat-tile-value">${entries.length}</div><div class="admin-stat-tile-sub">${entries.filter((e) => e.group === 'service').length} the live app needs</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Need attention</div><div class="admin-stat-tile-value">${attention.length}</div><div class="admin-stat-tile-sub">${attention.length ? 'listed below' : 'nothing to do'}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Paid for</div><div class="admin-stat-tile-value">${paid.length}</div><div class="admin-stat-tile-sub">${paid.length ? escapeHtml(paid.map((e) => e.name).join(', ')) : 'everything is on a free plan'}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Terms last checked</div><div class="admin-stat-tile-value">${fmtDay(oldest)}</div><div class="admin-stat-tile-sub">the oldest check in the list</div></div>
+            </div>`;
+
+        const attentionCard = attention.length ? `
+            <h2 class="admin-stat-section-title">Needs attention</h2>
+            <div class="admin-feature"><div class="admin-test-case">${thirdPartyList(attention)}</div></div>` : '';
+
+        const byHandCard = byHand.length ? `
+            <h2 class="admin-stat-section-title">Check by hand before a release</h2>
+            <p class="admin-intro">What a licence or set of terms asks of us that a script can't check. Everything else they ask is checked automatically on every release.</p>
+            <div class="admin-feature"><div class="admin-test-case"><details class="admin-security-details"><summary>${byHand.length} things to check</summary>${thirdPartyList(byHand)}</details></div></div>` : '';
+
+        const groups = THIRD_PARTY_GROUPS.map(([key, title, intro]) => {
+            const inGroup = entries.filter((e) => e.group === key);
+            if (!inGroup.length) return '';
+            const body = key === 'library'
+                ? `<div class="admin-feature">${inGroup.map(renderThirdPartyLibrary).join('')}</div>`
+                : inGroup.map(renderThirdParty).join('');
+            return `<h2 class="admin-stat-section-title">${title} (${inGroup.length})</h2><p class="admin-intro">${escapeHtml(intro)}</p>${body}`;
+        }).join('');
+
+        document.getElementById('thirdParties').innerHTML = tiles + attentionCard + byHandCard + groups;
+    }
+
+    async function reloadThirdParties() {
+        renderThirdParties(await apiCall('/api/admin/third-parties'));
+    }
+
     async function reloadSecurityReview() {
         renderSecurityReview(await apiCall('/api/admin/security-review'));
     }
@@ -2748,6 +2871,7 @@
             await Promise.all([
                 reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadInstrumentUsage(), Promise.resolve(renderTheoryGrades()), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadNotificationsAdmin(), reloadRestMessagesAdmin(), reloadWarmupsAdmin(), reloadPosthogLink(),
                 reloadSecurityReview().catch((error) => { document.getElementById('securityReview').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`; }),
+                reloadThirdParties().catch((error) => { document.getElementById('thirdParties').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`; }),
                 reloadFlowDefaultName(), reloadFlowDefaultTimeSig(), reloadFlowDefaultBpm(), reloadFlowDefaultBarCount(), reloadFlowDefaultNoteValue()
             ]);
         } catch (error) {

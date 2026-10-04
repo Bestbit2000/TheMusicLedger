@@ -44,6 +44,12 @@ npm run design-gate
   press-to-activate handlers. Every component spec also needs its "## 9. Accessibility" section.
   See `specs/foundations/accessibility.md`.
 
+- **Third parties (ML-267)**: `npm run third-party-audit` has zero errors - every npm package,
+  outside web address and font the app uses is in the register
+  (`server/thirdParties/register.js`), and what their terms ask of us is still in place. It also
+  prints the items to **check by hand**; walk those for anything the release touched. See
+  `docs/third-party-providers.md`.
+
 **Part 1b: accessibility scan and checklist (every sandbox release).** The gate can't see the
 rendered page, so also:
 

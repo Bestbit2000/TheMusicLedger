@@ -45,7 +45,7 @@ mode - no component needs to know. `style.css` only reads the new aliases (`--te
 in `DISPLAY_PREF_CHOICES` and the settings screen. Spec: `specs/components/display-and-reading.md`.
 
 **Fonts:** Lexend and OpenDyslexic are self-hosted in `public/fonts/` under the SIL Open Font License,
-with each licence stored next to it and listed in `docs/third-party-providers.md` ("Licensed assets").
+with each licence stored next to it and listed in the third-party register (`server/thirdParties/assetsAndContent.js`, see `docs/third-party-providers.md`).
 They're only downloaded when chosen. OpenDyslexic is a wide font by design, so text in it takes more
 room; home tool tile labels shrink to fit their tile (`--tile-label-fit`).
 
