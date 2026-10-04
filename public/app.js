@@ -8793,7 +8793,8 @@
             if (flowLibraryFilter !== 'all' && flowLibraryFilterKey(f) !== flowLibraryFilter) return false;
             if (!flowLibraryQuery) return true;
             return (f.title || '').toLowerCase().includes(flowLibraryQuery) || (f.composer || '').toLowerCase().includes(flowLibraryQuery);
-        });
+        // By name, A to Z (owner, 4 Oct 2026) - not the order they were added; capitals don't matter and "Piece 2" comes before "Piece 10"
+        }).sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base', numeric: true }));
     }
 
     function renderFlowsList() {
