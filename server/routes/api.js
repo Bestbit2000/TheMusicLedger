@@ -16,6 +16,7 @@ import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader } from '../mi
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, joinBand, leaveBand, createSharedBand, deleteBandIfSoleMember } from '../services/bands.js';
+import { readMeters, sendUsageWarnings } from '../services/thirdPartyUsage.js';
 import { deleteMyAccount } from '../services/accountDeletion.js';
 import { exportMyAccount } from '../services/accountExport.js';
 import { getAccountProfile, updateAccountProfile, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
@@ -831,6 +832,21 @@ router.put('/account/practice-year', requireAuth, resolveAccount, async (req, re
     const { enabled, startMonth, startDay } = req.body;
     await updatePracticeYearSetting(req.accountId, { enabled, startMonth, startDay });
     res.json({ practiceYear: await getPracticeYearSetting(req.accountId) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-429: the daily usage reading - called by Vercel's scheduler (vercel.json "crons"), which sends
+// "Authorization: Bearer <CRON_SECRET>" when that variable is set on the project. Without CRON_SECRET the
+// job is off: the address does nothing for anyone. It reads the meters and emails any warning now due.
+router.get('/cron/usage-readings', async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || req.get('authorization') !== `Bearer ${secret}`) return res.status(401).json({ error: 'Not authorised.' });
+  try {
+    const results = await readMeters();
+    const warnings = await sendUsageWarnings();
+    res.json({ read: results.filter((r) => r.ok).length, notRead: results.filter((r) => !r.ok).map((r) => r.key), warnings: warnings.length });
   } catch (error) {
     sendError(res, error);
   }

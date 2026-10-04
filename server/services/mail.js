@@ -35,6 +35,9 @@ export async function sendMail({ to, subject, text, html }) {
       signal: AbortSignal.timeout(10000)
     });
     if (!res.ok) throw new Error(`Resend refused the email (${res.status}).`);
+    // ML-429: Resend's reply says how much of the allowance is used - kept as a usage reading (Admin -> Third
+    // parties). Loaded here, not at the top, because that service sends its warnings through this one.
+    await import('./thirdPartyUsage.js').then((usage) => usage.recordResendQuota(res.headers)).catch(() => {});
     return;
   }
   if (provider === 'smtp') {

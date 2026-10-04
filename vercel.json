@@ -3,6 +3,12 @@
   "regions": [
     "lhr1"
   ],
+  "crons": [
+    {
+      "path": "/api/cron/usage-readings",
+      "schedule": "0 6 * * *"
+    }
+  ],
   "functions": {
     "api/[...slug].js": {
       "includeFiles": "public/**"

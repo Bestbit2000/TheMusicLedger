@@ -314,7 +314,7 @@
              changes with a release, and `npm run third-party-audit` checks it (docs/third-party-providers.md). -->
         <section id="third-parties-section" class="admin-section hidden-group">
             <h1>Third parties</h1>
-            <p class="admin-intro">Every person and company The Music Ledger depends on: what they provide, which plan we're on, their terms and what those terms ask of us (ML-267). The list is kept with the code, so it changes with a release. A release is blocked if the app uses something that isn't listed here (<code>npm run third-party-audit</code>). How to add or re-check one: <code>docs/third-party-providers.md</code>.</p>
+            <p class="admin-intro">Every person and company The Music Ledger depends on: what they provide, which plan we're on, their terms and what those terms ask of us (ML-267). What each one costs and how close its plan's limit is are at the top (ML-429). The list itself is kept with the code, so it changes with a release. A release is blocked if the app uses something that isn't listed here (<code>npm run third-party-audit</code>). How to add or re-check one: <code>docs/third-party-providers.md</code>.</p>
             <div id="thirdParties"><p class="admin-intro">Loading&hellip;</p></div>
         </section>
         <section id="design-section" class="admin-section hidden-group">
@@ -647,6 +647,42 @@
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="speedFormCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="speedFormSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ML-429: a cost the owner pays to a third party - one-off or repeating. -->
+<div class="modal" id="costFormModal" role="dialog" aria-modal="true" aria-labelledby="costFormTitle">
+    <div class="modal-content modal-content-sticky-footer">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <div class="metroSeg-scroll-area">
+            <h2 id="costFormTitle">Add a cost</h2>
+            <div class="form-group"><label for="costPartyInput">Paid to</label><select id="costPartyInput"></select></div>
+            <div class="form-group"><label for="costDescriptionInput">What for</label><input type="text" id="costDescriptionInput" maxlength="200" placeholder="e.g. Max plan"></div>
+            <div class="form-group"><label for="costAmountInput">Amount</label><input type="number" id="costAmountInput" inputmode="decimal" min="0" step="0.01"></div>
+            <div class="form-group"><label for="costCurrencyInput">Charged in</label><select id="costCurrencyInput"><option value="USD">US dollars ($)</option><option value="GBP">Pounds (£)</option></select></div>
+            <div class="form-group"><label for="costCadenceInput">How often</label><select id="costCadenceInput"><option value="monthly">Every month</option><option value="yearly">Every year</option><option value="weekly">Every week</option><option value="one_off">Once</option></select></div>
+            <div class="form-group"><label for="costStartInput">From (the first payment)</label><input type="date" id="costStartInput"></div>
+            <div class="form-group"><label for="costEndInput">Until (leave empty while it is still running)</label><input type="date" id="costEndInput"></div>
+        </div>
+        <div class="metroSeg-sticky-footer">
+            <button class="btn-cancel btn-nav no-margin" id="costFormCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="costFormSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ML-429: a usage figure typed in from a provider's own dashboard. -->
+<div class="modal" id="readingFormModal" role="dialog" aria-modal="true" aria-labelledby="readingFormTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="readingFormTitle">Type a reading</h2>
+        <p class="admin-intro" id="readingFormHow"></p>
+        <div class="form-group"><label id="readingValueLabel" for="readingValueInput">Used so far</label><input type="number" id="readingValueInput" inputmode="decimal" min="0" step="any"></div>
+        <div class="form-group"><label for="readingNoteInput">Note (optional)</label><input type="text" id="readingNoteInput" maxlength="200"></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="readingFormCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="readingFormSaveBtn" type="button">Save</button>
         </div>
     </div>
 </div>

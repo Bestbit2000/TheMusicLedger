@@ -95,9 +95,44 @@ they ask of us are in the register entry; the security verdict is in
 
 **How it is configured.** `AUDIVERIS_SERVICE_URL` (base URL, no trailing slash) + optional `AUDIVERIS_SERVICE_TOKEN` (sent as `Bearer` on every call — only enforced if whatever's in front of the service actually checks it, see below) + optional `AUDIVERIS_POLL_TIMEOUT_MS` (default 50000). `runOmr` in `scoreImport.js` is written against a *real, verified* async job contract — [solfascribe-omr](https://github.com/James-Aidoo/solfascribe-omr)'s (MIT-licensed, self-hostable Audiveris wrapper): `POST {url}/jobs` (multipart, one file field, any name) → `202 {jobId}`; poll `GET {url}/jobs/{jobId}` → `{status: 'queued'|'running'|'done'|'failed', movements: [{filename, bytes}], failure?: {class, detail}}`; fetch `GET {url}/jobs/{jobId}/files/{filename}` for the MusicXML once `status` is `'done'`. Async, not a single request/response, because real OMR takes real time (that service's own default timeout is 15 minutes) — `AUDIVERIS_POLL_TIMEOUT_MS` bounds how long `runOmr` itself will wait, which has to stay under whatever `maxDuration` the `api/[...slug].js` Vercel function is configured with (unset in `vercel.json` today = plan default, likely too short — raise it there if scanning routinely times out). solfascribe-omr ships with **no built-in authentication** ("no auth, `CORS_ORIGIN=*`") — don't expose it on the open internet as-is; put it behind a Cloudflare Tunnel + Access (or an equivalent auth-checking reverse proxy) if it needs to be reachable from Vercel. As of writing (2026-09-20) solfascribe-omr is a brand-new project (created July 2026, 0 stars, no tagged releases) — treat it as a reference implementation to test against, not a proven dependency, until it's actually been run against real scores.
 
-## Costs and usage (release 2, not built yet)
+## Costs and usage (ML-429)
 
-Each service entry already records `limits`, `overLimit`, `nextTier` and `usageSource` - what the plan
-allows, what happens past it, the next plan up, and where real usage can be read from. Release 2 adds
-recorded costs (in pounds, with US dollars beside them), daily usage readings against those limits and
-an email warning to the owner as a limit gets near.
+The top of **Admin → Third parties** shows what the app costs and how close each plan's limit is.
+
+- Code: [`server/services/thirdPartyUsage.js`](../server/services/thirdPartyUsage.js) (the meters, readings, costs,
+  warnings), [`server/thirdParties/costs.js`](../server/thirdParties/costs.js) (the sums - pure, tested by
+  `server/test/thirdPartyCosts.test.js`), migration `100_third_party_costs_usage.sql`.
+- **Costs** (`third_party_costs`) are entered by the owner on the page: who it is paid to (a register key), the
+  amount in the currency it is charged in, how often (once / week / month / year), from and until. The page
+  shows **pounds with US dollars underneath** at the owner's own rate (`app_config` `usd_per_gbp`, changed
+  on the page): spent so far (every payment up to today), and what it is costing now a month and a year.
+- **Meters** (`METERS` in the service) are the things a plan limits. Each is read one of three ways:
+  - **counted by the app** - file storage (from our own records), this database's size, and Resend's email
+    counts (Resend's reply to each send carries them; `mail.js` records it);
+  - **asked from the provider** - Neon compute, storage and data sent out; PostHog events - when the key is set;
+  - **typed in** - Vercel's figures, from Vercel → Usage. Any meter can be given a typed reading.
+- **Readings** (`third_party_usage_readings`) are taken once a day by Vercel's scheduler
+  (`vercel.json` `crons` → `GET /api/cron/usage-readings`, 06:00 UTC), and by **Read now** on the page. The
+  page shows the latest, the percent of the limit, where it is heading by the end of the period at this rate,
+  and the day the limit would be reached.
+- **Warnings**: an email to the owner at 75% and at 90%, once per meter and period
+  (`third_party_usage_alerts`).
+- **The limits are facts about each plan**, written in `METERS` with the date they were checked
+  (`LIMITS_CHECKED`). When a plan or a provider's allowance changes, change the limit there and the register
+  entry's `limits` together.
+
+### Settings (Vercel → Project → Settings → Environment Variables)
+
+| Variable | For | Without it |
+|---|---|---|
+| `CRON_SECRET` | The daily reading. Vercel sends it to the scheduled address; the app refuses anyone else. Any long random string. | No daily reading - **Read now** still works. |
+| `NEON_API_KEY` | Neon compute, storage and data sent out. | Those show "Not connected"; storage falls back to this database's own size. |
+| `NEON_PROJECT_ID` | Only if the project changes - it defaults to the one in `docs/environments.md`. | - |
+| `POSTHOG_PERSONAL_API_KEY`, `POSTHOG_PROJECT_ID` | PostHog's event count. | "Not connected". |
+| `POSTHOG_BILLING_DAY` | The day of the month PostHog's cycle starts (12 on the owner's account). | 12 is assumed. |
+| `USAGE_ALERT_EMAIL` | Where warnings go. | `SIGNUP_ALERT_EMAIL` is used; with neither, no email (the page still shows it). |
+
+The Neon and PostHog calls were written from their documentation and **have not been run with real keys**:
+the first **Read now** after the keys are added is the test. A call that fails says so on the page ("Neon
+answered 403") and nothing else is affected. Vercel's own billing API was not confirmed to answer on the Hobby
+plan, so its three meters are typed in.

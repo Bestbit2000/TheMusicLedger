@@ -2584,7 +2584,179 @@
             </div>`;
     }
 
+    // ---- ML-429: what it costs, and usage against each plan's limits (the top of the Third parties page).
+    // Money is shown in pounds with US dollars beside it; the rate is the owner's own (app_config usd_per_gbp).
+    let thirdPartyData = null;
+    let editingCostId = null;
+    let readingMeterKey = null;
+    const money = (x) => `£${x.gbp.toFixed(2)}`;
+    const dollars = (x) => `$${x.usd.toFixed(2)}`;
+    const CADENCE_WORDS = { one_off: 'once', weekly: 'a week', monthly: 'a month', yearly: 'a year' };
+    const amountText = (n, unit) => `${Number(n) >= 100 ? Math.round(Number(n)).toLocaleString('en-GB') : (Math.round(Number(n) * 100) / 100)} ${unit}`;
+    const partyName = (key) => ((thirdPartyData && thirdPartyData.entries.find((e) => e.key === key)) || { name: key }).name;
+
+    function renderThirdPartyCosts(data) {
+        const c = data.costs;
+        if (!c) return '<p class="admin-intro">Costs and usage couldn\'t be loaded - the list below is still right.</p>';
+        const rows = c.rows.length ? c.rows.map((r) => `
+            <tr>
+                <td>${escapeHtml(partyName(r.partyKey))}</td>
+                <td>${escapeHtml(r.description || '–')}</td>
+                <td>${money(r.each)}<div class="admin-stat-tile-sub">${dollars(r.each)}</div></td>
+                <td>${CADENCE_WORDS[r.cadence]}</td>
+                <td>${fmtDay(r.startedOn)}</td>
+                <td>${r.endedOn ? fmtDay(r.endedOn) : (r.cadence === 'one_off' ? '–' : 'still running')}</td>
+                <td>${money(r.spent)}<div class="admin-stat-tile-sub">${dollars(r.spent)} · ${r.charges} payment${r.charges === 1 ? '' : 's'}</div></td>
+                <td><button class="admin-stat-exclude-btn" data-cost-edit="${r.id}" type="button">Change</button> <button class="admin-stat-exclude-btn" data-cost-delete="${r.id}" type="button">Delete</button></td>
+            </tr>`).join('') : '<tr><td colspan="8" class="admin-stat-empty">No costs recorded yet. Add what you pay for - Claude Code, a domain, the ICO fee...</td></tr>';
+        return `
+            <h2 class="admin-stat-section-title">What it costs</h2>
+            <p class="admin-intro">Pounds, with US dollars underneath, at £1 = $${c.rate.toFixed(2)} (your own rate - change it when it moves). "Spent so far" counts every payment up to today.</p>
+            <div class="admin-stat-tiles">
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Spent so far</div><div class="admin-stat-tile-value">${money(c.spent)}</div><div class="admin-stat-tile-sub">${dollars(c.spent)}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Costing now, a month</div><div class="admin-stat-tile-value">${money(c.perMonth)}</div><div class="admin-stat-tile-sub">${dollars(c.perMonth)}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Costing now, a year</div><div class="admin-stat-tile-value">${money(c.perYear)}</div><div class="admin-stat-tile-sub">${dollars(c.perYear)}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Exchange rate</div><div class="admin-stat-tile-value">$${c.rate.toFixed(2)}</div><div class="admin-stat-tile-sub">to the pound</div></div>
+            </div>
+            <div class="admin-security-toolbar">
+                <button class="btn-submit no-margin" id="costAddBtn" type="button">+ Add a cost</button>
+                <button class="admin-stat-exclude-btn" id="costRateBtn" type="button">Change the exchange rate</button>
+            </div>
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table">
+                <thead><tr><th>Paid to</th><th>What for</th><th>Amount</th><th>How often</th><th>From</th><th>Until</th><th>Spent so far</th><th></th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table></div>`;
+    }
+
+    const USAGE_LEVEL = { pass: ['pass', 'Fine'], warn: ['warn', 'Getting near'], fail: ['fail', 'Nearly full'], info: ['never', '–'] };
+    function renderThirdPartyUsage(data) {
+        const usage = data.usage;
+        if (!usage) return '';
+        const rows = usage.map((m) => {
+            const s = m.status;
+            const [badge, word] = s ? USAGE_LEVEL[s.level] : ['never', m.latest && m.latest.stale ? 'Old reading' : m.connected ? 'No reading yet' : 'Not connected'];
+            const read = m.latest ? `${fmtDate(m.latest.readAt)} · ${{ app: 'counted by the app', api: 'from their API', manual: 'typed in' }[m.latest.source]}` : (m.connected ? 'never' : `needs ${escapeHtml(m.needs)}`);
+            const heading = s && s.projected !== null ? `${amountText(s.projected, m.unit)}${s.reachesLimitOn ? `<div class="admin-stat-tile-sub">limit reached ${fmtDay(s.reachesLimitOn)}</div>` : ''}` : '–';
+            return `
+            <tr>
+                <td>${escapeHtml(m.name)}<div class="admin-stat-tile-sub">${escapeHtml(partyName(m.party))}</div></td>
+                <td>${m.latest ? amountText(m.latest.value, m.unit) : '–'}${m.latest && m.latest.note ? `<div class="admin-stat-tile-sub">${escapeHtml(m.latest.note)}</div>` : ''}</td>
+                <td>${amountText(m.limit, m.unit)}<div class="admin-stat-tile-sub">${{ month: 'a month', day: 'a day', total: 'in all' }[m.per]}</div></td>
+                <td><span class="admin-badge ${badge}">${s && s.percent !== null ? `${s.percent}%` : word}</span>${s && s.percent !== null ? `<div class="admin-stat-tile-sub">${word}</div>` : ''}</td>
+                <td>${heading}</td>
+                <td>${read}</td>
+                <td><button class="admin-stat-exclude-btn" data-reading="${m.key}" type="button">Type a reading</button></td>
+            </tr>`;
+        }).join('');
+        return `
+            <h2 class="admin-stat-section-title">Usage against each plan's limits</h2>
+            <p class="admin-intro">The latest reading of each thing a plan limits, and where it is heading by the end of the period at this rate. Read once a day; <strong>Read now</strong> takes one straight away. ${data.alertsGoTo ? 'You are emailed at 75% and at 90%.' : 'No warning emails yet: set USAGE_ALERT_EMAIL (or SIGNUP_ALERT_EMAIL) on Vercel.'} The limits were checked against each provider's pricing page on ${fmtDay(data.limitsCheckedOn)}.</p>
+            <div class="admin-security-toolbar">
+                <button class="btn-submit no-margin" id="usageReadBtn" type="button">Read now</button>
+                <span id="usageReadStatus" class="admin-test-case-meta" role="status" aria-live="polite"></span>
+            </div>
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table">
+                <thead><tr><th>What</th><th>Used</th><th>Limit</th><th>How full</th><th>Heading for</th><th>Last read</th><th></th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table></div>
+            <div class="admin-feature"><div class="admin-test-case"><details class="admin-security-details"><summary>How each one is measured</summary>${thirdPartyList(usage.map((m) => `<strong>${escapeHtml(m.name)}:</strong> ${escapeHtml(m.how)}`))}</details></div></div>`;
+    }
+
+    function openCostForm(id) {
+        const row = id ? thirdPartyData.costs.rows.find((r) => r.id === id) : null;
+        editingCostId = id || null;
+        document.getElementById('costFormTitle').textContent = row ? 'Change a cost' : 'Add a cost';
+        document.getElementById('costPartyInput').innerHTML = thirdPartyData.entries.slice().sort((a, b) => a.name.localeCompare(b.name)).map((e) => `<option value="${escapeHtml(e.key)}">${escapeHtml(e.name)}</option>`).join('');
+        document.getElementById('costPartyInput').value = row ? row.partyKey : 'claude-code';
+        document.getElementById('costDescriptionInput').value = row ? row.description : '';
+        document.getElementById('costAmountInput').value = row ? row.amount : '';
+        document.getElementById('costCurrencyInput').value = row ? row.currency : 'USD';
+        document.getElementById('costCadenceInput').value = row ? row.cadence : 'monthly';
+        document.getElementById('costStartInput').value = row ? row.startedOn : new Date().toISOString().slice(0, 10);
+        document.getElementById('costEndInput').value = row && row.endedOn ? row.endedOn : '';
+        showModal('costFormModal');
+        document.getElementById('costAmountInput').focus();
+    }
+    async function saveCostForm() {
+        const body = {
+            partyKey: document.getElementById('costPartyInput').value, description: document.getElementById('costDescriptionInput').value,
+            amount: document.getElementById('costAmountInput').value, currency: document.getElementById('costCurrencyInput').value,
+            cadence: document.getElementById('costCadenceInput').value, startedOn: document.getElementById('costStartInput').value,
+            endedOn: document.getElementById('costEndInput').value || null
+        };
+        const btn = document.getElementById('costFormSaveBtn');
+        btn.disabled = true;
+        try {
+            renderThirdParties(await apiCall(editingCostId ? `/api/admin/third-parties/costs/${editingCostId}` : '/api/admin/third-parties/costs', editingCostId ? 'PUT' : 'POST', body));
+            hideModal('costFormModal');
+        } catch (error) {
+            showToast(error.message);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+    function openReadingForm(key) {
+        const m = thirdPartyData.usage.find((x) => x.key === key);
+        readingMeterKey = key;
+        document.getElementById('readingFormTitle').textContent = m.name;
+        document.getElementById('readingFormHow').textContent = `${m.how} The limit is ${amountText(m.limit, m.unit)} ${{ month: 'a month', day: 'a day', total: 'in all' }[m.per]}.`;
+        document.getElementById('readingValueLabel').textContent = `Used so far (${m.unit})`;
+        document.getElementById('readingValueInput').value = '';
+        document.getElementById('readingNoteInput').value = '';
+        showModal('readingFormModal');
+        document.getElementById('readingValueInput').focus();
+    }
+    async function saveReadingForm() {
+        const btn = document.getElementById('readingFormSaveBtn');
+        btn.disabled = true;
+        try {
+            renderThirdParties(await apiCall(`/api/admin/third-parties/usage/${readingMeterKey}`, 'POST', { value: document.getElementById('readingValueInput').value, note: document.getElementById('readingNoteInput').value }));
+            hideModal('readingFormModal');
+        } catch (error) {
+            showToast(error.message);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+    function initThirdPartyMoney() {
+        document.getElementById('costFormCancelBtn')?.addEventListener('click', () => hideModal('costFormModal'));
+        document.getElementById('costFormSaveBtn')?.addEventListener('click', saveCostForm);
+        document.getElementById('readingFormCancelBtn')?.addEventListener('click', () => hideModal('readingFormModal'));
+        document.getElementById('readingFormSaveBtn')?.addEventListener('click', saveReadingForm);
+        // The page is redrawn after every change, so its buttons are heard from the container
+        document.getElementById('thirdParties')?.addEventListener('click', async (e) => {
+            const t = e.target.closest('button');
+            if (!t || !thirdPartyData) return;
+            if (t.id === 'costAddBtn') { openCostForm(null); return; }
+            if (t.id === 'costRateBtn') { openConfigForm('usd_per_gbp', 'US dollars to the pound', String(thirdPartyData.costs.rate), 'How many dollars £1 buys (e.g. 1.30)', reloadThirdParties); return; }
+            if (t.dataset.costEdit) { openCostForm(Number(t.dataset.costEdit)); return; }
+            if (t.dataset.costDelete) {
+                const row = thirdPartyData.costs.rows.find((r) => r.id === Number(t.dataset.costDelete));
+                showConfirmModal('Delete this cost?', `${partyName(row.partyKey)}${row.description ? ` - ${row.description}` : ''}. Its payments come off the totals.`, async () => {
+                    try { renderThirdParties(await apiCall(`/api/admin/third-parties/costs/${row.id}`, 'DELETE')); } catch (error) { showToast(error.message); }
+                });
+                return;
+            }
+            if (t.dataset.reading) { openReadingForm(t.dataset.reading); return; }
+            if (t.id === 'usageReadBtn') {
+                t.disabled = true;
+                document.getElementById('usageReadStatus').textContent = 'Reading...';
+                try {
+                    const data = await apiCall('/api/admin/third-parties/usage/read', 'POST');
+                    const said = `${data.results.filter((r) => r.ok).length} read${data.results.some((r) => !r.ok) ? `, ${data.results.filter((r) => !r.ok).length} not (${data.results.filter((r) => !r.ok).map((r) => r.message).filter((v, i, a) => a.indexOf(v) === i).join('; ')})` : ''}.`;
+                    renderThirdParties(data);
+                    document.getElementById('usageReadStatus').textContent = said;
+                } catch (error) {
+                    showToast(error.message);
+                    t.disabled = false;
+                    document.getElementById('usageReadStatus').textContent = '';
+                }
+            }
+        });
+    }
+
     function renderThirdParties(data) {
+        thirdPartyData = data;
         const entries = data.entries;
         const attention = entries.flatMap((e) => (e.attention || []).map((a) => `<strong>${escapeHtml(e.name)}:</strong> ${escapeHtml(a)}`));
         const byHand = entries.flatMap((e) => (e.asks || []).filter((a) => !a.check).map((a) => `<strong>${escapeHtml(e.name)}:</strong> ${escapeHtml(a.text)}`));
@@ -2617,7 +2789,7 @@
             return `<h2 class="admin-stat-section-title">${title} (${inGroup.length})</h2><p class="admin-intro">${escapeHtml(intro)}</p>${body}`;
         }).join('');
 
-        document.getElementById('thirdParties').innerHTML = tiles + attentionCard + byHandCard + groups;
+        document.getElementById('thirdParties').innerHTML = renderThirdPartyCosts(data) + renderThirdPartyUsage(data) + '<h2 class="admin-stat-section-title">Who we depend on</h2>' + tiles + attentionCard + byHandCard + groups;
     }
 
     async function reloadThirdParties() {
@@ -2850,6 +3022,7 @@
         initNav();
         initFeatureAccess();
         initSecurityReview();
+        initThirdPartyMoney();
         initFeatureForm();
         initConfirmModal();
         initBandForm();

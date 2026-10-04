@@ -27,6 +27,7 @@ import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitIm
 import { listNotificationsForAdmin, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
 import { getSecurityReview, runSecurityReviewNow } from '../services/securityReview.js';
 import thirdPartyRegister from '../thirdParties/register.js';
+import { costsAndUsage, addCost, updateCost, deleteCost, readMeters, recordManualReading, sendUsageWarnings } from '../services/thirdPartyUsage.js';
 import { getInstrumentUsageStats } from '../services/instruments.js';
 import { listRestMessages, createRestMessage, updateRestMessage, setRestMessageActive, deleteRestMessage, moveRestMessage } from '../services/restMessages.js';
 
@@ -808,8 +809,65 @@ router.post('/security-review/run', requireAuth, resolveAccount, requireSuperAdm
 // those ask of us. Read-only: the register is a file in the repo (server/thirdParties/register.js),
 // checked on release by `npm run third-party-audit`. See docs/third-party-providers.md.
 // ========================================
-router.get('/third-parties', requireAuth, resolveAccount, requireSuperAdmin, (req, res) => {
-  res.json(thirdPartyRegister);
+// ML-429: the same page also shows what each one costs and how close its plan's limit is
+// (server/services/thirdPartyUsage.js). If those tables can't be read the register still shows.
+const thirdPartyKeys = () => thirdPartyRegister.entries.map((e) => e.key);
+async function thirdPartiesPage() {
+  let money = null;
+  try { money = await costsAndUsage(); } catch (error) { console.error('Third-party costs and usage not loaded:', error.message); }
+  return { ...thirdPartyRegister, ...(money || {}) };
+}
+router.get('/third-parties', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  res.json(await thirdPartiesPage());
+});
+
+router.post('/third-parties/costs', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await addCost(req.accountId, req.body, thirdPartyKeys());
+    res.json(await thirdPartiesPage());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.put('/third-parties/costs/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await updateCost(req.params.id, req.body, thirdPartyKeys());
+    res.json(await thirdPartiesPage());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.delete('/third-parties/costs/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await deleteCost(req.params.id);
+    res.json(await thirdPartiesPage());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// "Read now": every meter that can be read without a person, then any warning that is now due.
+router.post('/third-parties/usage/read', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const results = await readMeters();
+    const warnings = await sendUsageWarnings();
+    res.json({ results, warnings, ...(await thirdPartiesPage()) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// A number typed in from a provider's dashboard.
+router.post('/third-parties/usage/:meter', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await recordManualReading(req.params.meter, (req.body || {}).value, (req.body || {}).note);
+    await sendUsageWarnings();
+    res.json(await thirdPartiesPage());
+  } catch (error) {
+    sendError(res, error);
+  }
 });
 
 export default router;

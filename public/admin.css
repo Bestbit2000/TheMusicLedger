@@ -156,6 +156,9 @@ body.admin-body { display: block; background: var(--bg-color); }
 /* ML-415 / ML-416: the Accounts and Flows tables use the window's width too */
 .admin-content:has(> #accounts-section:not(.hidden-group)), .admin-content:has(> #flows-section:not(.hidden-group)) { max-width: none; }
 #accounts-section .admin-intro, #flows-section .admin-intro { max-width: 900px; }
+/* ML-429: so do Third parties' cost and usage tables; the reading text stays at reading width */
+.admin-content:has(> #third-parties-section:not(.hidden-group)) { max-width: none; }
+#third-parties-section .admin-intro, #third-parties-section .admin-feature, #third-parties-section .admin-stat-tiles { max-width: 900px; }
 /* ML-427: Usage's tables (Recent sessions has 15 columns) use the window's width as well */
 .admin-content:has(> #usage-section:not(.hidden-group)) { max-width: none; }
 #usage-section .admin-intro { max-width: 900px; }

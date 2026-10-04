@@ -30,7 +30,8 @@
 //   watch           things to keep an eye on
 //   limits, overLimit, nextTier, usageSource
 //                   what the plan allows, what happens past it, the next plan up, and how usage
-//                   can be measured (the groundwork for costs and usage, ML-267 release 2)
+//                   can be measured. The limits that are actually metered, and how each is read, are
+//                   METERS in server/services/thirdPartyUsage.js (ML-429) - change the two together.
 //   hosts, packages, files, googleFonts
 //                   what in the code belongs to this entry - how the audit knows it is covered
 //
