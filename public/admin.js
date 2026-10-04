@@ -1215,6 +1215,7 @@
                     <td>${fmtSeconds(r.activeSeconds)}</td>
                     <td>${fmtSeconds(r.barsActiveSeconds)}</td>
                     <td>${r.totalBarsEnd}</td>
+                    <td>${r.kind === 'create' && r.totalBarsEnd > 0 ? fmtRate(Math.round((r.barsActiveSeconds / r.totalBarsEnd) * 10) / 10) : '–'}</td>
                     <td>${r.blockCountEnd}</td>
                     <td>+${r.blocksAdded}/~${r.blocksEdited}/-${r.blocksDeleted}</td>
                     <td>${r.tapCount || '–'}</td>
@@ -1223,7 +1224,7 @@
                     <td>${escapeHtml(r.appVersion || '–')}</td>
                     <td><button class="admin-stat-exclude-btn" data-exclude-id="${r.id}" data-excluded="${r.isExcluded}" type="button">${r.isExcluded ? 'Include' : 'Exclude'}</button></td>
                 </tr>`).join('')
-            : `<tr><td colspan="14" class="admin-stat-empty">Nothing recorded yet.</td></tr>`;
+            : `<tr><td colspan="15" class="admin-stat-empty">Nothing recorded yet.</td></tr>`;
 
         el.innerHTML = `
             ${tiles}
@@ -1237,12 +1238,12 @@
             ${statTable('By device', data.byDevice, 'Device', r => r.deviceKind,
                 'Thumbing a phone and typing on a desktop are different activities &ndash; worth checking a change in the headline figure isn&rsquo;t just a change in which device was used.')}
             <div class="admin-stat-section-title">Recent sessions</div>
-            <p class="admin-intro">The raw runs behind the figures above, newest first (100 max), so a surprising median can be traced to the run that caused it. Bar changes are shown as added/edited/deleted. Excluding a run drops it from every statistic above but keeps the row &ndash; use it for a run you know was interrupted, not one you simply dislike. A session with no heartbeat for ${data.staleAfterMinutes} minutes counts as abandoned.</p>
+            <p class="admin-intro">The raw runs behind the figures above, newest first (100 max), so a surprising median can be traced to the run that caused it. Per bar is that run&rsquo;s bars time divided by its bars &ndash; blank for an edit, which touches an unknown part of the piece. Bar changes are shown as added/edited/deleted. Excluding a run drops it from every statistic above but keeps the row &ndash; use it for a run you know was interrupted, not one you simply dislike. A session with no heartbeat for ${data.staleAfterMinutes} minutes counts as abandoned.</p>
             <div class="admin-stat-table-wrap">
                 <table class="admin-stat-table">
                     <thead><tr>
                         <th>Flow</th><th>Who</th><th>Type</th><th>Outcome</th><th>Active</th><th>Bars time</th>
-                        <th>Bars</th><th>Blocks</th><th>Changes</th><th>Taps</th><th>Keys</th><th>Device</th><th>Version</th><th></th>
+                        <th>Bars</th><th>Per bar</th><th>Blocks</th><th>Changes</th><th>Taps</th><th>Keys</th><th>Device</th><th>Version</th><th></th>
                     </tr></thead>
                     <tbody>${recentRows}</tbody>
                 </table>

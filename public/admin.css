@@ -155,6 +155,10 @@ body.admin-body { display: block; background: var(--bg-color); }
 /* ML-415 / ML-416: the Accounts and Flows tables use the window's width too */
 .admin-content:has(> #accounts-section:not(.hidden-group)), .admin-content:has(> #flows-section:not(.hidden-group)) { max-width: none; }
 #accounts-section .admin-intro, #flows-section .admin-intro { max-width: 900px; }
+/* ML-427: Usage's tables (Recent sessions has 15 columns) use the window's width as well */
+.admin-content:has(> #usage-section:not(.hidden-group)) { max-width: none; }
+#usage-section .admin-intro { max-width: 900px; }
+#usage-section .admin-stat-table td:first-child { white-space: normal; } /* a long piece name wraps, so the other columns stay on screen */
 /* ML-415: one line per account - text columns read from the left, the ⋮ sits at the right */
 .admin-stat-table.admin-accounts-table th, .admin-stat-table.admin-accounts-table td { text-align: left; vertical-align: middle; }
 .admin-stat-table.admin-accounts-table td:last-child, .admin-flows-table td:last-child { text-align: right; width: 1%; }
