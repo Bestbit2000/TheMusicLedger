@@ -381,6 +381,7 @@
         account: {
             get: () => apiCall('/api/account'),
             update: (data) => apiCall('/api/account', 'PUT', data),
+            deleteMine: () => apiCall('/api/account', 'DELETE', { confirm: 'DELETE' }), // ML-430
             getBands: () => apiCall('/api/account/bands'),
             getInstruments: () => apiCall('/api/account/instruments'),
             setInstruments: (instrumentIds, primaryId) => apiCall('/api/account/instruments', 'PUT', { instrumentIds, primaryId }),
@@ -1158,6 +1159,35 @@
     document.getElementById('previewStopBtn')?.addEventListener('click', stopPreview);
 
     document.getElementById('loginBtn')?.addEventListener('click', () => auth.login());
+    // ML-430: delete my account (Account -> My details). The server does it all at once -
+    // server/services/accountDeletion.js; here the word DELETE has to be typed before the button works.
+    document.getElementById('accountDeleteBtn')?.addEventListener('click', () => {
+        const word = document.getElementById('accountDeleteWord');
+        word.value = '';
+        document.getElementById('accountDeleteConfirmBtn').disabled = true;
+        showModal('accountDeleteModal');
+        word.focus();
+    });
+    document.getElementById('accountDeleteWord')?.addEventListener('input', (e) => {
+        document.getElementById('accountDeleteConfirmBtn').disabled = e.target.value.trim().toUpperCase() !== 'DELETE';
+    });
+    document.getElementById('accountDeleteConfirmBtn')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        btn.textContent = 'Deleting...';
+        try {
+            await API.account.deleteMine();
+            hideModal('accountDeleteModal');
+            try { localStorage.clear(); } catch (err) { /* nothing of the account is left on this device either way */ }
+            auth.logout();
+        } catch (error) {
+            btn.disabled = false;
+            showWarningToast("Your account wasn't deleted: " + error.message);
+        } finally {
+            btn.textContent = 'Delete my account for good';
+        }
+    });
+
     window.logoutUser = function() {
         showConfirmModal('Log out', 'Are you sure you want to log out?', () => auth.logout(), false);
     }

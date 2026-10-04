@@ -16,6 +16,7 @@ import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader } from '../mi
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, joinBand, leaveBand, createSharedBand, deleteBandIfSoleMember } from '../services/bands.js';
+import { deleteMyAccount } from '../services/accountDeletion.js';
 import { getAccountProfile, updateAccountProfile, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
 import { listDurationOptions, getDefaultDurationMinutes } from '../services/durationOptions.js';
@@ -829,6 +830,17 @@ router.put('/account/practice-year', requireAuth, resolveAccount, async (req, re
     const { enabled, startMonth, startDay } = req.body;
     await updatePracticeYearSetting(req.accountId, { enabled, startMonth, startDay });
     res.json({ practiceYear: await getPracticeYearSetting(req.accountId) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-430: delete my account - at once, by the member themselves. The body must carry the word typed
+// in the pop-up, so a stray request can't do it. What goes and what stays: server/services/accountDeletion.js.
+router.delete('/account', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    if ((req.body || {}).confirm !== 'DELETE') return res.status(400).json({ error: 'Type DELETE to confirm.' });
+    res.json(await deleteMyAccount(req.accountId));
   } catch (error) {
     sendError(res, error);
   }

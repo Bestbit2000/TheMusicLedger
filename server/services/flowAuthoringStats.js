@@ -373,7 +373,7 @@ export async function getFlowAuthoringStats() {
               fas.blocks_added, fas.blocks_edited, fas.blocks_deleted, fas.tap_count, fas.key_count, fas.steps, fas.outline_counts,
               fas.device_kind, fas.app_version, fas.is_excluded, fas.exclusion_reason,
               fas.score_id IS NULL AS flow_deleted,
-              a.email
+              CASE WHEN a.deleted_at IS NULL THEN a.email ELSE 'Deleted account' END AS email
          FROM flow_authoring_sessions fas
          JOIN accounts a ON a.id = fas.account_id
         ORDER BY fas.started_at DESC

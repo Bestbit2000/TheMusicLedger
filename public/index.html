@@ -864,6 +864,8 @@
         <div class="info-row info-row-end">
             <span>Member since</span><strong id="accountJoinedReadout"></strong>
         </div>
+        <!-- ML-430: delete my account - the member does it themselves, at once (the pop-up below asks for the word DELETE) -->
+        <button type="button" class="btn-text btn-text-danger mt-6" id="accountDeleteBtn" aria-haspopup="dialog">Delete my account</button>
     </div>
 
     <!-- ML-309: the instruments you play, from the catalogue (instruments table). Your main one is the
@@ -4133,6 +4135,23 @@
         <div id="flowCheckList"></div>
         <button type="button" class="btn-submit" id="flowCheckFixBtn">Go back and fix</button>
         <button type="button" class="btn-text" id="flowCheckContinueBtn">Save anyway</button>
+    </div>
+</div>
+
+<!-- ML-430: delete my account. It can't be undone, so it says exactly what goes and what stays, and
+     the button stays off until DELETE is typed. A form, so a tap outside doesn't close it. -->
+<div class="modal" id="accountDeleteModal" role="dialog" aria-modal="true" aria-labelledby="accountDeleteTitle" aria-describedby="accountDeleteIntro">
+    <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="accountDeleteTitle">Delete my account</h2>
+        <p class="modal-intro" id="accountDeleteIntro"><strong>This can't be undone.</strong> It happens straight away, on every device.</p>
+        <p class="text-sm"><strong>Deleted:</strong> your name, email address and picture, your sign-in details, your own pieces with their recordings and documents, your practice lists and plans, your settings, and your place in any band.</p>
+        <p class="text-sm"><strong>Kept, with nothing to say they were yours:</strong> the practice sessions and quiz and drill results you logged, as numbers in the app's statistics. Pieces you added to a band stay with the band.</p>
+        <div class="form-group">
+            <label for="accountDeleteWord">Type DELETE to confirm</label>
+            <input type="text" id="accountDeleteWord" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        </div>
+        <button type="button" class="btn-delete" id="accountDeleteConfirmBtn" disabled>Delete my account for good</button>
+        <button type="button" class="btn-text" data-modal-x>Keep my account</button>
     </div>
 </div>
 

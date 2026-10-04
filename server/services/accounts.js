@@ -1,6 +1,7 @@
 import pool from '../config/db.js';
 import { getAccountBands } from './bands.js';
 import { sendSignupAlert } from './signupAlert.js';
+import { deletedEmailHash } from './tokenVersions.js';
 
 // The whole app has only ever dealt in email strings - this is the one place
 // that resolves one to a real accounts.id, creating the row on first sight.
@@ -10,10 +11,16 @@ export async function getOrCreateAccount(email, firstName = '', surname = '', cl
   const existing = await pool.query('SELECT id FROM accounts WHERE email = $1', [email]);
   if (existing.rows.length) return existing.rows[0].id;
 
+  // ML-430: an email whose account was deleted starts again as a fresh, empty account - but it takes
+  // over the token number the deletion left, so sign-ins from before the deletion stay signed out.
+  const marker = deletedEmailHash(email);
   const inserted = await pool.query(
-    'INSERT INTO accounts (email, first_name, surname) VALUES ($1, $2, $3) ON CONFLICT (email) DO NOTHING RETURNING id',
-    [email, firstName, surname]
+    `INSERT INTO accounts (email, first_name, surname, token_version)
+     VALUES ($1, $2, $3, COALESCE((SELECT token_version FROM deleted_account_markers WHERE email_hash = $4), 0))
+     ON CONFLICT (email) DO NOTHING RETURNING id`,
+    [email, firstName, surname, marker]
   );
+  if (inserted.rows.length) await pool.query('DELETE FROM deleted_account_markers WHERE email_hash = $1', [marker]);
   if (!inserted.rows.length) return (await pool.query('SELECT id FROM accounts WHERE email = $1', [email])).rows[0].id;
   await sendSignupAlert({ firstName, surname, email, method: 'Google', ...client });
   return inserted.rows[0].id;
@@ -31,6 +38,10 @@ export async function getAccountLevel(accountId) {
   const level = rows.length ? rows[0].account_level : 'standard_member';
   levelCache.set(String(accountId), { level, at: Date.now() });
   return level;
+}
+
+export function forgetAccountLevel(accountId) {
+  levelCache.delete(String(accountId));
 }
 
 function toProfile(row, bands) {
@@ -162,6 +173,7 @@ export async function listAccountsForAdmin() {
        FROM accounts a
        LEFT JOIN account_passwords p ON p.account_id = a.id
        LEFT JOIN account_two_step t ON t.account_id = a.id
+      WHERE a.deleted_at IS NULL -- ML-430: a deleted account is nobody's any more
       ORDER BY a.created_at`
   );
   const lockedUntil = (...times) => times.filter(t => t && new Date(t) > new Date()).sort().pop() || null;

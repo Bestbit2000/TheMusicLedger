@@ -12,7 +12,7 @@ import { signToken, verifyToken } from '../utils/authToken.js';
 import { hashPassword, verifyPassword, spendPasswordTime, passwordProblem } from './passwords.js';
 import { sendMail, mailIsReal } from './mail.js';
 import { isFeatureLive } from './features.js';
-import { forgetTokenVersion, currentTokenVersion } from './tokenVersions.js';
+import { deletedEmailHash, forgetTokenVersion, currentTokenVersion } from './tokenVersions.js';
 import { twoStepStatus, beginSetup, confirmSetup, verifyLoginCode } from './twoStep.js';
 import { sendSignupAlert } from './signupAlert.js';
 
@@ -240,8 +240,13 @@ export async function acceptInvite(secret, password, ip, device = {}) {
     const isNew = !account;
     if (!account) {
       // A new account gets the invite's name and type; an existing (Google) one keeps its own.
-      await client.query('INSERT INTO accounts (email, first_name, surname, account_level) VALUES ($1, $2, $3, $4)',
-        [link.email, link.first_name || '', link.surname || '', link.account_level || 'standard_member']);
+      // ML-430: an email whose account was deleted takes over the token number the deletion left (as getOrCreateAccount does)
+      const marker = deletedEmailHash(link.email);
+      await client.query(
+        `INSERT INTO accounts (email, first_name, surname, account_level, token_version)
+         VALUES ($1, $2, $3, $4, COALESCE((SELECT token_version FROM deleted_account_markers WHERE email_hash = $5), 0))`,
+        [link.email, link.first_name || '', link.surname || '', link.account_level || 'standard_member', marker]);
+      await client.query('DELETE FROM deleted_account_markers WHERE email_hash = $1', [marker]);
       account = await accountByEmail(client, link.email);
     }
     await setPassword(client, account.id, password);
