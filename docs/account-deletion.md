@@ -50,3 +50,24 @@ stay out. The marker is dropped then, and after 31 days in any case (tokens last
 - Usage → Recent sessions shows its runs under "Deleted account".
 - The stored files are removed after the database change. If that fails the account is still deleted and
   the failure is logged on the server ("Account deletion: N stored file(s) could not be removed").
+
+## Download my information (the same screen)
+
+**Account → My details → Download my information** saves one JSON file of everything the app holds that
+belongs to the account - the member's answer to the UK GDPR rights of access and data portability, without
+having to ask. Owner's decision, 4 Oct 2026.
+
+- Code: [`server/services/accountExport.js`](../server/services/accountExport.js), `GET /api/account/export`.
+- Test: `server/test/accountExport.test.js` (dev database only, like the deletion test).
+- It works the way deletion does: the database is asked which tables have a column pointing at an account,
+  and the member's rows in each are exported. Then the rows that hang off those are followed down (a piece's
+  blocks and recordings, a session's parts) - but **only through tables with no account column of their own**,
+  so nobody else's rows can come along. A new table is included without being listed.
+- **Left out:** `account_passwords`, `account_two_step`, `account_recovery_codes`, and any column whose name
+  says hash, secret or token. `signIn` in the file just says whether a password and two-step are set.
+- **Not followed:** `bands`, `band_members`, `notifications`, `security_review_runs` - the member's own rows
+  are exported, but what hangs off them belongs to other people (a band's other members).
+- Recordings and documents are listed with the address of each file; the files themselves aren't in the JSON.
+
+The file uses the database's own table and column names. That is deliberate: it is complete and it can't
+drift from what is really held.

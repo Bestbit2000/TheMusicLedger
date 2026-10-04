@@ -17,6 +17,7 @@ import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, joinBand, leaveBand, createSharedBand, deleteBandIfSoleMember } from '../services/bands.js';
 import { deleteMyAccount } from '../services/accountDeletion.js';
+import { exportMyAccount } from '../services/accountExport.js';
 import { getAccountProfile, updateAccountProfile, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
 import { listDurationOptions, getDefaultDurationMinutes } from '../services/durationOptions.js';
@@ -830,6 +831,16 @@ router.put('/account/practice-year', requireAuth, resolveAccount, async (req, re
     const { enabled, startMonth, startDay } = req.body;
     await updatePracticeYearSetting(req.accountId, { enabled, startMonth, startDay });
     res.json({ practiceYear: await getPracticeYearSetting(req.accountId) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-430: download my information - everything that belongs to the account, as JSON (server/services/accountExport.js)
+router.get('/account/export', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.json(await exportMyAccount(req.accountId));
   } catch (error) {
     sendError(res, error);
   }

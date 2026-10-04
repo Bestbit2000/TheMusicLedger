@@ -382,6 +382,7 @@
             get: () => apiCall('/api/account'),
             update: (data) => apiCall('/api/account', 'PUT', data),
             deleteMine: () => apiCall('/api/account', 'DELETE', { confirm: 'DELETE' }), // ML-430
+            exportMine: () => apiCall('/api/account/export'), // ML-430
             getBands: () => apiCall('/api/account/bands'),
             getInstruments: () => apiCall('/api/account/instruments'),
             setInstruments: (instrumentIds, primaryId) => apiCall('/api/account/instruments', 'PUT', { instrumentIds, primaryId }),
@@ -1159,6 +1160,29 @@
     document.getElementById('previewStopBtn')?.addEventListener('click', stopPreview);
 
     document.getElementById('loginBtn')?.addEventListener('click', () => auth.login());
+    // ML-430: download my information (Account -> My details) - everything the app holds for this account,
+    // saved as one JSON file (server/services/accountExport.js).
+    document.getElementById('accountExportBtn')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        try {
+            const data = await API.account.exportMine();
+            const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `the-music-ledger-${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+            showSuccessToast('Your information has been saved to a file.');
+        } catch (error) {
+            showWarningToast("Your information couldn't be downloaded: " + error.message);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
     // ML-430: delete my account (Account -> My details). The server does it all at once -
     // server/services/accountDeletion.js; here the word DELETE has to be typed before the button works.
     document.getElementById('accountDeleteBtn')?.addEventListener('click', () => {
