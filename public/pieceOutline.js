@@ -250,7 +250,7 @@
         const range = (a, b) => (a === b ? `bar ${a}` : `bars ${a} to ${b}`);
         if (x.type === 'repeat') return { title: `Repeat ${range(x.from, x.to)}`, sub: `Played ${x.times} times` };
         if (x.type === 'repeatEndings') return { title: `Repeat ${range(x.from, x.to)}, with endings`, sub: `1st ending ${range(x.e1From, x.to)} · 2nd ending ${range(x.to + 1, x.e2To)} · played ${x.times} times` };
-        if (x.type === 'pause') return { title: `${x.kind === 'caesura' ? 'Break' : 'Pause'} in bar ${x.bar}`, sub: `On beat ${x.beat}, held for ${x.holdBeats} beat${Number(x.holdBeats) === 1 ? '' : 's'}${x.kind === 'caesura' ? '' : x.playbackMode === 'silent' ? ' · silent' : ' · with a tone'}` };
+        if (x.type === 'pause') return { title: `${x.kind === 'caesura' ? 'Break' : 'Pause'} in bar ${x.bar}`, sub: `On beat ${x.beat}, held for ${x.holdBeats} beat${Number(x.holdBeats) === 1 ? '' : 's'}` };
         if (x.type === 'ramp') return { title: `Speed up or slow down, ${range(x.from, x.to)}`, sub: x.target === 'next' ? 'To the next speed' : `To ${x.bpm} bpm` };
         if (x.type === 'sign') return { title: `${(SIGNS[x.sign] || {}).label || 'Sign'}`, sub: `${(SIGNS[x.sign] || {}).at === 'start' ? 'At the start of' : 'At the end of'} bar ${x.bar}` };
         if (x.type === 'intro') return { title: `Intro from bar ${x.from}`, sub: x.to != null ? `To the end of bar ${x.to}` : 'To the end of the piece' };

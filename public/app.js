@@ -18974,8 +18974,7 @@
         if (x.type === 'repeatEndings') html = `${head('The repeat, up to the end of the 1st ending')}<div class="outline-three">${num('from', 'from bar')}${num('to', 'to bar')}${num('times', 'times played', 'min="2" max="9"')}</div>
             <div class="outline-pair"><div>${head('1st ending')}${num('e1From', 'starts at bar')}</div><div>${head('2nd ending')}${num('e2To', 'ends at bar')}</div></div>`;
         if (x.type === 'pause') html = `${pills('kind', [['fermata', 'Pause (held)'], ['caesura', 'Break (silent)']], 'What kind')}
-            <div class="outline-three">${num('bar', 'in bar')}${num('beat', 'on beat', 'min="1"')}${num('holdBeats', 'beats held', 'min="1" step="any"')}</div>
-            ${x.kind === 'fermata' ? pills('playbackMode', [['tone', 'With a tone'], ['silent', 'Silent']], 'How it sounds') : ''}`;
+            <div class="outline-three">${num('bar', 'in bar')}${num('beat', 'on beat', 'min="1"')}${num('holdBeats', 'beats held', 'min="1" step="any"')}</div>`; // no "how it sounds": that's each player's own setting (Settings → Metronome & playback), not the piece's
         if (x.type === 'ramp') html = `<div class="outline-three">${num('from', 'from bar')}${num('to', 'to bar')}${num('startBeat', 'starting on beat', 'min="1"')}</div>
             ${pills('target', [['next', 'To the next speed'], ['custom', 'To a speed I type']], 'What speed it reaches')}
             ${x.target === 'custom' ? num('bpm', 'bpm to reach', 'min="20" max="400"') : ''}`;

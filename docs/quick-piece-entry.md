@@ -42,7 +42,8 @@ on one. A count-in is a lead-in block of one bar in bar 1's time and speed. Then
 - **Endings:** the 1st ending starts part-way through the repeat's last block ("from bar N",
   `repeatEndingStartBar`) for passes 1 to times-1; the block(s) after it up to the 2nd ending's last bar are for
   the final pass. If something else already splits the 1st ending's bars, it starts a block of its own.
-- **Pause:** a fermata (tone or silent) or a caesura on its block, at the bar and beat given.
+- **Pause:** a fermata or a caesura on its block, at the bar and beat given. How a held pause sounds (tone, silent,
+  count through) isn't asked: it is each player's own playback setting, and playback ignores the value stored on the pause.
 - **Speed up or slow down:** a ramp on its block, from a bar and beat to the end of a bar, reaching a typed bpm or
   **the next speed** - the same choices as the bar editor (`targetMode` `custom` / `next_block`, `endMode`
   `specific` / `block_end`). "To the next speed" has to end on the block's last bar.
