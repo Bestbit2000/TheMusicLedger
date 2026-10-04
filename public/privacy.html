@@ -11,56 +11,58 @@
 </head>
 <body>
 <!-- ML-430: the privacy policy. A plain page that works signed out (Google's sign-in rules need it
-     reachable from the home page and the consent screen). It describes what the code does - when
-     that changes, change this: what is collected (db/), who is sent what (the third-party register,
-     server/thirdParties/ - `npm run third-party-audit` fails if a service that handles personal
-     data isn't named here), and what deleting an account keeps (docs/account-deletion.md).
+     reachable from the home page and the consent screen). The wording is the owner's (4 Oct 2026) -
+     change it only on their say-so. It describes what the code does - when that changes, this must
+     too: what is collected (db/), who is sent what (the third-party register, server/thirdParties/ -
+     `npm run third-party-audit` fails if a service that handles personal data isn't named here), and
+     what deleting an account keeps (docs/account-deletion.md).
      Uses existing classes only; no styles of its own. -->
 <script src="display-prefs.js"></script>
 <main class="container">
     <a class="btn-text" href="/">Back to The Music Ledger</a>
     <h1>Privacy policy</h1>
-    <p class="text-sm text-muted">Last updated 4 October 2026</p>
+    <p class="text-sm text-muted">Last updated: 4 October 2026</p>
 
     <p>This page says what The Music Ledger knows about you, why, who helps us run it, and how you can see it, change it or delete it. It is written to be read, not to hide anything.</p>
 
     <h2 class="section-title">Who we are</h2>
     <p>The Music Ledger is a music practice app run by Andrew Storey, an individual in the United Kingdom. He is the "data controller" - the person responsible for your information.</p>
-    <p>For anything about your information, email <strong>themusicledgerapp@gmail.com</strong>.</p>
+    <p>For anything about your information, email themusicledgerapp@gmail.com.</p>
 
     <h2 class="section-title">What we hold about you</h2>
-    <p><strong>Your account.</strong> Your first name, surname and email address. If you sign in with Google, Google gives us those three things and nothing else. You can also choose a display name and a picture (your initials or one of our drawings).</p>
-    <p><strong>How you sign in.</strong> If you use an email and password, the password is stored scrambled - we can't read it. If you turn on two-step sign-in, we hold what is needed to check your codes.</p>
-    <p><strong>What you do in the app.</strong> Your practice sessions, the pieces you make, the recordings and documents you add to them, your practice lists and plans, your quiz, drill, scales and range results, the instruments you play, your settings, the bands you join and any teacher you link to.</p>
-    <p><strong>Feedback you send.</strong> Your message, with the screen you were on, the kind of device and the app version.</p>
-    <p><strong>When you first sign up.</strong> The kind of browser and device you used is sent to us once, in an email saying someone has joined.</p>
-    <p><strong>The microphone.</strong> The tuner and the play-along tools listen through your microphone. The sound is worked on inside your device. It is never sent to us and never stored.</p>
-    <p>We do not ask for your address, date of birth, phone number or payment details.</p>
+    <ul>
+        <li><strong>Your account:</strong> Your first name, surname and email address. If you sign in with Google, Google gives us those three things and nothing else. You can also choose a display name and a picture (your initials or one of our drawings).</li>
+        <li><strong>How you sign in:</strong> If you use an email and password, the password is stored scrambled - we can't read it. If you turn on two-step sign-in, we hold what is needed to check your codes.</li>
+        <li><strong>What you do in the app:</strong> Your practice sessions, the pieces you make, the recordings and documents you add to them, your practice lists and plans, your quiz, drill, scales and range results, the instruments you play, your settings, the bands you join and any teacher you link to.</li>
+        <li><strong>Feedback you send:</strong> Your message, with the screen you were on, the kind of device and the app version.</li>
+        <li><strong>When you first sign up:</strong> The kind of browser and device you used is sent to us once, in an email saying someone has joined.</li>
+        <li><strong>The microphone:</strong> The tuner and the play-along tools listen through your microphone. The sound is worked on inside your device. It is never sent to us and never stored.</li>
+        <li>We do not ask for your address, date of birth, phone number or payment details.</li>
+    </ul>
 
     <h2 class="section-title">Why we hold it</h2>
     <ul>
         <li>To run the app for you: to sign you in, keep your practice history and pieces, and show them on your devices.</li>
         <li>To let you share with a band or a teacher, when you choose to.</li>
         <li>To email you an invite or a password reset when one is asked for.</li>
-        <li>To see which parts of the app are used, so we can improve it. This is counted without knowing who you are (see PostHog below).</li>
+        <li>To see which parts of the app are used, so we can improve it. This is counted without knowing who you are (using PostHog).</li>
     </ul>
     <p>The law calls the first three "performing our agreement with you" and the last one a "legitimate interest". We do not sell your information, show adverts, or build a profile of you.</p>
 
     <h2 class="section-title">Who helps us run it</h2>
-    <p>These companies store or carry information for us. They may only use it to provide their service to us.</p>
+    <p>These companies store or carry information for us. They may only use it to provide their service to us:</p>
     <ul>
-        <li><strong>Neon</strong> (part of Databricks, USA) holds the database: your account and everything you do in the app.</li>
-        <li><strong>Vercel</strong> (USA) runs the app and stores the recordings and documents you add to a piece.</li>
-        <li><strong>Google</strong> (USA), only if you choose "sign in with Google": Google confirms who you are and tells us your name and email address.</li>
-        <li><strong>Resend</strong> (USA) sends our emails - invites and password resets. It keeps a copy of each email for 30 days.</li>
-        <li><strong>PostHog</strong> (data kept in the EU) counts which buttons are tapped. It is anonymous: it sets no cookie, stores nothing on your device, and is never told who is signed in.</li>
-        <li><strong>Have I Been Pwned</strong> (Australia) checks a new password against known data breaches. Only the first five characters of a scrambled form of the password are sent - never the password, and nothing about you.</li>
-        <li><strong>jsDelivr</strong> (UK) delivers one small piece of the app's code to your browser. Like any website, it sees your device's internet address when it does.</li>
-        <li><strong>YouTube</strong> (Google), only when you play a YouTube video that has been attached to a piece. It plays in YouTube's privacy-enhanced player. What YouTube does with that is covered by Google's privacy policy.</li>
+        <li><strong>Neon (part of Databricks, USA):</strong> holds the database: your account and everything you do in the app.</li>
+        <li><strong>Vercel (USA):</strong> runs the app and stores the recordings and documents you add to a piece.</li>
+        <li><strong>Google (USA):</strong> only if you choose "sign in with Google": Google confirms who you are and tells us your name and email address.</li>
+        <li><strong>Resend (USA):</strong> sends our emails - invites and password resets. It keeps a copy of each email for 30 days.</li>
+        <li><strong>PostHog (data kept in the EU):</strong> counts which buttons are tapped. It is anonymous: it sets no cookie, stores nothing on your device, and is never told who is signed in.</li>
+        <li><strong>Have I Been Pwned (Australia):</strong> checks a new password against known data breaches. Only the first five characters of a scrambled form of the password are sent - never the password, and nothing about you.</li>
+        <li><strong>jsDelivr (UK):</strong> delivers one small piece of the app's code to your browser. Like any website, it sees your device's internet address when it does.</li>
+        <li><strong>YouTube (Google):</strong> only when you play a YouTube video that has been attached to a piece. It plays in YouTube's privacy-enhanced player. What YouTube does with that is covered by <a class="external-link" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer"><span class="external-link-text">Google's privacy policy</span><span class="material-symbols-outlined external-link-icon" aria-hidden="true">open_in_new</span></a>.</li>
     </ul>
-    <p><a class="external-link" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer"><span class="external-link-text">Google's privacy policy</span><span class="material-symbols-outlined external-link-icon" aria-hidden="true">open_in_new</span></a></p>
     <p>Some of these companies are in the United States. Where your information goes outside the UK, it is protected by the safeguards UK law allows, such as the UK-US data bridge and standard contract terms.</p>
-    <p>Everything the app shows - its fonts and icons included - is otherwise served from our own site.</p>
+    <p>Everything else the app shows - its fonts and icons included - is served from our own site.</p>
 
     <h2 class="section-title">Cookies and your device</h2>
     <p>The Music Ledger sets no cookies. To keep you signed in and remember your choices, it stores a sign-in token and a few settings in your browser's own storage on your device. Signing out removes the sign-in token.</p>
@@ -70,18 +72,17 @@
 
     <h2 class="section-title">How long we keep it</h2>
     <p>We keep your information for as long as you have an account.</p>
-    <p><strong>You can delete your account yourself, at any time:</strong> Account, My details, Delete my account. It happens straight away.</p>
+    <p>You can delete your account yourself, at any time via: Account, My details, Delete my account. It happens straight away.</p>
     <ul>
         <li><strong>Deleted:</strong> your name, email address and picture, your sign-in details, your own pieces with their recordings and documents, your practice lists and plans, your settings, your feedback, and your place in any band.</li>
         <li><strong>Kept, with nothing to say they were yours:</strong> the practice sessions and quiz and drill results you logged, as numbers in the app's statistics. Pieces you added to a band stay with the band.</li>
-        <li>For 31 days we keep a scrambled marker - not your email address - so that devices you were signed in on stay signed out.</li>
+        <li><strong>For 31 days:</strong> we keep a scrambled marker - not your email address - so that devices you were signed in on stay signed out.</li>
         <li>Copies of emails we sent you stay with Resend for up to 30 days, and deleted information can remain in our database provider's short-term backups for up to a day.</li>
     </ul>
 
     <h2 class="section-title">Your rights</h2>
     <p>Under UK data protection law you can ask us for a copy of what we hold about you, ask us to correct it, ask us to delete it, or object to how we use it. Most of it you can see and change in the app; for anything else, email themusicledgerapp@gmail.com and we will answer within one month.</p>
-    <p>If you are unhappy with how we have handled your information, you can complain to the Information Commissioner's Office.</p>
-    <p><a class="external-link" href="https://ico.org.uk/make-a-complaint/" target="_blank" rel="noopener noreferrer"><span class="external-link-text">ico.org.uk/make-a-complaint</span><span class="material-symbols-outlined external-link-icon" aria-hidden="true">open_in_new</span></a></p>
+    <p>If you are unhappy with how we have handled your information, you can complain to the Information Commissioner's Office (<a class="external-link" href="https://ico.org.uk/make-a-complaint" target="_blank" rel="noopener noreferrer"><span class="external-link-text">ico.org.uk/make-a-complaint</span><span class="material-symbols-outlined external-link-icon" aria-hidden="true">open_in_new</span></a>).</p>
 
     <h2 class="section-title">Changes to this policy</h2>
     <p>When this policy changes we will change the date at the top. If the change matters to how your information is used, we will also tell you in the app.</p>
