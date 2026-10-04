@@ -169,7 +169,7 @@
             <div class="admin-feature">
                 <div class="admin-feature-header">
                     <div class="admin-feature-header-text">
-                        <h2>${escapeHtml(f.name)}${f.enabled ? '' : ' (disabled)'}</h2>
+                        <h2>${escapeHtml(f.name)}${f.enabled ? '' : ' (not live)'}</h2>
                         <p>${escapeHtml(f.description || '')}</p>
                         <p class="admin-test-case-meta">${escapeHtml(f.featureKey)}</p>
                     </div>
@@ -200,7 +200,10 @@
         document.getElementById('featureKeyInput').value = feature ? feature.featureKey : '';
         document.getElementById('featureNameInput').value = feature ? feature.name : '';
         document.getElementById('featureDescInput').value = feature ? (feature.description || '') : '';
-        document.getElementById('featureEnabledInput').checked = feature ? feature.enabled : true;
+        // ML-414: Live is set on Feature access - here it's only said
+        document.getElementById('featureLiveNote').textContent = feature
+            ? `${feature.enabled ? 'Live' : 'Not live'} - change that, and who can use it, on Feature access.`
+            : 'A new feature starts Live and Super admin only - switch it on for account types on Feature access.';
         showModal('featureFormModal');
         document.getElementById('featureKeyInput').focus();
     }
@@ -214,7 +217,7 @@
         const featureKey = document.getElementById('featureKeyInput').value.trim();
         const name = document.getElementById('featureNameInput').value.trim();
         const description = document.getElementById('featureDescInput').value.trim();
-        const enabled = document.getElementById('featureEnabledInput').checked;
+        const enabled = editingFeatureId ? !!(featuresById.get(editingFeatureId) || {}).enabled : true; // ML-414: Live is Feature access's switch
 
         if (!featureKey || !name) {
             showToast('Feature key and name are both required.');
@@ -414,90 +417,186 @@
         'sign-out': (a) => ['Sign out everywhere', `Sign ${accountDisplayName(a)} out on every device? They'll need to log in again.`]
     };
 
-    function renderAccountsList(accounts) {
-        const el = document.getElementById('accountsList');
-        if (!accounts.length) { el.innerHTML = '<p>No accounts yet.</p>'; return; }
-        el.innerHTML = accounts.map(a => `
-            <div class="admin-feature">
-                <div class="admin-feature-header">
-                    <div class="admin-feature-header-text">
-                        <h2>${escapeHtml(accountDisplayName(a))}</h2>
-                        <p>${escapeHtml(a.email)}</p>
-                        <p class="admin-test-case-meta">Joined ${fmtDate(a.createdAt)}</p>
-                        <p class="admin-test-case-meta">${accountLoginLine(a)}</p>
-                    </div>
-                    <select class="admin-level-select" data-account-id="${a.id}" aria-label="Account type for ${escapeHtml(accountDisplayName(a))}">
-                        ${ACCOUNT_LEVELS.map(([value, label]) => `<option value="${value}" ${a.accountLevel === value ? 'selected' : ''}>${label}</option>`).join('')}
-                    </select>
-                    <div class="flex-row gap-sm flex-wrap">
-                        ${passwordLoginOn ? `<button type="button" class="btn-nav btn-inline-sm" data-account-action="send-reset" data-account-id="${a.id}">${a.hasPassword ? 'Send a reset link' : 'Send a link to add a password'}</button>` : ''}
-                        ${a.lockedUntil ? `<button type="button" class="btn-nav btn-inline-sm" data-account-action="unlock" data-account-id="${a.id}">Unlock</button>` : ''}
-                        ${a.twoStepOn ? `<button type="button" class="btn-nav btn-inline-sm" data-account-action="two-step/off" data-account-id="${a.id}">Turn off two-step</button>` : ''}
-                        <button type="button" class="btn-nav btn-inline-sm" data-account-action="sign-out" data-account-id="${a.id}">Sign out everywhere</button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-        el.querySelectorAll('[data-account-action]').forEach(btn => btn.addEventListener('click', () => {
-            const a = accounts.find(x => String(x.id) === btn.dataset.accountId);
-            const [title, text] = ACCOUNT_ACTIONS[btn.dataset.accountAction](a);
-            showConfirmModal(title, text, async () => {
-                try {
-                    const { message } = await apiCall(`/api/admin/accounts/${a.id}/${btn.dataset.accountAction}`, 'POST', {});
-                    showToast(message, 'success');
-                    await reloadAccounts();
-                } catch (error) {
-                    showToast(error.message);
-                }
-            }, false);
-        }));
-        el.querySelectorAll('.admin-level-select').forEach((sel) => {
-            sel.addEventListener('change', async () => {
-                try {
-                    await apiCall(`/api/admin/accounts/${sel.dataset.accountId}/level`, 'PUT', { accountLevel: sel.value });
-                    showToast('Account type updated.', 'success');
-                } catch (error) {
-                    showToast(error.message);
-                    await reloadAccounts();
-                }
-            });
-        });
+    // ===== ML-415 / ML-416: one floating ⋮ menu for a table row =====
+    // items: [{ label, icon, href? (opens in a new tab), danger?, run? }]. One menu element, placed by the
+    // button that opened it; a click anywhere else or Escape closes it.
+    let rowMenuItems = [];
+    let rowMenuBtn = null;
+    function closeRowMenu() {
+        document.getElementById('adminRowMenu')?.classList.remove('show');
+        if (rowMenuBtn) rowMenuBtn.setAttribute('aria-expanded', 'false');
+        rowMenuBtn = null;
     }
+    function openRowMenu(btn, items) {
+        const menu = document.getElementById('adminRowMenu');
+        closeRowMenu();
+        rowMenuItems = items;
+        rowMenuBtn = btn;
+        menu.innerHTML = items.map((it, i) => {
+            const inner = `<span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">${it.icon}</span><span class="dropdown-item-text">${escapeHtml(it.label)}</span>`;
+            return it.href
+                ? `<a class="dropdown-item" role="menuitem" href="${escapeHtml(it.href)}" target="_blank" rel="noopener">${inner}</a>`
+                : `<button type="button" class="dropdown-item${it.danger ? ' account-band-menu-delete' : ''}" role="menuitem" data-row-menu="${i}">${inner}</button>`;
+        }).join('');
+        menu.classList.add('show');
+        btn.setAttribute('aria-expanded', 'true');
+        const r = btn.getBoundingClientRect();
+        const left = Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8));
+        const top = Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8);
+        menu.style.setProperty('--place-x', `${left}px`);
+        menu.style.setProperty('--place-y', `${top}px`);
+        menu.classList.add('is-placed');
+        menu.querySelector('.dropdown-item')?.focus({ preventScroll: true });
+    }
+    document.getElementById('adminRowMenu')?.addEventListener('click', (e) => {
+        const item = e.target.closest('[data-row-menu]');
+        const btn = rowMenuBtn;
+        const chosen = item ? rowMenuItems[Number(item.dataset.rowMenu)] : null;
+        closeRowMenu();
+        if (chosen && chosen.run) chosen.run(btn);
+    });
+    document.addEventListener('click', (e) => { if (!e.target.closest('[data-row-menu-btn]') && !e.target.closest('#adminRowMenu')) closeRowMenu(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && rowMenuBtn) { const b = rowMenuBtn; closeRowMenu(); b.focus(); } });
+    window.addEventListener('scroll', closeRowMenu); // the page moved under it
+    // ML-414: the Features page points at Feature access for who can use what
+    document.getElementById('featuresToAccessLink')?.addEventListener('click', (e) => { e.preventDefault(); document.querySelector('.admin-nav-item[data-section="feature-access"]')?.click(); });
+    const rowMenuBtnHtml = (attr, id, label) => `<button type="button" class="list-item-menu-btn" data-row-menu-btn ${attr}="${id}" aria-label="Options for ${escapeHtml(label)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined" aria-hidden="true">more_vert</span></button>`;
+
+    // ML-415: one line per account - and per invite that hasn't been accepted - with a search, a filter
+    // (All / each account type that has someone / how they sign in / invites) and a ⋮ menu for the changes.
+    let allAccounts = [];
+    let allInvites = [];
+    let accountsFilter = 'all';
+    let accountsQuery = '';
+    const accountLevelLabel = (level) => (ACCOUNT_LEVELS.find(([v]) => v === level) || [0, level || ''])[1];
+    const inviteName = (i) => [i.firstName, i.surname].filter(Boolean).join(' ') || i.email;
+    function accountSignIn(a) {
+        const parts = [a.hasPassword ? 'Google or password' : 'Google'];
+        if (a.hasPassword && a.twoStepOn) parts.push('two-step');
+        return escapeHtml(parts.join(' · ')) + (a.lockedUntil ? ` <span class="admin-feedback-badge cat" title="Too many wrong tries - locked until ${escapeHtml(fmtDate(a.lockedUntil))}">Locked</span>` : '');
+    }
+    function accountsShown() {
+        const q = accountsQuery;
+        const hit = (name, email) => !q || name.toLowerCase().includes(q) || String(email || '').toLowerCase().includes(q);
+        const f = accountsFilter;
+        const accounts = f === 'invited' ? [] : allAccounts.filter(a => hit(accountDisplayName(a), a.email)
+            && (f === 'all' || (f === 'auth:google' ? !a.hasPassword : f === 'auth:password' ? !!a.hasPassword : a.accountLevel === f)));
+        const invites = f === 'all' || f === 'invited' ? allInvites.filter(i => hit(inviteName(i), i.email)) : [];
+        return { accounts, invites };
+    }
+    function renderAccountsFilter() {
+        const count = (fn) => allAccounts.filter(fn).length;
+        const pills = [['all', 'All', allAccounts.length + allInvites.length],
+            ...ACCOUNT_LEVELS.map(([v, label]) => [v, label, count(a => a.accountLevel === v)]).filter(p => p[2] > 0),
+            ['auth:google', 'Google only', count(a => !a.hasPassword)],
+            ['auth:password', 'Email + password', count(a => !!a.hasPassword)],
+            ['invited', 'Invites not accepted', allInvites.length]];
+        if (!pills.some(p => p[0] === accountsFilter)) accountsFilter = 'all';
+        const box = document.getElementById('accountsFilterPills');
+        box.innerHTML = pills.map(([key, label, n]) => `<button type="button" class="filter-pill${accountsFilter === key ? ' active' : ''}" data-accounts-filter="${key}" aria-pressed="${accountsFilter === key}">${escapeHtml(label)} <span class="filter-pill-count">${n}</span></button>`).join('');
+        box.querySelectorAll('[data-accounts-filter]').forEach(b => b.addEventListener('click', () => { accountsFilter = b.dataset.accountsFilter; renderAccountsList(); }));
+    }
+    function renderAccountsList() {
+        renderAccountsFilter();
+        const el = document.getElementById('accountsList');
+        if (!allAccounts.length && !allInvites.length) { el.innerHTML = '<p>No accounts yet.</p>'; return; }
+        const { accounts, invites } = accountsShown();
+        if (!accounts.length && !invites.length) { el.innerHTML = '<p>No accounts match.</p>'; return; }
+        el.innerHTML = `
+            <div class="admin-stat-table-wrap">
+                <table class="admin-stat-table admin-accounts-table">
+                    <thead><tr><th>Name</th><th>Email</th><th>Account type</th><th>Signs in with</th><th>Joined</th><th><span class="visually-hidden">Options</span></th></tr></thead>
+                    <tbody>${invites.map(i => `
+                        <tr data-invite-row="${i.id}">
+                            <td><strong>${escapeHtml(inviteName(i))}</strong></td>
+                            <td>${escapeHtml(i.email)}</td>
+                            <td>${escapeHtml(accountLevelLabel(i.accountLevel))}</td>
+                            <td><span class="admin-feedback-badge cat">Invited</span> not accepted yet</td>
+                            <td title="The link works until ${escapeHtml(fmtDate(i.expiresAt))}">sent ${escapeHtml(new Date(i.createdAt).toLocaleDateString())}</td>
+                            <td>${rowMenuBtnHtml('data-invite-menu', i.id, 'the invite to ' + i.email)}</td>
+                        </tr>`).join('')}${accounts.map(a => `
+                        <tr data-account-row="${a.id}">
+                            <td>${accountDisplayName(a) === a.email ? '<span class="text-muted">No name yet</span>' : `<strong>${escapeHtml(accountDisplayName(a))}</strong>`}</td>
+                            <td>${escapeHtml(a.email)}</td>
+                            <td>${escapeHtml(accountLevelLabel(a.accountLevel))}</td>
+                            <td>${accountSignIn(a)}</td>
+                            <td>${escapeHtml(new Date(a.createdAt).toLocaleDateString())}</td>
+                            <td>${rowMenuBtnHtml('data-account-menu', a.id, accountDisplayName(a))}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+        el.querySelectorAll('[data-account-menu]').forEach(btn => btn.addEventListener('click', () => {
+            const a = allAccounts.find(x => String(x.id) === btn.dataset.accountMenu);
+            if (!a) return;
+            const act = (key, icon) => ({ label: ACCOUNT_ACTIONS[key](a)[0], icon, run: () => accountAction(a, key) });
+            openRowMenu(btn, [
+                { label: 'Change account type', icon: 'badge', run: () => openAccountType(a) },
+                ...(passwordLoginOn ? [act('send-reset', 'link')] : []),
+                ...(a.lockedUntil ? [act('unlock', 'lock_open')] : []),
+                ...(a.twoStepOn ? [act('two-step/off', 'phonelink_erase')] : []),
+                act('sign-out', 'logout')
+            ]);
+        }));
+        el.querySelectorAll('[data-invite-menu]').forEach(btn => btn.addEventListener('click', () => {
+            openRowMenu(btn, [{ label: 'Cancel invite', icon: 'delete', danger: true, run: () => cancelInvite(btn.dataset.inviteMenu) }]);
+        }));
+    }
+    function accountAction(a, key) {
+        const [title, text] = ACCOUNT_ACTIONS[key](a);
+        showConfirmModal(title, text, async () => {
+            try {
+                const { message } = await apiCall(`/api/admin/accounts/${a.id}/${key}`, 'POST', {});
+                showToast(message, 'success');
+                await reloadAccounts();
+            } catch (error) {
+                showToast(error.message);
+            }
+        }, false);
+    }
+    // Change account type: one pop-up, the current type selected; it saves as soon as one is picked
+    function openAccountType(a) {
+        document.getElementById('accountTypeWho').textContent = accountDisplayName(a) === a.email ? a.email : `${accountDisplayName(a)} - ${a.email}`;
+        const box = document.getElementById('accountTypeOptions');
+        box.innerHTML = ACCOUNT_LEVELS.map(([value, label]) => `<button type="button" class="flow-choice-option${a.accountLevel === value ? ' selected' : ''}" aria-pressed="${a.accountLevel === value}" data-account-type="${value}">${escapeHtml(label)}</button>`).join('');
+        box.querySelectorAll('[data-account-type]').forEach(b => b.addEventListener('click', async () => {
+            hideModal('accountTypeModal');
+            if (b.dataset.accountType === a.accountLevel) return;
+            try {
+                await apiCall(`/api/admin/accounts/${a.id}/level`, 'PUT', { accountLevel: b.dataset.accountType });
+                showToast('Account type updated.', 'success');
+            } catch (error) {
+                showToast(error.message);
+            }
+            await reloadAccounts();
+        }));
+        showModal('accountTypeModal');
+    }
+    function cancelInvite(id) {
+        showConfirmModal('Cancel invite', 'Cancel this invite? The link in their email stops working.', async () => {
+            try { await apiCall(`/api/admin/invites/${id}`, 'DELETE'); await reloadAccounts(); showToast('Invite cancelled.', 'success'); }
+            catch (error) { showToast(error.message); }
+        }, true);
+    }
+    document.getElementById('accountsSearch')?.addEventListener('input', (e) => { accountsQuery = e.target.value.trim().toLowerCase(); renderAccountsList(); });
 
     async function reloadAccounts() {
-        await reloadInvites(); // first: it says whether password login is on (the reset link button)
+        await reloadInvites(); // first: it says whether password login is on (the reset link item)
         const { accounts } = await apiCall('/api/admin/accounts');
-        renderAccountsList(accounts);
+        allAccounts = accounts;
+        renderAccountsList();
     }
 
     // ML-355: invites to log in with an email and a password. Not super admin - a super admin needs
-    // two-step sign-in, which comes in the next batch.
+    // two-step sign-in. ML-415: they're lines in the accounts table ("Invited - not accepted yet").
     async function reloadInvites() {
         let data;
-        try { data = await apiCall('/api/admin/invites'); } catch (e) { return; } // before migration 074
+        try { data = await apiCall('/api/admin/invites'); } catch (e) { allInvites = []; return; } // before migration 074
         passwordLoginOn = !!data.enabled;
         setShown('invitesOffNote', !data.enabled);
         document.getElementById('inviteBtn').disabled = !data.enabled;
-        const el = document.getElementById('invitesList');
-        el.innerHTML = data.invites.length ? `<h2>Invites not accepted yet</h2>` + data.invites.map(i => `
-            <div class="admin-feature">
-                <div class="admin-feature-header">
-                    <div class="admin-feature-header-text">
-                        <h2>${escapeHtml([i.firstName, i.surname].filter(Boolean).join(' ') || i.email)}</h2>
-                        <p>${escapeHtml(i.email)}</p>
-                        <p class="admin-test-case-meta">${escapeHtml((ACCOUNT_LEVELS.find(([v]) => v === i.accountLevel) || [0, ''])[1])} &middot; sent ${fmtDate(i.createdAt)} &middot; works until ${fmtDate(i.expiresAt)}</p>
-                    </div>
-                    <div class="admin-feature-actions">
-                        <button class="btn-icon-delete" data-cancel-invite="${i.id}" aria-label="Cancel the invite to ${escapeHtml(i.email)}" type="button"><span class="material-symbols-outlined">delete</span></button>
-                    </div>
-                </div>
-            </div>`).join('') : '';
-        el.querySelectorAll('[data-cancel-invite]').forEach(btn => btn.addEventListener('click', () => {
-            showConfirmModal('Cancel invite', 'Cancel this invite? The link in their email stops working.', async () => {
-                try { await apiCall(`/api/admin/invites/${btn.dataset.cancelInvite}`, 'DELETE'); await reloadInvites(); showToast('Invite cancelled.', 'success'); }
-                catch (error) { showToast(error.message); }
-            }, true);
-        }));
+        allInvites = data.invites || [];
+        if (allAccounts.length) renderAccountsList();
     }
     function openInviteForm() {
         ['inviteEmailInput', 'inviteFirstNameInput', 'inviteSurnameInput'].forEach(id => { document.getElementById(id).value = ''; });
@@ -1563,7 +1662,7 @@
                 <table class="admin-stat-table admin-flows-table">
                     <thead><tr>
                         <th><input type="checkbox" id="flowsSelectAll" aria-label="Select all shown" ${allSelected ? 'checked' : ''}></th>
-                        <th>Title</th><th>Owner</th><th>Blocks</th><th>Bars</th><th>Media</th><th>Created</th><th></th>
+                        <th>Title</th><th>Owner</th><th>Blocks</th><th>Bars</th><th>Media</th><th>Created</th><th><span class="visually-hidden">Options</span></th>
                     </tr></thead>
                     <tbody>${flows.map(f => `
                         <tr>
@@ -1574,12 +1673,7 @@
                             <td>${f.totalBars}</td>
                             <td>${escapeHtml(flowMediaText(f))}</td>
                             <td>${escapeHtml(new Date(f.createdAt).toLocaleDateString())}</td>
-                            <td><div class="admin-feature-actions">
-                                <a class="btn-edit" href="/?flow=${f.id}&flowMode=play" target="_blank" rel="noopener">View</a>
-                                <a class="btn-edit" href="/?flow=${f.id}&flowMode=edit" target="_blank" rel="noopener">Edit</a>
-                                ${f.ownership === 'band' ? '' : `<button class="btn-edit" type="button" data-flow-publish="${f.id}">${f.ownership === 'public' ? 'Unpublish' : 'Publish'}</button>`}
-                                <button class="btn-edit" type="button" data-flow-export="${f.id}">Export</button>
-                            </div></td>
+                            <td>${rowMenuBtnHtml('data-flow-menu', f.id, f.title)}</td>
                         </tr>`).join('')}
                     </tbody>
                 </table>
@@ -1598,30 +1692,35 @@
             renderFlows();
             updateFlowsExportButton();
         });
-        el.querySelectorAll('[data-flow-export]').forEach(btn => {
-            btn.addEventListener('click', () => exportFlowFiles([Number(btn.dataset.flowExport)], btn));
-        });
-        // ML-310: publishing puts it in everyone's library and Rehearse (view, play, copy); either way
-        // the piece becomes yours (flows.js publishFlow / unpublishFlow).
-        el.querySelectorAll('[data-flow-publish]').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const flow = allFlows.find(f => f.id === Number(btn.dataset.flowPublish));
-                if (!flow) return;
-                const makePublic = flow.ownership !== 'public';
-                const msg = makePublic
-                    ? `Publish "${flow.title}"? Everyone will see it in their library and Rehearse, and can copy it. It becomes yours.`
-                    : `Unpublish "${flow.title}"? It leaves everyone's library and becomes your own private piece.`;
-                showConfirmModal(makePublic ? 'Publish' : 'Unpublish', msg, async () => {
-                    try {
-                        await apiCall('/api/flows/' + flow.id + (makePublic ? '/publish' : '/unpublish'), 'PUT');
-                        showToast(makePublic ? 'Published' : 'Unpublished', 'success');
-                        await reloadFlows();
-                    } catch (error) {
-                        showToast('Error: ' + error.message);
-                    }
-                }, false);
-            });
-        });
+        // ML-416: View / Edit (a new tab), Publish or Unpublish (not a band's piece) and Export live in each
+        // row's ⋮ menu - four buttons a row didn't fit the width.
+        el.querySelectorAll('[data-flow-menu]').forEach(btn => btn.addEventListener('click', () => {
+            const flow = allFlows.find(f => f.id === Number(btn.dataset.flowMenu));
+            if (!flow) return;
+            openRowMenu(btn, [
+                { label: 'View', icon: 'play_arrow', href: `/?flow=${flow.id}&flowMode=play` },
+                { label: 'Edit', icon: 'edit', href: `/?flow=${flow.id}&flowMode=edit` },
+                ...(flow.ownership === 'band' ? [] : [{ label: flow.ownership === 'public' ? 'Unpublish' : 'Publish', icon: flow.ownership === 'public' ? 'public_off' : 'public', run: () => flowPublishToggle(flow) }]),
+                { label: 'Export', icon: 'download', run: (b) => exportFlowFiles([flow.id], b) }
+            ]);
+        }));
+    }
+    // ML-310: publishing puts it in everyone's library and Rehearse (view, play, copy); either way
+    // the piece becomes yours (flows.js publishFlow / unpublishFlow).
+    function flowPublishToggle(flow) {
+        const makePublic = flow.ownership !== 'public';
+        const msg = makePublic
+            ? `Publish "${flow.title}"? Everyone will see it in their library and Rehearse, and can copy it. It becomes yours.`
+            : `Unpublish "${flow.title}"? It leaves everyone's library and becomes your own private piece.`;
+        showConfirmModal(makePublic ? 'Publish' : 'Unpublish', msg, async () => {
+            try {
+                await apiCall('/api/flows/' + flow.id + (makePublic ? '/publish' : '/unpublish'), 'PUT');
+                showToast(makePublic ? 'Published' : 'Unpublished', 'success');
+                await reloadFlows();
+            } catch (error) {
+                showToast('Error: ' + error.message);
+            }
+        }, false);
     }
 
     async function reloadFlows() {

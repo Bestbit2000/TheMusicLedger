@@ -64,7 +64,7 @@
     <main class="admin-content">
         <section id="features-section" class="admin-section">
             <h1>Features</h1>
-            <p class="admin-intro">Catalog of what the app actually does today (<code>features</code> table) - the basis for feature gating and per-user/plan billing later (context only, not built yet).</p>
+            <p class="admin-intro">The catalogue of what the app does: each feature's name, description and key (<code>features</code> table). Add, rename or delete one here. <strong>Who can use a feature - and whether it's Live at all - is set on <a href="#" id="featuresToAccessLink">Feature access</a></strong>, not here.</p>
             <button class="btn-submit no-margin admin-add-btn" id="addFeatureBtn" type="button">+ Add feature</button>
             <div id="featuresCatalog" class="admin-feature-list">Loading&hellip;</div>
         </section>
@@ -106,9 +106,17 @@
             <p class="admin-intro">Every account and its account type (ML-77). Only Super admins can change it.</p>
             <!-- ML-355: invite someone to log in with their email and a password (password_login must be Live). -->
             <p class="admin-intro hidden-group" id="invitesOffNote">Email + password login is off - switch <strong>Email and password login</strong> on in Feature access to invite people.</p>
-            <button class="btn-submit no-margin admin-add-btn" id="inviteBtn" type="button">+ Invite by email</button>
-            <div id="invitesList" class="admin-feature-list"></div>
-            <div id="accountsList" class="admin-feature-list">Loading&hellip;</div>
+            <!-- ML-415: one line per account (and per invite not accepted yet), a search, a filter by account
+                 type / how they sign in / invites, and a ⋮ menu on each line for the changes. -->
+            <div class="admin-flows-toolbar">
+                <input type="search" id="accountsSearch" class="admin-flows-filter" placeholder="Search by name or email" aria-label="Search accounts by name or email">
+                <button class="btn-submit no-margin" id="inviteBtn" type="button">+ Invite by email</button>
+            </div>
+            <div class="filter-strip" id="accountsFilterStrip">
+                <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
+                <div class="filter-strip-pills" id="accountsFilterPills" role="group" aria-label="Show accounts"></div>
+            </div>
+            <div id="accountsList">Loading&hellip;</div>
         </section>
         <section id="bands-section" class="admin-section hidden-group">
             <h1>Bands</h1>
@@ -514,6 +522,17 @@
     </div>
 </div>
 
+<!-- ML-415 / ML-416: one floating ⋮ menu shared by every table row in the admin panel (openRowMenu, admin.js) -->
+<div class="dropdown-menu account-band-menu" id="adminRowMenu" role="menu"></div>
+<!-- ML-415: Change account type - one pop-up, the current type selected -->
+<div class="modal" id="accountTypeModal" role="dialog" aria-modal="true" aria-labelledby="accountTypeTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="accountTypeTitle">Account type</h2>
+        <p class="admin-intro" id="accountTypeWho"></p>
+        <div id="accountTypeOptions"></div>
+    </div>
+</div>
 <div class="modal" id="featureFormModal" role="dialog" aria-modal="true" aria-labelledby="featureFormTitle">
     <div class="modal-content">
         <h2 id="featureFormTitle">Add feature</h2>
@@ -526,10 +545,9 @@
              space-between - same convention as Settings' own Dark mode/Show flats toggles
              (index.html), not the switch-then-label order the duration/time signature/speed forms
              above use. -->
-        <div class="flex-row justify-between items-center gap-md mb-5">
-            <span id="featureEnabledInputLabel">Enabled (live for every user - only code that actually checks this feature's key is gated by it)</span>
-            <label class="toggle-switch"><input type="checkbox" id="featureEnabledInput" checked aria-labelledby="featureEnabledInputLabel"><span class="toggle-slider"></span></label>
-        </div>
+        <!-- ML-414: no on/off switch here any more - it was the same switch as Live on Feature access.
+             A new feature starts Live, and Super admin only until it's switched on for an account type. -->
+        <p class="admin-intro" id="featureLiveNote"></p>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="featureFormCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="featureFormSaveBtn" type="button">Save</button>

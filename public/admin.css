@@ -152,6 +152,13 @@ body.admin-body { display: block; background: var(--bg-color); }
 /* Feature access's grid (7 columns) uses the whole width beside the menu, not the usual 900px reading width;
    its intro stays at that width so the lines don't run too long. Still scrolls sideways when the window is narrower. */
 .admin-content:has(> #feature-access-section:not(.hidden-group)) { max-width: none; }
+/* ML-415 / ML-416: the Accounts and Flows tables use the window's width too */
+.admin-content:has(> #accounts-section:not(.hidden-group)), .admin-content:has(> #flows-section:not(.hidden-group)) { max-width: none; }
+#accounts-section .admin-intro, #flows-section .admin-intro { max-width: 900px; }
+/* ML-415: one line per account - text columns read from the left, the ⋮ sits at the right */
+.admin-stat-table.admin-accounts-table th, .admin-stat-table.admin-accounts-table td { text-align: left; vertical-align: middle; }
+.admin-stat-table.admin-accounts-table td:last-child, .admin-flows-table td:last-child { text-align: right; width: 1%; }
+.admin-flows-table td:last-child { vertical-align: middle; }
 #feature-access-section .admin-intro { max-width: 900px; }
 .admin-stat-table { border-collapse: collapse; width: 100%; font-size: var(--font-sm); }
 .admin-stat-table th, .admin-stat-table td { padding: var(--space-2) var(--space-3); text-align: right; border-bottom: 1px solid var(--input-border); white-space: nowrap; }
@@ -214,7 +221,6 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-flows-table td:nth-child(2), .admin-flows-table th:nth-child(2), .admin-flows-table td:nth-child(3), .admin-flows-table th:nth-child(3) { text-align: left; white-space: normal; min-width: 110px; }
 .admin-flows-table td:nth-child(6), .admin-flows-table td:nth-child(7) { white-space: normal; }
 .admin-flows-table th, .admin-flows-table td { padding-left: var(--space-2); padding-right: var(--space-2); }
-.admin-flows-table .btn-edit { min-height: 36px; padding: var(--space-1) var(--space-3); }
 .admin-flows-import-modal { max-width: 640px; }
 #flowsImportList { max-height: 50vh; overflow-y: auto; margin: var(--space-4) 0; }
 .admin-flows-import-item { border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); }
