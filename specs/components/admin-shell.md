@@ -45,8 +45,10 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
   invite's ⋮: Cancel invite.
 - **Flows:** the ⋮ holds View, Edit, Publish / Unpublish (not a band's piece) and Export - they were four
   buttons a row.
-- **Features (ML-414):** the catalogue only - name, description, key. Its Enabled switch went: it was the same
-  switch as **Live** on Feature access, which the page now points to.
+- **Features (ML-414):** there is no Features page any more - the catalogue is folded into
+  [Feature access](admin-feature-access.md): "+ Add feature" in its toolbar, and each feature's ⋮ has Edit (name,
+  description, key) and Delete. The form has no Enabled switch - that was the same switch as **Live** in the grid.
+  Feature access is the page the panel opens on.
 
 ## 6. States
 Nav item: default / active (`--secondary-color` + gold left border) / disabled. Phone menu: closed (only the head row) / open (`.admin-sidebar.expanded`). Table row: hover (`--input-bg`) / excluded (`.admin-stat-row-excluded`, `--opacity-muted`).

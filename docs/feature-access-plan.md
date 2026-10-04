@@ -4,7 +4,7 @@ Status: **built on dev** (2026-09-29): migration `071_feature_access.sql`, `serv
 `resolveAccount` (server/middleware/auth.js), `renderFeatureGates` (app.js), Admin → Feature access
 (admin.js, spec `specs/components/admin-feature-access.md`). Read this before adding a feature gate.
 
-**Adding a feature gate:** add the feature on Admin → Features (or in a migration), check it with
+**Adding a feature gate:** add the feature with "+ Add feature" on Admin → Feature access (ML-414: the old Features page is folded into it - each feature's ⋮ has Edit and Delete) or in a migration, check it with
 `isFeatureEnabled('key')` on the server and in `renderFeatureGates` in the app, then switch it on for
 the account types that should have it on Admin → Feature access. Until then only super admins have it.
 

@@ -39,6 +39,10 @@ people. The rules are in [docs/feature-access-plan.md](../../docs/feature-access
 - Copy from… and Same as Premium only fill in the waiting changes - nothing is saved until Save.
 - Preview opens the app in a new tab as that type (`/?preview=<type>`, kept for the tab). The app shows a `.level-notice` banner with Stop previewing, and the server honours the preview for super admins only.
 
+**The catalogue (ML-414).** The old Features page is folded in: **+ Add feature** (`.btn-submit.btn-inline-sm`) in the
+toolbar, and a ⋮ (`.list-item-menu-btn`, the shared `#adminRowMenu`) beside every feature's name (in the grid it's inside the pinned feature cell, so it stays to hand when the grid scrolls sideways; in the one-type view at the end of its row) - with **Edit** (name, description, key) and **Delete**. Both reload the grid, so they ask
+you to save or discard unsaved ticks first.
+
 ## 6. States
 Cell: on / off / changed (`.is-changed`) / locked (Super admin, disabled). Live: on / off (off = the row is off for everyone; one-type rows say so). Save bar: hidden / shown with a count / saving (Save disabled).
 

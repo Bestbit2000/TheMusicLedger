@@ -38,9 +38,8 @@
         </div>
         <div class="admin-nav-items" id="adminNavItems">
         <a class="admin-nav-item admin-back-link" href="/">&larr; Back to app</a>
-        <button class="admin-nav-item active" data-section="features" type="button">Features</button>
         <!-- ML-345: who gets each feature, by account type -->
-        <button class="admin-nav-item" data-section="feature-access" type="button">Feature access</button>
+        <button class="admin-nav-item active" data-section="feature-access" type="button">Feature access</button>
         <button class="admin-nav-item" data-section="release-tests" type="button">Release tests</button>
         <button class="admin-nav-item" data-section="accounts" type="button">Accounts</button>
         <button class="admin-nav-item" data-section="bands" type="button">Bands</button>
@@ -62,24 +61,21 @@
         </div>
     </nav>
     <main class="admin-content">
-        <section id="features-section" class="admin-section">
-            <h1>Features</h1>
-            <p class="admin-intro">The catalogue of what the app does: each feature's name, description and key (<code>features</code> table). Add, rename or delete one here. <strong>Who can use a feature - and whether it's Live at all - is set on <a href="#" id="featuresToAccessLink">Feature access</a></strong>, not here.</p>
-            <button class="btn-submit no-margin admin-add-btn" id="addFeatureBtn" type="button">+ Add feature</button>
-            <div id="featuresCatalog" class="admin-feature-list">Loading&hellip;</div>
-        </section>
         <!-- ML-345: features by account type (feature_access). The grid (All account types) or one type
              at a time (a tab each - the phone view). Changes wait in the Save bar and save together.
-             See docs/feature-access-plan.md and specs/components/admin-feature-access.md. -->
-        <section id="feature-access-section" class="admin-section hidden-group">
+             See docs/feature-access-plan.md and specs/components/admin-feature-access.md.
+             ML-414: this is also the catalogue - the old Features page is folded in: "+ Add feature" here,
+             and each feature's ⋮ has Edit (name, description, key) and Delete. -->
+        <section id="feature-access-section" class="admin-section">
             <h1>Feature access</h1>
-            <p class="admin-intro">What each account type can use. Off means hidden in the app and refused by the server. <strong>Live</strong> is the master switch: off turns a feature off for everyone, whatever the account type. Super admins always have everything. A new feature is Super admin only until you switch it on here. Add, rename or describe features on the Features page.</p>
+            <p class="admin-intro">What each account type can use. Off means hidden in the app and refused by the server. <strong>Live</strong> is the master switch: off turns a feature off for everyone, whatever the account type. Super admins always have everything. A new feature is Super admin only until you switch it on here. Each feature's ⋮ renames or deletes it.</p>
             <div class="admin-subtabs" id="accessTabs" role="tablist" aria-label="Account type"></div>
             <div class="admin-access-toolbar">
                 <span id="accessSummary"></span>
                 <select id="accessCopyFrom" class="hidden-group" aria-label="Copy every setting from another account type"></select>
                 <select id="accessPreviewSelect" aria-label="Preview the app as an account type"></select>
                 <button type="button" class="btn-nav btn-inline-sm no-margin" id="accessPreviewBtn">Preview</button>
+                <button type="button" class="btn-submit btn-inline-sm no-margin" id="addFeatureBtn">+ Add feature</button>
             </div>
             <div id="accessBody">Loading&hellip;</div>
             <div class="admin-access-savebar hidden-group" id="accessSaveBar" role="region" aria-label="Unsaved changes">

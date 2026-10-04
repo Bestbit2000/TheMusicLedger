@@ -158,43 +158,13 @@
 
     let featuresById = new Map();
 
-    function renderFeaturesCatalog(features) {
-        featuresById = new Map(features.map(f => [f.id, f]));
-        const el = document.getElementById('featuresCatalog');
-        if (!features.length) {
-            el.innerHTML = '<p>No features recorded yet - use "+ Add feature" above.</p>';
-            return;
-        }
-        el.innerHTML = features.map(f => `
-            <div class="admin-feature">
-                <div class="admin-feature-header">
-                    <div class="admin-feature-header-text">
-                        <h2>${escapeHtml(f.name)}${f.enabled ? '' : ' (not live)'}</h2>
-                        <p>${escapeHtml(f.description || '')}</p>
-                        <p class="admin-test-case-meta">${escapeHtml(f.featureKey)}</p>
-                    </div>
-                    <div class="admin-feature-actions">
-                        <button class="btn-icon-edit" data-edit-id="${f.id}" aria-label="Edit ${escapeHtml(f.name)}" type="button"><span class="material-symbols-outlined">edit</span></button>
-                        <button class="btn-icon-delete" data-delete-id="${f.id}" aria-label="Delete ${escapeHtml(f.name)}" type="button"><span class="material-symbols-outlined">delete</span></button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-
-        el.querySelectorAll('[data-edit-id]').forEach((btn) => {
-            btn.addEventListener('click', () => openFeatureForm(featuresById.get(Number(btn.dataset.editId))));
-        });
-        el.querySelectorAll('[data-delete-id]').forEach((btn) => {
-            btn.addEventListener('click', () => deleteFeature(Number(btn.dataset.deleteId)));
-        });
-    }
-
     // ========================================
     // Feature add/edit modal + delete
     // ========================================
     let editingFeatureId = null;
 
     function openFeatureForm(feature) {
+        if (accessChangesPending()) return;
         editingFeatureId = feature ? feature.id : null;
         document.getElementById('featureFormTitle').textContent = feature ? 'Edit feature' : 'Add feature';
         document.getElementById('featureKeyInput').value = feature ? feature.featureKey : '';
@@ -202,8 +172,8 @@
         document.getElementById('featureDescInput').value = feature ? (feature.description || '') : '';
         // ML-414: Live is set on Feature access - here it's only said
         document.getElementById('featureLiveNote').textContent = feature
-            ? `${feature.enabled ? 'Live' : 'Not live'} - change that, and who can use it, on Feature access.`
-            : 'A new feature starts Live and Super admin only - switch it on for account types on Feature access.';
+            ? `${feature.enabled ? 'Live' : 'Not live'} - the Live switch and the account types are in the grid.`
+            : 'A new feature starts Live and Super admin only - tick the account types that get it once it is added.';
         showModal('featureFormModal');
         document.getElementById('featureKeyInput').focus();
     }
@@ -245,6 +215,7 @@
     // test case can cover several features, so this never touches run
     // history (see server/routes/admin.js).
     function deleteFeature(id) {
+        if (accessChangesPending()) return;
         const feature = featuresById.get(id);
         showConfirmModal(
             'Delete feature',
@@ -262,9 +233,15 @@
         );
     }
 
+    // ML-414: the catalogue lives on Feature access now - after an add, edit or delete its grid is loaded again
     async function reloadFeatures() {
-        const featuresRes = await apiCall('/api/admin/features');
-        renderFeaturesCatalog(featuresRes.features);
+        await loadFeatureAccess();
+    }
+    // Adding, editing or deleting a feature reloads the grid, which would drop ticks not saved yet
+    function accessChangesPending() {
+        if (access.live.size + access.cells.size + access.limits.size === 0) return false;
+        showToast('Save or discard your changes first.');
+        return true;
     }
 
     // ========================================
@@ -458,8 +435,6 @@
     document.addEventListener('click', (e) => { if (!e.target.closest('[data-row-menu-btn]') && !e.target.closest('#adminRowMenu')) closeRowMenu(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && rowMenuBtn) { const b = rowMenuBtn; closeRowMenu(); b.focus(); } });
     window.addEventListener('scroll', closeRowMenu); // the page moved under it
-    // ML-414: the Features page points at Feature access for who can use what
-    document.getElementById('featuresToAccessLink')?.addEventListener('click', (e) => { e.preventDefault(); document.querySelector('.admin-nav-item[data-section="feature-access"]')?.click(); });
     const rowMenuBtnHtml = (attr, id, label) => `<button type="button" class="list-item-menu-btn" data-row-menu-btn ${attr}="${id}" aria-label="Options for ${escapeHtml(label)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined" aria-hidden="true">more_vert</span></button>`;
 
     // ML-415: one line per account - and per invite that hasn't been accepted - with a search, a filter
@@ -2606,8 +2581,17 @@
         const previewTypes = types.filter(t => t.key !== 'super_admin');
         preview.innerHTML = `<option value="">Preview the app as…</option>${previewTypes.map(t => `<option value="${t.key}"${type && type.key === t.key ? ' selected' : ''}>${escapeHtml(t.label)}</option>`).join('')}`;
 
+        // ML-414: the catalogue's own form reads a feature from here (enabled = Live)
+        featuresById = new Map(features.map(f => [f.id, { ...f, enabled: f.live }]));
         const body = document.getElementById('accessBody');
         body.innerHTML = type ? renderAccessType(type) : renderAccessGrid(types);
+        body.querySelectorAll('[data-feature-menu]').forEach(btn => btn.addEventListener('click', () => {
+            const id = Number(btn.dataset.featureMenu);
+            openRowMenu(btn, [
+                { label: 'Edit', icon: 'edit', run: () => openFeatureForm(featuresById.get(id)) },
+                { label: 'Delete', icon: 'delete', danger: true, run: () => deleteFeature(id) }
+            ]);
+        }));
         body.querySelectorAll('[data-cell]').forEach(input => input.addEventListener('change', () => {
             const [id, level] = input.dataset.cell.split('|');
             accessSetCell(features.find(f => f.id === Number(id)), level, input.checked);
@@ -2645,7 +2629,7 @@
         const head = `<tr><th scope="col">Feature</th><th scope="col" class="admin-access-live">Live</th>${types.map(t => `<th scope="col">${escapeHtml(t.label)}${t.key === 'beta_tester' ? '<button type="button" class="btn-text admin-access-copy" data-copy-premium>Same as Premium</button>' : ''}</th>`).join('')}</tr>`;
         const rows = accessGroups().map(([title, fs]) => `<tr class="admin-access-group"><th scope="rowgroup" colspan="${types.length + 2}">${escapeHtml(title)}</th></tr>` + fs.map(f => {
             const live = accessLive(f);
-            return `<tr><th scope="row"><strong>${escapeHtml(f.name)}</strong><small title="${escapeHtml(f.description || '')}">${escapeHtml(f.description || f.featureKey)}</small></th>
+            return `<tr><th scope="row"><div class="flex-row gap-sm items-center"><span class="grow"><strong>${escapeHtml(f.name)}</strong><small title="${escapeHtml(f.description || '')}">${escapeHtml(f.description || f.featureKey)}</small></span>${rowMenuBtnHtml('data-feature-menu', f.id, f.name)}</div></th>
                 <td class="admin-access-live"><label class="toggle-switch"><input type="checkbox" data-live="${f.id}"${live ? ' checked' : ''} aria-label="${escapeHtml(f.name)} live for everyone"><span class="toggle-slider"></span></label></td>
                 ${types.map(t => {
                     const locked = t.key === 'super_admin';
@@ -2665,7 +2649,7 @@
                 const changed = access.cells.has(accessCellKey(f.id, type.key));
                 const live = accessLive(f);
                 return `<div class="admin-access-row${changed ? ' is-changed' : ''}"><div class="grow"><strong>${escapeHtml(f.name)}</strong><small title="${escapeHtml(f.description || '')}">${escapeHtml(f.description || f.featureKey)}${live ? '' : ' - off for everyone (Live is off)'}</small></div>
-                    <label class="toggle-switch"><input type="checkbox"${locked ? ' disabled' : ` data-cell="${f.id}|${type.key}"`}${accessOn(f, type.key) ? ' checked' : ''} aria-label="${escapeHtml(f.name)} for ${escapeHtml(type.label)}"><span class="toggle-slider"></span></label></div>`;
+                    <label class="toggle-switch"><input type="checkbox"${locked ? ' disabled' : ` data-cell="${f.id}|${type.key}"`}${accessOn(f, type.key) ? ' checked' : ''} aria-label="${escapeHtml(f.name)} for ${escapeHtml(type.label)}"><span class="toggle-slider"></span></label>${rowMenuBtnHtml('data-feature-menu', f.id, f.name)}</div>`;
             }).join('')).join('')
             + ((access.data.limits || []).length ? '<div class="admin-stat-section-title">Limits</div>' + access.data.limits.map(l =>
                 `<div class="admin-access-row${access.limits.has(accessCellKey(l.id, type.key)) ? ' is-changed' : ''}"><div class="grow"><strong>${escapeHtml(l.name)}</strong><small title="${escapeHtml(l.description || '')}">${escapeHtml(l.description || l.limitKey)}</small></div>${accessLimitInput(l, type)}</div>`).join('') : '');
@@ -2726,20 +2710,16 @@
         initRestMessagesAdmin();
         document.getElementById('adminShell').classList.remove('hidden-group');
         try {
-            const [backtest, featuresRes] = await Promise.all([
-                apiCall('/api/admin/backtest'),
-                apiCall('/api/admin/features')
-            ]);
+            loadFeatureAccess(); // ML-414: the first page - who can use what, and the catalogue
+            const backtest = await apiCall('/api/admin/backtest');
             renderSummary(backtest);
             renderFeatures(backtest);
-            renderFeaturesCatalog(featuresRes.features);
             await Promise.all([
                 reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadInstrumentUsage(), Promise.resolve(renderTheoryGrades()), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadNotificationsAdmin(), reloadRestMessagesAdmin(), reloadWarmupsAdmin(), reloadPosthogLink(),
                 reloadSecurityReview().catch((error) => { document.getElementById('securityReview').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`; }),
                 reloadFlowDefaultName(), reloadFlowDefaultTimeSig(), reloadFlowDefaultBpm(), reloadFlowDefaultBarCount(), reloadFlowDefaultNoteValue()
             ]);
         } catch (error) {
-            document.getElementById('featuresCatalog').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`;
             document.getElementById('featureList').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`;
         }
     }
