@@ -304,10 +304,12 @@ function toStatsDto(row, extra = {}) {
 }
 
 export async function getFlowAuthoringStats() {
-  // Manual creates only for the headline and the version/device/size breakdowns - the baseline
-  // question is "how long does it take to build a flow by hand", so an import-assisted session
-  // doesn't belong in it even though it is recorded and shown in the kind/source breakdown.
-  const MANUAL_CREATE = `${ELIGIBLE} AND kind = 'create' AND creation_source = 'manual'`;
+  // Creates entered by hand only - bar by bar ('manual') or Quick entry ('quick') - for the headline and the
+  // version/device/size breakdowns: the question is "how long does it take to build a flow by hand", so an
+  // import-assisted session doesn't belong in it even though it is recorded and shown in the kind/source
+  // breakdown. Quick entry was left out of these until 0.40 (they asked for 'manual' only), so nothing made
+  // since 0.39 showed under By app version.
+  const MANUAL_CREATE = `${ELIGIBLE} AND kind = 'create' AND creation_source IN ('manual', 'quick')`;
 
   const [headline, byVersion, byKind, byDevice, bySize, outcomes, recent] = await Promise.all([
     pool.query(`SELECT ${STAT_COLUMNS} FROM flow_authoring_sessions WHERE ${MANUAL_CREATE}`),
@@ -316,10 +318,11 @@ export async function getFlowAuthoringStats() {
     // 0.9.0 doesn't sort above 0.23.0 - which it would, and which would put the wrong row at the
     // top of exactly the comparison this feature exists for.
     pool.query(
-      `SELECT app_version, ${STAT_COLUMNS} FROM flow_authoring_sessions
+      // One row per version and way in, so a version's quick entry runs aren't averaged with its bar-by-bar ones
+      `SELECT app_version, creation_source, ${STAT_COLUMNS} FROM flow_authoring_sessions
         WHERE ${MANUAL_CREATE}
-        GROUP BY app_version
-        ORDER BY string_to_array(COALESCE(app_version, '0'), '.')::int[] DESC NULLS LAST`
+        GROUP BY app_version, creation_source
+        ORDER BY string_to_array(COALESCE(app_version, '0'), '.')::int[] DESC NULLS LAST, creation_source DESC`
     ),
 
     pool.query(
@@ -407,7 +410,7 @@ export async function getFlowAuthoringStats() {
   return {
     staleAfterMinutes: STALE_AFTER_MINUTES,
     headline: toStatsDto(headline.rows[0]),
-    byVersion: byVersion.rows.map(r => toStatsDto(r, { appVersion: r.app_version })),
+    byVersion: byVersion.rows.map(r => toStatsDto(r, { appVersion: r.app_version, creationSource: r.creation_source })),
     byKind: byKind.rows.map(r => toStatsDto(r, { kind: r.kind, creationSource: r.creation_source })),
     byDevice: byDevice.rows.map(r => toStatsDto(r, { deviceKind: r.device_kind })),
     bySize: bySize.rows.map(r => toStatsDto(r, { bucket: r.bucket })),

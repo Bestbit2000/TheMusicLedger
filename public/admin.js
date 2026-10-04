@@ -1229,7 +1229,7 @@
 
         el.innerHTML = `
             ${tiles}
-            ${statTable('By app version', data.byVersion, 'Version', r => r.appVersion || 'unknown',
+            ${statTable('By app version', data.byVersion, 'Version', r => `${r.appVersion || 'unknown'}${r.creationSource === 'quick' ? ' (quick entry)' : ' (bar by bar)'}`,
                 'The before/after comparison. Cut a release, keep building flows the same way, and compare the rows &ndash; anything else (a different device, a much longer piece) is a confound, which is what the two tables below are for.')}
             ${quickEntryTables(data)}
             ${statTable('Create vs edit', data.byKind, 'Session', r => `${r.kind}${r.creationSource === 'from_file' ? ' (import)' : r.creationSource === 'quick' ? ' (quick entry)' : ''}`,
