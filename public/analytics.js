@@ -7,6 +7,12 @@
 // Analytics ID), so it's fine for this to live in this static, checked-in
 // file - there is no build step in public/ to inject it from the server.
 // Project: PostHog EU (data residency chosen at project creation).
+//
+// ML-430 (owner, 4 Oct 2026): anonymous and cookieless. Nothing is kept in the browser
+// (persistence: 'memory' - no cookie, no localStorage), and the app never tells PostHog who is
+// signed in (no identify() call anywhere - it used to send the member's email address). Each
+// visit is counted as a new anonymous visitor, which is all "which buttons are used" needs.
+// Keep it this way: the privacy policy says so, and a cookie would need a consent banner.
 const POSTHOG_KEY = 'phc_qzCAStK9YaADaSt85ay2Qm3d32Y2jR5tDaLwAJkPUETj';
 const POSTHOG_HOST = 'https://eu.i.posthog.com';
 
@@ -16,6 +22,7 @@ if (POSTHOG_KEY) {
         api_host: POSTHOG_HOST,
         defaults: '2026-05-30',
         person_profiles: 'identified_only',
+        persistence: 'memory',
     });
 
     // Don't let clicks made while developing locally pollute real usage stats.

@@ -226,7 +226,7 @@ export default [
     group: 'service',
     status: 'attention',
     who: 'PostHog Inc. (USA); EU cloud, data held in Frankfurt',
-    provides: 'Usage analytics: records button taps so we can see which features are used. Its script is loaded from PostHog\'s servers.',
+    provides: 'Usage analytics: records button taps so we can see which features are used. Anonymous: no cookie, nothing kept in the browser, and it is never told who is signed in (ML-430). Its script is loaded from PostHog\'s servers.',
     usedIn: 'public/analytics.js; the dashboard link on Admin → Usage',
     plan: 'Free plan',
     cost: 'Free',
@@ -250,7 +250,8 @@ export default [
       'No credit or attribution is asked for.'
     ],
     asks: [
-      { text: 'Tell users about PostHog in the privacy policy, and meet UK cookie rules (a consent banner, or PostHog\'s cookieless mode).' },
+      { text: 'Tell users about PostHog in the privacy policy.' },
+      { text: 'No cookie and nothing kept in the browser, so no consent banner is needed.', check: { path: 'public/analytics.js', includes: "persistence: 'memory'" } },
       { text: 'Set it up so it doesn\'t collect sensitive personal data.' },
       { text: 'Don\'t try to get round the plan limits.' }
     ],

@@ -87,7 +87,6 @@
             this.token = token;
             this.userId = userId;
             this.isAuthenticated = true;
-            if (window.posthog) window.posthog.identify(userId);
         }
 
         logout() {
@@ -96,7 +95,6 @@
             this.token = null;
             this.userId = null;
             this.isAuthenticated = false;
-            if (window.posthog) window.posthog.reset();
             window.location.href = window.location.pathname;
         }
 
@@ -111,7 +109,6 @@
     }
 
     const auth = new AuthManager();
-    if (auth.isAuthenticated && window.posthog) window.posthog.identify(auth.userId);
 
     // ========================================
     // API HELPER FUNCTIONS
