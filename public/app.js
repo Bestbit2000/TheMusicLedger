@@ -18663,7 +18663,8 @@
     // music. Five stages across the top, with steps inside each (ML-428, owner 4 Oct 2026):
     //   About          - name (required), composer, arranger, publisher, notes
     //   Structure      - how long (bars, count-in, the main time and speed), then the rehearsal marks
-    //   Time and speed - the bars that aren't the main time signature, then the bars where the speed changes
+    //   Tempo          - the bars that aren't the main time signature, then the bars where the speed changes
+    //                    ("Time and speed" until 0.41 - shortened so the label fits on one line on a phone)
     //   Extras         - one yes/no question at a time: an intro? repeats? pauses? speeding up? signs and jumps?
     //   Media          - a recording? a YouTube link? a score or part? - then Save
     // Save turns the outline into the same blocks "Create your own" makes - the rules are
@@ -18672,7 +18673,7 @@
     // is one ML-199 authoring session (creation source 'quick'), timed step by step. New pieces only; a
     // piece is changed afterwards in the bar-by-bar editor.
     // ========================================
-    const OUTLINE_STAGES = [{ name: 'About' }, { name: 'Structure' }, { name: 'Time and speed' }, { name: 'Extras' }, { name: 'Media' }];
+    const OUTLINE_STAGES = [{ name: 'About' }, { name: 'Structure' }, { name: 'Tempo' }, { name: 'Extras' }, { name: 'Media' }];
     // `name` is the step's own name (its dot); `label` is what the step before calls it on its Next button. An Extras step has `kinds` (the extras
     // it asks about); a Media step has `media` (which list in outline.media).
     const OUTLINE_STEPS = [

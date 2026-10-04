@@ -15,7 +15,7 @@ A new piece entered as an **outline**, by the bar numbers printed on the music, 
 steps, one question each, with the [practice steps'](practice-steps.md) bar across the top (a done step is a way
 back): **How long** (bars, count-in, the time and speed most of it is in), **Marks** (bar numbers, letters or
 words, or none), **Time** (the bars that aren't the main time signature), **Speed** (the bars where it changes),
-**Extras** (repeats, endings, pauses, speeding up, signs, intro). Since ML-428 it is five stages across the top - About, Structure, Time and speed, Extras, Media - with steps
+**Extras** (repeats, endings, pauses, speeding up, signs, intro). Since ML-428 it is five stages across the top - About, Structure, Tempo, Extras, Media - with steps
 inside each, and it makes the whole piece: Save makes the same blocks "Create your own" makes, with the details
 and media, and goes back to where Add a piece was opened from (never the edit screen). New pieces only. Rules: `public/pieceOutline.js`
 (`docs/quick-piece-entry.md`). The way in is the **Quick entry** tile on [Add a piece](add-piece.md), shown when
