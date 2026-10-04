@@ -179,6 +179,7 @@ These are the shapes the grades need that `buildScale` didn't have before:
 
 ## Later
 
-Practice sessions will reuse the grid, with an ability level on each box in place of plain green (the
-owner's plan, ML-314/320). Other exam boards (Trinity) and strings would each add lists to `DATA` and
+**Built, ML-391:** with Scales Levels on, each box of your list holds its Level (1-5, a star once learnt) in
+the Level colours in place of plain green (`.scale-grid-cell.is-level.lv-N`), with the next goal above the grid
+and a Levels key under it - see "Scales Levels" in [practice-sessions.md](practice-sessions.md). Other exam boards (Trinity) and strings would each add lists to `DATA` and
 rules to `RULES`.

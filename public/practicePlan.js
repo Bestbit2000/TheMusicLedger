@@ -15,6 +15,10 @@
 //     of a piece is at 4, its play-through parts. Skills blocks rotate through your skills list.
 //   - The 30-second rest (ML-390) comes before every playing block except the first, and never before a
 //     Prepare or a Play-through.
+//   - Scales Levels (ML-391): a Scales block gives three scales, each at its own Level 1-5 (the notes
+//     slowly, the notes faster, just the key, just the name, just the name at full speed), lowest Level
+//     first so every scale moves up together; Got it at Level 5 makes it learnt, and a learnt one comes
+//     back now and then. Full speed is ABRSM's guide speed for the grade.
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory();
     else root.PracticePlan = factory();
@@ -301,7 +305,134 @@
         return ids;
     }
 
+    // ===== ML-391: Scales Levels =====
+    // The owner's five Levels (1 Oct 2026), agreed with their speeds on 4 Oct 2026. A scale's Level says how
+    // it's played today: what's shown (the Scales tool's Detail) and how fast (a share of full speed).
+    const SCALE_LEVELS = [
+        { level: 1, detail: 'notes', percent: 60, label: 'With the notes, slowly', sub: 'The notes are written out' },
+        { level: 2, detail: 'notes', percent: 80, label: 'With the notes, faster', sub: 'The notes are written out' },
+        { level: 3, detail: 'key', percent: 80, label: 'Just the key', sub: 'A stave with the key signature - you find the notes' },
+        { level: 4, detail: 'name', percent: 80, label: 'Just the name', sub: 'No stave at all' },
+        { level: 5, detail: 'name', percent: 100, label: 'Just the name, at full speed', sub: 'The exam\'s speed for your grade' }
+    ];
+    const SCALE_TOP_LEVEL = 5;
+    const SCALES_PER_BLOCK = 3;      // a block's three scales (a fourth comes in if there's time)
+    const SCALE_SHARE_SECONDS = 90;  // about a minute and a half each
+    const SCALE_REVISIT_DAYS = 14;   // a learnt scale comes back about every two weeks
+    const scaleLevelSpec = (level) => SCALE_LEVELS[Math.max(1, Math.min(SCALE_TOP_LEVEL, Number(level) || 1)) - 1];
+
+    // Full speed: ABRSM's guide speeds ("given as a general guide" in the Brass Practical Grades syllabus
+    // from 2023 and the Woodwind specification from 2026 - the same documents the scale lists came from,
+    // ScaleGrades.SOURCES), Grades 1-8. Each row is the beat (bpm) and how many notes go to a beat, as
+    // ABRSM prints the pattern: scales in pairs, arpeggios in threes (a quaver speed at Grades 1-5 - so
+    // the beat here is a third of it - and a dotted-crotchet beat at Grades 6-8). null = not asked for at
+    // that grade; the nearest grade that has one is used.
+    const third = (quaver) => quaver / 3;
+    const SCALE_SPEEDS = {
+        brass: {
+            scale: { npb: 2, bpm: [50, 56, 63, 72, 80, 104, 112, 126] },
+            arpeggio: { npb: 3, bpm: [third(66), third(72), third(84), third(92), third(108), 40, 44, 48] },
+            seventh: { npb: 2, bpm: [null, null, null, 46, 54, 60, 66, 72] },
+            thirds: { npb: 2, bpm: [null, null, null, null, null, 88, 100, 120] }
+        },
+        trombone: {
+            scale: { npb: 2, bpm: [44, 48, 56, 63, 72, 96, 108, 120] },
+            arpeggio: { npb: 3, bpm: [third(56), third(63), third(76), third(88), third(100), 40, 44, 48] },
+            seventh: { npb: 2, bpm: [null, null, null, 44, 50, 56, 66, 72] },
+            thirds: { npb: 2, bpm: [null, null, null, null, null, 84, 100, 112] }
+        },
+        woodwind: {
+            scale: { npb: 2, bpm: [50, 56, 63, 72, 84, 96, 112, 132] },
+            arpeggio: { npb: 3, bpm: [third(72), third(84), third(96), third(108), third(126), 48, 54, 63] },
+            seventh: { npb: 2, bpm: [null, null, null, 54, 63, 72, 80, 96] },
+            thirds: { npb: 2, bpm: [null, null, null, null, null, 88, 100, 120] }
+        }
+    };
+    // Which row a list entry uses: scales (chromatic, whole-tone and extended-range ones too), arpeggios,
+    // dominant and diminished 7ths with extended-range arpeggios, scales in thirds.
+    function scaleSpeedRow(item) {
+        const kind = item.type || item.kind;
+        const extended = String(item.pattern || '').startsWith('extended');
+        if (kind === 'thirds') return 'thirds';
+        if (kind === 'dom7' || kind === 'dim7' || (kind === 'arpeggio' && extended)) return 'seventh';
+        return kind === 'arpeggio' ? 'arpeggio' : 'scale';
+    }
+    // The speed family of an ABRSM list (ScaleGrades.DATA id + its family): trombones are slower.
+    const scaleSpeedFamily = (listId, family) => (/trombone/.test(String(listId || '')) ? 'trombone' : family === 'woodwind' ? 'woodwind' : 'brass');
+    // The grade a scale's speed comes from: the highest ticked grade that asks for it; a scale no ticked
+    // grade asks for (Everything else) takes the highest ticked grade, or Grade 1.
+    function scaleGrade(item, tickedGrades) {
+        const ticked = (tickedGrades || []).filter(Number.isInteger);
+        const own = (item.grades || []).filter(g => Number.isInteger(g) && (!ticked.length || ticked.includes(g)));
+        const g = own.length ? Math.max(...own) : ticked.length ? Math.max(...ticked) : 1;
+        return Math.max(1, Math.min(8, g));
+    }
+    // What the metronome is set to for a scale at a Level: { bpm, npb, notesPerMinute, grade }.
+    // Levels 1-4 click on every note (slow speeds stay easy to follow); Level 5 is as ABRSM counts it.
+    function scaleSpeed(item, level, family, tickedGrades) {
+        const rows = SCALE_SPEEDS[family] || SCALE_SPEEDS.brass;
+        const row = rows[scaleSpeedRow(item)];
+        const grade = scaleGrade(item, tickedGrades);
+        let i = grade - 1;
+        if (row.bpm[i] == null) { // not asked for at this grade: the nearest grade that has a speed
+            const known = row.bpm.map((v, k) => (v == null ? null : k)).filter(k => k != null);
+            i = known.reduce((best, k) => (Math.abs(k - i) < Math.abs(best - i) ? k : best), known[0]);
+        }
+        const full = row.bpm[i] * row.npb; // notes a minute at full speed
+        const spec = scaleLevelSpec(level);
+        if (spec.level === SCALE_TOP_LEVEL) return { bpm: Math.round(row.bpm[i]), npb: row.npb, notesPerMinute: Math.round(full), grade };
+        const npm = Math.round(full * spec.percent / 100);
+        return { bpm: npm, npb: 1, notesPerMinute: npm, grade };
+    }
+    // One id for a scale in a list, the same wherever it's asked for (two grades can share a scale).
+    const scaleKey = (item) => [item.type || item.kind, item.keyId, item.form, item.octaves, item.pattern || ''].join('|');
+    const dayMs = (d) => (d ? Date.parse(d) : 0);
+    // A scale's record with its defaults: every scale starts at Level 1, never played.
+    const scaleRecord = (records, key) => ({ level: 1, learnt: false, lastPlayed: null, lastUpOn: null, ...((records && records[key]) || {}) });
+    // The order a block takes them in. items: your list in its own order ([{ key }]); records: { key: { level,
+    // learnt, lastPlayed, lastUpOn } }; now: a Date (or ms). Lowest Level first, then played longest ago
+    // (never played first), then list order - so every scale leaves a Level before any moves two ahead.
+    // A learnt scale not played for SCALE_REVISIT_DAYS comes in as the block's third ("still got it?").
+    // skip: keys already played in this block.
+    function scalePool(items, records, now, skip) {
+        const done = new Set(skip || []);
+        const all = (items || []).map((it, i) => ({ ...it, i, rec: scaleRecord(records, it.key) })).filter(x => !done.has(x.key));
+        const climb = all.filter(x => !x.rec.learnt).sort((a, b) => a.rec.level - b.rec.level || dayMs(a.rec.lastPlayed) - dayMs(b.rec.lastPlayed) || a.i - b.i);
+        const t = now instanceof Date ? now.getTime() : Number(now) || Date.now();
+        const due = all.filter(x => x.rec.learnt && t - dayMs(x.rec.lastPlayed) >= SCALE_REVISIT_DAYS * 86400000)
+            .sort((a, b) => dayMs(a.rec.lastPlayed) - dayMs(b.rec.lastPlayed) || a.i - b.i);
+        const queue = climb.slice();
+        if (due.length) queue.splice(Math.min(SCALES_PER_BLOCK - 1, queue.length), 0, { ...due[0], revisit: true });
+        return queue.map(({ i, ...x }) => x);
+    }
+    // An answer. today: 'YYYY-MM-DD' (the player's own day); at: an ISO time. Returns the new record and
+    // what happened: 'up' (to rec.level), 'learnt', 'held' (it has already gone up today), 'kept' (a learnt
+    // one, still got), 'back' (a learnt one, not yet - back to Level 4), 'stay' (not yet).
+    function scaleAnswer(record, gotIt, today, at) {
+        const rec = { level: 1, learnt: false, lastPlayed: null, lastUpOn: null, ...(record || {}) };
+        const next = { ...rec, lastPlayed: at || new Date().toISOString() };
+        if (rec.learnt) {
+            if (gotIt) return { record: next, outcome: 'kept' };
+            return { record: { ...next, learnt: false, level: SCALE_TOP_LEVEL - 1 }, outcome: 'back' };
+        }
+        if (!gotIt) return { record: next, outcome: 'stay' };
+        if (rec.lastUpOn === today) return { record: next, outcome: 'held' }; // one Level up a day at most
+        if (rec.level >= SCALE_TOP_LEVEL) return { record: { ...next, learnt: true, level: SCALE_TOP_LEVEL, lastUpOn: today }, outcome: 'learnt' };
+        return { record: { ...next, level: rec.level + 1, lastUpOn: today }, outcome: 'up' };
+    }
+    // Where the whole list stands: how many at each Level, how many learnt, the lowest Level still being
+    // climbed (null when every scale is learnt) and how many are on it ("every 1 up to 2 - 3 to go").
+    function scaleProgress(items, records) {
+        const counts = [0, 0, 0, 0, 0];
+        let learnt = 0;
+        (items || []).forEach(it => { const r = scaleRecord(records, it.key); if (r.learnt) learnt++; else counts[r.level - 1]++; });
+        const low = counts.findIndex(n => n > 0);
+        return { counts, learnt, total: (items || []).length, low: low < 0 ? null : low + 1, toGo: low < 0 ? 0 : counts[low] };
+    }
+
     return {
+        SCALE_LEVELS, SCALE_TOP_LEVEL, SCALES_PER_BLOCK, SCALE_SHARE_SECONDS, SCALE_REVISIT_DAYS, SCALE_SPEEDS,
+        scaleLevelSpec, scaleSpeedRow, scaleSpeedFamily, scaleGrade, scaleSpeed, scaleKey, scaleRecord, scalePool, scaleAnswer, scaleProgress,
         WARMUP_LISTS, warmupSequence,
         BLOCK_MINUTES, MIN_MINUTES, MAX_MINUTES, NUDGE_SECONDS, REST_SECONDS, OPEN_START_BLOCKS, TARGET_LEVEL, TEMPLATES, KINDS, STAGES, PLAN_KINDS, SKILL_TOOLS,
         clampMinutes, blockKinds, stretch, planPattern, openKindAt, piecePool, fillBlocks, plan, blockState, toolLabel, pieceBlocks, forecast, PREP_BLOCKS, templateFocus, FOCUS_LABELS,

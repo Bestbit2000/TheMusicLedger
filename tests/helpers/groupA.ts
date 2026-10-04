@@ -60,3 +60,21 @@ export async function sessionSegments(sessionId: number): Promise<Array<{ type: 
     return rows.map(r => ({ type: String(r.segment_type), seconds: Number(r.actual_seconds) }));
   });
 }
+
+// ---- ML-391: Scales Levels ----
+// The test account's scale Levels and answers, cleared (before and after a spec that moves them).
+export async function clearScaleLevels(): Promise<void> {
+  await withClient(async (client) => {
+    await client.query(`DELETE FROM scale_level_results WHERE account_id = (SELECT id FROM accounts WHERE email = $1)`, [TEST_ACCOUNT_EMAIL]);
+    await client.query(`DELETE FROM scale_levels WHERE account_id = (SELECT id FROM accounts WHERE email = $1)`, [TEST_ACCOUNT_EMAIL]);
+  });
+}
+// Its recorded Levels: one row per scale that has been played or set.
+export async function scaleLevelRows(): Promise<Array<{ key: string; level: number; learnt: boolean }>> {
+  return withClient(async (client) => {
+    const { rows } = await client.query(
+      `SELECT l.scale_key, l.level, l.learnt_at FROM scale_levels l JOIN accounts a ON a.id = l.account_id WHERE a.email = $1 ORDER BY l.scale_key`,
+      [TEST_ACCOUNT_EMAIL]);
+    return rows.map(r => ({ key: r.scale_key, level: Number(r.level), learnt: !!r.learnt_at }));
+  });
+}

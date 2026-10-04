@@ -53,7 +53,7 @@ describe('the line under it', () => {
     test('a streak from two days, counted from yesterday before today is logged', () => {
         assert.equal(text({ now: at(9), sessions: [s('2026-09-29'), s('2026-09-28'), s('2026-09-27')] }, 'streak'), "You're on a 3-day streak");
         assert.equal(text({ now: at(9), sessions: [s('2026-09-29')] }, 'streak'), undefined, 'one day is not a streak');
-        assert.equal(text({ now: at(9), sessions: [s('2026-09-29', 30, 'Rehearsal'), s('2026-09-28', 30, 'Rehearsal')] }, 'streak'), undefined, 'practise sessions only');
+        assert.equal(text({ now: at(9), sessions: [s('2026-09-29', 30, 'Rehearsal'), s('2026-09-28', 30, 'Rehearsal')] }, 'streak'), undefined, 'practice sessions only');
     });
     test('close to the record, or a new record - never "you broke it"', () => {
         const old = ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05'].map(d => s(d));

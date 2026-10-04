@@ -1,5 +1,7 @@
 # Pick list
 
+> Also used by My music's **Delete several pieces** (ML-404, `#flowBulkDeleteModal`): the pieces you can delete as rows (your own, and band pieces you added - ML-411), the Select all bar, and a `.btn-submit.is-danger` "Delete N pieces" in the sticky footer, followed by the standard confirm pop-up.
+
 ## 1. Metadata
 - **Name:** Pick list (`.pick-row`, `.pick-row-check`, `.pick-bar`)
 - **Category:** Inputs

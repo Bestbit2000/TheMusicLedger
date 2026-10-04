@@ -108,7 +108,7 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 
 | Token | Light | Dark | Use for |
 |---|---|---|---|
-| `--cat-practise` | `#4caf50` | (same) | Practise category - chips, chart bars, history stripe |
+| `--cat-practise` | `#4caf50` | (same) | Practice category - chips, chart bars, history stripe |
 | `--cat-rehearsal` | `#2196f3` | (same) | Rehearsal category |
 | `--cat-lesson` | `#9c27b0` | (same) | Lesson category |
 | `--cat-performance` | `#ff9800` | (same) | Performance category |
@@ -119,7 +119,7 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 | `--chart-hours` | `#d4af37` | (same) | stats "Hours" bar chart - gold, since it counts every session type (ML-235) |
 | `--chart-days` | `#d4af37` | (same) | stats "Days" bar chart - gold (ML-235) |
 | `--chart-sessions` | `#d4af37` | (same) | stats "Sessions" bar chart - gold (ML-235) |
-| `--chart-streak` | `#d4af37` | (same) | practise and playing streak histogram bars (ML-235) |
+| `--chart-streak` | `#d4af37` | (same) | practice and playing streak histogram bars (ML-235) |
 | `--heat-time-0` | `#ebedf0` | `#2d333b` | practice-time heatmap, empty day (0-4 = intensity ramp) |
 | `--heat-time-1` | `#f3e3a8` | `#4a3b0b` | intensity step 1 - gold ramp (ML-235) |
 | `--heat-time-2` | `#e2c355` | `#7d6415` | intensity step 2 |

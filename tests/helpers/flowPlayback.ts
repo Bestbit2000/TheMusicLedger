@@ -52,8 +52,9 @@ export async function deleteTestFlows(page: Page) {
     await page.evaluate(async (prefix) => {
         const w = (window as any).__flowTest;
         const flows = await w.api.flows.list();
-        // canEdit: a public test piece (ML-310) is in everyone's list but only its super admin can delete it.
-        for (const f of flows) if ((f.title || '').startsWith(prefix) && f.canEdit) await w.api.flows.delete(f.id);
+        // canDelete: a public test piece (ML-310) is in everyone's list but only its super admin can delete it,
+        // and a band piece only the person who added it or a super admin in the band (ML-411).
+        for (const f of flows) if ((f.title || '').startsWith(prefix) && f.canDelete) await w.api.flows.delete(f.id);
     }, TEST_FLOW_PREFIX);
 }
 

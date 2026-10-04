@@ -17,6 +17,7 @@ import { del } from '@vercel/blob';
 import { isSuperAdmin } from './accounts.js';
 import { getConfigValue } from './appConfig.js';
 import { NOTE_VALUES } from './metronomeSegments.js';
+import { canDeleteFlow } from './flowPermissions.js';
 
 export function withStatus(status, message) {
   const err = new Error(message);
@@ -35,7 +36,7 @@ export function extractYouTubeVideoId(url) {
   return match ? match[1] : null;
 }
 
-function toFlowSummaryDto(row, canEdit) {
+function toFlowSummaryDto(row, canEdit, canDelete) {
   return {
     id: Number(row.id),
     title: row.title,
@@ -48,7 +49,11 @@ function toFlowSummaryDto(row, canEdit) {
     totalBars: Number(row.total_bars || 0),
     // ML-401: this account has prepared it (has given at least one of its bars a Level)
     prepared: !!row.prepared,
-    canEdit: !!canEdit // ML-310: a public piece is view/play/copy for everyone, edit for super admins
+    // ML-404: how many practice lists it's on - deleting it takes it off them, so the confirmation says so
+    listCount: Number(row.list_count || 0),
+    canEdit: !!canEdit, // ML-310: a public piece is view/play/copy for everyone, edit for super admins
+    // ML-411: your own piece, or a band piece you added (a super admin: any piece they can reach)
+    canDelete: !!canDelete
   };
 }
 
@@ -77,7 +82,7 @@ function toDocumentDto(row) {
   };
 }
 
-function toFlowDetailDto(score, recordingRows, documentRows, summary, canEdit) {
+function toFlowDetailDto(score, recordingRows, documentRows, summary, canEdit, canDelete) {
   return {
     id: Number(score.id),
     title: score.title,
@@ -89,6 +94,7 @@ function toFlowDetailDto(score, recordingRows, documentRows, summary, canEdit) {
     ownerAccountId: score.owner_account_id !== null ? Number(score.owner_account_id) : null,
     isPublic: score.is_public,
     canEdit: !!canEdit,
+    canDelete: !!canDelete, // ML-411
     createdAt: score.created_at,
     recordings: recordingRows.map(toRecordingDto),
     documents: documentRows.map(toDocumentDto),
@@ -193,7 +199,8 @@ export async function createFlow(accountId, { name, bandId } = {}) {
   const effectiveName = (name && name.trim()) || await getUniqueDefaultFlowName(accountId);
   if (bandId) {
     await assertBandMembership(accountId, bandId);
-    const { rows } = await pool.query('INSERT INTO scores (title, owner_band_id) VALUES ($1, $2) RETURNING id', [effectiveName, bandId]);
+    // ML-411: added_by_account_id - the one member who can delete it again
+    const { rows } = await pool.query('INSERT INTO scores (title, owner_band_id, added_by_account_id) VALUES ($1, $2, $3) RETURNING id', [effectiveName, bandId, accountId]);
     return getFlowDetail(accountId, rows[0].id);
   }
   const { rows } = await pool.query('INSERT INTO scores (title, owner_account_id) VALUES ($1, $2) RETURNING id', [effectiveName, accountId]);
@@ -205,12 +212,13 @@ export async function createFlow(accountId, { name, bandId } = {}) {
 // per-row, just as one list query instead of one row at a time.
 export async function listFlows(accountId) {
   const { rows } = await pool.query(
-    `SELECT s.id, s.title, s.composer, s.owner_band_id, s.owner_account_id, s.is_public, s.created_at,
+    `SELECT s.id, s.title, s.composer, s.owner_band_id, s.owner_account_id, s.is_public, s.created_at, s.added_by_account_id,
             BOOL_OR(bm.account_id IS NOT NULL) AS is_band_member,
             COUNT(ms.id) AS block_count,
             -- Bar counts exclude the lead-in: it's a count-in, not part of the piece.
             COALESCE(SUM(ms.bar_count) FILTER (WHERE NOT ms.is_lead_in), 0) AS total_bars,
-            EXISTS (SELECT 1 FROM piece_chunks pc WHERE pc.account_id = $1 AND pc.score_id = s.id AND pc.level IS NOT NULL) AS prepared
+            EXISTS (SELECT 1 FROM piece_chunks pc WHERE pc.account_id = $1 AND pc.score_id = s.id AND pc.level IS NOT NULL) AS prepared,
+            (SELECT COUNT(*) FROM practice_list_scores pls WHERE pls.score_id = s.id) AS list_count
      FROM scores s
      LEFT JOIN metronome_segments ms ON ms.parent_score_id = s.id
      LEFT JOIN band_members bm ON bm.band_id = s.owner_band_id AND bm.account_id = $1
@@ -220,14 +228,18 @@ export async function listFlows(accountId) {
     [accountId]
   );
   const superAdmin = await isSuperAdmin(accountId);
-  return rows.map(r => toFlowSummaryDto(r, (Number(r.owner_account_id) === Number(accountId) && !r.is_public)
-    || r.is_band_member || (r.is_public && superAdmin)));
+  return rows.map(r => {
+    const canEdit = (Number(r.owner_account_id) === Number(accountId) && !r.is_public)
+      || r.is_band_member || (r.is_public && superAdmin);
+    // Only what you can reach at all (canEdit) - a super admin doesn't get Delete on a band they aren't in
+    return toFlowSummaryDto(r, canEdit, canEdit && canDeleteFlow(r, accountId, superAdmin));
+  });
 }
 
 export async function getFlowDetail(accountId, scoreId) {
   const score = await assertFlowReadAccess(accountId, scoreId);
   const canEdit = await canEditFlow(accountId, scoreId);
-  const [{ rows: recordingRows }, { rows: documentRows }, { rows: summaryRows }] = await Promise.all([
+  const [{ rows: recordingRows }, { rows: documentRows }, { rows: summaryRows }, superAdmin] = await Promise.all([
     pool.query('SELECT * FROM score_recordings WHERE score_id = $1 ORDER BY order_index, id', [scoreId]),
     pool.query('SELECT * FROM score_documents WHERE score_id = $1 ORDER BY id', [scoreId]),
     // Approximate (a tempo ramp mid-block isn't accounted for) - same spirit as the Blocks Studio
@@ -242,9 +254,11 @@ export async function getFlowDetail(accountId, scoreId) {
        LEFT JOIN account_time_signatures ats ON ats.id = ms.account_time_signature_id
        WHERE ms.parent_score_id = $1`,
       [scoreId]
-    )
+    ),
+    isSuperAdmin(accountId)
   ]);
-  return toFlowDetailDto(score, recordingRows, documentRows, summaryRows[0], canEdit);
+  const canDelete = canEdit && canDeleteFlow(score, accountId, superAdmin); // ML-411
+  return toFlowDetailDto(score, recordingRows, documentRows, summaryRows[0], canEdit, canDelete);
 }
 
 export async function updateFlowMetadata(accountId, scoreId, data) {
@@ -275,7 +289,8 @@ export async function moveFlowToBand(accountId, scoreId, bandId) {
     throw withStatus(400, 'Only a personal flow you own can be moved to a band.');
   }
   await assertBandMembership(accountId, bandId);
-  await pool.query('UPDATE scores SET owner_band_id = $1, owner_account_id = NULL WHERE id = $2', [bandId, scoreId]);
+  // ML-411: whoever moves it in is the one who added it to the band
+  await pool.query('UPDATE scores SET owner_band_id = $1, owner_account_id = NULL, added_by_account_id = $3 WHERE id = $2', [bandId, scoreId, accountId]);
   return getFlowDetail(accountId, scoreId);
 }
 
@@ -285,14 +300,18 @@ export async function moveFlowToBand(accountId, scoreId, bandId) {
 export async function removeFlowFromBand(accountId, scoreId) {
   const score = await assertFlowAccess(accountId, scoreId);
   if (score.owner_band_id === null) throw withStatus(400, 'This flow is not band-owned.');
-  await pool.query('UPDATE scores SET owner_account_id = $1, owner_band_id = NULL WHERE id = $2', [accountId, scoreId]);
+  // ML-411: taking it out takes it away from the band, so it's the same rule as deleting it
+  if (!canDeleteFlow(score, accountId, await isSuperAdmin(accountId))) {
+    throw withStatus(403, 'Only the person who added this piece to the band can take it out.');
+  }
+  await pool.query('UPDATE scores SET owner_account_id = $1, owner_band_id = NULL, added_by_account_id = NULL WHERE id = $2', [accountId, scoreId]);
   return getFlowDetail(accountId, scoreId);
 }
 
 export async function publishFlow(accountId, scoreId) {
   if (!(await isSuperAdmin(accountId))) throw withStatus(403, 'Only a super admin can publish a flow.');
   await assertFlowAccess(accountId, scoreId);
-  await pool.query('UPDATE scores SET owner_account_id = $1, owner_band_id = NULL, is_public = true WHERE id = $2', [accountId, scoreId]);
+  await pool.query('UPDATE scores SET owner_account_id = $1, owner_band_id = NULL, added_by_account_id = NULL, is_public = true WHERE id = $2', [accountId, scoreId]);
   return getFlowDetail(accountId, scoreId);
 }
 
@@ -329,7 +348,12 @@ export async function duplicateFlow(accountId, scoreId) {
 }
 
 export async function deleteFlow(accountId, scoreId) {
-  await assertFlowAccess(accountId, scoreId);
+  const score = await assertFlowAccess(accountId, scoreId);
+  // ML-411: a band piece goes for everyone in the band (their practice lists, their Levels), so being
+  // a member isn't enough - see flowPermissions.js.
+  if (!canDeleteFlow(score, accountId, await isSuperAdmin(accountId))) {
+    throw withStatus(403, 'Only the person who added this piece to the band can delete it.');
+  }
   // Blob storage doesn't hear about a Postgres ON DELETE CASCADE - every
   // linked object has to be explicitly deleted here first.
   const [{ rows: recordingRows }, { rows: documentRows }] = await Promise.all([

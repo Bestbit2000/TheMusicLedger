@@ -12,6 +12,7 @@ it).
 | Stepped sessions: three steps to set up, plans, Keep going, the 30-second rest and its messages, Prepare (run-through, paint, knife), Play-through, the warm-up loop | ML-390 | `public/practicePlan.js`, `public/flowJourney.js`, the "ML-390" sections of app.js, `server/services/restMessages.js`, Admin → Rest messages, migration 087 |
 | Practice lists, readiness forecast, join-up groups, band lists | ML-319 | `PracticePlan.forecast`, `#practiceListView` (on Rehearse), `server/services/practiceLists.js` |
 | Skills lists | ML-321 | `SKILLS` in app.js, `#skillsView`, `server/services/skills.js` |
+| Scales Levels: a Scales block's three scales, each at its Level | ML-391 | `PracticePlan.scale*`, `scalesLadder` in app.js, `server/services/scaleLevels.js`, migration 096 |
 | Other "Level" labels renamed (Help, Notes, Difficulty, Account type) | ML-318 | - |
 | Cleaning up challenges | ML-324 (to do) | - |
 
@@ -42,7 +43,7 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
      (`PracticePlan.stretch`), so a warm-up isn't repeated. Plans saved before ML-390 (opening blocks + a focus)
      still work.
 3. **What goes in?** (`#sessionContentView`) One row per kind of block in the plan: **Warm-up** (which warm-up
-   list - it plays on a loop), **Scales** (your grade's scales in the Scales tool), **Skills** (which skills
+   list - it plays on a loop), **Scales** (your grade's scales in the Scales tool - or, with Scales Levels on, a card: see "Scales Levels"), **Skills** (which skills
    list). **Pieces** come from a **practice list**, **pieces you choose** (one or several, the Add pieces pick
    list) or **all your pieces** with Levels. **Auto** (on by default) picks the bars; off, you pick each Pieces
    block's bars on Ready. The card shows the next goal ("every 1 up to 2") and each piece's Level bar (how many bars at each Level,
@@ -104,7 +105,7 @@ the countdown ring, **one message** with a picture, and Next up. **No Skip** - t
 
 ### Getting a piece ready: Prepare, Practise, Play-through (ML-390)
 
-**The Prepare tool (ML-401)** is a second way in: All tools › My routine › Prepare lists the pieces you can see that
+**The Prepare tool (ML-401)** is a second way in: All tools › Practise › Prepare lists the pieces you can see that
 you haven't prepared yet (a filter adds the rest) and opens a piece's path. A public piece can be prepared as it is
 or copied to your library first; a copy keeps `scores.copied_from_score_id`. See `specs/components/prepare-list.md`.
 
@@ -135,6 +136,57 @@ opened from a practice list, Play Flow's menu (My Levels) and a session's Prepar
    **one long go** instead (a 10-minute block) when the piece fits one. Each part goes from 4 to 5; **a part that
    reaches 5 takes every bar inside it to 5** (the whole piece moves up together). Painting a bar back down puts
    its part back to 4 (or no Level while a bar inside is below 4).
+
+## Scales Levels (ML-391)
+
+With the `scales_levels` switch on (its own feature - part of SmartLearn in spirit, but it neither needs SmartLearn
+nor goes off with it; Super admin only until it's switched on for an account type), a session's **Scales block**
+stops being "open the Scales tool". It gives **three scales, each at its own Level**, and you say **Got it** or
+**Not yet** for each. Off, the block opens the tool as before. The owner's design decisions are on the ML-391 ticket
+(1 and 4 October 2026).
+
+- **The five Levels** (`PracticePlan.SCALE_LEVELS`) say how a scale is played today:
+
+  | Level | What you see (the tool's Detail) | Speed |
+  |---|---|---|
+  | 1 | the notes | slowly - 60% of full speed |
+  | 2 | the notes | faster - 80% |
+  | 3 | just the key (a stave with the key signature) | 80% |
+  | 4 | just the name | 80% |
+  | 5 | just the name | full speed |
+
+  **Got it** moves the scale up one Level for next time - **once a day at most** (the player's own day), so Got it
+  can't be tapped up to 5 in one sitting. **Got it at Level 5 = learnt** (a star). A learnt scale leaves the queue
+  and comes back about every two weeks (`SCALE_REVISIT_DAYS`) as a block's third scale - "still got it?"; Not yet
+  puts it back to Level 4. **Not yet** otherwise keeps the Level.
+- **Full speed** is ABRSM's guide speed for the grade (`PracticePlan.SCALE_SPEEDS` - from the same syllabuses as
+  the scale lists: brass 2023, woodwind 2026; trombones slower than the other brass). Scales go two notes to a
+  beat, arpeggios three; dominant and diminished 7ths and scales in thirds have their own rows. A scale's grade
+  is the highest ticked grade that asks for it. **Levels 1-4 click on every note**; Level 5 clicks on the beat,
+  as the exam counts it (`PracticePlan.scaleSpeed`).
+- **Which scales** (`PracticePlan.scalePool`): your list (the ticked grades' scales in your range - the Scales
+  tool's own list), **lowest Level first, then played longest ago**, then list order - so every scale leaves a
+  Level before any goes two ahead ("everyone up together", as pieces do).
+- **The block** (`scalesLadder` in app.js): the Scales screen with two boxes in place of its four (which scale of
+  the block - "2 of 3" - and its Level) and **Not yet / Got it** in place of Previous / Next / Shuffle / Select. The
+  Level sets Detail and the metronome; clef and direction stay yours; **your own Scales settings come back when
+  the block ends** (they're never saved over). Each scale has about a minute and a half (a nudge to decide at 90
+  seconds); answering moves straight on, and a fourth comes in if there's time. When the block's time runs out,
+  the scale you're on still asks "got it?" (the Skills block's pop-up), then the rest.
+- **The Level box** opens what each Level means for that scale and **sets one by hand** (you know it already, or
+  it has got too hard). Outside a session the Scales tool shows a "Level 2 - change" link under a scale that's
+  in your list; only a block's Got it moves a Level otherwise.
+- **Messages:** a small one per answer ("D major: up to Level 2"). The stars (`#scaleUpModal`, the same as a
+  piece's Level up, no sound) are kept for the big moments: the last scale leaving a Level ("Every scale is at
+  Level 2!") and a scale being learnt.
+- **Where it shows:** step 3's **Scales card** (grades, the next goal, the three scales the block starts with,
+  every scale as one Level bar, "See all my scales"), the Ready screen's row, and the **grade grid** in the Scales
+  pop-up - each box of your list holds its Level (a star once learnt) in the Level colours.
+- **Skills lists:** while it's on, Add skills doesn't offer the Scales skills (scales belong to the Scales
+  block); ones already on a list keep working.
+- **Kept per instrument:** `scale_levels` (account, instrument, scale - `PracticePlan.scaleKey`), every answer
+  in `scale_level_results`; `/api/practice/scale-levels` (`server/services/scaleLevels.js`), which applies the
+  same rules as the browser. Tests: `server/test/scaleLevels.test.js` and back-test #51.
 
 ## Levels (ML-315/316/317)
 

@@ -1,5 +1,5 @@
-// ML-378: the All tools page and Home's "My tools" - the tiles' ids match what the server accepts, the
-// routine runs in the order it's practised, and the default favourites are real tools.
+// ML-378: the All tools page and Home's "My favourite tools" (ML-412) - the tiles' ids match what the server accepts, the
+// groups hold the right tools in the right order, and the default favourites are real tools.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,9 +22,11 @@ test('the tiles live on the All tools page, not on Home', () => {
     assert.match(main, /id="homeToolsRow"/);
 });
 
-test('the routine is in the order it is practised: Warm-ups, Scales, Add a piece, Rehearse', () => {
-    const routine = html.slice(html.indexOf('id="toolGroup-routine"'), html.indexOf('id="toolGroup-learn"'));
-    assert.deepEqual([...routine.matchAll(/data-tool="([a-z-]+)"/g)].map(m => m[1]), ['warmups', 'scales', 'add-piece', 'prepare', 'rehearse']); // ML-400 / ML-401: add, prepare, then rehearse
+// ML-409: My routine is Warm-ups and Scales; a piece's three tools sit together in Practise.
+test('My routine is Warm-ups then Scales, and Practise is Add a piece, Prepare, Rehearse', () => {
+    const tools = (from, to) => [...html.slice(html.indexOf(from), html.indexOf(to)).matchAll(/data-tool="([a-z-]+)"/g)].map(m => m[1]);
+    assert.deepEqual(tools('id="toolGroup-routine"', 'id="toolGroup-practise"'), ['warmups', 'scales']);
+    assert.deepEqual(tools('id="toolGroup-practise"', 'id="toolGroup-learn"'), ['add-piece', 'prepare', 'rehearse']); // ML-400 / ML-401: add, prepare, then rehearse
 });
 
 // ML-388: how many fit comes from the home_tools limit (Admin -> Feature access), not a number in the code.

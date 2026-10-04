@@ -82,6 +82,18 @@ export async function deleteFeedbackByMarker(marker: string): Promise<void> {
   await withClient(async (c) => { await c.query('DELETE FROM feedback WHERE message LIKE $1', [`%${marker}%`]); });
 }
 
+// ---- limits (ML-383) ----
+// A limit's value for an account type as it is now. Limits are changed on Admin -> Feature access (e.g. Home
+// tools 8 -> 12), so a test reads the number rather than assuming the one the migration seeded.
+export async function limitValue(limitKey: string, accountLevel: string): Promise<number | null> {
+  return withClient(async (c) => {
+    const { rows } = await c.query(
+      `SELECT v.value FROM feature_limit_values v JOIN feature_limits l ON l.id = v.limit_id WHERE l.limit_key = $1 AND v.account_level = $2`,
+      [limitKey, accountLevel]);
+    return rows.length ? Number(rows[0].value) : null;
+  });
+}
+
 // ---- bands and teachers ----
 export async function bandIdsOf(email: string): Promise<number[]> {
   return withClient(async (c) => (await c.query(

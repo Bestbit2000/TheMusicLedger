@@ -35,7 +35,7 @@ Unselected (`--control-border` outline) · Selected (the shared gold pattern: `-
 ## 7. Code example
 ```html
 <div class="radio-group">
-  <input type="radio" id="c1" name="cat" value="Practise" checked><label for="c1">Practise</label>
+  <input type="radio" id="c1" name="cat" value="Practise" checked><label for="c1">Practice</label>
   <input type="radio" id="c2" name="cat" value="Lesson"><label for="c2">Lesson</label>
 </div>
 ```

@@ -89,14 +89,15 @@ export async function unarchiveBand(accountId, name) {
 // db/migrations/001_identity.sql) for real cross-account membership.
 // ========================================
 
-// "The X" -> "X (The)" (ML-89) so the shared directory sorts and reads by
-// the band's real name, not by the word "The".
-function bandCoreName(name) {
+// A band is named as it's said - "The Cobham Band" (displayName) - wherever one band is named. It sorts
+// by its name without "The" (ML-89), and only an A-Z list shows that form: "Cobham Band, The" (listName,
+// ML-405 - it used to be "Cobham Band (The)" everywhere).
+export function bandCoreName(name) {
   return /^The\s+(.+)$/i.exec(name)?.[1] ?? name;
 }
-function bandDisplayName(name) {
+export function bandListName(name) {
   const core = /^The\s+(.+)$/i.exec(name)?.[1];
-  return core ? `${core} (The)` : name;
+  return core ? `${core}, The` : name;
 }
 // Migration 073: what kind of band, where it rehearses, its brass band section, the band it belongs
 // to (a youth/training/second band) and any notes. All optional - older bands have none of them.
@@ -108,7 +109,8 @@ function toDirectoryBand(row) {
   return {
     id: Number(row.id),
     name: row.name,
-    displayName: bandDisplayName(row.name),
+    displayName: row.name,
+    listName: bandListName(row.name),
     website: row.website,
     memberCount: row.member_count !== undefined ? Number(row.member_count) : undefined,
     ensembleType: row.ensemble_type ?? null,
@@ -117,7 +119,7 @@ function toDirectoryBand(row) {
     rehearsalPostcode: row.rehearsal_postcode ?? null,
     sectionLevel: row.section_level ?? null,
     parentBandId: row.parent_band_id ? Number(row.parent_band_id) : null,
-    parentName: row.parent_name ? bandDisplayName(row.parent_name) : null,
+    parentName: row.parent_name ?? null,
     notes: row.notes ?? null
   };
 }

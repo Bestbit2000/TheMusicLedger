@@ -82,10 +82,20 @@ tests) to see every test case and which features it's linked to.
      (`await expect(page.locator('#cat-practise')).toBeChecked()`) rather than
      via role.
    - Every test needs explicit assertions (`await expect(...).toBeVisible()`, etc).
-   - **Two dev accounts (ML-310).** `loginAsLocalDev` is `local-dev@themusicledger.local`, an
-     ordinary `standard_member`. `loginAsLocalAdmin` (`/auth/login?as=admin`) is
-     `local-admin@themusicledger.local`, a `super_admin` on the dev branch, for admin-only
-     actions (e.g. publishing a piece). Case #25 switches between the two.
+   - **Three dev accounts (ML-310, ML-345).** `loginAsLocalDev` is `local-dev@themusicledger.local`, a
+     beta tester on dev (so it has every feature). `loginAsLocalStandard` (`/auth/login?as=standard`) is a
+     `standard_member`, for what Standard members can't see. `loginAsLocalAdmin` (`/auth/login?as=admin`)
+     is `local-admin@themusicledger.local`, a `super_admin` on the dev branch, for admin-only actions
+     (e.g. publishing a piece). Case #25 switches between two of them; case #50 puts two in one band.
+   - **Don't assume a number an admin can change.** Limits (favourite tools, Home stats, invites a day...)
+     are set on Admin → Feature access and do get changed on dev. Read the current value with
+     `limitValue(limitKey, accountLevel)` (`tests/helpers/groupC.ts`) instead of writing 8 or 4.
+   - **A new piece: wait for its default name before typing.** The details arrive a moment after the
+     screen shows and overwrite the field
+     (`await expect(page.locator('#flowTitleInput')).not.toHaveValue('')` first).
+   - **`deleteTestFlows` deletes what the signed-in account may delete** (`canDelete`, ML-411): its own
+     test pieces and band pieces it added. A band piece someone else added needs that account, or
+     `local-admin` in the same band.
    - Start each spec with `import { test, expect } from '@playwright/test';`
      and `import { loginAsLocalDev } from '../helpers/auth';`, then call
      `loginAsLocalDev(page)` in a `test.beforeEach`.

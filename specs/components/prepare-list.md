@@ -8,7 +8,7 @@
 - **Status:** New (ML-401)
 
 ## 2. Overview
-A way straight into preparing a piece, as a tool of its own (All tools › My routine, between Add a piece and
+A way straight into preparing a piece, as a tool of its own (All tools › Practise, between Add a piece and
 Rehearse - add, prepare, rehearse), so it isn't buried in a piece's path or a practice session. Shown with
 `practice_levels`.
 - **The list** is every piece you can see - yours, your bands', public - that has bars to play.

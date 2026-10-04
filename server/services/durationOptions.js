@@ -11,7 +11,7 @@ export async function listDurationOptions() {
   return rows.map(r => r.minutes);
 }
 
-// ML-236: the quick timer's fallback when a user has no recent practise history to pick a length
+// ML-236: the quick timer's fallback when a user has no recent practice history to pick a length
 // from (050_duration_default.sql). null if no active preset is flagged - the client then uses 30.
 export async function getDefaultDurationMinutes() {
   const { rows } = await pool.query(

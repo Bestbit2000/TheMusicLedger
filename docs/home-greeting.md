@@ -8,7 +8,7 @@ Home is short on purpose - one clear action, a few tools, everything else a tap 
 1. **My stats** (ML-387) - numbers you chose on the Stats page (see below). Hidden until you've logged something.
 2. **Start a practice session** - the one gold button (or Start a challenge, when practice sessions are off).
 3. **Log time you've already played** - a link (`.btn-text`) to Add session time, not a second button.
-4. **My tools** - your favourites, **4 for Standard, 8 for everyone else** (the `home_tools` limit on Admin → Feature access, ML-388 - four to a row, so 8 is two rows), copies of the All tools tiles (`renderHomeTools`),
+4. **My favourite tools** (ML-412 - it was "My tools"), **4 for Standard, 8 for everyone else** (the `home_tools` limit on Admin → Feature access, ML-388 - four to a row, so 8 is two rows), copies of the All tools tiles (`renderHomeTools`),
    in **your** order. Until you choose your own, the default follows what your account type has switched on:
    **no more tools than fit → all of them** (e.g. a Standard member's), **more → the Everyday ones (Metronome,
    Tuner, Timer) plus Rehearse** (`homeToolsDefault`) - so the metronome is always one tap away.
@@ -28,10 +28,10 @@ limit (Admin → Feature access, Limits: **Standard 2, everyone else 4** - migra
   this month, this year - or this practice year when that's on), Streaks (current, longest), Sessions (this week,
   this month), Concerts (days to the nearest practice list with a date, `practice_levels`), Tools (last Theory Level,
   `theory_practice`; tools last played). A card whose feature is off is hidden. ★ marks the ones on Home.
-- **Choose Home stats** works exactly like Choose Home tools: tap cards to add or take off ("Home holds 2 stats -
+- **Choose Home stats** works exactly like Choose favourite tools: tap cards to add or take off ("Home holds 2 stats -
   take one off first"), a pinned **My Home screen** card shows them in Home's order - tap one for Move earlier /
   Move later / Take off Home (the same `#homeToolMenu`) - and Done.
-- **Default:** Practice time this week and Current practise streak. **Hidden** until the player has logged a
+- **Default:** Practice time this week and Current practice streak. **Hidden** until the player has logged a
   session, so a new player never sees a row of zeros.
 - Tapping a Home stat opens its full page, as on the Stats page. Weeks start on Monday, as everywhere else.
 - Saved on the account: `accounts.home_stats` (migration 086, null = the default), `PUT /api/account { homeStats }`,
@@ -41,14 +41,14 @@ limit (Admin → Feature access, Limits: **Standard 2, everyone else 4** - migra
   server's list, the defaults and the seeded limits in step.
 
 **All tools** (`toolsView`) - every tool, in groups: **Everyday** (Metronome, Tuner, Timer) · **My routine**
-in the order it's practised (**Warm-ups → Scales → Rehearse**, as the practice session templates; **Add a piece**, ML-400, then **Prepare**, ML-401, sit just before Rehearse - `specs/components/add-piece.md`, `prepare-list.md`) · **Learn**
+(Warm-ups, Scales) · **Practise** (ML-409: a piece's three tools, in order - **Add a piece**, ML-400, **Prepare**, ML-401, **Rehearse** - `specs/components/add-piece.md`, `prepare-list.md`) · **Learn**
 (Theory, Skills, Range - ML-406: **Skills** is one tile that lists Pitch, Tempo, Pulse and Rhythm, as Theory lists
 its quizzes; anyone who had one of the four on Home got Skills there instead, migration 091). A ★ marks the ones on Home.
-**Choose Home tools** turns the tiles into toggles (tap to add or take off, up to your limit - "Home holds 4
-tools"), **Done** to finish. **Order:** Home shows them in your order - a new one goes at the end - and while
-choosing, a boxed **"My Home screen"** card - pinned under the top bar as you scroll, with the "3 of 4 on Home"
+**Choose favourite tools** (ML-412 - the tools on Home are called favourites on screen; a quiet text link under the groups, ML-408) turns the tiles into toggles (tap to add or take off, up to your limit - "You can have 4
+favourite tools"), **Done** to finish. **Order:** Home shows them in your order - a new one goes at the end - and while
+choosing, a boxed **"My favourite tools"** card - pinned under the top bar as you scroll, with the "3 of 4 favourites"
 line under it, and **Done** pinned to the bottom - shows them as Home will: tap one for **Move earlier / Move
-later / Take off Home** (← / → from the keyboard). Tap-to-move, not drag: four tiles need a tap or two, and a
+later / Remove from favourites** (← / → from the keyboard). Tap-to-move, not drag: four tiles need a tap or two, and a
 hold-to-drag would fight scrolling and still need this as its accessible alternative. Saved on the account: `accounts.home_tools` (migration 080, null = the default
 above), `PUT /api/account { homeTools }`, checked against `HOME_TOOL_IDS` in server/services/accounts.js. The
 ☰ menu's Tools rows are built from the same groups. `server/test/homeTools.test.js` keeps the tiles, the

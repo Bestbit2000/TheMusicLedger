@@ -18,7 +18,7 @@ people. The rules are in [docs/feature-access-plan.md](../../docs/feature-access
 - `.admin-access-toolbar` - the count ("Standard member - 15 of 37 features on"), **Copy from…** (one type only), **Preview the app as…** + Preview.
 - **Grid:** `.admin-stat-table-wrap` › `table.admin-stat-table.admin-access-table`
   - `thead`: Feature, Live (`.admin-access-live`), one column per type. Beta tester's header has `.admin-access-copy` ("Same as Premium", copies once).
-  - `tbody`: a `tr.admin-access-group` › `th[scope=rowgroup]` per group (Tools - Everyday / Practise / Learn, Practice sessions, Menu, My music, Metronome and tuner, Core and other), then a row per feature:
+  - `tbody`: a `tr.admin-access-group` › `th[scope=rowgroup]` per group (Tools - Everyday / My routine / Practise / Learn, Practice sessions, Menu, My music, Metronome and tuner, Core and other), then a row per feature:
     - `th[scope=row]` - the name and its description (`small`, two lines, the whole text in its title), sticky on the left
     - Live - a `.toggle-switch`
     - one `label.admin-access-cell` › checkbox per type; Super admin's are ticked and disabled

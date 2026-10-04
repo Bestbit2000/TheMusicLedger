@@ -35,7 +35,7 @@ Display (`--container-bg`) · Tappable (`button` / `.clickable`: `--input-bg`, a
 ```html
 <!-- Display row: only the menu button is tappable -->
 <div class="history-item" style="border-left-color: var(--cat-practise)">
-  <div class="history-details"><strong>Practise</strong>3 Sep 2026 | 25 mins</div>
+  <div class="history-details"><strong>Practice</strong>3 Sep 2026 | 25 mins</div>
   <button class="list-item-menu-btn" aria-label="Options"><span class="material-symbols-outlined">more_vert</span></button>
 </div>
 <!-- Tappable row: the body opens the item -->

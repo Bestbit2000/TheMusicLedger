@@ -91,7 +91,7 @@ When Challenges and Practice sessions are both off, the home screen keeps just *
 
 - **A new admin section.** Features stays the catalogue (add, rename, describe, delete).
 - **All account types** (desktop):
-  - A grid: features down the side, grouped (Tools - Everyday / Practise / Learn, Practice
+  - A grid: features down the side, grouped (Tools - Everyday / My routine / Practise / Learn, Practice
     sessions, Menu, My music, Metronome and tuner, Core), with **Live** then one column per account
     type.
   - A tick per cell. A changed cell is outlined until saved.
@@ -162,7 +162,7 @@ Some things aren't on/off but **how much**: a number per account type, set on Ad
   most recent, that many in all. Every play is still kept (ML-366), so moving up a type shows the older
   ones straight away. Under the list: "Limited to the last N metronome plays". Standard members only see
   it once `metronome_history` is switched on for them.
-- **`home_tools`** (ML-388, migration 085) - how many tools can be on Home ("My tools"): Standard 4,
+- **`home_tools`** (ML-388, migration 085) - how many favourite tools a player can have on Home ("My favourite tools"; the limit is named Favourite tools on the admin page, ML-412): Standard 4,
   everyone else 8 to start (the owner may raise it to 12 as more tools get used). The app reads
   `appData.limits.home_tools` (4 if unset). Only how many *show*: `accounts.home_tools` keeps every
   favourite, so moving down a type hides the later ones and moving back up brings them back. The tile row

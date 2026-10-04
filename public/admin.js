@@ -551,7 +551,7 @@
             <div class="admin-feature">
                 <div class="admin-feature-header">
                     <div class="admin-feature-header-text">
-                        <h2>${escapeHtml(b.displayName)}${b.active ? '' : ' (archived)'}</h2>
+                        <h2>${escapeHtml(b.listName || b.displayName)}${b.active ? '' : ' (archived)'}</h2>
                         <p>${b.website ? `<a href="${escapeHtml(b.website)}" target="_blank" rel="noopener">${escapeHtml(b.website)}</a>` : 'No website'}</p>
                         ${bandDetailLine(b) ? `<p class="admin-test-case-meta">${escapeHtml(bandDetailLine(b))}</p>` : ''}
                         ${b.notes ? `<p class="admin-test-case-meta">${escapeHtml(b.notes)}</p>` : ''}
@@ -592,7 +592,7 @@
         options(document.getElementById('bandSectionInput'), 'None (not a contesting brass band)', BAND_SECTIONS.map(s => [s, s]), band?.sectionLevel);
         // A main band is one that isn't itself part of another band (one level only).
         const mains = [...bandsById.values()].filter(b => !b.parentBandId && b.active && (!band || b.id !== band.id));
-        options(document.getElementById('bandParentInput'), 'Nothing - it is a main band', mains.map(b => [b.id, b.displayName]), band?.parentBandId);
+        options(document.getElementById('bandParentInput'), 'Nothing - it is a main band', mains.map(b => [b.id, b.listName || b.displayName]), band?.parentBandId);
         document.getElementById('bandTownInput').value = band?.town || '';
         document.getElementById('bandCountyInput').value = band?.county || '';
         document.getElementById('bandPostcodeInput').value = band?.rehearsalPostcode || '';
@@ -2427,9 +2427,10 @@
     // ========================================
     const ACCESS_GROUPS = [
         ['Tools - Everyday', ['metronome', 'tuner', 'timer']],
-        ['Tools - Practise', ['rehearse', 'warmups', 'scales_practice']],
+        ['Tools - My routine', ['warmups', 'scales_practice']],
+        ['Tools - Practise', ['rehearse']],
         ['Tools - Learn', ['theory_practice', 'theory_grades', 'theory_smart_learn', 'ear_training', 'tap_tempo', 'gap_trainer', 'range_trainer', 'rhythm_trainer']],
-        ['Practice sessions', ['practice_levels']],
+        ['Practice sessions', ['practice_levels', 'scales_levels']],
         ['Menu', ['challenges', 'flow_manage', 'manage_tutor', 'notifications', 'feedback', 'invite_members']],
         ['My music', ['flow_create', 'flow_import_musicxml', 'flow_import_from_file', 'flow_export_musicxml', 'flow_playback', 'flow_editor', 'flow_consistency_check']],
         ['Metronome and tuner', ['metronome_history', 'metronome_save_to_flow', 'tuner_rewind']]

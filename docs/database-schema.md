@@ -105,6 +105,16 @@ named `scores` deliberately: a Flow is rhythm/structure only (no notes), and
 the same piece (via a music reader or an uploaded file) — this table is the
 natural home for that later, so it isn't renamed out from under it now.
 
+**Who can delete a piece (ML-411)** - the rule lives in `server/services/flowPermissions.js` (`canDeleteFlow`,
+tested in `server/test/flowPermissions.test.js`) and `deleteFlow` / `removeFlowFromBand` both ask it: a personal
+piece - its owner; a **band piece - the person who added it** (`scores.added_by_account_id`, migration 094: set
+when a piece is made in or moved into a band, cleared when it leaves) or a super admin who is in the band; a public
+piece - a super admin. Being in the band isn't enough, because deleting a band piece takes it off every practice
+list and wipes every player's Levels for it. *Editing* a band piece is still open to every member. The list and
+detail DTOs carry `canDelete`, which is what My music's ⋮ Delete and "Delete several pieces" go by. This is step 1
+of band piece permissions; the later steps (a self-appointed per-band Librarian role on `band_members.role`, bands
+that start open and can be closed down to librarians only, a bin, ask-to-join) are on the ML-411 ticket and not built.
+
 | Table | Purpose | Key columns |
 |---|---|---|
 | `scores` | A piece ("Flow" - see naming note above), owned by a band or an account | id, title, composer, arranger, publisher, description, owner_band_id, owner_account_id, forked_from_score_id, is_public, default_bpm, default_time_signature, default_conductor_beats_per_bar, created_at |
@@ -328,6 +338,16 @@ own numbers (lead-in excluded), as Repeat bars uses. Maths and rules: `docs/flow
 `accounts.practice_sub_beats_below` (default 100): in a practice session sub-beats switch on for a bar
 whose beat at its Level is below this speed. Session only - the tools keep the player's own setting.
 
+### Scales Levels (ML-391, wired up behind `scales_levels`)
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `scale_levels` | Each scale's Level for an account on an instrument (a scale with no row is at Level 1, never played) | account_id, instrument_id, scale_key (`PracticePlan.scaleKey`: kind\|key\|form\|octaves\|pattern), level 1-5, learnt_at, last_played_at, last_up_on (the player's own day - one Level up a day), unique per account + instrument + scale |
+| `scale_level_results` | Every Got it / Not yet, and every Level set by hand (got_it null) | account_id, instrument_id, scale_key, level, got_it, outcome (up / learnt / held / kept / back / stay / set), level_after |
+
+Per instrument on purpose (owner, 4 Oct 2026): a baritone's and a euphonium's lists and clefs can differ. The
+rules are in `public/practicePlan.js`; see "Scales Levels" in [practice-sessions.md](practice-sessions.md).
+
 ### Practice sessions: templates, the running session, skills (ML-320 follow-ups, ML-321)
 
 See [practice-sessions.md](practice-sessions.md) for how they fit together.
@@ -396,7 +416,7 @@ See `docs/theory-practice.md`.
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `duration_options` | Shared preset duration list (minutes) for the save-session screen and the practice timer (`ML-7`). One row can be `is_default` - the quick timer's starting length when a user has no practise sessions in the last 90 days (`ML-236`) | id, minutes, sort_order, active, is_default |
+| `duration_options` | Shared preset duration list (minutes) for the save-session screen and the practice timer (`ML-7`). One row can be `is_default` - the quick timer's starting length when a user has no practice sessions in the last 90 days (`ML-236`) | id, minutes, sort_order, active, is_default |
 | `playback_speed_options` | Play-speed presets (`ML-109`) for Quick Play and Rehearse (first built for Metronome Blocks) | id, percent, active |
 
 Neither is per-account - each is a single tool-wide list, deliberately moved out

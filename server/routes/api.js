@@ -8,6 +8,7 @@ import express from 'express';
 import { assertWarmupsEnabled, listActiveWarmups } from '../services/warmups.js';
 import { assertPracticeLevelsEnabled, getPieceLevels, replacePieceChunks, setChunkLevel, setSubBeatsBelow, listPracticePieces } from '../services/practiceLevels.js';
 import { nextRestMessage } from '../services/restMessages.js';
+import { assertScaleLevelsEnabled, getScaleLevels, answerScale, setScaleLevel } from '../services/scaleLevels.js';
 import { listPracticeChunks, savePracticeSession, listTemplates, saveTemplate, deleteTemplate, getActivePractice, putActivePractice, clearActivePractice } from '../services/practiceSessions.js';
 import { recordSkillResult, getSkillsAndLists, createSkillList, updateSkillList, deleteSkillList, listWarmupLists, saveWarmupList, deleteWarmupList } from '../services/skills.js';
 import { listPracticeLists, createPracticeList, updatePracticeList, deletePracticeList, setPracticeListPieces, getPracticeList } from '../services/practiceLists.js';
@@ -248,6 +249,12 @@ router.post('/practice/skill-lists', requireAuth, resolveAccount, practiceListRo
 router.put('/practice/skill-lists/:id', requireAuth, resolveAccount, practiceListRoute(req => updateSkillList(req.accountId, req.params.id, req.body || {})));
 router.delete('/practice/skill-lists/:id', requireAuth, resolveAccount, practiceListRoute(req => deleteSkillList(req.accountId, req.params.id)));
 router.post('/practice/skills/result', requireAuth, resolveAccount, practiceListRoute(req => recordSkillResult(req.accountId, req.body || {}).then(skills => ({ skills }))));
+// ML-391: Scales Levels - each scale's Level on an instrument, Got it / Not yet, and a Level set by hand.
+// Behind its own switch (scales_levels) as well as practice sessions'.
+const scaleLevelsRoute = (fn) => practiceListRoute(async (req) => { await assertScaleLevelsEnabled(); return fn(req); });
+router.get('/practice/scale-levels', requireAuth, resolveAccount, scaleLevelsRoute(req => getScaleLevels(req.accountId, req.query.instrumentId)));
+router.post('/practice/scale-levels/answer', requireAuth, resolveAccount, scaleLevelsRoute(req => answerScale(req.accountId, req.body || {})));
+router.put('/practice/scale-levels/level', requireAuth, resolveAccount, scaleLevelsRoute(req => setScaleLevel(req.accountId, req.body || {})));
 // ML-343: your own warm-up lists.
 router.get('/practice/warmup-lists', requireAuth, resolveAccount, practiceListRoute(req => listWarmupLists(req.accountId).then(lists => ({ lists }))));
 router.post('/practice/warmup-lists', requireAuth, resolveAccount, practiceListRoute(req => saveWarmupList(req.accountId, null, req.body || {}).then(lists => ({ lists }))));
@@ -394,7 +401,7 @@ router.get('/dropdown-options', requireAuth, resolveAccount, async (req, res) =>
       // ML-190: every enabled feature_key in one list, so the client can gate UI at app-load time
       // without a request per feature - see server/services/features.js.
       listEnabledFeatureKeys(),
-      // ML-236: the quick timer's fallback length when there's no practise history to go on.
+      // ML-236: the quick timer's fallback length when there's no practice history to go on.
       getDefaultDurationMinutes(),
       // ML-234: loaded with the rest of the app's startup data since the stats screen needs it.
       getPracticeYearSetting(req.accountId),
@@ -997,7 +1004,7 @@ router.put('/challenges/:row', requireAuth, resolveAccount, async (req, res) => 
     const { row } = req.params;
     const { timeSpent, status, piece, ref, barFrom, barTo, bpm, priority } = req.body;
 
-    // Editing a task's details (piece/ref/bars/bpm), logging practise progress
+    // Editing a task's details (piece/ref/bars/bpm), logging practice progress
     // (timeSpent/status), and reordering (priority, from dragging a task within
     // a challenge) are independent - only touch whichever ones the caller
     // actually sent.

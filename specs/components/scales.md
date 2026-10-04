@@ -1,7 +1,7 @@
 # Scales practice
 
 ## 1. Metadata
-- **Name:** Scales practice (`.scales-setting-row`, `.scales-setting-btn`, `.scales-dir-flip`, `.scales-choice-grid`, `.scales-pick-row`, `.is-centred`, `.scales-staff-heading`, `.scales-memory`, `.scales-memory-name`, `.scales-memory-detail`, `.scales-memory-progress`, `.scales-staff-card`, `.scales-staff-head`, `.scales-staff-title`, `.scales-staff-sub`, `.scales-staff`, `.scales-staff-row-short`, `.scales-note`, `.scales-note-*`, `.scales-rest`, `.is-now`, `.scales-metronome-card`, `.scales-choose-group`, `.scales-choose-label`, `.scales-choose-keys`, `.scales-pool-line`, `.scales-pool-count`, `.scales-range-link`, `.scale-grid`, `.scale-grid-head`, `.scale-grid-acc`, `.scale-grid-row`, `.scale-grid-label`, `.scale-grid-sub`, `.scale-grid-cell`, `.is-ready`, `.is-other`, `.is-locked`, `.is-beyond`, `.is-no`, `.scale-grid-legend`, `.scales-range-staff`, `.scales-grade-options`)
+- **Name:** Scales practice (`.scales-setting-row`, `.scales-setting-btn`, `.scales-dir-flip`, `.scales-choice-grid`, `.scales-pick-row`, `.is-centred`, `.scales-staff-heading`, `.scales-memory`, `.scales-memory-name`, `.scales-memory-detail`, `.scales-memory-progress`, `.scales-staff-card`, `.scales-staff-head`, `.scales-staff-title`, `.scales-staff-sub`, `.scales-staff`, `.scales-staff-row-short`, `.scales-note`, `.scales-note-*`, `.scales-rest`, `.is-now`, `.scales-metronome-card`, `.scales-choose-group`, `.scales-choose-label`, `.scales-choose-keys`, `.scales-pool-line`, `.scales-pool-count`, `.scales-range-link`, `.scale-grid`, `.scale-grid-head`, `.scale-grid-acc`, `.scale-grid-row`, `.scale-grid-label`, `.scale-grid-sub`, `.scale-grid-cell`, `.is-ready`, `.is-other`, `.is-locked`, `.is-beyond`, `.is-no`, `.scale-grid-legend`, `.scales-range-staff`, `.scales-grade-options`, `.is-level`)
 - **Category:** Tool screen
 - **Status:** New (ML-9); grade lists, the grade grid and this layout ML-357
 
@@ -116,6 +116,33 @@ plus the tokens of the components it reuses (flow tiles, buttons, metronome tran
 - Top-bar tuner toggle, like the other metronome tools (`MINI_TUNER_VIEWS`).
 - Behind the `scales_practice` feature (Admin → Features); the home tile and the ☰ menu's tools
   row show it only when it's on.
+
+### In a practice session's Scales block (ML-391, Scales Levels)
+
+With the `scales_levels` switch on, a session's Scales block shows the same screen with:
+
+- **Two boxes in place of the four** (`#scalesLadderRow`: `.metro-transport-grid.scales-setting-row.is-centred`):
+  "2 of 3 / scale" (a `.metroBlk-ctrl-value-btn.scales-setting-btn` that isn't a button - there's nothing to open)
+  and the **Level** (a button: a `.level-chip.lv-N` over "level"; a star once learnt). The Level box opens what each
+  Level means for this scale and sets one by hand (the session's choice pop-up, each row a `.level-chip` beside
+  its words).
+- The sub-line adds how the Level is played: "1 octave · treble · with the notes, slowly".
+- **Not yet / Got it** (`#scalesLadderAnswers`: `.metro-transport-grid.metro-transport-grid-2` - the grey
+  `.metro-play-grid-btn-reset` and the gold `.metro-play-grid-btn`, icon over label) in place of
+  Previous / Next / Shuffle / Select.
+- The metronome card is titled "Metronome · set by the Level" and its on/off switch is hidden; the Level sets
+  Detail, the tempo and notes / beat.
+- **Outside a block**, a scale that's in your list has a `.btn-text` under the pick row: "Level 2 - change"
+  (`#scalesLevelLink`), opening the same Level pop-up.
+- **The grade grid** (Scales pop-up): a box in your list is `.scale-grid-cell.is-level.lv-N` - the Level colour
+  (the [level map](level-map.md)'s `.lv-1` to `.lv-5`), a solid edge, its number in bold, a star once learnt. The
+  next goal (`.session-goal`) sits above the grid and the key becomes the Levels key (`#scalesLevelLegend`).
+  Each row's label for screen readers says the Level of every scale in it.
+- **The stars** (`#scaleUpModal`): the piece Level-up's `.levelup` (three stars, the from → to chips), a line of
+  text, Carry on, and the next goal with the Level bar (`.session-goal-card`). Reduced motion: no animation.
+
+The only new class is `.is-level`; everything else is reused. Rules and wording: `docs/practice-sessions.md`,
+"Scales Levels".
 
 ## 6. States
 Stopped · Count-in ("Get ready… 3") · Playing (one note gold) · Paused (the gold note stays) ·

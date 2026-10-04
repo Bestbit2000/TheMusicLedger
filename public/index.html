@@ -150,7 +150,7 @@
                 <!-- ML-201: gated by the `notifications` feature (renderFeatureGates). -->
                 <button type="button" class="dropdown-item nav-item hidden-group" id="notificationsNavItem" data-view="notificationsView" onclick="switchView('notificationsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">notifications</span><span class="nav-item-text">Notifications</span><span class="notif-count hidden-group" id="notificationsNavCount"></span></button>
 
-                <!-- ML-326: Tools opens its own panel (the Everyday / Practise / Learn icons) instead of listing them all here. -->
+                <!-- ML-326: Tools opens its own panel (the Everyday / My routine / Practise / Learn icons) instead of listing them all here. -->
                 <button type="button" class="dropdown-item nav-item" id="navToolsBtn" aria-haspopup="true" aria-controls="navToolsPanel"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">apps</span><span class="nav-item-text">Tools</span><span class="material-symbols-outlined nav-item-chevron" aria-hidden="true">chevron_right</span></button>
 
                 <div class="nav-divider" role="separator"></div>
@@ -189,7 +189,7 @@
                 <div class="nav-panel nav-panel-sub hidden-group" id="navToolsPanel" role="group" aria-label="Tools">
                     <button type="button" class="dropdown-item nav-item" id="navToolsBackBtn"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">chevron_left</span><span class="nav-item-text">Tools</span></button>
                     <div class="nav-divider" role="separator"></div>
-                    <!-- Tool groups: one labelled row per tool group (Everyday / Practise / Learn), built from the home tiles. -->
+                    <!-- Tool groups: one labelled row per tool group (Everyday / My routine / Practise / Learn), built from the home tiles. -->
                     <div id="navToolsRow"></div>
                 </div>
             </div>
@@ -264,7 +264,7 @@
         <!-- ML-387: My stats - your chosen numbers from the Stats page (up to the home_stats limit for your
              account type: Standard 2, others 4), copies of the Stats page's cards made by renderHomeStats.
              Chosen with "Choose Home stats" on the Stats page, saved on the account (accounts.home_stats);
-             default: Practice time this week and Current practise streak. Hidden until you've logged something. -->
+             default: Practice time this week and Current practice streak. Hidden until you've logged something. -->
         <div class="dashboard-grid home-stats hidden-group" id="homeStatsRow" role="group" aria-label="My stats"></div>
         <!-- ML-320: Start a practice session replaces Start a challenge (behind practice_levels; ML-324
              cleans challenges up later). renderFeatureGates shows one or the other. -->
@@ -273,25 +273,25 @@
         <!-- ML-378: logging time you've already played is a link, not a second button - Start a practice
              session is the one action that stands out. -->
         <button type="button" class="btn-text" onclick="switchView('entryForm')">Log time you've already played</button>
-        <!-- ML-378: My tools - your favourites (up to the home_tools limit for your account type, ML-388: Standard 4, others 8), in the All tools page's order (renderHomeTools copies
+        <!-- ML-378 / ML-412: My favourite tools (up to the home_tools limit for your account type, ML-388: Standard 4, others 8), in the All tools page's order (renderHomeTools copies
              their tiles from #toolsView). Chosen on the All tools page, saved on the account (accounts.home_tools);
              default: all your tools if they fit, else Metronome, Tuner, Timer, Rehearse. Only tools that are switched on show. -->
-        <div class="section-title tools-title" id="homeToolsTitle">My tools</div>
+        <div class="section-title tools-title" id="homeToolsTitle">My favourite tools</div>
         <div class="tool-icon-row" id="homeToolsRow"></div>
         <button type="button" class="history-item settings-link" onclick="switchView('toolsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">apps</span><span class="settings-link-text"><span class="settings-link-title">All tools</span><span class="settings-link-sub" id="homeAllToolsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
     </div>
 
-    <!-- ML-378: All tools - every tool, grouped, the routine in the order it's practised (Warm-ups, Scales,
-         Rehearse - as the session templates). Each tile is gated as before (renderFeatureGates; Rehearse once
+    <!-- ML-378: All tools - every tool, grouped (ML-409: Everyday / My routine - Warm-ups, Scales / Practise -
+         Add a piece, Prepare, Rehearse / Learn). Each tile is gated as before (renderFeatureGates; Rehearse once
          there's a piece), a group hides when none of its tools are on (renderToolGroups), and the ☰ menu's
-         Tools rows are built from these groups (renderNavToolsRow). "Choose Home tools" turns the tiles
+         Tools rows are built from these groups (renderNavToolsRow). "Choose favourite tools" (ML-412 - it was "Choose Home tools"; a quiet text link, ML-408; the full-size Done while choosing) turns the tiles
          into ★ toggles for Home (up to the home_tools limit, ML-388). -->
     <div id="toolsView" class="tools-page hidden-group">
-        <!-- ML-378: while choosing - your Home tools in Home's order. Tap one for Move earlier / Move later /
-             Take off Home (#homeToolMenu); ← / → move it from the keyboard. Not a .tool-group, so the ☰ menu
+        <!-- ML-378: while choosing - your favourite tools in Home's order. Tap one for Move earlier / Move later /
+             Remove from favourites (#homeToolMenu); ← / → move it from the keyboard. Not a .tool-group, so the ☰ menu
              and renderToolGroups leave it alone. Pinned under the top bar while you scroll (.tools-home-card). -->
         <section class="flow-card display-card tools-home-card hidden-group" id="toolsHomeOrder" aria-labelledby="toolsHomeOrderTitle">
-            <span class="display-preview-label" id="toolsHomeOrderTitle">My Home screen</span>
+            <span class="display-preview-label" id="toolsHomeOrderTitle">My favourite tools</span>
             <div class="tool-icon-row no-margin" id="toolsHomeOrderRow"></div>
         </section>
         <p class="text-sm text-muted mt-0 mb-3" id="toolsHint" aria-live="polite"></p>
@@ -323,6 +323,12 @@
                     <span id="scalesToolIcon" aria-hidden="true"></span>
                     <span class="tool-icon-label">Scales</span>
                 </button>
+            </div>
+        </div>
+        <!-- ML-409: Practise - a piece's three connected tools, in the order you use them: add it, prepare it, rehearse it. -->
+        <div class="tool-group" id="toolGroup-practise" role="group" aria-labelledby="toolGroupTitle-practise">
+            <div class="tool-group-title" id="toolGroupTitle-practise">Practise</div>
+            <div class="tool-icon-row">
                 <!-- ML-400: Add a piece - the way into making a piece (create / import), which used to be only
                      under ☰ My music. Shown with the same gates as My music's own "+ Add a piece". -->
                 <button data-tool="add-piece" class="tool-icon-btn hidden-group" id="addPieceToolBtn" onclick="switchView('addPieceView')" aria-label="Add a piece">
@@ -361,7 +367,7 @@
         </div>
         <!-- Pinned to the bottom while choosing (Done), so it's always to hand -->
         <div class="tools-done-bar">
-            <button type="button" class="btn-nav btn-cancel no-margin" id="toolsEditBtn" aria-pressed="false">Choose Home tools</button>
+            <button type="button" class="btn-text" id="toolsEditBtn" aria-pressed="false">Choose favourite tools</button>
         </div>
     </div>
 
@@ -388,8 +394,8 @@
         <div class="tool-group" id="statGroup-streaks" role="group" aria-labelledby="statGroupTitle-streaks">
             <div class="tool-group-title" id="statGroupTitle-streaks">Streaks</div>
             <div class="dashboard-grid">
-            <button type="button" class="stat-card clickable" data-stat="streak_current" onclick="switchView('streakStatsView')"><span class="label">Current practise streak</span><span class="value" id="statsHomeStreak">-</span></button>
-            <button type="button" class="stat-card clickable" data-stat="streak_longest" onclick="switchView('streakStatsView')"><span class="label">Longest practise streak</span><span class="value" id="statsHomeStreakLongest">-</span></button>
+            <button type="button" class="stat-card clickable" data-stat="streak_current" onclick="switchView('streakStatsView')"><span class="label">Current practice streak</span><span class="value" id="statsHomeStreak">-</span></button>
+            <button type="button" class="stat-card clickable" data-stat="streak_longest" onclick="switchView('streakStatsView')"><span class="label">Longest practice streak</span><span class="value" id="statsHomeStreakLongest">-</span></button>
             </div>
         </div>
         <div class="tool-group" id="statGroup-sessions" role="group" aria-labelledby="statGroupTitle-sessions">
@@ -414,7 +420,7 @@
         </div>
         <!-- Pinned to the bottom while choosing (Done), so it's always to hand -->
         <div class="tools-done-bar">
-            <button type="button" class="btn-nav btn-cancel no-margin" id="statsEditBtn" aria-pressed="false">Choose Home stats</button>
+            <button type="button" class="btn-text" id="statsEditBtn" aria-pressed="false">Choose Home stats</button>
         </div>
     </div>
 
@@ -430,11 +436,11 @@
             <select id="statsTimeframe">
                 <option value="all" selected>All time</option>
                 <option value="this_cal_year">This calendar year</option>
-                <!-- ML-234: both practise-year options are only offered when the account has turned
+                <!-- ML-234: both practice-year options are only offered when the account has turned
                      on its own practice year in Settings (renderPracticeYearOptions, app.js removes
                      them otherwise - a hidden <option> still shows on iOS Safari). -->
-                <option value="this_prac_year">This practise year</option>
-                <option value="last_prac_year">Last practise year</option>
+                <option value="this_prac_year">This practice year</option>
+                <option value="last_prac_year">Last practice year</option>
                 <option value="this_month">This month</option>
                 <option value="last_3_months">Last 3 calendar months</option>
                 <option value="last_6_months">Last 6 calendar months</option>
@@ -458,7 +464,7 @@
         </div>
 
         <div class="dashboard-grid">
-            <div class="stat-card edge-practise"><div class="label">Practise</div><div class="value" id="statPrac">-</div></div>
+            <div class="stat-card edge-practise"><div class="label">Practice</div><div class="value" id="statPrac">-</div></div>
             <div class="stat-card edge-rehearsal"><div class="label">Rehearsals</div><div class="value" id="statReh">-</div></div>
             <div class="stat-card edge-performance"><div class="label">Performances</div><div class="value" id="statPerf">-</div></div>
             <div class="stat-card edge-lesson"><div class="label">Lessons</div><div class="value" id="statLess">-</div></div>
@@ -512,9 +518,9 @@
 
     <div id="streakStatsView" class="hidden-group">
         <div class="dashboard-grid">
-            <div class="stat-card"><div class="label">Current practise streak</div><div class="value" id="streakCurrentPractise">0 days</div></div>
+            <div class="stat-card"><div class="label">Current practice streak</div><div class="value" id="streakCurrentPractise">0 days</div></div>
             <div class="stat-card"><div class="label">Current playing streak</div><div class="value" id="streakCurrentPlaying">0 days</div></div>
-            <div class="stat-card"><div class="label">Average practise streak</div><div class="value" id="streakAvgPractise">0 days</div></div>
+            <div class="stat-card"><div class="label">Average practice streak</div><div class="value" id="streakAvgPractise">0 days</div></div>
             <div class="stat-card"><div class="label">Average playing streak</div><div class="value" id="streakAvgPlaying">0 days</div></div>
         </div>
         <!-- ML-160: longest streak on record for each, plus the date it ended - a separate row from
@@ -522,7 +528,7 @@
              not a live-updating count). -->
         <div class="dashboard-grid">
             <div class="stat-card">
-                <div class="label">Longest practise streak</div>
+                <div class="label">Longest practice streak</div>
                 <div class="value" id="streakLongestPractise">0 days</div>
                 <div class="sess-count" id="streakLongestPractiseDate"></div>
             </div>
@@ -533,7 +539,7 @@
             </div>
         </div>
 
-        <div class="section-title">Practise streak lengths</div>
+        <div class="section-title">Practice streak lengths</div>
         <div class="chart-wrapper" id="streakChartPractise"></div>
 
         <div class="section-title">Playing streak lengths</div>
@@ -690,7 +696,7 @@
     </div>
 
     <div id="settingsStatsView" class="settings-subview hidden-group">
-        <!-- ML-234: an account's own practice year, for the stats "This/Last practise year" options.
+        <!-- ML-234: an account's own practice year, for the stats "This/Last practice year" options.
              Saved to the account (not this browser), so it follows you to other devices. -->
         <div class="setting-row setting-row-grouped">
             <span id="practiceYearToggleLabel">Show stats for my own practice year</span><label class="toggle-switch"><input type="checkbox" id="practiceYearToggle" aria-labelledby="practiceYearToggleLabel"><span class="toggle-slider"></span></label>
@@ -1431,6 +1437,9 @@
                 </div>
                 <input type="search" id="flowLibrarySearch" class="mb-4" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
                 <div id="metroBlkSetupsList">Loading...</div>
+                <!-- ML-404: tick several pieces and delete them in one go (#flowBulkDeleteModal).
+                     Shown once there's a piece you can delete (renderFlowsList). -->
+                <button type="button" class="btn-text hidden-group" id="flowBulkDeleteBtn">Delete several pieces</button>
             </div>
         </div>
         <!-- One shared floating menu for every flow-library row - same pattern as flowBlockMenu/
@@ -1844,11 +1853,12 @@
         <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowBlockMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete bar</span></button>
     </div>
     <!-- ML-210: tap alternative to drag-to-reorder on the challenge / practice lists (openReorderMenu). -->
-    <!-- ML-378: a Home tool's menu, from All tools' "On Home, in this order" row -->
+    <!-- ML-378: a favourite tool's menu, from All tools' "My favourite tools" card. The Stats page's "My Home
+         screen" card shares it (ML-387); the last item's words follow which one opened it (openHomeToolMenu). -->
     <div class="dropdown-menu account-band-menu" id="homeToolMenu" role="menu">
         <button type="button" class="dropdown-item" id="homeToolMenuEarlier" role="menuitem"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">arrow_back</span><span class="dropdown-item-text">Move earlier</span></button>
         <button type="button" class="dropdown-item" id="homeToolMenuLater" role="menuitem"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">arrow_forward</span><span class="dropdown-item-text">Move later</span></button>
-        <button type="button" class="dropdown-item" id="homeToolMenuRemove" role="menuitem"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">star</span><span class="dropdown-item-text">Take off Home</span></button>
+        <button type="button" class="dropdown-item" id="homeToolMenuRemove" role="menuitem"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">star</span><span class="dropdown-item-text" id="homeToolMenuRemoveText">Remove from favourites</span></button>
     </div>
     <div class="dropdown-menu account-band-menu" id="reorderMenu">
         <button type="button" class="dropdown-item" id="reorderMenuUp"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">arrow_upward</span><span class="dropdown-item-text">Move up</span></button>
@@ -2676,8 +2686,19 @@
                     <p class="scales-pool-count" id="scalesPoolCount" aria-live="polite"></p>
                     <button type="button" class="scales-range-link" id="scalesSeeRangeBtn" aria-haspopup="dialog">See your range</button>
                 </div>
+                <!-- ML-391: with Scales Levels on, each box in your list holds its Level; the goal is the lowest Level still being climbed -->
+                <p class="session-goal hidden-group" id="scalesPoolGoal"></p>
                 <div id="scalesGradeGrid"></div>
-                <div class="scale-grid-legend" aria-hidden="true">
+                <div class="scale-grid-legend hidden-group" id="scalesLevelLegend" aria-hidden="true">
+                    <span><span class="scale-grid-cell is-level lv-1">1</span><span class="scale-grid-cell is-level lv-2">2</span>With the notes</span>
+                    <span><span class="scale-grid-cell is-level lv-3">3</span>Just the key</span>
+                    <span><span class="scale-grid-cell is-level lv-4">4</span><span class="scale-grid-cell is-level lv-5">5</span>Just the name</span>
+                    <span><span class="scale-grid-cell is-level lv-5"><span class="material-symbols-outlined">star</span></span>Learnt</span>
+                    <span><span class="scale-grid-cell is-locked"><span class="material-symbols-outlined">lock</span></span>Outside your range, for now</span>
+                    <span><span class="scale-grid-cell is-beyond">&times;</span>Beyond the instrument</span>
+                    <span><span class="scale-grid-cell is-no"></span>Not needed at these grades</span>
+                </div>
+                <div class="scale-grid-legend" id="scalesListLegend" aria-hidden="true">
                     <span><span class="scale-grid-cell is-ready"></span>In your list</span>
                     <span><span class="scale-grid-cell is-other">8</span>In your list, in another octave</span>
                     <span><span class="scale-grid-cell is-locked"><span class="material-symbols-outlined">lock</span></span>Outside your range, for now</span>
@@ -2799,11 +2820,18 @@
          direction, how much to show - then the scale's box with Previous / Next / Shuffle / Select under
          it, then the metronome in its own box, switched on or off. -->
     <div id="scalesView" class="hidden-group">
-        <div class="metro-transport-grid scales-setting-row">
+        <div class="metro-transport-grid scales-setting-row" id="scalesSettingRow">
             <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesPoolBtn" aria-haspopup="dialog" aria-label="Scales - your instrument and grades"><strong id="scalesPoolBtnVal"><span class="material-symbols-outlined" aria-hidden="true">playlist_add_check</span></strong><span class="metroBlk-ctrl-value-label" id="scalesPoolBtnLbl">scales</span></button>
             <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesClefBtn" aria-haspopup="dialog" aria-label="Clef - tap to change"><strong id="scalesClefBtnVal">Treble</strong><span class="metroBlk-ctrl-value-label" id="scalesClefBtnLbl">clef</span></button>
             <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesDirBtn" aria-haspopup="dialog" aria-label="Direction - tap to change"><strong id="scalesDirBtnVal"><span class="material-symbols-outlined" aria-hidden="true" id="scalesDirIcon">swap_vert</span></strong><span class="metroBlk-ctrl-value-label" id="scalesDirBtnLbl">up &amp; down</span></button>
             <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesDetailBtn" aria-haspopup="dialog" aria-label="Detail - how much of the scale to show"><strong id="scalesDetailBtnVal">Notes</strong><span class="metroBlk-ctrl-value-label" id="scalesDetailBtnLbl">detail</span></button>
+        </div>
+        <!-- ML-391: in a practice session's Scales block (Scales Levels on) the four setting boxes give way to
+             these two - which scale of the block this is, and its Level (tap it for what each Level means, and
+             to set it by hand). The Level sets the detail and the speed; clef and direction stay yours. -->
+        <div class="metro-transport-grid scales-setting-row is-centred hidden-group" id="scalesLadderRow">
+            <div class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesLadderCount" aria-live="polite"><strong id="scalesLadderCountVal">1 of 3</strong><span class="metroBlk-ctrl-value-label">scale</span></div>
+            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesLadderLevelBtn" aria-haspopup="dialog" aria-label="Level 1 - tap for what each Level means"><strong><span class="level-chip lv-1" id="scalesLadderLevelChip">1</span></strong><span class="metroBlk-ctrl-value-label">level</span></button>
         </div>
         <section class="flow-card scales-staff-card" aria-labelledby="scalesTitle">
             <div class="scales-staff-head">
@@ -2822,17 +2850,24 @@
                 <div class="scales-memory-detail" id="scalesMemoryDetail"></div>
                 <div class="scales-memory-progress" id="scalesMemoryProgress" aria-live="off"></div>
             </div>
-            <div class="scales-pick-row">
+            <div class="scales-pick-row" id="scalesPickRow">
                 <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesPrevBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><span class="metroBlk-ctrl-value-label">previous</span></button>
                 <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesNextBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><span class="metroBlk-ctrl-value-label">next</span></button>
                 <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesShuffleBtn"><span class="material-symbols-outlined" aria-hidden="true">shuffle</span><span class="metroBlk-ctrl-value-label">shuffle</span></button>
                 <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesChooseBtn" aria-haspopup="dialog" aria-label="Select - choose a scale from your list"><span class="material-symbols-outlined" aria-hidden="true">format_list_bulleted</span><span class="metroBlk-ctrl-value-label">select</span></button>
             </div>
+            <!-- ML-391: a Scales block: Not yet / Got it for this scale, in place of Previous / Next / Shuffle / Select -->
+            <div class="metro-transport-grid metro-transport-grid-2 mt-3 hidden-group" id="scalesLadderAnswers">
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesNotYetBtn"><span class="material-symbols-outlined" aria-hidden="true">replay</span><span class="metroBlk-ctrl-value-label">not yet</span></button>
+                <button type="button" class="metro-play-grid-btn" id="scalesGotItBtn"><span class="material-symbols-outlined" aria-hidden="true">check</span><span class="metroBlk-ctrl-value-label">got it</span></button>
+            </div>
+            <!-- ML-391: outside a block, a scale in your list says its Level here - tap to set it by hand -->
+            <button type="button" class="btn-text hidden-group" id="scalesLevelLink" aria-haspopup="dialog">Level 1 - change</button>
         </section>
         <section class="flow-card scales-staff-card scales-metronome-card" aria-labelledby="scalesMetronomeLbl">
             <div class="scales-staff-head">
                 <h2 class="scales-staff-title" id="scalesMetronomeLbl">Use metronome</h2>
-                <label class="toggle-switch"><input type="checkbox" id="scalesMetronomeToggle" aria-labelledby="scalesMetronomeLbl"><span class="toggle-slider"></span></label>
+                <label class="toggle-switch" id="scalesMetronomeSwitch"><input type="checkbox" id="scalesMetronomeToggle" aria-labelledby="scalesMetronomeLbl"><span class="toggle-slider"></span></label>
             </div>
             <div id="scalesMetronomeControls">
         <div class="metro-transport-grid">
@@ -3133,7 +3168,7 @@
     <div id="entryForm" class="hidden-group">
         <div class="form-group"><label>What did you do?</label>
             <div class="radio-group" id="categoryRadios">
-                <input type="radio" id="cat-practise" name="category" value="Practise" checked><label for="cat-practise">Practise</label>
+                <input type="radio" id="cat-practise" name="category" value="Practise" checked><label for="cat-practise">Practice</label>
                 <input type="radio" id="cat-rehearsal" name="category" value="Rehearsal"><label for="cat-rehearsal">Rehearsal</label>
                 <input type="radio" id="cat-lesson" name="category" value="Lesson"><label for="cat-lesson">Lesson</label>
                 <input type="radio" id="cat-perf" name="category" value="Performance"><label for="cat-perf">Performance</label>
@@ -3364,6 +3399,24 @@
 <!-- ML-321: add skills to a list. ML-338: filter by grade (1-5). ML-340: pick several, then Add.
      ML-353: a pick list (tick boxes, Select all / Unselect all on what the filter shows) with the Add
      button pinned at the bottom. -->
+<!-- ML-404: My music's "Delete several pieces" - a pick list of the pieces you can delete (your own, and
+     band pieces you added - ML-411; never public ones), then one confirmation that says how many, which
+     are on a practice list and which are band pieces. -->
+<div class="modal" id="flowBulkDeleteModal" role="dialog" aria-modal="true" aria-labelledby="flowBulkDeleteTitle">
+    <div class="modal-content modal-content-sticky-footer">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <div class="metroSeg-scroll-area">
+            <h2 id="flowBulkDeleteTitle">Delete pieces</h2>
+            <p class="metro-help-text">Tick the pieces to delete. Your own pieces are listed, and band pieces you added.</p>
+            <div class="pick-bar" id="flowBulkDeletePickBar"></div>
+            <div id="flowBulkDeleteOptions"></div>
+        </div>
+        <div class="metroSeg-sticky-footer">
+            <button type="button" class="btn-submit is-danger no-margin" id="flowBulkDeleteDoneBtn" disabled>Delete</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal" id="skillsAddModal" role="dialog" aria-modal="true" aria-labelledby="skillsAddTitle">
     <div class="modal-content modal-content-sticky-footer">
         <button type="button" class="modal-close-x" id="skillsAddCloseBtn" aria-label="Close">&times;</button>
@@ -3403,6 +3456,25 @@
 </div>
 
 <!-- ML-321: Warm-ups and Scales have no score - you say whether you've got the step. -->
+<!-- ML-391: Scales Levels' big moments - every scale has left a Level, or a scale is learnt. The same
+     stars as a piece's Level up (.levelup); no sound. -->
+<div class="modal" id="scaleUpModal" role="dialog" aria-modal="true" aria-labelledby="scaleUpTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <div class="levelup" id="scaleUpStars">
+            <span class="levelup-stars" aria-hidden="true"><span class="material-symbols-outlined">star</span><span class="material-symbols-outlined">star</span><span class="material-symbols-outlined">star</span></span>
+            <h2 id="scaleUpTitle">Up a Level!</h2>
+            <span class="levelup-pair" id="scaleUpPair" aria-hidden="true"></span>
+        </div>
+        <p class="metro-help-text" id="scaleUpSub"></p>
+        <button type="button" class="btn-submit no-margin" id="scaleUpOkBtn">Carry on</button>
+        <div class="session-goal-card hidden-group" id="scaleUpGoal">
+            <p class="text-sm fw-bold no-margin flex-row gap-sm items-center" id="scaleUpGoalText"></p>
+            <div class="mt-1" id="scaleUpGoalBar"></div>
+        </div>
+    </div>
+</div>
+
 <div class="modal" id="skillRateModal" role="dialog" aria-modal="true" aria-labelledby="skillRateTitle">
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="skillRateCloseBtn" aria-label="Close without saying">&times;</button>

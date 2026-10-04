@@ -17,6 +17,13 @@ labels, see `server/services/bands.js`.
 
 All of these came in with migration 073 and are optional. Admin → Bands edits them.
 
+## How a band's name is shown (ML-405)
+
+A band is named as it's said - **The Cobham Band** - wherever one band is named (My bands, Add a piece, My music's
+band pills, "part of ...", confirm messages): `displayName`. It sorts by its name without "The", and only an A-Z
+list shows that form, with a comma - **Cobham Band, The** (`listName`): the Choose a band to join picker and
+Admin → Bands. Both come from `server/services/bands.js` (`toDirectoryBand`).
+
 ## Adding an area
 
 Use the **band-directory** skill (`.claude/skills/band-directory/SKILL.md`): agree a centre and

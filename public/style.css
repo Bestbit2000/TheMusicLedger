@@ -259,7 +259,7 @@
     .tools-title { margin-top: 0; }
     /* A 4-column grid (ML-260): a 5th tool starts a second row of the same columns, so every tile still
        lines up with the Progress grid below. */
-    /* Tool groups: Everyday / Practise / Learn - a small label over each group's row, under the Tools heading. */
+    /* Tool groups: Everyday / My routine / Practise / Learn - a small label over each group's row, under the Tools heading. */
     .tool-group-title { font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: var(--label-color); margin: var(--space-3) 0 var(--space-2); }
     .tool-icon-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
     /* min-width: 0 + the narrow side padding keep all four tiles exactly equal on a phone - otherwise
@@ -498,7 +498,7 @@
     .stat-card.clickable:active { transform: scale(0.98); }
     /* ML-134: fixed to fit two lines regardless of how long a given card's label is - without
        this, a row of short one-line labels (e.g. "Total time") renders shorter than a row of
-       longer labels that wrap (e.g. "Current practise streak"), so the two dashboard-grid rows on
+       longer labels that wrap (e.g. "Current practice streak"), so the two dashboard-grid rows on
        the front page didn't line up height-to-height. flex centering keeps a short one-line label
        vertically centered in that same reserved space rather than sitting flush at the top. */
     /* Sentence case (just the first letter capitalised) is written directly into each label's HTML,
@@ -2167,6 +2167,8 @@
     .scale-grid-cell { display: flex; align-items: center; justify-content: center; height: var(--space-4); border: 1px dashed var(--control-border); border-radius: var(--radius-xs); font-size: var(--font-2xs); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); box-sizing: border-box; }
     .scale-grid-cell .material-symbols-outlined { font-size: var(--font-2xs); }
     .scale-grid-cell.is-ready { background: var(--success-text); border: 1px solid var(--success-text); }
+    /* ML-391: a scale in your list holding its Level (.lv-1 to .lv-5 give the colour; a learnt one holds a star) */
+    .scale-grid-cell.is-level { border: 1px solid transparent; font-weight: var(--font-weight-bold); }
     .scale-grid-cell.is-other { background: var(--status-green-bg); border: 1px solid var(--status-green-fg); color: var(--status-green-fg); }
     .scale-grid-cell.is-locked { background: var(--status-amber-bg); border: 1px solid var(--status-amber-fg); color: var(--status-amber-fg); }
     .scale-grid-cell.is-beyond { background: var(--control-off-bg); border: 1px solid var(--control-off-bg); color: var(--container-bg); }

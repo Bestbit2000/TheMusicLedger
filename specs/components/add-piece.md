@@ -8,7 +8,7 @@
 - **Status:** New (ML-400)
 
 ## 2. Overview
-The way into making a piece, as a tool of its own (All tools › My routine, just before Rehearse) so it isn't
+The way into making a piece, as a tool of its own (All tools › Practise, before Prepare and Rehearse) so it isn't
 hidden under ☰ My music. One screen, asked **before** the piece is made. The first two questions are **one value box
 each** (the same box as Theory's options - the answer over what it is, no arrows) that opens a pop-up to change it ("One button, one pop-up", specs/README.md; owner,
 3 Oct 2026: a page of options is overwhelming):
@@ -76,6 +76,14 @@ The tiles: `--control-border`, `--input-bg`, `--text-color`, `--primary-action-s
   <strong>Just me</strong><span class="metroBlk-ctrl-value-label">who it's for</span>
 </button>
 ```
+
+**A new piece left untouched isn't kept (ML-404).** "Create your own" saves the piece the moment it's tapped
+(a default name and one default bar). Leaving the create journey without naming it, changing a bar or adding
+anything deletes it again (`flowCreateLeft`, app.js - what's on screen is checked first, then the server's copy)
+and says "Nothing was added, so the new piece wasn't kept." Done always keeps it; an import is never removed.
+My music's **Delete several pieces** (a `.btn-text` under the list) cleans up older ones: a [pick list](pick-list.md)
+of the pieces you can delete (your own, and band pieces you added - ML-411), then one confirm pop-up saying how
+many, which are on a practice list and which are band pieces.
 
 ## 8. Cross-references
 [tool-icon-button](tool-icon-button.md) · [practice-steps](practice-steps.md) · [flow-editor](flow-editor.md) ·

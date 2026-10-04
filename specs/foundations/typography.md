@@ -51,7 +51,7 @@ multi-line button labels, `--line-height-base` (1.45) for paragraphs, `--line-he
 
 ## Rules
 
-- Sentence case everywhere ("Current practise streak"), written into the HTML, not forced by CSS.
+- Sentence case everywhere ("Current practice streak"), written into the HTML, not forced by CSS.
 - Numbers that update live use `font-variant-numeric: tabular-nums` so they don't jitter.
 - Legacy sizes were snapped to the nearest step (ties go down): 0.85rem → `--font-sm`, 0.9rem/1rem/16px → `--font-base`,
   1.2rem/18px → `--font-md`, 1.4rem/20-22px → `--font-lg`, 1.5rem → `--font-xl`. Icon glyph px sizes → `--icon-*`.

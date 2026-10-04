@@ -35,7 +35,7 @@ Unselected (outline) · Selected (`.active`: accent outline in `--cat-*-text` + 
   <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
   <div class="filter-strip-pills">
     <button class="filter-pill active">All</button>
-    <button class="filter-pill active" style="--filter-pill-accent: var(--cat-practise)">Practise <span class="filter-pill-count">12</span></button>
+    <button class="filter-pill active" style="--filter-pill-accent: var(--cat-practise)">Practice <span class="filter-pill-count">12</span></button>
   </div>
 </div>
 ```

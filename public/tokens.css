@@ -79,7 +79,7 @@
 
     /* Heatmap ramps (data viz) */
     /* ML-235: gold ramp - the stats charts show every session type at once, so they use the brand
-       gold rather than a category hue (green/purple read as "practise only"/"lesson only"). */
+       gold rather than a category hue (green/purple read as "practice only"/"lesson only"). */
     --ds-heat-gold-1: #f3e3a8; --ds-heat-gold-2: #e2c355; --ds-heat-gold-3: #c9a22c; --ds-heat-gold-4: #8f7114;
     --ds-heat-gold-dark-1: #4a3b0b; --ds-heat-gold-dark-2: #7d6415; --ds-heat-gold-dark-3: #b8952b; --ds-heat-gold-dark-4: #f5d78e;
     /* ML-316: practice Levels 1-5 - silver (1-2) rising to gold (5); the brighter, the better. */
@@ -303,7 +303,7 @@
     --status-purple-fg: var(--ds-status-purple-fg, #3e2f7a); /* text on --status-purple-bg */
 
     /* Data viz */
-    --cat-practise: var(--ds-green-500, #4caf50);                /* Practise category - chips, chart bars, history stripe */
+    --cat-practise: var(--ds-green-500, #4caf50);                /* Practice category - chips, chart bars, history stripe */
     --cat-rehearsal: var(--ds-blue-500, #2196f3);                /* Rehearsal category */
     --cat-lesson: var(--ds-purple-500, #9c27b0);                 /* Lesson category */
     --cat-performance: var(--ds-orange-500, #ff9800);            /* Performance category */
@@ -314,7 +314,7 @@
     --chart-hours: var(--ds-gold-500, #d4af37);                  /* stats "Hours" bar chart - gold, since it counts every session type (ML-235) */
     --chart-days: var(--ds-gold-500, #d4af37);                   /* stats "Days" bar chart - gold (ML-235) */
     --chart-sessions: var(--ds-gold-500, #d4af37);               /* stats "Sessions" bar chart - gold (ML-235) */
-    --chart-streak: var(--ds-gold-500, #d4af37);                 /* practise and playing streak histogram bars (ML-235) */
+    --chart-streak: var(--ds-gold-500, #d4af37);                 /* practice and playing streak histogram bars (ML-235) */
     --heat-time-0: var(--ds-neutral-75, #ebedf0);                /* practice-time heatmap, empty day (0-4 = intensity ramp) */
     --heat-time-1: var(--ds-heat-gold-1, #f3e3a8);               /* intensity step 1 - gold ramp (ML-235) */
     --heat-time-2: var(--ds-heat-gold-2, #e2c355);               /* intensity step 2 */

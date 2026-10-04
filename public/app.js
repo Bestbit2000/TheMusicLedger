@@ -245,7 +245,7 @@
         // the module script in index.html), and the plain recordings/documents endpoints just
         // record the resulting URL once that upload has actually finished.
         flows: {
-            list: () => apiCall('/api/flows'),
+            list: () => apiCall('/api/flows').then(flowsStillThere), // ML-404: minus a new piece just taken away again
             create: (data) => apiCall('/api/flows', 'POST', data),
             get: (id) => apiCall(`/api/flows/${id}`),
             update: (id, data) => apiCall(`/api/flows/${id}`, 'PUT', data),
@@ -319,6 +319,12 @@
             createList: (name, keys) => apiCall('/api/practice/skill-lists', 'POST', { name, keys }),
             updateList: (id, data) => apiCall(`/api/practice/skill-lists/${id}`, 'PUT', data),
             deleteList: (id) => apiCall(`/api/practice/skill-lists/${id}`, 'DELETE')
+        },
+        // ML-391: Scales Levels - each scale's Level on an instrument
+        scaleLevels: {
+            get: (instrumentId) => apiCall(`/api/practice/scale-levels?instrumentId=${Number(instrumentId)}`),
+            answer: (data) => apiCall('/api/practice/scale-levels/answer', 'POST', data),
+            setLevel: (data) => apiCall('/api/practice/scale-levels/level', 'PUT', data)
         },
         // ML-343: your own warm-up lists (the standard ones are PracticePlan.WARMUP_LISTS).
         warmupLists: {
@@ -409,13 +415,15 @@
     let homeExtrasLoading = false;
     let homeLineKey = null;
     const homeGreetingRoll = Math.random(); // one roll per visit, so "Ready to practise?" doesn't flicker
-    let toolsEditing = false;          // ML-378: All tools is in "Choose Home tools" mode (switchView uses it)
+    let toolsEditing = false;          // ML-378: All tools is in "Choose favourite tools" mode (switchView uses it)
     let currentHistDate = new Date();
     let activeFilters = { 'Practise': true, 'Rehearsal': true, 'Lesson': true, 'Performance': true };
     // ML-288: a session category's colours come from a class (.category-practise etc., style.css), which
     // sets --category-accent (the fill) and --category-accent-text (the same hue as text - ML-210, the
     // fill fails 4.5:1 as text in light mode). .category-edge / .category-text / .filter-pill read them.
     const categoryClass = (cat) => `category-${String(cat).toLowerCase()}`;
+    // ML-410: the category is a noun on screen ("Practice", beside Rehearsal / Lesson / Performance); its stored value stays "Practise".
+    const categoryLabel = (cat) => (cat === 'Practise' ? 'Practice' : cat);
 
     // Challenge Data
     let allChallenges = [];
@@ -637,6 +645,7 @@
         renderStatsHomeOrder();
         const btn = document.getElementById('statsEditBtn');
         btn.textContent = statsEditing ? 'Done' : 'Choose Home stats';
+        btn.className = statsEditing ? 'btn-nav btn-cancel no-margin' : 'btn-text'; // ML-408: a quiet link until you're choosing
         btn.setAttribute('aria-pressed', String(statsEditing));
     }
     // While choosing: your Home stats in Home's order, each opening Move earlier / Move later / Take off Home.
@@ -1382,7 +1391,7 @@
             if (tile) { const c = tile.cloneNode(true); c.removeAttribute('id'); slot.appendChild(c); }
         });
     }
-    // Tool groups: one labelled row per home tool group (Everyday / Practise / Learn); a group with nothing
+    // Tool groups: one labelled row per home tool group (Everyday / My routine / Practise / Learn); a group with nothing
     // switched on is left out.
     function renderNavToolsRow() {
         const host = document.getElementById('navToolsRow');
@@ -1442,7 +1451,7 @@
         const toolsBtn = document.getElementById('navToolsBtn');
         if (onTool) toolsBtn?.setAttribute('aria-current', 'page'); else toolsBtn?.removeAttribute('aria-current');
     }
-    // ML-326: Tools slides in over the menu (the Everyday / Practise / Learn icons); its Back row slides
+    // ML-326: Tools slides in over the menu (the Everyday / My routine / Practise / Learn icons); its Back row slides
     // it away again. The menu always opens on its main panel.
     function showNavPanel(tools) {
         setShown('navMainPanel', !tools);
@@ -1788,6 +1797,7 @@
         const hubEl = document.getElementById('flowDetailsHubView');
         if (isShown(hubEl) && viewName !== 'flowDetailsHubView') {
             flowStatsFinish('abandoned');
+            flowCreateLeft(); // ML-404: a new piece left untouched isn't kept
         }
 
         if (!isBack && viewStack[viewStack.length - 1] !== viewName) viewStack.push(viewName);
@@ -1906,6 +1916,8 @@
         if (practiceRun) renderPracticeRun(); // ML-320: the session bar on every screen but the session's own
         if (viewName === 'sessionPlanView' && isBack) sessReplan();
         if (viewName !== 'warmupsView') { skillWarmupsKind = null; sessionWarmupIds = null; sessionWarmupLoop = null; }
+        if (viewName !== 'scalesView' && scalesLadder) scalesLadderEnd(); // ML-391: your own Scales settings come back
+        if (viewName === 'scalesView' && !scalesLadder && scaleLevelsOn()) loadScaleLevels().then(renderScalesLadder); // the scale's Level link
         if (viewName === 'skillsView') document.getElementById('topTitle').innerText = 'My skills';
         if (viewName === 'metroBuilderView') {
             // No title text here any more (ML-91) - the tuner toggle takes that spot in the top bar
@@ -3010,7 +3022,7 @@
     function practiceYearEnabled() {
         return !!appData.practiceYear?.enabled;
     }
-    // Only offer "This/Last practise year" when the account has turned its practice year on - removed
+    // Only offer "This/Last practice year" when the account has turned its practice year on - removed
     // rather than hidden, since iOS Safari still shows a hidden <option>.
     function renderPracticeYearOptions() {
         const select = document.getElementById('statsTimeframe');
@@ -3019,7 +3031,7 @@
         select.querySelectorAll('option[value="this_prac_year"], option[value="last_prac_year"]').forEach(o => o.remove());
         if (practiceYearEnabled()) {
             const after = select.querySelector('option[value="this_cal_year"]');
-            after.insertAdjacentHTML('afterend', '<option value="this_prac_year">This practise year</option><option value="last_prac_year">Last practise year</option>');
+            after.insertAdjacentHTML('afterend', '<option value="this_prac_year">This practice year</option><option value="last_prac_year">Last practice year</option>');
             select.value = selected;
         } else if (selected === 'this_prac_year' || selected === 'last_prac_year') {
             select.value = 'all';
@@ -3160,7 +3172,7 @@
         pillsEl.innerHTML = `
             <button type="button" class="filter-pill${allActive ? ' active' : ''}" data-filter-all>All <span class="filter-pill-count">${totalCount}</span></button>
             ${FILTER_CATEGORIES.map(cat => `
-                <button type="button" class="filter-pill ${categoryClass(cat)}${activeFilters[cat] ? ' active' : ''}" data-filter-cat="${cat}">${cat} <span class="filter-pill-count">${counts[cat] || 0}</span></button>
+                <button type="button" class="filter-pill ${categoryClass(cat)}${activeFilters[cat] ? ' active' : ''}" data-filter-cat="${cat}">${categoryLabel(cat)} <span class="filter-pill-count">${counts[cat] || 0}</span></button>
             `).join('')}
         `;
         pillsEl.querySelector('[data-filter-all]').addEventListener('click', () => {
@@ -3634,10 +3646,10 @@
 
                 div.innerHTML = `
                     <div class="history-details">
-                        <strong class="category-text">${item.category} ${item.who ? '('+item.who+')' : ''}</strong>
+                        <strong class="category-text">${categoryLabel(item.category)} ${item.who ? '('+item.who+')' : ''}</strong>
                         ${dObj.getDate() || '?'} ${mNames[dObj.getMonth()] || '?'} ${dObj.getFullYear() || '?'} | ${Math.round(item.duration)} mins
                     </div>
-                    <button type="button" class="list-item-menu-btn" data-session-history-menu-btn aria-label="Options for ${item.category} entry" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
+                    <button type="button" class="list-item-menu-btn" data-session-history-menu-btn aria-label="Options for ${categoryLabel(item.category)} entry" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 `;
                 list.appendChild(div);
             });
@@ -4006,7 +4018,8 @@
             const joinable = accountBandsData.allBands.filter(b => !myBandIds.has(b.id));
             // Migration 073: grouped by kind of band, each with its town (and its main band for a
             // youth/training band) so two similar names can be told apart.
-            const label = (b) => escapeHtml(b.displayName + (b.town ? ` - ${b.town}` : '') + (b.parentName ? ` (part of ${b.parentName})` : ''));
+            // ML-405: an A-Z list, so "Cobham Band, The" here (b.listName) - everywhere else a band is "The Cobham Band"
+            const label = (b) => escapeHtml((b.listName || b.displayName) + (b.town ? ` - ${b.town}` : '') + (b.parentName ? ` (part of ${b.parentName})` : ''));
             const groups = [
                 ['Brass bands', ['Brass Band', 'Brass Ensemble', 'Massed Band']],
                 ['Concert and wind bands', ['Concert Band', 'Wind Band']],
@@ -4369,7 +4382,8 @@
 
     // ===== ML-378: Home's "My tools" (your favourites) and the All tools page =====
     // The tiles live on the All tools page (#toolsView, each with a data-tool id); Home shows copies of the
-    // chosen ones that are switched on, in your order. Chosen with "Choose Home tools" (the tiles
+    // chosen ones that are switched on, in your order - on screen they're "favourite tools" (ML-412;
+    // the code and the account still say home tools). Chosen with "Choose favourite tools" (the tiles
     // become ★ toggles), saved on the account (accounts.home_tools, HOME_TOOL_IDS on the server).
     // Until you choose your own, Home's tools follow what your account type has switched on: if they all
     // fit, all of them (a Standard member's few); with more, the Everyday ones plus Rehearse.
@@ -4436,11 +4450,12 @@
         });
         view.classList.toggle('is-editing', toolsEditing);
         document.getElementById('toolsHint').textContent = toolsEditing
-            ? `${onHome.size} of ${homeToolsMax()} on Home. Tap a tool in the lists below to add it or take it off.`
-            : 'Tap a tool to open it. The ones marked ★ are on Home.';
+            ? `${onHome.size} of ${homeToolsMax()} favourites. Tap a tool in the lists below to add it or take it off.`
+            : 'Tap a tool to open it. The ones marked ★ are your favourites, shown on Home.';
         renderToolsHomeOrder();
         const btn = document.getElementById('toolsEditBtn');
-        btn.textContent = toolsEditing ? 'Done' : 'Choose Home tools';
+        btn.textContent = toolsEditing ? 'Done' : 'Choose favourite tools';
+        btn.className = toolsEditing ? 'btn-nav btn-cancel no-margin' : 'btn-text'; // ML-408: a quiet link until you're choosing
         btn.setAttribute('aria-pressed', String(toolsEditing));
     }
     // While choosing: your Home tools in Home's order, each a button that opens Move earlier / Move later /
@@ -4466,7 +4481,7 @@
             c.dataset.orderTool = id;
             c.setAttribute('aria-haspopup', 'menu');
             c.insertAdjacentHTML('beforeend', '<span class="material-symbols-outlined tool-move-icon" aria-hidden="true">more_vert</span>');
-            c.setAttribute('aria-label', `${t.getAttribute('aria-label')}, ${i + 1} of ${tiles.length} on Home - move it or take it off`);
+            c.setAttribute('aria-label', `${t.getAttribute('aria-label')}, favourite ${i + 1} of ${tiles.length} - move it or take it off`);
             c.addEventListener('click', (e) => { e.stopPropagation(); openHomeToolMenu(c, id); });
             c.addEventListener('keydown', (e) => {
                 if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
@@ -4483,6 +4498,8 @@
         const ids = kind === 'stat' ? homeStatsShown().map(c => c.dataset.stat) : homeToolsShown().map(t => t.dataset.tool), i = ids.indexOf(id);
         homeToolMenuId = id;
         homeToolMenuKind = kind;
+        // ML-412: tools are "favourites"; a stat is still "on Home"
+        document.getElementById('homeToolMenuRemoveText').textContent = kind === 'stat' ? 'Take off Home' : 'Remove from favourites';
         setShown('homeToolMenuEarlier', i > 0);
         setShown('homeToolMenuLater', i < ids.length - 1);
         menu.classList.add('show');
@@ -4507,7 +4524,7 @@
         renderHomeTools();
         if (refocus) document.querySelector(`#toolsHomeOrderRow [data-order-tool="${id}"]`)?.focus();
         try { await API.account.update({ homeTools: next }); }
-        catch (e) { accountProfile.homeTools = before; renderToolStars(); renderHomeTools(); showWarningToast('Home tools not saved - ' + e.message); }
+        catch (e) { accountProfile.homeTools = before; renderToolStars(); renderHomeTools(); showWarningToast('Favourite tools not saved - ' + e.message); }
     }
     [['homeToolMenuEarlier', -1], ['homeToolMenuLater', 1]].forEach(([btnId, dir]) => document.getElementById(btnId)?.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -4523,7 +4540,7 @@
         if (!accountProfile) return;
         const shown = homeToolsShown().map(t => t.dataset.tool);
         const on = shown.includes(id);
-        if (!on && shown.length >= homeToolsMax()) { showWarningToast(`Home holds ${homeToolsMax()} tools - take one off first.`); return; }
+        if (!on && shown.length >= homeToolsMax()) { showWarningToast(`You can have ${homeToolsMax()} favourite tools - take one off first.`); return; }
         const before = accountProfile.homeTools ?? null;
         // Kept: favourites that are switched off for now (they come back when they're on again)
         const next = on ? homeToolIds().filter(x => x !== id) : [...homeToolIds(), id];
@@ -4531,7 +4548,7 @@
         renderToolStars();
         renderHomeTools();
         try { await API.account.update({ homeTools: next }); }
-        catch (e) { accountProfile.homeTools = before; renderToolStars(); renderHomeTools(); showWarningToast('Home tools not saved - ' + e.message); }
+        catch (e) { accountProfile.homeTools = before; renderToolStars(); renderHomeTools(); showWarningToast('Favourite tools not saved - ' + e.message); }
     }
     document.getElementById('toolsEditBtn')?.addEventListener('click', () => { toolsEditing = !toolsEditing; renderToolStars(); });
     // While choosing, a tap on a tile toggles it instead of opening the tool (caught before the tile's own click).
@@ -4671,7 +4688,7 @@
 
     window.deleteHistory = function(row, cat, dur, who, dateStr) {
         let mNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        let detailStr = `${cat} for ${dur} mins`;
+        let detailStr = `${categoryLabel(cat)} for ${dur} mins`;
         if (who) detailStr += ` with ${who}`;
         if (dateStr) {
             const dObj = parseDateSafely(dateStr);
@@ -6417,9 +6434,9 @@
     // 1 to 5, then the ones not painted - each part as wide as its share. A square a bar turned a long piece
     // (Teddy Bears Picnic, 243 bars) into a row of lines. map: FlowJourney.barLevels. With label: false the
     // bar is hidden from screen readers (its row's button already says it). sizeLevelBars sets the widths.
-    function levelBarHtml(map, { label = true, cls = '' } = {}) {
+    function levelBarHtml(map, { label = true, cls = '', noun = 'bar' } = {}) { // noun: what's counted - bars, or scales (ML-391)
         const parts = [1, 2, 3, 4, 5, 0].map(l => [l, map.filter(v => (v || 0) === l).length]).filter(([, n]) => n);
-        const words = parts.map(([l, n]) => `${n} bar${n === 1 ? '' : 's'} ${l ? `at Level ${l}` : 'not known yet'}`).join(', ');
+        const words = parts.map(([l, n]) => `${n} ${noun}${n === 1 ? '' : 's'} ${l ? `at Level ${l}` : 'not known yet'}`).join(', ');
         return `<span class="level-bar${cls ? ' ' + cls : ''}" ${label ? `role="img" aria-label="Levels: ${words}"` : 'aria-hidden="true"'}>${parts.map(([l, n]) =>
             `<span class="level-bar-part lv-${l}" data-bars="${n}">${l ? `<span class="level-bar-num">${l}</span>` : ''}</span>`).join('')}</span>`;
     }
@@ -6959,7 +6976,11 @@
         if (b.kind === 'skills' && b.skill) { const s = skillsData.find(x => x.key === b.skill.key) || b.skill; const def = SKILLS[b.skill.key]; return `${def ? def.label : b.skill.key}${s.step ? ` - ${s.step.label}` : ''}`; }
         if (b.kind === 'skills') return PracticePlan.toolLabel(b.tool);
         if (b.kind === 'warmup') return b.warmup ? (b.warmup.external ? 'Your own warm-up - just the timer' : `${b.warmup.name}, on a loop`) : 'The Warm-ups tool';
-        if (b.kind === 'scales') return 'Your scales in the Scales tool';
+        if (b.kind === 'scales') {
+            // ML-391: the three scales it starts with
+            const first = scaleLevelsOn() && scaleLevels.instrumentId ? PracticePlan.scalePool(scaleLevelItems().items, scaleLevels.records, Date.now()).slice(0, PracticePlan.SCALES_PER_BLOCK) : [];
+            return first.length ? first.map(scaleShortName).join(' · ') : 'Your scales in the Scales tool';
+        }
         return 'Tap to choose';
     }
     // A block in a sentence: "Scales", "Skills - Tempo", "Pieces - Floral Dance...".
@@ -7217,7 +7238,7 @@
     }
     async function sessLoadContentDataNow() {
         await Promise.all([
-            loadTemplates(), loadSkills(), loadWarmupLists(), refreshSessionPieces(),
+            loadTemplates(), loadSkills(), loadWarmupLists(), refreshSessionPieces(), loadScaleLevels(),
             API.practiceLists.list().then(r => { sessPracticeLists = (r && r.lists) || []; }).catch(() => { sessPracticeLists = []; })
         ]);
     }
@@ -7238,6 +7259,23 @@
         if ((groups.length && groups.every(g => g.level === 5)) || (!groups.length && set.every(c => c.level >= 5))) return 'Ready - every bar at full speed';
         return 'Ready for a play-through';
     }
+    // ML-391: step 3's Scales card - your grades, the next goal, the three scales the block starts with,
+    // and every scale's Level as one bar.
+    function scalesContentCardHtml(items) {
+        const inst = scalesGradeInstrument();
+        const p = PracticePlan.scaleProgress(items, scaleLevels.records);
+        const first = PracticePlan.scalePool(items, scaleLevels.records, Date.now()).slice(0, PracticePlan.SCALES_PER_BLOCK);
+        const grades = scalesGradesText(scales.grades);
+        const where = [grades ? `Grade${/^\d+$/.test(grades) ? '' : 's'} ${grades}` : '', inst ? inst.name : '', `${items.length} scale${items.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ');
+        const status = [p.learnt ? `${p.learnt} learnt` : '', p.low != null ? `${p.toGo} at Level ${p.low}` : ''].filter(Boolean).join(' · ');
+        return `<section class="flow-card" aria-label="Scales">
+            <div class="flex-row gap-sm items-center">${kindBlockHtml({ kind: 'scales' }).replace('kind-block ', 'kind-block kind-block-icon ')}<span class="grow"><strong>Scales</strong><br><span class="text-sm text-muted">${escapeHtml(where)}</span></span></div>
+            <p class="session-goal">${scaleGoalHtml(p)}</p>
+            ${first.length ? `<div class="session-piece"><span class="session-piece-head"><strong>In this block</strong><span class="text-sm text-muted">${first.length} scale${first.length === 1 ? '' : 's'}, about 1½ minutes each</span></span><span class="text-sm">${first.map(x => escapeHtml(scaleShortName(x))).join(' · ')}</span></div>` : ''}
+            <div class="session-piece"><span class="session-piece-head"><strong>All my scales</strong><span class="text-sm text-muted">${escapeHtml(status)}</span></span>${levelBarHtml(scaleLevelMap(items), { noun: 'scale' })}</div>
+            <button type="button" class="btn-text" data-scales-all aria-haspopup="dialog">See all my scales</button>
+        </section>`;
+    }
     function renderSessContent() {
         const kinds = sessKinds();
         const order = [...new Set(kinds)];
@@ -7248,7 +7286,9 @@
                 rows.push(`<button type="button" class="history-item settings-link" data-content="warmup" aria-haspopup="dialog">${kindBlockHtml({ kind: 'warmup' })}<span class="settings-link-text"><span class="settings-link-title">Warm-up</span><span class="settings-link-sub">${escapeHtml(wl ? (wl.external ? 'Your own warm-up - just the timer' : `${wl.name} · on a loop for 4½ minutes`) : 'The Warm-ups tool')}</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>`);
             }
             if (k === 'scales') {
-                rows.push(`<div class="history-item settings-link">${kindBlockHtml({ kind: 'scales' })}<span class="settings-link-text"><span class="settings-link-title">Scales</span><span class="settings-link-sub">Your grade's scales in the Scales tool</span></span></div>`);
+                const mine = scaleLevelsOn() && scaleLevels.instrumentId ? scaleLevelItems().items : [];
+                if (mine.length) rows.push(scalesContentCardHtml(mine)); // ML-391: Scales Levels
+                else rows.push(`<div class="history-item settings-link">${kindBlockHtml({ kind: 'scales' })}<span class="settings-link-text"><span class="settings-link-title">Scales</span><span class="settings-link-sub">Your grade's scales in the Scales tool</span></span></div>`);
             }
             if (k === 'skills') {
                 const sl = currentSkillList();
@@ -7259,6 +7299,8 @@
         const box = document.getElementById('sessContentRows');
         box.innerHTML = rows.join('');
         box.querySelectorAll('[data-content]').forEach(b => b.addEventListener('click', () => openContentChooser(b.dataset.content)));
+        sizeLevelBars(box);
+        box.querySelector('[data-scales-all]')?.addEventListener('click', () => document.getElementById('scalesPoolBtn')?.click());
         const hasPieces = kinds.includes('rehearsal');
         setShown('sessPiecesCard', hasPieces);
         if (!hasPieces) return;
@@ -7506,6 +7548,10 @@
             renderPracticeRun();
             return;
         }
+        if (scalesLadder && !scalesLadder.nudged && Date.now() - scalesLadder.shownAt >= PracticePlan.SCALE_SHARE_SECONDS * 1000) {
+            scalesLadder.nudged = true; // ML-391
+            showSuccessToast('Time to decide: got it, or not yet?');
+        }
         if (!r.nudged && Number.isFinite(r.nudgeAt) && runElapsed() >= r.nudgeAt) sessionTimeUp();
         renderPracticeRun();
     }
@@ -7517,9 +7563,12 @@
         if (!r || r.done || r.phase === 'rest') return;
         r.nudged = true;
         const view = viewStack[viewStack.length - 1];
+        // ML-391: the scale a Scales block stopped on still gets its answer (taken before leaving ends the block)
+        const scaleOpen = scalesLadder && scalesLadder.current && !scalesLadder.busy ? { cur: scalesLadder.current, items: scalesLadder.items } : null;
         if (view === 'flowPlayView') { if (flowPlayer.isPlaying()) flowPlayer.pause(); }
         else if (view !== 'sessionRunView' && !(prep.fromSession && ['piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView'].includes(view))) switchView('sessionRunView');
         if (flowSession && flowSession.mode !== 'runthrough') { r.waitingForRating = true; openLevelRating(); return; }
+        if (scaleOpen) { r.waitingForRating = true; askScaleRating(scaleOpen.cur, scaleOpen.items, () => { r.waitingForRating = false; sessionAfterBlock(); }); return; }
         const b = r.blocks[r.index];
         const s = b && b.kind === 'skills' && b.skill && b.started && !b.skillRated ? skillsData.find(x => x.key === b.skill.key) : null;
         if (s && !s.def.graded && !s.done) { r.waitingForRating = true; askSkillRating(s, () => { b.skillRated = true; r.waitingForRating = false; sessionAfterBlock(); }); return; }
@@ -7663,6 +7712,8 @@
             if (seq.length) { warmups.currentId = seq[0]; warmupsShow(warmupsList()[0]); }
             return;
         }
+        // ML-391: Scales Levels - three scales, each at its Level (the tool itself when the switch is off)
+        if (b.kind === 'scales' && await startScalesLadder()) return;
         const view = b.kind === 'warmup' ? 'warmupsView' : b.kind === 'scales' ? 'scalesView' : SESSION_TOOL_VIEWS[b.tool];
         switchView(view || 'sessionRunView');
     }
@@ -8251,6 +8302,7 @@
         grades.querySelectorAll('[data-grade]').forEach(b => b.addEventListener('click', () => { skillsAdd.grade = Number(b.dataset.grade); renderSkillsAddModal(); }));
         const box = document.getElementById('skillsAddOptions');
         const keys = Object.keys(SKILLS).filter(k => !have.has(k) && (!SKILLS[k].feature || isFeatureEnabled(SKILLS[k].feature))
+            && !(SKILLS[k].tool === 'scales' && scaleLevelsOn()) // ML-391: scales belong to the Scales block's Levels
             && (!g || (SKILLS[k].grades[0] <= g && g <= SKILLS[k].grades[1])));
         const gradeText = (d) => (d.grades[0] === d.grades[1] ? `Grade ${d.grades[0]}` : `Grades ${d.grades[0]}-${d.grades[1]}`);
         const rows = keys.map(k => {
@@ -8557,6 +8609,7 @@
         const ui = document.getElementById('metroBlkSetupsList');
         if (!ui) return;
         renderFlowLibraryFilter();
+        setShown('flowBulkDeleteBtn', flowsListCache.some(flowCanDelete));
         if (!flowsListCache.length) { ui.innerHTML = '<p>No pieces yet - tap "Add a piece" to make one.</p>'; return; }
         const visible = flowLibraryVisible();
         if (!visible.length) { ui.innerHTML = '<p class="text-muted">No pieces match.</p>'; return; }
@@ -8579,19 +8632,69 @@
     }
 
     // Which ⋮ menu items a library row gets: Edit wherever the server says you can edit (canEdit - your
-    // own, your band's, and public pieces for a super admin, ML-310); Duplicate/Delete stay personal-only
-    // (see the renderFlowsList comment); a public piece can be copied into your own library to change
+    // own, your band's, and public pieces for a super admin, ML-310); Duplicate stays personal-only
+    // (see the renderFlowsList comment); Delete is for a piece of your own or a band piece you added
+    // (flowCanDelete, ML-411 - the server decides: canDelete); a public piece can be copied into your own library to change
     // it (ML-310); ML-204's Export covers band flows too, but never public library flows (the server
     // refuses those anyway - exportFlowForUser).
     function flowLibraryMenuItemsFor(flow) {
         const ownership = flowOwnershipLabel(flow);
         const items = flow.totalBars > 0 ? ['Play'] : []; // ML-329
         if (flow.canEdit) items.push('Edit');
-        if (ownership === 'Personal') items.push('Duplicate', 'Delete');
+        if (ownership === 'Personal') items.push('Duplicate');
+        if (flowCanDelete(flow)) items.push('Delete');
         if (ownership === 'Public') items.push('Copy');
         if (ownership !== 'Public' && isFeatureEnabled('flow_export_musicxml')) items.push('Export');
         return items;
     }
+
+    // ===== ML-404: delete several pieces at once =====
+    // The pieces a row's ⋮ offers Delete for: your own, and band pieces you added (ML-411 - the server
+    // says which, canDelete; a super admin gets every piece of a band they're in). Never a public piece.
+    // One confirmation for the lot: how many, which are on a practice list (they come off it) and which
+    // are band pieces (everyone in the band loses them).
+    const flowCanDelete = (f) => !!f.canDelete && !f.isPublic;
+    const flowBandName = (f) => flowLibraryBandNames[Number(f.ownerBandId)] || 'your band';
+    const flowBulkDelete = { picked: new Set() };
+    const piecesWord = (n) => `${n} piece${n === 1 ? '' : 's'}`;
+    function renderFlowBulkDeleteDone() {
+        const n = flowBulkDelete.picked.size;
+        const btn = document.getElementById('flowBulkDeleteDoneBtn');
+        btn.disabled = !n;
+        btn.textContent = n ? `Delete ${piecesWord(n)}` : 'Delete';
+    }
+    function openFlowBulkDelete() {
+        flowBulkDelete.picked = new Set();
+        const rows = flowsListCache.filter(flowCanDelete).map(f => ({
+            key: f.id,
+            html: `<strong>${escapeHtml(f.title)}</strong><br><span class="text-sm text-muted">${f.composer ? escapeHtml(f.composer) + ' &bull; ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'}${f.ownerBandId ? ' &bull; ' + escapeHtml(flowBandName(f)) : ''}${f.listCount ? ` &bull; on ${f.listCount} practice list${f.listCount === 1 ? '' : 's'}` : ''}</span>`
+        }));
+        renderPickList(document.getElementById('flowBulkDeleteOptions'), document.getElementById('flowBulkDeletePickBar'), rows, flowBulkDelete.picked, renderFlowBulkDeleteDone,
+            '<p class="metro-help-text">There are no pieces here that you can delete.</p>');
+        showModal('flowBulkDeleteModal');
+    }
+    document.getElementById('flowBulkDeleteBtn')?.addEventListener('click', openFlowBulkDelete);
+    document.getElementById('flowBulkDeleteDoneBtn')?.addEventListener('click', () => {
+        const flows = flowsListCache.filter(f => flowBulkDelete.picked.has(f.id) && flowCanDelete(f));
+        if (!flows.length) return;
+        const inBand = flows.filter(f => f.ownerBandId).length;
+        const bandLine = !inBand ? '' : flows.length === 1 ? ' It is a band piece, so everyone in the band loses it and their Levels for it.'
+            : ` ${inBand === 1 ? 'One is a band piece' : `${inBand} are band pieces`}, so everyone in the band loses ${inBand === 1 ? 'it and their Levels for it' : 'them and their Levels for them'}.`;
+        const listed = flows.filter(f => f.listCount > 0);
+        const names = listed.slice(0, 3).map(f => f.title).join(', ') + (listed.length > 3 ? ` and ${listed.length - 3} more` : '');
+        const onLists = listed.length ? ` ${listed.length === 1 ? 'One is' : `${listed.length} are`} on a practice list (${names}) and will come off it.` : '';
+        hideModal('flowBulkDeleteModal');
+        showConfirmModal(`Delete ${piecesWord(flows.length)}`, `Delete ${flows.length === 1 ? `"${flows[0].title}"` : piecesWord(flows.length)} and all ${flows.length === 1 ? 'its' : 'their'} bars, recordings and documents?${onLists}${bandLine} This can't be undone.`, async () => {
+            let done = 0;
+            try {
+                for (const f of flows) { await API.flows.delete(f.id); done++; }
+                showSuccessToast(`${piecesWord(done)} deleted`);
+            } catch (error) {
+                showWarningToast(`${done ? piecesWord(done) + ' deleted, then it stopped: ' : 'Error deleting pieces: '}${error.message}`);
+            }
+            await loadFlowsList();
+        }, true, `Delete ${piecesWord(flows.length)}`);
+    });
 
     let flowLibraryMenuTargetId = null;
     function openFlowLibraryItemMenu(btnEl, id) {
@@ -8706,13 +8809,18 @@
         e.stopPropagation();
         const id = flowLibraryMenuTargetId;
         closeFlowLibraryItemMenu();
-        showConfirmModal('Delete flow', "Delete this flow and all its bars, recordings, and documents? This can't be undone.", async () => {
+        const flow = flowsListCache.find(f => f.id === id);
+        // ML-411: a band piece goes for the whole band, so the question says so
+        const message = flow && flow.ownerBandId
+            ? `Delete "${flow.title}" from ${flowBandName(flow)}? Everyone in the band loses it: it comes off their practice lists and their Levels for it go too. This can't be undone.`
+            : `Delete "${flow ? flow.title : 'this piece'}" and all its bars, recordings and documents? This can't be undone.`;
+        showConfirmModal('Delete piece', message, async () => {
             try {
                 await API.flows.delete(id);
                 await loadFlowsList();
-                showSuccessToast('Flow deleted');
+                showSuccessToast('Piece deleted');
             } catch (error) {
-                showWarningToast('Error deleting flow: ' + error.message);
+                showWarningToast('Error deleting piece: ' + error.message);
             }
         }, true);
     });
@@ -8764,6 +8872,8 @@
     async function createAndOpenFlow(target = null) {
         try {
             const created = await API.flows.create(target && target.bandId ? { bandId: target.bandId } : {});
+            // ML-404: what it starts as, so leaving without changing anything can take it away again
+            flowCreateFresh = { id: created.id, title: created.title, blocks: JSON.stringify(await API.flows.blocks.list(created.id)) };
             addPieceTarget = target;
             await addPieceToTargetList(created.id);
             currentFlowId = created.id;
@@ -8775,10 +8885,44 @@
             showWarningToast('Error creating flow: ' + error.message);
         }
     }
+    // ML-404: "Create your own" saves the piece the moment it's tapped (a default name and one default
+    // bar). Leaving the journey without naming it, changing a bar or adding anything takes it away again,
+    // so backing out doesn't leave empty pieces in My music (or in a band, or on a practice list). Checked
+    // twice: what's on the screen (a name still being typed counts as a change), then what the server
+    // has - only a piece that still matches what it was made as is removed. An import is never removed.
+    let flowCreateFresh = null; // { id, title, blocks } of the piece "Create your own" just made
+    // The pieces taken away this visit. A list that was asked for before one went, and arrives after,
+    // would otherwise show it again (API.flows.list drops them).
+    const flowsGoneIds = new Set();
+    function flowsStillThere(list) { return flowsGoneIds.size ? list.filter(f => !flowsGoneIds.has(f.id)) : list; }
+    const flowDetailUntouched = (d, fresh) => d.title === fresh.title && !d.composer && !d.arranger && !d.publisher && !d.description
+        && !(d.recordings || []).length && !(d.documents || []).length;
+    function flowCreateLeft() {
+        const fresh = flowCreateFresh;
+        flowCreateFresh = null;
+        if (!fresh || fresh.id !== currentFlowId || !currentFlowDetail) return;
+        const typed = ['flowTitleInput', 'flowComposerInput', 'flowArrangerInput', 'flowPublisherInput', 'flowDescriptionInput'].map(id => document.getElementById(id)?.value.trim() || '');
+        if (typed[0] !== fresh.title || typed.slice(1).some(Boolean) || !flowDetailUntouched(currentFlowDetail, fresh)) return;
+        // It can't be come back to, so it leaves the back stack as well
+        for (let i = viewStack.length - 1; i >= 0; i--) if (viewStack[i] === 'flowDetailsHubView') viewStack.splice(i, 1);
+        addPieceTarget = null;
+        (async () => {
+            try {
+                const [detail, blocks] = await Promise.all([API.flows.get(fresh.id), API.flows.blocks.list(fresh.id)]);
+                if (!flowDetailUntouched(detail, fresh) || JSON.stringify(blocks) !== fresh.blocks) return;
+                await API.flows.delete(fresh.id);
+                flowsGoneIds.add(fresh.id);
+                flowsListCache = flowsListCache.filter(f => f.id !== fresh.id);
+                if (isShown(document.getElementById('metroBuilderView'))) renderFlowsList();
+                showSuccessToast("Nothing was added, so the new piece wasn't kept.");
+            } catch { /* it stays in My music, where it can be deleted */ }
+        })();
+    }
     // ML-400: the end of the Create flow journey - My music, with the new piece in the list (it used to
     // open the player). The journey's own screens come off the back stack first, so Back from My music
     // goes to wherever the journey was started from, not back into it.
     function flowCreateDone() {
+        flowCreateFresh = null; // finished on purpose: it's kept
         const title = currentFlowDetail?.title || 'Your piece';
         const listName = addPieceTarget?.listName || null;
         addPieceTarget = null;
@@ -17089,7 +17233,7 @@
         if (running) updateTimerDisplays();
     }
 
-    // ML-236: the quick timer starts on the user's usual practise length instead of "Pick" - the
+    // ML-236: the quick timer starts on the user's usual practice length instead of "Pick" - the
     // most common Practise session length over the last 90 days, each snapped to the nearest preset
     // first (saved times are noisy: 23 and 27 minutes both count as 25). Ties go to the more recent.
     // No practise in that window: the admin-set default (duration_options.is_default), else 30.
@@ -19463,6 +19607,7 @@
     })();
     if (!TheoryEngine.ALL_KEYS.some(k => k.id === scales.keyId)) scales.keyId = SCALES_DEFAULTS.keyId;
     function scalesSave() {
+        if (scalesLadder) return; // ML-391: a Scales block borrows the settings - yours come back after it
         try { localStorage.setItem(SCALES_STORE, JSON.stringify(scales)); } catch (e) { /* private browsing - still works for this visit */ }
     }
     const scalesMode = () => (scales.keyId.endsWith(' minor') ? 'minor' : 'major');
@@ -19491,6 +19636,7 @@
         const detail = SCALES_DETAILS.some(([v]) => v === scales.detail) ? scales.detail : 'notes';
         document.getElementById('scalesDetailBtnVal').textContent = SCALES_DETAILS.find(([v]) => v === detail)[1];
         scalesShowMetronome();
+        renderScalesLadder(); // ML-391
         // Detail: Name is the name only ("B♭ minor" / "harmonic · scale · 2 octaves · up & down") in place of
         // the stave; Key is a blank stave with the key signature; Notes is the scale written out.
         setShown('scalesStaff', detail !== 'name');
@@ -19563,8 +19709,9 @@
     function scalesShowSub() {
         const sub = document.getElementById('scalesSub');
         if (!sub) return;
+        const level = scaleSubText(); // ML-391: in a Scales block, how this Level is played
         sub.textContent = scalesCountdown > 0 ? `Get ready… ${scalesCountdown}`
-            : `${scalesLength()} · ${scales.clef}`;
+            : `${scalesLength()} · ${scales.clef}${level ? ` · ${level}` : ''}`;
     }
 
     // --- Playing: one click per note (notes / beat clicks each beat); a count-in bar at the start only ---
@@ -19775,6 +19922,9 @@
         return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} & ${parts[parts.length - 1]}` : (parts[0] || '');
     }
     function scalesRenderPool() {
+        const levelsOn = scaleLevelsOn() && !!scaleLevels.instrumentId; // ML-391: each box holds its Level
+        const cellKey = (c) => PracticePlan.scaleKey({ type: c.item.kind, keyId: c.item.keyId, form: c.item.form, octaves: c.item.octaves, pattern: c.item.pattern });
+        const levelCell = (c) => { const rec = scaleLevelOf(cellKey(c)); return `<span class="scale-grid-cell is-level lv-${rec.level}" aria-hidden="true">${rec.learnt ? '<span class="material-symbols-outlined">star</span>' : rec.level}</span>`; };
         document.querySelectorAll('input[name="scalesGrade"]').forEach(el => { el.checked = scales.grades.includes(el.value === ScaleGrades.EVERYTHING ? el.value : Number(el.value)); });
         document.getElementById('scalesGradesSummary').textContent = scales.grades.length ? `· ${scalesGradesText(scales.grades)}` : '';
         const inst = scalesGradeInstrument();
@@ -19782,6 +19932,7 @@
             scales.gradeInstrumentId = id;
             scalesSave();
             scalesRenderPool();
+            if (scaleLevelsOn()) loadScaleLevels().then(scalesRenderPool); // ML-391: this instrument's Levels
         });
         const { group, grid, pool } = scalesGradeGrid();
         const name = document.getElementById('scalesGradeListName');
@@ -19797,14 +19948,22 @@
         }
         const row = (r) => {
             const said = Object.entries(SCALE_CELL).filter(([k]) => k !== 'no').map(([k, [, , words]]) => {
-                const keys = r.cells.filter(c => c.state === k).map(c => scalesName(c.item ? c.item.keyId.split(' ')[0] : c.tonic));
+                const inList = levelsOn && (k === 'ready' || k === 'other');
+                const keys = r.cells.filter(c => c.state === k).map(c => scalesName(c.item ? c.item.keyId.split(' ')[0] : c.tonic)
+                    + (inList ? (() => { const rec = scaleLevelOf(cellKey(c)); return rec.learnt ? ' (learnt)' : ` (Level ${rec.level})`; })() : ''));
                 return keys.length ? `${words}: ${keys.join(', ')}` : '';
             }).filter(Boolean).join('; ');
-            return `<div class="scale-grid-row" role="img" aria-label="${escapeHtml(`${r.label}, ${r.sub}. ${said || 'none needed'}`)}"><span class="scale-grid-label" aria-hidden="true">${escapeHtml(r.label)}<span class="scale-grid-sub">${escapeHtml(r.sub)}</span></span>${r.cells.map(c => `<span class="scale-grid-cell ${SCALE_CELL[c.state][0]}" aria-hidden="true">${SCALE_CELL[c.state][1]}</span>`).join('')}</div>`;
+            return `<div class="scale-grid-row" role="img" aria-label="${escapeHtml(`${r.label}, ${r.sub}. ${said || 'none needed'}`)}"><span class="scale-grid-label" aria-hidden="true">${escapeHtml(r.label)}<span class="scale-grid-sub">${escapeHtml(r.sub)}</span></span>${r.cells.map(c => (levelsOn && (c.state === 'ready' || c.state === 'other') ? levelCell(c) : `<span class="scale-grid-cell ${SCALE_CELL[c.state][0]}" aria-hidden="true">${SCALE_CELL[c.state][1]}</span>`)).join('')}</div>`;
         };
         const sec = (key, title, cols) => (grid.sections[key].length ? `<div class="scale-grid">${scalesGradeHead(title, cols)}${grid.sections[key].map(row).join('')}</div>` : '');
         box.innerHTML = !scales.grades.length ? '<p class="text-sm">Tick a grade, or Everything else, to see its scales.</p>'
             : grid ? sec('major', 'Major keys', ScaleGrades.MAJOR_COLUMNS) + sec('minor', 'Minor keys', ScaleGrades.MINOR_COLUMNS) : '';
+        setShown('scalesLevelLegend', levelsOn);
+        setShown('scalesListLegend', !levelsOn);
+        const goal = document.getElementById('scalesPoolGoal');
+        const mine = levelsOn && grid && scales.grades.length ? pool.map(x => ({ ...x, key: PracticePlan.scaleKey(x) })) : [];
+        goal.innerHTML = mine.length ? scaleGoalHtml(PracticePlan.scaleProgress(mine, scaleLevels.records)) : '';
+        setShown(goal, mine.length > 0);
         document.getElementById('scalesPoolCount').textContent = grid && scales.grades.length ? `${pool.length} scale${pool.length === 1 ? '' : 's'} in your list${grid.needed > pool.length ? ` (of ${grid.needed} needed)` : ''}` : '';
     }
     document.querySelectorAll('input[name="scalesGrade"]').forEach(input => input.addEventListener('change', () => {
@@ -19816,6 +19975,7 @@
     }));
     document.getElementById('scalesPoolBtn')?.addEventListener('click', async () => {
         if (!myInstruments || !myInstruments.length) await loadMyInstruments();
+        await loadScaleLevels(); // ML-391
         scalesRenderPool();
         showModal('scalesPoolModal');
     });
@@ -19899,6 +20059,240 @@
     }
     document.getElementById('scalesChooseBtn')?.addEventListener('click', async () => { await scalesRenderChoose(); showModal('scalesChooseModal'); });
     document.getElementById('scalesChooseEditBtn')?.addEventListener('click', () => { hideModal('scalesChooseModal'); document.getElementById('scalesPoolBtn')?.click(); });
+
+
+    // ===== ML-391: Scales Levels =====
+    // Every scale in your list has a Level 1-5 on this instrument (PracticePlan.SCALE_LEVELS: the notes
+    // slowly, the notes faster, just the key, just the name, the name at full speed), then it's learnt.
+    // A practice session's Scales block walks through three of them (scalesLadder): the Level sets what's
+    // shown and the speed, you say Got it or Not yet, and the next one comes. Lowest Level first, so every
+    // scale moves up together. Behind its own switch (scales_levels); off, a Scales block opens the tool as
+    // before. The rules are PracticePlan.scale* (tests: server/test/scaleLevels.test.js); the record is
+    // /api/practice/scale-levels. docs/practice-sessions.md, "Scales Levels".
+    function scaleLevelsOn() { return isFeatureEnabled('scales_levels') && isFeatureEnabled('practice_levels'); }
+    var scaleLevels = { instrumentId: null, records: {} }; // this instrument's records: { scaleKey: { level, learnt, lastPlayed, lastUpOn } }
+    var scalesLadder = null; // var: scalesSave and switchView read it - a Scales block in progress: { saved, items, family, played, count, current }
+    async function loadScaleLevels() {
+        if (!scaleLevelsOn()) return scaleLevels;
+        if (!myInstruments || !myInstruments.length) await loadMyInstruments().catch(() => {});
+        const inst = scalesGradeInstrument();
+        if (!inst) { scaleLevels = { instrumentId: null, records: {} }; return scaleLevels; }
+        try { scaleLevels = { instrumentId: inst.id, records: (await API.scaleLevels.get(inst.id)).records || {} }; }
+        catch (e) { scaleLevels = { instrumentId: inst.id, records: {} }; }
+        return scaleLevels;
+    }
+    // Your list with each scale's id, and the speed family of its ABRSM list (trombones are slower)
+    function scaleLevelItems() {
+        const { inst, group, pool } = scalesGradeGrid();
+        const data = group ? ScaleGrades.DATA[group.id] : null;
+        const family = PracticePlan.scaleSpeedFamily(group && group.id, data ? data.family : (inst && /wood/i.test(inst.family || '') ? 'woodwind' : 'brass'));
+        return { family, items: pool.map(p => ({ ...p, key: PracticePlan.scaleKey(p) })) };
+    }
+    function scaleLevelOf(key) { return PracticePlan.scaleRecord((scaleLevels || {}).records, key); }
+    // "D harmonic minor scale", as the Scales screen titles it
+    function scaleTitleFor(p) {
+        const scale = TheoryEngine.buildScale({ ...scales, keyId: p.keyId, form: p.form, minorForm: p.form !== 'major' ? p.form : scales.minorForm, type: p.type, octaves: p.octaves, pattern: p.pattern || null, tonicOctave: Number.isInteger(p.tonicOctave) ? p.tonicOctave : null, extended: p.extended || null });
+        return SCALES_NAMED_WHOLE.includes(p.type) ? scale.title : scale.title.replace(/^\S+/, scalesName(p.keyId.split(' ')[0]));
+    }
+    const scaleShortName = (p) => scaleTitleFor(p).replace(/ scale$/, '');
+    const scaleToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+    const scaleLevelChip = (rec) => (rec.learnt ? '<span class="level-chip lv-5"><span class="material-symbols-outlined" aria-hidden="true">star</span></span>' : `<span class="level-chip lv-${rec.level}">${rec.level}</span>`);
+    // Every scale's Level as one bar (a learnt one counts with the 5s), for the set-up card and the celebration
+    const scaleLevelMap = (items) => items.map(it => scaleLevelOf(it.key).level).sort((a, b) => a - b);
+    const scaleGoalHtml = (p) => (p.low == null ? '<span class="material-symbols-outlined" aria-hidden="true">star</span> Every scale is learnt'
+        : `<span class="material-symbols-outlined" aria-hidden="true">trending_up</span> Next goal: every <span class="level-chip lv-${p.low}">${p.low}</span> ${p.low < PracticePlan.SCALE_TOP_LEVEL ? `up to <span class="level-chip lv-${p.low + 1}">${p.low + 1}</span>` : 'learnt'} · ${p.toGo} to go`);
+
+    // --- A Scales block ---
+    // False when there's nothing to walk through (the switch is off, no instrument, an empty list): the
+    // block then opens the Scales tool as it always did.
+    async function startScalesLadder() {
+        if (!scaleLevelsOn()) return false;
+        await loadScaleLevels();
+        const { family, items } = scaleLevelItems();
+        if (!scaleLevels.instrumentId || !items.length) return false;
+        switchView('scalesView');
+        // Your own Scales settings come back when the block ends (scalesLadderEnd)
+        scalesLadder = { saved: JSON.stringify(scales), items, family, played: new Set(), count: 0, current: null, busy: false };
+        scalesLadderNext();
+        return true;
+    }
+    function scalesLadderNext() {
+        const L = scalesLadder;
+        if (!L) return;
+        let queue = PracticePlan.scalePool(L.items, scaleLevels.records, Date.now(), [...L.played]);
+        if (!queue.length) { L.played.clear(); queue = PracticePlan.scalePool(L.items, scaleLevels.records, Date.now()); }
+        // Every scale learnt and none due back yet: the one played longest ago, to keep it
+        if (!queue.length) queue = L.items.map(it => ({ ...it, rec: scaleLevelOf(it.key), revisit: true })).sort((a, b) => (Date.parse(a.rec.lastPlayed) || 0) - (Date.parse(b.rec.lastPlayed) || 0));
+        L.current = queue[0];
+        L.count++;
+        L.shownAt = Date.now();
+        L.nudged = false;
+        scalesLadderShow();
+    }
+    // The current scale at its Level: what's shown (Detail) and the speed come from the Level
+    function scalesLadderShow() {
+        const L = scalesLadder;
+        if (!L || !L.current) return;
+        const rec = scaleLevelOf(L.current.key);
+        const spec = PracticePlan.scaleLevelSpec(rec.level);
+        const speed = PracticePlan.scaleSpeed(L.current, rec.level, L.family, scales.grades);
+        if (scalesPlayer.isPlaying()) scalesPause();
+        scales.detail = spec.detail;
+        scales.npb = speed.npb;
+        scales.bpm = Math.min(SCALES_BPM_MAX, Math.max(METRO_MIN_BPM, speed.bpm));
+        scales.metronome = true;
+        scalesGo(L.current); // draws it (scalesSave leaves your saved settings alone during a block)
+        scalesPlayer.setConductorBpm(scales.bpm);
+        scalesRenderBpm();
+    }
+    // Leaving the Scales screen (or the block ending) puts your own settings back
+    function scalesLadderEnd() {
+        const L = scalesLadder;
+        if (!L) return;
+        scalesLadder = null;
+        if (scalesPlayer.isPlaying()) scalesPause();
+        try { Object.assign(scales, JSON.parse(L.saved)); } catch (e) { /* keeps what it had */ }
+        renderScales();
+        scalesRenderBpm();
+    }
+    // What the screen shows for a block (two boxes and Not yet / Got it) or, outside one, the scale's Level link
+    function renderScalesLadder() {
+        const L = scalesLadder;
+        setShown('scalesSettingRow', !L);
+        setShown('scalesLadderRow', !!L);
+        setShown('scalesPickRow', !L);
+        setShown('scalesLadderAnswers', !!L);
+        setShown('scalesMetronomeSwitch', !L);
+        document.getElementById('scalesMetronomeLbl').textContent = L ? 'Metronome · set by the Level' : 'Use metronome';
+        const link = document.getElementById('scalesLevelLink');
+        if (L && L.current) {
+            const rec = scaleLevelOf(L.current.key);
+            document.getElementById('scalesLadderCountVal').textContent = `${L.count} of ${Math.max(PracticePlan.SCALES_PER_BLOCK, L.count)}`;
+            const chip = document.getElementById('scalesLadderLevelChip');
+            chip.className = `level-chip lv-${rec.level}`;
+            chip.innerHTML = rec.learnt ? '<span class="material-symbols-outlined" aria-hidden="true">star</span>' : String(rec.level);
+            document.getElementById('scalesLadderLevelBtn').setAttribute('aria-label', `${rec.learnt ? 'Learnt' : `Level ${rec.level}`} - tap for what each Level means`);
+            setShown(link, false);
+            return;
+        }
+        // Outside a block: a scale that's in your list says its Level, and a tap sets it by hand
+        const mine = scaleLevelsOn() && scaleLevels && scaleLevels.instrumentId ? scaleLevelItems().items.find(scalesSame) : null;
+        setShown(link, !!mine);
+        if (mine) { const rec = scaleLevelOf(mine.key); link.textContent = `${rec.learnt ? 'Learnt ★' : `Level ${rec.level}`} - change`; }
+    }
+    function scaleSubText() {
+        const L = scalesLadder;
+        if (!L || !L.current) return '';
+        const rec = scaleLevelOf(L.current.key);
+        return rec.learnt ? 'still got it?' : PracticePlan.scaleLevelSpec(rec.level).label.toLowerCase();
+    }
+    // The stars: every scale has left a Level, or a scale is learnt
+    function showScaleUp({ title, pair, sub, items }) {
+        document.getElementById('scaleUpTitle').textContent = title;
+        document.getElementById('scaleUpPair').innerHTML = pair;
+        document.getElementById('scaleUpSub').textContent = sub;
+        const p = PracticePlan.scaleProgress(items, scaleLevels.records);
+        document.getElementById('scaleUpGoalText').innerHTML = scaleGoalHtml(p);
+        const bar = document.getElementById('scaleUpGoalBar');
+        bar.innerHTML = levelBarHtml(scaleLevelMap(items), { noun: 'scale' });
+        sizeLevelBars(bar);
+        setShown('scaleUpGoal', true);
+        const stars = document.getElementById('scaleUpStars');
+        stars.classList.remove('is-celebrating');
+        showModal('scaleUpModal');
+        requestAnimationFrame(() => stars.classList.add('is-celebrating'));
+    }
+    document.getElementById('scaleUpOkBtn')?.addEventListener('click', () => hideModal('scaleUpModal'));
+    // After an answer: a small message for each scale; the stars only for the big moments
+    function scaleAnswerSay(item, res, before, items) {
+        const name = scaleShortName(item);
+        const after = PracticePlan.scaleProgress(items, scaleLevels.records);
+        const arrow = '<span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>';
+        if (res.outcome === 'learnt') {
+            showScaleUp({ title: `${name} is learnt!`, pair: `<span class="level-chip lv-5">5</span>${arrow}<span class="level-chip lv-5"><span class="material-symbols-outlined">star</span></span>`, sub: 'By name, at full speed. It will come back now and then so it stays learnt.', items });
+            return;
+        }
+        if (before.low != null && after.low != null && after.low > before.low) {
+            const next = PracticePlan.scaleLevelSpec(after.low);
+            showScaleUp({ title: `Every scale is at Level ${after.low}!`, pair: `<span class="level-chip lv-${before.low}">${before.low}</span>${arrow}<span class="level-chip lv-${after.low}">${after.low}</span>`, sub: `All ${items.length} of your scales have left Level ${before.low}. Next: ${next.label.toLowerCase()}.`, items });
+            return;
+        }
+        const say = {
+            up: `${name}: up to Level ${res.record.level}`,
+            held: `${name}: it has gone up today already - again tomorrow`,
+            kept: `${name}: still got it ★`,
+            back: `${name}: back to Level 4 for a polish`,
+            stay: `${name}: again next time`
+        }[res.outcome];
+        if (say) showSuccessToast(say);
+    }
+    async function scaleAnswerSave(item, gotIt, items) {
+        const before = PracticePlan.scaleProgress(items, scaleLevels.records);
+        const res = await API.scaleLevels.answer({ instrumentId: scaleLevels.instrumentId, key: item.key, gotIt, today: scaleToday() });
+        scaleLevels.records[item.key] = res.record;
+        scaleAnswerSay(item, res, before, items);
+    }
+    async function scalesLadderAnswer(gotIt) {
+        const L = scalesLadder;
+        if (!L || !L.current || L.busy) return;
+        L.busy = true;
+        const cur = L.current;
+        try { await scaleAnswerSave(cur, gotIt, L.items); }
+        catch (e) { showWarningToast('Not saved: ' + e.message); }
+        L.played.add(cur.key);
+        L.busy = false;
+        if (scalesLadder === L) scalesLadderNext();
+    }
+    document.getElementById('scalesGotItBtn')?.addEventListener('click', () => scalesLadderAnswer(true));
+    document.getElementById('scalesNotYetBtn')?.addEventListener('click', () => scalesLadderAnswer(false));
+    // The block's time ran out on a scale: one last "Got it?" for it (the Skills block's pop-up), then on
+    function askScaleRating(cur, items, then) {
+        const rec = scaleLevelOf(cur.key);
+        document.getElementById('skillRateTitle').textContent = `${scaleShortName(cur)}: got it?`;
+        document.getElementById('skillRateSub').textContent = rec.learnt ? 'Still got it, by name at full speed?' : `Level ${rec.level}: ${PracticePlan.scaleLevelSpec(rec.level).label.toLowerCase()}`;
+        document.getElementById('skillRateNext').textContent = rec.learnt ? 'It keeps its star' : rec.level >= PracticePlan.SCALE_TOP_LEVEL ? 'Then it is learnt' : `Next time: ${PracticePlan.scaleLevelSpec(rec.level + 1).label.toLowerCase()}`;
+        const done = (gotIt) => {
+            hideModal('skillRateModal');
+            (gotIt === null ? Promise.resolve() : scaleAnswerSave(cur, gotIt, items).catch(e => showWarningToast('Not saved: ' + e.message))).then(() => then && then());
+        };
+        document.getElementById('skillRateYesBtn').onclick = () => done(true);
+        document.getElementById('skillRateNoBtn').onclick = () => done(false);
+        document.getElementById('skillRateCloseBtn').onclick = () => done(null);
+        showModal('skillRateModal');
+    }
+    // What each Level means for a scale - and setting one by hand (you know it already, or it got too hard)
+    function openScaleLevelPicker(item, family, after) {
+        const rec = scaleLevelOf(item.key);
+        const options = PracticePlan.SCALE_LEVELS.map(l => {
+            const sp = PracticePlan.scaleSpeed(item, l.level, family, scales.grades);
+            const speed = l.level === PracticePlan.SCALE_TOP_LEVEL ? `Grade ${sp.grade} speed: ${sp.npb} notes a beat at ${sp.bpm} · then it is learnt` : `${l.percent}% of full speed`;
+            return { key: l.level, title: l.label, sub: l.level === PracticePlan.SCALE_TOP_LEVEL ? speed : `${l.sub} · ${speed}`, selected: !rec.learnt && rec.level === l.level };
+        });
+        openChooser(scaleTitleFor(item), options, async (v) => {
+            try {
+                const res = await API.scaleLevels.setLevel({ instrumentId: scaleLevels.instrumentId, key: item.key, level: Number(v) });
+                scaleLevels.records[item.key] = res.record;
+                showSuccessToast(`${scaleShortName(item)}: Level ${res.record.level}`);
+            } catch (e) { showWarningToast('Not saved: ' + e.message); }
+            if (after) after();
+        });
+        const box = document.getElementById('sessionBlockOptions');
+        box.querySelectorAll('[data-opt]').forEach((b, i) => {
+            b.classList.add('flex-row', 'gap-sm', 'items-center');
+            b.querySelector(':scope > span').classList.add('grow');
+            b.insertAdjacentHTML('afterbegin', `<span class="level-chip lv-${i + 1}" aria-hidden="true">${i + 1}</span>`);
+        });
+        box.insertAdjacentHTML('afterbegin', `<p class="metro-help-text">${rec.learnt ? 'This scale is learnt.' : `This scale is at Level ${rec.level}.`} Got it moves it up one. Tap a Level to set it yourself - if you know this one already, or it has got too hard.</p>`);
+    }
+    document.getElementById('scalesLadderLevelBtn')?.addEventListener('click', () => {
+        const L = scalesLadder;
+        if (L && L.current) openScaleLevelPicker(L.current, L.family, () => { if (scalesLadder === L) scalesLadderShow(); });
+    });
+    document.getElementById('scalesLevelLink')?.addEventListener('click', () => {
+        const { family, items } = scaleLevelItems();
+        const mine = items.find(scalesSame);
+        if (mine) openScaleLevelPicker(mine, family, renderScalesLadder);
+    });
 
     // Previous / Next go through your list in order, wrapping round; Shuffle picks any other one at
     // random. The same three as Warm-ups.

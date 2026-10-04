@@ -9,25 +9,25 @@
 Square launcher tiles on the home screen for the practice tools (Timer, Metronome, Tuner, Quick
 play, Flow…). **Don't use** for in-page actions. They always navigate to a tool.
 
-**Home and All tools (ML-378):** Home shows only **My tools** - up to the `home_tools` limit of favourites (ML-388: 4 Standard, 8 others) in one `.tool-icon-row`
+**Home and All tools (ML-378):** Home shows only **My favourite tools** (ML-412) - up to the `home_tools` limit (ML-388: 4 Standard, 8 others) in one `.tool-icon-row`
 (`#homeToolsRow`, copies of the All tools tiles made by `renderHomeTools`; default Metronome, Tuner, Timer,
 Warm-ups) and an **All tools** row (a `.settings-link`). The tiles themselves live on the **All tools** page
-(`#toolsView.tools-page`), in three groups, each a `.tool-group` with a small label (`.tool-group-title`:
+(`#toolsView.tools-page`), in four groups (ML-409), each a `.tool-group` with a small label (`.tool-group-title`:
 `--font-sm` bold, `--label-color`) over its own 4-column row: **Everyday** (Metronome, Tuner, Timer), **My
-routine** in the order it's practised (Warm-ups, Scales, Rehearse - as the session templates - with Add a piece, ML-400, then Prepare, ML-401, just before Rehearse: see [add-piece](add-piece.md), [prepare-list](prepare-list.md)) and **Learn**
+routine** (Warm-ups, Scales), **Practise** (a piece's three connected tools in the order you use them: Add a piece, ML-400, Prepare, ML-401, Rehearse - see [add-piece](add-piece.md), [prepare-list](prepare-list.md)) and **Learn**
 (Theory, Skills, Range - ML-406: Skills opens Pitch, Tempo, Pulse and Rhythm from one list, see [drills](drills.md)). A group hides when none of its tools
 are on (`renderToolGroups`), and the ☰ menu's tools are one labelled row per group (`renderNavToolsRow`).
 A tile on Home has a filled **★** (`.tool-fav-star` on `.is-fav`, the tile's own text colour).
-**Choose Home tools** (a `.btn-nav.btn-cancel`, "Done" while choosing) puts the page in `.is-editing`:
+**Choose favourite tools** (ML-412: the tools on Home are "favourites" on screen; ML-408: a quiet `.btn-text` link under the groups - it's the least-used thing on the page; it becomes the full-size `.btn-nav.btn-cancel` "Done" while choosing) puts the page in `.is-editing`:
 every tile shows a ★ (outline = not on Home), a tap toggles it instead of opening the tool (`aria-pressed`),
 the ones on Home take the selected look (`--primary-action-tint` + `--primary-action-strong`), and a fifth is
-refused ("Home holds 4 tools"). **Order:** Home shows them in your order (a new one goes at the end). While
-choosing, a **"My Home screen"** card at the top (`#toolsHomeOrder`: a compact `.flow-card` titled like the Display and
+refused ("You can have 4 favourite tools"). **Order:** Home shows them in your order (a new one goes at the end). While
+choosing, a **"My favourite tools"** card at the top (`#toolsHomeOrder`: a compact `.flow-card` titled like the Display and
 reading preview - a small `.display-preview-label` - over a `.tool-icon-row`; boxed so it can't be taken for more tools;
 not a `.tool-group`, so the ☰ menu skips it) shows them as Home will. Each tile there has a **⋮** in its corner
 (`.tool-move-icon`, where the ★ sits on the tiles below) - the app's options menu, since it can be moved or taken
 off; tapping anywhere on the tile opens it; tapping one opens a `.dropdown-menu`
-(`#homeToolMenu`: Move earlier / Move later / Take off Home), and ← / → move it from the keyboard. Tap-to-move
+(`#homeToolMenu`: Move earlier / Move later / Remove from favourites), and ← / → move it from the keyboard. Tap-to-move
 rather than drag (owner, 2026-09-30): four tiles need one or two taps, and a press-and-hold drag would fight
 scrolling (ML-367) and still need this as its accessible alternative. Saved on the account
 (`accounts.home_tools`, in order). While choosing, the card is pinned under the top bar (`.tools-home-card`: sticky,
@@ -45,7 +45,7 @@ choosing: `--primary-action-tint`, `--primary-action-strong`.
 
 ## 5. Props / API
 - Custom SVG glyphs are inlined (not `<img>`) so `fill: currentColor` follows the theme. JS adds the `viewBox`.
-- The row is a 4-column grid (`repeat(4, minmax(0, 1fr))`, ML-260): a 5th tool starts a second row in the same columns. Never make a row of 5 narrower tiles. Home's My tools holds as many as the account type's `home_tools` limit (ML-388: Standard 4 = one row, others 8 = two rows).
+- The row is a 4-column grid (`repeat(4, minmax(0, 1fr))`, ML-260): a 5th tool starts a second row in the same columns. Never make a row of 5 narrower tiles. Home's My favourite tools holds as many as the account type's `home_tools` limit (ML-388: Standard 4 = one row, others 8 = two rows).
 - The `--space-3` row gap is the app's gutter ([stat-card](stat-card.md) grids use the same gap).
 - Each tile has `data-tool` (its id - `HOME_TOOL_IDS` in server/services/accounts.js; `server/test/homeTools.test.js` keeps them in step).
 
