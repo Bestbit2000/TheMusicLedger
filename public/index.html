@@ -961,6 +961,9 @@
         <div id="aboutCurrentRelease"></div>
         <div class="section-title">Release history</div>
         <div id="aboutReleaseHistory"></div>
+        <!-- ML-313: where the grade content comes from, and that we aren't connected with the exam board -->
+        <div class="section-title">Exam grades</div>
+        <p class="text-sm text-muted">The grade lists in Scales and the grades in Theory follow the syllabuses published by ABRSM (the Associated Board of the Royal Schools of Music). The Music Ledger is an independent app: it isn't affiliated with, endorsed by or approved by ABRSM. Exam requirements belong to ABRSM and can change, so always check the current syllabus at <a href="https://www.abrsm.org" target="_blank" rel="noopener">abrsm.org</a> before an exam.</p>
     </div>
 
     <!-- Quick Play (front page): a simplified, always-editable variant of the Blocks/Flow builder
@@ -2688,6 +2691,8 @@
                     <div class="radio-group compact scales-grade-options" id="scalesGradeOptions"><input type="checkbox" id="scalesGrade-1" name="scalesGrade" value="1"><label for="scalesGrade-1">1</label><input type="checkbox" id="scalesGrade-2" name="scalesGrade" value="2"><label for="scalesGrade-2">2</label><input type="checkbox" id="scalesGrade-3" name="scalesGrade" value="3"><label for="scalesGrade-3">3</label><input type="checkbox" id="scalesGrade-4" name="scalesGrade" value="4"><label for="scalesGrade-4">4</label><input type="checkbox" id="scalesGrade-5" name="scalesGrade" value="5"><label for="scalesGrade-5">5</label><input type="checkbox" id="scalesGrade-6" name="scalesGrade" value="6"><label for="scalesGrade-6">6</label><input type="checkbox" id="scalesGrade-7" name="scalesGrade" value="7"><label for="scalesGrade-7">7</label><input type="checkbox" id="scalesGrade-8" name="scalesGrade" value="8"><label for="scalesGrade-8">8</label><input type="checkbox" id="scalesGrade-else" name="scalesGrade" value="else"><label for="scalesGrade-else">Everything else</label></div>
                 </div>
                 <p class="text-sm" id="scalesGradeListName" aria-live="polite"></p>
+                <!-- ML-313: shown with an ABRSM list. The requirements are ABRSM's own; we aren't connected with them. -->
+                <p class="text-sm text-muted hidden-group" id="scalesGradeDisclaimer">The Music Ledger isn't affiliated with or endorsed by ABRSM. The scale requirements are ABRSM's and can change - check the current syllabus at <a href="https://www.abrsm.org" target="_blank" rel="noopener">abrsm.org</a>.</p>
                 <div class="scales-pool-line">
                     <p class="scales-pool-count" id="scalesPoolCount" aria-live="polite"></p>
                     <button type="button" class="scales-range-link" id="scalesSeeRangeBtn" aria-haspopup="dialog">See your range</button>

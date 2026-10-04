@@ -19940,6 +19940,7 @@
         const box = document.getElementById('scalesGradeGrid');
         setShown('scalesSeeRangeBtn', !!inst);
         const everything = scales.grades.includes(ScaleGrades.EVERYTHING);
+        setShown('scalesGradeDisclaimer', !!group); // ML-313: with an ABRSM list, say whose requirements they are
         if (group) {
             const pitchNote = group.clef === 'bass' && inst.theoryClef === 'treble' && inst.family === 'Brass' ? ', concert pitch' : '';
             name.textContent = `ABRSM list: ${group.name}${pitchNote}.`;
