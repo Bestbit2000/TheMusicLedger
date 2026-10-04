@@ -9,7 +9,8 @@ body.admin-body { display: block; background: var(--bg-color); }
 
 .admin-shell { display: flex; min-height: 100vh; }
 
-.admin-sidebar { width: 220px; flex-shrink: 0; background: var(--container-bg); border-right: 1px solid var(--input-border); padding: var(--space-5) 0; box-sizing: border-box; }
+/* ML-277: the menu stays where it is while the page beside it scrolls; if it is taller than the window it scrolls by itself */
+.admin-sidebar { width: 220px; flex-shrink: 0; background: var(--container-bg); border-right: 1px solid var(--input-border); padding: var(--space-5) 0; box-sizing: border-box; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
 .admin-sidebar-title { font-weight: var(--font-weight-bold); font-size: var(--font-lg); padding: 0 var(--space-5) var(--space-5) var(--space-5); color: var(--text-color); }
 .admin-nav-item { display: block; width: 100%; box-sizing: border-box; text-align: left; background: none; border: none; border-left: 3px solid transparent; padding: var(--space-3) var(--space-5); font-size: var(--font-base); font-weight: var(--font-weight-semibold); font-family: var(--font-sans); color: var(--text-color); cursor: pointer; }
 .admin-nav-item:disabled { color: var(--label-color); cursor: default; }
@@ -115,7 +116,7 @@ body.admin-body { display: block; background: var(--bg-color); }
   /* The section list used to become one long horizontal row here, which pushed the whole page to
      ~1200px wide - everything else (cards, stat tiles, pop-ups centred on the page) then sat
      partly off-screen. Now it folds away behind the ☰ toggle and opens as a vertical list. */
-  .admin-sidebar { width: 100%; padding: var(--space-2) var(--space-4); border-right: none; border-bottom: 1px solid var(--input-border); }
+  .admin-sidebar { width: 100%; padding: var(--space-2) var(--space-4); border-right: none; border-bottom: 1px solid var(--input-border); position: static; align-self: auto; height: auto; overflow-y: visible; }
   .admin-sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
   .admin-sidebar-title { padding: 0; min-width: 0; overflow-wrap: anywhere; }
   .admin-sidebar-current { display: inline; }

@@ -21,6 +21,8 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
 `--space-*`, `--font-xs`…`--font-lg`, `--font-weight-semibold`, `--font-weight-bold`, `--app-max-width`.
 
 ## 5. Props / API
+- **The menu stays put (ML-277):** on a desktop `.admin-sidebar` is sticky at the top, the height of the window, and
+  scrolls by itself if it is taller - only the page beside it scrolls. On a phone it is part of the page as before.
 - **Phone width (≤700px, ML-240):** the sidebar becomes a head row - "Admin" + the open section's name (`.admin-sidebar-current`, `--label-color`) and a ☰ `<button class="admin-nav-toggle">` (48px, `--touch-target`, `aria-expanded`/`aria-controls`). Tapping it adds `.expanded` to `.admin-sidebar`, which shows `.admin-nav-items` as a vertical list (each item at least `--touch-target` tall); picking a section or pressing Esc closes it. On wider screens the toggle and current-section label are hidden and the list is the fixed sidebar. Nothing in the panel may make the page wider than the screen: grids use `minmax(0, 1fr)` columns and `.admin-content` wraps long words.
 - Tables: wrap in `.admin-stat-table-wrap` so wide tables scroll inside the column (`.admin-content` has `min-width: 0`).
 - Status badges: see [pill-badge](pill-badge.md).
