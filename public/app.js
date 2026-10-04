@@ -7574,6 +7574,67 @@
     // pause and stop. It is the session's timer (forSession): the session logs the time itself, so when this
     // timer runs out or is stopped it just goes - no "save this as a session?" and the music isn't stopped.
     // A timer already running is replaced (its time isn't offered for saving - the session takes over).
+    // ML-422: the session's timer and its blocks are one clock. Pausing the timer (top bar or Timer screen)
+    // pauses the block or the rest, any music playing and a Theory round's clock; play carries them all on.
+    // Moving the session on yourself (starting a block, Next block) un-pauses it.
+    function sessionSetPaused(on) {
+        const r = practiceRun;
+        if (!r || r.done) return;
+        if (on && !r.pausedAt) {
+            r.pausedAt = Date.now();
+            r.resumeMusic = pauseMusicForTimer();
+            const t = theoryRound;
+            if (t && !t.ended && t.runningSince !== null) { t.accumulatedMs += theoryNow() - t.runningSince; t.runningSince = null; }
+        } else if (!on && r.pausedAt) {
+            const gap = Date.now() - r.pausedAt;
+            r.blockStart += gap;
+            if (r.restStart) r.restStart += gap;
+            r.pausedAt = 0;
+            (r.resumeMusic || []).forEach(play => play());
+            r.resumeMusic = null;
+            const t = theoryRound;
+            if (t && !t.ended && t.runningSince === null && !document.hidden) t.runningSince = theoryNow();
+        } else return;
+        renderPracticeRun();
+        if (r.phase === 'rest') renderRest();
+        practiceRunSave();
+    }
+    function sessionEnsureRunning() {
+        const r = practiceRun;
+        if (!r || !r.pausedAt) return;
+        if (timerState && timerState.forSession && !timerState.running) toggleTimerPlayPause(); // un-pauses the session with it
+        else sessionSetPaused(false);
+    }
+    // ML-422: the session's timer has reached zero and there are blocks still going - you've taken longer than
+    // the time you set. Everything pauses and you're asked: finish, another 5 minutes, or carry on untimed.
+    let sessOverTime = null;
+    function sessionOverTime(elapsedSeconds, targetSeconds) {
+        const r = practiceRun;
+        if (!r || r.done) return;
+        sessionSetPaused(true);
+        sessOverTime = { elapsedSeconds, targetSeconds };
+        const mins = Math.round((targetSeconds || 0) / 60);
+        const left = r.blocks.length - r.index - 1;
+        document.getElementById('sessTimeUpMessage').textContent = `Your ${mins} minute${mins === 1 ? '' : 's'} are up${left > 0 ? `, with ${left} block${left === 1 ? '' : 's'} still to come` : ' - you were on your last block'}. What would you like to do?`;
+        showModal('sessTimeUpModal');
+    }
+    document.getElementById('sessTimeUpFinishBtn')?.addEventListener('click', () => { sessOverTime = null; hideModal('sessTimeUpModal'); finishPracticeRun(true, true); });
+    document.getElementById('sessTimeUpCarryOnBtn')?.addEventListener('click', () => { sessOverTime = null; hideModal('sessTimeUpModal'); sessionSetPaused(false); });
+    document.getElementById('sessTimeUpExtendBtn')?.addEventListener('click', () => {
+        const o = sessOverTime;
+        sessOverTime = null;
+        hideModal('sessTimeUpModal');
+        if (o && !timerState) {
+            timerState = { targetSeconds: (o.targetSeconds || 0) + 300, remainingSeconds: 300, elapsedSeconds: o.elapsedSeconds, running: true, openEnded: false, forSession: true };
+            clearInterval(timerIntervalId);
+            timerIntervalId = setInterval(timerTick, 1000);
+            renderTimerScreen();
+            updateTopTimerIndicator(viewStack[viewStack.length - 1]);
+            syncWakeLock();
+            syncActiveTimerSession();
+        }
+        sessionSetPaused(false);
+    });
     function startSessionTimer() {
         startTimerSession(sessPlan.open ? null : sessPlan.minutes * 60);
         timerState.forSession = true;
@@ -7629,13 +7690,14 @@
         }
         return b;
     }
-    const runElapsed = () => Math.floor((Date.now() - practiceRun.blockStart) / 1000);
-    const restElapsed = () => Math.floor((Date.now() - practiceRun.restStart) / 1000);
+    // (ML-422: while the session is paused both clocks stand still at the moment it was paused)
+    const runElapsed = () => Math.floor(((practiceRun.pausedAt || Date.now()) - practiceRun.blockStart) / 1000);
+    const restElapsed = () => Math.floor(((practiceRun.pausedAt || Date.now()) - practiceRun.restStart) / 1000);
     // ML-418: the rest is 30 seconds - or a 10-second break between two Theory blocks (the block after the one just finished)
     const restLength = () => PracticePlan.restSeconds(practiceRun.blocks, practiceRun.index + 1);
     function practiceRunTick() {
         const r = practiceRun;
-        if (!r || r.done) return;
+        if (!r || r.done || r.pausedAt) return; // ML-422: paused with its timer
         if (r.phase === 'rest') {
             if (restElapsed() >= restLength()) endRest();
             else renderRest();
@@ -7684,6 +7746,7 @@
     function sessionAdvance() {
         const r = practiceRun;
         if (!r || r.done) return;
+        sessionEnsureRunning();
         r.waitingForRating = false;
         r.phase = 'play';
         r.index++;
@@ -7723,6 +7786,7 @@
     const REST_FALLBACK = { kind: 'breathe', icon: 'air', title: 'Breathe with the circle', body: 'Breathe in as the circle grows, and out as it shrinks.' };
     function startRest() {
         const r = practiceRun;
+        sessionEnsureRunning();
         r.phase = 'rest';
         r.restStart = Date.now();
         r.restMessage = null;
@@ -7780,6 +7844,7 @@
     async function startSessionBlock() {
         const r = practiceRun;
         if (!r) return;
+        sessionEnsureRunning();
         const b = r.blocks[r.index];
         b.started = true;
         if (b.kind === 'rehearsal') {
@@ -7859,7 +7924,7 @@
         if (level == null) throw new Error('those bars have no Level yet');
         startLevelPractice({ ...c, level });
     }
-    async function finishPracticeRun(early) {
+    async function finishPracticeRun(early, timeUp) {
         const r = practiceRun;
         if (!r || r.done) return;
         if (early && r.phase !== 'rest') { const b = r.blocks[r.index]; b.seconds += runElapsed(); b.started = true; }
@@ -7870,7 +7935,7 @@
         if (flowSession) endLevelPractice();
         const played = r.blocks.filter(b => b.started && b.seconds > 0);
         const minutes = Math.max(1, Math.round(played.reduce((s, b) => s + b.seconds, 0) / 60));
-        document.getElementById('sessRunDoneTitle').textContent = early ? 'Session ended' : 'Session done - well played!';
+        document.getElementById('sessRunDoneTitle').textContent = timeUp ? "Time's up - well played!" : early ? 'Session ended' : 'Session done - well played!';
         document.getElementById('sessRunDoneText').textContent = `${minutes} minute${minutes === 1 ? '' : 's'}, ${played.length} block${played.length === 1 ? '' : 's'}. Saving to your practice history...`;
         switchView('sessionRunView');
         renderPracticeRun();
@@ -7908,7 +7973,7 @@
         document.getElementById('sessRunKind').textContent = resting ? 'Rest' : blockTitle(b);
         document.getElementById('sessRunDetail').textContent = resting ? 'The rest is part of the music.' : sessBlockText(b);
         document.getElementById('sessRunTime').textContent = time;
-        document.getElementById('sessRunTimeSub').textContent = resting ? 'of rest left' : isPrepare ? 'so far - take as long as you need' : 'left in this block';
+        document.getElementById('sessRunTimeSub').textContent = r.pausedAt ? 'paused - press play on the timer to carry on' : resting ? 'of rest left' : isPrepare ? 'so far - take as long as you need' : 'left in this block';
         const go = document.getElementById('sessRunGoBtn');
         go.textContent = resting ? 'Back to the rest' : isPrepare ? (b.started ? 'Back to preparing' : 'Start preparing') : b.started ? 'Back to this block' : 'Start this block';
         const next = r.blocks[r.index + 1];
@@ -7917,7 +7982,7 @@
         nextBtn.textContent = next ? 'Next block' : 'Finish the session';
         setShown(nextBtn, !resting);
         document.getElementById('sessionBarText').textContent = `${count} · ${resting ? 'Rest' : blockTitle(b)}`;
-        document.getElementById('sessionBarTime').textContent = time;
+        document.getElementById('sessionBarTime').textContent = r.pausedAt ? `Paused · ${time}` : time;
         // While a block plays, the bar names the piece coming next.
         const nextUp = r.blocks[r.index + 1];
         const music = !resting && nextMusic(nextUp);
@@ -8627,7 +8692,7 @@
             restMessage: st.restMessage || null, nudgeAt: st.nudgeAt == null ? PracticePlan.playSeconds(st.blocks, st.index) : st.nudgeAt, nudged: !!st.nudged && !resting,
             startedAt: st.startedAt, done: false, open: !!st.open, template: st.template || 'standard', focus: st.focus || 'both', auto: st.auto !== false, source: st.source || { type: 'all' }
         };
-        if (timerState) timerState.forSession = true; // ML-421: the timer that came back with it is the session's
+        if (timerState) { timerState.forSession = true; if (!timerState.running) practiceRun.pausedAt = Date.now(); } // ML-421: the timer that came back with it is the session's (ML-422: still paused if it was)
         loadSkills().catch(() => {}); // Skills blocks need your list (their steps, and Got it? for Warm-ups / Scales)
         sessPlan.source = practiceRun.source;
         if (practiceRun.open) refreshSessionPieces().catch(() => {}); // Keep going plans new Pieces blocks from them
@@ -17188,7 +17253,10 @@
             forSession: !!(practiceRun && !practiceRun.done) // ML-421
         };
         clearInterval(timerIntervalId);
-        if (running) timerIntervalId = setInterval(timerTick, 1000);
+        // Always ticking (timerTick does nothing while paused): a timer that came back paused had no interval, so
+        // pressing play on it after a reload did nothing (found with ML-422).
+        timerIntervalId = setInterval(timerTick, 1000);
+        if (timerState.forSession && !running && !practiceRun.pausedAt) { practiceRun.pausedAt = Date.now(); renderPracticeRun(); } // ML-422
         renderTimerScreen();
         updateTopTimerIndicator(viewStack[viewStack.length - 1]);
         syncWakeLock();
@@ -17518,6 +17586,7 @@
     function toggleTimerPlayPause() {
         if (!timerState) return;
         timerState.running = !timerState.running;
+        if (timerState.forSession) sessionSetPaused(!timerState.running); // ML-422: the session's blocks pause and carry on with it
         updateTimerPlayIcons();
         syncWakeLock();
         syncActiveTimerSession(); // ML-197: pause/resume matters enough to push immediately, not wait for the next periodic tick sync
@@ -17546,7 +17615,8 @@
         syncWakeLock();
         API.timer.clearActive().catch(() => {}); // ML-197: nothing left to resume once the session's actually over
 
-        if (elapsedSeconds < 1 || forSession) return;
+        if (forSession) { if (timeUp === true) sessionOverTime(elapsedSeconds, targetSeconds); return; } // ML-422: over the session's time
+        if (elapsedSeconds < 1) return;
         timerPendingFinish = { elapsedSeconds, openEnded, targetSeconds, resumeMusic };
         openTimerFinishedModal();
     }
@@ -18328,7 +18398,7 @@
         const r = theoryRound;
         if (!r || r.ended) return;
         if (document.hidden && r.runningSince !== null) { r.accumulatedMs += theoryNow() - r.runningSince; r.runningSince = null; }
-        else if (!document.hidden && r.runningSince === null) { r.runningSince = theoryNow(); theoryTick(); }
+        else if (!document.hidden && r.runningSince === null && !(practiceRun && practiceRun.pausedAt)) { r.runningSince = theoryNow(); theoryTick(); }
     });
 
     async function theoryEndRound() {

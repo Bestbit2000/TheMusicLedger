@@ -2809,6 +2809,18 @@
         </div>
     </div>
 
+    <!-- ML-422: a practice session has run past its time (its timer hit zero with blocks still to go). Everything
+         is paused while this is up; like the Timer's own "Session finished!" it must be answered. -->
+    <div class="modal" data-no-dismiss id="sessTimeUpModal" role="dialog" aria-modal="true" aria-labelledby="sessTimeUpTitle">
+        <div class="modal-content">
+            <h2 id="sessTimeUpTitle">Time's up!</h2>
+            <p id="sessTimeUpMessage" class="mb-6 leading-base"></p>
+            <button type="button" class="btn-submit" id="sessTimeUpFinishBtn">Finish the session</button>
+            <button type="button" class="btn-cancel btn-nav" id="sessTimeUpExtendBtn">Just another 5 minutes</button>
+            <button type="button" class="btn-text" id="sessTimeUpCarryOnBtn">Carry on without the timer</button>
+        </div>
+    </div>
+
     <div class="modal" data-no-dismiss id="timerFinishedModal" role="dialog" aria-modal="true" aria-labelledby="timerFinishedModalTitle">
         <div class="modal-content">
             <h2 id="timerFinishedModalTitle">Session finished!</h2>

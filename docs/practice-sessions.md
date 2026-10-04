@@ -96,8 +96,15 @@ Starting a practice session starts the **Timer** for the whole of it (`startSess
 session's length, or counting up when it's open ended. So the top bar's timer pill shows the session's time on
 every screen, with its usual pause and stop. That timer is marked `timerState.forSession`:
 
-- the session logs the time itself, so when the timer runs out or is stopped there is **no "save this as a
-  session?" pop-up** and the music isn't stopped - the session carries on with its own bar;
+- the session logs the time itself, so when the timer is stopped there is **no "save this as a session?"
+  pop-up**;
+- **one clock (ML-422):** pausing the timer pauses the session - the block or rest (`practiceRun.pausedAt`,
+  `sessionSetPaused`), any music playing and a Theory round's clock - and play carries them on. Starting a block
+  or Next block un-pauses it. The drills are rounds of their own and aren't paused;
+- **Time's up (ML-422):** when the countdown reaches zero with the session still going (you took longer than the
+  time you set), everything pauses and `#sessTimeUpModal` asks: **Finish the session**, **Just another 5 minutes**
+  (the timer starts again with 5 minutes) or **Carry on without the timer**. It must be answered, like the
+  Timer's own "Session finished!". An open-ended session has no time up;
 - ending the session (finished, or ended early) stops the timer;
 - a timer already running when the session starts is replaced;
 - after a reload both come back (the timer by ML-197, the session by its own resume) and the timer is marked
