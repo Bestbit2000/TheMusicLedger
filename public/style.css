@@ -2692,8 +2692,6 @@
     .time-block.is-new { animation: block-pop var(--duration-base) ease-out; }
     .time-block.is-more { border: 2px dashed var(--control-border); background: transparent; }
     @keyframes block-pop { from { transform: scale(0.4); opacity: var(--opacity-muted); } to { transform: scale(1); opacity: 1; } }
-    .open-ended-option { justify-content: flex-start; gap: var(--space-3); }
-    .open-ended-option .open-ended-icon { font-size: var(--icon-xl); }
     .plan-card { flex: 1; min-width: 0; flex-direction: column; align-items: stretch; gap: var(--space-2); }
     .plan-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
     .kind-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-1); }

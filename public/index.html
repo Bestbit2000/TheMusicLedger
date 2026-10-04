@@ -1066,14 +1066,24 @@
     <!-- ML-390 (was ML-320's one-page planner): starting a practice session is three steps, one question
          each - how long, which plan, what goes in - then Ready. Rules: public/practicePlan.js; screens:
          the PRACTICE SESSION section of app.js; docs/practice-sessions.md. Step 1: time as 5-minute
-         blocks you can count, quick picks, or Keep going (open-ended). -->
+         blocks you can count, or Open ended (ML-413 - it was "Keep going"). -->
     <div id="sessionLengthView" class="hidden-group">
+        <!-- ML-413: Same as last time skips all three steps (straight to Ready with the last length, plan and
+             pieces), so it sits above them - not at the foot of "How long". Shown once there's a last time. -->
+        <button type="button" class="history-item settings-link hidden-group" id="sessSameBtn"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">replay</span><span class="settings-link-text"><span class="settings-link-title">Same as last time</span><span class="settings-link-sub" id="sessSameSub"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <ol class="steps-progress" aria-label="Setting up your practice, step 1 of 3">
             <li class="steps-progress-step is-now" aria-current="step">How long</li>
             <li class="steps-progress-step">Plan</li>
             <li class="steps-progress-step">What's in it</li>
         </ol>
         <h2 class="step-question" id="sessLenLabel">How long do you want to practise?</h2>
+        <!-- ML-413: a set time, or open ended (the Timer's word for it) - the two answers to the question,
+             side by side; it was a "Keep going" card under the blocks. -->
+        <div class="radio-group mb-3" role="radiogroup" aria-labelledby="sessLenLabel">
+            <input type="radio" id="sessLenTimedOpt" name="sessLenKind" value="timed" checked><label for="sessLenTimedOpt">Set a time</label>
+            <input type="radio" id="sessLenOpenOpt" name="sessLenKind" value="open"><label for="sessLenOpenOpt">Open ended</label>
+        </div>
+        <div id="sessLenTimed">
         <div class="metro-speed-row no-margin" role="group" aria-labelledby="sessLenLabel">
             <button type="button" class="metro-bpm-step" id="sessLenMinus" aria-label="5 minutes less">&minus;</button>
             <div class="metro-speed-readout" aria-live="polite"><div id="sessLenValue">20</div><div class="metro-speed-sub" id="sessLenSub">minutes</div></div>
@@ -1087,16 +1097,12 @@
             </div>
             <div class="slider-scale"><span>5</span><span>120</span></div>
         </div>
+        </div>
         <!-- The minutes as one strip of 5-minute blocks across the same width - more blocks, thinner (owner,
              1 Oct 2026: numbered squares looked like buttons). Tap the number to type the minutes. -->
         <p class="text-sm text-muted mt-3 mb-1" id="sessLenBlocksLabel">4 blocks of 5 minutes</p>
         <div class="time-blocks" id="sessLenBlocks" aria-hidden="true"></div>
-        <button type="button" class="flow-choice-option level-answer open-ended-option" id="sessOpenBtn" aria-pressed="false">
-            <span class="material-symbols-outlined open-ended-icon" aria-hidden="true">all_inclusive</span>
-            <span><strong>Keep going</strong><br><span class="text-sm text-muted">No end time. Starts with 4 blocks and adds more as you play.</span></span>
-        </button>
         <button type="button" class="btn-submit" id="sessToPlanBtn">Next: pick a plan</button>
-        <button type="button" class="btn-text hidden-group" id="sessSameBtn">Same as last time</button>
     </div>
 
     <!-- ML-390 step 2: which plan. Each plan is drawn as its row of coloured blocks at the length picked;

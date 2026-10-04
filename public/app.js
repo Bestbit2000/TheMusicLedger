@@ -7031,7 +7031,11 @@
         const n = sessPlan.open ? PracticePlan.OPEN_START_BLOCKS : sessPlan.minutes / PracticePlan.BLOCK_MINUTES;
         document.getElementById('sessLenValue').textContent = sessPlan.open ? '∞' : sessPlan.minutes;
         document.getElementById('sessLenSub').textContent = sessPlan.open ? 'no end time' : 'minutes';
-        document.getElementById('sessLenBlocksLabel').textContent = sessPlan.open ? 'Keep going · 4 blocks of 5 minutes to start' : `${n} block${n === 1 ? '' : 's'} of 5 minutes`;
+        document.getElementById('sessLenBlocksLabel').textContent = sessPlan.open ? 'No end time. Starts with 4 blocks of 5 minutes and adds more as you play.' : `${n} block${n === 1 ? '' : 's'} of 5 minutes`;
+        // ML-413: Set a time / Open ended - open ended has no minutes to set
+        document.getElementById('sessLenTimedOpt').checked = !sessPlan.open;
+        document.getElementById('sessLenOpenOpt').checked = sessPlan.open;
+        setShown('sessLenTimed', !sessPlan.open);
         const lenPct = ((sessPlan.minutes - PracticePlan.MIN_MINUTES) / (PracticePlan.MAX_MINUTES - PracticePlan.MIN_MINUTES)) * 100;
         document.getElementById('sessLenSliderFill').style.setProperty('--pct', `${lenPct}%`);
         const lenThumb = document.getElementById('sessLenSliderThumb');
@@ -7047,13 +7051,10 @@
         if (sessPlan.open) blocks.push('<span class="time-block is-more"></span>');
         document.getElementById('sessLenBlocks').innerHTML = blocks.join('');
         sessPlan.lastBlockCount = n;
-        const openBtn = document.getElementById('sessOpenBtn');
-        openBtn.classList.toggle('selected', sessPlan.open);
-        openBtn.setAttribute('aria-pressed', String(sessPlan.open));
         const last = sessLoadLast();
-        const same = document.getElementById('sessSameBtn');
-        setShown(same, !!last);
-        if (last) same.textContent = `Same as last time (${last.open ? 'Keep going' : `${last.minutes} min`}, ${planName(String(last.template || '').startsWith('t:') ? sessTemplates.find(t => `t:${t.id}` === last.template) || 'standard' : last.template)})`;
+        setShown('sessSameBtn', !!last);
+        // ML-413: what it skips to - the last length and plan
+        if (last) document.getElementById('sessSameSub').textContent = `${last.open ? 'Open ended' : `${last.minutes} minutes`} · ${planName(String(last.template || '').startsWith('t:') ? sessTemplates.find(t => `t:${t.id}` === last.template) || 'standard' : last.template)} · skips the steps`;
     }
     makeSliderReadoutEditable('sessLenValue', () => (sessPlan.open ? 20 : sessPlan.minutes), (v) => sessSetMinutes(v), { label: 'Session length in minutes', min: PracticePlan.MIN_MINUTES, max: PracticePlan.MAX_MINUTES });
     function sessSetMinutes(m) {
@@ -7067,7 +7068,7 @@
         onDragRatio: (ratio) => sessSetMinutes(PracticePlan.MIN_MINUTES + ratio * (PracticePlan.MAX_MINUTES - PracticePlan.MIN_MINUTES)),
         onArrowStep: (dir) => sessSetMinutes(sessPlan.minutes + dir * PracticePlan.BLOCK_MINUTES)
     });
-    document.getElementById('sessOpenBtn')?.addEventListener('click', () => { sessPlan.open = !sessPlan.open; renderSessLength(); });
+    document.querySelectorAll('input[name="sessLenKind"]').forEach(el => el.addEventListener('change', () => { sessPlan.open = el.value === 'open' && el.checked; renderSessLength(); }));
     document.getElementById('sessToPlanBtn')?.addEventListener('click', () => openSessionPick());
     document.getElementById('sessSameBtn')?.addEventListener('click', async () => {
         const last = sessLoadLast();
@@ -7093,7 +7094,7 @@
         renderSessPick();
     }
     function renderSessPick() {
-        document.getElementById('sessPickTitle').textContent = sessPlan.open ? 'Pick a plan - it keeps going' : `Pick a plan for your ${sessPlan.minutes} minutes`;
+        document.getElementById('sessPickTitle').textContent = sessPlan.open ? 'Pick a plan - open ended' : `Pick a plan for your ${sessPlan.minutes} minutes`;
         const cur = templateKey(sessPlan.template);
         const box = document.getElementById('sessPlanCards');
         box.innerHTML = planChoices().map(p => {
@@ -7421,7 +7422,7 @@
         sessPlan.blocks.forEach(b => { if (b.kind === 'warmup') b.warmup = plain; });
     }
     function renderSessionPlan() {
-        document.getElementById('sessReadyTitle').textContent = sessPlan.open ? 'Here\'s how it starts - it keeps going' : `Here's your ${sessPlan.minutes} minutes`;
+        document.getElementById('sessReadyTitle').textContent = sessPlan.open ? 'Here\'s how it starts - open ended' : `Here's your ${sessPlan.minutes} minutes`;
         document.getElementById('sessPlanStrip').innerHTML = sessPlan.blocks.map(b => kindBlockHtml(b)).join('') + (sessPlan.open ? '<span class="kind-strip-more">…</span>' : '');
         let t = 0;
         document.getElementById('sessBlockList').innerHTML = sessPlan.blocks.map((b, i) => {
@@ -7438,7 +7439,7 @@
         }).join('');
         document.getElementById('sessBlockList').querySelectorAll('[data-block]').forEach(b => b.addEventListener('click', () => openSessionBlockModal(Number(b.dataset.block))));
         document.getElementById('sessReadyNote').textContent = sessPlan.open ? 'Tap any block to swap it. More blocks follow the same pattern as you play.' : 'Tap any block to swap it.';
-        document.getElementById('sessStartBtn').textContent = sessPlan.open ? 'Start - keep going' : `Start - ${sessPlan.minutes} minutes`;
+        document.getElementById('sessStartBtn').textContent = sessPlan.open ? 'Start - open ended' : `Start - ${sessPlan.minutes} minutes`;
     }
     // Change one block: its kind, then for Skills the skill and for Pieces the bars.
     function openSessionBlockModal(i) {
@@ -7794,7 +7795,7 @@
         setShown('sessRunDone', r.done);
         if (r.done) return;
         const b = r.blocks[r.index];
-        const count = r.open ? `Block ${r.index + 1} · keep going` : `Block ${r.index + 1} of ${r.blocks.length}`;
+        const count = r.open ? `Block ${r.index + 1} · open ended` : `Block ${r.index + 1} of ${r.blocks.length}`;
         const isPrepare = b.kind === 'rehearsal' && b.stage === 'prepare';
         const resting = r.phase === 'rest';
         const time = resting ? `${Math.max(0, PracticePlan.REST_SECONDS - restElapsed())}s` : isPrepare ? fmtMinSec(runElapsed()) : fmtMinSec(Math.max(0, (Number.isFinite(r.nudgeAt) ? r.nudgeAt : 0) - runElapsed()));

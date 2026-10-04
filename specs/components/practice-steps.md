@@ -2,7 +2,7 @@
 
 ## 1. Metadata
 - **Name:** Practice steps (`.steps-progress`, `.steps-progress-step` with `.is-done` / `.is-now`, `.step-question`,
-  `.time-blocks`, `.time-block` with `.is-new` / `.is-more`, `.open-ended-option`, `.open-ended-icon`, `.plan-card`,
+  `.time-blocks`, `.time-block` with `.is-new` / `.is-more`, `.plan-card`,
   `.plan-card-head`, `.kind-strip`, `.kind-strip-more`, `.kind-key`, `.kind-block`, `.kind-block-label`, `.kind-block-icon`,
   `.is-empty`, `.kind-warmup`, `.kind-scales`, `.kind-skills`, `.kind-pieces`, `.build-slots`, `.build-slot`,
   `.build-slot-time`, `.build-palette`, `.build-add`, `.session-goal`, `.session-goal-card`, `.session-piece`,
@@ -28,9 +28,9 @@ or Build my plan), **What goes in** (warm-up list, skills list, where the pieces
 - **Don't use** the kind colours for anything but kinds of practice block.
 
 ## 3. Anatomy
-- Step 1: `.steps-progress` › `.step-question` › the stepper (the number is tap-to-type, rounded to 5 minutes; under it
+- Step 1 (ML-413): **Same as last time** above everything - a `.history-item.settings-link` row (replay icon; "25 minutes · Lesson prep · skips the steps"), because it skips all three steps - then `.steps-progress` › `.step-question` › **Set a time / Open ended** (a two-pill `.radio-group`, the Timer's wording; it was a "Keep going" card under the blocks) › for a set time, the stepper (the number is tap-to-type, rounded to 5 minutes; under it
   just "minutes") and slider › "N blocks of 5 minutes" › `.time-blocks` › `.time-block` × blocks (+ a dashed `.is-more`
-  when open-ended) › `.flow-choice-option.open-ended-option`. The blocks are **one strip across the width**, thinner
+  when open ended, under "No end time. Starts with 4 blocks of 5 minutes and adds more as you play." - the stepper and slider are hidden then). The blocks are **one strip across the width**, thinner
   as the minutes go up, with no numbers - display only, so nothing on it looks tappable (owner, 1 Oct 2026; the
   quick picks went too).
 - Step 2: `.flow-choice-option.plan-card` › `.plan-card-head` (name, blurb) + `.kind-strip` › `.kind-block` × blocks;
@@ -55,7 +55,7 @@ or Build my plan), **What goes in** (warm-up list, skills list, where the pieces
 
 ## 5. Props / API
 - Rules: `public/practicePlan.js` - `blockKinds` (plans at any length; your own plan's row repeats from its first
-  Skills or Pieces block), `openKindAt` (Keep going), `piecePool` / `fillBlocks` (Auto), `restBefore`, `playSeconds`.
+  Skills or Pieces block), `openKindAt` (open ended), `piecePool` / `fillBlocks` (Auto), `restBefore`, `playSeconds`.
 - Screens: app.js, the "ML-390 (was ML-320's planner)" section - `openSessionSetup`, `renderSessLength`,
   `renderSessPick`, `openBuilder` / `renderBuild`, `renderSessContent`, `renderSessionPlan`; `kindBlockHtml` draws a block.
 - Your own plans: `practice_templates.blocks` (migration 087), `POST/PUT /api/practice/templates` with `{ name, blocks }`.
@@ -65,7 +65,7 @@ or Build my plan), **What goes in** (warm-up list, skills list, where the pieces
 |---|---|
 | Step done / now / to come | `.steps-progress-step.is-done` / `.is-now` (gold bar; now = text colour) / plain (grey) |
 | New time block | `.time-block.is-new` pops in (`block-pop`); only the new ones animate |
-| Open-ended | `.time-block.is-more` dashed, empty; `.open-ended-option.selected` |
+| Open ended | the Open ended pill checked; the stepper and slider hidden; four blocks and a dashed, empty `.time-block.is-more` |
 | Plan picked | `.plan-card.selected` (the `.flow-choice-option` selected state) |
 | Empty slot | `.kind-block.is-empty` - dashed, outline icon |
 | Levelled up | `.levelup.is-celebrating` - the stars and the new Level pop once |

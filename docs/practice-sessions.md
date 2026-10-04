@@ -9,7 +9,7 @@ it).
 | Levels 1-5 per chunk of bars, the chunk length rule, the heat map | ML-315, ML-316 | `public/flowJourney.js` ("Practice Levels" in [flow-journey.md](flow-journey.md)), a piece's path (`#piecePathView`, was My Levels), `piece_chunks` |
 | Practising a chunk at its Level (Rehearse's practice mode) | ML-317 | `flowSession` in app.js |
 | The session: planner, runner, 4:30 nudge, templates, resume | ML-320 | `public/practicePlan.js`, `#sessionPlanView`, `#sessionRunView`, the session bar |
-| Stepped sessions: three steps to set up, plans, Keep going, the 30-second rest and its messages, Prepare (run-through, paint, knife), Play-through, the warm-up loop | ML-390 | `public/practicePlan.js`, `public/flowJourney.js`, the "ML-390" sections of app.js, `server/services/restMessages.js`, Admin → Rest messages, migration 087 |
+| Stepped sessions: three steps to set up, plans, open ended, the 30-second rest and its messages, Prepare (run-through, paint, knife), Play-through, the warm-up loop | ML-390 | `public/practicePlan.js`, `public/flowJourney.js`, the "ML-390" sections of app.js, `server/services/restMessages.js`, Admin → Rest messages, migration 087 |
 | Practice lists, readiness forecast, join-up groups, band lists | ML-319 | `PracticePlan.forecast`, `#practiceListView` (on Rehearse), `server/services/practiceLists.js` |
 | Skills lists | ML-321 | `SKILLS` in app.js, `#skillsView`, `server/services/skills.js` |
 | Scales Levels: a Scales block's three scales, each at its Level | ML-391 | `PracticePlan.scale*`, `scalesLadder` in app.js, `server/services/scaleLevels.js`, migration 096 |
@@ -29,9 +29,11 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
 
 1. **How long?** (`#sessionLengthView`) The minutes - − / +, the slider (5-120), or **tap the number and type it**
    (rounded to the nearest 5). Under them, "N blocks of 5 minutes" over a strip across the width - one block per
-   5 minutes, thinner as the minutes go up (a new one pops in). **Keep going** - no end time: it starts with 4 blocks and adds one
-   each time you finish one, following the plan's pattern. **Same as last time** (per device, `tml.session.last`)
-   jumps straight to Ready. (The quick picks and numbered squares went on 1 Oct 2026 - the owner wanted it simpler.)
+   5 minutes, thinner as the minutes go up (a new one pops in). Under the question, **Set a time / Open ended**
+   (ML-413 - two pills, the Timer's word; it was a "Keep going" card under the blocks): **Open ended** has no end
+   time - it starts with 4 blocks and adds one each time you finish one, following the plan's pattern - and hides
+   the minutes. **Same as last time** (per device, `tml.session.last`) is a row **above the steps**, because it
+   skips all three and jumps straight to Ready with the last length, plan and pieces. (The quick picks and numbered squares went on 1 Oct 2026 - the owner wanted it simpler.)
 2. **Pick a plan** (`#sessionPickView`) - a "template" is a **plan** on screen. Each plan is drawn as its row of
    coloured blocks at the length picked (Warm-up orange, Scales teal, Skills violet, Pieces blue - always with
    the icon). Built in: **Standard** (Warm-up, Scales, then half Skills / half Pieces, an odd block to Pieces) and
@@ -72,8 +74,8 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
   **Not yet**; "Too fast? Back to Level N" is a link under them, and **Move up even further** opens the jumps to
   higher Levels (owner, 1 Oct 2026). Under it, the piece's next goal with its Level bar. A Warm-ups/Scales skill asks "Got it?". Then the rest, or the next block.
 - **No "Keep going" on a block** any more (owner, 30 Sept 2026): the rest always happens. For more time, pick a
-  longer session or Keep going (open-ended).
-- **Keep going sessions:** there's always the next block planned (the rest needs to know what's next); a new
+  longer session or Open ended.
+- **Open ended sessions** ("Keep going" before ML-413): there's always the next block planned (the rest needs to know what's next); a new
   Pieces block takes what needs you most that isn't one of the last three, a new Skills block the skill practised
   longest ago that isn't one of the last two.
 - **A Warm-up block loops its list** (`sessionWarmupLoop`): one exercise after another with the click on, round
@@ -82,7 +84,7 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
 - **Logging:** a session that ends, or is ended early, is one `sessions` row plus a `session_segments` row per
   block (seconds - the rest counts with the block before it - chunk and tool), so Stats and history see it.
 - **Resume:** the running session is kept on the server (`active_practice_sessions`) whenever it changes,
-  including the rest (timed from its own start) and Keep going's plan. A reload or another device picks it up;
+  including the rest (timed from its own start) and an open ended session's plan. A reload or another device picks it up;
   one untouched for 3 hours is saved as it stood and cleared.
 
 ### The 30-second rest (ML-390)
