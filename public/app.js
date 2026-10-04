@@ -11771,6 +11771,15 @@
         flowBpmSliderMax = metroBestFitTier(value);
         renderFlowBpmSlider(value);
         showModal('flowBpmModal');
+        // ML-435: for a caller that mostly wants a number typed (Quick entry), the number is ready to type over
+        // as the pop-up opens, and Enter both takes it and closes the pop-up.
+        if (opts.typeFirst) {
+            setTimeout(() => {
+                document.getElementById('flowBpmPopupValue')?.click();
+                const input = document.querySelector('#flowBpmModal .slider-readout-input');
+                input?.addEventListener('keydown', (e) => { if (e.key === 'Enter') setTimeout(closeFlowBpmModal, 0); });
+            }, 60);
+        }
     }
     setupHoldStepper(document.getElementById('flowBpmMinus'), -1, (amount) => setFlowBpmFromDisplayed(Number(document.getElementById('flowBpmPopupValue').innerText) + amount, { dragging: true }));
     setupHoldStepper(document.getElementById('flowBpmPlus'), 1, (amount) => setFlowBpmFromDisplayed(Number(document.getElementById('flowBpmPopupValue').innerText) + amount, { dragging: true }));
@@ -18778,8 +18787,8 @@
         { key: 'time', name: 'Time signatures', stage: 2, label: 'time signatures', question: () => 'Where does the time signature change?' },
         { key: 'speed', name: 'Speed', stage: 2, label: 'speed', question: () => 'Where does the speed change?' },
         { key: 'xIntro', name: 'Intro', stage: 3, label: 'extras', kinds: ['intro'], one: true, add: 'Add the intro', question: () => 'Is there an intro?' },
-        { key: 'xRepeats', name: 'Repeats', stage: 3, label: 'repeats', kinds: ['repeat', 'repeatEndings'], add: 'Add a repeat', addMore: 'Add another repeat', question: () => 'Are there any repeats?' },
-        { key: 'xPauses', name: 'Pauses and breaks', stage: 3, label: 'pauses', kinds: ['pause'], add: 'Add a pause or break', addMore: 'Add another pause or break', question: () => 'Are there any pauses or breaks?' },
+        { key: 'xRepeats', name: 'Repeats', stage: 3, label: 'repeats', kinds: ['repeat', 'repeatEndings'], table: 'repeat', question: () => 'Are there any repeats?' },
+        { key: 'xPauses', name: 'Pauses and breaks', stage: 3, label: 'pauses', kinds: ['pause'], table: 'pause', question: () => 'Are there any pauses or breaks?' },
         { key: 'xRamps', name: 'Speeding up and slowing down', stage: 3, label: 'speeding up and slowing down', kinds: ['ramp'], add: 'Add one', addMore: 'Add another', question: () => 'Does it speed up or slow down anywhere?' },
         { key: 'xSigns', name: 'Signs and jumps', stage: 3, label: 'signs and jumps', kinds: ['sign'], add: 'Add a sign or jump', addMore: 'Add another sign or jump', question: () => 'Are there any signs or jumps?' },
         { key: 'mAudio', name: 'Recording', stage: 4, label: 'media', media: 'audio', icon: 'music_note', add: 'Choose a recording', addMore: 'Add another recording', question: () => 'Is there a recording to add?' },
@@ -18822,6 +18831,7 @@
                 o: { bars: 32, leadIn: false, mainSig: common ? `public:${common.id}` : null, mainBpm: 120, mainNote: null, markKind: 'numbers', marks: [], time: {}, speeds: [], extras: [] },
                 marksText: '', markRows: [{ bar: '', label: '' }], speedRows: [{ bar: '', bpm: '', noteValue: undefined }],
                 timeRows: [{ bar: '', sig: '', key: '', bars: '' }],
+                repeatRows: [{ from: '', to: '', times: '', e1From: '', e2To: '' }], pauseRows: [{ bar: '', beat: '', holdBeats: '', kind: '' }],
                 stats: { startedAtMs: Date.now(), lastInputAtMs: Date.now(), active: 0, taps: 0, keys: 0, tick: null, steps: OUTLINE_STEPS.map(s => ({ step: s.key, seconds: 0, taps: 0, keys: 0, visits: 0 })) }
             };
             outline.stats.steps[0].visits = 1;
@@ -18863,6 +18873,7 @@
     // plus what won't work: the extras that clash, and anything the bar-by-bar editor's own check refuses.
     function outlineBuild() {
         outlineTimeApply(); // the time rows as bars, whatever step is showing
+        outlineRowsApply(); // and the repeat and pause rows as extras
         const built = PieceOutline.buildBlocks(outline.o);
         const blocks = built.blocks.map(b => { const s = outlineSigInfo(b.sig); return { ...b, numerator: s ? s.numerator : 4, denominator: s ? s.denominator : 4, timeSignatureLabel: s ? s.label : '' }; });
         const errors = FlowJourney.checkFlow(blocks).filter(i => i.severity === 'error').map(i => i.message);
@@ -18898,6 +18909,7 @@
         if (cur.key === 'marks') outlineMarksRefresh();
         if (cur.key === 'time') outlineTimeRefresh();
         if (cur.key === 'speed') outlineSpeedRefresh();
+        if (cur.table && document.getElementById('outlineRowsCheck')) outlineRowsRefresh(cur.table);
     }
     // What the Next button says: the step it goes to, or Save on the last one
     const outlineNextLabel = () => { const next = OUTLINE_STEPS[outline.step + 1]; return next ? `Next: ${next.label}` : 'Save the piece'; };
@@ -19138,6 +19150,90 @@
         return !bad.length;
     }
 
+    // --- ML-435: repeats and pauses are tables you type down, like Speed and Time. On production each one took a
+    // tap to add, a pop-up, the numbers and a tap to confirm - about four taps each; a row needs none.
+    //   repeats: from bar, to bar, times played (2 if left empty), and - for 1st and 2nd endings - the bar the 1st
+    //            ending starts at and the bar the 2nd ending ends at (both, or neither)
+    //   pauses:  in bar, on beat (1 if empty), beats held (2 if empty), and Pause (held) or Break (silent)
+    // The rows become the same extras the pop-up made (outlineRowsApply), so everything after is unchanged.
+    const OUTLINE_ROW_TABLES = {
+        repeat: {
+            rows: 'repeatRows', id: 'outlineRepeatRows', css: 'outline-row-repeat', types: ['repeat', 'repeatEndings'],
+            blank: () => ({ from: '', to: '', times: '', e1From: '', e2To: '' }),
+            cols: [['from', 'From bar', 'from bar'], ['to', 'To bar', 'to bar'], ['times', 'Times', 'times played - 2 if empty'], ['e1From', '1st ending', 'the bar the 1st ending starts at - empty for a plain repeat'], ['e2To', '2nd ending', 'the bar the 2nd ending ends at - empty for a plain repeat']],
+            help: 'Bars played more than once. Leave "times" empty for twice. For 1st and 2nd endings, fill in the bar the 1st ending starts at and the bar the 2nd ending ends at; "to bar" is the end of the 1st ending.',
+            extra(r) {
+                const n = (v) => (v === '' ? NaN : Number(v));
+                const base = { from: n(r.from), to: n(r.to), times: r.times === '' ? 2 : n(r.times) };
+                if (r.e1From === '' && r.e2To === '') return { type: 'repeat', ...base };
+                return { type: 'repeatEndings', ...base, e1From: n(r.e1From), e2To: n(r.e2To) };
+            },
+            started: (r) => r.from !== '' || r.to !== '' || r.times !== '' || r.e1From !== '' || r.e2To !== '',
+            ready: (r) => r.from !== '' && r.to !== '' && ((r.e1From === '') === (r.e2To === ''))
+        },
+        pause: {
+            rows: 'pauseRows', id: 'outlinePauseRows', css: 'outline-row-pause', types: ['pause'],
+            blank: () => ({ bar: '', beat: '', holdBeats: '', kind: '' }),
+            cols: [['bar', 'In bar', 'in bar'], ['beat', 'On beat', 'on beat - 1 if empty'], ['holdBeats', 'Beats held', 'beats held - 2 if empty']],
+            help: 'A held note or a silent break. Leave "on beat" empty for beat 1 and "beats held" empty for 2.',
+            extra(r) {
+                const n = (v) => (v === '' ? NaN : Number(v));
+                const kind = r.kind === 'caesura' ? 'caesura' : 'fermata';
+                return { type: 'pause', kind, bar: n(r.bar), beat: r.beat === '' ? 1 : n(r.beat), holdBeats: r.holdBeats === '' ? 2 : n(r.holdBeats), playbackMode: kind === 'caesura' ? 'silent' : 'tone' };
+            },
+            started: (r) => r.bar !== '' || r.beat !== '' || r.holdBeats !== '',
+            ready: (r) => r.bar !== ''
+        }
+    };
+    const outlineRowsOf = (t) => { if (!outline[t.rows] || !outline[t.rows].length) outline[t.rows] = [t.blank()]; return outline[t.rows]; };
+    // The typed rows -> o.extras (the extras of those kinds are replaced; the others are left alone). Returns
+    // what is wrong with each row that can't be used: [{ row, message }], rows counted from 1.
+    function outlineRowsApply() {
+        const o = outline.o;
+        const problems = {};
+        let extras = o.extras.filter(x => !Object.values(OUTLINE_ROW_TABLES).some(t => t.types.includes(x.type)));
+        Object.entries(OUTLINE_ROW_TABLES).forEach(([key, t]) => {
+            problems[key] = [];
+            outlineRowsOf(t).forEach((r, i) => {
+                if (!t.started(r)) return;
+                if (!t.ready(r)) { problems[key].push({ row: i + 1, message: key === 'repeat' ? 'it needs a from bar and a to bar, and both endings or neither' : 'it needs a bar' }); return; }
+                const x = t.extra(r);
+                const problem = PieceOutline.extraProblem(o, x);
+                if (problem) { problems[key].push({ row: i + 1, message: problem }); return; }
+                extras.push({ ...x, row: { table: key, index: i + 1 } });
+            });
+        });
+        extras.sort((a, b) => (a.from ?? a.bar) - (b.from ?? b.bar));
+        o.extras = extras;
+        // A row that is fine by itself can still clash with the piece or another extra
+        const built = PieceOutline.buildBlocks(o);
+        built.clashes.forEach(c => { const x = o.extras[c.extra]; if (x && x.row) problems[x.row.table].push({ row: x.row.index, message: c.message }); });
+        return problems;
+    }
+    const outlineTableRowHtml = (t) => (r, i) => `<div class="outline-row ${t.css}">
+        ${t.cols.map(([col, , label]) => `<input type="number" inputmode="${col === 'holdBeats' ? 'decimal' : 'numeric'}" ${col === 'holdBeats' ? 'step="any" ' : ''}data-xrow="${i}" data-xcol="${col}" value="${escapeHtml(String(r[col]))}" aria-label="Row ${i + 1}: ${label}" enterkeyhint="next">`).join('')}
+        ${t === OUTLINE_ROW_TABLES.pause ? `<button type="button" class="outline-cell-btn" data-xkind="${i}" aria-label="Row ${i + 1}: ${r.kind === 'caesura' ? 'a break (silent)' : 'a pause (held)'} - tap to change">${r.kind === 'caesura' ? 'Break' : 'Pause'}</button>` : ''}</div>`;
+    function outlineTableHtml(key) {
+        const t = OUTLINE_ROW_TABLES[key];
+        const rows = outlineRowsOf(t);
+        return `
+            <p class="text-sm text-muted no-margin">${escapeHtml(t.help)}</p>
+            <div class="outline-table" id="${t.id}" data-xtable="${key}">
+                <div class="outline-row ${t.css}" aria-hidden="true">${t.cols.map(([, head]) => `<span class="outline-th">${head}</span>`).join('')}${key === 'pause' ? '<span class="outline-th">Kind</span>' : ''}</div>
+                ${rows.map(outlineTableRowHtml(t)).join('')}
+            </div>
+            <p class="text-sm text-muted no-margin" id="outlineRowsCheck" aria-live="polite"></p>`;
+    }
+    // Reads the rows of the table on screen, says which can't be used and why, and what the piece comes to
+    function outlineRowsRefresh(key) {
+        const problems = outlineRowsApply()[key] || [];
+        const check = document.getElementById('outlineRowsCheck');
+        if (check) check.innerHTML = problems.length ? `<span class="text-danger">${problems.map(p => `Row ${p.row}: ${escapeHtml(p.message)}`).join(' ')}</span>` : '';
+        const sum = document.querySelector('#outlineBody .outline-sum');
+        if (sum) sum.innerHTML = outlineSummaryText();
+        return !problems.length;
+    }
+
     // --- Extras and Media: one yes/no question a step. Yes lets you add as many as there are; No moves on. ---
     const outlineStepExtras = (step) => outline.o.extras.map((x, i) => ({ x, i })).filter(e => step.kinds.includes(e.x.type));
     const outlineStepCount = (step) => (step.kinds ? outlineStepExtras(step).length : outline.media[step.media].length);
@@ -19151,6 +19247,15 @@
             </div>`;
     };
     function outlineExtrasStepHtml(step) {
+        if (step.table) {
+            outlineRowsApply();
+            const yes = outlineAnswerOf(step) === 'yes' || OUTLINE_ROW_TABLES[step.table].started(outlineRowsOf(OUTLINE_ROW_TABLES[step.table])[0]);
+            return `
+            ${outlineYesNo(step)}
+            ${yes ? outlineTableHtml(step.table) : ''}
+            <p class="outline-sum no-margin">${outlineSummaryText()}</p>
+            <button type="button" class="btn-submit" data-outline="next">${outlineNextLabel()}</button>`;
+        }
         const built = outlineBuild();
         const mine = outlineStepExtras(step);
         const clashOf = (i) => built.clashes.find(c => c.extra === i);
@@ -19209,6 +19314,7 @@
     }
     // Yes opens the way to add one straight away; No moves on (after taking out anything added here)
     function outlineAddForStep(step) {
+        if (step.table) { document.querySelector(`#${OUTLINE_ROW_TABLES[step.table].id} input`)?.focus(); return; }
         if (step.kinds) {
             if (step.kinds.length === 1) { outlineOpenExtra(null, step.kinds[0]); return; }
             openFlowChoiceModal('Which kind?', step.kinds.map(k => ({ key: k, html: `<span class="material-symbols-outlined" aria-hidden="true">${OUTLINE_EXTRAS[k].icon}</span><span><strong>${OUTLINE_EXTRAS[k].label}</strong><br><span class="text-sm text-muted">${OUTLINE_EXTRAS[k].sub}</span></span>` })), (opt) => outlineOpenExtra(null, opt.key));
@@ -19224,6 +19330,7 @@
         const moveOn = () => { if (outline.step < OUTLINE_STEPS.length - 1) outlineGoStep(outline.step + 1); else renderOutline(); };
         if (value === 'no' && count) {
             showConfirmModal('Take them out?', `No takes out what you added here (${count}).`, () => {
+                if (step.table) outline[OUTLINE_ROW_TABLES[step.table].rows] = [OUTLINE_ROW_TABLES[step.table].blank()];
                 if (step.kinds) outline.o.extras = outline.o.extras.filter(x => !step.kinds.includes(x.type));
                 else outline.media[step.media] = [];
                 outline.answers[step.key] = 'no';
@@ -19454,6 +19561,12 @@
             return;
         }
         if (t.dataset.timePick !== undefined) { outlineTimePick(Number(t.dataset.timePick)); return; }
+        if (t.dataset.xkind !== undefined) {
+            const row = outline.pauseRows[Number(t.dataset.xkind)];
+            row.kind = row.kind === 'caesura' ? '' : 'caesura'; // '' is a pause (held), so an untouched row still counts as blank
+            outlineRerenderKeeping(`[data-xkind="${t.dataset.xkind}"]`);
+            return;
+        }
         if (t.dataset.outlineExtra !== undefined) { outlineOpenExtra(Number(t.dataset.outlineExtra)); return; }
         if (t.dataset.outlineMediaRemove !== undefined) { outline.media[OUTLINE_STEPS[outline.step].media].splice(Number(t.dataset.outlineMediaRemove), 1); renderOutline(); return; }
         if (t.dataset.speedNote !== undefined) {
@@ -19472,7 +19585,7 @@
         } else if (action === 'mainBpm') {
             // The bpm is a value box like its neighbours (owner, 4 Oct 2026): the same Tempo pop-up as a block's bpm.
             outlineHowLongKeep();
-            flowOpenBpmModal(null, { value: o.mainBpm, onApply: (bpm) => { o.mainBpm = Math.min(400, Math.max(20, bpm)); renderOutline(); } });
+            flowOpenBpmModal(null, { value: o.mainBpm, typeFirst: true, onApply: (bpm) => { o.mainBpm = Math.min(400, Math.max(20, bpm)); renderOutline(); } });
         } else if (action === 'mainNote') {
             outlineHowLongKeep();
             outlinePickNote(o.mainNote, (note) => { o.mainNote = note; renderOutline(); });
@@ -19491,7 +19604,8 @@
         const cur = OUTLINE_STEPS[outline.step];
         if (cur.key === 'about' && !outline.about.title.trim()) { showWarningToast('Give the piece a name first.'); document.getElementById('outlineAbout-title')?.focus(); return false; }
         if (cur.key === 'about') Object.keys(outline.about).forEach(k => { outline.about[k] = outline.about[k].trim(); });
-        if (cur.kinds && outlineStepExtras(cur).some(({ i }) => outlineBuild().clashes.find(c => c.extra === i))) { showWarningToast('Fix what is marked before going on.'); return false; }
+        if (cur.table && !outlineRowsRefresh(cur.table)) { showWarningToast('Finish or empty the rows that are marked.'); return false; }
+        if (cur.kinds && !cur.table && outlineStepExtras(cur).some(({ i }) => outlineBuild().clashes.find(c => c.extra === i))) { showWarningToast('Fix what is marked before going on.'); return false; }
         if (cur.key === 'howLong' && !outlineHowLongRead()) return false;
         if (cur.key === 'marks') outlineMarksRefresh();
         if (cur.key === 'time' && !outlineTimeRefresh()) { showWarningToast('Finish or empty the rows that are marked.'); return false; }
@@ -19526,6 +19640,14 @@
             outline.markRows[Number(t.dataset.markRow)][t.dataset.markCol] = t.value;
             outlineGrowTable(outline.markRows, () => ({ bar: '', label: '' }), outlineMarkRowHtml, 'outlineMarkRows');
             outlineMarksRefresh();
+            return;
+        }
+        if (t.dataset.xrow !== undefined) {
+            const key = t.closest('[data-xtable]').dataset.xtable;
+            const table = OUTLINE_ROW_TABLES[key];
+            outlineRowsOf(table)[Number(t.dataset.xrow)][t.dataset.xcol] = t.value;
+            outlineGrowTable(outlineRowsOf(table), table.blank, outlineTableRowHtml(table), table.id);
+            outlineRowsRefresh(key);
             return;
         }
         if (t.dataset.timeRow !== undefined) {

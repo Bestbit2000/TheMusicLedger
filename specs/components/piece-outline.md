@@ -3,7 +3,7 @@
 ## 1. Metadata
 - **Name:** Piece outline (`#pieceOutlineView`, `#outlineExtraModal`: `.step-dots`, `.step-dots-list`, `.step-dot` with `.is-now`, `.outline`, `.outline-pair`, `.outline-three`,
   `.outline-field`, `.outline-field-label`, `.outline-th`, `.outline-list`, `.outline-chips`, `.outline-chip`,
-  `.outline-table`, `.outline-row` with `.outline-row-marks` / `.outline-row-time` / `.outline-row-speed`, `.outline-sig-cell`, `.outline-cell-fixed`,
+  `.outline-table`, `.outline-row` with `.outline-row-marks` / `.outline-row-time` / `.outline-row-speed` / `.outline-row-repeat` / `.outline-row-pause`, `.outline-sig-cell`, `.outline-cell-fixed`,
   `.outline-cell-btn`, `.outline-sum`, `.outline-extra` with
   `.has-clash`, `.outline-extra-text`, `.outline-extra-clash`, `.outline-add`)
 - **Category:** Form / stepped set-up
@@ -53,7 +53,13 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   check line names the rows that can't be used ("Row 3 can't be used yet"); the blank last row is ignored.
 - **Speed:** `.outline-table` › `.outline-row.outline-row-speed` (from bar, bpm, beat note). The first row is the
   start (`.outline-cell-fixed` × 3); the beat note of a row is an `.outline-cell-btn` ("same" until changed).
-- **Extras (five steps, one question each):** a Yes / No pill pair (`.radio-group`, named by the question) › when
+- **Repeats and Pauses (ML-435) are tables:** after Yes, `.outline-table` › `.outline-row.outline-row-repeat` (from
+  bar, to bar, times, 1st ending, 2nd ending - five narrow number boxes; the two ending boxes filled in make it a
+  repeat with endings) or `.outline-row.outline-row-pause` (in bar, on beat, beats held, and an `.outline-cell-btn`
+  that switches Pause / Break). Empty boxes take the usual answer (twice; beat 1; 2 beats). A new row appears as the
+  last is typed in; a row that can't be used is named with its reason ("Row 2: Its bar isn't in the piece."). They
+  replaced a pop-up per repeat or pause (about four taps each).
+- **The other Extras (intro, speeding up, signs - one question each):** a Yes / No pill pair (`.radio-group`, named by the question) › when
   Yes: an `.outline-extra` per extra of that kind (icon › `.outline-extra-text`: what it is in words › chevron; tap
   to change or remove) › `.outline-add` "+ Add a repeat" / "+ Add another repeat" (repeats open `#flowChoiceModal`
   to pick plain or with endings; the others open the form directly) › `.outline-sum` › Next. No moves straight on.

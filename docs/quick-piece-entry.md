@@ -29,8 +29,8 @@ whole piece is made in Quick entry - it never opens the edit screen, so one piec
 | Tempo (was "Time and speed") | `time` | A table: from bar, the time signature (typed like `3/4`, or picked from the usual pop-up), for how many bars. "For bars" empty: it carries on to the next row. Filled in: it lasts that many bars, then goes back to what it was (one 2/4 bar is one row). ML-425 - it replaced tapping every bar | `outline.timeRows` → `time: { bar: sig }` (`outlineTimeApply`) |
 | | `speed` | A table: from bar, bpm, beat note. A row's beat note carries on from the row above unless set. A row for bar 1 sets the starting speed (`mainBpm`) instead of being a change; a wholly blank row is ignored; a row that can't be used is named ("Row 3") | `speeds: [...]` |
 | Extras | `xIntro` | Is there an intro? (one at most) | `extras: [...]` |
-| | `xRepeats` | Are there any repeats? (plain, or with 1st and 2nd endings) | |
-| | `xPauses` | Are there any pauses or breaks? | |
+| | `xRepeats` | Are there any repeats? Yes: **a table** (ML-435) - from bar, to bar, times (2 if empty), and for 1st and 2nd endings the bar the 1st ending starts at and the bar the 2nd ending ends at | `outline.repeatRows` → `extras` (`outlineRowsApply`) |
+| | `xPauses` | Are there any pauses or breaks? Yes: **a table** (ML-435) - in bar, on beat (1 if empty), beats held (2 if empty), Pause or Break | `outline.pauseRows` → `extras` |
 | | `xRamps` | Does it speed up or slow down anywhere? | |
 | | `xSigns` | Are there any signs or jumps? (D.S., D.C., Coda, Fine) | |
 | Media | `mAudio` | Is there a recording to add? (mp3 / mp4 files) | `outline.media.audio` (File objects) |

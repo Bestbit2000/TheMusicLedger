@@ -2752,6 +2752,11 @@
     .outline-row-time { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 2fr); }
     .outline-sig-cell { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1); align-items: center; }
     .outline-sig-cell input { text-align: center; }
+    /* ML-435: repeats (from, to, times, 1st ending, 2nd ending) and pauses (bar, beat, beats held, kind) as tables.
+       Five boxes across a phone need the room, so these rows' boxes have less padding and centred numbers. */
+    .outline-row-repeat { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-1); }
+    .outline-row-pause { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-1); }
+    .outline-row-repeat input, .outline-row-pause input { padding-left: var(--space-1); padding-right: var(--space-1); text-align: center; }
     .outline-cell-fixed, .outline-cell-btn { min-height: var(--touch-target); display: grid; place-items: center; padding: 0 var(--space-2); border-radius: var(--radius-lg); font: inherit; font-size: var(--font-sm); color: var(--label-color); box-sizing: border-box; }
     .outline-cell-fixed { border: 1px dashed var(--control-border); }
     .outline-cell-btn { border: 2px solid var(--control-border); background: var(--input-bg); color: var(--text-color); font-weight: var(--font-weight-bold); cursor: pointer; }
