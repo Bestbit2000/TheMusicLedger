@@ -17,7 +17,7 @@ afterwards in the bar-by-bar editor, which is the precision tool.
 
 | Step | Asks | Stored in the outline as |
 |---|---|---|
-| How long | Bars, a count-in bar (yes/no), the time signature, bpm and beat note most of it is in | `bars`, `leadIn`, `mainSig`, `mainBpm`, `mainNote` |
+| How long | The piece's name (optional; saved with the piece), bars, a count-in bar (yes/no), the time signature, bpm and beat note most of it is in | `bars`, `leadIn`, `mainSig`, `mainBpm`, `mainNote` |
 | Marks | Bar numbers (a typed list - spaces, commas, semicolons, full stops all separate; each mark is named after its bar), letters or words (a table: bar, mark), or none | `markKind`, `marks: [{ bar, label }]` |
 | Time | The bars that aren't the main time signature - tap a bar, or a first and a last bar; "All of this section" | `time: { bar: sig }` |
 | Speed | A table: from bar, bpm, beat note. A row's beat note carries on from the row above unless set. A row for bar 1 sets the starting speed (`mainBpm`) instead of being a change; a wholly blank row is ignored; a row that can't be used is named ("Row 3") | `speeds: [{ bar, bpm, noteValue }]` |

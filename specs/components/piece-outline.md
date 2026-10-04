@@ -22,7 +22,8 @@ makes and opens the piece's details so it can be named. New pieces only. Rules: 
 
 ## 3. Anatomy
 - **Every step:** `.steps-progress` › `.step-question` › `.outline` (a column of rows, `--space-3` apart).
-- **How long:** a number box (`.outline-field` › `input` + `.outline-field-label`) for the bars › a Yes / No pill
+- **How long:** the name of the piece (a text box in the same `.outline-field`; optional - blank gets the default name
+  and is asked for after saving) › a number box (`.outline-field` › `input` + `.outline-field-label`) for the bars › a Yes / No pill
   pair (`.radio-group`) for the count-in › "Most of it is in..." › `.outline-three`: the time (a value box,
   `.metroBlk-ctrl-value-btn`, opening the shared time signature pop-up), the bpm (a value box too, with "bpm"
   inside it like its neighbours, opening the shared Tempo pop-up `#flowBpmModal` - owner, 4 Oct 2026), the beat note (a

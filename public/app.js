@@ -18634,7 +18634,7 @@
         if (!outline) {
             const common = metroBlkTimeSigCache.public.find(t => t.numerator === 4 && t.denominator === 4) || metroBlkTimeSigCache.public[0];
             outline = {
-                step: 0, target,
+                step: 0, target, name: '',
                 o: { bars: 32, leadIn: false, mainSig: common ? `public:${common.id}` : null, mainBpm: 120, mainNote: null, markKind: 'numbers', marks: [], time: {}, speeds: [], extras: [] },
                 marksText: '', markRows: [{ bar: '', label: '' }], speedRows: [{ bar: '', bpm: '', noteValue: undefined }],
                 brush: null, mode: 'single', from: null, openSecs: null,
@@ -18713,6 +18713,7 @@
     function outlineHowLongHtml() {
         const o = outline.o;
         return `
+            <label class="outline-field"><input type="text" id="outlineName" value="${escapeHtml(outline.name)}" maxlength="120" placeholder="Name it now or later" autocomplete="off" enterkeyhint="next"><span class="outline-field-label">name of the piece</span></label>
             ${outlineNumField('outlineBars', o.bars, 'bars in the piece', 'min="1" max="2000"')}
             <div>
                 <span class="outline-th" id="outlineLeadInLabel">A count-in bar before bar 1?</span>
@@ -18736,6 +18737,7 @@
         if (!Number.isInteger(bars) || bars < 1 || bars > PieceOutline.MAX_BARS) { showWarningToast(`How many bars? 1 to ${PieceOutline.MAX_BARS}.`); return false; }
         if (!outline.o.mainSig) { showWarningToast('Pick the time signature most of it is in.'); return false; }
         outline.o.bars = bars;
+        outline.name = (document.getElementById('outlineName')?.value || '').trim();
         return true;
     }
     function outlinePickSig(current, onPick) {
@@ -19059,7 +19061,7 @@
         btn.disabled = true;
         btn.textContent = 'Saving...';
         try {
-            const created = await API.flows.create(target && target.bandId ? { bandId: target.bandId } : {});
+            const created = await API.flows.create({ ...(target && target.bandId ? { bandId: target.bandId } : {}), ...(outline.name ? { name: outline.name } : {}) });
             try {
                 await API.flows.blocks.replaceAll(created.id, payload);
             } catch (error) {
@@ -19078,7 +19080,7 @@
                     blockCountEnd: payload.length, totalBarsEnd: totalBars, blocksAdded: payload.length, blocksEdited: 0, blocksDeleted: 0,
                     tapCount: st.taps, keyCount: st.keys, steps: st.steps, outlineCounts: counts, outcome: 'completed'
                 }));
-            showSuccessToast(`Piece made: ${payload.length} blocks. Entered in ${fmtMinSec(st.active)} · ${st.taps} taps · ${st.keys} keys. Give it a name.`);
+            showSuccessToast(`Piece made: ${payload.length} blocks. Entered in ${fmtMinSec(st.active)} · ${st.taps} taps · ${st.keys} keys.${outline.name ? '' : ' Give it a name.'}`);
             outlineClose();
             currentFlowId = created.id;
             flowEditMode = 'create';
@@ -19150,6 +19152,8 @@
     function outlineHowLongKeep() {
         const bars = Number(document.getElementById('outlineBars')?.value);
         if (Number.isInteger(bars) && bars >= 1 && bars <= PieceOutline.MAX_BARS) outline.o.bars = bars;
+        const name = document.getElementById('outlineName');
+        if (name) outline.name = name.value.trim();
     }
     outlineView?.addEventListener('change', (e) => {
         if (!outline) return;
