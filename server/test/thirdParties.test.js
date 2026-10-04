@@ -88,11 +88,9 @@ test('something a licence asks of us going missing is an error', () => {
 test('the privacy policy has to name every service in use (ML-430)', () => {
   const root = fakeRepo({ 'public/privacy.html': '<p>Acme Cloud holds the database.</p>' });
   assert.deepEqual(audit(root, [entry({ policyName: 'Acme Cloud' })]).errors, []);
-  assert.match(audit(root, [entry({ policyName: 'Other Co' })]).errors.join('
-'), /doesn't name "Other Co"/);
-  assert.match(audit(root, [entry()]).errors.join('
-'), /policyName/);
-  assert.deepEqual(audit(root, [entry({ notInPolicy: 'handles nobody's information' })]).errors, []);
+  assert.match(audit(root, [entry({ policyName: 'Other Co' })]).errors.join(' '), /doesn't name "Other Co"/);
+  assert.match(audit(root, [entry()]).errors.join(' '), /policyName/);
+  assert.deepEqual(audit(root, [entry({ notInPolicy: 'handles no personal information' })]).errors, []);
   assert.deepEqual(audit(root, [entry({ status: 'not_in_use' })]).errors, []);
 });
 
