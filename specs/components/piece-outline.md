@@ -23,8 +23,8 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
 
 ## 3. Anatomy
 - **Every step:** `.steps-progress` (the five **stages**; a finished one is a `.steps-progress-back` button to its
-  first step) › `.step-question` › `.outline` (a column of rows, `--space-3` apart). In a stage with more than one
-  step the first row says where you are ("Extras: 2 of 5", `.text-sm.text-muted`).
+  first step) › in a stage with more than one step, a line saying where you are ("Extras: 2 of 5",
+  `.text-sm.text-muted`, above the question) › `.step-question` › `.outline` (a column of rows, `--space-3` apart).
 - **About:** `.form-group` × 5 (label over the box, as everywhere): name of the piece (required, `.flow-required`),
   composer, arranger, publisher, notes (a `textarea`) › Next › "Start again" (`.btn-text`).
 - **How long:** a number box (`.outline-field` › `input` + `.outline-field-label`) for the bars › a Yes / No pill

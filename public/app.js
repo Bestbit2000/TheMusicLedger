@@ -18732,10 +18732,11 @@
             : `<li class="steps-progress-step${i === cur.stage ? ' is-now" aria-current="step' : ''}">${s.name}</li>`)).join('');
         document.getElementById('outlineQuestion').textContent = cur.question();
         const inStage = OUTLINE_STEPS.filter(x => x.stage === cur.stage);
-        const where = inStage.length > 1 ? `<p class="text-sm text-muted no-margin">${OUTLINE_STAGES[cur.stage].name}: ${inStage.indexOf(cur) + 1} of ${inStage.length}</p>` : '';
+        document.getElementById('outlineWhere').textContent = `${OUTLINE_STAGES[cur.stage].name}: ${inStage.indexOf(cur) + 1} of ${inStage.length}`;
+        setShown('outlineWhere', inStage.length > 1);
         const html = cur.kinds ? outlineExtrasStepHtml(cur) : cur.media ? outlineMediaStepHtml(cur)
             : { about: outlineAboutHtml, howLong: outlineHowLongHtml, marks: outlineMarksHtml, time: outlineTimeHtml, speed: outlineSpeedHtml }[cur.key]();
-        document.getElementById('outlineBody').innerHTML = where + html;
+        document.getElementById('outlineBody').innerHTML = html;
         if (cur.key === 'marks') outlineMarksRefresh();
         if (cur.key === 'speed') outlineSpeedRefresh();
     }
