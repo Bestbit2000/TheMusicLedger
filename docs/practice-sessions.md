@@ -53,7 +53,10 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
    list) or **all your pieces** with Levels. **Auto** (on by default) picks the bars; off, you pick each Pieces
    block's bars on Ready. The card shows the next goal ("every 1 up to 2") and each piece's Level bar (how many bars at each Level,
    the key under the list - an unset bar is "Not known" there) and where it is on its path.
-4. **Ready** (`#sessionPlanView`) - the strip and the timeline; tap a block to swap it; **Start**.
+4. **Ready** (`#sessionPlanView`) - the strip and the timeline; tap a block to swap it; **Start**. A Pieces block
+   offers what Auto would pick from the pieces chosen at step 3, and **"A different piece..."** (owner, 4 Oct 2026):
+   any piece of yours, then which part of it (its Prepare, a focus bit, a play-through part) - so one block can
+   be given to a piece you have just prepared, whatever step 3 says.
 
 "Plan a session for this" on a practice list opens the steps on that list with the Concert plan.
 
@@ -163,7 +166,8 @@ opened from a practice list, Play Flow's menu (My Levels) and a session's Prepar
    - **the music** - it's in My music;
    - **a run-through** (`#prepareRunView`): pick a speed you can get to the end at - Level 1-5, shown **as a % of
      the piece's own speed** (Level 5 = 100%; never bpm - a piece changes speed from bar to bar), with how long the
-     whole piece takes at that speed (`FlowJourney.pieceRunSeconds`). It plays once (no loop); at the end, painting.
+     whole piece takes at that speed (`FlowJourney.pieceRunSeconds`). It plays once (no loop), **without sub-beats**
+     (owner, 4 Oct 2026 - practice blocks keep the session's sub-beats at slow Levels); at the end, painting.
      "I know how it goes" skips it;
    - **paint the bars** (`#levelsPaintView`): the bars in the piece's sections (`FlowJourney.pieceSections`), a
      paint box pinned to the bottom - **Brush**, **Fill section** (its empty bars), **Fill all** (the power fill;

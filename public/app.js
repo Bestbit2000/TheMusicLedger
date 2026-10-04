@@ -6868,7 +6868,9 @@
             subBeatsBelow: levels.subBeatsBelow || FlowJourney.LEVELS.SUB_BEATS_BELOW,
             saved: { speed: flowSpeedPercent, subMode: flowSubBeatsMode, subOverride: flowSubdivideOverride }
         };
-        flowSubBeatsMode = 'session';
+        // A Prepare run-through has no sub-beats (owner, 4 Oct 2026): it's a first go at the whole piece, and the
+        // extra clicks got in the way. Practice blocks keep the session's sub-beats at slow Levels.
+        flowSubBeatsMode = flowSession.mode === 'runthrough' ? 'off' : 'session';
         setFlowSpeedPercent(flowSession.percents[chunk.level - 1]);
         switchView('flowPlayView');
     }
@@ -7624,16 +7626,42 @@
                 done();
             }));
         };
+        // What a piece offers a block: its Prepare, its focus bits, its play-through parts
+        const keyOf = (x) => (x.chunk ? `c:${x.chunk.id}` : `p:${x.stage}:${x.scoreId}`);
+        const setPiece = (x) => { sessPlan.blocks[i] = { kind: 'rehearsal', minutes: x.minutes || 5, stage: x.stage, chunk: x.chunk, scoreId: x.scoreId, title: x.title }; };
+        // Any piece of yours, not just the ones this session was set up with (owner, 4 Oct 2026): pick the
+        // piece, then which part of it - so a piece you've just prepared can go straight into a block.
+        const otherPiece = async () => {
+            box.innerHTML = '<p class="text-sm text-muted">Loading your pieces...</p>';
+            if (!flowsListCache.length) await rehearseRefresh().catch(() => {});
+            const all = rehearsePlayable().slice().sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base', numeric: true }));
+            document.getElementById('sessionBlockTitle').textContent = `Block ${i + 1}: which piece?`;
+            box.innerHTML = all.length ? all.map(f => option(`f:${f.id}`, f.title, `${f.composer ? f.composer + ' · ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'}`, b.kind === 'rehearsal' && b.scoreId === f.id)).join('')
+                : '<p class="text-sm text-muted">No pieces yet - add one in My music.</p>';
+            box.querySelectorAll('[data-opt]').forEach(o => o.addEventListener('click', async () => {
+                const id = Number(o.dataset.opt.slice(2));
+                box.innerHTML = '<p class="text-sm text-muted">Loading...</p>';
+                let piece = null;
+                try { piece = ((await API.practice.pieces([id])).pieces || [])[0] || null; } catch (e) { piece = null; }
+                if (!piece) { showWarningToast("That piece couldn't be loaded."); pieces(); return; }
+                const items = PracticePlan.piecePool([piece]);
+                if (items.length === 1) { setPiece(items[0]); done(); return; }
+                document.getElementById('sessionBlockTitle').textContent = `Block ${i + 1}: ${piece.title}`;
+                box.innerHTML = items.map(x => { const [t, s] = text(x); return option(keyOf(x), t, s, false); }).join('');
+                box.querySelectorAll('[data-opt]').forEach(p => p.addEventListener('click', () => { setPiece(items.find(x => keyOf(x) === p.dataset.opt)); done(); }));
+            }));
+        };
+        const text = (x) => (x.stage === 'prepare' ? [`Prepare ${x.title}`, 'A run-through, then paint the bars'] : x.stage === 'playthrough' ? [`Play-through: ${x.title}`, x.chunk ? x.chunk.label || levelsRange(x.chunk.startBar, x.chunk.endBar) : 'The whole piece'] : [`${x.title} · ${x.chunk.label || levelsRange(x.chunk.startBar, x.chunk.endBar)}`, `Level ${x.chunk.level}`]);
         const pieces = () => {
             const pool = PracticePlan.piecePool(sessPlan.pieces);
-            const keyOf = (x) => (x.chunk ? `c:${x.chunk.id}` : `p:${x.stage}:${x.scoreId}`);
-            const text = (x) => (x.stage === 'prepare' ? [`Prepare ${x.title}`, 'A run-through, then paint the bars'] : x.stage === 'playthrough' ? [`Play-through: ${x.title}`, x.chunk ? x.chunk.label || levelsRange(x.chunk.startBar, x.chunk.endBar) : 'The whole piece'] : [`${x.title} · ${x.chunk.label || levelsRange(x.chunk.startBar, x.chunk.endBar)}`, `Level ${x.chunk.level}`]);
-            box.innerHTML = pool.map(x => { const [t, s] = text(x); return option(keyOf(x), t, s, b.kind === 'rehearsal' && ((b.chunk && x.chunk && b.chunk.id === x.chunk.id) || (!b.chunk && !x.chunk && b.scoreId === x.scoreId && b.stage === x.stage))); }).join('')
+            document.getElementById('sessionBlockTitle').textContent = `Block ${i + 1}`;
+            box.innerHTML = option('other', 'A different piece...', 'Any piece of yours - pick it, then the part to practise', false) + pool.map(x => { const [t, s] = text(x); return option(keyOf(x), t, s, b.kind === 'rehearsal' && ((b.chunk && x.chunk && b.chunk.id === x.chunk.id) || (!b.chunk && !x.chunk && b.scoreId === x.scoreId && b.stage === x.stage))); }).join('')
                 + option('any', 'Any piece', 'Pick it in Rehearse and play it your way', b.kind === 'rehearsal' && !b.chunk && !b.stage);
             box.querySelectorAll('[data-opt]').forEach(o => o.addEventListener('click', () => {
                 const k = o.dataset.opt;
+                if (k === 'other') { otherPiece(); return; }
                 const x = pool.find(p => keyOf(p) === k);
-                sessPlan.blocks[i] = x ? { kind: 'rehearsal', minutes: x.minutes || 5, stage: x.stage, chunk: x.chunk, scoreId: x.scoreId, title: x.title } : { kind: 'rehearsal', minutes: 5, stage: 'practise', chunk: null };
+                if (x) setPiece(x); else sessPlan.blocks[i] = { kind: 'rehearsal', minutes: 5, stage: 'practise', chunk: null };
                 done();
             }));
         };
