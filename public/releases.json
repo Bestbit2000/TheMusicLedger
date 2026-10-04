@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.42.0",
+    "date": "2026-10-04",
+    "changes": [
+      {
+        "key": "ML-434",
+        "type": "New",
+        "summary": "Sign-in screen: use Google's own \"Sign in with Google\" button"
+      },
+      {
+        "key": "ML-425",
+        "type": "New",
+        "summary": "Database retrieval seems slow - what can be done to improve this?"
+      },
+      {
+        "key": "ML-403",
+        "type": "New",
+        "summary": "My music: practice lists alongside pieces (tabs), and create a list from there"
+      }
+    ]
+  },
+  {
     "version": "0.41.0",
     "date": "2026-10-04",
     "changes": [
