@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.38.1",
+    "date": "2026-10-04",
+    "changes": [
+      {
+        "key": "ML-423",
+        "type": "Fixes",
+        "summary": "+ Add bar fails after a bar with a custom time signature (\"Choose exactly one time signature\")"
+      }
+    ]
+  },
+  {
     "version": "0.38.0",
     "date": "2026-10-03",
     "changes": [
