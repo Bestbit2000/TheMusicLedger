@@ -18924,7 +18924,7 @@
         { key: 'xIntro', name: 'Intro', stage: 3, label: 'introduction', kinds: ['intro'], one: true, add: 'Add the intro', question: () => 'Introduction' },
         { key: 'xRepeats', name: 'Repeats', stage: 3, label: 'repeats', kinds: ['repeat', 'repeatEndings'], table: 'repeat', question: () => 'Are there any repeats?' },
         { key: 'xPauses', name: 'Pauses and breaks', stage: 3, label: 'pauses', kinds: ['pause'], table: 'pause', question: () => 'Are there any pauses or breaks?' },
-        { key: 'xRamps', name: 'Speeding up and slowing down', stage: 3, label: 'speed changes', kinds: ['ramp'], add: 'Add a speed change', addMore: 'Add another speed change', question: () => 'Does it speed up or slow down anywhere?' },
+        { key: 'xRamps', name: 'Rall. and accel.', stage: 3, label: 'rall. and accel.', kinds: ['ramp'], add: 'Add a rall. or accel.', addMore: 'Add another rall. or accel.', question: () => 'Is there a rall. or an accel. anywhere?' },
         { key: 'xSigns', name: 'Signs and jumps', stage: 3, label: 'signs and jumps', kinds: ['sign'], add: 'Add a sign or jump', addMore: 'Add another sign or jump', question: () => 'Are there any signs or jumps?' },
         { key: 'media', name: 'Media', stage: 4, label: 'media', media: true, question: () => 'Anything to add to it?' }
     ];
@@ -18937,7 +18937,7 @@
         repeat: { label: 'Repeat', sub: 'Some bars are played more than once', icon: 'repeat' },
         repeatEndings: { label: 'Repeat with 1st and 2nd endings', sub: 'A different ending each time round', icon: 'repeat_one' },
         pause: { label: 'Pause', sub: 'A held note or a break (fermata, caesura)', icon: 'pause_circle' },
-        ramp: { label: 'Speed up or slow down', sub: 'Accel. or rit. over some bars', icon: 'trending_up' },
+        ramp: { label: 'Rall. or accel.', sub: 'Getting gradually slower or faster over some bars', icon: 'trending_up' },
         sign: { label: 'Sign and jump', sub: 'D.S., D.C., Coda, Fine', icon: 'redo' },
         intro: { label: 'Intro', sub: 'Bars played once before the piece proper', icon: 'first_page' }
     };
@@ -19438,7 +19438,7 @@
     }
     const outlineTableRowHtml = (t) => (r, i) => `<div class="outline-row ${t.css}">
         ${t.cols.map(([col, , label, hint]) => `<input type="number" inputmode="${col === 'holdBeats' ? 'decimal' : 'numeric'}" ${col === 'holdBeats' ? 'step="any" ' : ''}data-xrow="${i}" data-xcol="${col}" value="${escapeHtml(String(r[col]))}" placeholder="${hint}" aria-label="Row ${i + 1}: ${label}" enterkeyhint="next">`).join('')}
-        ${t === OUTLINE_ROW_TABLES.pause ? `<button type="button" class="outline-cell-btn" data-xkind="${i}" aria-haspopup="dialog" aria-label="Row ${i + 1}: ${r.kind === 'caesura' ? 'a break (silent)' : 'a pause (held)'} - tap to change">${r.kind === 'caesura' ? 'Break' : 'Pause'}</button>` : ''}</div>`;
+        ${t === OUTLINE_ROW_TABLES.pause ? `<button type="button" class="outline-cell-btn" data-xkind="${i}" aria-haspopup="dialog" aria-label="Row ${i + 1}: ${r.kind === 'caesura' ? 'a caesura - a silent break' : 'a fermata - a held pause'} - tap to change">${theoryGlyphs([r.kind === 'caesura' ? 'caesura' : 'fermataAbove'])}</button>` : ''}</div>`;
     function outlineTableHtml(key) {
         const t = OUTLINE_ROW_TABLES[key];
         const rows = outlineRowsOf(t);
@@ -19471,6 +19471,8 @@
     const OUTLINE_STEP_HINTS = {
         xPauses: () => `Add any fermatas (${theoryGlyphs(['fermataAbove'])}) or caesuras (${theoryGlyphs(['caesura'])}).`,
         // (the kinds of file are the ones the upload accepts - allowedContentTypes in server/routes/api.js)
+        // (a sudden change of speed is the Speed step's - this one is the speed sliding over some bars)
+        xRamps: () => 'The speed changing gradually over some bars - a rall., rit. or accel. A sudden change of speed goes on the speed step, earlier.',
         xSigns: () => `Add any segno (${theoryScaleSvg(Notation.symbol('segno'), 0.32)}) or coda (${theoryScaleSvg(Notation.symbol('coda'), 0.32)}) signs, and the jumps that go with them - D.S., D.C., To Coda, Fine.`
     };
     const outlineNoneLine = (step) => (OUTLINE_STEP_HINTS[step.key] ? `<p class="text-sm text-muted no-margin">${OUTLINE_STEP_HINTS[step.key]()}</p>` : OUTLINE_NONE_LINE);
@@ -19807,7 +19809,7 @@
         if (t.dataset.xkind !== undefined) {
             const row = outline.pauseRows[Number(t.dataset.xkind)];
             const which = t.dataset.xkind;
-            openFlowChoiceModal('Pause or break', [['', 'Pause', 'The note is held'], ['caesura', 'Break', 'A silence']].map(([kind, title, sub]) => ({ kind, selected: (row.kind === 'caesura' ? 'caesura' : '') === kind, html: addPieceRow(title, sub) })), (opt) => {
+            openFlowChoiceModal('Pause or break', [['', 'Fermata', 'The note is held', 'fermataAbove'], ['caesura', 'Caesura', 'A silent break', 'caesura']].map(([kind, title, sub, glyph]) => ({ kind, selected: (row.kind === 'caesura' ? 'caesura' : '') === kind, html: `${theoryGlyphs([glyph])}${addPieceRow(title, sub)}` })), (opt) => {
                 row.kind = opt.kind; // '' is a pause (held), so an untouched row still counts as blank
                 outlineRerenderKeeping(`[data-xkind="${which}"]`);
             });
