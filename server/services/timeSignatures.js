@@ -36,6 +36,10 @@ export async function listTimeSignatureOptions(accountId) {
 // re-adding one that was archived reactivates it instead of leaving a second,
 // unreachable-from-the-picker copy.
 export async function createCustomTimeSignature(accountId, numerator, denominator) {
+  // The same limits the app's own boxes keep to (ML-153, ML-440): 1 to 32 beats, of a note that exists
+  if (!Number.isInteger(numerator) || numerator < 1 || numerator > 32 || ![2, 4, 8, 16].includes(denominator)) {
+    throw withStatus(400, 'A time signature is 1 to 32 beats, of a 2, 4, 8 or 16.');
+  }
   const existing = await pool.query(
     'SELECT id, active FROM account_time_signatures WHERE account_id = $1 AND numerator = $2 AND denominator = $3',
     [accountId, numerator, denominator]

@@ -2748,8 +2748,12 @@
     .outline-row { display: grid; gap: var(--space-2); align-items: center; }
     .outline-row-marks { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
     .outline-row-speed { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    /* ML-425: the time signature table - from bar, the time (a box you type 3/4 into, with the list button beside it), for how many bars */
-    .outline-row-time { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 2fr); }
+    /* ML-425: the time signature table - from bar, the time (a box you type 3/4 into, with the list button beside it),
+       then how long it lasts two ways - bars and to bar (ML-442). Four across a phone, so less padding like the rows below. */
+    .outline-row-time { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 2fr) minmax(0, 2fr); gap: var(--space-1); }
+    .outline-row-time input, .outline-row-time .outline-cell-fixed { padding-left: var(--space-1); padding-right: var(--space-1); text-align: center; }
+    /* ML-440: a box that stops its row being used is outlined in red (the note under the table says why) */
+    .outline-row input[aria-invalid="true"] { border-color: var(--danger-text); }
     .outline-sig-cell { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1); align-items: center; }
     .outline-sig-cell input { text-align: center; }
     /* ML-435: repeats (from, to, times, 1st ending, 2nd ending) and pauses (bar, beat, beats held, kind) as tables.

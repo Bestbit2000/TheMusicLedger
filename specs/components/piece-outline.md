@@ -41,12 +41,14 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   - *None:* one line; the step is otherwise empty.
 - **Time (ML-425, a table like Speed):** a line saying what most of the piece is in (the main time signature is the commonest one, not the opening one, so a
   row for bar 1 is ordinary) › `.outline-table` ›
-  `.outline-row.outline-row-time` (from bar, the time, for how many bars). The first row shows the main time, "Most of it"
-  (`.outline-cell-fixed` × 3). In a row the time is `.outline-sig-cell`: a text box you type the time signature into
+  `.outline-row.outline-row-time` (from bar, the time, bars, to bar - ML-442). The first row shows the main time, "Most of it"
+  (`.outline-cell-fixed` × 4). In a row the time is `.outline-sig-cell`: a text box you type the time signature into
   ("3/4"; "3 4" is read too) with an `.outline-cell-btn` (the list icon) that opens the shared time signature pop-up
-  - on a phone, tapping the empty box opens the pop-up, since the number keyboard has no slash. A row with "for bars"
-  empty carries on to the next row; with a number it lasts that many bars and then goes back to what it was. A new
-  row appears when the last one is typed in › a check line naming the rows that can't be used ("Row 2") ›
+  - on a phone, tapping the empty box opens the pop-up, since the number keyboard has no slash. "Bars" and "to bar" say the
+  same thing - typing either fills in the other, and one is needed; after the row the piece is back in the main time. A
+  time signature that isn't in the list is added to the player's own as it is typed (ML-440). A new
+  row appears when the last one is typed in › a check line saying, per row, what stops it ("Row 2: 4/5 isn't a time
+  signature ..."), and the box it is about is outlined red (`.outline-row input[aria-invalid="true"]`, `--danger-text`) ›
   `.outline-sum` (what it comes to: "So far: 2/4 1 bar · everything else is 4/4") › Next. It replaced tapping every
   bar (0.39-0.41): on production no piece had more than five changes, but that step took up to 41 taps.
 - **Speed:** a row for bar 1 changes the fixed Start row (it is the starting speed) and is never an error; the
