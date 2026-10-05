@@ -40,7 +40,7 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   `.metroBlk-ctrl-value-btn`, opening the shared time signature pop-up), the bpm (a value box too, with "bpm"
   inside it like its neighbours, opening the shared Tempo pop-up `#flowBpmModal` - owner, 4 Oct 2026), the beat note (a
   value box opening the shared beat note pop-up) › Next.
-- **Marks:** one value box "the marks are" (opens `#flowChoiceModal`: Bar numbers / Letters or words / None) ›
+- **Marks:** one value box "content of rehearsal marks" (opens `#flowChoiceModal`: Bar numbers / Letters or words / None) ›
   - *Bar numbers:* a `textarea.outline-list` - spaces, commas, semicolons and full stops all separate - › a line
     saying what was understood › `.outline-chips` › `.outline-chip` per mark.
   - *Letters or words:* `.outline-table` › `.outline-row.outline-row-marks` (bar, mark). Enter or Tab moves on; a

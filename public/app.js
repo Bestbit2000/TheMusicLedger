@@ -19132,7 +19132,7 @@
             inner = '<p class="text-sm text-muted no-margin">No rehearsal marks - the bars are shown as one block in the next step.</p>';
         }
         return `
-            ${outlineValueBtn('markKind', kind.label, 'the marks are')}
+            ${outlineValueBtn('markKind', kind.label, 'content of rehearsal marks')}
             ${inner}
             <p class="text-sm text-muted no-margin" id="outlineMarksCount" aria-live="polite"></p>
             <div class="outline-chips" id="outlineMarksChips"></div>`;
