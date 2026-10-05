@@ -18924,9 +18924,11 @@
         // are the step straight after, so the two sit side by side and can't be taken for each other.
         { key: 'tempo', name: 'Time and speed', stage: 2, label: 'time and speed', question: () => 'What time and speed is it in?' },
         { key: 'xRamps', name: 'Gradual speed changes', stage: 2, label: 'gradual speed changes', kinds: ['ramp'], add: 'Add a rall. or accel.', addMore: 'Add another rall. or accel.', question: () => 'Where does the speed change gradually?' },
+        // Pauses are a speed thing too, so they follow the gradual changes; what is left in Extras - the introduction,
+        // repeats, then signs and jumps - is the order the piece is played in (owner, 5 Oct 2026)
+        { key: 'xPauses', name: 'Pauses and breaks', stage: 2, label: 'pauses', kinds: ['pause'], table: 'pause', question: () => 'Are there any pauses or breaks?' },
         { key: 'xIntro', name: 'Intro', stage: 3, label: 'introduction', kinds: ['intro'], one: true, add: 'Add the intro', question: () => 'Introduction' },
         { key: 'xRepeats', name: 'Repeats', stage: 3, label: 'repeats', kinds: ['repeat', 'repeatEndings'], table: 'repeat', question: () => 'Are there any repeats?' },
-        { key: 'xPauses', name: 'Pauses and breaks', stage: 3, label: 'pauses', kinds: ['pause'], table: 'pause', question: () => 'Are there any pauses or breaks?' },
         { key: 'xSigns', name: 'Signs and jumps', stage: 3, label: 'signs and jumps', kinds: ['sign'], add: 'Add a sign or jump', addMore: 'Add another sign or jump', question: () => 'Are there any signs or jumps?' },
         { key: 'media', name: 'Media', stage: 4, label: 'media', media: true, question: () => 'Anything to add to it?' }
     ];

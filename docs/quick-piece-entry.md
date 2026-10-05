@@ -149,3 +149,6 @@ seconds or taps is the next thing to speed up. After saving, the toast says how 
   faint hint each ("bar", "e.g. 2"); Pause / Break is picked from the usual pop-up (it was a button that flipped);
   the pauses and signs steps say what to look for, with the signs drawn (`OUTLINE_STEP_HINTS`); the ramps step is
   "speed changes" on Next and "+ Add a speed change".
+- **The order of the steps (10):** About · How long · Rehearsal marks · Time and speed · Gradual speed changes ·
+  Pauses and breaks · Introduction · Repeats · Signs and jumps · Media. Everything about speed sits together
+  (Tempo); what is left in Extras is the order the piece is played in.
