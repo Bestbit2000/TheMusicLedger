@@ -18935,7 +18935,7 @@
     ];
     const OUTLINE_MARK_KINDS = [
         { key: 'numbers', label: 'Bar numbers', sub: 'Each mark is the number of its bar - 7, 21, 30...' },
-        { key: 'text', label: 'Letters, words or numbers', sub: 'A, B, C... · Verse, Chorus · or 1, 2, 3 that aren't the bar numbers' },
+        { key: 'text', label: 'Letters, words or numbers', sub: "A, B, C... · Verse, Chorus · or 1, 2, 3 that aren't the bar numbers" },
         { key: 'none', label: 'None', sub: 'This piece has no rehearsal marks' }
     ];
     const OUTLINE_EXTRAS = {
