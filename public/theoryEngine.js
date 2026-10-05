@@ -1571,6 +1571,12 @@
         const decks = groups.map(([type, items]) => ({ type, deck: makeDeck(items, rng, itemKey, weightOf) }));
         const typeDeck = decks.length ? makeDeck(decks, rng, (d) => d.type) : null;
         const byId = new Map(groups.flatMap(([, items]) => items.map(it => [itemKey(it), it])));
+        // ML-438: the keys this round can ask for. A key question greys out the buttons that are no key's note here,
+        // so a beginner's round (a few keys) isn't 18 live buttons - same keyboard, same places, fewer to choose from.
+        // Not in a weak spots round: its few questions would give the answers away.
+        const keyNotes = quizId === WEAK_SPOTS.id ? null : new Set([...byId.values()].filter(it => it.type === 'keySignature' || it.type === 'scale').map(it => it.key.tonic));
+        const withUnused = (q) => (keyNotes && q.layout === 'keyboard' && q.correctLabel && (q.id.startsWith('keySignature:') || q.id.startsWith('scale:'))
+            ? { ...q, unused: KEY_BUTTONS.filter(n => !keyNotes.has(n)) } : q);
         const retries = []; // [{ id, due }] - due counts down one per question dealt
         let lastId = null;
         return {
@@ -1583,7 +1589,7 @@
                 const i = retries.findIndex(r => r.due <= 0 && r.id !== lastId);
                 const item = i >= 0 ? byId.get(retries.splice(i, 1)[0].id) : typeDeck.next().deck.next();
                 lastId = itemKey(item);
-                return build(item, rng, naming);
+                return withUnused(build(item, rng, naming));
             },
             // ms: how long the answer took (a slow right answer doesn't lower the weight).
             record(questionId, correct, ms) {

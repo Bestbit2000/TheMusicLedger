@@ -244,6 +244,16 @@ describe('scales', () => {
             assert.ok(T.KEY_BUTTONS.includes(q.correct));
         }
     });
+    test('the keyboard greys out the notes that are no key in the round - but never the right one, and not in weak spots', () => {
+        // major keys up to 3 sharps or flats: C, G, D, A and F, B flat, E flat - 7 of the 18 buttons
+        for (const q of take(source('keys', { show: 'keySignatures', upTo: 3, keyTypes: 'both', modes: 'major' }, { seed: 2 }), 12)) {
+            assert.deepEqual(T.KEY_BUTTONS.filter(n => !q.unused.includes(n)).sort(), ['A', 'Bb', 'C', 'D', 'Eb', 'F', 'G']);
+            assert.ok(!q.unused.includes(q.correct));
+        }
+        // everything in play: nothing greyed out except notes that are no key at all
+        const all = take(source('keys', { show: 'both', upTo: 7, keyTypes: 'both', modes: 'both' }, { seed: 2 }), 1)[0];
+        assert.deepEqual(all.unused, T.KEY_BUTTONS.filter(n => !T.ALL_KEYS.some(k => k.tonic === n)));
+    });
     test('a two-tap answer is allowed a second longer in a timed round', () => {
         const one = { questionId: 'scale:treble:C major', answerId: 'C', correct: true, ms: 3000 };
         assert.equal(T.parOfAnswer(one), 4);

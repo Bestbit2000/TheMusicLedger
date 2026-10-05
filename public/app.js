@@ -18610,7 +18610,7 @@
         answers.className = `theory-answers theory-answers-${q.layout}`;
         answers.innerHTML = q.answers.map(a => q.layout === 'symbols'
             ? `<button type="button" class="theory-answer" data-id="${escapeHtml(a.id)}" aria-label="${escapeHtml(a.label)}">${theoryVisual(a.render, null, THEORY_SYMBOL_SCALE)}</button>`
-            : `<button type="button" class="theory-answer" data-id="${escapeHtml(a.id)}">${escapeHtml(a.label)}</button>`).join('');
+            : `<button type="button" class="theory-answer" data-id="${escapeHtml(a.id)}"${(q.unused || []).includes(a.id) ? ' disabled' : ''}>${escapeHtml(a.label)}</button>`).join(''); // (ML-438: a key's note that isn't in this round is greyed out)
         answers.querySelectorAll('.theory-answer').forEach(b => b.addEventListener('click', () => theoryAnswer(b.dataset.id)));
         // ML-438: a scale with major and minor keys in play takes a second tap - Major or Minor, under the keyboard
         r.pick = null;
