@@ -123,7 +123,7 @@ seconds or taps is the next thing to speed up. After saving, the toast says how 
 - **The beat note is its picture (ML-445).** The button on "How long" and the speed table's Start cell and row buttons
   show the note drawn (`metroNoteIconSvg`, the pop-up's own picture) with its name as the accessible name. A note not
   picked yet is shown as a crotchet - `outlineNoteKey` - which is what the bar editor shows for it too; what is saved
-  is unchanged (`null` until picked). A speed row that carries on from the row above still says "same".
+  is unchanged (`null` until picked). A speed row that carries on from the row above shows that row's note (`outlineSpeedRowNote`) - it no longer says "same".
 - **Enter goes on into Notes (ML-446)** on "What is the piece?" - the Enter-moves-on handler counts a `textarea` as a
   place to land. Inside Notes, Enter is a new line.
 - **The bpm pop-up opens like any other (ML-435, changed).** It used to open with the number already a box to type

@@ -19282,10 +19282,16 @@
             <p class="text-sm text-muted no-margin" id="outlineSpeedCheck" aria-live="polite"></p>
             <p class="outline-sum no-margin" id="outlineSpeedSum"></p>`;
     }
+    // A row's beat note as it will be: its own if one was picked, else the nearest row above's that has one, else the
+    // piece's. The button always shows that note - it used to say "same" (owner, 5 Oct 2026: show what it actually is).
+    function outlineSpeedRowNote(i) {
+        for (let k = i; k >= 0; k--) if (outline.speedRows[k] && outline.speedRows[k].noteValue) return outline.speedRows[k].noteValue;
+        return outline.o.mainNote;
+    }
     const outlineSpeedRowHtml = (r, i) => `<div class="outline-row outline-row-speed">
         <input type="number" inputmode="numeric" data-speed-row="${i}" data-speed-col="bar" value="${escapeHtml(String(r.bar))}" placeholder="bar" aria-label="Row ${i + 1}: from bar" enterkeyhint="next">
         <input type="number" inputmode="numeric" data-speed-row="${i}" data-speed-col="bpm" value="${escapeHtml(String(r.bpm))}" placeholder="bpm" aria-label="Row ${i + 1}: bpm" enterkeyhint="next">
-        <button type="button" class="outline-cell-btn" data-speed-note="${i}" aria-haspopup="dialog" aria-label="Row ${i + 1}: beat note, ${r.noteValue ? escapeHtml(outlineNoteLabel(r.noteValue)) : 'same as the row above'} - tap to change">${r.noteValue ? metroNoteIconSvg(outlineNoteKey(r.noteValue)) : 'same'}</button></div>`;
+        <button type="button" class="outline-cell-btn" data-speed-note="${i}" aria-haspopup="dialog" aria-label="Row ${i + 1}: beat note, ${escapeHtml(outlineNoteLabel(outlineSpeedRowNote(i)))} - tap to change">${metroNoteIconSvg(outlineNoteKey(outlineSpeedRowNote(i)))}</button></div>`;
     function outlineSpeedRefresh() {
         const o = outline.o;
         // A row left wholly blank is ignored (the table always ends in one). A row for bar 1 is the
@@ -19689,7 +19695,7 @@
         if (t.dataset.outlineMediaRemove !== undefined) { outline.media[OUTLINE_STEPS[outline.step].media].splice(Number(t.dataset.outlineMediaRemove), 1); renderOutline(); return; }
         if (t.dataset.speedNote !== undefined) {
             const i = Number(t.dataset.speedNote);
-            outlinePickNote(outline.speedRows[i].noteValue || PieceOutline.speedAt(o, Number(outline.speedRows[i].bar) || 1).noteValue, (note) => { outline.speedRows[i].noteValue = note; outlineRerenderKeeping(`[data-speed-note="${i}"]`); });
+            outlinePickNote(outlineNoteKey(outlineSpeedRowNote(i)), (note) => { outline.speedRows[i].noteValue = note; outlineRerenderKeeping(`[data-speed-note="${i}"]`); });
             return;
         }
         const action = t.dataset.outline;
