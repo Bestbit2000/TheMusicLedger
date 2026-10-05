@@ -31,9 +31,10 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   (`.btn-cancel.btn-nav`, a third of the width; not on the first step) and **Next** (`.btn-submit`, the rest; "Save
   the piece" on the last step). The steps themselves have no Next button. A toast sits above the bar
   (`--toast-above-bottom-bar`). It replaced five labelled stage bars plus "Tempo: 1 of 2" and a row of dots
-  (owner, 5 Oct 2026: too busy) - getting about is Back and Next only.
+  (owner, 5 Oct 2026: too busy) - getting about is Back and Next only. Under every step: **Cancel** (`.btn-text`) - it asks first, throws the piece away and
+  goes back to where Add a piece was opened from (it replaced "Start again", which was only on the first step).
 - **About:** `.form-group` × 5 (label over the box, as everywhere): name of the piece (required, `.flow-required`),
-  composer, arranger, publisher, notes (a `textarea`) › "Start again" (`.btn-text`).
+  composer, arranger, publisher, notes (a `textarea`).
 - **How long:** a number box (`.outline-field` › `input` + `.outline-field-label`) for the bars › the count-in as a switch
   (`.display-toggle-row`: "A count-in bar" over "A bar of clicks before bar 1", `.toggle-switch`, off to start with) › "Most of it is in..." › `.outline-three`: the time (a value box,
   `.metroBlk-ctrl-value-btn`, opening the shared time signature pop-up), the bpm (a value box too, with "bpm"

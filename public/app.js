@@ -7120,8 +7120,7 @@
             ${field('composer', 'Composer', 'e.g. Ralph Vaughan Williams')}
             ${field('arranger', 'Arranger', 'e.g. Gordon Langford')}
             ${field('publisher', 'Publisher', 'e.g. Studio Music Co.')}
-            <div class="form-group no-margin"><label for="outlineAbout-notes">Notes</label><textarea id="outlineAbout-notes" data-about="notes" rows="3" maxlength="2000" placeholder="Rehearsal notes, solo cues...">${escapeHtml(a.notes)}</textarea></div>
-            <button type="button" class="btn-text" data-outline="restart">Start again</button>`;
+            <div class="form-group no-margin"><label for="outlineAbout-notes">Notes</label><textarea id="outlineAbout-notes" data-about="notes" rows="3" maxlength="2000" placeholder="Rehearsal notes, solo cues...">${escapeHtml(a.notes)}</textarea></div>`;
     }
 
     // --- Structure: how long ---
@@ -18942,7 +18941,7 @@
             outline.stats.steps[0].visits = 1;
         } else {
             outline.target = target;
-            showSuccessToast('Carried on with the piece you started. "Start again" is on the first step.');
+            showSuccessToast('Carried on with the piece you started. Cancel throws it away.');
         }
         if (viewStack[viewStack.length - 1] === 'addPieceView') viewStack.pop();
         switchView('pieceOutlineView');
@@ -19003,7 +19002,8 @@
         document.getElementById('outlineQuestion').textContent = cur.question();
         const html = cur.kinds ? outlineExtrasStepHtml(cur) : cur.media ? outlineMediaStepHtml(cur)
             : { about: outlineAboutHtml, howLong: outlineHowLongHtml, marks: outlineMarksHtml, time: outlineTimeHtml, speed: outlineSpeedHtml }[cur.key]();
-        document.getElementById('outlineBody').innerHTML = html;
+        // Cancel is under every step (ML-449; it replaced "Start again", which was only on the first)
+        document.getElementById('outlineBody').innerHTML = `${html}<button type="button" class="btn-text" data-outline="cancel">Cancel</button>`;
         // Back (not on the first step) and Next - Save on the last step, which is off while something won't work
         const last = outline.step === total - 1;
         let blocked = false;
@@ -19208,7 +19208,7 @@
         outlineTimeApply();
         const main = escapeHtml(outlineSigLabel(o.mainSig));
         return `
-            <p class="text-sm text-muted no-margin">Most of the piece is in ${main}. Add a row for each stretch that is something else - type it like 3/4. That can be bar 1, if it starts differently.</p>
+            <p class="text-sm text-muted no-margin">Most of the piece is in ${main}. Add a row for each stretch that is something else - type it like ${outlineSigExample()}. That can be bar 1, if it starts differently.</p>
             <div class="outline-table" id="outlineTimeRows">
                 <div class="outline-row outline-row-time" aria-hidden="true"><span class="outline-th">From bar</span><span class="outline-th">Time</span><span class="outline-th">Bars</span><span class="outline-th">To bar</span></div>
                 <div class="outline-row outline-row-time"><span class="outline-cell-fixed">Most of it</span><span class="outline-cell-fixed">${main}</span><span class="outline-cell-fixed">-</span><span class="outline-cell-fixed">-</span></div>
@@ -19218,9 +19218,12 @@
             <p class="text-sm text-muted no-margin" id="outlineTimeCheck" aria-live="polite"></p>
             <p class="outline-sum no-margin" id="outlineTimeSum"></p>`;
     }
+    // The example time signature in the hints: 3/4 - or 4/4 when most of the piece is in 3/4 itself. The empty box
+    // says "e.g.", so it doesn't look filled in already (owner, 5 Oct 2026).
+    const outlineSigExample = () => (outlineSigLabel(outline.o.mainSig) === '3/4' ? '4/4' : '3/4');
     const outlineTimeRowHtml = (r, i) => `<div class="outline-row outline-row-time">
         <input type="number" inputmode="numeric" data-time-row="${i}" data-time-col="bar" value="${escapeHtml(String(r.bar))}" placeholder="bar" aria-label="Row ${i + 1}: from bar" enterkeyhint="next">
-        <span class="outline-sig-cell"><input type="text" data-time-row="${i}" data-time-col="sig" value="${escapeHtml(r.sig)}" placeholder="3/4" maxlength="7" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Row ${i + 1}: time signature, typed like 3/4" enterkeyhint="next"><button type="button" class="outline-cell-btn" data-time-pick="${i}" aria-haspopup="dialog" aria-label="Row ${i + 1}: choose the time signature from the list"><span class="material-symbols-outlined" aria-hidden="true">list</span></button></span>
+        <span class="outline-sig-cell"><input type="text" data-time-row="${i}" data-time-col="sig" value="${escapeHtml(r.sig)}" placeholder="e.g. ${outlineSigExample()}" maxlength="7" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Row ${i + 1}: time signature, typed like 3/4" enterkeyhint="next"><button type="button" class="outline-cell-btn" data-time-pick="${i}" aria-haspopup="dialog" aria-label="Row ${i + 1}: choose the time signature from the list"><span class="material-symbols-outlined" aria-hidden="true">list</span></button></span>
         <input type="number" inputmode="numeric" data-time-row="${i}" data-time-col="bars" value="${escapeHtml(String(r.bars))}" placeholder="bars" aria-label="Row ${i + 1}: how many bars it lasts" enterkeyhint="next">
         <input type="number" inputmode="numeric" data-time-row="${i}" data-time-col="end" value="${escapeHtml(String(r.end === undefined ? '' : r.end))}" placeholder="to" aria-label="Row ${i + 1}: the bar it ends on" enterkeyhint="next"></div>`;
     // Reads the rows, marks the boxes that stop a row being used and says why, and what the piece comes to.
@@ -19696,8 +19699,15 @@
             outlineGoStep(outline.step - 1);
         } else if (action === 'next') {
             outlineLeaveStepWhenReady().then(ok => { if (ok) outlineGoStep(outline.step + 1); });
-        } else if (action === 'restart') {
-            showConfirmModal('Start again?', 'Everything typed for this piece so far is thrown away.', () => { const target = outline.target; outlineClose(); openPieceOutline(target); }, true, 'Start again');
+        } else if (action === 'cancel') {
+            // Throws the piece away and goes back to where Add a piece was opened from. Nothing typed yet: no "sure?"
+            const leave = () => {
+                outlineClose();
+                while (['pieceOutlineView', 'addPieceView'].includes(viewStack[viewStack.length - 1])) viewStack.pop();
+                switchView(viewStack[viewStack.length - 1] || 'mainView', true);
+            };
+            if (outline.step === 0 && !Object.values(outline.about).some(v => String(v).trim())) leave();
+            else showConfirmModal('Cancel this piece?', 'Everything typed for this piece so far is thrown away.', leave, true, 'Throw it away', 'Keep going');
         } else if (action === 'mainSig') {
             outlineHowLongKeep();
             outlinePickSig(o.mainSig, (value) => { o.mainSig = value; renderOutline(); });
@@ -19822,7 +19832,7 @@
         } else {
             // a Yes / No pair is one stop: the answer that is picked (or its first), and never the pair you are in
             const group = (el) => [...outlineView.querySelectorAll(`#outlineBody input[type="radio"][name="${el.name}"]`)];
-            stops = [...outlineView.querySelectorAll('#outlineBody input:not([type="file"]), #outlineBody textarea, #outlineBody button:not([disabled])')]
+            stops = [...outlineView.querySelectorAll('#outlineBody input:not([type="file"]), #outlineBody textarea, #outlineBody button:not([disabled]):not([data-outline="cancel"])')]
                 .filter(el => el === t || el.type !== 'radio' || (el.name !== t.name && el === (group(el).find(r => r.checked) || group(el)[0])));
         }
         e.preventDefault();

@@ -47,7 +47,8 @@ while anything anywhere clashes.
 **Getting about (ML-449).** One bar at the top with a piece per step (`#outlineBar`, `.step-bar`) and one line
 ("Tempo · step 4 of 13"); **Back** and **Next** side by side in a bar pinned to the bottom (`#outlineFoot`,
 drawn by `renderOutline` - Save on the last step, off while anything clashes). Back goes one step and checks
-nothing; Next checks the step (`outlineLeaveStep`). The stage labels and the dots that jumped between steps are gone.
+nothing; Next checks the step (`outlineLeaveStep`). **Cancel**, under every step, asks and then throws the piece away
+and leaves (leaving any other way keeps it, to be carried on with next time). The stage labels and the dots that jumped between steps are gone.
 
 **Save** (the last Media step) does, in order: make the piece with its name, write the blocks (if that fails the
 piece is taken away again), save composer / arranger / publisher / notes, put it on the practice list it was
