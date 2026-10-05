@@ -1,5 +1,121 @@
 [
   {
+    "version": "0.44.0",
+    "date": "2026-10-05",
+    "changes": [
+      {
+        "key": "ML-459",
+        "type": "Fixes",
+        "summary": "Display settings: every background colour tile shows a tick, not just the one chosen"
+      },
+      {
+        "key": "ML-458",
+        "type": "New",
+        "summary": "Calmer \"are you sure?\" buttons"
+      },
+      {
+        "key": "ML-457",
+        "type": "New",
+        "summary": "Theory: answer from a computer's keyboard"
+      },
+      {
+        "key": "ML-455",
+        "type": "New",
+        "summary": "Quick entry: a repeat's last ending fills itself in, and works for three or more times through"
+      },
+      {
+        "key": "ML-454",
+        "type": "New",
+        "summary": "Quick entry: clearer wording and hints on every step"
+      },
+      {
+        "key": "ML-453",
+        "type": "New",
+        "summary": "Quick entry: simpler answers - switches for count-in and intro, the real beat note, a tidy time signature"
+      },
+      {
+        "key": "ML-452",
+        "type": "New",
+        "summary": "Quick entry: Media is one step at the end, not three"
+      },
+      {
+        "key": "ML-451",
+        "type": "Fixes",
+        "summary": "Value boxes: a picture in the box (the beat note) pushes its label out of line with the boxes beside it"
+      },
+      {
+        "key": "ML-450",
+        "type": "New",
+        "summary": "Quick entry: Enter always moves on - to the next thing to fill in, or Next when there is nothing left"
+      },
+      {
+        "key": "ML-449",
+        "type": "New",
+        "summary": "Quick entry: simpler step navigation - one progress bar, and Back and Next together at the bottom"
+      },
+      {
+        "key": "ML-448",
+        "type": "New",
+        "summary": "Quick entry: Extras and Media steps have no Yes/No - \"no\" is the default, so Next just carries on"
+      },
+      {
+        "key": "ML-447",
+        "type": "Fixes",
+        "summary": "Tab skips Yes/No choices (e.g. the count-in question on Quick entry's \"How long is the piece?\")"
+      },
+      {
+        "key": "ML-446",
+        "type": "Fixes",
+        "summary": "Quick entry: Enter stops at Publisher on \"What is the piece?\" instead of moving on to Notes"
+      },
+      {
+        "key": "ML-445",
+        "type": "New",
+        "summary": "Quick entry: the beat note button shows the note itself, as a picture"
+      },
+      {
+        "key": "ML-444",
+        "type": "New",
+        "summary": "Quick entry: \"How long is the piece?\" starts with the bars box empty and ready to type"
+      },
+      {
+        "key": "ML-442",
+        "type": "New",
+        "summary": "In adding number of bars on time signature changes in quick entry, also show the end bar number"
+      },
+      {
+        "key": "ML-441",
+        "type": "New",
+        "summary": "Need to be able to put visibility to a band on the piece edit"
+      },
+      {
+        "key": "ML-440",
+        "type": "Fixes",
+        "summary": "Bug in entry for time sigature changes"
+      },
+      {
+        "key": "ML-439",
+        "type": "New",
+        "summary": "Give a gap between rounds on theory"
+      },
+      {
+        "key": "ML-438",
+        "type": "New",
+        "summary": "On the keys quiz show the notes like the notes naming"
+      },
+      {
+        "key": "ML-435",
+        "type": "New",
+        "summary": "Quick entry: repeats and pauses as typed rows, and a quicker bpm pop-up"
+      },
+      {
+        "key": "ML-429",
+        "type": "New",
+        "summary": "Third parties: costs incurred, usage against plan limits, and an email warning near a limit"
+      }
+    ]
+  },
+  {
     "version": "0.43.0",
     "date": "2026-10-04",
     "changes": [
