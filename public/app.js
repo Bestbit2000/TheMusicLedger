@@ -18890,7 +18890,7 @@
         { key: 'xIntro', name: 'Intro', stage: 3, label: 'intro', kinds: ['intro'], one: true, add: 'Add the intro', question: () => 'Is there an intro?' },
         { key: 'xRepeats', name: 'Repeats', stage: 3, label: 'repeats', kinds: ['repeat', 'repeatEndings'], table: 'repeat', question: () => 'Are there any repeats?' },
         { key: 'xPauses', name: 'Pauses and breaks', stage: 3, label: 'pauses', kinds: ['pause'], table: 'pause', question: () => 'Are there any pauses or breaks?' },
-        { key: 'xRamps', name: 'Speeding up and slowing down', stage: 3, label: 'speeding up and slowing down', kinds: ['ramp'], add: 'Add one', addMore: 'Add another', question: () => 'Does it speed up or slow down anywhere?' },
+        { key: 'xRamps', name: 'Speeding up and slowing down', stage: 3, label: 'speed changes', kinds: ['ramp'], add: 'Add a speed change', addMore: 'Add another speed change', question: () => 'Does it speed up or slow down anywhere?' },
         { key: 'xSigns', name: 'Signs and jumps', stage: 3, label: 'signs and jumps', kinds: ['sign'], add: 'Add a sign or jump', addMore: 'Add another sign or jump', question: () => 'Are there any signs or jumps?' },
         { key: 'mAudio', name: 'Recording', stage: 4, label: 'recording', media: 'audio', icon: 'music_note', add: 'Choose a recording', addMore: 'Add another recording', question: () => 'Is there a recording to add?' },
         { key: 'mVideo', name: 'YouTube link', stage: 4, label: 'YouTube', media: 'video', icon: 'smart_display', question: () => 'Is there a YouTube link to add?' },
@@ -18979,6 +18979,7 @@
     // plus what won't work: the extras that clash, and anything the bar-by-bar editor's own check refuses.
     function outlineBuild() {
         outlineTimeApply(); // the time rows as bars, whatever step is showing
+        outlineIntroApply(); // the intro's switch and bars as an extra
         outlineRowsApply(); // and the repeat and pause rows as extras
         const built = PieceOutline.buildBlocks(outline.o);
         const blocks = built.blocks.map(b => { const s = outlineSigInfo(b.sig); return { ...b, numerator: s ? s.numerator : 4, denominator: s ? s.denominator : 4, timeSignatureLabel: s ? s.label : '' }; });
@@ -19325,7 +19326,7 @@
         repeat: {
             rows: 'repeatRows', id: 'outlineRepeatRows', css: 'outline-row-repeat', types: ['repeat', 'repeatEndings'],
             blank: () => ({ from: '', to: '', times: '', e1From: '', e2To: '', e2Auto: '' }), // e2Auto: '1' while the last ending is the filled-in bar
-            cols: [['from', 'From bar', 'from bar'], ['to', 'To bar', 'to bar'], ['times', 'Times', 'times played - 2 if empty'], ['e1From', '1st ending', 'the bar the 1st ending starts at - empty for a plain repeat'], ['e2To', 'Last ending', 'the bar the last ending ends at - the bar after the repeat if empty']],
+            cols: [['from', 'From bar', 'from bar', 'bar'], ['to', 'To bar', 'to bar', 'bar'], ['times', 'Times', 'times played - 2 if empty', 'e.g. 2'], ['e1From', '1st ending', 'the bar the 1st ending starts at - empty for a plain repeat', 'bar'], ['e2To', 'Last ending', 'the bar the last ending ends at - the bar after the repeat if empty', 'bar']],
             // Played 3 or more times there are still two endings: the 1st is for every time but the last, the last
             // ending for the last time (PieceOutline.buildBlocks) - so the columns say 1st and Last, not 1st and 2nd.
             help: 'Bars played more than once. Leave "times" empty for twice. For 1st and 2nd time bars, fill in the bar the 1st ending starts at; "to bar" is where it ends. The last ending is taken as the one bar after the repeat - change it if it is longer. Played 3 or more times, the 1st ending is for every time but the last.',
@@ -19353,7 +19354,7 @@
         pause: {
             rows: 'pauseRows', id: 'outlinePauseRows', css: 'outline-row-pause', types: ['pause'],
             blank: () => ({ bar: '', beat: '', holdBeats: '', kind: '' }),
-            cols: [['bar', 'In bar', 'in bar'], ['beat', 'On beat', 'on beat - 1 if empty'], ['holdBeats', 'Beats held', 'beats held - 2 if empty']],
+            cols: [['bar', 'In bar', 'in bar', 'bar'], ['beat', 'On beat', 'on beat - 1 if empty', 'e.g. 1'], ['holdBeats', 'Beats held', 'beats held - 2 if empty', 'e.g. 2']],
             help: 'A held note or a silent break. Leave "on beat" empty for beat 1 and "beats held" empty for 2.',
             extra(r) {
                 const n = (v) => (v === '' ? NaN : Number(v));
@@ -19390,8 +19391,8 @@
         return problems;
     }
     const outlineTableRowHtml = (t) => (r, i) => `<div class="outline-row ${t.css}">
-        ${t.cols.map(([col, , label]) => `<input type="number" inputmode="${col === 'holdBeats' ? 'decimal' : 'numeric'}" ${col === 'holdBeats' ? 'step="any" ' : ''}data-xrow="${i}" data-xcol="${col}" value="${escapeHtml(String(r[col]))}" aria-label="Row ${i + 1}: ${label}" enterkeyhint="next">`).join('')}
-        ${t === OUTLINE_ROW_TABLES.pause ? `<button type="button" class="outline-cell-btn" data-xkind="${i}" aria-label="Row ${i + 1}: ${r.kind === 'caesura' ? 'a break (silent)' : 'a pause (held)'} - tap to change">${r.kind === 'caesura' ? 'Break' : 'Pause'}</button>` : ''}</div>`;
+        ${t.cols.map(([col, , label, hint]) => `<input type="number" inputmode="${col === 'holdBeats' ? 'decimal' : 'numeric'}" ${col === 'holdBeats' ? 'step="any" ' : ''}data-xrow="${i}" data-xcol="${col}" value="${escapeHtml(String(r[col]))}" placeholder="${hint}" aria-label="Row ${i + 1}: ${label}" enterkeyhint="next">`).join('')}
+        ${t === OUTLINE_ROW_TABLES.pause ? `<button type="button" class="outline-cell-btn" data-xkind="${i}" aria-haspopup="dialog" aria-label="Row ${i + 1}: ${r.kind === 'caesura' ? 'a break (silent)' : 'a pause (held)'} - tap to change">${r.kind === 'caesura' ? 'Break' : 'Pause'}</button>` : ''}</div>`;
     function outlineTableHtml(key) {
         const t = OUTLINE_ROW_TABLES[key];
         const rows = outlineRowsOf(t);
@@ -19420,11 +19421,55 @@
     // until something is added, so Next just carries on - and the way to add one (the table, or "+ Add") is there
     // straight away. What was added is taken out where it shows: its pop-up, its row, or by emptying a table row.
     const OUTLINE_NONE_LINE = '<p class="text-sm text-muted no-margin">If not, go straight on.</p>';
+    // Two steps say what to look for instead, with the signs themselves drawn in the notation font (owner, 5 Oct 2026)
+    const OUTLINE_STEP_HINTS = {
+        xPauses: () => `Add any fermatas (${theoryGlyphs(['fermataAbove'])}) or caesuras (${theoryGlyphs(['caesura'])}).`,
+        xSigns: () => `Add any segno (${theoryScaleSvg(Notation.symbol('segno'), 0.32)}) or coda (${theoryScaleSvg(Notation.symbol('coda'), 0.32)}) signs, and the jumps that go with them - D.S., D.C., To Coda, Fine.`
+    };
+    const outlineNoneLine = (step) => (OUTLINE_STEP_HINTS[step.key] ? `<p class="text-sm text-muted no-margin">${OUTLINE_STEP_HINTS[step.key]()}</p>` : OUTLINE_NONE_LINE);
+    // --- The intro (owner, 5 Oct 2026): there is only ever one and it is two numbers, so it has no pop-up - a
+    // switch (off to start with) and, when it is on, its bars on the step itself.
+    const outlineIntro = () => { if (!outline.intro) outline.intro = { on: false, from: '', to: '' }; return outline.intro; };
+    // The switch and boxes -> the one intro extra (or none). What is wrong with it, in words, or null.
+    function outlineIntroApply() {
+        const o = outline.o, it = outlineIntro();
+        o.extras = o.extras.filter(x => x.type !== 'intro');
+        if (!it.on) return null;
+        if (it.from === '') return 'Say which bar the intro starts at - or switch it off.';
+        const x = { type: 'intro', from: Number(it.from), to: it.to === '' ? null : Number(it.to) };
+        const problem = PieceOutline.extraProblem(o, x);
+        if (problem) return problem;
+        o.extras.push(x);
+        o.extras.sort((a, b) => (a.from ?? a.bar) - (b.from ?? b.bar));
+        const clash = PieceOutline.buildBlocks(o).clashes.find(c => o.extras[c.extra] === x);
+        return clash ? clash.message : null;
+    }
+    function outlineIntroRefresh() {
+        const problem = outlineIntroApply();
+        const check = document.getElementById('outlineIntroCheck');
+        if (check) check.textContent = problem && outlineIntro().from !== '' ? problem : '';
+        const sum = document.querySelector('#outlineBody .outline-sum');
+        if (sum) sum.innerHTML = outlineSummaryText();
+        return !problem;
+    }
+    function outlineIntroStepHtml() {
+        const it = outlineIntro();
+        outlineIntroApply();
+        return `
+            <div class="display-toggle-row">
+                <span id="outlineIntroLabel">There is an intro<span class="display-toggle-help">Bars from later in the piece that are played first</span></span><label class="toggle-switch"><input type="checkbox" id="outlineIntroOn" aria-labelledby="outlineIntroLabel"${it.on ? ' checked' : ''}><span class="toggle-slider"></span></label>
+            </div>
+            ${it.on ? `<div class="outline-pair">${outlineNumField('outlineIntroFrom', it.from, 'from bar', 'min="1"')}${outlineNumField('outlineIntroTo', it.to, 'to bar (or leave empty)', 'min="1"')}</div>
+            <p class="text-sm text-muted no-margin">Leave "to bar" empty if the intro runs to the end of the piece.</p>
+            <p class="text-sm text-danger no-margin" id="outlineIntroCheck" aria-live="polite"></p>` : ''}
+            <p class="outline-sum no-margin">${outlineSummaryText()}</p>`;
+    }
     function outlineExtrasStepHtml(step) {
+        if (step.key === 'xIntro') return outlineIntroStepHtml();
         if (step.table) {
             outlineRowsApply();
             return `
-            ${OUTLINE_NONE_LINE}
+            ${outlineNoneLine(step)}
             ${outlineTableHtml(step.table)}
             <p class="outline-sum no-margin">${outlineSummaryText()}</p>`;
         }
@@ -19442,7 +19487,7 @@
         const canAdd = !(step.one && mine.length);
         const blocked = mine.some(({ i }) => clashOf(i));
         return `
-            ${mine.length ? '' : OUTLINE_NONE_LINE}
+            ${mine.length ? '' : outlineNoneLine(step)}
             ${rows}
             ${canAdd ? `<button type="button" class="outline-add" data-outline="addExtra" aria-haspopup="dialog">+ ${mine.length ? step.addMore : step.add}</button>` : ''}
             ${blocked ? '<p class="text-sm text-danger no-margin" role="alert">Fix what is marked before going on.</p>' : ''}
@@ -19701,8 +19746,11 @@
         if (t.dataset.timePick !== undefined) { outlineTimePick(Number(t.dataset.timePick)); return; }
         if (t.dataset.xkind !== undefined) {
             const row = outline.pauseRows[Number(t.dataset.xkind)];
-            row.kind = row.kind === 'caesura' ? '' : 'caesura'; // '' is a pause (held), so an untouched row still counts as blank
-            outlineRerenderKeeping(`[data-xkind="${t.dataset.xkind}"]`);
+            const which = t.dataset.xkind;
+            openFlowChoiceModal('Pause or break', [['', 'Pause', 'The note is held'], ['caesura', 'Break', 'A silence']].map(([kind, title, sub]) => ({ kind, selected: (row.kind === 'caesura' ? 'caesura' : '') === kind, html: addPieceRow(title, sub) })), (opt) => {
+                row.kind = opt.kind; // '' is a pause (held), so an untouched row still counts as blank
+                outlineRerenderKeeping(`[data-xkind="${which}"]`);
+            });
             return;
         }
         if (t.dataset.outlineExtra !== undefined) { outlineOpenExtra(Number(t.dataset.outlineExtra)); return; }
@@ -19768,6 +19816,7 @@
         if (cur.table && !outlineRowsRefresh(cur.table)) { outlineRowsToast('outlineRowsCheck'); return false; }
         if (cur.kinds && !cur.table && outlineStepExtras(cur).some(({ i }) => outlineBuild().clashes.find(c => c.extra === i))) { showWarningToast('Fix what is marked before going on.'); return false; }
         if (cur.key === 'howLong' && !outlineHowLongRead()) return false;
+        if (cur.key === 'xIntro') { const problem = outlineIntroApply(); if (problem) { const check = document.getElementById('outlineIntroCheck'); if (check) check.textContent = problem; showWarningToast(problem); return false; } }
         if (cur.key === 'marks') outlineMarksRefresh();
         if (cur.key === 'time' && !outlineTimeRefresh({ finishing: true })) { outlineRowsToast('outlineTimeCheck'); return false; }
         if (cur.key === 'speed' && !outlineSpeedRefresh()) { outlineRowsToast('outlineSpeedCheck'); return false; }
@@ -19783,6 +19832,10 @@
     outlineView?.addEventListener('change', (e) => {
         if (!outline) return;
         if (e.target.id === 'outlineLeadIn') outline.o.leadIn = e.target.checked;
+        if (e.target.id === 'outlineIntroOn') {
+            outlineIntro().on = e.target.checked;
+            outlineRerenderKeeping(e.target.checked ? '#outlineIntroFrom' : '#outlineIntroOn');
+        }
     });
     // A table's last row filling in adds the next one (the rows already there are left alone, so typing isn't interrupted)
     function outlineGrowTable(rows, blank, rowHtml, tableId) {
@@ -19796,6 +19849,7 @@
         const t = e.target;
         if (t.dataset.about) { outline.about[t.dataset.about] = t.value; return; }
         if (t.id === 'outlineMarksText') { outline.marksText = t.value; outlineMarksRefresh(); return; }
+        if (t.id === 'outlineIntroFrom' || t.id === 'outlineIntroTo') { outlineIntro()[t.id === 'outlineIntroFrom' ? 'from' : 'to'] = t.value; outlineIntroRefresh(); return; }
         if (t.dataset.markRow !== undefined) {
             outline.markRows[Number(t.dataset.markRow)][t.dataset.markCol] = t.value;
             outlineGrowTable(outline.markRows, () => ({ bar: '', label: '' }), outlineMarkRowHtml, 'outlineMarkRows');

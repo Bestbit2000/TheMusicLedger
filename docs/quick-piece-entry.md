@@ -28,7 +28,7 @@ whole piece is made in Quick entry - it never opens the edit screen, so one piec
 | | `marks` | Bar numbers (a typed list - spaces, commas, semicolons, full stops all separate; each mark is named after its bar), letters or words (a table: bar, mark), or none | `markKind`, `marks: [{ bar, label }]` |
 | Tempo (was "Time and speed") | `time` | A table: from bar, the time signature (typed like `3/4`, or picked from the usual pop-up), then how long it lasts, asked two ways: **bars** and **to bar** - each fills in the other, and one of them is needed (ML-442; a row no longer "carries on to the next change"). After a row the piece is back in the main time until the next row; where rows overlap the later one wins (one 2/4 bar is one row). A typed time signature the app doesn't have is **added to the player's own list quietly** (ML-440: `outlineSigAdd`, 1-32 over 2/4/8/16 - the server checks the same); what can't be used is said per row and its box is marked (`aria-invalid`). ML-425 - it replaced tapping every bar | `outline.timeRows` → `time: { bar: sig }` (`outlineTimeApply`) |
 | | `speed` | A table: from bar, bpm, beat note. A row's beat note carries on from the row above unless set. A row for bar 1 sets the starting speed (`mainBpm`) instead of being a change; a wholly blank row is ignored; a row that can't be used is named ("Row 3") | `speeds: [...]` |
-| Extras | `xIntro` | Is there an intro? (one at most) | `extras: [...]` |
+| Extras | `xIntro` | Is there an intro? A **switch** (off to start with); on, its two boxes are on the step - from bar, to bar (empty = to the end). No pop-up: there is only ever one (owner, 5 Oct 2026) | `outline.intro { on, from, to }` → `extras` (`outlineIntroApply`) |
 | | `xRepeats` | Are there any repeats? Yes: **a table** (ML-435) - from bar, to bar, times (2 if empty), and for 1st and 2nd time bars the bar the 1st ending starts at (the **last ending** fills itself in as the bar after the repeat - `sync` - and can be changed; played 3 or more times, the 1st ending is for every time but the last), i.e. the bar the 1st ending starts at and the bar the 2nd ending ends at | `outline.repeatRows` → `extras` (`outlineRowsApply`) |
 | | `xPauses` | Are there any pauses or breaks? Yes: **a table** (ML-435) - in bar, on beat (1 if empty), beats held (2 if empty), Pause or Break | `outline.pauseRows` → `extras` |
 | | `xRamps` | Does it speed up or slow down anywhere? | |
@@ -139,3 +139,10 @@ seconds or taps is the next thing to speed up. After saving, the toast says how 
   in the box.
 - **Next says the step it goes to** ("Next: intro", "Next: recording") - no stage names, now there are no stages on
   screen.
+- **Later the same day (owner's review):** "Start again" became **Cancel** under every step; the time table's fixed
+  row says "Rest of it" and its empty box "e.g. 3/4"; a speed row's beat note button shows the note it will play at
+  (never "same"); a repeat's **last ending** fills itself in as the bar after the repeat (columns: 1st ending, Last
+  ending); the **intro** is a switch with its two boxes on the step (no pop-up); the repeats and pauses boxes carry a
+  faint hint each ("bar", "e.g. 2"); Pause / Break is picked from the usual pop-up (it was a button that flipped);
+  the pauses and signs steps say what to look for, with the signs drawn (`OUTLINE_STEP_HINTS`); the ramps step is
+  "speed changes" on Next and "+ Add a speed change".

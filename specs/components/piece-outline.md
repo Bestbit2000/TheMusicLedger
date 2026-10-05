@@ -65,10 +65,13 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
 - **Repeats and Pauses (ML-435) are tables:** after Yes, `.outline-table` › `.outline-row.outline-row-repeat` (from
   bar, to bar, times, 1st ending, last ending (it fills itself in with the bar after the repeat) - five narrow number boxes; the two ending boxes filled in make it a
   repeat with endings) or `.outline-row.outline-row-pause` (in bar, on beat, beats held, and an `.outline-cell-btn`
-  that switches Pause / Break). Empty boxes take the usual answer (twice; beat 1; 2 beats). A new row appears as the
+  showing Pause or Break, which opens the choice pop-up to change it). Empty boxes take the usual answer (twice; beat 1; 2 beats). A new row appears as the
   last is typed in; a row that can't be used is named with its reason ("Row 2: Its bar isn't in the piece."). They
   replaced a pop-up per repeat or pause (about four taps each).
-- **The other Extras (intro, speeding up, signs - one question each; ML-448: no Yes / No - the answer is "no" until
+- **The intro:** a switch (`.display-toggle-row`: "There is an intro" over what that means, `.toggle-switch`, off to
+  start with) › when on: `.outline-pair` of two number boxes (from bar, to bar) › a line of help › a red line saying
+  what is wrong, if anything › `.outline-sum`. No pop-up.
+- **The other Extras (speeding up, signs - one question each; ML-448: no Yes / No - the answer is "no" until
   something is added, so Next carries on):** "If not, go straight on." (`.text-sm.text-muted`, until one is added) ›
   an `.outline-extra` per extra of that kind (icon › `.outline-extra-text`: what it is in words › chevron; tap
   to change or remove) › `.outline-add` "+ Add a repeat" / "+ Add another repeat" (repeats open `#flowChoiceModal`
