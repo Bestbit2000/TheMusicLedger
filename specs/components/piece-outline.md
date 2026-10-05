@@ -63,7 +63,7 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
 - **Speed:** `.outline-table` › `.outline-row.outline-row-speed` (from bar, bpm, beat note). The first row is the
   start (`.outline-cell-fixed` × 3); the beat note of a row is an `.outline-cell-btn` (the note it will play at, drawn: its own, or the one carried on from the row above).
 - **Repeats and Pauses (ML-435) are tables:** after Yes, `.outline-table` › `.outline-row.outline-row-repeat` (from
-  bar, to bar, times, 1st ending, 2nd ending - five narrow number boxes; the two ending boxes filled in make it a
+  bar, to bar, times, 1st ending, last ending (it fills itself in with the bar after the repeat) - five narrow number boxes; the two ending boxes filled in make it a
   repeat with endings) or `.outline-row.outline-row-pause` (in bar, on beat, beats held, and an `.outline-cell-btn`
   that switches Pause / Break). Empty boxes take the usual answer (twice; beat 1; 2 beats). A new row appears as the
   last is typed in; a row that can't be used is named with its reason ("Row 2: Its bar isn't in the piece."). They

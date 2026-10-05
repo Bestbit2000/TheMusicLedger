@@ -19318,23 +19318,37 @@
     // --- ML-435: repeats and pauses are tables you type down, like Speed and Time. On production each one took a
     // tap to add, a pop-up, the numbers and a tap to confirm - about four taps each; a row needs none.
     //   repeats: from bar, to bar, times played (2 if left empty), and - for 1st and 2nd endings - the bar the 1st
-    //            ending starts at and the bar the 2nd ending ends at (both, or neither)
+    //            ending starts at and the bar the last ending ends at (the bar after the repeat unless typed)
     //   pauses:  in bar, on beat (1 if empty), beats held (2 if empty), and Pause (held) or Break (silent)
     // The rows become the same extras the pop-up made (outlineRowsApply), so everything after is unchanged.
     const OUTLINE_ROW_TABLES = {
         repeat: {
             rows: 'repeatRows', id: 'outlineRepeatRows', css: 'outline-row-repeat', types: ['repeat', 'repeatEndings'],
-            blank: () => ({ from: '', to: '', times: '', e1From: '', e2To: '' }),
-            cols: [['from', 'From bar', 'from bar'], ['to', 'To bar', 'to bar'], ['times', 'Times', 'times played - 2 if empty'], ['e1From', '1st ending', 'the bar the 1st ending starts at - empty for a plain repeat'], ['e2To', '2nd ending', 'the bar the 2nd ending ends at - empty for a plain repeat']],
-            help: 'Bars played more than once. Leave "times" empty for twice. For 1st and 2nd endings, fill in the bar the 1st ending starts at and the bar the 2nd ending ends at; "to bar" is the end of the 1st ending.',
+            blank: () => ({ from: '', to: '', times: '', e1From: '', e2To: '', e2Auto: '' }), // e2Auto: '1' while the last ending is the filled-in bar
+            cols: [['from', 'From bar', 'from bar'], ['to', 'To bar', 'to bar'], ['times', 'Times', 'times played - 2 if empty'], ['e1From', '1st ending', 'the bar the 1st ending starts at - empty for a plain repeat'], ['e2To', 'Last ending', 'the bar the last ending ends at - the bar after the repeat if empty']],
+            // Played 3 or more times there are still two endings: the 1st is for every time but the last, the last
+            // ending for the last time (PieceOutline.buildBlocks) - so the columns say 1st and Last, not 1st and 2nd.
+            help: 'Bars played more than once. Leave "times" empty for twice. For 1st and 2nd time bars, fill in the bar the 1st ending starts at; "to bar" is where it ends. The last ending is taken as the one bar after the repeat - change it if it is longer. Played 3 or more times, the 1st ending is for every time but the last.',
             extra(r) {
                 const n = (v) => (v === '' ? NaN : Number(v));
                 const base = { from: n(r.from), to: n(r.to), times: r.times === '' ? 2 : n(r.times) };
                 if (r.e1From === '' && r.e2To === '') return { type: 'repeat', ...base };
-                return { type: 'repeatEndings', ...base, e1From: n(r.e1From), e2To: n(r.e2To) };
+                // the last ending is nearly always the one bar after the repeat, so that is what an empty box means
+                return { type: 'repeatEndings', ...base, e1From: n(r.e1From), e2To: r.e2To === '' ? base.to + 1 : n(r.e2To) };
+            },
+            // As the 1st ending (or the end of the repeat) is typed, the last ending's box is filled in with the bar
+            // after the repeat - until a different bar is typed there. Returns the columns it changed.
+            sync(r, col) {
+                if (col === 'e2To') { r.e2Auto = ''; return []; }
+                if (!['to', 'e1From'].includes(col) || (r.e2To !== '' && !r.e2Auto)) return [];
+                const to = Number(r.to);
+                const fill = r.e1From !== '' && r.to !== '' && Number.isInteger(to) ? String(to + 1) : '';
+                r.e2To = fill;
+                r.e2Auto = fill ? '1' : '';
+                return ['e2To'];
             },
             started: (r) => r.from !== '' || r.to !== '' || r.times !== '' || r.e1From !== '' || r.e2To !== '',
-            ready: (r) => r.from !== '' && r.to !== '' && ((r.e1From === '') === (r.e2To === ''))
+            ready: (r) => r.from !== '' && r.to !== '' && !(r.e1From === '' && r.e2To !== '')
         },
         pause: {
             rows: 'pauseRows', id: 'outlinePauseRows', css: 'outline-row-pause', types: ['pause'],
@@ -19361,7 +19375,7 @@
             problems[key] = [];
             outlineRowsOf(t).forEach((r, i) => {
                 if (!t.started(r)) return;
-                if (!t.ready(r)) { problems[key].push({ row: i + 1, message: key === 'repeat' ? 'it needs a from bar and a to bar, and both endings or neither' : 'it needs a bar' }); return; }
+                if (!t.ready(r)) { problems[key].push({ row: i + 1, message: key === 'repeat' ? (r.from !== '' && r.to !== '' ? 'a last ending needs the bar the 1st ending starts at' : 'it needs a from bar and a to bar') : 'it needs a bar' }); return; }
                 const x = t.extra(r);
                 const problem = PieceOutline.extraProblem(o, x);
                 if (problem) { problems[key].push({ row: i + 1, message: problem }); return; }
@@ -19791,7 +19805,10 @@
         if (t.dataset.xrow !== undefined) {
             const key = t.closest('[data-xtable]').dataset.xtable;
             const table = OUTLINE_ROW_TABLES[key];
-            outlineRowsOf(table)[Number(t.dataset.xrow)][t.dataset.xcol] = t.value;
+            const xrow = outlineRowsOf(table)[Number(t.dataset.xrow)];
+            xrow[t.dataset.xcol] = t.value;
+            // (a repeat's last ending fills itself in with the bar after the repeat)
+            if (table.sync) table.sync(xrow, t.dataset.xcol).forEach(col => { const box = document.querySelector(`#${table.id} [data-xrow="${t.dataset.xrow}"][data-xcol="${col}"]`); if (box) box.value = xrow[col]; });
             outlineGrowTable(outlineRowsOf(table), table.blank, outlineTableRowHtml(table), table.id);
             outlineRowsRefresh(key);
             return;
