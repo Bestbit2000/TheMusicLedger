@@ -18935,7 +18935,7 @@
     ];
     const OUTLINE_MARK_KINDS = [
         { key: 'numbers', label: 'Bar numbers', sub: 'Each mark is the number of its bar - 7, 21, 30...' },
-        { key: 'text', label: 'Letters or words', sub: 'A, B, C... or Verse, Chorus' },
+        { key: 'text', label: 'Letters, words or numbers', sub: 'A, B, C... · Verse, Chorus · or 1, 2, 3 that aren't the bar numbers' },
         { key: 'none', label: 'None', sub: 'This piece has no rehearsal marks' }
     ];
     const OUTLINE_EXTRAS = {
@@ -19140,7 +19140,7 @@
         let inner = '';
         if (o.markKind === 'numbers') {
             inner = `
-                <p class="text-sm text-muted no-margin" id="outlineMarksHelp">Type the bar numbers. Spaces, commas or semicolons between them all work. For letters or words (A, B, Verse 2), change "Bar numbers" above.</p>
+                <p class="text-sm text-muted no-margin" id="outlineMarksHelp">Type the bar numbers. Spaces, commas or semicolons between them all work. For letters, words, or numbers that aren't the bar numbers (A, Verse 2, figure 5), change "Bar numbers" above.</p>
                 <textarea id="outlineMarksText" class="outline-list" rows="4" inputmode="decimal" aria-label="The bar numbers of the rehearsal marks" aria-describedby="outlineMarksHelp" placeholder="e.g. 10, 12, 15 or 10 12 15">${escapeHtml(outline.marksText)}</textarea>`;
         } else if (o.markKind === 'text') {
             inner = `
@@ -19160,7 +19160,7 @@
     }
     const outlineMarkRowHtml = (r, i) => `<div class="outline-row outline-row-marks">
         <input type="number" inputmode="numeric" data-mark-row="${i}" data-mark-col="bar" value="${escapeHtml(String(r.bar))}" placeholder="bar" aria-label="Row ${i + 1}: bar number" enterkeyhint="next">
-        <input type="text" data-mark-row="${i}" data-mark-col="label" value="${escapeHtml(r.label)}" placeholder="mark" maxlength="20" aria-label="Row ${i + 1}: the mark" enterkeyhint="next" autocapitalize="characters" autocomplete="off"></div>`;
+        <input type="text" data-mark-row="${i}" data-mark-col="label" value="${escapeHtml(r.label)}" placeholder="e.g. A or 5" maxlength="20" aria-label="Row ${i + 1}: the mark" enterkeyhint="next" autocapitalize="characters" autocomplete="off"></div>`;
     // Reads what's typed into the outline and says what was understood (the count, the chips, what wasn't a bar).
     function outlineMarksRefresh() {
         const o = outline.o;
