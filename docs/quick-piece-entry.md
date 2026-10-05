@@ -106,3 +106,19 @@ ways of entering a piece, **taps** and **keys** as well as active time, and tags
 what the piece held (`outline_counts`: marks, exceptions, speeds, extras). The report shows "Bar by bar against
 quick entry" (median time, taps, keys, seconds per bar) and "Quick entry, step by step" - the step with the most
 seconds or taps is the next thing to speed up. After saving, the toast says how long it took and how many taps.
+
+## Small things that save taps (5 Oct 2026)
+
+- **The bars box starts empty with the cursor in it (ML-444).** `o.bars` is `null` until a number is typed; "e.g. 32"
+  is only the box's hint. `outlineGoStep` puts the cursor there (not `renderOutline`, which also runs when a pop-up
+  closes). Next asks for a number if it is left empty.
+- **The beat note is its picture (ML-445).** The button on "How long" and the speed table's Start cell and row buttons
+  show the note drawn (`metroNoteIconSvg`, the pop-up's own picture) with its name as the accessible name. A note not
+  picked yet is shown as a crotchet - `outlineNoteKey` - which is what the bar editor shows for it too; what is saved
+  is unchanged (`null` until picked). A speed row that carries on from the row above still says "same".
+- **Enter goes on into Notes (ML-446)** on "What is the piece?" - the Enter-moves-on handler counts a `textarea` as a
+  place to land. Inside Notes, Enter is a new line.
+- **The bpm pop-up opens like any other (ML-435, changed).** It used to open with the number already a box to type
+  in, which put the slider and +/- a tap away. Now a number key pressed anywhere in the pop-up starts a new number
+  (`flowBpmTypeAnywhere`, only for callers that pass `typeFirst`), and Enter takes it and closes the pop-up. On a
+  phone the number is tapped to type, as in every other use of the pop-up.

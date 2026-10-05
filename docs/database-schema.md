@@ -150,7 +150,7 @@ text. Tested against the dev database by `server/test/flowAudience.test.js`.
 
 **Public library (ML-310)**: two access checks in `flows.js`. `assertFlowReadAccess`
 (details, blocks, copy) lets **anyone** open a public piece, to view, play (Rehearse
-lists public pieces) or "Copy to my library" (`duplicateFlow`: details and bars, not
+lists public pieces) or "Copy to my library" (`duplicateFlow` - also offered on a piece of a band you are in since ML-441, so a member can have their own copy to adjust: details and bars, not
 recordings or documents; always lands personal). `assertFlowAccess` (every change,
 uploads, publish, move, delete, MusicXML export) is unchanged: owner, band member, or
 any super admin for a public piece. Both list and detail DTOs carry `canEdit` so the

@@ -12,7 +12,7 @@ const onDev = process.env.NEON_BRANCH === 'dev' && !!process.env.DATABASE_URL &&
 process.env.DATABASE_URL ||= 'postgres://test@localhost/test';
 
 const { default: pool } = await import('../config/db.js');
-const { setFlowAudience } = await import('../services/flows.js');
+const { setFlowAudience, duplicateFlow } = await import('../services/flows.js');
 
 const stamp = Date.now();
 const accounts = [];
@@ -53,6 +53,11 @@ test('a piece goes to a band, on to another band and back to just me - by the pe
   assert.equal(dto.ownerBandId, brass);
   assert.equal(dto.canDelete, true);
   assert.deepEqual(await row(piece), { owner_account_id: null, owner_band_id: String(brass), added_by_account_id: String(me), is_public: false });
+
+  // a band mate can copy it into their own library (their own piece, the band's untouched)
+  const copy = await duplicateFlow(mate, piece); // the new piece's id
+  assert.deepEqual(await row(copy), { owner_account_id: String(mate), owner_band_id: null, added_by_account_id: null, is_public: false });
+  assert.equal(Number((await row(piece)).owner_band_id), brass);
 
   // a band mate can open it but not change who it's for
   await assert.rejects(() => setFlowAudience(mate, piece, 'me'), /Only the person who added this piece/);

@@ -8052,7 +8052,7 @@
         await loadPieceLevels(chunk.scoreId);
         setShown('flowPlayMenuEditDetails', currentFlowDetail.canEdit);
         setShown('flowPlayMenuEditFlow', currentFlowDetail.canEdit);
-        setShown('flowPlayMenuCopy', !currentFlowDetail.canEdit && currentFlowDetail.isPublic);
+        setShown('flowPlayMenuCopy', (!currentFlowDetail.canEdit && currentFlowDetail.isPublic) || !!currentFlowDetail.ownerBandId);
         setShown('flowPlayMenuLevels', isFeatureEnabled('practice_levels'));
         const c = [...levels.chunks, ...levels.groups].find(x => x && x.id === chunk.id);
         if (!c) throw new Error('those bars have changed - check the piece\'s Levels');
@@ -8982,7 +8982,7 @@
         if (flow.canEdit) items.push('Edit');
         if (ownership === 'Personal') items.push('Duplicate');
         if (flowCanDelete(flow)) items.push('Delete');
-        if (ownership === 'Public') items.push('Copy');
+        if (ownership === 'Public' || ownership === 'Band') items.push('Copy'); // a band piece too (ML-441): your own copy to adjust
         if (ownership !== 'Public' && isFeatureEnabled('flow_export_musicxml')) items.push('Export');
         return items;
     }
@@ -9176,7 +9176,7 @@
             currentFlowBlocks = blocks.filter(b => !b.isLeadIn);
             setShown('flowPlayMenuEditDetails', detail.canEdit);
             setShown('flowPlayMenuEditFlow', detail.canEdit);
-            setShown('flowPlayMenuCopy', !detail.canEdit && detail.isPublic);
+            setShown('flowPlayMenuCopy', (!detail.canEdit && detail.isPublic) || !!detail.ownerBandId);
             setShown('flowPlayMenuLevels', isFeatureEnabled('practice_levels'));
             switchView('flowPlayView');
         } catch (error) {
@@ -9789,7 +9789,7 @@
         document.getElementById('flowAudienceBtn').setAttribute('aria-label', `Who it's for: ${now} - tap to change`);
         document.getElementById('flowVisibilityText').innerText = now;
         document.getElementById('flowAudienceNote').innerText = f.isPublic ? 'Public - everyone can play it and copy it.'
-            : f.ownerBandId ? (f.canDelete ? 'Everyone in the band can play it and change it.' : 'Everyone in the band can play it and change it. Only the person who added it to the band can change who it\'s for.')
+            : f.ownerBandId ? (f.canDelete ? 'Everyone in the band can play it and change it, or copy it into their own library.' : 'Everyone in the band can play it and change it, or copy it into their own library. Only the person who added it to the band can change who it\'s for.')
                 : 'Only you see it.';
     }
     // The bands you are in, for the box's name and the pop-up - asked for once a visit to the screen
@@ -9807,7 +9807,7 @@
             const name = '"' + f.title + '"';
             const was = f.ownerBandId && !f.isPublic ? flowAudienceBandName(f.ownerBandId) : null;
             const ask = c.to === 'public' ? [`Make ${name} public?`, 'Everyone will see it in their library and Rehearse, and can copy it.', 'Make public']
-                : c.to === 'band' ? [`Give ${name} to ${c.title}?`, `Everyone in the band can play it and change it. Only you can take it out again.${was ? ` ${was} won't see it any more.` : ''}`, 'Give to the band']
+                : c.to === 'band' ? [`Give ${name} to ${c.title}?`, `Everyone in the band can play it and change it, or copy it into their own library to make their own changes. Only you can take it out again.${was ? ` ${was} won't see it any more.` : ''}`, 'Give to the band']
                     : [`Make ${name} just yours?`, f.isPublic ? 'It leaves everyone\'s library and becomes your own piece.' : `${was || 'The band'} won't see it any more.`, 'Just me'];
             showConfirmModal(ask[0], ask[1], async () => {
                 try {
@@ -11802,16 +11802,27 @@
         flowBpmSliderMax = metroBestFitTier(value);
         renderFlowBpmSlider(value);
         showModal('flowBpmModal');
-        // ML-435: for a caller that mostly wants a number typed (Quick entry), the number is ready to type over
-        // as the pop-up opens, and Enter both takes it and closes the pop-up.
-        if (opts.typeFirst) {
-            setTimeout(() => {
-                document.getElementById('flowBpmPopupValue')?.click();
-                const input = document.querySelector('#flowBpmModal .slider-readout-input');
-                input?.addEventListener('keydown', (e) => { if (e.key === 'Enter') setTimeout(closeFlowBpmModal, 0); });
-            }, 60);
-        }
+        // ML-435: for a caller that mostly wants a number typed (Quick entry), a number key typed anywhere in the
+        // pop-up starts a new number, and Enter both takes it and closes the pop-up. The pop-up no longer opens
+        // with the number box in use (owner, 5 Oct 2026): that put the slider and the +/- a tap away and wasn't
+        // how any other pop-up opens. A phone has no keys to type until the number is tapped, as before.
+        flowBpmTypeAnywhere = !!opts.typeFirst;
     }
+    let flowBpmTypeAnywhere = false;
+    document.getElementById('flowBpmModal')?.addEventListener('keydown', (e) => {
+        if (!flowBpmTypeAnywhere || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.target.classList && e.target.classList.contains('slider-readout-input')) {
+            if (e.key === 'Enter') setTimeout(closeFlowBpmModal, 0);
+            return;
+        }
+        if (!/^[0-9]$/.test(e.key)) return;
+        e.preventDefault();
+        document.getElementById('flowBpmPopupValue')?.click(); // the number becomes a box to type in
+        const input = document.querySelector('#flowBpmModal .slider-readout-input');
+        if (!input) return;
+        input.value = e.key;
+        input.focus();
+    });
     setupHoldStepper(document.getElementById('flowBpmMinus'), -1, (amount) => setFlowBpmFromDisplayed(Number(document.getElementById('flowBpmPopupValue').innerText) + amount, { dragging: true }));
     setupHoldStepper(document.getElementById('flowBpmPlus'), 1, (amount) => setFlowBpmFromDisplayed(Number(document.getElementById('flowBpmPopupValue').innerText) + amount, { dragging: true }));
     setupSliderInteraction(document.getElementById('flowBpmSliderTrack'), document.getElementById('flowBpmSliderThumb'), {
@@ -18883,7 +18894,11 @@
         return (type === 'public' ? metroBlkTimeSigCache.public : metroBlkTimeSigCache.custom).find(t => t.id === Number(id)) || null;
     }
     const outlineSigLabel = (key) => { const s = outlineSigInfo(key); return s ? s.label : '?'; };
-    const outlineNoteLabel = (key) => { const t = METRO_NOTE_TYPES.find(n => n.key === key); return t ? t.label : 'Usual'; };
+    // ML-445: the beat note is always a real note - one not picked yet is a crotchet, which is what the bar
+    // editor shows for it too - and it is shown as its picture (the pop-up's), with its name for a screen reader
+    const outlineNoteKey = (key) => (METRO_NOTE_TYPES.some(n => n.key === key) ? key : 'crotchet');
+    const outlineNoteLabel = (key) => METRO_NOTE_TYPES.find(n => n.key === outlineNoteKey(key)).label;
+    const outlineNoteIcon = (key) => `<span role="img" aria-label="${escapeHtml(outlineNoteLabel(key))}">${metroNoteIconSvg(outlineNoteKey(key))}</span>`;
     const outlineStepKey = () => OUTLINE_STEPS[outline.step].key;
 
     async function openPieceOutline(target) {
@@ -18895,7 +18910,7 @@
                 about: { title: '', composer: '', arranger: '', publisher: '', notes: '' },
                 answers: {}, // step key -> 'yes' | 'no', for the Extras and Media questions
                 media: { audio: [], video: [], docs: [] }, // files and links held until Save
-                o: { bars: 32, leadIn: false, mainSig: common ? `public:${common.id}` : null, mainBpm: 120, mainNote: null, markKind: 'numbers', marks: [], time: {}, speeds: [], extras: [] },
+                o: { bars: null, leadIn: false, mainSig: common ? `public:${common.id}` : null, mainBpm: 120, mainNote: null, markKind: 'numbers', marks: [], time: {}, speeds: [], extras: [] },
                 marksText: '', markRows: [{ bar: '', label: '' }], speedRows: [{ bar: '', bpm: '', noteValue: undefined }],
                 timeRows: [{ bar: '', sig: '', key: '', bars: '', end: '' }],
                 repeatRows: [{ from: '', to: '', times: '', e1From: '', e2To: '' }], pauseRows: [{ bar: '', beat: '', holdBeats: '', kind: '' }],
@@ -18935,6 +18950,8 @@
         outline.stats.steps[outline.step].visits += 1;
         renderOutline();
         window.scrollTo({ top: 0 });
+        // ML-444: the number of bars is typed every time, so the cursor is already in its box
+        if (outlineStepKey() === 'howLong') document.getElementById('outlineBars')?.focus({ preventScroll: true });
     }
     // The outline as blocks, each with its time signature's beats (the journey engine's check needs them),
     // plus what won't work: the extras that clash, and anything the bar-by-bar editor's own check refuses.
@@ -18992,7 +19009,7 @@
     function outlineHowLongHtml() {
         const o = outline.o;
         return `
-            ${outlineNumField('outlineBars', o.bars, 'bars in the piece', 'min="1" max="2000"')}
+            ${outlineNumField('outlineBars', o.bars, 'bars in the piece', 'min="1" max="2000" placeholder="e.g. 32"')}
             <div>
                 <span class="outline-th" id="outlineLeadInLabel">A count-in bar before bar 1?</span>
                 <div class="radio-group" role="radiogroup" aria-labelledby="outlineLeadInLabel">
@@ -19004,7 +19021,7 @@
             <div class="outline-three">
                 ${outlineValueBtn('mainSig', outlineSigLabel(o.mainSig), 'time')}
                 ${outlineValueBtn('mainBpm', String(o.mainBpm), 'bpm')}
-                ${outlineValueBtn('mainNote', outlineNoteLabel(o.mainNote), 'beat note')}
+                <button type="button" class="metroBlk-ctrl-value-btn w-full" data-outline="mainNote" aria-haspopup="dialog" aria-label="beat note: ${escapeHtml(outlineNoteLabel(o.mainNote))} - tap to change"><strong>${metroNoteIconSvg(outlineNoteKey(o.mainNote))}</strong><span class="metroBlk-ctrl-value-label">beat note</span></button>
             </div>
             <p class="text-sm text-muted no-margin">The bars that are different come in steps 3 and 4.</p>
             <button type="button" class="btn-submit" data-outline="next">Next: rehearsal marks</button>`;
@@ -19243,7 +19260,7 @@
             <p class="text-sm text-muted no-margin">The piece starts at <span id="outlineSpeedStart">${o.mainBpm}</span>. Add a row for each bar where the speed changes - it carries on from there.</p>
             <div class="outline-table" id="outlineSpeedRows">
                 <div class="outline-row outline-row-speed" aria-hidden="true"><span class="outline-th">From bar</span><span class="outline-th">bpm</span><span class="outline-th">Beat note</span></div>
-                <div class="outline-row outline-row-speed"><span class="outline-cell-fixed">Start</span><span class="outline-cell-fixed" id="outlineSpeedStartBpm">${o.mainBpm}</span><span class="outline-cell-fixed" id="outlineSpeedStartNote">${escapeHtml(outlineNoteLabel(o.mainNote))}</span></div>
+                <div class="outline-row outline-row-speed"><span class="outline-cell-fixed">Start</span><span class="outline-cell-fixed" id="outlineSpeedStartBpm">${o.mainBpm}</span><span class="outline-cell-fixed" id="outlineSpeedStartNote">${outlineNoteIcon(o.mainNote)}</span></div>
                 ${outline.speedRows.map((r, i) => outlineSpeedRowHtml(r, i)).join('')}
             </div>
             <p class="text-sm text-muted no-margin">The beat note stays the same as the row above unless you change it.</p>
@@ -19254,7 +19271,7 @@
     const outlineSpeedRowHtml = (r, i) => `<div class="outline-row outline-row-speed">
         <input type="number" inputmode="numeric" data-speed-row="${i}" data-speed-col="bar" value="${escapeHtml(String(r.bar))}" placeholder="bar" aria-label="Row ${i + 1}: from bar" enterkeyhint="next">
         <input type="number" inputmode="numeric" data-speed-row="${i}" data-speed-col="bpm" value="${escapeHtml(String(r.bpm))}" placeholder="bpm" aria-label="Row ${i + 1}: bpm" enterkeyhint="next">
-        <button type="button" class="outline-cell-btn" data-speed-note="${i}" aria-haspopup="dialog" aria-label="Row ${i + 1}: beat note, ${r.noteValue ? escapeHtml(outlineNoteLabel(r.noteValue)) : 'same as the row above'} - tap to change">${r.noteValue ? escapeHtml(outlineNoteLabel(r.noteValue)) : 'same'}</button></div>`;
+        <button type="button" class="outline-cell-btn" data-speed-note="${i}" aria-haspopup="dialog" aria-label="Row ${i + 1}: beat note, ${r.noteValue ? escapeHtml(outlineNoteLabel(r.noteValue)) : 'same as the row above'} - tap to change">${r.noteValue ? metroNoteIconSvg(outlineNoteKey(r.noteValue)) : 'same'}</button></div>`;
     function outlineSpeedRefresh() {
         const o = outline.o;
         // A row left wholly blank is ignored (the table always ends in one). A row for bar 1 is the
@@ -19267,7 +19284,7 @@
             if (start.noteValue !== undefined) o.mainNote = start.noteValue;
             ['outlineSpeedStart', 'outlineSpeedStartBpm'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = o.mainBpm; });
             const note = document.getElementById('outlineSpeedStartNote');
-            if (note) note.textContent = outlineNoteLabel(o.mainNote);
+            if (note) note.innerHTML = outlineNoteIcon(o.mainNote);
         }
         o.speeds = rows.filter(r => r.bar !== '' && r.bpm !== '' && Number(r.bar) !== 1).map(r => ({ bar: Number(r.bar), bpm: Number(r.bpm), noteValue: r.noteValue }));
         const bad = outline.speedRows.map((r, i) => ((r.bar !== '' || r.bpm !== '') && !usable(r) ? i + 1 : 0)).filter(Boolean);
@@ -19717,7 +19734,7 @@
             flowOpenBpmModal(null, { value: o.mainBpm, typeFirst: true, onApply: (bpm) => { o.mainBpm = Math.min(400, Math.max(20, bpm)); renderOutline(); } });
         } else if (action === 'mainNote') {
             outlineHowLongKeep();
-            outlinePickNote(o.mainNote, (note) => { o.mainNote = note; renderOutline(); });
+            outlinePickNote(outlineNoteKey(o.mainNote), (note) => { o.mainNote = note; renderOutline(); });
         } else if (action === 'markKind') {
             openFlowChoiceModal('The marks are', OUTLINE_MARK_KINDS.map(k => ({ key: k.key, selected: k.key === o.markKind, html: `<span><strong>${k.label}</strong><br><span class="text-sm text-muted">${k.sub}</span></span>` })), (opt) => { o.markKind = opt.key; renderOutline(); });
         } else if (action === 'addExtra' || action === 'pickFile') {
@@ -19815,7 +19832,8 @@
     // Enter (Next / Done on a phone's keyboard) moves to the next box, like Tab
     [outlineView, document.getElementById('outlineExtraForm')].forEach(root => root?.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
-        const boxes = [...root.querySelectorAll('input:not([type="radio"])')];
+        // (a box of several lines - Notes - is somewhere Enter can land, ML-446; inside it Enter is a new line)
+        const boxes = [...root.querySelectorAll('input:not([type="radio"]), textarea')];
         const next = boxes[boxes.indexOf(e.target) + 1];
         if (!next) return;
         e.preventDefault();

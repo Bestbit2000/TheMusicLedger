@@ -358,14 +358,16 @@ export async function unpublishFlow(accountId, scoreId) {
 
 // Creates the duplicate's own score row (metadata copied, blocks copied separately by the route -
 // see flowBlocks.js's copyAllFlowBlocks) - your own personal pieces and, since ML-310, any public
-// piece ("Copy to my library"). Band pieces are not copied yet. Always lands
+// piece ("Copy to my library"), and since ML-441 a piece of a band you are in. Always lands
 // personal, even duplicating your own flow, same "start simple" default as createFlow itself.
 export async function duplicateFlow(accountId, scoreId) {
   const source = await assertFlowReadAccess(accountId, scoreId);
-  // Your own personal piece, or any public piece (ML-310: "Copy to my library" to adapt it).
+  // Your own personal piece, any public piece (ML-310: "Copy to my library" to adapt it), or a piece of a
+  // band you are in (ML-441: your own copy to adjust, leaving the band's alone) - assertFlowReadAccess has
+  // already checked the membership.
   const ownPersonal = !source.is_public && source.owner_band_id === null && Number(source.owner_account_id) === Number(accountId);
-  if (!ownPersonal && !source.is_public) {
-    throw withStatus(400, 'Only your own pieces and public pieces can be copied.');
+  if (!ownPersonal && !source.is_public && source.owner_band_id === null) {
+    throw withStatus(400, 'Only your own pieces, your bands\' pieces and public pieces can be copied.');
   }
   // ML-401: a copy keeps a link to the public piece it came from - and a copy of that copy keeps the
   // same one - so a public piece's take-up can be counted (Admin -> Flows). Never shown to the player.

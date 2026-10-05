@@ -1111,6 +1111,8 @@
     .metro-transport-grid-2 { grid-template-columns: repeat(2, 1fr); }
     /* A sign drawn in a value or a choice next to words (Theory's ♯ ♭): centred on the line, not sat on it. */
     .metroBlk-ctrl-value-btn svg, .flow-choice-option svg { vertical-align: middle; }
+    /* ML-445: a beat note drawn in a value box or a table cell (Quick entry) - the pop-up's picture, at the height of the words it replaces */
+    .metroBlk-ctrl-value-btn .metroBlk-note-svg, .outline-cell-btn .metroBlk-note-svg, .outline-cell-fixed .metroBlk-note-svg { height: 1.6em; width: auto; }
     /* ML-348: a date value box (a practice list's target date, "30 May 26"). Its cell is a fixed
        quarter of the grid and never grows with the date, so the date steps its size down to stay on one
        line in a narrow cell: --font-sm, then --font-base and --font-md as the cell gets wider. */
