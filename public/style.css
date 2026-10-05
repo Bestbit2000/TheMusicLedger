@@ -489,7 +489,9 @@
     .radio-group.is-tiles { display: grid; grid-template-columns: repeat(3, 1fr); }
     .radio-group.is-tiles label { position: relative; display: flex; align-items: flex-end; min-height: calc(var(--touch-target) + var(--space-4)); padding: var(--space-2); text-align: left; font-size: var(--font-sm); color: var(--text-color); }
     .radio-group.is-tiles input[type="radio"]:checked + label { color: var(--text-color); box-shadow: var(--selected-ring-inset); }
-    .bg-tile-tick { position: absolute; z-index: var(--z-base); top: var(--space-1); right: var(--space-1); font-size: var(--font-lg); color: var(--primary-action-strong); display: none; }
+    /* (.material-symbols-outlined comes later in this file and sets display, so the tick names both classes to stay
+       hidden until its tile is picked - every tile showed a tick from 0.41.0 until this was fixed) */
+    .material-symbols-outlined.bg-tile-tick { position: absolute; z-index: var(--z-base); top: var(--space-1); right: var(--space-1); font-size: var(--font-lg); color: var(--primary-action-strong); display: none; }
     .radio-group.is-tiles input[type="radio"]:checked + label .bg-tile-tick { display: block; }
 
     /* One grid per set of cards, never one grid per row: grid-auto-rows: 1fr makes every row the
