@@ -96,3 +96,12 @@ is tapped. It is built only from what the results screen already has - nothing n
 far") › `.theory-level-trend` (`.theory-level-bars`: a bar per round of this test, labelled Round 1, Round 2,
 the newest ringed and called Now) › `.btn-submit` (Next round / Last round). Focus goes to the heading. The
 clock is stopped while it shows. Wording is positive only (ML-396): Levels, never a score or what was wrong.
+
+## Keys answers (ML-438)
+
+The Keys quiz (and Keys questions in Mixed and weak spots) answers on the note keyboard, `.theory-answers-keyboard`,
+with an 18th button, C flat, in the free place under C (`[data-id="Cb"]`, grid row 3, column 1). A scale with major
+and minor keys in play has a second row under it, `#theoryModes` (`.theory-answers.mt-2`: two `.theory-answer`
+buttons, Major and Minor). The half of a two-tap answer picked so far has the app's selected look
+(`.theory-answer[aria-pressed="true"]`: `--primary-action-strong` outline and text on `--primary-action-tint`);
+once both are tapped each half is marked right or wrong like any answer (never colour alone: a tick or a cross).

@@ -84,8 +84,9 @@ describe('every quiz, every option combination', () => {
                 qs.forEach((qn, i) => {
                     const ids = qn.answers.map(a => a.id);
                     assert.equal(new Set(ids).size, ids.length, `duplicate answers ${qn.id}`);
-                    assert.ok(ids.includes(qn.correct), `right answer missing ${qn.id}`);
+                    assert.ok(hasRight(qn), `right answer missing ${qn.id}`);
                     if (typeOf(qn.id) === 'note') assert.ok(ids.length === 7 || ids.length === 17);
+                    else if (['keySignature', 'scale'].includes(typeOf(qn.id))) assert.equal(ids.length, 18, qn.id); // ML-438: the note keyboard and C flat
                     else assert.ok(({ chord: [3, 4], inversion: [3], cadence: [3], chromatic: [2] }[typeOf(qn.id)] || [4]).includes(ids.length), `${qn.id} ${JSON.stringify(opts)}`);
                     if (i && src.size > 1) assert.notEqual(qn.id, qs[i - 1].id, 'same question twice in a row');
                     if (qn.prompt.staff) N.staff(qn.prompt.staff);
@@ -189,14 +190,26 @@ describe('keys', () => {
         assert.equal(size({ show: 'keySignatures', upTo: 7, modes: 'both', clefs: ['treble', 'bass'] }), 60);
         assert.equal(size({ show: 'scales', upTo: 7, modes: 'both', minorForm: 'both' }), 45); // 15 major + 15 minor x 2 forms
     });
-    test('key signature questions say major or minor, and every choice is that mode', () => {
+    // ML-438: a key is answered on the note keyboard - the same 18 buttons in the same order every time
+    test('key signature questions say major or minor, and the answer is the key\'s note on the keyboard', () => {
         for (const q of take(source('keys', { show: 'keySignatures', upTo: 7, modes: 'both' }, { seed: 3 }), 60)) {
-            const mode = q.correct.split(' ')[1];
-            assert.equal(q.prompt.text, `Which ${mode} key?`);
-            assert.ok(q.answers.every(a => a.id.endsWith(mode)));
+            const key = T.ALL_KEYS.find(x => x.id === q.id.split(':')[2]);
+            assert.equal(q.prompt.text, `Which ${key.mode} key?`);
+            assert.equal(q.layout, 'keyboard');
+            assert.deepEqual(q.answers.map(a => a.id), T.KEY_BUTTONS);
+            assert.equal(q.correct, key.tonic);
+            assert.equal(q.modes, undefined);
         }
+        assert.ok(T.KEY_BUTTONS.includes('Cb') && T.ALL_KEYS.every(k => T.KEY_BUTTONS.includes(k.tonic)), 'every key has its button');
     });
 });
+
+// ML-438: a two-tap question's right answer is a key ("F# minor"): its note is on the keyboard, its mode under it
+function hasRight(q) {
+    if (!q.modes) return q.answers.some(a => a.id === q.correct);
+    const cut = q.correct.lastIndexOf(' ');
+    return q.answers.some(a => a.id === q.correct.slice(0, cut)) && q.modes.some(m => m.id === q.correct.slice(cut + 1));
+}
 
 describe('scales', () => {
     const k = (id) => T.ALL_KEYS.find(x => x.id === id);
@@ -216,12 +229,28 @@ describe('scales', () => {
             assert.ok(st >= -2 && st <= 4, `${key.id} tonic at step ${st}`);
         }
     });
-    test('with minor on, the relative key is one of the wrong answers', () => {
+    // ML-438: with major and minor in play a scale takes two taps - the note, then Major or Minor
+    test('with minor on, a scale is answered with its note and Major or Minor; with major only the question says major', () => {
         for (const q of take(source('keys', { show: 'scales', upTo: 7, modes: 'both' }, { seed: 5 }), 40)) {
             const key = T.ALL_KEYS.find(x => x.id === q.correct);
-            const rel = T.ALL_KEYS.find(x => x.mode !== key.mode && x.type === key.type && x.count === key.count);
-            assert.ok(q.answers.some(a => a.id === rel.id), `${q.correct} without ${rel.id}`);
+            assert.ok(key, q.correct);
+            assert.equal(q.prompt.text, 'Which scale is this?');
+            assert.deepEqual(q.modes.map(m => m.id), ['major', 'minor']);
+            assert.deepEqual(q.answers.map(a => a.id), T.KEY_BUTTONS);
         }
+        for (const q of take(source('keys', { show: 'scales', upTo: 7, modes: 'major' }, { seed: 5 }), 20)) {
+            assert.equal(q.prompt.text, 'Which major scale is this?');
+            assert.equal(q.modes, null);
+            assert.ok(T.KEY_BUTTONS.includes(q.correct));
+        }
+    });
+    test('a two-tap answer is allowed a second longer in a timed round', () => {
+        const one = { questionId: 'scale:treble:C major', answerId: 'C', correct: true, ms: 3000 };
+        assert.equal(T.parOfAnswer(one), 4);
+        assert.equal(T.parOfAnswer({ ...one, answerId: 'C major', taps: 2 }), 5);
+        const six = (a) => T.scoreRound('t30', Array.from({ length: 6 }, () => a)).score;
+        assert.equal(six(one), 80);
+        assert.equal(six({ ...one, taps: 2 }), 100);
     });
 });
 
@@ -587,7 +616,7 @@ describe('Theory grades (ML-309)', () => {
             const src = source(quizId, { grade, clefs: ['treble', 'bass', 'alto', 'tenor'] }, { seed: grade });
             for (const q of take(src, 150)) {
                 assert.equal(new Set(q.answers.map(a => a.id)).size, q.answers.length, q.id);
-                assert.ok(q.answers.some(a => a.id === q.correct), q.id);
+                assert.ok(hasRight(q), q.id);
                 const [type, a, b] = q.id.split(':');
                 if (type === 'keySignature' || type === 'scale') assert.ok(G.keyIds.includes(b), `${q.id} not in grade ${grade}`);
                 if (!/^(symbol|speed)/.test(type)) assert.ok(G.clefs.includes(a), q.id);

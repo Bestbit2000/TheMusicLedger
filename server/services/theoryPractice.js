@@ -42,15 +42,23 @@ function toDto(row) {
 // Best = highest score; ties go to the quicker round (fixed rounds), then the earlier one.
 const BEST_ORDER = 'score DESC, duration_ms ASC, started_at ASC';
 
-async function historyFor(client, accountId, settingsKey) {
+// ML-438: rounds played on an old layout of a quiz (old_layout - the Keys and Mixed quizzes before Keys moved to
+// the note keyboard, which is harder than four choices) stay as a set of options' history and best only until a
+// round on the new layout is played with those options; from then on only the new ones count. Nothing is
+// deleted. `a` is the attempts table's alias. newOnly: what a round about to be saved is measured against.
+const CURRENT_LAYOUT = `(NOT a.old_layout OR NOT EXISTS (SELECT 1 FROM theory_quiz_attempts n
+    WHERE n.account_id = a.account_id AND n.settings_key = a.settings_key AND NOT n.old_layout))`;
+
+async function historyFor(client, accountId, settingsKey, { newOnly = false } = {}) {
+  const which = newOnly ? 'NOT a.old_layout' : CURRENT_LAYOUT;
   const [recent, best] = await Promise.all([
     client.query(
-      `SELECT * FROM theory_quiz_attempts WHERE account_id = $1 AND settings_key = $2
-       ORDER BY started_at DESC, id DESC LIMIT ${HISTORY_LENGTH}`,
+      `SELECT a.* FROM theory_quiz_attempts a WHERE a.account_id = $1 AND a.settings_key = $2 AND ${which}
+       ORDER BY a.started_at DESC, a.id DESC LIMIT ${HISTORY_LENGTH}`,
       [accountId, settingsKey]
     ),
     client.query(
-      `SELECT * FROM theory_quiz_attempts WHERE account_id = $1 AND settings_key = $2
+      `SELECT a.* FROM theory_quiz_attempts a WHERE a.account_id = $1 AND a.settings_key = $2 AND ${which}
        ORDER BY ${BEST_ORDER} LIMIT 1`,
       [accountId, settingsKey]
     )
@@ -95,9 +103,9 @@ export async function getTheoryPlayed(accountId, quizId) {
   if (typeof quizId !== 'string' || !quizId || quizId.length > 40) throw withStatus(400, 'Missing quizId.');
   const { rows } = await pool.query(
     `SELECT * FROM (
-       SELECT DISTINCT ON (settings_key) *, COUNT(*) OVER (PARTITION BY settings_key) AS rounds
-       FROM theory_quiz_attempts WHERE account_id = $1 AND quiz_id = $2
-       ORDER BY settings_key, started_at DESC, id DESC
+       SELECT DISTINCT ON (a.settings_key) a.*, COUNT(*) OVER (PARTITION BY a.settings_key) AS rounds
+       FROM theory_quiz_attempts a WHERE a.account_id = $1 AND a.quiz_id = $2 AND ${CURRENT_LAYOUT}
+       ORDER BY a.settings_key, a.started_at DESC, a.id DESC
      ) last ORDER BY started_at DESC, id DESC`,
     [accountId, quizId]
   );
@@ -201,7 +209,9 @@ export async function saveTheoryAttempt(accountId, body) {
     answerId: String(a && a.answerId || '').slice(0, 40),
     correct: !!(a && a.correct),
     ms: Math.max(0, Math.min(3600000, Math.round(Number(a && a.ms) || 0))),
-    block: Number((a && a.block) ?? 1)
+    block: Number((a && a.block) ?? 1),
+    // ML-438: a two-tap answer (a scale's note, then Major / Minor) is allowed longer - only a scale can be one
+    ...(a && a.taps === 2 && String(a.questionId || '').startsWith('scale:') ? { taps: 2 } : {})
   }));
   if (answers.some(a => !a.questionId || !a.answerId)) throw withStatus(400, 'Every answer needs a question and an answer.');
   if (answers.some(a => !Number.isInteger(a.block) || a.block < 1 || a.block > repeats)) throw withStatus(400, 'An answer is in a round that isn\'t there.');
@@ -232,7 +242,7 @@ export async function saveTheoryAttempt(accountId, body) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const before = await historyFor(client, accountId, settingsKey);
+    const before = await historyFor(client, accountId, settingsKey, { newOnly: true });
     const { rows } = await client.query(
       `INSERT INTO theory_quiz_attempts
          (account_id, quiz_id, round_type, repeats, block_scores, options, settings_key, naming, right_count, wrong_count, score, grade, duration_ms, started_at)

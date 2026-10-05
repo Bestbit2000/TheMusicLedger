@@ -129,3 +129,12 @@ seconds or taps is the next thing to speed up. After saving, the toast says how 
   in, which put the slider and +/- a tap away. Now a number key pressed anywhere in the pop-up starts a new number
   (`flowBpmTypeAnywhere`, only for callers that pass `typeFirst`), and Enter takes it and closes the pop-up. On a
   phone the number is tapped to type, as in every other use of the pop-up.
+- **Enter always moves on (ML-450).** In a table: along the row, then the next row; on the untouched last row it
+  presses Next. Elsewhere on a step: to the next thing on it (a box, Notes, the count-in switch, a button), and Next
+  when nothing comes after. On a button Enter presses it; the last step's Save is never pressed this way.
+- **The count-in is a switch** (`#outlineLeadIn` in a `.display-toggle-row`, off to start with), not a Yes / No pair
+  (owner, 5 Oct 2026: a yes/no on its own is the switch used elsewhere).
+- **A time signature is tidied as it is typed:** two numbers with anything between them ("17 4", "17.4") become 17/4
+  in the box.
+- **Next says the step it goes to** ("Next: intro", "Next: recording") - no stage names, now there are no stages on
+  screen.

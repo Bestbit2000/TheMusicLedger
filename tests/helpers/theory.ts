@@ -44,6 +44,14 @@ export async function answer(page: Page, right: boolean) {
     await page.waitForFunction(() => { const t = (window as any).__theoryTest; const s = t.state(); return t.question() && s && !s.locked; }, null, { timeout: 5000 });
     const q = await question(page);
     await page.evaluate(() => (window as any).__theoryTest.advance(400));
+    // ML-438: a scale with major and minor keys in play takes two taps - its note, then Major or Minor
+    if (q.modes) {
+        const cut = q.correct.lastIndexOf(' ');
+        const note = q.correct.slice(0, cut);
+        await page.locator(`#theoryAnswers .theory-answer[data-id="${right ? note : q.answers.find((a: any) => a.id !== note).id}"]`).click();
+        await page.locator(`#theoryModes .theory-answer[data-id="${q.correct.slice(cut + 1)}"]`).click();
+        return q;
+    }
     const id = right ? q.correct : q.answers.find((a: any) => a.id !== q.correct).id;
     await page.locator(`#theoryAnswers .theory-answer[data-id="${id}"]`).click();
     return q;

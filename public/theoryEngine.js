@@ -51,6 +51,10 @@
         intervalNumber: 2.5, interval: 4, degree: 3, chromatic: 6, chord: 4, inversion: 3, cadence: 5 };
     const typeOf = (questionId) => String(questionId).split(':')[0];
     const parOf = (questionId) => PAR[typeOf(questionId)] || 2;
+    // ML-438: an answer that takes two taps (a scale's note, then Major or Minor) is allowed this much longer.
+    // An answer says so itself (taps: 2); an item is one when both major and minor keys are in play.
+    const TWO_TAP_EXTRA = 1;
+    const parOfAnswer = (a) => parOf(a.questionId) + (a.taps === 2 ? TWO_TAP_EXTRA : 0);
 
     // ---------------------------------------------------------------- options
 
@@ -247,7 +251,7 @@
     function nextWeight(weight, correct, answer) {
         const w = Number(weight) || 0;
         if (!correct) return Math.min(SMART.max, w + SMART.wrongStep);
-        const slow = answer && answer.ms > SMART.slowFactor * parOf(answer.questionId) * 1000;
+        const slow = answer && answer.ms > SMART.slowFactor * parOfAnswer(answer) * 1000;
         return slow ? w : Math.max(0, w - SMART.rightStep);
     }
     // ML-399 hesitation: a right answer you took well longer over than your own usual speed says you're
@@ -275,7 +279,7 @@
         return answers.map((a, i) => {
             if (!a.correct) return null;
             const m = usual.get(`${a.block || 1}|${typeOf(a.questionId)}`);
-            if (m === undefined) return a.ms > SMART.slowFactor * parOf(a.questionId) * 1000 ? 'hold' : null;
+            if (m === undefined) return a.ms > SMART.slowFactor * parOfAnswer(a) * 1000 ? 'hold' : null;
             if (firstOfBlock.has(i)) return null;
             return a.ms > HESITATION.slowOwnFactor * m && a.ms - m >= HESITATION.slowOwnMinMs ? 'slow' : null;
         });
@@ -378,25 +382,14 @@
             && (k.type === 'none' || keyTypes === 'both' || keyTypes === k.type));
     }
     const keyLabel = (k, naming) => `${spellName(k.tonic, naming)} ${k.mode}`;
-    // Position on the circle of fifths (-7 flats .. +7 sharps): how "close" two keys are.
-    const fifths = (k) => (k.type === 'flat' ? -k.count : k.count);
-    // Three plausible wrong answers: the nearest keys round the circle of fifths in the same mode, plus
-    // the relative major/minor when one is allowed (the classic mix-up). From every key, not just the
-    // selected ones, so a small selection still has four real choices.
-    function keyDistractors(correct, rng, { includeRelative }) {
-        const sameMode = ALL_KEYS.filter(k => k.mode === correct.mode && k.id !== correct.id);
-        const near = rng.shuffle(sameMode).sort((a, b) => Math.abs(fifths(a) - fifths(correct)) - Math.abs(fifths(b) - fifths(correct)));
-        const out = [];
-        if (includeRelative) {
-            const rel = ALL_KEYS.find(k => k.mode !== correct.mode && fifths(k) === fifths(correct));
-            if (rel) out.push(rel);
-        }
-        for (const k of near.slice(0, 5)) if (out.length < 3 && !out.some(o => o.id === k.id)) out.push(k);
-        return out;
-    }
-    function keyAnswers(correct, rng, naming, includeRelative) {
-        return rng.shuffle([correct, ...keyDistractors(correct, rng, { includeRelative })]).map(k => ({ id: k.id, label: keyLabel(k, naming) }));
-    }
+    // ML-438: a key is answered on the note keyboard (Note names' own: sharps above the naturals, flats below),
+    // so every answer is in the same place every time - it used to be four key names in a shuffled order. C flat
+    // (seven flats) has the one free place under C. Which note is all a key signature needs, because its question
+    // says major or minor; so does a scale's when only major keys are in play. With both in play a scale takes a
+    // second tap - Major or Minor (the question's `modes`) - and its right answer is the key's id ("F# minor").
+    const KEY_BUTTONS = [...KEYBOARD_BUTTONS, 'Cb'];
+    const KEY_MODES = [{ id: 'major', label: 'Major' }, { id: 'minor', label: 'Minor' }];
+    const keyButtons = (naming) => KEY_BUTTONS.map(n => ({ id: n, label: spellName(n, naming) }));
     // Key signature and scale items for a set of key options.
     // o.keyIds / o.minorForms (a Theory grade) replace the upTo/keyTypes/modes/minorForm options.
     function keyItems(clefs, o) {
@@ -423,9 +416,10 @@
                 staff: { clef, keySignature: key.count ? { type: key.type, count: key.count } : null, minWidth: 14 },
                 label: `A key signature on the ${clef} staff`,
             },
-            layout: 'choices',
-            answers: keyAnswers(key, rng, naming, false),
-            correct: key.id,
+            layout: 'keyboard',
+            answers: keyButtons(naming),
+            correct: key.tonic,
+            correctLabel: keyLabel(key, naming),
         };
     }
     // The key's own spelling for each letter, from its key signature.
@@ -666,13 +660,16 @@
         return {
             id: `scale:${clef}:${key.id}${key.mode === 'minor' ? `:${form}` : ''}`,
             prompt: {
-                text: 'Which scale is this?',
+                // With only major keys in play the question says so, and the note alone is the answer
+                text: item.includeRelative ? 'Which scale is this?' : `Which ${key.mode} scale is this?`,
                 staff: { clef, items: scalePitches(key, clef, form).map(p => ({ type: 'note', pitch: p })), noteGap: 1.2 },
                 label: `A scale on the ${clef} staff`,
             },
-            layout: 'choices',
-            answers: keyAnswers(key, rng, naming, item.includeRelative),
-            correct: key.id,
+            layout: 'keyboard',
+            answers: keyButtons(naming),
+            modes: item.includeRelative ? KEY_MODES : null,
+            correct: item.includeRelative ? key.id : key.tonic,
+            correctLabel: keyLabel(key, naming),
         };
     }
 
@@ -1620,7 +1617,7 @@
         const wrong = answers.length - right;
         let score;
         if (r.seconds) {
-            const net = answers.reduce((sum, a) => sum + (a.correct ? 1 : -1) * parOf(a.questionId), 0);
+            const net = answers.reduce((sum, a) => sum + (a.correct ? 1 : -1) * parOfAnswer(a), 0);
             score = clamp(100 * net / r.seconds);
         } else {
             score = clamp(100 * (right - wrong) / r.questions);
@@ -1655,7 +1652,7 @@
         if (r.questions) per = 100 / r.questions;
         else {
             if (quizId === WEAK_SPOTS.id) return null;
-            const pars = new Set(Object.values(itemsFor(quizId, normaliseOptions(quizId, rawOptions))).flat().map(it => parOf(itemKey(it))));
+            const pars = new Set(Object.values(itemsFor(quizId, normaliseOptions(quizId, rawOptions))).flat().map(it => parOf(itemKey(it)) + (it.type === 'scale' && it.includeRelative ? TWO_TAP_EXTRA : 0)));
             if (pars.size !== 1) return null;
             per = 100 * [...pars][0] / r.seconds;
         }
@@ -1680,8 +1677,8 @@
             return null;
         }
         if (!answers.length) return null;
-        const net = answers.reduce((sum, a) => sum + (a.correct ? 1 : -1) * parOf(a.questionId), 0);
-        const par = answers.reduce((sum, a) => sum + parOf(a.questionId), 0) / answers.length;
+        const net = answers.reduce((sum, a) => sum + (a.correct ? 1 : -1) * parOfAnswer(a), 0);
+        const par = answers.reduce((sum, a) => sum + parOfAnswer(a), 0) / answers.length;
         for (let n = 1; n <= 200; n++) if (clamp(100 * (net + n * par) / r.seconds) >= target) return { level: now.grade + 1, more: n };
         return null;
     }
@@ -1721,7 +1718,7 @@
         describeSet, levelTargets, nextLevelGap, includedFor, HESITATION, hesitationMarks, applyAnswer,
         QUIZZES, ROUNDS, DEFAULT_ROUND, REPEATS, DEFAULT_REPEATS, repeatsOf, scoreBlocks, SYMBOLS, SET_IDS, SPEEDS, speedFor, speedLabel, KEY_TABLE, RANGE_STEPS, NOTE_BUTTONS, KEYBOARD_BUTTONS, MIXED_LEVELS, SCALE_FORMS, SCALE_FORM_LABEL, SCALE_TYPES, SCALE_TYPE_LABEL, buildScale, writeScale, scalePool, TIMING, GRADE_LIMITS, PAR,
         quiz, round, normaliseOptions, optionVisible, settingsKey, describeOptions,
-        makeRng, questionSource, itemsFor, SMART, nextWeight, smartOrder, reviewBoost, effectiveWeight, itemFromId, describeQuestion, WEAK_SPOTS, scalePitches, keyPool, keyAlters, noteItems, parOf,
+        makeRng, questionSource, itemsFor, SMART, nextWeight, smartOrder, reviewBoost, effectiveWeight, itemFromId, describeQuestion, WEAK_SPOTS, scalePitches, keyPool, keyAlters, noteItems, parOf, parOfAnswer, KEY_BUTTONS,
         spell, spellName, scoreRound, gradeFor, ALL_KEYS,
         THEORY_GRADES, GRADE_CHOICES, gradeContent, gradeSummary,
         intervalBetween, intervalLabel, noteAbove, chromaticScale, chromaticFault, chromaticMistakes, triad, DEGREE_NAMES

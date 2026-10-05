@@ -90,3 +90,10 @@ one, you're probably missing an alias. Add the alias instead.
 7. Code example
 8. Cross-references
 9. Accessibility (keyboard, ARIA, focus, touch target, anything not conveyed by colour)
+
+## The words under a value line up (owner rule, ML-451)
+
+In a value box (`.metroBlk-ctrl-value-btn`: the answer over what it is) the label sits in the same place in every
+box, whatever the value is - text, a number or a picture. A picture taller than a line of text (a beat note) keeps
+the value line one line high: it is centred on the line and spills a little above and below. Never let a value push
+its label out of line with the boxes beside it.

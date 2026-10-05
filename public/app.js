@@ -18613,36 +18613,61 @@
             ? `<button type="button" class="theory-answer" data-id="${escapeHtml(a.id)}" aria-label="${escapeHtml(a.label)}">${theoryVisual(a.render, null, THEORY_SYMBOL_SCALE)}</button>`
             : `<button type="button" class="theory-answer" data-id="${escapeHtml(a.id)}">${escapeHtml(a.label)}</button>`).join('');
         answers.querySelectorAll('.theory-answer').forEach(b => b.addEventListener('click', () => theoryAnswer(b.dataset.id)));
+        // ML-438: a scale with major and minor keys in play takes a second tap - Major or Minor, under the keyboard
+        r.pick = null;
+        const modes = document.getElementById('theoryModes');
+        setShown(modes, !!q.modes);
+        modes.innerHTML = (q.modes || []).map(m => `<button type="button" class="theory-answer" data-id="${escapeHtml(m.id)}" aria-pressed="false">${escapeHtml(m.label)}</button>`).join('');
+        modes.querySelectorAll('.theory-answer').forEach(b => b.addEventListener('click', () => theoryAnswer(b.dataset.id, 'mode')));
+        if (q.modes) answers.querySelectorAll('.theory-answer').forEach(b => b.setAttribute('aria-pressed', 'false'));
         theoryUpdateTally();
         r.shownAt = theoryNow();
     }
-    function theoryMarkAnswer(id, state) {
-        const b = document.querySelector(`#theoryAnswers .theory-answer[data-id="${CSS.escape(id)}"]`);
+    function theoryMarkAnswer(id, state, box = 'theoryAnswers') {
+        const b = document.querySelector(`#${box} .theory-answer[data-id="${CSS.escape(id)}"]`);
         if (!b) return;
+        b.removeAttribute('aria-pressed'); // (a picked half of a two-tap answer is now right or wrong, not "picked")
         b.classList.add(state === 'right' ? 'theory-answer-right' : 'theory-answer-wrong');
         b.insertAdjacentHTML('afterbegin', `<span class="material-symbols-outlined" aria-hidden="true">${state === 'right' ? 'check' : 'close'}</span>`);
     }
-    function theoryAnswer(id) {
+    function theoryAnswer(id, part = 'note') {
         const r = theoryRound;
         if (!r || r.ended || r.locked || r.resting) return;
         // A tap in the first moment after a question appears is the tail end of the last one (a
         // double tap), not an answer to this one.
         if (theoryNow() - r.shownAt < TheoryEngine.TIMING.minAnswerMs) return;
         const q = r.question;
+        // ML-438: a two-tap answer (the note and Major / Minor, in either order) waits for its other half -
+        // what's picked so far is shown, and can be changed until the second half is tapped
+        if (q.modes) {
+            r.pick = { ...(r.pick || {}), [part]: id };
+            document.querySelectorAll(`#${part === 'mode' ? 'theoryModes' : 'theoryAnswers'} .theory-answer`).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === id)));
+            if (!r.pick.note || !r.pick.mode) return;
+            id = `${r.pick.note} ${r.pick.mode}`;
+        }
         const correct = id === q.correct;
-        r.answers.push({ questionId: q.id, answerId: id, correct, ms: Math.round(theoryNow() - r.shownAt), block: r.block });
+        r.answers.push({ questionId: q.id, answerId: id, correct, ms: Math.round(theoryNow() - r.shownAt), block: r.block, ...(q.modes ? { taps: 2 } : {}) });
         r.blockAnswered++;
         // Smart learn: a later deal in this same round already knows, and a miss comes back 3 questions on.
         r.source.record(q.id, correct, r.answers[r.answers.length - 1].ms);
         r.locked = true;
-        if (correct) {
+        if (q.modes) {
+            // each half is marked on its own: the note on the keyboard, Major / Minor underneath
+            const cut = q.correct.lastIndexOf(' ');
+            [['note', q.correct.slice(0, cut), 'theoryAnswers'], ['mode', q.correct.slice(cut + 1), 'theoryModes']].forEach(([half, right, box]) => {
+                if (r.pick[half] !== right) theoryMarkAnswer(r.pick[half], 'wrong', box);
+                theoryMarkAnswer(right, 'right', box);
+            });
+            if (correct) r.right++; else r.wrong++;
+            if (!correct) document.getElementById('theoryFeedback').textContent = `Not quite: it's ${q.correctLabel}`;
+        } else if (correct) {
             r.right++;
             theoryMarkAnswer(id, 'right');
         } else {
             r.wrong++;
             theoryMarkAnswer(id, 'wrong');
             theoryMarkAnswer(q.correct, 'right');
-            const label = q.answers.find(a => a.id === q.correct).label;
+            const label = q.correctLabel || q.answers.find(a => a.id === q.correct).label;
             // A question can say why instead (the chromatic scale's Yes/No, ML-309 C).
             document.getElementById('theoryFeedback').textContent = q.feedback || `Not quite: it's ${label}`;
         }
@@ -18863,12 +18888,12 @@
         { key: 'marks', name: 'Rehearsal marks', stage: 1, label: 'rehearsal marks', question: () => 'Where are the rehearsal marks?' },
         { key: 'time', name: 'Time signatures', stage: 2, label: 'time signatures', question: () => 'Where does the time signature change?' },
         { key: 'speed', name: 'Speed', stage: 2, label: 'speed', question: () => 'Where does the speed change?' },
-        { key: 'xIntro', name: 'Intro', stage: 3, label: 'extras', kinds: ['intro'], one: true, add: 'Add the intro', question: () => 'Is there an intro?' },
+        { key: 'xIntro', name: 'Intro', stage: 3, label: 'intro', kinds: ['intro'], one: true, add: 'Add the intro', question: () => 'Is there an intro?' },
         { key: 'xRepeats', name: 'Repeats', stage: 3, label: 'repeats', kinds: ['repeat', 'repeatEndings'], table: 'repeat', question: () => 'Are there any repeats?' },
         { key: 'xPauses', name: 'Pauses and breaks', stage: 3, label: 'pauses', kinds: ['pause'], table: 'pause', question: () => 'Are there any pauses or breaks?' },
         { key: 'xRamps', name: 'Speeding up and slowing down', stage: 3, label: 'speeding up and slowing down', kinds: ['ramp'], add: 'Add one', addMore: 'Add another', question: () => 'Does it speed up or slow down anywhere?' },
         { key: 'xSigns', name: 'Signs and jumps', stage: 3, label: 'signs and jumps', kinds: ['sign'], add: 'Add a sign or jump', addMore: 'Add another sign or jump', question: () => 'Are there any signs or jumps?' },
-        { key: 'mAudio', name: 'Recording', stage: 4, label: 'media', media: 'audio', icon: 'music_note', add: 'Choose a recording', addMore: 'Add another recording', question: () => 'Is there a recording to add?' },
+        { key: 'mAudio', name: 'Recording', stage: 4, label: 'recording', media: 'audio', icon: 'music_note', add: 'Choose a recording', addMore: 'Add another recording', question: () => 'Is there a recording to add?' },
         { key: 'mVideo', name: 'YouTube link', stage: 4, label: 'YouTube', media: 'video', icon: 'smart_display', question: () => 'Is there a YouTube link to add?' },
         { key: 'mDocs', name: 'Score or part', stage: 4, label: 'scores and parts', media: 'docs', icon: 'description', add: 'Choose a file', addMore: 'Add another file', question: () => 'Is there a score or part to add?' }
     ];
@@ -19004,12 +19029,8 @@
         const o = outline.o;
         return `
             ${outlineNumField('outlineBars', o.bars, 'bars in the piece', 'min="1" max="2000" placeholder="e.g. 32"')}
-            <div>
-                <span class="outline-th" id="outlineLeadInLabel">A count-in bar before bar 1?</span>
-                <div class="radio-group" role="radiogroup" aria-labelledby="outlineLeadInLabel">
-                    <input type="radio" id="outlineLeadInYes" name="outlineLeadIn" value="yes"${o.leadIn ? ' checked' : ''}><label for="outlineLeadInYes">Yes</label>
-                    <input type="radio" id="outlineLeadInNo" name="outlineLeadIn" value="no"${o.leadIn ? '' : ' checked'}><label for="outlineLeadInNo">No</label>
-                </div>
+            <div class="display-toggle-row">
+                <span id="outlineLeadInLabel">A count-in bar<span class="display-toggle-help">A bar of clicks before bar 1</span></span><label class="toggle-switch"><input type="checkbox" id="outlineLeadIn" aria-labelledby="outlineLeadInLabel"${o.leadIn ? ' checked' : ''}><span class="toggle-slider"></span></label>
             </div>
             <p class="text-sm text-muted no-margin">Most of it is in...</p>
             <div class="outline-three">
@@ -19105,7 +19126,7 @@
     // What was typed, as numbers - or null when it isn't a time signature the app can keep: the same limits as
     // "add my own" in the time signature pop-up (1 to 32 beats, of a 2, 4, 8 or 16)
     function outlineSigParts(text) {
-        const m = String(text || '').trim().match(/^(\d{1,2})\s*[\/ ]\s*(\d{1,2})$/);
+        const m = String(text || '').trim().match(/^(\d{1,2})\D+(\d{1,2})$/); // anything at all between the two numbers
         if (!m) return null;
         const n = Number(m[1]);
         const d = Number(m[2]);
@@ -19731,7 +19752,7 @@
     }
     outlineView?.addEventListener('change', (e) => {
         if (!outline) return;
-        if (e.target.name === 'outlineLeadIn') outline.o.leadIn = e.target.value === 'yes';
+        if (e.target.id === 'outlineLeadIn') outline.o.leadIn = e.target.checked;
     });
     // A table's last row filling in adds the next one (the rows already there are left alone, so typing isn't interrupted)
     function outlineGrowTable(rows, blank, rowHtml, tableId) {
@@ -19761,6 +19782,9 @@
         }
         if (t.dataset.timeRow !== undefined) {
             const row = outline.timeRows[Number(t.dataset.timeRow)];
+            // two numbers with anything between them ("17 4", "17.4", "17-4") are written as 17/4 in the box as you type
+            const tidy = t.dataset.timeCol === 'sig' && t.value.match(/^\s*(\d{1,2})\D+(\d{1,2})\s*$/);
+            if (tidy && t.value !== `${tidy[1]}/${tidy[2]}`) t.value = `${tidy[1]}/${tidy[2]}`;
             row[t.dataset.timeCol] = t.value;
             if (t.dataset.timeCol === 'sig') { row.key = outlineSigFromText(t.value) || ''; if (!row.key) outlineSigAdd(t.value); }
             outlineTimeSync(row, t.dataset.timeCol).forEach(col => { const box = document.querySelector(`#outlineTimeRows [data-time-row="${t.dataset.timeRow}"][data-time-col="${col}"]`); if (box) box.value = row[col]; });
@@ -19780,17 +19804,43 @@
         t.blur();
         outlineTimePick(Number(t.dataset.timeRow));
     });
-    // Enter (Next / Done on a phone's keyboard) moves to the next box, like Tab
-    [outlineView, document.getElementById('outlineExtraForm')].forEach(root => root?.addEventListener('keydown', (e) => {
+    // Enter (Next / Done on a phone's keyboard) always moves on (ML-450):
+    //  - in a table, along the row and on to the next row's first box (the buttons in a row are skipped, so typing
+    //    isn't interrupted); on the untouched last row there is nothing more to add, so it presses Next;
+    //  - anywhere else on a step, to the next thing on it - a box, Notes (ML-446; inside Notes Enter is a new
+    //    line), a Yes / No choice or a button - and when nothing comes after, it presses Next.
+    // On a button Enter presses the button, as everywhere. The last step's Save is never pressed this way.
+    outlineView?.addEventListener('keydown', (e) => {
+        const t = e.target;
+        if (e.key !== 'Enter' || t.tagName !== 'INPUT' || !outline) return;
+        const pressNext = () => document.querySelector('#outlineFoot [data-outline="next"]')?.click();
+        const row = t.closest('.outline-row');
+        let stops;
+        if (row) {
+            if (!row.nextElementSibling && [...row.querySelectorAll('input')].every(i => i.value === '')) { e.preventDefault(); pressNext(); return; }
+            stops = [...outlineView.querySelectorAll('.outline-row input')];
+        } else {
+            // a Yes / No pair is one stop: the answer that is picked (or its first), and never the pair you are in
+            const group = (el) => [...outlineView.querySelectorAll(`#outlineBody input[type="radio"][name="${el.name}"]`)];
+            stops = [...outlineView.querySelectorAll('#outlineBody input:not([type="file"]), #outlineBody textarea, #outlineBody button:not([disabled])')]
+                .filter(el => el === t || el.type !== 'radio' || (el.name !== t.name && el === (group(el).find(r => r.checked) || group(el)[0])));
+        }
+        e.preventDefault();
+        const next = stops[stops.indexOf(t) + 1];
+        if (!next) { pressNext(); return; }
+        next.focus();
+        if (next.tagName === 'INPUT' && next.type !== 'radio') next.select?.();
+    });
+    // In an extra's pop-up Enter moves to the next box, like Tab
+    document.getElementById('outlineExtraForm')?.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
-        // (a box of several lines - Notes - is somewhere Enter can land, ML-446; inside it Enter is a new line)
-        const boxes = [...root.querySelectorAll('input:not([type="radio"]), textarea')];
+        const boxes = [...e.currentTarget.querySelectorAll('input:not([type="radio"]), textarea')];
         const next = boxes[boxes.indexOf(e.target) + 1];
         if (!next) return;
         e.preventDefault();
         next.focus();
         next.select?.();
-    }));
+    });
     document.getElementById('metroBlkEntryQuickBtn')?.addEventListener('click', () => openPieceOutline(addPieceTakeTarget()));
 
     // ========================================

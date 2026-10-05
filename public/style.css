@@ -358,11 +358,15 @@
     :is(.theory-answers-keyboard, .note-keyboard) [data-id="Gb"] { grid-area: 3 / 5; }
     :is(.theory-answers-keyboard, .note-keyboard) [data-id="Ab"] { grid-area: 3 / 6; }
     :is(.theory-answers-keyboard, .note-keyboard) [data-id="Bb"] { grid-area: 3 / 7; }
+    /* ML-438: the Keys quiz answers on this keyboard too; C flat (seven flats) takes the free place under C */
+    :is(.theory-answers-keyboard, .note-keyboard) [data-id="Cb"] { grid-area: 3 / 1; }
     .theory-answer { min-height: var(--touch-target); display: flex; align-items: center; justify-content: center; gap: var(--space-1); padding: var(--space-2); background: var(--input-bg); color: var(--text-color); border: 2px solid var(--control-border); border-radius: var(--radius-md); font: inherit; font-size: var(--font-md); font-weight: var(--font-weight-bold); cursor: pointer; }
     .theory-answer .material-symbols-outlined { font-size: var(--icon-md); }
     .theory-answers-symbols .theory-answer { min-height: calc(var(--touch-target) * 2); }
     .theory-answers-symbols .theory-answer svg { max-width: 100%; max-height: calc(var(--touch-target) * 1.5); width: auto; height: auto; }
     /* Right/wrong is never colour alone: a tick or cross icon goes in too, and "Not quite: it's X" is announced. */
+    /* ML-438: the half of a two-tap answer that is picked so far (a scale's note, or Major / Minor) - the app's selected look */
+    .theory-answer[aria-pressed="true"] { border-color: var(--primary-action-strong); background: var(--primary-action-tint); color: var(--primary-action-strong); }
     .theory-answer-right { border-color: var(--success-text); color: var(--success-text); }
     .theory-answer-wrong { border-color: var(--danger-text); color: var(--danger-text); }
     .theory-results-options { color: var(--label-color); font-size: var(--font-sm); text-align: center; margin: 0 0 var(--space-3); }
@@ -1118,6 +1122,10 @@
     .metroBlk-ctrl-value-btn svg, .flow-choice-option svg { vertical-align: middle; }
     /* ML-445: a beat note drawn in a value box or a table cell (Quick entry) - the pop-up's picture, at the height of the words it replaces */
     .metroBlk-ctrl-value-btn .metroBlk-note-svg, .outline-cell-btn .metroBlk-note-svg, .outline-cell-fixed .metroBlk-note-svg { height: 1.6em; width: auto; }
+    /* ML-451 (owner rule, the whole app): the words under a value are in the same place in every value box, whatever
+       the value is. A picture taller than a line of text keeps the value line one line high - it is centred on the
+       line and spills a little above and below - so its label lines up with the boxes beside it. */
+    .metroBlk-ctrl-value-btn strong:has(> .metroBlk-note-svg:only-child) { display: flex; align-items: center; justify-content: center; height: calc(var(--font-md) * var(--line-height-snug)); }
     /* ML-348: a date value box (a practice list's target date, "30 May 26"). Its cell is a fixed
        quarter of the grid and never grows with the date, so the date steps its size down to stay on one
        line in a narrow cell: --font-sm, then --font-base and --font-md as the cell gets wider. */

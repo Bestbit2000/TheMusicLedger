@@ -93,7 +93,7 @@ All answers are **one tap on a button**. Four quizzes with their own options (co
 | Quiz | Asks | Options |
 |---|---|---|
 | **Note names** | A whole note on a staff → 7 letters, or with sharps/flats on the keyboard: 5 sharps above the 7 naturals and 5 flats below, in their keys' columns (ML-292 - no E♯/B♯/C♭/F♭; the written note shows which spelling is right) | Clef (multi-select), range (on the staff / 2 / 4 / 6 ledger lines, above and below), sharps and flats (none / sharps / flats / both - each black key asked in either spelling, as Grade 2 does) |
-| **Keys** | A key signature → "Which major/minor key?"; or a scale written out with accidentals → "Which scale is this?". 4 keys each | Clef, show (key signatures / scales / both), up to 3 / 5 / 7 ♯/♭ (C major and A minor always in), sharp / flat keys / both, major or major + minor, minor scales: harmonic / melodic / both (only with minor keys and scales) |
+| **Keys** | A key signature → "Which major/minor key?"; or a scale written out with accidentals → "Which scale is this?". Answered on the note keyboard (ML-438, below) | Clef, show (key signatures / scales / both), up to 3 / 5 / 7 ♯/♭ (C major and A minor always in), sharp / flat keys / both, major or major + minor, minor scales: harmonic / melodic / both (only with minor keys and scales) |
 | **Notation** (id `symbols`; "Symbols and speeds", ML-301) | A symbol → its name, or a meaning → the symbol (terms: the word → its meaning, or a meaning → the word). 4 choices | Set: Basics / Dynamics / Rhythm / Structure / Terms / Speeds / Everything; ask: names / meanings / both |
 | **Mixed** | Every question type in turn: a note, a key signature, a scale, a symbol name, a symbol meaning | Clef, difficulty (beginner / intermediate / advanced) |
 
@@ -391,3 +391,24 @@ weights directly; `clearTheoryAttempts` clears them too.
 **Back-test:** case #18 in the Neon `test_cases` table. It covers each quiz on screen, right and wrong
 feedback, both round types, Mixed, rhythm and terms, saving, the Level results, What I've played,
 What's included, and screenshot baselines.
+
+## Keys on the note keyboard (ML-438)
+
+A key is answered on **Note names' keyboard** - sharps above the naturals, flats below, C flat (seven flats) in the
+free place under C: 18 buttons (`KEY_BUTTONS`), the same place every time. It was four key names in a shuffled
+order. Mixed and the weak spots round deal the same questions, so they get it too.
+
+- **One tap** when the question says the mode: every key signature ("Which major key?" / "Which minor key?"), and a
+  scale when only major keys are in play ("Which major scale is this?"). The right answer is the key's note
+  (`correct: key.tonic`).
+- **Two taps** for a scale when major and minor keys are both in play ("Which scale is this?"): the note, and
+  **Major** or **Minor** under the keyboard (the question's `modes`; `#theoryModes`). Either order; the half picked so
+  far is shown (`aria-pressed`) and can be changed until the other half is tapped. The right answer is the key's id
+  ("F# minor"), and each half is marked right or wrong on its own. The answer is saved with `taps: 2`.
+- **Time:** a two-tap answer is allowed a second longer in a timed round (`TWO_TAP_EXTRA`, `parOfAnswer`: 5 s for a
+  scale, not 4) - the server keeps `taps` only on scale questions. "N more right for Level X" uses the same.
+- **Old results (owner, 5 Oct 2026):** nothing is deleted. Migration 101 marks every Keys and Mixed round saved
+  before this as `old_layout`. A set of options' old rounds stay its history and best only until a round is played
+  on the new layout with those options; from then on only the new ones count (`CURRENT_LAYOUT` in
+  `server/services/theoryPractice.js`), and that first new round is "your first round with these options".
+  Tested by `server/test/theoryOldLayout.test.js` (dev database).

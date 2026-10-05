@@ -34,8 +34,8 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   (owner, 5 Oct 2026: too busy) - getting about is Back and Next only.
 - **About:** `.form-group` × 5 (label over the box, as everywhere): name of the piece (required, `.flow-required`),
   composer, arranger, publisher, notes (a `textarea`) › "Start again" (`.btn-text`).
-- **How long:** a number box (`.outline-field` › `input` + `.outline-field-label`) for the bars › a Yes / No pill
-  pair (`.radio-group`) for the count-in › "Most of it is in..." › `.outline-three`: the time (a value box,
+- **How long:** a number box (`.outline-field` › `input` + `.outline-field-label`) for the bars › the count-in as a switch
+  (`.display-toggle-row`: "A count-in bar" over "A bar of clicks before bar 1", `.toggle-switch`, off to start with) › "Most of it is in..." › `.outline-three`: the time (a value box,
   `.metroBlk-ctrl-value-btn`, opening the shared time signature pop-up), the bpm (a value box too, with "bpm"
   inside it like its neighbours, opening the shared Tempo pop-up `#flowBpmModal` - owner, 4 Oct 2026), the beat note (a
   value box opening the shared beat note pop-up) › Next.
