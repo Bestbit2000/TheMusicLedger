@@ -19072,6 +19072,9 @@
     }
 
     // --- Step 1: how long ---
+    // The three "most of it is in" answers are the bar editor's own tiles (.flow-tile: taller, so the beat note's
+    // picture has room - owner, 5 Oct 2026), each opening its pop-up
+    const outlineTile = (action, value, label, name) => `<button type="button" class="flow-tile" data-outline="${action}" aria-haspopup="dialog" aria-label="${escapeHtml(label)}: ${escapeHtml(name)} - tap to change"><span class="flow-tile-value">${value}</span><span class="flow-tile-label">${escapeHtml(label)}</span></button>`;
     function outlineHowLongHtml() {
         const o = outline.o;
         return `
@@ -19080,10 +19083,10 @@
                 <span id="outlineLeadInLabel">A count-in bar<span class="display-toggle-help">A bar of clicks before bar 1</span></span><label class="toggle-switch"><input type="checkbox" id="outlineLeadIn" aria-labelledby="outlineLeadInLabel"${o.leadIn ? ' checked' : ''}><span class="toggle-slider"></span></label>
             </div>
             <p class="text-sm text-muted no-margin">Most of it is in...</p>
-            <div class="outline-three">
-                ${outlineValueBtn('mainSig', outlineSigLabel(o.mainSig), 'time')}
-                ${outlineValueBtn('mainBpm', String(o.mainBpm), 'bpm')}
-                <button type="button" class="metroBlk-ctrl-value-btn w-full" data-outline="mainNote" aria-haspopup="dialog" aria-label="beat note: ${escapeHtml(outlineNoteLabel(o.mainNote))} - tap to change"><strong>${metroNoteIconSvg(outlineNoteKey(o.mainNote))}</strong><span class="metroBlk-ctrl-value-label">beat note</span></button>
+            <div class="flow-tile-grid flow-tile-grid-3">
+                ${outlineTile('mainSig', escapeHtml(outlineSigLabel(o.mainSig)), 'time', outlineSigLabel(o.mainSig))}
+                ${outlineTile('mainBpm', String(o.mainBpm), 'bpm', String(o.mainBpm))}
+                ${outlineTile('mainNote', metroNoteIconSvg(outlineNoteKey(o.mainNote)), 'beat note', outlineNoteLabel(o.mainNote))}
             </div>
             <p class="text-sm text-muted no-margin">The bars that are different come in steps 3 and 4.</p>`;
     }
