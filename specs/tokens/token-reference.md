@@ -326,6 +326,7 @@ one ladder, low to high. Never invent a number in a component.
 | `--app-max-width` | `500px` | single source of truth for the centred app column (ML-53) |
 | `--touch-target` | `48px` | minimum tap target for any button |
 | `--bottom-bar-clearance-lg` | `150px` | scroll room above the taller Flow details sticky bar |
+| `--toast-above-bottom-bar` | `100px` | where a toast sits on a screen with a bar pinned to the bottom (Quick entry's Back / Next, the piece edit screen's Cancel / Save), so it never covers the bar's buttons |
 
 ## Layer 1 primitives (reference only - never use in components)
 

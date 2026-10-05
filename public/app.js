@@ -7121,7 +7121,6 @@
             ${field('arranger', 'Arranger', 'e.g. Gordon Langford')}
             ${field('publisher', 'Publisher', 'e.g. Studio Music Co.')}
             <div class="form-group no-margin"><label for="outlineAbout-notes">Notes</label><textarea id="outlineAbout-notes" data-about="notes" rows="3" maxlength="2000" placeholder="Rehearsal notes, solo cues...">${escapeHtml(a.notes)}</textarea></div>
-            <button type="button" class="btn-submit" data-outline="next">${outlineNextLabel()}</button>
             <button type="button" class="btn-text" data-outline="restart">Start again</button>`;
     }
 
@@ -18908,7 +18907,6 @@
             outline = {
                 step: 0, target,
                 about: { title: '', composer: '', arranger: '', publisher: '', notes: '' },
-                answers: {}, // step key -> 'yes' | 'no', for the Extras and Media questions
                 media: { audio: [], video: [], docs: [] }, // files and links held until Save
                 o: { bars: null, leadIn: false, mainSig: common ? `public:${common.id}` : null, mainBpm: 120, mainNote: null, markKind: 'numbers', marks: [], time: {}, speeds: [], extras: [] },
                 marksText: '', markRows: [{ bar: '', label: '' }], speedRows: [{ bar: '', bpm: '', noteValue: undefined }],
@@ -18969,27 +18967,23 @@
         const st = outline.stats;
         if (!st.tick) st.tick = setInterval(outlineStatsTick, 1000);
         const cur = OUTLINE_STEPS[outline.step];
-        const steps = document.getElementById('outlineSteps');
-        steps.setAttribute('aria-label', `Adding a piece, stage ${cur.stage + 1} of ${OUTLINE_STAGES.length}: ${OUTLINE_STAGES[cur.stage].name}`);
-        // A finished stage is a button back to its first step
-        steps.innerHTML = OUTLINE_STAGES.map((s, i) => (i < cur.stage
-            ? `<li class="steps-progress-step is-done"><button type="button" class="steps-progress-back" data-outline-step="${OUTLINE_STEPS.findIndex(x => x.stage === i)}" aria-label="Back to ${s.name}"><span class="material-symbols-outlined" aria-hidden="true">check</span>${s.name}</button></li>`
-            : `<li class="steps-progress-step${i === cur.stage ? ' is-now" aria-current="step' : ''}">${s.name}</li>`)).join('');
+        // ML-449: where you are is one bar - a piece a step, a wider gap between stages - and one line under it
+        // ("Tempo · step 4 of 13"). Getting about is Back and Next, together at the bottom of the screen on every
+        // step. (It was five labelled stage bars, then "Tempo: 1 of 2" and a row of dots.)
+        const total = OUTLINE_STEPS.length;
+        const bar = document.getElementById('outlineBar');
+        bar.setAttribute('aria-label', `Step ${outline.step + 1} of ${total}: ${OUTLINE_STAGES[cur.stage].name}`);
+        bar.innerHTML = OUTLINE_STEPS.map((s, i) => `<span class="step-bar-piece${i < outline.step ? ' is-done' : i === outline.step ? ' is-now' : ''}${i < total - 1 && OUTLINE_STEPS[i + 1].stage !== s.stage ? ' ends-stage' : ''}"></span>`).join('');
+        document.getElementById('outlineWhereText').innerHTML = `<strong>${escapeHtml(OUTLINE_STAGES[cur.stage].name)}</strong> · step ${outline.step + 1} of ${total}`;
         document.getElementById('outlineQuestion').textContent = cur.question();
-        const inStage = OUTLINE_STEPS.filter(x => x.stage === cur.stage);
-        document.getElementById('outlineWhereText').textContent = `${OUTLINE_STAGES[cur.stage].name}: ${inStage.indexOf(cur) + 1} of ${inStage.length}`;
-        // The stage's steps as dots (owner, 4 Oct 2026): the big one is this step; a step you've been to is a way
-        // back (or on) to it; one you haven't reached yet waits.
-        document.getElementById('outlineDots').innerHTML = inStage.map((s) => {
-            const i = OUTLINE_STEPS.indexOf(s);
-            const now = s === cur;
-            const been = st.steps[i].visits > 0;
-            return `<li><button type="button" class="step-dot${now ? ' is-now' : ''}" data-outline-step="${i}"${now ? ' aria-current="step"' : ''}${been || now ? '' : ' disabled'} aria-label="${escapeHtml(s.name)}${now ? ', this step' : been ? '' : ', not reached yet'}" title="${escapeHtml(s.name)}"></button></li>`;
-        }).join('');
-        setShown('outlineWhere', inStage.length > 1);
         const html = cur.kinds ? outlineExtrasStepHtml(cur) : cur.media ? outlineMediaStepHtml(cur)
             : { about: outlineAboutHtml, howLong: outlineHowLongHtml, marks: outlineMarksHtml, time: outlineTimeHtml, speed: outlineSpeedHtml }[cur.key]();
         document.getElementById('outlineBody').innerHTML = html;
+        // Back (not on the first step) and Next - Save on the last step, which is off while something won't work
+        const last = outline.step === total - 1;
+        let blocked = false;
+        if (last) { const built = outlineBuild(); blocked = !!(built.clashes.length || built.errors.length); }
+        document.getElementById('outlineFoot').innerHTML = `${outline.step > 0 ? '<button type="button" class="btn-cancel btn-nav no-margin" data-outline="back">Back</button>' : ''}<button type="button" class="btn-submit no-margin" data-outline="${last ? 'save' : 'next'}"${blocked ? ' disabled' : ''}>${outlineNextLabel()}</button>`;
         if (cur.key === 'marks') outlineMarksRefresh();
         if (cur.key === 'time') outlineTimeRefresh();
         if (cur.key === 'speed') outlineSpeedRefresh();
@@ -19023,8 +19017,7 @@
                 ${outlineValueBtn('mainBpm', String(o.mainBpm), 'bpm')}
                 <button type="button" class="metroBlk-ctrl-value-btn w-full" data-outline="mainNote" aria-haspopup="dialog" aria-label="beat note: ${escapeHtml(outlineNoteLabel(o.mainNote))} - tap to change"><strong>${metroNoteIconSvg(outlineNoteKey(o.mainNote))}</strong><span class="metroBlk-ctrl-value-label">beat note</span></button>
             </div>
-            <p class="text-sm text-muted no-margin">The bars that are different come in steps 3 and 4.</p>
-            <button type="button" class="btn-submit" data-outline="next">Next: rehearsal marks</button>`;
+            <p class="text-sm text-muted no-margin">The bars that are different come in steps 3 and 4.</p>`;
     }
     function outlineHowLongRead() {
         const bars = Number(document.getElementById('outlineBars')?.value);
@@ -19071,8 +19064,7 @@
             ${outlineValueBtn('markKind', kind.label, 'the marks are')}
             ${inner}
             <p class="text-sm text-muted no-margin" id="outlineMarksCount" aria-live="polite"></p>
-            <div class="outline-chips" id="outlineMarksChips"></div>
-            <button type="button" class="btn-submit" data-outline="next">Next: time signatures</button>`;
+            <div class="outline-chips" id="outlineMarksChips"></div>`;
     }
     const outlineMarkRowHtml = (r, i) => `<div class="outline-row outline-row-marks">
         <input type="number" inputmode="numeric" data-mark-row="${i}" data-mark-col="bar" value="${escapeHtml(String(r.bar))}" placeholder="bar" aria-label="Row ${i + 1}: bar number" enterkeyhint="next">
@@ -19203,8 +19195,7 @@
             </div>
             <p class="text-sm text-muted no-margin">Fill in how many bars it lasts or the bar it ends on - the other fills itself in. After that the piece is back in ${main}. A single 2/4 bar is 1 bar.</p>
             <p class="text-sm text-muted no-margin" id="outlineTimeCheck" aria-live="polite"></p>
-            <p class="outline-sum no-margin" id="outlineTimeSum"></p>
-            <button type="button" class="btn-submit" data-outline="next">${outlineNextLabel()}</button>`;
+            <p class="outline-sum no-margin" id="outlineTimeSum"></p>`;
     }
     const outlineTimeRowHtml = (r, i) => `<div class="outline-row outline-row-time">
         <input type="number" inputmode="numeric" data-time-row="${i}" data-time-col="bar" value="${escapeHtml(String(r.bar))}" placeholder="bar" aria-label="Row ${i + 1}: from bar" enterkeyhint="next">
@@ -19265,8 +19256,7 @@
             </div>
             <p class="text-sm text-muted no-margin">The beat note stays the same as the row above unless you change it.</p>
             <p class="text-sm text-muted no-margin" id="outlineSpeedCheck" aria-live="polite"></p>
-            <p class="outline-sum no-margin" id="outlineSpeedSum"></p>
-            <button type="button" class="btn-submit" data-outline="next">${outlineNextLabel()}</button>`;
+            <p class="outline-sum no-margin" id="outlineSpeedSum"></p>`;
     }
     const outlineSpeedRowHtml = (r, i) => `<div class="outline-row outline-row-speed">
         <input type="number" inputmode="numeric" data-speed-row="${i}" data-speed-col="bar" value="${escapeHtml(String(r.bar))}" placeholder="bar" aria-label="Row ${i + 1}: from bar" enterkeyhint="next">
@@ -19382,24 +19372,17 @@
     // --- Extras and Media: one yes/no question a step. Yes lets you add as many as there are; No moves on. ---
     const outlineStepExtras = (step) => outline.o.extras.map((x, i) => ({ x, i })).filter(e => step.kinds.includes(e.x.type));
     const outlineStepCount = (step) => (step.kinds ? outlineStepExtras(step).length : outline.media[step.media].length);
-    // Anything already added answers the question; otherwise it's what was tapped (or nothing yet)
-    const outlineAnswerOf = (step) => (outlineStepCount(step) ? 'yes' : (outline.answers[step.key] || ''));
-    const outlineYesNo = (step) => {
-        const a = outlineAnswerOf(step);
-        return `<div class="radio-group" role="radiogroup" aria-labelledby="outlineQuestion">
-                <input type="radio" id="outlineAnswerYes" name="outlineAnswer" value="yes"${a === 'yes' ? ' checked' : ''}><label for="outlineAnswerYes">Yes</label>
-                <input type="radio" id="outlineAnswerNo" name="outlineAnswer" value="no"${a === 'no' ? ' checked' : ''}><label for="outlineAnswerNo">No</label>
-            </div>`;
-    };
+    // ML-448: no Yes / No on these steps (owner, 5 Oct 2026). The question stays as the heading; the answer is "no"
+    // until something is added, so Next just carries on - and the way to add one (the table, or "+ Add") is there
+    // straight away. What was added is taken out where it shows: its pop-up, its row, or by emptying a table row.
+    const OUTLINE_NONE_LINE = '<p class="text-sm text-muted no-margin">If not, go straight on.</p>';
     function outlineExtrasStepHtml(step) {
         if (step.table) {
             outlineRowsApply();
-            const yes = outlineAnswerOf(step) === 'yes' || OUTLINE_ROW_TABLES[step.table].started(outlineRowsOf(OUTLINE_ROW_TABLES[step.table])[0]);
             return `
-            ${outlineYesNo(step)}
-            ${yes ? outlineTableHtml(step.table) : ''}
-            <p class="outline-sum no-margin">${outlineSummaryText()}</p>
-            <button type="button" class="btn-submit" data-outline="next">${outlineNextLabel()}</button>`;
+            ${OUTLINE_NONE_LINE}
+            ${outlineTableHtml(step.table)}
+            <p class="outline-sum no-margin">${outlineSummaryText()}</p>`;
         }
         const built = outlineBuild();
         const mine = outlineStepExtras(step);
@@ -19412,20 +19395,17 @@
                 <span class="outline-extra-text"><strong>${escapeHtml(d.title)}</strong><span class="text-sm text-muted">${escapeHtml(d.sub)}</span>${clash ? `<span class="outline-extra-clash">${flowWarningIconSvg('flow-tile-warning-icon')}<span>${escapeHtml(clash.message)}</span></span>` : ''}</span>
                 <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span></button>`;
         }).join('');
-        const yes = outlineAnswerOf(step) === 'yes';
-        const canAdd = yes && !(step.one && mine.length);
+        const canAdd = !(step.one && mine.length);
         const blocked = mine.some(({ i }) => clashOf(i));
         return `
-            ${outlineYesNo(step)}
-            ${yes ? rows : ''}
+            ${mine.length ? '' : OUTLINE_NONE_LINE}
+            ${rows}
             ${canAdd ? `<button type="button" class="outline-add" data-outline="addExtra" aria-haspopup="dialog">+ ${mine.length ? step.addMore : step.add}</button>` : ''}
             ${blocked ? '<p class="text-sm text-danger no-margin" role="alert">Fix what is marked before going on.</p>' : ''}
-            <p class="outline-sum no-margin">${outlineSummaryText()}</p>
-            <button type="button" class="btn-submit" data-outline="next">${outlineNextLabel()}</button>`;
+            <p class="outline-sum no-margin">${outlineSummaryText()}</p>`;
     }
     function outlineMediaStepHtml(step) {
         const items = outline.media[step.media];
-        const yes = outlineAnswerOf(step) === 'yes';
         const sizeOf = (f) => (f.size ? `${(f.size / (1024 * 1024)).toFixed(1)} MB` : '');
         // A row is the button that takes it out again
         const rows = items.map((f, i) => {
@@ -19441,23 +19421,20 @@
                <button type="button" class="outline-add" data-outline="addVideo">+ Add the link</button>`
             : `<button type="button" class="outline-add" data-outline="pickFile">+ ${items.length ? step.addMore : step.add}</button>
                <p class="text-sm text-muted no-margin">Files are uploaded when you save the piece.</p>`;
-        const last = outline.step === OUTLINE_STEPS.length - 1;
         let end = '';
-        let blocked = false;
-        if (last) {
+        if (outline.step === OUTLINE_STEPS.length - 1) {
             const built = outlineBuild();
-            blocked = !!(built.clashes.length || built.errors.length);
+            const blocked = !!(built.clashes.length || built.errors.length);
             const other = built.clashes.length ? '' : built.errors.map(m => `<p class="outline-extra-clash">${flowWarningIconSvg('flow-tile-warning-icon')}<span>${escapeHtml(m)}</span></p>`).join('');
             end = `${other}<p class="outline-sum no-margin">${outlineSummaryText()}</p>
-                ${blocked ? '<p class="text-sm text-danger no-margin" role="alert">Something in Extras needs fixing before the piece can be saved. Tap Extras at the top to go back to it.</p>' : ''}`;
+                ${blocked ? '<p class="text-sm text-danger no-margin" role="alert">Something in Extras needs fixing before the piece can be saved. Use Back to go to it.</p>' : ''}`;
         }
         return `
-            ${outlineYesNo(step)}
-            ${yes ? rows + add : ''}
-            ${end}
-            <button type="button" class="btn-submit" data-outline="${last ? 'save' : 'next'}"${blocked ? ' disabled' : ''}>${outlineNextLabel()}</button>`;
+            ${items.length ? '' : OUTLINE_NONE_LINE}
+            ${rows + add}
+            ${end}`;
     }
-    // Yes opens the way to add one straight away; No moves on (after taking out anything added here)
+    // "+ Add": the pop-up for the one kind this step has (or the choice of kinds), or the file picker
     function outlineAddForStep(step) {
         if (step.table) { document.querySelector(`#${OUTLINE_ROW_TABLES[step.table].id} input`)?.focus(); return; }
         if (step.kinds) {
@@ -19468,26 +19445,6 @@
         } else {
             document.getElementById(step.media === 'audio' ? 'outlineAudioInput' : 'outlineDocsInput')?.click();
         }
-    }
-    function outlineAnswer(value) {
-        const step = OUTLINE_STEPS[outline.step];
-        const count = outlineStepCount(step);
-        const moveOn = () => { if (outline.step < OUTLINE_STEPS.length - 1) outlineGoStep(outline.step + 1); else renderOutline(); };
-        if (value === 'no' && count) {
-            showConfirmModal('Take them out?', `No takes out what you added here (${count}).`, () => {
-                if (step.table) outline[OUTLINE_ROW_TABLES[step.table].rows] = [OUTLINE_ROW_TABLES[step.table].blank()];
-                if (step.kinds) outline.o.extras = outline.o.extras.filter(x => !step.kinds.includes(x.type));
-                else outline.media[step.media] = [];
-                outline.answers[step.key] = 'no';
-                moveOn();
-            }, true, 'Take out');
-            renderOutline(); // Yes stays showing until that's confirmed
-            return;
-        }
-        outline.answers[step.key] = value;
-        if (value === 'no') { moveOn(); return; }
-        outlineRerenderKeeping('#outlineAnswerYes');
-        if (!count) outlineAddForStep(step);
     }
     function outlineAddVideo() {
         const url = (document.getElementById('outlineVideoUrl')?.value || '').trim();
@@ -19697,15 +19654,6 @@
         const t = e.target.closest('button');
         if (!t) return;
         const o = outline.o;
-        if (t.dataset.outlineStep !== undefined) {
-            const to = Number(t.dataset.outlineStep);
-            if (to === outline.step) return;
-            // On to a later step is checked like Next; back just keeps what's typed
-            if (to > outline.step) { outlineLeaveStepWhenReady().then(ok => { if (ok) outlineGoStep(to); }); return; }
-            if (outlineStepKey() === 'howLong') outlineHowLongKeep();
-            outlineGoStep(to);
-            return;
-        }
         if (t.dataset.timePick !== undefined) { outlineTimePick(Number(t.dataset.timePick)); return; }
         if (t.dataset.xkind !== undefined) {
             const row = outline.pauseRows[Number(t.dataset.xkind)];
@@ -19721,7 +19669,11 @@
             return;
         }
         const action = t.dataset.outline;
-        if (action === 'next') {
+        if (action === 'back') {
+            // Back just keeps what's typed - nothing is checked until you come forward again
+            if (outlineStepKey() === 'howLong') outlineHowLongKeep();
+            outlineGoStep(outline.step - 1);
+        } else if (action === 'next') {
             outlineLeaveStepWhenReady().then(ok => { if (ok) outlineGoStep(outline.step + 1); });
         } else if (action === 'restart') {
             showConfirmModal('Start again?', 'Everything typed for this piece so far is thrown away.', () => { const target = outline.target; outlineClose(); openPieceOutline(target); }, true, 'Start again');
@@ -19780,7 +19732,6 @@
     outlineView?.addEventListener('change', (e) => {
         if (!outline) return;
         if (e.target.name === 'outlineLeadIn') outline.o.leadIn = e.target.value === 'yes';
-        if (e.target.name === 'outlineAnswer') outlineAnswer(e.target.value);
     });
     // A table's last row filling in adds the next one (the rows already there are left alone, so typing isn't interrupted)
     function outlineGrowTable(rows, blank, rowHtml, tableId) {

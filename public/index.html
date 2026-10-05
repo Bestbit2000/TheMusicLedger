@@ -1536,15 +1536,17 @@
     <!-- ML-424: Quick piece entry - five steps drawn into #outlineBody by the QUICK PIECE ENTRY section of
          app.js (rules: public/pieceOutline.js, docs/quick-piece-entry.md, specs/components/piece-outline.md). -->
     <div id="pieceOutlineView" class="hidden-group">
-        <ol class="steps-progress" id="outlineSteps"></ol>
-        <!-- ML-428: where you are inside a stage ("Extras: 2 of 5") - above the question (owner, 4 Oct 2026) -->
-        <div class="step-dots hidden-group" id="outlineWhere">
-            <span class="text-sm text-muted" id="outlineWhereText"></span>
-            <!-- A dot a step: the big one is where you are; one you've been to takes you back to it -->
-            <ol class="step-dots-list" id="outlineDots"></ol>
-        </div>
+        <!-- ML-449: where you are - one bar, a piece a step, and one line ("Tempo · step 4 of 13") -->
+        <div class="step-bar" id="outlineBar" role="img"></div>
+        <p class="text-sm text-muted mb-3" id="outlineWhereText"></p>
         <h2 class="step-question" id="outlineQuestion"></h2>
         <div class="outline" id="outlineBody"></div>
+        <!-- ML-449: Back and Next, together at the bottom of the screen on every step (the edit screen's bar) -->
+        <div class="flow-edit-sticky-bar-wrap">
+            <div class="flow-edit-sticky-bar">
+                <div class="flow-edit-sticky-bar-actions step-foot" id="outlineFoot"></div>
+            </div>
+        </div>
         <!-- ML-428: the Media steps' file pickers. The files are held until Save, when the piece exists. -->
         <input type="file" id="outlineAudioInput" class="hidden-group" accept="audio/*,video/mp4" multiple>
         <input type="file" id="outlineDocsInput" class="hidden-group" accept=".pdf,.musicxml,.mxl,.sib,.musx,application/pdf" multiple>

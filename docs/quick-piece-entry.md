@@ -37,10 +37,17 @@ whole piece is made in Quick entry - it never opens the edit screen, so one piec
 | | `mVideo` | Is there a YouTube link to add? | `outline.media.video` (`{ url, title }`) |
 | | `mDocs` | Is there a score or part to add? (PDF, MusicXML, Sibelius, MuseScore) | `outline.media.docs` (File objects) |
 
-**The yes/no steps.** **No** moves straight on. **Yes** opens the way to add one at once (the extra's pop-up, the
-file picker, or the link boxes) and then offers "+ Add another". Anything already added counts as Yes; answering
-No after adding asks before taking them out. An extra that clashes is marked where it was added and stops Next;
-the last step's Save is off while anything anywhere clashes.
+**The question steps (ML-448).** Extras and Media ask one question a step ("Are there any repeats?") with **no
+Yes / No**: the answer is "no" until something is added, so Next just carries on, and the way to add one - the
+table, "+ Add ...", the file picker or the link boxes - is on the step from the start, then "+ Add another". What
+was added is taken out where it shows: an extra in its pop-up (Remove), a file or link by tapping its row, a table
+row by emptying it. An extra that clashes is marked where it was added and stops Next; the last step's Save is off
+while anything anywhere clashes.
+
+**Getting about (ML-449).** One bar at the top with a piece per step (`#outlineBar`, `.step-bar`) and one line
+("Tempo · step 4 of 13"); **Back** and **Next** side by side in a bar pinned to the bottom (`#outlineFoot`,
+drawn by `renderOutline` - Save on the last step, off while anything clashes). Back goes one step and checks
+nothing; Next checks the step (`outlineLeaveStep`). The stage labels and the dots that jumped between steps are gone.
 
 **Save** (the last Media step) does, in order: make the piece with its name, write the blocks (if that fails the
 piece is taken away again), save composer / arranger / publisher / notes, put it on the practice list it was

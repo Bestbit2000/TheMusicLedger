@@ -1,7 +1,7 @@
 # Quick piece entry (the outline)
 
 ## 1. Metadata
-- **Name:** Piece outline (`#pieceOutlineView`, `#outlineExtraModal`: `.step-dots`, `.step-dots-list`, `.step-dot` with `.is-now`, `.outline`, `.outline-pair`, `.outline-three`,
+- **Name:** Piece outline (`#pieceOutlineView`, `#outlineExtraModal`: `.step-bar`, `.step-bar-piece` with `.is-done` / `.is-now` / `.ends-stage`, `.step-foot`, `.outline`, `.outline-pair`, `.outline-three`,
   `.outline-field`, `.outline-field-label`, `.outline-th`, `.outline-list`, `.outline-chips`, `.outline-chip`,
   `.outline-table`, `.outline-row` with `.outline-row-marks` / `.outline-row-time` / `.outline-row-speed` / `.outline-row-repeat` / `.outline-row-pause`, `.outline-sig-cell`, `.outline-cell-fixed`,
   `.outline-cell-btn`, `.outline-sum`, `.outline-extra` with
@@ -21,13 +21,19 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
 `piece_quick_entry` is on for you.
 
 ## 3. Anatomy
-- **Every step:** `.steps-progress` (the five **stages**; a finished one is a `.steps-progress-back` button to its
-  first step) › in a stage with more than one step, `.step-dots` above the question: where you are in words
-  ("Extras: 4 of 5", `.text-sm.text-muted`) and `.step-dots-list`, a `.step-dot` per step of the stage - the big one
-  (`.is-now`) is this step, a small gold one is a step you've been to and takes you to it, a grey one (disabled)
-  hasn't been reached yet (owner, 4 Oct 2026) › `.step-question` › `.outline` (a column of rows, `--space-3` apart).
+- **Every step (ML-449):** `.step-bar` - one bar for the whole journey, a `.step-bar-piece` per step (13): gold
+  when done (`.is-done`, `--primary-action`), strong gold for the one you are on (`.is-now`,
+  `--primary-action-strong`), grey to come (`--input-border`); the last step of a stage has a wider gap after it
+  (`.ends-stage`). It is a picture (`role="img"`, named "Step 4 of 13: Tempo") › one line saying where you are,
+  the stage in bold: "**Tempo** · step 4 of 13" (`.text-sm.text-muted`) › `.step-question` › `.outline` (a column
+  of rows, `--space-3` apart) › pinned to the bottom of the screen, the edit screen's bar
+  (`.flow-edit-sticky-bar-wrap` › `.flow-edit-sticky-bar` › `.flow-edit-sticky-bar-actions.step-foot`): **Back**
+  (`.btn-cancel.btn-nav`, a third of the width; not on the first step) and **Next** (`.btn-submit`, the rest; "Save
+  the piece" on the last step). The steps themselves have no Next button. A toast sits above the bar
+  (`--toast-above-bottom-bar`). It replaced five labelled stage bars plus "Tempo: 1 of 2" and a row of dots
+  (owner, 5 Oct 2026: too busy) - getting about is Back and Next only.
 - **About:** `.form-group` × 5 (label over the box, as everywhere): name of the piece (required, `.flow-required`),
-  composer, arranger, publisher, notes (a `textarea`) › Next › "Start again" (`.btn-text`).
+  composer, arranger, publisher, notes (a `textarea`) › "Start again" (`.btn-text`).
 - **How long:** a number box (`.outline-field` › `input` + `.outline-field-label`) for the bars › a Yes / No pill
   pair (`.radio-group`) for the count-in › "Most of it is in..." › `.outline-three`: the time (a value box,
   `.metroBlk-ctrl-value-btn`, opening the shared time signature pop-up), the bpm (a value box too, with "bpm"
@@ -61,14 +67,15 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   that switches Pause / Break). Empty boxes take the usual answer (twice; beat 1; 2 beats). A new row appears as the
   last is typed in; a row that can't be used is named with its reason ("Row 2: Its bar isn't in the piece."). They
   replaced a pop-up per repeat or pause (about four taps each).
-- **The other Extras (intro, speeding up, signs - one question each):** a Yes / No pill pair (`.radio-group`, named by the question) › when
-  Yes: an `.outline-extra` per extra of that kind (icon › `.outline-extra-text`: what it is in words › chevron; tap
+- **The other Extras (intro, speeding up, signs - one question each; ML-448: no Yes / No - the answer is "no" until
+  something is added, so Next carries on):** "If not, go straight on." (`.text-sm.text-muted`, until one is added) ›
+  an `.outline-extra` per extra of that kind (icon › `.outline-extra-text`: what it is in words › chevron; tap
   to change or remove) › `.outline-add` "+ Add a repeat" / "+ Add another repeat" (repeats open `#flowChoiceModal`
-  to pick plain or with endings; the others open the form directly) › `.outline-sum` › Next. No moves straight on.
-- **Media (three steps, one question each):** the same Yes / No pair › when Yes: an `.outline-extra` per file or
+  to pick plain or with endings; the others open the form directly) › `.outline-sum`. The repeats and pauses tables are on their steps from the start too.
+- **Media (three steps, one question each, no Yes / No either):** an `.outline-extra` per file or
   link (icon › name over its size or address › a close icon; tapping the row takes it out) › `.outline-add`
   "+ Choose a recording" (opens the file picker) or, for YouTube, two `.form-group` boxes (the link, what to call
-  it) and `.outline-add` "+ Add the link" › on the last step `.outline-sum` › Save the piece. The form is `#outlineExtraModal`: number boxes in `.outline-three` /
+  it) and `.outline-add` "+ Add the link" › on the last step `.outline-sum` (Save the piece is the bottom bar's button). The form is `#outlineExtraModal`: number boxes in `.outline-three` /
   `.outline-pair`, pill pairs for the either/or answers, a line in plain words, Add it, Remove this extra.
 
 ## 4. Tokens used

@@ -850,6 +850,8 @@
        closeToast removes it) reveals one. bottom is the toast's one resting position, not an
        animated-in state. */
     .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); color: var(--text-on-inverse); padding: var(--space-3) var(--space-5); border-radius: var(--radius-sm); display: none; align-items: center; gap: var(--space-4); z-index: var(--z-toast); font-size: var(--font-base); white-space: pre-line; overflow: hidden; }
+    /* ML-449: on a screen with a bar pinned to the bottom, a toast sits above the bar, not on its buttons */
+    body:has(#pieceOutlineView:not(.hidden-group)) .toast, body:has(#flowDetailsHubView:not(.hidden-group)) .toast { bottom: var(--toast-above-bottom-bar); }
     .toast.show { display: flex; }
     .toast.success { background-color: var(--surface-inverse); }
     .toast.warning { background-color: var(--warning-color); color: var(--text-on-warning); font-weight: var(--font-weight-bold); }
@@ -2707,16 +2709,17 @@
     .steps-progress-step::before { content: ""; display: block; height: var(--space-1); border-radius: var(--radius-pill); background: var(--input-border); }
     .steps-progress-step.is-done::before, .steps-progress-step.is-now::before { background: var(--primary-action); }
     .steps-progress-step.is-now { color: var(--text-color); }
-    /* ML-428: the steps inside a stage, as dots after "Extras: 4 of 5". The big dot is this step; a step you've been
-       to is a button back to it (a full touch target round a small dot); one not reached yet is grey. */
-    .step-dots { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-    .step-dots-list { display: flex; align-items: center; list-style: none; margin: 0; padding: 0; }
-    .step-dot { display: grid; place-items: center; width: var(--touch-target); height: var(--touch-target); padding: 0; border: 0; background: none; cursor: pointer; }
-    .step-dot::before { content: ""; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-pill); background: var(--primary-action-strong); }
-    .step-dot.is-now { cursor: default; }
-    .step-dot.is-now::before { width: var(--space-5); height: var(--space-5); }
-    .step-dot:disabled { cursor: default; }
-    .step-dot:disabled::before { background: var(--control-border); }
+    /* ML-449: a journey of many steps (Quick entry's 13) as one bar - a piece a step, gold when done, strong gold
+       for the one you are on, a wider gap where a stage ends - with Back and Next in a bar at the bottom of the
+       screen (.step-foot on the edit screen's sticky bar: Back takes a third, Next the rest). */
+    .step-bar { display: flex; gap: var(--space-0-5); margin: 0 0 var(--space-2); }
+    .step-bar-piece { flex: 1; height: var(--space-2); border-radius: var(--radius-pill); background: var(--input-border); }
+    .step-bar-piece.is-done { background: var(--primary-action); }
+    .step-bar-piece.is-now { background: var(--primary-action-strong); }
+    .step-bar-piece.ends-stage { margin-right: var(--space-1); }
+    .step-foot .btn-cancel { flex: 1; }
+    .step-foot .btn-submit { flex: 2; }
+    #pieceOutlineView { padding-bottom: var(--bottom-bar-clearance-lg); }
     /* ML-420: a step already done is a button back to it. It looks like the other steps, in the link colour (the
        gold of its bar) - with a tick for done; no chevron or underline, which read as a stray link (owner, 4 Oct 2026); the underline
        comes on hover and keyboard focus. Its tap area is the shared 44px one (A6). Steps to come are never buttons. */
