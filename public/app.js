@@ -1806,7 +1806,7 @@
                 theoryStopRound();
                 if (isBack) viewStack.pop();
                 switchView(viewName, isBack);
-            }, true, 'Stop round', 'Keep going');
+            }, false, 'Stop round', 'Keep going'); // (nothing is deleted - the ordinary button, not the red one)
             return;
         }
         // Coming back to Play or Results with nothing to show (e.g. Back from another tool) lands on
@@ -2076,8 +2076,8 @@
     }
 
     window.goBack = function() {
-        // ML-424: quick piece entry's steps are one screen - Back goes back a step before it leaves
-        if (viewStack[viewStack.length - 1] === 'pieceOutlineView' && outline && outline.step > 0) { outlineGoStep(outline.step - 1); return; }
+        // Quick entry's < leaves it from any step (owner, 5 Oct 2026): the Back button at the bottom is the step back.
+        // What was typed is kept - coming back asks whether to carry on with it (openPieceOutline).
         if (viewStack.length > 1) {
             viewStack.pop();
             switchView(viewStack[viewStack.length - 1], true);
@@ -6196,7 +6196,7 @@
             showConfirmModal('Cancel invite', 'Cancel this invite? The link in their email stops working.', async () => {
                 try { const res = await apiCall(`/api/invites/${b.dataset.cancelInvite}`, 'DELETE'); inviteData.invites = res.invites; renderInvite(); showSuccessToast('Invite cancelled.'); }
                 catch (e) { showWarningToast('Not cancelled: ' + e.message); }
-            }, true, 'Cancel invite', 'Keep it');
+            }, false, 'Cancel invite', 'Keep it');
         }));
     }
     // A fresh visit starts with an empty form; coming Back keeps what was typed.
@@ -18922,8 +18922,24 @@
     const outlineNoteIcon = (key) => `<span role="img" aria-label="${escapeHtml(outlineNoteLabel(key))}">${metroNoteIconSvg(outlineNoteKey(key))}</span>`;
     const outlineStepKey = () => OUTLINE_STEPS[outline.step].key;
 
-    async function openPieceOutline(target) {
+    // Leaving Quick entry (the < at the top, the menu) keeps what was typed. Coming back to it asks which you
+    // want - carry on with that piece, or start a new one (which throws it away). That question is the only way a
+    // piece is thrown away: there is no Cancel or "Start again" on the steps (owner, 5 Oct 2026 - one more thing on
+    // every page, next to a < that already leaves). `answered`: the question has just been answered.
+    async function openPieceOutline(target, answered) {
         if (!metroBlkTimeSigCache.public.length) { try { await loadMetroBlkTimeSignatures(); } catch (e) { /* the pickers say so */ } }
+        if (outline && outline.step === 0 && !Object.values(outline.about).some(v => String(v).trim())) outlineClose(); // nothing typed: nothing to ask about
+        if (outline && !answered) {
+            const name = outline.about.title.trim() || 'the piece you started';
+            openFlowChoiceModal('You started a piece earlier', [
+                { key: 'carry', html: addPieceRow(`Carry on with "${name}"`, 'Everything you typed is still there') },
+                { key: 'new', html: addPieceRow('Start a new piece', `"${name}" is thrown away`) }
+            ], (opt) => {
+                if (opt.key === 'new') outlineClose();
+                openPieceOutline(target, true);
+            });
+            return;
+        }
         if (!outline) {
             const common = metroBlkTimeSigCache.public.find(t => t.numerator === 4 && t.denominator === 4) || metroBlkTimeSigCache.public[0];
             outline = {
@@ -18939,7 +18955,6 @@
             outline.stats.steps[0].visits = 1;
         } else {
             outline.target = target;
-            showSuccessToast('Carried on with the piece you started. Cancel throws it away.');
         }
         if (viewStack[viewStack.length - 1] === 'addPieceView') viewStack.pop();
         switchView('pieceOutlineView');
@@ -19001,8 +19016,7 @@
         document.getElementById('outlineQuestion').textContent = cur.question();
         const html = cur.kinds ? outlineExtrasStepHtml(cur) : cur.media ? outlineMediaStepHtml(cur)
             : { about: outlineAboutHtml, howLong: outlineHowLongHtml, marks: outlineMarksHtml, time: outlineTimeHtml, speed: outlineSpeedHtml }[cur.key]();
-        // Cancel is under every step (ML-449; it replaced "Start again", which was only on the first)
-        document.getElementById('outlineBody').innerHTML = `${html}<button type="button" class="btn-text" data-outline="cancel">Cancel</button>`;
+        document.getElementById('outlineBody').innerHTML = html;
         // Back (not on the first step) and Next - Save on the last step, which is off while something won't work
         const last = outline.step === total - 1;
         let blocked = false;
@@ -19779,15 +19793,6 @@
             outlineGoStep(outline.step - 1);
         } else if (action === 'next') {
             outlineLeaveStepWhenReady().then(ok => { if (ok) outlineGoStep(outline.step + 1); });
-        } else if (action === 'cancel') {
-            // Throws the piece away and goes back to where Add a piece was opened from. Nothing typed yet: no "sure?"
-            const leave = () => {
-                outlineClose();
-                while (['pieceOutlineView', 'addPieceView'].includes(viewStack[viewStack.length - 1])) viewStack.pop();
-                switchView(viewStack[viewStack.length - 1] || 'mainView', true);
-            };
-            if (outline.step === 0 && !Object.values(outline.about).some(v => String(v).trim())) leave();
-            else showConfirmModal('Cancel this piece?', 'Everything typed for this piece so far is thrown away.', leave, true, 'Throw it away', 'Keep going');
         } else if (action === 'mainSig') {
             outlineHowLongKeep();
             outlinePickSig(o.mainSig, (value) => { o.mainSig = value; renderOutline(); });
@@ -19860,6 +19865,7 @@
         if (!outline) return;
         const t = e.target;
         if (t.dataset.about) { outline.about[t.dataset.about] = t.value; return; }
+        if (t.id === 'outlineBars') { outlineHowLongKeep(); return; } // kept as typed, so leaving and coming back doesn't lose it
         if (t.id === 'outlineMarksText') { outline.marksText = t.value; outlineMarksRefresh(); return; }
         if (t.id === 'outlineIntroFrom' || t.id === 'outlineIntroTo') { outlineIntro()[t.id === 'outlineIntroFrom' ? 'from' : 'to'] = t.value; outlineIntroRefresh(); return; }
         if (t.dataset.markRow !== undefined) {
@@ -19921,7 +19927,7 @@
         } else {
             // a Yes / No pair is one stop: the answer that is picked (or its first), and never the pair you are in
             const group = (el) => [...outlineView.querySelectorAll(`#outlineBody input[type="radio"][name="${el.name}"]`)];
-            stops = [...outlineView.querySelectorAll('#outlineBody input:not([type="file"]), #outlineBody textarea, #outlineBody button:not([disabled]):not([data-outline="cancel"])')]
+            stops = [...outlineView.querySelectorAll('#outlineBody input:not([type="file"]), #outlineBody textarea, #outlineBody button:not([disabled])')]
                 .filter(el => el === t || el.type !== 'radio' || (el.name !== t.name && el === (group(el).find(r => r.checked) || group(el)[0])));
         }
         e.preventDefault();

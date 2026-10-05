@@ -30,7 +30,10 @@ Full-width, text-labelled buttons. The app has **three levels** and one corner r
 ## 5. Props / API
 - **Inline (content-width) buttons (ML-288):** `.btn-inline` (a Save/Join beside an input), `.btn-inline-sm` (the tighter row of challenge actions, no stacked-button margin), `.btn-inline-xs` (an Archive button inside a list row). Each is `width: auto` with its own padding.
 - `.btn-icon-delete.centered-action` centres the round delete button under the content above it (the teacher/organisation pop-up).
-- `.btn-submit.is-danger` is the red action button in a destructive confirm pop-up (`showConfirmModal(..., isDanger)` toggles it).
+- `.btn-submit.is-danger` is the action button of a confirm pop-up that **deletes something for good**: outlined, not filled -
+  `--container-bg` fill, `--danger-text` words and 2px border (5.6:1 in light mode). A "sure?" that deletes nothing
+  (Stop round, Cancel invite, Leave band, Archive) passes `isDanger` false and gets the ordinary gold button. It was a
+  filled red button for every confirm (owner, 5 Oct 2026: too severe).
 - Full width by default. Put side-by-side pairs in `.flex-row.gap-md` (`--space-3` gap).
 - `.flow-action-btn` is **not** one of these levels. It's the Flow editor's own icon + label action tile (see [flow-editor](flow-editor.md)). Never mix it into a Cancel/Save pair.
 - Cancel + Save pair: `<button class="btn-nav btn-cancel">Cancel</button><button class="btn-submit">Save</button>`.

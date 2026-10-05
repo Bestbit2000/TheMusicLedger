@@ -31,8 +31,8 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   (`.btn-cancel.btn-nav`, a third of the width; not on the first step) and **Next** (`.btn-submit`, the rest; "Save
   the piece" on the last step). The steps themselves have no Next button. A toast sits above the bar
   (`--toast-above-bottom-bar`). It replaced five labelled stage bars plus "Tempo: 1 of 2" and a row of dots
-  (owner, 5 Oct 2026: too busy) - getting about is Back and Next only. Under every step: **Cancel** (`.btn-text`) - it asks first, throws the piece away and
-  goes back to where Add a piece was opened from (it replaced "Start again", which was only on the first step).
+  (owner, 5 Oct 2026: too busy) - getting about is Back and Next only. There is no Cancel or "Start again" on the steps: leaving keeps the piece, and
+  opening Quick entry again asks (`#flowChoiceModal`) whether to carry on with it or start a new one.
 - **About:** `.form-group` × 5 (label over the box, as everywhere): name of the piece (required, `.flow-required`),
   composer, arranger, publisher, notes (a `textarea`).
 - **How long:** a number box (`.outline-field` › `input` + `.outline-field-label`) for the bars › the count-in as a switch

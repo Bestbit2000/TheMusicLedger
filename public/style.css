@@ -241,7 +241,10 @@
     .btn-submit { background: var(--primary-action); color: var(--primary-action-text); }
     .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-nav { background: var(--nav-action); color: var(--nav-action-text); }
-    .btn-submit.is-danger { background: var(--danger-color); } /* the confirm pop-up's action button for a destructive action */
+    /* The confirm pop-up's action button when something is deleted for good: outlined in red, not a red slab
+       (owner, 5 Oct 2026 - the filled red was more severe than the job needs). A "sure?" that deletes nothing
+       (Stop round, Cancel invite) is the ordinary gold button - showConfirmModal's isDanger false. */
+    .btn-submit.is-danger { background: var(--container-bg); color: var(--danger-text); border: 2px solid var(--danger-text); }
     /* Design system: three button levels, one corner radius.
        1. Primary (.btn-submit/.btn-large) - filled, var(--primary-action).
        2. Secondary/cancel (.btn-cancel, paired with .btn-nav for sizing) - hollow, same border

@@ -45,8 +45,10 @@ while anything anywhere clashes.
 **Getting about (ML-449).** One bar at the top with a piece per step (`#outlineBar`, `.step-bar`) and one line
 ("Tempo · step 4 of 11"); **Back** and **Next** side by side in a bar pinned to the bottom (`#outlineFoot`,
 drawn by `renderOutline` - Save on the last step, off while anything clashes). Back goes one step and checks
-nothing; Next checks the step (`outlineLeaveStep`). **Cancel**, under every step, asks and then throws the piece away
-and leaves (leaving any other way keeps it, to be carried on with next time). The stage labels and the dots that jumped between steps are gone.
+nothing; Next checks the step (`outlineLeaveStep`). The **< at the top leaves Quick entry from any step** (it used to step back - that is the Back button now). Leaving,
+that way or by the menu, keeps the piece; opening Quick
+entry again asks whether to **carry on with it or start a new one** (`openPieceOutline`) - the only way a piece is
+thrown away. There is no Cancel or "Start again" on the steps. The stage labels and the dots that jumped between steps are gone.
 
 **Save** (the last Media step) does, in order: make the piece with its name, write the blocks (if that fails the
 piece is taken away again), save composer / arranger / publisher / notes, put it on the practice list it was
@@ -141,7 +143,7 @@ seconds or taps is the next thing to speed up. After saving, the toast says how 
   M4A, WAV, MP4 - what the upload accepts), YouTube links (its two boxes show when "+ Add a YouTube link" is tapped,
   `outline.videoOpen`), Scores and parts - each with its rows and one "+" button (`OUTLINE_MEDIA`). Nothing has to be
   touched to save. It was three steps with a question each.
-- **Later the same day (owner's review):** "Start again" became **Cancel** under every step; the time table's fixed
+- **Later the same day (owner's review):** "Start again" went (see Getting about); the time table's fixed
   row says "Rest of it" and its empty box "e.g. 3/4"; a speed row's beat note button shows the note it will play at
   (never "same"); a repeat's **last ending** fills itself in as the bar after the repeat (columns: 1st ending, Last
   ending); the **intro** is a switch with its two boxes on the step (no pop-up); the repeats and pauses boxes carry a
