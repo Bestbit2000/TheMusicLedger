@@ -248,6 +248,7 @@
             update: (id, data) => apiCall(`/api/flows/${id}`, 'PUT', data),
             moveToBand: (id, bandId) => apiCall(`/api/flows/${id}/move-to-band`, 'PUT', { bandId }),
             removeFromBand: (id) => apiCall(`/api/flows/${id}/remove-from-band`, 'PUT'),
+            setAudience: (id, to, bandId) => apiCall(`/api/flows/${id}/audience`, 'PUT', { to, bandId }), // ML-441
             publish: (id) => apiCall(`/api/flows/${id}/publish`, 'PUT'),
             unpublish: (id) => apiCall(`/api/flows/${id}/unpublish`, 'PUT'),
             delete: (id) => apiCall(`/api/flows/${id}`, 'DELETE'),
@@ -9761,36 +9762,66 @@
         renderFlowDocumentsList();
         updateFlowEditTabCounts();
         renderFlowVisibility();
+        loadFlowAudienceBands();
     }
 
-    // ML-310: the Visibility card. Public pieces are in everyone's library and Rehearse (view, play,
-    // copy); only a super admin can publish or unpublish - unpublishing makes it their own private piece.
+    // ML-441 (was ML-310's Visibility card): who the piece is for - just me, one of my bands, or everyone - as
+    // one value box that opens the choice pop-up, the same as Add a piece asks it. It changes there and then
+    // (after a "sure?"), in one step whichever way it goes. Who may change it: whoever may delete the piece
+    // (f.canDelete - its owner, the person who added it to the band, a super admin for a public piece); only a
+    // super admin is offered Everyone. Anyone else reads it as a line of text.
+    let flowAudienceBands = [];
+    const flowAudienceBandName = (id) => { const b = flowAudienceBands.find(x => Number(x.id) === Number(id)); return b ? (b.displayName || b.name) : 'A band'; };
+    const flowAudienceIs = (f) => (f.isPublic ? 'public' : f.ownerBandId ? `band:${f.ownerBandId}` : 'me');
+    function flowAudienceChoices() {
+        return [{ key: 'me', to: 'me', title: 'Just me', sub: 'Only you see it' },
+            ...flowAudienceBands.map(b => ({ key: `band:${Number(b.id)}`, to: 'band', bandId: Number(b.id), title: b.displayName || b.name, sub: 'Shared with the band' })),
+            ...(currentAccountIsSuperAdmin ? [{ key: 'public', to: 'public', title: 'Everyone', sub: 'Public - everyone can play it and copy it' }] : [])];
+    }
     function renderFlowVisibility() {
         const f = currentFlowDetail;
         if (!f) return;
-        document.getElementById('flowVisibilityText').innerText = f.isPublic ? 'Public - everyone can play it and copy it'
-            : f.ownerBandId ? 'Band - everyone in the band' : 'Private - just me';
-        setShown('flowVisibilityToggleBtn', currentAccountIsSuperAdmin && !f.ownerBandId && flowEditMode === 'edit');
-        document.getElementById('flowVisibilityToggleLabel').innerText = f.isPublic ? 'Make private' : 'Make public';
+        const now = f.isPublic ? 'Everyone' : f.ownerBandId ? flowAudienceBandName(f.ownerBandId) : 'Just me';
+        const canChange = !!f.canDelete && flowEditMode === 'edit' && (flowAudienceBands.length > 0 || currentAccountIsSuperAdmin || flowAudienceIs(f) !== 'me');
+        setShown('flowAudienceBtn', canChange);
+        setShown('flowVisibilityText', !canChange);
+        document.getElementById('flowAudienceValue').innerText = now;
+        document.getElementById('flowAudienceBtn').setAttribute('aria-label', `Who it's for: ${now} - tap to change`);
+        document.getElementById('flowVisibilityText').innerText = now;
+        document.getElementById('flowAudienceNote').innerText = f.isPublic ? 'Public - everyone can play it and copy it.'
+            : f.ownerBandId ? (f.canDelete ? 'Everyone in the band can play it and change it.' : 'Everyone in the band can play it and change it. Only the person who added it to the band can change who it\'s for.')
+                : 'Only you see it.';
     }
-    document.getElementById('flowVisibilityToggleBtn')?.addEventListener('click', () => {
+    // The bands you are in, for the box's name and the pop-up - asked for once a visit to the screen
+    async function loadFlowAudienceBands() {
+        try { flowAudienceBands = (await API.account.getBands()).myBands || []; } catch (e) { /* the box still works with the bands it had */ }
+        renderFlowVisibility();
+    }
+    document.getElementById('flowAudienceBtn')?.addEventListener('click', () => {
         const f = currentFlowDetail;
         if (!f) return;
-        const makePublic = !f.isPublic;
-        showConfirmModal(makePublic ? 'Make public' : 'Make private', makePublic
-            ? 'Make "' + f.title + '" public? Everyone will see it in their library and Rehearse, and can copy it.'
-            : 'Make "' + f.title + '" private? It leaves everyone\'s library and becomes your own piece.', async () => {
-            try {
-                const updated = await (makePublic ? API.flows.publish(f.id) : API.flows.unpublish(f.id));
-                // Only the ownership fields - the rest of currentFlowDetail may hold unsaved edits.
-                currentFlowDetail = { ...currentFlowDetail, isPublic: updated.isPublic, ownerBandId: updated.ownerBandId, ownerAccountId: updated.ownerAccountId, canEdit: updated.canEdit };
-                renderFlowVisibility();
-                rehearseRefresh();
-                showSuccessToast(makePublic ? 'Now public' : 'Now private');
-            } catch (error) {
-                showWarningToast('Error changing visibility: ' + error.message);
-            }
-        }, false, makePublic ? 'Make public' : 'Make private');
+        const current = flowAudienceIs(f);
+        const choices = flowAudienceChoices();
+        openFlowChoiceModal('Who is it for?', choices.map(c => ({ ...c, html: addPieceRow(c.title, c.sub), selected: c.key === current })), (c) => {
+            if (c.key === current) return;
+            const name = '"' + f.title + '"';
+            const was = f.ownerBandId && !f.isPublic ? flowAudienceBandName(f.ownerBandId) : null;
+            const ask = c.to === 'public' ? [`Make ${name} public?`, 'Everyone will see it in their library and Rehearse, and can copy it.', 'Make public']
+                : c.to === 'band' ? [`Give ${name} to ${c.title}?`, `Everyone in the band can play it and change it. Only you can take it out again.${was ? ` ${was} won't see it any more.` : ''}`, 'Give to the band']
+                    : [`Make ${name} just yours?`, f.isPublic ? 'It leaves everyone\'s library and becomes your own piece.' : `${was || 'The band'} won't see it any more.`, 'Just me'];
+            showConfirmModal(ask[0], ask[1], async () => {
+                try {
+                    const updated = await API.flows.setAudience(f.id, c.to, c.bandId);
+                    // Only the ownership fields - the rest of currentFlowDetail may hold unsaved edits.
+                    currentFlowDetail = { ...currentFlowDetail, isPublic: updated.isPublic, ownerBandId: updated.ownerBandId, ownerAccountId: updated.ownerAccountId, canEdit: updated.canEdit, canDelete: updated.canDelete };
+                    renderFlowVisibility();
+                    rehearseRefresh();
+                    showSuccessToast(c.to === 'public' ? 'Now public' : c.to === 'band' ? `Now for ${c.title}` : 'Now just yours');
+                } catch (error) {
+                    showWarningToast('Not changed: ' + error.message);
+                }
+            }, false, ask[2]);
+        });
     });
 
     // On-blur save (no separate Save button for this card in Create mode - see the plan's own note

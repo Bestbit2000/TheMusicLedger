@@ -140,6 +140,14 @@ by editing ownership columns directly. Unpublishing (or removing from a band)
 always lands on personal, owned by whoever performed the action; there's no
 stored "previous owner" to revert to instead.
 
+**"Who it's for" (ML-441)**: the piece's edit screen has one button - Just me / a band you're in / Everyone -
+that calls `setFlowAudience` (`PUT /api/flows/:id/audience`, body `{ to: 'me' | 'band' | 'public', bandId }`),
+which makes any of those moves in **one step**, band to band included. Who may: whoever may delete the piece
+(`canDeleteFlow` - a personal piece's owner, **the person who added a band piece**, a super admin), because moving
+a piece takes it away from the people who had it; Everyone is still a super admin's. Moving into a band makes the
+mover the one who added it. The button is only there when `canDelete` is true - everyone else reads a line of
+text. Tested against the dev database by `server/test/flowAudience.test.js`.
+
 **Public library (ML-310)**: two access checks in `flows.js`. `assertFlowReadAccess`
 (details, blocks, copy) lets **anyone** open a public piece, to view, play (Rehearse
 lists public pieces) or "Copy to my library" (`duplicateFlow`: details and bars, not
@@ -147,7 +155,7 @@ recordings or documents; always lands personal). `assertFlowAccess` (every chang
 uploads, publish, move, delete, MusicXML export) is unchanged: owner, band member, or
 any super admin for a public piece. Both list and detail DTOs carry `canEdit` so the
 client hides Edit where the server would refuse it. Only super admins publish or
-unpublish, from the piece's Visibility card or Admin → Flows (Public library filter,
+unpublish, from the piece's "Who it's for" button (ML-441) or Admin → Flows (Public library filter,
 View / Edit links = `/?flow=<id>&flowMode=play|edit`).
 
 Notes on fields that took a few passes to nail down:

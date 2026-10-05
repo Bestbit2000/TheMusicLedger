@@ -29,7 +29,7 @@ import { handleUpload } from '@vercel/blob/client';
 import { put } from '@vercel/blob';
 import { listInstruments, listAccountInstruments, setAccountInstruments, resolveSessionInstrument } from '../services/instruments.js';
 import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../services/range.js';
-import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
+import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
 import { importScoreFromFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/scoreImport.js';
 import { isFeatureEnabled, listEnabledFeatureKeys, getLimit, listLimits } from '../services/features.js';
@@ -1453,6 +1453,15 @@ router.put('/flows/:id/move-to-band', requireAuth, resolveAccount, async (req, r
 router.put('/flows/:id/remove-from-band', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await removeFlowFromBand(req.accountId, req.params.id));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-441: who the piece is for, in one step - body { to: 'me' | 'band' | 'public', bandId }
+router.put('/flows/:id/audience', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await setFlowAudience(req.accountId, req.params.id, req.body?.to, req.body?.bandId));
   } catch (error) {
     sendError(res, error);
   }

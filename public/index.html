@@ -1680,14 +1680,16 @@
                 </div>
             </section>
 
-            <!-- ML-310: reads the piece's real state; only a super admin gets the Make public /
-                 Make private button (renderFlowVisibility, app.js). Move to a band isn't on this card yet. -->
+            <!-- ML-441: who the piece is for - one value box showing the answer (Just me / the band / Everyone)
+                 that opens the choice pop-up (renderFlowVisibility, app.js). When it isn't yours to change the
+                 box is not there and the line says so. Only a super admin is offered Everyone (ML-310). -->
             <section class="flow-card">
                 <div class="flow-card-header">
-                    <span class="flow-card-label">Visibility</span>
+                    <span class="flow-card-label">Who it's for</span>
                 </div>
-                <p class="flow-visibility-value" id="flowVisibilityText">Private - just me</p>
-                <button type="button" class="flow-action-btn flow-action-btn-wide mt-4 hidden-group" id="flowVisibilityToggleBtn"><span class="material-symbols-outlined" aria-hidden="true">public</span> <span id="flowVisibilityToggleLabel">Make public</span></button>
+                <button type="button" class="metroBlk-ctrl-value-btn w-full hidden-group" id="flowAudienceBtn" aria-haspopup="dialog"><strong id="flowAudienceValue">Just me</strong><span class="metroBlk-ctrl-value-label">who it's for</span></button>
+                <p class="flow-visibility-value" id="flowVisibilityText">Just me</p>
+                <p class="text-sm text-muted no-margin mt-2" id="flowAudienceNote"></p>
             </section>
         </div>
 

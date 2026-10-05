@@ -308,6 +308,37 @@ export async function removeFlowFromBand(accountId, scoreId) {
   return getFlowDetail(accountId, scoreId);
 }
 
+// ML-441: "Who it's for" on the piece's edit screen - just me, one of my bands, or everyone - changed in
+// one step whichever way it goes (band to band included). Who may: whoever may delete it (flowPermissions.js -
+// a personal piece's owner, the person who added a band piece, a super admin for a public one), since moving
+// a piece takes it away from the people who had it. Making it public stays a super admin's.
+//   me     - yours alone
+//   band   - a band you are in; you become the one who added it (so the one who can take it out again)
+//   public - in everyone's library; held by the super admin who published it
+export async function setFlowAudience(accountId, scoreId, to, bandId) {
+  const score = await assertFlowAccess(accountId, scoreId);
+  const superAdmin = await isSuperAdmin(accountId);
+  if (!canDeleteFlow(score, accountId, superAdmin)) {
+    throw withStatus(403, score.owner_band_id !== null && !score.is_public
+      ? 'Only the person who added this piece to the band can change who it is for.'
+      : 'You can\'t change who this piece is for.');
+  }
+  if (to === 'public') {
+    if (!superAdmin) throw withStatus(403, 'Only a super admin can make a piece public.');
+    await pool.query('UPDATE scores SET owner_account_id = $1, owner_band_id = NULL, added_by_account_id = NULL, is_public = true WHERE id = $2', [accountId, scoreId]);
+  } else if (to === 'band') {
+    const band = Number(bandId);
+    if (!Number.isInteger(band) || band < 1) throw withStatus(400, 'Choose the band.');
+    await assertBandMembership(accountId, band);
+    await pool.query('UPDATE scores SET owner_band_id = $1, owner_account_id = NULL, added_by_account_id = $2, is_public = false WHERE id = $3', [band, accountId, scoreId]);
+  } else if (to === 'me') {
+    await pool.query('UPDATE scores SET owner_account_id = $1, owner_band_id = NULL, added_by_account_id = NULL, is_public = false WHERE id = $2', [accountId, scoreId]);
+  } else {
+    throw withStatus(400, 'Choose who the piece is for.');
+  }
+  return getFlowDetail(accountId, scoreId);
+}
+
 export async function publishFlow(accountId, scoreId) {
   if (!(await isSuperAdmin(accountId))) throw withStatus(403, 'Only a super admin can publish a flow.');
   await assertFlowAccess(accountId, scoreId);
