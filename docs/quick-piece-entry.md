@@ -24,14 +24,13 @@ whole piece is made in Quick entry - it never opens the edit screen, so one piec
 | Stage | Step | Asks | Kept as |
 |---|---|---|---|
 | About | `about` | Name (**required**), composer, arranger, publisher, notes | `outline.about` |
-| Structure | `howLong` | Bars, a count-in bar (yes/no), the time signature, bpm and beat note most of it is in | `bars`, `leadIn`, `mainSig`, `mainBpm`, `mainNote` |
+| Structure | `howLong` | Bars, and a count-in bar (a switch, off to start with) | `bars`, `leadIn` |
 | | `marks` | Bar numbers (a typed list - spaces, commas, semicolons, full stops all separate; each mark is named after its bar), letters or words (a table: bar, mark), or none | `markKind`, `marks: [{ bar, label }]` |
-| Tempo (was "Time and speed") | `time` | A table: from bar, the time signature (typed like `3/4`, or picked from the usual pop-up), then how long it lasts, asked two ways: **bars** and **to bar** - each fills in the other, and one of them is needed (ML-442; a row no longer "carries on to the next change"). After a row the piece is back in the main time until the next row; where rows overlap the later one wins (one 2/4 bar is one row). A typed time signature the app doesn't have is **added to the player's own list quietly** (ML-440: `outlineSigAdd`, 1-32 over 2/4/8/16 - the server checks the same); what can't be used is said per row and its box is marked (`aria-invalid`). ML-425 - it replaced tapping every bar | `outline.timeRows` → `time: { bar: sig }` (`outlineTimeApply`) |
-| | `speed` | A table: from bar, bpm, beat note. A row's beat note carries on from the row above unless set. A row for bar 1 sets the starting speed (`mainBpm`) instead of being a change; a wholly blank row is ignored; a row that can't be used is named ("Row 3") | `speeds: [...]` |
+| Tempo | `tempo` | **Time and speed, one step** (owner, 5 Oct 2026; it was two): "Most of it is in" - three tiles, time signature, bpm and beat note (`mainSig`, `mainBpm`, `mainNote`) - then two tables kept apart: **where the time signature switches** (from bar, the time typed like `3/4` or picked, bars / to bar - each fills in the other; a typed time signature the app doesn't have is added to the player's own; ML-425, ML-440, ML-442) and **where the speed switches** (from bar, bpm, beat note; a bar 1 row sets the starting speed). A switch is sudden, at a bar | `outline.timeRows` → `time: { bar: sig }` (`outlineTimeApply`), `speeds: [...]` |
 | Extras | `xIntro` | Is there an intro? A **switch** (off to start with); on, its two boxes are on the step - from bar, to bar (empty = to the end). No pop-up: there is only ever one (owner, 5 Oct 2026) | `outline.intro { on, from, to }` → `extras` (`outlineIntroApply`) |
 | | `xRepeats` | Are there any repeats? Yes: **a table** (ML-435) - from bar, to bar, times (2 if empty), and for 1st and 2nd time bars the bar the 1st ending starts at (the **last ending** fills itself in as the bar after the repeat - `sync` - and can be changed; played 3 or more times, the 1st ending is for every time but the last), i.e. the bar the 1st ending starts at and the bar the 2nd ending ends at | `outline.repeatRows` → `extras` (`outlineRowsApply`) |
 | | `xPauses` | Are there any pauses or breaks? Yes: **a table** (ML-435) - in bar, on beat (1 if empty), beats held (2 if empty), Pause or Break | `outline.pauseRows` → `extras` |
-| | `xRamps` | Does it speed up or slow down anywhere? | |
+| | `xRamps` | **Where does the speed change gradually?** - a rall., rit. or accel. over some bars. Straight after the switches so the two aren't taken for each other, and still its own step | `extras: [...]` |
 | | `xSigns` | Are there any signs or jumps? (D.S., D.C., Coda, Fine) | |
 | Media | `media` | Anything to add to it? One step, three sections: MP3 / MP4 files, YouTube links, scores and parts - all optional | `outline.media.audio` / `.docs` (File objects), `.video` (`{ url, title }`) |
 
@@ -43,7 +42,7 @@ row by emptying it. An extra that clashes is marked where it was added and stops
 while anything anywhere clashes.
 
 **Getting about (ML-449).** One bar at the top with a piece per step (`#outlineBar`, `.step-bar`) and one line
-("Tempo · step 4 of 11"); **Back** and **Next** side by side in a bar pinned to the bottom (`#outlineFoot`,
+("Tempo · step 4 of 10"); **Back** and **Next** side by side in a bar pinned to the bottom (`#outlineFoot`,
 drawn by `renderOutline` - Save on the last step, off while anything clashes). Back goes one step and checks
 nothing; Next checks the step (`outlineLeaveStep`). The **< at the top leaves Quick entry from any step** (it used to step back - that is the Back button now). Leaving,
 that way or by the menu, keeps the piece; opening Quick
@@ -57,7 +56,7 @@ moment the blocks are written the piece is kept: anything after that which fails
 but these couldn't be added...") and can be added from My music. Then it goes **back to where Add a piece was
 opened from** (home, tools or My music).
 
-**Timing.** One `create` session, source `quick`, with seconds / taps / keys / visits for each of the 11 steps
+**Timing.** One `create` session, source `quick`, with seconds / taps / keys / visits for each of the 10 steps
 (`QUICK_STEPS` in `server/services/flowAuthoringStats.js`; `extras` there is the single Extras step that pieces
 made on 0.39 recorded). Admin → Usage shows them stage by stage.
 
@@ -139,7 +138,7 @@ seconds or taps is the next thing to speed up. After saving, the toast says how 
   in the box.
 - **Next says the step it goes to** ("Next: intro", "Next: recording") - no stage names, now there are no stages on
   screen.
-- **Media is one step, the last** (`key: 'media'`; 11 steps in all, not 13): three sections - MP3 / MP4 files (MP3,
+- **Media is one step, the last** (`key: 'media'`; with time and speed as one step the journey is 10 steps, down from 13): three sections - MP3 / MP4 files (MP3,
   M4A, WAV, MP4 - what the upload accepts), YouTube links (its two boxes show when "+ Add a YouTube link" is tapped,
   `outline.videoOpen`), Scores and parts - each with its rows and one "+" button (`OUTLINE_MEDIA`). Nothing has to be
   touched to save. It was three steps with a question each.

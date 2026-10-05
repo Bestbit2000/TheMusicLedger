@@ -21,11 +21,11 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
 `piece_quick_entry` is on for you.
 
 ## 3. Anatomy
-- **Every step (ML-449):** `.step-bar` - one bar for the whole journey, a `.step-bar-piece` per step (11): gold
+- **Every step (ML-449):** `.step-bar` - one bar for the whole journey, a `.step-bar-piece` per step (10): gold
   when done (`.is-done`, `--primary-action`), strong gold for the one you are on (`.is-now`,
   `--primary-action-strong`), grey to come (`--input-border`); the last step of a stage has a wider gap after it
-  (`.ends-stage`). It is a picture (`role="img"`, named "Step 4 of 11: Tempo") › one line saying where you are,
-  the stage in bold: "**Tempo** · step 4 of 11" (`.text-sm.text-muted`) › `.step-question` › `.outline` (a column
+  (`.ends-stage`). It is a picture (`role="img"`, named "Step 4 of 10: Tempo") › one line saying where you are,
+  the stage in bold: "**Tempo** · step 4 of 10" (`.text-sm.text-muted`) › `.step-question` › `.outline` (a column
   of rows, `--space-3` apart) › pinned to the bottom of the screen, the edit screen's bar
   (`.flow-edit-sticky-bar-wrap` › `.flow-edit-sticky-bar` › `.flow-edit-sticky-bar-actions.step-foot`): **Back**
   (`.btn-cancel.btn-nav`, a third of the width; not on the first step) and **Next** (`.btn-submit`, the rest; "Save
@@ -46,6 +46,10 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   - *Letters or words:* `.outline-table` › `.outline-row.outline-row-marks` (bar, mark). Enter or Tab moves on; a
     new row appears when the last one is typed in.
   - *None:* one line; the step is otherwise empty.
+- **Time and speed are one step** (owner, 5 Oct 2026 - they were two, and the three "most of it" tiles were on How long):
+  `.section-title` "Most of it is in" › `.flow-tile-grid.flow-tile-grid-3` of `.flow-tile` (time, bpm, beat note; a group named by
+  the title) › `.section-title` "Where the time signature switches" › the Time table below › `.section-title` "Where
+  the speed switches" › the Speed table below. The gradual changes (rall., accel.) are the next step, on their own.
 - **Time (ML-425, a table like Speed):** a line saying what most of the piece is in (the main time signature is the commonest one, not the opening one, so a
   row for bar 1 is ordinary) › `.outline-table` ›
   `.outline-row.outline-row-time` (from bar, the time, bars, to bar - ML-442). The first row shows the main time, "Rest of it"

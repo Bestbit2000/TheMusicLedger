@@ -18919,12 +18919,14 @@
         { key: 'about', name: 'About', stage: 0, label: 'about the piece', question: () => 'What is the piece?' },
         { key: 'howLong', name: 'How long', stage: 1, label: 'how long', question: () => 'How long is the piece?' },
         { key: 'marks', name: 'Rehearsal marks', stage: 1, label: 'rehearsal marks', question: () => 'Where are the rehearsal marks?' },
-        { key: 'time', name: 'Time signatures', stage: 2, label: 'time signatures', question: () => 'Where does the time signature change?' },
-        { key: 'speed', name: 'Speed', stage: 2, label: 'speed', question: () => 'Where does the speed change?' },
+        // Time and speed are one step (owner, 5 Oct 2026): what most of it is in, then where each switches - two
+        // tables, kept apart. A switch is sudden, at a bar; the gradual changes (a rall. or accel. over some bars)
+        // are the step straight after, so the two sit side by side and can't be taken for each other.
+        { key: 'tempo', name: 'Time and speed', stage: 2, label: 'time and speed', question: () => 'What time and speed is it in?' },
+        { key: 'xRamps', name: 'Gradual speed changes', stage: 2, label: 'gradual speed changes', kinds: ['ramp'], add: 'Add a rall. or accel.', addMore: 'Add another rall. or accel.', question: () => 'Where does the speed change gradually?' },
         { key: 'xIntro', name: 'Intro', stage: 3, label: 'introduction', kinds: ['intro'], one: true, add: 'Add the intro', question: () => 'Introduction' },
         { key: 'xRepeats', name: 'Repeats', stage: 3, label: 'repeats', kinds: ['repeat', 'repeatEndings'], table: 'repeat', question: () => 'Are there any repeats?' },
         { key: 'xPauses', name: 'Pauses and breaks', stage: 3, label: 'pauses', kinds: ['pause'], table: 'pause', question: () => 'Are there any pauses or breaks?' },
-        { key: 'xRamps', name: 'Rall. and accel.', stage: 3, label: 'rall. and accel.', kinds: ['ramp'], add: 'Add a rall. or accel.', addMore: 'Add another rall. or accel.', question: () => 'Is there a rall. or an accel. anywhere?' },
         { key: 'xSigns', name: 'Signs and jumps', stage: 3, label: 'signs and jumps', kinds: ['sign'], add: 'Add a sign or jump', addMore: 'Add another sign or jump', question: () => 'Are there any signs or jumps?' },
         { key: 'media', name: 'Media', stage: 4, label: 'media', media: true, question: () => 'Anything to add to it?' }
     ];
@@ -19040,7 +19042,7 @@
         if (!st.tick) st.tick = setInterval(outlineStatsTick, 1000);
         const cur = OUTLINE_STEPS[outline.step];
         // ML-449: where you are is one bar - a piece a step, a wider gap between stages - and one line under it
-        // ("Tempo · step 4 of 11"). Getting about is Back and Next, together at the bottom of the screen on every
+        // ("Tempo · step 4 of 10"). Getting about is Back and Next, together at the bottom of the screen on every
         // step. (It was five labelled stage bars, then "Tempo: 1 of 2" and a row of dots.)
         const total = OUTLINE_STEPS.length;
         const bar = document.getElementById('outlineBar');
@@ -19049,7 +19051,7 @@
         document.getElementById('outlineWhereText').innerHTML = `<strong>${escapeHtml(OUTLINE_STAGES[cur.stage].name)}</strong> · step ${outline.step + 1} of ${total}`;
         document.getElementById('outlineQuestion').textContent = cur.question();
         const html = cur.kinds ? outlineExtrasStepHtml(cur) : cur.media ? outlineMediaStepHtml(cur)
-            : { about: outlineAboutHtml, howLong: outlineHowLongHtml, marks: outlineMarksHtml, time: outlineTimeHtml, speed: outlineSpeedHtml }[cur.key]();
+            : { about: outlineAboutHtml, howLong: outlineHowLongHtml, marks: outlineMarksHtml, tempo: outlineTempoHtml }[cur.key]();
         document.getElementById('outlineBody').innerHTML = html;
         // Back (not on the first step) and Next - Save on the last step, which is off while something won't work
         const last = outline.step === total - 1;
@@ -19057,8 +19059,7 @@
         if (last) { const built = outlineBuild(); blocked = !!(built.clashes.length || built.errors.length); }
         document.getElementById('outlineFoot').innerHTML = `${outline.step > 0 ? '<button type="button" class="btn-cancel btn-nav no-margin" data-outline="back">Back</button>' : ''}<button type="button" class="btn-submit no-margin" data-outline="${last ? 'save' : 'next'}"${blocked ? ' disabled' : ''}>${outlineNextLabel()}</button>`;
         if (cur.key === 'marks') outlineMarksRefresh();
-        if (cur.key === 'time') outlineTimeRefresh();
-        if (cur.key === 'speed') outlineSpeedRefresh();
+        if (cur.key === 'tempo') { outlineTimeRefresh(); outlineSpeedRefresh(); }
         if (cur.table && document.getElementById('outlineRowsCheck')) outlineRowsRefresh(cur.table);
     }
     // What the Next button says: the step it goes to, or Save on the last one
@@ -19082,18 +19083,27 @@
             <div class="display-toggle-row">
                 <span id="outlineLeadInLabel">A count-in bar<span class="display-toggle-help">A bar of clicks before bar 1</span></span><label class="toggle-switch"><input type="checkbox" id="outlineLeadIn" aria-labelledby="outlineLeadInLabel"${o.leadIn ? ' checked' : ''}><span class="toggle-slider"></span></label>
             </div>
-            <p class="text-sm text-muted no-margin">Most of it is in...</p>
-            <div class="flow-tile-grid flow-tile-grid-3">
+`;
+    }
+    // Time and speed, one step: what most of it is in (the bar editor's tiles), then where the time signature
+    // switches and where the speed switches - each its own table, as before.
+    function outlineTempoHtml() {
+        const o = outline.o;
+        return `
+            <div class="section-title" id="outlineMainLabel">Most of it is in</div>
+            <div class="flow-tile-grid flow-tile-grid-3" role="group" aria-labelledby="outlineMainLabel">
                 ${outlineTile('mainSig', escapeHtml(outlineSigLabel(o.mainSig)), 'time', outlineSigLabel(o.mainSig))}
                 ${outlineTile('mainBpm', String(o.mainBpm), 'bpm', String(o.mainBpm))}
                 ${outlineTile('mainNote', metroNoteIconSvg(outlineNoteKey(o.mainNote)), 'beat note', outlineNoteLabel(o.mainNote))}
             </div>
-            <p class="text-sm text-muted no-margin">The bars that are different come in steps 3 and 4.</p>`;
+            <div class="section-title">Where the time signature switches</div>
+            ${outlineTimeHtml()}
+            <div class="section-title">Where the speed switches</div>
+            ${outlineSpeedHtml()}`;
     }
     function outlineHowLongRead() {
         const bars = Number(document.getElementById('outlineBars')?.value);
         if (!Number.isInteger(bars) || bars < 1 || bars > PieceOutline.MAX_BARS) { showWarningToast(`How many bars? 1 to ${PieceOutline.MAX_BARS}.`); return false; }
-        if (!outline.o.mainSig) { showWarningToast('Pick the time signature most of it is in.'); return false; }
         outline.o.bars = bars;
         return true;
     }
@@ -19207,7 +19217,7 @@
                 outlineSigAdding.delete(name);
                 if (!outline) return;
                 outline.timeRows.forEach(r => { if (!r.key) r.key = outlineSigFromText(r.sig) || ''; });
-                if (outlineStepKey() === 'time') outlineTimeRefresh();
+                if (outlineStepKey() === 'tempo') outlineTimeRefresh();
             }));
     }
     const outlineTimeIsBlank = (r) => r.bar === '' && r.sig === '' && r.bars === '' && (r.end === '' || r.end === undefined);
@@ -19258,7 +19268,7 @@
         outlineTimeApply();
         const main = escapeHtml(outlineSigLabel(o.mainSig));
         return `
-            <p class="text-sm text-muted no-margin">Most of the piece is in ${main}. Add a row for each stretch that is something else - type it like ${outlineSigExample()}. That can be bar 1, if it starts differently.</p>
+            <p class="text-sm text-muted no-margin">A switch happens at a bar, all at once. Add a row for each stretch that isn't in ${main} - type it like ${outlineSigExample()}. That can be bar 1, if it starts differently.</p>
             <div class="outline-table" id="outlineTimeRows">
                 <div class="outline-row outline-row-time" aria-hidden="true"><span class="outline-th">From bar</span><span class="outline-th">Time</span><span class="outline-th">Bars</span><span class="outline-th">To bar</span></div>
                 <div class="outline-row outline-row-time"><span class="outline-cell-fixed">Rest of it</span><span class="outline-cell-fixed">${main}</span><span class="outline-cell-fixed">-</span><span class="outline-cell-fixed">-</span></div>
@@ -19322,7 +19332,7 @@
     function outlineSpeedHtml() {
         const o = outline.o;
         return `
-            <p class="text-sm text-muted no-margin">The piece starts at <span id="outlineSpeedStart">${o.mainBpm}</span>. Add a row for each bar where the speed changes - it carries on from there.</p>
+            <p class="text-sm text-muted no-margin">The piece starts at <span id="outlineSpeedStart">${o.mainBpm}</span>. Add a row for each bar where the speed switches, all at once - it carries on from there. A rall. or accel. is the next step.</p>
             <div class="outline-table" id="outlineSpeedRows">
                 <div class="outline-row outline-row-speed" aria-hidden="true"><span class="outline-th">From bar</span><span class="outline-th">bpm</span><span class="outline-th">Beat note</span></div>
                 <div class="outline-row outline-row-speed"><span class="outline-cell-fixed">Start</span><span class="outline-cell-fixed" id="outlineSpeedStartBpm">${o.mainBpm}</span><span class="outline-cell-fixed" id="outlineSpeedStartNote">${outlineNoteIcon(o.mainNote)}</span></div>
@@ -19475,7 +19485,7 @@
         xPauses: () => `Add any fermatas (${theoryGlyphs(['fermataAbove'])}) or caesuras (${theoryGlyphs(['caesura'])}).`,
         // (the kinds of file are the ones the upload accepts - allowedContentTypes in server/routes/api.js)
         // (a sudden change of speed is the Speed step's - this one is the speed sliding over some bars)
-        xRamps: () => 'The speed changing gradually over some bars - a rall., rit. or accel. A sudden change of speed goes on the speed step, earlier.',
+        xRamps: () => 'The speed changing gradually over some bars - a rall., rit. or accel. A sudden switch of speed belongs on the step before this one.',
         xSigns: () => `Add any segno (${theoryScaleSvg(Notation.symbol('segno'), 0.32)}) or coda (${theoryScaleSvg(Notation.symbol('coda'), 0.32)}) signs, and the jumps that go with them - D.S., D.C., To Coda, Fine.`
     };
     const outlineNoneLine = (step) => (OUTLINE_STEP_HINTS[step.key] ? `<p class="text-sm text-muted no-margin">${OUTLINE_STEP_HINTS[step.key]()}</p>` : OUTLINE_NONE_LINE);
@@ -19860,7 +19870,7 @@
             outlineHowLongKeep();
             outlinePickNote(outlineNoteKey(o.mainNote), (note) => { o.mainNote = note; renderOutline(); });
         } else if (action === 'markKind') {
-            openFlowChoiceModal('The marks are', OUTLINE_MARK_KINDS.map(k => ({ key: k.key, selected: k.key === o.markKind, html: `<span><strong>${k.label}</strong><br><span class="text-sm text-muted">${k.sub}</span></span>` })), (opt) => { o.markKind = opt.key; renderOutline(); });
+            openFlowChoiceModal('Content of rehearsal marks', OUTLINE_MARK_KINDS.map(k => ({ key: k.key, selected: k.key === o.markKind, html: `<span><strong>${k.label}</strong><br><span class="text-sm text-muted">${k.sub}</span></span>` })), (opt) => { o.markKind = opt.key; renderOutline(); });
         } else if (action === 'addExtra' || action === 'pickFile') {
             outlineAddForStep(OUTLINE_STEPS[outline.step], t.dataset.mediaList);
         } else if (action === 'addVideo') {
@@ -19891,10 +19901,11 @@
         if (cur.key === 'howLong' && !outlineHowLongRead()) return false;
         if (cur.key === 'xIntro') { const problem = outlineIntroApply(); if (problem) { const check = document.getElementById('outlineIntroCheck'); if (check) check.textContent = problem; showWarningToast(problem); return false; } }
         if (cur.key === 'marks') outlineMarksRefresh();
-        if (cur.key === 'time' && !outlineTimeRefresh({ finishing: true })) { outlineRowsToast('outlineTimeCheck'); return false; }
-        if (cur.key === 'speed' && !outlineSpeedRefresh()) { outlineRowsToast('outlineSpeedCheck'); return false; }
+        if (cur.key === 'tempo' && !outline.o.mainSig) { showWarningToast('Pick the time signature most of it is in.'); return false; }
+        if (cur.key === 'tempo' && !outlineTimeRefresh({ finishing: true })) { outlineRowsToast('outlineTimeCheck'); return false; }
+        if (cur.key === 'tempo' && !outlineSpeedRefresh()) { outlineRowsToast('outlineSpeedCheck'); return false; }
         // A bar 1 row has done its job (it set the starting speed) - it doesn't stay to undo a later change on step 1
-        if (cur.key === 'speed') outline.speedRows = outline.speedRows.filter(r => Number(r.bar) !== 1 || r.bar === '');
+        if (cur.key === 'tempo') outline.speedRows = outline.speedRows.filter(r => Number(r.bar) !== 1 || r.bar === '');
         return true;
     }
     // What's typed on step 1 is kept when a pop-up redraws the step
