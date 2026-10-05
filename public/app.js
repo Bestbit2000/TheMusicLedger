@@ -18892,7 +18892,7 @@
         { key: 'xPauses', name: 'Pauses and breaks', stage: 3, label: 'pauses', kinds: ['pause'], table: 'pause', question: () => 'Are there any pauses or breaks?' },
         { key: 'xRamps', name: 'Speeding up and slowing down', stage: 3, label: 'speed changes', kinds: ['ramp'], add: 'Add a speed change', addMore: 'Add another speed change', question: () => 'Does it speed up or slow down anywhere?' },
         { key: 'xSigns', name: 'Signs and jumps', stage: 3, label: 'signs and jumps', kinds: ['sign'], add: 'Add a sign or jump', addMore: 'Add another sign or jump', question: () => 'Are there any signs or jumps?' },
-        { key: 'mAudio', name: 'Recording', stage: 4, label: 'recording', media: 'audio', icon: 'music_note', add: 'Choose a recording', addMore: 'Add another recording', question: () => 'Is there a recording to add?' },
+        { key: 'mAudio', name: 'MP3 / MP4 files', stage: 4, label: 'MP3 / MP4 files', media: 'audio', icon: 'music_note', add: 'Choose an MP3 / MP4 file', addMore: 'Add another file', question: () => 'Is there an MP3 or MP4 file to add?' },
         { key: 'mVideo', name: 'YouTube link', stage: 4, label: 'YouTube', media: 'video', icon: 'smart_display', question: () => 'Is there a YouTube link to add?' },
         { key: 'mDocs', name: 'Score or part', stage: 4, label: 'scores and parts', media: 'docs', icon: 'description', add: 'Choose a file', addMore: 'Add another file', question: () => 'Is there a score or part to add?' }
     ];
@@ -19424,6 +19424,8 @@
     // Two steps say what to look for instead, with the signs themselves drawn in the notation font (owner, 5 Oct 2026)
     const OUTLINE_STEP_HINTS = {
         xPauses: () => `Add any fermatas (${theoryGlyphs(['fermataAbove'])}) or caesuras (${theoryGlyphs(['caesura'])}).`,
+        // (the kinds of file are the ones the upload accepts - allowedContentTypes in server/routes/api.js)
+        mAudio: () => 'Add a file that has the music on it: MP3, M4A, WAV or MP4. If not, go straight on.',
         xSigns: () => `Add any segno (${theoryScaleSvg(Notation.symbol('segno'), 0.32)}) or coda (${theoryScaleSvg(Notation.symbol('coda'), 0.32)}) signs, and the jumps that go with them - D.S., D.C., To Coda, Fine.`
     };
     const outlineNoneLine = (step) => (OUTLINE_STEP_HINTS[step.key] ? `<p class="text-sm text-muted no-margin">${OUTLINE_STEP_HINTS[step.key]()}</p>` : OUTLINE_NONE_LINE);
@@ -19519,7 +19521,7 @@
                 ${blocked ? '<p class="text-sm text-danger no-margin" role="alert">Something in Extras needs fixing before the piece can be saved. Use Back to go to it.</p>' : ''}`;
         }
         return `
-            ${items.length ? '' : OUTLINE_NONE_LINE}
+            ${items.length ? '' : outlineNoneLine(step)}
             ${rows + add}
             ${end}`;
     }
