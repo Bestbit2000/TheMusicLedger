@@ -33,9 +33,7 @@ whole piece is made in Quick entry - it never opens the edit screen, so one piec
 | | `xPauses` | Are there any pauses or breaks? Yes: **a table** (ML-435) - in bar, on beat (1 if empty), beats held (2 if empty), Pause or Break | `outline.pauseRows` → `extras` |
 | | `xRamps` | Does it speed up or slow down anywhere? | |
 | | `xSigns` | Are there any signs or jumps? (D.S., D.C., Coda, Fine) | |
-| Media | `mAudio` | Is there a recording to add? (mp3 / mp4 files) | `outline.media.audio` (File objects) |
-| | `mVideo` | Is there a YouTube link to add? | `outline.media.video` (`{ url, title }`) |
-| | `mDocs` | Is there a score or part to add? (PDF, MusicXML, Sibelius, MuseScore) | `outline.media.docs` (File objects) |
+| Media | `media` | Anything to add to it? One step, three sections: MP3 / MP4 files, YouTube links, scores and parts - all optional | `outline.media.audio` / `.docs` (File objects), `.video` (`{ url, title }`) |
 
 **The question steps (ML-448).** Extras and Media ask one question a step ("Are there any repeats?") with **no
 Yes / No**: the answer is "no" until something is added, so Next just carries on, and the way to add one - the
@@ -45,7 +43,7 @@ row by emptying it. An extra that clashes is marked where it was added and stops
 while anything anywhere clashes.
 
 **Getting about (ML-449).** One bar at the top with a piece per step (`#outlineBar`, `.step-bar`) and one line
-("Tempo · step 4 of 13"); **Back** and **Next** side by side in a bar pinned to the bottom (`#outlineFoot`,
+("Tempo · step 4 of 11"); **Back** and **Next** side by side in a bar pinned to the bottom (`#outlineFoot`,
 drawn by `renderOutline` - Save on the last step, off while anything clashes). Back goes one step and checks
 nothing; Next checks the step (`outlineLeaveStep`). **Cancel**, under every step, asks and then throws the piece away
 and leaves (leaving any other way keeps it, to be carried on with next time). The stage labels and the dots that jumped between steps are gone.
@@ -57,7 +55,7 @@ moment the blocks are written the piece is kept: anything after that which fails
 but these couldn't be added...") and can be added from My music. Then it goes **back to where Add a piece was
 opened from** (home, tools or My music).
 
-**Timing.** One `create` session, source `quick`, with seconds / taps / keys / visits for each of the 13 steps
+**Timing.** One `create` session, source `quick`, with seconds / taps / keys / visits for each of the 11 steps
 (`QUICK_STEPS` in `server/services/flowAuthoringStats.js`; `extras` there is the single Extras step that pieces
 made on 0.39 recorded). Admin → Usage shows them stage by stage.
 
@@ -139,6 +137,10 @@ seconds or taps is the next thing to speed up. After saving, the toast says how 
   in the box.
 - **Next says the step it goes to** ("Next: intro", "Next: recording") - no stage names, now there are no stages on
   screen.
+- **Media is one step, the last** (`key: 'media'`; 11 steps in all, not 13): three sections - MP3 / MP4 files (MP3,
+  M4A, WAV, MP4 - what the upload accepts), YouTube links (its two boxes show when "+ Add a YouTube link" is tapped,
+  `outline.videoOpen`), Scores and parts - each with its rows and one "+" button (`OUTLINE_MEDIA`). Nothing has to be
+  touched to save. It was three steps with a question each.
 - **Later the same day (owner's review):** "Start again" became **Cancel** under every step; the time table's fixed
   row says "Rest of it" and its empty box "e.g. 3/4"; a speed row's beat note button shows the note it will play at
   (never "same"); a repeat's **last ending** fills itself in as the bar after the repeat (columns: 1st ending, Last

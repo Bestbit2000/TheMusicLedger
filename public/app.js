@@ -18892,9 +18892,7 @@
         { key: 'xPauses', name: 'Pauses and breaks', stage: 3, label: 'pauses', kinds: ['pause'], table: 'pause', question: () => 'Are there any pauses or breaks?' },
         { key: 'xRamps', name: 'Speeding up and slowing down', stage: 3, label: 'speed changes', kinds: ['ramp'], add: 'Add a speed change', addMore: 'Add another speed change', question: () => 'Does it speed up or slow down anywhere?' },
         { key: 'xSigns', name: 'Signs and jumps', stage: 3, label: 'signs and jumps', kinds: ['sign'], add: 'Add a sign or jump', addMore: 'Add another sign or jump', question: () => 'Are there any signs or jumps?' },
-        { key: 'mAudio', name: 'MP3 / MP4 files', stage: 4, label: 'MP3 / MP4 files', media: 'audio', icon: 'music_note', add: 'Choose an MP3 / MP4 file', addMore: 'Add another file', question: () => 'Is there an MP3 or MP4 file to add?' },
-        { key: 'mVideo', name: 'YouTube link', stage: 4, label: 'YouTube', media: 'video', icon: 'smart_display', question: () => 'Is there a YouTube link to add?' },
-        { key: 'mDocs', name: 'Score or part', stage: 4, label: 'scores and parts', media: 'docs', icon: 'description', add: 'Choose a file', addMore: 'Add another file', question: () => 'Is there a score or part to add?' }
+        { key: 'media', name: 'Media', stage: 4, label: 'media', media: true, question: () => 'Anything to add to it?' }
     ];
     const OUTLINE_MARK_KINDS = [
         { key: 'numbers', label: 'Bar numbers', sub: 'Each mark is the number of its bar - 7, 21, 30...' },
@@ -18993,7 +18991,7 @@
         if (!st.tick) st.tick = setInterval(outlineStatsTick, 1000);
         const cur = OUTLINE_STEPS[outline.step];
         // ML-449: where you are is one bar - a piece a step, a wider gap between stages - and one line under it
-        // ("Tempo · step 4 of 13"). Getting about is Back and Next, together at the bottom of the screen on every
+        // ("Tempo · step 4 of 11"). Getting about is Back and Next, together at the bottom of the screen on every
         // step. (It was five labelled stage bars, then "Tempo: 1 of 2" and a row of dots.)
         const total = OUTLINE_STEPS.length;
         const bar = document.getElementById('outlineBar');
@@ -19416,7 +19414,7 @@
 
     // --- Extras and Media: one yes/no question a step. Yes lets you add as many as there are; No moves on. ---
     const outlineStepExtras = (step) => outline.o.extras.map((x, i) => ({ x, i })).filter(e => step.kinds.includes(e.x.type));
-    const outlineStepCount = (step) => (step.kinds ? outlineStepExtras(step).length : outline.media[step.media].length);
+    const outlineStepCount = (step) => (step.kinds ? outlineStepExtras(step).length : Object.values(outline.media).reduce((n, l) => n + l.length, 0));
     // ML-448: no Yes / No on these steps (owner, 5 Oct 2026). The question stays as the heading; the answer is "no"
     // until something is added, so Next just carries on - and the way to add one (the table, or "+ Add") is there
     // straight away. What was added is taken out where it shows: its pop-up, its row, or by emptying a table row.
@@ -19425,7 +19423,6 @@
     const OUTLINE_STEP_HINTS = {
         xPauses: () => `Add any fermatas (${theoryGlyphs(['fermataAbove'])}) or caesuras (${theoryGlyphs(['caesura'])}).`,
         // (the kinds of file are the ones the upload accepts - allowedContentTypes in server/routes/api.js)
-        mAudio: () => 'Add a file that has the music on it: MP3, M4A, WAV or MP4. If not, go straight on.',
         xSigns: () => `Add any segno (${theoryScaleSvg(Notation.symbol('segno'), 0.32)}) or coda (${theoryScaleSvg(Notation.symbol('coda'), 0.32)}) signs, and the jumps that go with them - D.S., D.C., To Coda, Fine.`
     };
     const outlineNoneLine = (step) => (OUTLINE_STEP_HINTS[step.key] ? `<p class="text-sm text-muted no-margin">${OUTLINE_STEP_HINTS[step.key]()}</p>` : OUTLINE_NONE_LINE);
@@ -19495,47 +19492,58 @@
             ${blocked ? '<p class="text-sm text-danger no-margin" role="alert">Fix what is marked before going on.</p>' : ''}
             <p class="outline-sum no-margin">${outlineSummaryText()}</p>`;
     }
-    function outlineMediaStepHtml(step) {
-        const items = outline.media[step.media];
+    // --- Media: ONE step, the last (owner, 5 Oct 2026 - it was three, one question each, which was three taps of
+    // Next for something rarely added straight away). Three things can be added on it, each optional: files with
+    // the music on them, YouTube links, and the written music. Nothing has to be touched to save.
+    const OUTLINE_MEDIA = [
+        { list: 'audio', title: 'MP3 / MP4 files', hint: 'A file with the music on it: MP3, M4A, WAV or MP4.', icon: 'music_note', add: 'Choose an MP3 / MP4 file', addMore: 'Add another file', input: 'outlineAudioInput' },
+        { list: 'video', title: 'YouTube links', hint: 'A recording of it on YouTube.', icon: 'smart_display', add: 'Add a YouTube link', addMore: 'Add another YouTube link' },
+        { list: 'docs', title: 'Scores and parts', hint: 'The written music: PDF, MusicXML, Sibelius (.sib) or Finale (.musx).', icon: 'description', add: 'Choose a score or part', addMore: 'Add another file', input: 'outlineDocsInput' }
+    ];
+    function outlineMediaStepHtml() {
         const sizeOf = (f) => (f.size ? `${(f.size / (1024 * 1024)).toFixed(1)} MB` : '');
-        // A row is the button that takes it out again
-        const rows = items.map((f, i) => {
-            const title = step.media === 'video' ? (f.title || 'YouTube video') : f.name;
-            return `<button type="button" class="outline-extra" data-outline-media-remove="${i}" aria-label="Remove ${escapeHtml(title)}">
-                <span class="material-symbols-outlined" aria-hidden="true">${step.icon}</span>
-                <span class="outline-extra-text"><strong>${escapeHtml(title)}</strong><span class="text-sm text-muted">${escapeHtml(step.media === 'video' ? f.url : sizeOf(f))}</span></span>
+        const sections = OUTLINE_MEDIA.map((m) => {
+            const items = outline.media[m.list];
+            // A row is the button that takes it out again
+            const rows = items.map((f, i) => {
+                const title = m.list === 'video' ? (f.title || 'YouTube video') : f.name;
+                return `<button type="button" class="outline-extra" data-outline-media-remove="${i}" data-media-list="${m.list}" aria-label="Remove ${escapeHtml(title)}">
+                <span class="material-symbols-outlined" aria-hidden="true">${m.icon}</span>
+                <span class="outline-extra-text"><strong>${escapeHtml(title)}</strong><span class="text-sm text-muted">${escapeHtml(m.list === 'video' ? f.url : sizeOf(f))}</span></span>
                 <span class="material-symbols-outlined" aria-hidden="true">close</span></button>`;
-        }).join('');
-        const add = step.media === 'video'
-            ? `<div class="form-group no-margin"><label for="outlineVideoUrl">YouTube link</label><input type="url" id="outlineVideoUrl" inputmode="url" placeholder="https://youtu.be/..." autocomplete="off" enterkeyhint="next"></div>
+            }).join('');
+            // The YouTube boxes only show once its "+ Add" is tapped, so the step starts as three buttons
+            const add = m.list === 'video' && outline.videoOpen
+                ? `<div class="form-group no-margin"><label for="outlineVideoUrl">YouTube link</label><input type="url" id="outlineVideoUrl" inputmode="url" placeholder="https://youtu.be/..." autocomplete="off" enterkeyhint="next"></div>
                <div class="form-group no-margin"><label for="outlineVideoTitle">What to call it (optional)</label><input type="text" id="outlineVideoTitle" maxlength="120" autocomplete="off" enterkeyhint="done"></div>
                <button type="button" class="outline-add" data-outline="addVideo">+ Add the link</button>`
-            : `<button type="button" class="outline-add" data-outline="pickFile">+ ${items.length ? step.addMore : step.add}</button>
-               <p class="text-sm text-muted no-margin">Files are uploaded when you save the piece.</p>`;
-        let end = '';
-        if (outline.step === OUTLINE_STEPS.length - 1) {
-            const built = outlineBuild();
-            const blocked = !!(built.clashes.length || built.errors.length);
-            const other = built.clashes.length ? '' : built.errors.map(m => `<p class="outline-extra-clash">${flowWarningIconSvg('flow-tile-warning-icon')}<span>${escapeHtml(m)}</span></p>`).join('');
-            end = `${other}<p class="outline-sum no-margin">${outlineSummaryText()}</p>
-                ${blocked ? '<p class="text-sm text-danger no-margin" role="alert">Something in Extras needs fixing before the piece can be saved. Use Back to go to it.</p>' : ''}`;
-        }
+                : `<button type="button" class="outline-add" data-outline="pickFile" data-media-list="${m.list}">+ ${items.length ? m.addMore : m.add}</button>`;
+            return `<div class="section-title">${m.title}</div>
+            <p class="text-sm text-muted no-margin">${m.hint}</p>
+            ${rows}${add}`;
+        }).join('');
+        const built = outlineBuild();
+        const blocked = !!(built.clashes.length || built.errors.length);
+        const other = built.clashes.length ? '' : built.errors.map(m => `<p class="outline-extra-clash">${flowWarningIconSvg('flow-tile-warning-icon')}<span>${escapeHtml(m)}</span></p>`).join('');
         return `
-            ${items.length ? '' : outlineNoneLine(step)}
-            ${rows + add}
-            ${end}`;
+            <p class="text-sm text-muted no-margin">All of this can be added later too, from My music. If there is nothing to add, save the piece. Files are uploaded when you save.</p>
+            ${sections}
+            ${other}<p class="outline-sum no-margin">${outlineSummaryText()}</p>
+            ${blocked ? '<p class="text-sm text-danger no-margin" role="alert">Something in Extras needs fixing before the piece can be saved. Use Back to go to it.</p>' : ''}`;
     }
-    // "+ Add": the pop-up for the one kind this step has (or the choice of kinds), or the file picker
-    function outlineAddForStep(step) {
-        if (step.table) { document.querySelector(`#${OUTLINE_ROW_TABLES[step.table].id} input`)?.focus(); return; }
-        if (step.kinds) {
-            if (step.kinds.length === 1) { outlineOpenExtra(null, step.kinds[0]); return; }
-            openFlowChoiceModal('Which kind?', step.kinds.map(k => ({ key: k, html: `<span class="material-symbols-outlined" aria-hidden="true">${OUTLINE_EXTRAS[k].icon}</span><span><strong>${OUTLINE_EXTRAS[k].label}</strong><br><span class="text-sm text-muted">${OUTLINE_EXTRAS[k].sub}</span></span>` })), (opt) => outlineOpenExtra(null, opt.key));
-        } else if (step.media === 'video') {
-            document.getElementById('outlineVideoUrl')?.focus();
-        } else {
-            document.getElementById(step.media === 'audio' ? 'outlineAudioInput' : 'outlineDocsInput')?.click();
+    // "+ Add": the pop-up for the one kind this step has (or the choice of kinds); on Media, the file picker of the
+    // list asked for, or the YouTube boxes
+    function outlineAddForStep(step, list) {
+        if (step.media) {
+            const m = OUTLINE_MEDIA.find(x => x.list === list);
+            if (!m) return;
+            if (m.list === 'video') { outline.videoOpen = true; outlineRerenderKeeping('#outlineVideoUrl'); return; }
+            document.getElementById(m.input)?.click();
+            return;
         }
+        if (step.table) { document.querySelector(`#${OUTLINE_ROW_TABLES[step.table].id} input`)?.focus(); return; }
+        if (step.kinds.length === 1) { outlineOpenExtra(null, step.kinds[0]); return; }
+            openFlowChoiceModal('Which kind?', step.kinds.map(k => ({ key: k, html: `<span class="material-symbols-outlined" aria-hidden="true">${OUTLINE_EXTRAS[k].icon}</span><span><strong>${OUTLINE_EXTRAS[k].label}</strong><br><span class="text-sm text-muted">${OUTLINE_EXTRAS[k].sub}</span></span>` })), (opt) => outlineOpenExtra(null, opt.key));
     }
     function outlineAddVideo() {
         const url = (document.getElementById('outlineVideoUrl')?.value || '').trim();
@@ -19543,14 +19551,16 @@
         if (!url) { showWarningToast('Paste the YouTube link first.'); return; }
         if (!flowParseYouTubeId(url)) { showWarningToast("That doesn't look like a YouTube link."); return; }
         outline.media.video.push({ url, title });
+        outline.videoOpen = false;
         outlineRerenderKeeping('#outlineVideoUrl');
     }
     ['outlineAudioInput', 'outlineDocsInput'].forEach(id => document.getElementById(id)?.addEventListener('change', (e) => {
         const files = [...e.target.files];
         e.target.value = '';
         if (!outline || !files.length) return;
-        outline.media[id === 'outlineAudioInput' ? 'audio' : 'docs'].push(...files);
-        outlineRerenderKeeping('[data-outline="pickFile"]');
+        const list = id === 'outlineAudioInput' ? 'audio' : 'docs';
+        outline.media[list].push(...files);
+        outlineRerenderKeeping(`[data-outline="pickFile"][data-media-list="${list}"]`);
     }));
 
     let outlineExtraDraft = null; // { index (null = new), x }
@@ -19756,7 +19766,7 @@
             return;
         }
         if (t.dataset.outlineExtra !== undefined) { outlineOpenExtra(Number(t.dataset.outlineExtra)); return; }
-        if (t.dataset.outlineMediaRemove !== undefined) { outline.media[OUTLINE_STEPS[outline.step].media].splice(Number(t.dataset.outlineMediaRemove), 1); renderOutline(); return; }
+        if (t.dataset.outlineMediaRemove !== undefined) { outline.media[t.dataset.mediaList].splice(Number(t.dataset.outlineMediaRemove), 1); renderOutline(); return; }
         if (t.dataset.speedNote !== undefined) {
             const i = Number(t.dataset.speedNote);
             outlinePickNote(outlineNoteKey(outlineSpeedRowNote(i)), (note) => { outline.speedRows[i].noteValue = note; outlineRerenderKeeping(`[data-speed-note="${i}"]`); });
@@ -19791,7 +19801,7 @@
         } else if (action === 'markKind') {
             openFlowChoiceModal('The marks are', OUTLINE_MARK_KINDS.map(k => ({ key: k.key, selected: k.key === o.markKind, html: `<span><strong>${k.label}</strong><br><span class="text-sm text-muted">${k.sub}</span></span>` })), (opt) => { o.markKind = opt.key; renderOutline(); });
         } else if (action === 'addExtra' || action === 'pickFile') {
-            outlineAddForStep(OUTLINE_STEPS[outline.step]);
+            outlineAddForStep(OUTLINE_STEPS[outline.step], t.dataset.mediaList);
         } else if (action === 'addVideo') {
             outlineAddVideo();
         } else if (action === 'save') {

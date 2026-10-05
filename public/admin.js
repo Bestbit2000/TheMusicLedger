@@ -1139,7 +1139,7 @@
         const methods = data.byMethod || [];
         const steps = data.quickSteps || [];
         // ML-428: five stages with steps inside; 'extras' is the single Extras step pieces made on 0.39 recorded
-        const stepNames = { about: 'About', howLong: 'Structure: how long', marks: 'Structure: marks', time: 'Tempo: time', speed: 'Tempo: speed', extras: 'Extras (0.39, one step)', xIntro: 'Extras: intro', xRepeats: 'Extras: repeats', xPauses: 'Extras: pauses', xRamps: 'Extras: speeding up', xSigns: 'Extras: signs and jumps', mAudio: 'Media: recording', mVideo: 'Media: YouTube', mDocs: 'Media: score or part' };
+        const stepNames = { about: 'About', howLong: 'Structure: how long', marks: 'Structure: marks', time: 'Tempo: time', speed: 'Tempo: speed', extras: 'Extras (0.39, one step)', xIntro: 'Extras: intro', xRepeats: 'Extras: repeats', xPauses: 'Extras: pauses', xRamps: 'Extras: speeding up', xSigns: 'Extras: signs and jumps', mAudio: 'Media: recording', mVideo: 'Media: YouTube', mDocs: 'Media: score or part', media: 'Media' };
         const methodRows = methods.length
             ? methods.map(m => `<tr><td>${m.creationSource === 'quick' ? 'Quick entry' : 'Bar by bar'}</td><td>${m.n}</td><td>${fmtSeconds(m.seconds)}</td><td>${m.taps || '–'}</td><td>${m.keys || '–'}</td><td>${m.bars}</td><td>${m.secondsPerBar === null ? '–' : fmtRate(m.secondsPerBar)}</td></tr>`).join('')
             : '<tr><td colspan="7" class="admin-stat-empty">No completed pieces yet.</td></tr>';

@@ -21,11 +21,11 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
 `piece_quick_entry` is on for you.
 
 ## 3. Anatomy
-- **Every step (ML-449):** `.step-bar` - one bar for the whole journey, a `.step-bar-piece` per step (13): gold
+- **Every step (ML-449):** `.step-bar` - one bar for the whole journey, a `.step-bar-piece` per step (11): gold
   when done (`.is-done`, `--primary-action`), strong gold for the one you are on (`.is-now`,
   `--primary-action-strong`), grey to come (`--input-border`); the last step of a stage has a wider gap after it
-  (`.ends-stage`). It is a picture (`role="img"`, named "Step 4 of 13: Tempo") › one line saying where you are,
-  the stage in bold: "**Tempo** · step 4 of 13" (`.text-sm.text-muted`) › `.step-question` › `.outline` (a column
+  (`.ends-stage`). It is a picture (`role="img"`, named "Step 4 of 11: Tempo") › one line saying where you are,
+  the stage in bold: "**Tempo** · step 4 of 11" (`.text-sm.text-muted`) › `.step-question` › `.outline` (a column
   of rows, `--space-3` apart) › pinned to the bottom of the screen, the edit screen's bar
   (`.flow-edit-sticky-bar-wrap` › `.flow-edit-sticky-bar` › `.flow-edit-sticky-bar-actions.step-foot`): **Back**
   (`.btn-cancel.btn-nav`, a third of the width; not on the first step) and **Next** (`.btn-submit`, the rest; "Save
@@ -76,7 +76,8 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   an `.outline-extra` per extra of that kind (icon › `.outline-extra-text`: what it is in words › chevron; tap
   to change or remove) › `.outline-add` "+ Add a repeat" / "+ Add another repeat" (repeats open `#flowChoiceModal`
   to pick plain or with endings; the others open the form directly) › `.outline-sum`. The repeats and pauses tables are on their steps from the start too.
-- **Media (three steps, one question each, no Yes / No either):** an `.outline-extra` per file or
+- **Media (one step, the last - it was three):** a line saying it can all be added later › three sections, each a
+  `.section-title` (MP3 / MP4 files, YouTube links, Scores and parts), a line saying which files it takes, then an `.outline-extra` per file or
   link (icon › name over its size or address › a close icon; tapping the row takes it out) › `.outline-add`
   "+ Choose a recording" (opens the file picker) or, for YouTube, two `.form-group` boxes (the link, what to call
   it) and `.outline-add` "+ Add the link" › on the last step `.outline-sum` (Save the piece is the bottom bar's button). The form is `#outlineExtraModal`: number boxes in `.outline-three` /
