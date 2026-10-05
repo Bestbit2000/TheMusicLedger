@@ -455,9 +455,12 @@
     input:checked + .toggle-slider { background-color: var(--selection-text); }
     input:checked + .toggle-slider:before { transform: translateX(22px); }
 
-    .radio-group { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+    .radio-group { display: flex; gap: var(--space-2); flex-wrap: wrap; position: relative; }
     /* ML-260: the checkbox version is the multi-select variant (Theory clefs) - same look, several on. */
-    .radio-group input[type="radio"], .radio-group input[type="checkbox"] { display: none; }
+    /* The real input is hidden from sight but not from the keyboard: Tab lands on the group, the arrow keys move
+       the choice, and the ring shows on its label (the :focus-visible rule further down). It used to be
+       display: none, which took every Yes/No and choice row in the app out of Tab's reach. */
+    .radio-group input[type="radio"], .radio-group input[type="checkbox"] { position: absolute; width: 1px; height: 1px; margin: -1px; /* token-audit-ignore: standard screen-reader-only clip pattern */ padding: 0; overflow: hidden; clip: rect(0 0 0 0); border: 0; opacity: 0; pointer-events: none; }
     .radio-group label { flex: 1 1 40%; text-align: center; padding: var(--space-3); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); cursor: pointer; font-weight: var(--font-weight-bold); transition: var(--duration-base); }
     /* ML-218: the app's one "selected" look (strong-gold outline + gold tint + strong-gold text), same as
        every selectable tile - the old blue fill was a second, competing selected style. */
