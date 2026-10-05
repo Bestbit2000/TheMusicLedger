@@ -19647,7 +19647,17 @@
         if (x.type === 'ramp') html = `<div class="outline-three">${num('from', 'from bar')}${num('to', 'to bar')}${num('startBeat', 'starting on beat', 'min="1"')}</div>
             ${pills('target', [['next', 'To the next speed'], ['custom', 'To a speed I type']], 'What speed it reaches')}
             ${x.target === 'custom' ? num('bpm', 'bpm to reach', 'min="20" max="400"') : ''}`;
-        if (x.type === 'sign') html = `${pills('sign', Object.entries(PieceOutline.SIGNS).map(([k, s]) => [k, s.label]), 'Which sign')}${num('bar', PieceOutline.SIGNS[x.sign].at === 'start' ? 'at the start of bar' : 'at the end of bar')}`;
+        // Signs and jumps are the bar editor's own tiles (its Jump sign and Jump instruction pop-ups), both sets in
+        // this one pop-up, with the bar underneath (owner, 5 Oct 2026 - it was a list of words). Fine is with the jumps.
+        if (x.type === 'sign') {
+            const coda = flowSignIconSvg('coda', true);
+            const tile = (key, icon, caption) => `<button type="button" class="flow-picker-tile${x.sign === key ? ' selected' : ''}" data-x-sign="${key}" aria-label="${escapeHtml(PieceOutline.SIGNS[key].label)}" aria-pressed="${x.sign === key}"><span class="flow-picker-tile-icon-row">${icon}</span><span class="flow-picker-tile-label">${caption}</span></button>`;
+            html = `${head('A sign, for jumps to land on')}
+            <div class="flow-tile-grid flow-tile-grid-3-centered">${tile('segno', flowSignIconSvg('segno'), 'Segno')}${tile('coda', flowSignIconSvg('coda'), 'Coda')}</div>
+            ${head('A jump: where to go after the bar')}
+            <div class="flow-tile-grid flow-tile-grid-3-centered">${tile('dsCoda', `D.S. al ${coda}`, 'Segno to Coda')}${tile('dcCoda', `D.C. al ${coda}`, 'Start to Coda')}${tile('toCoda', `To ${coda}`, 'Jump to Coda')}${tile('ds', 'D.S.', 'Segno to Fine')}${tile('dc', 'D.C.', 'Start to Fine')}${tile('fine', 'Fine', 'Stop here')}</div>
+            ${num('bar', PieceOutline.SIGNS[x.sign].at === 'start' ? 'at the start of bar' : 'at the end of bar')}`;
+        }
         if (x.type === 'intro') html = `<div class="outline-pair">${num('from', 'from bar')}${num('to', 'to bar (or leave empty)')}</div>`;
         document.getElementById('outlineExtraForm').innerHTML = html;
         outlineExtraCheck();
@@ -19688,6 +19698,13 @@
         if (!key || !outlineExtraDraft) return;
         outlineExtraDraft.x[key] = e.target.value;
         outlineExtraCheck();
+    });
+    document.getElementById('outlineExtraForm')?.addEventListener('click', (e) => {
+        const tile = e.target.closest('[data-x-sign]');
+        if (!tile || !outlineExtraDraft) return;
+        outlineExtraDraft.x.sign = tile.dataset.xSign;
+        renderOutlineExtraForm();
+        document.querySelector('#outlineExtraForm input[data-x="bar"]')?.focus();
     });
     document.getElementById('outlineExtraForm')?.addEventListener('change', (e) => {
         const key = e.target.dataset.xRadio;
