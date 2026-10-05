@@ -19211,7 +19211,7 @@
             <p class="text-sm text-muted no-margin">Most of the piece is in ${main}. Add a row for each stretch that is something else - type it like ${outlineSigExample()}. That can be bar 1, if it starts differently.</p>
             <div class="outline-table" id="outlineTimeRows">
                 <div class="outline-row outline-row-time" aria-hidden="true"><span class="outline-th">From bar</span><span class="outline-th">Time</span><span class="outline-th">Bars</span><span class="outline-th">To bar</span></div>
-                <div class="outline-row outline-row-time"><span class="outline-cell-fixed">Most of it</span><span class="outline-cell-fixed">${main}</span><span class="outline-cell-fixed">-</span><span class="outline-cell-fixed">-</span></div>
+                <div class="outline-row outline-row-time"><span class="outline-cell-fixed">Rest of it</span><span class="outline-cell-fixed">${main}</span><span class="outline-cell-fixed">-</span><span class="outline-cell-fixed">-</span></div>
                 ${outline.timeRows.map((r, i) => outlineTimeRowHtml(r, i)).join('')}
             </div>
             <p class="text-sm text-muted no-margin">Fill in how many bars it lasts or the bar it ends on - the other fills itself in. After that the piece is back in ${main}. A single 2/4 bar is 1 bar.</p>

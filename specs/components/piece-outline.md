@@ -48,7 +48,7 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   - *None:* one line; the step is otherwise empty.
 - **Time (ML-425, a table like Speed):** a line saying what most of the piece is in (the main time signature is the commonest one, not the opening one, so a
   row for bar 1 is ordinary) › `.outline-table` ›
-  `.outline-row.outline-row-time` (from bar, the time, bars, to bar - ML-442). The first row shows the main time, "Most of it"
+  `.outline-row.outline-row-time` (from bar, the time, bars, to bar - ML-442). The first row shows the main time, "Rest of it"
   (`.outline-cell-fixed` × 4). In a row the time is `.outline-sig-cell`: a text box you type the time signature into
   ("3/4"; "3 4" is read too) with an `.outline-cell-btn` (the list icon) that opens the shared time signature pop-up
   - on a phone, tapping the empty box opens the pop-up, since the number keyboard has no slash. "Bars" and "to bar" say the
