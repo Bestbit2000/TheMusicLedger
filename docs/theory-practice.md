@@ -243,9 +243,18 @@ are the plain shuffle above, with no memory.
 | **Fixed, 10 questions** | No time limit: the clock counts up. This is also the no-pressure option WCAG 2.2.1 needs. |
 
 **Repeat (ML-354):** a longer test is the same round done again, not a longer round - ×1 to ×5
-(`REPEATS`, default ×1), picked from a pop-up on the options screen (the Repeat value box). The rounds
-run straight on, one after another: the play screen says "Round 2 of 3", and each round has its own
-clock, tally and question count. **Each round is scored on its own and the best one is the result**
+(`REPEATS`, default ×1), picked from a pop-up on the options screen (the Repeat value box). The play
+screen says "Round 2 of 3", and each round has its own clock, tally and question count.
+**Between rounds it stops (ML-439)** - it used to run straight on. The clock is off and a screen says
+"Round 2 of 3 done", shows that round's Level on the results screen's five steps, and the rounds of
+*this test* so far as bars (Round 1, Round 2, Now) under "This test so far"; it waits for **Next round**
+("Last round" before the final one), so the player decides when the clock starts again
+(`theoryBlockDone` → `renderTheoryBreak` → `theoryBreakNext`; `theoryRound.resting` keeps the clock, the
+session pause and a late answer out of it). It is the same in a practice session's Theory block (each quiz ×2).
+**No new question in the last half second** of a timed round (`TIMING.lastQuestionMs`, 500): after an answer
+with less than that left, the round ends there rather than showing a question there is no time to read.
+The Skills drills needed nothing: each of their rounds already ends on its results screen and waits for Again
+(and Tempo waits for "Next speed" between speeds). **Each round is scored on its own and the best one is the result**
 (`scoreBlocks`: highest score, then the quicker, then the earlier) - so a score never depends on how
 long the test was, and a ×3 test shares its history and personal best with ×1 (the settings key
 doesn't include the repeat count). The results screen lists every round's score and says which one

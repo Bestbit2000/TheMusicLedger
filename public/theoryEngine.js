@@ -1599,7 +1599,9 @@
 
     // ---------------------------------------------------------------- scoring
 
-    const TIMING = { wrongRevealMs: 1500, minAnswerMs: 300 };
+    // lastQuestionMs (ML-439): with less than this left on a timed round no new question is shown - there
+    // isn't time to read it, let alone answer - so the round ends there.
+    const TIMING = { wrongRevealMs: 1500, minAnswerMs: 300, lastQuestionMs: 500 };
     const GRADE_LIMITS = [[90, 5], [70, 4], [50, 3], [30, 2]];
     const clamp = (v) => Math.max(0, Math.min(100, Math.round(v)));
     function gradeFor(score) {

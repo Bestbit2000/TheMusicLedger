@@ -7729,7 +7729,7 @@
             (r.resumeMusic || []).forEach(play => play());
             r.resumeMusic = null;
             const t = theoryRound;
-            if (t && !t.ended && t.runningSince === null && !document.hidden) t.runningSince = theoryNow();
+            if (t && !t.ended && !t.resting && t.runningSince === null && !document.hidden) t.runningSince = theoryNow(); // (not between rounds, ML-439)
         } else return;
         renderPracticeRun();
         if (r.phase === 'rest') renderRest();
@@ -18080,7 +18080,7 @@
         const when = (a) => new Date(a.startedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
         return `<div class="theory-level-bars" role="img" aria-label="Levels of your last ${recent.length} ${recent.length === 1 ? 'round' : 'rounds'}: ${recent.map(a => a.grade).join(', ')}">${recent.map((a, i) => {
             const now = nowLast && i === recent.length - 1;
-            return `<span class="theory-level-slot${now ? ' is-now' : ''}"><span class="theory-level-bar theory-lv-h${a.grade} lv-${a.grade}">${a.grade}</span><span class="theory-level-when">${now ? 'Now' : when(a)}</span></span>`;
+            return `<span class="theory-level-slot${now ? ' is-now' : ''}"><span class="theory-level-bar theory-lv-h${a.grade} lv-${a.grade}">${a.grade}</span><span class="theory-level-when">${now ? 'Now' : (a.label || when(a))}</span></span>`;
         }).join('')}</div>`;
     }
     function theoryWhen(iso) {
@@ -18495,6 +18495,8 @@
             right: 0, wrong: 0, answers: [], question: null, shownAt: 0, locked: false, ended: false
         };
         document.getElementById('theoryCountdown').classList.toggle('hidden-group', !theoryRound.seconds);
+        setShown('theoryBreak', false);
+        setShown('theoryPlayBody', true);
         // Replace the options screen's place in history? No - Back from Play (after the confirm) should
         // land on the options, so Play simply goes on top.
         switchView('theoryPlayView');
@@ -18511,7 +18513,7 @@
     }
     function theoryTick() {
         const r = theoryRound;
-        if (!r || r.ended) return;
+        if (!r || r.ended || r.resting) return;
         const elapsed = theoryElapsedMs(r);
         const clock = document.getElementById('theoryClock');
         if (r.seconds) {
@@ -18534,22 +18536,55 @@
             : `${r.right} right${r.wrong ? ` · ${r.wrong} wrong` : ''}`;
         document.getElementById('theoryTally').textContent = r.repeats > 1 ? `Round ${r.block} of ${r.repeats} · ${tally}` : tally;
     }
-    // ML-354: a block (one repeat) is over - keep its time, then straight on to the next ("Round 2 of 3"),
-    // or the results after the last one.
+    // ML-354: a block (one repeat) is over - keep its time, then the next ("Round 2 of 3"), or the results
+    // after the last one.
+    // ML-439: the next one doesn't start by itself. The clock stops on a screen that says how many rounds are
+    // done, shows that round's Level and the rounds of this test so far, and waits for "Next round" - so you
+    // are in control of when the clock starts again. (It used to run straight on.)
     function theoryBlockDone() {
         const r = theoryRound;
-        if (!r || r.ended) return;
+        if (!r || r.ended || r.resting) return;
         r.blockMs.push(r.seconds ? r.seconds * 1000 : Math.round(theoryElapsedMs(r)));
         if (r.block >= r.repeats) { theoryEndRound(); return; }
+        r.resting = true;
+        r.accumulatedMs = 0;
+        r.runningSince = null;
+        renderTheoryBreak();
+    }
+    function renderTheoryBreak() {
+        const r = theoryRound;
+        if (!r || !r.resting) return;
+        // Each finished round's Level, worked out as the results screen will (scoreBlocks -> gradeFor)
+        const levels = TheoryEngine.scoreBlocks(r.roundId, r.answers, r.repeats, r.blockMs).blockScores.slice(0, r.block).map(s => TheoryEngine.gradeFor(s));
+        const level = levels[levels.length - 1];
+        const left = r.repeats - r.block;
+        document.getElementById('theoryBreakTitle').textContent = `Round ${r.block} of ${r.repeats} done`;
+        const steps = document.getElementById('theoryBreakLevel');
+        steps.innerHTML = theoryStepsHtml(level);
+        steps.setAttribute('aria-label', `Level ${level} of 5`);
+        document.getElementById('theoryBreakLine').textContent = `Level ${level} that round. Keep it up - ${left === 1 ? 'one more round' : `${left} more rounds`} to go.`;
+        document.getElementById('theoryBreakTrend').innerHTML = theoryLevelBarsHtml(levels.map((grade, i) => ({ grade, label: `Round ${i + 1}` })), true);
+        document.getElementById('theoryBreakNextBtn').textContent = left === 1 ? 'Last round' : 'Next round';
+        setShown('theoryPlayBody', false);
+        setShown('theoryBreak', true);
+        document.getElementById('theoryBreakTitle').focus({ preventScroll: true });
+    }
+    function theoryBreakNext() {
+        const r = theoryRound;
+        if (!r || r.ended || !r.resting) return;
+        r.resting = false;
         r.block++;
         r.blockAnswered = 0;
         r.right = 0;
         r.wrong = 0;
         r.accumulatedMs = 0;
-        r.runningSince = document.hidden ? null : theoryNow();
+        r.runningSince = document.hidden || (practiceRun && practiceRun.pausedAt) ? null : theoryNow();
+        setShown('theoryBreak', false);
+        setShown('theoryPlayBody', true);
         theoryNextQuestion();
         theoryTick();
     }
+    document.getElementById('theoryBreakNextBtn')?.addEventListener('click', theoryBreakNext);
     function theoryNextQuestion() {
         const r = theoryRound;
         if (!r || r.ended) return;
@@ -18579,7 +18614,7 @@
     }
     function theoryAnswer(id) {
         const r = theoryRound;
-        if (!r || r.ended || r.locked) return;
+        if (!r || r.ended || r.locked || r.resting) return;
         // A tap in the first moment after a question appears is the tail end of the last one (a
         // double tap), not an answer to this one.
         if (theoryNow() - r.shownAt < TheoryEngine.TIMING.minAnswerMs) return;
@@ -18607,9 +18642,10 @@
         // A right answer moves on almost at once (speed counts); a wrong one leaves the right answer
         // up long enough to learn it - which also costs time, so guessing doesn't pay. (A timed block
         // can run out meanwhile and move on by itself - then this one has nothing left to do.)
+        // ML-439: with under half a second left there is no new question - the round ends there instead.
         setTimeout(() => {
-            if (theoryRound !== r || r.ended || r.block !== block) return;
-            if (finished) theoryBlockDone();
+            if (theoryRound !== r || r.ended || r.resting || r.block !== block) return;
+            if (finished || (r.seconds && r.seconds * 1000 - theoryElapsedMs(r) < TheoryEngine.TIMING.lastQuestionMs)) theoryBlockDone();
             else theoryNextQuestion();
         }, correct ? 150 : TheoryEngine.TIMING.wrongRevealMs);
     }
@@ -18618,7 +18654,7 @@
         const r = theoryRound;
         if (!r || r.ended) return;
         if (document.hidden && r.runningSince !== null) { r.accumulatedMs += theoryNow() - r.runningSince; r.runningSince = null; }
-        else if (!document.hidden && r.runningSince === null && !(practiceRun && practiceRun.pausedAt)) { r.runningSince = theoryNow(); theoryTick(); }
+        else if (!document.hidden && r.runningSince === null && !r.resting && !(practiceRun && practiceRun.pausedAt)) { r.runningSince = theoryNow(); theoryTick(); }
     });
 
     async function theoryEndRound() {
@@ -22300,7 +22336,8 @@
                 await theoryStartRound(seed);
             },
             question: () => theoryRound && JSON.parse(JSON.stringify(theoryRound.question)),
-            state: () => theoryRound ? { right: theoryRound.right, wrong: theoryRound.wrong, answered: theoryRound.answers.length, locked: theoryRound.locked } : null,
+            state: () => theoryRound ? { right: theoryRound.right, wrong: theoryRound.wrong, answered: theoryRound.answers.length, locked: theoryRound.locked, block: theoryRound.block, resting: !!theoryRound.resting } : null,
+            repeats: (n) => { theoryRepeats = TheoryEngine.repeatsOf(n); },
             advance: (ms) => { theoryTestOffsetMs += ms; theoryTick(); },
             result: () => theoryLastResult && JSON.parse(JSON.stringify({ score: theoryLastResult.score, grade: theoryLastResult.grade, saving: theoryLastResult.saving, saved: theoryLastResult.saved }))
         };

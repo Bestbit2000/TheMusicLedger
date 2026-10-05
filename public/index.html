@@ -3217,12 +3217,27 @@
     </div>
 
     <div id="theoryPlayView" class="hidden-group">
-        <div class="theory-status"><span id="theoryClock"></span><span id="theoryTally"></span></div>
-        <div class="theory-countdown" id="theoryCountdown" role="progressbar" aria-label="Time left" aria-valuemin="0" aria-valuemax="100"><div class="theory-countdown-fill" id="theoryCountdownFill"></div></div>
-        <p class="theory-question" id="theoryQuestionText"></p>
-        <div class="theory-prompt" id="theoryPrompt"></div>
-        <p class="theory-feedback" id="theoryFeedback" role="status" aria-live="polite"></p>
-        <div class="theory-answers" id="theoryAnswers"></div>
+        <div id="theoryPlayBody">
+            <div class="theory-status"><span id="theoryClock"></span><span id="theoryTally"></span></div>
+            <div class="theory-countdown" id="theoryCountdown" role="progressbar" aria-label="Time left" aria-valuemin="0" aria-valuemax="100"><div class="theory-countdown-fill" id="theoryCountdownFill"></div></div>
+            <p class="theory-question" id="theoryQuestionText"></p>
+            <div class="theory-prompt" id="theoryPrompt"></div>
+            <p class="theory-feedback" id="theoryFeedback" role="status" aria-live="polite"></p>
+            <div class="theory-answers" id="theoryAnswers"></div>
+        </div>
+        <!-- ML-439: between the rounds of a repeated test the clock stops here until you tap Next round - how
+             many are done, that round's Level (the results screen's five steps) and the rounds of this test so
+             far as bars (theoryBlockDone / renderTheoryBreak, app.js). Nothing new to style. -->
+        <div id="theoryBreak" class="hidden-group">
+            <h2 class="step-question text-center" id="theoryBreakTitle" tabindex="-1"></h2>
+            <div class="theory-grade-block">
+                <div class="theory-steps" id="theoryBreakLevel" role="img"></div>
+                <p class="theory-best-line" id="theoryBreakLine"></p>
+            </div>
+            <div class="section-title">This test so far</div>
+            <div class="theory-level-trend" id="theoryBreakTrend"></div>
+            <button type="button" class="btn-submit" id="theoryBreakNextBtn">Next round</button>
+        </div>
     </div>
 
     <div id="theoryResultsView" class="hidden-group">

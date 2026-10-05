@@ -86,3 +86,13 @@ particular to a timed quiz.
 - Leaving a round part-way asks first (the standard confirm modal).
 
 See [accessibility foundation](../foundations/accessibility.md).
+
+## Between rounds (ML-439)
+
+On a repeated test (×2 to ×5) the play screen swaps its question for a break between rounds, until **Next round**
+is tapped. It is built only from what the results screen already has - nothing new to style:
+`h2.step-question.text-center` ("Round 2 of 3 done") › `.theory-grade-block` (`.theory-steps`, that round's Level;
+`.theory-best-line`, "Level 3 that round. Keep it up - one more round to go.") › `.section-title` ("This test so
+far") › `.theory-level-trend` (`.theory-level-bars`: a bar per round of this test, labelled Round 1, Round 2,
+the newest ringed and called Now) › `.btn-submit` (Next round / Last round). Focus goes to the heading. The
+clock is stopped while it shows. Wording is positive only (ML-396): Levels, never a score or what was wrong.
