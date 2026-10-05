@@ -392,6 +392,14 @@ weights directly; `clearTheoryAttempts` clears them too.
 feedback, both round types, Mixed, rhythm and terms, saving, the Level results, What I've played,
 What's included, and screenshot baselines.
 
+## Answering from a computer's keyboard
+
+A key press is a tap on that answer's button (one `keydown` listener in app.js, next to `theoryAnswer`): **A to G** the
+note (Note names and the Keys keyboard); **# or + first** for a sharp (# then F), **- first** for a flat (- then B);
+**1 to 9** the 1st to 9th answer where the answers aren't notes; **M / m** Major / minor on a scale's second tap;
+**Enter** for Next round between rounds. Nothing is typed while a pop-up is open. The Pitch drill's keyboard is not
+wired to it.
+
 ## Keys on the note keyboard (ML-438)
 
 A key is answered on **Note names' keyboard** - sharps above the naturals, flats below, C flat (seven flats) in the

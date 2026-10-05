@@ -18614,6 +18614,7 @@
         answers.querySelectorAll('.theory-answer').forEach(b => b.addEventListener('click', () => theoryAnswer(b.dataset.id)));
         // ML-438: a scale with major and minor keys in play takes a second tap - Major or Minor, under the keyboard
         r.pick = null;
+        theoryTypedAccidental = ''; // (a # or - typed for the last question doesn't carry over)
         const modes = document.getElementById('theoryModes');
         setShown(modes, !!q.modes);
         modes.innerHTML = (q.modes || []).map(m => `<button type="button" class="theory-answer" data-id="${escapeHtml(m.id)}" aria-pressed="false">${escapeHtml(m.label)}</button>`).join('');
@@ -18683,6 +18684,39 @@
             else theoryNextQuestion();
         }, correct ? 150 : TheoryEngine.TIMING.wrongRevealMs);
     }
+    // Answering from a computer's keyboard (owner, 5 Oct 2026 - typing C did nothing):
+    //   A to G         that note (Note names, and the Keys keyboard)
+    //   # or + first   the sharp:  # then F  is F sharp
+    //   - first        the flat:   - then B  is B flat
+    //   1 to 9         the 1st to 9th answer, on a question whose answers aren't notes
+    //   M / m          Major / minor (capital for major), on a scale's second tap
+    //   Enter          Next round, on the screen between rounds
+    // A key press is a tap on that answer's button, so everything a tap does (and refuses) is the same.
+    let theoryTypedAccidental = '';
+    document.addEventListener('keydown', (e) => {
+        const r = theoryRound;
+        if (!r || r.ended || !isShown('theoryPlayView') || e.ctrlKey || e.metaKey || e.altKey || document.querySelector('.modal.show')) return;
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+        if (r.resting) { if (e.key === 'Enter') { e.preventDefault(); theoryBreakNext(); } return; }
+        const q = r.question;
+        if (!q) return;
+        const tap = (box, id) => { const b = document.querySelector(`#${box} .theory-answer[data-id="${CSS.escape(id)}"]`); if (b && !b.disabled) { e.preventDefault(); b.click(); } };
+        const noteLayout = q.layout === 'notes' || q.layout === 'keyboard';
+        if (noteLayout && (e.key === '#' || e.key === '+')) { theoryTypedAccidental = '#'; e.preventDefault(); return; }
+        if (noteLayout && e.key === '-') { theoryTypedAccidental = 'b'; e.preventDefault(); return; }
+        if (q.modes && (e.key === 'M' || e.key === 'm')) { tap('theoryModes', e.key === 'M' ? 'major' : 'minor'); return; }
+        if (noteLayout && /^[a-gA-G]$/.test(e.key)) {
+            const id = e.key.toUpperCase() + theoryTypedAccidental;
+            theoryTypedAccidental = '';
+            tap('theoryAnswers', id);
+            return;
+        }
+        if (!noteLayout && /^[1-9]$/.test(e.key)) {
+            const a = q.answers[Number(e.key) - 1];
+            if (a) tap('theoryAnswers', a.id);
+        }
+    });
+
     // The clock stops while the app is in the background (a phone call, switching apps).
     document.addEventListener('visibilitychange', () => {
         const r = theoryRound;
@@ -18887,7 +18921,7 @@
         { key: 'marks', name: 'Rehearsal marks', stage: 1, label: 'rehearsal marks', question: () => 'Where are the rehearsal marks?' },
         { key: 'time', name: 'Time signatures', stage: 2, label: 'time signatures', question: () => 'Where does the time signature change?' },
         { key: 'speed', name: 'Speed', stage: 2, label: 'speed', question: () => 'Where does the speed change?' },
-        { key: 'xIntro', name: 'Intro', stage: 3, label: 'intro', kinds: ['intro'], one: true, add: 'Add the intro', question: () => 'Is there an intro?' },
+        { key: 'xIntro', name: 'Intro', stage: 3, label: 'introduction', kinds: ['intro'], one: true, add: 'Add the intro', question: () => 'Introduction' },
         { key: 'xRepeats', name: 'Repeats', stage: 3, label: 'repeats', kinds: ['repeat', 'repeatEndings'], table: 'repeat', question: () => 'Are there any repeats?' },
         { key: 'xPauses', name: 'Pauses and breaks', stage: 3, label: 'pauses', kinds: ['pause'], table: 'pause', question: () => 'Are there any pauses or breaks?' },
         { key: 'xRamps', name: 'Speeding up and slowing down', stage: 3, label: 'speed changes', kinds: ['ramp'], add: 'Add a speed change', addMore: 'Add another speed change', question: () => 'Does it speed up or slow down anywhere?' },
@@ -19082,8 +19116,8 @@
         let inner = '';
         if (o.markKind === 'numbers') {
             inner = `
-                <p class="text-sm text-muted no-margin" id="outlineMarksHelp">Type the bar numbers. Spaces, commas or semicolons between them all work.</p>
-                <textarea id="outlineMarksText" class="outline-list" rows="4" inputmode="decimal" aria-label="The bar numbers of the rehearsal marks" aria-describedby="outlineMarksHelp">${escapeHtml(outline.marksText)}</textarea>`;
+                <p class="text-sm text-muted no-margin" id="outlineMarksHelp">Type the bar numbers. Spaces, commas or semicolons between them all work. For letters or words (A, B, Verse 2), change "Bar numbers" above.</p>
+                <textarea id="outlineMarksText" class="outline-list" rows="4" inputmode="decimal" aria-label="The bar numbers of the rehearsal marks" aria-describedby="outlineMarksHelp" placeholder="e.g. 10, 12, 15 or 10 12 15">${escapeHtml(outline.marksText)}</textarea>`;
         } else if (o.markKind === 'text') {
             inner = `
                 <p class="text-sm text-muted no-margin">Bar, then its mark. Enter (Next on a phone) moves on, and a new row appears by itself.</p>
@@ -19341,7 +19375,7 @@
             cols: [['from', 'From bar', 'from bar', 'bar'], ['to', 'To bar', 'to bar', 'bar'], ['times', 'Times', 'times played - 2 if empty', 'e.g. 2'], ['e1From', '1st ending', 'the bar the 1st ending starts at - empty for a plain repeat', 'bar'], ['e2To', 'Last ending', 'the bar the last ending ends at - the bar after the repeat if empty', 'bar']],
             // Played 3 or more times there are still two endings: the 1st is for every time but the last, the last
             // ending for the last time (PieceOutline.buildBlocks) - so the columns say 1st and Last, not 1st and 2nd.
-            help: 'Bars played more than once. Leave "times" empty for twice. For 1st and 2nd time bars, fill in the bar the 1st ending starts at; "to bar" is where it ends. The last ending is taken as the one bar after the repeat - change it if it is longer. Played 3 or more times, the 1st ending is for every time but the last.',
+            help: 'Bars played more than once. Leave "times" empty for twice - for a hymn or carol sung through 6 times, put 6. For 1st and 2nd time bars, fill in the bar the 1st ending starts at; "to bar" is where it ends. The last ending is taken as the one bar after the repeat - change it if it is longer. Played 3 or more times, the 1st ending is for every time but the last.',
             extra(r) {
                 const n = (v) => (v === '' ? NaN : Number(v));
                 const base = { from: n(r.from), to: n(r.to), times: r.times === '' ? 2 : n(r.times) };
@@ -19448,7 +19482,7 @@
         const o = outline.o, it = outlineIntro();
         o.extras = o.extras.filter(x => x.type !== 'intro');
         if (!it.on) return null;
-        if (it.from === '') return 'Say which bar the intro starts at - or switch it off.';
+        if (it.from === '') return 'Say which bar the introduction starts at - or switch it off.';
         const x = { type: 'intro', from: Number(it.from), to: it.to === '' ? null : Number(it.to) };
         const problem = PieceOutline.extraProblem(o, x);
         if (problem) return problem;
@@ -19470,10 +19504,10 @@
         outlineIntroApply();
         return `
             <div class="display-toggle-row">
-                <span id="outlineIntroLabel">There is an intro<span class="display-toggle-help">Bars from later in the piece that are played first</span></span><label class="toggle-switch"><input type="checkbox" id="outlineIntroOn" aria-labelledby="outlineIntroLabel"${it.on ? ' checked' : ''}><span class="toggle-slider"></span></label>
+                <span id="outlineIntroLabel">Include an introduction<span class="display-toggle-help">Bars from later in the piece that are played first</span></span><label class="toggle-switch"><input type="checkbox" id="outlineIntroOn" aria-labelledby="outlineIntroLabel"${it.on ? ' checked' : ''}><span class="toggle-slider"></span></label>
             </div>
             ${it.on ? `<div class="outline-pair">${outlineNumField('outlineIntroFrom', it.from, 'from bar', 'min="1"')}${outlineNumField('outlineIntroTo', it.to, 'to bar (or leave empty)', 'min="1"')}</div>
-            <p class="text-sm text-muted no-margin">Leave "to bar" empty if the intro runs to the end of the piece.</p>
+            <p class="text-sm text-muted no-margin">Leave "to bar" empty if the introduction runs to the end of the piece.</p>
             <p class="text-sm text-danger no-margin" id="outlineIntroCheck" aria-live="polite"></p>` : ''}
             <p class="outline-sum no-margin">${outlineSummaryText()}</p>`;
     }

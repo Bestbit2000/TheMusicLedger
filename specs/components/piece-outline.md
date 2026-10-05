@@ -68,7 +68,7 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   showing Pause or Break, which opens the choice pop-up to change it). Empty boxes take the usual answer (twice; beat 1; 2 beats). A new row appears as the
   last is typed in; a row that can't be used is named with its reason ("Row 2: Its bar isn't in the piece."). They
   replaced a pop-up per repeat or pause (about four taps each).
-- **The intro:** a switch (`.display-toggle-row`: "There is an intro" over what that means, `.toggle-switch`, off to
+- **The intro:** a switch (under the heading "Introduction", a `.display-toggle-row`: "Include an introduction" over what that means, `.toggle-switch`, off to
   start with) › when on: `.outline-pair` of two number boxes (from bar, to bar) › a line of help › a red line saying
   what is wrong, if anything › `.outline-sum`. No pop-up.
 - **The other Extras (speeding up, signs - one question each; ML-448: no Yes / No - the answer is "no" until
