@@ -5,6 +5,7 @@
 // getPracticeList returns (PracticePlan.forecast). See db/migrations/063_practice_lists.sql.
 import pool from '../config/db.js';
 import { withStatus, assertFlowReadAccess } from './flows.js';
+import { BAND_CAN_CHANGE_SQL, PLAY_ONLY_MESSAGE } from './flowPermissions.js';
 
 function toList(row) {
   return {
@@ -16,6 +17,7 @@ function toList(row) {
     pieceCount: row.piece_count == null ? undefined : Number(row.piece_count),
     bandId: row.owner_band_id == null ? null : Number(row.owner_band_id),
     bandName: row.band_name || null,
+    canEdit: row.can_edit !== false, // ML-473: false for a band's list when you are a "play" member
   };
 }
 // DATE columns come back as a local-midnight Date; keep them as the plain calendar day.
@@ -49,23 +51,28 @@ function validateFields(data, partial) {
   return out;
 }
 
-// Yours, or a band's you're a member of.
-async function assertListOwner(accountId, listId) {
+// Yours, or a band's you're a member of. `toChange`: a band's list is changed only by a member who may
+// change the band's things (ML-473) - a "play" member reads it and plans from it.
+async function assertListOwner(accountId, listId, toChange = false) {
   const { rows } = await pool.query(
-    `SELECT pl.*, b.name AS band_name FROM practice_lists pl
+    `SELECT pl.*, b.name AS band_name, COALESCE(pl.owner_account_id = $2 OR ${BAND_CAN_CHANGE_SQL}, false) AS can_edit
+       FROM practice_lists pl
        LEFT JOIN bands b ON b.id = pl.owner_band_id
-      WHERE pl.id = $1 AND (pl.owner_account_id = $2
-        OR pl.owner_band_id IN (SELECT band_id FROM band_members WHERE account_id = $2))`,
+       LEFT JOIN band_members bm ON bm.band_id = pl.owner_band_id AND bm.account_id = $2
+      WHERE pl.id = $1 AND (pl.owner_account_id = $2 OR bm.account_id IS NOT NULL)`,
     [listId, accountId]);
   if (!rows.length) throw withStatus(404, 'Practice list not found');
+  if (toChange && !rows[0].can_edit) throw withStatus(403, PLAY_ONLY_MESSAGE);
   return rows[0];
 }
 
 export async function listPracticeLists(accountId) {
   const { rows } = await pool.query(
-    `SELECT pl.*, b.name AS band_name, (SELECT COUNT(*) FROM practice_list_scores s WHERE s.practice_list_id = pl.id) AS piece_count
+    `SELECT pl.*, b.name AS band_name, (SELECT COUNT(*) FROM practice_list_scores s WHERE s.practice_list_id = pl.id) AS piece_count,
+            COALESCE(pl.owner_account_id = $1 OR ${BAND_CAN_CHANGE_SQL}, false) AS can_edit
        FROM practice_lists pl LEFT JOIN bands b ON b.id = pl.owner_band_id
-      WHERE pl.owner_account_id = $1 OR pl.owner_band_id IN (SELECT band_id FROM band_members WHERE account_id = $1)
+       LEFT JOIN band_members bm ON bm.band_id = pl.owner_band_id AND bm.account_id = $1
+      WHERE pl.owner_account_id = $1 OR bm.account_id IS NOT NULL
       ORDER BY pl.event_date NULLS LAST, pl.created_at DESC`,
     [accountId]
   );
@@ -76,8 +83,9 @@ export async function createPracticeList(accountId, data = {}) {
   const f = validateFields(data, false);
   const bandId = data.bandId == null || data.bandId === '' ? null : Number(data.bandId);
   if (bandId !== null) {
-    const { rows: member } = await pool.query('SELECT 1 FROM band_members WHERE band_id = $1 AND account_id = $2', [bandId, accountId]);
+    const { rows: member } = await pool.query(`SELECT ${BAND_CAN_CHANGE_SQL} AS can_change FROM band_members bm WHERE bm.band_id = $1 AND bm.account_id = $2`, [bandId, accountId]);
     if (!member.length) throw withStatus(403, 'You are not a member of that band.');
+    if (!member[0].can_change) throw withStatus(403, PLAY_ONLY_MESSAGE);
   }
   const { rows } = await pool.query(
     `INSERT INTO practice_lists (owner_account_id, owner_band_id, name, event_date, sessions_per_week, session_minutes)
@@ -88,7 +96,7 @@ export async function createPracticeList(accountId, data = {}) {
 }
 
 export async function updatePracticeList(accountId, listId, data = {}) {
-  await assertListOwner(accountId, listId);
+  await assertListOwner(accountId, listId, true);
   const f = validateFields(data, true);
   const sets = [], vals = [listId];
   const col = { name: 'name', eventDate: 'event_date', sessionsPerWeek: 'sessions_per_week', sessionMinutes: 'session_minutes' };
@@ -98,14 +106,14 @@ export async function updatePracticeList(accountId, listId, data = {}) {
 }
 
 export async function deletePracticeList(accountId, listId) {
-  await assertListOwner(accountId, listId);
+  await assertListOwner(accountId, listId, true);
   await pool.query('DELETE FROM practice_lists WHERE id = $1', [listId]);
   return { deleted: true };
 }
 
 // The list's pieces, in order (any the account can read - its own, its bands', public ones).
 export async function setPracticeListPieces(accountId, listId, scoreIds) {
-  await assertListOwner(accountId, listId);
+  await assertListOwner(accountId, listId, true);
   if (!Array.isArray(scoreIds) || scoreIds.length > 50) throw withStatus(400, 'A list has up to 50 pieces.');
   const ids = [...new Set(scoreIds.map(Number))];
   for (const id of ids) await assertFlowReadAccess(accountId, id);

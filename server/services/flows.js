@@ -17,7 +17,7 @@ import { del } from '@vercel/blob';
 import { isSuperAdmin } from './accounts.js';
 import { getConfigValue } from './appConfig.js';
 import { NOTE_VALUES } from './metronomeSegments.js';
-import { canDeleteFlow } from './flowPermissions.js';
+import { canDeleteFlow, BAND_CAN_CHANGE_SQL, PLAY_ONLY_MESSAGE } from './flowPermissions.js';
 import { isPieceFileUrl } from './blobUrls.js';
 
 // ML-231: a stored file's address comes back from the browser after an upload, so it is checked before
@@ -128,14 +128,19 @@ function toFlowDetailDto(score, recordingRows, documentRows, summary, canEdit, c
 // Read + access check in one - callers get the raw `scores` row back (not just
 // a boolean), since move/publish/unpublish all need to know the row's current
 // ownership shape to decide whether the requested transition is even valid.
+// ML-473: for a band piece that means a member who may change the band's music - an organiser or a
+// "change music" member. A "play" member reads it (assertFlowReadAccess) and is told why here.
 export async function assertFlowAccess(accountId, scoreId) {
   const { rows } = await pool.query(
-    `SELECT s.* FROM scores s
+    `SELECT s.*, (s.owner_account_id IS DISTINCT FROM $2 AND NOT ${BAND_CAN_CHANGE_SQL}) AS play_only FROM scores s
      LEFT JOIN band_members bm ON bm.band_id = s.owner_band_id AND bm.account_id = $2
      WHERE s.id = $1 AND (s.owner_account_id = $2 OR bm.account_id IS NOT NULL)`,
     [scoreId, accountId]
   );
-  if (rows.length) return rows[0];
+  if (rows.length) {
+    if (rows[0].play_only) throw withStatus(403, PLAY_ONLY_MESSAGE);
+    return rows[0];
+  }
 
   // Not personally/band owned - the only remaining path is a public flow,
   // manageable by any super admin regardless of who originally published it.
@@ -153,8 +158,14 @@ export async function assertFlowReadAccess(accountId, scoreId) {
   try {
     return await assertFlowAccess(accountId, scoreId);
   } catch (error) {
-    if (error.status !== 404) throw error;
+    if (error.status !== 404 && error.message !== PLAY_ONLY_MESSAGE) throw error;
   }
+  // a band piece, for any member of the band - a "play" member included
+  const band = await pool.query(
+    `SELECT s.* FROM scores s JOIN band_members bm ON bm.band_id = s.owner_band_id AND bm.account_id = $2 WHERE s.id = $1`,
+    [scoreId, accountId]
+  );
+  if (band.rows.length) return band.rows[0];
   const { rows } = await pool.query('SELECT * FROM scores WHERE id = $1 AND is_public = true', [scoreId]);
   if (rows.length) return rows[0];
   throw withStatus(404, 'Flow not found');
@@ -163,9 +174,12 @@ async function canEditFlow(accountId, scoreId) {
   try { await assertFlowAccess(accountId, scoreId); return true; } catch (error) { return false; }
 }
 
+// Putting something into a band (a new piece, a piece moved or imported into it): a member who may
+// change the band's music.
 export async function assertBandMembership(accountId, bandId) {
-  const { rows } = await pool.query('SELECT 1 FROM band_members WHERE band_id = $1 AND account_id = $2', [bandId, accountId]);
+  const { rows } = await pool.query(`SELECT ${BAND_CAN_CHANGE_SQL} AS can_change FROM band_members bm WHERE bm.band_id = $1 AND bm.account_id = $2`, [bandId, accountId]);
   if (!rows.length) throw withStatus(403, 'You are not a member of that band.');
+  if (!rows[0].can_change) throw withStatus(403, PLAY_ONLY_MESSAGE);
 }
 
 // Admin-editable defaults for a Flow's very first block (ML-179 follow-up) - "Create your own"
@@ -237,6 +251,7 @@ export async function listFlows(accountId) {
   const { rows } = await pool.query(
     `SELECT s.id, s.title, s.composer, s.owner_band_id, s.owner_account_id, s.is_public, s.created_at, s.added_by_account_id,
             BOOL_OR(bm.account_id IS NOT NULL) AS is_band_member,
+            COALESCE(BOOL_OR(${BAND_CAN_CHANGE_SQL}), false) AS band_can_change,
             COUNT(ms.id) AS block_count,
             -- Bar counts exclude the lead-in: it's a count-in, not part of the piece.
             COALESCE(SUM(ms.bar_count) FILTER (WHERE NOT ms.is_lead_in), 0) AS total_bars,
@@ -253,7 +268,7 @@ export async function listFlows(accountId) {
   const superAdmin = await isSuperAdmin(accountId);
   return rows.map(r => {
     const canEdit = (Number(r.owner_account_id) === Number(accountId) && !r.is_public)
-      || r.is_band_member || (r.is_public && superAdmin);
+      || (r.is_band_member && r.band_can_change) || (r.is_public && superAdmin);
     // Only what you can reach at all (canEdit) - a super admin doesn't get Delete on a band they aren't in
     return toFlowSummaryDto(r, canEdit, canEdit && canDeleteFlow(r, accountId, superAdmin));
   });

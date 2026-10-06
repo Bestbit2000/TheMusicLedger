@@ -9,6 +9,12 @@
 //               player's Levels for it. Editing stays open to the whole band (flows.js).
 //   public    - a super admin
 //
+// ML-473: what a member of a band may do is band_members.role, set by the organiser who invited them
+// (server/services/bands.js). A 'player' sees and plays the band's pieces and lists and changes nothing.
+// For a query that has band_members as `bm`: true when that member may change the band's things.
+export const BAND_CAN_CHANGE_SQL = `bm.role <> 'player'`;
+export const PLAY_ONLY_MESSAGE = "You can play this band's music but not change it. Ask one of the band's organisers if you need to.";
+
 // `score` is a `scores` row (snake_case, ids as pg returns them - strings or numbers).
 export function canDeleteFlow(score, accountId, isSuperAdmin = false) {
   if (!score) return false;

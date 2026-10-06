@@ -7,9 +7,11 @@
 //   directory  an entry in the shared band directory (ML-77/ML-89, docs/band-directory.md): public
 //              information, the same for everyone. No members; owns nothing.
 //   group      a band's shared space: its members (band_members), pieces and practice lists. A member
-//              starts one; the only way in is an invitation from someone already in it, so nobody -
-//              the owner included - ever has to confirm who anyone is. It may point at the directory
-//              entry it is the space for (directory_band_id); two groups can point at the same one.
+//              starts one and is its first organiser; the only way in is an organiser's invitation,
+//              which also says what the new member may do - so control stays with the person who
+//              started it, and nobody (the owner included) ever has to confirm who anyone is. It may
+//              point at the directory entry it is the space for (directory_band_id); two groups can
+//              point at the same one.
 //
 // Until migration 108 nothing told them apart: every member's labels were listed to everyone as bands
 // anyone could join, and joining gave the run of everything a band had (site security review, ML-231).
@@ -172,15 +174,29 @@ export async function getAccountBands(accountId) {
     ...toDirectoryBand(r),
     directoryBandId: r.directory_band_id ? Number(r.directory_band_id) : null,
     role: r.role,
-    isLibrarian: LIBRARIAN_ROLES.includes(r.role),
+    level: levelOf(r.role),
+    isOrganiser: ORGANISER_ROLES.includes(r.role),
     canDelete: Number(r.member_count) === 1
   })));
 }
 
-// band_members.role: 'admin' looks after the group ('owner' is an older value treated the same). On
-// screen the word is "Librarian" - the owner hasn't settled the word, so it is not in any message here
-// that a screen doesn't also own.
-const LIBRARIAN_ROLES = ['admin', 'owner'];
+// What a member of a band may do - band_members.role, set by the organiser who invited them and
+// changeable by any organiser afterwards (the owner's decision, 6 Oct 2026):
+//   organiser  'admin'   everything below, plus invite, remove, and set what others may do
+//                        ('owner' is an older value treated the same). "Organiser" is the owner's word:
+//                        "Librarian" is a real post in a band, and this may not be that person.
+//   change     'member'  add pieces and practice lists to the band, and change the band's
+//   play       'player'  see and play the band's pieces and lists; change nothing (they can still
+//                        copy a piece into their own library, and their Levels are their own)
+// flows.js and practiceLists.js enforce 'play' (BAND_CAN_CHANGE_SQL, flowPermissions.js).
+const ORGANISER_ROLES = ['admin', 'owner'];
+export const BAND_LEVELS = { organiser: 'admin', change: 'member', play: 'player' };
+const levelOf = (role) => (ORGANISER_ROLES.includes(role) ? 'organiser' : role === 'player' ? 'play' : 'change');
+const roleOfLevel = (level) => {
+  if (!Object.hasOwn(BAND_LEVELS, level)) throw fail(400, 'Choose what they can do: organiser, change music, or play.');
+  return BAND_LEVELS[level];
+};
+// (the SQL for "may change" is BAND_CAN_CHANGE_SQL in flowPermissions.js)
 const INVITE_DAYS = 30;
 const MAX_OPEN_INVITES = 50;
 
@@ -198,12 +214,12 @@ async function assertMember(db, accountId, bandId) {
   if (!role) throw fail(404, 'Band not found');
   return role;
 }
-async function assertLibrarian(db, accountId, bandId) {
+async function assertOrganiser(db, accountId, bandId) {
   const role = await assertMember(db, accountId, bandId);
-  if (!LIBRARIAN_ROLES.includes(role)) throw fail(403, "Only the band's librarians can do that.");
+  if (!ORGANISER_ROLES.includes(role)) throw fail(403, "Only the band's organisers can do that.");
 }
 
-// Starts a group for a directory entry, with the caller as its first member and librarian. Starting
+// Starts a group for a directory entry, with the caller as its first member and organiser. Starting
 // one gives no way into anyone else's: a second member who picks the same band gets a space of their
 // own, and the two meet only by invitation. Asking again for a band you already have a space for
 // gives that space back.
@@ -238,20 +254,20 @@ export async function startBandGroup(accountId, directoryBandId) {
   }
 }
 
-// Leaving. If that leaves the group with members but no librarian, whoever has been in it longest
+// Leaving. If that leaves the group with members but no organiser, whoever has been in it longest
 // becomes one - so there is always someone who can invite, remove and tidy up, and nobody outside the
 // band has to appoint them.
 export async function leaveBand(accountId, bandId) {
   await pool.query('DELETE FROM band_members WHERE band_id = $1 AND account_id = $2', [bandId, accountId]);
-  await ensureLibrarian(pool, bandId);
+  await ensureOrganiser(pool, bandId);
 }
-async function ensureLibrarian(db, bandId) {
+async function ensureOrganiser(db, bandId) {
   await db.query(
     `UPDATE band_members m SET role = 'admin'
       WHERE m.band_id = $1
         AND NOT EXISTS (SELECT 1 FROM band_members o WHERE o.band_id = $1 AND o.role = ANY($2))
         AND m.account_id = (SELECT f.account_id FROM band_members f WHERE f.band_id = $1 ORDER BY f.joined_at, f.account_id LIMIT 1)`,
-    [bandId, LIBRARIAN_ROLES]
+    [bandId, ORGANISER_ROLES]
   );
 }
 
@@ -265,19 +281,20 @@ export async function deleteBandIfSoleMember(accountId, bandId) {
   await pool.query(`DELETE FROM bands WHERE id = $1 AND kind = 'group'`, [bandId]);
 }
 
-// ---- Members and invitations (ML-473). An invitation is addressed to an email address; whoever signs
-// in with that address sees it and says yes or no. No email is sent, and nothing tells the sender
-// whether that address has an account. One nobody answers goes after 30 days.
+// ---- Members and invitations (ML-473). An organiser invites, and says what the new member may do.
+// An invitation is addressed to an email address; whoever signs in with that address sees it and says
+// yes or no. No email is sent, and nothing tells the sender whether that address has an account. One
+// nobody answers goes after 30 days.
 
 const cleanEmail = (email) => String(email || '').trim().toLowerCase();
 const purgeOldInvites = (db) => db.query(`DELETE FROM band_invites WHERE created_at < now() - make_interval(days => $1)`, [INVITE_DAYS]);
 
-// Who is in the band, for its members. The invitations still open are shown to the band's librarians
-// and to whoever sent each one; other members see only how many there are.
+// Who is in the band and what each may do, for its members. The invitations still open are the
+// organisers' to see; other members see only how many there are.
 export async function listBandMembers(accountId, bandId) {
   const role = await assertMember(pool, accountId, bandId);
   await purgeOldInvites(pool);
-  const isLibrarian = LIBRARIAN_ROLES.includes(role);
+  const isOrganiser = ORGANISER_ROLES.includes(role);
   const [{ rows: members }, { rows: invites }] = await Promise.all([
     pool.query(
       `SELECT a.id, a.display_name, a.first_name, a.surname, bm.role, bm.joined_at
@@ -285,28 +302,29 @@ export async function listBandMembers(accountId, bandId) {
         WHERE bm.band_id = $1 ORDER BY bm.joined_at, a.id`,
       [bandId]
     ),
-    pool.query('SELECT id, email, invited_by_account_id, created_at FROM band_invites WHERE band_id = $1 ORDER BY created_at', [bandId])
+    pool.query('SELECT id, email, role, created_at FROM band_invites WHERE band_id = $1 ORDER BY created_at', [bandId])
   ]);
   return {
-    isLibrarian,
+    isOrganiser,
+    yourLevel: levelOf(role),
     members: members.map((m) => ({
       accountId: Number(m.id),
       // a name, never the email address (accountDisplayName falls back to it; other members don't get it)
       name: accountDisplayName({ ...m, email: null }) || 'A member',
-      isLibrarian: LIBRARIAN_ROLES.includes(m.role),
+      level: levelOf(m.role),
       isYou: Number(m.id) === Number(accountId),
       joinedAt: m.joined_at
     })),
-    invites: invites
-      .filter((i) => isLibrarian || Number(i.invited_by_account_id) === Number(accountId))
-      .map((i) => ({ id: Number(i.id), email: i.email, sentAt: i.created_at, byYou: Number(i.invited_by_account_id) === Number(accountId) })),
+    invites: isOrganiser ? invites.map((i) => ({ id: Number(i.id), email: i.email, level: levelOf(i.role), sentAt: i.created_at })) : [],
     openInvites: invites.length
   };
 }
 
-// Any member can invite (the band grows the way a band does - someone brings someone).
-export async function inviteToBand(accountId, bandId, email) {
-  await assertMember(pool, accountId, bandId);
+// Only an organiser invites, and the invitation carries what the new member may do ('play' unless
+// said) - inviting the same address again changes that.
+export async function inviteToBand(accountId, bandId, email, level = 'play') {
+  await assertOrganiser(pool, accountId, bandId);
+  const role = roleOfLevel(level);
   const to = cleanEmail(email);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to) || to.length > 254) throw fail(400, 'Enter the email address they sign in with.');
   await purgeOldInvites(pool);
@@ -318,18 +336,15 @@ export async function inviteToBand(accountId, bandId, email) {
   const open = await pool.query('SELECT COUNT(*) AS n FROM band_invites WHERE band_id = $1', [bandId]);
   if (Number(open.rows[0].n) >= MAX_OPEN_INVITES) throw fail(429, 'This band has a lot of invitations waiting. Cancel some, or wait for them to be answered.');
   await pool.query(
-    `INSERT INTO band_invites (band_id, email, invited_by_account_id) VALUES ($1, $2, $3) ON CONFLICT (band_id, email) DO NOTHING`,
-    [bandId, to, accountId]
+    `INSERT INTO band_invites (band_id, email, invited_by_account_id, role) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (band_id, email) DO UPDATE SET role = EXCLUDED.role`,
+    [bandId, to, accountId, role]
   );
 }
 
-// Whoever sent it, or a librarian.
 export async function cancelBandInvite(accountId, bandId, inviteId) {
-  const role = await assertMember(pool, accountId, bandId);
-  const { rowCount } = await pool.query(
-    `DELETE FROM band_invites WHERE id = $1 AND band_id = $2 AND (invited_by_account_id = $3 OR $4)`,
-    [inviteId, bandId, accountId, LIBRARIAN_ROLES.includes(role)]
-  );
+  await assertOrganiser(pool, accountId, bandId);
+  const { rowCount } = await pool.query('DELETE FROM band_invites WHERE id = $1 AND band_id = $2', [inviteId, bandId]);
   if (!rowCount) throw fail(404, 'Invitation not found');
 }
 
@@ -337,7 +352,7 @@ export async function cancelBandInvite(accountId, bandId, inviteId) {
 export async function listMyBandInvites(accountId) {
   await purgeOldInvites(pool);
   const { rows } = await pool.query(
-    `SELECT i.id, i.created_at, g.id AS band_id, g.name AS band_name, s.display_name, s.first_name, s.surname
+    `SELECT i.id, i.created_at, i.role, g.id AS band_id, g.name AS band_name, s.display_name, s.first_name, s.surname
        FROM band_invites i
        JOIN accounts me ON lower(me.email) = lower(i.email)
        JOIN bands g ON g.id = i.band_id AND g.kind = 'group' AND g.active
@@ -346,14 +361,14 @@ export async function listMyBandInvites(accountId) {
     [accountId]
   );
   return rows.map((r) => ({
-    id: Number(r.id), bandId: Number(r.band_id), bandName: r.band_name,
+    id: Number(r.id), bandId: Number(r.band_id), bandName: r.band_name, level: levelOf(r.role),
     invitedBy: accountDisplayName({ ...r, email: null }) || 'A member', sentAt: r.created_at
   }));
 }
 
 async function myInvite(db, accountId, inviteId) {
   const { rows } = await db.query(
-    `SELECT i.id, i.band_id FROM band_invites i JOIN accounts me ON lower(me.email) = lower(i.email)
+    `SELECT i.id, i.band_id, i.role FROM band_invites i JOIN accounts me ON lower(me.email) = lower(i.email)
       WHERE i.id = $1 AND me.id = $2 AND i.created_at >= now() - make_interval(days => $3)`,
     [inviteId, accountId, INVITE_DAYS]
   );
@@ -363,11 +378,11 @@ async function myInvite(db, accountId, inviteId) {
 export async function acceptBandInvite(accountId, inviteId) {
   const invite = await myInvite(pool, accountId, inviteId);
   await pool.query(
-    `INSERT INTO band_members (band_id, account_id, role) VALUES ($1, $2, 'member') ON CONFLICT (band_id, account_id) DO NOTHING`,
-    [invite.band_id, accountId]
+    `INSERT INTO band_members (band_id, account_id, role) VALUES ($1, $2, $3) ON CONFLICT (band_id, account_id) DO NOTHING`,
+    [invite.band_id, accountId, invite.role]
   );
   await pool.query('DELETE FROM band_invites WHERE id = $1', [inviteId]);
-  await ensureLibrarian(pool, invite.band_id); // a band everyone had left
+  await ensureOrganiser(pool, invite.band_id); // a band everyone had left
   return Number(invite.band_id);
 }
 export async function declineBandInvite(accountId, inviteId) {
@@ -375,24 +390,25 @@ export async function declineBandInvite(accountId, inviteId) {
   await pool.query('DELETE FROM band_invites WHERE id = $1', [inviteId]);
 }
 
-// A librarian takes someone out of the band (to go yourself, leave). What they added stays with the band.
+// An organiser takes someone out of the band (to go yourself, leave). What they added stays with the band.
 export async function removeBandMember(accountId, bandId, memberAccountId) {
-  await assertLibrarian(pool, accountId, bandId);
+  await assertOrganiser(pool, accountId, bandId);
   if (Number(memberAccountId) === Number(accountId)) throw fail(400, 'To go yourself, leave the band.');
   const { rowCount } = await pool.query('DELETE FROM band_members WHERE band_id = $1 AND account_id = $2', [bandId, memberAccountId]);
   if (!rowCount) throw fail(404, 'They are not in this band.');
-  await ensureLibrarian(pool, bandId);
+  await ensureOrganiser(pool, bandId);
 }
 
-// A librarian makes another member a librarian, or an ordinary member again (themselves included -
-// stepping down - as long as one librarian is left).
-export async function setBandLibrarian(accountId, bandId, memberAccountId, librarian) {
-  await assertLibrarian(pool, accountId, bandId);
-  if (!librarian) {
-    const { rows } = await pool.query('SELECT COUNT(*) AS n FROM band_members WHERE band_id = $1 AND role = ANY($2) AND account_id <> $3', [bandId, LIBRARIAN_ROLES, memberAccountId]);
-    if (!Number(rows[0].n)) throw fail(409, 'A band needs at least one librarian. Make someone else one first.');
+// An organiser sets what a member may do - another organiser, change music, or play only (themselves
+// included - stepping down - as long as one organiser is left).
+export async function setBandMemberLevel(accountId, bandId, memberAccountId, level) {
+  await assertOrganiser(pool, accountId, bandId);
+  const role = roleOfLevel(level);
+  if (level !== 'organiser') {
+    const { rows } = await pool.query('SELECT COUNT(*) AS n FROM band_members WHERE band_id = $1 AND role = ANY($2) AND account_id <> $3', [bandId, ORGANISER_ROLES, memberAccountId]);
+    if (!Number(rows[0].n)) throw fail(409, 'A band needs at least one organiser. Make someone else one first.');
   }
-  const { rowCount } = await pool.query('UPDATE band_members SET role = $1 WHERE band_id = $2 AND account_id = $3', [librarian ? 'admin' : 'member', bandId, memberAccountId]);
+  const { rowCount } = await pool.query('UPDATE band_members SET role = $1 WHERE band_id = $2 AND account_id = $3', [role, bandId, memberAccountId]);
   if (!rowCount) throw fail(404, 'They are not in this band.');
 }
 
@@ -457,7 +473,7 @@ export async function createSharedBand(accountId, name, website, { joinCreator =
     `INSERT INTO bands (name, website, created_by_account_id, kind) VALUES ($1, $2, $3, 'directory') RETURNING id, name, website`,
     [trimmedName, url.toString(), accountId]
   );
-  // The member who adds a band to the directory gets a space for it, as its first librarian.
+  // The member who adds a band to the directory gets a space for it, as its first organiser.
   if (joinCreator) await startBandGroup(accountId, inserted.rows[0].id);
   return toDirectoryBand(inserted.rows[0]);
 }

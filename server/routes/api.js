@@ -16,7 +16,7 @@ import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader } from '../mi
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, startBandGroup, leaveBand, createSharedBand, deleteBandIfSoleMember, listWhoOptions,
-  listBandMembers, inviteToBand, cancelBandInvite, listMyBandInvites, acceptBandInvite, declineBandInvite, removeBandMember, setBandLibrarian } from '../services/bands.js';
+  listBandMembers, inviteToBand, cancelBandInvite, listMyBandInvites, acceptBandInvite, declineBandInvite, removeBandMember, setBandMemberLevel } from '../services/bands.js';
 import { readMeters, sendUsageWarnings } from '../services/thirdPartyUsage.js';
 import { getBusinessCase } from '../services/businessCase.js';
 import { runRetention } from '../services/retention.js';
@@ -915,8 +915,8 @@ router.post('/account/bands', requireAuth, resolveAccount, async (req, res) => {
 });
 
 // ML-473: picking a band from the directory starts YOUR OWN space for it (you are its first member and
-// librarian). It never puts you into a space someone else started - the only way into one of those is
-// an invitation from someone already in it (the routes below).
+// organiser). It never puts you into a space someone else started - the only way into one of those is
+// an invitation from one of its organisers (the routes below).
 router.post('/account/bands/:id/join', requireAuth, resolveAccount, async (req, res) => {
   try {
     const bandId = await startBandGroup(req.accountId, req.params.id);
@@ -946,7 +946,7 @@ router.get('/account/bands/:id/members', requireAuth, resolveAccount, async (req
 
 router.post('/account/bands/:id/invites', requireAuth, resolveAccount, async (req, res) => {
   try {
-    await inviteToBand(req.accountId, req.params.id, (req.body || {}).email);
+    await inviteToBand(req.accountId, req.params.id, (req.body || {}).email, (req.body || {}).level || 'play');
     res.json(await listBandMembers(req.accountId, req.params.id));
   } catch (error) {
     sendError(res, error);
@@ -964,7 +964,7 @@ router.delete('/account/bands/:id/invites/:inviteId', requireAuth, resolveAccoun
 
 router.put('/account/bands/:id/members/:memberId', requireAuth, resolveAccount, async (req, res) => {
   try {
-    await setBandLibrarian(req.accountId, req.params.id, req.params.memberId, !!(req.body || {}).librarian);
+    await setBandMemberLevel(req.accountId, req.params.id, req.params.memberId, (req.body || {}).level);
     res.json(await listBandMembers(req.accountId, req.params.id));
   } catch (error) {
     sendError(res, error);
