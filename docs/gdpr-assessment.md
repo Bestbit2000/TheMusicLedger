@@ -80,7 +80,7 @@ done by Claude, waiting on the owner to review, switch on or release. **Ticket**
 | 10 | No security review of this site | 6 | Ticket | ML-231 - next to be done. |
 | 11 | Vercel holds personal information with no data processing agreement | 7 | Owner | Move to Vercel Pro (the agreement covers Pro). The owner is looking at it. |
 | 12 | PostHog's agreement not signed | 7 | **Closed** | Signed 6 October 2026. |
-| 13 | Neon's and Resend's agreements not confirmed | 7 | Owner | The owner is checking. ML-469 will record each provider's agreement on the site. |
+| 13 | Neon's and Resend's agreements not confirmed | 7 | Owner | **Neon (found by the owner, 6 October 2026):** its compliance page says it follows GDPR by self-declaration, and a contract appears to come only with its Scale plan, not Free. Not confirmed by Neon; a self-declaration is not a contract. So Neon may be in the same position as Vercel (gap 11). To do: ask Neon whether its data processing addendum covers Free; if not, the paid plan is a cost for the business case, needed before other people's information is held. Resend: still to check. ML-469 will record each provider's agreement on the site. |
 | 14 | No record of processing activities | 7 | **Drafted** | Document 1. The owner is reviewing; the provider columns have blanks to fill. |
 | 15 | No legitimate interests assessment | 7 | **Drafted** | Document 2. |
 | 16 | No breach plan | Breaches | **Drafted** | Document 3, with a breach log. To do: read it through once, and walk through a made-up breach at each yearly review. |

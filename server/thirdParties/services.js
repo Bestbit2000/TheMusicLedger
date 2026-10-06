@@ -9,7 +9,7 @@ export default [
     policyName: 'Neon',
     name: 'Neon',
     group: 'service',
-    status: 'in_use',
+    status: 'attention',
     who: 'Databricks, Inc. (USA) - parent of Neon, LLC',
     provides: 'The Postgres database: every account, piece, session and setting. Three branches - production, sandbox, dev.',
     usedIn: 'server/config/db.js (DATABASE_URL); docs/environments.md',
@@ -25,6 +25,9 @@ export default [
       { label: 'Pricing', url: 'https://neon.com/pricing' }
     ],
     termsCheckedOn: CHECKED,
+    attention: [
+      'No data processing agreement has been confirmed for the Free plan. Neon's compliance page says it follows GDPR by self-declaration, and its agreements appear to come with the Scale plan (the owner's reading, 6 October 2026; not confirmed by Neon). A self-declaration is not a contract: UK data law expects one with whoever holds the database. Ask Neon (privacy@databricks.com) whether its data processing addendum covers Free, and if not, which plan it starts on.'
+    ],
     says: [
       'Free services come as they are, with no warranty.',
       'Carrying on using it counts as agreeing to changes in the terms and prices. No notice period is given.',
