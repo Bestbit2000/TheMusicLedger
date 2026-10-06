@@ -31,6 +31,7 @@ import { costsAndUsage, addCost, updateCost, deleteCost, readMeters, recordManua
 import { getBusinessCase, saveBusinessCase, resetBusinessCase } from '../services/businessCase.js';
 import { getAdminDashboard } from '../services/adminDashboard.js';
 import { listRecords, saveRecord, setAttentionDone } from '../services/thirdPartyRecords.js';
+import { retentionStatus, saveRule, runRetention } from '../services/retention.js';
 import { applyRecords } from '../thirdParties/records.js';
 import { getInstrumentUsageStats } from '../services/instruments.js';
 import { listRestMessages, createRestMessage, updateRestMessage, setRestMessageActive, deleteRestMessage, moveRestMessage } from '../services/restMessages.js';
@@ -934,6 +935,32 @@ router.post('/business-case/reset', requireAuth, resolveAccount, requireSuperAdm
 router.get('/dashboard', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     res.json(await getAdminDashboard());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-464: retention - the rule (a switch, a unit, three lengths of time), who is next, and "Run now".
+// The same job runs once a day from the scheduler (routes/api.js). docs/retention.md.
+router.get('/retention', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await retentionStatus());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.put('/retention', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await saveRule(req.body || {});
+    res.json(await retentionStatus());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/retention/run', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const result = await runRetention({ appUrl: process.env.APP_URL || `${req.protocol}://${req.get('host')}` });
+    res.json({ result, ...(await retentionStatus()) });
   } catch (error) {
     sendError(res, error);
   }

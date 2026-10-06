@@ -173,7 +173,8 @@ export function touchLastSeen(accountId) {
   if (seenToday.get(accountId) === today) return;
   if (seenToday.size > 5000) seenToday.clear();
   seenToday.set(accountId, today);
-  pool.query('UPDATE accounts SET last_seen_on = $2 WHERE id = $1 AND deleted_at IS NULL AND last_seen_on IS DISTINCT FROM $2', [accountId, today])
+  // ML-464: and any retention warning is forgotten - using the app starts the clock again
+  pool.query('UPDATE accounts SET last_seen_on = $2, retention_stage = 0, retention_stage_at = NULL WHERE id = $1 AND deleted_at IS NULL AND last_seen_on IS DISTINCT FROM $2', [accountId, today])
     .catch((error) => { seenToday.delete(accountId); console.error('Last seen not written:', error.message); });
 }
 

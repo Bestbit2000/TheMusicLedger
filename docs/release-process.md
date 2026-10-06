@@ -109,6 +109,20 @@ regenerate the token reference if tokens changed. The Design page is how the own
 1. Decide which completed Jira issue(s) belong in this release, and what the
    next version number should be per the rule above. **Propose it, get it
    confirmed** — this is the one step that isn't automated on purpose.
+   **Ask, every release: does anything in it need telling to members?** (ML-463, owner's rule 6 Oct
+   2026.) Go through what is going out and look for a change a member should not find out by accident:
+   - anything about **their information** - something new is collected or kept, it goes to someone new,
+     it is kept for longer or deleted sooner, or the privacy policy or terms changed (the policy promises:
+     "if the change matters to how your information is used, we will also tell you in the app");
+   - something they rely on **works differently or has gone** - a tool removed or moved, a result worked
+     out differently, a limit or a price changed, something that now needs a connection or an upgrade;
+   - something they **must do** - sign in again, set something up again, re-enter something.
+
+   If the answer is yes, write the notice (Admin → Notifications) as part of the release and say so in
+   the release's Jira issue. Until ML-463 is built a notice sits behind the red dot on the menu; once it
+   is, mark it **important** so it pops up when each member next opens the app. If the answer is no, say
+   "no notice needed" in the Jira issue - so it is plain the question was asked. Claude proposes the
+   answer and the wording; the owner decides.
 2. Run the Jira-side automation:
    ```bash
    npm run cut-release -- <version> <ISSUE-1> [ISSUE-2 ...]

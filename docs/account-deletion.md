@@ -32,6 +32,8 @@ survive as statistics, and check it holds nothing that says who the member was.
 
 On the device, deleting the account also wipes the copy kept for offline use and anything still waiting to sync (ML-220, `docs/offline.md`); the ids in `client_writes` go with the account like any other unlisted table.
 
+An account nobody has used for a set time is deleted by the same function, after two warning emails (ML-464, `docs/retention.md`).
+
 A super admin account can't be deleted by the button (it owns the public library): change its type first.
 
 ## Signed out everywhere, and signing up again

@@ -49,6 +49,8 @@
                 <button class="admin-nav-item" data-section="bands" type="button">Bands</button>
                 <button class="admin-nav-item" data-section="feature-access" type="button">Feature access</button>
                 <button class="admin-nav-item" data-section="notifications" type="button">Notifications</button>
+                <!-- ML-464: accounts nobody uses are warned by email and then deleted -->
+                <button class="admin-nav-item" data-section="retention" type="button">Retention</button>
                 <button class="admin-nav-item" data-section="feedback" type="button">Feedback <span id="feedbackNavCount" class="admin-nav-count hidden-group"></span></button>
                 </div>
             </div>
@@ -337,6 +339,12 @@
         </section>
         <!-- ML-267: the register of third parties (server/thirdParties/register.js) - read-only here; it
              changes with a release, and `npm run third-party-audit` checks it (docs/third-party-providers.md). -->
+        <!-- ML-464: the retention rule, who is next, and Run now (public/admin-retention.js, docs/retention.md) -->
+        <section id="retention-section" class="admin-section hidden-group">
+            <h1>Retention</h1>
+            <p class="admin-intro">Information about people who have stopped using the app shouldn't be kept for ever. An account nobody has used for a set time gets an email, then a second, and is then deleted - exactly as "Delete my account" does it, so the practice history stays as anonymous statistics. Using the app at any point starts the clock again. Super admin accounts are never touched. The same run clears used and expired invites after 30 days and resolved feedback after 12 months. It runs once a day; nothing happens until it is switched on here.</p>
+            <div id="adminRetention"><p class="admin-intro">Loading&hellip;</p></div>
+        </section>
         <section id="costs-usage-section" class="admin-section hidden-group">
             <h1>Costs and usage</h1>
             <p class="admin-intro">What the app costs to run, and how close each service is to the limit of the plan we're on (ML-429). Costs are the ones you enter, in pounds with dollars underneath. Usage is read every morning from the app or the provider, or typed in; an email goes out at 75% and 90%. Who each service is and what their terms ask is on <strong>Third parties</strong>.</p>
@@ -828,6 +836,8 @@
 <script src="admin-design.js"></script>
 <!-- ML-443: the page the panel opens on -->
 <script src="admin-dashboard.js"></script>
+<!-- ML-464: Admin -> Retention -->
+<script src="admin-retention.js"></script>
 <!-- ML-443: the business case sums, then the page that runs them (both after admin.js) -->
 <script src="businessCase.js"></script>
 <script src="admin-business.js"></script>

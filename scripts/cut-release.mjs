@@ -119,6 +119,10 @@ async function main() {
   console.log('  2. Review the diff, then commit both package.json and public/releases.json');
   console.log(`  3. git commit -m "Cut release ${version}: <short description>"`);
   console.log('  4. git push origin main');
+  console.log('');
+  console.log('Before it goes out: does anything in this release need telling to members (their information,');
+  console.log('something that works differently, something they must do)? If so, write the notice on');
+  console.log('Admin -> Notifications; if not, say "no notice needed" in the Jira issue. docs/release-process.md');
 }
 
 main().catch((err) => {

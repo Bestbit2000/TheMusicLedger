@@ -17,7 +17,7 @@ It is built from pieces the panel already has: stat tiles (`.admin-stat-tiles`),
 (`.admin-security-details`), the Save bar from [Feature access](admin-feature-access.md)
 (`.admin-access-savebar`) and the value box (`.metroBlk-ctrl-value-btn`) that opens a pop-up. Only what
 is new to this page has an `.admin-bc-` class.
-**Don't use** these classes anywhere else (the Dashboard borrows `.admin-bc-good` / `.admin-bc-bad` for a figure that is up or down), and don't add a chart library: the chart is one small SVG.
+**Don't use** these classes anywhere else (the Dashboard borrows `.admin-bc-good` / `.admin-bc-bad` for a figure that is up or down; Admin → Retention borrows the number fields `.admin-bc-fields` / `.admin-bc-field` / `.admin-bc-num` and the table), and don't add a chart library: the chart is one small SVG.
 
 ## 3. Anatomy
 - **Plan settings** - `.admin-bc-settings`: a row of value boxes (launch month, years to look at, dollars

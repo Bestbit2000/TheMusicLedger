@@ -1,5 +1,120 @@
 # UK GDPR assessment (ML-221)
 
+**This is version 2, 6 October 2026.** It is a check of the app against the UK GDPR's principles and the
+rules around them, kept as a running record: each review adds a version, says what has happened since the
+last one, and shows how each gap is being filled. It is a careful reading by Claude, **not legal advice**.
+
+## Version history
+
+| Version | Date | By | What it is |
+|---|---|---|---|
+| 1 | 6 October 2026 | Claude, for Andrew Storey | The first assessment: every principle checked against the code, the live site, the policy, the third-party register and the three databases. 21 gaps found. Kept in full at the end of this document, as written. |
+| 2 | 6 October 2026 | Claude, for Andrew Storey | After the owner's decisions the same day: 4 gaps closed, 6 built or drafted and waiting on the owner, 8 with a ticket, 3 with the owner. |
+
+**Next review:** 6 October 2027, or sooner if what the app holds, or who receives it, changes. Each review:
+re-read the evidence named in version 1's rows, update the gap register below, add a row above, and write a
+"what has happened since" section. (A reminder in the admin panel is ticket ML-470.) The same history is in
+git: every version of this file is a commit.
+
+## Where it stands now
+
+| | Principle or rule | Version 1 | Version 2 | Why it moved |
+|---|---|---|---|---|
+| 1 | Lawfulness, fairness and transparency | Mostly met | Mostly met | The policy now has a complaints route and the right date. The lawful reason for three items is still to be added (ML-466). |
+| 2 | Purpose limitation | Met | Met | - |
+| 3 | Data minimisation | Met | Met | - |
+| 4 | Accuracy | Mostly met | Mostly met | Changing an email address is still by request (ML-465). |
+| 5 | Storage limitation | **Partly met** | **Mostly met** | A retention rule is built and in the policy: emails at 22 and 23 months, deletion at 24; old invites and feedback cleared. It is off until switched on in each environment. |
+| 6 | Integrity and confidentiality (security) | Mostly met | Mostly met | Unchanged. The site security review and the headers are next (ML-231). |
+| 7 | Accountability | **Partly met** | **Partly met, much closer** | ICO registered. PostHog's agreement signed. The three records are drafted. A complaints route exists. Still open: Vercel has no agreement, Neon's and Resend's are unconfirmed, and nothing reminds anyone to review (ML-470). |
+| - | People's rights | Met | Met | Now includes complaining to us first. |
+| - | Transfers outside the UK | Mostly met | Mostly met | Which safeguard covers which provider is still to be recorded (ML-469). |
+| - | Cookies and the device (PECR) | Met | Met | - |
+| - | Children | Mostly met | **Met, with actions** | The Children's Code self-assessment (12 of 15 met, 2 with an action, 1 not applicable) and the impact assessment are written. Two conditions before other people's children use the app: Vercel under contract, and band organisers told how band sharing works. |
+| - | Data breaches | **Not in place** | **In place** | A breach response plan and log are drafted. |
+
+## What has happened since version 1
+
+- **ICO.** The owner has registered and paid the data protection fee; he holds the registration number and
+  is waiting for the certificate.
+- **PostHog.** The data processing agreement is signed; the owner holds the signed copy. The third-party
+  register no longer lists it as needing attention.
+- **The privacy policy** (`public/privacy.html`) now:
+  - has the right "Last updated" date;
+  - says to **complain to us first** by email, that a complaint is acknowledged within 30 days and
+    answered, and then gives the ICO. Confirmed on the ICO's site: this has been required since 19 June
+    2026 (Data (Use and Access) Act 2025);
+  - states the **retention rule** and how long invites and feedback are kept.
+- **Five records drafted** as Word documents for the owner to keep on his own machine (never in the
+  repo): the record of processing activities, the legitimate interests assessment, the data breach
+  response plan, the Children's Code self-assessment and the data protection impact assessment. The owner
+  is reviewing them.
+- **Retention built** (ML-464, `docs/retention.md`): an account not used for 22 months gets an email,
+  another at 23, and is deleted at 24 by the ordinary account deletion. The unit and the three numbers are
+  set on Admin → Retention, so it can be tried on sandbox in hours. It is off until switched on; no step
+  counts unless its email was sent; super admins are never touched; using the app starts the clock again.
+  The same run clears invites 30 days after they were used or expired and feedback 12 months after it was
+  resolved.
+- **Every release now asks whether members need telling** about something in it (the owner's rule;
+  `docs/release-process.md`, step 1), so a change to what is held about people can't go out unannounced
+  again as the last-seen date did.
+- **A ticket for every remaining gap that needs the site to change** - see the register.
+
+## Gap register
+
+Every gap found in version 1, and where it stands. **Closed** = done and checked. **Built / Drafted** =
+done by Claude, waiting on the owner to review, switch on or release. **Ticket** = recorded, not started.
+**Owner** = only the owner can do it.
+
+| # | Gap (version 1) | Principle | Status | How it is being filled |
+|---|---|---|---|---|
+| 1 | No lawful reason stated for the last-seen date, the sign-up email and feedback | 1 | Ticket | ML-466 (policy wording). The reasoning is written: the legitimate interests assessment. |
+| 2 | The last-seen date went out without telling members in the app | 1 | Ticket | ML-463 (an important notice that pops up). Accepted for now: the owner is the only member. The release process now asks the question every time. |
+| 3 | The policy's date was out of date | 1 | **Closed** | Corrected 6 October 2026. |
+| 4 | People who are not members: an invitee, and a teacher a member names | 1 | Ticket | ML-467 (teachers stay a name only), ML-466 (say it in the policy). Invite records are now cleared after 30 days (ML-464). |
+| 5 | An email address can't be changed in the app | 4 | Ticket | ML-465 (decide how, for each way of signing in). |
+| 6 | Accounts nobody uses are kept for ever | 5 | **Built** | ML-464. To do: release it, try it on sandbox, switch it on in production once the app sends email from its own domain. |
+| 7 | Dead invites and old feedback are never cleared | 5 | **Built** | Part of ML-464. |
+| 8 | Sign-up emails sit in the owner's inbox with no end date | 5 | Owner | Delete them after 12 months (a habit, or an inbox rule). |
+| 9 | No security headers beyond HSTS; the sign-in token is in browser storage | 6 | Ticket | ML-231. |
+| 10 | No security review of this site | 6 | Ticket | ML-231 - next to be done. |
+| 11 | Vercel holds personal information with no data processing agreement | 7 | Owner | Move to Vercel Pro (the agreement covers Pro). The owner is looking at it. |
+| 12 | PostHog's agreement not signed | 7 | **Closed** | Signed 6 October 2026. |
+| 13 | Neon's and Resend's agreements not confirmed | 7 | Owner | The owner is checking. ML-469 will record each provider's agreement on the site. |
+| 14 | No record of processing activities | 7 | **Drafted** | Document 1. The owner is reviewing; the provider columns have blanks to fill. |
+| 15 | No legitimate interests assessment | 7 | **Drafted** | Document 2. |
+| 16 | No breach plan | Breaches | **Drafted** | Document 3, with a breach log. To do: read it through once, and walk through a made-up breach at each yearly review. |
+| 17 | No way to complain to the owner first | 7 | **Closed** | In the privacy policy. |
+| 18 | No regular review | 7 | Ticket | ML-470 (reviews with dates and a reminder on the Dashboard). This document's version history is the written trail. |
+| 19 | Which transfer safeguard covers which provider isn't recorded | Transfers | Ticket | ML-469, and the blanks in document 1. |
+| 20 | No written Children's Code check or impact assessment | Children | **Drafted** | Documents 4 and 5. Actions from them: a few lines for young players in the policy (ML-466), say who sees what when sharing with a band (ML-468), no-pressure design rule (ML-471). |
+| 21 | ICO fee | 7 | **Closed** | Registered and paid, October 2026. |
+
+**Counts:** 4 closed, 6 built or drafted, 8 with a ticket, 3 with the owner.
+
+### What only the owner can do
+
+1. Read the five documents; fill in the ICO registration number and the provider columns.
+2. Vercel: decide on Pro. Neon and Resend: confirm their agreements.
+3. Delete sign-up emails older than 12 months.
+4. Before a band with young players is invited: tell the organiser how band sharing works.
+5. After release: try retention on sandbox, then switch it on in production when email is sent from the
+   app's own domain.
+
+### Tickets raised from this assessment
+
+ML-231 site security review and headers · ML-463 important notice at next sign-in · ML-464 retention
+(built) · ML-465 change an email address · ML-466 privacy policy additions · ML-467 teachers: a name only ·
+ML-468 say who sees what when sharing with a band · ML-469 record each provider's agreement · ML-470 reviews
+and reminders · ML-471 no-pressure design rule for young players.
+
+---
+
+## Version 1, as written on 6 October 2026
+
+*Kept unchanged so the starting point can always be seen. Where it says something is missing, check the
+gap register above for what has happened since.*
+
 **Assessed:** 6 October 2026, against the code on branch `ml-220-offline` (release 0.45.0 plus ML-461,
 ML-462 and ML-220), the live site's headers, the privacy policy, the third-party register and the three
 databases.
@@ -12,7 +127,7 @@ on a legal point rather than on what the code does, it says so.
 verdicts. The ticket also asks for a review button or a reminder in the admin panel; that is not built yet
 (see "Next" at the end).
 
-## The short version
+### The short version
 
 For an app of this size the handling of personal data is in good shape: very little is collected, members
 can see, download and delete their own data without asking, nothing is sold or profiled, and sign-in is
@@ -35,9 +150,9 @@ app already does well: contracts with two providers, three short written records
 | - | Children | Mostly met |
 | - | Data breaches | **Not in place** |
 
-## The seven principles
+### The seven principles
 
-### 1. Lawfulness, fairness and transparency - mostly met
+#### 1. Lawfulness, fairness and transparency - mostly met
 
 *You need a lawful reason for everything you hold, and you must say plainly what you do.*
 
@@ -59,7 +174,7 @@ app already does well: contracts with two providers, three short written records
   email - 2 rows on dev, none with an email). An invitee gets an email, which tells them. A teacher is told
   nothing. Keeping it to a name, as now, keeps this minor; the policy could mention it.
 
-### 2. Purpose limitation - met
+#### 2. Purpose limitation - met
 
 *Use data only for the reasons you collected it.*
 
@@ -70,7 +185,7 @@ app already does well: contracts with two providers, three short written records
   (the rest are local test accounts). So members' data is not being used for testing. Keep it that way: do
   not refresh `dev` or `sandbox` from `production` once other people's data is in it.
 
-### 3. Data minimisation - met
+#### 3. Data minimisation - met
 
 *Hold no more than you need.*
 
@@ -80,7 +195,7 @@ app already does well: contracts with two providers, three short written records
 - Worth a glance, not a gap: the sign-up email to the owner includes the browser and device, and feedback
   attaches the screen, device and app version. Both are proportionate to their purpose.
 
-### 4. Accuracy - mostly met
+#### 4. Accuracy - mostly met
 
 *Keep it right, and let people correct it.*
 
@@ -88,7 +203,7 @@ app already does well: contracts with two providers, three short written records
 - **Gap, small.** The email address can't be changed in the app (it is the sign-in identity). It can only be
   corrected by emailing the owner, which the policy covers in general terms. Fine at this size.
 
-### 5. Storage limitation - partly met
+#### 5. Storage limitation - partly met
 
 *Don't keep it longer than you need.*
 
@@ -103,7 +218,7 @@ app already does well: contracts with two providers, three short written records
   emails also sit in the owner's inbox indefinitely. A stated period for each (say 30 days for dead
   invites, 12 months for resolved feedback) and a small clean-up job would close it.
 
-### 6. Integrity and confidentiality - mostly met
+#### 6. Integrity and confidentiality - mostly met
 
 *Keep it secure.*
 
@@ -122,7 +237,7 @@ app already does well: contracts with two providers, three short written records
 - **Gap, covered under 7.** Security also means the providers are bound to protect the data: see the
   contracts below.
 
-### 7. Accountability - partly met
+#### 7. Accountability - partly met
 
 *Be able to show you comply.*
 
@@ -152,9 +267,9 @@ app already does well: contracts with two providers, three short written records
 - **Gap.** No regular review. This document is the first; the ticket's review button or reminder would make
   it a habit.
 
-## The rules around the principles
+### The rules around the principles
 
-### People's rights - met
+#### People's rights - met
 
 | Right | How it is met |
 |---|---|
@@ -167,7 +282,7 @@ app already does well: contracts with two providers, three short written records
 
 The self-service export and deletion go further than the law asks.
 
-### Transfers outside the UK - mostly met
+#### Transfers outside the UK - mostly met
 
 - The database is in **London** (Neon, AWS `eu-west-2`) and the app runs in **London** (Vercel `lhr1`). The
   providers are US companies, so the data can be reached from the US; the policy says so and names the
@@ -175,13 +290,13 @@ The self-service export and deletion go further than the law asks.
 - **Gap, small.** Which safeguard applies to which provider isn't recorded anywhere. It belongs in the
   record of processing, and it depends on the same contracts as principle 7.
 
-### Cookies and the device (PECR) - met
+#### Cookies and the device (PECR) - met
 
 No cookies at all. What is kept in the browser's storage (the sign-in token, settings, the offline copy) is
 needed for the service the member asked for, which needs no consent. Usage counting stores nothing on the
 device. The policy describes all of it. No cookie banner is needed.
 
-### Children - mostly met
+#### Children - mostly met
 
 - The app is likely to be used by children (through teachers and bands), which brings in the ICO's
   Children's Code. In spirit it is already followed: nothing beyond name and email, no adverts, no
@@ -192,19 +307,19 @@ device. The policy describes all of it. No cookie banner is needed.
   assessment for a service children are likely to use. Neither is written down. The business case should
   also keep in mind the question already noted there: how many invited players are under 13.
 
-### Data breaches - not in place
+#### Data breaches - not in place
 
 A breach that risks people's rights must be reported to the ICO within **72 hours** of being discovered,
 and the people affected told if the risk is high. There is no written plan: who decides, how members would
 be told (there is a notification centre and email), what is recorded. One page is enough, and a log of any
 incident, even one that doesn't need reporting.
 
-### Not applicable
+#### Not applicable
 
 No special category data (health, beliefs and so on), no marketing emails, no automated decisions, no
 selling or sharing for others' purposes.
 
-## What to do, in order
+### What to do, in order
 
 1. **Processor contracts.** Sign PostHog's agreement (free, a form). Decide on Vercel: Pro closes the gap,
    and the business case already has it starting when the first band joins. Confirm Neon's and Resend's.
@@ -218,7 +333,7 @@ selling or sharing for others' purposes.
 6. **Security headers**, and the site security review (ML-231).
 7. **The Children's Code check** and a short impact assessment.
 
-## Done since the assessment (6 October 2026)
+### Done since the assessment (6 October 2026)
 
 - **Complaints route** - the privacy policy now says to tell us first by email, that it is acknowledged within 30 days, and then the ICO. Confirmed on the ICO's site: the duty has been in force since 19 June 2026 (Data (Use and Access) Act 2025).
 - **The three records, and two more** - drafted as Word documents for the owner to keep on his own machine (folder `compliance-documents/`, which git ignores - they are never in the repo): the record of processing activities, the legitimate interests assessment, the data breach response plan, the Children's Code self-assessment and the data protection impact assessment. The generator is not in the repo either; if they need redrafting, ask Claude.
@@ -227,7 +342,7 @@ selling or sharing for others' purposes.
 - **Still with the owner:** the provider contracts (Vercel Pro; PostHog, Neon and Resend agreements confirmed and noted on Admin → Third parties).
 - **Still to build:** the regular review itself - a list of reviews in the admin panel (data protection and the Children's Code yearly, site security monthly), each with the date last done, and a "review due" item on the Dashboard. To be built with ML-231, which reshapes the same page.
 
-## Next (the rest of ML-221)
+### Next (the rest of ML-221)
 
 The ticket also asks for a way to run this again from the admin panel, or at least a reminder. The natural
 shape is the one Admin → Security already has: a list of checks, each with its evidence and its last

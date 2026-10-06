@@ -199,7 +199,7 @@ export default [
     policyName: 'PostHog',
     name: 'PostHog',
     group: 'service',
-    status: 'attention',
+    status: 'in_use',
     who: 'PostHog Inc. (USA); EU cloud, data held in Frankfurt',
     provides: 'Usage analytics: records button taps so we can see which features are used. Anonymous: no cookie, nothing kept in the browser, and it is never told who is signed in (ML-430). Its script is loaded from PostHog\'s servers.',
     usedIn: 'public/analytics.js; the dashboard link on Admin → Usage',
@@ -214,9 +214,7 @@ export default [
       { label: 'Pricing', url: 'https://posthog.com/pricing' }
     ],
     termsCheckedOn: CHECKED,
-    attention: [
-      'The data processing agreement is free on any plan but is not automatic - it has to be filled in and signed on PostHog\'s site. UK data law expects one.',
-    ],
+    statusNote: 'The data processing agreement is signed (the owner, 6 October 2026; he holds the signed copy).',
     says: [
       'Price rises need 30 days\' notice. Either side can end it with 30 days\' notice.',
       'Terms can change at PostHog\'s discretion; carrying on counts as accepting.',

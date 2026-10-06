@@ -84,7 +84,7 @@ export async function deleteMyAccount(accountId) {
       `UPDATE accounts SET email = $2, first_name = 'Deleted', surname = 'account', display_name = NULL, avatar = NULL,
               account_level = 'standard_member', home_tools = NULL, home_stats = NULL, display_prefs = DEFAULT,
               practice_year_enabled = DEFAULT, practice_year_start_month = DEFAULT, practice_year_start_day = DEFAULT,
-              practice_sub_beats_below = DEFAULT, token_version = $3, last_seen_on = NULL, deleted_at = now()
+              practice_sub_beats_below = DEFAULT, token_version = $3, last_seen_on = NULL, retention_stage = 0, retention_stage_at = NULL, deleted_at = now()
         WHERE id = $1`,
       [accountId, anonymisedEmail(accountId), nextVersion]
     );
