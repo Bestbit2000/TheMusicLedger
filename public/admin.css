@@ -21,6 +21,24 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-back-link { text-decoration: none; color: var(--label-color); border-bottom: 1px solid var(--input-border); margin-bottom: var(--space-2); padding-bottom: var(--space-4); }
 .admin-back-link:hover { color: var(--text-color); }
 
+/* ML-443: the menu in groups. A heading (a button) opens and closes its group; a shut group's heading carries
+   the count of what is waiting inside. On a wide screen the double arrow folds the whole menu down to a
+   strip, so a wide table gets the window - a phone has the ☰ toggle instead. */
+.admin-sidebar-head { display: flex; align-items: flex-start; justify-content: space-between; }
+.admin-nav-fold { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: var(--touch-target); height: var(--touch-target); margin: calc(-1 * var(--space-3)) var(--space-2) 0 0; background: none; border: none; border-radius: var(--radius-sm); color: var(--label-color); cursor: pointer; }
+.admin-nav-fold:hover { color: var(--text-color); }
+.admin-nav-group { border-top: 1px solid var(--input-border); }
+.admin-nav-group:first-of-type { border-top: none; }
+.admin-nav-group-head { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--touch-target); box-sizing: border-box; padding: var(--space-2) var(--space-4) var(--space-2) var(--space-5); background: none; border: none; font-family: var(--font-sans); font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: var(--label-color); text-align: left; cursor: pointer; }
+.admin-nav-group-head:hover { color: var(--text-color); }
+.admin-nav-group-name { flex: 1; min-width: 0; }
+.admin-nav-group-items { padding-bottom: var(--space-2); }
+@media (min-width: 701px) {
+  .admin-shell.is-nav-folded .admin-sidebar { width: auto; padding: var(--space-2) var(--space-1); }
+  .admin-shell.is-nav-folded .admin-sidebar-title, .admin-shell.is-nav-folded .admin-nav-items { display: none; }
+  .admin-shell.is-nav-folded .admin-nav-fold { margin: 0; }
+}
+
 .admin-content { flex: 1; min-width: 0; padding: var(--space-6) var(--space-7); box-sizing: border-box; max-width: 900px; overflow-wrap: break-word; } /* min-width: 0 lets wide tables scroll inside .admin-stat-table-wrap instead of widening the page (ML-204) */
 .admin-content h1 { margin-top: 0; color: var(--text-color); }
 .admin-intro { color: var(--label-color); font-size: var(--font-sm); margin: calc(-1 * var(--space-2)) 0 var(--space-3); }
@@ -121,6 +139,9 @@ body.admin-body { display: block; background: var(--bg-color); }
   .admin-sidebar-title { padding: 0; min-width: 0; overflow-wrap: anywhere; }
   .admin-sidebar-current { display: inline; }
   .admin-nav-toggle { display: flex; }
+  .admin-nav-fold { display: none; }
+  .admin-sidebar-head { align-items: center; }
+  .admin-nav-group-head { padding: var(--space-2) var(--space-4); }
   .admin-nav-items { display: none; padding: var(--space-2) 0; }
   .admin-sidebar.expanded .admin-nav-items { display: block; }
   .admin-nav-item { min-height: var(--touch-target); padding: var(--space-3) var(--space-4); }
@@ -157,8 +178,8 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-content:has(> #accounts-section:not(.hidden-group)), .admin-content:has(> #flows-section:not(.hidden-group)) { max-width: none; }
 #accounts-section .admin-intro, #flows-section .admin-intro { max-width: 900px; }
 /* ML-429: so do Third parties' cost and usage tables; the reading text stays at reading width */
-.admin-content:has(> #third-parties-section:not(.hidden-group)) { max-width: none; }
-#third-parties-section .admin-intro, #third-parties-section .admin-feature, #third-parties-section .admin-stat-tiles { max-width: 900px; }
+.admin-content:has(> #third-parties-section:not(.hidden-group)), .admin-content:has(> #costs-usage-section:not(.hidden-group)) { max-width: none; }
+#third-parties-section .admin-intro, #third-parties-section .admin-feature, #third-parties-section .admin-stat-tiles, #costs-usage-section .admin-intro, #costs-usage-section .admin-feature, #costs-usage-section .admin-stat-tiles { max-width: 900px; }
 /* ML-427: Usage's tables (Recent sessions has 15 columns) use the window's width as well */
 .admin-content:has(> #usage-section:not(.hidden-group)) { max-width: none; }
 #usage-section .admin-intro { max-width: 900px; }
@@ -424,3 +445,14 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-bc-chart-tip { position: absolute; left: var(--tip-x); top: var(--tip-y); z-index: var(--z-raised); min-width: 170px; padding: var(--space-2) var(--space-3); pointer-events: none; font-size: var(--font-sm); color: var(--text-color); background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); }
 .admin-bc-chart-tip-row { display: flex; justify-content: space-between; gap: var(--space-4); color: var(--label-color); }
 .admin-bc-chart-tip-row strong { color: var(--text-color); font-variant-numeric: tabular-nums; }
+
+/* ML-443: the Dashboard - the page the panel opens on. Its boxes are the stat tiles as buttons (each
+   opens the page behind it), and "Needs you" is a list of rows that do the same. */
+.admin-dash-tile { width: 100%; box-sizing: border-box; font-family: var(--font-sans); text-align: left; cursor: pointer; }
+.admin-dash-tile:hover { border-color: var(--control-border); }
+#dashboard-section .admin-stat-section-title:first-child { margin-top: var(--space-4); }
+.admin-dash-need { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: var(--touch-target); box-sizing: border-box; padding: var(--space-3) var(--space-4); background: var(--container-bg); border: none; border-bottom: 1px solid var(--input-border); font-family: var(--font-sans); font-size: var(--font-base); color: var(--text-color); text-align: left; cursor: pointer; }
+.admin-dash-need:last-child { border-bottom: none; }
+.admin-dash-need:hover { background: var(--input-bg); }
+.admin-dash-need .admin-badge { flex-shrink: 0; }
+.admin-dash-need-text { flex: 1; min-width: 0; }

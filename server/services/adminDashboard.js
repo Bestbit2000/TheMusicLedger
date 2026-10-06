@@ -1,0 +1,91 @@
+// ML-443: Admin -> Dashboard, the page the panel opens on. Four things at a glance - people, the build,
+// money and what needs the owner - each read from what the app already holds (accounts, sessions,
+// the back-test runs, Feature access, Costs and usage, the business case, feedback, the third-party
+// register, the security review). Nothing new is stored. Each part is read on its own, so one that
+// can't be read is left out (null) and the rest of the page still shows.
+// "Active" is a member who logged practice in the last seven days: the app does not record when
+// someone last opened it. See specs/components/admin-shell.md ("Dashboard").
+import pool from '../config/db.js';
+import { ACCOUNT_TYPES, getFeatureAccess } from './features.js';
+import { listPendingInvites } from './passwordAuth.js';
+import { getBusinessCase, BusinessCase } from './businessCase.js';
+import { costsAndUsage } from './thirdPartyUsage.js';
+import { getSecurityReview } from './securityReview.js';
+import thirdPartyRegister from '../thirdParties/register.js';
+import fs from 'node:fs';
+import { daysToLaunch, needsYou } from './adminDashboardRules.js';
+
+const part = async (name, read) => {
+  try { return await read(); } catch (error) { console.error(`Admin dashboard: ${name} not read:`, error.message); return null; }
+};
+
+async function people() {
+  const [types, week, invites] = await Promise.all([
+    pool.query(`SELECT account_level, count(*)::int AS n, count(*) FILTER (WHERE created_at > now() - interval '7 days')::int AS fresh
+                  FROM accounts WHERE deleted_at IS NULL GROUP BY account_level`),
+    pool.query(`SELECT count(DISTINCT s.account_id)::int AS active, count(*)::int AS sessions, coalesce(sum(s.total_duration_minutes), 0)::int AS minutes
+                  FROM sessions s JOIN accounts a ON a.id = s.account_id
+                 WHERE a.deleted_at IS NULL AND s.started_at > now() - interval '7 days'`),
+    listPendingInvites()
+  ]);
+  const byKey = new Map(types.rows.map((r) => [r.account_level, r]));
+  return {
+    total: types.rows.reduce((sum, r) => sum + r.n, 0),
+    newThisWeek: types.rows.reduce((sum, r) => sum + r.fresh, 0),
+    byType: ACCOUNT_TYPES.map((t) => ({ key: t.key, label: t.label, count: (byKey.get(t.key) || { n: 0 }).n })).filter((t) => t.count),
+    activeThisWeek: week.rows[0].active,
+    sessionsThisWeek: week.rows[0].sessions,
+    minutesThisWeek: week.rows[0].minutes,
+    invitesWaiting: invites.length
+  };
+}
+
+async function build() {
+  const releases = JSON.parse(fs.readFileSync(new URL('../../public/releases.json', import.meta.url), 'utf8'));
+  const [run, access] = await Promise.all([
+    pool.query('SELECT total_tests, passed_tests, failed_tests, started_at FROM test_runs ORDER BY started_at DESC LIMIT 1'),
+    getFeatureAccess()
+  ]);
+  const live = access.features.filter((f) => f.live);
+  const last = run.rows[0];
+  return {
+    version: releases[0] ? releases[0].version : null,
+    releasedOn: releases[0] ? releases[0].date : null,
+    tests: last ? { total: last.total_tests, passed: last.passed_tests, failed: last.failed_tests, at: last.started_at } : null,
+    features: { total: access.features.length, live: live.length, standard: live.filter((f) => f.access.standard_member).length }
+  };
+}
+
+async function money() {
+  const bc = await getBusinessCase();
+  const plan = bc.plan;
+  const result = BusinessCase.project(plan, plan.current);
+  return {
+    spent: bc.today.spent,
+    perMonth: bc.today.perMonth,
+    launch: plan.launch,
+    daysToLaunch: daysToLaunch(plan.launch),
+    years: result.years,
+    scenario: { id: result.scenario.id, name: result.scenario.name, endPosition: result.endPosition, payback: result.payback ? result.payback.label : null, hasIncome: result.total.in > 0 }
+  };
+}
+
+export async function getAdminDashboard() {
+  const [who, made, cash, feedback, usage, security] = await Promise.all([
+    part('people', people),
+    part('the build', build),
+    part('money', money),
+    part('feedback', async () => (await pool.query('SELECT count(*) FILTER (WHERE category IS NULL)::int AS n FROM feedback')).rows[0].n),
+    part('usage', async () => (await costsAndUsage()).usage),
+    part('security review', async () => { const r = await getSecurityReview(); return { runDue: r.automatedRunDue, upstreamChanged: r.upstreamChangedSinceDeepReview }; })
+  ]);
+  const limits = (usage || []).filter((m) => m.status && (m.status.level === 'warn' || m.status.level === 'fail'))
+    .map((m) => ({ name: m.name, percent: m.status.percent, level: m.status.level }));
+  const attention = thirdPartyRegister.entries.reduce((sum, e) => sum + (e.attention || []).length, 0);
+  return {
+    people: who,
+    build: made,
+    money: cash,
+    needs: needsYou({ feedback, attention, limits, tests: made && made.tests, security })
+  };
+}

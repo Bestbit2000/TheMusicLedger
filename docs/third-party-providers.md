@@ -97,6 +97,9 @@ they ask of us are in the register entry; the security verdict is in
 
 ## Costs and usage (ML-429)
 
+Since ML-443 this is its own page, **Admin → Business → Costs and usage** (it was the top of Third parties). The
+same server answer (`/api/admin/third-parties`) draws both pages.
+
 The top of **Admin → Third parties** shows what the app costs and how close each plan's limit is.
 
 - Code: [`server/services/thirdPartyUsage.js`](../server/services/thirdPartyUsage.js) (the meters, readings, costs,

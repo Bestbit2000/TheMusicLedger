@@ -300,6 +300,76 @@
         const current = document.getElementById('adminCurrentSection');
         if (current && navBtn) current.textContent = navBtn.firstChild.textContent.trim();
         setAdminNavOpen(false);
+        // ML-443: the group holding the open page is open, and the page has its own address, so a
+        // reload stays on it and Back goes to the page before.
+        const group = navBtn?.closest('.admin-nav-group');
+        if (group) setNavGroupOpen(group, true);
+        if (navBtn && location.hash.slice(1) !== sectionName) location.hash = sectionName;
+    }
+
+    // ML-443: the menu's groups. A heading opens and closes its group; which ones are shut is kept on
+    // this device (a convenience only - the menu works without it). A shut group's heading carries
+    // the total of the counts inside it, so something waiting is never hidden.
+    const NAV_GROUPS_KEY = 'adminNavGroupsClosed';
+    const NAV_FOLDED_KEY = 'adminNavFolded';
+    const navStore = {
+        read(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (error) { return null; } },
+        write(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (error) { /* private window: not kept */ } }
+    };
+    function refreshNavCounts() {
+        document.querySelectorAll('.admin-nav-group').forEach((group) => {
+            const total = [...group.querySelectorAll('.admin-nav-group-items .admin-nav-count:not(.hidden-group)')].reduce((sum, el) => sum + (Number(el.textContent) || 0), 0);
+            const shut = group.querySelector('.admin-nav-group-head').getAttribute('aria-expanded') !== 'true';
+            const count = group.querySelector('[data-group-count]');
+            count.textContent = String(total);
+            count.classList.toggle('hidden-group', !shut || !total);
+        });
+    }
+    function setNavCount(id, n) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = String(n);
+        el.classList.toggle('hidden-group', !n);
+        refreshNavCounts();
+    }
+    function setNavGroupOpen(group, open) {
+        group.querySelector('.admin-nav-group-head').setAttribute('aria-expanded', open ? 'true' : 'false');
+        group.querySelector('.admin-nav-group-items').classList.toggle('hidden-group', !open);
+        group.querySelector('[data-group-arrow]').textContent = open ? 'expand_more' : 'chevron_right';
+        refreshNavCounts();
+    }
+    // The whole menu folds away on a wide screen, so a wide table gets the window (a phone has ☰ instead)
+    function setNavFolded(folded) {
+        const btn = document.getElementById('adminNavFold');
+        document.getElementById('adminShell').classList.toggle('is-nav-folded', folded);
+        btn.setAttribute('aria-expanded', folded ? 'false' : 'true');
+        btn.setAttribute('aria-label', folded ? 'Show the admin menu' : 'Hide the admin menu');
+        btn.firstElementChild.textContent = folded ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left';
+    }
+    function initNavGroups() {
+        const closed = navStore.read(NAV_GROUPS_KEY) || [];
+        document.querySelectorAll('.admin-nav-group').forEach((group) => {
+            const here = [...group.querySelectorAll('.admin-nav-item')].some((b) => b.dataset.section === (location.hash.slice(1) || 'dashboard'));
+            if (closed.includes(group.dataset.navGroup) && !here) setNavGroupOpen(group, false);
+            group.querySelector('.admin-nav-group-head').addEventListener('click', (e) => {
+                setNavGroupOpen(group, e.currentTarget.getAttribute('aria-expanded') !== 'true');
+                navStore.write(NAV_GROUPS_KEY, [...document.querySelectorAll('.admin-nav-group')].filter((g) => g.querySelector('.admin-nav-group-head').getAttribute('aria-expanded') !== 'true').map((g) => g.dataset.navGroup));
+            });
+        });
+        setNavFolded(navStore.read(NAV_FOLDED_KEY) === true);
+        document.getElementById('adminNavFold').addEventListener('click', (e) => {
+            const folded = e.currentTarget.getAttribute('aria-expanded') === 'true';
+            setNavFolded(folded);
+            navStore.write(NAV_FOLDED_KEY, folded);
+        });
+        // Back, Forward and a typed address: go to the page the address names (no address = the first page)
+        window.addEventListener('hashchange', openPageFromAddress);
+    }
+    function openPageFromAddress() {
+        const name = location.hash.slice(1) || 'dashboard';
+        const btn = [...document.querySelectorAll('.admin-nav-item[data-section]')].find((b) => b.dataset.section === name);
+        // A click, not showSection, so a page that loads itself when it is opened still does
+        if (btn && !btn.classList.contains('active')) btn.click();
     }
 
     // ML-240: ☰ toggle for the section list on a phone-width screen (admin.css hides the toggle and
@@ -330,6 +400,7 @@
     // data-section. "Test cases" is a sub-view reached via a link, not the sidebar.
     function initNav() {
         initNavToggle();
+        initNavGroups();
         document.querySelectorAll('.admin-nav-item[data-section]').forEach((btn) => {
             btn.addEventListener('click', () => showSection(btn.dataset.section));
         });
@@ -1303,11 +1374,7 @@
         // The untriaged count on the sidebar item, so a waiting item is visible without opening the
         // tab at all - hidden entirely at zero rather than showing a "0" badge that reads as a
         // notification when there's nothing to notify about.
-        const navCount = document.getElementById('feedbackNavCount');
-        if (navCount) {
-            navCount.innerText = String(data.counts.untriaged);
-            navCount.classList.toggle('hidden-group', !data.counts.untriaged);
-        }
+        setNavCount('feedbackNavCount', data.counts.untriaged);
 
         if (!data.feedback.length) {
             el.innerHTML = data.counts.total
@@ -2597,7 +2664,7 @@
 
     function renderThirdPartyCosts(data) {
         const c = data.costs;
-        if (!c) return '<p class="admin-intro">Costs and usage couldn\'t be loaded - the list below is still right.</p>';
+        if (!c) return '<p class="admin-intro">Costs and usage couldn\'t be loaded.</p>';
         const rows = c.rows.length ? c.rows.map((r) => `
             <tr>
                 <td>${escapeHtml(partyName(r.partyKey))}</td>
@@ -2724,7 +2791,7 @@
         document.getElementById('readingFormCancelBtn')?.addEventListener('click', () => hideModal('readingFormModal'));
         document.getElementById('readingFormSaveBtn')?.addEventListener('click', saveReadingForm);
         // The page is redrawn after every change, so its buttons are heard from the container
-        document.getElementById('thirdParties')?.addEventListener('click', async (e) => {
+        document.getElementById('costsUsage')?.addEventListener('click', async (e) => {
             const t = e.target.closest('button');
             if (!t || !thirdPartyData) return;
             if (t.id === 'costAddBtn') { openCostForm(null); return; }
@@ -2789,7 +2856,12 @@
             return `<h2 class="admin-stat-section-title">${title} (${inGroup.length})</h2><p class="admin-intro">${escapeHtml(intro)}</p>${body}`;
         }).join('');
 
-        document.getElementById('thirdParties').innerHTML = renderThirdPartyCosts(data) + renderThirdPartyUsage(data) + '<h2 class="admin-stat-section-title">Who we depend on</h2>' + tiles + attentionCard + byHandCard + groups;
+        // ML-443: costs and usage are their own page (Business → Costs and usage); the same answer draws both
+        document.getElementById('costsUsage').innerHTML = renderThirdPartyCosts(data) + renderThirdPartyUsage(data);
+        document.getElementById('thirdParties').innerHTML = tiles + attentionCard + byHandCard + groups;
+        // What is waiting shows on the menu: things needing attention, and limits getting near or nearly full
+        setNavCount('thirdPartiesNavCount', attention.length);
+        setNavCount('costsNavCount', (data.usage || []).filter((m) => m.status && (m.status.level === 'warn' || m.status.level === 'fail')).length);
     }
 
     async function reloadThirdParties() {
@@ -3036,6 +3108,8 @@
         initNotificationsAdmin();
         initRestMessagesAdmin();
         document.getElementById('adminShell').classList.remove('hidden-group');
+        openPageFromAddress(); // ML-443: admin.html#accounts opens on Accounts
+        if (!location.hash.slice(1) || location.hash === '#dashboard') window.AdminDashboard?.open(); // the first page reads itself
         try {
             loadFeatureAccess(); // ML-414: the first page - who can use what, and the catalogue
             const backtest = await apiCall('/api/admin/backtest');

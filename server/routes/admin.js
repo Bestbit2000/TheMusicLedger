@@ -29,6 +29,7 @@ import { getSecurityReview, runSecurityReviewNow } from '../services/securityRev
 import thirdPartyRegister from '../thirdParties/register.js';
 import { costsAndUsage, addCost, updateCost, deleteCost, readMeters, recordManualReading, sendUsageWarnings } from '../services/thirdPartyUsage.js';
 import { getBusinessCase, saveBusinessCase, resetBusinessCase } from '../services/businessCase.js';
+import { getAdminDashboard } from '../services/adminDashboard.js';
 import { getInstrumentUsageStats } from '../services/instruments.js';
 import { listRestMessages, createRestMessage, updateRestMessage, setRestMessageActive, deleteRestMessage, moveRestMessage } from '../services/restMessages.js';
 
@@ -897,6 +898,16 @@ router.put('/business-case', requireAuth, resolveAccount, requireSuperAdmin, asy
 router.post('/business-case/reset', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     res.json(await resetBusinessCase());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-443: the page the panel opens on - people, the build, money and what needs the owner, all read
+// from what the app already holds (server/services/adminDashboard.js).
+router.get('/dashboard', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await getAdminDashboard());
   } catch (error) {
     sendError(res, error);
   }

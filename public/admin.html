@@ -32,35 +32,53 @@
          the head row shows which section is open; on wider screens it's the fixed sidebar as before. -->
     <nav class="admin-sidebar" id="adminSidebar" aria-label="Admin sections">
         <div class="admin-sidebar-head">
-            <div class="admin-sidebar-title">Admin<span class="admin-sidebar-current" id="adminCurrentSection">Features</span></div>
+            <div class="admin-sidebar-title">Admin<span class="admin-sidebar-current" id="adminCurrentSection">Dashboard</span></div>
+            <button type="button" class="admin-nav-fold" id="adminNavFold" aria-expanded="true" aria-controls="adminNavItems" aria-label="Hide the admin menu"><span class="material-symbols-outlined" aria-hidden="true">keyboard_double_arrow_left</span></button>
             <button type="button" class="admin-nav-toggle" id="adminNavToggle" aria-expanded="false" aria-controls="adminNavItems" aria-label="Show admin sections"><span class="material-symbols-outlined" aria-hidden="true">menu</span></button>
         </div>
+        <!-- ML-443: the pages in four groups, by the job being done. A heading opens and closes its group
+             (remembered on this device); a closed group's heading carries the count of what is waiting
+             inside. Every page has its own address (admin.html#accounts). See specs/components/admin-shell.md. -->
         <div class="admin-nav-items" id="adminNavItems">
-        <a class="admin-nav-item admin-back-link" href="/">&larr; Back to app</a>
-        <!-- ML-345: who gets each feature, by account type -->
-        <button class="admin-nav-item active" data-section="feature-access" type="button">Feature access</button>
-        <button class="admin-nav-item" data-section="release-tests" type="button">Release tests</button>
-        <button class="admin-nav-item" data-section="accounts" type="button">Accounts</button>
-        <button class="admin-nav-item" data-section="bands" type="button">Bands</button>
-        <button class="admin-nav-item" data-section="metadata" type="button">Metadata lists</button>
-        <button class="admin-nav-item" data-section="usage" type="button">Usage</button>
-        <button class="admin-nav-item" data-section="flows" type="button">Flows</button>
-        <button class="admin-nav-item" data-section="warmups" type="button">Warm-ups</button>
-        <button class="admin-nav-item" data-section="theory-grades" type="button">Theory grades</button>
-        <button class="admin-nav-item" data-section="notifications" type="button">Notifications</button>
-        <!-- ML-390: what the 30-second rest between practice blocks shows -->
-        <button class="admin-nav-item" data-section="rest-messages" type="button">Rest messages</button>
-        <!-- ML-170: the untriaged count rides on the nav item itself - the whole value of this tab
-             is noticing there's something waiting without having to go and look. -->
-        <button class="admin-nav-item" data-section="feedback" type="button">Feedback <span id="feedbackNavCount" class="admin-nav-count hidden-group"></span></button>
-        <!-- ML-192: repeatable security review of the OMR service behind PDF import. -->
-        <button class="admin-nav-item" data-section="security" type="button">Security</button>
-        <!-- ML-267: everyone the app depends on, their terms and what those ask of us. -->
-        <button class="admin-nav-item" data-section="third-parties" type="button">Third parties</button>
-        <!-- ML-443: what each way of rolling the app out costs and could earn, for up to five years. -->
-        <button class="admin-nav-item" data-section="business-case" type="button">Business case</button>
-        <!-- ML-198: read-only visual catalogue of the design system (public/admin-design.js). -->
-        <button class="admin-nav-item" data-section="design" type="button">Design</button>
+            <a class="admin-nav-item admin-back-link" href="/">&larr; Back to app</a>
+            <button class="admin-nav-item active" data-section="dashboard" type="button">Dashboard</button>
+            <div class="admin-nav-group" data-nav-group="members">
+                <button type="button" class="admin-nav-group-head" aria-expanded="true" aria-controls="adminNavGroup-members"><span class="admin-nav-group-name">Members</span><span class="admin-nav-count hidden-group" data-group-count></span><span class="material-symbols-outlined" aria-hidden="true" data-group-arrow>expand_more</span></button>
+                <div class="admin-nav-group-items" id="adminNavGroup-members">
+                <button class="admin-nav-item" data-section="accounts" type="button">Accounts</button>
+                <button class="admin-nav-item" data-section="bands" type="button">Bands</button>
+                <button class="admin-nav-item" data-section="feature-access" type="button">Feature access</button>
+                <button class="admin-nav-item" data-section="notifications" type="button">Notifications</button>
+                <button class="admin-nav-item" data-section="feedback" type="button">Feedback <span id="feedbackNavCount" class="admin-nav-count hidden-group"></span></button>
+                </div>
+            </div>
+            <div class="admin-nav-group" data-nav-group="content">
+                <button type="button" class="admin-nav-group-head" aria-expanded="true" aria-controls="adminNavGroup-content"><span class="admin-nav-group-name">Content</span><span class="admin-nav-count hidden-group" data-group-count></span><span class="material-symbols-outlined" aria-hidden="true" data-group-arrow>expand_more</span></button>
+                <div class="admin-nav-group-items" id="adminNavGroup-content">
+                <button class="admin-nav-item" data-section="flows" type="button">Flows</button>
+                <button class="admin-nav-item" data-section="warmups" type="button">Warm-ups</button>
+                <button class="admin-nav-item" data-section="rest-messages" type="button">Rest messages</button>
+                <button class="admin-nav-item" data-section="theory-grades" type="button">Theory grades</button>
+                <button class="admin-nav-item" data-section="metadata" type="button">Metadata lists</button>
+                </div>
+            </div>
+            <div class="admin-nav-group" data-nav-group="business">
+                <button type="button" class="admin-nav-group-head" aria-expanded="true" aria-controls="adminNavGroup-business"><span class="admin-nav-group-name">Business</span><span class="admin-nav-count hidden-group" data-group-count></span><span class="material-symbols-outlined" aria-hidden="true" data-group-arrow>expand_more</span></button>
+                <div class="admin-nav-group-items" id="adminNavGroup-business">
+                <button class="admin-nav-item" data-section="business-case" type="button">Business case</button>
+                <button class="admin-nav-item" data-section="costs-usage" type="button">Costs and usage <span id="costsNavCount" class="admin-nav-count hidden-group"></span></button>
+                <button class="admin-nav-item" data-section="usage" type="button">Usage</button>
+                </div>
+            </div>
+            <div class="admin-nav-group" data-nav-group="release">
+                <button type="button" class="admin-nav-group-head" aria-expanded="true" aria-controls="adminNavGroup-release"><span class="admin-nav-group-name">Release and checks</span><span class="admin-nav-count hidden-group" data-group-count></span><span class="material-symbols-outlined" aria-hidden="true" data-group-arrow>expand_more</span></button>
+                <div class="admin-nav-group-items" id="adminNavGroup-release">
+                <button class="admin-nav-item" data-section="release-tests" type="button">Release tests</button>
+                <button class="admin-nav-item" data-section="security" type="button">Security</button>
+                <button class="admin-nav-item" data-section="third-parties" type="button">Third parties <span id="thirdPartiesNavCount" class="admin-nav-count hidden-group"></span></button>
+                <button class="admin-nav-item" data-section="design" type="button">Design</button>
+                </div>
+            </div>
         </div>
     </nav>
     <main class="admin-content">
@@ -69,7 +87,12 @@
              See docs/feature-access-plan.md and specs/components/admin-feature-access.md.
              ML-414: this is also the catalogue - the old Features page is folded in: "+ Add feature" here,
              and each feature's ⋮ has Edit (name, description, key) and Delete. -->
-        <section id="feature-access-section" class="admin-section">
+        <section id="dashboard-section" class="admin-section">
+            <h1>Dashboard</h1>
+            <p class="admin-intro">Where things stand today. Every box opens the page behind it.</p>
+            <div id="adminDashboard"><p class="admin-intro">Loading&hellip;</p></div>
+        </section>
+        <section id="feature-access-section" class="admin-section hidden-group">
             <h1>Feature access</h1>
             <p class="admin-intro">What each account type can use. Off means hidden in the app and refused by the server. <strong>Live</strong> is the master switch: off turns a feature off for everyone, whatever the account type. Super admins always have everything. A new feature is Super admin only until you switch it on here. Each feature's ⋮ renames or deletes it.</p>
             <div class="admin-subtabs" id="accessTabs" role="tablist" aria-label="Account type"></div>
@@ -314,9 +337,14 @@
         </section>
         <!-- ML-267: the register of third parties (server/thirdParties/register.js) - read-only here; it
              changes with a release, and `npm run third-party-audit` checks it (docs/third-party-providers.md). -->
+        <section id="costs-usage-section" class="admin-section hidden-group">
+            <h1>Costs and usage</h1>
+            <p class="admin-intro">What the app costs to run, and how close each service is to the limit of the plan we're on (ML-429). Costs are the ones you enter, in pounds with dollars underneath. Usage is read every morning from the app or the provider, or typed in; an email goes out at 75% and 90%. Who each service is and what their terms ask is on <strong>Third parties</strong>.</p>
+            <div id="costsUsage"><p class="admin-intro">Loading&hellip;</p></div>
+        </section>
         <section id="third-parties-section" class="admin-section hidden-group">
             <h1>Third parties</h1>
-            <p class="admin-intro">Every person and company The Music Ledger depends on: what they provide, which plan we're on, their terms and what those terms ask of us (ML-267). What each one costs and how close its plan's limit is are at the top (ML-429). The list itself is kept with the code, so it changes with a release. A release is blocked if the app uses something that isn't listed here (<code>npm run third-party-audit</code>). How to add or re-check one: <code>docs/third-party-providers.md</code>.</p>
+            <p class="admin-intro">Every person and company The Music Ledger depends on: what they provide, which plan we're on, their terms and what those terms ask of us (ML-267). What each one costs and how close its plan's limit is are on <strong>Costs and usage</strong>. The list itself is kept with the code, so it changes with a release. A release is blocked if the app uses something that isn't listed here (<code>npm run third-party-audit</code>). How to add or re-check one: <code>docs/third-party-providers.md</code>.</p>
             <div id="thirdParties"><p class="admin-intro">Loading&hellip;</p></div>
         </section>
         <!-- ML-443: the owner's plan - a price list of costs, the scenarios that choose from it, and what each
@@ -781,6 +809,8 @@
 <script src="avatars.js"></script>
 <script src="admin.js"></script>
 <script src="admin-design.js"></script>
+<!-- ML-443: the page the panel opens on -->
+<script src="admin-dashboard.js"></script>
 <!-- ML-443: the business case sums, then the page that runs them (both after admin.js) -->
 <script src="businessCase.js"></script>
 <script src="admin-business.js"></script>
