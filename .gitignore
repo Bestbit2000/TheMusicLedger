@@ -44,3 +44,6 @@ playwright-report/
 # ML-198 design sign-off: written by npm run design-gate / design-signoff (local only)
 public/design-new.json
 design-signoff/
+
+# The owner's own data protection records (ML-221) - kept on his machine, never in the repo
+compliance-documents/
