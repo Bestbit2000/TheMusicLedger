@@ -43,7 +43,7 @@ test('the export holds everything of the member\'s, nothing of anyone else\'s, a
   // Someone else's, and a band we share (I started it)
   const theirSession = Number((await one(`INSERT INTO sessions (session_type, account_id, started_at, total_duration_minutes) VALUES ('practice', $1, now(), 99) RETURNING id`, [other])).id);
   await pool.query(`INSERT INTO feedback (account_id, message) VALUES ($1, 'Their private note')`, [other]);
-  const band = Number((await one(`INSERT INTO bands (name, created_by_account_id) VALUES ($1, $2) RETURNING id`, [`ML-430 export band ${stamp}`, id])).id);
+  const band = Number((await one(`INSERT INTO bands (name, created_by_account_id, kind) VALUES ($1, $2, 'group') RETURNING id`, [`ML-430 export band ${stamp}`, id])).id);
   cleanup.push(`DELETE FROM bands WHERE id = ${band}`);
   await pool.query(`INSERT INTO band_members (band_id, account_id) VALUES ($1, $2), ($1, $3)`, [band, id, other]);
 

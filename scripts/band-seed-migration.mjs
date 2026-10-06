@@ -76,16 +76,17 @@ BEGIN
     IF owner IS NULL THEN RETURN; END IF; -- an empty database has no one to own them - nothing to seed
 
     FOR s IN SELECT * FROM band_seed ORDER BY ord LOOP
+        -- ML-473: only directory entries - never a member's own label or a band's shared space
         SELECT b.id INTO found FROM bands b
-         WHERE lower(b.name) = lower(s.name)
+         WHERE b.kind = 'directory' AND (lower(b.name) = lower(s.name)
             OR b.name = ANY (s.old_names)
             OR (s.parent_name IS NULL AND b.website IS NOT NULL AND ${shared}
-                AND ${hostSql('b.website')} = ${hostSql('s.website')})
+                AND ${hostSql('b.website')} = ${hostSql('s.website')}))
          ORDER BY (lower(b.name) = lower(s.name)) DESC, (b.name = ANY (s.old_names)) DESC, b.id
          LIMIT 1;
         IF found IS NULL THEN
-            INSERT INTO bands (name, website, created_by_account_id, ensemble_type, town, county, rehearsal_postcode, section_level, notes)
-            VALUES (s.name, s.website, owner, s.ensemble_type, s.town, s.county, s.rehearsal_postcode, s.section_level, s.notes)
+            INSERT INTO bands (kind, name, website, created_by_account_id, ensemble_type, town, county, rehearsal_postcode, section_level, notes)
+            VALUES ('directory', s.name, s.website, owner, s.ensemble_type, s.town, s.county, s.rehearsal_postcode, s.section_level, s.notes)
             RETURNING id INTO found;
         ELSE
             UPDATE bands SET name = s.name, website = s.website, active = true, ensemble_type = s.ensemble_type, town = s.town,
@@ -98,7 +99,7 @@ BEGIN
     -- The parent: in this list, else already in the directory (a main main band, one level only).
     UPDATE bands c SET parent_band_id = COALESCE(
             (SELECT par.band_id FROM band_seed par WHERE lower(par.name) = lower(kid.parent_name)),
-            (SELECT b.id FROM bands b WHERE lower(b.name) = lower(kid.parent_name) AND b.parent_band_id IS NULL ORDER BY b.id LIMIT 1))
+            (SELECT b.id FROM bands b WHERE b.kind = 'directory' AND lower(b.name) = lower(kid.parent_name) AND b.parent_band_id IS NULL ORDER BY b.id LIMIT 1))
       FROM band_seed kid
      WHERE c.id = kid.band_id AND kid.parent_name IS NOT NULL;
 END

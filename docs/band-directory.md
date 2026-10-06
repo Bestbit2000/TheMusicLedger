@@ -1,8 +1,41 @@
 # Band directory
 
-The shared list of bands players pick from (account page → My bands → join a band) and super admins
-manage (Admin → Bands). It's the `bands` table - also used for the older per-account session "who"
-labels, see `server/services/bands.js`.
+The shared list of bands players pick from (account page → My bands → add a band) and super admins
+manage (Admin → Bands). It's the `bands` table, rows of kind `directory`.
+
+## Three kinds of row (ML-473, migration 108)
+
+The `bands` table holds three different things, told apart by `bands.kind`. Until migration 108 nothing
+told them apart, which is how a member's private label came to be listed to everyone as a band anyone
+could join (site security review, ML-231).
+
+| Kind | What it is | Who sees it |
+|---|---|---|
+| `directory` | An entry in this directory: name, website, where it rehearses. No members, owns nothing | Everyone |
+| `group` | A band's **shared space**: its members (`band_members`), its pieces and its practice lists. May point at the directory entry it is the space for (`directory_band_id`) | Its members only |
+| `label` | One member's own name for who a rehearsal or performance was with (the old "organisation") | That member only |
+
+**Joining is by invitation only** (the owner's decision, 6 Oct 2026: he does not want to be the one who
+confirms who runs a band, so nobody has to be).
+
+- Picking a band from the directory **starts your own space** for it; you are its first member and its
+  first librarian. It never puts you into a space someone else started.
+- Two people who pick the same band get **two separate spaces** and neither can see the other. So claiming
+  a band's name gains nothing: a space holds only the people its members invited.
+- The way into a space is an **invitation** from someone already in it (any member can invite), addressed
+  to the email address the other person signs in with. They see it on My bands and say yes or no. No
+  email is sent, nothing tells the sender whether that address has an account, and an invitation nobody
+  answers goes after 30 days (`band_invites`).
+- **Librarians** (`band_members.role = 'admin'`; the word on screen is not settled) can take a member
+  out, cancel any invitation and make another member a librarian. A band always has one: if the last one
+  leaves, whoever has been in it longest takes over (`ensureLibrarian`).
+- A member sees the other members' **names**, never their email addresses.
+- A practice session's "who" is always one of the member's own labels. The "who" box also offers the
+  names of the bands they are in (`listWhoOptions`); picking one makes a label of that name.
+
+Code: `server/services/bands.js`; tests `server/test/bandGroups.test.js` (dev database). **Still to
+build:** the screens for members and invitations, and limiting who can change a band piece to the member
+who added it and the librarians.
 
 ## What a band has
 

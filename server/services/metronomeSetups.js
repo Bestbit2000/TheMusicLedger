@@ -28,6 +28,26 @@ export async function renameAdhocSetup(accountId, id, name) {
   if (result.rowCount === 0) throw withStatus(404, 'Setup not found');
 }
 
+// ML-473: a member's own time signature (account_time_signatures) is named by its id, and that id was
+// never checked - so a bar or Quick Play block could name another member's and read its two numbers
+// back. A block may use one that is the caller's own, or one the same piece or set-up already uses
+// (a band piece keeps the time signatures its other members gave it; a copy keeps its original's).
+export async function assertOwnTimeSignatures(accountId, blocks, { scoreId = null, setupId = null } = {}) {
+  const ids = [...new Set((blocks || []).map((b) => b && b.accountTimeSignatureId).filter((v) => v !== null && v !== undefined && v !== '').map(Number))];
+  if (!ids.length) return;
+  if (ids.some((id) => !Number.isInteger(id))) throw withStatus(400, 'That time signature is not one of yours.');
+  const { rows } = await pool.query(
+    `SELECT ats.id FROM account_time_signatures ats
+      WHERE ats.id = ANY($1::bigint[])
+        AND (ats.account_id = $2
+             OR EXISTS (SELECT 1 FROM metronome_segments ms
+                         WHERE ms.account_time_signature_id = ats.id
+                           AND (ms.parent_score_id = $3 OR ms.parent_adhoc_setup_id = $4)))`,
+    [ids, accountId, scoreId, setupId]
+  );
+  if (rows.length !== ids.length) throw withStatus(400, 'That time signature is not one of yours.');
+}
+
 // Quick Play (front page, replaces the old single-bar Metronome tool): every
 // press of Play writes the current blocks straight in as history - named
 // with a client-supplied local timestamp instead of a chosen name, flagged
@@ -50,6 +70,7 @@ async function insertQuickPlaySegments(setupId, blocks) {
 }
 
 export async function createQuickPlaySetup(accountId, name, blocks) {
+  await assertOwnTimeSignatures(accountId, blocks);
   const inserted = await pool.query(
     'INSERT INTO adhoc_metronome_setups (account_id, name, saved_at, is_quick_play) VALUES ($1, $2, now(), true) RETURNING id',
     [accountId, name]
@@ -65,6 +86,7 @@ export async function createQuickPlaySetup(accountId, name, blocks) {
 // re-insert, same pattern the block editor already uses for a segment's own child tables).
 export async function overwriteQuickPlayHistorySegments(accountId, id, blocks) {
   await assertSetupOwnership(accountId, id);
+  await assertOwnTimeSignatures(accountId, blocks, { setupId: id });
   await pool.query('DELETE FROM metronome_segments WHERE parent_adhoc_setup_id = $1', [id]);
   await insertQuickPlaySegments(id, blocks);
   return getAdhocSetupWithSegments(accountId, id);

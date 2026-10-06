@@ -6,7 +6,7 @@
 
 import pool from '../config/db.js';
 import { withStatus, assertFlowAccess, assertFlowReadAccess } from './flows.js';
-import { toSegmentDto } from './metronomeSetups.js';
+import { toSegmentDto, assertOwnTimeSignatures } from './metronomeSetups.js';
 import {
   SEGMENT_COLUMNS, segmentColumnValues, validateSegmentPayload,
   replaceFermatas, replaceRehearsalMarks, replaceRamps, withTransaction,
@@ -165,6 +165,7 @@ export async function listFlowBlocksUnchecked(scoreId) {
 export async function createFlowBlock(accountId, scoreId, data) {
   await assertFlowAccess(accountId, scoreId);
   const normalized = asFlowLeadIn(validateSegmentPayload(data));
+  await assertOwnTimeSignatures(accountId, [normalized], { scoreId });
   if (normalized.isLeadIn) await assertNoOtherLeadIn(scoreId, null);
 
   const segmentId = await withTransaction(async (client) => {
@@ -200,6 +201,7 @@ export async function createFlowBlock(accountId, scoreId, data) {
 export async function replaceAllFlowBlocks(accountId, scoreId, blocks) {
   await assertFlowAccess(accountId, scoreId);
   const normalized = blocks.map((b) => asFlowLeadIn(validateSegmentPayload(b)));
+  await assertOwnTimeSignatures(accountId, normalized, { scoreId });
   if (normalized.filter((b) => b.isLeadIn).length > 1) throw withStatus(400, 'This flow already has a lead-in block.');
 
   await withTransaction(async (client) => {
@@ -260,6 +262,7 @@ export async function updateFlowBlock(accountId, segmentId, data) {
   if (data.accountTimeSignatureId !== undefined && data.timeSignatureId === undefined) merged.timeSignatureId = null;
 
   const normalized = asFlowLeadIn(validateSegmentPayload(merged));
+  await assertOwnTimeSignatures(accountId, [normalized], { scoreId: current.scoreId });
   if (normalized.isLeadIn && !current.isLeadIn) await assertNoOtherLeadIn(current.scoreId, segmentId);
   const orderIndex = data.orderIndex !== undefined ? Number(data.orderIndex) : current.orderIndex;
 

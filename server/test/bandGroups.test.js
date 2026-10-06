@@ -1,0 +1,179 @@
+// ML-473: a member's own labels are theirs alone, and a band's shared space is by invitation only
+// (server/services/bands.js) - against a real database, because the point is what one member can see
+// or do of another's. Also the time signature owner check (metronomeSetups.js). Runs only when pointed
+// at the dev branch:
+//   node --env-file=../.env --test test/bandGroups.test.js      (from server/)
+// Under plain `npm test` (no database) it is skipped. Everything it makes belongs to throwaway accounts
+// and one throwaway directory entry, which it removes again.
+
+import { test, after } from 'node:test';
+import assert from 'node:assert/strict';
+
+const onDev = process.env.NEON_BRANCH === 'dev' && !!process.env.DATABASE_URL;
+process.env.DATABASE_URL ||= 'postgres://test@localhost/test';
+
+const { default: pool } = await import('../config/db.js');
+const bands = await import('../services/bands.js');
+const { assertOwnTimeSignatures } = await import('../services/metronomeSetups.js');
+
+const stamp = Date.now();
+const accounts = [];
+const made = [];
+const one = async (sql, params) => (await pool.query(sql, params)).rows[0];
+const emailOf = (name) => `ml473-${name}-${stamp}@themusicledger.local`;
+const account = async (name) => {
+  const id = Number((await one(`INSERT INTO accounts (email, first_name, surname) VALUES ($1, $2, 'Test') RETURNING id`, [emailOf(name), name])).id);
+  accounts.push(id);
+  return id;
+};
+const directoryBand = async (creator) => {
+  const id = Number((await one(`INSERT INTO bands (name, website, created_by_account_id, kind) VALUES ($1, $2, $3, 'directory') RETURNING id`, [`ML-473 Test Band ${stamp}`, `https://ml473-${stamp}.example`, creator])).id);
+  made.push(id);
+  return id;
+};
+const status = (code) => (e) => e.status === code;
+const skip = !onDev && 'needs the dev database';
+
+after(async () => {
+  if (onDev) {
+    await pool.query(`DELETE FROM bands WHERE kind = 'group' AND created_by_account_id = ANY($1)`, [accounts]).catch(() => {});
+    await pool.query(`DELETE FROM sessions WHERE account_id = ANY($1)`, [accounts]).catch(() => {});
+    await pool.query(`DELETE FROM bands WHERE created_by_account_id = ANY($1) OR id = ANY($2)`, [accounts, made]).catch(() => {});
+    for (const id of accounts) await pool.query('DELETE FROM accounts WHERE id = $1', [id]).catch(() => {});
+  }
+  await pool.end().catch(() => {});
+});
+
+test("a member's own labels are theirs alone: not in the directory, not joinable, not another member's to change", { skip }, async () => {
+  const anna = await account('anna');
+  const ben = await account('ben');
+  const label = await bands.getOrCreateBand(anna, `Anna's quartet ${stamp}`);
+  assert.deepEqual((await bands.listBands(anna)).map((b) => b.name), [`Anna's quartet ${stamp}`]);
+  assert.deepEqual(await bands.listBands(ben), []);
+  assert.ok(!(await bands.listAllBands()).some((b) => b.id === Number(label)), 'a label is not in the directory');
+  await assert.rejects(bands.startBandGroup(ben, label), status(404));
+  await assert.rejects(bands.deleteBandIfSoleMember(ben, label), status(404));
+  await assert.rejects(bands.listBandMembers(ben, label), status(404));
+  await bands.renameBand(ben, `Anna's quartet ${stamp}`, 'Hijacked');
+  await bands.archiveOrDeleteBand(ben, `Anna's quartet ${stamp}`);
+  assert.deepEqual((await bands.listBands(anna)).map((b) => b.name), [`Anna's quartet ${stamp}`]);
+  assert.equal((await pool.query('SELECT 1 FROM band_members WHERE band_id = $1', [label])).rows.length, 0);
+});
+
+test('picking a band from the directory starts your own space - never a way into someone else\'s', { skip }, async () => {
+  const anna = await account('anna2');
+  const ben = await account('ben2');
+  const entry = await directoryBand(anna);
+  const annas = await bands.startBandGroup(anna, entry);
+  assert.equal(await bands.startBandGroup(anna, entry), annas, 'asking again gives the same space');
+  const bens = await bands.startBandGroup(ben, entry);
+  assert.notEqual(bens, annas);
+
+  const mine = await bands.getAccountBands(anna);
+  assert.deepEqual(mine.map((b) => [b.id, b.isLibrarian, b.canDelete, b.directoryBandId, b.website]), [[annas, true, true, entry, `https://ml473-${stamp}.example`]]);
+  // The directory entry itself has no members, and nothing says who has a space for it
+  const listed = (await bands.listAllBands()).find((b) => b.id === entry);
+  assert.equal(listed.memberCount, undefined);
+  // Ben can't see into, invite to, join or delete Anna's space
+  await assert.rejects(bands.listBandMembers(ben, annas), status(404));
+  await assert.rejects(bands.inviteToBand(ben, annas, emailOf('ben2')), status(404));
+  await assert.rejects(bands.startBandGroup(ben, annas), status(404));
+  await assert.rejects(bands.deleteBandIfSoleMember(ben, annas), status(404));
+  await assert.rejects(bands.removeBandMember(ben, annas, anna), status(404));
+  // The "who" box offers the band you are in, as well as your own labels
+  assert.deepEqual((await bands.listWhoOptions(anna)).map((o) => o.name), [`ML-473 Test Band ${stamp}`]);
+});
+
+test('the way in is an invitation to your sign-in address: accept, decline, cancel, and who can see them', { skip }, async () => {
+  const anna = await account('anna3');
+  const ben = await account('ben3');
+  const cara = await account('cara3');
+  const dan = await account('dan3');
+  const space = await bands.startBandGroup(anna, await directoryBand(anna));
+
+  await assert.rejects(bands.inviteToBand(anna, space, 'not an address'), status(400));
+  await assert.rejects(bands.inviteToBand(anna, space, emailOf('anna3')), status(409)); // already in it
+  await bands.inviteToBand(anna, space, `  ${emailOf('ben3').toUpperCase()} `);
+  await bands.inviteToBand(anna, space, emailOf('ben3')); // again: still one
+  await bands.inviteToBand(anna, space, emailOf('cara3'));
+  await bands.inviteToBand(anna, space, `nobody-${stamp}@example.com`); // no account: nothing says so
+
+  // Ben sees his invitation and who it is from - not Cara's
+  const bens = await bands.listMyBandInvites(ben);
+  assert.deepEqual(bens.map((i) => [i.bandId, i.invitedBy]), [[space, 'anna3 Test']]);
+  // He can't accept Cara's, and Dan (not invited) has none and can't use Ben's
+  const caras = await bands.listMyBandInvites(cara);
+  await assert.rejects(bands.acceptBandInvite(ben, caras[0].id), status(404));
+  assert.deepEqual(await bands.listMyBandInvites(dan), []);
+  await assert.rejects(bands.acceptBandInvite(dan, bens[0].id), status(404));
+
+  assert.equal(await bands.acceptBandInvite(ben, bens[0].id), space);
+  await bands.declineBandInvite(cara, caras[0].id);
+  assert.deepEqual(await bands.listMyBandInvites(cara), []);
+
+  // The members, by name - never an email address. Anna (librarian) sees the open invitation;
+  // Ben (a member who didn't send it) only that there is one.
+  const forAnna = await bands.listBandMembers(anna, space);
+  assert.deepEqual(forAnna.members.map((m) => [m.name, m.isLibrarian, m.isYou]), [['anna3 Test', true, true], ['ben3 Test', false, false]]);
+  assert.ok(!JSON.stringify(forAnna.members).includes('@'));
+  assert.deepEqual(forAnna.invites.map((i) => i.email), [`nobody-${stamp}@example.com`]);
+  const forBen = await bands.listBandMembers(ben, space);
+  assert.deepEqual([forBen.isLibrarian, forBen.invites.length, forBen.openInvites], [false, 0, 1]);
+  await assert.rejects(bands.cancelBandInvite(ben, space, forAnna.invites[0].id), status(404));
+  await bands.cancelBandInvite(anna, space, forAnna.invites[0].id);
+  assert.equal((await bands.listBandMembers(anna, space)).openInvites, 0);
+
+  // An invitation nobody answered goes after 30 days
+  await bands.inviteToBand(ben, space, emailOf('dan3'));
+  await pool.query(`UPDATE band_invites SET created_at = now() - interval '31 days' WHERE band_id = $1`, [space]);
+  const stale = (await one('SELECT id FROM band_invites WHERE band_id = $1', [space])).id;
+  await assert.rejects(bands.acceptBandInvite(dan, stale), status(404));
+  assert.deepEqual(await bands.listMyBandInvites(dan), []);
+  assert.equal((await pool.query('SELECT 1 FROM band_invites WHERE band_id = $1', [space])).rows.length, 0);
+});
+
+test('librarians: only they remove or appoint; a band always has one', { skip }, async () => {
+  const anna = await account('anna4');
+  const ben = await account('ben4');
+  const cara = await account('cara4');
+  const space = await bands.startBandGroup(anna, await directoryBand(anna));
+  for (const [who, name] of [[ben, 'ben4'], [cara, 'cara4']]) {
+    await bands.inviteToBand(anna, space, emailOf(name));
+    await bands.acceptBandInvite(who, (await bands.listMyBandInvites(who))[0].id);
+  }
+  const librarians = async () => (await bands.listBandMembers(cara, space)).members.filter((m) => m.isLibrarian).map((m) => m.name);
+
+  await assert.rejects(bands.removeBandMember(ben, space, cara), status(403));
+  await assert.rejects(bands.setBandLibrarian(ben, space, ben, true), status(403));
+  await assert.rejects(bands.removeBandMember(anna, space, anna), status(400));
+  await assert.rejects(bands.setBandLibrarian(anna, space, anna, false), status(409)); // the only one
+  await assert.rejects(bands.deleteBandIfSoleMember(anna, space), status(409)); // others are in it
+
+  await bands.setBandLibrarian(anna, space, ben, true);
+  await bands.setBandLibrarian(anna, space, anna, false); // steps down: Ben is left
+  assert.deepEqual(await librarians(), ['ben4 Test']);
+  // The last librarian leaves: whoever has been in the band longest takes over
+  await bands.leaveBand(ben, space);
+  assert.deepEqual(await librarians(), ['anna4 Test']);
+  await bands.removeBandMember(anna, space, cara);
+  await assert.rejects(bands.listBandMembers(cara, space), status(404));
+  await bands.deleteBandIfSoleMember(anna, space);
+  assert.deepEqual(await bands.getAccountBands(anna), []);
+});
+
+test("a block can't name another member's time signature - unless the piece already uses it", { skip }, async () => {
+  const anna = await account('anna5');
+  const ben = await account('ben5');
+  const sig = Number((await one('INSERT INTO account_time_signatures (account_id, numerator, denominator) VALUES ($1, 13, 8) RETURNING id', [anna])).id);
+  await assertOwnTimeSignatures(anna, [{ accountTimeSignatureId: sig }, { accountTimeSignatureId: null }]);
+  await assertOwnTimeSignatures(ben, [{ timeSignatureId: 1 }]); // none of the member's own: nothing to check
+  await assert.rejects(assertOwnTimeSignatures(ben, [{ accountTimeSignatureId: sig }]), status(400));
+  await assert.rejects(assertOwnTimeSignatures(ben, [{ accountTimeSignatureId: 'x' }]), status(400));
+
+  // A piece that already has a bar in Anna's 13/8 (a band piece, a copy): Ben can save that bar again
+  const piece = Number((await one(`INSERT INTO scores (title, owner_account_id) VALUES ('ML-473 piece', $1) RETURNING id`, [ben])).id);
+  await pool.query('INSERT INTO metronome_segments (parent_score_id, order_index, bar_count, bpm, account_time_signature_id) VALUES ($1, 0, 4, 100, $2)', [piece, sig]);
+  await assertOwnTimeSignatures(ben, [{ accountTimeSignatureId: sig }], { scoreId: piece });
+  const other = Number((await one(`INSERT INTO scores (title, owner_account_id) VALUES ('ML-473 other', $1) RETURNING id`, [ben])).id);
+  await assert.rejects(assertOwnTimeSignatures(ben, [{ accountTimeSignatureId: sig }], { scoreId: other }), status(400));
+});

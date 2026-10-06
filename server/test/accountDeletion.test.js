@@ -35,7 +35,7 @@ test('deleting an account scrubs it, deletes what the member made, keeps the sta
   made.push(id);
   const other = Number((await one(`INSERT INTO accounts (email, first_name, surname) VALUES ($1, 'Other', 'Member') RETURNING id`, [`ml430-other-${stamp}@themusicledger.local`])).id);
   made.push(other);
-  const band = Number((await one(`INSERT INTO bands (name, created_by_account_id) VALUES ($1, $2) RETURNING id`, [`ML-430 test band ${stamp}`, id])).id);
+  const band = Number((await one(`INSERT INTO bands (name, created_by_account_id, kind) VALUES ($1, $2, 'group') RETURNING id`, [`ML-430 test band ${stamp}`, id])).id);
   await pool.query(`INSERT INTO band_members (band_id, account_id) VALUES ($1, $2), ($1, $3)`, [band, id, other]);
   const mine = Number((await one(`INSERT INTO scores (title, owner_account_id) VALUES ('My own piece', $1) RETURNING id`, [id])).id);
   const bandPiece = Number((await one(`INSERT INTO scores (title, owner_band_id, added_by_account_id) VALUES ('A band piece', $1, $2) RETURNING id`, [band, id])).id);

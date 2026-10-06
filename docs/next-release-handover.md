@@ -42,7 +42,11 @@ source: the security review's open findings (`docs/site-security-review.md`) and
 1. **ML-472 and ML-467 - DONE on the branch (6 Oct): migration 107 is on dev only - sandbox and production need it before the code.** Teachers are one list shared by every member. Anyone can rename or delete a teacher for
    everyone, and all names go to all members. Give each member their own. Do **ML-467** (a teacher is a
    name only) in the same change - same table.
-2. **ML-473 - private organisations are listed as bands, and band joining is open.** Part 1 (a member's
+2. **ML-473 - server side DONE on the branch (6 Oct): migration 108 is on dev only.** The owner chose
+   **invitation only** (see `docs/band-directory.md`, "Three kinds of row"). Left to build: the members and
+   invitations screens on My bands (the word for "Librarian" is his to pick), limiting who can change a
+   band piece to its adder and the librarians, a line in the privacy policy about an invitee's email
+   address (his wording), and the back-tests that add a band. Original note: private organisations are listed as bands, and band joining is open. Part 1 (a member's
    own organisation labels are theirs alone) is a fix. Part 2 (who can join a band, what a new member can
    change) is **the owner's decision** - ask before building; his earlier line was "bands start open, can
    be closed down later, with librarians". Part 3 (a custom time signature's owner isn't checked) is a

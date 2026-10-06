@@ -24,7 +24,7 @@ const account = async (name, level = 'standard_member') => {
   return id;
 };
 const band = async (name, creator, members) => {
-  const id = Number((await one(`INSERT INTO bands (name, created_by_account_id) VALUES ($1, $2) RETURNING id`, [`ML-441 ${name} ${stamp}`, creator])).id);
+  const id = Number((await one(`INSERT INTO bands (name, created_by_account_id, kind) VALUES ($1, $2, 'group') RETURNING id`, [`ML-441 ${name} ${stamp}`, creator])).id);
   bands.push(id);
   for (const m of members) await pool.query(`INSERT INTO band_members (band_id, account_id) VALUES ($1, $2)`, [id, m]);
   return id;

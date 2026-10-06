@@ -4233,7 +4233,7 @@
         const container = document.getElementById('accountBandsList');
         if (!container) return;
         if (!accountBandsData.myBands.length) {
-            container.innerHTML = '<div class="text-muted">You haven\'t joined any bands yet.</div>';
+            container.innerHTML = '<div class="text-muted">You aren\'t in a band yet.</div>';
         } else {
             container.innerHTML = accountBandsData.myBands.map(b => `
                 <div class="history-item">
@@ -4251,7 +4251,10 @@
 
         const picker = document.getElementById('accountBandPicker');
         if (picker) {
-            const myBandIds = new Set(accountBandsData.myBands.map(b => b.id));
+            // ML-473: the picker is the directory. Picking one starts your own space for that band - the bands
+            // you already have a space for are left out. (Getting into a space someone else started is by
+            // their invitation, never from here.)
+            const myBandIds = new Set(accountBandsData.myBands.map(b => b.directoryBandId));
             const joinable = accountBandsData.allBands.filter(b => !myBandIds.has(b.id));
             // Migration 073: grouped by kind of band, each with its town (and its main band for a
             // youth/training band) so two similar names can be told apart.
@@ -4263,7 +4266,7 @@
                 ['Youth and training bands', ['Youth Brass Band', 'Youth Wind Band', 'Training Band']]
             ];
             const known = groups.flatMap(g => g[1]);
-            picker.innerHTML = '<option value="">Choose a band to join&hellip;</option>' +
+            picker.innerHTML = '<option value="">Choose a band to add&hellip;</option>' +
                 [...groups, ['Other bands', null]].map(([title, types]) => {
                     const inGroup = joinable.filter(b => (types ? types.includes(b.ensembleType) : !known.includes(b.ensembleType)));
                     return inGroup.length ? `<optgroup label="${title}">${inGroup.map(b => `<option value="${b.id}">${label(b)}</option>`).join('')}</optgroup>` : '';
@@ -4321,7 +4324,7 @@
         const bandId = accountBandMenuTargetId;
         closeAccountBandMenu();
         const band = accountBandsData.myBands.find(b => String(b.id) === String(bandId));
-        showConfirmModal('Delete band', `Delete "${band?.displayName || 'this band'}" completely? You're the only member and it has no history, so this removes it from the shared directory entirely - not just your own membership.`, async () => {
+        showConfirmModal('Delete band', `Delete "${band?.displayName || 'this band'}" completely? You're the only one in it. Its pieces and practice lists go with it.`, async () => {
             try {
                 await API.account.deleteBandFull(bandId);
                 await loadAccountBands();
@@ -4885,9 +4888,9 @@
         try {
             await API.account.joinBand(bandId);
             await loadAccountBands();
-            showSuccessToast('Joined band');
+            showSuccessToast('Band added');
         } catch (error) {
-            showWarningToast('Error joining band: ' + error.message);
+            showWarningToast('Error adding band: ' + error.message);
         }
     });
 
@@ -4908,7 +4911,7 @@
             websiteInput.value = '';
             document.getElementById('accountAddBandSection')?.classList.add('hidden-group');
             await loadAccountBands();
-            showSuccessToast('Band added - you\'ve been joined to it');
+            showSuccessToast('Band added');
         } catch (error) {
             showWarningToast('Error adding band: ' + error.message);
         }

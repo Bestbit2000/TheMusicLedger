@@ -75,6 +75,7 @@ export async function deleteMyAccount(accountId) {
     // The address itself, where it is held without a link to the account
     await client.query('DELETE FROM auth_email_links WHERE lower(email) = lower($1)', [email]);
     await client.query('DELETE FROM email_outbox WHERE lower(to_email) = lower($1)', [email]);
+    await client.query('DELETE FROM band_invites WHERE lower(email) = lower($1)', [email]); // ML-473: invitations into a band, held by address
 
     await client.query(
       `UPDATE accounts SET email = $2, first_name = 'Deleted', surname = 'account', display_name = NULL, avatar = NULL,

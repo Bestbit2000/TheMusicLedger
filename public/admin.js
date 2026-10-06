@@ -713,7 +713,7 @@
                         <p>${b.website ? `<a href="${escapeHtml(b.website)}" target="_blank" rel="noopener">${escapeHtml(b.website)}</a>` : 'No website'}</p>
                         ${bandDetailLine(b) ? `<p class="admin-test-case-meta">${escapeHtml(bandDetailLine(b))}</p>` : ''}
                         ${b.notes ? `<p class="admin-test-case-meta">${escapeHtml(b.notes)}</p>` : ''}
-                        <p class="admin-test-case-meta">${b.memberCount} member${b.memberCount === 1 ? '' : 's'} &middot; ${b.sessionCount} session${b.sessionCount === 1 ? '' : 's'}</p>
+                        <p class="admin-test-case-meta">${b.memberCount} member${b.memberCount === 1 ? '' : 's'} in ${b.groupCount} shared space${b.groupCount === 1 ? '' : 's'}</p>
                     </div>
                     <div class="admin-feature-actions">
                         <button class="btn-icon-edit" data-edit-id="${b.id}" aria-label="Edit ${escapeHtml(b.displayName)}" type="button"><span class="material-symbols-outlined">edit</span></button>
