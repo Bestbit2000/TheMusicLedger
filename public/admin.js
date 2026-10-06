@@ -87,6 +87,8 @@
         clearTimeout(toastTimeout);
         toastTimeout = setTimeout(() => { t.classList.remove('show'); }, 5000);
     }
+    // ML-474: the message's X (it was an onclick in the page)
+    document.getElementById('adminToastCloseBtn')?.addEventListener('click', () => document.getElementById('adminToast').classList.remove('show'));
 
     function renderSummary(data) {
         const totalTestCases = data.features.reduce((n, f) => n + f.testCases.length, 0);

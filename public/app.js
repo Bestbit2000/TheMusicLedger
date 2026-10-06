@@ -21,6 +21,71 @@
     function isShown(el) { el = byIdOrEl(el); return !!el && !el.classList.contains('hidden-group'); }
     function showModal(el) { byIdOrEl(el)?.classList.add('show'); }
     function hideModal(el) { byIdOrEl(el)?.classList.remove('show'); }
+
+    // ===== ML-474: what a click does, with no script written in the page =====
+    // The content security policy allows no inline script, so nothing in index.html or in markup this file
+    // builds says onclick="...". An element says WHAT it does - data-act="view" data-arg="statsView" - and
+    // this table is the only place that says HOW. An action is one of these or nothing: an attribute can
+    // never name a function to run, so text that reaches the page (a band's name, a piece's title) can't
+    // turn into script even if it were ever put there unescaped.
+    // Each element gets its own click listener, exactly where its onclick used to be, so the order things
+    // happen in (and a stopPropagation on something inside it) is unchanged: this runs before anything
+    // else in the file adds a listener, so the action is the element's first, as an onclick was. Markup
+    // added later is bound as it arrives (the observer below). The functions the table names are defined
+    // further down - they are only looked up when something is clicked.
+    // A copy of an element that must not do what the original does (a tile in "choose favourites") has
+    // its data-act taken off before it goes on the page.
+    const actArg = (el) => el.dataset.arg;
+    const CLICK_ACTIONS = {
+        'view': (el) => switchView(actArg(el)),
+        'view-menu': (el) => { switchView(actArg(el)); closeMenu(); },
+        'view-back': (el) => switchView(actArg(el), true),
+        'go-back': () => goBack(),
+        'hide-modal': (el) => hideModal(actArg(el)),
+        'show-modal': (el) => showModal(actArg(el)),
+        'close-toast': (el) => closeToast(actArg(el)),
+        'scroll-area': (el) => scrollArea(el, Number(actArg(el))),
+        'open-page': (el) => window.open(actArg(el), '_blank', 'noopener'),          // one of the app's own pages (/privacy.html)
+        'open-url': (el) => window.open(el.dataset.openUrl, '_blank', 'noopener'),   // a stored file's address
+        'reload': (el, e) => { e.preventDefault(); location.reload(); },
+        'feedback': () => { closeMenu(); openFeedbackModal(); },
+        'logout': () => { closeMenu(); logoutUser(); },
+        'confirm-close': () => closeConfirmModal(),
+        'prompt-close': () => closePromptModal(),
+        'list-add': (el) => addListItem(actArg(el)),
+        'list-edit': (el) => editListItem(actArg(el), el.dataset.arg2),
+        'item-detail': (el) => openItemDetailModal(actArg(el) === undefined ? null : actArg(el)),
+        'item-delete': (el) => deleteChallengeItem(actArg(el), el.dataset.arg2),
+        'challenge-open': (el) => openEditChallenge(actArg(el)),
+        'challenge-start': (el) => startChallenge(actArg(el)),
+        'challenge-edit': () => editEntireChallenge(),
+        'challenge-close': () => closeEntireChallenge(),
+        'challenge-delete': () => deleteEntireChallenge(),
+        'flow-open': (el) => openFlow(Number(actArg(el))),
+        'flow-jump': (el) => jumpFlowToPlayIndex(Number(actArg(el))),
+        'flow-recording-delete': (el) => deleteFlowRecording(actArg(el)),
+        'flow-document-delete': (el) => deleteFlowDocument(actArg(el)),
+        'timesig-delete': (el) => deleteMetroSegCustomTimeSig(Number(actArg(el))),
+        'timesig-archive': (el) => archiveMetroSegCustomTimeSig(Number(actArg(el)))
+    };
+    const actBound = new WeakSet();
+    function bindClickActions(root) {
+        if (!root || root.nodeType !== 1) return;
+        const found = root.querySelectorAll('[data-act]');
+        for (const el of root.matches('[data-act]') ? [root, ...found] : found) {
+            if (actBound.has(el)) continue;
+            actBound.add(el);
+            el.addEventListener('click', (e) => {
+                const run = CLICK_ACTIONS[el.dataset.act];
+                if (run) run(el, e); else console.warn('No action called', el.dataset.act);
+            });
+        }
+    }
+    bindClickActions(document.body);
+    new MutationObserver((changes) => {
+        for (const change of changes) for (const node of change.addedNodes) bindClickActions(node);
+    }).observe(document.body, { childList: true, subtree: true });
+
     // Values only known at run time (a menu's position, a drag offset) reach the stylesheet as custom
     // properties that a class reads - the one kind of inline style there is. placeAt puts a fixed menu
     // or popup at a viewport position (.is-placed); setMove/clearMove shift an element for a drag, a
@@ -839,7 +904,8 @@
         cards.forEach((c, i) => {
             const copy = statCardCopy(c);
             const id = c.dataset.stat;
-            copy.removeAttribute('onclick');
+            delete copy.dataset.act; // ML-474: the copy doesn't open the stat's page - it opens the move menu
+            delete copy.dataset.arg;
             delete copy.dataset.stat;
             copy.dataset.orderStat = id;
             copy.setAttribute('aria-haspopup', 'menu');
@@ -935,7 +1001,7 @@
             return `<button type="button" class="history-item settings-link" data-tool-view="${r.tool.view}"><span class="settings-link-icon" data-tool-icon="${r.tool.view}" data-icon="${r.tool.icon || ''}" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">${escapeHtml(r.tool.title)}</span><span class="settings-link-sub">${escapeHtml(sub)}</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>`;
         }).join('') : '<div class="text-muted">No scored tools are switched on.</div>';
         list.querySelectorAll('[data-tool-icon]').forEach(slot => {
-            const tile = document.querySelector('#toolsView .tool-icon-btn[onclick*="' + slot.dataset.toolIcon + '"] .tool-icon-svg, #toolsView .tool-icon-btn[onclick*="' + slot.dataset.toolIcon + '"] .material-symbols-outlined:not(.tool-fav-star)');
+            const tile = document.querySelector('#toolsView .tool-icon-btn[data-arg="' + slot.dataset.toolIcon + '"] .tool-icon-svg, #toolsView .tool-icon-btn[data-arg="' + slot.dataset.toolIcon + '"] .material-symbols-outlined:not(.tool-fav-star)'); // ML-474: a tile says its screen in data-arg (it was read out of onclick)
             if (tile) { const c = tile.cloneNode(true); c.removeAttribute('id'); slot.appendChild(c); }
             else if (slot.dataset.icon) slot.innerHTML = `<span class="material-symbols-outlined">${slot.dataset.icon}</span>`;
         });
@@ -1659,7 +1725,7 @@
     function fillSettingsToolIcons() {
         document.querySelectorAll('#settingsView [data-tool-icon]').forEach(slot => {
             if (slot.firstChild) return;
-            const tile = document.querySelector('#toolsView .tool-icon-btn[onclick*="' + slot.dataset.toolIcon + '"] .tool-icon-svg');
+            const tile = document.querySelector('#toolsView .tool-icon-btn[data-arg="' + slot.dataset.toolIcon + '"] .tool-icon-svg');
             if (tile) { const c = tile.cloneNode(true); c.removeAttribute('id'); slot.appendChild(c); }
         });
     }
@@ -1689,7 +1755,7 @@
             const b = document.createElement('button');
             b.type = 'button';
             b.className = 'nav-tool' + (tile.classList.contains('hidden-group') ? ' hidden-group' : '');
-            const view = (/switchView\('([^']+)'\)/.exec(tile.getAttribute('onclick') || '') || [])[1];
+            const view = tile.dataset.act === 'view' ? tile.dataset.arg : undefined; // ML-474: the tile's own screen (it was read out of its onclick)
             if (view) b.dataset.view = view;
             const icon = tile.querySelector('.tool-icon-svg, .material-symbols-outlined:not(.tool-fav-star)');
             if (icon) { const c = icon.cloneNode(true); c.removeAttribute('id'); c.setAttribute('aria-hidden', 'true'); b.appendChild(c); }
@@ -2349,7 +2415,7 @@
             // necessarily the code this device is actually running (an installed app resumed from the
             // background keeps its old code in memory). Said out loud when they differ.
             const staleNote = runningAppVersion && compareVersions(current.version, runningAppVersion) > 0
-                ? `<div class="about-running-note">This device is running v${escapeHtml(runningAppVersion)}. Close and reopen the app (or <a href="#" onclick="event.preventDefault(); location.reload();">reload now</a>) to get v${escapeHtml(current.version)}.</div>`
+                ? `<div class="about-running-note">This device is running v${escapeHtml(runningAppVersion)}. Close and reopen the app (or <a href="#" data-act="reload">reload now</a>) to get v${escapeHtml(current.version)}.</div>`
                 : '';
             currentEl.innerHTML = staleNote + `
                 <div class="play-card text-left">
@@ -2782,7 +2848,7 @@
 
                 ui.innerHTML += `<div class="history-item draggable-item items-center pl-1 category-edge ${typeClass}" draggable="true" data-id="${g.id}">
                     <button type="button" class="drag-handle" aria-label="Reorder ${escapeHtml(g.name)} - drag, or tap for Move up / Move down" aria-haspopup="menu" aria-expanded="false">☰</button>
-                    <div role="button" tabindex="0" class="grow" onclick="openEditChallenge('${g.id}')">
+                    <div role="button" tabindex="0" class="grow" data-act="challenge-open" data-arg="${escapeHtml(g.id)}">
                         <div class="flex-row justify-between w-full mb-2">
                             <strong>${typeIcon} ${escapeHtml(g.name)}</strong>
                             <span class="fw-bold${pct === 100 ? ' text-success' : ''}">${pct}%</span>
@@ -2820,7 +2886,7 @@
                 if (g.incomplete > 0) {
                     const typeIcon = g.type === 'Performance' ? '🎭' : '🛠️';
                     const typeClass = g.type === 'Performance' ? 'category-performance' : 'category-lesson';
-                    ui.innerHTML += `<button class="history-item category-edge ${typeClass} pl-1 w-full text-left flex-col items-start gap-xs" onclick="startChallenge('${g.id}')">
+                    ui.innerHTML += `<button class="history-item category-edge ${typeClass} pl-1 w-full text-left flex-col items-start gap-xs" data-act="challenge-start" data-arg="${escapeHtml(g.id)}">
                         <div class="w-full"><strong>${typeIcon} ${escapeHtml(g.name)}</strong></div>
                         <div class="text-muted text-sm">${g.incomplete} remaining</div>
                     </button>`;
@@ -2926,21 +2992,20 @@
                 if(!showCompleted && isChallengeDone(item.status)) return;
                 let refStr = item.ref || '';
                 if (item.barFrom || item.barTo) refStr += ` (Bars ${item.barFrom || '?'} - ${item.barTo || '?'})`;
-                let safePiece = String(item.piece).replace(/'/g, "\\'").replace(/"/g, "&quot;");
                 const edgeState = item.status === 'Complete' ? ' is-complete' : (item.status === 'Closed' ? ' is-closed' : '');
 
                 ecItemsList.innerHTML += `
                 <div class="history-item draggable-item items-center pl-1 challenge-item-edge${edgeState}" draggable="true" data-id="${item.row}">
-                    <button type="button" class="drag-handle" aria-label="Reorder ${item.piece} - drag, or tap for Move up / Move down" aria-haspopup="menu" aria-expanded="false">☰</button>
+                    <button type="button" class="drag-handle" aria-label="Reorder ${escapeHtml(item.piece)} - drag, or tap for Move up / Move down" aria-haspopup="menu" aria-expanded="false">☰</button>
                     <div class="grow">
                         <div class="flex-row justify-between w-full">
-                            <strong>${item.piece}</strong>
-                            <span class="text-sm text-muted">${item.status}</span>
+                            <strong>${escapeHtml(item.piece)}</strong>
+                            <span class="text-sm text-muted">${escapeHtml(item.status)}</span>
                         </div>
-                        <div class="text-sm text-muted mb-2">${refStr} ${item.bpm ? '| '+item.bpm+' bpm' : ''}</div>
+                        <div class="text-sm text-muted mb-2">${escapeHtml(refStr)} ${item.bpm ? '| ' + escapeHtml(item.bpm) + ' bpm' : ''}</div>
                         <div class="flex-row gap-xs w-full">
-                            <button class="btn-edit flex-1" onclick="openItemDetailModal('${item.row}')">Edit</button>
-                            <button class="btn-delete flex-1" onclick="deleteChallengeItem('${item.row}', '${safePiece}')">Delete</button>
+                            <button class="btn-edit flex-1" data-act="item-detail" data-arg="${escapeHtml(item.row)}" aria-haspopup="dialog">Edit</button>
+                            <button class="btn-delete flex-1" data-act="item-delete" data-arg="${escapeHtml(item.row)}" data-arg2="${escapeHtml(item.piece)}">Delete</button>
                         </div>
                     </div>
                 </div>`;
@@ -3984,16 +4049,14 @@
 
         (list || []).forEach(item => {
             if (item.archived && !showArchived) return;
-            // ML-231: the name goes into onclick="...('...')" - a JS string inside an HTML attribute - so it
-            // is escaped for both (a backslash or a quote can't end the string, a < or & can't end the attribute)
-            const safe = escapeHtml(String(item.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+            // ML-474: the name rides in a data attribute (text, escaped for HTML) - no script is built from it
             const label = item.archived
                 ? `${escapeHtml(item.name)} <span class="text-muted text-sm">(archived)</span>`
                 : escapeHtml(item.name);
 
             container.innerHTML += `<div class="history-item${item.archived ? ' is-muted' : ''}">
                 <span>${label}</span>
-                <button class="btn-icon-edit" onclick="editListItem('${type}', '${safe}')" aria-label="Edit"><span class="material-symbols-outlined">edit</span></button>
+                <button class="btn-icon-edit" data-act="list-edit" data-arg="${escapeHtml(type)}" data-arg2="${escapeHtml(item.name)}" aria-label="Edit"><span class="material-symbols-outlined">edit</span></button>
             </div>`;
         });
 
@@ -5072,7 +5135,8 @@
             const c = t.cloneNode(true);
             c.removeAttribute('id');
             c.removeAttribute('aria-pressed');
-            c.removeAttribute('onclick');
+            delete c.dataset.act; // ML-474: the copy doesn't open the tool - it opens the move menu
+            delete c.dataset.arg;
             c.classList.remove('is-fav');
             c.querySelector('.tool-fav-star')?.remove();
             c.querySelectorAll('[id]').forEach(el => { if (!el.closest('svg')) el.removeAttribute('id'); });
@@ -9525,7 +9589,7 @@
         if (!visible.length) { ui.innerHTML = '<p class="text-muted">No pieces match.</p>'; return; }
         ui.innerHTML = visible.map(f => `
             <div class="history-item clickable" data-flow-library-id="${f.id}">
-                <div role="button" tabindex="0" class="grow" onclick="openFlow(${f.id})">
+                <div role="button" tabindex="0" class="grow" data-act="flow-open" data-arg="${f.id}">
                     <strong>${escapeHtml(f.title)}</strong>
                     <div class="text-sm text-muted">${f.composer ? escapeHtml(f.composer) + ' &bull; ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}</div>
                 </div>
@@ -10474,7 +10538,7 @@
                         <span class="flow-media-icon ${isYoutube ? 'type-youtube' : 'type-audio'}"><span class="material-symbols-outlined icon-md">${icon}</span></span>
                         <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(meta)}</span></div>
                     </div>
-                    <button type="button" class="flow-delete-btn" onclick="deleteFlowRecording('${r.id}')" aria-label="Delete ${escapeHtml(r.title)}"><span class="material-symbols-outlined">delete</span></button>
+                    <button type="button" class="flow-delete-btn" data-act="flow-recording-delete" data-arg="${escapeHtml(r.id)}" aria-label="Delete ${escapeHtml(r.title)}"><span class="material-symbols-outlined">delete</span></button>
                 </div>
                 ${playerHtml}
             </div>
@@ -10611,8 +10675,8 @@
                             <div><strong>${escapeHtml(d.fileName)}</strong><span>${sizeText}</span></div>
                         </div>
                         <div class="flow-doc-item-actions">
-                            <button type="button" class="list-item-menu-btn" data-open-url="${escapeHtml(d.blobUrl)}" onclick="window.open(this.dataset.openUrl, '_blank', 'noopener')" aria-label="View ${escapeHtml(d.fileName)}"><span class="material-symbols-outlined">visibility</span></button>
-                            <button type="button" class="flow-delete-btn" onclick="deleteFlowDocument('${d.id}')" aria-label="Delete ${escapeHtml(d.fileName)}"><span class="material-symbols-outlined">delete</span></button>
+                            <button type="button" class="list-item-menu-btn" data-open-url="${escapeHtml(d.blobUrl)}" data-act="open-url" aria-label="View ${escapeHtml(d.fileName)}"><span class="material-symbols-outlined">visibility</span></button>
+                            <button type="button" class="flow-delete-btn" data-act="flow-document-delete" data-arg="${escapeHtml(d.id)}" aria-label="Delete ${escapeHtml(d.fileName)}"><span class="material-symbols-outlined">delete</span></button>
                         </div>
                     </div>
                 `;
@@ -11428,7 +11492,7 @@
         const { sign, startLine, endLine, endExtra, volta, intro, pauses, ramps, jump } = flowBarReadingParts(b, nextBlock);
         const noteKey = b.noteValue || 'crotchet';
         const noteLabel = (METRO_NOTE_TYPES.find(t => t.key === noteKey) || {}).label || noteKey;
-        return `<button type="button" class="flow-bar-full-tile${active ? ' metroBlk-tile-active' : ''}" data-block-id="${b.id}" aria-label="Jump to ${label}"${active ? ' aria-current="true"' : ''} onclick="jumpFlowToPlayIndex(${b.id})">
+        return `<button type="button" class="flow-bar-full-tile${active ? ' metroBlk-tile-active' : ''}" data-block-id="${b.id}" aria-label="Jump to ${label}"${active ? ' aria-current="true"' : ''} data-act="flow-jump" data-arg="${b.id}">
             <span class="flow-bar-full-head">${mark}<span class="flow-bar-detail-name">${name}</span><span class="flow-bar-full-bars">${bars}</span></span>
             <span class="flow-bar-full-row flow-bar-full-top">
                 <span class="flow-bar-full-zone">${sign ? `<span class="flow-bar-full-sign">${sign}</span>` : ''}</span>
@@ -11459,7 +11523,7 @@
         };
         const { startLine, endLine } = flowBarReadingParts(b, null);
         const time = escapeHtml(b.timeSignatureLabel || `${b.numerator}/${b.denominator}`);
-        const open = (cls) => `<button type="button" class="${cls}${active ? ' metroBlk-tile-active' : ''}" data-block-id="${b.id}" aria-label="Jump to the lead-in, ${b.bpm} bpm, 1 bar"${active ? ' aria-current="true"' : ''} onclick="jumpFlowToPlayIndex(${b.id})">`;
+        const open = (cls) => `<button type="button" class="${cls}${active ? ' metroBlk-tile-active' : ''}" data-block-id="${b.id}" aria-label="Jump to the lead-in, ${b.bpm} bpm, 1 bar"${active ? ' aria-current="true"' : ''} data-act="flow-jump" data-arg="${b.id}">`;
         if (layout === '2') {
             return `${open('flow-bar-detail-tile')}
                 <span class="flow-bar-detail-head"><span class="flow-bar-detail-name">Lead-in</span></span>
@@ -11502,7 +11566,7 @@
         const mark = b.rehearsalMark ? `<span class="flow-bar-detail-mark" title="${escapeHtml(b.rehearsalMark)}">${escapeHtml(b.rehearsalMark)}</span>` : '';
         const label = `${b.rehearsalMark ? `${escapeHtml(b.rehearsalMark)}, ` : ''}${name}`;
         const open = play
-            ? `<button type="button" class="flow-bar-detail-tile{CLS}${active ? ' metroBlk-tile-active' : ''}" data-block-id="${b.id}" aria-label="Jump to ${label}{ARIA}"${active ? ' aria-current="true"' : ''} onclick="jumpFlowToPlayIndex(${b.id})">`
+            ? `<button type="button" class="flow-bar-detail-tile{CLS}${active ? ' metroBlk-tile-active' : ''}" data-block-id="${b.id}" aria-label="Jump to ${label}{ARIA}"${active ? ' aria-current="true"' : ''} data-act="flow-jump" data-arg="${b.id}">`
             : `<button type="button" class="flow-bar-grid-tile flow-bar-detail-tile{CLS}" data-block-id="${b.id}" aria-label="Edit ${label}{ARIA}" aria-haspopup="dialog">`;
         const warning = flowRepeatBarInvalid(b) || flowIntroInvalid(b) || flowPauseInvalid(b) || flowRampInvalid(b, nextBlock);
         if (warning) {
@@ -14359,12 +14423,12 @@
             if (flowLeadInBlock && currentFlowBlocks.length) {
                 const lead = flowLeadInBlock;
                 const bpm = currentFlowBlocks[0].bpm; // a lead-in plays at bar 1's tempo
-                leadInTile = '<div role="button" tabindex="0" class="metroBlk-tile' + (lead.id === currentId ? ' metroBlk-tile-active' : '') + '" data-block-id="' + lead.id + '" title="Lead-in, ' + bpm + ' bpm, 1 bar" aria-label="Jump to the lead-in, ' + bpm + ' bpm, 1 bar" onclick="jumpFlowToPlayIndex(' + lead.id + ')"><div class="metroBlk-tile-sig text-md">Lead&#8209;in</div><div class="metroBlk-tile-bpm">' + bpm + ' bpm</div><div class="metroBlk-tile-bars">1 bar</div></div>';
+                leadInTile = '<div role="button" tabindex="0" class="metroBlk-tile' + (lead.id === currentId ? ' metroBlk-tile-active' : '') + '" data-block-id="' + lead.id + '" title="Lead-in, ' + bpm + ' bpm, 1 bar" aria-label="Jump to the lead-in, ' + bpm + ' bpm, 1 bar" data-act="flow-jump" data-arg="' + lead.id + '"><div class="metroBlk-tile-sig text-md">Lead&#8209;in</div><div class="metroBlk-tile-bpm">' + bpm + ' bpm</div><div class="metroBlk-tile-bars">1 bar</div></div>';
             }
             tilesUi.innerHTML = leadInTile + currentFlowBlocks.map(s => {
                 const tile = flowBarSummaryTile(s, startBar);
                 startBar += s.barCount || 0;
-                return `<div role="button" tabindex="0" class="metroBlk-tile${s.id === currentId ? ' metroBlk-tile-active' : ''}" data-block-id="${s.id}" title="${tile.name}" aria-label="Jump to ${tile.name}" onclick="jumpFlowToPlayIndex(${s.id})">${tile.inner}</div>`;
+                return `<div role="button" tabindex="0" class="metroBlk-tile${s.id === currentId ? ' metroBlk-tile-active' : ''}" data-block-id="${s.id}" title="${tile.name}" aria-label="Jump to ${tile.name}" data-act="flow-jump" data-arg="${s.id}">${tile.inner}</div>`;
             }).join('');
         }
     }
@@ -15115,9 +15179,9 @@
                 const archivedTag = t.active ? '' : ' &middot; archived';
                 let actionHtml = '';
                 if (t.usageCount === 0) {
-                    actionHtml = `<button class="btn-icon-delete" aria-label="Delete ${escapeHtml(t.label)}" onclick="deleteMetroSegCustomTimeSig(${t.id})"><span class="material-symbols-outlined">delete</span></button>`;
+                    actionHtml = `<button class="btn-icon-delete" aria-label="Delete ${escapeHtml(t.label)}" data-act="timesig-delete" data-arg="${t.id}"><span class="material-symbols-outlined">delete</span></button>`;
                 } else if (t.active) {
-                    actionHtml = `<button class="btn-edit btn-inline-xs" onclick="archiveMetroSegCustomTimeSig(${t.id})">Archive</button>`;
+                    actionHtml = `<button class="btn-edit btn-inline-xs" data-act="timesig-archive" data-arg="${t.id}">Archive</button>`;
                 }
                 return `<div class="history-item items-center">
                     <div class="grow"><strong>${escapeHtml(t.label)}</strong>${archivedTag}<div class="text-sm text-muted">${usageText}</div></div>

@@ -399,7 +399,7 @@ export default [
       'No cookies. IP address and browser details are logged as usage data.'
     ],
     asks: [
-      { text: 'Keep the script pinned to an exact version.', check: { path: 'public/index.html', includes: 'cdn.jsdelivr.net/npm/@vercel/blob@' } },
+      { text: 'Keep the script pinned to an exact version.', check: { path: 'public/blob-upload.js', includes: 'cdn.jsdelivr.net/npm/@vercel/blob@' } },
       { text: 'Mention in the privacy policy that the browser fetches a script from jsDelivr.', check: { path: 'public/privacy.html', includes: 'jsDelivr' } }
     ],
     watch: [

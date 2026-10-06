@@ -6,12 +6,17 @@
 // - X-Frame-Options / frame-ancestors: the app can't be shown inside another site's page.
 // - Referrer-Policy: other sites are told the app's address, never the page or its query.
 // - Permissions-Policy: the microphone is the only device feature the app uses (the tuner).
-// - Content-Security-Policy: where scripts, styles, media and connections may come from. It is sent
-//   as REPORT-ONLY for now: the browser says in its console what the policy would have stopped but
-//   stops nothing. The pages still use inline handlers (onclick="...") and one inline script, so
-//   'unsafe-inline' has to stay for scripts until those are moved out - which is also when the
-//   policy starts to protect against injected script properly. Enforce it (CSP_ENFORCE=true) only
-//   after the sandbox console has been clean for a release.
+// - Content-Security-Policy: where scripts, styles, media and connections may come from. No script
+//   written in a page is allowed (ML-474: script-src has no 'unsafe-inline') - the inline handlers and
+//   the one inline script have been moved out (data-act + CLICK_ACTIONS in app.js; blob-upload.js), and
+//   server/test/noInlineScript.test.js fails if one comes back. That is what makes the policy a real
+//   second line of defence: script that reached a page as text could not run.
+//   It is still sent as REPORT-ONLY until it is switched on: the browser says in its console what the
+//   policy would have stopped but stops nothing. Switching it on is two things together, sandbox first
+//   (docs/site-security-review.md, "Switching the content security policy on"): CSP_ENFORCE=true on
+//   Vercel (the data answers) and `npm run sync-vercel-headers -- --enforce` (the pages).
+//   Styles still allow 'unsafe-inline': run-time values are set through the style object, which the
+//   policy doesn't stop, but a library may add a style attribute - tightening that is its own piece of work.
 // Strict-Transport-Security is added by Vercel itself.
 //
 // ML-477: on Vercel the pages (public/) are static files that never pass through Express, so this
@@ -24,7 +29,7 @@
 // address that is in use but missing here is what the report-only policy will complain about.
 export const CSP = {
   'default-src': ["'self'"],
-  'script-src': ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://eu-assets.i.posthog.com'],
+  'script-src': ["'self'", 'https://cdn.jsdelivr.net', 'https://eu-assets.i.posthog.com'],
   'style-src': ["'self'", "'unsafe-inline'"],
   'font-src': ["'self'"],
   'img-src': ["'self'", 'data:', 'blob:', 'https://img.youtube.com'],

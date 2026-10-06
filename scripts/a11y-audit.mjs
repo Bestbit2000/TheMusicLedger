@@ -165,13 +165,13 @@ function checkMarkup() {
         // <label> is left out on purpose: a label wrapping a checkbox is natively interactive.
         for (const name of ['div', 'span', 'li', 'td', 'tr', 'p', 'img', 'strong', 'section', 'svg']) {
             for (const t of tags(text, name)) {
-                if (!attr(t.attrs, 'onclick')) continue;
+                if (!attr(t.attrs, 'onclick') && !attr(t.attrs, 'data-act')) continue; // ML-474: a click is said with data-act now (CLICK_ACTIONS in app.js)
                 // role="button" + tabindex is enough: public/a11y.js gives every role="button" Enter/Space activation.
                 if (attrVal(t.attrs, 'role') === 'button' && attr(t.attrs, 'tabindex')) continue;
                 add('A3', f, t.full, 'clickable element that is not a button - keyboard and screen-reader users can\'t use it');
             }
         }
-        for (const t of tags(text, 'a')) if (attr(t.attrs, 'onclick') && !attr(t.attrs, 'href')) add('A3', f, t.full, '<a onclick> with no href is not focusable - use a <button>');
+        for (const t of tags(text, 'a')) if ((attr(t.attrs, 'onclick') || attr(t.attrs, 'data-act')) && !attr(t.attrs, 'href')) add('A3', f, t.full, 'a clickable <a> with no href is not focusable - use a <button>');
 
         // A4 + S1: buttons
         for (const m of text.matchAll(/<button\b((?:[^>"'`]|"[^"]*"|'[^']*'|\$\{[^}]*\})*)>([\s\S]*?)<\/button>/gi)) {
@@ -182,8 +182,10 @@ function checkMarkup() {
                 if (!/\$\{/.test(visible) && !/[\p{L}\p{N}]/u.test(visible)) add('A4', f, full.slice(0, 140), 'button has no accessible name (icon/glyph only) - add aria-label');
             }
             const onclick = attrVal(attrs, 'onclick') || '';
-            const opensPopup = /\bopen\w*(Modal|Picker|Popup|Menu|Sheet)\s*\(/.test(onclick)
-                || /class="[^"]*\b(list-item-menu-btn|qp-bar-menu-btn|metroBlk-ctrl-value-btn|metroBlk-mini-tuner-instrument-btn|top-bar-timer-pill)\b/.test(attrs) && !/window\.open/.test(attrs);
+            // ML-474: the actions that open a pop-up (show-modal, item-detail, feedback); open-url / open-page open a new tab, not a pop-up
+            const act = attrVal(attrs, 'data-act') || '';
+            const opensPopup = /\bopen\w*(Modal|Picker|Popup|Menu|Sheet)\s*\(/.test(onclick) || /^(show-modal|item-detail|feedback)$/.test(act)
+                || /class="[^"]*\b(list-item-menu-btn|qp-bar-menu-btn|metroBlk-ctrl-value-btn|metroBlk-mini-tuner-instrument-btn|top-bar-timer-pill)\b/.test(attrs) && !/window\.open/.test(attrs) && !/^open-(url|page)$/.test(act);
             if (opensPopup && !attr(attrs, 'aria-haspopup')) add('S1', f, full.slice(0, 140), 'opens a picker/modal/menu - add aria-haspopup (and aria-expanded while open)');
         }
         // A4: form fields

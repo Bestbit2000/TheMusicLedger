@@ -56,6 +56,46 @@ Then: fix what can be fixed safely, raise a ticket for the rest, **append a run*
 `server/securityReviews/site.js` (a result for every deep check, a verdict with its conditions, the app
 version reviewed), update this document's "Reviews so far", and run the tests.
 
+## No script in a page (ML-474)
+
+The content security policy (`server/middleware/securityHeaders.js`) allows script only from the app's own
+files and the two outside addresses it loads from. Script written **in** a page - an `onclick="..."`, a
+`<script>` with its code in the page, a `javascript:` address - is not allowed, because that is exactly how
+text that reached a page unescaped would run. So:
+
+- **A click is said, not scripted.** An element carries `data-act="view" data-arg="statsView"` (and
+  `data-arg2` when there are two). `CLICK_ACTIONS` in `public/app.js` is the one table that says what each
+  action does; an attribute can never name a function to run. Each element gets its own click listener
+  (`bindClickActions`), and markup added later is bound as it arrives (a `MutationObserver`), so the order
+  things happen in is the same as when it was an `onclick`.
+- **New code uses a listener** (`addEventListener`, or a delegated one with `data-` attributes - most of the
+  app already does) or a `data-act`. Add an action to the table only for something used from markup.
+- **A member's text rides in a `data-` attribute, escaped with `escapeHtml`** - never inside a script string.
+- **A script is a file.** `blob-upload.js` (the one module) and `styleguide.js` were inline.
+- `server/test/noInlineScript.test.js` reads every page and script on each release and fails on an inline
+  handler, a `<script>` with no `src`, a `javascript:` address, `eval`, a `data-act` the table doesn't know, or
+  the policy allowing inline script again. `npm run a11y-audit` treats `data-act` as it did `onclick`.
+
+### Switching the content security policy on
+
+Until it is switched on the policy is **report-only**: the browser's console says what it would have
+stopped, and stops nothing. Switching it on is the owner's step, sandbox first:
+
+1. On **sandbox**, with the release that has ML-474 in it, open the app with the browser's console open and
+   use every tool, including a PDF import, a recording upload and a YouTube link. Anything the console
+   reports as "would have been blocked" is an outside address missing from `CSP` - add it (and to the
+   third-party register) before going on. A local run can't show this for the analytics and the file store.
+2. Set `CSP_ENFORCE=true` in Vercel for sandbox (the data answers), run
+   `npm run sync-vercel-headers -- --enforce` (the pages - `vercel.json`) and release that change.
+   `server/test/vercelHeaders.test.js` must agree with the setting you are releasing.
+3. Check a page with `curl -sI`: `content-security-policy`, not `...-report-only`. Use the app again.
+4. Then the same on production. Admin -> Security -> This site -> "Security headers" then shows the
+   policy as enforced, with nothing about inline script.
+
+To try it on your own machine first: the `music-ledger-csp` set-up in `.claude/launch.json` runs the app
+on port 3100 with the policy enforced (it needs a file `.claude/csp-enforce.tmp.env` holding `PORT=3100` and
+`CSP_ENFORCE=true`).
+
 ## Reviews so far
 
 ### 6 October 2026 - version 0.45.0 - verdict: conditional
@@ -81,7 +121,7 @@ Open, with a ticket:
 |---|---|---|
 | Teachers are one list shared by every member: anyone can rename or delete a teacher for everyone, and everyone sees every teacher's name. | ML-472 | **Yes** - **fixed in the release after 0.46.0**: a teacher belongs to the member who typed it in (migration 107, `server/services/tutors.js`, `server/test/tutors.test.js`) |
 | A member's private "organisation" is listed to everyone as a band anyone can join; and joining any band gives edit rights on everything it has. | ML-473 | **Yes** - **mostly fixed in the release after 0.46.0** (migration 108): a member's labels are theirs alone, and a band's shared space is by invitation only. What a member may do inside a band (organiser / change music / play) is set by the organiser who invites them. The time signature owner check is in too (`assertOwnTimeSignatures`). |
-| The content security policy is report-only: the pages' inline handlers have to be moved out before it can be enforced. | ML-474 | Soon after |
+| The content security policy is report-only: the pages' inline handlers have to be moved out before it can be enforced. | ML-474 | Soon after - **the code is done in 0.48.0**: no page and no script-built markup has an inline handler (a click is `data-act`, run by `CLICK_ACTIONS` in `app.js`), the one inline script is a file (`blob-upload.js`), and the policy no longer allows inline script. Every screen and the whole back-test suite ran clean against a local server enforcing it. **Still to do, by the owner: switch it on** - see "Switching the content security policy on" below. |
 | The sign-in token carries Google's own access keys, and is put in the address after a Google sign-in. | ML-475 | Soon after - **done in 0.48.0**: Google's keys are dropped where they arrive (`passport.js`) and offline access is no longer asked for; the token goes back to the page after the `#`, which is never sent to a server; a token signed before 0.48.0 is swapped for a clean one on its next request and its refresh key cancelled at Google (`dropGoogleKeys`). `server/test/signInToken.test.js` fails if either comes back. |
 | Lockfiles not committed (builds aren't repeatable); no size limit on recordings; only sign-in is limited for repeated tries. | ML-476 | Soon after - **done in the release after 0.46.0**: both lockfiles are committed and the build is `npm ci`; a recording or document is 25 MB at most (the file store refuses a bigger one, the server checks again, the buttons say so); upload tokens (40 an hour), adding a band (10 a day) and feedback (20 a day) are limited per account (`limitCalls`). Still to do at the next review: Gitleaks over the git history. |
 

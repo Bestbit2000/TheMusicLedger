@@ -106,7 +106,7 @@
 <div class="nav-menu-backdrop" id="navMenuBackdrop" aria-hidden="true"></div>
 <div class="top-bar-sticky-group">
     <div class="top-bar">
-        <button class="top-btn-back hidden-btn" id="topBackBtn" onclick="goBack()">&lt;</button>
+        <button class="top-btn-back hidden-btn" id="topBackBtn" data-act="go-back">&lt;</button>
         <h1 class="top-bar-title" id="topTitle" tabindex="-1">The Music Ledger</h1>
         <!-- Metronome Blocks only (ML-91) - toggles the tuner on/off from here instead of a button
              half way down the page that scrolls out of view; shown/hidden by switchView. -->
@@ -148,9 +148,9 @@
             <div id="burgerDropdown" class="dropdown-menu nav-menu">
                 <!-- ML-326: two panels - the menu itself, and Tools, which slides in over it (openNavTools). -->
                 <div class="nav-panel" id="navMainPanel">
-                <button type="button" class="dropdown-item nav-item" data-view="mainView" onclick="switchView('mainView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">home</span><span class="nav-item-text">Home</span></button>
+                <button type="button" class="dropdown-item nav-item" data-view="mainView" data-act="view-menu" data-arg="mainView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">home</span><span class="nav-item-text">Home</span></button>
                 <!-- ML-201: gated by the `notifications` feature (renderFeatureGates). -->
-                <button type="button" class="dropdown-item nav-item hidden-group" id="notificationsNavItem" data-view="notificationsView" onclick="switchView('notificationsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">notifications</span><span class="nav-item-text">Notifications</span><span class="notif-count hidden-group" id="notificationsNavCount"></span></button>
+                <button type="button" class="dropdown-item nav-item hidden-group" id="notificationsNavItem" data-view="notificationsView" data-act="view-menu" data-arg="notificationsView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">notifications</span><span class="nav-item-text">Notifications</span><span class="notif-count hidden-group" id="notificationsNavCount"></span></button>
 
                 <!-- ML-326: Tools opens its own panel (the Everyday / My routine / Practise / Learn icons) instead of listing them all here. -->
                 <button type="button" class="dropdown-item nav-item" id="navToolsBtn" aria-haspopup="true" aria-controls="navToolsPanel"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">apps</span><span class="nav-item-text">Tools</span><span class="material-symbols-outlined nav-item-chevron" aria-hidden="true">chevron_right</span></button>
@@ -158,17 +158,17 @@
                 <div class="nav-divider" role="separator"></div>
                 <div class="nav-section-title">Progress</div>
                 <!-- ML-327: Stats is a dashboard now - Streaks, Session history and Tool results are reached from it. -->
-                <button type="button" class="dropdown-item nav-item" data-view="statsHomeView" onclick="switchView('statsHomeView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">bar_chart</span><span class="nav-item-text">Stats</span></button>
-                <button type="button" class="dropdown-item nav-item hidden-group" id="challengesNavItem" data-view="manageChallengesView" onclick="switchView('manageChallengesView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">emoji_events</span><span class="nav-item-text">Challenges</span></button>
+                <button type="button" class="dropdown-item nav-item" data-view="statsHomeView" data-act="view-menu" data-arg="statsHomeView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">bar_chart</span><span class="nav-item-text">Stats</span></button>
+                <button type="button" class="dropdown-item nav-item hidden-group" id="challengesNavItem" data-view="manageChallengesView" data-act="view-menu" data-arg="manageChallengesView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">emoji_events</span><span class="nav-item-text">Challenges</span></button>
 
                 <div class="nav-divider" role="separator"></div>
                 <div class="nav-section-title">You</div>
                 <!-- ML-299: create, import, library and edit pieces (the old Flow start screen). Gated by flow_manage. -->
-                <button type="button" class="dropdown-item nav-item hidden-group" id="myMusicNavItem" data-view="metroBuilderView" onclick="switchView('metroBuilderView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">library_music</span><span class="nav-item-text">My music</span></button>
+                <button type="button" class="dropdown-item nav-item hidden-group" id="myMusicNavItem" data-view="metroBuilderView" data-act="view-menu" data-arg="metroBuilderView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">library_music</span><span class="nav-item-text">My music</span></button>
                 <!-- ML-382: your instruments and each one's range - about your playing, so next to My music, not in My account -->
-                <button type="button" class="dropdown-item nav-item" data-view="accountInstrumentsView" onclick="switchView('accountInstrumentsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">music_note</span><span class="nav-item-text">My instruments</span></button>
-                <button type="button" class="dropdown-item nav-item" data-view="accountView" onclick="switchView('accountView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">person</span><span class="nav-item-text">My account</span></button>
-                <button type="button" class="dropdown-item nav-item" data-view="settingsView" onclick="switchView('settingsView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">settings</span><span class="nav-item-text">Settings</span></button>
+                <button type="button" class="dropdown-item nav-item" data-view="accountInstrumentsView" data-act="view-menu" data-arg="accountInstrumentsView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">music_note</span><span class="nav-item-text">My instruments</span></button>
+                <button type="button" class="dropdown-item nav-item" data-view="accountView" data-act="view-menu" data-arg="accountView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">person</span><span class="nav-item-text">My account</span></button>
+                <button type="button" class="dropdown-item nav-item" data-view="settingsView" data-act="view-menu" data-arg="settingsView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">settings</span><span class="nav-item-text">Settings</span></button>
                 <!-- ML-77: admin.html itself gates to Super admin accounts - this link is
                      hidden for everyone else (see syncAdminLinkVisibility) so it isn't
                      dangled in front of accounts that would just bounce off a notice. -->
@@ -177,16 +177,16 @@
                 <div class="nav-divider" role="separator"></div>
                 <!-- ML-402: invite someone to the app by email. Feature invite_members; shown only while
                      email-and-password login is on (renderInviteNav). -->
-                <button type="button" class="dropdown-item nav-item hidden-group" id="inviteNavItem" data-view="inviteView" onclick="switchView('inviteView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">person_add</span><span class="nav-item-text">Invite someone</span></button>
+                <button type="button" class="dropdown-item nav-item hidden-group" id="inviteNavItem" data-view="inviteView" data-act="view-menu" data-arg="inviteView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">person_add</span><span class="nav-item-text">Invite someone</span></button>
                 <!-- ML-170: deliberately here rather than on a view of its own - the point is to
                      be reachable from wherever the problem was just noticed, without navigating
                      away from it first. Gated by the `feedback` feature (renderFeatureGates). -->
-                <button type="button" class="dropdown-item nav-item" id="feedbackNavItem" aria-haspopup="dialog" onclick="closeMenu(); openFeedbackModal();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">chat</span><span class="nav-item-text">Send feedback</span></button>
-                <button type="button" class="dropdown-item nav-item" data-view="aboutView" onclick="switchView('aboutView'); closeMenu();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">info</span><span class="nav-item-text">About</span><span class="nav-item-meta" id="navAppVersion"></span></button>
+                <button type="button" class="dropdown-item nav-item" id="feedbackNavItem" aria-haspopup="dialog" data-act="feedback"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">chat</span><span class="nav-item-text">Send feedback</span></button>
+                <button type="button" class="dropdown-item nav-item" data-view="aboutView" data-act="view-menu" data-arg="aboutView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">info</span><span class="nav-item-text">About</span><span class="nav-item-meta" id="navAppVersion"></span></button>
 
                 <div class="nav-divider" role="separator"></div>
                 <!-- Log out on its own at the bottom, with the account it signs out of underneath. -->
-                <button type="button" class="dropdown-item nav-item" onclick="closeMenu(); logoutUser();"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">logout</span><span class="nav-item-text">Log out<span class="nav-item-sub" id="navAccountEmail"></span></span></button>
+                <button type="button" class="dropdown-item nav-item" data-act="logout"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">logout</span><span class="nav-item-text">Log out<span class="nav-item-sub" id="navAccountEmail"></span></span></button>
                 </div>
                 <div class="nav-panel nav-panel-sub hidden-group" id="navToolsPanel" role="group" aria-label="Tools">
                     <button type="button" class="dropdown-item nav-item" id="navToolsBackBtn"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">chevron_left</span><span class="nav-item-text">Tools</span></button>
@@ -279,16 +279,16 @@
         <!-- ML-320: Start a practice session replaces Start a challenge (behind practice_levels; ML-324
              cleans challenges up later). renderFeatureGates shows one or the other. -->
         <button type="button" class="btn-large hidden-group" id="startPracticeSessionBtn">Start a practice session</button>
-        <button class="btn-large hidden-group" id="startChallengeBtn" onclick="switchView('challengeSelectView')">Start a challenge</button>
+        <button class="btn-large hidden-group" id="startChallengeBtn" data-act="view" data-arg="challengeSelectView">Start a challenge</button>
         <!-- ML-378: logging time you've already played is a link, not a second button - Start a practice
              session is the one action that stands out. -->
-        <button type="button" class="btn-text" onclick="switchView('entryForm')">Log time you've already played</button>
+        <button type="button" class="btn-text" data-act="view" data-arg="entryForm">Log time you've already played</button>
         <!-- ML-378 / ML-412: My favourite tools (up to the home_tools limit for your account type, ML-388: Standard 4, others 8), in the All tools page's order (renderHomeTools copies
              their tiles from #toolsView). Chosen on the All tools page, saved on the account (accounts.home_tools);
              default: all your tools if they fit, else Metronome, Tuner, Timer, Rehearse. Only tools that are switched on show. -->
         <div class="section-title tools-title" id="homeToolsTitle">My favourite tools</div>
         <div class="tool-icon-row" id="homeToolsRow"></div>
-        <button type="button" class="history-item settings-link" onclick="switchView('toolsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">apps</span><span class="settings-link-text"><span class="settings-link-title">All tools</span><span class="settings-link-sub" id="homeAllToolsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" data-act="view" data-arg="toolsView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">apps</span><span class="settings-link-text"><span class="settings-link-title">All tools</span><span class="settings-link-sub" id="homeAllToolsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
     </div>
 
     <!-- ML-378: All tools - every tool, grouped (ML-409: Everyday / My routine - Warm-ups, Scales / Practise -
@@ -308,15 +308,15 @@
         <div class="tool-group" id="toolGroup-everyday" role="group" aria-labelledby="toolGroupTitle-everyday">
             <div class="tool-group-title" id="toolGroupTitle-everyday">Everyday</div>
             <div class="tool-icon-row">
-                <button data-tool="metronome" class="tool-icon-btn" onclick="switchView('quickPlayView')" aria-label="Metronome">
+                <button data-tool="metronome" class="tool-icon-btn" data-act="view" data-arg="quickPlayView" aria-label="Metronome">
                     <svg class="tool-icon-svg" viewBox="0 0 883 1025" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><g transform="translate(-2956 -1363)"><path d="M3299.02 1831.86 3528.57 1965.12 3299.02 2098.38ZM3329.89 1454.01 3064.12 2264.42 3731.24 2264.42 3465.47 1454.01ZM3297.05 1363 3499.94 1363C3518.77 1363 3534.93 1374.46 3541.83 1390.79L3544.05 1401.79 3839 2301.17 3837.74 2301.58 3839 2309.93C3839 2328.77 3827.55 2344.95 3811.23 2351.86L3795.05 2355.12 3795.05 2355.43 3793.53 2355.43 3793.53 2355.43 3793.53 2355.43 3702.53 2355.43 3701.57 2360.21C3694.67 2376.54 3678.51 2388 3659.68 2388 3640.84 2388 3624.68 2376.54 3617.78 2360.21L3616.82 2355.43 3186.33 2355.43 3185.37 2360.21C3178.47 2376.54 3162.31 2388 3143.47 2388 3124.64 2388 3108.48 2376.54 3101.58 2360.21L3100.62 2355.43 3008.1 2355.43 3008.1 2354.09 3001.47 2355.43C2976.36 2355.43 2956 2335.06 2956 2309.93L2957.68 2301.6 2956.37 2301.17 3254.77 1391.26 3255.04 1391.35 3255.16 1390.79C3262.06 1374.46 3278.22 1363 3297.05 1363Z" fill-rule="evenodd"/></g></svg>
                     <span class="tool-icon-label">Metronome</span>
                 </button>
-                <button data-tool="tuner" class="tool-icon-btn" onclick="switchView('tunerView')" aria-label="Tuner">
+                <button data-tool="tuner" class="tool-icon-btn" data-act="view" data-arg="tunerView" aria-label="Tuner">
                     <svg class="tool-icon-svg" viewBox="0 0 521 902" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><defs><clipPath id="clipFrontpageTuner"><rect x="1753" y="271" width="521" height="902"/></clipPath></defs><g clip-path="url(#clipFrontpageTuner)" transform="translate(-1753 -271)"><rect x="0" y="0" width="101" height="278" transform="matrix(1 0 0 -1 1963 1123)"/><path d="M0 50C-6.42931e-15 22.3858 22.6096-6.36567e-15 50.4999-1.27313e-14 78.3902-2.54627e-14 101 22.3858 101 50 101 77.6143 78.3902 100 50.4999 100 22.6096 100-3.21465e-14 77.6143 0 50Z" fill-rule="evenodd" transform="matrix(1 0 0 -1 1963 1173)"/><path d="M1753 594 1853.77 594C1853.77 682.384 1925.29 754.034 2013.5 754.034 2101.71 754.034 2173.23 682.384 2173.23 594L2274 594C2274 738.146 2157.37 855 2013.5 855 1869.63 855 1753 738.146 1753 594Z" fill-rule="evenodd"/><rect x="1753" y="321" width="100" height="278"/><path d="M1753 321C1753 293.386 1775.39 271 1803 271 1830.61 271 1853 293.386 1853 321 1853 348.614 1830.61 371 1803 371 1775.39 371 1753 348.614 1753 321Z" fill-rule="evenodd"/><rect x="2174" y="321" width="100" height="278"/><path d="M2174 321C2174 293.386 2196.39 271 2224 271 2251.61 271 2274 293.386 2274 321 2274 348.614 2251.61 371 2224 371 2196.39 371 2174 348.614 2174 321Z" fill-rule="evenodd"/></g></svg>
                     <span class="tool-icon-label">Tuner</span>
                 </button>
-                <button data-tool="timer" class="tool-icon-btn" onclick="switchView('timerView')" aria-label="Timer">
+                <button data-tool="timer" class="tool-icon-btn" data-act="view" data-arg="timerView" aria-label="Timer">
                     <span class="material-symbols-outlined">timer</span>
                     <span class="tool-icon-label">Timer</span>
                 </button>
@@ -325,11 +325,11 @@
         <div class="tool-group" id="toolGroup-routine" role="group" aria-labelledby="toolGroupTitle-routine">
             <div class="tool-group-title" id="toolGroupTitle-routine">My routine</div>
             <div class="tool-icon-row">
-                <button data-tool="warmups" class="tool-icon-btn hidden-group" id="warmupsToolBtn" onclick="switchView('warmupsView')" aria-label="Warm-ups">
+                <button data-tool="warmups" class="tool-icon-btn hidden-group" id="warmupsToolBtn" data-act="view" data-arg="warmupsView" aria-label="Warm-ups">
                     <span class="material-symbols-outlined">wb_twilight</span>
                     <span class="tool-icon-label">Warm-ups</span>
                 </button>
-                <button data-tool="scales" class="tool-icon-btn hidden-group" id="scalesToolBtn" onclick="switchView('scalesView')" aria-label="Scales">
+                <button data-tool="scales" class="tool-icon-btn hidden-group" id="scalesToolBtn" data-act="view" data-arg="scalesView" aria-label="Scales">
                     <span id="scalesToolIcon" aria-hidden="true"></span>
                     <span class="tool-icon-label">Scales</span>
                 </button>
@@ -341,17 +341,17 @@
             <div class="tool-icon-row">
                 <!-- ML-400: Add a piece - the way into making a piece (create / import), which used to be only
                      under ☰ My music. Shown with the same gates as My music's own "+ Add a piece". -->
-                <button data-tool="add-piece" class="tool-icon-btn hidden-group" id="addPieceToolBtn" onclick="switchView('addPieceView')" aria-label="Add a piece">
+                <button data-tool="add-piece" class="tool-icon-btn hidden-group" id="addPieceToolBtn" data-act="view" data-arg="addPieceView" aria-label="Add a piece">
                     <span class="material-symbols-outlined" aria-hidden="true">library_add</span>
                     <span class="tool-icon-label">Add a piece</span>
                 </button>
                 <!-- ML-401: Prepare - the pieces you can see that aren't prepared yet, each opening its path
                      (run-through, paint the bars, cut into focus bits). Shown with practice_levels. -->
-                <button data-tool="prepare" class="tool-icon-btn hidden-group" id="prepareToolBtn" onclick="switchView('prepareListView')" aria-label="Prepare">
+                <button data-tool="prepare" class="tool-icon-btn hidden-group" id="prepareToolBtn" data-act="view" data-arg="prepareListView" aria-label="Prepare">
                     <span class="material-symbols-outlined" aria-hidden="true">construction</span>
                     <span class="tool-icon-label">Prepare</span>
                 </button>
-                <button data-tool="rehearse" class="tool-icon-btn hidden-group" id="rehearseToolBtn" onclick="switchView('rehearseView')" aria-label="Rehearse">
+                <button data-tool="rehearse" class="tool-icon-btn hidden-group" id="rehearseToolBtn" data-act="view" data-arg="rehearseView" aria-label="Rehearse">
                     <svg class="tool-icon-svg" viewBox="0 0 1247 1246" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><defs><clipPath id="clipFrontpageFlow"><rect x="2535" y="380" width="1247" height="1246"/></clipPath></defs><g clip-path="url(#clipFrontpageFlow)" transform="translate(-2535 -380)"><rect x="3006" y="1338" width="351" height="82.0001"/><rect x="2782" y="962" width="788" height="81.9998"/><rect x="2742" y="1001" width="81.9998" height="187"/><rect x="3525" y="834" width="81.9998" height="167"/><path d="M2742 1003C2742 980.356 2760.36 962 2783 962 2805.64 962 2824 980.356 2824 1003 2824 1025.64 2805.64 1044 2783 1044 2760.36 1044 2742 1025.64 2742 1003Z" fill-rule="evenodd"/><path d="M3524 1002.5C3524 979.58 3542.58 961 3565.5 961 3588.42 961 3607 979.58 3607 1002.5 3607 1025.42 3588.42 1044 3565.5 1044 3542.58 1044 3524 1025.42 3524 1002.5Z" fill-rule="evenodd"/><path d="M3363.38 1208.22 3363.38 1547.78 3703.62 1547.78 3703.62 1208.22ZM3324.21 1130 3742.79 1130C3764.44 1130 3782 1147.52 3782 1169.13L3782 1586.87C3782 1608.48 3764.44 1626 3742.79 1626L3324.21 1626C3302.56 1626 3285 1608.48 3285 1586.87L3285 1169.13C3285 1147.52 3302.56 1130 3324.21 1130Z" fill-rule="evenodd"/><rect x="3006" y="588" width="351" height="80.9998"/><path d="M3363.38 458.378 3363.38 798.622 3703.62 798.622 3703.62 458.378ZM3324.21 380 3742.79 380C3764.44 380 3782 397.556 3782 419.213L3782 837.787C3782 859.443 3764.44 877 3742.79 877L3324.21 877C3302.56 877 3285 859.443 3285 837.787L3285 419.213C3285 397.556 3302.56 380 3324.21 380Z" fill-rule="evenodd"/><path d="M2613.22 458.378 2613.22 798.622 2952.78 798.622 2952.78 458.378ZM2574.13 380 2991.87 380C3013.48 380 3031 397.556 3031 419.213L3031 837.787C3031 859.443 3013.48 877 2991.87 877L2574.13 877C2552.52 877 2535 859.443 2535 837.787L2535 419.213C2535 397.556 2552.52 380 2574.13 380Z" fill-rule="evenodd"/><path d="M2613.22 1208.22 2613.22 1547.78 2952.78 1547.78 2952.78 1208.22ZM2574.13 1130 2991.87 1130C3013.48 1130 3031 1147.52 3031 1169.13L3031 1586.87C3031 1608.48 3013.48 1626 2991.87 1626L2574.13 1626C2552.52 1626 2535 1608.48 2535 1586.87L2535 1169.13C2535 1147.52 2552.52 1130 2574.13 1130Z" fill-rule="evenodd"/></g></svg>
                     <span class="tool-icon-label">Rehearse</span>
                 </button>
@@ -361,15 +361,15 @@
         <div class="tool-group" id="toolGroup-learn" role="group" aria-labelledby="toolGroupTitle-learn">
             <div class="tool-group-title" id="toolGroupTitle-learn">Learn</div>
             <div class="tool-icon-row">
-                <button data-tool="theory" class="tool-icon-btn hidden-group" id="theoryToolBtn" onclick="switchView('theoryView')" aria-label="Theory">
+                <button data-tool="theory" class="tool-icon-btn hidden-group" id="theoryToolBtn" data-act="view" data-arg="theoryView" aria-label="Theory">
                     <span id="theoryToolIcon" aria-hidden="true"></span>
                     <span class="tool-icon-label">Theory</span>
                 </button>
-                <button data-tool="skills" class="tool-icon-btn hidden-group" id="skillsToolBtn" onclick="switchView('skillsHubView')" aria-label="Skills">
+                <button data-tool="skills" class="tool-icon-btn hidden-group" id="skillsToolBtn" data-act="view" data-arg="skillsHubView" aria-label="Skills">
                     <span class="material-symbols-outlined" aria-hidden="true">fitness_center</span>
                     <span class="tool-icon-label">Skills</span>
                 </button>
-                <button data-tool="range" class="tool-icon-btn hidden-group" id="rangeToolBtn" onclick="switchView('rangeView')" aria-label="Range">
+                <button data-tool="range" class="tool-icon-btn hidden-group" id="rangeToolBtn" data-act="view" data-arg="rangeView" aria-label="Range">
                     <span class="material-symbols-outlined" aria-hidden="true">height</span>
                     <span class="tool-icon-label">Range</span>
                 </button>
@@ -396,36 +396,36 @@
         <div class="tool-group" id="statGroup-time" role="group" aria-labelledby="statGroupTitle-time">
             <div class="tool-group-title" id="statGroupTitle-time">Practice time</div>
             <div class="dashboard-grid">
-            <button type="button" class="stat-card clickable" data-stat="time_week" onclick="switchView('statsView')"><span class="label">Practice time this week</span><span class="value" id="statsHomeTimeWeek">-</span></button>
-            <button type="button" class="stat-card clickable" data-stat="time_month" onclick="switchView('statsView')"><span class="label">Practice time this month</span><span class="value" id="statsHomeTime">-</span></button>
-            <button type="button" class="stat-card clickable" data-stat="time_year" onclick="switchView('statsView')"><span class="label" id="statsHomeTimeYearLabel">Practice time this year</span><span class="value" id="statsHomeTimeYear">-</span></button>
+            <button type="button" class="stat-card clickable" data-stat="time_week" data-act="view" data-arg="statsView"><span class="label">Practice time this week</span><span class="value" id="statsHomeTimeWeek">-</span></button>
+            <button type="button" class="stat-card clickable" data-stat="time_month" data-act="view" data-arg="statsView"><span class="label">Practice time this month</span><span class="value" id="statsHomeTime">-</span></button>
+            <button type="button" class="stat-card clickable" data-stat="time_year" data-act="view" data-arg="statsView"><span class="label" id="statsHomeTimeYearLabel">Practice time this year</span><span class="value" id="statsHomeTimeYear">-</span></button>
             </div>
         </div>
         <div class="tool-group" id="statGroup-streaks" role="group" aria-labelledby="statGroupTitle-streaks">
             <div class="tool-group-title" id="statGroupTitle-streaks">Streaks</div>
             <div class="dashboard-grid">
-            <button type="button" class="stat-card clickable" data-stat="streak_current" onclick="switchView('streakStatsView')"><span class="label">Current practice streak</span><span class="value" id="statsHomeStreak">-</span></button>
-            <button type="button" class="stat-card clickable" data-stat="streak_longest" onclick="switchView('streakStatsView')"><span class="label">Longest practice streak</span><span class="value" id="statsHomeStreakLongest">-</span></button>
+            <button type="button" class="stat-card clickable" data-stat="streak_current" data-act="view" data-arg="streakStatsView"><span class="label">Current practice streak</span><span class="value" id="statsHomeStreak">-</span></button>
+            <button type="button" class="stat-card clickable" data-stat="streak_longest" data-act="view" data-arg="streakStatsView"><span class="label">Longest practice streak</span><span class="value" id="statsHomeStreakLongest">-</span></button>
             </div>
         </div>
         <div class="tool-group" id="statGroup-sessions" role="group" aria-labelledby="statGroupTitle-sessions">
             <div class="tool-group-title" id="statGroupTitle-sessions">Sessions</div>
             <div class="dashboard-grid">
-            <button type="button" class="stat-card clickable" data-stat="sessions_week" onclick="switchView('historyView')"><span class="label">Sessions this week</span><span class="value" id="statsHomeSessionsWeek">-</span></button>
-            <button type="button" class="stat-card clickable" data-stat="sessions_month" onclick="switchView('historyView')"><span class="label">Sessions this month</span><span class="value" id="statsHomeSessions">-</span></button>
+            <button type="button" class="stat-card clickable" data-stat="sessions_week" data-act="view" data-arg="historyView"><span class="label">Sessions this week</span><span class="value" id="statsHomeSessionsWeek">-</span></button>
+            <button type="button" class="stat-card clickable" data-stat="sessions_month" data-act="view" data-arg="historyView"><span class="label">Sessions this month</span><span class="value" id="statsHomeSessions">-</span></button>
             </div>
         </div>
         <div class="tool-group" id="statGroup-concerts" role="group" aria-labelledby="statGroupTitle-concerts">
             <div class="tool-group-title" id="statGroupTitle-concerts">Concerts</div>
             <div class="dashboard-grid">
-            <button type="button" class="stat-card clickable hidden-group" data-stat="concert" onclick="switchView('rehearseView')"><span class="label" id="statsHomeConcertLabel">Next concert</span><span class="value" id="statsHomeConcert">-</span></button>
+            <button type="button" class="stat-card clickable hidden-group" data-stat="concert" data-act="view" data-arg="rehearseView"><span class="label" id="statsHomeConcertLabel">Next concert</span><span class="value" id="statsHomeConcert">-</span></button>
             </div>
         </div>
         <div class="tool-group" id="statGroup-tools" role="group" aria-labelledby="statGroupTitle-tools">
             <div class="tool-group-title" id="statGroupTitle-tools">Tools</div>
             <div class="dashboard-grid">
-            <button type="button" class="stat-card clickable hidden-group" data-stat="theory_last" onclick="switchView('theoryView')"><span class="label">Last Theory Level</span><span class="value" id="statsHomeTheory">-</span></button>
-            <button type="button" class="stat-card clickable hidden-group" data-stat="tools_last" onclick="switchView('toolResultsView')"><span class="label">Tools last played</span><span class="value" id="statsHomeTools">-</span></button>
+            <button type="button" class="stat-card clickable hidden-group" data-stat="theory_last" data-act="view" data-arg="theoryView"><span class="label">Last Theory Level</span><span class="value" id="statsHomeTheory">-</span></button>
+            <button type="button" class="stat-card clickable hidden-group" data-stat="tools_last" data-act="view" data-arg="toolResultsView"><span class="label">Tools last played</span><span class="value" id="statsHomeTools">-</span></button>
             </div>
         </div>
         <!-- Pinned to the bottom while choosing (Done), so it's always to hand -->
@@ -489,31 +489,31 @@
         </div>
 
         <div class="section-title">Daily time</div>
-        <div class="scroll-wrapper heatmap-scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="heatmap-wrapper"><div class="heatmap-container" id="timeHeatmap"></div></div><div class="heatmap-daylabels"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
+        <div class="scroll-wrapper heatmap-scroll-wrapper"><button class="scroll-btn left" data-act="scroll-area" data-arg="-200">&lt;</button><div class="heatmap-wrapper"><div class="heatmap-container" id="timeHeatmap"></div></div><div class="heatmap-daylabels"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><button class="scroll-btn right" data-act="scroll-area" data-arg="200">&gt;</button></div>
         <div class="heatmap-legend"><span>Less</span><div class="heat-cell h-time-0"></div><div class="heat-cell h-time-1"></div><div class="heat-cell h-time-2"></div><div class="heat-cell h-time-3"></div><div class="heat-cell h-time-4"></div><span>More</span></div>
 
         <!-- ML-186: each monthly chart has a key (.chart-legend) - Actual (solid) / Projected (outline) - shown
              only while that chart is drawing a projection (renderBarChart). -->
         <div class="section-title">Total hours per month</div>
-        <div class="scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="chart-wrapper" id="chartHours"></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
+        <div class="scroll-wrapper"><button class="scroll-btn left" data-act="scroll-area" data-arg="-200">&lt;</button><div class="chart-wrapper" id="chartHours"></div><button class="scroll-btn right" data-act="scroll-area" data-arg="200">&gt;</button></div>
         <div class="chart-legend hidden-group" data-chart-legend="chartHours"><span class="chart-legend-item"><span class="chart-legend-swatch series-hours"></span>Actual</span><span class="chart-legend-item"><span class="chart-legend-swatch chart-legend-swatch-projected series-hours"></span>Projected</span></div>
 
         <div class="section-title">Days of activity</div>
-        <div class="scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="chart-wrapper" id="chartDays"></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
+        <div class="scroll-wrapper"><button class="scroll-btn left" data-act="scroll-area" data-arg="-200">&lt;</button><div class="chart-wrapper" id="chartDays"></div><button class="scroll-btn right" data-act="scroll-area" data-arg="200">&gt;</button></div>
         <div class="chart-legend hidden-group" data-chart-legend="chartDays"><span class="chart-legend-item"><span class="chart-legend-swatch series-days"></span>Actual</span><span class="chart-legend-item"><span class="chart-legend-swatch chart-legend-swatch-projected series-days"></span>Projected</span></div>
 
         <div class="section-title">Daily session count</div>
-        <div class="scroll-wrapper heatmap-scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="heatmap-wrapper"><div class="heatmap-container" id="sessHeatmap"></div></div><div class="heatmap-daylabels"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
+        <div class="scroll-wrapper heatmap-scroll-wrapper"><button class="scroll-btn left" data-act="scroll-area" data-arg="-200">&lt;</button><div class="heatmap-wrapper"><div class="heatmap-container" id="sessHeatmap"></div></div><div class="heatmap-daylabels"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><button class="scroll-btn right" data-act="scroll-area" data-arg="200">&gt;</button></div>
         <div class="heatmap-legend"><span>Less</span><div class="heat-cell h-sess-0"></div><div class="heat-cell h-sess-1"></div><div class="heat-cell h-sess-2"></div><div class="heat-cell h-sess-3"></div><div class="heat-cell h-sess-4"></div><span>More</span></div>
 
         <div class="section-title">Monthly session count</div>
-        <div class="scroll-wrapper"><button class="scroll-btn left" onclick="scrollArea(this, -200)">&lt;</button><div class="chart-wrapper" id="chartSess"></div><button class="scroll-btn right" onclick="scrollArea(this, 200)">&gt;</button></div>
+        <div class="scroll-wrapper"><button class="scroll-btn left" data-act="scroll-area" data-arg="-200">&lt;</button><div class="chart-wrapper" id="chartSess"></div><button class="scroll-btn right" data-act="scroll-area" data-arg="200">&gt;</button></div>
         <div class="chart-legend hidden-group" data-chart-legend="chartSess"><span class="chart-legend-item"><span class="chart-legend-swatch series-sessions"></span>Actual</span><span class="chart-legend-item"><span class="chart-legend-swatch chart-legend-swatch-projected series-sessions"></span>Projected</span></div>
         <br>
     </div>
 
     <div id="historyView" class="hidden-group">
-        <button class="btn-submit mb-4" onclick="switchView('entryForm')">Add session time</button>
+        <button class="btn-submit mb-4" data-act="view" data-arg="entryForm">Add session time</button>
         <div class="month-nav"><button id="prevMonthBtn">&lt;</button><span id="currentMonthDisplay" class="fw-bold">Loading...</span><button id="nextMonthBtn">&gt;</button></div>
         <!-- ML-176: inline filter strip (design system component, see styleguide.html) - replaces
              the old "Filter history (All)" button + blocking checkbox modal, moved below the month
@@ -603,11 +603,11 @@
             <div class="stat-card"><div class="label">Tasks played</div><div class="value" id="sumItems"></div></div>
         </div>
         <div id="sumCompletedItems" class="text-left mt-5"></div>
-        <button class="btn-submit mt-7" onclick="switchView('mainView', true)">Back to home</button>
+        <button class="btn-submit mt-7" data-act="view-back" data-arg="mainView">Back to home</button>
     </div>
 
     <div id="manageChallengesView" class="hidden-group">
-        <button class="btn-submit" onclick="showModal('addChallengeModal')">Create new challenge</button>
+        <button class="btn-submit" data-act="show-modal" data-arg="addChallengeModal" aria-haspopup="dialog">Create new challenge</button>
         <div class="section-title mt-4">Active challenges</div>
         
         <div class="challenge-filter-box">
@@ -626,13 +626,13 @@
             <div id="ecStats" class="challenge-edit-stats"></div>
             
             <div class="flex-row gap-sm justify-center flex-wrap">
-                <button class="btn-edit btn-inline-sm no-margin" onclick="editEntireChallenge()">Edit name</button>
-                <button class="btn-nav btn-inline-sm no-margin" onclick="closeEntireChallenge()">Close challenge</button>
-                <button class="btn-delete btn-inline-sm no-margin" onclick="deleteEntireChallenge()">Delete</button>
+                <button class="btn-edit btn-inline-sm no-margin" data-act="challenge-edit">Edit name</button>
+                <button class="btn-nav btn-inline-sm no-margin" data-act="challenge-close">Close challenge</button>
+                <button class="btn-delete btn-inline-sm no-margin" data-act="challenge-delete">Delete</button>
             </div>
         </div>
         
-        <button class="btn-submit" aria-haspopup="dialog" onclick="openItemDetailModal()">Add new task</button>
+        <button class="btn-submit" aria-haspopup="dialog" data-act="item-detail">Add new task</button>
         <div class="section-title mt-4">
             <span>Challenge tasks</span>
             <label class="text-sm fw-normal flex-row items-center gap-xs no-margin">
@@ -647,10 +647,10 @@
          its current values (renderSettingsSummaries). The Tuner and Metronome rows reuse the home
          screen's tool icons (fillSettingsToolIcons). -->
     <div id="settingsView" class="settings-subview hidden-group">
-        <button type="button" class="history-item settings-link" onclick="switchView('settingsDisplayView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">contrast</span><span class="settings-link-text"><span class="settings-link-title">Display and reading</span><span class="settings-link-sub" id="settingsDisplaySummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link" onclick="switchView('settingsStatsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">bar_chart</span><span class="settings-link-text"><span class="settings-link-title">Stats</span><span class="settings-link-sub" id="settingsStatsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link" onclick="switchView('settingsTunerView')"><span class="settings-link-icon" data-tool-icon="tunerView" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">Tuner</span><span class="settings-link-sub" id="settingsTunerSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link" onclick="switchView('settingsPlaybackView')"><span class="settings-link-icon" data-tool-icon="quickPlayView" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">Metronome &amp; playback</span><span class="settings-link-sub" id="settingsPlaybackSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" data-act="view" data-arg="settingsDisplayView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">contrast</span><span class="settings-link-text"><span class="settings-link-title">Display and reading</span><span class="settings-link-sub" id="settingsDisplaySummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" data-act="view" data-arg="settingsStatsView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">bar_chart</span><span class="settings-link-text"><span class="settings-link-title">Stats</span><span class="settings-link-sub" id="settingsStatsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" data-act="view" data-arg="settingsTunerView"><span class="settings-link-icon" data-tool-icon="tunerView" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">Tuner</span><span class="settings-link-sub" id="settingsTunerSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" data-act="view" data-arg="settingsPlaybackView"><span class="settings-link-icon" data-tool-icon="quickPlayView" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">Metronome &amp; playback</span><span class="settings-link-sub" id="settingsPlaybackSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
     </div>
 
     <!-- ML-356: Display and reading - saved on the account, so it follows you to every device. -->
@@ -844,11 +844,11 @@
          rather than everything on one long page. The summaries under each row are filled in by
          renderAccountSummaries (app.js). -->
     <div id="accountView" class="hidden-group">
-        <button type="button" class="history-item settings-link" onclick="switchView('accountDetailsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">badge</span><span class="settings-link-text"><span class="settings-link-title">My details</span><span class="settings-link-sub" id="accountDetailsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" data-act="view" data-arg="accountDetailsView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">badge</span><span class="settings-link-text"><span class="settings-link-title">My details</span><span class="settings-link-sub" id="accountDetailsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <!-- ML-355: shown once email + password login is on -->
-        <button type="button" class="history-item settings-link hidden-group" id="accountSecurityRow" onclick="switchView('accountSecurityView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">lock</span><span class="settings-link-text"><span class="settings-link-title">Sign-in and security</span><span class="settings-link-sub" id="accountSecuritySummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link" onclick="switchView('accountBandsView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">groups</span><span class="settings-link-text"><span class="settings-link-title">My bands</span><span class="settings-link-sub" id="accountBandsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link hidden-group" id="accountTeachersRow" onclick="switchView('accountTeachersView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">school</span><span class="settings-link-text"><span class="settings-link-title">My teachers</span><span class="settings-link-sub" id="accountTeachersSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link hidden-group" id="accountSecurityRow" data-act="view" data-arg="accountSecurityView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">lock</span><span class="settings-link-text"><span class="settings-link-title">Sign-in and security</span><span class="settings-link-sub" id="accountSecuritySummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" data-act="view" data-arg="accountBandsView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">groups</span><span class="settings-link-text"><span class="settings-link-title">My bands</span><span class="settings-link-sub" id="accountBandsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link hidden-group" id="accountTeachersRow" data-act="view" data-arg="accountTeachersView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">school</span><span class="settings-link-text"><span class="settings-link-title">My teachers</span><span class="settings-link-sub" id="accountTeachersSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
     </div>
 
     <!-- ML-355 batch 2: how you log in, and two-step sign-in for a password login (renderAccountSecurity). -->
@@ -978,7 +978,7 @@
             </label>
         </div>
         <div id="teacherList"></div>
-        <div class="flex-row gap-sm mt-2"><input type="text" id="newTeacherInput" aria-label="New teacher name" placeholder="New teacher"><button class="btn-submit btn-inline" onclick="addListItem('teachers')">Add</button></div>
+        <div class="flex-row gap-sm mt-2"><input type="text" id="newTeacherInput" aria-label="New teacher name" placeholder="New teacher"><button class="btn-submit btn-inline" data-act="list-add" data-arg="teachers">Add</button></div>
     </div>
 
     <!-- One shared floating menu for every band row (ML-89 follow-up), repositioned against whichever
@@ -1033,10 +1033,10 @@
          so they can be read signed out; they open in a new tab. -->
     <div id="aboutView" class="hidden-group">
         <div id="aboutCurrentRelease"></div>
-        <button type="button" class="history-item settings-link" onclick="window.open('/privacy.html', '_blank', 'noopener')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">shield_person</span><span class="settings-link-text"><span class="settings-link-title">Privacy policy</span><span class="settings-link-sub">What we hold about you, and how to delete it</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link" onclick="window.open('/terms.html', '_blank', 'noopener')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">gavel</span><span class="settings-link-text"><span class="settings-link-title">Terms of use</span><span class="settings-link-sub">The terms for using the app</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link" onclick="switchView('aboutReleasesView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">history</span><span class="settings-link-text"><span class="settings-link-title">Release history</span><span class="settings-link-sub">What changed in each version</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link" onclick="switchView('aboutGradesView')"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">school</span><span class="settings-link-text"><span class="settings-link-title">Exam grades</span><span class="settings-link-sub">Where the grade lists come from</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" data-act="open-page" data-arg="/privacy.html"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">shield_person</span><span class="settings-link-text"><span class="settings-link-title">Privacy policy</span><span class="settings-link-sub">What we hold about you, and how to delete it</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" data-act="open-page" data-arg="/terms.html"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">gavel</span><span class="settings-link-text"><span class="settings-link-title">Terms of use</span><span class="settings-link-sub">The terms for using the app</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" data-act="view" data-arg="aboutReleasesView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">history</span><span class="settings-link-text"><span class="settings-link-title">Release history</span><span class="settings-link-sub">What changed in each version</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" data-act="view" data-arg="aboutGradesView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">school</span><span class="settings-link-text"><span class="settings-link-title">Exam grades</span><span class="settings-link-sub">Where the grade lists come from</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
     </div>
 
     <div id="aboutReleasesView" class="hidden-group">
@@ -2071,14 +2071,14 @@
     <div class="modal" id="flowChoiceModal" role="dialog" aria-modal="true" aria-labelledby="flowChoiceTitle">
         <div class="modal-content">
             <!-- Every pop-up has an X, top right (owner rule, 3 Oct 2026 - specs/README.md). -->
-            <button type="button" class="modal-close-x" aria-label="Close" onclick="hideModal('flowChoiceModal')">&times;</button>
+            <button type="button" class="modal-close-x" aria-label="Close" data-act="hide-modal" data-arg="flowChoiceModal">&times;</button>
             <h2 id="flowChoiceTitle">Choose an option</h2>
             <div id="flowChoiceOptions"></div>
             <!-- Spare room under the choice list (unused for now). An option that needs more than a tap
                  (`extra` - Add a piece's "+ New practice list" name and Save, ML-400) grows its own row
                  into a box instead - never a second popup stacked on top, nor a field left on the page. -->
             <div id="flowChoiceInlineExtra" class="flow-choice-inline-extra hidden-group"></div>
-            <button class="btn-cancel btn-nav" onclick="hideModal('flowChoiceModal')">Cancel</button>
+            <button class="btn-cancel btn-nav" data-act="hide-modal" data-arg="flowChoiceModal">Cancel</button>
         </div>
     </div>
 
@@ -2255,7 +2255,7 @@
                 <select id="flowBandPickerSelect"></select>
             </div>
             <button class="btn-submit" id="flowBandPickerConfirmBtn">Move</button>
-            <button class="btn-cancel btn-nav" onclick="hideModal('flowBandPickerModal')">Cancel</button>
+            <button class="btn-cancel btn-nav" data-act="hide-modal" data-arg="flowBandPickerModal">Cancel</button>
         </div>
     </div>
 
@@ -2273,7 +2273,7 @@
                 <input type="text" id="flowYouTubeTitleInput" placeholder="e.g. National finals performance">
             </div>
             <button class="btn-submit" id="flowYouTubeSaveBtn">Add video to flow</button>
-            <button class="btn-cancel btn-nav" onclick="hideModal('flowYouTubeModal')">Cancel</button>
+            <button class="btn-cancel btn-nav" data-act="hide-modal" data-arg="flowYouTubeModal">Cancel</button>
         </div>
     </div>
 
@@ -3348,7 +3348,7 @@
         <!-- ML-309: only with two or more instruments on My account -->
         <div class="form-group hidden-group" id="instrumentGroup"><label for="sessionInstrument">Which instrument?</label><select id="sessionInstrument"></select></div>
         <button class="btn-submit mt-2" id="submitBtn">Save session</button>
-        <button class="btn-cancel btn-nav" id="cancelAddBtn" onclick="goBack()">Cancel</button>
+        <button class="btn-cancel btn-nav" id="cancelAddBtn" data-act="go-back">Cancel</button>
     </div>
 
 </div>
@@ -3417,7 +3417,7 @@
         </div>
 
         <div class="flex-row gap-sm mt-5">
-            <button class="btn-cancel btn-nav no-margin" onclick="hideModal('addChallengeModal')">Cancel</button>
+            <button class="btn-cancel btn-nav no-margin" data-act="hide-modal" data-arg="addChallengeModal">Cancel</button>
             <button class="btn-submit no-margin" id="saveNewChallBtn">Create & add tasks</button>
         </div>
     </div>
@@ -3435,7 +3435,7 @@
         </div>
         <div class="form-group"><label for="iBPM">Target BPM</label><input type="number" id="iBPM"></div>
         <div class="flex-row gap-sm mt-2">
-            <button class="btn-cancel btn-nav no-margin" onclick="hideModal('itemDetailModal')">Cancel</button>
+            <button class="btn-cancel btn-nav no-margin" data-act="hide-modal" data-arg="itemDetailModal">Cancel</button>
             <button class="btn-submit no-margin" id="saveItemBtn">Save task</button>
         </div>
     </div>
@@ -3447,7 +3447,7 @@
      (metroState.latencyMs), adjusted in Settings -> Metronome & playback. -->
 <div class="modal" id="qpSubdivideModal" role="dialog" aria-modal="true" aria-labelledby="qpSubdivideModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="hideModal('qpSubdivideModal')" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" data-act="hide-modal" data-arg="qpSubdivideModal" aria-label="Close">&times;</button>
         <h2 id="qpSubdivideModalTitle">Sub beats</h2>
         <div class="form-group no-margin">
             <label>Use sub beats</label>
@@ -3487,7 +3487,7 @@
 
 <div class="modal" id="qpSpeedModal" role="dialog" aria-modal="true" aria-labelledby="qpSpeedModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="hideModal('qpSpeedModal')" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" data-act="hide-modal" data-arg="qpSpeedModal" aria-label="Close">&times;</button>
         <h2 id="qpSpeedModalTitle">Play speed</h2>
         <p class="metro-help-text">Tap a speed to apply it straight away.</p>
         <div class="metroBlk-speed-options" id="qpSpeedOptions"></div>
@@ -3523,7 +3523,7 @@
      precedent as Quick Play's own copy of Blocks' originals. -->
 <div class="modal" id="flowSubdivideModal" role="dialog" aria-modal="true" aria-labelledby="flowSubdivideModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="hideModal('flowSubdivideModal')" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" data-act="hide-modal" data-arg="flowSubdivideModal" aria-label="Close">&times;</button>
         <h2 id="flowSubdivideModalTitle">Sub beats</h2>
         <div class="form-group no-margin">
             <label>Use sub beats</label>
@@ -3865,7 +3865,7 @@
 
 <div class="modal" id="flowSpeedModal" role="dialog" aria-modal="true" aria-labelledby="flowSpeedModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="hideModal('flowSpeedModal')" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" data-act="hide-modal" data-arg="flowSpeedModal" aria-label="Close">&times;</button>
         <h2 id="flowSpeedModalTitle">Play speed</h2>
         <p class="metro-help-text">Tap a speed to apply it straight away.</p>
         <div class="metroBlk-speed-options" id="flowSpeedOptions"></div>
@@ -3962,7 +3962,7 @@
 
 <div class="modal" id="metroBlkMiniTunerInstrumentModal" role="dialog" aria-modal="true" aria-labelledby="metroBlkMiniTunerInstrumentModalTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="hideModal('metroBlkMiniTunerInstrumentModal')" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" data-act="hide-modal" data-arg="metroBlkMiniTunerInstrumentModal" aria-label="Close">&times;</button>
         <h2 id="metroBlkMiniTunerInstrumentModalTitle">Instrument</h2>
         <p class="metro-help-text">Changes the reading for this session only - your Settings default is unchanged.</p>
         <!-- ML-225: all 12 transpositions, filled in by renderMetroBlkMiniTunerInstrumentOptions (app.js). -->
@@ -3972,7 +3972,7 @@
 
 <div class="modal" id="metroSegNoteModal" role="dialog" aria-modal="true" aria-labelledby="metroSegNoteModalTitle" aria-describedby="metroSegNoteModalHelp">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="hideModal('metroSegNoteModal')" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" data-act="hide-modal" data-arg="metroSegNoteModal" aria-label="Close">&times;</button>
         <h2 id="metroSegNoteModalTitle">Beat note</h2>
         <p class="metro-help-text" id="metroSegNoteModalHelp">Which note the tempo counts, e.g. &#9833; = 120 or &#9834;. = 80.</p>
         <div class="metroBlk-note-picker" id="metroSegNotePicker"></div>
@@ -3984,7 +3984,7 @@
      text-list picker's "|"/"|:" characters. -->
 <div class="modal" id="flowBarStartModal" role="dialog" aria-modal="true" aria-labelledby="flowBarStartModalTitle" aria-describedby="flowBarStartModalHelp">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="hideModal('flowBarStartModal')" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" data-act="hide-modal" data-arg="flowBarStartModal" aria-label="Close">&times;</button>
         <h2 id="flowBarStartModalTitle">Start of bar</h2>
         <p class="metro-help-text" id="flowBarStartModalHelp">A plain barline, or a start-repeat sign.</p>
         <div class="metroBlk-note-picker" id="flowBarStartPicker"></div>
@@ -3997,7 +3997,7 @@
      single option list. -->
 <div class="modal" id="flowBarEndModal" role="dialog" aria-modal="true" aria-labelledby="flowBarEndModalTitle" aria-describedby="flowBarEndModalHelp">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" onclick="hideModal('flowBarEndModal')" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" data-act="hide-modal" data-arg="flowBarEndModal" aria-label="Close">&times;</button>
         <h2 id="flowBarEndModalTitle">End of bar</h2>
         <p class="metro-help-text" id="flowBarEndModalHelp">The barline at the end of this bar: plain, double, Fine, final, or an end-repeat with how many times to play.</p>
         <div class="flow-tile-section">
@@ -4188,7 +4188,7 @@
      is the same "padded scrollable body + flush footer bar" split metroSegmentModal already uses. -->
 <div class="modal" id="metroSegTimeSigModal" role="dialog" aria-modal="true" aria-labelledby="metroSegTimeSigModalTitle" aria-describedby="metroSegTimeSigModalHelp">
     <div class="modal-content modal-content-sticky-footer">
-        <button type="button" class="modal-close-x" onclick="hideModal('metroSegTimeSigModal')" aria-label="Close">&times;</button>
+        <button type="button" class="modal-close-x" data-act="hide-modal" data-arg="metroSegTimeSigModal" aria-label="Close">&times;</button>
         <div class="metroSeg-scroll-area">
         <h2 id="metroSegTimeSigModalTitle">Time signature</h2>
         <p class="metro-help-text" id="metroSegTimeSigModalHelp">How many beats are in each bar, and what kind of note gets the beat.</p>
@@ -4226,7 +4226,7 @@
         </div>
         </div>
         <div class="metroSeg-sticky-footer metroSeg-timesig-footer">
-            <button type="button" class="btn-text no-margin" onclick="hideModal('metroSegTimeSigModal')">Done</button>
+            <button type="button" class="btn-text no-margin" data-act="hide-modal" data-arg="metroSegTimeSigModal">Done</button>
         </div>
     </div>
 </div>
@@ -4238,7 +4238,7 @@
         <input type="hidden" id="liOriginalName">
         <div class="form-group"><label for="liName">Name</label><input type="text" id="liName"></div>
         <div class="flex-row gap-md">
-            <button class="btn-cancel btn-nav no-margin" onclick="hideModal('listItemModal')">Cancel</button>
+            <button class="btn-cancel btn-nav no-margin" data-act="hide-modal" data-arg="listItemModal">Cancel</button>
             <button class="btn-submit no-margin" id="liSaveBtn">Save</button>
         </div>
         <button class="btn-icon-delete centered-action" id="liActionBtn" aria-label="Remove"><span class="material-symbols-outlined">delete</span></button>
@@ -4279,7 +4279,7 @@
 </div>
 
 <div class="modal" data-no-dismiss id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
-    <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button><h2 id="confirmTitle">Confirm</h2><p id="confirmMessage" class="mb-6 leading-base"></p><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" id="confirmCancelBtn" onclick="closeConfirmModal()">Cancel</button><button class="btn-submit no-margin" id="confirmActionBtn">Confirm</button></div></div>
+    <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button><h2 id="confirmTitle">Confirm</h2><p id="confirmMessage" class="mb-6 leading-base"></p><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" id="confirmCancelBtn" data-act="confirm-close">Cancel</button><button class="btn-submit no-margin" id="confirmActionBtn">Confirm</button></div></div>
 </div>
 
 <!-- ML-170: the whole capture form. A text box and a button, nothing else - no category picker, no
@@ -4311,7 +4311,7 @@
 </div>
 
 <div class="modal" id="promptModal" role="dialog" aria-modal="true" aria-labelledby="promptTitle">
-    <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button><h2 id="promptTitle">Enter value</h2><input type="text" id="promptInput" aria-labelledby="promptTitle" class="mb-6"><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" onclick="closePromptModal()">Cancel</button><button class="btn-submit no-margin" id="promptActionBtn">Save</button></div></div>
+    <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button><h2 id="promptTitle">Enter value</h2><input type="text" id="promptInput" aria-labelledby="promptTitle" class="mb-6"><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" data-act="prompt-close">Cancel</button><button class="btn-submit no-margin" id="promptActionBtn">Save</button></div></div>
 </div>
 
 <!-- ML-175: one shared floating menu for every session history row (same pattern as
@@ -4332,31 +4332,27 @@
         <div class="form-group"><label for="editDate">Date</label><input type="date" id="editDate"></div>
         <div class="form-group hidden-group" id="editInstrumentGroup"><label for="editInstrument">Instrument</label><select id="editInstrument"></select></div>
         <button class="btn-submit" id="saveEditBtn">Update record</button>
-        <button class="btn-cancel btn-nav" onclick="hideModal('editModal')">Cancel</button>
+        <button class="btn-cancel btn-nav" data-act="hide-modal" data-arg="editModal">Cancel</button>
     </div>
 </div>
 
-<div id="toastSuccess" class="toast success" role="status" aria-live="polite"><span id="toastMsg">Saved!</span><button id="toastUndoBtn" class="hidden-group">Undo</button><button onclick="closeToast('toastSuccess')">X</button><div class="toast-countdown-bar" id="toastSuccessBar" role="status" aria-live="polite"></div></div>
-<div id="toastWarning" class="toast warning" role="status" aria-live="polite"><span><span id="toastWarningMsg">Error</span></span><button onclick="closeToast('toastWarning')">X</button><div class="toast-countdown-bar" id="toastWarningBar" role="status" aria-live="polite"></div></div>
-<div id="toastInfo" class="toast info" role="status" aria-live="polite"><span id="toastInfoMsg"></span><button onclick="closeToast('toastInfo')">X</button><div class="toast-countdown-bar" id="toastInfoBar" role="status" aria-live="polite"></div></div>
+<div id="toastSuccess" class="toast success" role="status" aria-live="polite"><span id="toastMsg">Saved!</span><button id="toastUndoBtn" class="hidden-group">Undo</button><button data-act="close-toast" data-arg="toastSuccess">X</button><div class="toast-countdown-bar" id="toastSuccessBar" role="status" aria-live="polite"></div></div>
+<div id="toastWarning" class="toast warning" role="status" aria-live="polite"><span><span id="toastWarningMsg">Error</span></span><button data-act="close-toast" data-arg="toastWarning">X</button><div class="toast-countdown-bar" id="toastWarningBar" role="status" aria-live="polite"></div></div>
+<div id="toastInfo" class="toast info" role="status" aria-live="polite"><span id="toastInfoMsg"></span><button data-act="close-toast" data-arg="toastInfo">X</button><div class="toast-countdown-bar" id="toastInfoBar" role="status" aria-live="polite"></div></div>
 <!-- Generic "action + undo" toast (ML-... Quick Play bar delete/move) - reusable for anything that
      needs a "X happened [Undo]" moment rather than the session-history-specific undo already wired
      into #toastSuccess above. -->
-<div id="toastUndo" class="toast undo" role="status" aria-live="polite"><span id="toastUndoMsg"></span><button id="toastUndoActionBtn">Undo</button><button onclick="closeToast('toastUndo')">X</button><div class="toast-countdown-bar" id="toastUndoBar" role="status" aria-live="polite"></div></div>
+<div id="toastUndo" class="toast undo" role="status" aria-live="polite"><span id="toastUndoMsg"></span><button id="toastUndoActionBtn">Undo</button><button data-act="close-toast" data-arg="toastUndo">X</button><div class="toast-countdown-bar" id="toastUndoBar" role="status" aria-live="polite"></div></div>
 
 </div><!-- Close mainContainer -->
 
 <script src="analytics.js"></script>
 <!-- ML-179: @vercel/blob/client's upload() runs entirely in the browser (file goes
      straight to Blob storage, never through our own server) - app.js is a plain
-     classic script with no bundler, so this tiny module script is the only piece
-     that needs `import`, exposing just the one function app.js actually calls. Keep this version
-     in step with server/package.json's @vercel/blob - the browser's upload() and the server's
-     handleUpload() speak one client-upload protocol. -->
-<script type="module">
-    import { upload } from 'https://cdn.jsdelivr.net/npm/@vercel/blob@2.8.0/client/+esm';
-    window.vercelBlobUpload = upload;
-</script>
+     classic script with no bundler, so this tiny module (blob-upload.js - its own file since ML-474:
+     no script is written in the page) is the only piece that needs `import`, exposing just the one
+     function app.js actually calls. -->
+<script type="module" src="blob-upload.js"></script>
 <!-- ML-193: the Flow journey engine (play order, tempo ramps, consistency checks) - app.js uses it. -->
 <script src="flowJourney.js"></script>
 <script src="practicePlan.js"></script>

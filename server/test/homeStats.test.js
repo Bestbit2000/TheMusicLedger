@@ -20,7 +20,7 @@ test('every stat on the Stats page is one the server accepts, and the other way 
 test('each stat card opens its full page', () => {
     const cards = [...statsView.matchAll(/<button[^>]*data-stat="([a-z_]+)"[^>]*>/g)];
     assert.equal(cards.length, serverIds.length);
-    for (const [tag, id] of cards) assert.match(tag, /onclick="switchView\('[A-Za-z]+'\)"/, `${id} opens a page`);
+    for (const [tag, id] of cards) assert.match(tag, /data-act="view" data-arg="[A-Za-z]+"/, `${id} opens a page`); // ML-474: no onclick in the page
 });
 
 test('the default Home stats are real stats: practice time this week and the current streak', () => {

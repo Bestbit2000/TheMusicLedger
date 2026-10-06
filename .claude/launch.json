@@ -4,10 +4,22 @@
     {
       "name": "music-ledger",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "music-ledger-csp",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--env-file=server/.env",
+        "--env-file=.claude/csp-enforce.tmp.env",
+        "server/server.js"
+      ],
+      "port": 3100
     }
   ]
 }

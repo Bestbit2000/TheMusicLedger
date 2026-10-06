@@ -83,7 +83,9 @@ describe('security headers', () => {
     assert.deepEqual(ours.filter((f) => !f.ok).map((f) => f.level), ['warn']); // only: the policy is report-only
     assert.match(ours.find((f) => !f.ok).text, /report-only/);
     const enforced = headerFindings({ ...securityHeaders({ enforceCsp: true }), 'Strict-Transport-Security': 'max-age=63072000' });
-    assert.match(enforced.find((f) => !f.ok).text, /inline script is still allowed/);
+    assert.deepEqual(enforced.filter((f) => !f.ok), []); // ML-474: enforced, with no inline script allowed - nothing left to say
+    const loose = headerFindings({ 'content-security-policy': "default-src 'self'; script-src 'self' 'unsafe-inline'", 'Strict-Transport-Security': 'max-age=63072000' });
+    assert.match(loose.find((f) => f.text.startsWith('content-security-policy')).text, /inline script is still allowed/);
     assert.equal(headerFindings({ 'strict-transport-security': 'max-age=300' })[0].ok, false);
   });
 });
