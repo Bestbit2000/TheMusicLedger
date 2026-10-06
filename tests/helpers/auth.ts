@@ -10,7 +10,8 @@ import { Page, expect } from '@playwright/test';
 const LOG_TIME = "Log time you've already played";
 async function onHome(page: Page) {
   await expect(page.getByRole('button', { name: LOG_TIME })).toBeVisible();
-  const gotIt = page.locator('#urgentNotificationModal.show #urgentNotificationOkBtn');
+  // ...and so does an important notice (ML-463, "Before you continue..."), which comes first.
+  const gotIt = page.locator('#importantNoticeModal.show #importantNoticeOkBtn, #urgentNotificationModal.show #urgentNotificationOkBtn').first();
   for (let i = 0; i < 5 && await gotIt.isVisible().catch(() => false); i++) {
     await gotIt.click();
     await page.waitForTimeout(300);

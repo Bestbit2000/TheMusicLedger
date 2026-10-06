@@ -516,6 +516,13 @@
         <div class="setting-row setting-row-grouped">
             <span id="notificationUrgentLabel">Urgent - pops up for everyone until they've read it</span><label class="toggle-switch"><input type="checkbox" id="notificationUrgentInput" aria-labelledby="notificationUrgentLabel"><span class="toggle-slider"></span></label>
         </div>
+        <!-- ML-463: important - shown to each member when they next open the app, before anything else, until "Got it" -->
+        <div class="setting-row setting-row-grouped">
+            <span id="notificationImportantLabel">Important - show it as a pop-up when each member next opens the app</span><label class="toggle-switch"><input type="checkbox" id="notificationImportantInput" aria-labelledby="notificationImportantLabel"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row setting-row-grouped hidden-group" id="notificationPolicyLinkRow">
+            <span id="notificationPolicyLinkLabel">Add a link to the privacy policy in the pop-up</span><label class="toggle-switch"><input type="checkbox" id="notificationPolicyLinkInput" aria-labelledby="notificationPolicyLinkLabel"><span class="toggle-slider"></span></label>
+        </div>
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="notificationFormCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="notificationFormSaveBtn" type="button">Save</button>

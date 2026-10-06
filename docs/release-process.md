@@ -119,8 +119,8 @@ regenerate the token reference if tokens changed. The Design page is how the own
    - something they **must do** - sign in again, set something up again, re-enter something.
 
    If the answer is yes, write the notice (Admin → Notifications) as part of the release and say so in
-   the release's Jira issue. Until ML-463 is built a notice sits behind the red dot on the menu; once it
-   is, mark it **important** so it pops up when each member next opens the app. If the answer is no, say
+   the release's Jira issue. Mark it **Important** (ML-463) so it pops up - "Before you continue..." - when
+   each member next opens the app; add the privacy policy link when the policy changed. If the answer is no, say
    "no notice needed" in the Jira issue - so it is plain the question was asked. Claude proposes the
    answer and the wording; the owner decides.
    **Ask, every release: does anything in it touch the young players rule?** (ML-471.) An upgrade prompt,

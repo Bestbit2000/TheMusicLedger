@@ -594,7 +594,10 @@
         notifications: {
             list: () => apiCall('/api/notifications'),
             read: (id) => apiCall(`/api/notifications/${id}/read`, 'POST'),
-            readAll: () => apiCall('/api/notifications/read-all', 'POST')
+            readAll: () => apiCall('/api/notifications/read-all', 'POST'),
+            // ML-463: important notices - not behind the notifications feature
+            important: () => apiCall('/api/notices/important'),
+            acknowledge: (id) => apiCall(`/api/notices/important/${id}/ack`, 'POST')
         },
         // ML-170 - capture only. Triage is admin-panel-side (public/admin.js).
         feedback: {
@@ -2486,6 +2489,7 @@
         } catch {
             runningAppVersion = null; // no baseline -> no update notice, rather than a wrong one
         }
+        checkImportantNotices(); // ML-463: before anything else, as the app opens
         await checkNotifications(true);
         clearInterval(notificationsPollTimer);
         notificationsPollTimer = setInterval(() => checkNotifications(), NOTIFICATIONS_POLL_MS);
@@ -2494,8 +2498,73 @@
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && auth.isAuthenticated
             && Date.now() - notificationsLastCheckAt > NOTIFICATIONS_RESUME_MIN_GAP_MS) {
+            checkImportantNotices(); // ML-463: coming back to the app is opening it
             checkNotifications();
         }
+    });
+
+    // ===== ML-463: an important notice - "Before you continue..." =====
+    // Something a member should not find out by accident (a change to how their information is used).
+    // It is shown when they next open the app or come back to it - never in the middle of something,
+    // so not on the minute-by-minute poll - and stays until "Got it", which is remembered on the
+    // account: no other device shows it again, and it stays in the notification centre. Several are
+    // shown one at a time, oldest first. With no connection nothing new can arrive, so nothing is shown.
+    let importantNotices = [];
+    let importantNoticeShownId = null;
+    const importantNoticeShowing = () => !!document.getElementById('importantNoticeModal')?.classList.contains('show');
+    async function checkImportantNotices() {
+        if (!auth.isAuthenticated || offlineNow || navigator.onLine === false) return;
+        try {
+            const res = await API.notifications.important();
+            if (offlineNow || !res || !Array.isArray(res.notices)) return;
+            importantNotices = res.notices;
+            showNextImportantNotice();
+        } catch (error) { /* quiet: it is asked again the next time the app is opened */ }
+    }
+    function showNextImportantNotice() {
+        const modal = document.getElementById('importantNoticeModal');
+        if (!modal) return;
+        const next = importantNotices[0];
+        if (!next) {
+            if (modal.classList.contains('show')) hideModal(modal);
+            importantNoticeShownId = null;
+            showNextUrgentNotification(); // an urgent one that was waiting its turn
+            return;
+        }
+        if (modal.classList.contains('show') && importantNoticeShownId === next.id) return;
+        importantNoticeShownId = next.id;
+        document.getElementById('importantNoticeTitle').textContent = next.title;
+        document.getElementById('importantNoticeDate').textContent = formatNotificationDate(next.publishAt);
+        document.getElementById('importantNoticeBody').textContent = next.body;
+        setShown('importantNoticePolicy', !!next.policyLink);
+        const more = importantNotices.length - 1;
+        setShown('importantNoticeCount', more > 0);
+        document.getElementById('importantNoticeCount').textContent = more > 0 ? `${more} more to read after this.` : '';
+        hideModal('urgentNotificationModal'); // pop-ups don't stack: the urgent one comes after
+        showModal(modal);
+        document.getElementById('importantNoticeOkBtn')?.focus();
+    }
+    document.getElementById('importantNoticeOkBtn')?.addEventListener('click', async () => {
+        const id = importantNoticeShownId;
+        const btn = document.getElementById('importantNoticeOkBtn');
+        if (id === null) { hideModal('importantNoticeModal'); return; }
+        btn.disabled = true;
+        try {
+            const res = await API.notifications.acknowledge(id);
+            importantNotices = res.notices || [];
+            // In the notification centre it now counts as read
+            const inList = notificationsCache.find(x => x.id === id);
+            if (inList && !inList.read) { inList.read = true; notificationsUnreadCount = Math.max(0, notificationsUnreadCount - 1); renderNotificationIndicators(); }
+        } catch (error) {
+            // Not recorded (the connection went): let them carry on - it is shown again next time
+            importantNotices = importantNotices.filter(n => n.id !== id);
+            console.warn('Notice not acknowledged:', error.message);
+        } finally {
+            btn.disabled = false;
+        }
+        hideModal('importantNoticeModal');
+        importantNoticeShownId = null;
+        showNextImportantNotice();
     });
 
     function applyNotificationsResponse(res) {
@@ -2513,7 +2582,9 @@
     function showNextUrgentNotification() {
         const modal = document.getElementById('urgentNotificationModal');
         if (!modal || !isFeatureEnabled('notifications')) return;
-        const next = notificationsCache.filter(n => n.urgent && !n.read)
+        if (importantNoticeShowing()) return; // ML-463: one pop-up at a time - "Before you continue..." first
+        // (an important one has its own pop-up, so it isn't shown as urgent too)
+        const next = notificationsCache.filter(n => n.urgent && !n.important && !n.read)
             .sort((a, b) => new Date(a.publishAt) - new Date(b.publishAt))[0];
         if (!next) { if (modal.classList.contains('show')) hideModal(modal); urgentNotificationShownId = null; return; }
         if (modal.classList.contains('show') && urgentNotificationShownId === next.id) return;
@@ -2629,7 +2700,7 @@
             const expanded = expandedNotificationIds.has(n.id);
             return `
             <button type="button" class="notification-item${n.read ? '' : ' unread'}${expanded ? ' expanded' : ''}" data-notification-id="${n.id}" aria-expanded="${expanded}">
-                <div class="notification-head">${n.read ? '' : '<span class="notification-unread-dot" aria-label="Unread"></span>'}<strong>${escapeHtml(n.title)}</strong>${n.urgent ? '<span class="notification-urgent-tag">Urgent</span>' : ''}</div>
+                <div class="notification-head">${n.read ? '' : '<span class="notification-unread-dot" aria-label="Unread"></span>'}<strong>${escapeHtml(n.title)}</strong>${n.important ? '<span class="notification-urgent-tag">Important</span>' : n.urgent ? '<span class="notification-urgent-tag">Urgent</span>' : ''}</div>
                 <div class="notification-date">${escapeHtml(formatNotificationDate(n.publishAt))}</div>
                 <p class="notification-body">${escapeHtml(n.body)}</p>
             </button>`;

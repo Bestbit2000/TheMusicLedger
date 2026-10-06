@@ -155,7 +155,7 @@
     .notification-body { margin: var(--space-2) 0 0; white-space: pre-wrap; line-height: var(--line-height-base); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
     .notification-item.expanded .notification-body, .notification-update .notification-body { display: block; -webkit-line-clamp: unset; }
     /* ML-167: an urgent notification - the pop-up shows the whole message; the tag also marks it in the list */
-    .notification-urgent .notification-body { display: block; -webkit-line-clamp: unset; }
+    .notification-urgent .notification-body, .notification-important .notification-body { display: block; -webkit-line-clamp: unset; } /* a pop-up shows the whole message (.notification-important: the "Before you continue..." notice, ML-463) */
     .notification-urgent-tag { display: inline-block; font-size: var(--font-xs); font-weight: var(--font-weight-bold); padding: var(--space-0-5) var(--space-2); border-radius: var(--radius-pill); background: var(--status-amber-bg); color: var(--status-amber-fg); }
     .notification-head .notification-urgent-tag { margin-left: var(--space-2); }
     .notification-update { cursor: default; border-color: var(--primary-action-strong); }

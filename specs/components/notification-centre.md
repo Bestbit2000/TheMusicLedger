@@ -1,7 +1,7 @@
 # Notification centre
 
 ## 1. Metadata
-- **Name:** Notification centre (`.notif-dot`, `.notif-count`, `.notifications-toolbar`, `.notification-item`, `.notification-head`, `.notification-unread-dot`, `.notification-date`, `.notification-body`, `.notification-update`, `.notification-release`, `.notifications-empty`, `.notifications-empty-art`, `.notifications-empty-title`, `.notification-urgent` (the urgent pop-up's content), `.notification-urgent-tag`)
+- **Name:** Notification centre (`.notif-dot`, `.notif-count`, `.notifications-toolbar`, `.notification-item`, `.notification-head`, `.notification-unread-dot`, `.notification-date`, `.notification-body`, `.notification-update`, `.notification-release`, `.notifications-empty`, `.notifications-empty-art`, `.notifications-empty-title`, `.notification-important` (the "Before you continue..." pop-up's content, ML-463), `.notification-urgent` (the urgent pop-up's content), `.notification-urgent-tag`)
 - **Category:** Feedback
 - **Status:** Stable (ML-201). Behaviour documented in [docs/notifications.md](../../docs/notifications.md)
 
@@ -17,6 +17,16 @@ Urgent (ML-167): in the list, an amber `.notification-urgent-tag` "Urgent" after
 pops up - `#urgentNotificationModal` (`role=dialog`) › `.modal-content.notification-urgent` › the tag ›
 `h2` title › `.notification-date` › `.notification-body` (in full, no clamp) › a `.btn-submit` **Got it** that
 marks it read. No × - Got it is the way out; closed any other way it comes back on the next check.
+Important (ML-463): a notice a member should not find out by accident (a change to how their information is
+used). In the list, the same amber tag reading "Important". It pops up **when the app is next opened, or come
+back to - before anything else, never in the middle of something**: `#importantNoticeModal` (`role=dialog`,
+`data-no-dismiss`) › `.modal-content.notification-important` › `h2` "Before you continue..." › the notice's
+title as a `.section-title` › `.notification-date` › `.notification-body` (in full) › optionally an
+`.external-link` "Read the privacy policy" (the app's own page, in a new tab) › "N more to read after this."
+(`.text-sm.text-muted`) when several wait › a `.btn-submit` **Got it**. No ×, and a tap outside doesn't close
+it. Got it is remembered on the account, so no other device shows it again; several show one at a time,
+oldest first; an urgent one waits its turn behind it. It doesn't depend on the `notifications` feature -
+every member sees it - and with no connection nothing is shown.
 Empty: `.notifications-empty` › a line drawing (`svg.notifications-empty-art`, someone relaxing back in a deckchair
 with a euphonium; `aria-hidden`; lines in `--label-color`, the instrument a `.is-solid` group filled with
 `--container-bg` so it hides the lines behind it) › `h2.notifications-empty-title` "You're all caught up!" ›
@@ -50,6 +60,8 @@ Unread (gold outline + red dot) · Read (plain outline) · Collapsed (2-line cla
 [top-bar](top-bar.md) · [dropdown-menu](dropdown-menu.md) · [pill-badge](pill-badge.md) · [toast](toast.md)
 
 ## 9. Accessibility
+- The important notice (ML-463) is a dialog labelled by its heading and described by its message; focus goes
+  to **Got it**; the privacy policy link says it opens in a new tab. Its words are friendly, not an alarm.
 - Each item is a `<button>`; unread state is shown by the dot **and** the outline, and should be in the name ("Unread: …") if the dot is the only cue.
 - The unread count badge in the menu is text, so it is read out with the item.
 

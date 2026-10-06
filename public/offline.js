@@ -47,7 +47,7 @@
         [/^POST$/, /^\/api\/notifications\//]
     ];
     // Reads never answered from the device: what is running right now, and anything private or one-off.
-    const NO_COPY = [/^\/api\/timer\/active$/, /^\/api\/practice\/active$/, /^\/api\/notifications/, /^\/api\/account\/export/, /^\/api\/account\/two-step/, /^\/api\/invites/, /^\/api\/admin\//];
+    const NO_COPY = [/^\/api\/timer\/active$/, /^\/api\/practice\/active$/, /^\/api\/notifications/, /^\/api\/notices\//, /^\/api\/account\/export/, /^\/api\/account\/two-step/, /^\/api\/invites/, /^\/api\/admin\//];
 
     const pathOf = (endpoint) => String(endpoint || '').split('?')[0];
 

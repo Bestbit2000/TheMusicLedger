@@ -2909,6 +2909,21 @@
         </div>
     </div>
 
+    <!-- ML-463: an important notice - shown when you next open the app, before anything else, until "Got it"
+         (which is remembered on your account, so no other device shows it again). It must be answered:
+         a tap outside doesn't close it (data-no-dismiss). showNextImportantNotice in app.js. -->
+    <div class="modal" data-no-dismiss id="importantNoticeModal" role="dialog" aria-modal="true" aria-labelledby="importantNoticeHeading" aria-describedby="importantNoticeBody">
+        <div class="modal-content notification-important">
+            <h2 id="importantNoticeHeading">Before you continue...</h2>
+            <div class="section-title" id="importantNoticeTitle"></div>
+            <div class="notification-date" id="importantNoticeDate"></div>
+            <p class="notification-body" id="importantNoticeBody"></p>
+            <p class="hidden-group" id="importantNoticePolicy"><a class="external-link" href="/privacy.html" target="_blank" rel="noopener"><span class="external-link-text">Read the privacy policy</span><span class="material-symbols-outlined external-link-icon" aria-hidden="true">open_in_new</span><span class="visually-hidden"> (opens in a new tab)</span></a></p>
+            <p class="text-sm text-muted hidden-group" id="importantNoticeCount" aria-live="polite"></p>
+            <button type="button" class="btn-submit no-margin mt-4" id="importantNoticeOkBtn">Got it</button>
+        </div>
+    </div>
+
     <!-- ML-167: an urgent notification - pops up over whatever you're doing until "Got it" (which marks it read).
          Filled in by showNextUrgentNotification (app.js). -->
     <div class="modal" data-no-dismiss id="urgentNotificationModal" role="dialog" aria-modal="true" aria-labelledby="urgentNotificationTitle" aria-describedby="urgentNotificationBody">

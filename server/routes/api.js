@@ -43,7 +43,7 @@ import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from
 import { exportFlowForUser } from '../services/flowTransfer.js';
 import { submitFeedback } from '../services/feedback.js';
 import { requestUpgrade } from '../services/upgradeRequest.js';
-import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead } from '../services/notifications.js';
+import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead, listImportantNotices, acknowledgeImportantNotice } from '../services/notifications.js';
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryLevels, getTheoryWeights, getTheoryPlayed } from '../services/theoryPractice.js';
 import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getDrillWeights, getRhythmLevels, setRhythmWord } from '../services/drills.js';
 import { securityStatus, requirePasswordAccount, changeOwnPassword, passwordLoginEnabled, appUrl, createInvite, listMyInvites, invitesSentToday, cancelMyInvite, resendMyInvite, limitCalls, INVITE_LEVELS } from '../services/passwordAuth.js';
@@ -120,6 +120,24 @@ router.get('/notifications', requireAuth, resolveAccount, async (req, res) => {
   try {
     await assertNotificationsEnabled();
     res.json({ ...(await listNotificationsForAccount(req.accountId)), appVersion: currentAppVersion() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-463: important notices - shown when the member next opens the app, before anything else, until
+// "Got it". Deliberately NOT behind the notifications feature: a notice about how a member's
+// information is used has to reach every member, whatever their account type has switched on.
+router.get('/notices/important', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await listImportantNotices(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/notices/important/:id/ack', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await acknowledgeImportantNotice(req.accountId, req.params.id));
   } catch (error) {
     sendError(res, error);
   }

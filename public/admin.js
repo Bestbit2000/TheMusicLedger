@@ -2241,6 +2241,7 @@
                         <div class="admin-feedback-badges">
                             <span class="admin-feedback-badge notification-status-${n.status}">${NOTIFICATION_STATUS_LABELS[n.status] || n.status}</span>
                             ${n.urgent ? '<span class="admin-feedback-badge notification-status-urgent">Urgent</span>' : ''}
+                            ${n.important ? `<span class="admin-feedback-badge notification-status-urgent">Important${n.policyLink ? ' - with the privacy policy link' : ''}</span>` : ''}
                             <span class="admin-feedback-badge cat">Read by ${n.readCount} of ${data.accountCount}</span>
                         </div>
                     </div>
@@ -2280,6 +2281,9 @@
         document.getElementById('notificationPublishAtInput').value = n ? toLocalInputValue(n.publishAt) : '';
         document.getElementById('notificationExpiresAtInput').value = n ? toLocalInputValue(n.expiresAt) : '';
         document.getElementById('notificationUrgentInput').checked = !!(n && n.urgent); // ML-167
+        document.getElementById('notificationImportantInput').checked = !!(n && n.important); // ML-463
+        document.getElementById('notificationPolicyLinkInput').checked = !!(n && n.policyLink);
+        setShown('notificationPolicyLinkRow', !!(n && n.important));
         syncNotificationPublishMode();
         showModal('notificationFormModal');
     }
@@ -2297,7 +2301,9 @@
             body: document.getElementById('notificationBodyInput').value,
             publishAt: scheduled ? fromLocalInputValue(publishValue) : null,
             expiresAt: fromLocalInputValue(document.getElementById('notificationExpiresAtInput').value),
-            urgent: document.getElementById('notificationUrgentInput').checked // ML-167
+            urgent: document.getElementById('notificationUrgentInput').checked, // ML-167
+            important: document.getElementById('notificationImportantInput').checked, // ML-463
+            policyLink: document.getElementById('notificationImportantInput').checked && document.getElementById('notificationPolicyLinkInput').checked
         };
         const btn = document.getElementById('notificationFormSaveBtn');
         btn.disabled = true;
@@ -2344,6 +2350,8 @@
     function initNotificationsAdmin() {
         document.getElementById('addNotificationBtn')?.addEventListener('click', () => openNotificationForm(null));
         document.getElementById('notificationPublishMode')?.addEventListener('change', syncNotificationPublishMode);
+        // ML-463: the privacy policy link is only offered for an important notice (the pop-up is where it shows)
+        document.getElementById('notificationImportantInput')?.addEventListener('change', (e) => setShown('notificationPolicyLinkRow', e.target.checked));
         document.getElementById('notificationFormCancelBtn')?.addEventListener('click', closeNotificationForm);
         document.getElementById('notificationFormSaveBtn')?.addEventListener('click', saveNotificationForm);
     }

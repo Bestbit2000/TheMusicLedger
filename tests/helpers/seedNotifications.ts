@@ -27,6 +27,18 @@ export async function createNotification(title: string, body: string, publishInM
   });
 }
 
+// ML-463: an important notice - shown to every account when it next opens the app, until "Got it".
+// publishedMinutesAgo sets the order they are shown in (oldest first).
+export async function createImportantNotice(title: string, body: string, publishedMinutesAgo = 1, policyLink = false): Promise<number> {
+  return withClient(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO notifications (title, body, publish_at, important, policy_link) VALUES ($1, $2, now() - make_interval(mins => $3), true, $4) RETURNING id`,
+      [title, body, publishedMinutesAgo, policyLink]
+    );
+    return Number(rows[0].id);
+  });
+}
+
 export async function deleteNotifications(titlePrefix: string): Promise<void> {
   await withClient(async (client) => {
     await client.query('DELETE FROM notifications WHERE title LIKE $1', [`${titlePrefix}%`]);

@@ -61,7 +61,7 @@ pop-up. Two kinds of pop-up **don't** close on a backdrop tap (the X, Cancel and
   only grows a form part-way (Add a piece's "+ New practice list") is protected from then on. A pop-up
   that is only a selection still closes - you just open it and pick again. A search box, ticks and
   radio pills don't count as a form.
-- **A pop-up that must be answered**, marked `data-no-dismiss` on the `.modal`: today the urgent notice,
+- **A pop-up that must be answered**, marked `data-no-dismiss` on the `.modal`: today the urgent notice, the important notice ("Before you continue...", ML-463),
   timer finished, "Are you sure?" and "Did you nail it?". Adding another needs the owner's say-so.
 
 See [modal](components/modal.md).
