@@ -198,6 +198,52 @@ export default [
     hosts: ['accounts.google.com', 'policies.google.com']
   },
   {
+    key: 'gmail-smtp',
+    policyName: 'Google',
+    name: 'Gmail (sends the app\'s email)',
+    group: 'service',
+    status: 'attention',
+    who: 'Google LLC (USA)',
+    provides: 'Sends the app\'s emails - invites, band invitations, password resets, retention warnings, sign-up and upgrade alerts - from a Gmail account the owner set up for the app, over SMTP (MAIL_PROVIDER "smtp"). A copy of every email sent stays in that account\'s Sent folder.',
+    usedIn: 'server/services/mail.js (SMTP_HOST smtp.gmail.com, SMTP_USER, SMTP_PASS - an app password, MAIL_FROM); the nodemailer package',
+    plan: 'A free personal Gmail account',
+    cost: 'Free',
+    licence: 'Google Terms of Service and the Gmail Program Policies',
+    terms: [
+      { label: 'Google terms of service', url: 'https://policies.google.com/terms' },
+      { label: 'Gmail program policies', url: 'https://support.google.com/mail/answer/10178035' },
+      { label: 'Gmail sending limits', url: 'https://support.google.com/mail/answer/22839' },
+      { label: 'Google privacy policy', url: 'https://policies.google.com/privacy' },
+      { label: 'Google Workspace data regions (the paid alternative)', url: 'https://knowledge.workspace.google.com/admin/compliance/choose-a-geographic-location-for-your-data' }
+    ],
+    termsCheckedOn: '2026-10-06',
+    attention: [
+      'A free personal Gmail account comes with no data processing agreement: Google\'s agreement and its choice of where data is kept (the USA or Europe) are part of Google Workspace, the paid service. So the names and addresses in the app\'s emails are held by a US company on its ordinary consumer terms - decide whether to move the sending account to Google Workspace (with the Europe data region), or to an email service based in the EU.',
+      'Sent emails stay in the account\'s Sent folder until someone deletes them - nothing clears them. Either tidy it by hand every month or so, or set up a way to clear it; the privacy policy says how long they are kept.',
+      'Only the sending limits page was read on 6 Oct 2026; the terms and program policies have not been read through yet.'
+    ],
+    says: [
+      'A personal account can send about 500 emails in a day; past that, sending stops with an error and comes back within 1 to 24 hours.'
+    ],
+    asks: [
+      { text: 'Use an app password for SMTP_PASS (never the account\'s own password), and keep two-step verification on for that account.' },
+      { text: 'Only email people who expect it: an invite or invitation asked for by a member, a reset the member asked for. No marketing.' },
+      { text: 'The package that talks to Gmail is in the register.', check: { path: 'server/thirdParties/librariesAndTools.js', includes: 'nodemailer' } }
+    ],
+    watch: [
+      'The daily limit is shared by everything the app sends. Each member can send 5 invites a day and each band organiser 20 band invitations, so about 25 busy organisers in one day would reach it - and then password resets stop too until it comes back.',
+      'Email from a gmail.com address sent by an app often lands in junk; Google can also suspend an account it thinks is sending in bulk. A domain of our own, with a proper sending service, is the lasting answer.',
+      'Nothing counts these emails yet (Admin - Costs and usage has no meter for them).'
+    ],
+    limits: [
+      { what: 'Emails in a day', allowance: 'about 500 (a personal account)' }
+    ],
+    overLimit: 'Blocked: sending is refused for 1 to 24 hours. The app tells the member the email could not be sent.',
+    nextTier: 'Google Workspace - a paid account per user, about 2,000 emails a day, with a data processing agreement and a choice of data region. Price not checked.',
+    usageSource: 'No reading. Gmail does not report a count over SMTP; the app would have to count what it sends.',
+    hosts: ['smtp.gmail.com']
+  },
+  {
     key: 'posthog',
     policyName: 'PostHog',
     name: 'PostHog',
@@ -247,12 +293,15 @@ export default [
   },
   {
     key: 'resend',
-    policyName: 'Resend',
     name: 'Resend',
     group: 'service',
-    status: 'in_use',
+    // Not in use (the owner, 6 Oct 2026): the live site's MAIL_PROVIDER is "smtp" - a Gmail account (the
+    // entry above) - and he would rather not have a US email company handle the app's email. The code
+    // can still send through Resend (mail.js); if that is ever switched on, set this back to in_use,
+    // give it policyName 'Resend' and name it in the privacy policy in the same change.
+    status: 'not_in_use',
     who: 'Plus Five Five, Inc. (USA)',
-    provides: 'Sends the app\'s emails: invites, password resets, sign-up and upgrade alerts. Only when MAIL_PROVIDER is "resend"; on dev, emails are just written to the database.',
+    provides: 'Not used. An email service the app can send through (MAIL_PROVIDER "resend") - the option once the app has a domain of its own. The live site sends through a Gmail account instead.',
     usedIn: 'server/services/mail.js (RESEND_API_KEY, MAIL_FROM)',
     plan: 'Free plan',
     cost: 'Free',

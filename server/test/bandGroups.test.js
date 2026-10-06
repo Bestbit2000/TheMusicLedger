@@ -43,6 +43,9 @@ after(async () => {
     await pool.query(`DELETE FROM sessions WHERE account_id = ANY($1)`, [accounts]).catch(() => {});
     await pool.query(`DELETE FROM bands WHERE created_by_account_id = ANY($1) OR id = ANY($2)`, [accounts, made]).catch(() => {});
     for (const id of accounts) await pool.query('DELETE FROM accounts WHERE id = $1', [id]).catch(() => {});
+    // An invitation emails its address (the outbox, on dev) and may make a newcomer's link
+    await pool.query('DELETE FROM email_outbox WHERE to_email LIKE $1', [`%-${stamp}@%`]).catch(() => {});
+    await pool.query('DELETE FROM auth_email_links WHERE email LIKE $1', [`%-${stamp}@%`]).catch(() => {});
   }
   await pool.end().catch(() => {});
 });

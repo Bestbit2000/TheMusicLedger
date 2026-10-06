@@ -47,20 +47,44 @@ test('an invitation into a band emails the address once: who, which band, and on
   const entry = Number((await one(`INSERT INTO bands (name, website, created_by_account_id, kind) VALUES ($1, $2, $3, 'directory') RETURNING id`, [`ML-473 Mail Band ${stamp}`, `https://ml473-mail-${stamp}.example`, anna])).id);
   made.push(entry);
   const space = await bands.startBandGroup(anna, entry);
-  const to = address('invited');
-
-  assert.deepEqual(await bands.inviteToBand(anna, space, to, 'play', 'https://app.example/'), { emailed: true });
-  const sent = await outbox(to);
+  // Someone who already has an account: the email's link is only the front door - they sign in as they do
+  const member = address('member');
+  accounts.push(Number((await one(`INSERT INTO accounts (email, first_name, surname) VALUES ($1, 'Has', 'Account') RETURNING id`, [member])).id));
+  assert.deepEqual(await bands.inviteToBand(anna, space, member, 'play', 'https://app.example/'), { emailed: true });
+  let sent = await outbox(member);
   assert.equal(sent.length, 1);
   assert.equal(sent[0].subject, `anna Test has invited you to join ML-473 Mail Band ${stamp}`);
-  assert.match(sent[0].body_text, new RegExp(`sign in with this email address \\(${to.replace(/[.+]/g, '\\$&')}\\)`));
+  assert.match(sent[0].body_text, new RegExp(`sign in with this email address \\(${member.replace(/[.+]/g, '\\$&')}\\)`));
   assert.match(sent[0].body_text, /Open The Music Ledger: https:\/\/app\.example\/\?band-invite=1\n/); // nothing about who or which band in the link
   assert.match(sent[0].body_text, /waits for 30 days/);
 
-  // Changing what they may do is not a second email
-  assert.deepEqual(await bands.inviteToBand(anna, space, to, 'change', 'https://app.example'), { emailed: false });
-  assert.equal((await outbox(to)).length, 1);
+  // Changing what they may do is not a second email; "send again" is, and gives it another 30 days
+  assert.deepEqual(await bands.inviteToBand(anna, space, member, 'change', 'https://app.example'), { emailed: false });
+  assert.equal((await outbox(member)).length, 1);
   assert.equal((await bands.listBandMembers(anna, space)).invites[0].level, 'change');
+  await pool.query(`UPDATE band_invites SET created_at = now() - interval '20 days' WHERE band_id = $1`, [space]);
+  assert.deepEqual(await bands.inviteToBand(anna, space, member, 'change', 'https://app.example', { resend: true }), { emailed: true });
+  assert.equal((await outbox(member)).length, 2);
+  assert.ok(Date.now() - new Date((await bands.listBandMembers(anna, space)).invites[0].sentAt).getTime() < 60000);
+
+  // Someone with no account at all: where email-and-password login is on, the link lets them choose a
+  // password (no Google account needed) and still lands them on My bands; where it is off, the front door
+  const newcomer = address('newcomer');
+  assert.deepEqual(await bands.inviteToBand(anna, space, newcomer, 'play', 'https://app.example'), { emailed: true });
+  sent = await outbox(newcomer);
+  assert.equal(sent.length, 1);
+  if (await auth.passwordLoginEnabled()) {
+    assert.match(sent[0].body_text, /You don't have an account yet\. Choose a password to make one/);
+    const link = /Choose a password: (https:\/\/app\.example\/\?invite=([\w-]+)&band-invite=1)\n/.exec(sent[0].body_text);
+    assert.ok(link, 'the link chooses a password and comes back to My bands');
+    assert.deepEqual(await auth.describeLink(link[2], 'invite', '127.0.0.1'), { email: newcomer, firstName: null });
+    // It is nobody's own invite: not on the organiser's list, not one of their five a day
+    assert.deepEqual(await auth.listMyInvites(anna), []);
+    assert.equal(await auth.invitesSentToday(anna), 0);
+    await pool.query('DELETE FROM auth_email_links WHERE lower(email) = $1', [newcomer]);
+  } else {
+    assert.match(sent[0].body_text, /Open The Music Ledger: https:\/\/app\.example\/\?band-invite=1\n/);
+  }
 });
 
 test('an invite to the app whose link ran out stays on your list, and Send again makes a fresh link and email', { skip }, async (t) => {

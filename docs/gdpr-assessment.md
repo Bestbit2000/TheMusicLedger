@@ -99,7 +99,7 @@ done by Claude, waiting on the owner to review, switch on or release. **Ticket**
 ### What only the owner can do
 
 1. Read the five documents; fill in the ICO registration number and the provider columns.
-2. Vercel: decide on Pro. Neon and Resend: confirm their agreements.
+2. Vercel: decide on Pro. Neon and Resend: confirm their agreements. **Update, 6 October 2026 (later the same day): the live site does not use Resend. Email goes out through a free personal Gmail account (`MAIL_PROVIDER=smtp`), which has no data processing agreement and keeps every sent email until it is deleted - see the Gmail entry on Admin → Third parties. Read "Resend" in this document as "the email provider"; the gap is now Gmail's.**
 3. Delete sign-up emails older than 12 months.
 4. Before a band with young players is invited: tell the organiser how band sharing works.
 5. After release: try retention on sandbox, then switch it on in production when email is sent from the

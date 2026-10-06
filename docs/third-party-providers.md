@@ -9,7 +9,7 @@ The register covers five groups:
 
 | Group | What | Examples |
 |---|---|---|
-| `service` | Services the live app needs | Neon, Vercel, Vercel Blob, Google sign-in, PostHog, Resend, Have I Been Pwned, jsDelivr, YouTube, the OMR service |
+| `service` | Services the live app needs | Neon, Vercel, Vercel Blob, Google sign-in, Gmail (sends the email - a free personal account, so no data processing agreement; see its entry), PostHog, Resend (built in, **not in use** - the owner, 6 Oct 2026), Have I Been Pwned, jsDelivr, YouTube, the OMR service |
 | `asset` | Fonts and icons | Bravura, OpenDyslexic, Lexend, Inter, Noto Music, Material Symbols |
 | `content` | Other people's material and ideas | ABRSM syllabuses (ML-313), Takadimi, MusicXML, band directory sources |
 | `library` | npm packages named in `package.json` and `server/package.json` | express, pg, @vercel/blob... |

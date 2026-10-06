@@ -30,8 +30,11 @@ confirms who runs a band, so nobody has to be).
   are here, and once signed in My bands opens with the invitation on it. Changing what a waiting invitation
   allows sends no second email. An organiser can invite 20 people a day. Nothing tells the sender whether
   the address has an account, and an invitation nobody answers goes after 30 days (`band_invites`; cleared
-  by the daily job, `clearOldRecords`). **Not built:** someone whose address is not a Google account can
-  only get into the app by an "Invite someone" invite as well - one invite that does both is a later step.
+  by the daily job, `clearOldRecords`). **Someone with no account yet** gets a different link in the same email: "Choose a password"
+  (`passwordLinkForNewcomer` - an ordinary 7-day invite link for a Standard member, made by nobody in
+  particular, so it is not one of the organiser's own five a day), so a Google account is not needed; it
+  comes back to My bands the same way. Only where email-and-password login is Live. An organiser can
+  **send the email again** from the invitation's pop-up (a fresh link, and 30 more days).
 - **What a member may do is set by the organiser who invites them** (the owner, 6 Oct 2026: control stays
   with the person who started the band), and any organiser can change it afterwards. `band_members.role`,
   migration 109:

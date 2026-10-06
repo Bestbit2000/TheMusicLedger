@@ -28,7 +28,9 @@ email-and-password login (`password_login`) is Live - an invite is that kind of 
 `.form-group` × 3 (their email, first name, surname) › (super admin) `button.metroBlk-ctrl-value-btn.w-full`
 "account type" opening `#flowChoiceModal` › **Send invite** (`.btn-submit`) › `p.theory-best-line` ("You can send 4
 more invites today.") › `.section-title` "My invites that haven't been used" › `.history-item` per invite
-(`.history-details`: the email in bold, then name · sent · works until) with a `.btn-text.btn-text-danger` Cancel.
+(`.band-row-text.w-full` › `.history-details`: the email in bold, then name · sent · works until, or "the link ran out on" ›
+`.flex-row.gap-sm.w-full` with **Send again** (`.btn-text`) and **Cancel** / **Remove** (`.btn-text.btn-text-danger`) side by side
+under the text - they were beside it, which squeezed the text on a phone).
 
 ## 4. Tokens used
 None of its own. The warning is `.level-notice` (`--status-amber-bg` / `--status-amber-fg`); the rest as

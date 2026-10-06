@@ -20,6 +20,7 @@ import { publicSiteAnswers } from '../utils/publicUrl.js';
 import pool from '../config/db.js';
 import { accountDisplayName } from './accounts.js';
 import { sendMail, emailBody } from './mail.js';
+import { passwordLinkForNewcomer } from './passwordAuth.js';
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
 
@@ -339,10 +340,11 @@ export async function listBandMembers(accountId, bandId) {
 }
 
 // Only an organiser invites, and the invitation carries what the new member may do ('play' unless
-// said) - inviting the same address again changes that.
-// Returns { emailed }: false when it was already waiting (only what they may do changed), or the email
-// could not be sent - the invitation stands either way, and is on their My bands page.
-export async function inviteToBand(accountId, bandId, email, level = 'play', origin = '') {
+// said). Inviting an address that is already waiting changes what it allows and sends nothing more -
+// unless `resend`, which sends the email again and gives the invitation another 30 days.
+// Returns { emailed }: false when nothing was sent, with emailFailed when it should have been - the
+// invitation stands either way, and is on their My bands page.
+export async function inviteToBand(accountId, bandId, email, level = 'play', origin = '', { resend = false } = {}) {
   await assertOrganiser(pool, accountId, bandId);
   const role = roleOfLevel(level);
   const to = cleanEmail(email);
@@ -355,28 +357,41 @@ export async function inviteToBand(accountId, bandId, email, level = 'play', ori
   if (already.rows.length) throw fail(409, 'They are already in this band.');
   const open = await pool.query('SELECT COUNT(*) AS n FROM band_invites WHERE band_id = $1', [bandId]);
   if (Number(open.rows[0].n) >= MAX_OPEN_INVITES) throw fail(429, 'This band has a lot of invitations waiting. Cancel some, or wait for them to be answered.');
-  const waiting = await pool.query('SELECT 1 FROM band_invites WHERE band_id = $1 AND email = $2', [bandId, to]);
-  if (!waiting.rows.length) {
-    const today = await pool.query(`SELECT COUNT(*) AS n FROM band_invites WHERE invited_by_account_id = $1 AND created_at > now() - interval '24 hours'`, [accountId]);
+  const waiting = (await pool.query('SELECT 1 FROM band_invites WHERE band_id = $1 AND email = $2', [bandId, to])).rows.length > 0;
+  const sending = !waiting || resend;
+  if (sending) {
+    // Each email counts: a new invitation, or one sent again (which is dated today from then on)
+    const today = await pool.query(
+      `SELECT COUNT(*) AS n FROM band_invites WHERE invited_by_account_id = $1 AND created_at > now() - interval '24 hours' AND NOT (band_id = $2 AND email = $3)`,
+      [accountId, bandId, to]);
     if (Number(today.rows[0].n) >= MAX_INVITES_A_DAY) throw fail(429, `You have invited ${MAX_INVITES_A_DAY} people in the last day - you can invite more tomorrow.`);
   }
   await pool.query(
     `INSERT INTO band_invites (band_id, email, invited_by_account_id, role) VALUES ($1, $2, $3, $4)
-     ON CONFLICT (band_id, email) DO UPDATE SET role = EXCLUDED.role`,
+     ON CONFLICT (band_id, email) DO UPDATE SET role = EXCLUDED.role${resend ? ', created_at = now(), invited_by_account_id = EXCLUDED.invited_by_account_id' : ''}`,
     [bandId, to, accountId, role]
   );
-  if (waiting.rows.length) return { emailed: false };
+  if (!sending) return { emailed: false };
   try {
     const { rows } = await pool.query(
       `SELECT g.name AS band_name, a.display_name, a.first_name, a.surname
          FROM bands g, accounts a WHERE g.id = $1 AND a.id = $2`, [bandId, accountId]);
     const from = accountDisplayName({ ...rows[0], email: null }) || 'A member';
     const band = rows[0].band_name;
-    const { text, html } = emailBody(
-      ['Hi,', `${from} has invited you to join ${band} on The Music Ledger - the practice app the band uses for its music.`,
-        `To see the invitation, open the app and sign in with this email address (${to}). It will be waiting on My account, under My bands.`],
-      'Open The Music Ledger', `${String(origin).replace(/\/+$/, '')}/?band-invite=1`,
-      `The invitation waits for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email and nothing will happen.`);
+    const home = String(origin).replace(/\/+$/, '');
+    const intro = `${from} has invited you to join ${band} on The Music Ledger - the practice app the band uses for its music.`;
+    // Someone with no account yet gets a link to choose a password (so a Google account isn't needed);
+    // anyone else just needs the front door - they sign in the way they already do.
+    const newcomer = await passwordLinkForNewcomer(to, home);
+    const { text, html } = newcomer
+      ? emailBody(['Hi,', intro,
+          `You don't have an account yet. Choose a password to make one - it takes a minute - and the invitation will be waiting for you on My bands. (If ${to} is a Google address, you can sign in with Google at ${home} instead.)`],
+        'Choose a password', newcomer.url,
+        `The link works once, for ${newcomer.days} days; ask ${from} to send it again if it has run out. If you weren't expecting this, you can ignore it and nothing will happen.`)
+      : emailBody(['Hi,', intro,
+          `To see the invitation, open the app and sign in with this email address (${to}). It will be waiting on My account, under My bands.`],
+        'Open The Music Ledger', `${home}/?band-invite=1`,
+        `The invitation waits for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email and nothing will happen.`);
     await sendMail({ to, subject: `${from} has invited you to join ${band}`, text, html });
     return { emailed: true };
   } catch (error) {

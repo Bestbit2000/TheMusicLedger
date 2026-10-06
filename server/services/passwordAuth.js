@@ -165,6 +165,26 @@ export async function createInvite({ email, firstName, surname, accountLevel, cr
   }
 }
 
+// ML-473: a band invitation to an address that has no account carries this link, so someone without a
+// Google account can get in too (the owner, 6 Oct 2026). It is an ordinary invite link - a Standard
+// member, 7 days, works once - made by nobody in particular (created_by empty), so it is not one of the
+// organiser's own five a day and not on their "my invites" list. null when there is nothing to make:
+// email-and-password login is off, or the address already has an account (they sign in as they do).
+// The address goes back to the app with band-invite=1 so My bands opens once the password is chosen.
+export async function passwordLinkForNewcomer(email, origin) {
+  if (!(await passwordLoginEnabled())) return null;
+  const to = normaliseEmail(email);
+  if (!looksLikeEmail(to)) return null;
+  const client = await pool.connect();
+  try {
+    if (await accountByEmail(client, to)) return null;
+    const secret = await newLink(client, { purpose: 'invite', email: to, accountLevel: 'standard_member', createdBy: null, minutes: INVITE_DAYS * 24 * 60 });
+    return { url: `${String(origin).replace(/\/+$/, '')}/?invite=${secret}&band-invite=1`, days: INVITE_DAYS };
+  } finally {
+    client.release();
+  }
+}
+
 export async function listPendingInvites() {
   const { rows } = await pool.query(
     `SELECT l.id, l.email, l.first_name, l.surname, l.account_level, l.created_at, l.expires_at

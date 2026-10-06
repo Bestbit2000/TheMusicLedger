@@ -549,7 +549,7 @@
             deleteBandFull: (id) => apiCall(`/api/account/bands/${id}/full`, 'DELETE'),
             // ML-473: a band's members and its invitations
             bandMembers: (id) => apiCall(`/api/account/bands/${id}/members`),
-            inviteToBand: (id, email, level) => apiCall(`/api/account/bands/${id}/invites`, 'POST', { email, level }),
+            inviteToBand: (id, email, level, resend) => apiCall(`/api/account/bands/${id}/invites`, 'POST', { email, level, resend: !!resend }),
             cancelBandInvite: (id, inviteId) => apiCall(`/api/account/bands/${id}/invites/${inviteId}`, 'DELETE'),
             setBandMemberLevel: (id, memberId, level) => apiCall(`/api/account/bands/${id}/members/${memberId}`, 'PUT', { level }),
             removeBandMember: (id, memberId) => apiCall(`/api/account/bands/${id}/members/${memberId}`, 'DELETE'),
@@ -1049,8 +1049,8 @@
 
         // ML-355: an emailed invite or reset link opens its own "choose a password" screen, logged in
         // or not (it logs in as the invited account when done).
+        noteBandInviteLink(); // (before the line below: a newcomer's link is both)
         if (openPasswordLinkFromUrl()) return;
-        noteBandInviteLink();
 
         // Check authentication - not logged in, so reveal the login button
         if (!auth.isAuthenticated) {
@@ -1293,8 +1293,11 @@
     const bandInviteWaiting = () => { try { return sessionStorage.getItem(BAND_INVITE_KEY) === '1'; } catch (e) { return false; } };
     function noteBandInviteLink() {
         if (!new URLSearchParams(window.location.search).has('band-invite')) return;
+        const params = new URLSearchParams(window.location.search);
         try { sessionStorage.setItem(BAND_INVITE_KEY, '1'); } catch (e) { /* the sign-in screen just says the usual */ }
-        window.history.replaceState({}, document.title, window.location.pathname);
+        // A newcomer's link also carries a one-time "choose a password" key - openPasswordLinkFromUrl takes that
+        // (and clears the address bar itself)
+        if (!params.has('invite')) window.history.replaceState({}, document.title, window.location.pathname);
     }
     function openBandInviteAfterLogin() {
         if (!bandInviteWaiting()) return;
@@ -4472,8 +4475,18 @@
         const btn = e.target.closest('[data-invite]');
         const i = btn && bandMembers.data.invites.find(x => String(x.id) === btn.dataset.invite);
         if (!i) return;
-        openFlowChoiceModal(i.email, [...bandLevelChoices(i.level), { key: 'cancel', html: addPieceRow('Cancel the invitation', 'They will no longer be able to join with it') }], (opt) => {
+        openFlowChoiceModal(i.email, [...bandLevelChoices(i.level),
+            { key: 'resend', html: addPieceRow('Send the email again', 'A fresh email, and 30 more days to answer') },
+            { key: 'cancel', html: addPieceRow('Cancel the invitation', 'They will no longer be able to join with it') }], (opt) => {
             if (opt.key === i.level) return;
+            if (opt.key === 'resend') {
+                bandMembersDo(async () => {
+                    const data = await API.account.inviteToBand(bandMembers.bandId, i.email, i.level, true);
+                    if (data.emailed) showSuccessToast('Sent again.'); else showWarningToast("The email couldn't be sent. Tell them to sign in and look at My bands.");
+                    return data;
+                });
+                return;
+            }
             if (opt.key === 'cancel') bandMembersDo(() => API.account.cancelBandInvite(bandMembers.bandId, i.id), 'Invitation cancelled');
             else bandMembersDo(() => API.account.inviteToBand(bandMembers.bandId, i.email, opt.key));
         });
@@ -6541,9 +6554,11 @@
             const who = [i.firstName, i.surname].filter(Boolean).join(' ');
             return `
             <div class="history-item">
-                <span class="history-details"><strong>${escapeHtml(i.email)}</strong>${who ? `${escapeHtml(who)} · ` : ''}${levels ? `${escapeHtml(ACCOUNT_LEVEL_LABELS[i.accountLevel] || i.accountLevel)} · ` : ''}sent ${when(i.createdAt)} · ${i.expired ? `the link ran out on ${when(i.expiresAt)}` : `works until ${when(i.expiresAt)}`}</span>
+                <span class="band-row-text w-full"><span class="history-details"><strong>${escapeHtml(i.email)}</strong>${who ? `${escapeHtml(who)} · ` : ''}${levels ? `${escapeHtml(ACCOUNT_LEVEL_LABELS[i.accountLevel] || i.accountLevel)} · ` : ''}sent ${when(i.createdAt)} · ${i.expired ? `the link ran out on ${when(i.expiresAt)}` : `works until ${when(i.expiresAt)}`}</span>
+                <span class="flex-row gap-sm w-full">
                 <button type="button" class="btn-text" data-resend-invite="${i.id}" aria-label="Send the invite to ${escapeHtml(i.email)} again">Send again</button>
                 <button type="button" class="btn-text btn-text-danger" data-cancel-invite="${i.id}" aria-label="${i.expired ? 'Remove' : 'Cancel'} the invite to ${escapeHtml(i.email)}">${i.expired ? 'Remove' : 'Cancel'}</button>
+                </span></span>
             </div>`;
         }).join('');
         // ML-402 follow-up: Send again - a fresh link (7 more days) and a fresh email; the old link stops working

@@ -948,7 +948,8 @@ router.get('/account/bands/:id/members', requireAuth, resolveAccount, async (req
 
 router.post('/account/bands/:id/invites', requireAuth, resolveAccount, async (req, res) => {
   try {
-    const sent = await inviteToBand(req.accountId, req.params.id, (req.body || {}).email, (req.body || {}).level || 'play', appUrl(req));
+    const body = req.body || {};
+    const sent = await inviteToBand(req.accountId, req.params.id, body.email, body.level || 'play', appUrl(req), { resend: !!body.resend });
     res.json({ ...(await listBandMembers(req.accountId, req.params.id)), ...sent });
   } catch (error) {
     sendError(res, error);
