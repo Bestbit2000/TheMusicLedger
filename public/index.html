@@ -63,6 +63,13 @@
             <button type="submit" class="splash-login-btn show" id="forgotSubmit">Send the link</button>
             <button type="button" class="splash-link-btn" id="forgotBackBtn">Back to log in</button>
         </form>
+        <!-- ML-465: the screen a "confirm my new email address" link opens (openEmailChangeFromUrl) -->
+        <div id="emailChangePanel" class="splash-form hidden-group">
+            <p class="splash-hint" id="emailChangeText"></p>
+            <p class="splash-message hidden-group" id="emailChangeMessage" role="alert"></p>
+            <button type="button" class="splash-login-btn show" id="emailChangeConfirmBtn">Change my email address</button>
+            <button type="button" class="splash-link-btn" id="emailChangeBackBtn">Not now</button>
+        </div>
         <form id="setPasswordForm" class="splash-form hidden-group" novalidate>
             <div id="setPasswordFields" class="splash-form">
                 <label for="setPasswordEmail">Email</label>
@@ -878,9 +885,15 @@
         </button>
 
         <div class="section-title mt-6">Account</div>
-        <div class="info-row">
+        <!-- ML-465: with the change_email feature the row is a button (accountEditEmailBtn) that opens the
+             pop-up; without it, plain text as before. Both hold the address in #accountEmailReadout / ...Edit. -->
+        <div class="info-row" id="accountEmailRow">
             <span>Email</span><strong id="accountEmailReadout"></strong>
         </div>
+        <button type="button" class="info-row info-row-edit hidden-group" id="accountEditEmailBtn" aria-haspopup="dialog">
+            <span>Email</span>
+            <span class="flex-row gap-sm items-center"><strong id="accountEmailReadoutEdit"></strong><span class="material-symbols-outlined info-row-edit-icon" aria-hidden="true">edit</span><span class="visually-hidden">, change</span></span>
+        </button>
         <div class="info-row">
             <span>Account type</span><strong id="accountLevelReadout"></strong>
         </div>
@@ -2897,6 +2910,29 @@
             <div class="flex-row gap-sm mt-4">
                 <button type="button" class="btn-nav btn-cancel grow no-margin" id="accountCancelDisplayNameBtn" data-account-name-cancel>Cancel</button>
                 <button type="button" class="btn-submit grow no-margin" id="accountSaveDisplayNameBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ML-465: change the email address the account uses. A link goes to the new address; nothing changes
+         until it is opened. The password box only shows for someone who signs in with one. -->
+    <div class="modal" id="accountEmailModal" role="dialog" aria-modal="true" aria-labelledby="accountEmailModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+            <h2 id="accountEmailModalTitle">Change my email address</h2>
+            <p class="metro-help-text" id="accountEmailNow"></p>
+            <div class="form-group">
+                <label for="accountNewEmailInput">New email address</label>
+                <input type="email" id="accountNewEmailInput" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" maxlength="254" aria-describedby="accountEmailHelp">
+            </div>
+            <div class="form-group hidden-group" id="accountEmailPasswordGroup">
+                <label for="accountEmailPasswordInput">Your password</label>
+                <input type="password" id="accountEmailPasswordInput" autocomplete="current-password">
+            </div>
+            <p class="metro-help-text" id="accountEmailHelp">We send a link to the new address. Nothing changes until you open it. Then you are signed out everywhere and sign in with the new address - with Google, that means the Google account for that address. On your other devices, let anything logged offline sync first.</p>
+            <div class="flex-row gap-sm mt-4">
+                <button type="button" class="btn-nav btn-cancel grow no-margin" id="accountEmailCancelBtn">Cancel</button>
+                <button type="button" class="btn-submit grow no-margin" id="accountEmailSendBtn">Send the link</button>
             </div>
         </div>
     </div>

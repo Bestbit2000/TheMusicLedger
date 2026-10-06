@@ -151,6 +151,13 @@
         await run('meta', 'readwrite', (s) => s.put({ key: 'owner', value: who }));
     }
 
+    // ML-465: the member changed their email address on this device. The copy is still theirs - it is
+    // handed to the new address rather than wiped as another member's would be.
+    async function rename(from, to) {
+        const meta = await run('meta', 'readonly', (s) => s.get('owner'), null);
+        if (meta && meta.value === String(from || '')) await run('meta', 'readwrite', (s) => s.put({ key: 'owner', value: String(to || '') }));
+    }
+
     const remember = (endpoint, json) => (keeps(endpoint) ? run('answers', 'readwrite', (s) => s.put({ key: String(endpoint), json, at: Date.now() })) : Promise.resolve());
     const recall = (endpoint) => (keeps(endpoint) ? run('answers', 'readonly', (s) => s.get(String(endpoint)), null) : Promise.resolve(null));
 
@@ -185,6 +192,6 @@
     return {
         QUEUED_MESSAGE, NEEDS_CONNECTION, NOT_ON_DEVICE,
         classify, keeps, status, runSync, newId,
-        start, remember, recall, enqueue, waiting, remove, markFailed, wipe
+        start, rename, remember, recall, enqueue, waiting, remove, markFailed, wipe
     };
 }));

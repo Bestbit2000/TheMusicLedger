@@ -25,7 +25,7 @@ const isTestEmail = (email: string) => /^ml-gc-test\+[\w-]+@themusicledger\.loca
 
 // The newest emailed link of a kind ('invite' | 'reset') for an address, as a path ("/?invite=...") -
 // with MAIL_PROVIDER=log the email is a row in email_outbox. Waits a little for it to arrive.
-export async function emailedLinkPath(email: string, purpose: 'invite' | 'reset', afterId = 0): Promise<{ path: string; id: number; subject: string }> {
+export async function emailedLinkPath(email: string, purpose: 'invite' | 'reset' | 'change-email', afterId = 0): Promise<{ path: string; id: number; subject: string }> {
   const deadline = Date.now() + 10_000;
   for (;;) {
     const row = await withClient(async (c) => (await c.query(
@@ -149,6 +149,14 @@ export async function homeChoices(email: string): Promise<{ homeTools: string[] 
 // The per-IP rate-limit rows (auth_rate_events) the password-login spec itself caused, so repeat runs
 // don't trip "too many tries from here". Only rows made since the spec started (dbNow() in its
 // beforeAll); nothing else on dev makes these while the spec runs.
+// ML-465: a test account's count of a limited call (limitCalls in passwordAuth.js - e.g. 'change-email',
+// five a day), put back to nothing so a spec that is run several times in a day doesn't meet the limit.
+export async function clearCallLimit(kind: string, email: string): Promise<void> {
+  if (!/^local-(dev|admin|standard)@themusicledger\.local$/.test(email) && !isTestEmail(email)) throw new Error(`Refusing to clear a limit for ${email}`);
+  await withClient(async (c) => {
+    await c.query('DELETE FROM auth_rate_events WHERE kind = $1 AND key = (SELECT id::text FROM accounts WHERE email = $2)', [`call:${kind}`, email]);
+  });
+}
 export async function dbNow(): Promise<string> {
   return withClient(async (c) => (await c.query('SELECT now()::text AS t')).rows[0].t);
 }

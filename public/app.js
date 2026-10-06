@@ -1133,6 +1133,7 @@
         // or not (it logs in as the invited account when done).
         noteBandInviteLink(); // (before the line below: a newcomer's link is both)
         if (openPasswordLinkFromUrl()) return;
+        if (openEmailChangeFromUrl()) return; // ML-465: "confirm my new email address"
 
         // Check authentication - not logged in, so reveal the login button
         if (!auth.isAuthenticated) {
@@ -1273,6 +1274,7 @@
         setShown('passwordLogin', which === 'login');
         setShown('forgotForm', which === 'forgot');
         setShown('setPasswordForm', which === 'set');
+        setShown('emailChangePanel', which === 'email'); // ML-465: confirm a new email address
         setShown('twoStepForm', which === 'code');        // ML-355 batch 2: the code after the password
         setShown('twoStepSetupSplash', which === 'setup'); // a super admin setting it up (required)
     }
@@ -1387,6 +1389,62 @@
         try { sessionStorage.removeItem(BAND_INVITE_KEY); } catch (e) { /* asked once more next time */ }
         switchView('accountBandsView');
     }
+
+    // ===== ML-465: "confirm my new email address" - the screen its emailed link opens =====
+    // Signed in or not (the old address may be lost). It says what will change and waits for a tap - an
+    // email scanner following the link changes nothing. Once done every device is signed out; this one
+    // goes to the sign-in screen saying which address to use, and - if it was signed in as this account -
+    // keeps its offline copy and anything waiting to be sent.
+    let emailChangeToken = null;
+    function openEmailChangeFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        if (!params.has('change-email')) return false;
+        emailChangeToken = params.get('change-email');
+        window.history.replaceState({}, document.title, window.location.pathname); // a one-time key: out of the address at once
+        setShown('mainContainer', false);
+        setShown('loginScreen', true);
+        document.querySelector('#loginScreen .splash-title').textContent = 'New email address';
+        document.getElementById('loginStatusText').textContent = 'One more step to change the email address you sign in with.';
+        showSplashPanel('email');
+        splashMessage('emailChangeMessage', '');
+        setShown('emailChangeConfirmBtn', false);
+        fetch(`${API_BASE_URL}/auth/email-change/${encodeURIComponent(emailChangeToken)}`)
+            .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'This link has expired or already been used.'); return d; })
+            .then(d => {
+                document.getElementById('emailChangeText').textContent = `Change the email address for your account from ${d.from} to ${d.to}? You will be signed out on every device, and sign in again with ${d.to}.`;
+                setShown('emailChangeConfirmBtn', true);
+                document.getElementById('emailChangeConfirmBtn').focus();
+            })
+            .catch(err => { document.getElementById('emailChangeText').textContent = ''; splashMessage('emailChangeMessage', err.message); });
+        return true;
+    }
+    document.getElementById('emailChangeBackBtn')?.addEventListener('click', () => { window.location.href = window.location.pathname; });
+    document.getElementById('emailChangeConfirmBtn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('emailChangeConfirmBtn');
+        btn.disabled = true;
+        splashMessage('emailChangeMessage', '');
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/email-change/confirm`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', ...auth.getAuthHeader() }, body: JSON.stringify({ token: emailChangeToken }) });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Something went wrong - try again.');
+            // This device's copy for offline use is still this member's: hand it to the new address
+            if (data.wasThisDevice && window.Offline && window.Offline.rename) await window.Offline.rename(auth.userId, data.email).catch(() => {});
+            // Signed out here too (the old sign-in no longer works anywhere) - without wiping that copy
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userId');
+            auth.token = null; auth.userId = null; auth.isAuthenticated = false;
+            document.querySelector('#loginScreen .splash-title').textContent = 'Welcome';
+            displayLoginScreen();
+            showSplashPanel('login');
+            document.getElementById('loginStatusText').textContent = `Your email address is now ${data.email}. Sign in with it to carry on.`;
+            const box = document.getElementById('loginEmail');
+            if (box) box.value = data.email;
+        } catch (err) {
+            splashMessage('emailChangeMessage', err.message);
+            btn.disabled = false;
+        }
+    });
 
     let passwordLink = null; // { purpose: 'invite' | 'reset', token }
     function openPasswordLinkFromUrl() {
@@ -4843,6 +4901,10 @@
             accountProfile = profile;
             renderAccountNames();
             document.getElementById('accountEmailReadout').innerText = profile.email;
+            // ML-465: with the feature, the address is a row you can tap to change it
+            document.getElementById('accountEmailReadoutEdit').innerText = profile.email;
+            setShown('accountEmailRow', !isFeatureEnabled('change_email'));
+            setShown('accountEditEmailBtn', isFeatureEnabled('change_email'));
             setNavAccount(profile); // ML-259: keep the menu's name and email in step
             document.getElementById('accountLevelReadout').innerText = ACCOUNT_LEVEL_LABELS[profile.accountLevel] || profile.accountLevel;
             document.getElementById('accountJoinedReadout').innerText = profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : '-';
@@ -5368,6 +5430,37 @@
         surname: document.getElementById('accountSurnameInput').value.trim()
     }));
     document.getElementById('accountEditDisplayNameBtn')?.addEventListener('click', () => setAccountNameEditing('display', true));
+
+    // ---- ML-465: change my email address (My details). A link goes to the new address; nothing changes
+    // until it is opened there. Someone who signs in with a password gives it here.
+    document.getElementById('accountEditEmailBtn')?.addEventListener('click', async () => {
+        const now = (accountProfile && accountProfile.email) || document.getElementById('accountEmailReadout').textContent;
+        document.getElementById('accountEmailNow').textContent = `You sign in with ${now} now.`;
+        document.getElementById('accountNewEmailInput').value = '';
+        document.getElementById('accountEmailPasswordInput').value = '';
+        if (!securityStatus) await loadSecurityStatus().catch(() => {});
+        setShown('accountEmailPasswordGroup', !!(securityStatus && securityStatus.hasPassword));
+        showModal('accountEmailModal');
+        document.getElementById('accountNewEmailInput').focus();
+    });
+    document.getElementById('accountEmailCancelBtn')?.addEventListener('click', () => hideModal('accountEmailModal'));
+    document.getElementById('accountEmailSendBtn')?.addEventListener('click', async () => {
+        const input = document.getElementById('accountNewEmailInput');
+        const newEmail = input.value.trim();
+        if (!newEmail) { showWarningToast('Type the new email address.'); input.focus(); return; }
+        const btn = document.getElementById('accountEmailSendBtn');
+        btn.disabled = true;
+        try {
+            const res = await apiCall('/api/account/email-change', 'POST', { newEmail, password: document.getElementById('accountEmailPasswordInput').value });
+            hideModal('accountEmailModal');
+            if (res.notSentHere) showWarningToast("This site doesn't send emails, so the link hasn't gone anywhere. Nothing has changed.");
+            else showSuccessToast(`We've sent a link to ${res.sentTo}. Open it within ${res.minutes} minutes to finish. Nothing changes until you do.`);
+        } catch (error) {
+            showWarningToast(error.message);
+        } finally {
+            btn.disabled = false;
+        }
+    });
     // ML-376: the display name follows your first name until you make it something else - so saving it
     // as your first name (or blank) keeps it following (stored as null), and anything else is kept separate.
     document.getElementById('accountSaveDisplayNameBtn')?.addEventListener('click', () => {

@@ -24,6 +24,12 @@ setting, so its colours use dedicated `--splash-*` aliases that dark mode doesn'
 ## 5. Props / API
 Login button starts hidden. JS reveals it. Google ([passport.js](../../server/config/passport.js)), plus email + password when the `password_login` feature is Live - see [docs/password-login.md](../../docs/password-login.md).
 
+**Confirm a new email address (ML-465):** `/?change-email=...` opens `#emailChangePanel` (`.splash-form`):
+the title reads "New email address"; a `.splash-hint` says what will change - the old address mostly hidden,
+the new one in full, and that every device is signed out; `.splash-login-btn` **Change my email address**
+and `.splash-link-btn` **Not now**. A spent or expired link shows a `.splash-message` and no button. Once
+confirmed the usual sign-in panel returns, saying which address to use, with it filled in. No new classes.
+
 ## 6. States
 Loading (no button) · Ready (button shown) · Button focus (`--focus-ring`) · Submitting (button disabled, `--opacity-muted`) · Error / result (`.splash-message` shown).
 

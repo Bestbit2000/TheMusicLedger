@@ -61,7 +61,8 @@ const TOO_MANY = 'Too many tries from here - wait a few minutes and try again.';
 const CALL_LIMITS = {
   'upload-token': { max: 40, minutes: 60, what: 'uploads' },
   'add-band': { max: 10, minutes: 24 * 60, what: 'bands added' },
-  feedback: { max: 20, minutes: 24 * 60, what: 'feedback notes' }
+  feedback: { max: 20, minutes: 24 * 60, what: 'feedback notes' },
+  'change-email': { max: 5, minutes: 24 * 60, what: 'email changes asked for' } // ML-465: each one emails an address the member typed
 };
 export async function limitCalls(kind, accountId) {
   const rule = CALL_LIMITS[kind];
@@ -69,6 +70,11 @@ export async function limitCalls(kind, accountId) {
   if (await overLimit(`call:${kind}`, String(accountId), rule.max, rule.minutes)) {
     throw fail(429, `That is a lot of ${rule.what} in ${rule.minutes >= 1440 ? 'a day' : 'an hour'} - try again ${rule.minutes >= 1440 ? 'tomorrow' : 'later'}.`);
   }
+}
+
+// ML-465: the same limit the invite and reset link screens have, for another link screen (by IP)
+export async function limitLinkTries(ip) {
+  if (await overLimit('link', ip, 60, 15)) throw fail(429, TOO_MANY);
 }
 
 // ---- tokens ----

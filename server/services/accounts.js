@@ -7,9 +7,20 @@ import { deletedEmailHash } from './tokenVersions.js';
 // that resolves one to a real accounts.id, creating the row on first sight.
 // ML-392: a new row is a sign-up (a first Google login) - the owner is emailed, with the device from
 // `client` ({ userAgent, model }). ON CONFLICT: two first requests at once make one row and one email.
-export async function getOrCreateAccount(email, firstName = '', surname = '', client = {}) {
+// tokenVersion (ML-465): the number in the sign-in token that brought the caller here. An address
+// that has just been deleted, or changed to another, leaves a marker with a higher number; a token
+// from before that must not start a new, empty account under the old address in the half minute
+// before every server has heard (tokenVersions.js caches for 30 seconds). It is refused - 401, so
+// the app signs out. A fresh sign-in carries the marker's own number and goes through.
+export async function getOrCreateAccount(email, firstName = '', surname = '', client = {}, tokenVersion = null) {
   const existing = await pool.query('SELECT id FROM accounts WHERE email = $1', [email]);
   if (existing.rows.length) return existing.rows[0].id;
+  if (tokenVersion !== null) {
+    const left = await pool.query('SELECT token_version FROM deleted_account_markers WHERE email_hash = $1', [deletedEmailHash(email)]);
+    if (left.rows.length && Number(left.rows[0].token_version) > Number(tokenVersion || 0)) {
+      throw Object.assign(new Error('Invalid or expired token'), { status: 401 });
+    }
+  }
 
   // ML-430: an email whose account was deleted starts again as a fresh, empty account - but it takes
   // over the token number the deletion left, so sign-ins from before the deletion stay signed out.

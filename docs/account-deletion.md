@@ -10,6 +10,10 @@ history is kept as statistics with nobody attached.
   `accounts.deleted_at` and `deleted_account_markers`.
 - Test: `server/test/accountDeletion.test.js` - needs the dev database, so it is skipped by `npm test`. Run it
   from `server/` with `node --env-file=../.env --env-file=.env --test test/accountDeletion.test.js`.
+- **Markers are shared with a changed email address (ML-465).** `deleted_account_markers` also holds the old
+  address of an account whose email was changed, for the same reason: sign-ins that still name it stay
+  signed out. `auth_email_links.for_account_id` (the account a change-email link is for) is an account
+  column that cascades, so those links go with the account like everything else.
 - What members are told: the pop-up, and the privacy policy (`public/privacy.html`). **Keep the three in step**
   - if what is kept or deleted changes here, change the words there.
 

@@ -770,6 +770,20 @@
     </div>
 </div>
 
+<!-- ML-465: Admin -> Accounts -> a row's menu -> Change their email address (for someone who has lost the old one) -->
+<div class="modal" id="accountEmailChangeModal" role="dialog" aria-modal="true" aria-labelledby="accountEmailChangeTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="accountEmailChangeTitle">Change their email address</h2>
+        <p class="admin-intro" id="accountEmailChangeNow"></p>
+        <div class="form-group"><label for="accountEmailChangeInput">Their new email address</label><input type="email" id="accountEmailChangeInput" maxlength="254" autocomplete="off"></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="accountEmailChangeCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="accountEmailChangeSendBtn" type="button">Send the link</button>
+        </div>
+    </div>
+</div>
+
 <!-- ML-470: "Mark as reviewed" - a note of what was checked or changed; the day and who are recorded with it. -->
 <div class="modal" id="reviewMarkModal" role="dialog" aria-modal="true" aria-labelledby="reviewMarkTitle">
     <div class="modal-content">

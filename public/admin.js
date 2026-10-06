@@ -462,6 +462,8 @@
         return parts.join(' &middot; ');
     }
     const ACCOUNT_ACTIONS = {
+        // ML-465: for someone who has lost their old address - asked for in the prompt, sent to the new one
+        'change-email': (a) => ['Change their email address', `Send a link to a new address for ${accountDisplayName(a)} (${a.email})? Their address changes only when the link is opened there.`],
         'send-reset': (a) => [a.hasPassword ? 'Send a reset link' : 'Send a link to add a password', emailsAreSent ? `Email ${a.email} a link to choose a new password? It works once, for an hour.` : `Make a link for ${a.email} to choose a new password? This site doesn't send emails, so it won't reach them from here.`],
         unlock: (a) => ['Unlock', `Let ${accountDisplayName(a)} try their password and codes again straight away?`],
         'two-step/off': (a) => ['Turn off two-step sign-in', `Turn off ${accountDisplayName(a)}'s two-step sign-in - for a lost phone with no recovery codes? Only do this once you're sure it's really them.${a.accountLevel === 'super_admin' ? ' As a super admin, they\'ll have to set it up again at their next password login.' : ' They can set it up again in Sign-in and security.'}`],
@@ -594,6 +596,7 @@
             const act = (key, icon) => ({ label: ACCOUNT_ACTIONS[key](a)[0], icon, run: () => accountAction(a, key) });
             openRowMenu(btn, [
                 { label: 'Change account type', icon: 'badge', run: () => openAccountType(a) },
+                { label: 'Change their email address', icon: 'alternate_email', run: () => openAccountEmailChange(a) },
                 ...(passwordLoginOn ? [act('send-reset', 'link')] : []),
                 ...(a.lockedUntil ? [act('unlock', 'lock_open')] : []),
                 ...(a.twoStepOn ? [act('two-step/off', 'phonelink_erase')] : []),
@@ -604,6 +607,27 @@
             openRowMenu(btn, [{ label: 'Cancel invite', icon: 'delete', danger: true, run: () => cancelInvite(btn.dataset.inviteMenu) }]);
         }));
     }
+    // ML-465: the new address is typed in a pop-up; the server sends the link there
+    let emailChangeAccount = null;
+    function openAccountEmailChange(a) {
+        emailChangeAccount = a;
+        document.getElementById('accountEmailChangeTitle').textContent = `${accountDisplayName(a)}: change their email address`;
+        document.getElementById('accountEmailChangeNow').textContent = `They sign in with ${a.email} now. ${emailsAreSent ? 'A link goes to the new address; nothing changes until they open it there.' : "This site doesn't send emails, so the link won't reach them from here."}`;
+        document.getElementById('accountEmailChangeInput').value = '';
+        showModal('accountEmailChangeModal');
+        document.getElementById('accountEmailChangeInput').focus();
+    }
+    document.getElementById('accountEmailChangeCancelBtn')?.addEventListener('click', () => hideModal('accountEmailChangeModal'));
+    document.getElementById('accountEmailChangeSendBtn')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        try {
+            const { message } = await apiCall(`/api/admin/accounts/${emailChangeAccount.id}/change-email`, 'POST', { newEmail: document.getElementById('accountEmailChangeInput').value });
+            hideModal('accountEmailChangeModal');
+            showToast(message, 'success');
+        } catch (error) { showToast(error.message); } finally { btn.disabled = false; }
+    });
+
     function accountAction(a, key) {
         const [title, text] = ACCOUNT_ACTIONS[key](a);
         showConfirmModal(title, text, async () => {

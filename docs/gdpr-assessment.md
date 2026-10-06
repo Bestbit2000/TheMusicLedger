@@ -108,7 +108,7 @@ done by Claude, waiting on the owner to review, switch on or release. **Ticket**
 ### Tickets raised from this assessment
 
 ML-231 site security review and headers (done; open findings ML-472 to ML-476) · ML-463 important notice at next sign-in · ML-464 retention
-(built) · ML-465 change an email address · ML-466 privacy policy additions · ML-467 teachers: a name only ·
+(built) · ML-465 change an email address (**built**, 0.48.0 - My details → Email, behind the `change_email` feature) · ML-466 privacy policy additions · ML-467 teachers: a name only ·
 ML-468 say who sees what when sharing with a band · ML-469 record each provider's agreement · ML-470 reviews
 and reminders · ML-471 no-pressure design rule for young players.
 

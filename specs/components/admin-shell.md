@@ -64,6 +64,10 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
   then **Save the rule** (`.btn-submit`) and **Run now** (`.admin-stat-exclude-btn`, asks first and says how
   many would be deleted), and a table of every account with its next step ("Due now" is an `.admin-badge.warn`).
   It borrows the number-field and table classes from the [business case](admin-business-case.md); no new classes.
+- **Accounts - change their email address (ML-465):** a row's menu has **Change their email address** (for
+  someone who has lost the old one). It opens `#accountEmailChangeModal` - the address they use now, a field for
+  the new one, **Send the link**. The link goes to the new address; nothing changes until it is opened there.
+  No new classes.
 - **Third parties (ML-462):** each card can hold the owner's own **reference and note** (shown as
   `.admin-run-notes` lines; a `.admin-stat-exclude-btn` opens the `#partyRecordModal` form), and each "Needs
   attention" line has a `.admin-stat-exclude-btn` **Mark as done** - it then reads "Dealt with <date>" in

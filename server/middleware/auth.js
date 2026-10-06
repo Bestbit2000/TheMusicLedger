@@ -47,6 +47,7 @@ export async function requireAuth(req, res, next) {
     if (await rejectOldToken(tokenData, res)) return;
     dropGoogleKeys(tokenData, res);
 
+    req.tokenVersion = Number(tokenData.tv || 0);
     req.userId = tokenData.userId;
     req.firstName = tokenData.firstName || '';
     req.surname = tokenData.surname || '';
@@ -74,6 +75,7 @@ export async function requireAuthFromQueryOrHeader(req, res, next) {
     const tokenData = verifyToken(token);
     if (await rejectOldToken(tokenData, res)) return;
 
+    req.tokenVersion = Number(tokenData.tv || 0);
     req.userId = tokenData.userId;
     req.firstName = tokenData.firstName || '';
     req.surname = tokenData.surname || '';
@@ -101,10 +103,12 @@ export const clientDevice = (req) => ({ userAgent: req.get('user-agent') || '', 
 export async function resolveAccount(req, res, next) {
   let level;
   try {
-    req.accountId = await getOrCreateAccount(req.userId, req.firstName, req.surname, clientDevice(req));
+    req.accountId = await getOrCreateAccount(req.userId, req.firstName, req.surname, clientDevice(req), req.tokenVersion ?? null);
     level = await getAccountLevel(req.accountId);
     touchLastSeen(req.accountId); // ML-443: the day they last used the app (once a day, not waited for)
   } catch (error) {
+    // ML-465: a token for an address that has since been deleted or changed - signed out, not an error
+    if (error.status === 401) return res.status(401).json({ error: 'Invalid or expired token' });
     console.error('Account resolution error:', error.message);
     return res.status(500).json({ error: 'Failed to resolve account' });
   }

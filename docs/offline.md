@@ -115,3 +115,11 @@ three toasts. All in `specs/components/offline-status.md`.
 ## Not built (the owner said no)
 
 Recordings kept on the device, and editing or adding pieces offline.
+
+## A changed email address (ML-465)
+
+The copy on a device is one member's, known by the address they sign in with (`Offline.start(owner)`). When
+a member changes their address, the device they confirm it on hands its copy to the new address
+(`Offline.rename`) - the cached answers and the outbox stay. Any **other** device is signed out and starts a
+fresh copy when it signs in with the new address, so something logged offline there and not yet sent is
+lost; the change-email pop-up says to let other devices sync first. See docs/password-login.md.

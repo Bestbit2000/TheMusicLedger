@@ -48,6 +48,7 @@ import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryLevels,
 import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getDrillWeights, getRhythmLevels, setRhythmWord } from '../services/drills.js';
 import { securityStatus, requirePasswordAccount, changeOwnPassword, passwordLoginEnabled, appUrl, createInvite, listMyInvites, invitesSentToday, cancelMyInvite, resendMyInvite, limitCalls, INVITE_LEVELS } from '../services/passwordAuth.js';
 import { mailIsReal } from '../services/mail.js';
+import { requestEmailChange } from '../services/emailChange.js';
 import { beginSetup, confirmSetup, newRecoveryCodes, turnOff } from '../services/twoStep.js';
 
 const router = express.Router();
@@ -777,6 +778,18 @@ router.post('/settings/teachers/:name/unarchive', requireAuth, resolveAccount, a
 router.get('/account', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await getAccountProfile(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-465: change the email address the account uses. A link goes to the NEW address; nothing changes
+// until it is opened (/auth/email-change/...). Someone who signs in with a password gives it here.
+router.post('/account/email-change', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    if (!(await isFeatureEnabled('change_email'))) throw withStatus(403, "This feature isn't available right now.");
+    const { newEmail, password } = req.body || {};
+    res.json(await requestEmailChange(req.accountId, newEmail, password, appUrl(req)));
   } catch (error) {
     sendError(res, error);
   }

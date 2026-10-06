@@ -15,6 +15,7 @@ import pool from '../config/db.js';
 import { listWarmupsForAdmin, createWarmup, updateWarmup, setWarmupActive, moveWarmup, deleteWarmup } from '../services/warmups.js';
 import { listAccountsForAdmin, setAccountLevel, getAccountProfile } from '../services/accounts.js';
 import { getReviews, markReviewed } from '../services/reviews.js';
+import { adminRequestEmailChange } from '../services/emailChange.js';
 import { getFeatureAccess, saveFeatureAccess, clearFeatureCache } from '../services/features.js';
 import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin, setBandDetails } from '../services/bands.js';
 import { createInvite, listPendingInvites, cancelInvite, passwordLoginEnabled, appUrl, adminSendReset, adminUnlock, adminSignOutEverywhere, adminTurnOffTwoStep } from '../services/passwordAuth.js';
@@ -371,6 +372,13 @@ const accountAction = (fn, message) => async (req, res) => {
     sendError(res, error);
   }
 };
+// ML-465: start a change of email address for someone who has lost the old one. The link goes to the
+// new address, and nothing changes until it is opened there.
+router.post('/accounts/:id/change-email', requireAuth, resolveAccount, requireSuperAdmin,
+  accountAction((req) => adminRequestEmailChange(req.accountId, req.params.id, (req.body || {}).newEmail, appUrl(req)),
+    (sent) => (sent.notSentHere
+      ? `A link was made for ${sent.sentTo}, but this site doesn't send emails - nothing has gone to them.`
+      : `A link has been sent to ${sent.sentTo}. Their address changes when they open it (within ${sent.minutes} minutes).`)));
 router.post('/accounts/:id/send-reset', requireAuth, resolveAccount, requireSuperAdmin,
   accountAction((req) => adminSendReset(req.params.id, appUrl(req)), (email) => sentOrHeld(`Reset link sent to ${email}`, `Reset link made for ${email}, but this site doesn't send emails - nothing has gone to them.`)));
 router.post('/accounts/:id/unlock', requireAuth, resolveAccount, requireSuperAdmin,

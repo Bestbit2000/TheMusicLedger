@@ -141,3 +141,50 @@ would go to `email_outbox` like every other email. A failed alert is logged and 
 `server/routes/admin.js` (`/api/admin/invites`), `server/services/twoStep.js` + `/auth/two-step*` + `/api/account/security`, `/api/account/two-step/*` (batch 2), the login screen in `public/index.html` +
 `public/app.js` (search ML-355), Admin → Accounts (`public/admin.js`). Unit tests:
 `server/test/passwords.test.js`, `server/test/twoStep.test.js` (the RFC 6238 test vectors).
+
+## Changing your email address (ML-465)
+
+The address is the account's identity: both ways of signing in find the account by it, sign-in tokens
+carry it, and band invitations are addressed to it. So it is not edited like a name - the new address is
+proved first. The owner's decision (6 Oct 2026), the same for Google and for email + password:
+
+1. **My details → Email** (feature `change_email`; Super admin only until switched on in Feature access).
+   The member types the new address; one who signs in with a password gives it too. An address that
+   already has an account is refused. Five requests a day (`limitCalls`, `change-email`).
+2. **A link goes to the new address** (`/?change-email=...`, works once, for 60 minutes). Nothing changes
+   until it is used. The email shows the old address mostly hidden (`maskEmail`) - the new one may have
+   been mistyped.
+3. **The link opens a screen, signed in or not**, that says what will change and waits for a tap (an
+   email scanner following the link changes nothing): `GET /auth/email-change/:secret`, then
+   `POST /auth/email-change/confirm`.
+4. **On confirming** (`confirmEmailChange`, one transaction): `accounts.email` is the new address;
+   `token_version` goes up, so every device is signed out; the old address is left a marker
+   (`deleted_account_markers`, the table a deleted account leaves one in) so a token that still names it
+   is refused and can't start a new, empty account under it; band invitations waiting for the old address
+   move to the new one; every other emailed link for either address is spent. **The old address is
+   emailed** that it happened (the new one mostly hidden).
+5. They **sign in with the new address** - with Google, the Google account for that address. The
+   password, two-step sign-in and everything else hang off the account, not the address, so nothing else
+   moves.
+
+**A super admin can start it** for someone who has lost the old address: Admin → Accounts → the row's
+menu → **Change their email address**. No password is asked, but the link still goes to the new address,
+so it is still the inbox that proves it.
+
+**The half minute after.** Token versions are cached for 30 seconds per server (`tokenVersions.js`), so
+a request with an old token could reach a server that hasn't heard. `getOrCreateAccount` is now told the
+token's number and refuses (401) to start an account under an address whose marker is newer - which
+closes the same gap for a deleted account.
+
+**Offline (ML-220).** The copy on a device belongs to one member, known by their address. The device
+that confirms the change hands its copy to the new address (`Offline.rename`), so nothing waiting to be
+sent is lost there. **Another device** signed in as the old address is signed out and, when it signs in
+with the new one, starts a fresh copy - anything logged offline on it and not yet sent is lost. The
+pop-up says to let other devices sync first.
+
+Emails follow ML-479: on a site that only keeps its emails (dev, sandbox) the app says the link has not
+gone anywhere.
+
+Code: `server/services/emailChange.js`; tests `server/test/emailChange.test.js` (dev database) and
+back-test 57; migration `114_change_email.sql` (`auth_email_links.purpose` gains `change-email`, and
+`for_account_id`).

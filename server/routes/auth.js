@@ -4,6 +4,8 @@ import { signToken } from '../utils/authToken.js';
 import { currentTokenVersion, forgetTokenVersion } from '../services/tokenVersions.js';
 import { passwordLoginEnabled, login, forgotPassword, resetPassword, describeLink, acceptInvite, appUrl, secondStep, setupFromChallenge, confirmSetupFromChallenge } from '../services/passwordAuth.js';
 import { mailIsReal } from '../services/mail.js';
+import { limitLinkTries } from '../services/passwordAuth.js';
+import { describeEmailChange, confirmEmailChange } from '../services/emailChange.js';
 import { sendError } from '../utils/httpErrors.js';
 import { clientDevice } from '../middleware/auth.js';
 
@@ -147,6 +149,28 @@ router.get('/link/:purpose/:secret', async (req, res) => {
   try {
     if (!['invite', 'reset'].includes(req.params.purpose)) return res.status(404).json({ error: 'Not found' });
     res.json(await describeLink(req.params.secret, req.params.purpose, req.ip));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-465: the screen a "confirm my new email address" link opens - what it will do, then doing it.
+// Whoever holds the link is the one who can read the new inbox; no sign-in is needed (they may have
+// lost the old address). A sign-in token, if the device has one, only says whether this device was
+// signed in as that account.
+router.get('/email-change/:secret', async (req, res) => {
+  try {
+    await limitLinkTries(req.ip);
+    res.json(await describeEmailChange(req.params.secret));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/email-change/confirm', async (req, res) => {
+  try {
+    await limitLinkTries(req.ip);
+    const header = req.headers.authorization || '';
+    res.json(await confirmEmailChange(req.body?.token, appUrl(req), header.startsWith('Bearer ') ? header.slice(7) : null));
   } catch (error) {
     sendError(res, error);
   }
