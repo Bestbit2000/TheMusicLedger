@@ -6,6 +6,9 @@ release is out (or replace it with the next handover).
 
 ## Where things stand
 
+**The work starts on branch `after-0.46.0`** (made from `main` at the 0.46.0 release commit, with this note
+updated). `main`, `origin/main` and `origin/sandbox` are all at 0.46.0.
+
 Release **0.46.0** drew a line under a long session. It shipped:
 
 | | What | Read before touching |
@@ -25,6 +28,14 @@ Migrations 102 to 106 are on dev, sandbox and production. Only the owner uses th
 **Closing what the two reviews found**, so the app is fit to invite other people. The reviews are the
 source: the security review's open findings (`docs/site-security-review.md`) and the GDPR gap register
 (`docs/gdpr-assessment.md`). Every item has a Jira ticket.
+
+### Do before anything else - a miss in 0.46.0
+
+0. **ML-477 - the security headers are missing from the pages on the live site.** They were added in
+   Express, but Vercel serves the pages as static files that never pass through Express, so only the data
+   answers (`/api/...`) carry them. Declare the same headers in `vercel.json`, add a test that keeps the
+   two in step, check with `curl -sI` on sandbox and production. The owner chose to leave this for the next
+   release rather than patch 0.46.0. Nothing is worse than before 0.46.0.
 
 ### Do first - these block inviting anyone else
 
@@ -61,7 +72,7 @@ source: the security review's open findings (`docs/site-security-review.md`) and
 12. **ML-471 - the no-pressure design rule for young players** (a paragraph in `specs/README.md` and a
     check of the existing "Upgrade now" strip).
 
-This is too much for one release. Suggested split: **A** = 1 to 4 (the blockers and the quick hardening);
+This is too much for one release. Suggested split: **A** = 0 to 4 (the blockers and the quick hardening);
 **B** = 5 and 6; **C** = 7 to 12. Propose the split to the owner and let him choose (see his standing
 preference: flag and split big bundles rather than running them all in one pass).
 
@@ -93,7 +104,8 @@ was added (it was tested against all 20 real stored files on dev). If he reports
 - **The business plan lives per environment.** His worked plan is on dev.
 - **Retention is off everywhere.** It must stay off on production until the app sends email from its own
   domain (Resend only delivers to the owner's address until a domain is verified).
-- **`CSP_ENFORCE`** is unset everywhere (report-only).
+- **`CSP_ENFORCE`** is unset everywhere (report-only) - and until ML-477 the policy only reaches the data answers.
+- **Release 0.46.0 needed no notice to members** (the owner's decision: he is the only member). The release rule asks this every time.
 - The proposal artifact for ML-443 (14 questions) was never answered as a set; the build followed
   Claude's suggestions. Not needed any more unless he raises it.
 
