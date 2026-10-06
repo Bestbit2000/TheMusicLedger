@@ -19,6 +19,13 @@ Resend in the register and the privacy policy.
 
 ## What comes next, in order
 
+0. **ML-479 - do this first (a Bug, small; the owner asked for both parts).** Found when he invited
+   someone to a band on sandbox and no email came: (a) the app says "They have been sent an email" on a
+   site that only writes emails to `email_outbox` (sandbox and dev - `MAIL_PROVIDER` unset or `log`);
+   it must say plainly that this site doesn't send email. (b) The email says "A member has invited you..."
+   when the organiser's account has no name - ask for a name before they can invite. The ticket lists the
+   code and the tests that will need changing. It could go out by itself as 0.47.1 (a Bug-only release)
+   or with ML-478 - propose, and let him choose.
 1. **ML-478 - one "My bands" list.** The owner agreed the model on 6 Oct (it is written out in the
    ticket): adding a band is private, sharing comes by invitation or a deliberate "Set up sharing",
    an invitation attaches to the band you already have, and duplicates can be merged or hidden. It
@@ -39,14 +46,18 @@ Resend in the register and the privacy policy.
   He wants email kept in the EU. The lasting answer is a domain plus Google Workspace with the Europe
   region or an EU email service. See the Gmail entry on Admin -> Third parties.
 - A proper welcome / sign-up page for invited people, once there is a domain.
-- Still open from before: Vercel Pro, Neon's agreement, the five Word documents in
+- **Neon's data processing agreement: signed by him on 6 Oct** (recorded on the register on this branch -
+  it reaches the live Admin page with the next release). **Vercel has no agreement on his plan**, so an
+  upgrade to Pro is coming. He is staying with Google for email for now; that may change.
+- Still open from before: the five Word documents in
   `compliance-documents/`, real costs on production, his business plan on production.
 - Nothing counts sent emails; the business case still has a "Resend Pro" line.
 
 ## Not yet checked on the live site
 
-- A real upload over and under 25 MB (the limit and the stored-file check were tested, not uploaded).
-- A real band invitation email, and the "choose a password" link from it.
+- A real band invitation email on production, and the "choose a password" link from it - he was about
+  to try. If it says "the email couldn't be sent", look at `APP_URL` on Vercel and the day's Gmail limit.
+  (The 25 MB limit he has checked himself: it caught large files.)
 - The manual accessibility walk-through (keyboard only, screen reader, 200% zoom) of My bands, Members
   and Invite someone. The axe scan passed (64 of 64).
 - Gitleaks over the git history (ML-476's last line).
