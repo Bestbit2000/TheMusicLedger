@@ -257,7 +257,21 @@ export async function startBandGroup(accountId, directoryBandId) {
 // Leaving. If that leaves the group with members but no organiser, whoever has been in it longest
 // becomes one - so there is always someone who can invite, remove and tidy up, and nobody outside the
 // band has to appoint them.
+// The last person out: an empty band goes with them (nothing is left behind that nobody can reach); one
+// that still has pieces or practice lists is not left by accident - it is deleted on purpose (Delete
+// band), or handed on by inviting someone first.
 export async function leaveBand(accountId, bandId) {
+  await assertMember(pool, accountId, bandId);
+  const { rows } = await pool.query(
+    `SELECT (SELECT COUNT(*) FROM band_members WHERE band_id = $1 AND account_id <> $2) AS others,
+            (SELECT COUNT(*) FROM scores WHERE owner_band_id = $1) + (SELECT COUNT(*) FROM practice_lists WHERE owner_band_id = $1) AS things`,
+    [bandId, accountId]
+  );
+  if (!Number(rows[0].others)) {
+    if (Number(rows[0].things)) throw fail(409, 'You are the only one in this band, and it still has pieces or practice lists. Delete the band (they go with it), or invite someone else first.');
+    await pool.query(`DELETE FROM bands WHERE id = $1 AND kind = 'group'`, [bandId]);
+    return;
+  }
   await pool.query('DELETE FROM band_members WHERE band_id = $1 AND account_id = $2', [bandId, accountId]);
   await ensureOrganiser(pool, bandId);
 }

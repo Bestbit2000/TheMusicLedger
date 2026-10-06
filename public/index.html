@@ -907,7 +907,11 @@
     </div>
 
     <div id="accountBandsView" class="hidden-group">
+        <!-- ML-473: invitations into a band, waiting for this member. The only way into a band someone
+             else set up (renderAccountBandInvites). -->
+        <div id="accountBandInvites" class="hidden-group mb-4"></div>
         <div id="accountBandsList"></div>
+        <p class="metro-help-text mt-4">Adding a band here sets it up for you. To join a band someone else has already set up, ask its organiser to invite you.</p>
         <div class="flex-row gap-sm mt-2">
             <select id="accountBandPicker" aria-label="Band to add" class="flex-1"><option value="">Choose a band to add&hellip;</option></select>
             <button class="btn-submit btn-inline" id="accountJoinBandBtn">Add</button>
@@ -925,6 +929,28 @@
                 <input type="text" id="accountNewBandWebsiteInput" placeholder="https://...">
             </div>
             <button class="btn-submit btn-inline" id="accountAddBandBtn">Add</button>
+        </div>
+    </div>
+
+    <!-- ML-473: who is in a band and what each may do (opened from a band's menu on My bands). Everyone in
+         the band sees the names; an organiser also invites, changes what a member may do and removes
+         (renderBandMembers). A member's row and the invitation's level are value boxes that open the usual
+         choice pop-up - one button, one pop-up. -->
+    <div id="bandMembersView" class="hidden-group">
+        <p class="metro-help-text" id="bandMembersIntro"></p>
+        <div id="bandMembersList"></div>
+        <p class="metro-help-text hidden-group" id="bandMembersWaiting"></p>
+        <div class="hidden-group" id="bandMembersOrganiser">
+            <div class="section-title mt-4">Invite someone</div>
+            <p class="metro-help-text">They need to be using the app already. Type the email address they sign in with, and the invitation appears on their My bands page. No email is sent.</p>
+            <div class="form-group">
+                <label for="bandInviteEmail">Their email address</label>
+                <input type="email" id="bandInviteEmail" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="254">
+            </div>
+            <button type="button" class="metroBlk-ctrl-value-btn w-full mb-2" id="bandInviteLevelBtn" aria-haspopup="dialog"><strong>Can play</strong><span class="metroBlk-ctrl-value-label">what they can do</span></button>
+            <button type="button" class="btn-submit" id="bandInviteBtn">Invite</button>
+            <div class="section-title mt-4 hidden-group" id="bandInvitesTitle">Waiting for an answer</div>
+            <div id="bandInvitesList"></div>
         </div>
     </div>
 
@@ -950,6 +976,7 @@
         <button type="button" class="dropdown-item account-band-menu-delete" id="accountInstrumentMenuRemove"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">remove_circle</span><span class="dropdown-item-text">Remove</span></button>
     </div>
     <div class="dropdown-menu account-band-menu" id="accountBandMenu">
+        <button type="button" class="dropdown-item" id="accountBandMenuMembers"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">group</span><span class="dropdown-item-text">Members</span></button>
         <button type="button" class="dropdown-item" id="accountBandMenuLeave"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="3.5"/><path d="M2 20.5a6 6 0 0 1 12 0"/><path d="M15 12.5h6.5"/><path d="M18.5 9.5l3 3-3 3"/></svg><span class="dropdown-item-text">Leave band</span></button>
         <button type="button" class="dropdown-item account-band-menu-delete hidden-group" id="accountBandMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete band</span></button>
     </div>
@@ -3737,7 +3764,7 @@
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="plOwnerCloseBtn" aria-label="Close">&times;</button>
         <h2 id="plOwnerTitle">Whose list?</h2>
-        <p class="metro-help-text">A band's list is shared with everyone in the band - any of you can change it, and each of you sees your own forecast.</p>
+        <p class="metro-help-text">A band's list is seen by everyone in the band, and it stays with the band if you leave. Members who can change the band's music can change it, and each of you sees your own forecast.</p>
         <div id="plOwnerOptions"></div>
     </div>
 </div>

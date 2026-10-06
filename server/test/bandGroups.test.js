@@ -171,6 +171,16 @@ test('organisers: only they remove or set what a member may do; a band always ha
   await assert.rejects(bands.listBandMembers(cara, space), status(404));
   await bands.deleteBandIfSoleMember(anna, space);
   assert.deepEqual(await bands.getAccountBands(anna), []);
+
+  // The last person out of an empty band takes it with them; one with music in it has to be deleted on purpose
+  const empty = await bands.startBandGroup(anna, await directoryBand(anna));
+  await bands.leaveBand(anna, empty);
+  assert.equal((await pool.query('SELECT 1 FROM bands WHERE id = $1', [empty])).rows.length, 0);
+  const full = await bands.startBandGroup(anna, await directoryBand(anna));
+  await lists.createPracticeList(anna, { name: 'ML-473 kept', bandId: full });
+  await assert.rejects(bands.leaveBand(anna, full), status(409));
+  assert.equal((await bands.getAccountBands(anna)).length, 1);
+  await assert.rejects(bands.leaveBand(ben, full), status(404)); // not in it
 });
 
 test('a "play" member sees and plays the band\'s pieces and lists and changes nothing; a "change" member can', { skip }, async () => {

@@ -19,23 +19,39 @@ could join (site security review, ML-231).
 confirms who runs a band, so nobody has to be).
 
 - Picking a band from the directory **starts your own space** for it; you are its first member and its
-  first librarian. It never puts you into a space someone else started.
+  first **organiser**. It never puts you into a space someone else started.
 - Two people who pick the same band get **two separate spaces** and neither can see the other. So claiming
   a band's name gains nothing: a space holds only the people its members invited.
-- The way into a space is an **invitation** from someone already in it (any member can invite), addressed
-  to the email address the other person signs in with. They see it on My bands and say yes or no. No
-  email is sent, nothing tells the sender whether that address has an account, and an invitation nobody
-  answers goes after 30 days (`band_invites`).
-- **Librarians** (`band_members.role = 'admin'`; the word on screen is not settled) can take a member
-  out, cancel any invitation and make another member a librarian. A band always has one: if the last one
-  leaves, whoever has been in it longest takes over (`ensureLibrarian`).
+- The way into a space is an **invitation from one of its organisers**, addressed to the email address the
+  other person signs in with. They see it on My bands and say yes or no. No email is sent, nothing tells
+  the sender whether that address has an account, and an invitation nobody answers goes after 30 days
+  (`band_invites`).
+- **What a member may do is set by the organiser who invites them** (the owner, 6 Oct 2026: control stays
+  with the person who started the band), and any organiser can change it afterwards. `band_members.role`,
+  migration 109:
+
+  | On screen | `role` | May |
+  |---|---|---|
+  | **Organiser** | `admin` | Everything below; invite, remove, cancel an invitation, set what others may do |
+  | **Can change music** | `member` | Add pieces and practice lists to the band, and change the band's |
+  | **Can play** | `player` | See and play the band's pieces and lists; change nothing. Can still copy a piece into their own library; their Levels are their own |
+
+  "Organiser" is the owner's word - not "Librarian", which is a real post in a band and may not be this
+  person. "Can play" is enforced in `flows.js` (`assertFlowAccess` / `assertBandMembership`) and
+  `practiceLists.js` (`BAND_CAN_CHANGE_SQL`, `flowPermissions.js`); the screens follow `canEdit`.
+  Whoever added a piece is still the one who can delete it or take it out (ML-411).
+- A band always has an organiser: the only one can't step down, and if the last one leaves, whoever has
+  been in it longest takes over (`ensureOrganiser`).
 - A member sees the other members' **names**, never their email addresses.
 - A practice session's "who" is always one of the member's own labels. The "who" box also offers the
   names of the bands they are in (`listWhoOptions`); picking one makes a label of that name.
 
-Code: `server/services/bands.js`; tests `server/test/bandGroups.test.js` (dev database). **Still to
-build:** the screens for members and invitations, and limiting who can change a band piece to the member
-who added it and the librarians.
+Code: `server/services/bands.js`; tests `server/test/bandGroups.test.js` (dev database); screens
+`specs/components/band-members.md` (My bands: the invitations waiting for you, and a band's Members page).
+
+**Said at the moment of sharing (ML-468):** an invitation says the band will see your name; giving a piece
+to a band says everyone in it will see and play it with its recordings and documents, and that it stays
+with the band if you leave; a band's practice list says the same.
 
 ## What a band has
 

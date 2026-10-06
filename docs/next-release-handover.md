@@ -43,10 +43,11 @@ source: the security review's open findings (`docs/site-security-review.md`) and
    everyone, and all names go to all members. Give each member their own. Do **ML-467** (a teacher is a
    name only) in the same change - same table.
 2. **ML-473 - server side DONE on the branch (6 Oct): migration 108 is on dev only.** The owner chose
-   **invitation only** (see `docs/band-directory.md`, "Three kinds of row"). Left to build: the members and
-   invitations screens on My bands (the word for "Librarian" is his to pick), limiting who can change a
-   band piece to its adder and the librarians, a line in the privacy policy about an invitee's email
-   address (his wording), and the back-tests that add a band. Original note: private organisations are listed as bands, and band joining is open. Part 1 (a member's
+   **invitation only**, with what a member may do (Organiser / Can change music / Can play) set by the
+   organiser who invites them (see `docs/band-directory.md`, "Three kinds of row"; migrations 108 and 109,
+   dev only). The screens are built (`specs/components/band-members.md`) and ML-468's lines are in. Left: a
+   line in the privacy policy about an invitee's email address (his wording), the back-tests that add a
+   band, and his design sign-off (pictures in `design-signoff/ml473-bands/`). Original note: private organisations are listed as bands, and band joining is open. Part 1 (a member's
    own organisation labels are theirs alone) is a fix. Part 2 (who can join a band, what a new member can
    change) is **the owner's decision** - ask before building; his earlier line was "bands start open, can
    be closed down later, with librarians". Part 3 (a custom time signature's owner isn't checked) is a

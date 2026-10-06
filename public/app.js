@@ -546,7 +546,15 @@
             addBand: (name, website) => apiCall('/api/account/bands', 'POST', { name, website }),
             joinBand: (id) => apiCall(`/api/account/bands/${id}/join`, 'POST'),
             leaveBand: (id) => apiCall(`/api/account/bands/${id}`, 'DELETE'),
-            deleteBandFull: (id) => apiCall(`/api/account/bands/${id}/full`, 'DELETE')
+            deleteBandFull: (id) => apiCall(`/api/account/bands/${id}/full`, 'DELETE'),
+            // ML-473: a band's members and its invitations
+            bandMembers: (id) => apiCall(`/api/account/bands/${id}/members`),
+            inviteToBand: (id, email, level) => apiCall(`/api/account/bands/${id}/invites`, 'POST', { email, level }),
+            cancelBandInvite: (id, inviteId) => apiCall(`/api/account/bands/${id}/invites/${inviteId}`, 'DELETE'),
+            setBandMemberLevel: (id, memberId, level) => apiCall(`/api/account/bands/${id}/members/${memberId}`, 'PUT', { level }),
+            removeBandMember: (id, memberId) => apiCall(`/api/account/bands/${id}/members/${memberId}`, 'DELETE'),
+            acceptBandInvite: (inviteId) => apiCall(`/api/account/band-invites/${inviteId}/accept`, 'POST'),
+            declineBandInvite: (inviteId) => apiCall(`/api/account/band-invites/${inviteId}/decline`, 'POST')
         },
         settings: {
             get: () => apiCall('/api/dropdown-options'),
@@ -1661,7 +1669,7 @@
     const NAV_PARENT_VIEW = { statsView: 'statsHomeView', streakStatsView: 'statsHomeView', historyView: 'statsHomeView', toolResultsView: 'statsHomeView', flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView', piecePathView: 'rehearseView', prepareRunView: 'rehearseView', levelsPaintView: 'rehearseView', levelsCutView: 'rehearseView', practiceListView: 'rehearseView',
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
         aboutReleasesView: 'aboutView', aboutGradesView: 'aboutView',
-        accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountBandsView: 'accountView', accountTeachersView: 'accountView',
+        accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountBandsView: 'accountView', bandMembersView: 'accountView', accountTeachersView: 'accountView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
         // ML-406: Pitch, Tempo, Pulse and Rhythm live under Skills
         tapTempoView: 'skillsHubView', gapTrainerView: 'skillsHubView', earView: 'skillsHubView', rhythmView: 'skillsHubView', drillResultsView: 'skillsHubView',
@@ -1926,7 +1934,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -2063,6 +2071,7 @@
         if (viewName === 'accountInstrumentsView') { document.getElementById('topTitle').innerText = 'My instruments'; loadAccountInstruments(); }
         if (viewName === 'accountSecurityView') { document.getElementById('topTitle').innerText = 'Sign-in and security'; loadAccountSecurity(); }
         if (viewName === 'accountBandsView') { document.getElementById('topTitle').innerText = 'My bands'; loadAccountBands(); }
+        if (viewName === 'bandMembersView') { document.getElementById('topTitle').innerText = bandMembers.bandName || 'Members'; loadBandMembers(); } // ML-473
         if (viewName === 'entryForm') renderSessionInstrumentPicker('instrumentGroup', 'sessionInstrument', null);
         if (viewName === 'accountTeachersView') { document.getElementById('topTitle').innerText = 'My teachers'; loadTeacherList(); }
         // ML-282: Settings is a list of groups, each its own screen. Every screen re-syncs its
@@ -4064,7 +4073,7 @@
         super_admin: 'Super admin', band_admin: 'Band admin', premium_member: 'Premium member',
         standard_member: 'Standard member', beta_tester: 'Beta tester', teacher: 'Teacher'
     };
-    let accountBandsData = { allBands: [], myBands: [] };
+    let accountBandsData = { allBands: [], myBands: [], invites: [] };
 
     // Also used at startup (see initializeApp) to show/hide the burger menu's
     // Administration link - admin.html itself gates to Super admin too, this
@@ -4229,7 +4238,52 @@
         setShown(box, !!box.innerHTML);
     }
     document.getElementById('accountBandPicker')?.addEventListener('change', renderBandPickerWebsite);
+    // ML-473: what a member of a band may do. The organiser who invites someone chooses it, and any
+    // organiser can change it afterwards. "Organiser" is the owner's word (6 Oct 2026) - not "Librarian",
+    // which is a real post in a band and may not be this person.
+    const BAND_LEVELS = [
+        { key: 'organiser', label: 'Organiser', sub: 'Runs the band here: invites people, and can change everything', youCan: 'run the band here' },
+        { key: 'change', label: 'Can change music', sub: "Adds pieces and practice lists, and changes the band's", youCan: "add to and change the band's music" },
+        { key: 'play', label: 'Can play', sub: "Sees and plays the band's music. Changes nothing", youCan: "see and play the band's music" }
+    ];
+    const bandLevel = (key) => BAND_LEVELS.find(l => l.key === key) || BAND_LEVELS[2];
+    const bandLevelChoices = (current) => BAND_LEVELS.map(l => ({ key: l.key, selected: l.key === current, html: addPieceRow(l.label, l.sub) }));
+
+    // The invitations waiting for you, above your bands. Saying yes is the only way into a band someone
+    // else set up. ML-468: it says, before you join, that the others will see your name.
+    function renderAccountBandInvites() {
+        const box = document.getElementById('accountBandInvites');
+        if (!box) return;
+        const invites = accountBandsData.invites || [];
+        setShown(box, invites.length > 0);
+        box.innerHTML = invites.map(i => `
+            <div class="section-title">You are invited to join ${escapeHtml(i.bandName)}</div>
+            <p class="metro-help-text">${escapeHtml(i.invitedBy)} invited you. You will be able to ${escapeHtml(bandLevel(i.level).youCan)}. Everyone in the band will see your name, and you will see theirs.</p>
+            <div class="flex-row items-center gap-sm mb-4">
+                <button type="button" class="btn-submit btn-inline" data-invite-accept="${i.id}">Join ${escapeHtml(i.bandName)}</button>
+                <button type="button" class="btn-cancel btn-inline" data-invite-decline="${i.id}" aria-label="No thanks - don't join ${escapeHtml(i.bandName)}">No thanks</button>
+            </div>`).join('');
+    }
+    document.getElementById('accountBandInvites')?.addEventListener('click', async (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const accept = btn.dataset.inviteAccept;
+        const id = accept || btn.dataset.inviteDecline;
+        if (!id) return;
+        btn.disabled = true;
+        try {
+            if (accept) await API.account.acceptBandInvite(id); else await API.account.declineBandInvite(id);
+            await loadAccountBands();
+            renderAccountSummaries();
+            showSuccessToast(accept ? 'You have joined the band' : 'Invitation declined');
+        } catch (error) {
+            btn.disabled = false;
+            showWarningToast(error.message);
+        }
+    });
+
     function renderAccountBandsList() {
+        renderAccountBandInvites();
         const container = document.getElementById('accountBandsList');
         if (!container) return;
         if (!accountBandsData.myBands.length) {
@@ -4237,7 +4291,7 @@
         } else {
             container.innerHTML = accountBandsData.myBands.map(b => `
                 <div class="history-item">
-                    <span class="band-row-text"><span>${escapeHtml(b.displayName)}</span>${bandWebsiteLinkHtml(b.website)}</span>
+                    <span class="band-row-text"><span>${escapeHtml(b.displayName)}</span><span class="text-sm text-muted">${escapeHtml(bandLevel(b.level).label)}</span>${bandWebsiteLinkHtml(b.website)}</span>
                     <button type="button" class="list-item-menu-btn" data-band-menu-id="${b.id}" aria-label="Options for ${escapeHtml(b.displayName)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 </div>
             `).join('');
@@ -4304,6 +4358,104 @@
         document.getElementById('accountBandMenu')?.classList.remove('show');
     }
     document.addEventListener('click', closeAccountBandMenu);
+    document.getElementById('accountBandMenuMembers')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const bandId = accountBandMenuTargetId;
+        closeAccountBandMenu();
+        const band = accountBandsData.myBands.find(b => String(b.id) === String(bandId));
+        bandMembers = { bandId, bandName: band?.displayName || 'Members', data: null, inviteLevel: 'play' };
+        switchView('bandMembersView');
+    });
+
+    // ---- ML-473: a band's members (bandMembersView). Everyone in the band sees who is in it and what
+    // each may do - names, never email addresses. An organiser also invites (by the address the other
+    // person signs in with; no email is sent), changes what a member may do, and removes.
+    let bandMembers = { bandId: null, bandName: '', data: null, inviteLevel: 'play' };
+    async function loadBandMembers() {
+        if (!bandMembers.bandId) { switchView('accountBandsView'); return; }
+        try {
+            bandMembers.data = await API.account.bandMembers(bandMembers.bandId);
+        } catch (error) {
+            showWarningToast('Error loading the members: ' + error.message);
+            bandMembers.data = { isOrganiser: false, yourLevel: 'play', members: [], invites: [], openInvites: 0 };
+        }
+        renderBandMembers();
+    }
+    function renderBandMembers() {
+        const d = bandMembers.data;
+        if (!d) return;
+        const n = d.members.length;
+        document.getElementById('bandMembersIntro').textContent = d.isOrganiser
+            ? `${n} ${n === 1 ? 'person' : 'people'} in this band. Tap someone to change what they can do.`
+            : `${n} ${n === 1 ? 'person' : 'people'} in this band. You ${bandLevel(d.yourLevel).key === 'play' ? "can see and play the band's music" : "can add to and change the band's music"}. An organiser can change that.`;
+        document.getElementById('bandMembersList').innerHTML = d.members.map(m => {
+            const name = m.name + (m.isYou ? ' (you)' : '');
+            const level = bandLevel(m.level).label;
+            return d.isOrganiser
+                ? `<button type="button" class="metroBlk-ctrl-value-btn w-full mb-2" data-member="${m.accountId}" aria-haspopup="dialog" aria-label="${escapeHtml(name)}: ${escapeHtml(level)} - tap to change"><strong>${escapeHtml(level)}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(name)}</span></button>`
+                : `<div class="history-item"><span class="band-row-text"><span>${escapeHtml(name)}</span><span class="text-sm text-muted">${escapeHtml(level)}</span></span></div>`;
+        }).join('');
+        const waiting = document.getElementById('bandMembersWaiting');
+        setShown(waiting, !d.isOrganiser && d.openInvites > 0);
+        waiting.textContent = d.openInvites === 1 ? 'One more person has been invited.' : `${d.openInvites} more people have been invited.`;
+        setShown('bandMembersOrganiser', d.isOrganiser);
+        if (!d.isOrganiser) return;
+        const lv = bandLevel(bandMembers.inviteLevel);
+        const levelBtn = document.getElementById('bandInviteLevelBtn');
+        levelBtn.querySelector('strong').textContent = lv.label;
+        levelBtn.setAttribute('aria-label', `What they can do: ${lv.label} - tap to change`);
+        setShown('bandInvitesTitle', d.invites.length > 0);
+        document.getElementById('bandInvitesList').innerHTML = d.invites.map(i =>
+            `<button type="button" class="metroBlk-ctrl-value-btn w-full mb-2" data-invite="${i.id}" aria-haspopup="dialog" aria-label="Invitation to ${escapeHtml(i.email)}: ${escapeHtml(bandLevel(i.level).label)} - tap to change or cancel"><strong>${escapeHtml(i.email)}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(bandLevel(i.level).label)} &middot; invited ${escapeHtml(new Date(i.sentAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</span></button>`).join('');
+    }
+    // One way to run a change and redraw from what the server sends back
+    async function bandMembersDo(action, done) {
+        try {
+            bandMembers.data = await action();
+            renderBandMembers();
+            if (done) showSuccessToast(done);
+        } catch (error) {
+            showWarningToast(error.message);
+        }
+    }
+    document.getElementById('bandInviteLevelBtn')?.addEventListener('click', () => {
+        openFlowChoiceModal('What they can do', bandLevelChoices(bandMembers.inviteLevel), (opt) => { bandMembers.inviteLevel = opt.key; renderBandMembers(); });
+    });
+    document.getElementById('bandInviteBtn')?.addEventListener('click', () => {
+        const input = document.getElementById('bandInviteEmail');
+        const email = input.value.trim();
+        if (!email) { showWarningToast('Type the email address they sign in with.'); input.focus(); return; }
+        bandMembersDo(async () => {
+            const data = await API.account.inviteToBand(bandMembers.bandId, email, bandMembers.inviteLevel);
+            input.value = '';
+            return data;
+        }, 'Invited. It is on their My bands page now.');
+    });
+    document.getElementById('bandMembersList')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-member]');
+        const m = btn && bandMembers.data.members.find(x => String(x.accountId) === btn.dataset.member);
+        if (!m) return;
+        const options = bandLevelChoices(m.level);
+        // (to go yourself, Leave is on the band's own menu)
+        if (!m.isYou) options.push({ key: 'remove', html: addPieceRow('Remove from the band', 'What they added stays with the band') });
+        openFlowChoiceModal(m.name, options, (opt) => {
+            if (opt.key === m.level) return;
+            if (opt.key !== 'remove') { bandMembersDo(() => API.account.setBandMemberLevel(bandMembers.bandId, m.accountId, opt.key)); return; }
+            showConfirmModal('Remove from the band', `Remove ${m.name} from ${bandMembers.bandName}? They will no longer see the band's music. What they added stays with the band.`,
+                () => bandMembersDo(() => API.account.removeBandMember(bandMembers.bandId, m.accountId), 'Removed'), true, 'Remove');
+        });
+    });
+    document.getElementById('bandInvitesList')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-invite]');
+        const i = btn && bandMembers.data.invites.find(x => String(x.id) === btn.dataset.invite);
+        if (!i) return;
+        openFlowChoiceModal(i.email, [...bandLevelChoices(i.level), { key: 'cancel', html: addPieceRow('Cancel the invitation', 'They will no longer be able to join with it') }], (opt) => {
+            if (opt.key === i.level) return;
+            if (opt.key === 'cancel') bandMembersDo(() => API.account.cancelBandInvite(bandMembers.bandId, i.id), 'Invitation cancelled');
+            else bandMembersDo(() => API.account.inviteToBand(bandMembers.bandId, i.email, opt.key));
+        });
+    });
+
     document.getElementById('accountBandMenuLeave')?.addEventListener('click', (e) => {
         e.stopPropagation();
         const bandId = accountBandMenuTargetId;
@@ -4540,7 +4692,8 @@
         const main = myInstruments.find(i => i.isPrimary);
         set('accountInstrumentsSummary', main ? main.name + (myInstruments.length > 1 ? ` + ${myInstruments.length - 1} more` : '') : 'Choose what you play');
         const bands = accountBandsData.myBands.length;
-        set('accountBandsSummary', bands ? `${bands} band${bands === 1 ? '' : 's'}` : 'Not in a band yet');
+        const invited = (accountBandsData.invites || []).length; // ML-473: an invitation waiting is said first
+        set('accountBandsSummary', invited ? `${invited} invitation${invited === 1 ? '' : 's'} waiting` : bands ? `${bands} band${bands === 1 ? '' : 's'}` : 'Not in a band yet');
         const teachers = (appData.teachers || []).filter(t => !t.archived).length;
         set('accountTeachersSummary', teachers ? `${teachers} teacher${teachers === 1 ? '' : 's'}` : 'None added yet');
     }
@@ -6425,7 +6578,7 @@
     const addPieceListSub = (l) => `${l.bandName ? `${l.bandName} · ` : ''}${plDateText(l.eventDate)} · ${l.pieceCount} piece${l.pieceCount === 1 ? '' : 's'}`;
     function addPieceOwnerChoices() {
         return [{ value: null, title: 'Just me', sub: 'Only you see it' },
-            ...addPiece.bands.map(b => ({ value: Number(b.id), title: b.displayName || b.name, sub: 'Shared with the band' }))];
+            ...addPiece.bands.map(b => ({ value: Number(b.id), title: b.displayName || b.name, sub: 'Everyone in the band will see and play it' }))];
     }
     function addPieceListChoices() {
         return [{ value: null, title: 'On its own', sub: 'A single piece, not part of a list' },
@@ -8465,6 +8618,11 @@
         document.getElementById('topTitle').innerText = l.name;
         const setVal = (id, v) => { const el = document.getElementById(id); if (document.activeElement !== el) el.value = v == null ? '' : v; };
         setVal('plName', l.name);
+        // ML-473: a band list, for a member who can play but not change the band's music - they plan from it as it is
+        const canEdit = l.canEdit !== false;
+        document.getElementById('plName').disabled = !canEdit;
+        document.getElementById('plDateBtn').disabled = !canEdit;
+        ['plAddPiecesBtn', 'plDeleteBtn', 'plPieceMenuDelete'].forEach(id => setShown(id, canEdit));
         document.getElementById('plDateBtnText').textContent = plDateLabel(l.eventDate);
         document.getElementById('plDateBtn').setAttribute('aria-label', `Target date: ${l.eventDate ? plDateText(l.eventDate) : 'none'} - tap to change`);
         const f = plForecast(l);
@@ -9063,7 +9221,7 @@
         if (!bands.length) { create(null); return; }
         const box = document.getElementById('plOwnerOptions');
         box.innerHTML = [`<button type="button" class="flow-choice-option level-answer" data-owner=""><span><strong>Just me</strong><br><span class="text-sm text-muted">Only you see it</span></span></button>`,
-            ...bands.map(b => `<button type="button" class="flow-choice-option level-answer" data-owner="${b.id}"><span><strong>${escapeHtml(b.name)}</strong><br><span class="text-sm text-muted">Shared with the band</span></span></button>`)].join('');
+            ...bands.map(b => `<button type="button" class="flow-choice-option level-answer" data-owner="${b.id}"><span><strong>${escapeHtml(b.name)}</strong><br><span class="text-sm text-muted">Everyone in the band will see it</span></span></button>`)].join('');
         box.querySelectorAll('[data-owner]').forEach(b => b.addEventListener('click', () => create(b.dataset.owner ? Number(b.dataset.owner) : null)));
         showModal('plOwnerModal');
     }
@@ -9954,7 +10112,7 @@
     const flowAudienceIs = (f) => (f.isPublic ? 'public' : f.ownerBandId ? `band:${f.ownerBandId}` : 'me');
     function flowAudienceChoices() {
         return [{ key: 'me', to: 'me', title: 'Just me', sub: 'Only you see it' },
-            ...flowAudienceBands.map(b => ({ key: `band:${Number(b.id)}`, to: 'band', bandId: Number(b.id), title: b.displayName || b.name, sub: 'Shared with the band' })),
+            ...flowAudienceBands.map(b => ({ key: `band:${Number(b.id)}`, to: 'band', bandId: Number(b.id), title: b.displayName || b.name, sub: 'Everyone in the band will see and play it' })),
             ...(currentAccountIsSuperAdmin ? [{ key: 'public', to: 'public', title: 'Everyone', sub: 'Public - everyone can play it and copy it' }] : [])];
     }
     function renderFlowVisibility() {
@@ -9968,7 +10126,7 @@
         document.getElementById('flowAudienceBtn').setAttribute('aria-label', `Who it's for: ${now} - tap to change`);
         document.getElementById('flowVisibilityText').innerText = now;
         document.getElementById('flowAudienceNote').innerText = f.isPublic ? 'Public - everyone can play it and copy it.'
-            : f.ownerBandId ? (f.canDelete ? 'Everyone in the band can play it and change it, or copy it into their own library.' : 'Everyone in the band can play it and change it, or copy it into their own library. Only the person who added it to the band can change who it\'s for.')
+            : f.ownerBandId ? (f.canDelete ? 'Everyone in the band can see and play it, with its recordings and documents, or copy it into their own library. Members who can change the band\'s music can change it.' : 'Everyone in the band can see and play it, with its recordings and documents, or copy it into their own library. Members who can change the band\'s music can change it. Only the person who added it to the band can change who it\'s for.')
                 : 'Only you see it.';
     }
     // The bands you are in, for the box's name and the pop-up - asked for once a visit to the screen
@@ -9986,7 +10144,7 @@
             const name = '"' + f.title + '"';
             const was = f.ownerBandId && !f.isPublic ? flowAudienceBandName(f.ownerBandId) : null;
             const ask = c.to === 'public' ? [`Make ${name} public?`, 'Everyone will see it in their library and Rehearse, and can copy it.', 'Make public']
-                : c.to === 'band' ? [`Give ${name} to ${c.title}?`, `Everyone in the band can play it and change it, or copy it into their own library to make their own changes. Only you can take it out again.${was ? ` ${was} won't see it any more.` : ''}`, 'Give to the band']
+                : c.to === 'band' ? [`Give ${name} to ${c.title}?`, `Everyone in ${c.title} will be able to see and play it, including its recordings and documents, and members who can change the band's music can change it. It stays with the band if you leave. Only you can take it out again.${was ? ` ${was} won't see it any more.` : ''}`, 'Give to the band']
                     : [`Make ${name} just yours?`, f.isPublic ? 'It leaves everyone\'s library and becomes your own piece.' : `${was || 'The band'} won't see it any more.`, 'Just me'];
             showConfirmModal(ask[0], ask[1], async () => {
                 try {

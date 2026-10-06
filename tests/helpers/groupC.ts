@@ -107,7 +107,7 @@ export async function activeBandIdsOf(email: string): Promise<number[]> {
       WHERE a.email = $1 AND b.active ORDER BY m.band_id`, [email])).rows.map(r => Number(r.band_id)));
 }
 export async function bandCount(): Promise<{ total: number; active: number }> {
-  return withClient(async (c) => (await c.query('SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE active)::int AS active FROM bands')).rows[0]);
+  return withClient(async (c) => (await c.query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE active)::int AS active FROM bands WHERE kind = 'directory'`)).rows[0]);
 }
 
 // ---- Home choices (ML-378 / ML-387) ----
