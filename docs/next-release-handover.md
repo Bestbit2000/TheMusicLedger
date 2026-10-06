@@ -45,9 +45,11 @@ source: the security review's open findings (`docs/site-security-review.md`) and
 2. **ML-473 - server side DONE on the branch (6 Oct): migration 108 is on dev only.** The owner chose
    **invitation only**, with what a member may do (Organiser / Can change music / Can play) set by the
    organiser who invites them (see `docs/band-directory.md`, "Three kinds of row"; migrations 108 and 109,
-   dev only). The screens are built (`specs/components/band-members.md`) and ML-468's lines are in. Left: a
-   line in the privacy policy about an invitee's email address (his wording), the back-tests that add a
-   band, and his design sign-off (pictures in `design-signoff/ml473-bands/`). Original note: private organisations are listed as bands, and band joining is open. Part 1 (a member's
+   dev only). The screens are built (`specs/components/band-members.md`) and ML-468's lines are in. He approved the design (6 Oct). A band
+   invitation now sends an email, an app invite can be sent again, and old invites are cleared daily
+   whatever the retention switch says. Left: his yes to the privacy policy line about invites (drafted in
+   the chat; not in `privacy.html` yet), and finding out whether production sends email through Gmail or
+   Resend (Admin -> Security, "This deployment's settings", now says). Original note: private organisations are listed as bands, and band joining is open. Part 1 (a member's
    own organisation labels are theirs alone) is a fix. Part 2 (who can join a band, what a new member can
    change) is **the owner's decision** - ask before building; his earlier line was "bands start open, can
    be closed down later, with librarians". Part 3 (a custom time signature's owner isn't checked) is a

@@ -23,9 +23,15 @@ confirms who runs a band, so nobody has to be).
 - Two people who pick the same band get **two separate spaces** and neither can see the other. So claiming
   a band's name gains nothing: a space holds only the people its members invited.
 - The way into a space is an **invitation from one of its organisers**, addressed to the email address the
-  other person signs in with. They see it on My bands and say yes or no. No email is sent, nothing tells
-  the sender whether that address has an account, and an invitation nobody answers goes after 30 days
-  (`band_invites`).
+  other person signs in with. They see it on My bands and say yes or no. **The address is sent a short
+  email** (the owner, 6 Oct 2026: most people invited won't be using the app yet, and the email is what
+  brings them): who invited them, which band, and to sign in with that address. Its link is only the app's
+  front door (`/?band-invite=1` - nothing about who or which band): the sign-in screen then says why they
+  are here, and once signed in My bands opens with the invitation on it. Changing what a waiting invitation
+  allows sends no second email. An organiser can invite 20 people a day. Nothing tells the sender whether
+  the address has an account, and an invitation nobody answers goes after 30 days (`band_invites`; cleared
+  by the daily job, `clearOldRecords`). **Not built:** someone whose address is not a Google account can
+  only get into the app by an "Invite someone" invite as well - one invite that does both is a later step.
 - **What a member may do is set by the organiser who invites them** (the owner, 6 Oct 2026: control stays
   with the person who started the band), and any organiser can change it afterwards. `band_members.role`,
   migration 109:

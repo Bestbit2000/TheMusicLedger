@@ -53,3 +53,16 @@ export async function sendMail({ to, subject, text, html }) {
   }
   throw new Error(`Unknown MAIL_PROVIDER "${provider}".`);
 }
+
+// The one layout every email from the app uses: a few lines, one button, a small footer (and the same in
+// plain text). Everything is escaped here - pass words, not HTML.
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+export function emailBody(lines, buttonText, url, footer) {
+  const text = `${lines.join('\n\n')}\n\n${buttonText}: ${url}\n\n${footer}`;
+  const html = `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.5;color:#222;max-width:520px">
+${lines.map(l => `<p>${esc(l)}</p>`).join('\n')}
+<p><a href="${esc(url)}" style="display:inline-block;background:#c9a227;color:#111;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:bold">${esc(buttonText)}</a></p>
+<p style="font-size:13px;color:#555">Or copy this link: ${esc(url)}</p>
+<p style="font-size:13px;color:#555">${esc(footer)}</p></div>`;
+  return { text, html };
+}

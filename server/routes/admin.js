@@ -32,7 +32,7 @@ import { costsAndUsage, addCost, updateCost, deleteCost, readMeters, recordManua
 import { getBusinessCase, saveBusinessCase, resetBusinessCase } from '../services/businessCase.js';
 import { getAdminDashboard } from '../services/adminDashboard.js';
 import { listRecords, saveRecord, setAttentionDone } from '../services/thirdPartyRecords.js';
-import { retentionStatus, saveRule, runRetention } from '../services/retention.js';
+import { retentionStatus, saveRule, runRetention, clearOldRecords } from '../services/retention.js';
 import { applyRecords } from '../thirdParties/records.js';
 import { getInstrumentUsageStats } from '../services/instruments.js';
 import { listRestMessages, createRestMessage, updateRestMessage, setRestMessageActive, deleteRestMessage, moveRestMessage } from '../services/restMessages.js';
@@ -966,6 +966,7 @@ router.put('/retention', requireAuth, resolveAccount, requireSuperAdmin, async (
 router.post('/retention/run', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     const result = await runRetention({ appUrl: process.env.APP_URL || `${req.protocol}://${req.get('host')}` });
+    Object.assign(result, await clearOldRecords()); // the old records go whether or not the rule itself ran
     res.json({ result, ...(await retentionStatus()) });
   } catch (error) {
     sendError(res, error);

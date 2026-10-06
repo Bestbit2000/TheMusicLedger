@@ -15,7 +15,7 @@ who runs a band). Two places:
   only way into a band someone else set up. Each of your bands shows what you can do in it under its name.
 - **Members** (a band's ⋮ menu) is a **page, not a pop-up** - its rows open the choice pop-up, and pop-ups
   don't stack. Everyone in the band sees who is in it and what each may do: names, never email addresses.
-  An **organiser** also invites (by the email address the other person signs in with - no email is sent),
+  An **organiser** also invites (by the email address the other person signs in with - they are sent a short email),
   changes what a member may do, and removes.
 - **What a member may do** is one of three, chosen by the organiser who invites them: **Organiser** (runs the
   band here), **Can change music**, **Can play**. "Organiser" is the owner's word - not "Librarian", which is
@@ -50,6 +50,8 @@ None of its own - see [form-field](form-field.md), [button](button.md), [list-ro
 
 ## 6. States
 - **No invitations:** `#accountBandInvites` is hidden.
+- **Arriving from the email** (`/?band-invite=1`): the sign-in screen's line says "You have been invited to join
+  a band. Sign in with the email address the invitation was sent to..."; once signed in, My bands opens.
 - **Organiser:** members are value boxes; the invite form and the waiting list show.
 - **Not an organiser:** members are plain rows; no form; a count of people invited, if any.
 - **Yourself:** your own pop-up has no "Remove from the band" (Leave is on the band's menu). The only

@@ -1050,6 +1050,7 @@
         // ML-355: an emailed invite or reset link opens its own "choose a password" screen, logged in
         // or not (it logs in as the invited account when done).
         if (openPasswordLinkFromUrl()) return;
+        noteBandInviteLink();
 
         // Check authentication - not logged in, so reveal the login button
         if (!auth.isAuthenticated) {
@@ -1116,6 +1117,7 @@
             } catch (timerError) {
                 console.warn('Failed to restore active timer:', timerError.message);
             }
+            openBandInviteAfterLogin(); // ML-473: came from a band invitation's email
             syncOffline(); // ML-220: send anything logged offline last time
             setTimeout(keepOfflineCopy, 8000); // ...and, once a day, read what the offline tools need
         } catch (error) {
@@ -1151,7 +1153,9 @@
         setShown('mainContainer', false);
         setShown('loginScreen', true);
         const statusText = document.getElementById('loginStatusText');
-        if (statusText) statusText.textContent = 'Please log in to continue';
+        if (statusText) statusText.textContent = bandInviteWaiting()
+            ? 'You have been invited to join a band. Sign in with the email address the invitation was sent to, and it will be waiting for you.'
+            : 'Please log in to continue';
         const btn = document.getElementById('loginBtn');
         if (btn) btn.classList.add('show');
         // ML-355: email + password too, when password_login is on (asked before anyone's logged in).
@@ -1281,6 +1285,22 @@
         }
         btn.disabled = false;
     });
+
+    // ML-473: the link in a band invitation's email is only the front door (/?band-invite=1 - it carries
+    // nothing about who or which band). It is remembered for this tab, so the sign-in screen can say why
+    // they are here and, once signed in, My bands opens with the invitation on it.
+    const BAND_INVITE_KEY = 'tml.bandInvite';
+    const bandInviteWaiting = () => { try { return sessionStorage.getItem(BAND_INVITE_KEY) === '1'; } catch (e) { return false; } };
+    function noteBandInviteLink() {
+        if (!new URLSearchParams(window.location.search).has('band-invite')) return;
+        try { sessionStorage.setItem(BAND_INVITE_KEY, '1'); } catch (e) { /* the sign-in screen just says the usual */ }
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    function openBandInviteAfterLogin() {
+        if (!bandInviteWaiting()) return;
+        try { sessionStorage.removeItem(BAND_INVITE_KEY); } catch (e) { /* asked once more next time */ }
+        switchView('accountBandsView');
+    }
 
     let passwordLink = null; // { purpose: 'invite' | 'reset', token }
     function openPasswordLinkFromUrl() {
@@ -4428,8 +4448,11 @@
         bandMembersDo(async () => {
             const data = await API.account.inviteToBand(bandMembers.bandId, email, bandMembers.inviteLevel);
             input.value = '';
+            // (said here, not by bandMembersDo: it depends on whether the email went)
+            if (data.emailFailed) showWarningToast("Invited, but the email couldn't be sent. Tell them to sign in and look at My bands.");
+            else showSuccessToast(data.emailed ? 'Invited. They have been sent an email.' : 'Already invited - updated what they can do.');
             return data;
-        }, 'Invited. It is on their My bands page now.');
+        });
     });
     document.getElementById('bandMembersList')?.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-member]');
@@ -6514,14 +6537,25 @@
         const list = document.getElementById('invitePending');
         const invites = (on && d.invites) || [];
         const when = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-        list.innerHTML = !invites.length ? '' : `<div class="section-title">My invites that are waiting</div>` + invites.map(i => {
+        list.innerHTML = !invites.length ? '' : `<div class="section-title">My invites that haven't been used</div>` + invites.map(i => {
             const who = [i.firstName, i.surname].filter(Boolean).join(' ');
             return `
             <div class="history-item">
-                <span class="history-details"><strong>${escapeHtml(i.email)}</strong>${who ? `${escapeHtml(who)} · ` : ''}${levels ? `${escapeHtml(ACCOUNT_LEVEL_LABELS[i.accountLevel] || i.accountLevel)} · ` : ''}sent ${when(i.createdAt)} · works until ${when(i.expiresAt)}</span>
-                <button type="button" class="btn-text btn-text-danger" data-cancel-invite="${i.id}" aria-label="Cancel the invite to ${escapeHtml(i.email)}">Cancel</button>
+                <span class="history-details"><strong>${escapeHtml(i.email)}</strong>${who ? `${escapeHtml(who)} · ` : ''}${levels ? `${escapeHtml(ACCOUNT_LEVEL_LABELS[i.accountLevel] || i.accountLevel)} · ` : ''}sent ${when(i.createdAt)} · ${i.expired ? `the link ran out on ${when(i.expiresAt)}` : `works until ${when(i.expiresAt)}`}</span>
+                <button type="button" class="btn-text" data-resend-invite="${i.id}" aria-label="Send the invite to ${escapeHtml(i.email)} again">Send again</button>
+                <button type="button" class="btn-text btn-text-danger" data-cancel-invite="${i.id}" aria-label="${i.expired ? 'Remove' : 'Cancel'} the invite to ${escapeHtml(i.email)}">${i.expired ? 'Remove' : 'Cancel'}</button>
             </div>`;
         }).join('');
+        // ML-402 follow-up: Send again - a fresh link (7 more days) and a fresh email; the old link stops working
+        list.querySelectorAll('[data-resend-invite]').forEach(b => b.addEventListener('click', async () => {
+            b.disabled = true;
+            try {
+                const res = await apiCall(`/api/invites/${b.dataset.resendInvite}/resend`, 'POST');
+                inviteData.invites = res.invites; inviteData.left = res.left;
+                renderInvite();
+                showSuccessToast(res.message);
+            } catch (e) { b.disabled = false; showWarningToast('Not sent: ' + e.message); }
+        }));
         list.querySelectorAll('[data-cancel-invite]').forEach(b => b.addEventListener('click', () => {
             showConfirmModal('Cancel invite', 'Cancel this invite? The link in their email stops working.', async () => {
                 try { const res = await apiCall(`/api/invites/${b.dataset.cancelInvite}`, 'DELETE'); inviteData.invites = res.invites; renderInvite(); showSuccessToast('Invite cancelled.'); }

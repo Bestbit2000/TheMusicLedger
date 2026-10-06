@@ -102,15 +102,22 @@ export async function runRetention({ now = new Date(), appUrl = process.env.APP_
     }
   }
 
-  if (only) return out; // the test leaves real invites and feedback alone
-  try {
-    out.invitesCleared = (await pool.query(
-      `DELETE FROM auth_email_links WHERE purpose = 'invite'
-          AND COALESCE(used_at, expires_at) < now() - make_interval(days => $1)`, [INVITES_KEPT_DAYS])).rowCount;
-    out.feedbackCleared = (await pool.query(
-      `DELETE FROM feedback WHERE status = 'resolved' AND updated_at < now() - make_interval(months => $1)`, [FEEDBACK_KEPT_MONTHS])).rowCount;
-  } catch (error) {
-    out.problems.push(`Old records: ${error.message}`);
-  }
+  return out;
+}
+
+// The old records the privacy policy says are removed: an invite to the app 30 days after it was used or
+// ran out, an invitation into a band nobody answered after 30 days, and feedback 12 months after it was
+// dealt with. This is NOT part of the retention rule: it runs every day whether the rule is on or off
+// (the daily job calls it by itself). Until 6 Oct 2026 it sat inside runRetention, so with the rule
+// switched off - as it is everywhere - nothing was ever cleared.
+export async function clearOldRecords() {
+  const out = { invitesCleared: 0, bandInvitesCleared: 0, feedbackCleared: 0 };
+  out.invitesCleared = (await pool.query(
+    `DELETE FROM auth_email_links WHERE purpose = 'invite'
+        AND COALESCE(used_at, expires_at) < now() - make_interval(days => $1)`, [INVITES_KEPT_DAYS])).rowCount;
+  out.bandInvitesCleared = (await pool.query(
+    `DELETE FROM band_invites WHERE created_at < now() - make_interval(days => $1)`, [INVITES_KEPT_DAYS])).rowCount;
+  out.feedbackCleared = (await pool.query(
+    `DELETE FROM feedback WHERE status = 'resolved' AND updated_at < now() - make_interval(months => $1)`, [FEEDBACK_KEPT_MONTHS])).rowCount;
   return out;
 }

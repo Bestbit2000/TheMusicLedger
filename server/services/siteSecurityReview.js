@@ -14,7 +14,7 @@ import { withStatus } from './metronomeSetups.js';
 import { buildReview, saveRun, osvLookup } from './securityReview.js';
 import { currentAppVersion } from './flowAuthoringStats.js';
 import { headerFindings } from '../middleware/securityHeaders.js';
-import { mailIsReal } from './mail.js';
+import { mailIsReal, mailProvider } from './mail.js';
 import assistedHistory from '../securityReviews/site.js';
 
 export const TARGET = {
@@ -253,6 +253,9 @@ async function checkSettings({ origin }) {
   } else {
     say(true, 'warn', `This is not the live site (${origin}), so the live-only settings were not checked.`);
   }
+  // How email leaves this site - so the owner can tell at a glance (the address it comes from, never a password)
+  const provider = mailProvider();
+  say(provider !== 'log' || !live, 'warn', `Email: ${provider === 'resend' ? 'sent through Resend' : provider === 'smtp' ? `sent through the mail server ${process.env.SMTP_HOST || '(SMTP_HOST not set)'}, signed in as ${process.env.SMTP_USER || '(SMTP_USER not set)'}` : 'not sent - written to the email_outbox table only (MAIL_PROVIDER is "log" or not set)'}${process.env.MAIL_FROM ? `; from ${process.env.MAIL_FROM}` : ''}`);
   say(process.env.CSP_ENFORCE === 'true', 'warn', `Content security policy: ${process.env.CSP_ENFORCE === 'true' ? 'enforced' : 'report-only (CSP_ENFORCE is not "true")'}`);
   const bad = out.filter((f) => !f.ok);
   return {

@@ -15,7 +15,9 @@ email-and-password login (`password_login`) is Live - an invite is that kind of 
   box (every type but Super admin) - the server only honours a type from a super admin.
 - **Up to 5 invites in 24 hours** each (the `invites_per_day` limit, Admin → Feature access › Limits). Every
   invite sent counts, whether it has since been used, cancelled or replaced.
-- **You see and cancel only your own** invites that are waiting.
+- **You see and cancel only your own** invites that haven't been used. One whose link has run out (7 days)
+  stays on the list, saying so, until the 30-day clear-up - with **Send again** on every row: a fresh link and
+  a fresh email, counted as one of today's.
 - **The junk warning is always shown**: the email comes from themusicledgerapp@gmail.com and will probably
   land in junk.
 - It's a **page, not a pop-up**: the account type is a value box with its own pop-up, and pop-ups don't stack.
@@ -25,7 +27,7 @@ email-and-password login (`password_login`) is Live - an invite is that kind of 
 `#inviteView` › `p.theory-intro` (what they get) › `p.level-notice` (the junk-folder warning, amber) ›
 `.form-group` × 3 (their email, first name, surname) › (super admin) `button.metroBlk-ctrl-value-btn.w-full`
 "account type" opening `#flowChoiceModal` › **Send invite** (`.btn-submit`) › `p.theory-best-line` ("You can send 4
-more invites today.") › `.section-title` "My invites that are waiting" › `.history-item` per invite
+more invites today.") › `.section-title` "My invites that haven't been used" › `.history-item` per invite
 (`.history-details`: the email in bold, then name · sent · works until) with a `.btn-text.btn-text-danger` Cancel.
 
 ## 4. Tokens used

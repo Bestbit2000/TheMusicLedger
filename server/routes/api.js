@@ -19,7 +19,7 @@ import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrD
   listBandMembers, inviteToBand, cancelBandInvite, listMyBandInvites, acceptBandInvite, declineBandInvite, removeBandMember, setBandMemberLevel } from '../services/bands.js';
 import { readMeters, sendUsageWarnings } from '../services/thirdPartyUsage.js';
 import { getBusinessCase } from '../services/businessCase.js';
-import { runRetention } from '../services/retention.js';
+import { runRetention, clearOldRecords } from '../services/retention.js';
 import { deleteMyAccount } from '../services/accountDeletion.js';
 import { exportMyAccount } from '../services/accountExport.js';
 import { getAccountProfile, updateAccountProfile, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
@@ -44,7 +44,7 @@ import { requestUpgrade } from '../services/upgradeRequest.js';
 import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead } from '../services/notifications.js';
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryLevels, getTheoryWeights, getTheoryPlayed } from '../services/theoryPractice.js';
 import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getDrillWeights, getRhythmLevels, setRhythmWord } from '../services/drills.js';
-import { securityStatus, requirePasswordAccount, changeOwnPassword, passwordLoginEnabled, appUrl, createInvite, listMyInvites, invitesSentToday, cancelMyInvite, INVITE_LEVELS } from '../services/passwordAuth.js';
+import { securityStatus, requirePasswordAccount, changeOwnPassword, passwordLoginEnabled, appUrl, createInvite, listMyInvites, invitesSentToday, cancelMyInvite, resendMyInvite, INVITE_LEVELS } from '../services/passwordAuth.js';
 import { beginSetup, confirmSetup, newRecoveryCodes, turnOff } from '../services/twoStep.js';
 
 const router = express.Router();
@@ -853,7 +853,9 @@ router.get('/cron/usage-readings', async (req, res) => {
     await getBusinessCase().catch((error) => console.error('Daily job: actual v forecast not recorded:', error.message));
     // ML-464: retention - warn or delete accounts nobody uses, if the owner has switched it on
     const retention = await runRetention().catch((error) => { console.error('Daily job: retention not run:', error.message); return null; });
-    res.json({ read: results.filter((r) => r.ok).length, notRead: results.filter((r) => !r.ok).map((r) => r.key), warnings: warnings.length, retention });
+    // Old invites, band invitations and dealt-with feedback go every day, whatever the retention switch says
+    const cleared = await clearOldRecords().catch((error) => { console.error('Daily job: old records not cleared:', error.message); return null; });
+    res.json({ read: results.filter((r) => r.ok).length, notRead: results.filter((r) => !r.ok).map((r) => r.key), warnings: warnings.length, retention, cleared });
   } catch (error) {
     sendError(res, error);
   }
@@ -946,8 +948,8 @@ router.get('/account/bands/:id/members', requireAuth, resolveAccount, async (req
 
 router.post('/account/bands/:id/invites', requireAuth, resolveAccount, async (req, res) => {
   try {
-    await inviteToBand(req.accountId, req.params.id, (req.body || {}).email, (req.body || {}).level || 'play');
-    res.json(await listBandMembers(req.accountId, req.params.id));
+    const sent = await inviteToBand(req.accountId, req.params.id, (req.body || {}).email, (req.body || {}).level || 'play', appUrl(req));
+    res.json({ ...(await listBandMembers(req.accountId, req.params.id)), ...sent });
   } catch (error) {
     sendError(res, error);
   }
@@ -1460,6 +1462,18 @@ router.post('/invites', requireAuth, resolveAccount, async (req, res) => {
     const level = req.accountLevel === 'super_admin' && accountLevel ? accountLevel : 'standard_member';
     const invite = await createInvite({ email, firstName, surname, accountLevel: level, createdBy: req.accountId, origin: appUrl(req) });
     res.json({ invite, left: left - 1, invites: await listMyInvites(req.accountId), message: `Invite sent to ${invite.email}` });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+// "Send again" (your own): a fresh link and email; the old link stops working. Counts as one of today's.
+router.post('/invites/:id/resend', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    const { on, limit, left } = await inviteState(req);
+    if (!on) throw withStatus(403, "This feature isn't available right now.");
+    if (left <= 0) throw withStatus(429, `You've sent ${limit} invites in the last day - you can send more tomorrow.`);
+    const invite = await resendMyInvite(req.accountId, req.params.id, appUrl(req));
+    res.json({ invite, left: left - 1, invites: await listMyInvites(req.accountId), message: `Invite sent again to ${invite.email}` });
   } catch (error) {
     sendError(res, error);
   }

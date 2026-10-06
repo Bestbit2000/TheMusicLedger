@@ -19,6 +19,7 @@
 import { publicSiteAnswers } from '../utils/publicUrl.js';
 import pool from '../config/db.js';
 import { accountDisplayName } from './accounts.js';
+import { sendMail, emailBody } from './mail.js';
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
 
@@ -199,6 +200,7 @@ const roleOfLevel = (level) => {
 // (the SQL for "may change" is BAND_CAN_CHANGE_SQL in flowPermissions.js)
 const INVITE_DAYS = 30;
 const MAX_OPEN_INVITES = 50;
+const MAX_INVITES_A_DAY = 20; // per organiser - each one sends an email to an address they typed
 
 async function memberRole(db, accountId, bandId) {
   const { rows } = await db.query(
@@ -296,9 +298,11 @@ export async function deleteBandIfSoleMember(accountId, bandId) {
 }
 
 // ---- Members and invitations (ML-473). An organiser invites, and says what the new member may do.
-// An invitation is addressed to an email address; whoever signs in with that address sees it and says
-// yes or no. No email is sent, and nothing tells the sender whether that address has an account. One
-// nobody answers goes after 30 days.
+// An invitation is addressed to an email address; whoever signs in with that address sees it on My
+// bands and says yes or no. The address is sent a short email saying so (the owner, 6 Oct 2026: most
+// people invited won't be using the app yet - the email is what brings them). Its link is only the
+// app's front door: nothing happens until they sign in with that address. Nothing tells the sender
+// whether the address has an account. An invitation nobody answers goes after 30 days.
 
 const cleanEmail = (email) => String(email || '').trim().toLowerCase();
 const purgeOldInvites = (db) => db.query(`DELETE FROM band_invites WHERE created_at < now() - make_interval(days => $1)`, [INVITE_DAYS]);
@@ -336,7 +340,9 @@ export async function listBandMembers(accountId, bandId) {
 
 // Only an organiser invites, and the invitation carries what the new member may do ('play' unless
 // said) - inviting the same address again changes that.
-export async function inviteToBand(accountId, bandId, email, level = 'play') {
+// Returns { emailed }: false when it was already waiting (only what they may do changed), or the email
+// could not be sent - the invitation stands either way, and is on their My bands page.
+export async function inviteToBand(accountId, bandId, email, level = 'play', origin = '') {
   await assertOrganiser(pool, accountId, bandId);
   const role = roleOfLevel(level);
   const to = cleanEmail(email);
@@ -349,11 +355,34 @@ export async function inviteToBand(accountId, bandId, email, level = 'play') {
   if (already.rows.length) throw fail(409, 'They are already in this band.');
   const open = await pool.query('SELECT COUNT(*) AS n FROM band_invites WHERE band_id = $1', [bandId]);
   if (Number(open.rows[0].n) >= MAX_OPEN_INVITES) throw fail(429, 'This band has a lot of invitations waiting. Cancel some, or wait for them to be answered.');
+  const waiting = await pool.query('SELECT 1 FROM band_invites WHERE band_id = $1 AND email = $2', [bandId, to]);
+  if (!waiting.rows.length) {
+    const today = await pool.query(`SELECT COUNT(*) AS n FROM band_invites WHERE invited_by_account_id = $1 AND created_at > now() - interval '24 hours'`, [accountId]);
+    if (Number(today.rows[0].n) >= MAX_INVITES_A_DAY) throw fail(429, `You have invited ${MAX_INVITES_A_DAY} people in the last day - you can invite more tomorrow.`);
+  }
   await pool.query(
     `INSERT INTO band_invites (band_id, email, invited_by_account_id, role) VALUES ($1, $2, $3, $4)
      ON CONFLICT (band_id, email) DO UPDATE SET role = EXCLUDED.role`,
     [bandId, to, accountId, role]
   );
+  if (waiting.rows.length) return { emailed: false };
+  try {
+    const { rows } = await pool.query(
+      `SELECT g.name AS band_name, a.display_name, a.first_name, a.surname
+         FROM bands g, accounts a WHERE g.id = $1 AND a.id = $2`, [bandId, accountId]);
+    const from = accountDisplayName({ ...rows[0], email: null }) || 'A member';
+    const band = rows[0].band_name;
+    const { text, html } = emailBody(
+      ['Hi,', `${from} has invited you to join ${band} on The Music Ledger - the practice app the band uses for its music.`,
+        `To see the invitation, open the app and sign in with this email address (${to}). It will be waiting on My account, under My bands.`],
+      'Open The Music Ledger', `${String(origin).replace(/\/+$/, '')}/?band-invite=1`,
+      `The invitation waits for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email and nothing will happen.`);
+    await sendMail({ to, subject: `${from} has invited you to join ${band}`, text, html });
+    return { emailed: true };
+  } catch (error) {
+    console.error('Band invitation: the email was not sent:', error.message);
+    return { emailed: false, emailFailed: true };
+  }
 }
 
 export async function cancelBandInvite(accountId, bandId, inviteId) {

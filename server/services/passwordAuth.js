@@ -10,7 +10,7 @@ import crypto from 'node:crypto';
 import pool from '../config/db.js';
 import { signToken, verifyToken } from '../utils/authToken.js';
 import { hashPassword, verifyPassword, spendPasswordTime, passwordProblem } from './passwords.js';
-import { sendMail, mailIsReal } from './mail.js';
+import { sendMail, mailIsReal, emailBody } from './mail.js';
 import { isFeatureLive } from './features.js';
 import { deletedEmailHash, forgetTokenVersion, currentTokenVersion } from './tokenVersions.js';
 import { twoStepStatus, beginSetup, confirmSetup, verifyLoginCode } from './twoStep.js';
@@ -131,16 +131,7 @@ async function liveLink(client, secret, purpose, lock = false) {
   return rows[0] || null;
 }
 
-const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-function emailBody(lines, buttonText, url, footer) {
-  const text = `${lines.join('\n\n')}\n\n${buttonText}: ${url}\n\n${footer}`;
-  const html = `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.5;color:#222;max-width:520px">
-${lines.map(l => `<p>${esc(l)}</p>`).join('\n')}
-<p><a href="${esc(url)}" style="display:inline-block;background:#c9a227;color:#111;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:bold">${esc(buttonText)}</a></p>
-<p style="font-size:13px;color:#555">Or copy this link: ${esc(url)}</p>
-<p style="font-size:13px;color:#555">${esc(footer)}</p></div>`;
-  return { text, html };
-}
+// (the email layout is emailBody in mail.js)
 
 // ---- invites (super admin) ----
 export async function createInvite({ email, firstName, surname, accountLevel, createdBy, origin }) {
@@ -183,13 +174,25 @@ export async function listPendingInvites() {
 }
 
 // ---- invites from the main menu (ML-402): your own, and how many you've sent in the last day ----
+// The ones still waiting, and the ones whose link has run out without being used (`expired`) - kept on the
+// list so they can be seen and sent again, until the 30-day clear-up takes them (retention.js). A cancelled
+// or replaced invite is neither.
 export async function listMyInvites(accountId) {
   const { rows } = await pool.query(
-    `SELECT l.id, l.email, l.first_name, l.surname, l.account_level, l.created_at, l.expires_at
+    `SELECT l.id, l.email, l.first_name, l.surname, l.account_level, l.created_at, l.expires_at, (l.expires_at <= now()) AS expired
        FROM auth_email_links l
-      WHERE l.purpose = 'invite' AND l.used_at IS NULL AND l.expires_at > now() AND l.created_by_account_id = $1
+      WHERE l.purpose = 'invite' AND l.used_at IS NULL AND l.created_by_account_id = $1
       ORDER BY l.created_at DESC`, [accountId]);
-  return rows.map(r => ({ id: Number(r.id), email: r.email, firstName: r.first_name, surname: r.surname, accountLevel: r.account_level, createdAt: r.created_at, expiresAt: r.expires_at }));
+  return rows.map(r => ({ id: Number(r.id), email: r.email, firstName: r.first_name, surname: r.surname, accountLevel: r.account_level, createdAt: r.created_at, expiresAt: r.expires_at, expired: r.expired }));
+}
+// "Send again": a fresh link and a fresh email to the same person, with the same name and account type -
+// the old link stops working (newLink). Your own only. It counts as an invite sent today.
+export async function resendMyInvite(accountId, id, origin) {
+  const { rows } = await pool.query(
+    "SELECT email, first_name, surname, account_level FROM auth_email_links WHERE id = $1 AND purpose = 'invite' AND used_at IS NULL AND created_by_account_id = $2", [id, accountId]);
+  if (!rows.length) throw fail(404, 'Invite not found.');
+  const old = rows[0];
+  return createInvite({ email: old.email, firstName: old.first_name, surname: old.surname, accountLevel: old.account_level, createdBy: accountId, origin });
 }
 // Every invite sent counts, whether it's since been used, cancelled or replaced.
 export async function invitesSentToday(accountId) {
