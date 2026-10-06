@@ -75,10 +75,6 @@ export async function deleteMyAccount(accountId) {
     // The address itself, where it is held without a link to the account
     await client.query('DELETE FROM auth_email_links WHERE lower(email) = lower($1)', [email]);
     await client.query('DELETE FROM email_outbox WHERE lower(to_email) = lower($1)', [email]);
-    await client.query(
-      `UPDATE tutors SET display_name = 'Deleted account', first_name = 'Deleted', surname = 'account', email = $2, active = false WHERE lower(email) = lower($1)`,
-      [email, anonymisedEmail(accountId)]
-    );
 
     await client.query(
       `UPDATE accounts SET email = $2, first_name = 'Deleted', surname = 'account', display_name = NULL, avatar = NULL,

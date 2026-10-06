@@ -79,7 +79,7 @@ Open, with a ticket:
 
 | What | Ticket | Before others join? |
 |---|---|---|
-| Teachers are one list shared by every member: anyone can rename or delete a teacher for everyone, and everyone sees every teacher's name. | ML-472 | **Yes** |
+| Teachers are one list shared by every member: anyone can rename or delete a teacher for everyone, and everyone sees every teacher's name. | ML-472 | **Yes** - **fixed in the release after 0.46.0**: a teacher belongs to the member who typed it in (migration 107, `server/services/tutors.js`, `server/test/tutors.test.js`) |
 | A member's private "organisation" is listed to everyone as a band anyone can join; and joining any band gives edit rights on everything it has. | ML-473 | **Yes** |
 | The content security policy is report-only: the pages' inline handlers have to be moved out before it can be enforced. | ML-474 | Soon after |
 | The sign-in token carries Google's own access keys, and is put in the address after a Google sign-in. | ML-475 | Soon after |

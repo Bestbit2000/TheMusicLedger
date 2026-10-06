@@ -75,7 +75,7 @@ done by Claude, waiting on the owner to review, switch on or release. **Ticket**
 | 1 | No lawful reason stated for the last-seen date, the sign-up email and feedback | 1 | Ticket | ML-466 (policy wording). The reasoning is written: the legitimate interests assessment. |
 | 2 | The last-seen date went out without telling members in the app | 1 | Ticket | ML-463 (an important notice that pops up). Accepted for now: the owner is the only member. The release process now asks the question every time. |
 | 3 | The policy's date was out of date | 1 | **Closed** | Corrected 6 October 2026. |
-| 4 | People who are not members: an invitee, and a teacher a member names | 1 | Ticket | ML-467 (teachers stay a name only), ML-466 (say it in the policy). Invite records are now cleared after 30 days (ML-464). |
+| 4 | People who are not members: an invitee, and a teacher a member names | 1 | Ticket | ML-467 (teachers stay a name only - **built**: the unused first name, surname and email columns are gone, migration 107, and each member now has their own teachers, ML-472), ML-466 (say it in the policy). Invite records are now cleared after 30 days (ML-464). |
 | 5 | An email address can't be changed in the app | 4 | Ticket | ML-465 (decide how, for each way of signing in). |
 | 6 | Accounts nobody uses are kept for ever | 5 | **Built** | ML-464. To do: release it, try it on sandbox, switch it on in production once the app sends email from its own domain. |
 | 7 | Dead invites and old feedback are never cleared | 5 | **Built** | Part of ML-464. |

@@ -31,7 +31,7 @@ source: the security review's open findings (`docs/site-security-review.md`) and
 
 ### Do before anything else - a miss in 0.46.0
 
-0. **ML-477 - the security headers are missing from the pages on the live site.** They were added in
+0. **ML-477 - DONE on the branch (6 Oct), still to check on the live site with `curl -sI` after the release (release step 8).** The security headers are missing from the pages on the live site. They were added in
    Express, but Vercel serves the pages as static files that never pass through Express, so only the data
    answers (`/api/...`) carry them. Declare the same headers in `vercel.json`, add a test that keeps the
    two in step, check with `curl -sI` on sandbox and production. The owner chose to leave this for the next
@@ -39,7 +39,7 @@ source: the security review's open findings (`docs/site-security-review.md`) and
 
 ### Do first - these block inviting anyone else
 
-1. **ML-472 - teachers are one list shared by every member.** Anyone can rename or delete a teacher for
+1. **ML-472 and ML-467 - DONE on the branch (6 Oct): migration 107 is on dev only - sandbox and production need it before the code.** Teachers are one list shared by every member. Anyone can rename or delete a teacher for
    everyone, and all names go to all members. Give each member their own. Do **ML-467** (a teacher is a
    name only) in the same change - same table.
 2. **ML-473 - private organisations are listed as bands, and band joining is open.** Part 1 (a member's

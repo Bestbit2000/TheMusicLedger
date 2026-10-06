@@ -64,7 +64,7 @@ and `public/analytics.js`.
 | `auth_rate_events` / `email_outbox` | ML-355: login/forgot-password rate limiting; dev email (MAIL_PROVIDER=log) | kind, key, created_at / to_email, subject, body_text, body_html |
 | `bands` | An ensemble. Migration 073 added the directory details (all optional) and seeded 45 bands within ~15 miles of Woking and Guildford | id, name, website, contact_email, created_by_account_id, active, ensemble_type (Brass Band, Concert Band, Wind Band, Youth Brass Band, Youth Wind Band, Training Band, Brass Ensemble, Massed Band), town, county, rehearsal_postcode, section_level (Championship-Fourth, Non-contesting), parent_band_id (a youth/training/second band's main band - one level only), notes |
 | `band_members` | Standing membership | band_id, account_id, role |
-| `tutors` | Soft lookup, no login required | id, display_name, first_name, surname, email, active |
+| `tutors` | A teacher a member names for their lessons. **Each member's own** (ML-472, migration 107: it was one list shared by everyone) and **a name only** (ML-467: the teacher is not a member and is told nothing - assess before adding anything about them). One row per member per name; goes when the account does | id, account_id, display_name, active |
 | `tutor_account_links` | Connects a tutor lookup row to a real account, if the tutor has one | tutor_id, account_id, linked_at |
 | `progress_view_grants` | A student opting a tutor into seeing their progress | id, student_account_id, tutor_id, granted_at, revoked_at |
 

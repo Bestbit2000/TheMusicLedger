@@ -94,7 +94,7 @@ const LONDON_TZ = 'Europe/London';
 // practice sessions have no "who" at all.
 async function resolveWho(accountId, sessionType, who) {
   if (!who) return { bandId: null, tutorId: null };
-  if (sessionType === 'lesson') return { bandId: null, tutorId: await getOrCreateTutor(who) };
+  if (sessionType === 'lesson') return { bandId: null, tutorId: await getOrCreateTutor(accountId, who) };
   if (sessionType === 'rehearsal' || sessionType === 'performance') {
     return { bandId: await getOrCreateBand(accountId, who), tutorId: null };
   }
@@ -410,7 +410,7 @@ router.get('/dropdown-options', requireAuth, resolveAccount, async (req, res) =>
   try {
     const [organisations, teachers, durations, enabledFeatures, defaultDuration, practiceYear, limits] = await Promise.all([
       listBands(req.accountId),
-      listTutors(),
+      listTutors(req.accountId),
       listDurationOptions(),
       // ML-190: every enabled feature_key in one list, so the client can gate UI at app-load time
       // without a request per feature - see server/services/features.js.
@@ -645,7 +645,7 @@ router.delete('/timer/active', requireAuth, resolveAccount, async (req, res) => 
 router.post('/settings/organisations', requireAuth, resolveAccount, async (req, res) => {
   try {
     await getOrCreateBand(req.accountId, req.body.name);
-    const [organisations, teachers] = await Promise.all([listBands(req.accountId), listTutors()]);
+    const [organisations, teachers] = await Promise.all([listBands(req.accountId), listTutors(req.accountId)]);
     res.json({ organisations, teachers });
   } catch (error) {
     sendError(res, error);
@@ -654,8 +654,8 @@ router.post('/settings/organisations', requireAuth, resolveAccount, async (req, 
 
 router.post('/settings/teachers', requireAuth, resolveAccount, async (req, res) => {
   try {
-    await getOrCreateTutor(req.body.name);
-    const [organisations, teachers] = await Promise.all([listBands(req.accountId), listTutors()]);
+    await getOrCreateTutor(req.accountId, req.body.name);
+    const [organisations, teachers] = await Promise.all([listBands(req.accountId), listTutors(req.accountId)]);
     res.json({ organisations, teachers });
   } catch (error) {
     sendError(res, error);
@@ -675,7 +675,7 @@ router.put('/settings/organisations', requireAuth, resolveAccount, async (req, r
 router.put('/settings/teachers', requireAuth, resolveAccount, async (req, res) => {
   try {
     const { oldName, newName } = req.body;
-    await renameTutor(oldName, newName);
+    await renameTutor(req.accountId, oldName, newName);
     res.json({ message: 'Teacher renamed' });
   } catch (error) {
     sendError(res, error);
@@ -687,13 +687,13 @@ router.put('/settings/teachers', requireAuth, resolveAccount, async (req, res) =
 // dropdown-options stays cheap for the common app-load path by not doing this.
 router.get('/settings/lists-with-usage', requireAuth, resolveAccount, async (req, res) => {
   try {
-    const [organisations, teachers] = await Promise.all([listBands(req.accountId), listTutors()]);
+    const [organisations, teachers] = await Promise.all([listBands(req.accountId), listTutors(req.accountId)]);
 
     const organisationsWithUsage = await Promise.all(
       organisations.map(async o => ({ ...o, usedInHistory: await isBandUsedInHistory(req.accountId, o.name) }))
     );
     const teachersWithUsage = await Promise.all(
-      teachers.map(async t => ({ ...t, usedInHistory: await isTutorUsedInHistory(t.name) }))
+      teachers.map(async t => ({ ...t, usedInHistory: await isTutorUsedInHistory(req.accountId, t.name) }))
     );
 
     res.json({ organisations: organisationsWithUsage, teachers: teachersWithUsage });
@@ -718,7 +718,7 @@ router.delete('/settings/organisations/:name', requireAuth, resolveAccount, asyn
 router.delete('/settings/teachers/:name', requireAuth, resolveAccount, async (req, res) => {
   try {
     const name = decodeURIComponent(req.params.name);
-    const archived = await archiveOrDeleteTutor(name);
+    const archived = await archiveOrDeleteTutor(req.accountId, name);
     res.json({
       message: archived ? 'Teacher archived (still used in history)' : 'Teacher deleted',
       archived
@@ -739,7 +739,7 @@ router.post('/settings/organisations/:name/unarchive', requireAuth, resolveAccou
 
 router.post('/settings/teachers/:name/unarchive', requireAuth, resolveAccount, async (req, res) => {
   try {
-    await unarchiveTutor(decodeURIComponent(req.params.name));
+    await unarchiveTutor(req.accountId, decodeURIComponent(req.params.name));
     res.json({ message: 'Teacher unarchived' });
   } catch (error) {
     sendError(res, error);
