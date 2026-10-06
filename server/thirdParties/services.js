@@ -26,7 +26,7 @@ export default [
     ],
     termsCheckedOn: CHECKED,
     attention: [
-      'No data processing agreement has been confirmed for the Free plan. Neon's compliance page says it follows GDPR by self-declaration, and its agreements appear to come with the Scale plan (the owner's reading, 6 October 2026; not confirmed by Neon). A self-declaration is not a contract: UK data law expects one with whoever holds the database. Ask Neon (privacy@databricks.com) whether its data processing addendum covers Free, and if not, which plan it starts on.'
+      'No data processing agreement has been confirmed for the Free plan. Neon\'s compliance page says it follows GDPR by self-declaration, and its agreements appear to come with the Scale plan (the owner\'s reading, 6 October 2026; not confirmed by Neon). A self-declaration is not a contract: UK data law expects one with whoever holds the database. Ask Neon (privacy@databricks.com) whether its data processing addendum covers Free, and if not, which plan it starts on.'
     ],
     says: [
       'Free services come as they are, with no warranty.',
