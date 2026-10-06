@@ -24,7 +24,7 @@ same pieces. It is a careful review by Claude, not a penetration test by a speci
 | Every route still has its guard | Reads the route files: every admin route needs `requireSuperAdmin`; every app route needs a signed-in account, apart from the exceptions listed in `OPEN_ROUTES` with their reason. **The same check runs in the unit tests, so a release with an unguarded route fails before it goes out.** |
 | What the live site says to someone not signed in | Asks this site for a member's data, admin data and the daily job with no sign-in and with a made-up one; each must be refused. Checks the test logins are shut (on the live site). |
 | Administrators' sign-in | No super admin can sign in with a password alone. |
-| Security headers | Fetches the front page and checks its headers. |
+| Security headers | Fetches the front page and checks its headers. On the live site the pages are static files that Vercel serves without Express, so the headers are declared twice: in the middleware (data answers) and in `vercel.json` (pages). `npm run sync-vercel-headers` copies the one list across and a unit test fails if they differ (ML-477). |
 | Installed packages (OSV) | The packages the app depends on directly, at the versions installed in this deployment, against known advisories. |
 | This deployment's settings | Secrets set and long enough, test logins off, the app knows its own address - no value is ever shown. |
 
@@ -72,7 +72,7 @@ Found and fixed:
 | Adding a band made the server fetch whatever address was typed, follow any redirect and report the status code: a way to probe this machine or a private network. | Medium | Only public internet addresses are fetched, each redirect is checked, and only "it answered / it didn't" comes back (`publicUrl.js`). |
 | A band's name, a challenge's name and a teacher's or organisation's name were put on the page unescaped. | Medium (band names are seen by other members) | Escaped. |
 | Deleting a challenge reported the item count of any challenge id. | Low | The count is the caller's own. |
-| No security headers beyond HTTPS-only. | Medium | `nosniff`, no framing, a referrer policy, a permissions policy; a content security policy in report-only mode. |
+| No security headers beyond HTTPS-only. | Medium | `nosniff`, no framing, a referrer policy, a permissions policy; a content security policy in report-only mode. **In 0.46.0 these only reached the data answers (`/api/...`), not the pages - found with `curl -sI` straight after the release and put right in the next one (ML-477).** |
 | The test login relied on `NODE_ENV`, which was once set wrongly on production. | Low | It also refuses whenever Vercel says the site is production. |
 
 Open, with a ticket:

@@ -173,6 +173,12 @@ regenerate the token reference if tokens changed. The Design page is how the own
 7. Check that the two are identical: `git fetch origin && git rev-parse origin/main origin/sandbox`
    must print the same hash twice. If only `main` went out, run
    `git push origin main:sandbox` to bring sandbox back in line.
+8. Check a page on the live site still carries the security headers (ML-477). The pages are static files
+   that Vercel serves without Express, so only the deployed site shows this - the local server can't:
+   ```bash
+   curl -sI https://the-music-ledger.vercel.app/ | grep -iE "x-content-type|x-frame|referrer|permissions|content-security"
+   ```
+   Five lines should come back, each once (the same for `/app.js` and for `/api/account`).
 
 ## Sandbox = production parity
 

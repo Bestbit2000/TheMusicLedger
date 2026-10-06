@@ -20,6 +20,7 @@
     "a11y-audit": "node scripts/a11y-audit.mjs",
     "a11y-scan": "playwright test --config playwright.a11y.config.ts",
     "third-party-audit": "node scripts/third-party-audit.mjs",
+    "sync-vercel-headers": "node scripts/sync-vercel-headers.mjs",
     "third-party-licences": "node scripts/third-party-licences.mjs"
   },
   "engines": {

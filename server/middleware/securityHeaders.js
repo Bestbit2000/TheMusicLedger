@@ -13,6 +13,12 @@
 //   policy starts to protect against injected script properly. Enforce it (CSP_ENFORCE=true) only
 //   after the sandbox console has been clean for a release.
 // Strict-Transport-Security is added by Vercel itself.
+//
+// ML-477: on Vercel the pages (public/) are static files that never pass through Express, so this
+// middleware only reaches the data answers there. vercel.json's "headers" carries the same list for the
+// pages. After changing anything here run `npm run sync-vercel-headers` (server/test/vercelHeaders.test.js
+// fails until you do), and after the release check a page with `curl -sI` - the local server serves the
+// pages through Express, so a local test can't show this.
 
 // Every outside address a page talks to. Keep in step with server/thirdParties/register.js: an
 // address that is in use but missing here is what the report-only policy will complain about.
