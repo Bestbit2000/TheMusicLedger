@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.45.0",
+    "date": "2026-10-06",
+    "changes": [
+      {
+        "key": "ML-443",
+        "type": "New",
+        "summary": "Business case section"
+      }
+    ]
+  },
+  {
     "version": "0.44.0",
     "date": "2026-10-05",
     "changes": [
