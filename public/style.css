@@ -2705,6 +2705,18 @@
     .session-bar { width: 100%; max-width: var(--app-max-width); box-sizing: border-box; display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-5); min-height: var(--touch-target); background: var(--container-bg); color: var(--text-color); border: none; border-bottom: 2px solid var(--primary-action-strong); font: inherit; text-align: left; cursor: pointer; }
     .session-bar-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); font-size: var(--font-sm); font-weight: var(--font-weight-semibold); }
     .session-bar-row strong { font-variant-numeric: tabular-nums; }
+    /* ML-220: the offline bar - under the top bar on every screen while there is no connection, or while
+       things logged offline are still waiting to be sent. Amber, like other "take note" states; the icon
+       and the words carry the meaning, not the colour. The list of what is waiting (.offline-item) is in
+       its pop-up. specs/components/offline-status.md */
+    .offline-bar { width: 100%; max-width: var(--app-max-width); box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-5); min-height: var(--touch-target); background: var(--status-amber-bg); color: var(--status-amber-fg); font-size: var(--font-sm); font-weight: var(--font-weight-semibold); }
+    .offline-bar-text { flex: 1; min-width: 0; }
+    .offline-bar-btn { flex-shrink: 0; min-height: var(--touch-target); padding: 0 var(--space-3); background: none; border: 1px solid var(--status-amber-fg); border-radius: var(--radius-sm); color: var(--status-amber-fg); font-family: var(--font-sans); font-size: var(--font-sm); font-weight: var(--font-weight-bold); cursor: pointer; }
+    .offline-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--input-border); text-align: left; }
+    .offline-item-text { flex: 1; min-width: 0; display: grid; gap: var(--space-0-5); }
+    .offline-item-text span { font-size: var(--font-sm); color: var(--label-color); }
+    .offline-item.is-failed .offline-item-text span { color: var(--danger-text); }
+    .offline-item button { width: auto; flex-shrink: 0; } /* Remove sits beside the words, it does not take the row */
     /* The piece coming next, so its music can be got ready (owner, 1 Oct 2026) - one line, cut short with ... */
     .session-bar-next { font-size: var(--font-xs); color: var(--label-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .session-strip { display: flex; gap: var(--space-0-5); height: var(--space-2); }

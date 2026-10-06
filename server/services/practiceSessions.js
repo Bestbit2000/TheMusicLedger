@@ -1,6 +1,7 @@
 // ML-320 (epic ML-314): the practice session builder. The planner and runner are in the browser
 // (app.js); the server gives the Rehearsal blocks their chunks and logs a finished session as one
 // `sessions` row plus its `session_segments` (db/migrations/062_practice_sessions.sql).
+import { believableTime } from './clientWrites.js';
 import pool from '../config/db.js';
 import { withStatus } from './flows.js';
 import { resolveSessionInstrument } from './instruments.js';
@@ -30,7 +31,8 @@ export async function listPracticeChunks(accountId) {
 
 // A finished (or stopped early) session: minutes actually spent, and each block that was started.
 // segments: [{ kind, plannedMinutes, actualSeconds, scoreId?, chunkId?, tool? }]
-export async function savePracticeSession(accountId, { minutes, segments, instrumentId } = {}) {
+export async function savePracticeSession(accountId, { minutes, segments, instrumentId, endedAt } = {}) {
+  const ended = believableTime(endedAt); // ML-220: when it really ended, if it was logged offline and sent later
   const total = Math.round(Number(minutes));
   if (!(total >= 1 && total <= 600)) throw withStatus(400, 'minutes must be 1-600.');
   if (!Array.isArray(segments) || !segments.length || segments.length > 48) throw withStatus(400, 'A session needs 1-48 blocks.');
@@ -56,8 +58,8 @@ export async function savePracticeSession(accountId, { minutes, segments, instru
       : new Set();
     const { rows } = await client.query(
       `INSERT INTO sessions (session_type, account_id, started_at, total_duration_minutes, instrument_id)
-       VALUES ('practice', $1, now() - make_interval(mins => $2), $2, $3) RETURNING id`,
-      [accountId, total, instrument]
+       VALUES ('practice', $1, COALESCE($4::timestamptz, now()) - make_interval(mins => $2), $2, $3) RETURNING id`,
+      [accountId, total, instrument, ended]
     );
     const sessionId = Number(rows[0].id);
     for (const s of segs) {

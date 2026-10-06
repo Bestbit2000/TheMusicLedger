@@ -30,6 +30,8 @@ only spared if it is named in `KEPT`. A new table with an account column is ther
 anyone remembering to list it - add it to `KEPT` (and to the privacy policy) only if its rows are meant to
 survive as statistics, and check it holds nothing that says who the member was.
 
+On the device, deleting the account also wipes the copy kept for offline use and anything still waiting to sync (ML-220, `docs/offline.md`); the ids in `client_writes` go with the account like any other unlisted table.
+
 A super admin account can't be deleted by the button (it owns the public library): change its type first.
 
 ## Signed out everywhere, and signing up again

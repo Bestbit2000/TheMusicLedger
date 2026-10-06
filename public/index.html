@@ -198,6 +198,14 @@
         </div>
     </div>
 
+    <!-- ML-220: no connection, or things logged offline still waiting to be sent. Sits under the top bar
+         on every screen; hidden when online with nothing waiting. specs/components/offline-status.md -->
+    <div class="offline-bar hidden-group" id="offlineBar" role="status" aria-live="polite">
+        <span class="material-symbols-outlined" id="offlineBarIcon" aria-hidden="true">cloud_off</span>
+        <span class="offline-bar-text" id="offlineBarText"></span>
+        <button type="button" class="offline-bar-btn hidden-group" id="offlineBarBtn" data-does="list">See them</button>
+    </div>
+
     <!-- ML-320: while a practice session runs, this bar sits under the top bar on every screen - the
          block, what's left of it, and the session's blocks. Tap it for the session screen. -->
     <button type="button" class="session-bar hidden-group" id="sessionBar" aria-label="Practice session - open">
@@ -4234,6 +4242,16 @@
      db/migrations/045_feedback.sql); anything standing between noticing a problem and writing it
      down is a reason not to bother. The current screen, device and app version are attached
      silently on submit, which is what lets a note written in five seconds still make sense later. -->
+<!-- ML-220: what was logged offline and is still waiting to be sent -->
+<div class="modal" id="offlineModal" role="dialog" aria-modal="true" aria-labelledby="offlineModalTitle">
+    <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="offlineModalTitle">Waiting to sync</h2>
+        <p class="text-muted modal-intro" id="offlineModalIntro"></p>
+        <div class="mb-6" id="offlineList"></div>
+        <button class="btn-submit no-margin" id="offlineSyncBtn" type="button">Sync now</button>
+    </div>
+</div>
+
 <div class="modal" id="feedbackModal" role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
     <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
         <h2 id="feedbackModalTitle">Send feedback</h2>
@@ -4308,6 +4326,7 @@
 <script src="warmups.js"></script>
 <script src="drills.js"></script>
 <script src="rhythm.js"></script>
+<script src="offline.js"></script>
 <script src="app.js"></script>
 <script src="a11y.js"></script>
 

@@ -2,6 +2,7 @@ import { verifyToken } from '../utils/authToken.js';
 import { getOrCreateAccount, isSuperAdmin, getAccountLevel, touchLastSeen } from '../services/accounts.js';
 import { featureContext, ACCOUNT_TYPE_KEYS } from '../services/features.js';
 import { tokenIsCurrent } from '../services/tokenVersions.js';
+import { isWriteId, claimWrite, releaseWrite } from '../services/clientWrites.js';
 
 // ML-355: a token signed before the account's last password reset is refused ("signed out everywhere").
 // A database error answers 500, not 401 - a 401 logs the app out (ML-48), which a blip mustn't do.
@@ -97,6 +98,19 @@ export async function resolveAccount(req, res, next) {
   req.realAccountLevel = level;
   const preview = req.headers['x-preview-level'];
   req.accountLevel = level === 'super_admin' && ACCOUNT_TYPE_KEYS.includes(preview) ? preview : level;
+  // ML-220: something logged offline and sent later carries its own id. The second time the same id
+  // arrives (the app didn't hear the first answer) it is not done again. A write that fails gives its
+  // id back, so the next try goes through.
+  const writeId = req.get('x-client-write-id');
+  if (req.method !== 'GET' && isWriteId(writeId)) {
+    try {
+      if (!(await claimWrite(req.accountId, writeId))) return res.json({ alreadySaved: true });
+      res.on('finish', () => { if (res.statusCode >= 400) releaseWrite(req.accountId, writeId).catch((error) => console.error('Client write not released:', error.message)); });
+    } catch (error) {
+      console.error('Client write check failed:', error.message);
+      return res.status(500).json({ error: 'Failed to check the request' });
+    }
+  }
   featureContext.run({ accountLevel: req.accountLevel }, next);
 }
 

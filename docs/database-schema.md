@@ -606,6 +606,7 @@ and neither is wired to any endpoint yet.
 | `business_plans` | The owner's plan of what each way of rolling the app out costs and could earn (Admin → Business case) | id, name, plan (JSONB - the whole plan), created_at, updated_at |
 | `business_actuals` | Actual v forecast (ML-443): one row a month - what happened beside what the business case forecast | id, month (unique, the first of the month), members, paid_gbp, forecast_members, forecast_out_gbp, forecast_in_gbp, forecast_scenario (written once, never changed), created_at, updated_at | No account column. See `docs/business-case.md`. |
 | `third_party_records` | What the owner records about a third party on the site (ML-462) | party_key (PK, a key in the register file), reference, note, attention_done (JSONB: the "needs attention" items dealt with, each with its date), updated_at | No account column. The reference can be private: super admins only. |
+| `client_writes` | Working offline (ML-220): the id of each write the app queued offline, so a second arrival is not done again | account_id, write_id (UUID, made on the device), created_at; PK (account_id, write_id) | Cleared after 60 days. See `docs/offline.md`. |
 
 - **One document, not tables.** It is one person's working model, read and saved whole and reshaped as the
   owner changes how the app is run; `public/businessCase.js` tidies and checks it on every save.

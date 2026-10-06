@@ -89,13 +89,19 @@
             this.isAuthenticated = true;
         }
 
-        logout() {
+        // ML-220: signing out also wipes the copy of the member's data kept on this device for offline
+        // use. keepWaiting: a sign-out the member didn't choose (an expired sign-in) keeps what they
+        // logged offline, to be sent when they sign back in.
+        logout({ keepWaiting = false } = {}) {
             localStorage.removeItem('authToken');
             localStorage.removeItem('userId');
+            localStorage.removeItem('tml.offlineCopyOn'); // ML-220: the copy for offline use goes too
             this.token = null;
             this.userId = null;
             this.isAuthenticated = false;
-            window.location.href = window.location.pathname;
+            const leave = () => { window.location.href = window.location.pathname; };
+            const wiped = window.Offline ? window.Offline.wipe({ outbox: !keepWaiting }) : Promise.resolve();
+            Promise.race([wiped, new Promise((r) => setTimeout(r, 1500))]).then(leave, leave);
         }
 
         getAuthHeader() {
@@ -164,7 +170,16 @@
             options.body = JSON.stringify(body);
         }
 
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+        // ML-220: no connection (fetch itself fails - a refusal from the server is a response, handled
+        // below). A read is answered from the copy kept on this device; a write that only logs something
+        // waits in the outbox; anything else says it needs a connection. See public/offline.js.
+        let response;
+        try {
+            response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+        } catch (networkError) {
+            return offlineAnswer(endpoint, method, body);
+        }
+        if (offlineNow) backOnline();
 
         const refreshedToken = response.headers.get('X-Refreshed-Token');
         if (refreshedToken) {
@@ -178,7 +193,148 @@
             throw err;
         }
 
-        return await response.json();
+        const json = await response.json();
+        // Kept for next time there is no connection - not while previewing as another account type,
+        // whose answers aren't this member's own.
+        if (method === 'GET' && !previewLevel) window.Offline?.remember(endpoint, json);
+        return json;
+    }
+
+    // ---- ML-220: offline. The rules and the store are public/offline.js; this is the part that needs
+    // the app (who is signed in, the toasts, the bar under the top bar). docs/offline.md.
+    let offlineNow = typeof navigator !== 'undefined' && navigator.onLine === false;
+    let offlineSyncing = false;
+    const offlineError = (message) => Object.assign(new Error(message), { offline: true, status: 0 });
+    async function offlineAnswer(endpoint, method, body) {
+        if (!offlineNow) { offlineNow = true; renderOfflineBar(); }
+        const O = window.Offline;
+        if (!O) throw offlineError('You are offline.');
+        if (method === 'GET') {
+            const kept = await O.recall(endpoint);
+            if (kept) return kept.json;
+            throw offlineError(O.NOT_ON_DEVICE);
+        }
+        const what = O.classify(method, endpoint, body);
+        if (what.kind === 'quiet') return { offline: true };
+        if (what.kind === 'queue') {
+            const item = await O.enqueue({ endpoint, method, body, label: what.label });
+            if (item) { renderOfflineBar(); return { queued: true, message: O.QUEUED_MESSAGE }; }
+        }
+        throw offlineError(O.NEEDS_CONNECTION);
+    }
+    function backOnline() {
+        offlineNow = false;
+        renderOfflineBar();
+        syncOffline();
+    }
+    async function renderOfflineBar() {
+        const bar = document.getElementById('offlineBar');
+        if (!bar || !window.Offline) return;
+        const items = auth.isAuthenticated ? await window.Offline.waiting() : [];
+        const failed = items.filter(i => i.failed).length;
+        const st = window.Offline.status({ offline: offlineNow, waiting: items.length - failed, failed });
+        setShown(bar, st.show);
+        document.getElementById('offlineBarText').textContent = st.text;
+        document.getElementById('offlineBarIcon').textContent = offlineNow ? 'cloud_off' : failed && failed === items.length ? 'sync_problem' : 'cloud_sync';
+        const btn = document.getElementById('offlineBarBtn');
+        setShown(btn, !!st.button);
+        btn.textContent = st.button;
+        btn.dataset.does = st.button === 'Sync now' ? 'sync' : 'list';
+        if (isShownModal('offlineModal')) renderOfflineList(items);
+    }
+    const isShownModal = (id) => document.getElementById(id)?.classList.contains('show');
+    function renderOfflineList(items) {
+        const when = (iso) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        document.getElementById('offlineList').innerHTML = items.length
+            ? items.map(i => `<div class="offline-item${i.failed ? ' is-failed' : ''}"><div class="offline-item-text"><strong>${escapeHtml(i.label)}</strong><span>${escapeHtml(when(i.at))}${i.failed ? ` · not synced: ${escapeHtml(i.failed)}` : ''}</span></div>${i.failed ? `<button type="button" class="btn-nav no-margin" data-offline-remove="${escapeHtml(i.id)}">Remove</button>` : ''}</div>`).join('')
+            : '<p class="text-muted">Nothing is waiting. Everything is synced.</p>';
+        document.getElementById('offlineModalIntro').textContent = offlineNow
+            ? 'These are kept on this device. They send themselves when you are back online.'
+            : 'These are kept on this device until they are sent.';
+        document.getElementById('offlineSyncBtn').disabled = offlineNow || offlineSyncing || !items.some(i => !i.failed);
+    }
+    async function openOfflineList() {
+        renderOfflineList(await window.Offline.waiting());
+        showModal('offlineModal');
+    }
+    // Send what is waiting, oldest first. Straight to the server, not through apiCall: a failure here
+    // must leave the item where it is, not queue it a second time.
+    async function syncOffline(say) {
+        const O = window.Offline;
+        if (!O || offlineSyncing || !auth.isAuthenticated) return;
+        const items = await O.waiting();
+        if (!items.some(i => !i.failed)) { if (say) showSuccessToast('Nothing is waiting to sync.'); return; }
+        offlineSyncing = true;
+        const result = await O.runSync(items, async (item) => {
+            let res;
+            try {
+                res = await fetch(`${API_BASE_URL}${item.endpoint}`, {
+                    method: item.method,
+                    headers: { 'Content-Type': 'application/json', ...auth.getAuthHeader(), 'X-Client-Write-Id': item.id, 'X-Client-Write-At': item.at },
+                    ...(item.body ? { body: JSON.stringify(item.body) } : {})
+                });
+            } catch (e) { return 'stop'; }
+            const refreshed = res.headers.get('X-Refreshed-Token');
+            if (refreshed) auth.updateToken(refreshed);
+            if (res.ok) return 'sent';
+            if (res.status === 401 || res.status === 429 || res.status >= 500) return 'stop'; // signed out, or the server is busy: try again later
+            const why = await res.json().catch(() => ({}));
+            return { failed: why.error || `the server refused it (${res.status})` };
+        });
+        for (const id of result.sent) await O.remove(id);
+        for (const f of result.failed) await O.markFailed(f.id, f.why);
+        offlineSyncing = false;
+        if (result.stopped && !result.sent.length && !offlineNow && navigator.onLine === false) offlineNow = true;
+        await renderOfflineBar();
+        if (result.sent.length) {
+            showSuccessToast(`${result.sent.length} thing${result.sent.length === 1 ? '' : 's'} synced.`);
+            fetchDataAndRender().catch(() => {}); // stats and history pick up what was just sent
+        } else if (say) {
+            showWarningToast(result.failed.length ? 'Some things could not be synced. See why in the list.' : 'Still no connection. They will sync when you are back online.');
+        }
+    }
+    // Once a day, with a connection and the app settled: read the things the offline tools need, so they
+    // are on the device before the connection goes - the lists the tools open with, and every piece
+    // (its details, bars and Levels), not only the ones opened lately. Each read goes through apiCall,
+    // which keeps the answer. One at a time with a pause, so it never crowds out what the member is doing.
+    const OFFLINE_COPY_KEY = 'tml.offlineCopyOn';
+    const OFFLINE_COPY_READS = ['/api/flows', '/api/warmups', '/api/practice/lists', '/api/practice/chunks', '/api/practice/templates', '/api/practice/skills',
+        '/api/practice/warmup-lists', '/api/range', '/api/rhythm', '/api/theory/summary', '/api/theory/levels', '/api/theory/weights', '/api/instruments',
+        '/api/account/bands', '/api/account/instruments', '/api/metronome/playback-speeds', '/api/metronome/history', '/api/practice/rest-message'];
+    const OFFLINE_COPY_MAX_PIECES = 100;
+    async function keepOfflineCopy() {
+        const today = new Date().toISOString().slice(0, 10);
+        try { if (localStorage.getItem(OFFLINE_COPY_KEY) === today) return; } catch (e) { return; }
+        if (!window.Offline || offlineNow || previewLevel || !auth.isAuthenticated) return;
+        const pause = () => new Promise(r => setTimeout(r, 200));
+        const read = async (endpoint) => { try { return await apiCall(endpoint); } catch (e) { return null; } finally { await pause(); } }; // a feature that is off answers no: fine
+        let pieces = [];
+        for (const endpoint of OFFLINE_COPY_READS) {
+            if (offlineNow) return; // the connection went: try again next time
+            const got = await read(endpoint);
+            if (endpoint === '/api/flows' && got) pieces = (Array.isArray(got) ? got : got.flows || []).slice(0, OFFLINE_COPY_MAX_PIECES);
+        }
+        for (const p of pieces) {
+            if (offlineNow) return;
+            await read(`/api/flows/${p.id}`);
+            await read(`/api/flows/${p.id}/blocks`);
+            await read(`/api/flows/${p.id}/levels`);
+        }
+        try { localStorage.setItem(OFFLINE_COPY_KEY, today); } catch (e) { /* it will just run again */ }
+    }
+
+    function initOffline() {
+        window.addEventListener('online', () => { offlineNow = false; renderOfflineBar(); syncOffline(); });
+        window.addEventListener('offline', () => { offlineNow = true; renderOfflineBar(); });
+        document.getElementById('offlineBarBtn')?.addEventListener('click', (e) => { if (e.currentTarget.dataset.does === 'sync') syncOffline(true); else openOfflineList(); });
+        document.getElementById('offlineSyncBtn')?.addEventListener('click', () => syncOffline(true));
+        document.getElementById('offlineList')?.addEventListener('click', async (e) => {
+            const btn = e.target.closest('[data-offline-remove]');
+            if (!btn) return;
+            await window.Offline.remove(btn.dataset.offlineRemove);
+            renderOfflineBar();
+        });
+        setInterval(() => { if (!offlineNow && document.visibilityState === 'visible') syncOffline(); }, 60000); // a retry, in case the first try met a busy server
     }
 
     // API endpoint wrappers
@@ -904,6 +1060,11 @@
         // startup sequence below - see the comment in apiCall.
         const startupToken = auth.token;
 
+        // ML-220: the copy kept on this device belongs to one member - a different one signing in wipes it
+        if (window.Offline) await window.Offline.start(auth.userId);
+        initOffline();
+        renderOfflineBar();
+
         // ML-161: fire this now, unawaited, so it runs in the background alongside the startup
         // fetches below - by the time the user actually navigates to the Metronome page, this has
         // almost always already resolved, so its first render no longer has to wait on it (see the
@@ -947,9 +1108,16 @@
             } catch (timerError) {
                 console.warn('Failed to restore active timer:', timerError.message);
             }
+            syncOffline(); // ML-220: send anything logged offline last time
+            setTimeout(keepOfflineCopy, 8000); // ...and, once a day, read what the offline tools need
         } catch (error) {
             console.warn('Failed to initialize app:', error.message);
             displayLoginScreen();
+            // ML-220: no connection and nothing kept on this device yet is not "signed out"
+            if (error.offline) {
+                const statusText = document.getElementById('loginStatusText');
+                if (statusText) statusText.textContent = 'You are offline, and this device has no saved copy of your practice yet. Connect once and it will work offline after that.';
+            }
         }
     }
 
@@ -1213,8 +1381,11 @@
         }
     });
 
-    window.logoutUser = function() {
-        showConfirmModal('Log out', 'Are you sure you want to log out?', () => auth.logout(), false);
+    window.logoutUser = async function() {
+        // ML-220: what was logged offline and hasn't been sent is kept on this device only - say so
+        const waiting = window.Offline ? (await window.Offline.waiting()).length : 0;
+        const lost = waiting ? ` ${waiting} thing${waiting === 1 ? ' you logged offline has' : 's you logged offline have'} not synced yet and will be lost.` : '';
+        showConfirmModal('Log out', `Are you sure you want to log out?${lost}`, () => auth.logout(), !!waiting);
     }
 
     async function loadAppData(token) {
@@ -1389,8 +1560,9 @@
             if (err.status === 401) {
                 // A real auth failure (expired/invalid token) - the stored
                 // token is no good, so actually log out rather than leave a
-                // dead token in place for next time.
-                auth.logout();
+                // dead token in place for next time. (ML-220: not their choice, so
+                // what they logged offline is kept for when they sign back in.)
+                auth.logout({ keepWaiting: true });
                 return;
             }
             // Any other failure (e.g. a Sheets-backed 500) isn't an auth
@@ -7015,7 +7187,10 @@
         document.getElementById('flowSessionFinishBtn').setAttribute('aria-expanded', 'false');
         if (s.chunk.id) {
             try {
-                applyPieceLevels(await API.levels.setChunk(s.chunk.id, { level, source: 'rating', percentPlayed: s.percents[s.level - 1] }));
+                const out = await API.levels.setChunk(s.chunk.id, { level, source: 'rating', percentPlayed: s.percents[s.level - 1] });
+                // ML-220: offline, the Level waits to sync - show it on the bars already on the screen
+                if (out.queued) { const mine = [...levels.chunks, ...levels.groups].find(c => c.id === s.chunk.id); if (mine) mine.level = level; }
+                else applyPieceLevels(out);
                 showSuccessToast(level > s.level ? `Up to Level ${level}` : level < s.level ? `Back to Level ${level}` : `Staying at Level ${level}`);
             } catch (e) {
                 showWarningToast('Not saved: ' + e.message);
@@ -8076,7 +8251,7 @@
         if (!played.length) { document.getElementById('sessRunDoneText').textContent = 'Nothing was played, so nothing was saved.'; return; }
         try {
             await API.practice.saveSession({
-                minutes,
+                minutes, endedAt: new Date().toISOString(),
                 segments: played.map(b => ({ kind: b.kind, plannedMinutes: b.minutes, actualSeconds: b.seconds, chunkId: b.chunk ? b.chunk.id : null, tool: b.kind === 'skills' ? (b.skill ? (SKILLS[b.skill.key] || {}).tool || null : b.tool) : null }))
             });
             document.getElementById('sessRunDoneText').textContent = `${minutes} minute${minutes === 1 ? '' : 's'}, ${played.length} block${played.length === 1 ? '' : 's'} - saved to your practice history.`;
@@ -8769,6 +8944,7 @@
     async function recordSkillStep(s, passed, grade) {
         try {
             const out = await API.skills.result({ key: s.key, stepIndex: s.stepIndex, passed, grade, stepCount: s.steps.length });
+            if (out.queued) { showSuccessToast(out.message); return (skillsData || []).find(x => x.key === s.key) || null; } // ML-220
             applySkillsResponse({ skills: out.skills });
             const now = skillsData.find(x => x.key === s.key);
             if (passed) showSuccessToast(now && now.done ? `${s.def.label}: all steps done` : `${s.def.label}: on to ${now && now.step ? now.step.label : 'the next step'}`);
@@ -8844,7 +9020,7 @@
             if (!played.length) return;
             const minutes = Math.max(1, Math.round(played.reduce((s, b) => s + b.seconds, 0) / 60));
             try {
-                await API.practice.saveSession({ minutes, segments: played.map(b => ({ kind: b.kind, plannedMinutes: b.minutes, actualSeconds: b.seconds, chunkId: b.chunk ? b.chunk.id : null, tool: b.kind === 'skills' ? (b.skill ? b.skill.def && b.skill.def.tool || SKILLS[b.skill.key]?.tool : b.tool) : null })) });
+                await API.practice.saveSession({ minutes, endedAt: new Date().toISOString(), segments: played.map(b => ({ kind: b.kind, plannedMinutes: b.minutes, actualSeconds: b.seconds, chunkId: b.chunk ? b.chunk.id : null, tool: b.kind === 'skills' ? (b.skill ? b.skill.def && b.skill.def.tool || SKILLS[b.skill.key]?.tool : b.tool) : null })) });
                 showSuccessToast(`Your unfinished practice session was saved (${minutes} minutes).`);
                 fetchDataAndRender();
             } catch (e) { /* nothing to save it to */ }
@@ -18741,10 +18917,12 @@
         switchView('theoryResultsView');
         renderTheoryResults();
         try {
-            theoryLastResult.saved = await API.theory.save({
+            const out = await API.theory.save({
                 quizId: r.quizId, roundType: r.roundId, repeats: r.repeats, options: r.options, naming: r.naming,
                 blockMs: r.blockMs, startedAt: r.startedAt, answers: r.answers
             });
+            // ML-220: offline, the round waits on this device - the result shows, the Level comes after the sync
+            if (out.queued) showSuccessToast(out.message); else theoryLastResult.saved = out;
         } catch (e) {
             showWarningToast("Couldn't save this round. Your result is below, but it won't be in your history.");
         }
@@ -20149,6 +20327,7 @@
     async function saveDrill(tool, level, startedAt, t0, details) {
         try {
             const saved = await API.drills.save(tool, { level, startedAt, durationMs: Math.round(drillNow() - t0), details });
+            if (saved && saved.queued) { showSuccessToast(saved.message); return null; } // ML-220: waiting to sync
             if (saved && saved.result) skillDrillSaved(tool, level, saved.result.grade); // ML-321: grade 4+ passes a skill step
             return saved;
         } catch (e) {
@@ -20872,6 +21051,12 @@
         let out;
         try { out = await API.range.go(inst.instrumentId, { direction, beats, bpm, method }); }
         catch (e) { showWarningToast('Not saved: ' + e.message); return; }
+        // ML-220: offline, the go waits to sync - the server works out the Level when it arrives
+        if (out.queued) {
+            document.getElementById('rangeFeedback').textContent = method === 'self' ? (beats >= PlayRange.HOLD_BEATS ? 'Held' : 'Not yet') + ' - saved on this device' : `Held ${rangeBeatsText(beats)} - saved on this device`;
+            rangeShowBeats(beats);
+            return;
+        }
         const i = inst.levels.findIndex(l => l.midi === out.midi);
         const lv = { midi: out.midi, note: out.note, level: out.level, bestBeats: out.bestBeats, streak: out.streak, goes: out.goes };
         if (i >= 0) inst.levels[i] = lv; else inst.levels.push(lv);
@@ -20914,7 +21099,7 @@
         const s = (skillsData || []).find(x => x.key === `range:${direction}`);
         if (!s || !s.steps.length) return;
         API.skills.result({ key: s.key, stepIndex: 0, passed: moved, grade: null, stepCount: s.steps.length })
-            .then(out => { applySkillsResponse({ skills: out.skills }); })
+            .then(out => { if (!out.queued) applySkillsResponse({ skills: out.skills }); })
             .catch(() => { /* the go itself is saved; the skill's "last practised" can wait */ });
         if (practiceRun && practiceRun.blocks[practiceRun.index] && practiceRun.blocks[practiceRun.index].skill) practiceRun.blocks[practiceRun.index].skillRated = true;
     }
@@ -21953,7 +22138,9 @@
     }
     async function scaleAnswerSave(item, gotIt, items) {
         const before = PracticePlan.scaleProgress(items, scaleLevels.records);
-        const res = await API.scaleLevels.answer({ instrumentId: scaleLevels.instrumentId, key: item.key, gotIt, today: scaleToday() });
+        let res = await API.scaleLevels.answer({ instrumentId: scaleLevels.instrumentId, key: item.key, gotIt, today: scaleToday() });
+        // ML-220: offline, the answer waits to sync - the same rule the server uses moves the Level here
+        if (res.queued) res = PracticePlan.scaleAnswer(scaleLevels.records[item.key], gotIt, scaleToday());
         scaleLevels.records[item.key] = res.record;
         scaleAnswerSay(item, res, before, items);
     }
@@ -21995,7 +22182,8 @@
         });
         openChooser(scaleTitleFor(item), options, async (v) => {
             try {
-                const res = await API.scaleLevels.setLevel({ instrumentId: scaleLevels.instrumentId, key: item.key, level: Number(v) });
+                let res = await API.scaleLevels.setLevel({ instrumentId: scaleLevels.instrumentId, key: item.key, level: Number(v) });
+                if (res.queued) res = { record: { ...PracticePlan.scaleRecord(scaleLevels.records, item.key), level: Number(v), learnt: false } }; // ML-220: waiting to sync
                 scaleLevels.records[item.key] = res.record;
                 showSuccessToast(`${scaleShortName(item)}: Level ${res.record.level}`);
             } catch (e) { showWarningToast('Not saved: ' + e.message); }
