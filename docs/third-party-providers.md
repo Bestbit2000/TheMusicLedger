@@ -102,6 +102,16 @@ the site instead (`third_party_records`, migration 104), on each card on **Admin
 
 - **My reference and note** - an account or registration number and a free note. Only ever sent to a super
   admin. **Never put a reference in the register, a doc or a commit** - it is typed in on the page.
+- **Data processing agreement and transfer safeguard (ML-469, migration 111)** - on the card of each third
+  party that handles members' personal information (`personalData: true` in the register: Neon, Vercel,
+  Vercel Blob, Google sign-in, the Gmail account that sends email, PostHog). **Agreement:** in place (with
+  the day it was signed or accepted, if known), not in place, or not needed. **Transfer safeguard:** the
+  UK-US data bridge, the UK addendum in its agreement, adequacy (the EU), or not needed. Where the signed
+  copy is kept goes in "My reference". Until both are recorded - and while an agreement is "not in place" -
+  the card says **Needs attention**, and it counts on the menu and the Dashboard (`agreementMissing`). These
+  are the owner's facts: the register says only *which* third parties are asked, never what is signed.
+  `npm run third-party-audit` can't read the site's records, so it lists each one under "Check by hand
+  before a release".
 - **Mark as done** on a "Needs attention" item, with the date, and **Undo**. Items dealt with stop counting
   on the menu and the Dashboard, and an entry with none left open stops saying "Needs attention". An item is
   matched by its wording, so a newly worded item in the register is open again.
@@ -109,6 +119,8 @@ the site instead (`third_party_records`, migration 104), on each card on **Admin
 If a fact in the register itself has changed (a fee is now paid, a plan has changed), still correct the
 register in the next release - the marks made on the page sit on top of it, they do not replace it.
 Code: `server/thirdParties/records.js` (pure, tested), `server/services/thirdPartyRecords.js`.
+A new service that will hold or carry members' information gets `personalData: true` when it goes in the
+register - and a line in the privacy policy, as before.
 
 ## Costs and usage (ML-429)
 

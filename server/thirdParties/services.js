@@ -9,6 +9,7 @@ export default [
     policyName: 'Neon',
     name: 'Neon',
     group: 'service',
+    personalData: true, // ML-469: a data processing agreement and a transfer safeguard are recorded for it
     // Was 'attention' until the owner signed Neon's data processing agreement (his word, 6 October 2026).
     status: 'in_use',
     who: 'Databricks, Inc. (USA) - parent of Neon, LLC',
@@ -60,6 +61,7 @@ export default [
     policyName: 'Vercel',
     name: 'Vercel',
     group: 'service',
+    personalData: true, // ML-469: a data processing agreement and a transfer safeguard are recorded for it
     status: 'attention',
     who: 'Vercel Inc. (USA)',
     provides: 'Hosting: serves the app\'s pages and runs the server (one function). Every push to main deploys to production.',
@@ -121,6 +123,7 @@ export default [
     policyName: 'Vercel',
     name: 'Vercel Blob',
     group: 'service',
+    personalData: true, // ML-469: a data processing agreement and a transfer safeguard are recorded for it
     status: 'in_use',
     who: 'Vercel Inc. (USA)',
     provides: 'File storage: members\' mp3 and mp4 recordings, and PDF, MusicXML, Sibelius and MuseScore documents attached to a piece.',
@@ -159,6 +162,7 @@ export default [
     policyName: 'Google',
     name: 'Google sign-in',
     group: 'service',
+    personalData: true, // ML-469: a data processing agreement and a transfer safeguard are recorded for it
     status: 'attention',
     who: 'Google LLC (USA)',
     provides: '"Sign in with Google" - login only. We ask for the basic profile and email address, nothing else.',
@@ -209,6 +213,7 @@ export default [
     policyName: 'Google',
     name: 'Gmail (sends the app\'s email)',
     group: 'service',
+    personalData: true, // ML-469: a data processing agreement and a transfer safeguard are recorded for it
     status: 'attention',
     who: 'Google LLC (USA)',
     provides: 'Sends the app\'s emails - invites, band invitations, password resets, retention warnings, sign-up and upgrade alerts - from a Gmail account the owner set up for the app, over SMTP (MAIL_PROVIDER "smtp"). A copy of every email sent stays in that account\'s Sent folder.',
@@ -255,6 +260,7 @@ export default [
     policyName: 'PostHog',
     name: 'PostHog',
     group: 'service',
+    personalData: true, // ML-469: a data processing agreement and a transfer safeguard are recorded for it
     status: 'in_use',
     who: 'PostHog Inc. (USA); EU cloud, data held in Frankfurt',
     provides: 'Usage analytics: records button taps so we can see which features are used. Anonymous: no cookie, nothing kept in the browser, and it is never told who is signed in (ML-430). Its script is loaded from PostHog\'s servers.',

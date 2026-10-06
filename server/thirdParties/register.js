@@ -26,6 +26,10 @@
 //   policyName      (services) the name the privacy policy (public/privacy.html) uses for it - the audit
 //                   fails if the policy doesn't say it. notInPolicy: the reason, for one that handles nobody's
 //                   information.
+//   personalData    (services) true when it stores or carries members' personal information for us, so
+//                   UK GDPR expects a written data processing agreement and, where the information can
+//                   be reached from outside the UK, a named transfer safeguard. What is in place is the
+//                   owner's record, kept on the site (third_party_records, ML-469) - never written here.
 //   attention       things the owner needs to do or decide
 //   watch           things to keep an eye on
 //   limits, overLimit, nextTier, usageSource

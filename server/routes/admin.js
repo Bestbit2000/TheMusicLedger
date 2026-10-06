@@ -32,7 +32,7 @@ import thirdPartyRegister from '../thirdParties/register.js';
 import { costsAndUsage, addCost, updateCost, deleteCost, readMeters, recordManualReading, sendUsageWarnings } from '../services/thirdPartyUsage.js';
 import { getBusinessCase, saveBusinessCase, resetBusinessCase } from '../services/businessCase.js';
 import { getAdminDashboard } from '../services/adminDashboard.js';
-import { listRecords, saveRecord, setAttentionDone } from '../services/thirdPartyRecords.js';
+import { listRecords, saveRecord, setAttentionDone, saveAgreement } from '../services/thirdPartyRecords.js';
 import { retentionStatus, saveRule, runRetention, clearOldRecords } from '../services/retention.js';
 import { applyRecords } from '../thirdParties/records.js';
 import { getInstrumentUsageStats } from '../services/instruments.js';
@@ -837,6 +837,16 @@ async function thirdPartiesPage() {
 router.put('/third-parties/:key/record', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     await saveRecord(req.params.key, req.body, thirdPartyKeys());
+    res.json(await thirdPartiesPage());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-469: ...whether a data processing agreement is in place (and since when), and the transfer safeguard
+router.put('/third-parties/:key/agreement', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await saveAgreement(req.params.key, req.body, thirdPartyRegister.entries.filter((e) => e.personalData).map((e) => e.key));
     res.json(await thirdPartiesPage());
   } catch (error) {
     sendError(res, error);

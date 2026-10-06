@@ -761,6 +761,36 @@
     </div>
 </div>
 
+<!-- ML-469: whether a data processing agreement is in place with a third party that handles personal
+     information, since when, and the safeguard for information that leaves the UK. -->
+<div class="modal" id="partyAgreementModal" role="dialog" aria-modal="true" aria-labelledby="partyAgreementTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="partyAgreementTitle">Data processing agreement</h2>
+        <p class="admin-intro">Data protection law expects a written agreement with every company that holds members' information for the app, and a named safeguard where that information can be reached from outside the UK. Kept on this site, not in the code. Where the signed copy is kept goes in "My reference".</p>
+        <div class="form-group"><label for="partyAgreementStatus">Data processing agreement</label>
+            <select id="partyAgreementStatus">
+                <option value="">Not recorded yet</option>
+                <option value="in_place">In place</option>
+                <option value="not_in_place">Not in place</option>
+                <option value="not_needed">Not needed</option>
+            </select></div>
+        <div class="form-group" id="partyAgreementOnGroup"><label for="partyAgreementOn">Signed or accepted on (if you know)</label><input type="date" id="partyAgreementOn"></div>
+        <div class="form-group"><label for="partyAgreementSafeguard">Transfer safeguard</label>
+            <select id="partyAgreementSafeguard">
+                <option value="">Not recorded yet</option>
+                <option value="data_bridge">UK-US data bridge</option>
+                <option value="uk_addendum">The UK addendum in its agreement</option>
+                <option value="adequacy">Adequacy (the EU, or another country the UK accepts)</option>
+                <option value="not_needed">Not needed</option>
+            </select></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="partyAgreementCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="partyAgreementSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
 <!-- ML-443 Business case: a choice from a short list (years, how it is counted, how Premium is paid). It is made on a pick. -->
 <div class="modal" id="bcChoiceModal" role="dialog" aria-modal="true" aria-labelledby="bcChoiceTitle">
     <div class="modal-content">

@@ -20,6 +20,10 @@ const { errors, warnings } = auditThirdParties({ root: ROOT, register });
 
 if (!QUIET) {
   const byHand = register.entries.flatMap((e) => (e.asks || []).filter((a) => !a.check).map((a) => `${e.name}: ${a.text}`));
+  // ML-469: what is signed is the owner's record on the site, which this script can't read - so it is asked by hand
+  for (const e of register.entries.filter((x) => x.personalData && x.status !== 'not_in_use')) {
+    byHand.push(`${e.name}: it handles members' information - Admin -> Third parties shows a data processing agreement and a transfer safeguard recorded for it (or "not needed").`);
+  }
   console.log(`Third parties: ${register.entries.length} in the register.`);
   if (byHand.length) {
     console.log(`\nCheck by hand before a release (${byHand.length}):`);

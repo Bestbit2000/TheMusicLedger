@@ -2631,6 +2631,17 @@
             </details>${limits}`;
     }
 
+    // ML-469: the agreement and transfer safeguard the owner has recorded, in words
+    const AGREEMENT_LABELS = { '': 'not recorded yet', in_place: 'in place', not_in_place: 'not in place', not_needed: 'not needed' };
+    const SAFEGUARD_LABELS = { '': 'not recorded yet', data_bridge: 'UK-US data bridge', uk_addendum: 'the UK addendum in its agreement', adequacy: 'adequacy (the EU, or another country the UK accepts)', not_needed: 'not needed' };
+    function agreementLines(e) {
+        if (!e.agreement) return '';
+        const a = e.agreement;
+        const since = a.status === 'in_place' && a.on ? `, since ${escapeHtml(fmtDay(a.on))}` : '';
+        return `${(e.agreementAttention || []).map((t) => `<p class="admin-run-notes"><strong>Needs attention:</strong> ${escapeHtml(t)}</p>`).join('')}
+                    <p class="admin-run-notes"><strong>Data processing agreement:</strong> ${escapeHtml(AGREEMENT_LABELS[a.status] || a.status)}${since} &middot; <strong>Transfer safeguard:</strong> ${escapeHtml(SAFEGUARD_LABELS[a.safeguard] || a.safeguard)} <button type="button" class="admin-stat-exclude-btn" data-party-agreement="${escapeHtml(e.key)}" aria-haspopup="dialog">${a.status || a.safeguard ? 'Change' : 'Record it'}</button></p>`;
+    }
+
     function renderThirdParty(e) {
         const [badgeClass, badgeLabel] = THIRD_PARTY_STATUS[e.status] || THIRD_PARTY_STATUS.in_use;
         return `
@@ -2645,6 +2656,7 @@
                 <div class="admin-test-case">
                     ${(e.attention || []).map((a, i) => `<p class="admin-run-notes"><strong>Needs attention:</strong> ${escapeHtml(a)} <button type="button" class="admin-stat-exclude-btn" data-attn-party="${escapeHtml(e.key)}" data-attn-open="${i}">Mark as done</button></p>`).join('')}
                     ${(e.attentionDone || []).map((a, i) => `<p class="admin-run-notes text-muted"><strong>Dealt with${a.on ? ` ${escapeHtml(fmtDay(a.on))}` : ''}:</strong> ${escapeHtml(a.text)} <button type="button" class="admin-stat-exclude-btn" data-attn-party="${escapeHtml(e.key)}" data-attn-done="${i}">Undo</button></p>`).join('')}
+                    ${agreementLines(e)}
                     ${e.record && e.record.reference ? `<p class="admin-run-notes"><strong>My reference:</strong> ${escapeHtml(e.record.reference)}</p>` : ''}
                     ${e.record && e.record.note ? `<p class="admin-run-notes"><strong>My note:</strong> ${escapeHtml(e.record.note)}</p>` : ''}
                     <p class="admin-run-notes"><button type="button" class="admin-stat-exclude-btn" data-party-record="${escapeHtml(e.key)}">${e.record && (e.record.reference || e.record.note) ? 'Change my reference and note' : 'Add my reference or a note'}</button></p>
@@ -2823,10 +2835,37 @@
                 showToast('Saved', 'success');
             } catch (error) { showToast(error.message); } finally { btn.disabled = false; }
         });
+        // ML-469: the agreement pop-up. The date only goes with "in place".
+        const agreementStatus = document.getElementById('partyAgreementStatus');
+        const showAgreementDate = () => setShown('partyAgreementOnGroup', agreementStatus.value === 'in_place');
+        agreementStatus?.addEventListener('change', showAgreementDate);
+        document.getElementById('partyAgreementCancelBtn')?.addEventListener('click', () => hideModal('partyAgreementModal'));
+        document.getElementById('partyAgreementSaveBtn')?.addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            btn.disabled = true;
+            try {
+                renderThirdParties(await apiCall(`/api/admin/third-parties/${recordPartyKey}/agreement`, 'PUT', {
+                    status: agreementStatus.value, on: document.getElementById('partyAgreementOn').value, safeguard: document.getElementById('partyAgreementSafeguard').value }));
+                hideModal('partyAgreementModal');
+                showToast('Saved', 'success');
+            } catch (error) { showToast(error.message); } finally { btn.disabled = false; }
+        });
         document.getElementById('thirdParties')?.addEventListener('click', async (e) => {
             const t = e.target.closest('button');
             if (!t || !thirdPartyData) return;
             const entry = (key) => thirdPartyData.entries.find((x) => x.key === key);
+            if (t.dataset.partyAgreement) {
+                const en = entry(t.dataset.partyAgreement);
+                recordPartyKey = en.key;
+                document.getElementById('partyAgreementTitle').textContent = `${en.name}: data processing agreement`;
+                agreementStatus.value = en.agreement.status;
+                document.getElementById('partyAgreementOn').value = en.agreement.on || '';
+                document.getElementById('partyAgreementSafeguard').value = en.agreement.safeguard;
+                showAgreementDate();
+                showModal('partyAgreementModal');
+                agreementStatus.focus();
+                return;
+            }
             if (t.dataset.partyRecord) {
                 const en = entry(t.dataset.partyRecord);
                 recordPartyKey = en.key;
@@ -2887,7 +2926,7 @@
     function renderThirdParties(data) {
         thirdPartyData = data;
         const entries = data.entries;
-        const attention = entries.flatMap((e) => (e.attention || []).map((a) => `<strong>${escapeHtml(e.name)}:</strong> ${escapeHtml(a)}`));
+        const attention = entries.flatMap((e) => [...(e.attention || []), ...(e.agreementAttention || [])].map((a) => `<strong>${escapeHtml(e.name)}:</strong> ${escapeHtml(a)}`)); // ML-469: a missing agreement or safeguard counts too
         const byHand = entries.flatMap((e) => (e.asks || []).filter((a) => !a.check).map((a) => `<strong>${escapeHtml(e.name)}:</strong> ${escapeHtml(a.text)}`));
         const paid = entries.filter((e) => e.paid);
         const oldest = entries.map((e) => e.termsCheckedOn).filter(Boolean).sort()[0];

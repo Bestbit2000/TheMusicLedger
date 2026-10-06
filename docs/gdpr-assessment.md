@@ -28,7 +28,7 @@ git: every version of this file is a commit.
 | 6 | Integrity and confidentiality (security) | Mostly met | Mostly met | The site security review is done and its headers are in (ML-231). It stays "mostly" because the review found teachers and private organisation names are shared between all members (ML-472, ML-473) - to be fixed before anyone else joins. |
 | 7 | Accountability | **Partly met** | **Partly met, much closer** | ICO registered. PostHog's agreement signed. The three records are drafted. A complaints route exists. Still open: Vercel has no agreement, Neon's and Resend's are unconfirmed, and nothing reminds anyone to review (ML-470). |
 | - | People's rights | Met | Met | Now includes complaining to us first. |
-| - | Transfers outside the UK | Mostly met | Mostly met | Which safeguard covers which provider is still to be recorded (ML-469). |
+| - | Transfers outside the UK | Mostly met | Mostly met | There is now a place to record it: each provider's card on Admin → Third parties (ML-469, 0.48.0). The owner still has to record each one. |
 | - | Cookies and the device (PECR) | Met | Met | - |
 | - | Children | Mostly met | **Met, with actions** | The Children's Code self-assessment (12 of 15 met, 2 with an action, 1 not applicable) and the impact assessment are written. Two conditions before other people's children use the app: Vercel under contract, and band organisers told how band sharing works. |
 | - | Data breaches | **Not in place** | **In place** | A breach response plan and log are drafted. |
@@ -90,7 +90,7 @@ done by Claude, waiting on the owner to review, switch on or release. **Ticket**
 | 16 | No breach plan | Breaches | **Drafted** | Document 3, with a breach log. To do: read it through once, and walk through a made-up breach at each yearly review. |
 | 17 | No way to complain to the owner first | 7 | **Closed** | In the privacy policy. |
 | 18 | No regular review | 7 | Ticket | ML-470 (reviews with dates and a reminder on the Dashboard). This document's version history is the written trail. |
-| 19 | Which transfer safeguard covers which provider isn't recorded | Transfers | Ticket | ML-469, and the blanks in document 1. |
+| 19 | Which transfer safeguard covers which provider isn't recorded | Transfers | **Built - the owner records them** | ML-469: Admin → Third parties has "Data processing agreement" and "Transfer safeguard" on each provider that handles personal information; anything missing shows as "Needs attention" and on the Dashboard. Seeded with what he said on 6 Oct 2026 (Neon signed that day, PostHog signed, Vercel and Gmail none). The blanks in document 1 are filled from the same facts. |
 | 20 | No written Children's Code check or impact assessment | Children | **Drafted** | Documents 4 and 5. Actions from them: a few lines for young players in the policy (ML-466), say who sees what when sharing with a band (ML-468), no-pressure design rule (ML-471). |
 | 21 | ICO fee | 7 | **Closed** | Registered and paid, October 2026. |
 

@@ -59,6 +59,11 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
   `.admin-run-notes` lines; a `.admin-stat-exclude-btn` opens the `#partyRecordModal` form), and each "Needs
   attention" line has a `.admin-stat-exclude-btn` **Mark as done** - it then reads "Dealt with <date>" in
   `.text-muted` with **Undo**. No new classes.
+- **Third parties - agreements (ML-469):** a card for a provider that handles members' information also has one
+  `.admin-run-notes` line - "Data processing agreement: in place, since 6 Oct 2026 · Transfer safeguard: UK-US data
+  bridge" - with a `.admin-stat-exclude-btn` (**Record it** / **Change**, `aria-haspopup="dialog"`) that opens the
+  `#partyAgreementModal` form: two drop-downs and a date that only shows for "In place". Anything missing is a
+  "Needs attention" line on the card and counts on the menu. No new classes.
 - **Features (ML-414):** there is no Features page any more - the catalogue is folded into
   [Feature access](admin-feature-access.md): "+ Add feature" in its toolbar, and each feature's ⋮ has Edit (name,
   description, key) and Delete. The form has no Enabled switch - that was the same switch as **Live** in the grid.
