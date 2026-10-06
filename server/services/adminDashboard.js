@@ -17,6 +17,7 @@ import { listRecords } from './thirdPartyRecords.js';
 import { openAttentionCount } from '../thirdParties/records.js';
 import fs from 'node:fs';
 import { daysToLaunch, needsYou } from './adminDashboardRules.js';
+import { reviewsDue } from './reviews.js';
 
 const part = async (name, read) => {
   try { return await read(); } catch (error) { console.error(`Admin dashboard: ${name} not read:`, error.message); return null; }
@@ -96,10 +97,11 @@ export async function getAdminDashboard() {
     .map((m) => ({ name: m.name, percent: m.status.percent, level: m.status.level }));
   // ML-462: items the owner has marked as dealt with on Third parties no longer count
   const attention = openAttentionCount(thirdPartyRegister.entries, await part('third-party records', listRecords));
+  const reviews = await part('reviews', reviewsDue); // ML-470: a review that is due, or has never been done
   return {
     people: who,
     build: made,
     money: cash,
-    needs: needsYou({ feedback, attention, limits, tests: made && made.tests, security })
+    needs: needsYou({ feedback, attention, limits, tests: made && made.tests, security, reviews })
   };
 }

@@ -2970,20 +2970,83 @@
     }
 
     // ML-231: the page reviews two things - this site (the first tab) and the PDF import service (ML-192)
+    // ---- ML-470: Reviews - every review that comes round, on Security's third tab ----
+    const REVIEW_STATUS = { ok: ['pass', 'Up to date'], soon: ['warn', 'Due soon'], due: ['fail', 'Due'], never: ['never', 'Never done'] };
+    const everyWords = (months) => (months === 1 ? 'Monthly' : months === 12 ? 'Yearly' : `Every ${months} months`);
+    let reviewsData = null;
+    let reviewMarkKey = null;
+    function renderReviews(data) {
+        reviewsData = data;
+        setNavCount('securityNavCount', data.due);
+        document.getElementById('securityReview').innerHTML = data.reviews.map((r) => {
+            const [badge, label] = REVIEW_STATUS[r.status] || REVIEW_STATUS.never;
+            const left = r.daysLeft === null ? '' : r.daysLeft > 0 ? ` (in ${r.daysLeft} day${r.daysLeft === 1 ? '' : 's'})` : r.daysLeft === 0 ? ' (today)' : ` (${-r.daysLeft} day${r.daysLeft === -1 ? '' : 's'} ago)`;
+            const history = r.history.length > 1 ? `<details class="admin-run-notes"><summary>Every time it was reviewed (${r.history.length})</summary>${r.history.map((h) => `<p class="admin-run-notes"><strong>${escapeHtml(fmtDay(h.on))}</strong>${h.by ? ` - ${escapeHtml(h.by)}` : ''}: ${escapeHtml(h.note)}</p>`).join('')}</details>` : '';
+            const action = r.kind === 'marked'
+                ? `<p class="admin-run-notes"><button type="button" class="admin-stat-exclude-btn" data-review-mark="${escapeHtml(r.key)}" aria-haspopup="dialog">Mark as reviewed</button></p>`
+                : `<p class="admin-run-notes"><button type="button" class="admin-stat-exclude-btn" data-review-tab="${escapeHtml(r.tab)}">Open its tab to run the checks</button></p>`;
+            return `
+            <div class="admin-feature">
+                <div class="admin-feature-header">
+                    <div class="admin-feature-header-text"><h2>${escapeHtml(r.name)}</h2><p>${everyWords(r.months)} &middot; ${escapeHtml(r.where)}</p></div>
+                    <span class="admin-badge ${badge}">${label}</span>
+                </div>
+                <div class="admin-test-case">
+                    <p class="admin-run-notes">${escapeHtml(r.about)}</p>
+                    <p class="admin-run-notes"><strong>Last done:</strong> ${r.last ? `${escapeHtml(fmtDay(r.last.on))}${r.last.by ? ` by ${escapeHtml(r.last.by)}` : ''}${r.last.note ? ` - ${escapeHtml(r.last.note)}` : ''}` : 'never'}</p>
+                    <p class="admin-run-notes"><strong>Due:</strong> ${r.dueOn ? `${escapeHtml(fmtDay(r.dueOn))}${left}` : 'now'}</p>
+                    ${r.checks.map((c) => `<p class="admin-run-notes"><strong>${c.ok ? 'Checked by the app:' : 'Needs a look:'}</strong> ${escapeHtml(c.text)}</p>`).join('')}
+                    ${action}
+                    ${history}
+                </div>
+            </div>`;
+        }).join('');
+    }
+    function initReviews() {
+        document.getElementById('reviewMarkCancelBtn')?.addEventListener('click', () => hideModal('reviewMarkModal'));
+        document.getElementById('reviewMarkSaveBtn')?.addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            btn.disabled = true;
+            try {
+                renderReviews(await apiCall(`/api/admin/reviews/${reviewMarkKey}`, 'POST', { note: document.getElementById('reviewMarkNote').value }));
+                hideModal('reviewMarkModal');
+                showToast('Marked as reviewed', 'success');
+            } catch (error) { showToast(error.message); } finally { btn.disabled = false; }
+        });
+        document.getElementById('securityReview')?.addEventListener('click', (e) => {
+            const t = e.target.closest('button');
+            if (!t || securityTarget !== 'reviews' || !reviewsData) return;
+            if (t.dataset.reviewTab) { document.querySelector(`[data-security-target="${t.dataset.reviewTab}"]`)?.click(); return; }
+            if (!t.dataset.reviewMark) return;
+            const review = reviewsData.reviews.find((r) => r.key === t.dataset.reviewMark);
+            reviewMarkKey = review.key;
+            document.getElementById('reviewMarkTitle').textContent = `${review.name}: mark as reviewed`;
+            document.getElementById('reviewMarkNote').value = '';
+            showModal('reviewMarkModal');
+            document.getElementById('reviewMarkNote').focus();
+        });
+        // The menu's count, without waiting for the tab to be opened
+        apiCall('/api/admin/reviews').then((data) => setNavCount('securityNavCount', data.due)).catch(() => { /* the count just stays off */ });
+    }
+
     let securityTarget = 'site';
     const securityWord = () => (securityTarget === 'site' ? 'version' : 'upstream');
     const securityPath = (run) => `/api/admin/security-review${run ? '/run' : ''}${securityTarget === 'site' ? '?target=site' : ''}`;
     const SECURITY_INTRO = {
         site: 'Security review of <strong>this site</strong> (ML-231): who can reach what, what members can type or upload, signing in, the browser\'s protections, packages and settings. <strong>Run now</strong> repeats the automated checks - do it once a month and after anything that touches sign-in or sharing. The deep review (a read of every route and every place member-typed text is shown) is done by Claude Code in a session: ask it to "re-run the ML-231 site security review". Full write-up: <code>docs/site-security-review.md</code>.',
+        reviews: 'Every review that comes round (ML-470): what it is, how often, when it was last done and by whom, and when it is due. <strong>Mark as reviewed</strong> records today\'s date with a note of what you checked - every line is kept, so this is the trail of each review. One that is due shows on the Dashboard under "Needs you". The written assessments themselves are in your compliance documents and in <code>docs/gdpr-assessment.md</code>.',
         omr: 'Security review of <strong>solfascribe-omr</strong>, the third-party OMR service behind "Create from file" PDF import (ML-192). <strong>Run now</strong> repeats the automated checks. The deep review (code read, secret scan, dependency scans) is done by Claude Code in a session: ask it to "re-run the ML-192 OMR security review". Full write-up: <code>docs/omr-security-review.md</code>.'
     };
     async function reloadSecurityReview() {
         document.getElementById('securityIntro').innerHTML = SECURITY_INTRO[securityTarget];
         document.querySelectorAll('[data-security-target]').forEach((b) => { const on = b.dataset.securityTarget === securityTarget; b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+        setShown('securityToolbar', securityTarget !== 'reviews'); // ML-470: Reviews has nothing to run - each review is marked, or run from its own tab
+        if (securityTarget === 'reviews') { renderReviews(await apiCall('/api/admin/reviews')); return; }
         renderSecurityReview(await apiCall(securityPath(false)));
     }
 
     function initSecurityReview() {
+        initReviews();
         document.querySelectorAll('[data-security-target]').forEach((tab) => tab.addEventListener('click', () => {
             securityTarget = tab.dataset.securityTarget;
             document.getElementById('securityRunStatus').textContent = '';

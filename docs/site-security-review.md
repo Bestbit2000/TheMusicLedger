@@ -28,6 +28,9 @@ same pieces. It is a careful review by Claude, not a penetration test by a speci
 | Installed packages (OSV) | The packages the app depends on directly, at the versions installed in this deployment, against known advisories. |
 | This deployment's settings | Secrets set and long enough, test logins off, the app knows its own address - no value is ever shown. |
 
+**Admin → Security → Reviews (ML-470)** lists this review beside the others that come round (data
+protection, the Children's Code, the breach plan), with when each was last done and when it is due.
+
 The Dashboard shows "Needs you" when the monthly run is due, when a check is failing, or when a release has
 gone out since the last deep review.
 

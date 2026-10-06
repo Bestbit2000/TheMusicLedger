@@ -32,6 +32,15 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
 
 ### Table pages: Accounts and Flows (ML-415, ML-416)
 
+- **Security - Reviews (ML-470):** a third `.admin-subtabs` tab, **Reviews**: one `.admin-feature` card per
+  review that comes round (data protection, the Children's Code, the breach plan, and the two security
+  reviews) - name, "Yearly"/"Monthly" and where it lives, an `.admin-badge` (Up to date / Due soon / Due /
+  Never done), then `.admin-run-notes` lines: what it is, **Last done** (day, who, note), **Due**, what the
+  app checked itself ("Checked by the app:" / "Needs a look:"), and a `.admin-stat-exclude-btn` - **Mark as
+  reviewed** (opens `#reviewMarkModal`: a note, which must say something) or, for a security review, **Open
+  its tab to run the checks**. More than one entry: a `<details>` "Every time it was reviewed". The run
+  toolbar is hidden on this tab. A review that is due counts on the menu (`#securityNavCount`) and is
+  under "Needs you" on the Dashboard. No new classes.
 - **Full width.** Like Feature access, the Accounts and Flows pages drop `.admin-content`'s 900px cap so their
   tables use the window; their intro text keeps it.
 - **One line per row** in an `.admin-stat-table` (`.admin-accounts-table`: text columns read from the left;

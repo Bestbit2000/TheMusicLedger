@@ -13,7 +13,7 @@ last one, and shows how each gap is being filled. It is a careful reading by Cla
 
 **Next review:** 6 October 2027, or sooner if what the app holds, or who receives it, changes. Each review:
 re-read the evidence named in version 1's rows, update the gap register below, add a row above, and write a
-"what has happened since" section. (A reminder in the admin panel is ticket ML-470.) The same history is in
+"what has happened since" section. (The reminder is built, ML-470: Admin → Security → Reviews.) The same history is in
 git: every version of this file is a commit.
 
 ## Where it stands now
@@ -89,7 +89,7 @@ done by Claude, waiting on the owner to review, switch on or release. **Ticket**
 | 15 | No legitimate interests assessment | 7 | **Drafted** | Document 2. |
 | 16 | No breach plan | Breaches | **Drafted** | Document 3, with a breach log. To do: read it through once, and walk through a made-up breach at each yearly review. |
 | 17 | No way to complain to the owner first | 7 | **Closed** | In the privacy policy. |
-| 18 | No regular review | 7 | Ticket | ML-470 (reviews with dates and a reminder on the Dashboard). This document's version history is the written trail. |
+| 18 | No regular review | 7 | **Built** | ML-470: Admin → Security → Reviews lists each review with when it was last done, by whom and when it is due; "Mark as reviewed" keeps every entry (`review_log`); one that is due is under "Needs you" on the Dashboard. This document's version history is still the written trail of the assessment itself. |
 | 19 | Which transfer safeguard covers which provider isn't recorded | Transfers | **Built - the owner records them** | ML-469: Admin → Third parties has "Data processing agreement" and "Transfer safeguard" on each provider that handles personal information; anything missing shows as "Needs attention" and on the Dashboard. Seeded with what he said on 6 Oct 2026 (Neon signed that day, PostHog signed, Vercel and Gmail none). The blanks in document 1 are filled from the same facts. |
 | 20 | No written Children's Code check or impact assessment | Children | **Drafted** | Documents 4 and 5. Actions from them: a few lines for young players in the policy (ML-466), say who sees what when sharing with a band (ML-468), no-pressure design rule (ML-471). |
 | 21 | ICO fee | 7 | **Closed** | Registered and paid, October 2026. |
@@ -347,7 +347,13 @@ selling or sharing for others' purposes.
 - **The design rule that keeps standards 5, 12 and 13 met (ML-471):** written into `specs/README.md` ("No
   pressure - young players use this") and asked at every release (`docs/release-process.md`, step 1). The
   SmartLearn upgrade prompt was checked against it and passes.
-- **Still to build:** the regular review itself - a list of reviews in the admin panel (data protection and the Children's Code yearly, site security monthly), each with the date last done, and a "review due" item on the Dashboard. To be built with ML-231, which reshapes the same page.
+- **Built (ML-470, 0.48.0):** the regular review - Admin → Security → **Reviews**. Each review (data protection,
+  the Children's Code and impact assessment, the breach plan walk-through - yearly; the two security reviews -
+  monthly) shows when it was last done, by whom, a note, and when it is due. The app checks what it can: the
+  privacy policy's date against the last review, providers with no agreement recorded (ML-469), and whether
+  the daily clear-up has left anything past its time. Code: `server/services/reviewRules.js` (the rules, tested)
+  and `reviews.js`; table `review_log` (migration 112).
+- **Was still to build:** the regular review itself - a list of reviews in the admin panel (data protection and the Children's Code yearly, site security monthly), each with the date last done, and a "review due" item on the Dashboard. To be built with ML-231, which reshapes the same page.
 
 ### Next (the rest of ML-221)
 

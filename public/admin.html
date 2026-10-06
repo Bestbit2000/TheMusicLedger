@@ -76,7 +76,7 @@
                 <button type="button" class="admin-nav-group-head" aria-expanded="true" aria-controls="adminNavGroup-release"><span class="admin-nav-group-name">Release and checks</span><span class="admin-nav-count hidden-group" data-group-count></span><span class="material-symbols-outlined" aria-hidden="true" data-group-arrow>expand_more</span></button>
                 <div class="admin-nav-group-items" id="adminNavGroup-release">
                 <button class="admin-nav-item" data-section="release-tests" type="button">Release tests</button>
-                <button class="admin-nav-item" data-section="security" type="button">Security</button>
+                <button class="admin-nav-item" data-section="security" type="button">Security <span id="securityNavCount" class="admin-nav-count hidden-group"></span></button>
                 <button class="admin-nav-item" data-section="third-parties" type="button">Third parties <span id="thirdPartiesNavCount" class="admin-nav-count hidden-group"></span></button>
                 <button class="admin-nav-item" data-section="design" type="button">Design</button>
                 </div>
@@ -330,13 +330,15 @@
              in a session and recorded in server/securityReviews/ (docs/omr-security-review.md). -->
         <section id="security-section" class="admin-section hidden-group">
             <h1>Security</h1>
-            <!-- ML-231: two reviews on one page - this site, and the PDF import service (ML-192) -->
+            <!-- ML-231: two reviews on one page - this site, and the PDF import service (ML-192).
+                 ML-470: and Reviews - every review that comes round, with when it was last done and when it is due. -->
             <div class="admin-subtabs" role="tablist" aria-label="What is reviewed">
                 <button type="button" class="admin-subtab-item active" role="tab" aria-selected="true" data-security-target="site">This site</button>
                 <button type="button" class="admin-subtab-item" role="tab" aria-selected="false" data-security-target="omr">PDF import service</button>
+                <button type="button" class="admin-subtab-item" role="tab" aria-selected="false" data-security-target="reviews">Reviews</button>
             </div>
             <p class="admin-intro" id="securityIntro"></p>
-            <div class="admin-security-toolbar">
+            <div class="admin-security-toolbar" id="securityToolbar">
                 <button class="btn-submit no-margin" id="securityRunBtn" type="button">Run automated checks now</button>
                 <span id="securityRunStatus" class="admin-test-case-meta" role="status" aria-live="polite"></span>
             </div>
@@ -757,6 +759,20 @@
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="partyRecordCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="partyRecordSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ML-470: "Mark as reviewed" - a note of what was checked or changed; the day and who are recorded with it. -->
+<div class="modal" id="reviewMarkModal" role="dialog" aria-modal="true" aria-labelledby="reviewMarkTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="reviewMarkTitle">Mark as reviewed</h2>
+        <p class="admin-intro">This records that you looked at it today. It is kept as a line in the history and can't be changed afterwards.</p>
+        <div class="form-group"><label for="reviewMarkNote">What you checked, or what changed</label><textarea id="reviewMarkNote" maxlength="1000" rows="4"></textarea></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="reviewMarkCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="reviewMarkSaveBtn" type="button">Mark as reviewed</button>
         </div>
     </div>
 </div>

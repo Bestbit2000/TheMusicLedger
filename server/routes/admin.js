@@ -13,7 +13,8 @@ import { requireAuth, resolveAccount, requireSuperAdmin } from '../middleware/au
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listWarmupsForAdmin, createWarmup, updateWarmup, setWarmupActive, moveWarmup, deleteWarmup } from '../services/warmups.js';
-import { listAccountsForAdmin, setAccountLevel } from '../services/accounts.js';
+import { listAccountsForAdmin, setAccountLevel, getAccountProfile } from '../services/accounts.js';
+import { getReviews, markReviewed } from '../services/reviews.js';
 import { getFeatureAccess, saveFeatureAccess, clearFeatureCache } from '../services/features.js';
 import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin, setBandDetails } from '../services/bands.js';
 import { createInvite, listPendingInvites, cancelInvite, passwordLoginEnabled, appUrl, adminSendReset, adminUnlock, adminSignOutEverywhere, adminTurnOffTwoStep } from '../services/passwordAuth.js';
@@ -794,6 +795,26 @@ router.post('/flows/import', requireAuth, resolveAccount, requireSuperAdmin, raw
 // page (checks, latest results, verdict, history); POST runs the automated checks now and records
 // them. The deep review's results come from the repo, not these routes - see securityReview.js.
 // ========================================
+// ML-470: the reviews that come round (data protection, the Children's Code, the breach plan, and the
+// two security reviews): when each was last done, when it is due, and "Mark as reviewed".
+router.get('/reviews', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await getReviews());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/reviews/:key', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const profile = await getAccountProfile(req.accountId);
+    // by their full name, as a record should say it - never the email address
+    await markReviewed(req.params.key, (req.body || {}).note, [profile.firstName, profile.surname].filter(Boolean).join(' ') || profile.displayName || 'A super admin');
+    res.json(await getReviews());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.get('/security-review', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     res.json(req.query.target === 'site' ? await getSiteSecurityReview() : await getSecurityReview());
