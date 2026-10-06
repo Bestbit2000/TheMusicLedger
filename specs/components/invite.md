@@ -18,6 +18,8 @@ email-and-password login (`password_login`) is Live - an invite is that kind of 
 - **You see and cancel only your own** invites that haven't been used. One whose link has run out (7 days)
   stays on the list, saying so, until the 30-day clear-up - with **Send again** on every row: a fresh link and
   a fresh email, counted as one of today's.
+- **Where the site doesn't send email** (dev and sandbox, ML-479) the intro line (`#inviteIntro`) and the toast
+  after Send invite / Send again say so: the invite is made, but nothing has gone to the person.
 - **The junk warning is always shown**: the email comes from themusicledgerapp@gmail.com and will probably
   land in junk.
 - It's a **page, not a pop-up**: the account type is a value box with its own pop-up, and pop-ups don't stack.

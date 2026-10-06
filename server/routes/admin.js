@@ -17,6 +17,7 @@ import { listAccountsForAdmin, setAccountLevel } from '../services/accounts.js';
 import { getFeatureAccess, saveFeatureAccess, clearFeatureCache } from '../services/features.js';
 import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin, setBandDetails } from '../services/bands.js';
 import { createInvite, listPendingInvites, cancelInvite, passwordLoginEnabled, appUrl, adminSendReset, adminUnlock, adminSignOutEverywhere, adminTurnOffTwoStep } from '../services/passwordAuth.js';
+import { sentOrHeld, mailIsReal } from '../services/mail.js';
 import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption, deleteDurationOption, listDurationUsageStats, listSessionMinuteCounts } from '../services/durationOptions.js';
 import { listTimeSignatureOptionsForAdmin, createTimeSignatureOption, updateTimeSignatureOption, deleteOrArchiveTimeSignatureOption, listNoteValueUsage } from '../services/timeSignatures.js';
 import { listPlaybackSpeedsForAdmin, createPlaybackSpeedOption, updatePlaybackSpeedOption, deletePlaybackSpeedOption } from '../services/playbackSpeeds.js';
@@ -370,7 +371,7 @@ const accountAction = (fn, message) => async (req, res) => {
   }
 };
 router.post('/accounts/:id/send-reset', requireAuth, resolveAccount, requireSuperAdmin,
-  accountAction((req) => adminSendReset(req.params.id, appUrl(req)), (email) => `Reset link sent to ${email}`));
+  accountAction((req) => adminSendReset(req.params.id, appUrl(req)), (email) => sentOrHeld(`Reset link sent to ${email}`, `Reset link made for ${email}, but this site doesn't send emails - nothing has gone to them.`)));
 router.post('/accounts/:id/unlock', requireAuth, resolveAccount, requireSuperAdmin,
   accountAction((req) => adminUnlock(req.params.id), 'Unlocked - they can try again now'));
 router.post('/accounts/:id/two-step/off', requireAuth, resolveAccount, requireSuperAdmin,
@@ -381,7 +382,7 @@ router.post('/accounts/:id/sign-out', requireAuth, resolveAccount, requireSuperA
 // ML-355: invite someone to log in with their email and a password (password_login must be on).
 router.get('/invites', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
-    res.json({ enabled: await passwordLoginEnabled(), invites: await listPendingInvites() });
+    res.json({ enabled: await passwordLoginEnabled(), invites: await listPendingInvites(), emailsAreSent: mailIsReal() });
   } catch (error) {
     sendError(res, error);
   }
@@ -391,7 +392,7 @@ router.post('/invites', requireAuth, resolveAccount, requireSuperAdmin, async (r
   try {
     const { email, firstName, surname, accountLevel } = req.body || {};
     const invite = await createInvite({ email, firstName, surname, accountLevel, createdBy: req.accountId, origin: appUrl(req) });
-    res.json({ invite, message: `Invite sent to ${invite.email}` });
+    res.json({ invite, message: invite.notSentHere ? `Invite made for ${invite.email}, but this site doesn't send emails - nothing has gone to them.` : `Invite sent to ${invite.email}` });
   } catch (error) {
     sendError(res, error);
   }

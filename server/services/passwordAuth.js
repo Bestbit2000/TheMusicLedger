@@ -10,7 +10,7 @@ import crypto from 'node:crypto';
 import pool from '../config/db.js';
 import { signToken, verifyToken } from '../utils/authToken.js';
 import { hashPassword, verifyPassword, spendPasswordTime, passwordProblem } from './passwords.js';
-import { sendMail, mailIsReal, emailBody } from './mail.js';
+import { sendMail, mailIsReal, emailBody, emailOutcome } from './mail.js';
 import { isFeatureLive } from './features.js';
 import { deletedEmailHash, forgetTokenVersion, currentTokenVersion } from './tokenVersions.js';
 import { twoStepStatus, beginSetup, confirmSetup, verifyLoginCode } from './twoStep.js';
@@ -172,7 +172,7 @@ export async function createInvite({ email, firstName, surname, accountLevel, cr
       'Choose your password', url, `This link works once, for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email.`);
     await sendMail({ to, subject: "You're invited to The Music Ledger", text, html });
     await client.query('COMMIT');
-    return { email: to, existingAccount: !!existing };
+    return { email: to, existingAccount: !!existing, ...emailOutcome() }; // ML-479: emailed, or notSentHere
   } catch (e) {
     await client.query('ROLLBACK').catch(() => {});
     throw e;

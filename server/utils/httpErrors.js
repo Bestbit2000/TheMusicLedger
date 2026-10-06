@@ -9,7 +9,9 @@
 export function sendError(res, error, fallbackMessage = 'Something went wrong. Please try again.') {
   const status = error.status || 500;
   if (status < 500) {
-    return res.status(status).json({ error: error.message });
+    // `reason` (ML-479): a service's own short word for why, when the app does more than show the
+    // message - 'needs-name' offers the way to My details.
+    return res.status(status).json({ error: error.message, ...(error.reason ? { reason: error.reason } : {}) });
   }
   console.error(error);
   res.status(status).json({ error: fallbackMessage });

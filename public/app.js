@@ -190,6 +190,7 @@
             const error = await response.json().catch(() => ({}));
             const err = new Error(error.error || `API error: ${response.status}`);
             err.status = response.status;
+            err.reason = error.reason; // ML-479: the server's own short word for why, e.g. 'needs-name'
             throw err;
         }
 
@@ -1279,7 +1280,8 @@
         btn.disabled = true;
         try {
             const data = await authPost('/auth/password/forgot', { email: document.getElementById('forgotEmail').value });
-            splashMessage('forgotMessage', `${data.message} It works for an hour - check your spam folder if it doesn't arrive.`);
+            // ML-479: a site that only keeps its emails (dev, sandbox) says so - there is no link to wait for
+            splashMessage('forgotMessage', data.notSentHere ? data.message : `${data.message} It works for an hour - check your spam folder if it doesn't arrive.`);
         } catch (err) {
             splashMessage('forgotMessage', err.message);
         }
@@ -4301,7 +4303,7 @@
             showSuccessToast(accept ? 'You have joined the band' : 'Invitation declined');
         } catch (error) {
             btn.disabled = false;
-            showWarningToast(error.message);
+            if (!bandNameNeeded(error)) showWarningToast(error.message);
         }
     });
 
@@ -4392,7 +4394,8 @@
 
     // ---- ML-473: a band's members (bandMembersView). Everyone in the band sees who is in it and what
     // each may do - names, never email addresses. An organiser also invites (by the address the other
-    // person signs in with; no email is sent), changes what a member may do, and removes.
+    // person signs in with - they are sent an email, where the site sends email), changes what a member
+    // may do, and removes.
     let bandMembers = { bandId: null, bandName: '', data: null, inviteLevel: 'play' };
     async function loadBandMembers() {
         if (!bandMembers.bandId) { switchView('accountBandsView'); return; }
@@ -4423,6 +4426,10 @@
         waiting.textContent = d.openInvites === 1 ? 'One more person has been invited.' : `${d.openInvites} more people have been invited.`;
         setShown('bandMembersOrganiser', d.isOrganiser);
         if (!d.isOrganiser) return;
+        // ML-479: dev and sandbox keep their emails and send none - say so before anyone waits for one
+        document.getElementById('bandInviteHelp').textContent = d.emailsAreSent === false
+            ? "Type their email address. This site doesn't send emails, so tell them yourself: the invitation waits on their My bands page for 30 days. They sign in with that same address to join."
+            : 'Type their email address. They are sent an email, and the invitation waits on their My bands page for 30 days. They sign in with that same address to join.';
         const lv = bandLevel(bandMembers.inviteLevel);
         const levelBtn = document.getElementById('bandInviteLevelBtn');
         levelBtn.querySelector('strong').textContent = lv.label;
@@ -4431,6 +4438,13 @@
         document.getElementById('bandInvitesList').innerHTML = d.invites.map(i =>
             `<button type="button" class="metroBlk-ctrl-value-btn w-full mb-2" data-invite="${i.id}" aria-haspopup="dialog" aria-label="Invitation to ${escapeHtml(i.email)}: ${escapeHtml(bandLevel(i.level).label)} - tap to change or cancel"><strong>${escapeHtml(i.email)}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(bandLevel(i.level).label)} &middot; invited ${escapeHtml(new Date(i.sentAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</span></button>`).join('');
     }
+    // ML-479: a band shows its members by name and an invitation says who it is from, so the server
+    // refuses to invite or join for an account with no name ('needs-name'). Offer the way to add one.
+    function bandNameNeeded(error) {
+        if (error.reason !== 'needs-name') return false;
+        showConfirmModal('Add your name', error.message, () => switchView('accountDetailsView'), false, 'Go to My details');
+        return true;
+    }
     // One way to run a change and redraw from what the server sends back
     async function bandMembersDo(action, done) {
         try {
@@ -4438,7 +4452,7 @@
             renderBandMembers();
             if (done) showSuccessToast(done);
         } catch (error) {
-            showWarningToast(error.message);
+            if (!bandNameNeeded(error)) showWarningToast(error.message);
         }
     }
     document.getElementById('bandInviteLevelBtn')?.addEventListener('click', () => {
@@ -4453,6 +4467,7 @@
             input.value = '';
             // (said here, not by bandMembersDo: it depends on whether the email went)
             if (data.emailFailed) showWarningToast("Invited, but the email couldn't be sent. Tell them to sign in and look at My bands.");
+            else if (data.notSentHere) showWarningToast("Invited. This site doesn't send emails - tell them to sign in and look at My bands.");
             else showSuccessToast(data.emailed ? 'Invited. They have been sent an email.' : 'Already invited - updated what they can do.');
             return data;
         });
@@ -4476,13 +4491,15 @@
         const i = btn && bandMembers.data.invites.find(x => String(x.id) === btn.dataset.invite);
         if (!i) return;
         openFlowChoiceModal(i.email, [...bandLevelChoices(i.level),
-            { key: 'resend', html: addPieceRow('Send the email again', 'A fresh email, and 30 more days to answer') },
+            { key: 'resend', html: addPieceRow('Send the email again', bandMembers.data.emailsAreSent === false ? "30 more days to answer - this site doesn't send emails" : 'A fresh email, and 30 more days to answer') },
             { key: 'cancel', html: addPieceRow('Cancel the invitation', 'They will no longer be able to join with it') }], (opt) => {
             if (opt.key === i.level) return;
             if (opt.key === 'resend') {
                 bandMembersDo(async () => {
                     const data = await API.account.inviteToBand(bandMembers.bandId, i.email, i.level, true);
-                    if (data.emailed) showSuccessToast('Sent again.'); else showWarningToast("The email couldn't be sent. Tell them to sign in and look at My bands.");
+                    if (data.emailed) showSuccessToast('Sent again.');
+                    else if (data.notSentHere) showWarningToast("This site doesn't send emails, so nothing was sent. They have 30 more days - tell them to sign in and look at My bands.");
+                    else showWarningToast("The email couldn't be sent. Tell them to sign in and look at My bands.");
                     return data;
                 });
                 return;
@@ -6543,6 +6560,10 @@
         const btn = document.getElementById('inviteLevelBtn');
         btn.innerHTML = `<strong>${escapeHtml(ACCOUNT_LEVEL_LABELS[inviteLevel] || inviteLevel)}</strong><span class="metroBlk-ctrl-value-label">account type</span>`;
         btn.setAttribute('aria-label', `Account type: ${ACCOUNT_LEVEL_LABELS[inviteLevel] || inviteLevel} - tap to change`);
+        // ML-479: dev and sandbox keep their emails and send none
+        document.getElementById('inviteIntro').textContent = d && d.emailsAreSent === false
+            ? "Invite someone to The Music Ledger. This site doesn't send emails, so the link to choose a password won't reach them from here."
+            : 'Invite someone to The Music Ledger. They get an email with a link to choose a password - it works once, for 7 days.';
         document.getElementById('inviteSendBtn').disabled = !on || d.left <= 0;
         document.getElementById('inviteLeftLine').textContent = !d ? '' : !on ? "Invites aren't switched on at the moment."
             : d.left <= 0 ? `You've sent ${d.limit} invites in the last day - you can send more tomorrow.`
@@ -6568,7 +6589,7 @@
                 const res = await apiCall(`/api/invites/${b.dataset.resendInvite}/resend`, 'POST');
                 inviteData.invites = res.invites; inviteData.left = res.left;
                 renderInvite();
-                showSuccessToast(res.message);
+                if (res.invite.notSentHere) showWarningToast(res.message); else showSuccessToast(res.message);
             } catch (e) { b.disabled = false; showWarningToast('Not sent: ' + e.message); }
         }));
         list.querySelectorAll('[data-cancel-invite]').forEach(b => b.addEventListener('click', () => {
@@ -6604,7 +6625,9 @@
             inviteData.invites = res.invites;
             inviteData.left = res.left;
             ['inviteEmailInput', 'inviteFirstInput', 'inviteSurnameInput'].forEach(id => { document.getElementById(id).value = ''; });
-            showSuccessToast(`Invite sent to ${res.invite.email}. Remind them to look in their junk folder.`);
+            // ML-479: where no email goes (dev, sandbox) the server's message says so
+            if (res.invite.notSentHere) showWarningToast(res.message);
+            else showSuccessToast(`Invite sent to ${res.invite.email}. Remind them to look in their junk folder.`);
         } catch (err) { showWarningToast('Invite not sent: ' + err.message); }
         renderInvite();
     });

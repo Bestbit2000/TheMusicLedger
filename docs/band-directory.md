@@ -35,6 +35,17 @@ confirms who runs a band, so nobody has to be).
   particular, so it is not one of the organiser's own five a day), so a Google account is not needed; it
   comes back to My bands the same way. Only where email-and-password login is Live. An organiser can
   **send the email again** from the invitation's pop-up (a fresh link, and 30 more days).
+- **A site that only keeps its emails says so** (ML-479). Dev and sandbox write every email to
+  `email_outbox` and send none (`MAIL_PROVIDER` unset or `log`). There `inviteToBand` answers
+  `{ emailed: false, notSentHere: true }` (`emailOutcome` in `mail.js` decides, and is tested with each
+  provider), and the Members page says "This site doesn't send emails - tell them to sign in and look at
+  My bands" - in the help line, the toast and "Send the email again". The invitation itself is made as usual.
+- **A name comes first** (ML-479; the owner, 6 Oct 2026). An account with no display name, first name or
+  surname can't invite (or send an invitation again) and can't join a band: the server refuses with
+  `reason: 'needs-name'` and the app offers "Go to My details". So an invitation email never says "A member
+  has invited you", and nobody new joins a band as "A member". The email address is never used in its place.
+  (A member who joined before this rule and has no name still shows as "A member".) Changing what a waiting
+  invitation allows sends no email, so it needs no name.
 - **What a member may do is set by the organiser who invites them** (the owner, 6 Oct 2026: control stays
   with the person who started the band), and any organiser can change it afterwards. `band_members.role`,
   migration 109:

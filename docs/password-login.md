@@ -99,7 +99,7 @@ Gmail account (SMTP) until then.
 
 | `MAIL_PROVIDER` | Where | Needs |
 |---|---|---|
-| `log` (default) | written to the `email_outbox` table, never sent - local and dev; back-tests read the links from it | - |
+| `log` (default) | written to the `email_outbox` table, never sent - local, dev and sandbox; back-tests read the links from it. The app says so wherever it would say "sent" (ML-479: `emailOutcome` / `sentOrHeld` in `mail.js`) - invites, band invitations, the admin's reset link, and "Forgot your password?", which answers "This site doesn't send emails, so no link has been sent." for every address alike | - |
 | `smtp` | any SMTP server - e.g. a dedicated Gmail account | `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_USER`, `SMTP_PASS` (a Google **app password**, needs 2-step verification on that Gmail account), and `npm install nodemailer` in `server/` |
 | `resend` | Resend's API, once the app has its own domain verified there | `RESEND_API_KEY` |
 

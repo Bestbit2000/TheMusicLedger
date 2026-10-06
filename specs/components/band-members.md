@@ -17,6 +17,11 @@ who runs a band). Two places:
   don't stack. Everyone in the band sees who is in it and what each may do: names, never email addresses.
   An **organiser** also invites (by the email address the other person signs in with - they are sent a short email),
   changes what a member may do, and removes.
+- **Where the site doesn't send email** (dev and sandbox, ML-479) the help line (`#bandInviteHelp`), the toast
+  after Invite and the "Send the email again" row all say so, and say to tell the person yourself.
+- **A name comes first** (ML-479): inviting, sending again and **Join** are refused for an account with no name.
+  The usual confirm pop-up opens - "Add your name", the server's reason, **Go to My details** / Cancel
+  (`bandNameNeeded`). No new styles.
 - **What a member may do** is one of three, chosen by the organiser who invites them: **Organiser** (runs the
   band here), **Can change music**, **Can play**. "Organiser" is the owner's word - not "Librarian", which is
   a real post in a band.

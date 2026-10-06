@@ -451,6 +451,7 @@
 
     // ML-355 batch 3: how each account logs in, and the help an admin can give with it.
     let passwordLoginOn = false; // from /api/admin/invites (reloadInvites)
+    let emailsAreSent = true;    // ML-479: false on a site that only keeps its emails (dev, sandbox)
     function accountLoginLine(a) {
         const parts = [a.hasPassword ? 'Google or email + password' : 'Google'];
         if (a.hasPassword) parts.push(a.twoStepOn ? 'two-step on' : 'two-step off');
@@ -459,7 +460,7 @@
         return parts.join(' &middot; ');
     }
     const ACCOUNT_ACTIONS = {
-        'send-reset': (a) => [a.hasPassword ? 'Send a reset link' : 'Send a link to add a password', `Email ${a.email} a link to choose a new password? It works once, for an hour.`],
+        'send-reset': (a) => [a.hasPassword ? 'Send a reset link' : 'Send a link to add a password', emailsAreSent ? `Email ${a.email} a link to choose a new password? It works once, for an hour.` : `Make a link for ${a.email} to choose a new password? This site doesn't send emails, so it won't reach them from here.`],
         unlock: (a) => ['Unlock', `Let ${accountDisplayName(a)} try their password and codes again straight away?`],
         'two-step/off': (a) => ['Turn off two-step sign-in', `Turn off ${accountDisplayName(a)}'s two-step sign-in - for a lost phone with no recovery codes? Only do this once you're sure it's really them.${a.accountLevel === 'super_admin' ? ' As a super admin, they\'ll have to set it up again at their next password login.' : ' They can set it up again in Sign-in and security.'}`],
         'sign-out': (a) => ['Sign out everywhere', `Sign ${accountDisplayName(a)} out on every device? They'll need to log in again.`]
@@ -652,6 +653,10 @@
         let data;
         try { data = await apiCall('/api/admin/invites'); } catch (e) { allInvites = []; return; } // before migration 074
         passwordLoginOn = !!data.enabled;
+        emailsAreSent = data.emailsAreSent !== false;
+        document.getElementById('inviteFormIntro').textContent = emailsAreSent
+            ? 'They get an email with a link to choose a password. It works once, for 7 days. Someone who already logs in with Google keeps their account and gains a password.'
+            : "This site doesn't send emails, so the link to choose a password won't reach them from here. Someone who already logs in with Google keeps their account and gains a password.";
         setShown('invitesOffNote', !data.enabled);
         document.getElementById('inviteBtn').disabled = !data.enabled;
         allInvites = data.invites || [];

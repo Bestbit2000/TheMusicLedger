@@ -19,7 +19,7 @@
 import { publicSiteAnswers } from '../utils/publicUrl.js';
 import pool from '../config/db.js';
 import { accountDisplayName } from './accounts.js';
-import { sendMail, emailBody } from './mail.js';
+import { sendMail, emailBody, emailOutcome } from './mail.js';
 import { passwordLinkForNewcomer } from './passwordAuth.js';
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
@@ -306,6 +306,19 @@ export async function deleteBandIfSoleMember(accountId, bandId) {
 // whether the address has an account. An invitation nobody answers goes after 30 days.
 
 const cleanEmail = (email) => String(email || '').trim().toLowerCase();
+
+// ML-479: a band shows its members to each other by name, and an invitation says who it is from. An
+// account with no name on it (no display name, first name or surname) would be "A member" - which, at
+// the top of an email to someone who has never heard of the app, reads like spam. So a name comes
+// first: before inviting, and before joining. Never the email address (ML-473). `reason` goes to the
+// app with the words, so it can offer the way to My details (sendError).
+const nameOf = (row) => String(accountDisplayName({ ...row, email: null }) || '').trim();
+async function requireName(db, accountId, message) {
+  const { rows } = await db.query('SELECT display_name, first_name, surname FROM accounts WHERE id = $1', [accountId]);
+  if (!rows.length || !nameOf(rows[0])) throw Object.assign(fail(409, message), { reason: 'needs-name' });
+}
+export const NAME_BEFORE_INVITING = 'The invitation says who it is from, so add your name before you invite anyone. It is on My account, under My details.';
+export const NAME_BEFORE_JOINING = 'Everyone in the band will see your name, so add it before you join. It is on My account, under My details.';
 const purgeOldInvites = (db) => db.query(`DELETE FROM band_invites WHERE created_at < now() - make_interval(days => $1)`, [INVITE_DAYS]);
 
 // Who is in the band and what each may do, for its members. The invitations still open are the
@@ -335,15 +348,18 @@ export async function listBandMembers(accountId, bandId) {
       joinedAt: m.joined_at
     })),
     invites: isOrganiser ? invites.map((i) => ({ id: Number(i.id), email: i.email, level: levelOf(i.role), sentAt: i.created_at })) : [],
-    openInvites: invites.length
+    openInvites: invites.length,
+    // ML-479: whether an invitation's email really goes from this site (not on dev or sandbox)
+    emailsAreSent: emailOutcome().emailed
   };
 }
 
 // Only an organiser invites, and the invitation carries what the new member may do ('play' unless
 // said). Inviting an address that is already waiting changes what it allows and sends nothing more -
 // unless `resend`, which sends the email again and gives the invitation another 30 days.
-// Returns { emailed }: false when nothing was sent, with emailFailed when it should have been - the
-// invitation stands either way, and is on their My bands page.
+// Returns { emailed }: false when nothing was sent - with emailFailed when it should have been, or
+// notSentHere on a site that only keeps its emails (ML-479; dev and sandbox). The invitation stands
+// either way, and is on their My bands page. Whoever sends the email must have a name on their account.
 export async function inviteToBand(accountId, bandId, email, level = 'play', origin = '', { resend = false } = {}) {
   await assertOrganiser(pool, accountId, bandId);
   const role = roleOfLevel(level);
@@ -360,6 +376,7 @@ export async function inviteToBand(accountId, bandId, email, level = 'play', ori
   const waiting = (await pool.query('SELECT 1 FROM band_invites WHERE band_id = $1 AND email = $2', [bandId, to])).rows.length > 0;
   const sending = !waiting || resend;
   if (sending) {
+    await requireName(pool, accountId, NAME_BEFORE_INVITING);
     // Each email counts: a new invitation, or one sent again (which is dated today from then on)
     const today = await pool.query(
       `SELECT COUNT(*) AS n FROM band_invites WHERE invited_by_account_id = $1 AND created_at > now() - interval '24 hours' AND NOT (band_id = $2 AND email = $3)`,
@@ -376,7 +393,7 @@ export async function inviteToBand(accountId, bandId, email, level = 'play', ori
     const { rows } = await pool.query(
       `SELECT g.name AS band_name, a.display_name, a.first_name, a.surname
          FROM bands g, accounts a WHERE g.id = $1 AND a.id = $2`, [bandId, accountId]);
-    const from = accountDisplayName({ ...rows[0], email: null }) || 'A member';
+    const from = nameOf(rows[0]); // never empty: requireName, above
     const band = rows[0].band_name;
     const home = String(origin).replace(/\/+$/, '');
     const intro = `${from} has invited you to join ${band} on The Music Ledger - the practice app the band uses for its music.`;
@@ -393,7 +410,7 @@ export async function inviteToBand(accountId, bandId, email, level = 'play', ori
         'Open The Music Ledger', `${home}/?band-invite=1`,
         `The invitation waits for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email and nothing will happen.`);
     await sendMail({ to, subject: `${from} has invited you to join ${band}`, text, html });
-    return { emailed: true };
+    return emailOutcome();
   } catch (error) {
     console.error('Band invitation: the email was not sent:', error.message);
     return { emailed: false, emailFailed: true };
@@ -435,6 +452,7 @@ async function myInvite(db, accountId, inviteId) {
 }
 export async function acceptBandInvite(accountId, inviteId) {
   const invite = await myInvite(pool, accountId, inviteId);
+  await requireName(pool, accountId, NAME_BEFORE_JOINING); // ML-479
   await pool.query(
     `INSERT INTO band_members (band_id, account_id, role) VALUES ($1, $2, $3) ON CONFLICT (band_id, account_id) DO NOTHING`,
     [invite.band_id, accountId, invite.role]

@@ -18,6 +18,17 @@ export function mailIsReal() {
   return mailProvider() !== 'log';
 }
 
+// ML-479: what to tell the person who caused an email, once sendMail has come back without an error.
+// On a site that only keeps its emails (provider "log" - dev and sandbox) nothing has reached anyone,
+// and the app must say so rather than "they have been sent an email". Pure: pass a provider to test it.
+export function emailOutcome(provider = mailProvider()) {
+  return provider === 'log' ? { emailed: false, notSentHere: true } : { emailed: true };
+}
+// The same choice for a ready-made sentence: `sent` where emails really go, `held` where they don't.
+export function sentOrHeld(sent, held, provider = mailProvider()) {
+  return emailOutcome(provider).emailed ? sent : held;
+}
+
 export async function sendMail({ to, subject, text, html }) {
   const provider = mailProvider();
   const from = process.env.MAIL_FROM || 'The Music Ledger <no-reply@themusicledger.local>';

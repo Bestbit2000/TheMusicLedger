@@ -46,6 +46,7 @@ import { listNotificationsForAccount, markNotificationRead, markAllNotifications
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryLevels, getTheoryWeights, getTheoryPlayed } from '../services/theoryPractice.js';
 import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getDrillWeights, getRhythmLevels, setRhythmWord } from '../services/drills.js';
 import { securityStatus, requirePasswordAccount, changeOwnPassword, passwordLoginEnabled, appUrl, createInvite, listMyInvites, invitesSentToday, cancelMyInvite, resendMyInvite, limitCalls, INVITE_LEVELS } from '../services/passwordAuth.js';
+import { mailIsReal } from '../services/mail.js';
 import { beginSetup, confirmSetup, newRecoveryCodes, turnOff } from '../services/twoStep.js';
 
 const router = express.Router();
@@ -1447,10 +1448,14 @@ async function inviteState(req) {
   const sent = on ? await invitesSentToday(req.accountId) : 0;
   return { on, limit, left: Math.max(0, limit - sent) };
 }
+// ML-479: on a site that only keeps its emails (dev and sandbox) the invite is made but nobody is told
+const inviteMessage = (invite, sent) => invite.notSentHere
+  ? `Invite made for ${invite.email}, but this site doesn't send emails - nothing has gone to them.`
+  : `Invite ${sent} to ${invite.email}`;
 router.get('/invites', requireAuth, resolveAccount, async (req, res) => {
   try {
     const { on, limit, left } = await inviteState(req);
-    res.json({ enabled: on, limit, left, invites: on ? await listMyInvites(req.accountId) : [], levels: req.accountLevel === 'super_admin' ? INVITE_LEVELS : null });
+    res.json({ enabled: on, limit, left, invites: on ? await listMyInvites(req.accountId) : [], levels: req.accountLevel === 'super_admin' ? INVITE_LEVELS : null, emailsAreSent: mailIsReal() });
   } catch (error) {
     sendError(res, error);
   }
@@ -1464,7 +1469,7 @@ router.post('/invites', requireAuth, resolveAccount, async (req, res) => {
     // Only a super admin chooses the type; anyone else's invite is a Standard member whatever was sent.
     const level = req.accountLevel === 'super_admin' && accountLevel ? accountLevel : 'standard_member';
     const invite = await createInvite({ email, firstName, surname, accountLevel: level, createdBy: req.accountId, origin: appUrl(req) });
-    res.json({ invite, left: left - 1, invites: await listMyInvites(req.accountId), message: `Invite sent to ${invite.email}` });
+    res.json({ invite, left: left - 1, invites: await listMyInvites(req.accountId), message: inviteMessage(invite, 'sent') });
   } catch (error) {
     sendError(res, error);
   }
@@ -1476,7 +1481,7 @@ router.post('/invites/:id/resend', requireAuth, resolveAccount, async (req, res)
     if (!on) throw withStatus(403, "This feature isn't available right now.");
     if (left <= 0) throw withStatus(429, `You've sent ${limit} invites in the last day - you can send more tomorrow.`);
     const invite = await resendMyInvite(req.accountId, req.params.id, appUrl(req));
-    res.json({ invite, left: left - 1, invites: await listMyInvites(req.accountId), message: `Invite sent again to ${invite.email}` });
+    res.json({ invite, left: left - 1, invites: await listMyInvites(req.accountId), message: inviteMessage(invite, 'sent again') });
   } catch (error) {
     sendError(res, error);
   }

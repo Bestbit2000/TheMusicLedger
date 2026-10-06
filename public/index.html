@@ -942,7 +942,7 @@
         <p class="metro-help-text hidden-group" id="bandMembersWaiting"></p>
         <div class="hidden-group" id="bandMembersOrganiser">
             <div class="section-title mt-4">Invite someone</div>
-            <p class="metro-help-text">Type their email address. They are sent an email, and the invitation waits on their My bands page for 30 days. They sign in with that same address to join.</p>
+            <p class="metro-help-text" id="bandInviteHelp">Type their email address. They are sent an email, and the invitation waits on their My bands page for 30 days. They sign in with that same address to join.</p>
             <div class="form-group">
                 <label for="bandInviteEmail">Their email address</label>
                 <input type="email" id="bandInviteEmail" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="254">
@@ -996,7 +996,7 @@
          a value box with its own pop-up, and two pop-ups don't stack). Email and name, Send, how many are
          left today, then your own invites that are waiting, each with Cancel. app.js: INVITE SOMEONE. -->
     <div id="inviteView" class="hidden-group">
-        <p class="theory-intro">Invite someone to The Music Ledger. They get an email with a link to choose a password - it works once, for 7 days.</p>
+        <p class="theory-intro" id="inviteIntro">Invite someone to The Music Ledger. They get an email with a link to choose a password - it works once, for 7 days.</p>
         <p class="level-notice mb-4"><strong>Tell them to look in their junk folder.</strong> The email comes from themusicledgerapp@gmail.com and will probably land there.</p>
         <div class="form-group"><label for="inviteEmailInput">Their email</label><input type="email" id="inviteEmailInput" autocomplete="off" data-form-type="other" maxlength="200" placeholder="e.g. sam@example.com"></div>
         <div class="form-group"><label for="inviteFirstInput">Their first name</label><input type="text" id="inviteFirstInput" autocomplete="off" data-form-type="other" maxlength="80"></div>

@@ -3,6 +3,7 @@ import passport from '../config/passport.js';
 import { signToken } from '../utils/authToken.js';
 import { currentTokenVersion, forgetTokenVersion } from '../services/tokenVersions.js';
 import { passwordLoginEnabled, login, forgotPassword, resetPassword, describeLink, acceptInvite, appUrl, secondStep, setupFromChallenge, confirmSetupFromChallenge } from '../services/passwordAuth.js';
+import { mailIsReal } from '../services/mail.js';
 import { sendError } from '../utils/httpErrors.js';
 import { clientDevice } from '../middleware/auth.js';
 
@@ -128,7 +129,10 @@ router.post('/password/login', async (req, res) => {
 router.post('/password/forgot', async (req, res) => {
   try {
     await forgotPassword(req.body?.email, req.ip, appUrl(req));
-    res.json({ message: "If that email has an account, we've sent it a link to choose a new password." });
+    // The same answer whether or not there is an account. ML-479: and an honest one where no email goes
+    res.json(mailIsReal()
+      ? { message: "If that email has an account, we've sent it a link to choose a new password." }
+      : { message: "This site doesn't send emails, so no link has been sent.", notSentHere: true });
   } catch (error) {
     sendError(res, error);
   }
