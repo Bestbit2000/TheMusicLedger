@@ -1,5 +1,41 @@
 [
   {
+    "version": "0.46.0",
+    "date": "2026-10-06",
+    "changes": [
+      {
+        "key": "ML-464",
+        "type": "New",
+        "summary": "Retention: remove accounts not used for 24 months, after three emails; clear old invites and feedback"
+      },
+      {
+        "key": "ML-462",
+        "type": "New",
+        "summary": "Third parties: record my own reference, notes and what I've dealt with, on the site"
+      },
+      {
+        "key": "ML-461",
+        "type": "New",
+        "summary": "Business case: copy my plan between dev and production"
+      },
+      {
+        "key": "ML-231",
+        "type": "New",
+        "summary": "Security check on this site"
+      },
+      {
+        "key": "ML-221",
+        "type": "New",
+        "summary": "GDPR storage of data met"
+      },
+      {
+        "key": "ML-220",
+        "type": "New",
+        "summary": "Offline and sync version of storage"
+      }
+    ]
+  },
+  {
     "version": "0.45.0",
     "date": "2026-10-06",
     "changes": [
