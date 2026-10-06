@@ -20,7 +20,7 @@ git: every version of this file is a commit.
 
 | | Principle or rule | Version 1 | Version 2 | Why it moved |
 |---|---|---|---|---|
-| 1 | Lawfulness, fairness and transparency | Mostly met | Mostly met | The policy now has a complaints route and the right date. The lawful reason for three items is still to be added (ML-466). |
+| 1 | Lawfulness, fairness and transparency | Mostly met | Mostly met | The policy now has a complaints route and the right date. The lawful reason for three items is drafted in the policy (ML-466, 0.48.0) - the wording is the owner's to check. |
 | 2 | Purpose limitation | Met | Met | - |
 | 3 | Data minimisation | Met | Met | - |
 | 4 | Accuracy | Mostly met | Mostly met | Changing an email address is still by request (ML-465). |
@@ -72,7 +72,7 @@ done by Claude, waiting on the owner to review, switch on or release. **Ticket**
 
 | # | Gap (version 1) | Principle | Status | How it is being filled |
 |---|---|---|---|---|
-| 1 | No lawful reason stated for the last-seen date, the sign-up email and feedback | 1 | Ticket | ML-466 (policy wording). The reasoning is written: the legitimate interests assessment. |
+| 1 | No lawful reason stated for the last-seen date, the sign-up email and feedback | 1 | **Drafted** | ML-466: "Why we hold it" now gives the reason for each - a legitimate interest, as the legitimate interests assessment sets out. Also drafted there: a few lines for a young player at the top of "Young players", and a line on a teacher's name a member types in. The wording waits for the owner's check. |
 | 2 | The last-seen date went out without telling members in the app | 1 | Ticket | ML-463 (an important notice that pops up). Accepted for now: the owner is the only member. The release process now asks the question every time. |
 | 3 | The policy's date was out of date | 1 | **Closed** | Corrected 6 October 2026. |
 | 4 | People who are not members: an invitee, and a teacher a member names | 1 | Ticket | ML-467 (teachers stay a name only - **built**: the unused first name, surname and email columns are gone, migration 107, and each member now has their own teachers, ML-472), ML-466 (say it in the policy). Invite records are now cleared after 30 days (ML-464). |
