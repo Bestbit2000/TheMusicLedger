@@ -344,6 +344,9 @@ selling or sharing for others' purposes.
 - **Policy date** corrected.
 - **Planned, with a ticket each:** the retention rule - 24 months without use, emails at 22, 23 and 24 months (ML-464); an important notice that pops up at the next sign-in, first used to tell members about the last-seen date (ML-463); the repeatable site security review, with the security headers (ML-231).
 - **Still with the owner:** the provider contracts (Vercel Pro; PostHog, Neon and Resend agreements confirmed and noted on Admin → Third parties).
+- **The design rule that keeps standards 5, 12 and 13 met (ML-471):** written into `specs/README.md` ("No
+  pressure - young players use this") and asked at every release (`docs/release-process.md`, step 1). The
+  SmartLearn upgrade prompt was checked against it and passes.
 - **Still to build:** the regular review itself - a list of reviews in the admin panel (data protection and the Children's Code yearly, site security monthly), each with the date last done, and a "review due" item on the Dashboard. To be built with ML-231, which reshapes the same page.
 
 ### Next (the rest of ML-221)

@@ -66,6 +66,41 @@ pop-up. Two kinds of pop-up **don't** close on a backdrop tap (the X, Cancel and
 
 See [modal](components/modal.md).
 
+**No pressure - young players use this (owner rule, ML-471).** Children play in bands, so the app is
+built to the Children's Code (UK). The self-assessment passes standards 5 (detrimental use), 12 (profiling)
+and 13 (nudge techniques) because the app has none of the things those standards worry about. It stays
+that way only if every new screen is held to this - **read it before building an upgrade prompt, anything
+that encourages practice, a reminder, or anything that shows one member another**:
+- **An upgrade prompt says what the upgrade gives and how to ask - and nothing else.** No countdown or
+  "today only". No "everyone else has it", no numbers of other players. It is not asked again once
+  answered, it never appears on its own (the member taps to see it), and it never stands between a
+  member and what they were doing: the free thing carries on working beside it.
+- **No streak that punishes a missed day.** A streak may be counted and shown; nothing is lost, reset
+  with a warning, or said in a disappointed voice when a day is missed. No "don't break your streak".
+- **No comparison with other players** - no league table, no "you are behind", no ranking in a band
+  (see also [product values](../docs/product-values.md), "Share the music, never the progress").
+- **No reminder designed to bring someone back.** No notification, email or badge whose job is to get a
+  member to open the app. A notice tells them something they need to know (ML-201, ML-463); it does not
+  nag. Any future practice reminder is the member's own, off until they switch it on, in their words.
+- **Nothing nudges a member to share more or to weaken their privacy.** The private choice is the
+  default and is never the smaller, greyer button. Deleting an account and downloading its data stay as
+  easy to reach as anything else on My account.
+- **Encouragement is positive only** - already the rule for the home greeting, Levels, results and the
+  rest messages: what went well and what comes next, never a score to feel bad about.
+
+A feature that touches any of these is checked against the Children's Code self-assessment before it is
+released (`docs/release-process.md`, step 1), and the self-assessment is updated if the answer to a
+standard changes.
+
+*Checked against this rule, 6 Oct 2026 - the one upgrade prompt there is, SmartLearn (ML-396):* a strip on
+the Theory, Pitch and Tempo set-up screens and in the results box says "Learn faster with SmartLearn"
+with **Learn more**; it is one quiet line, opens nothing by itself and blocks nothing - the plain round
+is played as before. The pop-up says what SmartLearn does and why it works, and ends in one button that
+emails the owner a request, once per device ("Upgrade requested" afterwards). No countdown, no other
+players, no second ask. **It passes.** One thing for the owner to decide: the button says "Upgrade
+**now**" - the only word in it that hurries - and what it really does is ask; "Ask to upgrade" would say
+that. Left as it is until he says.
+
 Dark mode is Layer 2 only: `body.dark-mode` in `tokens.css` points an alias at a different primitive.
 A component never needs its own `body.dark-mode` colour override, so if you find yourself writing
 one, you're probably missing an alias. Add the alias instead.

@@ -123,6 +123,13 @@ regenerate the token reference if tokens changed. The Design page is how the own
    is, mark it **important** so it pops up when each member next opens the app. If the answer is no, say
    "no notice needed" in the Jira issue - so it is plain the question was asked. Claude proposes the
    answer and the wording; the owner decides.
+   **Ask, every release: does anything in it touch the young players rule?** (ML-471.) An upgrade prompt,
+   a streak, anything that encourages or reminds, a comparison between players, a default that shares
+   more, or a change to how deleting and downloading are reached: check it against "No pressure - young
+   players use this" in `specs/README.md` and against the Children's Code self-assessment (the owner's
+   document 4, `compliance-documents/`; summary in `docs/gdpr-assessment.md`) **before** it is released,
+   and say in the Jira issue that it was checked. If the answer to one of the Code's standards changes,
+   the self-assessment is updated in the same release.
 2. Run the Jira-side automation:
    ```bash
    npm run cut-release -- <version> <ISSUE-1> [ISSUE-2 ...]
