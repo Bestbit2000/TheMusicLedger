@@ -18,6 +18,29 @@ import { isSuperAdmin } from './accounts.js';
 import { getConfigValue } from './appConfig.js';
 import { NOTE_VALUES } from './metronomeSegments.js';
 import { canDeleteFlow } from './flowPermissions.js';
+import { isOwnBlobUrl } from './scoreImport.js';
+
+// ML-231: a stored file's address comes back from the browser after an upload, so it is checked before
+// it is kept: it must be a file in this app's own store, at the path the upload gave, and one that no
+// piece already points at. Before this, any address was stored as sent - a member could plant an
+// address that ran script for whoever opened the piece, or attach another piece's file and then
+// delete it.
+async function assertOwnUnusedBlob(blobUrl, blobPathname) {
+  if (!isOwnBlobUrl(blobUrl, blobPathname)) throw withStatus(400, 'That file is not one this app stored.');
+  const { rows } = await pool.query(
+    `SELECT 1 FROM score_recordings WHERE blob_url = $1 UNION ALL SELECT 1 FROM score_documents WHERE blob_url = $1 LIMIT 1`, [blobUrl]);
+  if (rows.length) throw withStatus(409, 'That file is already attached to a piece.');
+}
+// A stored file is only removed when no other piece still points at it.
+async function delUnreferenced(blobUrls) {
+  const urls = [...new Set(blobUrls.filter(Boolean))];
+  if (!urls.length) return;
+  const { rows } = await pool.query(
+    `SELECT blob_url FROM score_recordings WHERE blob_url = ANY($1) UNION SELECT blob_url FROM score_documents WHERE blob_url = ANY($1)`, [urls]);
+  const stillUsed = new Set(rows.map((r) => r.blob_url));
+  const free = urls.filter((u) => !stillUsed.has(u));
+  if (free.length) await del(free);
+}
 
 export function withStatus(status, message) {
   const err = new Error(message);
@@ -394,8 +417,8 @@ export async function deleteFlow(accountId, scoreId) {
     pool.query('SELECT blob_url FROM score_documents WHERE score_id = $1', [scoreId])
   ]);
   const blobUrls = [...recordingRows, ...documentRows].map((r) => r.blob_url).filter(Boolean);
-  if (blobUrls.length) await del(blobUrls);
   await pool.query('DELETE FROM scores WHERE id = $1', [scoreId]);
+  await delUnreferenced(blobUrls); // ML-231: after the rows have gone; a file another piece still uses stays
 }
 
 // Inserts the row for an mp3/mp4 that's already been uploaded straight to
@@ -406,6 +429,7 @@ export async function deleteFlow(accountId, scoreId) {
 export async function addUploadedRecording(accountId, scoreId, { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType }) {
   await assertFlowAccess(accountId, scoreId);
   if (!blobUrl || !blobPathname) throw withStatus(400, 'Missing uploaded file details.');
+  await assertOwnUnusedBlob(blobUrl, blobPathname);
   await pool.query(
     `INSERT INTO score_recordings (score_id, type, title, blob_url, blob_pathname, file_size_bytes, mime_type, order_index)
      VALUES ($1, 'upload', $2, $3, $4, $5, $6, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
@@ -431,8 +455,8 @@ export async function deleteRecording(accountId, scoreId, recordingId) {
   await assertFlowAccess(accountId, scoreId);
   const { rows } = await pool.query('SELECT blob_url FROM score_recordings WHERE id = $1 AND score_id = $2', [recordingId, scoreId]);
   if (!rows.length) throw withStatus(404, 'Recording not found');
-  if (rows[0].blob_url) await del(rows[0].blob_url);
   await pool.query('DELETE FROM score_recordings WHERE id = $1', [recordingId]);
+  await delUnreferenced([rows[0].blob_url]); // after the row has gone, and only if nothing else points at the file
   return getFlowDetail(accountId, scoreId);
 }
 
@@ -441,6 +465,7 @@ export async function deleteRecording(accountId, scoreId, recordingId) {
 export async function addDocument(accountId, scoreId, { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType }) {
   await assertFlowAccess(accountId, scoreId);
   if (!blobUrl || !blobPathname || !fileName) throw withStatus(400, 'Missing uploaded file details.');
+  await assertOwnUnusedBlob(blobUrl, blobPathname);
   await pool.query(
     `INSERT INTO score_documents (score_id, file_name, blob_url, blob_pathname, file_size_bytes, mime_type)
      VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -453,7 +478,7 @@ export async function deleteDocument(accountId, scoreId, documentId) {
   await assertFlowAccess(accountId, scoreId);
   const { rows } = await pool.query('SELECT blob_url FROM score_documents WHERE id = $1 AND score_id = $2', [documentId, scoreId]);
   if (!rows.length) throw withStatus(404, 'Document not found');
-  await del(rows[0].blob_url);
   await pool.query('DELETE FROM score_documents WHERE id = $1', [documentId]);
+  await delUnreferenced([rows[0].blob_url]);
   return getFlowDetail(accountId, scoreId);
 }

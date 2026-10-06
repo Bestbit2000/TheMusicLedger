@@ -11,6 +11,7 @@ import { listPendingInvites } from './passwordAuth.js';
 import { getBusinessCase, BusinessCase } from './businessCase.js';
 import { costsAndUsage } from './thirdPartyUsage.js';
 import { getSecurityReview } from './securityReview.js';
+import { getSiteSecurityReview } from './siteSecurityReview.js';
 import thirdPartyRegister from '../thirdParties/register.js';
 import { listRecords } from './thirdPartyRecords.js';
 import { openAttentionCount } from '../thirdParties/records.js';
@@ -83,7 +84,13 @@ export async function getAdminDashboard() {
     part('money', money),
     part('feedback', async () => (await pool.query('SELECT count(*) FILTER (WHERE category IS NULL)::int AS n FROM feedback')).rows[0].n),
     part('usage', async () => (await costsAndUsage()).usage),
-    part('security review', async () => { const r = await getSecurityReview(); return { runDue: r.automatedRunDue, upstreamChanged: r.upstreamChangedSinceDeepReview }; })
+    part('security review', async () => {
+      const [r, site] = await Promise.all([getSecurityReview(), getSiteSecurityReview()]);
+      // ML-231: this site's own review - is the monthly run due, has a release gone out since the deep
+      // review, and did the last automated run find anything
+      const failing = Object.values(site.latest).filter((x) => x.runId && String(x.runId).startsWith('auto-') && x.status === 'fail').length;
+      return { runDue: r.automatedRunDue, upstreamChanged: r.upstreamChangedSinceDeepReview, siteRunDue: site.automatedRunDue, siteChanged: site.upstreamChangedSinceDeepReview, siteFailing: failing };
+    })
   ]);
   const limits = (usage || []).filter((m) => m.status && (m.status.level === 'warn' || m.status.level === 'fail'))
     .map((m) => ({ name: m.name, percent: m.status.percent, level: m.status.level }));

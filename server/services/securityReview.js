@@ -113,7 +113,7 @@ function githubHeaders() {
   return { Accept: 'application/vnd.github+json', 'User-Agent': 'TheMusicLedger-security-review', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
-async function fetchJson(url, options = {}) {
+export async function fetchJson(url, options = {}) {
   const res = await fetch(url, { ...options, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`${new URL(url).hostname} answered ${res.status}`);
   return res.json();
@@ -140,7 +140,7 @@ function acceptedAdvisoryIds() {
 
 // ---------------------------------------------------------------- OSV
 
-async function osvLookup(queries) {
+export async function osvLookup(queries) {
   if (!queries.length) return [];
   const batch = await fetchJson('https://api.osv.dev/v1/querybatch', {
     method: 'POST',
@@ -486,13 +486,19 @@ export async function runAutomatedChecks(accountId) {
     }
   }));
 
+  return saveRun(TARGET.key, accountId, ctx.head, results);
+}
+
+// One automated run and its results, kept in the database. `head` is what was looked at: the upstream
+// commit for the OMR service, the app version for this site (ML-231).
+export async function saveRun(targetKey, accountId, head, results) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { rows: [run] } = await client.query(
       `INSERT INTO security_review_runs (target_key, kind, triggered_by_account_id, upstream_commit_sha)
        VALUES ($1, 'automated', $2, $3) RETURNING id`,
-      [TARGET.key, accountId || null, ctx.head || null]
+      [targetKey, accountId || null, head || null]
     );
     for (const r of results) {
       await client.query(
@@ -515,12 +521,15 @@ export async function runAutomatedChecks(accountId) {
 
 const AUTOMATED_DUE_AFTER_DAYS = 30;
 
-export async function getSecurityReview() {
+// The page's data for one review target. With nothing given it is the OMR service (ML-192); the site
+// review (ML-231, siteSecurityReview.js) passes its own target, sections, checks and deep-review history.
+export async function buildReview({ target = TARGET, sections = SECTIONS, checks = CHECKS, assisted = assistedRuns(), dueAfterDays = AUTOMATED_DUE_AFTER_DAYS } = {}) {
+  const checkKeys = new Set(checks.map((c) => c.key));
   const { rows: runRows } = await pool.query(
     `SELECT r.id, r.upstream_commit_sha, r.started_at, r.completed_at, a.email AS triggered_by
      FROM security_review_runs r LEFT JOIN accounts a ON a.id = r.triggered_by_account_id
      WHERE r.target_key = $1 ORDER BY r.started_at DESC LIMIT 50`,
-    [TARGET.key]
+    [target.key]
   );
   const runIds = runRows.map((r) => r.id);
   const { rows: resultRows } = runIds.length
@@ -535,7 +544,7 @@ export async function getSecurityReview() {
     upstreamCommitSha: r.upstream_commit_sha,
     results: resultRows.filter((x) => x.run_id === r.id).map((x) => ({ checkKey: x.check_key, status: x.status, summary: x.summary, details: x.details || [] }))
   }));
-  const deepRuns = assistedRuns().map((r) => ({
+  const deepRuns = assisted.map((r) => ({
     id: `deep-${r.id}`,
     kind: 'assisted',
     at: r.reviewedAt,
@@ -543,7 +552,7 @@ export async function getSecurityReview() {
     upstreamCommitSha: r.upstreamCommitSha,
     verdict: r.verdict,
     tools: r.tools || [],
-    results: (r.results || []).filter((x) => CHECK_KEYS.has(x.checkKey))
+    results: (r.results || []).filter((x) => checkKeys.has(x.checkKey))
   }));
 
   // Latest result per check, whichever kind of run it came from.
@@ -559,16 +568,16 @@ export async function getSecurityReview() {
   const currentHead = lastAuto?.upstreamCommitSha || null;
   const daysSinceAuto = lastAuto ? (Date.now() - new Date(lastAuto.at)) / 86400000 : null;
   return {
-    target: TARGET,
-    sections: SECTIONS,
-    checks: CHECKS,
+    target,
+    sections,
+    checks,
     latest,
     verdict: lastDeep?.verdict || null,
     lastDeepReview: lastDeep ? { at: lastDeep.at, by: lastDeep.by, upstreamCommitSha: lastDeep.upstreamCommitSha, tools: lastDeep.tools } : null,
     lastAutomatedRun: lastAuto ? { at: lastAuto.at, by: lastAuto.by, upstreamCommitSha: lastAuto.upstreamCommitSha } : null,
     upstreamChangedSinceDeepReview: Boolean(lastDeep && currentHead && currentHead !== lastDeep.upstreamCommitSha),
-    automatedRunDue: daysSinceAuto === null || daysSinceAuto > AUTOMATED_DUE_AFTER_DAYS,
-    automatedDueAfterDays: AUTOMATED_DUE_AFTER_DAYS,
+    automatedRunDue: daysSinceAuto === null || daysSinceAuto > dueAfterDays,
+    automatedDueAfterDays: dueAfterDays,
     history: [...automatedRuns, ...deepRuns]
       .sort((a, b) => new Date(b.at) - new Date(a.at))
       .map((r) => ({ ...r, counts: r.results.reduce((acc, x) => ({ ...acc, [x.status]: (acc[x.status] || 0) + 1 }), {}) }))
@@ -577,6 +586,8 @@ export async function getSecurityReview() {
 
 // Serialises "Run now" per instance - two presses in a row shouldn't double the GitHub/OSV calls.
 let running = null;
+export const getSecurityReview = () => buildReview();
+
 export async function runSecurityReviewNow(accountId) {
   if (running) throw withStatus(409, 'A run is already in progress - wait for it to finish.');
   running = runAutomatedChecks(accountId);

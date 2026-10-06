@@ -1498,11 +1498,11 @@
         const names = activeNames(list);
         let html = names.map(n => {
             const safe = String(n).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-            return `<option value="${safe}">${n}</option>`;
+            return `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`; // ML-231: a typed name is text, never markup
         }).join('');
         if (selectedName && !names.includes(selectedName)) {
             const safe = String(selectedName).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-            html += `<option value="${safe}">${selectedName} (archived)</option>`;
+            html += `<option value="${escapeHtml(selectedName)}">${escapeHtml(selectedName)} (archived)</option>`;
         }
         return html;
     }
@@ -2734,10 +2734,10 @@
                 let typeIcon = g.type === 'Performance' ? '🎭' : '🛠️';
 
                 ui.innerHTML += `<div class="history-item draggable-item items-center pl-1 category-edge ${typeClass}" draggable="true" data-id="${g.id}">
-                    <button type="button" class="drag-handle" aria-label="Reorder ${g.name} - drag, or tap for Move up / Move down" aria-haspopup="menu" aria-expanded="false">☰</button>
+                    <button type="button" class="drag-handle" aria-label="Reorder ${escapeHtml(g.name)} - drag, or tap for Move up / Move down" aria-haspopup="menu" aria-expanded="false">☰</button>
                     <div role="button" tabindex="0" class="grow" onclick="openEditChallenge('${g.id}')">
                         <div class="flex-row justify-between w-full mb-2">
-                            <strong>${typeIcon} ${g.name}</strong>
+                            <strong>${typeIcon} ${escapeHtml(g.name)}</strong>
                             <span class="fw-bold${pct === 100 ? ' text-success' : ''}">${pct}%</span>
                         </div>
                         <div class="text-sm text-muted">
@@ -2774,7 +2774,7 @@
                     const typeIcon = g.type === 'Performance' ? '🎭' : '🛠️';
                     const typeClass = g.type === 'Performance' ? 'category-performance' : 'category-lesson';
                     ui.innerHTML += `<button class="history-item category-edge ${typeClass} pl-1 w-full text-left flex-col items-start gap-xs" onclick="startChallenge('${g.id}')">
-                        <div class="w-full"><strong>${typeIcon} ${g.name}</strong></div>
+                        <div class="w-full"><strong>${typeIcon} ${escapeHtml(g.name)}</strong></div>
                         <div class="text-muted text-sm">${g.incomplete} remaining</div>
                     </button>`;
                 }
@@ -3937,10 +3937,12 @@
 
         (list || []).forEach(item => {
             if (item.archived && !showArchived) return;
-            const safe = String(item.name).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            // ML-231: the name goes into onclick="...('...')" - a JS string inside an HTML attribute - so it
+            // is escaped for both (a backslash or a quote can't end the string, a < or & can't end the attribute)
+            const safe = escapeHtml(String(item.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
             const label = item.archived
-                ? `${item.name} <span class="text-muted text-sm">(archived)</span>`
-                : item.name;
+                ? `${escapeHtml(item.name)} <span class="text-muted text-sm">(archived)</span>`
+                : escapeHtml(item.name);
 
             container.innerHTML += `<div class="history-item${item.archived ? ' is-muted' : ''}">
                 <span>${label}</span>
@@ -4235,8 +4237,8 @@
         } else {
             container.innerHTML = accountBandsData.myBands.map(b => `
                 <div class="history-item">
-                    <span class="band-row-text"><span>${b.displayName}</span>${bandWebsiteLinkHtml(b.website)}</span>
-                    <button type="button" class="list-item-menu-btn" data-band-menu-id="${b.id}" aria-label="Options for ${b.displayName}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
+                    <span class="band-row-text"><span>${escapeHtml(b.displayName)}</span>${bandWebsiteLinkHtml(b.website)}</span>
+                    <button type="button" class="list-item-menu-btn" data-band-menu-id="${b.id}" aria-label="Options for ${escapeHtml(b.displayName)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 </div>
             `).join('');
             container.querySelectorAll('[data-band-menu-id]').forEach(btn => {
@@ -10214,7 +10216,7 @@
                             <div><strong>${escapeHtml(d.fileName)}</strong><span>${sizeText}</span></div>
                         </div>
                         <div class="flow-doc-item-actions">
-                            <button type="button" class="list-item-menu-btn" onclick="window.open('${d.blobUrl}', '_blank')" aria-label="View ${escapeHtml(d.fileName)}"><span class="material-symbols-outlined">visibility</span></button>
+                            <button type="button" class="list-item-menu-btn" data-open-url="${escapeHtml(d.blobUrl)}" onclick="window.open(this.dataset.openUrl, '_blank', 'noopener')" aria-label="View ${escapeHtml(d.fileName)}"><span class="material-symbols-outlined">visibility</span></button>
                             <button type="button" class="flow-delete-btn" onclick="deleteFlowDocument('${d.id}')" aria-label="Delete ${escapeHtml(d.fileName)}"><span class="material-symbols-outlined">delete</span></button>
                         </div>
                     </div>

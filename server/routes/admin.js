@@ -26,6 +26,7 @@ import { listFeedbackForAdmin, updateFeedbackAdmin } from '../services/feedback.
 import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitImport, MAX_IMPORT_BYTES } from '../services/flowTransfer.js';
 import { listNotificationsForAdmin, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
 import { getSecurityReview, runSecurityReviewNow } from '../services/securityReview.js';
+import { getSiteSecurityReview, runSiteSecurityReviewNow } from '../services/siteSecurityReview.js';
 import thirdPartyRegister from '../thirdParties/register.js';
 import { costsAndUsage, addCost, updateCost, deleteCost, readMeters, recordManualReading, sendUsageWarnings } from '../services/thirdPartyUsage.js';
 import { getBusinessCase, saveBusinessCase, resetBusinessCase } from '../services/businessCase.js';
@@ -794,7 +795,7 @@ router.post('/flows/import', requireAuth, resolveAccount, requireSuperAdmin, raw
 // ========================================
 router.get('/security-review', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
-    res.json(await getSecurityReview());
+    res.json(req.query.target === 'site' ? await getSiteSecurityReview() : await getSecurityReview());
   } catch (error) {
     sendError(res, error);
   }
@@ -802,6 +803,11 @@ router.get('/security-review', requireAuth, resolveAccount, requireSuperAdmin, a
 
 router.post('/security-review/run', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
+    // ML-231: ?target=site reviews this site; with nothing, the PDF import service (ML-192)
+    if (req.query.target === 'site') {
+      const runId = await runSiteSecurityReviewNow(req.accountId, process.env.APP_URL || `${req.protocol}://${req.get('host')}`);
+      return res.json({ runId, ...(await getSiteSecurityReview()) });
+    }
     const runId = await runSecurityReviewNow(req.accountId);
     res.json({ runId, ...(await getSecurityReview()) });
   } catch (error) {

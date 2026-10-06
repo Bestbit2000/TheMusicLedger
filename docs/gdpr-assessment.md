@@ -25,7 +25,7 @@ git: every version of this file is a commit.
 | 3 | Data minimisation | Met | Met | - |
 | 4 | Accuracy | Mostly met | Mostly met | Changing an email address is still by request (ML-465). |
 | 5 | Storage limitation | **Partly met** | **Mostly met** | A retention rule is built and in the policy: emails at 22 and 23 months, deletion at 24; old invites and feedback cleared. It is off until switched on in each environment. |
-| 6 | Integrity and confidentiality (security) | Mostly met | Mostly met | Unchanged. The site security review and the headers are next (ML-231). |
+| 6 | Integrity and confidentiality (security) | Mostly met | Mostly met | The site security review is done and its headers are in (ML-231). It stays "mostly" because the review found teachers and private organisation names are shared between all members (ML-472, ML-473) - to be fixed before anyone else joins. |
 | 7 | Accountability | **Partly met** | **Partly met, much closer** | ICO registered. PostHog's agreement signed. The three records are drafted. A complaints route exists. Still open: Vercel has no agreement, Neon's and Resend's are unconfirmed, and nothing reminds anyone to review (ML-470). |
 | - | People's rights | Met | Met | Now includes complaining to us first. |
 | - | Transfers outside the UK | Mostly met | Mostly met | Which safeguard covers which provider is still to be recorded (ML-469). |
@@ -59,6 +59,10 @@ git: every version of this file is a commit.
   `docs/release-process.md`, step 1), so a change to what is held about people can't go out unannounced
   again as the last-seen date did.
 - **A ticket for every remaining gap that needs the site to change** - see the register.
+- **The site security review was carried out** (ML-231, `docs/site-security-review.md`) and can be re-run from
+  Admin → Security. It matters here because two of its open findings are about personal data: every member
+  can see every other member's teacher names (ML-472) and private organisation names (ML-473). There is only
+  one member today, so nothing has been exposed; both must be fixed before anyone else is invited.
 
 ## Gap register
 
@@ -76,8 +80,8 @@ done by Claude, waiting on the owner to review, switch on or release. **Ticket**
 | 6 | Accounts nobody uses are kept for ever | 5 | **Built** | ML-464. To do: release it, try it on sandbox, switch it on in production once the app sends email from its own domain. |
 | 7 | Dead invites and old feedback are never cleared | 5 | **Built** | Part of ML-464. |
 | 8 | Sign-up emails sit in the owner's inbox with no end date | 5 | Owner | Delete them after 12 months (a habit, or an inbox rule). |
-| 9 | No security headers beyond HSTS; the sign-in token is in browser storage | 6 | Ticket | ML-231. |
-| 10 | No security review of this site | 6 | Ticket | ML-231 - next to be done. |
+| 9 | No security headers beyond HSTS; the sign-in token is in browser storage | 6 | **Built**, part open | Headers are now sent on every answer (ML-231). The content security policy is report-only until the pages' inline handlers are moved out (ML-474). |
+| 10 | No security review of this site | 6 | **Built** | Done 6 October 2026 (ML-231, `docs/site-security-review.md`): verdict conditional. It found five ways one member could affect another: three fixed the same day, two with tickets that **must be done before anyone else is invited** - teachers are shared between all members (ML-472) and private organisation names are listed to everyone (ML-473). Both are also personal-data matters: one member can see another's teachers and organisations. |
 | 11 | Vercel holds personal information with no data processing agreement | 7 | Owner | Move to Vercel Pro (the agreement covers Pro). The owner is looking at it. |
 | 12 | PostHog's agreement not signed | 7 | **Closed** | Signed 6 October 2026. |
 | 13 | Neon's and Resend's agreements not confirmed | 7 | Owner | **Neon (found by the owner, 6 October 2026):** its compliance page says it follows GDPR by self-declaration, and a contract appears to come only with its Scale plan, not Free. Not confirmed by Neon; a self-declaration is not a contract. So Neon may be in the same position as Vercel (gap 11). To do: ask Neon whether its data processing addendum covers Free; if not, the paid plan is a cost for the business case, needed before other people's information is held. Resend: still to check. ML-469 will record each provider's agreement on the site. |
@@ -90,7 +94,7 @@ done by Claude, waiting on the owner to review, switch on or release. **Ticket**
 | 20 | No written Children's Code check or impact assessment | Children | **Drafted** | Documents 4 and 5. Actions from them: a few lines for young players in the policy (ML-466), say who sees what when sharing with a band (ML-468), no-pressure design rule (ML-471). |
 | 21 | ICO fee | 7 | **Closed** | Registered and paid, October 2026. |
 
-**Counts:** 4 closed, 6 built or drafted, 8 with a ticket, 3 with the owner.
+**Counts:** 4 closed, 8 built or drafted, 6 with a ticket, 3 with the owner.
 
 ### What only the owner can do
 
@@ -103,7 +107,7 @@ done by Claude, waiting on the owner to review, switch on or release. **Ticket**
 
 ### Tickets raised from this assessment
 
-ML-231 site security review and headers · ML-463 important notice at next sign-in · ML-464 retention
+ML-231 site security review and headers (done; open findings ML-472 to ML-476) · ML-463 important notice at next sign-in · ML-464 retention
 (built) · ML-465 change an email address · ML-466 privacy policy additions · ML-467 teachers: a name only ·
 ML-468 say who sees what when sharing with a band · ML-469 record each provider's agreement · ML-470 reviews
 and reminders · ML-471 no-pressure design rule for young players.

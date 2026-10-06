@@ -2487,7 +2487,7 @@
     function renderSecurityCheck(check, result) {
         const kindLabel = check.mode === 'automated' ? 'Automated' : 'Deep review';
         const meta = result
-            ? `${kindLabel} &middot; ${fmtDate(result.at)} &middot; upstream ${escapeHtml(shortSha(result.upstreamCommitSha))}`
+            ? `${kindLabel} &middot; ${fmtDate(result.at)} &middot; ${securityWord()} ${escapeHtml(shortSha(result.upstreamCommitSha))}`
             : `${kindLabel} &middot; never run`;
         return `
             <div class="admin-test-case">
@@ -2516,7 +2516,7 @@
             <div class="admin-test-case">
                 <details class="admin-security-details">
                     <summary>${fmtDate(run.at)} &middot; ${run.kind === 'automated' ? 'Automated run' : 'Deep review'}${run.by ? ` by ${escapeHtml(run.by)}` : ''} &middot; ${escapeHtml(counts || 'no results')}</summary>
-                    <p class="admin-test-case-meta">Upstream commit ${escapeHtml(shortSha(run.upstreamCommitSha))}${verdict ? ` &middot; verdict: ${verdict[1]}` : ''}</p>
+                    <p class="admin-test-case-meta">${securityTarget === 'site' ? 'App version' : 'Upstream commit'} ${escapeHtml(shortSha(run.upstreamCommitSha))}${verdict ? ` &middot; verdict: ${verdict[1]}` : ''}</p>
                     ${run.tools && run.tools.length ? `<p class="admin-run-notes"><strong>Tools:</strong> ${run.tools.map(escapeHtml).join('; ')}</p>` : ''}
                     ${run.results.map((r) => `
                         <div class="admin-run-row">
@@ -2542,9 +2542,9 @@
         const tiles = `
             <div class="admin-stat-tiles">
                 <div class="admin-stat-tile"><div class="admin-stat-tile-label">Verdict</div><div class="admin-stat-tile-value">${verdict ? verdict[1] : '-'}</div></div>
-                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Last deep review</div><div class="admin-stat-tile-value">${fmtDay(deep?.at)}</div><div class="admin-stat-tile-sub">upstream ${escapeHtml(shortSha(deep?.upstreamCommitSha))}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Last deep review</div><div class="admin-stat-tile-value">${fmtDay(deep?.at)}</div><div class="admin-stat-tile-sub">${securityWord()} ${escapeHtml(shortSha(deep?.upstreamCommitSha))}</div></div>
                 <div class="admin-stat-tile"><div class="admin-stat-tile-label">Last automated run</div><div class="admin-stat-tile-value">${auto ? fmtDay(auto.at) : 'Never'}</div><div class="admin-stat-tile-sub">${data.automatedRunDue ? `Due - over ${data.automatedDueAfterDays} days` : 'Up to date'}</div></div>
-                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Upstream since deep review</div><div class="admin-stat-tile-value">${!auto ? 'Unknown' : data.upstreamChangedSinceDeepReview ? 'Changed' : 'Unchanged'}</div><div class="admin-stat-tile-sub">${auto ? `head ${escapeHtml(shortSha(auto.upstreamCommitSha))}` : 'run the automated checks'}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">${escapeHtml(t.changeLabel || 'Upstream since deep review')}</div><div class="admin-stat-tile-value">${!auto ? 'Unknown' : data.upstreamChangedSinceDeepReview ? 'Changed' : 'Unchanged'}</div><div class="admin-stat-tile-sub">${auto ? `${securityTarget === 'site' ? 'now on' : 'head'} ${escapeHtml(shortSha(auto.upstreamCommitSha))}` : 'run the automated checks'}</div></div>
             </div>`;
 
         const verdictCard = `
@@ -2562,7 +2562,7 @@
                     <ul class="admin-security-evidence">
                         ${(data.verdict.conditions || []).map((c) => `<li><strong>${c.done ? 'Done' : 'To do'}:</strong> ${escapeHtml(c.text)}</li>`).join('')}
                     </ul>
-                    ${data.upstreamChangedSinceDeepReview ? '<p class="admin-run-notes"><strong>The upstream repo has changed since this verdict</strong> - re-run the deep review before relying on it.</p>' : ''}
+                    ${data.upstreamChangedSinceDeepReview ? `<p class="admin-run-notes"><strong>${securityTarget === 'site' ? 'A release has gone out since this verdict' : 'The upstream repo has changed since this verdict'}</strong> - re-run the deep review before relying on it.</p>` : ''}
                 </div>` : ''}
             </div>`;
 
@@ -2923,18 +2923,34 @@
         renderThirdParties(await apiCall('/api/admin/third-parties'));
     }
 
+    // ML-231: the page reviews two things - this site (the first tab) and the PDF import service (ML-192)
+    let securityTarget = 'site';
+    const securityWord = () => (securityTarget === 'site' ? 'version' : 'upstream');
+    const securityPath = (run) => `/api/admin/security-review${run ? '/run' : ''}${securityTarget === 'site' ? '?target=site' : ''}`;
+    const SECURITY_INTRO = {
+        site: 'Security review of <strong>this site</strong> (ML-231): who can reach what, what members can type or upload, signing in, the browser\'s protections, packages and settings. <strong>Run now</strong> repeats the automated checks - do it once a month and after anything that touches sign-in or sharing. The deep review (a read of every route and every place member-typed text is shown) is done by Claude Code in a session: ask it to "re-run the ML-231 site security review". Full write-up: <code>docs/site-security-review.md</code>.',
+        omr: 'Security review of <strong>solfascribe-omr</strong>, the third-party OMR service behind "Create from file" PDF import (ML-192). <strong>Run now</strong> repeats the automated checks. The deep review (code read, secret scan, dependency scans) is done by Claude Code in a session: ask it to "re-run the ML-192 OMR security review". Full write-up: <code>docs/omr-security-review.md</code>.'
+    };
     async function reloadSecurityReview() {
-        renderSecurityReview(await apiCall('/api/admin/security-review'));
+        document.getElementById('securityIntro').innerHTML = SECURITY_INTRO[securityTarget];
+        document.querySelectorAll('[data-security-target]').forEach((b) => { const on = b.dataset.securityTarget === securityTarget; b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+        renderSecurityReview(await apiCall(securityPath(false)));
     }
 
     function initSecurityReview() {
+        document.querySelectorAll('[data-security-target]').forEach((tab) => tab.addEventListener('click', () => {
+            securityTarget = tab.dataset.securityTarget;
+            document.getElementById('securityRunStatus').textContent = '';
+            document.getElementById('securityReview').innerHTML = '<p class="admin-intro">Loading&hellip;</p>';
+            reloadSecurityReview().catch((error) => { document.getElementById('securityReview').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`; });
+        }));
         const btn = document.getElementById('securityRunBtn');
         const status = document.getElementById('securityRunStatus');
         btn?.addEventListener('click', async () => {
             btn.disabled = true;
             status.textContent = 'Running the automated checks - this takes a few seconds…';
             try {
-                const data = await apiCall('/api/admin/security-review/run', 'POST');
+                const data = await apiCall(securityPath(true), 'POST');
                 renderSecurityReview(data);
                 status.textContent = 'Done - results updated below.';
             } catch (error) {

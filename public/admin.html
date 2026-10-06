@@ -330,7 +330,12 @@
              in a session and recorded in server/securityReviews/ (docs/omr-security-review.md). -->
         <section id="security-section" class="admin-section hidden-group">
             <h1>Security</h1>
-            <p class="admin-intro">Security review of <strong>solfascribe-omr</strong>, the third-party OMR service behind "Create from file" PDF import (ML-192). <strong>Run now</strong> repeats the automated checks. The deep review (code read, secret scan, dependency scans) is done by Claude Code in a session: ask it to "re-run the ML-192 OMR security review". Full write-up: <code>docs/omr-security-review.md</code>.</p>
+            <!-- ML-231: two reviews on one page - this site, and the PDF import service (ML-192) -->
+            <div class="admin-subtabs" role="tablist" aria-label="What is reviewed">
+                <button type="button" class="admin-subtab-item active" role="tab" aria-selected="true" data-security-target="site">This site</button>
+                <button type="button" class="admin-subtab-item" role="tab" aria-selected="false" data-security-target="omr">PDF import service</button>
+            </div>
+            <p class="admin-intro" id="securityIntro"></p>
             <div class="admin-security-toolbar">
                 <button class="btn-submit no-margin" id="securityRunBtn" type="button">Run automated checks now</button>
                 <span id="securityRunStatus" class="admin-test-case-meta" role="status" aria-live="polite"></span>

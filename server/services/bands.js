@@ -9,6 +9,7 @@
 // intentionally NOT scoped by created_by_account_id. See the section comment
 // further down.
 
+import { publicSiteAnswers } from '../utils/publicUrl.js';
 import pool from '../config/db.js';
 
 function toListItem(row) {
@@ -223,15 +224,12 @@ export async function createSharedBand(accountId, name, website, { joinCreator =
     const e = new Error('Enter a valid website address - it\'s needed to check for duplicates.'); e.status = 400; throw e;
   }
 
-  let response;
-  try {
-    response = await fetch(url.toString(), { method: 'GET', redirect: 'follow', signal: AbortSignal.timeout(8000) });
-  } catch {
+  // ML-231: the address is a member's, so it is only ever fetched if it is on the public internet (not
+  // this server or a private network - server/utils/publicUrl.js), and nothing about the answer is
+  // passed back but whether there was one. It used to be fetched as typed, following any redirect,
+  // and the status code was echoed - which let a member use the server to probe other machines.
+  if (!(await publicSiteAnswers(url))) {
     const e = new Error("That website couldn't be reached - check the address and try again."); e.status = 400; throw e;
-  }
-  if (!response.ok) {
-    const e = new Error(`That website returned an error (${response.status}) - check the address and try again.`);
-    e.status = 400; throw e;
   }
 
   const hostname = hostnameOf(url);

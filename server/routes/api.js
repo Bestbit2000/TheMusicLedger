@@ -1164,7 +1164,8 @@ router.put('/challenges/group/:id', requireAuth, resolveAccount, async (req, res
 router.delete('/challenges/group/:id', requireAuth, resolveAccount, async (req, res) => {
   try {
     const { id } = req.params;
-    const itemCount = await pool.query('SELECT COUNT(*) AS count FROM challenge_items WHERE challenge_id = $1', [id]);
+    // ML-231: only ever count the caller's own challenge (the count used to be anyone's)
+    const itemCount = await pool.query('SELECT COUNT(*) AS count FROM challenge_items ci JOIN challenges c ON c.id = ci.challenge_id WHERE ci.challenge_id = $1 AND c.account_id = $2', [id, req.accountId]);
     await pool.query('DELETE FROM challenges WHERE id = $1 AND account_id = $2', [id, req.accountId]);
     res.json({ message: 'Challenge deleted', deleted: Number(itemCount.rows[0].count) });
   } catch (error) {

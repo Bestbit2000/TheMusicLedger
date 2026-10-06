@@ -1,3 +1,4 @@
+import { securityHeadersMiddleware } from './middleware/securityHeaders.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
@@ -15,6 +16,9 @@ const app = express();
 // Trust Vercel's proxy so req.protocol correctly reports "https" instead of
 // the "http" used internally between Vercel's edge and the function.
 app.set('trust proxy', 1);
+
+// ML-231: security headers on every answer (server/middleware/securityHeaders.js)
+app.use(securityHeadersMiddleware);
 
 // Middleware
 app.use(cors({

@@ -94,7 +94,9 @@ router.post('/test-login', async (req, res) => {
   const secret = process.env.TEST_LOGIN_SECRET;
   const provided = req.body?.secret;
 
-  if (!secret || process.env.NODE_ENV === 'production' || provided !== secret) {
+  // ML-231: never on the live site, whatever NODE_ENV says there (it was once set to "development"
+  // on production by mistake - VERCEL_ENV is set by Vercel itself and can't be got wrong that way)
+  if (!secret || process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production' || provided !== secret) {
     return res.status(404).json({ error: 'Not found' });
   }
 
