@@ -13,15 +13,46 @@ could join (site security review, ML-231).
 |---|---|---|
 | `directory` | An entry in this directory: name, website, where it rehearses. No members, owns nothing | Everyone |
 | `group` | A band's **shared space**: its members (`band_members`), its pieces and its practice lists. May point at the directory entry it is the space for (`directory_band_id`) | Its members only |
-| `label` | One member's own name for who a rehearsal or performance was with (the old "organisation") | That member only |
+| `label` | A band on one member's **My bands** list - who a rehearsal or performance was with (the old "organisation"). May say which directory entry it is (`directory_band_id`) and show a shared space the member is in (`shared_band_id`) | That member only |
+
+## My bands: one list (ML-478, migration 110)
+
+The owner's model (6 Oct 2026, after seeing his old session names beside the band on My bands):
+
+- **My bands is every band you play with** - the member's labels - and it is exactly what the "Who with?" box
+  offers (`listWhoOptions`). A hidden band (`active = false`) is left out of the box but kept on the history.
+- **Adding a band is private** and needs no invitation: `addBandFromDirectory` (pick from the list) or
+  `addOwnBand` (a name; with a website it also joins the directory through `createSharedBand`). Neither makes a
+  shared space - until 0.48.0 picking a band did (`startBandGroup`, gone).
+- **Sharing is something a band on the list may have.** `label.shared_band_id` is the group whose pieces,
+  practice lists and members show on that entry. It comes by an organiser's invitation, or by **Set up
+  sharing** (`setUpSharing`: a new group, the member its organiser). The bands shared before 0.48.0 stayed
+  shared (migration 110 gave every membership its label).
+- **An invitation attaches to the band you already have** (`acceptBandInvite`): a label of the same directory
+  entry, or the same name, takes the space without a question (`sameAs`). Otherwise the app asks once - "Is
+  this the same band as one of yours?" (`choices`) - and the chosen label becomes that band, name and all,
+  keeping its sessions; or it is a new entry.
+- **Two spaces for one band:** a label that already shows a space keeps it. An invitation to someone else's
+  space for the same band becomes a second entry, named with who invited ("The Cobham Band (Sam Reed)"). Two
+  shared bands can't be merged.
+- **Leaving, or being taken out, keeps the band on your list** as a band of your own (`ensureLabels` clears
+  the link); the last one out with nothing in it, or **Stop sharing**, deletes the space and leaves the label.
+- **Tidying** - each also on a band's ⋮ menu: `linkMyBandToDirectory` (it becomes that band, or is merged
+  into the entry that already is), `mergeMyBands` (the sessions move onto the one kept; the other name goes),
+  `keepMyBand`, `hideMyBand` (hidden if anything is logged with it, otherwise removed) and `showMyBand`.
+  `needs_tidy` marks the names that were there before migration 110, so **Tidy my bands** asks about each once.
+- A label is only ever reached through its owner (`myLabel`): another member's label id is "not found".
+
+Tests: `server/test/myBands.test.js` (dev database). Screens: `specs/components/band-members.md`.
 
 **Joining is by invitation only** (the owner's decision, 6 Oct 2026: he does not want to be the one who
 confirms who runs a band, so nobody has to be).
 
-- Picking a band from the directory **starts your own space** for it; you are its first member and its
-  first **organiser**. It never puts you into a space someone else started.
-- Two people who pick the same band get **two separate spaces** and neither can see the other. So claiming
-  a band's name gains nothing: a space holds only the people its members invited.
+- Picking a band from the directory puts it on **your own list**, privately (ML-478). **Set up sharing**
+  starts your own space for it; you are its first member and its first **organiser**. Neither ever puts you
+  into a space someone else started.
+- Two people who set up sharing for the same band get **two separate spaces** and neither can see the other.
+  So claiming a band's name gains nothing: a space holds only the people its members invited.
 - The way into a space is an **invitation from one of its organisers**, addressed to the email address the
   other person signs in with. They see it on My bands and say yes or no. **The address is sent a short
   email** (the owner, 6 Oct 2026: most people invited won't be using the app yet, and the email is what
@@ -63,8 +94,7 @@ confirms who runs a band, so nobody has to be).
 - A band always has an organiser: the only one can't step down, and if the last one leaves, whoever has
   been in it longest takes over (`ensureOrganiser`).
 - A member sees the other members' **names**, never their email addresses.
-- A practice session's "who" is always one of the member's own labels. The "who" box also offers the
-  names of the bands they are in (`listWhoOptions`); picking one makes a label of that name.
+- A practice session's "who" is always one of the member's own labels - their My bands list (ML-478).
 
 Code: `server/services/bands.js`; tests `server/test/bandGroups.test.js` (dev database); screens
 `specs/components/band-members.md` (My bands: the invitations waiting for you, and a band's Members page).

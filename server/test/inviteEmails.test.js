@@ -37,6 +37,9 @@ const account = async (name) => {
 };
 const outbox = async (to) => (await pool.query('SELECT subject, body_text FROM email_outbox WHERE to_email = $1 ORDER BY id', [to])).rows;
 const skip = !onDev && 'needs the dev database, with emails written to the outbox';
+// ML-478: adding a band from the directory is private; a shared space is a separate, deliberate step.
+// These tests are about the space, so this does both.
+const startBandGroup = async (accountId, directoryBandId) => bands.setUpSharing(accountId, await bands.addBandFromDirectory(accountId, directoryBandId));
 
 test('whether an email really went: only a site that sends them says "emailed" (ML-479)', () => {
   assert.deepEqual(emailOutcome('log'), HELD);
@@ -70,7 +73,7 @@ test('an invitation into a band emails the address once: who, which band, and on
   const anna = await account('anna');
   const entry = Number((await one(`INSERT INTO bands (name, website, created_by_account_id, kind) VALUES ($1, $2, $3, 'directory') RETURNING id`, [`ML-473 Mail Band ${stamp}`, `https://ml473-mail-${stamp}.example`, anna])).id);
   made.push(entry);
-  const space = await bands.startBandGroup(anna, entry);
+  const space = await startBandGroup(anna, entry);
   // Someone who already has an account: the email's link is only the front door - they sign in as they do
   const member = address('member');
   accounts.push(Number((await one(`INSERT INTO accounts (email, first_name, surname) VALUES ($1, 'Has', 'Account') RETURNING id`, [member])).id));
@@ -121,7 +124,7 @@ test('an account with no name can neither invite nor join until it has one - and
   const olga = await nameless('olga');
   const entry = Number((await one(`INSERT INTO bands (name, website, created_by_account_id, kind) VALUES ($1, $2, $3, 'directory') RETURNING id`, [`ML-479 Name Band ${stamp}`, `https://ml479-name-${stamp}.example`, olga])).id);
   made.push(entry);
-  const space = await bands.startBandGroup(olga, entry);
+  const space = await startBandGroup(olga, entry);
   const joiner = address('joiner');
   const jo = Number((await one(`INSERT INTO accounts (email, first_name, surname) VALUES ($1, '', '') RETURNING id`, [joiner])).id);
   accounts.push(jo);

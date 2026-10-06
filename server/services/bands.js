@@ -1,13 +1,15 @@
 // The bands table holds three kinds of row, told apart by bands.kind (ML-473, migration 108):
 //
-//   label      one member's own name for who a rehearsal or performance was with (the old Sheet's
+//   label      a band on one member's "My bands" list (ML-478; it began as the old Sheet's
 //              "organisation" - docs/sheets-to-database-cutover.md). Theirs alone: scoped by
 //              created_by_account_id, never listed to anyone else, never joinable. A session's
-//              band_id always points at a label of the member whose session it is.
+//              band_id always points at a label of the member whose session it is. A label may say
+//              which directory entry it is (directory_band_id) and show a shared space the member is
+//              in (shared_band_id) - see "My bands" below.
 //   directory  an entry in the shared band directory (ML-77/ML-89, docs/band-directory.md): public
 //              information, the same for everyone. No members; owns nothing.
 //   group      a band's shared space: its members (band_members), pieces and practice lists. A member
-//              starts one and is its first organiser; the only way in is an organiser's invitation,
+//              sets one up for a band on their list (setUpSharing) and is its first organiser; the only way in is an organiser's invitation,
 //              which also says what the new member may do - so control stays with the person who
 //              started it, and nobody (the owner included) ever has to confirm who anyone is. It may
 //              point at the directory entry it is the space for (directory_band_id); two groups can
@@ -36,18 +38,11 @@ export async function listBands(accountId) {
   return rows.map(toListItem);
 }
 
-// What the "who" box of a rehearsal or performance offers: the member's own labels, and the names of
-// the bands they are in (picking one makes a label of that name the first time - getOrCreateBand).
+// What the "who" box of a rehearsal or performance offers: the member's My bands list, exactly
+// (ML-478) - a hidden band is `archived`, so the box leaves it out but an old session still shows it.
 export async function listWhoOptions(accountId) {
-  const labels = await listBands(accountId);
-  const { rows } = await pool.query(
-    `SELECT DISTINCT b.name FROM band_members bm JOIN bands b ON b.id = bm.band_id
-      WHERE bm.account_id = $1 AND b.kind = 'group' AND b.active`,
-    [accountId]
-  );
-  const have = new Set(labels.map((l) => l.name));
-  const extra = rows.filter((r) => !have.has(r.name)).map((r) => ({ name: r.name, archived: false }));
-  return [...labels, ...extra].sort((a, b) => a.name.localeCompare(b.name));
+  await ensureLabels(pool, accountId);
+  return listBands(accountId);
 }
 
 export async function getOrCreateBand(accountId, name) {
@@ -222,39 +217,253 @@ async function assertOrganiser(db, accountId, bandId) {
   if (!ORGANISER_ROLES.includes(role)) throw fail(403, "Only the band's organisers can do that.");
 }
 
-// Starts a group for a directory entry, with the caller as its first member and organiser. Starting
-// one gives no way into anyone else's: a second member who picks the same band gets a space of their
-// own, and the two meet only by invitation. Asking again for a band you already have a space for
-// gives that space back.
-export async function startBandGroup(accountId, directoryBandId) {
+// ========================================
+// My bands (ML-478; the owner's model, 6 Oct 2026). One list of the bands a member plays with - their
+// labels - and exactly what the "Who with?" box of a rehearsal or performance offers.
+//   - Adding a band (from the directory, or a name of your own) makes a label and nothing else: it is
+//     private to you and needs no invitation.
+//   - Sharing is something a band on the list may have: label.shared_band_id is the shared space
+//     (a group) whose pieces, practice lists and members show on that entry. It comes by an
+//     organiser's invitation, or by a deliberate "Set up sharing" (which makes you its organiser).
+//   - An invitation attaches to the band you already have: the same directory entry, or the same
+//     name; otherwise the app asks once whether it is the same as one of yours (acceptBandInvite).
+//   - Two names for one band can be made one (mergeMyBands: the sessions move, the other name goes),
+//     and a band you don't play with now is hidden (active = false): out of the "Who with?" box, kept
+//     on the history.
+// A label is only ever reached through its owner (myLabel), so nothing here can show one member
+// another's list.
+// ========================================
+const LABEL_NAME_MAX = 80;
+
+async function myLabel(db, accountId, labelId, lock = false) {
+  if (!/^\d+$/.test(String(labelId))) throw fail(404, 'Band not found');
+  const { rows } = await db.query(
+    `SELECT id, name, active, needs_tidy, directory_band_id, shared_band_id FROM bands
+      WHERE id = $1 AND created_by_account_id = $2 AND kind = 'label'${lock ? ' FOR UPDATE' : ''}`,
+    [labelId, accountId]
+  );
+  if (!rows.length) throw fail(404, 'Band not found');
+  return rows[0];
+}
+// The shared space a label shows - only while its owner is still in it.
+async function sharedSpaceOf(db, accountId, label) {
+  if (!label.shared_band_id) return null;
+  return (await memberRole(db, accountId, label.shared_band_id)) ? Number(label.shared_band_id) : null;
+}
+// Is this name already one of the member's bands? (However it is capitalised.)
+async function labelNamed(db, accountId, name, exceptId = null) {
+  const { rows } = await db.query(
+    `SELECT id, directory_band_id, shared_band_id FROM bands
+      WHERE created_by_account_id = $1 AND kind = 'label' AND lower(name) = lower($2) AND ($3::bigint IS NULL OR id <> $3) ORDER BY id LIMIT 1`,
+    [accountId, name, exceptId]
+  );
+  return rows[0] || null;
+}
+// Keeps the list true to the memberships: a label stops showing a space its owner has left or been
+// taken out of, and every space they are in shows on a label (making one if need be - a membership
+// made before ML-478, or by anything that adds a member without going through an invitation).
+async function ensureLabels(db, accountId) {
+  await db.query(
+    `UPDATE bands l SET shared_band_id = NULL
+      WHERE l.kind = 'label' AND l.created_by_account_id = $1 AND l.shared_band_id IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM band_members bm WHERE bm.band_id = l.shared_band_id AND bm.account_id = $1)`,
+    [accountId]
+  );
+  await db.query(
+    `INSERT INTO bands (name, created_by_account_id, kind, directory_band_id, shared_band_id)
+     SELECT CASE WHEN EXISTS (SELECT 1 FROM bands t WHERE t.kind = 'label' AND t.created_by_account_id = bm.account_id AND lower(t.name) = lower(g.name))
+                 THEN g.name || ' (' || g.id || ')' ELSE g.name END,
+            bm.account_id, 'label', g.directory_band_id, g.id
+       FROM band_members bm JOIN bands g ON g.id = bm.band_id AND g.kind = 'group'
+      WHERE bm.account_id = $1
+        AND NOT EXISTS (SELECT 1 FROM bands l WHERE l.kind = 'label' AND l.created_by_account_id = bm.account_id AND l.shared_band_id = g.id)`,
+    [accountId]
+  );
+}
+
+// The member's bands, hidden ones included (`hidden`). `shared` is the shared space an entry shows,
+// with what this member may do in it; null when the band is just a name for their own log.
+// `sessions`: how many rehearsals and performances are logged with it.
+export async function listMyBands(accountId) {
+  await ensureLabels(pool, accountId);
+  const { rows } = await pool.query(
+    `SELECT l.id, l.name, l.active, l.needs_tidy, l.directory_band_id,
+            d.website, d.ensemble_type, d.town, d.county, d.rehearsal_postcode, d.section_level, d.parent_band_id, d.notes,
+            (SELECT pb.name FROM bands pb WHERE pb.id = d.parent_band_id) AS parent_name,
+            g.id AS group_id, bm.role,
+            (SELECT COUNT(*) FROM band_members m WHERE m.band_id = g.id) AS group_members,
+            (SELECT COUNT(*) FROM sessions s WHERE s.band_id = l.id) AS session_count
+       FROM bands l
+       LEFT JOIN bands d ON d.id = l.directory_band_id AND d.kind = 'directory'
+       LEFT JOIN band_members bm ON bm.band_id = l.shared_band_id AND bm.account_id = l.created_by_account_id
+       LEFT JOIN bands g ON g.id = bm.band_id AND g.kind = 'group' AND g.active
+      WHERE l.created_by_account_id = $1 AND l.kind = 'label'`,
+    [accountId]
+  );
+  return sortByDisplayName(rows.map((r) => ({
+    ...toDirectoryBand(r),
+    hidden: !r.active,
+    needsTidy: r.needs_tidy && r.active,
+    directoryBandId: r.directory_band_id ? Number(r.directory_band_id) : null,
+    sessions: Number(r.session_count),
+    shared: r.group_id ? {
+      bandId: Number(r.group_id),
+      level: levelOf(r.role),
+      isOrganiser: ORGANISER_ROLES.includes(r.role),
+      members: Number(r.group_members),
+      onlyYou: Number(r.group_members) === 1
+    } : null
+  })));
+}
+
+// Picking a band from the directory puts it on your list - private to you. It never puts you into a
+// space someone else set up (the way into one of those is an invitation), and it no longer sets one up
+// either: that is "Set up sharing". Asking again for a band you already have gives that one back
+// (shown again, if it was hidden); a name you had already typed for it becomes it.
+export async function addBandFromDirectory(accountId, directoryBandId) {
+  if (!/^\d+$/.test(String(directoryBandId))) throw fail(404, 'That band is not in the directory.');
+  const { rows } = await pool.query(`SELECT id, name, town FROM bands WHERE id = $1 AND kind = 'directory' AND active`, [directoryBandId]);
+  // A group or someone's label is not something to pick: the way into a group is an invitation.
+  if (!rows.length) throw fail(404, 'That band is not in the directory. To join a band someone else has set up, ask them to invite you.');
+  const entry = rows[0];
+  const have = await pool.query(
+    `UPDATE bands SET active = true, needs_tidy = false
+      WHERE id = (SELECT id FROM bands WHERE created_by_account_id = $1 AND kind = 'label' AND directory_band_id = $2 ORDER BY id LIMIT 1) RETURNING id`,
+    [accountId, entry.id]
+  );
+  if (have.rows.length) return Number(have.rows[0].id);
+  const sameName = await labelNamed(pool, accountId, entry.name);
+  if (sameName && !sameName.directory_band_id) {
+    await pool.query('UPDATE bands SET directory_band_id = $1, name = $2, active = true, needs_tidy = false WHERE id = $3', [entry.id, entry.name, sameName.id]);
+    return Number(sameName.id);
+  }
+  // (two directory bands of one name, in different towns)
+  const name = sameName ? `${entry.name} (${entry.town || entry.id})` : entry.name;
+  const made = await pool.query(
+    `INSERT INTO bands (name, created_by_account_id, kind, directory_band_id) VALUES ($1, $2, 'label', $3) RETURNING id`,
+    [name, accountId, entry.id]
+  );
+  return Number(made.rows[0].id);
+}
+
+// A band that isn't in the directory. With a website it is added to the directory too, for the next
+// player to find (createSharedBand - the address is how duplicates are caught); without one it is just
+// a name on your own list. Either way it is private to you.
+export async function addOwnBand(accountId, name, website) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) throw fail(400, 'Band name is required.');
+  if (trimmed.length > LABEL_NAME_MAX) throw fail(400, `A band's name can be up to ${LABEL_NAME_MAX} letters.`);
+  if (String(website || '').trim()) {
+    const entry = await createSharedBand(accountId, trimmed, website, { joinCreator: false });
+    return addBandFromDirectory(accountId, entry.id);
+  }
+  const have = await labelNamed(pool, accountId, trimmed);
+  if (have) {
+    await pool.query('UPDATE bands SET active = true WHERE id = $1', [have.id]);
+    return Number(have.id);
+  }
+  const made = await pool.query(`INSERT INTO bands (name, created_by_account_id, kind) VALUES ($1, $2, 'label') RETURNING id`, [trimmed, accountId]);
+  return Number(made.rows[0].id);
+}
+
+// "Set up sharing": a shared space for a band on your list, with you as its first member and
+// organiser - so you can add the band's music and invite people to it. Deliberate, and separate from
+// adding the band. It gives no way into anyone else's space: two members who each set up sharing for
+// the same band have two spaces, and meet only by invitation. Asking again gives the same space back.
+export async function setUpSharing(accountId, labelId) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { rows } = await client.query(`SELECT id, name FROM bands WHERE id = $1 AND kind = 'directory' AND active`, [directoryBandId]);
-    // A group or someone's label is not something to pick: the way into a group is an invitation.
-    if (!rows.length) throw fail(404, 'That band is not in the directory. To join a band someone else has set up, ask them to invite you.');
-    const mine = await client.query(
-      `SELECT g.id FROM bands g JOIN band_members bm ON bm.band_id = g.id
-        WHERE g.directory_band_id = $1 AND g.kind = 'group' AND bm.account_id = $2 ORDER BY g.id LIMIT 1`,
-      [directoryBandId, accountId]
-    );
-    let groupId = mine.rows.length ? mine.rows[0].id : null;
+    const label = await myLabel(client, accountId, labelId, true);
+    let groupId = await sharedSpaceOf(client, accountId, label);
     if (!groupId) {
       const made = await client.query(
         `INSERT INTO bands (name, created_by_account_id, kind, directory_band_id) VALUES ($1, $2, 'group', $3) RETURNING id`,
-        [rows[0].name, accountId, directoryBandId]
+        [label.name, accountId, label.directory_band_id]
       );
-      groupId = made.rows[0].id;
+      groupId = Number(made.rows[0].id);
       await client.query(`INSERT INTO band_members (band_id, account_id, role) VALUES ($1, $2, 'admin')`, [groupId, accountId]);
+      await client.query('UPDATE bands SET shared_band_id = $1, active = true, needs_tidy = false WHERE id = $2', [groupId, label.id]);
     }
     await client.query('COMMIT');
-    return Number(groupId);
+    return groupId;
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     throw error;
   } finally {
     client.release();
   }
+}
+
+// "I don't play with them now": out of the "Who with?" box. A band with rehearsals or performances
+// logged is hidden (they stay on the history, under its name); one with none is simply removed.
+// A shared band is left first - hiding it would leave its music with nowhere to show.
+export async function hideMyBand(accountId, labelId) {
+  const label = await myLabel(pool, accountId, labelId);
+  if (await sharedSpaceOf(pool, accountId, label)) throw fail(409, 'This band is shared. Leave the shared band first, then you can take it off your list.');
+  const { rows } = await pool.query('SELECT 1 FROM sessions WHERE band_id = $1 LIMIT 1', [label.id]);
+  if (rows.length) await pool.query('UPDATE bands SET active = false, needs_tidy = false WHERE id = $1', [label.id]);
+  else await pool.query('DELETE FROM bands WHERE id = $1', [label.id]);
+  return { hidden: rows.length > 0 };
+}
+export async function showMyBand(accountId, labelId) {
+  const label = await myLabel(pool, accountId, labelId);
+  await pool.query('UPDATE bands SET active = true WHERE id = $1', [label.id]);
+}
+// "Keep as my own": it is a band of yours that isn't in the directory - nothing more to ask.
+export async function keepMyBand(accountId, labelId) {
+  const label = await myLabel(pool, accountId, labelId);
+  await pool.query('UPDATE bands SET needs_tidy = false WHERE id = $1', [label.id]);
+}
+
+// "Same as another of mine": two names for one band become one. The rehearsals and performances
+// logged with `fromId` move onto `intoId`, which also takes its directory entry and shared space if it
+// has none of its own; then `fromId` goes. Two shared bands can't be made one - each has its own
+// members and music.
+export async function mergeMyBands(accountId, fromId, intoId) {
+  if (String(fromId) === String(intoId)) throw fail(400, 'Choose a different band to merge it into.');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const from = await myLabel(client, accountId, fromId, true);
+    const into = await myLabel(client, accountId, intoId, true);
+    const fromShared = await sharedSpaceOf(client, accountId, from);
+    const intoShared = await sharedSpaceOf(client, accountId, into);
+    if (fromShared && intoShared) throw fail(409, 'Both of these are shared bands, each with its own members and music, so they can\'t be made one.');
+    await client.query('UPDATE sessions SET band_id = $1 WHERE band_id = $2', [into.id, from.id]);
+    await client.query('DELETE FROM bands WHERE id = $1', [from.id]);
+    await client.query(
+      'UPDATE bands SET shared_band_id = $1, directory_band_id = $2, active = true, needs_tidy = false WHERE id = $3',
+      [intoShared || fromShared, into.directory_band_id || from.directory_band_id, into.id]
+    );
+    await client.query('COMMIT');
+    return Number(into.id);
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// "Same as a directory band": the name you logged becomes that band, keeping its sessions - and takes
+// the band's proper name. If that band (or that name) is already on your list, the two are made one.
+// Returns the entry it ended up as.
+export async function linkMyBandToDirectory(accountId, labelId, directoryBandId) {
+  const label = await myLabel(pool, accountId, labelId);
+  if (!/^\d+$/.test(String(directoryBandId))) throw fail(404, 'That band is not in the directory.');
+  const { rows } = await pool.query(`SELECT id, name FROM bands WHERE id = $1 AND kind = 'directory' AND active`, [directoryBandId]);
+  if (!rows.length) throw fail(404, 'That band is not in the directory.');
+  const entry = rows[0];
+  const already = await pool.query(
+    `SELECT id FROM bands WHERE created_by_account_id = $1 AND kind = 'label' AND directory_band_id = $2 AND id <> $3 ORDER BY id LIMIT 1`,
+    [accountId, entry.id, label.id]
+  );
+  if (already.rows.length) return mergeMyBands(accountId, label.id, already.rows[0].id);
+  const sameName = await labelNamed(pool, accountId, entry.name, label.id);
+  if (sameName) await mergeMyBands(accountId, sameName.id, label.id); // (it has no directory entry, or `already` would have found it)
+  await pool.query('UPDATE bands SET directory_band_id = $1, name = $2, active = true, needs_tidy = false WHERE id = $3', [entry.id, entry.name, label.id]);
+  return Number(label.id);
 }
 
 // Leaving. If that leaves the group with members but no organiser, whoever has been in it longest
@@ -271,11 +480,12 @@ export async function leaveBand(accountId, bandId) {
     [bandId, accountId]
   );
   if (!Number(rows[0].others)) {
-    if (Number(rows[0].things)) throw fail(409, 'You are the only one in this band, and it still has pieces or practice lists. Delete the band (they go with it), or invite someone else first.');
-    await pool.query(`DELETE FROM bands WHERE id = $1 AND kind = 'group'`, [bandId]);
+    if (Number(rows[0].things)) throw fail(409, 'You are the only one in this band, and it still has pieces or practice lists. Stop sharing (they go with it), or invite someone else first.');
+    await pool.query(`DELETE FROM bands WHERE id = $1 AND kind = 'group'`, [bandId]); // (the entry on My bands stays: shared_band_id is set to null)
     return;
   }
   await pool.query('DELETE FROM band_members WHERE band_id = $1 AND account_id = $2', [bandId, accountId]);
+  await ensureLabels(pool, accountId); // ML-478: the band stays on their list, as a band of their own
   await ensureOrganiser(pool, bandId);
 }
 async function ensureOrganiser(db, bandId) {
@@ -423,11 +633,28 @@ export async function cancelBandInvite(accountId, bandId, inviteId) {
   if (!rowCount) throw fail(404, 'Invitation not found');
 }
 
+// ML-478: an invitation attaches to the band you already have. The bands on the member's list that
+// show no shared space yet are the ones it could be; the same directory entry, or the same name, is
+// taken to be the same band without asking.
+async function unsharedLabels(db, accountId) {
+  await ensureLabels(db, accountId);
+  const { rows } = await db.query(
+    `SELECT id, name, directory_band_id FROM bands WHERE created_by_account_id = $1 AND kind = 'label' AND shared_band_id IS NULL ORDER BY lower(name), id`,
+    [accountId]
+  );
+  return rows;
+}
+const sameBand = (labels, bandName, directoryBandId) =>
+  (directoryBandId && labels.find((l) => String(l.directory_band_id) === String(directoryBandId)))
+  || labels.find((l) => l.name.toLowerCase() === String(bandName).toLowerCase()) || null;
+
 // The invitations waiting for the signed-in member (matched on their own sign-in address).
+// sameAs: the band on their list it will attach to; when there is none, `choices` are the bands it
+// could be - the app asks once ("Is this the same band as one of yours?") before accepting.
 export async function listMyBandInvites(accountId) {
   await purgeOldInvites(pool);
   const { rows } = await pool.query(
-    `SELECT i.id, i.created_at, i.role, g.id AS band_id, g.name AS band_name, s.display_name, s.first_name, s.surname
+    `SELECT i.id, i.created_at, i.role, g.id AS band_id, g.name AS band_name, g.directory_band_id, s.display_name, s.first_name, s.surname
        FROM band_invites i
        JOIN accounts me ON lower(me.email) = lower(i.email)
        JOIN bands g ON g.id = i.band_id AND g.kind = 'group' AND g.active
@@ -435,29 +662,81 @@ export async function listMyBandInvites(accountId) {
       WHERE me.id = $1 ORDER BY i.created_at`,
     [accountId]
   );
-  return rows.map((r) => ({
-    id: Number(r.id), bandId: Number(r.band_id), bandName: r.band_name, level: levelOf(r.role),
-    invitedBy: accountDisplayName({ ...r, email: null }) || 'A member', sentAt: r.created_at
-  }));
+  const labels = rows.length ? await unsharedLabels(pool, accountId) : [];
+  const brief = (l) => ({ id: Number(l.id), name: l.name });
+  return rows.map((r) => {
+    const same = sameBand(labels, r.band_name, r.directory_band_id);
+    return {
+      id: Number(r.id), bandId: Number(r.band_id), bandName: r.band_name, level: levelOf(r.role),
+      invitedBy: accountDisplayName({ ...r, email: null }) || 'A member', sentAt: r.created_at,
+      sameAs: same ? brief(same) : null, choices: same ? [] : labels.map(brief)
+    };
+  });
 }
 
 async function myInvite(db, accountId, inviteId) {
   const { rows } = await db.query(
-    `SELECT i.id, i.band_id, i.role FROM band_invites i JOIN accounts me ON lower(me.email) = lower(i.email)
+    `SELECT i.id, i.band_id, i.role, g.name AS band_name, g.directory_band_id, s.display_name, s.first_name, s.surname
+       FROM band_invites i JOIN accounts me ON lower(me.email) = lower(i.email)
+       JOIN bands g ON g.id = i.band_id AND g.kind = 'group'
+       JOIN accounts s ON s.id = i.invited_by_account_id
       WHERE i.id = $1 AND me.id = $2 AND i.created_at >= now() - make_interval(days => $3)`,
     [inviteId, accountId, INVITE_DAYS]
   );
   if (!rows.length) throw fail(404, 'Invitation not found');
   return rows[0];
 }
-export async function acceptBandInvite(accountId, inviteId) {
+// Saying yes. `labelId` (ML-478): the band on your list this is - the answer to "Is this the same band
+// as one of yours?". Left out, it attaches to the same directory entry or the same name if you have
+// one, and otherwise becomes a new entry. A band of yours that already shows a shared space keeps it:
+// the invitation is then a second entry, marked with who invited you.
+export async function acceptBandInvite(accountId, inviteId, { labelId = null } = {}) {
   const invite = await myInvite(pool, accountId, inviteId);
   await requireName(pool, accountId, NAME_BEFORE_JOINING); // ML-479
-  await pool.query(
-    `INSERT INTO band_members (band_id, account_id, role) VALUES ($1, $2, $3) ON CONFLICT (band_id, account_id) DO NOTHING`,
-    [invite.band_id, accountId, invite.role]
-  );
-  await pool.query('DELETE FROM band_invites WHERE id = $1', [inviteId]);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const labels = await unsharedLabels(client, accountId);
+    let label = null;
+    if (labelId !== null && labelId !== undefined) {
+      label = labels.find((l) => String(l.id) === String(labelId));
+      if (!label) throw fail(409, 'That band of yours can\'t take this invitation - it is already shared, or no longer on your list.');
+    } else {
+      label = sameBand(labels, invite.band_name, invite.directory_band_id);
+    }
+    await client.query(
+      `INSERT INTO band_members (band_id, account_id, role) VALUES ($1, $2, $3) ON CONFLICT (band_id, account_id) DO NOTHING`,
+      [invite.band_id, accountId, invite.role]
+    );
+    await client.query('DELETE FROM band_invites WHERE id = $1', [inviteId]);
+    const shown = await client.query(
+      `SELECT 1 FROM bands WHERE created_by_account_id = $1 AND kind = 'label' AND shared_band_id = $2`, [accountId, invite.band_id]);
+    if (!shown.rows.length) {
+      if (label) {
+        // The same band: one entry, with the band's proper name unless another of yours already has it
+        const taken = await labelNamed(client, accountId, invite.band_name, label.id);
+        await client.query(
+          `UPDATE bands SET shared_band_id = $1, directory_band_id = COALESCE(directory_band_id, $2), name = $3, active = true, needs_tidy = false WHERE id = $4`,
+          [invite.band_id, invite.directory_band_id, taken ? label.name : invite.band_name, label.id]
+        );
+      } else {
+        // A new entry. If you already have a band of that name (it shows another shared space), say whose this one is
+        let name = invite.band_name;
+        if (await labelNamed(client, accountId, name)) name = `${invite.band_name} (${nameOf(invite) || 'invited'})`;
+        if (await labelNamed(client, accountId, name)) name = `${name} ${invite.band_id}`;
+        await client.query(
+          `INSERT INTO bands (name, created_by_account_id, kind, directory_band_id, shared_band_id) VALUES ($1, $2, 'label', $3, $4)`,
+          [name, accountId, invite.directory_band_id, invite.band_id]
+        );
+      }
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
   await ensureOrganiser(pool, invite.band_id); // a band everyone had left
   return Number(invite.band_id);
 }
@@ -472,6 +751,7 @@ export async function removeBandMember(accountId, bandId, memberAccountId) {
   if (Number(memberAccountId) === Number(accountId)) throw fail(400, 'To go yourself, leave the band.');
   const { rowCount } = await pool.query('DELETE FROM band_members WHERE band_id = $1 AND account_id = $2', [bandId, memberAccountId]);
   if (!rowCount) throw fail(404, 'They are not in this band.');
+  await ensureLabels(pool, memberAccountId); // ML-478: it stays on their own list, no longer shared
   await ensureOrganiser(pool, bandId);
 }
 
@@ -504,16 +784,15 @@ function hostnameOf(url) {
 }
 
 // Adds a brand new band to the shared directory (ML-89: "if the band isn't
-// in the list, you can add it - you don't have to be an admin"), then joins
-// the creator to it as its first admin so a freshly-added band is never left
-// with zero members able to manage it later. Website is required (it's the
+// in the list, you can add it - you don't have to be an admin"), and (joinCreator) puts it on the
+// creator's own My bands list - privately; it sets up no shared space (ML-478). Website is required (it's the
 // sole duplicate-detection key, per the ticket) and is checked two ways:
 // reachability (a plain GET resolves, decision: reachability only - no
 // attempt to judge "is this actually band-like") and duplicate-by-domain
 // against every other active band's own website.
 // joinCreator: false (ML-247) for the admin panel - a super admin adding a band to the directory
 // isn't joining it, and the phantom membership made an immediate delete archive the band instead
-// ("it has a member"). The account page's own "add a band" still joins, since that's the point there.
+// ("it has a member"). The account page's own "add a band" goes through addOwnBand, which adds it to the member's list.
 export async function createSharedBand(accountId, name, website, { joinCreator = true } = {}) {
   const trimmedName = (name || '').trim();
   if (!trimmedName) {
@@ -549,8 +828,8 @@ export async function createSharedBand(accountId, name, website, { joinCreator =
     `INSERT INTO bands (name, website, created_by_account_id, kind) VALUES ($1, $2, $3, 'directory') RETURNING id, name, website`,
     [trimmedName, url.toString(), accountId]
   );
-  // The member who adds a band to the directory gets a space for it, as its first organiser.
-  if (joinCreator) await startBandGroup(accountId, inserted.rows[0].id);
+  // The member who adds a band to the directory has it on their own list (private - ML-478).
+  if (joinCreator) await addBandFromDirectory(accountId, inserted.rows[0].id);
   return toDirectoryBand(inserted.rows[0]);
 }
 

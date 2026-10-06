@@ -554,7 +554,14 @@
             cancelBandInvite: (id, inviteId) => apiCall(`/api/account/bands/${id}/invites/${inviteId}`, 'DELETE'),
             setBandMemberLevel: (id, memberId, level) => apiCall(`/api/account/bands/${id}/members/${memberId}`, 'PUT', { level }),
             removeBandMember: (id, memberId) => apiCall(`/api/account/bands/${id}/members/${memberId}`, 'DELETE'),
-            acceptBandInvite: (inviteId) => apiCall(`/api/account/band-invites/${inviteId}/accept`, 'POST'),
+            acceptBandInvite: (inviteId, labelId) => apiCall(`/api/account/band-invites/${inviteId}/accept`, 'POST', { labelId: labelId ?? null }),
+            // ML-478: a band on your own list (labelId)
+            shareBand: (labelId) => apiCall(`/api/account/my-bands/${labelId}/share`, 'POST'),
+            hideBand: (labelId) => apiCall(`/api/account/my-bands/${labelId}/hide`, 'POST'),
+            showBand: (labelId) => apiCall(`/api/account/my-bands/${labelId}/show`, 'POST'),
+            keepBand: (labelId) => apiCall(`/api/account/my-bands/${labelId}/keep`, 'POST'),
+            linkBandToDirectory: (labelId, directoryBandId) => apiCall(`/api/account/my-bands/${labelId}/directory`, 'POST', { directoryBandId }),
+            mergeBands: (fromId, intoId) => apiCall(`/api/account/my-bands/${fromId}/merge`, 'POST', { intoId }),
             declineBandInvite: (inviteId) => apiCall(`/api/account/band-invites/${inviteId}/decline`, 'POST')
         },
         settings: {
@@ -1694,7 +1701,7 @@
     const NAV_PARENT_VIEW = { statsView: 'statsHomeView', streakStatsView: 'statsHomeView', historyView: 'statsHomeView', toolResultsView: 'statsHomeView', flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView', piecePathView: 'rehearseView', prepareRunView: 'rehearseView', levelsPaintView: 'rehearseView', levelsCutView: 'rehearseView', practiceListView: 'rehearseView',
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
         aboutReleasesView: 'aboutView', aboutGradesView: 'aboutView',
-        accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountBandsView: 'accountView', bandMembersView: 'accountView', accountTeachersView: 'accountView',
+        accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountBandsView: 'accountView', bandMembersView: 'accountView', tidyBandsView: 'accountView', accountTeachersView: 'accountView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
         // ML-406: Pitch, Tempo, Pulse and Rhythm live under Skills
         tapTempoView: 'skillsHubView', gapTrainerView: 'skillsHubView', earView: 'skillsHubView', rhythmView: 'skillsHubView', drillResultsView: 'skillsHubView',
@@ -1959,7 +1966,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -2097,6 +2104,7 @@
         if (viewName === 'accountSecurityView') { document.getElementById('topTitle').innerText = 'Sign-in and security'; loadAccountSecurity(); }
         if (viewName === 'accountBandsView') { document.getElementById('topTitle').innerText = 'My bands'; loadAccountBands(); }
         if (viewName === 'bandMembersView') { document.getElementById('topTitle').innerText = bandMembers.bandName || 'Members'; loadBandMembers(); } // ML-473
+        if (viewName === 'tidyBandsView') { document.getElementById('topTitle').innerText = 'Tidy my bands'; loadAccountBands(); } // ML-478
         if (viewName === 'entryForm') renderSessionInstrumentPicker('instrumentGroup', 'sessionInstrument', null);
         if (viewName === 'accountTeachersView') { document.getElementById('topTitle').innerText = 'My teachers'; loadTeacherList(); }
         // ML-282: Settings is a list of groups, each its own screen. Every screen re-syncs its
@@ -4098,7 +4106,11 @@
         super_admin: 'Super admin', band_admin: 'Band admin', premium_member: 'Premium member',
         standard_member: 'Standard member', beta_tester: 'Beta tester', teacher: 'Teacher'
     };
-    let accountBandsData = { allBands: [], myBands: [], invites: [] };
+    // allBands: the directory. bands: MY list - every band I play with (ML-478), each with the shared
+    // space it shows, if any. myBands: just the shared spaces I am in (who a piece can belong to).
+    let accountBandsData = { allBands: [], myBands: [], invites: [], bands: [] };
+    const myBandsShown = () => (accountBandsData.bands || []).filter(b => !b.hidden);
+    const myBandById = (id) => (accountBandsData.bands || []).find(b => String(b.id) === String(id));
 
     // Also used at startup (see initializeApp) to show/hide the burger menu's
     // Administration link - admin.html itself gates to Super admin too, this
@@ -4295,28 +4307,49 @@
         const accept = btn.dataset.inviteAccept;
         const id = accept || btn.dataset.inviteDecline;
         if (!id) return;
-        btn.disabled = true;
-        try {
-            if (accept) await API.account.acceptBandInvite(id); else await API.account.declineBandInvite(id);
-            await loadAccountBands();
-            renderAccountSummaries();
-            showSuccessToast(accept ? 'You have joined the band' : 'Invitation declined');
-        } catch (error) {
-            btn.disabled = false;
-            if (!bandNameNeeded(error)) showWarningToast(error.message);
+        const answer = async (labelId) => {
+            btn.disabled = true;
+            try {
+                if (accept) await API.account.acceptBandInvite(id, labelId); else await API.account.declineBandInvite(id);
+                await loadAccountBands();
+                renderAccountSummaries();
+                showSuccessToast(accept ? 'You have joined the band' : 'Invitation declined');
+            } catch (error) {
+                btn.disabled = false;
+                if (!bandNameNeeded(error)) showWarningToast(error.message);
+            }
+        };
+        // ML-478: an invitation attaches to the band you already have. The same band in the list, or the
+        // same name, needs no question (sameAs); otherwise ask once whether it is one of yours.
+        const invite = accept && (accountBandsData.invites || []).find(i => String(i.id) === String(id));
+        if (invite && !invite.sameAs && invite.choices && invite.choices.length) {
+            openFlowChoiceModal('Is this the same band as one of yours?', [
+                ...invite.choices.map(c => ({ key: c.id, html: addPieceRow(c.name, `Yes - it becomes ${invite.bandName}, and keeps its sessions`) })),
+                { key: 'new', html: addPieceRow('No, it is a new band', `${invite.bandName} is added to my bands`) }
+            ], (opt) => answer(opt.key === 'new' ? null : opt.key));
+            return;
         }
+        answer(null);
     });
 
     function renderAccountBandsList() {
         renderAccountBandInvites();
         const container = document.getElementById('accountBandsList');
         if (!container) return;
-        if (!accountBandsData.myBands.length) {
-            container.innerHTML = '<div class="text-muted">You aren\'t in a band yet.</div>';
+        // ML-478: one list - every band I play with. Under each name: whether its music is shared with
+        // the band (and what I may do there), or it is just a name for my own log.
+        const shown = myBandsShown();
+        const toTidy = shown.filter(b => b.needsTidy).length;
+        setShown('tidyBandsLink', toTidy > 0);
+        document.getElementById('tidyBandsLinkSub').textContent = `${toTidy} name${toTidy === 1 ? '' : 's'} from your practice log to sort`;
+        renderHiddenBands();
+        renderTidyBands();
+        if (!shown.length) {
+            container.innerHTML = '<div class="text-muted">No bands yet. Add the ones you play with below.</div>';
         } else {
-            container.innerHTML = accountBandsData.myBands.map(b => `
+            container.innerHTML = shown.map(b => `
                 <div class="history-item">
-                    <span class="band-row-text"><span>${escapeHtml(b.displayName)}</span><span class="text-sm text-muted">${escapeHtml(bandLevel(b.level).label)}</span>${bandWebsiteLinkHtml(b.website)}</span>
+                    <span class="band-row-text"><span>${escapeHtml(b.displayName)}</span><span class="text-sm text-muted">${escapeHtml(b.shared ? `Shared - ${bandLevel(b.shared.level).label}` : 'Not shared')}</span>${bandWebsiteLinkHtml(b.website)}</span>
                     <button type="button" class="list-item-menu-btn" data-band-menu-id="${b.id}" aria-label="Options for ${escapeHtml(b.displayName)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 </div>
             `).join('');
@@ -4330,10 +4363,10 @@
 
         const picker = document.getElementById('accountBandPicker');
         if (picker) {
-            // ML-473: the picker is the directory. Picking one starts your own space for that band - the bands
-            // you already have a space for are left out. (Getting into a space someone else started is by
-            // their invitation, never from here.)
-            const myBandIds = new Set(accountBandsData.myBands.map(b => b.directoryBandId));
+            // The picker is the directory. Picking one puts it on your own list (ML-478) - the ones already
+            // there are left out. (Getting into a band's shared music is by its organiser's invitation, never
+            // from here.)
+            const myBandIds = new Set(myBandsShown().map(b => b.directoryBandId));
             const joinable = accountBandsData.allBands.filter(b => !myBandIds.has(b.id));
             // Migration 073: grouped by kind of band, each with its town (and its main band for a
             // youth/training band) so two similar names can be told apart.
@@ -4366,8 +4399,17 @@
         const menu = document.getElementById('accountBandMenu');
         if (!menu) return;
         accountBandMenuTargetId = bandId;
-        const band = accountBandsData.myBands.find(b => String(b.id) === String(bandId));
-        document.getElementById('accountBandMenuDelete')?.classList.toggle('hidden-group', !band?.canDelete);
+        // ML-478: what the menu offers follows the band - shared or not, and who else is in it
+        const band = myBandById(bandId);
+        const shared = band && band.shared;
+        const item = (id, show) => document.getElementById(id)?.classList.toggle('hidden-group', !show);
+        item('accountBandMenuShare', band && !shared);
+        item('accountBandMenuMembers', !!shared);
+        item('accountBandMenuLeave', shared && !shared.onlyYou);
+        item('accountBandMenuDelete', shared && shared.onlyYou);
+        item('accountBandMenuDirectory', band && !shared && !band.directoryBandId);
+        item('accountBandMenuMerge', band && myBandsShown().length > 1);
+        item('accountBandMenuHide', band && !shared);
 
         const btnRect = e.currentTarget.getBoundingClientRect();
         menu.classList.add('show');
@@ -4385,11 +4427,113 @@
     document.addEventListener('click', closeAccountBandMenu);
     document.getElementById('accountBandMenuMembers')?.addEventListener('click', (e) => {
         e.stopPropagation();
-        const bandId = accountBandMenuTargetId;
+        const band = myBandById(accountBandMenuTargetId);
         closeAccountBandMenu();
-        const band = accountBandsData.myBands.find(b => String(b.id) === String(bandId));
-        bandMembers = { bandId, bandName: band?.displayName || 'Members', data: null, inviteLevel: 'play' };
+        if (!band || !band.shared) return;
+        bandMembers = { bandId: band.shared.bandId, bandName: band.displayName || 'Members', data: null, inviteLevel: 'play' };
         switchView('bandMembersView');
+    });
+
+    // ---- ML-478: My bands - what a member does to a band on their own list. Each is one menu item (or
+    // one choice in Tidy my bands); a choice from a set opens the usual choice pop-up.
+    const sessionsWord = (n) => `${n} session${n === 1 ? '' : 's'}`;
+    async function myBandDo(action, done) {
+        try {
+            await action();
+            await loadAccountBands();
+            renderAccountSummaries();
+            if (done) showSuccessToast(done);
+        } catch (error) {
+            showWarningToast(error.message);
+        }
+    }
+    function bandSetUpSharing(band) {
+        showConfirmModal('Set up sharing', `Set up sharing for ${band.displayName}? You will be its organiser: you can add the band's music, and invite people to see and play it. Nobody is added or told until you invite them.`,
+            () => myBandDo(() => API.account.shareBand(band.id), 'Sharing is set up. Invite people from Members.'), false, 'Set up sharing');
+    }
+    function bandHide(band) {
+        const text = band.sessions
+            ? `Hide ${band.displayName}? It leaves the "Who with?" box. The ${sessionsWord(band.sessions)} logged with it ${band.sessions === 1 ? 'stays' : 'stay'} on your history, and you can show it again from the bottom of My bands.`
+            : `Take ${band.displayName} off your list? Nothing is logged with it.`;
+        showConfirmModal("I don't play with them now", text, () => myBandDo(() => API.account.hideBand(band.id), band.sessions ? 'Hidden' : 'Removed'), false, band.sessions ? 'Hide' : 'Remove');
+    }
+    // "A band in the list": the likely ones first (the name without "The", "Band" and the like)
+    function bandPickDirectory(band) {
+        const core = (s) => String(s).toLowerCase().replace(/\b(the|band|brass|concert|wind|silver|orchestra|of)\b/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
+        const mine = core(band.name);
+        const likely = (d) => { const c = core(d.name); return !!mine && !!c && (c.includes(mine) || mine.includes(c)); };
+        const all = accountBandsData.allBands || [];
+        const options = [...all.filter(likely), ...all.filter(d => !likely(d))].map(d => ({
+            key: d.id, html: addPieceRow(d.displayName, [d.town, d.ensembleType].filter(Boolean).join(' - ') || 'In the list')
+        }));
+        openFlowChoiceModal(`Which band is ${band.displayName}?`, options, (opt) => {
+            const entry = all.find(d => d.id === opt.key);
+            myBandDo(() => API.account.linkBandToDirectory(band.id, opt.key), `${band.displayName} is ${entry ? entry.displayName : 'that band'}`);
+        });
+    }
+    // "Same as another of mine": pick the one to keep - this one's sessions move onto it
+    function bandPickMerge(band) {
+        const others = myBandsShown().filter(b => b.id !== band.id);
+        if (!others.length) { showWarningToast('There is no other band on your list.'); return; }
+        openFlowChoiceModal(`${band.displayName} is the same as`, others.map(o => ({ key: o.id, html: addPieceRow(o.displayName, o.shared ? 'Shared' : sessionsWord(o.sessions)) })), (opt) => {
+            const into = others.find(o => o.id === opt.key);
+            const moved = band.sessions ? `The ${sessionsWord(band.sessions)} logged with ${band.displayName} ${band.sessions === 1 ? 'moves' : 'move'} to ${into.displayName}, and the name ${band.displayName} goes.` : `Nothing is logged with ${band.displayName}, so only the name goes.`;
+            showConfirmModal('Make them one band', `Make ${band.displayName} and ${into.displayName} one band? ${moved} This can't be undone.`,
+                () => myBandDo(() => API.account.mergeBands(band.id, into.id), `Now one band: ${into.displayName}`), false, 'Make them one');
+        });
+    }
+    const bandMenuItem = (id, run) => document.getElementById(id)?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const band = myBandById(accountBandMenuTargetId);
+        closeAccountBandMenu();
+        if (band) run(band);
+    });
+    bandMenuItem('accountBandMenuShare', bandSetUpSharing);
+    bandMenuItem('accountBandMenuDirectory', bandPickDirectory);
+    bandMenuItem('accountBandMenuMerge', bandPickMerge);
+    bandMenuItem('accountBandMenuHide', bandHide);
+
+    // The bands I don't play with now, at the bottom of My bands - each can be shown again
+    function renderHiddenBands() {
+        const hidden = (accountBandsData.bands || []).filter(b => b.hidden);
+        setShown('accountBandsHiddenTitle', hidden.length > 0);
+        document.getElementById('accountBandsHiddenList').innerHTML = hidden.map(b => `
+            <div class="history-item is-muted">
+                <span class="band-row-text w-full"><span>${escapeHtml(b.displayName)}</span><span class="text-sm text-muted">${escapeHtml(sessionsWord(b.sessions))} on my history</span>
+                <span class="flex-row gap-sm w-full"><button type="button" class="btn-text" data-band-show="${b.id}" aria-label="Show ${escapeHtml(b.displayName)} again">Show again</button></span></span>
+            </div>`).join('');
+    }
+    document.getElementById('accountBandsHiddenList')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-band-show]');
+        if (btn) myBandDo(() => API.account.showBand(btn.dataset.bandShow), 'Back on your list');
+    });
+
+    // Tidy my bands: the names logged before My bands was one list. Each is asked about once.
+    document.getElementById('tidyBandsLink')?.addEventListener('click', () => switchView('tidyBandsView'));
+    function renderTidyBands() {
+        const list = document.getElementById('tidyBandsList');
+        if (!list) return;
+        const toTidy = myBandsShown().filter(b => b.needsTidy);
+        list.innerHTML = toTidy.length ? toTidy.map(b =>
+            `<button type="button" class="metroBlk-ctrl-value-btn w-full mb-2" data-tidy-band="${b.id}" aria-haspopup="dialog" aria-label="${escapeHtml(b.displayName)}, ${escapeHtml(sessionsWord(b.sessions))} - tap to say what it is"><strong>${escapeHtml(b.displayName)}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(sessionsWord(b.sessions))} - tap to say what it is</span></button>`).join('')
+            : '<div class="text-muted">All sorted. Nothing left to tidy.</div>';
+    }
+    document.getElementById('tidyBandsList')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-tidy-band]');
+        const band = btn && myBandById(btn.dataset.tidyBand);
+        if (!band) return;
+        const others = myBandsShown().length > 1;
+        openFlowChoiceModal(band.displayName, [
+            { key: 'directory', html: addPieceRow('A band in the list', 'It becomes that band, and keeps its sessions') },
+            ...(others ? [{ key: 'merge', html: addPieceRow('The same as another of mine', 'The two become one band') }] : []),
+            { key: 'keep', html: addPieceRow('Keep as my own', "A band of mine that isn't in the list") },
+            { key: 'hide', html: addPieceRow("I don't play with them now", 'Out of the "Who with?" box, kept on my history') }
+        ], (opt) => {
+            if (opt.key === 'directory') bandPickDirectory(band);
+            else if (opt.key === 'merge') bandPickMerge(band);
+            else if (opt.key === 'keep') myBandDo(() => API.account.keepBand(band.id), 'Kept as your own');
+            else bandHide(band);
+        });
     });
 
     // ---- ML-473: a band's members (bandMembersView). Everyone in the band sees who is in it and what
@@ -4511,14 +4655,15 @@
 
     document.getElementById('accountBandMenuLeave')?.addEventListener('click', (e) => {
         e.stopPropagation();
-        const bandId = accountBandMenuTargetId;
+        const band = myBandById(accountBandMenuTargetId);
         closeAccountBandMenu();
-        const band = accountBandsData.myBands.find(b => String(b.id) === String(bandId));
-        showConfirmModal('Leave band', `Leave "${band?.displayName || 'this band'}"? Anyone else in it will keep their own membership.`, async () => {
+        if (!band || !band.shared) return;
+        // ML-478: leaving the shared band keeps it on my list, as a band of my own
+        showConfirmModal('Leave shared band', `Leave the shared ${band.displayName}? You will no longer see its pieces, practice lists or members. It stays on your list for your own practice log, and everyone else carries on.`, async () => {
             try {
-                await API.account.leaveBand(bandId);
+                await API.account.leaveBand(band.shared.bandId);
                 await loadAccountBands();
-                showSuccessToast('Left band');
+                showSuccessToast('Left the shared band');
             } catch (error) {
                 showWarningToast('Error leaving band: ' + error.message);
             }
@@ -4526,23 +4671,27 @@
     });
     document.getElementById('accountBandMenuDelete')?.addEventListener('click', (e) => {
         e.stopPropagation();
-        const bandId = accountBandMenuTargetId;
+        const band = myBandById(accountBandMenuTargetId);
         closeAccountBandMenu();
-        const band = accountBandsData.myBands.find(b => String(b.id) === String(bandId));
-        showConfirmModal('Delete band', `Delete "${band?.displayName || 'this band'}" completely? You're the only one in it. Its pieces and practice lists go with it.`, async () => {
+        if (!band || !band.shared) return;
+        // ML-478: only you are in it, so stopping takes nothing from anyone else. The band stays on my list.
+        showConfirmModal('Stop sharing', `Stop sharing ${band.displayName}? You're the only one in it. The band's pieces and practice lists are deleted. The band stays on your list.`, async () => {
             try {
-                await API.account.deleteBandFull(bandId);
+                await API.account.deleteBandFull(band.shared.bandId);
                 await loadAccountBands();
-                showSuccessToast('Band deleted');
+                showSuccessToast('Sharing stopped');
             } catch (error) {
-                showWarningToast('Error deleting band: ' + error.message);
+                showWarningToast('Error stopping sharing: ' + error.message);
             }
-        }, true);
+        }, true, 'Stop sharing');
     });
 
     async function loadAccountBands() {
         try {
             accountBandsData = await API.account.getBands();
+            // ML-478: the "Who with?" box is this list - keep it in step without waiting for the next start
+            appData.organisations = (accountBandsData.bands || []).map(b => ({ name: b.name, archived: b.hidden }));
+            populateWhoDropdowns();
             renderAccountBandsList();
         } catch (error) {
             showWarningToast('Error loading bands: ' + error.message);
@@ -4744,9 +4893,9 @@
         set('accountDetailsSummary', name || document.getElementById('accountEmailReadout')?.textContent || 'Add your name');
         const main = myInstruments.find(i => i.isPrimary);
         set('accountInstrumentsSummary', main ? main.name + (myInstruments.length > 1 ? ` + ${myInstruments.length - 1} more` : '') : 'Choose what you play');
-        const bands = accountBandsData.myBands.length;
+        const bands = myBandsShown().length; // ML-478: every band I play with
         const invited = (accountBandsData.invites || []).length; // ML-473: an invitation waiting is said first
-        set('accountBandsSummary', invited ? `${invited} invitation${invited === 1 ? '' : 's'} waiting` : bands ? `${bands} band${bands === 1 ? '' : 's'}` : 'Not in a band yet');
+        set('accountBandsSummary', invited ? `${invited} invitation${invited === 1 ? '' : 's'} waiting` : bands ? `${bands} band${bands === 1 ? '' : 's'}` : 'No bands yet');
         const teachers = (appData.teachers || []).filter(t => !t.archived).length;
         set('accountTeachersSummary', teachers ? `${teachers} teacher${teachers === 1 ? '' : 's'}` : 'None added yet');
     }
@@ -5109,8 +5258,8 @@
         const websiteInput = document.getElementById('accountNewBandWebsiteInput');
         const name = nameInput.value.trim();
         const website = websiteInput.value.trim();
-        if (!name || !website) { showWarningToast('Band name and website are both required.'); return; }
-        showInfoToast('Checking website...');
+        if (!name) { showWarningToast("Type the band's name."); nameInput.focus(); return; } // ML-478: a website is only needed to put it on everyone's list
+        if (website) showInfoToast('Checking website...');
         try {
             await API.account.addBand(name, website);
             nameInput.value = '';

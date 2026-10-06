@@ -106,6 +106,34 @@ export async function activeBandIdsOf(email: string): Promise<number[]> {
     `SELECT m.band_id FROM band_members m JOIN accounts a ON a.id = m.account_id JOIN bands b ON b.id = m.band_id
       WHERE a.email = $1 AND b.active ORDER BY m.band_id`, [email])).rows.map(r => Number(r.band_id)));
 }
+// ML-478: names as they were before My bands was one list - logged over the years, nothing said about
+// what they are (needs_tidy) - each with some rehearsals, for a test account. Every name must start with
+// the marker so removeOldBandNames can only ever touch what a spec made.
+export const OLD_BAND_MARKER = 'ZZ-tidy ';
+export async function seedOldBandNames(email: string, names: [string, number][]): Promise<void> {
+  if (names.some(([n]) => !n.startsWith(OLD_BAND_MARKER))) throw new Error(`seedOldBandNames: every name must start with "${OLD_BAND_MARKER}"`);
+  await withClient(async (c) => {
+    const account = (await c.query('SELECT id FROM accounts WHERE email = $1', [email])).rows[0].id;
+    for (const [name, sessions] of names) {
+      const band = (await c.query(`INSERT INTO bands (name, created_by_account_id, kind, needs_tidy) VALUES ($1, $2, 'label', true) RETURNING id`, [name, account])).rows[0].id;
+      for (let i = 0; i < sessions; i++) {
+        await c.query(`INSERT INTO sessions (account_id, session_type, band_id, started_at, total_duration_minutes) VALUES ($1, 'rehearsal', $2, now() - interval '500 days', 60)`, [account, band]);
+      }
+    }
+  });
+}
+// Removes the marked names of a test account, with the sessions logged against them - and the sessions
+// that were moved onto another band by a merge (they were all made 500 days back, an hour long, by this helper).
+export async function removeOldBandNames(email: string, movedOnto: string[] = []): Promise<void> {
+  await withClient(async (c) => {
+    const account = (await c.query('SELECT id FROM accounts WHERE email = $1', [email])).rows[0].id;
+    await c.query(
+      `DELETE FROM sessions s USING bands b WHERE s.band_id = b.id AND s.account_id = $1 AND b.created_by_account_id = $1 AND b.kind = 'label'
+         AND (b.name LIKE $2 OR b.name = ANY($3)) AND s.session_type = 'rehearsal' AND s.started_at < now() - interval '499 days'`,
+      [account, OLD_BAND_MARKER + '%', movedOnto]);
+    await c.query(`DELETE FROM bands WHERE created_by_account_id = $1 AND kind = 'label' AND name LIKE $2`, [account, OLD_BAND_MARKER + '%']);
+  });
+}
 export async function bandCount(): Promise<{ total: number; active: number }> {
   return withClient(async (c) => (await c.query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE active)::int AS active FROM bands WHERE kind = 'directory'`)).rows[0]);
 }

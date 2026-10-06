@@ -15,7 +15,8 @@ import { listPracticeLists, createPracticeList, updatePracticeList, deletePracti
 import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader } from '../middleware/auth.js';
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
-import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, startBandGroup, leaveBand, createSharedBand, deleteBandIfSoleMember, listWhoOptions,
+import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, leaveBand, deleteBandIfSoleMember, listWhoOptions,
+  listMyBands, addBandFromDirectory, addOwnBand, setUpSharing, hideMyBand, showMyBand, keepMyBand, mergeMyBands, linkMyBandToDirectory,
   listBandMembers, inviteToBand, cancelBandInvite, listMyBandInvites, acceptBandInvite, declineBandInvite, removeBandMember, setBandMemberLevel } from '../services/bands.js';
 import { readMeters, sendUsageWarnings } from '../services/thirdPartyUsage.js';
 import { getBusinessCase } from '../services/businessCase.js';
@@ -412,7 +413,7 @@ router.post('/drills/:tool/attempts', requireAuth, resolveAccount, async (req, r
 router.get('/dropdown-options', requireAuth, resolveAccount, async (req, res) => {
   try {
     const [organisations, teachers, durations, enabledFeatures, defaultDuration, practiceYear, limits] = await Promise.all([
-      listWhoOptions(req.accountId), // the member's own labels, and the names of the bands they are in (ML-473)
+      listWhoOptions(req.accountId), // the member's My bands list (ML-478)
       listTutors(req.accountId),
       listDurationOptions(),
       // ML-190: every enabled feature_key in one list, so the client can gate UI at app-load time
@@ -894,42 +895,66 @@ router.put('/account', requireAuth, resolveAccount, async (req, res) => {
   }
 });
 
-// The shared band directory (ML-89), the bands the account is in, and the invitations waiting for
-// it (ML-473) - for the account page's bands section.
+// For the account page's My bands (ML-478): `bands` is the member's list - every band they play with,
+// hidden ones included, each with the shared space it shows (if any). `myBands` is just the shared
+// spaces they are in (who a piece or a practice list can belong to - Add a piece, My music).
+// `allBands` is the directory (ML-89) and `invites` the invitations waiting (ML-473).
 router.get('/account/bands', requireAuth, resolveAccount, async (req, res) => {
   try {
+    const bands = await listMyBands(req.accountId); // first: it makes sure every shared space has its entry
     const [allBands, myBands, invites] = await Promise.all([listAllBands(), getAccountBands(req.accountId), listMyBandInvites(req.accountId)]);
-    res.json({ allBands, myBands, invites });
+    res.json({ allBands, myBands, invites, bands });
   } catch (error) {
     sendError(res, error);
   }
 });
 
-// Adds a brand new band to the shared directory and joins the creator to it
-// in one step (ML-89: "if the band isn't in the list, you can add one - you
-// don't have to be an admin"). Same createSharedBand the admin panel's Bands
-// tab uses (server/routes/admin.js), just a different caller/permission gate.
+// A band that isn't in the directory (ML-89: "if the band isn't in the list, you can add one"). With
+// a website it joins the directory too; without, it is a name on your own list. Private either way.
 router.post('/account/bands', requireAuth, resolveAccount, async (req, res) => {
   try {
-    const { name, website } = req.body;
-    await limitCalls('add-band', req.accountId); // ML-476: each one makes the server fetch a website
-    res.json({ band: await createSharedBand(req.accountId, name, website) });
+    const { name, website } = req.body || {};
+    if (String(website || '').trim()) await limitCalls('add-band', req.accountId); // ML-476: each one makes the server fetch a website
+    res.json({ labelId: await addOwnBand(req.accountId, name, website) });
   } catch (error) {
     sendError(res, error);
   }
 });
 
-// ML-473: picking a band from the directory starts YOUR OWN space for it (you are its first member and
-// organiser). It never puts you into a space someone else started - the only way into one of those is
-// an invitation from one of its organisers (the routes below).
+// ML-478: picking a band from the directory puts it on YOUR list, privately. It never puts you into a
+// space someone else set up - the only way into one of those is an invitation from one of its
+// organisers - and it sets up no shared space of your own: that is "Set up sharing", below.
 router.post('/account/bands/:id/join', requireAuth, resolveAccount, async (req, res) => {
   try {
-    const bandId = await startBandGroup(req.accountId, req.params.id);
-    res.json({ message: 'Band added', bandId });
+    res.json({ message: 'Band added', labelId: await addBandFromDirectory(req.accountId, req.params.id) });
   } catch (error) {
     sendError(res, error);
   }
 });
+
+// ML-478: what a member does to a band on their own list (:labelId is always one of theirs - anything
+// else is "not found"). share: set up a shared space, as its organiser. hide / show: "I don't play
+// with them now" and back. keep: "Keep as my own". directory: "Same as a directory band".
+// merge: "Same as another of mine".
+const myBandAction = (run) => async (req, res) => {
+  try {
+    res.json((await run(req)) || { ok: true });
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+router.post('/account/my-bands/:labelId/share', requireAuth, resolveAccount,
+  myBandAction(async (req) => ({ bandId: await setUpSharing(req.accountId, req.params.labelId) })));
+router.post('/account/my-bands/:labelId/hide', requireAuth, resolveAccount,
+  myBandAction((req) => hideMyBand(req.accountId, req.params.labelId)));
+router.post('/account/my-bands/:labelId/show', requireAuth, resolveAccount,
+  myBandAction((req) => showMyBand(req.accountId, req.params.labelId)));
+router.post('/account/my-bands/:labelId/keep', requireAuth, resolveAccount,
+  myBandAction((req) => keepMyBand(req.accountId, req.params.labelId)));
+router.post('/account/my-bands/:labelId/directory', requireAuth, resolveAccount,
+  myBandAction(async (req) => ({ labelId: await linkMyBandToDirectory(req.accountId, req.params.labelId, (req.body || {}).directoryBandId) })));
+router.post('/account/my-bands/:labelId/merge', requireAuth, resolveAccount,
+  myBandAction(async (req) => ({ labelId: await mergeMyBands(req.accountId, req.params.labelId, (req.body || {}).intoId) })));
 
 router.delete('/account/bands/:id', requireAuth, resolveAccount, async (req, res) => {
   try {
@@ -988,7 +1013,7 @@ router.delete('/account/bands/:id/members/:memberId', requireAuth, resolveAccoun
 
 router.post('/account/band-invites/:inviteId/accept', requireAuth, resolveAccount, async (req, res) => {
   try {
-    res.json({ bandId: await acceptBandInvite(req.accountId, req.params.inviteId) });
+    res.json({ bandId: await acceptBandInvite(req.accountId, req.params.inviteId, { labelId: (req.body || {}).labelId ?? null }) }); // ML-478: which of your bands it is
   } catch (error) {
     sendError(res, error);
   }

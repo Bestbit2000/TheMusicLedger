@@ -34,6 +34,9 @@ const directoryBand = async (creator) => {
   return id;
 };
 const status = (code) => (e) => e.status === code;
+// ML-478: adding a band from the directory is private; a shared space is a separate, deliberate step.
+// These tests are about the space, so this does both.
+const startBandGroup = async (accountId, directoryBandId) => bands.setUpSharing(accountId, await bands.addBandFromDirectory(accountId, directoryBandId));
 const skip = !onDev && 'needs the dev database';
 
 after(async () => {
@@ -57,7 +60,7 @@ test("a member's own labels are theirs alone: not in the directory, not joinable
   assert.deepEqual((await bands.listBands(anna)).map((b) => b.name), [`Anna's quartet ${stamp}`]);
   assert.deepEqual(await bands.listBands(ben), []);
   assert.ok(!(await bands.listAllBands()).some((b) => b.id === Number(label)), 'a label is not in the directory');
-  await assert.rejects(bands.startBandGroup(ben, label), status(404));
+  await assert.rejects(startBandGroup(ben, label), status(404));
   await assert.rejects(bands.deleteBandIfSoleMember(ben, label), status(404));
   await assert.rejects(bands.listBandMembers(ben, label), status(404));
   await bands.renameBand(ben, `Anna's quartet ${stamp}`, 'Hijacked');
@@ -66,13 +69,13 @@ test("a member's own labels are theirs alone: not in the directory, not joinable
   assert.equal((await pool.query('SELECT 1 FROM band_members WHERE band_id = $1', [label])).rows.length, 0);
 });
 
-test('picking a band from the directory starts your own space - never a way into someone else\'s', { skip }, async () => {
+test('setting up sharing for a band from the directory starts your own space - never a way into someone else\'s', { skip }, async () => {
   const anna = await account('anna2');
   const ben = await account('ben2');
   const entry = await directoryBand(anna);
-  const annas = await bands.startBandGroup(anna, entry);
-  assert.equal(await bands.startBandGroup(anna, entry), annas, 'asking again gives the same space');
-  const bens = await bands.startBandGroup(ben, entry);
+  const annas = await startBandGroup(anna, entry);
+  assert.equal(await startBandGroup(anna, entry), annas, 'asking again gives the same space');
+  const bens = await startBandGroup(ben, entry);
   assert.notEqual(bens, annas);
 
   const mine = await bands.getAccountBands(anna);
@@ -84,10 +87,10 @@ test('picking a band from the directory starts your own space - never a way into
   await assert.rejects(bands.listBandMembers(ben, annas), status(404));
   await assert.rejects(bands.inviteToBand(ben, annas, emailOf('ben2')), status(404));
   await assert.rejects(bands.setBandMemberLevel(ben, annas, ben, 'organiser'), status(404));
-  await assert.rejects(bands.startBandGroup(ben, annas), status(404));
+  await assert.rejects(startBandGroup(ben, annas), status(404));
   await assert.rejects(bands.deleteBandIfSoleMember(ben, annas), status(404));
   await assert.rejects(bands.removeBandMember(ben, annas, anna), status(404));
-  // The "who" box offers the band you are in, as well as your own labels
+  // The "who" box is My bands: the band she added (ML-478)
   assert.deepEqual((await bands.listWhoOptions(anna)).map((o) => o.name), [`ML-473 Test Band ${stamp}`]);
 });
 
@@ -101,7 +104,7 @@ test('the way in is an organiser\'s invitation to your sign-in address: accept, 
   const ben = await account('ben3');
   const cara = await account('cara3');
   const dan = await account('dan3');
-  const space = await bands.startBandGroup(anna, await directoryBand(anna));
+  const space = await startBandGroup(anna, await directoryBand(anna));
 
   await assert.rejects(bands.inviteToBand(anna, space, 'not an address'), status(400));
   await assert.rejects(bands.inviteToBand(anna, space, emailOf('ben3'), 'boss'), status(400));
@@ -150,7 +153,7 @@ test('organisers: only they remove or set what a member may do; a band always ha
   const anna = await account('anna4');
   const ben = await account('ben4');
   const cara = await account('cara4');
-  const space = await bands.startBandGroup(anna, await directoryBand(anna));
+  const space = await startBandGroup(anna, await directoryBand(anna));
   await join(anna, space, ben, 'ben4', 'change');
   await join(anna, space, cara, 'cara4', 'play');
   const levels = async () => (await bands.listBandMembers(cara, space)).members.map((m) => `${m.name.split(' ')[0]}:${m.level}`);
@@ -176,10 +179,10 @@ test('organisers: only they remove or set what a member may do; a band always ha
   assert.deepEqual(await bands.getAccountBands(anna), []);
 
   // The last person out of an empty band takes it with them; one with music in it has to be deleted on purpose
-  const empty = await bands.startBandGroup(anna, await directoryBand(anna));
+  const empty = await startBandGroup(anna, await directoryBand(anna));
   await bands.leaveBand(anna, empty);
   assert.equal((await pool.query('SELECT 1 FROM bands WHERE id = $1', [empty])).rows.length, 0);
-  const full = await bands.startBandGroup(anna, await directoryBand(anna));
+  const full = await startBandGroup(anna, await directoryBand(anna));
   await lists.createPracticeList(anna, { name: 'ML-473 kept', bandId: full });
   await assert.rejects(bands.leaveBand(anna, full), status(409));
   assert.equal((await bands.getAccountBands(anna)).length, 1);
@@ -190,7 +193,7 @@ test('a "play" member sees and plays the band\'s pieces and lists and changes no
   const anna = await account('anna6');
   const ben = await account('ben6');
   const cara = await account('cara6');
-  const space = await bands.startBandGroup(anna, await directoryBand(anna));
+  const space = await startBandGroup(anna, await directoryBand(anna));
   await join(anna, space, ben, 'ben6', 'play');
   await join(anna, space, cara, 'cara6', 'change');
   const piece = (await flows.createFlow(anna, { name: 'ML-473 band piece', bandId: space })).id;

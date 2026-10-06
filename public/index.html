@@ -910,8 +910,10 @@
         <!-- ML-473: invitations into a band, waiting for this member. The only way into a band someone
              else set up (renderAccountBandInvites). -->
         <div id="accountBandInvites" class="hidden-group mb-4"></div>
+        <!-- ML-478: the names logged before My bands was one list, to say what each is - once (tidyBandsView) -->
+        <button type="button" class="history-item settings-link hidden-group" id="tidyBandsLink"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">checklist</span><span class="settings-link-text"><span class="settings-link-title">Tidy my bands</span><span class="settings-link-sub" id="tidyBandsLinkSub"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <div id="accountBandsList"></div>
-        <p class="metro-help-text mt-4">Adding a band here sets it up for you. To join a band someone else has already set up, ask its organiser to invite you.</p>
+        <p class="metro-help-text mt-4">Adding a band is private to you: it is who you can say a rehearsal or performance was with. To share a band's music, open its menu and choose Set up sharing - or ask the band's organiser to invite you.</p>
         <div class="flex-row gap-sm mt-2">
             <select id="accountBandPicker" aria-label="Band to add" class="flex-1"><option value="">Choose a band to add&hellip;</option></select>
             <button class="btn-submit btn-inline" id="accountJoinBandBtn">Add</button>
@@ -925,11 +927,23 @@
                 <input type="text" id="accountNewBandNameInput" placeholder="e.g. Bourne Concert Band">
             </div>
             <div class="form-group">
-                <label for="accountNewBandWebsiteInput">Website</label>
-                <input type="text" id="accountNewBandWebsiteInput" placeholder="https://...">
+                <label for="accountNewBandWebsiteInput">Website (if it has one)</label>
+                <input type="text" id="accountNewBandWebsiteInput" placeholder="https://..." aria-describedby="accountNewBandWebsiteHelp">
+                <p class="metro-help-text mt-2" id="accountNewBandWebsiteHelp">With a website, the band also goes on the list for other players to pick. Without one, it is just on your list.</p>
             </div>
             <button class="btn-submit btn-inline" id="accountAddBandBtn">Add</button>
         </div>
+        <!-- ML-478: "I don't play with them now" - out of the "Who with?" box, kept on the history -->
+        <div class="section-title mt-4 hidden-group" id="accountBandsHiddenTitle">Bands I don't play with now</div>
+        <div id="accountBandsHiddenList"></div>
+    </div>
+
+    <!-- ML-478: Tidy my bands - each name logged before My bands was one list, as a value box that
+         opens the choice pop-up (a band in the list / the same as another of mine / keep as my own /
+         I don't play with them now). One button, one pop-up. renderTidyBands. -->
+    <div id="tidyBandsView" class="hidden-group">
+        <p class="metro-help-text">These are names you have logged rehearsals or performances with. Tap each one and say what it is - you are only asked once.</p>
+        <div id="tidyBandsList"></div>
     </div>
 
     <!-- ML-473: who is in a band and what each may do (opened from a band's menu on My bands). Everyone in
@@ -976,9 +990,13 @@
         <button type="button" class="dropdown-item account-band-menu-delete" id="accountInstrumentMenuRemove"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">remove_circle</span><span class="dropdown-item-text">Remove</span></button>
     </div>
     <div class="dropdown-menu account-band-menu" id="accountBandMenu">
+        <button type="button" class="dropdown-item" id="accountBandMenuShare"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">group_add</span><span class="dropdown-item-text">Set up sharing</span></button>
         <button type="button" class="dropdown-item" id="accountBandMenuMembers"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">group</span><span class="dropdown-item-text">Members</span></button>
-        <button type="button" class="dropdown-item" id="accountBandMenuLeave"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="3.5"/><path d="M2 20.5a6 6 0 0 1 12 0"/><path d="M15 12.5h6.5"/><path d="M18.5 9.5l3 3-3 3"/></svg><span class="dropdown-item-text">Leave band</span></button>
-        <button type="button" class="dropdown-item account-band-menu-delete hidden-group" id="accountBandMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete band</span></button>
+        <button type="button" class="dropdown-item" id="accountBandMenuLeave"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="3.5"/><path d="M2 20.5a6 6 0 0 1 12 0"/><path d="M15 12.5h6.5"/><path d="M18.5 9.5l3 3-3 3"/></svg><span class="dropdown-item-text">Leave shared band</span></button>
+        <button type="button" class="dropdown-item" id="accountBandMenuDirectory"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">link</span><span class="dropdown-item-text">It's a band in the list</span></button>
+        <button type="button" class="dropdown-item" id="accountBandMenuMerge"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">merge</span><span class="dropdown-item-text">Same as another of mine</span></button>
+        <button type="button" class="dropdown-item" id="accountBandMenuHide"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">visibility_off</span><span class="dropdown-item-text">I don't play with them now</span></button>
+        <button type="button" class="dropdown-item account-band-menu-delete hidden-group" id="accountBandMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Stop sharing</span></button>
     </div>
 
     <!-- ML-201: notification centre. The update card (only when this device is running an older
