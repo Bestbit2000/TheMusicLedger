@@ -16,6 +16,12 @@ async function freshTokenVersion(email) {
 
 const router = express.Router();
 
+// ML-475: the sign-in token goes back to the page after the "#". That part of an address is never sent
+// to a server, so the token is in no request log and no Referer; the page reads it and takes it out of
+// the address at once (AuthManager.handleCallback). It used to be "?authToken=...", which is sent.
+const handBack = (req, authToken, userId) =>
+  `${req.protocol}://${req.get('host')}/#authToken=${encodeURIComponent(authToken)}&userId=${encodeURIComponent(userId)}`;
+
 // Route paths deliberately unchanged (/login, /callback, not the more
 // conventional /google, /google/callback) - these are already registered as
 // Google's authorized redirect URIs across every environment; renaming them
@@ -48,17 +54,16 @@ router.get('/login', async (req, res, next) => {
       firstName: 'Local',
       surname: admin ? 'Admin' : standard ? 'Standard' : 'Dev'
     });
-    const frontendUrl = `${req.protocol}://${req.get('host')}`;
-    return res.redirect(`${frontendUrl}?authToken=${authToken}&userId=${userId}`);
+    return res.redirect(handBack(req, authToken, userId));
   }
   next();
 }, passport.authenticate('google', {
   // 'spreadsheets' scope dropped 2026-09-09 - nothing has talked to Google
   // Sheets since the Postgres cutover (ML-21). The sheet itself is kept
   // around unused, not deleted, so no scope is needed to read/write it.
+  // ML-475: no offline access and no forced consent - both were only there to get a refresh key, and
+  // the app never calls Google again for a member. Google now signs a returning member straight in.
   scope: ['email', 'profile'],
-  accessType: 'offline',
-  prompt: 'consent', // forces a refresh_token on every login, not just the first
   session: false
 }));
 
@@ -81,8 +86,7 @@ router.get('/callback', (req, res, next) => {
     // request rather than an env var - a stale FRONTEND_URL (e.g. copied
     // from a local .env into Vercel) would otherwise silently send every
     // deployment back to localhost after login.
-    const frontendUrl = `${req.protocol}://${req.get('host')}`;
-    res.redirect(`${frontendUrl}?authToken=${authToken}&userId=${tokenData.userId}`);
+    res.redirect(handBack(req, authToken, tokenData.userId));
   })(req, res, next);
 });
 

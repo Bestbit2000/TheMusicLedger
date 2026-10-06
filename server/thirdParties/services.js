@@ -200,7 +200,9 @@ export default [
     limits: [
       { what: 'Users while in "Testing"', allowance: '100 test users' }
     ],
-    hosts: ['accounts.google.com', 'policies.google.com']
+    // oauth2.googleapis.com (ML-475): only to cancel the old refresh key left in a sign-in token signed before 0.48.0 -
+    // nothing about a member is sent, just Google's own key back to Google (server/middleware/auth.js, dropGoogleKeys)
+    hosts: ['accounts.google.com', 'policies.google.com', 'oauth2.googleapis.com']
   },
   {
     key: 'gmail-smtp',

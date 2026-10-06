@@ -16,14 +16,12 @@ passport.use(new GoogleStrategy(
     callbackURL: process.env.GOOGLE_REDIRECT_URI,
     store: new SignedStateStore()
   },
-  // 5-arg form deliberately - passport-oauth2 only hands back the raw token
-  // response (params, incl. expires_in) when the verify callback's arity is
-  // 5, vs. 4 for the simpler (accessToken, refreshToken, profile, done) form.
-  (accessToken, refreshToken, params, profile, done) => {
+  // ML-475: Google is only asked who someone is. Its own access and refresh keys are dropped here, at
+  // the one place they arrive - they used to be carried inside the app's sign-in token (signed, but
+  // readable by anyone holding it) although nothing ever called Google again for a member.
+  (_accessToken, _refreshToken, profile, done) => {
     const email = profile.emails?.[0]?.value;
     if (!email) return done(new Error('Google profile has no email address'));
-
-    const expiresInMs = (params.expires_in ? Number(params.expires_in) : 3600) * 1000;
 
     done(null, {
       userId: email,
@@ -31,10 +29,7 @@ passport.use(new GoogleStrategy(
       // Carried through so account creation (server/services/accounts.js)
       // has a real name on first login rather than leaving it blank.
       firstName: profile.name?.givenName || '',
-      surname: profile.name?.familyName || '',
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      expiry_date: Date.now() + expiresInMs
+      surname: profile.name?.familyName || ''
     });
   }
 ));

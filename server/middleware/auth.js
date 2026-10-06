@@ -1,4 +1,4 @@
-import { verifyToken } from '../utils/authToken.js';
+import { verifyToken, carriesGoogleKeys, withoutGoogleKeys } from '../utils/authToken.js';
 import { getOrCreateAccount, isSuperAdmin, getAccountLevel, touchLastSeen } from '../services/accounts.js';
 import { featureContext, ACCOUNT_TYPE_KEYS } from '../services/features.js';
 import { tokenIsCurrent } from '../services/tokenVersions.js';
@@ -17,6 +17,24 @@ async function rejectOldToken(tokenData, res) {
   return false;
 }
 
+// ML-475: a token signed before 0.48.0 carries Google's own access and refresh keys. The member is
+// handed the same sign-in without them (X-Refreshed-Token - the app swaps to it at once), and the
+// refresh key is cancelled at Google so the copy left in the old token is worth nothing. Neither is
+// waited for or allowed to fail the request.
+const cancelled = new Set();
+function dropGoogleKeys(tokenData, res) {
+  if (!carriesGoogleKeys(tokenData)) return;
+  try { res.set('X-Refreshed-Token', withoutGoogleKeys(tokenData)); } catch (error) { console.error('Token not re-issued:', error.message); }
+  const key = tokenData.refresh_token || tokenData.access_token;
+  if (!key || cancelled.has(key)) return;
+  cancelled.add(key);
+  // A fixed Google address - nothing here comes from the request but the key itself
+  fetch('https://oauth2.googleapis.com/revoke', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ token: key }), signal: AbortSignal.timeout(5000)
+  }).catch(() => { cancelled.delete(key); }); // try again another time
+}
+
 export async function requireAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
@@ -27,13 +45,11 @@ export async function requireAuth(req, res, next) {
     const token = authHeader.substring(7);
     const tokenData = verifyToken(token);
     if (await rejectOldToken(tokenData, res)) return;
+    dropGoogleKeys(tokenData, res);
 
     req.userId = tokenData.userId;
     req.firstName = tokenData.firstName || '';
     req.surname = tokenData.surname || '';
-    req.googleAccessToken = tokenData.access_token;
-    req.googleRefreshToken = tokenData.refresh_token;
-    req.googleExpiryDate = tokenData.expiry_date;
     next();
   } catch (error) {
     res.status(401).json({ error: 'Invalid or expired token' });
@@ -61,9 +77,6 @@ export async function requireAuthFromQueryOrHeader(req, res, next) {
     req.userId = tokenData.userId;
     req.firstName = tokenData.firstName || '';
     req.surname = tokenData.surname || '';
-    req.googleAccessToken = tokenData.access_token;
-    req.googleRefreshToken = tokenData.refresh_token;
-    req.googleExpiryDate = tokenData.expiry_date;
     next();
   } catch (error) {
     res.status(401).json({ error: 'Invalid or expired token' });
@@ -131,15 +144,3 @@ export async function requireSuperAdmin(req, res, next) {
   }
 }
 
-export function getUserTokens(req) {
-  return {
-    access_token: req.googleAccessToken,
-    refresh_token: req.googleRefreshToken,
-    expiry_date: req.googleExpiryDate
-  };
-}
-
-export async function saveUserTokens(tokens) {
-  // Tokens are managed on the client side, no server-side storage needed
-  return tokens;
-}

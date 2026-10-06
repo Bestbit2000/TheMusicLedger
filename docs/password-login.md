@@ -26,6 +26,15 @@ Gmail account (SMTP) until then.
   one. Unused invites are listed there and can be cancelled.
 - **Log in** with email + password on the login screen (under Google's button). The server answers with
   the app's usual signed token as JSON; the page stores it like Google's.
+- **What the token holds, and how a Google sign-in hands it over (ML-475).** The token says who it is
+  (`userId`, name, `tv`) and nothing of Google's: Google's access and refresh keys are dropped in
+  `server/config/passport.js`, and the sign-in no longer asks for offline access. After Google's callback the
+  token goes back to the page after the `#` (`handBack` in `server/routes/auth.js`) - the part of an address
+  that is never sent to a server - and `AuthManager.handleCallback` stores it and takes it out of the address.
+  A token signed before 0.48.0 still works; on its next request the member is handed the same sign-in
+  without Google's keys (`X-Refreshed-Token`, same end date) and the old refresh key is cancelled at Google
+  (`dropGoogleKeys` in `server/middleware/auth.js` - it can be taken out once those tokens have run out,
+  30 days after 0.48.0). Tests: `server/test/signInToken.test.js`.
 - **Forgot your password?** emails a link (`/?reset=…`, 1 hour, once). The answer is always "if that
   email has an account, we've sent it a link" - it never says whether an account exists. Any account
   can use it, including a Google one (that's how a Google user adds a password).

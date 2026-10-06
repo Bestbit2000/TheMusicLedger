@@ -67,10 +67,15 @@
             window.location.href = authUrl;
         }
 
+        // ML-475: after a Google sign-in the server hands the token back after the "#" - the part of an
+        // address that is never sent to a server, so it is in no request log. It is taken out of the
+        // address at once (replaceState: no history entry keeps it). The old "?authToken=" is still
+        // read, for a sign-in that was under way while the app was being updated.
         async handleCallback() {
-            const params = new URLSearchParams(window.location.search);
-            const token = params.get('authToken');
-            const userId = params.get('userId');
+            const read = (text) => { const p = new URLSearchParams(text); return { token: p.get('authToken'), userId: p.get('userId') }; };
+            const fromHash = read(window.location.hash.replace(/^#/, ''));
+            const fromQuery = read(window.location.search);
+            const { token, userId } = fromHash.token ? fromHash : fromQuery;
 
             if (token && userId) {
                 this.accept(token, userId);
