@@ -67,7 +67,7 @@ Found and fixed:
 
 | What | How serious | The fix |
 |---|---|---|
-| A stored file's address was kept as the browser sent it, and put into the page inside `onclick`. A member could add a "document" to a band piece that ran script for everyone who opened it, and take their sign-in. | High | The address must be a file in this app's own store, at the path the upload gave, and not already attached (`assertOwnUnusedBlob` in `flows.js`). The page no longer builds script from it. |
+| A stored file's address was kept as the browser sent it, and put into the page inside `onclick`. A member could add a "document" to a band piece that ran script for everyone who opened it, and take their sign-in. | High | The address must be a file in this app's own store, uploaded for that very piece, and not already attached (`isPieceFileUrl` in `blobUrls.js`, `assertOwnUnusedBlob` in `flows.js`). Checked against all 20 real stored files on dev. The page no longer builds script from it. |
 | The same unchecked address let a member attach a public piece's file to their own piece and delete it - removing the real file. | High | As above; and a file is only deleted when no other piece points at it (`delUnreferenced`). |
 | Adding a band made the server fetch whatever address was typed, follow any redirect and report the status code: a way to probe this machine or a private network. | Medium | Only public internet addresses are fetched, each redirect is checked, and only "it answered / it didn't" comes back (`publicUrl.js`). |
 | A band's name, a challenge's name and a teacher's or organisation's name were put on the page unescaped. | Medium (band names are seen by other members) | Escaped. |

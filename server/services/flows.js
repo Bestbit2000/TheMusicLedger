@@ -18,15 +18,15 @@ import { isSuperAdmin } from './accounts.js';
 import { getConfigValue } from './appConfig.js';
 import { NOTE_VALUES } from './metronomeSegments.js';
 import { canDeleteFlow } from './flowPermissions.js';
-import { isOwnBlobUrl } from './scoreImport.js';
+import { isPieceFileUrl } from './blobUrls.js';
 
 // ML-231: a stored file's address comes back from the browser after an upload, so it is checked before
-// it is kept: it must be a file in this app's own store, at the path the upload gave, and one that no
+// it is kept: it must be a stored file uploaded for this very piece (blobUrls.js), and one that no
 // piece already points at. Before this, any address was stored as sent - a member could plant an
 // address that ran script for whoever opened the piece, or attach another piece's file and then
 // delete it.
-async function assertOwnUnusedBlob(blobUrl, blobPathname) {
-  if (!isOwnBlobUrl(blobUrl, blobPathname)) throw withStatus(400, 'That file is not one this app stored.');
+async function assertOwnUnusedBlob(blobUrl, scoreId) {
+  if (!isPieceFileUrl(blobUrl, scoreId)) throw withStatus(400, 'That file is not one this app stored.');
   const { rows } = await pool.query(
     `SELECT 1 FROM score_recordings WHERE blob_url = $1 UNION ALL SELECT 1 FROM score_documents WHERE blob_url = $1 LIMIT 1`, [blobUrl]);
   if (rows.length) throw withStatus(409, 'That file is already attached to a piece.');
@@ -429,7 +429,7 @@ export async function deleteFlow(accountId, scoreId) {
 export async function addUploadedRecording(accountId, scoreId, { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType }) {
   await assertFlowAccess(accountId, scoreId);
   if (!blobUrl || !blobPathname) throw withStatus(400, 'Missing uploaded file details.');
-  await assertOwnUnusedBlob(blobUrl, blobPathname);
+  await assertOwnUnusedBlob(blobUrl, scoreId);
   await pool.query(
     `INSERT INTO score_recordings (score_id, type, title, blob_url, blob_pathname, file_size_bytes, mime_type, order_index)
      VALUES ($1, 'upload', $2, $3, $4, $5, $6, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
@@ -465,7 +465,7 @@ export async function deleteRecording(accountId, scoreId, recordingId) {
 export async function addDocument(accountId, scoreId, { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType }) {
   await assertFlowAccess(accountId, scoreId);
   if (!blobUrl || !blobPathname || !fileName) throw withStatus(400, 'Missing uploaded file details.');
-  await assertOwnUnusedBlob(blobUrl, blobPathname);
+  await assertOwnUnusedBlob(blobUrl, scoreId);
   await pool.query(
     `INSERT INTO score_documents (score_id, file_name, blob_url, blob_pathname, file_size_bytes, mime_type)
      VALUES ($1, $2, $3, $4, $5, $6)`,
