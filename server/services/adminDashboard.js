@@ -12,6 +12,8 @@ import { getBusinessCase, BusinessCase } from './businessCase.js';
 import { costsAndUsage } from './thirdPartyUsage.js';
 import { getSecurityReview } from './securityReview.js';
 import thirdPartyRegister from '../thirdParties/register.js';
+import { listRecords } from './thirdPartyRecords.js';
+import { openAttentionCount } from '../thirdParties/records.js';
 import fs from 'node:fs';
 import { daysToLaunch, needsYou } from './adminDashboardRules.js';
 
@@ -85,7 +87,8 @@ export async function getAdminDashboard() {
   ]);
   const limits = (usage || []).filter((m) => m.status && (m.status.level === 'warn' || m.status.level === 'fail'))
     .map((m) => ({ name: m.name, percent: m.status.percent, level: m.status.level }));
-  const attention = thirdPartyRegister.entries.reduce((sum, e) => sum + (e.attention || []).length, 0);
+  // ML-462: items the owner has marked as dealt with on Third parties no longer count
+  const attention = openAttentionCount(thirdPartyRegister.entries, await part('third-party records', listRecords));
   return {
     people: who,
     build: made,

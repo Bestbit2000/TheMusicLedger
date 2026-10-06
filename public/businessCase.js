@@ -436,6 +436,25 @@
         return { rows, first: ranked.length ? ranked[0].key : null };
     }
 
+    // ML-461: the plan as a file, to take it from one environment to another (dev to production and
+    // back). The file holds the plan and nothing else - the usage readings and the actual v forecast
+    // months belong to each environment. fromFile reads one back and tidies it exactly as a save is
+    // tidied; anything that isn't a business plan is refused with a message for the owner.
+    const FILE_KIND = 'music-ledger-business-plan';
+    function toFile(plan, from, at) {
+        return JSON.stringify({ kind: FILE_KIND, version: 1, savedFrom: String(from || ''), savedAt: at || new Date().toISOString(), plan: tidy(plan) }, null, 2);
+    }
+    function fromFile(text) {
+        const refuse = (message) => { const e = new Error(message); e.status = 400; throw e; };
+        let file;
+        try { file = JSON.parse(text); } catch (error) { refuse('That file can\'t be read. Choose a file made by "Save a copy to a file".'); }
+        if (!file || file.kind !== FILE_KIND || !file.plan || typeof file.plan !== 'object') refuse('That file isn\'t a business plan. Choose a file made by "Save a copy to a file".');
+        if (Number(file.version) > 1) refuse('That file was made by a newer version of the app. Update this one first.');
+        let plan;
+        try { plan = tidy(file.plan); } catch (error) { refuse(`The plan in that file can't be used: ${error.message}`); }
+        return { plan, savedFrom: String(file.savedFrom || ''), savedAt: String(file.savedAt || '') };
+    }
+
     // An id nothing in the plan has yet, from a name ("Band licences" -> band-licences, band-licences-2...).
     function newId(name, taken) {
         const base = String(name || 'item').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'item';
@@ -444,5 +463,5 @@
         return id;
     }
 
-    return { MAX_YEARS, MAX_COSTS, MAX_SCENARIOS, MAX_EXTRAS, EVERY, ym, ymText, monthLabel, isMonth, round2, when, membersAt, databaseHours, databaseCost, membersOnFreeDatabase, netOfFees, project, shareToPayBack, limits, tidy, newId };
+    return { MAX_YEARS, MAX_COSTS, MAX_SCENARIOS, MAX_EXTRAS, EVERY, ym, ymText, monthLabel, isMonth, round2, when, membersAt, databaseHours, databaseCost, membersOnFreeDatabase, netOfFees, project, shareToPayBack, limits, tidy, toFile, fromFile, newId };
 }));

@@ -49,6 +49,10 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
   invite's ⋮: Cancel invite.
 - **Flows:** the ⋮ holds View, Edit, Publish / Unpublish (not a band's piece) and Export - they were four
   buttons a row.
+- **Third parties (ML-462):** each card can hold the owner's own **reference and note** (shown as
+  `.admin-run-notes` lines; a `.admin-stat-exclude-btn` opens the `#partyRecordModal` form), and each "Needs
+  attention" line has a `.admin-stat-exclude-btn` **Mark as done** - it then reads "Dealt with <date>" in
+  `.text-muted` with **Undo**. No new classes.
 - **Features (ML-414):** there is no Features page any more - the catalogue is folded into
   [Feature access](admin-feature-access.md): "+ Add feature" in its toolbar, and each feature's ⋮ has Edit (name,
   description, key) and Delete. The form has no Enabled switch - that was the same switch as **Live** in the grid.

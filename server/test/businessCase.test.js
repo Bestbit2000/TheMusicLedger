@@ -375,3 +375,38 @@ describe('the forecast for one month', () => {
         assert.equal(at('2026-08'), undefined);  // before building started
     });
 });
+
+// ML-461: the plan as a file, to copy it from one environment to another
+describe('the plan as a file', () => {
+    const p = () => plan([cost('host', { amount: 10 }), cost('pro', { amount: 20, meter: 'resend-month', minMembers: 500 })]);
+
+    test('a plan saved to a file comes back the same, and gives the same figures', () => {
+        const text = BC.toFile(p(), 'localhost', '2026-10-06T12:00:00.000Z');
+        const got = BC.fromFile(text);
+        assert.deepEqual(plain(got.plan), plain(BC.tidy(p())));
+        assert.equal(got.savedFrom, 'localhost');
+        assert.equal(got.savedAt, '2026-10-06T12:00:00.000Z');
+        assert.equal(BC.project(got.plan, 's').endPosition, BC.project(BC.tidy(p()), 's').endPosition);
+        // and back again: saving what was loaded gives the same file
+        assert.equal(BC.toFile(got.plan, 'localhost', '2026-10-06T12:00:00.000Z'), text);
+    });
+
+    test('the file holds the plan and nothing about members or readings', () => {
+        const file = JSON.parse(BC.toFile(p(), 'localhost'));
+        assert.deepEqual(Object.keys(file).sort(), ['kind', 'plan', 'savedAt', 'savedFrom', 'version']);
+    });
+
+    test('a file that is not a business plan is refused with a plain message', () => {
+        assert.throws(() => BC.fromFile('not json at all'), /can't be read/);
+        assert.throws(() => BC.fromFile('{"flows":[]}'), /isn't a business plan/);
+        assert.throws(() => BC.fromFile(JSON.stringify({ kind: 'music-ledger-business-plan', version: 1 })), /isn't a business plan/);
+        assert.throws(() => BC.fromFile(JSON.stringify({ kind: 'music-ledger-business-plan', version: 2, plan: p() })), /newer version/);
+    });
+
+    test('a plan that can not be mended is refused, and a loose one is tidied like a save', () => {
+        assert.throws(() => BC.fromFile(JSON.stringify({ kind: 'music-ledger-business-plan', version: 1, plan: { launch: '2027-01' } })), /can't be used/);
+        const loose = p();
+        loose.years = 99;
+        assert.equal(BC.fromFile(JSON.stringify({ kind: 'music-ledger-business-plan', version: 1, plan: loose })).plan.years, BC.MAX_YEARS);
+    });
+});

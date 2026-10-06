@@ -95,6 +95,21 @@ they ask of us are in the register entry; the security verdict is in
 
 **How it is configured.** `AUDIVERIS_SERVICE_URL` (base URL, no trailing slash) + optional `AUDIVERIS_SERVICE_TOKEN` (sent as `Bearer` on every call — only enforced if whatever's in front of the service actually checks it, see below) + optional `AUDIVERIS_POLL_TIMEOUT_MS` (default 50000). `runOmr` in `scoreImport.js` is written against a *real, verified* async job contract — [solfascribe-omr](https://github.com/James-Aidoo/solfascribe-omr)'s (MIT-licensed, self-hostable Audiveris wrapper): `POST {url}/jobs` (multipart, one file field, any name) → `202 {jobId}`; poll `GET {url}/jobs/{jobId}` → `{status: 'queued'|'running'|'done'|'failed', movements: [{filename, bytes}], failure?: {class, detail}}`; fetch `GET {url}/jobs/{jobId}/files/{filename}` for the MusicXML once `status` is `'done'`. Async, not a single request/response, because real OMR takes real time (that service's own default timeout is 15 minutes) — `AUDIVERIS_POLL_TIMEOUT_MS` bounds how long `runOmr` itself will wait, which has to stay under whatever `maxDuration` the `api/[...slug].js` Vercel function is configured with (unset in `vercel.json` today = plan default, likely too short — raise it there if scanning routinely times out). solfascribe-omr ships with **no built-in authentication** ("no auth, `CORS_ORIGIN=*`") — don't expose it on the open internet as-is; put it behind a Cloudflare Tunnel + Access (or an equivalent auth-checking reverse proxy) if it needs to be reachable from Vercel. As of writing (2026-09-20) solfascribe-omr is a brand-new project (created July 2026, 0 stars, no tagged releases) — treat it as a reference implementation to test against, not a proven dependency, until it's actually been run against real scores.
 
+## Your own records (ML-462)
+
+The register is a file, so it changes with a release. What the owner knows and does day to day is kept on
+the site instead (`third_party_records`, migration 104), on each card on **Admin → Third parties**:
+
+- **My reference and note** - an account or registration number and a free note. Only ever sent to a super
+  admin. **Never put a reference in the register, a doc or a commit** - it is typed in on the page.
+- **Mark as done** on a "Needs attention" item, with the date, and **Undo**. Items dealt with stop counting
+  on the menu and the Dashboard, and an entry with none left open stops saying "Needs attention". An item is
+  matched by its wording, so a newly worded item in the register is open again.
+
+If a fact in the register itself has changed (a fee is now paid, a plan has changed), still correct the
+register in the next release - the marks made on the page sit on top of it, they do not replace it.
+Code: `server/thirdParties/records.js` (pure, tested), `server/services/thirdPartyRecords.js`.
+
 ## Costs and usage (ML-429)
 
 Since ML-443 this is its own page, **Admin → Business → Costs and usage** (it was the top of Third parties). The

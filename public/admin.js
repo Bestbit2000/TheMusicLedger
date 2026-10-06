@@ -2636,7 +2636,11 @@
                     <span class="admin-badge ${badgeClass}">${badgeLabel}</span>
                 </div>
                 <div class="admin-test-case">
-                    ${(e.attention || []).map((a) => `<p class="admin-run-notes"><strong>Needs attention:</strong> ${escapeHtml(a)}</p>`).join('')}
+                    ${(e.attention || []).map((a, i) => `<p class="admin-run-notes"><strong>Needs attention:</strong> ${escapeHtml(a)} <button type="button" class="admin-stat-exclude-btn" data-attn-party="${escapeHtml(e.key)}" data-attn-open="${i}">Mark as done</button></p>`).join('')}
+                    ${(e.attentionDone || []).map((a, i) => `<p class="admin-run-notes text-muted"><strong>Dealt with${a.on ? ` ${escapeHtml(fmtDay(a.on))}` : ''}:</strong> ${escapeHtml(a.text)} <button type="button" class="admin-stat-exclude-btn" data-attn-party="${escapeHtml(e.key)}" data-attn-done="${i}">Undo</button></p>`).join('')}
+                    ${e.record && e.record.reference ? `<p class="admin-run-notes"><strong>My reference:</strong> ${escapeHtml(e.record.reference)}</p>` : ''}
+                    ${e.record && e.record.note ? `<p class="admin-run-notes"><strong>My note:</strong> ${escapeHtml(e.record.note)}</p>` : ''}
+                    <p class="admin-run-notes"><button type="button" class="admin-stat-exclude-btn" data-party-record="${escapeHtml(e.key)}">${e.record && (e.record.reference || e.record.note) ? 'Change my reference and note' : 'Add my reference or a note'}</button></p>
                     ${e.statusNote ? `<p class="admin-run-notes"><strong>${escapeHtml(e.statusNote)}</strong></p>` : ''}
                     <p class="admin-run-notes"><strong>What it gives us:</strong> ${escapeHtml(e.provides)}</p>
                     <p class="admin-run-notes"><strong>Where it's used:</strong> ${escapeHtml(e.usedIn)}</p>
@@ -2798,6 +2802,44 @@
             btn.disabled = false;
         }
     }
+    // ML-462: the owner's own records about a third party - a reference, a note, and "needs attention"
+    // items marked as dealt with. Kept in the database (third_party_records), so no code change is needed.
+    let recordPartyKey = null;
+    function initThirdPartyRecords() {
+        document.getElementById('partyRecordCancelBtn')?.addEventListener('click', () => hideModal('partyRecordModal'));
+        document.getElementById('partyRecordSaveBtn')?.addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            btn.disabled = true;
+            try {
+                renderThirdParties(await apiCall(`/api/admin/third-parties/${recordPartyKey}/record`, 'PUT', { reference: document.getElementById('partyRecordReference').value, note: document.getElementById('partyRecordNote').value }));
+                hideModal('partyRecordModal');
+                showToast('Saved', 'success');
+            } catch (error) { showToast(error.message); } finally { btn.disabled = false; }
+        });
+        document.getElementById('thirdParties')?.addEventListener('click', async (e) => {
+            const t = e.target.closest('button');
+            if (!t || !thirdPartyData) return;
+            const entry = (key) => thirdPartyData.entries.find((x) => x.key === key);
+            if (t.dataset.partyRecord) {
+                const en = entry(t.dataset.partyRecord);
+                recordPartyKey = en.key;
+                document.getElementById('partyRecordTitle').textContent = `${en.name}: my reference and note`;
+                document.getElementById('partyRecordReference').value = en.record ? en.record.reference : '';
+                document.getElementById('partyRecordNote').value = en.record ? en.record.note : '';
+                showModal('partyRecordModal');
+                document.getElementById('partyRecordReference').focus();
+                return;
+            }
+            if (t.dataset.attnParty) {
+                const en = entry(t.dataset.attnParty);
+                const done = t.dataset.attnOpen !== undefined;
+                const text = done ? en.attention[Number(t.dataset.attnOpen)] : en.attentionDone[Number(t.dataset.attnDone)].text;
+                t.disabled = true;
+                try { renderThirdParties(await apiCall(`/api/admin/third-parties/${en.key}/attention`, 'POST', { text, done })); } catch (error) { showToast(error.message); t.disabled = false; }
+            }
+        });
+    }
+
     function initThirdPartyMoney() {
         document.getElementById('costFormCancelBtn')?.addEventListener('click', () => hideModal('costFormModal'));
         document.getElementById('costFormSaveBtn')?.addEventListener('click', saveCostForm);
@@ -3108,6 +3150,7 @@
         initFeatureAccess();
         initSecurityReview();
         initThirdPartyMoney();
+        initThirdPartyRecords();
         initFeatureForm();
         initConfirmModal();
         initBandForm();

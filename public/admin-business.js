@@ -198,6 +198,8 @@
             <p class="admin-intro">Where each leaves you after ${yearsWord(p.years)}, counting what is spent before launch. Open one to change it, rename it or copy it. <strong>+ Add a scenario</strong>, beside the tabs, starts a new one from a copy, to compare.</p>
             <div class="admin-bc-cards" id="bcCards"></div>
             <div class="admin-security-toolbar">
+                <button type="button" class="admin-stat-exclude-btn" data-act="plan-download">Save a copy to a file</button>
+                <button type="button" class="admin-stat-exclude-btn" data-act="plan-upload">Load a plan from a file</button>
                 <button type="button" class="admin-stat-exclude-btn" data-act="reset">Back to the starting figures</button>
             </div>
             <div class="admin-bc-chart-card">
@@ -774,6 +776,19 @@
                 } }
             ].filter(Boolean));
         },
+        // ML-461: the plan as a file, to take it to another environment (dev to production and back).
+        // What is on the page is what is saved - unsaved changes included. Loading only puts the
+        // file's plan on the page: nothing is kept until Save, and Discard brings the old plan back.
+        'plan-download': () => {
+            const where = location.hostname.replace(/[^a-z0-9.-]/gi, '');
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(new Blob([BC.toFile(state.plan, where)], { type: 'application/json' }));
+            link.download = `business-plan-${where}-${new Date().toISOString().slice(0, 10)}.json`;
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+            A.showToast('Saved to your downloads. Open the other site and choose Load a plan from a file.', 'success');
+        },
+        'plan-upload': () => $('bcPlanFile').click(),
         reset: () => A.showConfirmModal('Back to the starting figures?', 'Every change you have saved to the plan is thrown away and the researched starting plan comes back. This can\'t be undone.', async () => {
             try { load(await A.apiCall('/api/admin/business-case/reset', 'POST')); A.showToast('Back to the starting figures', 'success'); } catch (error) { A.showToast(error.message); }
         }, false)
@@ -809,6 +824,24 @@
             if (tab) { state.tab = tab.dataset.bcTab; render(); window.scrollTo(0, 0); return; }
             const btn = e.target.closest('[data-act]');
             if (btn && ACTIONS[btn.dataset.act]) ACTIONS[btn.dataset.act](btn);
+        });
+        // ML-461: a plan file was chosen
+        $('bcPlanFile')?.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            e.target.value = ''; // so the same file can be chosen again
+            if (!file) return;
+            try {
+                if (file.size > 300 * 1024) throw new Error('That file is too big to be a business plan.');
+                const got = BC.fromFile(await file.text());
+                const when = got.savedAt && !Number.isNaN(Date.parse(got.savedAt)) ? ` on ${new Date(got.savedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : '';
+                A.showConfirmModal('Load this plan?', `A plan with ${got.plan.scenarios.length} scenario${got.plan.scenarios.length === 1 ? '' : 's'} and ${got.plan.costs.length} costs${got.savedFrom ? `, saved from ${got.savedFrom}` : ''}${when}. It takes the place of the plan on this page. Nothing is kept until you press Save, and Discard brings the old one back.`, () => {
+                    state.plan = got.plan;
+                    state.tab = 'overview';
+                    state.chart = null;
+                    render();
+                    A.showToast('Plan loaded. Press Save to keep it.', 'success');
+                }, false);
+            } catch (error) { A.showToast(error.message); }
         });
         // a number typed into a box: the plan changes and the worked-out parts redraw; the box is left alone
         host.addEventListener('input', (e) => {

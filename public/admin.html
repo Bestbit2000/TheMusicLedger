@@ -355,6 +355,8 @@
             <h1>Business case</h1>
             <p class="admin-intro">What each way of rolling the app out costs and could earn, month by month, for up to five years, and when the money comes back (ML-443). Change any figure and everything redraws; nothing is kept until you press <strong>Save</strong>. The starting figures were read from each provider's own page: <code>docs/business-case.md</code> says what each one rests on. It is a model to help you decide, not legal or tax advice.</p>
             <div id="businessCase"><p class="admin-intro">Loading&hellip;</p></div>
+            <!-- ML-461: "Load a plan from a file" opens this -->
+            <input type="file" id="bcPlanFile" accept=".json,application/json" aria-label="A business plan file" hidden>
             <div class="admin-access-savebar hidden-group" id="bcSaveBar" role="region" aria-label="Unsaved changes to the business case">
                 <span class="grow" id="bcSaveText" aria-live="polite"></span>
                 <button type="button" class="btn-cancel btn-nav btn-inline-sm no-margin" id="bcDiscardBtn">Discard</button>
@@ -727,6 +729,21 @@
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="readingFormCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="readingFormSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ML-462 Third parties: the owner's own reference and note for one third party -->
+<div class="modal" id="partyRecordModal" role="dialog" aria-modal="true" aria-labelledby="partyRecordTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="partyRecordTitle">My reference and note</h2>
+        <p class="admin-intro">Kept on this site, not in the code. Only super admins can see it.</p>
+        <div class="form-group"><label for="partyRecordReference">My reference (an account or registration number)</label><input type="text" id="partyRecordReference" maxlength="200" autocomplete="off"></div>
+        <div class="form-group"><label for="partyRecordNote">Note</label><textarea id="partyRecordNote" maxlength="1000" rows="4"></textarea></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="partyRecordCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="partyRecordSaveBtn" type="button">Save</button>
         </div>
     </div>
 </div>

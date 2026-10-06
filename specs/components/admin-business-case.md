@@ -31,6 +31,8 @@ is new to this page has an `.admin-bc-` class.
   it is an action, not a tab. The owner can have as many scenarios as he likes.
 - **Overview**
   - Today: `.admin-stat-tiles` (members, spent so far, costing now, the database's free hours).
+  - Under the cards, a row of `.admin-stat-exclude-btn`s: Save a copy to a file, Load a plan from a file
+    (ML-461 - a hidden file input; the loaded plan waits in the Save bar) and Back to the starting figures.
   - The scenarios: `.admin-bc-cards` › `button.admin-bc-card` (`.admin-bc-card-name`, `.admin-bc-card-value`,
     `.admin-bc-card-line` × 2). The one the owner is in now has `.is-current`. A card opens its scenario.
   - The chart: `.admin-bc-chart-card` › `.admin-bc-head` (title, the verdict in words, a value box choosing

@@ -161,6 +161,22 @@ out, beside what the plan forecast.
 - Money coming in isn't in the table yet: there are no payments to count. It joins when Premium is sold.
 - Code: `server/services/businessActuals.js`. The page only reads it.
 
+## Copying the plan between environments (ML-461)
+
+Each environment (dev, sandbox, production) keeps its own plan in its own database. To take one across, the
+Overview has two buttons beside "Back to the starting figures":
+
+- **Save a copy to a file** downloads the plan on the page (unsaved changes included) as
+  `business-plan-<site>-<date>.json`.
+- **Load a plan from a file** reads such a file on the other site and puts its plan on the page. It is checked
+  and tidied exactly as a save is (`BusinessCase.fromFile` → `tidy`). **Nothing is kept until Save** is
+  pressed; Discard brings the old plan back.
+
+The file holds the plan only - settings, costs, scenarios. Members, usage readings and the actual v forecast
+months are not in it: they belong to each environment. A file that isn't a business plan is refused with a
+message and the plan on the page is left alone. It all happens in the browser; the server only ever sees the
+ordinary Save.
+
 ## Still open
 
 Everything in the ML-443 proposal is built (the menu groups and the Dashboard are in

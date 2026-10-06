@@ -30,6 +30,8 @@ import thirdPartyRegister from '../thirdParties/register.js';
 import { costsAndUsage, addCost, updateCost, deleteCost, readMeters, recordManualReading, sendUsageWarnings } from '../services/thirdPartyUsage.js';
 import { getBusinessCase, saveBusinessCase, resetBusinessCase } from '../services/businessCase.js';
 import { getAdminDashboard } from '../services/adminDashboard.js';
+import { listRecords, saveRecord, setAttentionDone } from '../services/thirdPartyRecords.js';
+import { applyRecords } from '../thirdParties/records.js';
 import { getInstrumentUsageStats } from '../services/instruments.js';
 import { listRestMessages, createRestMessage, updateRestMessage, setRestMessageActive, deleteRestMessage, moveRestMessage } from '../services/restMessages.js';
 
@@ -817,8 +819,32 @@ const thirdPartyKeys = () => thirdPartyRegister.entries.map((e) => e.key);
 async function thirdPartiesPage() {
   let money = null;
   try { money = await costsAndUsage(); } catch (error) { console.error('Third-party costs and usage not loaded:', error.message); }
-  return { ...thirdPartyRegister, ...(money || {}) };
+  // ML-462: the owner's own reference, note and "dealt with" marks, laid over the register
+  let entries = thirdPartyRegister.entries;
+  try { entries = applyRecords(entries, await listRecords()); } catch (error) { console.error('Third-party records not loaded:', error.message); entries = applyRecords(entries, {}); }
+  return { ...thirdPartyRegister, entries, ...(money || {}) };
 }
+
+// ML-462: what the owner records about a third party on the site - a reference and a note...
+router.put('/third-parties/:key/record', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await saveRecord(req.params.key, req.body, thirdPartyKeys());
+    res.json(await thirdPartiesPage());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ...and a "needs attention" item marked as dealt with, or open again
+router.post('/third-parties/:key/attention', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    const entry = thirdPartyRegister.entries.find((e) => e.key === req.params.key);
+    await setAttentionDone(req.params.key, String((req.body || {}).text || ''), !!(req.body || {}).done, (entry && entry.attention) || [], thirdPartyKeys());
+    res.json(await thirdPartiesPage());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
 router.get('/third-parties', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   res.json(await thirdPartiesPage());
 });
