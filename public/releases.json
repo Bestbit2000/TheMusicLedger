@@ -1,5 +1,41 @@
 [
   {
+    "version": "0.47.0",
+    "date": "2026-10-06",
+    "changes": [
+      {
+        "key": "ML-477",
+        "type": "Fixes",
+        "summary": "Security headers are missing from the pages on the live site (only the data answers have them)"
+      },
+      {
+        "key": "ML-476",
+        "type": "New",
+        "summary": "Commit the lockfiles, limit the size of uploaded recordings, and limit repeated calls"
+      },
+      {
+        "key": "ML-473",
+        "type": "Fixes",
+        "summary": "Private organisations are listed to everyone as bands; decide who can join and edit a band"
+      },
+      {
+        "key": "ML-472",
+        "type": "Fixes",
+        "summary": "Teachers are one list shared by every member - give each member their own"
+      },
+      {
+        "key": "ML-468",
+        "type": "New",
+        "summary": "Sharing with a band: say who will see it, at the moment of sharing"
+      },
+      {
+        "key": "ML-467",
+        "type": "New",
+        "summary": "Teachers: keep to a name only - check nothing collects a teacher's email"
+      }
+    ]
+  },
+  {
     "version": "0.46.0",
     "date": "2026-10-06",
     "changes": [
