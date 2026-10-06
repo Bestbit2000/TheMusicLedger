@@ -18,7 +18,8 @@ import { isSuperAdmin } from './accounts.js';
 import { getConfigValue } from './appConfig.js';
 import { NOTE_VALUES } from './metronomeSegments.js';
 import { canDeleteFlow, BAND_CAN_CHANGE_SQL, PLAY_ONLY_MESSAGE } from './flowPermissions.js';
-import { isPieceFileUrl } from './blobUrls.js';
+import { isPieceFileUrl, MAX_PIECE_FILE_BYTES } from './blobUrls.js';
+const TOO_BIG = `That file is bigger than ${MAX_PIECE_FILE_BYTES / (1024 * 1024)} MB, which is the most a piece can hold.`;
 
 // ML-231: a stored file's address comes back from the browser after an upload, so it is checked before
 // it is kept: it must be a stored file uploaded for this very piece (blobUrls.js), and one that no
@@ -444,6 +445,7 @@ export async function deleteFlow(accountId, scoreId) {
 export async function addUploadedRecording(accountId, scoreId, { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType }) {
   await assertFlowAccess(accountId, scoreId);
   if (!blobUrl || !blobPathname) throw withStatus(400, 'Missing uploaded file details.');
+  if (Number(fileSizeBytes) > MAX_PIECE_FILE_BYTES) throw withStatus(413, TOO_BIG);
   await assertOwnUnusedBlob(blobUrl, scoreId);
   await pool.query(
     `INSERT INTO score_recordings (score_id, type, title, blob_url, blob_pathname, file_size_bytes, mime_type, order_index)
@@ -480,6 +482,7 @@ export async function deleteRecording(accountId, scoreId, recordingId) {
 export async function addDocument(accountId, scoreId, { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType }) {
   await assertFlowAccess(accountId, scoreId);
   if (!blobUrl || !blobPathname || !fileName) throw withStatus(400, 'Missing uploaded file details.');
+  if (Number(fileSizeBytes) > MAX_PIECE_FILE_BYTES) throw withStatus(413, TOO_BIG);
   await assertOwnUnusedBlob(blobUrl, scoreId);
   await pool.query(
     `INSERT INTO score_documents (score_id, file_name, blob_url, blob_pathname, file_size_bytes, mime_type)

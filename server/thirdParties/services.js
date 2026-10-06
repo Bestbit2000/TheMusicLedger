@@ -88,6 +88,12 @@ export default [
       'Vercel is a US company and processes mainly in the USA; our server code is set to run in London (vercel.json).'
     ],
     asks: [
+      // ML-476: every deploy installs exactly the package versions in the two lockfiles (npm ci), so a
+      // new release of a package only goes live when someone chose it. Until then package-lock.json was
+      // in .gitignore and each deploy took whatever was newest that day.
+      { text: 'The build installs from the lockfile (npm ci), not whatever is newest.', check: { path: 'vercel.json', includes: 'npm ci && cd server && npm ci' } },
+      { text: 'The root lockfile is in the repo.', check: { path: 'package-lock.json', includes: '"lockfileVersion"' } },
+      { text: 'The server lockfile is in the repo.', check: { path: 'server/package-lock.json', includes: '"lockfileVersion"' } },
       { text: 'Stay non-commercial while on Hobby: no payments, no advertising of a paid product, no ads.' },
       { text: 'No content that infringes someone\'s rights - members upload recordings and sheet music, so the terms say how to ask for something to be taken down.', check: { path: 'public/terms.html', includes: 'take it down' } },
       { text: 'One account only - no second account to get round the limits.' }

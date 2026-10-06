@@ -83,7 +83,7 @@ Open, with a ticket:
 | A member's private "organisation" is listed to everyone as a band anyone can join; and joining any band gives edit rights on everything it has. | ML-473 | **Yes** - **mostly fixed in the release after 0.46.0** (migration 108): a member's labels are theirs alone, and a band's shared space is by invitation only. What a member may do inside a band (organiser / change music / play) is set by the organiser who invites them. The time signature owner check is in too (`assertOwnTimeSignatures`). |
 | The content security policy is report-only: the pages' inline handlers have to be moved out before it can be enforced. | ML-474 | Soon after |
 | The sign-in token carries Google's own access keys, and is put in the address after a Google sign-in. | ML-475 | Soon after |
-| Lockfiles not committed (builds aren't repeatable); no size limit on recordings; only sign-in is limited for repeated tries. | ML-476 | Soon after |
+| Lockfiles not committed (builds aren't repeatable); no size limit on recordings; only sign-in is limited for repeated tries. | ML-476 | Soon after - **done in the release after 0.46.0**: both lockfiles are committed and the build is `npm ci`; a recording or document is 25 MB at most (the file store refuses a bigger one, the server checks again, the buttons say so); upload tokens (40 an hour), adding a band (10 a day) and feedback (20 a day) are limited per account (`limitCalls`). Still to do at the next review: Gitleaks over the git history. |
 
 Checked and sound: every one of 80 admin routes is limited to super admins and all 149 app routes need a
 signed-in account; no query is built from request input; the practice data, pieces, bars, Levels, lists,

@@ -8542,6 +8542,14 @@
     const plState = { list: null, saveTimer: null, picked: null };
     const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    // ML-476: the biggest recording or document a piece can hold (the server's MAX_PIECE_FILE_BYTES, blobUrls.js).
+    // Said on the upload buttons, and checked here so a big file is refused before it starts uploading.
+    const MAX_PIECE_FILE_MB = 25;
+    function pieceFileTooBig(file) {
+        if (!file || file.size <= MAX_PIECE_FILE_MB * 1024 * 1024) return false;
+        showWarningToast(`"${file.name}" is ${(file.size / (1024 * 1024)).toFixed(0)} MB. The most a piece can hold is ${MAX_PIECE_FILE_MB} MB - for a long recording or a video, add a YouTube link instead.`);
+        return true;
+    }
     function todayIso() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
     function plDateText(iso) {
         if (!iso) return 'No target date';
@@ -10338,7 +10346,7 @@
     document.getElementById('flowRecordingFileInput')?.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         e.target.value = '';
-        if (!file || !currentFlowId) return;
+        if (!file || !currentFlowId || pieceFileTooBig(file)) return;
         const progressBox = document.getElementById('flowRecordingUploadProgress');
         const nameEl = document.getElementById('flowRecordingUploadName');
         const percentEl = document.getElementById('flowRecordingUploadPercent');
@@ -10459,7 +10467,7 @@
     document.getElementById('flowDocumentFileInput')?.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         e.target.value = '';
-        if (!file || !currentFlowId) return;
+        if (!file || !currentFlowId || pieceFileTooBig(file)) return;
         const progressBox = document.getElementById('flowDocumentUploadProgress');
         const nameEl = document.getElementById('flowDocumentUploadName');
         const percentEl = document.getElementById('flowDocumentUploadPercent');
@@ -19963,9 +19971,9 @@
     // Next for something rarely added straight away). Three things can be added on it, each optional: files with
     // the music on them, YouTube links, and the written music. Nothing has to be touched to save.
     const OUTLINE_MEDIA = [
-        { list: 'audio', title: 'MP3 / MP4 files', hint: 'A file with the music on it: MP3, M4A, WAV or MP4.', icon: 'music_note', add: 'Choose an MP3 / MP4 file', addMore: 'Add another file', input: 'outlineAudioInput' },
+        { list: 'audio', title: 'MP3 / MP4 files', hint: `A file with the music on it: MP3, M4A, WAV or MP4, up to ${MAX_PIECE_FILE_MB} MB.`, icon: 'music_note', add: 'Choose an MP3 / MP4 file', addMore: 'Add another file', input: 'outlineAudioInput' },
         { list: 'video', title: 'YouTube links', hint: 'A recording of it on YouTube.', icon: 'smart_display', add: 'Add a YouTube link', addMore: 'Add another YouTube link' },
-        { list: 'docs', title: 'Scores and parts', hint: 'The written music: PDF, MusicXML, Sibelius (.sib) or Finale (.musx).', icon: 'description', add: 'Choose a score or part', addMore: 'Add another file', input: 'outlineDocsInput' }
+        { list: 'docs', title: 'Scores and parts', hint: `The written music: PDF, MusicXML, Sibelius (.sib) or Finale (.musx), up to ${MAX_PIECE_FILE_MB} MB.`, icon: 'description', add: 'Choose a score or part', addMore: 'Add another file', input: 'outlineDocsInput' }
     ];
     function outlineMediaStepHtml() {
         const sizeOf = (f) => (f.size ? `${(f.size / (1024 * 1024)).toFixed(1)} MB` : '');
@@ -20022,7 +20030,7 @@
         outlineRerenderKeeping('#outlineVideoUrl');
     }
     ['outlineAudioInput', 'outlineDocsInput'].forEach(id => document.getElementById(id)?.addEventListener('change', (e) => {
-        const files = [...e.target.files];
+        const files = [...e.target.files].filter(f => !pieceFileTooBig(f));
         e.target.value = '';
         if (!outline || !files.length) return;
         const list = id === 'outlineAudioInput' ? 'audio' : 'docs';

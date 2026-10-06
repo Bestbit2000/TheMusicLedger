@@ -55,6 +55,22 @@ async function overLimit(kind, key, max, minutes) {
 }
 const TOO_MANY = 'Too many tries from here - wait a few minutes and try again.';
 
+// ML-476: the same counter for the signed-in calls that cost something each time - a file store
+// token, a band's website fetched by the server, a feedback note. Per account, generous enough that
+// nobody using the app by hand meets it. Throws 429 with words for a toast.
+const CALL_LIMITS = {
+  'upload-token': { max: 40, minutes: 60, what: 'uploads' },
+  'add-band': { max: 10, minutes: 24 * 60, what: 'bands added' },
+  feedback: { max: 20, minutes: 24 * 60, what: 'feedback notes' }
+};
+export async function limitCalls(kind, accountId) {
+  const rule = CALL_LIMITS[kind];
+  if (!rule) throw new Error(`No call limit called "${kind}".`);
+  if (await overLimit(`call:${kind}`, String(accountId), rule.max, rule.minutes)) {
+    throw fail(429, `That is a lot of ${rule.what} in ${rule.minutes >= 1440 ? 'a day' : 'an hour'} - try again ${rule.minutes >= 1440 ? 'tomorrow' : 'later'}.`);
+  }
+}
+
 // ---- tokens ----
 function signLoginToken(account) {
   return {

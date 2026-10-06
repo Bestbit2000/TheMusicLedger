@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm install && cd server && npm install",
+  "buildCommand": "npm ci && cd server && npm ci",
   "regions": [
     "lhr1"
   ],

@@ -35,6 +35,7 @@ import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../
 import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
 import { importScoreFromFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/scoreImport.js';
+import { MAX_PIECE_FILE_BYTES } from '../services/blobUrls.js';
 import { isFeatureEnabled, listEnabledFeatureKeys, getLimit, listLimits } from '../services/features.js';
 import { getActiveTimerSession, upsertActiveTimerSession, clearActiveTimerSession } from '../services/timerSessions.js';
 import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from '../services/flowAuthoringStats.js';
@@ -44,7 +45,7 @@ import { requestUpgrade } from '../services/upgradeRequest.js';
 import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead } from '../services/notifications.js';
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryLevels, getTheoryWeights, getTheoryPlayed } from '../services/theoryPractice.js';
 import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getDrillWeights, getRhythmLevels, setRhythmWord } from '../services/drills.js';
-import { securityStatus, requirePasswordAccount, changeOwnPassword, passwordLoginEnabled, appUrl, createInvite, listMyInvites, invitesSentToday, cancelMyInvite, resendMyInvite, INVITE_LEVELS } from '../services/passwordAuth.js';
+import { securityStatus, requirePasswordAccount, changeOwnPassword, passwordLoginEnabled, appUrl, createInvite, listMyInvites, invitesSentToday, cancelMyInvite, resendMyInvite, limitCalls, INVITE_LEVELS } from '../services/passwordAuth.js';
 import { beginSetup, confirmSetup, newRecoveryCodes, turnOff } from '../services/twoStep.js';
 
 const router = express.Router();
@@ -910,6 +911,7 @@ router.get('/account/bands', requireAuth, resolveAccount, async (req, res) => {
 router.post('/account/bands', requireAuth, resolveAccount, async (req, res) => {
   try {
     const { name, website } = req.body;
+    await limitCalls('add-band', req.accountId); // ML-476: each one makes the server fetch a website
     res.json({ band: await createSharedBand(req.accountId, name, website) });
   } catch (error) {
     sendError(res, error);
@@ -1623,8 +1625,10 @@ router.post('/flows/:id/recordings/upload-token', requireAuthFromQueryOrHeader, 
       request: req,
       onBeforeGenerateToken: async () => {
         await assertFlowAccess(req.accountId, req.params.id);
+        await limitCalls('upload-token', req.accountId);
         return {
           allowedContentTypes: ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav', 'video/mp4'],
+          maximumSizeInBytes: MAX_PIECE_FILE_BYTES, // ML-476: 25 MB (the owner) - the file store refuses a bigger one
           addRandomSuffix: true
         };
       },
@@ -1672,7 +1676,9 @@ router.post('/flows/:id/documents/upload-token', requireAuthFromQueryOrHeader, r
       request: req,
       onBeforeGenerateToken: async () => {
         await assertFlowAccess(req.accountId, req.params.id);
+        await limitCalls('upload-token', req.accountId);
         return {
+          maximumSizeInBytes: MAX_PIECE_FILE_BYTES, // ML-476: 25 MB, as for a recording
           allowedContentTypes: ['application/pdf', 'application/vnd.recordare.musicxml+xml', 'application/vnd.recordare.musicxml', 'application/xml', 'text/xml', 'application/octet-stream'],
           addRandomSuffix: true
         };
@@ -1729,6 +1735,7 @@ router.post('/flows/from-file/upload-token', requireAuthFromQueryOrHeader, resol
       body: req.body,
       request: req,
       onBeforeGenerateToken: async (pathname) => {
+        await limitCalls('upload-token', req.accountId); // ML-476
         if (/\.pdf$/i.test(pathname) && !gates.pdf) throw withStatus(403, PDF_NOT_AVAILABLE);
         return {
           allowedContentTypes: [
@@ -1942,6 +1949,7 @@ router.post('/feedback', requireAuth, resolveAccount, async (req, res) => {
     // since the body's version is whatever a client chose to type. Everything else on the row
     // (status, category, admin_response, app_version) is set by the server or by an admin later.
     const { message, route, deviceKind } = req.body || {};
+    await limitCalls('feedback', req.accountId); // ML-476
     res.json(await submitFeedback(req.accountId, {
       message, route, deviceKind, userAgent: req.get('user-agent')
     }));

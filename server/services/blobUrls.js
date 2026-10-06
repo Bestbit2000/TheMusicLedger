@@ -22,3 +22,9 @@ export function isPieceFileUrl(blobUrl, scoreId) {
   if (!Number.isInteger(id) || id <= 0) return false;
   return path.startsWith(`flows/${id}/`) || path.startsWith('flows/from-file/');
 }
+
+// ML-476: the biggest recording or document a member can add to a piece - 25 MB (the owner, 6 Oct 2026:
+// the file store fills fast; a band piece needs only one copy, and a copy of a piece never carries its
+// files). About 25 minutes of MP3. Enforced by the file store itself (the upload token), checked again
+// when the file is attached, and said on the upload buttons (MAX_PIECE_FILE_MB in app.js).
+export const MAX_PIECE_FILE_BYTES = 25 * 1024 * 1024;

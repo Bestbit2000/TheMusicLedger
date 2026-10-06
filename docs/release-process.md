@@ -173,6 +173,10 @@ regenerate the token reference if tokens changed. The Design page is how the own
 7. Check that the two are identical: `git fetch origin && git rev-parse origin/main origin/sandbox`
    must print the same hash twice. If only `main` went out, run
    `git push origin main:sandbox` to bring sandbox back in line.
+   **Lockfiles (ML-476):** the build is `npm ci`, which installs exactly what `package-lock.json` and
+   `server/package-lock.json` say and refuses to build if either is out of step with its `package.json`.
+   After adding or updating a package, run `npm install` in that folder and commit the lockfile with it
+   (`server/test/callLimits.test.js` fails if they differ).
 8. Check a page on the live site still carries the security headers (ML-477). The pages are static files
    that Vercel serves without Express, so only the deployed site shows this - the local server can't:
    ```bash

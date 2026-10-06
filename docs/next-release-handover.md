@@ -58,7 +58,7 @@ source: the security review's open findings (`docs/site-security-review.md`) and
 
 ### Then - security hardening
 
-4. **ML-476 - commit the lockfiles** (`package-lock.json` is in `.gitignore`; change the build to
+4. **ML-476 - DONE on the branch (6 Oct). The first deploy with `npm ci` must be watched on sandbox: the lockfiles were made on Windows, and if the build refuses them, run `npm install` in the root and in `server/` on that branch and commit what changes.** Original note: commit the lockfiles (`package-lock.json` is in `.gitignore`; change the build to
    `npm ci`), **a size limit on recordings** (ask the owner what limit), **limits on repeated calls**.
 5. **ML-475 - the sign-in token**: keep Google's own keys out of it; stop putting it in the address.
    Read `docs/password-login.md` and the ML-48 memory note first - sign-in has bitten before.
