@@ -9,7 +9,8 @@ export default [
     policyName: 'Neon',
     name: 'Neon',
     group: 'service',
-    status: 'attention',
+    // Was 'attention' until the owner signed Neon's data processing agreement (his word, 6 October 2026).
+    status: 'in_use',
     who: 'Databricks, Inc. (USA) - parent of Neon, LLC',
     provides: 'The Postgres database: every account, piece, session and setting. Three branches - production, sandbox, dev.',
     usedIn: 'server/config/db.js (DATABASE_URL); docs/environments.md',
@@ -25,9 +26,6 @@ export default [
       { label: 'Pricing', url: 'https://neon.com/pricing' }
     ],
     termsCheckedOn: CHECKED,
-    attention: [
-      'No data processing agreement has been confirmed for the Free plan. Neon\'s compliance page says it follows GDPR by self-declaration, and its agreements appear to come with the Scale plan (the owner\'s reading, 6 October 2026; not confirmed by Neon). A self-declaration is not a contract: UK data law expects one with whoever holds the database. Ask Neon (privacy@databricks.com) whether its data processing addendum covers Free, and if not, which plan it starts on.'
-    ],
     says: [
       'Free services come as they are, with no warranty.',
       'Carrying on using it counts as agreeing to changes in the terms and prices. No notice period is given.',
@@ -40,6 +38,7 @@ export default [
       { text: 'We must have the right to hold the data we put in it.' }
     ],
     watch: [
+      'Data processing agreement: signed by the owner on 6 October 2026 (his own record - the signed copy belongs with the compliance documents). Which plan it is tied to, and its date, were not read here; note them in "My reference" on this card.',
       'The production database is in London (AWS eu-west-2), checked 4 Oct 2026. The region is fixed when the project is made.',
       'The data processing agreement is a PDF that could not be read - whether it applies automatically on the Free plan is not confirmed.',
       'Free keeps only 6 hours of history to restore from.'
