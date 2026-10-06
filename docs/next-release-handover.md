@@ -1,66 +1,73 @@
-# Handover: the release after 0.47.0
+# Handover: release 0.48.0 is built and waiting
 
-Written 6 October 2026, the evening 0.47.0 went out. **Start here.** Delete this file once the next
-release is out (or replace it with the next handover).
+Written late on 6 October 2026. **Start here.** Delete this file once 0.48.0 is out (or replace it with
+the next handover).
 
 ## Where things stand
 
-`main`, `origin/main` and `origin/sandbox` are all at 0.47.0 (commit `cf5449d`). The work starts on
-branch `after-0.47.0`. Migrations 107 to 109 are on dev, sandbox and production. Only the owner uses the app.
+`main`, `origin/main` and `origin/sandbox` are still at 0.47.0. Branch `after-0.47.0` (local, **not
+pushed**) holds everything for **0.48.0**, one commit a ticket. Migrations 110 to 114 are on **dev only**.
+Nothing has touched sandbox or production.
 
-0.47.0 was "release A" of the work the two reviews left (see `docs/site-security-review.md` and
-`docs/gdpr-assessment.md`): ML-477 (headers on the pages - checked on the live site with `curl -sI`,
-all five, each once), ML-472 and ML-467 (each member has their own teachers), ML-473 (bands by invitation,
-with Organiser / Can change music / Can play set by the organiser who invites - `docs/band-directory.md`),
-ML-468, ML-476 (lockfiles and `npm ci`, 25 MB uploads, call limits). It also carried, with no ticket of
-their own: an email for a band invitation (with a "choose a password" link for someone with no account),
-Send again for app invites, the daily clear-up of old invites (`clearOldRecords`), and Gmail in place of
-Resend in the register and the privacy policy.
+The owner's decision: **one release, 0.48.0, with all ten tickets, to sandbox** - not split.
 
-## What comes next, in order
+| Ticket | What | State |
+|---|---|---|
+| ML-479 | A site that only keeps its emails says so; a name before inviting or joining a band | Built |
+| ML-478 | My bands is one list; Set up sharing; Tidy my bands | Built - **needs sign-off** |
+| ML-475 | Sign-in token: Google's keys out, and out of the address | Built - real Google sign-in to check on sandbox |
+| ML-474 | No script written in a page; the policy allows none | Code built - **switching it on is the owner's** |
+| ML-471 | The young players design rule | Done |
+| ML-466 | Privacy policy: three additions | **Draft in the page - the owner checks the wording** |
+| ML-469 | Agreement and transfer safeguard on each provider's card | Built |
+| ML-470 | Reviews tab on Admin → Security, Dashboard reminder | Built |
+| ML-463 | Important notice: "Before you continue..." | Built - **needs sign-off** |
+| ML-465 | Change my email address | Built - **needs sign-off**; feature `change_email` is Super admin only |
 
-0. **ML-479 - do this first (a Bug, small; the owner asked for both parts).** Found when he invited
-   someone to a band on sandbox and no email came: (a) the app says "They have been sent an email" on a
-   site that only writes emails to `email_outbox` (sandbox and dev - `MAIL_PROVIDER` unset or `log`);
-   it must say plainly that this site doesn't send email. (b) The email says "A member has invited you..."
-   when the organiser's account has no name - ask for a name before they can invite. The ticket lists the
-   code and the tests that will need changing. It could go out by itself as 0.47.1 (a Bug-only release)
-   or with ML-478 - propose, and let him choose.
-1. **ML-478 - one "My bands" list.** The owner agreed the model on 6 Oct (it is written out in the
-   ticket): adding a band is private, sharing comes by invitation or a deliberate "Set up sharing",
-   an invitation attaches to the band you already have, and duplicates can be merged or hidden. It
-   changes `startBandGroup` (adding no longer makes you organiser) and makes the "Who with?" box and
-   My bands the same list. New screens need his sign-off with pictures.
-2. **Release B1: ML-475** - the sign-in token (Google's keys out of it; out of the address). Read
-   `docs/password-login.md` and the ML-48 memory note first.
-3. **Release B2: ML-474** - enforce the content security policy (move the inline `onclick` handlers
-   out, screen by screen). Its own release.
-4. **Release C: ML-466, ML-469, ML-470, ML-463, ML-465, ML-471** - data protection. Policy wording is
-   the owner's; ML-465 needs his yes on the approach first.
+Each ticket has a Jira comment saying what was built. Their status is left for the owner to move.
 
-## With the owner
+## Before it can go to sandbox - all with the owner
 
-- **Email.** Production sends through a free personal Gmail account (`MAIL_PROVIDER=smtp`): no data
-  processing agreement, about 500 emails a day shared by everything, and every sent email stays in its
-  Sent folder until deleted (the privacy policy says "until we delete them" - it needs tidying by hand).
-  He wants email kept in the EU. The lasting answer is a domain plus Google Workspace with the Europe
-  region or an EU email service. See the Gmail entry on Admin -> Third parties.
-- A proper welcome / sign-up page for invited people, once there is a domain.
-- **Neon's data processing agreement: signed by him on 6 Oct** (recorded on the register on this branch -
-  it reaches the live Admin page with the next release). **Vercel has no agreement on his plan**, so an
-  upgrade to Pro is coming. He is staying with Google for email for now; that may change.
-- Still open from before: the five Word documents in
-  `compliance-documents/`, real costs on production, his business plan on production.
-- Nothing counts sent emails; the business case still has a "Resend Pro" line.
+1. **Design sign-off.** Pictures of the real screens are in `signoff-pictures/` (not committed): ML-478
+   (eight), ML-463 (three), ML-465 (three), ML-469 (three), ML-470 (two). One new CSS class:
+   `.notification-important`. Run `npm run design-signoff` for the Admin → Design "what's new" pictures.
+   Push with `DESIGN_APPROVED=1` only on his say-so.
+2. **Privacy policy wording** (`public/privacy.html`): the ML-466 additions and one sentence for ML-465.
+   Draft it, quote it, wait - it is his.
+3. **Does anything need telling to members?** Proposed: ML-478 yes (the bands list changes; old names
+   need sorting) - as an Important notice, which this release makes possible; the rest no. He decides.
+4. **Version and release**: `npm run cut-release -- 0.48.0 ML-479 ML-478 ML-475 ML-474 ML-471 ML-466
+   ML-469 ML-470 ML-463 ML-465`, then `npm run sync-releases`. Migrations 110-114 go to sandbox, then
+   production (trial in a rolled-back transaction first - see the memory note on production migrations).
 
-## Not yet checked on the live site
+## After it is on sandbox
 
-- A real band invitation email on production, and the "choose a password" link from it - he was about
-  to try. If it says "the email couldn't be sent", look at `APP_URL` on Vercel and the day's Gmail limit.
-  (The 25 MB limit he has checked himself: it caught large files.)
-- The manual accessibility walk-through (keyboard only, screen reader, 200% zoom) of My bands, Members
-  and Invite someone. The axe scan passed (64 of 64).
-- Gitleaks over the git history (ML-476's last line).
+- **A real Google sign-in** (ML-475). The local server skips Google, so this has only been checked by
+  tests. Google should sign a returning member straight in, with no consent screen.
+- **The content security policy** (ML-474): console open, use every tool, then switch it on. The steps are
+  in `docs/site-security-review.md`, "Switching the content security policy on". Its own small release.
+- **Tidy my bands on his own account** (ML-478): his old session names (Cobham, The Cobham Band, WBA...)
+  will be waiting under "Tidy my bands".
+- **Third parties** (ML-469): record each transfer safeguard, and Google sign-in, on each environment.
+- Switch `change_email` on for the account types that should have it (Admin → Feature access).
+- Take `dropGoogleKeys` out of `server/middleware/auth.js` 30 days after 0.48.0 reaches production.
+- A full site security review ("re-run the ML-231 site security review") would record ML-474 and ML-475
+  as closed; the recorded review is never edited by hand.
+
+## Things to know
+
+- **Another session committed on this branch on 6 Oct** (`41ee49a`, competitor analysis and product
+  values). `docs/competitor-analysis.md` had uncommitted changes from that session when this was written -
+  they are not part of this work and were left alone.
+- Back-tests: 57 cases. One flaky failure was seen twice in six full runs, each time in a different test
+  and each passing on its own re-run (the local server restarts when a server file is saved mid-run).
+- The back-test suite can be run against a server that **enforces** the content security policy: the
+  `music-ledger-csp` set-up in `.claude/launch.json` (port 3100) and a Playwright config with that base URL.
+- Not done: ML-238 and ML-239 (landscape and tablet layouts). They need the owner: which screens gain from
+  the space is a design conversation, not a build. Thoughts are in the Jira-free summary given to him.
+- Open from before, unchanged: email in the EU (Gmail has no agreement), Vercel Pro, the five compliance
+  documents, real costs and his business plan on production, the manual accessibility walk-through,
+  Gitleaks over the history.
 
 ## How this owner works (the short version)
 
@@ -70,5 +77,3 @@ Resend in the register and the privacy policy.
 - Privacy policy wording is his. Draft it, quote it, wait.
 - A browser test must never Save, Reset or delete real rows on dev - he uses dev himself.
 - Never write his ICO security number anywhere.
-- To run a branch beside the main folder's server: a second launch config with
-  `node --env-file=<main>/server/.env --env-file=<a file with PORT=3100> server/server.js`.
