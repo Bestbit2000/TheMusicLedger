@@ -8,15 +8,25 @@ The values that came out of this are in [product-values.md](product-values.md).
 ## The answer
 
 **Band sharing on its own is not unique. The combination is.** Several apps let a group share pieces to
-practise at home. None found does all of these together:
+practise at home. None found does all five of these together:
 
-1. for adult wind, brass and concert bands;
-2. with **the band's own music** - any arrangement, no library and no notation file needed;
-3. with a practice method and a forecast to the concert date;
-4. where the band is free and nobody is watched or marked.
+1. made for wind, brass and concert bands;
+2. **the band's own music can be practised** - any arrangement, from the paper part, with no library
+   and no notation file;
+3. a practice method and a forecast to the concert date;
+4. practice is private - nobody is watched or marked;
+5. the band doesn't pay.
+
+**Of the 24 other apps looked at, the best covers two and a half of the five, and none has number 3.** The table
+under "Who covers what" has the detail.
 
 So the selling point is better put as "the band's concert programme, your own music, with a private
 plan that gets each player ready by the date" than as "band sharing".
+
+**A correction from the second, UK-and-Europe look:** letting a band *upload* its own music is common
+- BandSync Library, tamtam, Glissandoo and Making Music Platform all take the band's own PDFs. What
+none of them does is make that piece *practisable*: a click that follows its real bars, repeats and
+speed changes, cut into bits to work on. A PDF library is a filing cabinet; ours is a practice tool.
 
 ## How it was done, and what to trust
 
@@ -26,6 +36,77 @@ plan that gets each player ready by the date" than as "band sharing".
   estimate, and say which. Google Play download counts could not be read.
 - Pound figures are rough conversions from dollars and euros.
 - Making Music Platform was also seen from the inside: the owner is a member of a band that uses it.
+
+## Who covers what
+
+✓ = yes, on the pages read. "part" = partly, see the note. Blank = not found (which is not proof it
+isn't there). n/a = the app has no practice tools, so there is nothing to keep private.
+
+**The five things that set the app apart**
+
+| App | From | 1. Made for wind / brass / concert bands | 2. Own music practisable, no notation file | 3. Method and forecast to the date | 4. Practice is private | 5. Band doesn't pay | Of 5 |
+|---|---|---|---|---|---|---|---|
+| **The Music Ledger** | UK | ✓ | ✓ | ✓ | ✓ | ✓ | **5** |
+| BandSync Library | UK | ✓ | part | | n/a | ✓ | 2½ |
+| Glissandoo | Europe | ✓ | part | | n/a | part | 2 |
+| BandHelper | US | | ✓ | | | | 1 |
+| Moises Collaborative Setlist | US | | part | | ✓ | part | 2 |
+| Modacity, Andante, Tonic (solo practice) | US | | ✓ | part | ✓ | n/a | 2½ |
+| tamtam | Belgium | ✓ | part | | n/a | | 1½ |
+| Muzodo | Europe | ✓ | | | n/a | part | 1½ |
+| My Band (myband.uk) | UK | ✓ | | | n/a | part | 1½ |
+| Konzertmeister, Band Planner | Europe | ✓ | | | n/a | | 1 |
+| eto Music Practice | UK (Wales) | ✓ | | | | | 1 |
+| Spond | Norway | | | | n/a | ✓ | 1 |
+| Newzik | France | | part | | ✓ | | 1½ |
+| Making Music Platform (HarmonySite) | UK / Australia | | part | | | | ½ |
+| MakeMusic Cloud | US | part | | | | | ½ |
+| PracticeFirst | US | part | | | | | ½ |
+| Chorilo | Germany | | | | | | 0 |
+| Cori, My Choral Coach, ChoirMate | various | | | | | | 0 |
+| ABRSM Practice Partner apps | UK | | | | ✓ | n/a | 1 |
+| Practice Pal | UK | | | | | n/a | 0 |
+
+Notes on "part":
+
+- **Column 2:** BandSync, Glissandoo, tamtam, Newzik and Making Music Platform take the band's own PDFs
+  (and some audio), but as a library to read from, not something to practise against. Moises needs a
+  recording of the piece, which a new arrangement won't have.
+- **Column 3:** the solo practice apps have practice lists and timers, but no Levels and no forecast.
+- **Column 5:** BandSync is free up to 500 pieces; Glissandoo free up to 20 members; Muzodo up to 15;
+  My Band up to 10 members and 5 events; Moises for the owner plus 6. A real band outgrows all but BandSync.
+- **Column 1:** MakeMusic and PracticeFirst are for school bands.
+
+**Other things worth having**
+
+| App | Shares pieces with the group | Metronome | Tuner | Theory / skills training | Listens and marks your playing | Events and availability |
+|---|---|---|---|---|---|---|
+| **The Music Ledger** | ✓ | ✓ | ✓ | ✓ | | |
+| BandSync Library | ✓ | | | | | |
+| Glissandoo | ✓ | | | | | ✓ |
+| BandHelper | ✓ | ✓ | ✓ | | | ✓ |
+| Moises Collaborative Setlist | ✓ | ✓ | | | | |
+| Modacity | | ✓ | ✓ | | | |
+| tamtam | ✓ | | | | | ✓ |
+| Muzodo | | | | | | ✓ |
+| My Band | part | | | | | ✓ |
+| Konzertmeister, Band Planner | part | | | | | ✓ |
+| Spond | | | | | | ✓ |
+| Newzik | ✓ | | | | | |
+| Making Music Platform | ✓ | | | | part | ✓ |
+| MakeMusic Cloud | ✓ | ✓ | ✓ | | ✓ | |
+| PracticeFirst | ✓ | | | | ✓ | |
+| Chorilo | ✓ | | | | ✓ | ✓ |
+| Cori, My Choral Coach | ✓ | | | | ✓ | |
+| ABRSM Practice Partner apps | | | | | | |
+| Practice Pal | | | | | part | |
+
+- MakeMusic Cloud's metronome and tuner are from general knowledge of the product, not a page read
+  for this analysis.
+- Making Music Platform and Practice Pal are "part" on marking because a person does it, not the app.
+- **Nobody else found has theory or skills training alongside shared band pieces.**
+- **Our two gaps are the last two columns.** Marking is left out on purpose (values 2 and 3). Events
+  and availability is the one most rivals have and we don't.
 
 ## Who shares pieces with a group
 
@@ -120,6 +201,30 @@ What it shows:
 - Making Music is a route to about 1,400 instrumental groups as well as a rival; it runs supplier
   listings.
 
+## The second look: the UK and near Europe
+
+A closer search for UK and nearby products turned up seven more. None changes the answer, but three
+are aimed squarely at our bands.
+
+| App | From | What it is | Scale (own claim) | Price |
+|---|---|---|---|---|
+| **BandSync Library** | UK (Harvey-Wallace) | A band's music library: catalogue, search, hand PDFs of parts to players, track loans, barcodes. "For the banding community". No practice tools | 35 libraries, 1,800+ pieces | Free up to 500 pieces; paid plan not shown |
+| **tamtam** | Belgium (Polygonwood) | For concert bands, brass bands and choirs: calendar, attendance, messages, sheet music viewer, practice audio tracks, ticketing | 15 organisations, 1,685 users | From €200 a year, flat |
+| **Glissandoo** | Europe, 12 countries | For bands, choirs and orchestras: rehearsals, attendance, sheet music by instrument with audio and video, seating, payments | 1,000+ groups, 120,000+ musicians | Free up to 20 members; then by size, not shown |
+| **My Band** (myband.uk) | UK | Events, availability, set lists, line-ups and deps, song library, messages, gig money. Lists wind and brass bands among its users. Phone apps "coming soon" | None given | Free (10 members, 5 events); £6.58, £9.92 or £20.83 a month |
+| **eto Music Practice** | UK (Ceredigion, Wales) | Apps with practice pieces for brass, wind and marching bands, each player learning their own part | None found | Not found |
+| **ABRSM Practice Partner apps** | UK | Play along with ABRSM's own exam pieces: change speed, loop. ABRSM's music only | None found | Free with paid extras |
+| **Practice Pal** | UK (London) | Teachers, pupils, parents and schools; guided practice sessions with a teacher | None found | From £7.99 a week; schools £199 to £999 a year |
+
+- **Glissandoo is the biggest ensemble tool found** and gives small groups everything free. No UK
+  presence was mentioned on its site.
+- **BandSync Library is the one to watch at home**: UK, band-specific, free, and about the band's own
+  music. It stops at the library - no practice, no events.
+- **eto Music Practice could not be read** (its page refused the request); the row is from a search
+  summary only and needs checking by hand.
+- **Spond** (Norway) is a free availability and messaging app for sports clubs, claiming 2 million
+  users. No evidence was found of bands using it, but it is free and does exactly the chasing job.
+
 ## Price points
 
 | Who pays | App | Price | Roughly |
@@ -163,6 +268,8 @@ alongside a band's admin tool) are listed under "Proposed, not yet agreed" in
 - Find a count of active UK brass and concert bands (Brass Bands England, Making Music) to size the market.
 - Read the Google Play download bands for Muzodo, BandHelper and Chorilo by hand.
 - Look again in six months: Chorilo is new and moving fast.
+- Check eto Music Practice by hand, and sign up to BandSync Library and Glissandoo (both free) to see
+  what a band actually gets.
 
 ## Sources
 
@@ -178,4 +285,5 @@ All read 6 Oct 2026.
 - Muzodo: [UK site](https://www.muzodo.co.uk/), [features and plans](https://www.muzodo.com/docs/features), [App Store](https://apps.apple.com/gb/app/muzodo/id1256787284), [themouthpiece.com thread](https://www.themouthpiece.com/threads/muzodo-band-member-scheduler.52993/)
 - Making Music: [MM Platform](https://www.makingmusic.org.uk/membership/mm-platform), [who owns the Platform](https://www.makingmusic.org.uk/node/12904), [membership options and costs](https://makingmusic.org.uk/membership-and-insurance/group-membership/options-and-costs), [Big Survey 2022](https://makingmusic.org.uk/sites/makingmusic.org.uk/files/BigSurvey22%20-%20REPORT%204%20-%20All%20about%20Making%20Music%20members%20FINAL.pdf), [research and data](https://www.makingmusic.org.uk/sspx/support-topic/advocacy/research-and-data)
 - HarmonySite: [news, assessments](https://www.harmonysite.com/?p=1084)
+- UK and Europe second look: [BandSync Library](https://www.bandsync.co.uk/), [tamtam](https://tamtam.to/en/home/), [Glissandoo](https://glissandoo.com/en), [My Band](https://myband.uk/), [eto Music Practice crowdfunder (not readable)](https://www.crowdfunder.co.uk/p/youth-band-music), [ABRSM apps and practice tools](https://www.abrsm.org/en-gb/for-learners/apps-and-practice-tools), [Practice Pal in Music Teacher magazine](https://www.musicteachermagazine.co.uk/articles/staying-on-task-practice-apps), [Spond](https://www.spond.com/news-and-blog/best-team-app-thats-free-to-use/), [HarmonySite app](https://apps.apple.com/mk/app/harmonysite/id6450173051)
 - Others: [Konzertmeister](https://konzertmeister.app/en), [Band Planner](https://band-planner.com/en/groups/band/), [Modacity](https://apps.apple.com/us/app/-/id1351617981), [Tonic](https://theviolinchannel.com/vc-artist-ray-chen-launches-new-practice-app-tonic), [practice app round-up](https://habitbox.app/blog/music-practice-app)
