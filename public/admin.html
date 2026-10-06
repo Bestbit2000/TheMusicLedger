@@ -57,6 +57,8 @@
         <button class="admin-nav-item" data-section="security" type="button">Security</button>
         <!-- ML-267: everyone the app depends on, their terms and what those ask of us. -->
         <button class="admin-nav-item" data-section="third-parties" type="button">Third parties</button>
+        <!-- ML-443: what each way of rolling the app out costs and could earn, for up to five years. -->
+        <button class="admin-nav-item" data-section="business-case" type="button">Business case</button>
         <!-- ML-198: read-only visual catalogue of the design system (public/admin-design.js). -->
         <button class="admin-nav-item" data-section="design" type="button">Design</button>
         </div>
@@ -316,6 +318,20 @@
             <h1>Third parties</h1>
             <p class="admin-intro">Every person and company The Music Ledger depends on: what they provide, which plan we're on, their terms and what those terms ask of us (ML-267). What each one costs and how close its plan's limit is are at the top (ML-429). The list itself is kept with the code, so it changes with a release. A release is blocked if the app uses something that isn't listed here (<code>npm run third-party-audit</code>). How to add or re-check one: <code>docs/third-party-providers.md</code>.</p>
             <div id="thirdParties"><p class="admin-intro">Loading&hellip;</p></div>
+        </section>
+        <!-- ML-443: the owner's plan - a price list of costs, the scenarios that choose from it, and what each
+             earns - worked out month by month for up to five years by public/businessCase.js, in the browser.
+             Changes wait in the Save bar. Built by public/admin-business.js; see docs/business-case.md and
+             specs/components/admin-business-case.md. -->
+        <section id="business-case-section" class="admin-section hidden-group">
+            <h1>Business case</h1>
+            <p class="admin-intro">What each way of rolling the app out costs and could earn, month by month, for up to five years, and when the money comes back (ML-443). Change any figure and everything redraws; nothing is kept until you press <strong>Save</strong>. The starting figures were read from each provider's own page: <code>docs/business-case.md</code> says what each one rests on. It is a model to help you decide, not legal or tax advice.</p>
+            <div id="businessCase"><p class="admin-intro">Loading&hellip;</p></div>
+            <div class="admin-access-savebar hidden-group" id="bcSaveBar" role="region" aria-label="Unsaved changes to the business case">
+                <span class="grow" id="bcSaveText" aria-live="polite"></span>
+                <button type="button" class="btn-cancel btn-nav btn-inline-sm no-margin" id="bcDiscardBtn">Discard</button>
+                <button type="button" class="btn-submit btn-inline-sm no-margin" id="bcSaveBtn">Save</button>
+            </div>
         </section>
         <section id="design-section" class="admin-section hidden-group">
             <h1>Design</h1>
@@ -687,6 +703,65 @@
     </div>
 </div>
 
+<!-- ML-443 Business case: a choice from a short list (years, how it is counted, how Premium is paid). It is made on a pick. -->
+<div class="modal" id="bcChoiceModal" role="dialog" aria-modal="true" aria-labelledby="bcChoiceTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="bcChoiceTitle">Choose</h2>
+        <p class="admin-intro" id="bcChoiceIntro"></p>
+        <div id="bcChoiceOptions"></div>
+    </div>
+</div>
+
+<!-- ML-443 Business case: a short form (launch month, the dollar rate, a scenario's name, a new kind of income). The fields are built by admin-business.js. -->
+<div class="modal" id="bcFormModal" role="dialog" aria-modal="true" aria-labelledby="bcFormTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="bcFormTitle">Change</h2>
+        <p class="admin-intro" id="bcFormIntro"></p>
+        <div id="bcFormFields"></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="bcFormCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="bcFormSaveBtn" type="button">Done</button>
+        </div>
+    </div>
+</div>
+
+<!-- ML-443 Business case: a cost in the price list - what it is, how much, how often, from when, and whether it grows with members. -->
+<div class="modal" id="bcCostModal" role="dialog" aria-modal="true" aria-labelledby="bcCostTitle">
+    <div class="modal-content modal-content-sticky-footer">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <div class="metroSeg-scroll-area">
+            <h2 id="bcCostTitle">Add a cost</h2>
+            <p class="admin-intro" id="bcCostIntro"></p>
+            <div class="form-group"><label for="bcCostName">What it is</label><input type="text" id="bcCostName" maxlength="120" autocomplete="off"></div>
+            <div class="form-group"><label for="bcCostGroup">Group</label><select id="bcCostGroup"></select></div>
+            <div data-not-worked>
+                <div class="form-group"><label for="bcCostAmount">Amount</label><input type="number" id="bcCostAmount" inputmode="decimal" min="0" step="0.01"></div>
+                <div class="form-group"><label for="bcCostCurrency">Charged in</label><select id="bcCostCurrency"><option value="GBP">Pounds (&pound;)</option><option value="USD">US dollars ($)</option></select></div>
+                <div class="form-group"><label for="bcCostEvery">How often</label><select id="bcCostEvery"><option value="month">Every month</option><option value="year">Every year</option><option value="once">Once</option></select></div>
+                <div class="form-group"><label for="bcCostFromKind">Starts</label><select id="bcCostFromKind"><option value="launch">At launch</option><option value="after">A number of months after launch</option><option value="month">In a set month</option></select></div>
+                <div class="form-group hidden-group" id="bcCostFromMonthsGroup"><label for="bcCostFromMonths">Months after launch (a minus number is before it)</label><input type="number" id="bcCostFromMonths" step="1"></div>
+                <div class="form-group hidden-group" id="bcCostFromMonthGroup"><label for="bcCostFromMonth">The month</label><input type="month" id="bcCostFromMonth"></div>
+                <div class="form-group"><label for="bcCostUntilKind">Stops</label><select id="bcCostUntilKind"><option value="never">It carries on</option><option value="after">A number of months after launch</option><option value="month">In a set month</option></select></div>
+                <div class="form-group hidden-group" id="bcCostUntilMonthsGroup"><label for="bcCostUntilMonths">Last paid this many months after launch (-1 is the month before it)</label><input type="number" id="bcCostUntilMonths" step="1"></div>
+                <div class="form-group hidden-group" id="bcCostUntilMonthGroup"><label for="bcCostUntilMonth">The last month it is paid</label><input type="month" id="bcCostUntilMonth"></div>
+                <div class="form-group"><label for="bcCostScale">The amount is</label><select id="bcCostScale"><option value="fixed">A fixed amount</option><option value="member">For each member above a number</option></select></div>
+                <div class="form-group hidden-group" id="bcCostOverGroup"><label for="bcCostOver">For each member above this many</label><input type="number" id="bcCostOver" min="0" step="1"></div>
+                <div class="form-group"><label for="bcCostMinMembers">Only once there are this many members (0 = from the start)</label><input type="number" id="bcCostMinMembers" min="0" step="1"></div>
+            </div>
+            <div class="form-group"><label for="bcCostNote">Note</label><textarea id="bcCostNote" rows="3" maxlength="600"></textarea></div>
+            <div class="form-group"><label for="bcCostSource">Where the price was read (a link, optional)</label><input type="url" id="bcCostSource" maxlength="300" placeholder="https://..." autocomplete="off"></div>
+            <p class="admin-intro hidden-group" id="bcCostStartRow"><span id="bcCostStartText"></span> <button type="button" class="admin-stat-exclude-btn" id="bcCostStartBtn">Put it back</button></p>
+            <button type="button" class="admin-stat-exclude-btn hidden-group" id="bcCostDeleteBtn">Delete this cost</button>
+        </div>
+        <div class="metroSeg-sticky-footer">
+            <button class="btn-cancel btn-nav no-margin" id="bcCostCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="bcCostSaveBtn" type="button">Done</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal" id="configFormModal" role="dialog" aria-modal="true" aria-labelledby="configFormTitle">
     <div class="modal-content">
         <h2 id="configFormTitle">Edit link</h2>
@@ -706,6 +781,9 @@
 <script src="avatars.js"></script>
 <script src="admin.js"></script>
 <script src="admin-design.js"></script>
+<!-- ML-443: the business case sums, then the page that runs them (both after admin.js) -->
+<script src="businessCase.js"></script>
+<script src="admin-business.js"></script>
 <script src="a11y.js"></script>
 </body>
 </html>

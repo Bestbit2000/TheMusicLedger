@@ -361,3 +361,66 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-access-toolbar select { width: auto; max-width: 100%; margin: 0; }
 /* The catalog's descriptions are long - two lines here, the whole text on hover (title) and on Features. */
 .admin-access-table th[scope="row"] small, .admin-access-row small { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+
+/* ML-443: Admin -> Business case (specs/components/admin-business-case.md). The page is built from the panel's
+   own pieces - stat tiles, tables, the Save bar, switches, value boxes that open a pop-up. Only what is new
+   to it is here. Like the other table pages it uses the window's width; its reading text keeps 900px. */
+.admin-content:has(> #business-case-section:not(.hidden-group)) { max-width: none; }
+#business-case-section .admin-intro, #business-case-section .admin-feature, #business-case-section .admin-stat-tiles { max-width: 900px; }
+/* The plan's settings: a row of value boxes (launch, years, the dollar rate, how it is counted) */
+.admin-bc-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); max-width: 900px; margin-bottom: var(--space-5); }
+.admin-bc-settings .metroBlk-ctrl-value-btn { width: 100%; }
+/* A scenario at a glance - a button, because it opens the scenario. The one the owner is in now has a gold edge
+   as well as saying so. */
+.admin-bc-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
+.admin-bc-card { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; min-height: var(--touch-target); padding: var(--space-4); text-align: left; font-family: var(--font-sans); color: var(--text-color); background: var(--input-bg); border: 1px solid var(--control-border); border-radius: var(--radius-md); cursor: pointer; }
+.admin-bc-card.is-current { border-color: var(--primary-action-strong); }
+.admin-bc-card-name { font-size: var(--font-sm); font-weight: var(--font-weight-semibold); color: var(--label-color); }
+.admin-bc-card-value { font-size: var(--font-xl); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
+.admin-bc-card-line { font-size: var(--font-sm); color: var(--label-color); }
+/* A result that is up or down: green or red text, and always a plus or minus sign as well */
+.admin-bc-good, .admin-bc-table td.admin-bc-good { color: var(--success-text); }
+.admin-bc-bad, .admin-bc-table td.admin-bc-bad { color: var(--danger-text); }
+/* A heading with something to its right (a scenario's name and its menu; the chart's title and its picker) */
+.admin-bc-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-3); max-width: 900px; margin-bottom: var(--space-3); }
+.admin-bc-head > div { flex: 1 1 calc(var(--touch-target) * 5); min-width: 0; }
+.admin-bc-head h2 { margin: 0 0 var(--space-2) 0; font-size: var(--font-lg); color: var(--text-color); }
+.admin-bc-head .admin-intro { margin: 0; }
+/* The page's tables: words read from the left and wrap; a group row, a total row, and a cost that is left out */
+.admin-bc-table th, .admin-bc-table td { vertical-align: middle; }
+.admin-bc-table .admin-bc-text { text-align: left; white-space: normal; min-width: 180px; }
+.admin-bc-table tbody th { font-weight: var(--font-weight-semibold); color: var(--text-color); }
+.admin-bc-table small { display: block; max-width: 60ch; margin-top: var(--space-0-5); color: var(--label-color); font-size: var(--font-xs); font-weight: var(--font-weight-normal); }
+.admin-bc-table small a { color: var(--info-text); }
+.admin-bc-group th, .admin-bc-group td { text-align: left; background: var(--input-bg); color: var(--label-color); font-weight: var(--font-weight-bold); }
+.admin-bc-group td { text-align: right; }
+.admin-bc-total th, .admin-bc-total td { font-weight: var(--font-weight-bold); color: var(--text-color); background: var(--input-bg); }
+.admin-bc-table .admin-bc-off th, .admin-bc-table .admin-bc-off td { color: var(--label-color); }
+/* A row of small labelled number boxes (members by year, a price, a share) */
+.admin-bc-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3) var(--space-4); max-width: 900px; margin: var(--space-3) 0; }
+.admin-bc-field { display: flex; flex-direction: column; gap: var(--space-1); margin: 0; font-size: var(--font-sm); font-weight: var(--font-weight-semibold); color: var(--label-color); }
+.admin-bc-num { width: 7em; min-height: var(--touch-target); box-sizing: border-box; margin: 0; padding: var(--space-1) var(--space-2); font: inherit; font-weight: var(--font-weight-normal); font-variant-numeric: tabular-nums; text-align: right; color: var(--text-color); background: var(--input-bg); border: 1px solid var(--control-border); border-radius: var(--radius-sm); }
+/* One kind of income: its switch, its name, what it comes to, then its figures */
+.admin-bc-income { max-width: 900px; box-sizing: border-box; margin-bottom: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); }
+.admin-bc-income-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); }
+.admin-bc-income-head strong { flex: 1; min-width: 0; color: var(--text-color); }
+.admin-bc-income-head span { font-size: var(--font-sm); color: var(--label-color); }
+.admin-bc-income .admin-intro { margin: 0; }
+.admin-bc-income.admin-bc-off .admin-bc-fields { opacity: var(--opacity-muted); }
+/* The chart: every scenario's running total, month by month. The chosen scenario is the thick gold line; the
+   others are thin grey lines numbered at the end. Its numbers are in the table under it. */
+.admin-bc-chart-card { position: relative; max-width: 1100px; box-sizing: border-box; margin-bottom: var(--space-5); padding: var(--space-4); background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); }
+.admin-bc-chart-card .admin-bc-head { max-width: none; }
+.admin-bc-chart-host { position: relative; }
+.admin-bc-chart { display: block; max-width: 100%; height: auto; }
+.admin-bc-chart text { font-family: var(--font-sans); font-size: var(--font-xs); fill: var(--label-color); font-variant-numeric: tabular-nums; }
+.admin-bc-chart .admin-bc-chart-end { fill: var(--text-color); font-weight: var(--font-weight-semibold); }
+.admin-bc-chart-grid { stroke: var(--input-border); stroke-width: 1px; }
+.admin-bc-chart-zero { stroke: var(--control-border); stroke-width: 1px; }
+.admin-bc-chart-other { fill: none; stroke: var(--label-color); stroke-width: 1px; }
+.admin-bc-chart-line { fill: none; stroke: var(--primary-action-strong); stroke-width: 3px; stroke-linejoin: round; stroke-linecap: round; }
+.admin-bc-chart-dot { fill: var(--primary-action-strong); stroke: var(--container-bg); stroke-width: 2px; }
+/* What the chart says at the month under the pointer; placed by --tip-x / --tip-y (set as it moves) */
+.admin-bc-chart-tip { position: absolute; left: var(--tip-x); top: var(--tip-y); z-index: var(--z-raised); min-width: 170px; padding: var(--space-2) var(--space-3); pointer-events: none; font-size: var(--font-sm); color: var(--text-color); background: var(--container-bg); border: 1px solid var(--input-border); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); }
+.admin-bc-chart-tip-row { display: flex; justify-content: space-between; gap: var(--space-4); color: var(--label-color); }
+.admin-bc-chart-tip-row strong { color: var(--text-color); font-variant-numeric: tabular-nums; }

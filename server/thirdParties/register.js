@@ -51,6 +51,16 @@ export default {
     { host: 'bournebrass.org.uk', why: 'An example band link on the Design page' },
     { host: 'evil.example', why: 'A made-up address in the security self-tests' },
     { host: 'security-probe.invalid', why: 'A made-up address in the security self-tests' },
-    { host: 'solfascribe.app', why: 'Quoted in a security review note - never called' }
+    { host: 'solfascribe.app', why: 'Quoted in a security review note - never called' },
+    // ML-443: where a price in the business case's starting figures was read
+    // (server/services/businessCaseDefaults.js). Links on Admin -> Business case only - nothing is fetched.
+    { host: 'gov.uk', why: 'Business case: where a government fee was read (Companies House, solicitors\' rates, trade marks)' },
+    { host: 'support.google.com', why: 'Business case: where the Google Play fee was read' },
+    { host: 'developer.apple.com', why: 'Business case: where the Apple Developer Program fee was read' },
+    { host: 'porkbun.com', why: 'Business case: where a domain price was read' },
+    { host: '1stformations.co.uk', why: 'Business case: where a business address price was read' },
+    { host: 'tinytax.co.uk', why: 'Business case: where the filing software price was read' },
+    { host: 'debitam.com', why: 'Business case: where an accountant\'s price was read' },
+    { host: 'policybee.co.uk', why: 'Business case: where insurance starting prices were read' }
   ]
 };

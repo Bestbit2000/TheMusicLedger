@@ -33,7 +33,7 @@ const A11Y_DIR = path.join(ROOT, 'specs/accessibility');
 const BASELINE = path.join(A11Y_DIR, 'baseline.json');
 const args = new Set(process.argv.slice(2));
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
-const MARKUP_FILES = ['public/index.html', 'public/admin.html', 'public/styleguide.html', 'public/app.js', 'public/admin.js', 'public/admin-design.js'];
+const MARKUP_FILES = ['public/index.html', 'public/admin.html', 'public/styleguide.html', 'public/app.js', 'public/admin.js', 'public/admin-design.js', 'public/admin-business.js'];
 const CSS_FILES = ['public/style.css', 'public/admin.css'];
 
 const violations = [];

@@ -665,6 +665,42 @@
       "fg": "--kind-theory",
       "bg": "--input-bg",
       "use": "ML-418: a Theory block's edge inside a tappable card"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--primary-action-strong",
+      "bg": "--container-bg",
+      "use": "Business case chart (ML-443): the chosen scenario's line and dots"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--label-color",
+      "bg": "--container-bg",
+      "use": "Business case chart (ML-443): the other scenarios' lines"
+    },
+    {
+      "kind": "text",
+      "fg": "--danger-text",
+      "bg": "--bg-color",
+      "use": "Business case (ML-443): a result that is down, in a table on the page"
+    },
+    {
+      "kind": "text",
+      "fg": "--success-text",
+      "bg": "--bg-color",
+      "use": "Business case (ML-443): a result that is up, in a table on the page"
+    },
+    {
+      "kind": "text",
+      "fg": "--danger-text",
+      "bg": "--input-bg",
+      "use": "Business case (ML-443): a result that is down, on a scenario card or a total row"
+    },
+    {
+      "kind": "text",
+      "fg": "--success-text",
+      "bg": "--input-bg",
+      "use": "Business case (ML-443): a result that is up, on a scenario card or a total row"
     }
   ]
 }

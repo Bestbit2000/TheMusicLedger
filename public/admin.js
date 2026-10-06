@@ -3069,5 +3069,8 @@
         }
     }
 
+    // ML-443: what a page kept in its own file (admin-business.js) needs from this one.
+    window.AdminPanel = { apiCall, escapeHtml, showToast, showModal, hideModal, showConfirmModal, openRowMenu };
+
     checkAccessAndLoad();
 })();

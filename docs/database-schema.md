@@ -599,6 +599,19 @@ picked later (e.g. Stripe) rather than storing billing detail directly.
 catalog" above) - not enforced with a real FK since this table predates that one
 and neither is wired to any endpoint yet.
 
+### Business case (`ML-443`)
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `business_plans` | The owner's plan of what each way of rolling the app out costs and could earn (Admin → Business case) | id, name, plan (JSONB - the whole plan), created_at, updated_at |
+
+- **One document, not tables.** It is one person's working model, read and saved whole and reshaped as the
+  owner changes how the app is run; `public/businessCase.js` tidies and checks it on every save.
+- **One row today.** With no row the page shows the starting plan (`server/services/businessCaseDefaults.js`).
+  More rows are left open for kept copies.
+- **No account column** - it is the business's plan, not a member's, so account deletion never touches it.
+- See [`docs/business-case.md`](business-case.md).
+
 ### Notifications (`ML-201`)
 
 | Table | Purpose | Key columns |

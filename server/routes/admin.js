@@ -28,6 +28,7 @@ import { listNotificationsForAdmin, createNotification, updateNotification, setN
 import { getSecurityReview, runSecurityReviewNow } from '../services/securityReview.js';
 import thirdPartyRegister from '../thirdParties/register.js';
 import { costsAndUsage, addCost, updateCost, deleteCost, readMeters, recordManualReading, sendUsageWarnings } from '../services/thirdPartyUsage.js';
+import { getBusinessCase, saveBusinessCase, resetBusinessCase } from '../services/businessCase.js';
 import { getInstrumentUsageStats } from '../services/instruments.js';
 import { listRestMessages, createRestMessage, updateRestMessage, setRestMessageActive, deleteRestMessage, moveRestMessage } from '../services/restMessages.js';
 
@@ -865,6 +866,37 @@ router.post('/third-parties/usage/:meter', requireAuth, resolveAccount, requireS
     await recordManualReading(req.params.meter, (req.body || {}).value, (req.body || {}).note);
     await sendUsageWarnings();
     res.json(await thirdPartiesPage());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ========================================
+// BUSINESS CASE (ML-443)
+// ========================================
+// The owner's plan of what each way of rolling the app out costs and could earn, for up to five
+// years. One document, read and saved whole; the sums are public/businessCase.js, which the page runs
+// itself so a changed figure redraws at once. See docs/business-case.md.
+router.get('/business-case', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await getBusinessCase());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.put('/business-case', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await saveBusinessCase((req.body || {}).plan));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// Back to the starting figures - the saved plan is thrown away.
+router.post('/business-case/reset', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await resetBusinessCase());
   } catch (error) {
     sendError(res, error);
   }
