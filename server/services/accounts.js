@@ -164,10 +164,23 @@ export async function isSuperAdmin(accountId) {
 
 // ---- Admin panel (ML-77: Super-admin-only account-level management) ----
 
+// ML-443: the day a member last used the app. Written at most once a day per member: this server
+// remembers who it has already marked today, and the UPDATE only touches a row whose date is older.
+// Never awaited by a request and never allowed to fail one.
+const seenToday = new Map();
+export function touchLastSeen(accountId) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (seenToday.get(accountId) === today) return;
+  if (seenToday.size > 5000) seenToday.clear();
+  seenToday.set(accountId, today);
+  pool.query('UPDATE accounts SET last_seen_on = $2 WHERE id = $1 AND deleted_at IS NULL AND last_seen_on IS DISTINCT FROM $2', [accountId, today])
+    .catch((error) => { seenToday.delete(accountId); console.error('Last seen not written:', error.message); });
+}
+
 export async function listAccountsForAdmin() {
   // ML-355 batch 3: how each account logs in - password or not, two-step on, locked, last password login.
   const { rows } = await pool.query(
-    `SELECT a.id, a.first_name, a.surname, a.email, a.account_level, a.created_at,
+    `SELECT a.id, a.first_name, a.surname, a.email, a.account_level, a.created_at, to_char(a.last_seen_on, 'YYYY-MM-DD') AS last_seen_on,
             p.account_id IS NOT NULL AS has_password, p.last_login_at, p.locked_until AS password_locked_until,
             t.enabled_at AS two_step_enabled_at, t.locked_until AS two_step_locked_until
        FROM accounts a
@@ -179,7 +192,7 @@ export async function listAccountsForAdmin() {
   const lockedUntil = (...times) => times.filter(t => t && new Date(t) > new Date()).sort().pop() || null;
   return rows.map(r => ({
     id: Number(r.id), firstName: r.first_name, surname: r.surname, email: r.email,
-    accountLevel: r.account_level, createdAt: r.created_at,
+    accountLevel: r.account_level, createdAt: r.created_at, lastSeenOn: r.last_seen_on,
     hasPassword: r.has_password, lastPasswordLoginAt: r.last_login_at,
     twoStepOn: !!r.two_step_enabled_at,
     lockedUntil: lockedUntil(r.password_locked_until, r.two_step_locked_until)

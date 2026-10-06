@@ -521,12 +521,21 @@
         if (a.hasPassword && a.twoStepOn) parts.push('two-step');
         return escapeHtml(parts.join(' · ')) + (a.lockedUntil ? ` <span class="admin-feedback-badge cat" title="Too many wrong tries - locked until ${escapeHtml(fmtDate(a.lockedUntil))}">Locked</span>` : '');
     }
+    // ML-443: the day a member last used the app (accounts.last_seen_on). Empty until they next use it.
+    const daysSinceSeen = (a) => (a.lastSeenOn ? Math.round((Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()) - Date.parse(`${a.lastSeenOn}T00:00:00Z`)) / 86400000) : null);
+    const LAPSED_DAYS = 30;
+    function lastSeenHtml(a) {
+        const days = daysSinceSeen(a);
+        if (days === null) return '<span class="text-muted">Not yet</span>';
+        const when = days <= 0 ? 'Today' : days === 1 ? 'Yesterday' : `${days} days ago`;
+        return `${when}${days >= LAPSED_DAYS ? ' <span class="admin-feedback-badge cat">Lapsed</span>' : ''}`;
+    }
     function accountsShown() {
         const q = accountsQuery;
         const hit = (name, email) => !q || name.toLowerCase().includes(q) || String(email || '').toLowerCase().includes(q);
         const f = accountsFilter;
         const accounts = f === 'invited' ? [] : allAccounts.filter(a => hit(accountDisplayName(a), a.email)
-            && (f === 'all' || (f === 'auth:google' ? !a.hasPassword : f === 'auth:password' ? !!a.hasPassword : a.accountLevel === f)));
+            && (f === 'all' || (f === 'seen:week' ? (daysSinceSeen(a) !== null && daysSinceSeen(a) < 7) : f === 'seen:lapsed' ? (daysSinceSeen(a) !== null && daysSinceSeen(a) >= LAPSED_DAYS) : f === 'auth:google' ? !a.hasPassword : f === 'auth:password' ? !!a.hasPassword : a.accountLevel === f)));
         const invites = f === 'all' || f === 'invited' ? allInvites.filter(i => hit(inviteName(i), i.email)) : [];
         return { accounts, invites };
     }
@@ -536,6 +545,8 @@
             ...ACCOUNT_LEVELS.map(([v, label]) => [v, label, count(a => a.accountLevel === v)]).filter(p => p[2] > 0),
             ['auth:google', 'Google only', count(a => !a.hasPassword)],
             ['auth:password', 'Email + password', count(a => !!a.hasPassword)],
+            ['seen:week', 'Seen this week', count(a => daysSinceSeen(a) !== null && daysSinceSeen(a) < 7)],
+            ['seen:lapsed', `Not seen for ${LAPSED_DAYS} days`, count(a => daysSinceSeen(a) !== null && daysSinceSeen(a) >= LAPSED_DAYS)],
             ['invited', 'Invites not accepted', allInvites.length]];
         if (!pills.some(p => p[0] === accountsFilter)) accountsFilter = 'all';
         const box = document.getElementById('accountsFilterPills');
@@ -551,7 +562,7 @@
         el.innerHTML = `
             <div class="admin-stat-table-wrap">
                 <table class="admin-stat-table admin-accounts-table">
-                    <thead><tr><th>Name</th><th>Email</th><th>Account type</th><th>Signs in with</th><th>Joined</th><th><span class="visually-hidden">Options</span></th></tr></thead>
+                    <thead><tr><th>Name</th><th>Email</th><th>Account type</th><th>Signs in with</th><th>Joined</th><th>Last seen</th><th><span class="visually-hidden">Options</span></th></tr></thead>
                     <tbody>${invites.map(i => `
                         <tr data-invite-row="${i.id}">
                             <td><strong>${escapeHtml(inviteName(i))}</strong></td>
@@ -559,6 +570,7 @@
                             <td>${escapeHtml(accountLevelLabel(i.accountLevel))}</td>
                             <td><span class="admin-feedback-badge cat">Invited</span> not accepted yet</td>
                             <td title="The link works until ${escapeHtml(fmtDate(i.expiresAt))}">sent ${escapeHtml(new Date(i.createdAt).toLocaleDateString())}</td>
+                            <td></td>
                             <td>${rowMenuBtnHtml('data-invite-menu', i.id, 'the invite to ' + i.email)}</td>
                         </tr>`).join('')}${accounts.map(a => `
                         <tr data-account-row="${a.id}">
@@ -567,6 +579,7 @@
                             <td>${escapeHtml(accountLevelLabel(a.accountLevel))}</td>
                             <td>${accountSignIn(a)}</td>
                             <td>${escapeHtml(new Date(a.createdAt).toLocaleDateString())}</td>
+                            <td>${lastSeenHtml(a)}</td>
                             <td>${rowMenuBtnHtml('data-account-menu', a.id, accountDisplayName(a))}</td>
                         </tr>`).join('')}
                     </tbody>

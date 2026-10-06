@@ -356,6 +356,8 @@
                 note: text(c.note, 600),
                 basis: BASES.includes(c.basis) ? c.basis : 'mine'
             };
+            // ML-443 Limits: the plan limit this cost is the step up from (a usage meter's key), if any
+            if (typeof c.meter === 'string' && /^[a-z0-9-]{1,40}$/.test(c.meter)) out.meter = c.meter;
             if (c.calc === 'database') out.calc = 'database';
             if (c.source && typeof c.source.url === 'string' && /^https:\/\/[^\s"'<>]{4,300}$/.test(c.source.url)) out.source = { label: text(c.source.label, 60) || 'source', url: c.source.url };
             // the figure the plan started with, so a changed one can show what it was and be put back
@@ -417,6 +419,23 @@
         };
     }
 
+    // ML-443 Limits: how many members each plan limit can carry, from the latest usage readings.
+    // meters: [{ key, limit, per, used, projected }] (used null = no reading). A monthly meter is judged
+    // on what it is on course for by the end of the month, not what it has reached so far. One member's
+    // share is today's use divided by today's members - so it includes the owner's own building and
+    // testing, which overstates it: the number that fit is the cautious end. `first` is the limit that
+    // runs out soonest.
+    function limits(meters, members) {
+        const rows = (meters || []).map((m) => {
+            const has = (v) => v !== null && v !== undefined;
+            const use = m.per === 'month' && has(m.projected) ? Number(m.projected) : (has(m.used) ? Number(m.used) : null);
+            const perMember = use > 0 && members > 0 ? use / members : null;
+            return { ...m, use, perMember, fits: perMember ? Math.floor(Number(m.limit) / perMember) : null };
+        });
+        const ranked = rows.filter((r) => r.fits !== null).sort((a, b) => a.fits - b.fits);
+        return { rows, first: ranked.length ? ranked[0].key : null };
+    }
+
     // An id nothing in the plan has yet, from a name ("Band licences" -> band-licences, band-licences-2...).
     function newId(name, taken) {
         const base = String(name || 'item').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'item';
@@ -425,5 +444,5 @@
         return id;
     }
 
-    return { MAX_YEARS, MAX_COSTS, MAX_SCENARIOS, MAX_EXTRAS, EVERY, ym, ymText, monthLabel, isMonth, round2, when, membersAt, databaseHours, databaseCost, membersOnFreeDatabase, netOfFees, project, shareToPayBack, tidy, newId };
+    return { MAX_YEARS, MAX_COSTS, MAX_SCENARIOS, MAX_EXTRAS, EVERY, ym, ymText, monthLabel, isMonth, round2, when, membersAt, databaseHours, databaseCost, membersOnFreeDatabase, netOfFees, project, shareToPayBack, limits, tidy, newId };
 }));

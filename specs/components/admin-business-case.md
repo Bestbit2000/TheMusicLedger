@@ -22,7 +22,11 @@ is new to this page has an `.admin-bc-` class.
 ## 3. Anatomy
 - **Plan settings** - `.admin-bc-settings`: a row of value boxes (launch month, years to look at, dollars
   to the pound, how it is counted). Each opens a pop-up.
-- **Tabs** - `.admin-subtabs`: Overview, then one per scenario (the `role="tablist"` group, which wraps on a
+- **Tabs** - `.admin-subtabs`: Overview, one per scenario, then **Limits** and **Actual v forecast** (ML-443 -
+  both are an intro, stat tiles and an `.admin-bc-table`; no classes of their own. Limits marks the limit that
+  runs out soonest with an `.admin-badge.warn` "Goes first", and each row has `.admin-stat-exclude-btn`s: Link a
+  cost / Change (a pop-up of costs) and Use N. Actual v forecast is read-only; a difference is `.admin-bc-good`
+  or `.admin-bc-bad` and always says "more" or "less" in words) (the `role="tablist"` group, which wraps on a
   narrow screen), and beside them **+ Add a scenario** - an `.admin-subtab-item` outside the tablist, since
   it is an action, not a tab. The owner can have as many scenarios as he likes.
 - **Overview**

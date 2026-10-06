@@ -65,6 +65,21 @@ export function costSummary(costs, today, usdPerGbp) {
   };
 }
 
+// ML-443: what was paid in one calendar month ('2026-10'), in pounds - the payments that fell in it, up
+// to and including `today` if the month isn't over. A month that hasn't started has paid nothing.
+export function paidInMonth(costs, month, today, usdPerGbp) {
+  const rate = Number(usdPerGbp) > 0 ? Number(usdPerGbp) : 1;
+  const [y, m] = month.split('-').map(Number);
+  const first = Date.UTC(y, m - 1, 1);
+  const upTo = Math.min(dayOf(today), Date.UTC(y, m, 0));
+  if (upTo < first) return 0;
+  const sum = costs.reduce((total, c) => {
+    const amount = Number(c.amount) * (chargesSoFar(c, iso(upTo)) - chargesSoFar(c, iso(first - DAY)));
+    return total + (c.currency === 'GBP' ? amount : amount / rate);
+  }, 0);
+  return Math.round(sum * 100) / 100;
+}
+
 // The billing period a reading belongs to: what its source said, or the calendar month of `at`.
 export function periodFor(at, given) {
   if (given && given.start && given.end) return { start: iso(dayOf(given.start)), end: iso(dayOf(given.end)) };

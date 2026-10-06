@@ -604,6 +604,7 @@ and neither is wired to any endpoint yet.
 | Table | Purpose | Key columns |
 |---|---|---|
 | `business_plans` | The owner's plan of what each way of rolling the app out costs and could earn (Admin → Business case) | id, name, plan (JSONB - the whole plan), created_at, updated_at |
+| `business_actuals` | Actual v forecast (ML-443): one row a month - what happened beside what the business case forecast | id, month (unique, the first of the month), members, paid_gbp, forecast_members, forecast_out_gbp, forecast_in_gbp, forecast_scenario (written once, never changed), created_at, updated_at | No account column. See `docs/business-case.md`. |
 
 - **One document, not tables.** It is one person's working model, read and saved whole and reshaped as the
   owner changes how the app is run; `public/businessCase.js` tidies and checks it on every save.

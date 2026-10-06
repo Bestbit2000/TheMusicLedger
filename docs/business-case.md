@@ -129,8 +129,39 @@ The Overview's **Today** tiles are read, not forecast: members (accounts that ar
 been spent and what is running (Costs and usage, ML-429), and how full the database's free allowance is
 (the latest `neon-compute` reading). Each is left out if it can't be read.
 
-## Not built yet
+## Limits (ML-443)
 
-From the ML-443 proposal: grouping the admin menu, a landing dashboard, the limits page that turns usage
-readings into "what one member uses", and comparing each month's forecast with what was paid. `business_plans`
-can hold more than one row, for kept copies of a plan, when that is wanted.
+The **Limits** tab answers "how many members can the free plans carry?" from measurements instead of guesses.
+It takes every plan limit on Costs and usage (ML-429) with its latest reading, and today's member count:
+
+- **One member uses** = what is used ÷ today's members. A monthly limit is judged on what it is **on course
+  for** by the end of the month, not what it has reached so far.
+- **Members that fit** = the limit ÷ one member's share. The limit with the fewest is marked **Goes first**.
+- Today's use includes the owner's own building and testing, so a member's share is overstated and the real
+  number that fit is higher. The page says so. It sharpens as real members arrive.
+- A limit with no reading shows none, never a guess.
+
+**The step up.** A limit can be linked to the cost that starts when it is reached (`cost.meter` = the usage
+meter's key - Resend Pro is linked to "Emails this month" in the starting plan). **Use N** sets that cost's
+"wait until there are this many members" to the number the reading says fit, in every scenario that includes
+it. It is a change like any other: it waits in the Save bar. It is one press, not automatic, so a forecast
+never moves without the owner seeing it. Sums: `BusinessCase.limits(meters, members)`.
+
+## Actual v forecast (ML-443)
+
+The **Actual v forecast** tab is a row a month (`business_actuals`, migration 103): members and money paid
+out, beside what the plan forecast.
+
+- **Actual** - members are counted from accounts; paid out is the payments on Costs and usage that fell in the
+  month (`paidInMonth` in `server/thirdParties/costs.js`). The current month is brought up to date every day
+  by the daily job (`/api/cron/usage-readings`) and whenever the business case is opened, so a month ends up
+  as it stood on its last day.
+- **Forecast** - written **once**, the first time a month is recorded, from the scenario marked "where I am
+  now", and never changed. Editing the plan later can't hide how far out it was.
+- Money coming in isn't in the table yet: there are no payments to count. It joins when Premium is sold.
+- Code: `server/services/businessActuals.js`. The page only reads it.
+
+## Still open
+
+Everything in the ML-443 proposal is built (the menu groups and the Dashboard are in
+`specs/components/admin-shell.md`). `business_plans` can hold more than one row, for kept copies of a plan, when that is wanted.

@@ -19,7 +19,8 @@
     const VAT_THRESHOLD = 90000; // sales in twelve months above which VAT has to be charged (read 5 Oct 2026)
     const BASIS = { paying: ['pass', 'Paying now'], published: ['info', 'Published price'], estimate: ['warn', 'Estimate'], mine: ['never', 'Mine'] };
     const EVERY_WORDS = { month: 'a month', year: 'a year', once: 'once' };
-    const state = { plan: null, savedJson: '', today: null, everSaved: false, tab: 'overview', view: 'cash', chart: null, monthYear: 1, results: {} };
+    const PAGES = { '@limits': 'Limits', '@actuals': 'Actual v forecast' }; // tabs that aren't a scenario ('@' can't be in a scenario's id)
+    const state = { plan: null, actuals: [], savedJson: '', today: null, everSaved: false, tab: 'overview', view: 'cash', chart: null, monthYear: 1, results: {} };
 
     // ---- words and numbers
     const money = (v, plus) => { const n = Math.round(Number(v) || 0); return `${n < 0 ? '−' : (plus && n > 0 ? '+' : '')}£${Math.abs(n).toLocaleString('en-GB')}`; };
@@ -86,10 +87,10 @@
     function render() {
         const p = state.plan;
         recalc();
-        if (state.tab !== 'overview' && !active()) state.tab = 'overview';
+        if (state.tab !== 'overview' && !PAGES[state.tab] && !active()) state.tab = 'overview';
         if (!scenarioById(state.chart)) state.chart = (p.scenarios.find((s) => s.income.premium.on) || scenarioById(p.current) || p.scenarios[0]).id;
         state.monthYear = Math.min(state.monthYear, p.years);
-        const tabs = [['overview', 'Overview'], ...p.scenarios.map((s) => [s.id, s.name])];
+        const tabs = [['overview', 'Overview'], ...p.scenarios.map((s) => [s.id, s.name]), ...Object.entries(PAGES)];
         $('businessCase').innerHTML = `
             <div class="admin-bc-settings">
                 ${valueBox('launch', BC.monthLabel(BC.ym(p.launch)), 'launch')}
@@ -103,8 +104,80 @@
                 </div>
                 <button type="button" class="admin-subtab-item" data-act="scenario-add">+ Add a scenario</button>
             </div>
-            <div id="bcPanel">${state.tab === 'overview' ? overviewHtml() : scenarioHtml(active())}</div>`;
+            <div id="bcPanel">${state.tab === 'overview' ? overviewHtml() : state.tab === '@limits' ? limitsHtml() : state.tab === '@actuals' ? actualsHtml() : scenarioHtml(active())}</div>`;
         refresh();
+    }
+
+    // ---- Limits (ML-443): how many members each plan's limit can carry, from the usage readings, and
+    // the cost each one steps up to. "Use N" sets that cost to wait for N members - a change like any
+    // other, kept when Save is pressed.
+    // a small share keeps two figures that mean something (0.0025 GB), a big one is a whole number
+    const amountOf = (v, unit) => { const n = Number(v); return `${n >= 100 ? count(n) : n > 0 && n < 1 ? String(Number(n.toPrecision(2))) : (Math.round(n * 100) / 100).toLocaleString('en-GB')} ${unit}`; };
+    function limitsHtml() {
+        const p = state.plan;
+        const t = state.today || {};
+        const members = t.members || 0;
+        const { rows, first } = BC.limits(t.meters, members);
+        const firstRow = rows.find((r) => r.key === first);
+        const read = rows.filter((r) => r.use !== null).length;
+        const body = rows.map((r) => {
+            const cost = p.costs.find((c) => c.meter === r.key);
+            const step = cost
+                ? `${esc(cost.name)}<div class="admin-stat-tile-sub">${amountText(cost)}${cost.minMembers > 0 ? `, once there are ${count(cost.minMembers)} members` : ''}</div>`
+                : '<span class="text-muted">Nothing linked</span>';
+            const use = cost && r.fits !== null && r.fits !== cost.minMembers ? `<button type="button" class="admin-stat-exclude-btn" data-act="limit-apply" data-meter="${esc(r.key)}">Use ${count(r.fits)}</button>` : '';
+            return `
+            <tr>
+                <th scope="row" class="admin-bc-text">${esc(r.name)}${r.key === first ? ' <span class="admin-badge warn">Goes first</span>' : ''}</th>
+                <td>${r.use === null ? '<span class="text-muted">No reading</span>' : `${amountOf(r.use, r.unit)}<div class="admin-stat-tile-sub">${r.per === 'month' && r.projected !== null ? 'on course for, this month' : { month: 'so far this month', day: 'today', total: 'in all' }[r.per]}</div>`}</td>
+                <td>${amountOf(r.limit, r.unit)}<div class="admin-stat-tile-sub">${{ month: 'a month', day: 'a day', total: 'in all' }[r.per]}</div></td>
+                <td>${r.perMember === null ? '–' : amountOf(r.perMember, r.unit)}</td>
+                <td>${r.fits === null ? '–' : `<strong>${count(r.fits)}</strong>`}</td>
+                <td class="admin-bc-text">${step}</td>
+                <td><div class="flex-row flex-wrap gap-sm">${use}<button type="button" class="admin-stat-exclude-btn" data-act="limit-link" data-meter="${esc(r.key)}">${cost ? 'Change' : 'Link a cost'}</button></div></td>
+            </tr>`;
+        }).join('');
+        return `
+            <p class="admin-intro">How many members each free plan can carry before its limit is reached. One member's share is today's use divided by today's ${count(members)} member${members === 1 ? '' : 's'}. That use includes your own building and testing, so the share is overstated and the true number that fit is higher: read these as the cautious end. They sharpen as real members arrive. The readings come from <strong>Costs and usage</strong>.</p>
+            <div class="admin-stat-tiles">
+                ${tile('Members today', count(members), 'accounts, not counting deleted ones')}
+                ${tile('Limits with a reading', `${read} of ${rows.length}`, read < rows.length ? 'the rest need a reading on Costs and usage' : 'all read')}
+                ${tile('Goes first', firstRow ? firstRow.name : '–', firstRow ? 'the limit that is reached soonest' : 'no readings yet')}
+                ${tile('Room for', firstRow ? `${count(firstRow.fits)} members` : '–', firstRow ? 'before that limit is reached' : '')}
+            </div>
+            <h2 class="admin-stat-section-title">Each limit</h2>
+            <p class="admin-intro">Link a limit to the cost you would start paying when it is reached (the paid plan). <strong>Use</strong> then sets that cost to begin at the number of members the reading says fit, in every scenario that includes it.</p>
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-bc-table">
+                <thead><tr><th class="admin-bc-text">Limit</th><th>Used</th><th>The plan allows</th><th>One member uses</th><th>Members that fit</th><th class="admin-bc-text">Steps up to</th><th aria-label="Options"></th></tr></thead>
+                <tbody>${body}</tbody>
+            </table></div>`;
+    }
+
+    // ---- Actual v forecast (ML-443): a row a month - what was forecast (kept as it stood when the month
+    // was first recorded) beside what happened. Read-only: the server keeps it (businessActuals.js).
+    function actualsHtml() {
+        const gap = (actual, forecast, moreIsGood, fmt) => {
+            if (forecast === null || forecast === undefined) return '<td>–</td>';
+            const d = actual - forecast;
+            const cls = Math.abs(d) < 0.005 ? '' : (d > 0) === moreIsGood ? ' class="admin-bc-good"' : ' class="admin-bc-bad"';
+            return `<td${cls}>${Math.abs(d) < 0.005 ? 'as forecast' : `${d > 0 ? '+' : '−'}${fmt(Math.abs(d))} ${d > 0 ? 'more' : 'less'}`}</td>`;
+        };
+        const rows = state.actuals.map((a, i) => {
+            const f = a.forecast;
+            return `
+            <tr>
+                <th scope="row" class="admin-bc-text">${esc(BC.monthLabel(BC.ym(a.month)))}${i === 0 ? '<div class="admin-stat-tile-sub">so far</div>' : ''}</th>
+                <td>${f ? count(f.members) : '–'}</td><td>${count(a.members)}</td>${gap(a.members, f && f.members, true, count)}
+                <td>${f ? pence(f.out) : '–'}</td><td>${pence(a.paid)}</td>${gap(a.paid, f && f.out, false, pence)}
+                <td class="admin-bc-text">${f ? esc(f.scenario) : '<span class="text-muted">The plan did not cover this month</span>'}</td>
+            </tr>`;
+        }).join('');
+        return `
+            <p class="admin-intro">Each month, what the plan forecast beside what happened. The forecast is taken from the scenario you were in the first time the month was recorded and is <strong>kept as it stood</strong>, so changing the plan later can't hide how far out it was. Members are counted from accounts; money paid out is the payments on <strong>Costs and usage</strong> that fell in the month. This month's figures move until the month ends. Money coming in will join the table once there are payments to count.</p>
+            ${rows ? `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-bc-table">
+                <thead><tr><th class="admin-bc-text">Month</th><th>Members forecast</th><th>Members</th><th>Difference</th><th>Paid out forecast</th><th>Paid out</th><th>Difference</th><th class="admin-bc-text">Forecast from</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table></div>` : '<p class="admin-intro">No month has been recorded yet. The first is recorded today.</p>'}`;
     }
 
     // ---- Overview
@@ -468,7 +541,7 @@
     // Everything that is worked out, redrawn without touching the boxes being typed in.
     function refresh() {
         recalc();
-        if (state.tab === 'overview') refreshOverview(); else refreshScenario();
+        if (state.tab === 'overview') refreshOverview(); else if (active()) refreshScenario();
         const changed = dirty();
         $('bcSaveBar').classList.toggle('hidden-group', !changed);
         $('bcSaveText').textContent = changed ? 'Changes not saved yet' : '';
@@ -635,6 +708,26 @@
             return null;
         }),
         view: () => choose('How it is counted', 'Cash is money in the month it moves. Revenue basis spreads a yearly payment over the twelve months it covers.', [['cash', 'Cash'], ['revenue', 'Revenue basis']], state.view, (v) => { state.view = v; render(); }),
+        'limit-link': (btn) => {
+            const p = state.plan;
+            const key = btn.dataset.meter;
+            const now = p.costs.find((c) => c.meter === key);
+            choose('The cost this limit steps up to', 'What you would start paying when the limit is reached.', [['', 'Nothing'], ...p.costs.filter((c) => !c.calc).map((c) => [c.id, c.name])], now ? now.id : '', (v) => {
+                p.costs.forEach((c) => { if (c.meter === key) delete c.meter; });
+                const picked = p.costs.find((c) => c.id === v);
+                if (picked) picked.meter = key;
+                render();
+            });
+        },
+        'limit-apply': (btn) => {
+            const p = state.plan;
+            const row = BC.limits((state.today || {}).meters, (state.today || {}).members || 0).rows.find((r) => r.key === btn.dataset.meter);
+            const cost = p.costs.find((c) => c.meter === btn.dataset.meter);
+            if (!row || row.fits === null || !cost) return;
+            cost.minMembers = row.fits;
+            A.showToast(`${cost.name} now starts at ${count(row.fits)} members`, 'success');
+            render();
+        },
         chart: () => choose('Scenario shown in gold', '', state.plan.scenarios.map((s, i) => [s.id, `${i + 1}. ${s.name}`]), state.chart, (v) => { state.chart = v; refresh(); }),
         'month-year': () => choose('Which year, month by month', '', Array.from({ length: state.plan.years }, (_, i) => [i + 1, `Year ${i + 1}`]), state.monthYear, (v) => { state.monthYear = Number(v); const open = $('bcMonthsBox').open; render(); $('bcMonthsBox').open = open; }),
         route: () => choose('How Premium is paid', 'By card you keep about 93-97%. Through the app stores about 71%: VAT comes off first, then 15%.', [['card', 'By card on the website'], ['stores', 'Through the app stores']], active().income.premium.route, (v) => { active().income.premium.route = v; render(); }),
@@ -690,6 +783,7 @@
         state.plan = data.plan;
         state.savedJson = JSON.stringify(data.plan);
         state.today = data.today;
+        state.actuals = data.actuals || [];
         state.everSaved = !!data.saved;
         render();
     }

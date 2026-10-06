@@ -1,7 +1,7 @@
 // ML-429: the sums behind costs and usage (server/thirdParties/costs.js). Pure - no database.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chargesSoFar, isRunning, costSummary, periodFor, meterStatus, alertsDue } from '../thirdParties/costs.js';
+import { chargesSoFar, isRunning, costSummary, periodFor, meterStatus, alertsDue, paidInMonth } from '../thirdParties/costs.js';
 
 const cost = (over) => ({ partyKey: 'claude-code', amount: 100, currency: 'USD', cadence: 'monthly', startedOn: '2026-07-10', endedOn: null, ...over });
 
@@ -74,4 +74,30 @@ test('a warning is due once for each threshold reached in a period', () => {
   assert.deepEqual(alertsDue(95, [75]), [90]);
   assert.deepEqual(alertsDue(95, [75, 90]), []);
   assert.deepEqual(alertsDue(null, []), []);
+});
+
+// ML-443: actual v forecast - what was paid in one calendar month
+test('paid in a month counts the payments that fell in it, in pounds', () => {
+  const costs = [
+    cost(), // $100 on the 10th of each month from July
+    cost({ amount: 90, currency: 'GBP', cadence: 'yearly', startedOn: '2026-10-20' }),
+    cost({ amount: 19, currency: 'GBP', cadence: 'one_off', startedOn: '2026-09-03' })
+  ];
+  assert.equal(paidInMonth(costs, '2026-10', '2026-11-15', 1.25), 170); // $100 = £80, plus the £90 yearly
+  assert.equal(paidInMonth(costs, '2026-09', '2026-11-15', 1.25), 99);  // £80 plus the one-off £19
+  assert.equal(paidInMonth(costs, '2026-06', '2026-11-15', 1.25), 0);   // before anything started
+});
+
+test('a month that is not over counts only what has been paid so far, and a future month nothing', () => {
+  const costs = [cost(), cost({ amount: 90, currency: 'GBP', cadence: 'yearly', startedOn: '2026-10-20' })];
+  assert.equal(paidInMonth(costs, '2026-10', '2026-10-06', 1.25), 0);
+  assert.equal(paidInMonth(costs, '2026-10', '2026-10-10', 1.25), 80);
+  assert.equal(paidInMonth(costs, '2026-10', '2026-10-20', 1.25), 170);
+  assert.equal(paidInMonth(costs, '2026-12', '2026-10-20', 1.25), 0);
+});
+
+test('a weekly cost is paid as many times as its day falls in the month', () => {
+  const weekly = [cost({ amount: 10, currency: 'GBP', cadence: 'weekly', startedOn: '2026-10-01' })];
+  assert.equal(paidInMonth(weekly, '2026-10', '2026-12-01', 1.25), 50); // 1, 8, 15, 22, 29 October
+  assert.equal(paidInMonth(weekly, '2026-11', '2026-12-01', 1.25), 40); // 5, 12, 19, 26 November
 });

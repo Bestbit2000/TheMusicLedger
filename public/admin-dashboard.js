@@ -27,7 +27,7 @@
         const types = p.byType.map((t) => `${t.count} ${t.label}`).join(', ');
         return tile('accounts', 'Members', count(p.total), types)
             + tile('accounts', 'New this week', count(p.newThisWeek), p.invitesWaiting ? `${plural(p.invitesWaiting, 'invite', 'invites')} not accepted yet` : 'no invites waiting')
-            + tile('usage', 'Practised this week', count(p.activeThisWeek), p.total ? `of ${plural(p.total, 'member', 'members')}, in the last 7 days` : 'in the last 7 days')
+            + tile('accounts', 'Active this week', count(p.seenThisWeek), `${count(p.practisedThisWeek)} practised · ${count(p.lapsed)} not seen for 30 days`)
             + tile('usage', 'Practice logged this week', time(p.minutesThisWeek), plural(p.sessionsThisWeek, 'session', 'sessions'));
     }
 

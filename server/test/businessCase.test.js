@@ -321,3 +321,57 @@ describe('tidying a plan before it is saved', () => {
         assert.equal(BC.newId('***', new Set()), 'item');
     });
 });
+
+// ML-443 Limits: how many members each plan limit can carry, from the usage readings
+describe('limits', () => {
+    const meters = [
+        { key: 'compute', name: 'Database compute', unit: 'CU-hours', limit: 100, per: 'month', used: 20, projected: 80 },
+        { key: 'emails', name: 'Emails this month', unit: 'emails', limit: 3000, per: 'month', used: 12, projected: null },
+        { key: 'storage', name: 'File storage', unit: 'GB', limit: 1, per: 'total', used: 0.25, projected: null },
+        { key: 'calls', name: 'Server calls', unit: 'calls', limit: 1000000, per: 'month', used: null, projected: null }
+    ];
+
+    test('a monthly limit is judged on what it is on course for; the others on what is used', () => {
+        const { rows } = BC.limits(meters, 8);
+        assert.equal(rows[0].use, 80);
+        close(rows[0].perMember, 10);
+        assert.equal(rows[0].fits, 10);      // 100 hours / 10 a member
+        assert.equal(rows[1].use, 12);       // no projection: what has been used
+        assert.equal(rows[1].fits, 2000);    // 3,000 / 1.5 a member
+        assert.equal(rows[2].fits, 32);      // 1 GB / (0.25 / 8)
+    });
+
+    test('the limit that carries the fewest members goes first', () => {
+        assert.equal(BC.limits(meters, 8).first, 'compute');
+    });
+
+    test('no reading, or no members, gives no answer rather than a wrong one', () => {
+        const none = BC.limits(meters, 8).rows[3];
+        assert.equal(none.use, null);
+        assert.equal(none.fits, null);
+        const nobody = BC.limits(meters, 0);
+        assert.ok(nobody.rows.every((r) => r.fits === null));
+        assert.equal(nobody.first, null);
+        assert.deepEqual(plain(BC.limits(undefined, 8)), { rows: [], first: null });
+    });
+
+    test('a cost keeps the limit it is the step up from through a save, and a bad one is dropped', () => {
+        const p = plan([cost('pro', { amount: 20, meter: 'resend-month' }), cost('odd', { meter: 'Not a key!' })]);
+        const tidy = BC.tidy(p);
+        assert.equal(tidy.costs.find((c) => c.id === 'pro').meter, 'resend-month');
+        assert.equal(tidy.costs.find((c) => c.id === 'odd').meter, undefined);
+    });
+});
+
+// ML-443 actual v forecast: the month a forecast is read from
+describe('the forecast for one month', () => {
+    test('every month from the start of building to the end of the plan can be found by its month', () => {
+        const r = BC.project(plan([cost('host', { amount: 10 })]), 's');
+        const at = (month) => r.months.find((m) => m.n === BC.ym(month));
+        assert.equal(at('2026-10').out, 0);      // before launch: the cost starts at launch
+        assert.equal(at('2027-01').out, 10);
+        assert.equal(at('2027-12').out, 10);
+        assert.equal(at('2028-01'), undefined);  // a one-year plan stops there
+        assert.equal(at('2026-08'), undefined);  // before building started
+    });
+});

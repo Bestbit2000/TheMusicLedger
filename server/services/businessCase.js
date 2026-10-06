@@ -8,6 +8,7 @@ import vm from 'node:vm';
 import pool from '../config/db.js';
 import { startingPlan } from './businessCaseDefaults.js';
 import { costsAndUsage } from './thirdPartyUsage.js';
+import { recordMonth, listActuals } from './businessActuals.js';
 
 const sandbox = { self: {} };
 vm.runInNewContext(fs.readFileSync(new URL('../../public/businessCase.js', import.meta.url), 'utf8'), sandbox);
@@ -20,7 +21,7 @@ const MAX_PLAN_BYTES = 200 * 1024;
 // ML-429) and how full the database's free allowance is. Each part is left out if it can't be read,
 // so the page still loads.
 async function today() {
-  const out = { members: null, spent: null, perMonth: null, database: null };
+  const out = { members: null, spent: null, perMonth: null, database: null, meters: [] };
   try {
     const { rows } = await pool.query('SELECT count(*)::int AS n FROM accounts WHERE deleted_at IS NULL');
     out.members = rows[0].n;
@@ -31,6 +32,12 @@ async function today() {
     out.perMonth = money.costs.perMonth.gbp;
     const meter = money.usage.find((m) => m.key === 'neon-compute');
     if (meter && meter.status) out.database = { used: meter.status.value, limit: meter.limit, projected: meter.status.projected, readAt: meter.latest.readAt };
+    // ML-443 Limits: every plan limit with its latest reading (none, or an old one, is "used: null")
+    out.meters = money.usage.map((m) => ({
+      key: m.key, party: m.party, name: m.name, unit: m.unit, limit: m.limit, per: m.per,
+      used: m.status ? m.status.value : null, percent: m.status ? m.status.percent : null, projected: m.status ? m.status.projected : null,
+      readAt: m.latest ? m.latest.readAt : null
+    }));
   } catch (error) { console.error('Business case: costs and usage not read:', error.message); }
   return out;
 }
@@ -48,7 +55,12 @@ export async function getBusinessCase() {
     // A saved plan is tidied on the way out too, so a plan saved by an older version still works
     try { plan = BusinessCase.tidy(row.plan); } catch (error) { console.error('Business case: the saved plan could not be read, starting again:', error.message); }
   }
-  return { plan: plan || BusinessCase.tidy(startingPlan()), saved: !!plan, savedAt: plan ? row.updated_at : null, today: now };
+  const current = plan || BusinessCase.tidy(startingPlan());
+  // ML-443 actual v forecast: this month is brought up to date each time the page is opened as well
+  // as by the daily job; if that can't be done the page still loads.
+  let actuals = [];
+  try { await recordMonth(BusinessCase, current); actuals = await listActuals(); } catch (error) { console.error('Business case: actual v forecast not read:', error.message); }
+  return { plan: current, saved: !!plan, savedAt: plan ? row.updated_at : null, today: now, actuals };
 }
 
 export async function saveBusinessCase(plan) {

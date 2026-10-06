@@ -3,8 +3,8 @@
 // the back-test runs, Feature access, Costs and usage, the business case, feedback, the third-party
 // register, the security review). Nothing new is stored. Each part is read on its own, so one that
 // can't be read is left out (null) and the rest of the page still shows.
-// "Active" is a member who logged practice in the last seven days: the app does not record when
-// someone last opened it. See specs/components/admin-shell.md ("Dashboard").
+// "Active" is a member who used the app in the last seven days (accounts.last_seen_on, migration 103);
+// "lapsed" is one who has been seen but not for 30 days. See specs/components/admin-shell.md ("Dashboard").
 import pool from '../config/db.js';
 import { ACCOUNT_TYPES, getFeatureAccess } from './features.js';
 import { listPendingInvites } from './passwordAuth.js';
@@ -21,7 +21,9 @@ const part = async (name, read) => {
 
 async function people() {
   const [types, week, invites] = await Promise.all([
-    pool.query(`SELECT account_level, count(*)::int AS n, count(*) FILTER (WHERE created_at > now() - interval '7 days')::int AS fresh
+    pool.query(`SELECT account_level, count(*)::int AS n, count(*) FILTER (WHERE created_at > now() - interval '7 days')::int AS fresh,
+                       count(*) FILTER (WHERE last_seen_on > CURRENT_DATE - 7)::int AS seen,
+                       count(*) FILTER (WHERE last_seen_on <= CURRENT_DATE - 30)::int AS lapsed
                   FROM accounts WHERE deleted_at IS NULL GROUP BY account_level`),
     pool.query(`SELECT count(DISTINCT s.account_id)::int AS active, count(*)::int AS sessions, coalesce(sum(s.total_duration_minutes), 0)::int AS minutes
                   FROM sessions s JOIN accounts a ON a.id = s.account_id
@@ -33,7 +35,9 @@ async function people() {
     total: types.rows.reduce((sum, r) => sum + r.n, 0),
     newThisWeek: types.rows.reduce((sum, r) => sum + r.fresh, 0),
     byType: ACCOUNT_TYPES.map((t) => ({ key: t.key, label: t.label, count: (byKey.get(t.key) || { n: 0 }).n })).filter((t) => t.count),
-    activeThisWeek: week.rows[0].active,
+    seenThisWeek: types.rows.reduce((sum, r) => sum + r.seen, 0),
+    lapsed: types.rows.reduce((sum, r) => sum + r.lapsed, 0), // seen before, but not for 30 days
+    practisedThisWeek: week.rows[0].active,
     sessionsThisWeek: week.rows[0].sessions,
     minutesThisWeek: week.rows[0].minutes,
     invitesWaiting: invites.length

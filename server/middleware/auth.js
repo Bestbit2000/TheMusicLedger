@@ -1,5 +1,5 @@
 import { verifyToken } from '../utils/authToken.js';
-import { getOrCreateAccount, isSuperAdmin, getAccountLevel } from '../services/accounts.js';
+import { getOrCreateAccount, isSuperAdmin, getAccountLevel, touchLastSeen } from '../services/accounts.js';
 import { featureContext, ACCOUNT_TYPE_KEYS } from '../services/features.js';
 import { tokenIsCurrent } from '../services/tokenVersions.js';
 
@@ -89,6 +89,7 @@ export async function resolveAccount(req, res, next) {
   try {
     req.accountId = await getOrCreateAccount(req.userId, req.firstName, req.surname, clientDevice(req));
     level = await getAccountLevel(req.accountId);
+    touchLastSeen(req.accountId); // ML-443: the day they last used the app (once a day, not waited for)
   } catch (error) {
     console.error('Account resolution error:', error.message);
     return res.status(500).json({ error: 'Failed to resolve account' });

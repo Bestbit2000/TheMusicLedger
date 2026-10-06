@@ -39,7 +39,9 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
   (`#adminRowMenu`: `.dropdown-menu.account-band-menu` of `.dropdown-item`s with an icon - `openRowMenu` in
   admin.js). A link item (View, Edit) opens a new tab; a destructive one takes `.account-band-menu-delete`. It
   closes on a pick, a click elsewhere, Escape (focus goes back to the ⋮) or the page scrolling.
-- **Accounts:** Name, Email, Account type, Signs in with, Joined. A search (name or email) and the standard
+- **Accounts:** Name, Email, Account type, Signs in with, Joined, Last seen (ML-443: Today / Yesterday / N days
+  ago, "Not yet" until the member next uses the app, and a "Lapsed" `.admin-feedback-badge` after 30 days; the
+  filter strip has Seen this week and Not seen for 30 days). A search (name or email) and the standard
   [filter strip](filter-strip.md): All, each account type that has someone, Google only, Email + password,
   Invites not accepted - each with its count. An invite that hasn't been accepted is a line too ("Invited").
   The ⋮: Change account type (a pop-up of `.flow-choice-option`s, the current one selected - it saves on a
@@ -78,9 +80,9 @@ The page the panel opens on (`public/admin-dashboard.js`, `/api/admin/dashboard`
 `server/services/adminDashboard.js`, rules tested in `server/test/adminDashboard.test.js`). Four blocks, each
 an `.admin-stat-section-title` over `.admin-stat-tiles`:
 
-- **People** - members (by account type), new this week (and invites not accepted), members who practised in
-  the last 7 days, practice logged this week. "Practised" is counted from practice logged: the app does not
-  record when someone last opened it.
+- **People** - members (by account type), new this week (and invites not accepted), members active in the last
+  7 days (with how many practised, and how many have lapsed - seen before, but not for 30 days), practice
+  logged this week. "Active" is read from `accounts.last_seen_on`, the day a member last used the app.
 - **The build** - version and release date, the last back-test run, features on for Standard members, days to
   the launch month set in the business case.
 - **Money** - spent so far and costing now (Costs and usage), and the forecast and payback month of the

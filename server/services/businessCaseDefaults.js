@@ -35,7 +35,7 @@ const COSTS = [
     note: '$20 plus UK VAT. The free plan is for non-commercial use and has no data processing contract, so this is required once anything is sold and expected once other people\'s information is held. Its $20 of included usage covers file storage.', source: { label: 'vercel.com', url: 'https://vercel.com/docs/plans/pro-plan' } },
   { id: 'database', group: 'host', name: 'Database (Neon), once it outgrows the free plan', calc: 'database', basis: 'published',
     note: 'Worked out from the member numbers and the usage figures on the Overview. Free to 100 compute-hours a month, then $0.106 an hour and $0.35 a GB.', source: { label: 'neon.com', url: 'https://neon.com/pricing' } },
-  { id: 'resend-pro', group: 'host', name: 'Resend Pro (email)', amount: 20, currency: 'USD', every: 'month', from: AT_LAUNCH, minMembers: 3000, basis: 'published',
+  { id: 'resend-pro', group: 'host', name: 'Resend Pro (email)', amount: 20, currency: 'USD', every: 'month', from: AT_LAUNCH, minMembers: 3000, meter: 'resend-month', basis: 'published',
     note: 'Needed above 100 emails a day or 3,000 a month. The 3,000 members is my guess at when that happens.', source: { label: 'resend.com', url: 'https://resend.com/pricing' } },
   { id: 'pdf-server', group: 'host', name: 'A small server for PDF import', amount: 5, currency: 'GBP', every: 'month', from: AT_LAUNCH, basis: 'estimate',
     note: 'Only if "Create from file" is switched on. It may cost nothing on a pay-per-use service, or £4-£6 a month on a small server of its own.' },

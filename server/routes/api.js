@@ -17,6 +17,7 @@ import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, joinBand, leaveBand, createSharedBand, deleteBandIfSoleMember } from '../services/bands.js';
 import { readMeters, sendUsageWarnings } from '../services/thirdPartyUsage.js';
+import { getBusinessCase } from '../services/businessCase.js';
 import { deleteMyAccount } from '../services/accountDeletion.js';
 import { exportMyAccount } from '../services/accountExport.js';
 import { getAccountProfile, updateAccountProfile, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
@@ -846,6 +847,8 @@ router.get('/cron/usage-readings', async (req, res) => {
   try {
     const results = await readMeters();
     const warnings = await sendUsageWarnings();
+    // ML-443: reading the business case brings this month's "actual v forecast" row up to date
+    await getBusinessCase().catch((error) => console.error('Daily job: actual v forecast not recorded:', error.message));
     res.json({ read: results.filter((r) => r.ok).length, notRead: results.filter((r) => !r.ok).map((r) => r.key), warnings: warnings.length });
   } catch (error) {
     sendError(res, error);
