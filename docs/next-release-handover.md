@@ -16,7 +16,7 @@ What is in it:
 | ML-239 | Tablet and desktop: the menu rail, a page as a narrow or wide card, Home and the play screen side by side, two panes on the list pages. `specs/foundations/layout.md` |
 | ML-482 | Privacy policy: "change my email" is on for everyone, so the "where it is switched on" phrase is gone. GDPR assessment version 3 (`docs/gdpr-assessment.md`): 15 gaps closed, 6 open |
 | ML-483 | Resend taken out (never used; he wants an email provider based in Europe) |
-| ML-484 | Trying out a new name: Admin → App name switches the name on screen between The Music Ledger, Notably Better and Fivetto (sign-in picture, name and mark, browser tab). `docs/brand-trial.md`. The design gate lists its one new class, `.brand-mark` - **not yet signed off** |
+| ML-484 | Trying out a new name: Admin → App name switches the name on screen between The Music Ledger, Notably Better and Fivetto (sign-in picture, name and mark, browser tab). `docs/brand-trial.md`. Its one new class, `.brand-mark`, was signed off by the owner on 7 Oct 2026, and he said to include it in 0.49.0 |
 
 No migrations. Checked on 7 Oct 2026: back-tests 59 of 59 (run 89), the axe scan 64 of 64 (run at 1280px, so
 in the wide layout), token audit, accessibility audit, design gate hard checks, third-party audit and the
