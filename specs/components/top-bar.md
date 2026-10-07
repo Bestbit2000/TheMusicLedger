@@ -41,6 +41,9 @@ Put them in the screen body.
 </div>
 ```
 
+**From 700px up (ML-239)** the back button is a 44px square that takes the hover wash (`--primary-action-tint`) under a
+mouse, so it reads as something to click (owner, 7 Oct 2026). The rail's fold button does the same.
+
 ## 8. Cross-references
 [dropdown-menu](dropdown-menu.md) · [notification-centre](notification-centre.md) · [metronome](metronome.md) · [elevation](../foundations/elevation.md) · [menu-rail](menu-rail.md) (from 700px up the ☰ button is hidden and the menu is a rail; the bar spans the page beside it, and Home's title is "Home") · [layout](../foundations/layout.md)
 
