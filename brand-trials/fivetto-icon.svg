@@ -6,6 +6,5 @@
       <stop offset="1" stop-color="#b8922e"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" fill="#0a0a0a"/><line x1="70" y1="150" x2="442" y2="150" stroke="url(#gold)" stroke-width="5" opacity="0.38"/><line x1="70" y1="203" x2="442" y2="203" stroke="url(#gold)" stroke-width="5" opacity="0.38"/><line x1="70" y1="256" x2="442" y2="256" stroke="url(#gold)" stroke-width="5" opacity="0.38"/><line x1="70" y1="309" x2="442" y2="309" stroke="url(#gold)" stroke-width="5" opacity="0.38"/><line x1="70" y1="362" x2="442" y2="362" stroke="url(#gold)" stroke-width="5" opacity="0.38"/>
-    <path d="M212,352 L212,150 H392 M212,256 H340" fill="none" stroke="url(#gold)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="512" height="512" fill="#0a0a0a"/><line x1="70" y1="150" x2="442" y2="150" stroke="url(#gold)" stroke-width="5" opacity="0.38"/><line x1="70" y1="203" x2="442" y2="203" stroke="url(#gold)" stroke-width="5" opacity="0.38"/><line x1="70" y1="256" x2="442" y2="256" stroke="url(#gold)" stroke-width="5" opacity="0.38"/><line x1="70" y1="309" x2="442" y2="309" stroke="url(#gold)" stroke-width="5" opacity="0.38"/><line x1="70" y1="362" x2="442" y2="362" stroke="url(#gold)" stroke-width="5" opacity="0.38"/><path d="M212,352 L212,150 H392 M212,256 H340" fill="none" stroke="url(#gold)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
     <ellipse cx="176" cy="356" rx="44" ry="31" transform="rotate(-22 176 356)" fill="url(#gold)"/></svg>

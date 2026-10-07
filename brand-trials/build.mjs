@@ -74,30 +74,44 @@ const iconShell = (inner) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0
   <rect width="512" height="512" fill="${BG}"/>${inner}</svg>`;
 const staveBehind = (ys, x0, x1) => ys.map((y) => `<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="url(#gold)" stroke-width="5" opacity="0.38"/>`).join('');
 
-// NB on a stave: the N's first stroke is a note stem with its notehead.
-function iconNotablyBetter() {
-  const ys = [156, 206, 256, 306, 356];
-  const pen = 'fill="none" stroke="url(#gold)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"';
-  return iconShell(`${staveBehind(ys, 70, 442)}
-    <path d="M158,346 L158,156 L270,356 L270,156" ${pen}/>
-    <ellipse cx="127" cy="350" rx="37" ry="26" transform="rotate(-22 127 350)" fill="url(#gold)"/>
-    <path d="M322,156 L322,356 M322,156 H366 a48,50 0 0 1 0,100 H322 M322,256 H376 a50,50 0 0 1 0,100 H322" ${pen}/>`);
-}
-
-// F on a five-line stave: the F is also a note - stem, notehead and two flags.
-function iconFivetto() {
-  const ys = [150, 203, 256, 309, 362];
-  const pen = 'fill="none" stroke="url(#gold)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"';
-  return iconShell(`${staveBehind(ys, 70, 442)}
-    <path d="M212,352 L212,150 H392 M212,256 H340" ${pen}/>
-    <ellipse cx="176" cy="356" rx="44" ry="31" transform="rotate(-22 176 356)" fill="url(#gold)"/>`);
+// Each mark is letters drawn as music: the first stroke is a note's stem with its notehead.
+// With the stave it is the app's mark; without it, bolder and larger, it is the browser-tab icon,
+// which has to read at 16 pixels.
+const MARKS = {
+  'music-ledger': {
+    ys: [156, 206, 256, 306, 356],
+    strokes: 'M150,346 L150,156 L220,290 L290,156 L290,356 M340,156 L340,356 H424',
+    head: [119, 350, 37, 26],
+  },
+  'notably-better': {
+    ys: [156, 206, 256, 306, 356],
+    strokes: 'M158,346 L158,156 L270,356 L270,156 M322,156 L322,356 M322,156 H366 a48,50 0 0 1 0,100 H322 M322,256 H376 a50,50 0 0 1 0,100 H322',
+    head: [127, 350, 37, 26],
+  },
+  fivetto: {
+    ys: [150, 203, 256, 309, 362],
+    strokes: 'M212,352 L212,150 H392 M212,256 H340',
+    head: [176, 356, 44, 31],
+  },
+};
+function mark(key, { stave }) {
+  const m = MARKS[key];
+  const [cx, cy, rx, ry] = m.head;
+  const width = stave ? (key === 'fivetto' ? 28 : 24) : (key === 'fivetto' ? 40 : 34);
+  const art = `<path d="${m.strokes}" fill="none" stroke="url(#gold)" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>
+    <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" transform="rotate(-22 ${cx} ${cy})" fill="url(#gold)"/>`;
+  return iconShell(stave ? staveBehind(m.ys, 70, 442) + art : `<g transform="translate(256 256) scale(1.3) translate(-256 -256)">${art}</g>`);
 }
 
 const pieces = {
   'notably-better-splash': { svg: splashNotablyBetter(), w: 1376, h: 768, scale: 2 },
   'fivetto-splash': { svg: splashFivetto(), w: 1376, h: 768, scale: 2 },
-  'notably-better-icon': { svg: iconNotablyBetter(), w: 512, h: 512, scale: 1 },
-  'fivetto-icon': { svg: iconFivetto(), w: 512, h: 512, scale: 1 },
+  'music-ledger-icon': { svg: mark('music-ledger', { stave: true }), w: 512, h: 512, scale: 1 },
+  'notably-better-icon': { svg: mark('notably-better', { stave: true }), w: 512, h: 512, scale: 1 },
+  'fivetto-icon': { svg: mark('fivetto', { stave: true }), w: 512, h: 512, scale: 1 },
+  'music-ledger-favicon': { svg: mark('music-ledger', { stave: false }), w: 512, h: 512, scale: 1 },
+  'notably-better-favicon': { svg: mark('notably-better', { stave: false }), w: 512, h: 512, scale: 1 },
+  'fivetto-favicon': { svg: mark('fivetto', { stave: false }), w: 512, h: 512, scale: 1 },
 };
 
 const fontCss = `
@@ -120,19 +134,22 @@ for (const [name, p] of Object.entries(pieces)) {
 }
 
 // One sheet showing each icon at the sizes a phone uses, and as the mark beside the name in a top bar.
-const row = (file, label) => `
-  <div class="row"><img src="${file}" width="192"><img src="${file}" width="96"><img src="${file}" width="48"><img src="${file}" width="32">
-    <div class="bar"><img src="${file}" width="40"><span>${label}</span></div></div>`;
+const row = (key, label) => `
+  <div class="row"><img src="${key}-icon.png" width="192"><img src="${key}-icon.png" width="96"><img src="${key}-icon.png" width="48">
+    <div class="bar"><img src="${key}-icon.png" width="40"><span>${label}</span></div>
+    <div class="tab"><img src="${key}-favicon.png" width="32"><img src="${key}-favicon.png" width="16"><span>${label}</span></div></div>`;
 const sheet = `<!doctype html><meta charset="utf-8"><style>${fontCss}
   body { background: #2a2a2a; padding: 32px; font-family: Lexend; color: #f5d78e; }
   .row { display: flex; align-items: center; gap: 28px; margin-bottom: 36px; }
   .row img { border-radius: 22%; display: block; }
   .bar { display: flex; align-items: center; gap: 12px; background: ${BG}; padding: 10px 22px 10px 12px; border-radius: 10px; font-size: 22px; }
-  .bar img { border-radius: 8px; }</style>
-  ${row('notably-better-icon.png', 'Notably Better')}${row('fivetto-icon.png', 'Fivetto')}`;
+  .bar img { border-radius: 8px; }
+  .tab { display: flex; align-items: center; gap: 10px; background: #dee1e6; color: #1f1f1f; padding: 10px 18px 10px 12px; border-radius: 10px 10px 0 0; font-family: Inter, Arial, sans-serif; font-size: 13px; }
+  .tab img { border-radius: 3px; }</style>
+  ${row('music-ledger', 'The Music Ledger')}${row('notably-better', 'Notably Better')}${row('fivetto', 'Fivetto')}`;
 const sheetPath = join(here, '_sheet.html');
 writeFileSync(sheetPath, sheet);
-const page = await browser.newPage({ viewport: { width: 860, height: 520 }, deviceScaleFactor: 2 });
+const page = await browser.newPage({ viewport: { width: 1120, height: 740 }, deviceScaleFactor: 2 });
 await page.goto(pathToFileURL(sheetPath).href);
 await page.evaluate(() => document.fonts.ready);
 await page.waitForTimeout(300);
