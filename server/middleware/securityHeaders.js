@@ -29,7 +29,7 @@
 // address that is in use but missing here is what the report-only policy will complain about.
 export const CSP = {
   'default-src': ["'self'"],
-  'script-src': ["'self'", 'https://cdn.jsdelivr.net', 'https://eu-assets.i.posthog.com'],
+  'script-src': ["'self'", 'https://cdn.jsdelivr.net', 'https://eu-assets.i.posthog.com', 'https://www.youtube.com'], // youtube.com: the player's own script (iframe_api), loaded only when a piece with a video is played
   'style-src': ["'self'", "'unsafe-inline'"],
   'font-src': ["'self'"],
   'img-src': ["'self'", 'data:', 'blob:', 'https://img.youtube.com'],

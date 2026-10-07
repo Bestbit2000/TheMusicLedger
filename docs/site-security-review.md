@@ -95,6 +95,15 @@ stopped, and stops nothing. Switching it on is the owner's step, sandbox first:
 4. Then the same on production. Admin -> Security -> This site -> "Security headers" then shows the
    policy as enforced, with nothing about inline script.
 
+**The owner's sandbox walk, 7 October 2026 (step 1).** One thing reported: a YouTube video in the piece editor was
+framed from `www.youtube.com`, which the policy does not allow (`frame-src` is `youtube-nocookie.com`). The fix was to the
+page, not the policy: the editor now uses the privacy-enhanced player like everywhere else (and as the privacy policy
+says). Reading the code for the same walk found one the console had not shown: the play screen loads YouTube's player
+script (`https://www.youtube.com/iframe_api`) so a video can be paused when you leave - `script-src` now allows
+`https://www.youtube.com`. Both are in 0.49.0. The `manifest.json` errors on sandbox are Vercel's own sign-in wall for
+preview sites, not the policy, and do not happen on production. **Step 1 should be walked once more on sandbox with
+0.49.0 on it - playing a piece that has a video - before step 2.**
+
 To try it on your own machine first: the `music-ledger-csp` set-up in `.claude/launch.json` runs the app
 on port 3100 with the policy enforced (it needs a file `.claude/csp-enforce.tmp.env` holding `PORT=3100` and
 `CSP_ENFORCE=true`).

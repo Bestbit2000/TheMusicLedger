@@ -17,12 +17,15 @@ What is in it:
 | ML-482 | Privacy policy: "change my email" is on for everyone, so the "where it is switched on" phrase is gone. GDPR assessment version 3 (`docs/gdpr-assessment.md`): 15 gaps closed, 6 open |
 | ML-483 | Resend taken out (never used; he wants an email provider based in Europe) |
 | ML-484 | Trying out a new name: Admin → App name switches the name on screen between The Music Ledger, Notably Better and Fivetto (sign-in picture, name and mark, browser tab). `docs/brand-trial.md`. Its one new class, `.brand-mark`, was signed off by the owner on 7 Oct 2026, and he said to include it in 0.49.0 |
+| ML-481 | The timer pop-up shows the Timer screen's ring above its controls, so a time over an hour fits; the usual X. Its new classes (`.timer-ring-sm`, `.timer-inline-controls`, `.is-open-ended`) are **not yet signed off** |
+| ML-480 | Download my information leaves out what a super admin entered for the app (the band directory, announcements, costs, security runs) |
+| (ML-474) | From his sandbox walk: the editor's YouTube preview uses the privacy-enhanced player, and the policy allows YouTube's player script. The policy is still report-only; walk sandbox once more with 0.49.0 before switching it on |
 
-No migrations. Checked on 7 Oct 2026: back-tests 59 of 59 (run 89), the axe scan 64 of 64 (run at 1280px, so
+No migrations. Checked on 7 Oct 2026: back-tests 60 of 60 (run 90 had two failures - a server restart mid-run and a test that assumed the default name; both re-run and pass), the axe scan 64 of 64 (run at 1280px, so
 in the wide layout), token audit, accessibility audit, design gate hard checks, third-party audit and the
 server's unit tests.
 
-To release once he says so: `npm run cut-release -- 0.49.0 ML-239 ML-482 ML-483 ML-484`, `npm run sync-releases`,
+To release once he says so: `npm run cut-release -- 0.49.0 ML-239 ML-480 ML-481 ML-482 ML-483 ML-484`, `npm run sync-releases`,
 commit, then `DESIGN_APPROVED=1 git push --atomic origin after-0.48.0:main after-0.48.0:sandbox` (his
 approval of the design was given in the chat on 7 Oct 2026). `docs/release-process.md` has the steps.
 
