@@ -13,7 +13,8 @@ practise at home. None found does all five of these together:
 1. made for wind, brass and concert bands;
 2. **the band's own music can be practised** - any arrangement, from the paper part, with no library
    and no notation file;
-3. a practice method and a forecast to the concert date;
+3. **focused practice** - the piece is cut into short bits and worked on five minutes at a time, each
+   bit moving up a Level, with a forecast of how many five-minute blocks are left before the concert;
 4. practice is private - nobody is watched or marked;
 5. the band doesn't pay.
 
@@ -44,7 +45,7 @@ isn't there). n/a = the app has no practice tools, so there is nothing to keep p
 
 **The five things that set the app apart**
 
-| App | From | 1. Made for wind / brass / concert bands | 2. Own music practisable, no notation file | 3. Method and forecast to the date | 4. Practice is private | 5. Band doesn't pay | Of 5 |
+| App | From | 1. Made for wind / brass / concert bands | 2. Own music practisable, no notation file | 3. Focused practice in five-minute blocks | 4. Practice is private | 5. Band doesn't pay | Of 5 |
 |---|---|---|---|---|---|---|---|
 | **The Music Ledger** | UK | ✓ | ✓ | ✓ | ✓ | ✓ | **5** |
 | BandSync Library | UK | ✓ | part | | n/a | ✓ | 2½ |
@@ -72,7 +73,11 @@ Notes on "part":
 - **Column 2:** BandSync, Glissandoo, tamtam, Newzik and Making Music Platform take the band's own PDFs
   (and some audio), but as a library to read from, not something to practise against. Moises needs a
   recording of the piece, which a new arrangement won't have.
-- **Column 3:** the solo practice apps have practice lists and timers, but no Levels and no forecast.
+- **Column 3:** the solo practice apps have practice lists and timers (one, Riffshed, has 20-minute
+  focus blocks with a break), but none cuts a piece into bits, moves each up a Level, or forecasts
+  the blocks left. The owner's name for ours is **"Focus for Five"** (6 Oct 2026 - an idea, not yet
+  used anywhere in the app). A quick search found nobody using that name for a music practice app or
+  method; that is not a trademark check.
 - **Column 5:** BandSync is free up to 500 pieces; Glissandoo free up to 20 members; Muzodo up to 15;
   My Band up to 10 members and 5 events; Moises for the owner plus 6. A real band outgrows all but BandSync.
 - **Column 1:** MakeMusic and PracticeFirst are for school bands.
