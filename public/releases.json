@@ -1,5 +1,61 @@
 [
   {
+    "version": "0.48.0",
+    "date": "2026-10-07",
+    "changes": [
+      {
+        "key": "ML-479",
+        "type": "Fixes",
+        "summary": "Band invitations: say when the email wasn't really sent, and don't send one from \"A member\""
+      },
+      {
+        "key": "ML-478",
+        "type": "New",
+        "summary": "My bands: one list of the bands you play with - adding is private, sharing comes by invitation, and duplicates can be merged"
+      },
+      {
+        "key": "ML-475",
+        "type": "New",
+        "summary": "Sign-in token: keep Google's own keys out of it, and stop putting it in the address"
+      },
+      {
+        "key": "ML-474",
+        "type": "New",
+        "summary": "Enforce the content security policy (move the inline handlers out of the pages first)"
+      },
+      {
+        "key": "ML-471",
+        "type": "New",
+        "summary": "Design rule for young players: no pressure in upgrade prompts, streaks or reminders"
+      },
+      {
+        "key": "ML-470",
+        "type": "New",
+        "summary": "Reviews that come round: data protection, Children's Code, site security - with a reminder on the Dashboard"
+      },
+      {
+        "key": "ML-469",
+        "type": "New",
+        "summary": "Third parties: record each provider's data processing agreement and transfer safeguard"
+      },
+      {
+        "key": "ML-466",
+        "type": "New",
+        "summary": "Privacy policy: say why each thing is held, a few lines for young players, and the teacher's name"
+      },
+      {
+        "key": "ML-465",
+        "type": "New",
+        "summary": "Change the email address an account uses"
+      },
+      {
+        "key": "ML-463",
+        "type": "New",
+        "summary": "An important notice that pops up when you next open the app (\"Before you continue...\")"
+      }
+    ]
+  },
+  {
     "version": "0.47.0",
     "date": "2026-10-06",
     "changes": [
