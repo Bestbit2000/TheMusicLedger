@@ -1,33 +1,39 @@
-# Handover: release 0.49.0 is built and waits for the owner's check
+# Handover: after release 0.49.0
 
 Written 7 October 2026. **Start here.** Replace this file with the next handover when there is one.
 
 ## Where things stand
 
-**0.48.0 is on production and sandbox** (commit `94c0d8d`). Branch `after-0.48.0` (local, not pushed) holds
-what is to go out as **0.49.0**. The owner has agreed the version, signed off the design (7 Oct 2026) and
-said no notice to members is needed. **He wants to check it himself before it is released - do not cut
-the release or push until he says so.**
-
-What is in it:
+**0.49.0 went to production and sandbox on 7 October 2026**: ML-239, ML-480, ML-481, ML-482, ML-483, ML-484.
+No migrations. The owner signed off the design (the layout, the brand mark and the timer pop-up) in the chat
+that day, and said no notice to members was needed.
 
 | Ticket | What |
 |---|---|
-| ML-239 | Tablet and desktop: the menu rail, a page as a narrow or wide card, Home and the play screen side by side, two panes on the list pages. `specs/foundations/layout.md` |
-| ML-482 | Privacy policy: "change my email" is on for everyone, so the "where it is switched on" phrase is gone. GDPR assessment version 3 (`docs/gdpr-assessment.md`): 15 gaps closed, 6 open |
+| ML-239 | Tablet and desktop: the menu rail (starts open, folds to icons), a page as a narrow or wide card, Home and the play screen side by side, two panes on the list pages. `specs/foundations/layout.md` |
+| ML-484 | Trying out a new name: Admin → App name switches the name on screen between The Music Ledger, Notably Better and Fivetto. `docs/brand-trial.md` |
+| ML-481 | The timer pop-up shows the Timer screen's ring above its controls, so a time over an hour fits |
+| ML-480 | Download my information leaves out what a super admin entered for the app, the people a member invited, and the app's own workings. `docs/account-deletion.md` |
+| ML-482 | Privacy policy: "change my email" is on for everyone. GDPR assessment version 3: 15 gaps closed, 6 open |
 | ML-483 | Resend taken out (never used; he wants an email provider based in Europe) |
-| ML-484 | Trying out a new name: Admin → App name switches the name on screen between The Music Ledger, Notably Better and Fivetto (sign-in picture, name and mark, browser tab). `docs/brand-trial.md`. Its one new class, `.brand-mark`, was signed off by the owner on 7 Oct 2026, and he said to include it in 0.49.0 |
-| ML-481 | The timer pop-up shows the Timer screen's ring above its controls, so a time over an hour fits; the usual X. Its new classes (`.timer-ring-sm`, `.timer-inline-controls`, `.is-open-ended`) are **not yet signed off** |
-| ML-480 | Download my information leaves out what a super admin entered for the app (the band directory, announcements, costs, security runs) |
-| (ML-474) | From his sandbox walk: the editor's YouTube preview uses the privacy-enhanced player, and the policy allows YouTube's player script. The policy is still report-only; walk sandbox once more with 0.49.0 before switching it on |
+| (ML-474) | The editor's YouTube preview uses the privacy-enhanced player; the security policy allows YouTube's player script. **The policy is still report-only** |
 
-No migrations. Checked on 7 Oct 2026: back-tests 60 of 60 (run 90 had two failures - a server restart mid-run and a test that assumed the default name; both re-run and pass), the axe scan 64 of 64 (run at 1280px, so
-in the wide layout), token audit, accessibility audit, design gate hard checks, third-party audit and the
-server's unit tests.
+Checked before release: back-tests 60 of 60 (run 91), the axe scan 64 of 64 (run at 1280px, so in the wide
+layout), token audit, accessibility audit, design gate, third-party audit, the server's unit tests.
 
-To release once he says so: `npm run cut-release -- 0.49.0 ML-239 ML-480 ML-481 ML-482 ML-483 ML-484`, `npm run sync-releases`,
-commit, then `DESIGN_APPROVED=1 git push --atomic origin after-0.48.0:main after-0.48.0:sandbox` (his
-approval of the design was given in the chat on 7 Oct 2026). `docs/release-process.md` has the steps.
+## Next, with the owner
+
+- **Switching the content security policy on (ML-474).** He walked sandbox on 7 Oct; it found the YouTube
+  framing error, now fixed. He is to walk sandbox **once more with 0.49.0 on it, playing a piece that has a
+  video**, with the console open. If it is quiet: set `CSP_ENFORCE=true` on both Vercel projects, then
+  `npm run sync-vercel-headers -- --enforce` and a small release. Steps: `docs/site-security-review.md`.
+- **The name.** Production is on `music-ledger` until he switches it on Admin → App name. Dev was left on
+  whatever he last chose (Fivetto when this was written). Emails keep the old name, so his wife will meet
+  both. He is choosing in another chat, which also draws the artwork in `brand-trials/` on whatever branch
+  is checked out - **commit by file name, never `git add -A`.**
+- **GDPR, the six open gaps:** Vercel Pro (no domain needed), Google sign-in's safeguard on its card (no
+  Workspace needed), the content security policy (above), then the three that wait on a domain name - an
+  email provider with an agreement, retention switched on, sign-up emails.
 
 ## ML-239: what is and isn't done
 
@@ -39,17 +45,13 @@ approval of the design was given in the chat on 7 Oct 2026). `docs/release-proce
   using the width; Practice lists as two panes; Stats as a wider dashboard.
 - ML-238 (a phone on its side) is still open: no layout of its own was the agreed answer; it gets the tablet
   layout with the rail folded. He has not said to close the ticket.
-- The rail is 256px wide (it was 232): "The Music Ledger" has to fit beside the mark.
-- **ML-484:** production starts on `music-ledger` (no row in `app_config` means the default; no migration). He switches it himself on Admin → App name. Emails keep the old name, so tell him when it is switched - his wife will meet both. No notice to members (his decision). Another chat is working on the artwork in `brand-trials/` on this same branch: commit by file name, never `git add -A`.
+- The rail is 256px wide: "The Music Ledger" has to fit beside the mark.
 - **The back-tests run at 500px wide** (`playwright.config.ts`) - the phone layout. Cases 9 and 21 set a
-  desktop window before opening the admin panel. Case 58 is the wide layout; case 59 is the name on screen (it puts the setting back).
+  desktop window before opening the admin panel. Case 58 is the wide layout, 59 the name on screen (it puts
+  the setting back), 60 the timer pop-up (it clears the timer it starts).
 
 ## Left over from before - all with the owner
 
-- GDPR, the six open gaps: Vercel Pro (no domain needed), Google sign-in's safeguard on its card (no
-  Workspace needed), switching the content security policy on (his sandbox check first), then the three
-  that wait on a domain name - an email provider with an agreement, retention switched on, sign-up emails.
-  He is choosing the app's name in another chat; a domain follows that.
 - The notice for ML-478 ("My bands has changed") was agreed but never published; with one member signed in
   he may not want it now.
 - "Upgrade now" on the SmartLearn prompt: "Ask to upgrade" would be truer (ML-471). Not decided.
@@ -59,11 +61,18 @@ approval of the design was given in the chat on 7 Oct 2026). `docs/release-proce
 
 ## Things to know
 
-- Other people now have accounts on production: his wife and his band's conductor, and his teacher has
-  access. Nobody further should be invited until Vercel and the email provider have agreements.
+- Other people have accounts on production: his wife and his band's conductor, and his teacher has access.
+  Nobody further should be invited until Vercel and the email provider have agreements.
 - The five compliance documents: he keeps his own copies. **Never overwrite them** - a redraft is a new
   dated file, with no ICO number in it.
 - `npm run design-signoff` empties the whole `design-signoff/` folder first - keep nothing else in it.
+- A back-test run fails now and then when a server file is saved mid-run (the local server restarts and a
+  test sees "You are offline"). Re-run the case.
+- An edit to `public/index.html` made by cutting between two markers once removed the line that loads
+  `brand.js` and the page's card (7 Oct 2026, caught the same hour). After editing that file by position,
+  check `git diff` touches only what was meant.
+- PostHog's console warning about `persistence: 'memory'` is expected: no ID is kept on the device, by
+  design. Its suggested fixes would break "anonymous and cookieless".
 - A production migration: get the connection string with
   `neon connection-string production --project-id little-haze-42527245` into a shell variable (never
   printed), trial the pending files in one rolled-back transaction, then `DATABASE_URL="$P" node db/migrate.js`.
@@ -72,7 +81,7 @@ approval of the design was given in the chat on 7 Oct 2026). `docs/release-proce
 
 - Plain English, UK spelling; short sentences; no jargon in what he reads.
 - Commit when asked; **never push or release without being asked**. Releases: `docs/release-process.md`.
-- New styling needs his sign-off **with pictures sent as files**.
+- New styling needs his sign-off **with pictures sent as files**, each item explicitly.
 - Privacy policy wording is his. Draft it, quote it, wait.
 - A browser test must never Save, Reset or delete real rows on dev - he uses dev himself.
 - Never write his ICO security number anywhere.
