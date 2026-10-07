@@ -104,6 +104,11 @@ script (`https://www.youtube.com/iframe_api`) so a video can be paused when you 
 preview sites, not the policy, and do not happen on production. **Step 1 should be walked once more on sandbox with
 0.49.0 on it - playing a piece that has a video - before step 2.**
 
+**Switched on, 7 October 2026.** With 0.49.0 on sandbox the owner played a piece with a video and opened its
+editor's Media tab with the console open: nothing from the policy. He set `CSP_ENFORCE=true` in Vercel for
+production and sandbox (production's API answers were checked enforcing straight after his redeploy), and
+`vercel.json` was rewritten with `npm run sync-vercel-headers -- --enforce` so the pages enforce it too.
+
 To try it on your own machine first: the `music-ledger-csp` set-up in `.claude/launch.json` runs the app
 on port 3100 with the policy enforced (it needs a file `.claude/csp-enforce.tmp.env` holding `PORT=3100` and
 `CSP_ENFORCE=true`).
