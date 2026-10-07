@@ -85,6 +85,19 @@ the three databases. The fuller history of each gap is in the version 2 register
 - **Resend is gone (7 October 2026, the owner):** it was never used on the live site and he wants an email
   provider based in Europe. Its register entry, sending code and usage meters were taken out; where older
   parts of this document say "Resend", read "the email provider", which today is Gmail.
+- **Re-checked on production later on 7 October 2026**, after the owner's updates there:
+  - Gap 5 **closed**: "change my email" is on for every account type. The policy's "where it is switched
+    on for your account" can now go (the owner's wording to agree).
+  - Gap 19 part done: Neon and PostHog each have "the UK addendum in its agreement" recorded. Google
+    sign-in has nothing recorded yet; Vercel and Gmail wait on their agreements.
+  - Unchanged: no notice published (gap 2), retention off (6), the content security policy report-only (9),
+    Vercel (11) and Gmail (13) with no agreement.
+  - **14 closed, 7 open.** Only gaps 13 and 6 need a domain name.
+- **Gap 2 signed off by the owner, 7 October 2026.** The last-seen date began with 0.45.0 on 6 October;
+  production shows a last-seen date for his account only, so nothing was collected about anyone who had
+  not been told. The two reviewers will be covered by the privacy policy, which names it, when they next
+  sign in. No notice is to be sent. **15 closed, 6 open.**
+- The privacy policy's rights paragraph no longer says "where it is switched on for your account" (gap 5).
 - The monthly site security review is next due about 6 November 2026; re-running it will record ML-474 and
   ML-475 as closed.
 
