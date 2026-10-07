@@ -2984,6 +2984,13 @@
         :is(body.app-shell, .rail-demo) .nav-menu .nav-divider:has(+ [data-act="logout"]) { margin-top: auto; }
         :is(body.app-shell, .rail-demo) .nav-menu .nav-section-title { padding: var(--space-1) var(--space-3); }
 
+        /* the Tools panel in the rail: two to a row, so the icons and names are a size you can read (owner, 7 Oct 2026) */
+        :is(body.app-shell, .rail-demo) .nav-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); padding: var(--space-1) var(--space-1) var(--space-3); }
+        :is(body.app-shell, .rail-demo) .nav-tool { gap: var(--space-2); padding: var(--space-3) var(--space-1); }
+        :is(body.app-shell, .rail-demo) .nav-tool .tool-icon-svg { width: var(--icon-xl); height: var(--icon-xl); }
+        :is(body.app-shell, .rail-demo) .nav-tool .material-symbols-outlined { font-size: var(--icon-xl); }
+        :is(body.app-shell, .rail-demo) .nav-tool-label { font-size: var(--font-sm); }
+
         /* folded to icons: the names are still there for a screen reader, and show as a tip on hover */
         :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-rail-head { padding: 0 0 var(--space-2); justify-content: center; }
         :is(body.app-shell.rail-folded, .rail-demo.is-folded) :is(.nav-rail-name, .nav-section-title, .nav-item-chevron, .nav-item-meta) { display: none; }

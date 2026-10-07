@@ -22,7 +22,9 @@ The admin panel has its own side menu ([admin-shell](admin-shell.md)).
 - **The items** - the menu's own `.nav-item` buttons, `.nav-section-title`s and `.nav-divider`s, unchanged
   ([dropdown-menu](dropdown-menu.md)). The row lines between items go; each item is a rounded row.
 - **Log out** sits at the bottom of the rail (the divider before it takes the spare height).
-- **Tools** still swaps the rail to its panel of tool icons, and Back swaps it again.
+- **Tools** still swaps the rail to its panel of tool icons, and Back swaps it again. In the rail the tools are **two to a row** with
+  the larger icon (`--icon-xl`) and name (`--font-sm`) - four to a row, as in the phone's menu, was too small to read
+  (owner, 7 Oct 2026).
 
 ## 4. Tokens used
 `--rail-width`, `--rail-width-folded`, `--rail-head-height`, `--container-bg`, `--input-border`, `--input-bg`,
