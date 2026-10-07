@@ -34,7 +34,7 @@ export const CSP = {
   'font-src': ["'self'"],
   'img-src': ["'self'", 'data:', 'blob:', 'https://img.youtube.com'],
   'media-src': ["'self'", 'blob:', 'https://*.public.blob.vercel-storage.com'],
-  'connect-src': ["'self'", 'https://eu.i.posthog.com', 'https://eu-assets.i.posthog.com', 'https://*.public.blob.vercel-storage.com', 'https://blob.vercel-storage.com', 'https://vercel.com'],
+  'connect-src': ["'self'", 'https://eu.i.posthog.com', 'https://eu-assets.i.posthog.com', 'https://*.public.blob.vercel-storage.com', 'https://blob.vercel-storage.com', 'https://vercel.com', 'https://cdn.jsdelivr.net'], // jsdelivr: only the browser's developer tools ask for it (the source maps of the upload script it serves) - allowed so a console check isn't full of blocked lines that hide a real one
   'frame-src': ['https://www.youtube-nocookie.com'],
   'worker-src': ["'self'"],
   'manifest-src': ["'self'"],

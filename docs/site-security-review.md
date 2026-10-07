@@ -109,6 +109,11 @@ editor's Media tab with the console open: nothing from the policy. He set `CSP_E
 production and sandbox (production's API answers were checked enforcing straight after his redeploy), and
 `vercel.json` was rewritten with `npm run sync-vercel-headers -- --enforce` so the pages enforce it too.
 
+**Enforced on sandbox, the same day.** Eight blocked connections to `cdn.jsdelivr.net/sm/*.map` showed in the console.
+They are the source maps of the upload script jsDelivr serves, asked for by the browser's developer tools and by nobody
+else - nothing in the app was blocked. `connect-src` now allows `cdn.jsdelivr.net` so a console check stays readable.
+The `manifest.json` lines on sandbox are still Vercel's sign-in wall.
+
 To try it on your own machine first: the `music-ledger-csp` set-up in `.claude/launch.json` runs the app
 on port 3100 with the policy enforced (it needs a file `.claude/csp-enforce.tmp.env` holding `PORT=3100` and
 `CSP_ENFORCE=true`).
