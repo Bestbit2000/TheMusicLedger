@@ -60,7 +60,7 @@ A grid of tiles fits as many as it can the same way: `repeat(auto-fill, minmax(v
 
 | Token | Value | Use |
 |---|---|---|
-| `--rail-width` | 232px | the menu rail, open |
+| `--rail-width` | 256px | the menu rail, open |
 | `--rail-width-folded` | 64px | the menu rail, folded to icons |
 | `--rail-head-height` | 58px | the rail's head and the top bar line up |
 | `--page-max-narrow` | 640px | a narrow page |

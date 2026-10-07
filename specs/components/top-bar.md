@@ -44,6 +44,10 @@ Put them in the screen body.
 **From 700px up (ML-239)** the back button is a 44px square that takes the hover wash (`--primary-action-tint`) under a
 mouse, so it reads as something to click (owner, 7 Oct 2026). The rail's fold button does the same.
 
+**On Home the title is the app's name, with its [brand mark](brand-mark.md) before it (ML-484)** - on a phone. The name is
+`Brand.name()`, one of three while a new name is tried out. On every other screen the mark is hidden and the
+title is the screen's name.
+
 ## 8. Cross-references
 [dropdown-menu](dropdown-menu.md) · [notification-centre](notification-centre.md) · [metronome](metronome.md) · [elevation](../foundations/elevation.md) · [menu-rail](menu-rail.md) (from 700px up the ☰ button is hidden and the menu is a rail; the bar spans the page beside it, and Home's title is "Home") · [layout](../foundations/layout.md)
 

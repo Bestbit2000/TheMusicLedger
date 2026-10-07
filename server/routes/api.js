@@ -21,6 +21,7 @@ import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrD
 import { readMeters, sendUsageWarnings } from '../services/thirdPartyUsage.js';
 import { getBusinessCase } from '../services/businessCase.js';
 import { runRetention, clearOldRecords } from '../services/retention.js';
+import { getBrand } from '../services/brand.js';
 import { deleteMyAccount } from '../services/accountDeletion.js';
 import { exportMyAccount } from '../services/accountExport.js';
 import { getAccountProfile, updateAccountProfile, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
@@ -456,6 +457,17 @@ router.get('/dropdown-options', requireAuth, resolveAccount, async (req, res) =>
 // INSTRUMENTS (ML-309) - the catalogue, and the instruments this account plays (My account ->
 // My instruments). See server/services/instruments.js.
 // ========================================
+// ML-484: which name the app goes by on screen (a trial - docs/brand-trial.md). Deliberately open: the
+// sign-in screen shows it before anyone has signed in. It answers with the brand's key and nothing else.
+router.get('/brand', async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.json({ brand: await getBrand() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.get('/instruments', requireAuth, async (req, res) => {
   try {
     res.json(await listInstruments());

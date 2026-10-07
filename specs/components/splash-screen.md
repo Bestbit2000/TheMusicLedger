@@ -43,6 +43,10 @@ Loading (no button) · Ready (button shown) · Button focus (`--focus-ring`) · 
 </div></div>
 ```
 
+**The picture follows the name on screen (ML-484).** `img.splash-image#splashImage` is one of three while a new name
+is tried out; `public/brand.js` sets its `src` and `alt` and holds it back until the brand is known, and falls
+back to the Music Ledger picture if a trial picture can't be fetched. `docs/brand-trial.md`.
+
 ## 8. Cross-references
 [button](button.md) · [color](../foundations/color.md)
 

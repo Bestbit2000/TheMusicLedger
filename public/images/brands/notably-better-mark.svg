@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="gold" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="512" y2="0">
+      <stop offset="0" stop-color="#b8922e"/><stop offset="0.3" stop-color="#f5d78e"/>
+      <stop offset="0.55" stop-color="#d4af37"/><stop offset="0.8" stop-color="#f5d78e"/>
+      <stop offset="1" stop-color="#b8922e"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="#0a0a0a"/><line x1="70" y1="156" x2="442" y2="156" stroke="url(#gold)" stroke-width="5" opacity="0.38"/><line x1="70" y1="206" x2="442" y2="206" stroke="url(#gold)" stroke-width="5" opacity="0.38"/><line x1="70" y1="256" x2="442" y2="256" stroke="url(#gold)" stroke-width="5" opacity="0.38"/><line x1="70" y1="306" x2="442" y2="306" stroke="url(#gold)" stroke-width="5" opacity="0.38"/><line x1="70" y1="356" x2="442" y2="356" stroke="url(#gold)" stroke-width="5" opacity="0.38"/><path d="M158,346 L158,156 L270,356 L270,156 M322,156 L322,356 M322,156 H366 a48,50 0 0 1 0,100 H322 M322,256 H376 a50,50 0 0 1 0,100 H322" fill="none" stroke="url(#gold)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+    <ellipse cx="127" cy="350" rx="37" ry="26" transform="rotate(-22 127 350)" fill="url(#gold)"/></svg>

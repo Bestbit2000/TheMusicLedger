@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TheMusicLedger Admin</title>
 
-    <link rel="icon" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="64x64" href="images/brands/music-ledger-tab.png">
+    <link rel="icon" type="image/svg+xml" href="images/brands/music-ledger-tab.svg">
 
     <!-- ML-430: Inter and the icons are self-hosted (style.css) - nothing is loaded from Google Fonts -->
     <link rel="stylesheet" href="tokens.css">
@@ -62,6 +63,7 @@
                 <button class="admin-nav-item" data-section="rest-messages" type="button">Rest messages</button>
                 <button class="admin-nav-item" data-section="theory-grades" type="button">Theory grades</button>
                 <button class="admin-nav-item" data-section="metadata" type="button">Metadata lists</button>
+                <button class="admin-nav-item" data-section="brand" type="button">App name</button>
                 </div>
             </div>
             <div class="admin-nav-group" data-nav-group="business">
@@ -290,6 +292,12 @@
         <!-- ML-390: the messages for the 30-second rest between practice-session blocks. Each player draws
              from their own shuffled deck, so every message comes round once before any repeats; a breathing
              one at least every third rest. Changes take effect straight away - no release. -->
+        <!-- ML-484: the name the app goes by on screen - a trial of candidate names (public/admin-brand.js, docs/brand-trial.md) -->
+        <section id="brand-section" class="admin-section hidden-group">
+            <h1>App name</h1>
+            <p class="admin-intro">"The Music Ledger" is a working title. Pick the name the app goes by <strong>on screen</strong>, to live with a candidate before deciding. <strong>It changes what everyone sees, straight away</strong> - the next time they open the app, signed in or not.</p>
+            <div id="adminBrand"><p class="admin-intro">Loading&hellip;</p></div>
+        </section>
         <section id="rest-messages-section" class="admin-section hidden-group">
             <h1>Rest messages</h1>
             <p class="admin-intro">What the <strong>30-second rest</strong> between practice-session blocks shows - one message at a time, with its icon (breathing ones show a breathing circle instead). Every player gets them in their own shuffled order, each once before any comes round again, never the same kind twice running, and a breathing one at least every third rest. <strong>For</strong> picks who sees it: everyone, brass players (lip messages) or brass and woodwind players (breath and air). Keep them short enough to read in a few seconds, and written for a ten-year-old. Icons are <a href="https://fonts.google.com/icons" target="_blank" rel="noopener">Material Symbols</a> names. Changes show straight away - no release needed.</p>
@@ -910,6 +918,7 @@
 <script src="admin-dashboard.js"></script>
 <!-- ML-464: Admin -> Retention -->
 <script src="admin-retention.js"></script>
+<script src="admin-brand.js"></script>
 <!-- ML-443: the business case sums, then the page that runs them (both after admin.js) -->
 <script src="businessCase.js"></script>
 <script src="admin-business.js"></script>

@@ -71,6 +71,15 @@ points at changes depending on what's checked out, and production should never
 be touched by accident. This doc exists in the repo (not just Jira `ML-21`)
 specifically so a Claude session without Jira access still has full context.
 
+**The name on screen is one of three for now (ML-484).** "The Music Ledger" is a working title; while a
+new name is tried out, Admin → App name switches what the app is called **on screen** - the sign-in
+picture, the name and small mark at the top of Home and in the menu rail, the browser tab - between The
+Music Ledger, Notably Better and Fivetto, for everyone. It is a trial, not a rename: the privacy policy,
+terms, emails, manifest and installed icons always say The Music Ledger. Write the app's name on screen
+with `Brand.name()` (`public/brand.js`), never as a new literal, and read
+[`docs/brand-trial.md`](docs/brand-trial.md) before touching the sign-in screen, the top bar's title or
+the rail's head. A back-test must never leave dev on a trial name.
+
 ## Product values
 
 **Before proposing a feature, a price, a gate or anything one member can see about another, read

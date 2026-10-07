@@ -17,7 +17,7 @@ remembered on the device (`localStorage`, `tml.railFolded`). Owner's decision, 7
 The admin panel has its own side menu ([admin-shell](admin-shell.md)).
 
 ## 3. Anatomy
-- **The head** - `div.nav-rail-head`, first thing in `.nav-menu`: the app's name (`span.nav-rail-name`) and the
+- **The head** - `div.nav-rail-head`, first thing in `.nav-menu`: the [brand mark](brand-mark.md) (ML-484), the app's name (`span.nav-rail-name` - the name on screen, `Brand.name()`) and the
   fold button (`button.nav-rail-fold#navRailFoldBtn`, icon `menu_open` open / `menu` folded). Hidden on a phone.
 - **The items** - the menu's own `.nav-item` buttons, `.nav-section-title`s and `.nav-divider`s, unchanged
   ([dropdown-menu](dropdown-menu.md)). The row lines between items go; each item is a rounded row.
@@ -43,6 +43,8 @@ the menu), `--touch-target`, `--radius-md`, `--space-1`, `--space-2`, `--space-3
 - While the rail shows, `renderNavMenu()` runs on every screen change, so the rail is as fresh as a menu that
   has just been opened.
 - The top bar's title on Home is "Home" while the rail shows (the rail carries the app's name).
+
+- Folded, the head is the mark above the fold button (the name is hidden).
 
 ## 6. States
 Open / folded. Item: default / hover / current (`aria-current="page"`) / focus. Panel: main / Tools. Folded,

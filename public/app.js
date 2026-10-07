@@ -1917,6 +1917,8 @@
     document.getElementById('burgerDropdown')?.addEventListener('click', (e) => {
         if (!e.target.closest('button, a')) e.stopPropagation();
     });
+    // ML-484: the name the app goes by on screen - one of three while a new name is tried out (public/brand.js).
+    const appName = () => (window.Brand ? window.Brand.name() : 'The Music Ledger');
     function closeMenu() {
         const dropdown = document.getElementById('burgerDropdown');
         if(dropdown) dropdown.classList.remove('show');
@@ -2317,10 +2319,11 @@
         if (viewName === 'mainView') {
             rehearseRefresh(); // ML-299: the Rehearse tile shows once there's a piece to play
             topBackBtn.classList.add('hidden-btn');
-            document.getElementById('topTitle').innerText = railOn() ? 'Home' : 'The Music Ledger'; // ML-239: the rail carries the name
+            document.getElementById('topTitle').innerText = railOn() ? 'Home' : appName(); // ML-239: the rail carries the name
         } else {
             topBackBtn.classList.remove('hidden-btn');
         }
+        setShown('topBrandMark', viewName === 'mainView'); // ML-484: the mark sits beside the app's name, so on Home only
 
         if (viewName === 'statsHomeView') { document.getElementById('topTitle').innerText = 'Stats'; renderStatsHome(); }
         if (viewName === 'toolResultsView') { document.getElementById('topTitle').innerText = 'Tool results'; renderToolResults(); }
@@ -2520,7 +2523,7 @@
         // to its heading (tabindex=-1, so it gets no visible ring and isn't in the Tab order).
         const titleEl = document.getElementById('topTitle');
         const screenName = titleEl ? titleEl.innerText.trim() : '';
-        document.title = screenName && screenName !== 'The Music Ledger' ? `${screenName} - The Music Ledger` : 'The Music Ledger';
+        document.title = screenName && screenName !== appName() ? `${screenName} - ${appName()}` : appName();
         if (titleEl && window.__a11yViewReady) titleEl.focus({ preventScroll: true });
         window.__a11yViewReady = true;
     }

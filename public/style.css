@@ -2944,6 +2944,13 @@
            (specs/components/two-pane.md; set by applyPanes in app.js from 1000px up)
        ========================================================================================= */
 
+    /* ML-484: the brand's small mark - beside the app's name at the top of Home (phone) and in the head of the
+       menu rail (specs/components/brand-mark.md). The picture is the brand's own artwork; only its size and
+       corners are ours. Until the brand is known for the first time (public/brand.js sets data-brand-ready on
+       <html>) the sign-in picture, the mark and the name are held back, so nobody sees one name then another. */
+    .brand-mark { flex: 0 0 auto; width: var(--icon-xl); height: var(--icon-xl); margin-right: var(--space-2); border-radius: var(--radius-sm); }
+    html:not([data-brand-ready]) body.app-shell :is(.splash-image, .brand-mark, .nav-rail-name) { visibility: hidden; }
+
     /* On a phone the side-by-side groups are not boxes at all, so those screens are exactly as they were. */
     .home-main, .home-tools, .play-side, .play-main { display: contents; }
     .nav-rail-head { display: none; }
@@ -2957,6 +2964,7 @@
         body.app-shell :is(.top-bar, .session-bar, .offline-bar) { max-width: none; }
         body.app-shell .top-bar { padding: var(--space-2) var(--space-6); min-height: var(--rail-head-height); }
         body.app-shell .top-btn-burger { display: none; }
+        body.app-shell .top-bar > .brand-mark { display: none; } /* ML-484: the rail's head carries the mark and the name */
         /* Back is a button you can see is a button: a square that lights up under the mouse (owner, 7 Oct 2026) */
         body.app-shell .top-btn-back { justify-content: center; width: var(--touch-target); height: var(--touch-target); padding: 0 0 var(--space-0-5); margin: 0 var(--space-3) 0 calc(-1 * var(--space-2)); border-radius: var(--radius-md); transition: background var(--duration-fast) ease; }
         body.app-shell .top-btn-back:hover { background: var(--primary-action-tint); }
@@ -2976,7 +2984,8 @@
         .rail-demo.is-folded { width: var(--rail-width-folded); }
         .rail-demo .nav-menu { display: flex; position: static; width: auto; }
         :is(body.app-shell, .rail-demo) .nav-menu { flex-direction: column; min-width: 0; max-width: none; box-sizing: border-box; padding: var(--space-2); border: none; border-right: 1px solid var(--input-border); border-radius: 0; box-shadow: none; }
-        :is(body.app-shell, .rail-demo) .nav-rail-head { display: flex; align-items: center; gap: var(--space-2); min-height: var(--touch-target); padding: 0 0 var(--space-2) var(--space-3); }
+        :is(body.app-shell, .rail-demo) .nav-rail-head { display: flex; align-items: center; gap: var(--space-2); min-height: var(--touch-target); padding: 0 0 var(--space-2) var(--space-2); }
+        .nav-rail-head .brand-mark { margin-right: 0; }
         .nav-rail-name { flex: 1 1 auto; min-width: 0; font-size: var(--font-base); font-weight: var(--font-weight-bold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .nav-rail-fold { flex: 0 0 auto; display: grid; place-items: center; width: var(--touch-target); height: var(--touch-target); padding: 0; border: none; border-radius: var(--radius-md); background: none; color: var(--label-color); cursor: pointer; }
         .nav-rail-fold:hover { background: var(--primary-action-tint); color: var(--text-color); }
@@ -2995,7 +3004,8 @@
         :is(body.app-shell, .rail-demo) .nav-tool-label { font-size: var(--font-sm); }
 
         /* folded to icons: the names are still there for a screen reader, and show as a tip on hover */
-        :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-rail-head { padding: 0 0 var(--space-2); justify-content: center; }
+        :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-rail-head { flex-direction: column; padding: var(--space-2) 0; justify-content: center; } /* the mark over the button */
+        :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-rail-head .brand-mark { margin-right: 0; }
         :is(body.app-shell.rail-folded, .rail-demo.is-folded) :is(.nav-rail-name, .nav-section-title, .nav-item-chevron, .nav-item-meta) { display: none; }
         :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-menu .nav-item-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* token-audit-ignore: standard screen-reader-only clip pattern */
         :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-menu .dropdown-item.nav-item:not(.hidden-group) { justify-content: center; padding: var(--space-2) 0; }

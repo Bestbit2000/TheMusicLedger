@@ -77,7 +77,8 @@ const TIMEOUT_MS = 10000;
 // Routes that are meant to work without a signed-in account, and why.
 export const OPEN_ROUTES = {
   'GET /cron/usage-readings': 'the daily job - checks CRON_SECRET itself',
-  'GET /instruments': 'the shared list of instruments - needs a sign-in, not an account'
+  'GET /instruments': 'the shared list of instruments - needs a sign-in, not an account',
+  'GET /brand': 'which name the app goes by on screen (ML-484) - the sign-in screen needs it; it answers with one of three fixed words and nothing else'
 };
 // Routes that take their sign-in from the address as well as the header (the upload client can't set a header).
 const QUERY_AUTH = 'requireAuthFromQueryOrHeader';

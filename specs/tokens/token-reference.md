@@ -329,7 +329,7 @@ one ladder, low to high. Never invent a number in a component.
 
 | Token | Value | Use for |
 |---|---|---|
-| `--rail-width` | `232px` | the menu rail, open: icons and names |
+| `--rail-width` | `256px` | the menu rail, open: icons and names |
 | `--rail-width-folded` | `64px` | the menu rail, folded to icons |
 | `--page-max-narrow` | `640px` | a form, a set of steps or a page of reading on a wide screen |
 | `--page-max-wide` | `1080px` | Home, playing and the two-pane pages on a wide screen |

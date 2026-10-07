@@ -11,7 +11,10 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0a">
 
-    <link rel="icon" href="icons/icon-192.png">
+    <!-- ML-484: the tab icon is the brand's mark, drawn to read at 16 pixels (public/brand.js swaps both
+         links when the name on screen is one of the trial names). The installed-app icons below don't change. -->
+    <link rel="icon" type="image/png" sizes="64x64" href="images/brands/music-ledger-tab.png" id="brandTabIconPng">
+    <link rel="icon" type="image/svg+xml" href="images/brands/music-ledger-tab.svg" id="brandTabIcon">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -32,7 +35,7 @@
 <!-- LOGIN / SPLASH SCREEN -->
 <div id="loginScreen" class="splash-screen">
     <div class="splash-content">
-        <img src="images/LedgeSplash.jpg" alt="The Music Ledger" class="splash-image">
+        <img src="images/LedgeSplash.jpg" alt="The Music Ledger" class="splash-image" id="splashImage">
         <h1 class="splash-title">Welcome</h1>
         <p id="loginStatusText" class="splash-subtitle">Just a moment, getting ready to open&hellip;</p>
         <!-- ML-430: Google's own "Sign in with Google" button - their picture (white theme), unaltered, as their
@@ -114,6 +117,9 @@
 <div class="top-bar-sticky-group">
     <div class="top-bar">
         <button class="top-btn-back hidden-btn" id="topBackBtn" data-act="go-back">&lt;</button>
+        <!-- ML-484: the brand's small mark beside the name - on Home only, where the title is the app's name
+             (on a wide screen the rail's head carries both instead). Decoration: the name is right beside it. -->
+        <img class="brand-mark" id="topBrandMark" src="images/brands/music-ledger-mark.svg" alt="" aria-hidden="true">
         <h1 class="top-bar-title" id="topTitle" tabindex="-1">The Music Ledger</h1>
         <!-- Metronome Blocks only (ML-91) - toggles the tuner on/off from here instead of a button
              half way down the page that scrolls out of view; shown/hidden by switchView. -->
@@ -157,7 +163,8 @@
                 <!-- ML-239: on a tablet or desktop this menu is a rail down the left (specs/components/menu-rail.md).
                      Its head - the app's name and the button that folds it to icons - shows only then. -->
                 <div class="nav-rail-head">
-                    <span class="nav-rail-name">The Music Ledger</span>
+                    <img class="brand-mark" id="railBrandMark" src="images/brands/music-ledger-mark.svg" alt="" aria-hidden="true">
+                    <span class="nav-rail-name" id="railBrandName">The Music Ledger</span>
                     <button type="button" class="nav-rail-fold" id="navRailFoldBtn" aria-label="Fold the menu to icons" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true" id="navRailFoldIcon">menu_open</span></button>
                 </div>
                 <div class="nav-panel" id="navMainPanel">
@@ -264,6 +271,10 @@
     </div>
 
 </div>
+
+<!-- ML-484: which name the app goes by on screen (docs/brand-trial.md). Here, not at the end, so the
+     sign-in picture, the name and the mark are right before anything is drawn. -->
+<script src="brand.js"></script>
 
 <div class="container">
 
