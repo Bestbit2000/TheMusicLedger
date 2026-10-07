@@ -73,6 +73,12 @@ having to ask. Owner's decision, 4 Oct 2026.
   so nobody else's rows can come along. A new table is included without being listed.
 - **Left out:** `account_passwords`, `account_two_step`, `account_recovery_codes`, and any column whose name
   says hash, secret or token. `signIn` in the file just says whether a password and two-step are set.
+- **Left out, because it is the app's and not the member's (ML-480):** what a super admin enters while running
+  the app - the shared band directory (`bands` of kind `directory`; a member's own My bands rows and a shared
+  space they set up are still theirs), announcements (`notifications`), the business's costs
+  (`third_party_costs`) and security review runs. Each of those rows records who entered it, which is why the
+  owner's first download held all 45 directory bands. `APP_OWNED` and `ROW_FILTER` in the code. An ordinary
+  member has no such rows. **A new table that records "created by" for an admin's own work goes in `APP_OWNED`.**
 - **Not followed:** `bands`, `band_members`, `notifications`, `security_review_runs` - the member's own rows
   are exported, but what hangs off them belongs to other people (a band's other members).
 - Recordings and documents are listed with the address of each file; the files themselves aren't in the JSON.

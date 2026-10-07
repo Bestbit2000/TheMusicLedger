@@ -8,7 +8,8 @@
 //   2. the rows that hang off those (a piece's blocks and recordings, a session's parts, a quiz's
 //      answers...) - followed down through tables that have no account column of their own, so
 //      nobody else's rows can come along.
-// Left out: sign-in secrets (SECRET_TABLES, and any column whose name says hash, secret or token).
+// Left out: sign-in secrets (SECRET_TABLES, and any column whose name says hash, secret or token), and
+// what a super admin entered for the app as a whole (APP_OWNED, ROW_FILTER - ML-480).
 
 import pool from '../config/db.js';
 
@@ -18,6 +19,18 @@ const SECRET_COLUMN = /hash|secret|token/i;
 // Rows that are the member's to see, but whose children belong to other people or to the app as a
 // whole (a band's other members, who has read a notice): exported, not followed.
 const NOT_FOLLOWED = new Set(['bands', 'band_members', 'notifications', 'security_review_runs']);
+// ML-480: what a super admin enters while running the app is the app's, not that person's own information,
+// even though the row records who entered it. Without this the owner's download held every band in the
+// shared directory (45 of them, "created by" the account that seeded the list), the announcements he had
+// written and the business's costs. An ordinary member has no such rows, so nothing changes for them.
+//   APP_OWNED  - whole tables that are the app's records: left out.
+//   ROW_FILTER - a table that holds both: only the rows that are the member's own are taken.
+export const APP_OWNED = new Set(['notifications', 'third_party_costs', 'security_review_runs']);
+export const ROW_FILTER = {
+  // My bands (a member's own 'label' rows) and a shared space they set up ('group') are theirs; the band
+  // directory ('directory') is a list for everyone, whoever typed it in.
+  bands: "kind <> 'directory'"
+};
 const MAX_DEPTH = 4;
 
 const withStatus = (status, message) => Object.assign(new Error(message), { status });
@@ -54,8 +67,9 @@ export async function exportMyAccount(accountId) {
 
   // 1. The member's own rows
   let frontier = [];
-  for (const link of keys.filter((k) => k.ref === 'accounts' && !SECRET_TABLES.has(k.tbl))) {
-    const { rows } = await pool.query(`SELECT * FROM ${link.tbl} WHERE ${link.col} = $1 ORDER BY 1`, [accountId]);
+  for (const link of keys.filter((k) => k.ref === 'accounts' && !SECRET_TABLES.has(k.tbl) && !APP_OWNED.has(k.tbl))) {
+    const only = ROW_FILTER[link.tbl] ? ` AND (${ROW_FILTER[link.tbl]})` : '';
+    const { rows } = await pool.query(`SELECT * FROM ${link.tbl} WHERE ${link.col} = $1${only} ORDER BY 1`, [accountId]);
     const fresh = add(link.tbl, rows);
     if (fresh.length && !NOT_FOLLOWED.has(link.tbl)) frontier.push({ table: link.tbl, ids: fresh.map((r) => r.id).filter((id) => id !== undefined) });
   }
@@ -65,7 +79,7 @@ export async function exportMyAccount(accountId) {
     const next = [];
     for (const { table, ids } of frontier) {
       if (!ids.length) continue;
-      for (const child of keys.filter((k) => k.ref === table && !accountTables.has(k.tbl) && !SECRET_TABLES.has(k.tbl))) {
+      for (const child of keys.filter((k) => k.ref === table && !accountTables.has(k.tbl) && !SECRET_TABLES.has(k.tbl) && !APP_OWNED.has(k.tbl))) {
         const { rows } = await pool.query(`SELECT * FROM ${child.tbl} WHERE ${child.col} = ANY($1) ORDER BY 1`, [ids]);
         const fresh = add(child.tbl, rows);
         if (fresh.length) next.push({ table: child.tbl, ids: fresh.map((r) => r.id).filter((id) => id !== undefined) });

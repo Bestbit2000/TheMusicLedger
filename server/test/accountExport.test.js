@@ -47,6 +47,15 @@ test('the export holds everything of the member\'s, nothing of anyone else\'s, a
   cleanup.push(`DELETE FROM bands WHERE id = ${band}`);
   await pool.query(`INSERT INTO band_members (band_id, account_id) VALUES ($1, $2), ($1, $3)`, [band, id, other]);
 
+  // ML-480: what I entered as the app's administrator is the app's, not mine - a band in the shared directory,
+  // an announcement. My own band (a 'label') is mine.
+  const directory = Number((await one(`INSERT INTO bands (name, created_by_account_id, kind) VALUES ($1, $2, 'directory') RETURNING id`, [`ML-480 directory band ${stamp}`, id])).id);
+  cleanup.push(`DELETE FROM bands WHERE id = ${directory}`);
+  const label = Number((await one(`INSERT INTO bands (name, created_by_account_id, kind) VALUES ($1, $2, 'label') RETURNING id`, [`ML-480 my band ${stamp}`, id])).id);
+  cleanup.push(`DELETE FROM bands WHERE id = ${label}`);
+  const notice = Number((await one(`INSERT INTO notifications (title, body, created_by_account_id) VALUES ('ML-480 export notice', 'For everyone', $1) RETURNING id`, [id])).id);
+  cleanup.push(`DELETE FROM notifications WHERE id = ${notice}`);
+
   const out = await exportMyAccount(id);
   const text = JSON.stringify(out);
 
@@ -60,7 +69,10 @@ test('the export holds everything of the member\'s, nothing of anyone else\'s, a
   assert.equal(out.data.session_segments.length, 1); // followed down from the session
   assert.equal(out.data.drill_attempts.length, 1);
   assert.equal(out.data.feedback[0].message, 'My own note');
-  assert.equal(out.data.bands.length, 1);
+  assert.deepEqual(out.data.bands.map((x) => x.kind).sort(), ['group', 'label']); // mine, and the shared space I set up
+  assert.equal(text.includes('ML-480 directory band'), false); // the directory is everyone's list, whoever typed it in
+  assert.equal(out.data.notifications, undefined); // an announcement is the app's
+  assert.equal(text.includes('ML-480 export notice'), false);
   assert.deepEqual(out.signIn, { hasPassword: true, twoStepOn: false });
 
   // Nobody else's
