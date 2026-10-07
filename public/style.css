@@ -1198,16 +1198,14 @@
        same as the X - either way this never stops the timer, it just hides the popup (see
        closeTimerInlineBox); it keeps counting down regardless of which screen is on top or whether
        this is open. Same 4-equal-column shape as the metronome transport row (.metro-transport-grid). */
-    .timer-inline-cell1 { min-width: 0; }
-    .timer-inline-cell1 .metroBlk-ctrl-value-btn { width: 100%; }
-    /* Plain read-out (not a button) for while it's actually running - same size/shape as the
-       picker button beside it in every other state, just nothing to tap since there's no picker
-       (or arrow) once it's already going. */
-    .timer-inline-time-plain { height: 60px; min-width: 0; width: 100%; border: 2px solid var(--input-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: var(--line-height-snug); box-sizing: border-box; }
-    .timer-inline-time-plain strong { font-size: var(--font-lg); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
-    /* "Like the tuner" per the request - same X-in-a-circle language as .modal-close-x, just flowing
-       in its own grid cell (centred) instead of pinned to a modal's corner. */
-    .timer-inline-close-btn { width: 48px; height: 48px; justify-self: center; border-radius: var(--radius-circle); border: none; background: var(--input-bg); color: var(--text-color); font-size: var(--font-lg); line-height: var(--line-height-tight); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    /* ML-481: the pop-up's time is the Timer screen's ring, a size smaller, above the controls. The controls
+       share the row equally however many are showing (the length to pick is there only when idle). */
+    .timer-ring.timer-ring-sm { width: min(100%, 200px); margin-top: var(--space-5); }
+    .timer-ring-sm .timer-ring-time { font-size: var(--font-2xl); }
+    .timer-ring-sm.is-long .timer-ring-time { font-size: var(--font-xl); }
+    .timer-ring.is-open-ended :is(.timer-ring-arc, .timer-ring-tip, .timer-ring-lap, .timer-ring-lap-track) { display: none; } /* nothing to count down to */
+    .timer-inline-controls { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); margin: var(--space-2) var(--space-10) 0 0; }
+    .timer-ring:not(.hidden-group) + .timer-inline-controls { margin-right: 0; } /* idle, the row keeps clear of the X; with the ring above it, it is under the X */
     /* .metroBlk- classes: started life as the Metronome Blocks multi-bar tool (ML-35, removed
        2026-09-27 - superseded by pieces in My music and Rehearse). What's left here is shared:
        the now-playing row, value boxes, tile strip, pickers and the mini tuner, used by Quick Play,

@@ -1,7 +1,7 @@
 # Timer countdown ring
 
 ## 1. Metadata
-- **Name:** Timer countdown ring (`.timer-ring`, `.timer-ring-*`, states `.has-lap`, `.is-long`, `.is-running`)
+- **Name:** Timer countdown ring (`.timer-ring`, `.timer-ring-*`, `.timer-ring-sm`, `.timer-inline-controls`, states `.has-lap`, `.is-long`, `.is-running`, `.is-open-ended`)
 - **Category:** Data display
 - **Status:** New (ML-293)
 
@@ -17,6 +17,14 @@ hour you're in, counting down ("Hour 2 of 2", then "Hour 1 of 2").
 
 **Don't use** for anything that isn't counting down to a known end. An open-ended session (no
 target) hides the ring - "This session" below shows the time done instead.
+
+**The timer pop-up uses the same ring (ML-481).** The pop-up that opens from the top bar's timer icon or pill
+(`#timerInlineBox`) shows the ring a size smaller (`.timer-ring.timer-ring-sm`, `#timerInlineTimeDisplay`) **above** its
+controls, with the usual X top right. It replaced a fixed-width box beside the controls that could not hold a
+time over an hour (1:59:59). The controls (`.metro-transport-grid.timer-inline-controls`) share the row equally:
+pause/play and stop while a session is on; the length to pick, start and stop when idle (no ring then).
+An open-ended session has nothing to count down to, so in the pop-up the ring is its plain track round the time
+done (`.is-open-ended` hides the arc, the tip and the hour ring). One function draws both rings (`drawTimerRing`).
 
 ## 3. Anatomy
 `.timer-ring` (`#timerRemainingCard`) › `svg.timer-ring-svg` (`.timer-ring-track`, `.timer-ring-arc`,

@@ -10796,7 +10796,7 @@
         // another tab/app for a "small set of controls" you'd get there anyway.
         let playerHtml;
         if (isYoutube) {
-            playerHtml = `<div class="flow-media-player-video"><iframe src="https://www.youtube.com/embed/${encodeURIComponent(r.youtubeVideoId)}" title="${escapeHtml(r.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+            playerHtml = `<div class="flow-media-player-video"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}" title="${escapeHtml(r.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
         } else if (isVideo) {
             playerHtml = `<div class="flow-media-player-video"><video controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></video></div>`;
         } else {
@@ -18450,8 +18450,20 @@
     // Over an hour, the main ring is the last hour and the thin outer ring the part over it (up to a
     // second hour), which unwinds first; the badge says which hour you're in, counting down.
     const TIMER_RING_HOUR = 3600;
+    // The Timer screen's ring and the pop-up's (ML-481) are the same ring. The screen hides its ring for an
+    // open-ended session; the pop-up keeps the plain circle round the time done (.is-open-ended).
     function renderTimerRing() {
-        const ring = document.getElementById('timerRemainingCard');
+        drawTimerRing(document.getElementById('timerRemainingCard'), document.getElementById('timerRingHour'));
+        const inline = document.getElementById('timerInlineTimeDisplay');
+        if (!inline || !timerState) return;
+        inline.classList.toggle('is-open-ended', !!timerState.openEnded);
+        if (timerState.openEnded) {
+            inline.classList.remove('has-lap');
+            inline.classList.toggle('is-long', timerState.elapsedSeconds >= TIMER_RING_HOUR);
+            setShown('timerInlineRingHour', false);
+        } else drawTimerRing(inline, document.getElementById('timerInlineRingHour'));
+    }
+    function drawTimerRing(ring, hour) {
         if (!ring || !timerState || timerState.openEnded) return;
         const target = timerState.targetSeconds || 1;
         const left = Math.max(0, timerState.remainingSeconds);
@@ -18463,7 +18475,6 @@
         ring.classList.toggle('has-lap', lap > 0);
         ring.classList.toggle('is-running', !!timerState.running);
         ring.classList.toggle('is-long', left >= TIMER_RING_HOUR);
-        const hour = document.getElementById('timerRingHour');
         if (hour) {
             setShown(hour, overAnHour);
             if (overAnHour) hour.textContent = `Hour ${Math.max(1, Math.ceil(left / TIMER_RING_HOUR))} of ${Math.ceil(target / TIMER_RING_HOUR)}`;
@@ -18473,6 +18484,7 @@
     function updateTimerPlayIcons() {
         const running = !!(timerState && timerState.running);
         document.getElementById('timerRemainingCard')?.classList.toggle('is-running', running);
+        document.getElementById('timerInlineTimeDisplay')?.classList.toggle('is-running', running);
         const label = running ? 'Pause' : 'Play';
         const icon = running ? 'pause' : 'play_arrow';
         const fullIcon = document.getElementById('timerPlayIcon');
@@ -18521,7 +18533,7 @@
         const inlineRemainingEl = document.getElementById('timerInlineRemainingLbl');
         if (inlineRemainingEl) inlineRemainingEl.innerText = formatClock(primarySeconds);
         const inlineLeftLbl = document.getElementById('timerInlineLeftLbl');
-        if (inlineLeftLbl) inlineLeftLbl.innerText = openEnded ? 'done' : 'left';
+        if (inlineLeftLbl) inlineLeftLbl.innerText = openEnded ? 'Time done' : 'Time left';
     }
 
     // --- Inline box (ML-129 follow-up) - opened by tapping either the running pill or the idle

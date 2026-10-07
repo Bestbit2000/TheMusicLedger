@@ -234,29 +234,38 @@
         <span class="session-bar-next hidden-group" id="sessionBarNext"></span>
     </button>
 
-    <!-- ML-129 follow-up: opened by tapping either the running pill or the idle icon above - a true
-         modal now (grey backdrop, blocks the rest of the screen) rather than an in-flow box, so it
-         can't clash with whatever primary button (e.g. the metronome's own Play) happens to sit behind
-         it. Tapping the backdrop closes it, same as the X - either way this never stops the timer
-         itself, it just hides the popup again; it keeps counting down regardless of which screen is on
-         top or whether this is open. Same 4-equal-column shape as the metronome transport row
-         (.metro-transport-grid): duration/time-left, play/pause, stop, close. -->
-    <div class="modal" id="timerInlineBox" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
+    <!-- ML-129 follow-up: opened by tapping either the running pill or the idle icon above - a true modal
+         (grey backdrop), so it can't clash with whatever primary button sits behind it. Closing it never
+         stops the timer; it keeps counting whichever screen is on top. -->
+    <!-- ML-481: the time is the Timer screen's own ring (specs/components/timer-ring.md), above the controls - the
+         old fixed-width box beside them couldn't hold a time over an hour (1:59:59). Idle, there is no ring:
+         the length to pick, Start and Stop. The X is the usual one, top right. -->
+    <div class="modal" id="timerInlineBox" role="dialog" aria-modal="true" aria-labelledby="timerInlineTitle">
         <div class="modal-content">
-            <div class="metro-transport-grid">
-                <div class="timer-inline-cell1">
-                    <!-- Idle: opens the duration picker (timerDurationPickerModal). Same dropdown-arrow
-                         affordance as every other "opens a picker" control (.metroBlk-ctrl-value-btn). -->
-                    <button type="button" class="metroBlk-ctrl-value-btn" id="timerInlinePickBtn" aria-label="Choose practice duration" aria-haspopup="dialog" aria-expanded="false">
-                        <strong id="timerInlinePickLbl">Pick</strong>
-                        <span class="metroBlk-ctrl-value-label">minutes</span>
-                    </button>
-                    <!-- Running: plain read-out, not a button - nothing to pick while it's already going. -->
-                    <div class="timer-inline-time-plain hidden-group" id="timerInlineTimeDisplay">
-                        <strong id="timerInlineRemainingLbl">00:00</strong>
-                        <span class="metroBlk-ctrl-value-label" id="timerInlineLeftLbl">left</span>
-                    </div>
+            <button type="button" class="modal-close-x" id="timerInlineCloseBtn" aria-label="Close">&times;</button>
+            <h2 class="visually-hidden" id="timerInlineTitle">Timer</h2>
+            <!-- Running or paused: the countdown ring. An open-ended session has nothing to count down to, so the
+                 ring is its plain track round the time done (.is-open-ended). -->
+            <div class="timer-ring timer-ring-sm hidden-group" id="timerInlineTimeDisplay">
+                <svg class="timer-ring-svg" viewBox="0 0 120 120" aria-hidden="true">
+                    <circle class="timer-ring-track" cx="60" cy="60" r="50"/>
+                    <circle class="timer-ring-arc" cx="60" cy="60" r="50" pathLength="100"/>
+                    <circle class="timer-ring-lap-track" cx="60" cy="60" r="57"/>
+                    <circle class="timer-ring-lap" cx="60" cy="60" r="57" pathLength="100"/>
+                    <g class="timer-ring-tip"><circle cx="60" cy="10" r="5"/></g>
+                </svg>
+                <div class="timer-ring-readout">
+                    <div class="timer-ring-time" id="timerInlineRemainingLbl">00:00</div>
+                    <div class="timer-ring-label" id="timerInlineLeftLbl">Time left</div>
+                    <div class="timer-ring-hour hidden-group" id="timerInlineRingHour"></div>
                 </div>
+            </div>
+            <div class="metro-transport-grid timer-inline-controls">
+                <!-- Idle only: opens the duration picker (timerDurationPickerModal). -->
+                <button type="button" class="metroBlk-ctrl-value-btn" id="timerInlinePickBtn" aria-label="Choose practice duration" aria-haspopup="dialog" aria-expanded="false">
+                    <strong id="timerInlinePickLbl">Pick</strong>
+                    <span class="metroBlk-ctrl-value-label">minutes</span>
+                </button>
                 <button type="button" class="metro-play-grid-btn" id="timerInlinePlayBtn" aria-label="Start">
                     <span class="material-symbols-outlined" id="timerInlinePlayIcon">play_arrow</span>
                     <span class="metroBlk-ctrl-value-label" id="timerInlinePlayLbl">start</span>
@@ -265,7 +274,6 @@
                     <span class="material-symbols-outlined">stop</span>
                     <span class="metroBlk-ctrl-value-label">stop</span>
                 </button>
-                <button type="button" class="timer-inline-close-btn" id="timerInlineCloseBtn" aria-label="Close">&times;</button>
             </div>
         </div>
     </div>
