@@ -50,7 +50,7 @@ Default · Hover (`--input-bg`) · Focus (`--focus-ring`) · Destructive item (`
 ```
 
 ## 8. Cross-references
-[top-bar](top-bar.md) · [icon-button](icon-button.md) · [notification-centre](notification-centre.md)
+[top-bar](top-bar.md) · [icon-button](icon-button.md) · [notification-centre](notification-centre.md) · [menu-rail](menu-rail.md) (the ☰ menu, `.nav-menu`, shown as a rail from 700px up - the same element, restyled)
 
 ## 9. Accessibility
 - Items are `<button type="button" class="dropdown-item">` (or `<a href>` for real links).

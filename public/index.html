@@ -25,7 +25,7 @@
     <link rel="stylesheet" href="tokens.css">
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="app-shell"><!-- ML-239: .app-shell marks the app page for the tablet/desktop layout (style.css) -->
 <!-- ML-356: display and reading preferences (dark mode, font, background, text size) before anything draws -->
 <script src="display-prefs.js"></script>
 
@@ -154,6 +154,12 @@
                  always match), and the screen you're on is marked aria-current (markNavCurrent). -->
             <div id="burgerDropdown" class="dropdown-menu nav-menu">
                 <!-- ML-326: two panels - the menu itself, and Tools, which slides in over it (openNavTools). -->
+                <!-- ML-239: on a tablet or desktop this menu is a rail down the left (specs/components/menu-rail.md).
+                     Its head - the app's name and the button that folds it to icons - shows only then. -->
+                <div class="nav-rail-head">
+                    <span class="nav-rail-name">The Music Ledger</span>
+                    <button type="button" class="nav-rail-fold" id="navRailFoldBtn" aria-label="Fold the menu to icons" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true" id="navRailFoldIcon">menu_open</span></button>
+                </div>
                 <div class="nav-panel" id="navMainPanel">
                 <button type="button" class="dropdown-item nav-item" data-view="mainView" data-act="view-menu" data-arg="mainView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">home</span><span class="nav-item-text">Home</span></button>
                 <!-- ML-201: gated by the `notifications` feature (renderFeatureGates). -->
@@ -271,6 +277,9 @@
         <!-- ML-330 / ML-377: your avatar (initials, or the drawing chosen in My details - tap it to go there),
              a greeting that follows the moment, and one encouraging line under it (public/homeGreeting.js).
              Hidden without a name. -->
+        <!-- ML-239: two groups that sit side by side when there is room (.home-main / .home-tools);
+             on a phone they are not boxes at all, so the screen is as it was. -->
+        <div class="home-main">
         <div class="home-greeting hidden-group" id="homeGreetingRow">
             <button type="button" class="avatar" id="homeAvatar" aria-label="Your avatar - change it in My details"></button>
             <div class="home-greeting-text">
@@ -293,9 +302,12 @@
         <!-- ML-378 / ML-412: My favourite tools (up to the home_tools limit for your account type, ML-388: Standard 4, others 8), in the All tools page's order (renderHomeTools copies
              their tiles from #toolsView). Chosen on the All tools page, saved on the account (accounts.home_tools);
              default: all your tools if they fit, else Metronome, Tuner, Timer, Rehearse. Only tools that are switched on show. -->
+        </div>
+        <div class="home-tools">
         <div class="section-title tools-title" id="homeToolsTitle">My favourite tools</div>
         <div class="tool-icon-row" id="homeToolsRow"></div>
         <button type="button" class="history-item settings-link" data-act="view" data-arg="toolsView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">apps</span><span class="settings-link-text"><span class="settings-link-title">All tools</span><span class="settings-link-sub" id="homeAllToolsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        </div>
     </div>
 
     <!-- ML-378: All tools - every tool, grouped (ML-409: Everyday / My routine - Warm-ups, Scales / Practise -
@@ -1893,6 +1905,9 @@
              currentFlowDetail.recordings, same split Edit Flow's own Media tab uses - see
              renderFlowMediaCarousel). Dots + swipe chrome only ever render when there's more than
              the one metronome slide - a media-less flow looks exactly like it always has. -->
+        <!-- ML-239: .play-side (the tuner, where you are, the controls) and .play-main (the piece) sit side by
+             side when there is room; on a phone they are not boxes at all. The mini tuner is moved into .play-side. -->
+        <div class="play-side" id="flowPlaySide">
         <div class="flow-media-dots hidden-group" id="flowMediaDots"></div>
         <div class="flow-media-carousel-viewport" id="flowMediaViewport">
             <div class="flow-media-carousel-track" id="flowMediaTrack">
@@ -1954,6 +1969,8 @@
             </div>
         </div>
 
+        </div>
+        <div class="play-main">
         <div class="section-title">
             <!-- ML-237: expected play time + bar count under the title - same figures as the Blocks
                  studio summary (flowSummaryFigures, app.js). -->
@@ -1988,6 +2005,7 @@
         </div>
         <div id="flowPlayLeadInSlot"></div>
         <div id="flowPlayTiles" class="metroBlk-tile-strip"></div>
+        </div>
     </div>
 
     <!-- One shared floating menu, repositioned via JS - same pattern as metroBlkTileMenu/qpBarMenu. -->

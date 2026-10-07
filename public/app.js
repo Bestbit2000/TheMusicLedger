@@ -1494,6 +1494,7 @@
     function displayMainApp() {
         setShown('loginScreen', false);
         setShown('mainContainer', true);
+        setTimeout(() => { if (railOn()) renderNavMenu(); }, 0); // ML-239: fill the rail in - nothing opens it
         // ML-345: say so while previewing another account type
         setShown('previewBanner', !!previewLevel);
         if (previewLevel) document.getElementById('previewBannerText').textContent = `Previewing the app as a ${PREVIEW_TYPES[previewLevel]}.`;
@@ -1617,6 +1618,7 @@
         renderToolStars();
         renderHomeTools(); // ML-378: Home's copies follow the gates
         renderStatsHome(); // ML-387: so do the stats (and Home's copies of them)
+        setTimeout(() => { if (railOn()) renderNavMenu(); }, 0); // ML-239: the rail is always showing, so it follows the gates too
     }
     // Tool groups: a home tool group shows only while at least one of its tools does.
     function renderToolGroups() {
@@ -1841,13 +1843,14 @@
         challengeSelectView: 'manageChallengesView', challengePlayView: 'manageChallengesView', challengeSummaryView: 'manageChallengesView', editChallengeView: 'manageChallengesView' };
     function markNavCurrent() {
         const top = viewStack[viewStack.length - 1] || 'mainView';
-        const current = NAV_PARENT_VIEW[top] || top;
+        const paneList = document.querySelector('#mainContainer > .container.two-pane > .pane-list')?.id; // ML-239
+        const current = paneList ? (NAV_PARENT_VIEW[paneList] || paneList) : (NAV_PARENT_VIEW[top] || top);
         document.querySelectorAll('#burgerDropdown [data-view]').forEach(el => {
             if (el.dataset.view === current) el.setAttribute('aria-current', 'page');
             else el.removeAttribute('aria-current');
         });
         // ML-326: on a tool's screen, Tools (the way into its panel) is marked too.
-        const onTool = !!document.querySelector('#navToolsRow [aria-current="page"]');
+        const onTool = !!document.querySelector('#navToolsRow [aria-current="page"]') && !(paneList && document.querySelector(`#navMainPanel [data-view="${current}"]`));
         const toolsBtn = document.getElementById('navToolsBtn');
         if (onTool) toolsBtn?.setAttribute('aria-current', 'page'); else toolsBtn?.removeAttribute('aria-current');
     }
@@ -1918,6 +1921,103 @@
         const dropdown = document.getElementById('burgerDropdown');
         if(dropdown) dropdown.classList.remove('show');
     }
+
+    // ========================================
+    // ML-239: TABLET AND DESKTOP (specs/foundations/layout.md)
+    // ========================================
+    // The layout itself is CSS (the end of style.css). Script does only what CSS can't: remember whether
+    // the menu rail is folded, and keep a list on the left while what was tapped opens on the right.
+    const wideQuery = (px) => { try { return window.matchMedia(`(min-width: ${px}px)`); } catch (e) { return { matches: false, addEventListener() {} }; } };
+    const RAIL_QUERY = wideQuery(700);   // from here up the ☰ menu is the rail
+    const PANES_QUERY = wideQuery(1000); // from here up a list page has two panes
+    const railOn = () => RAIL_QUERY.matches;
+
+    // The rail starts open; folding it to icons is remembered on this device (a convenience, like the
+    // display settings' own copy - nothing is lost if the browser forgets it).
+    function setRailFolded(folded, remember) {
+        document.body.classList.toggle('rail-folded', folded);
+        const btn = document.getElementById('navRailFoldBtn');
+        btn?.setAttribute('aria-pressed', String(folded));
+        btn?.setAttribute('aria-label', folded ? 'Open the menu' : 'Fold the menu to icons');
+        const icon = document.getElementById('navRailFoldIcon');
+        if (icon) icon.textContent = folded ? 'menu' : 'menu_open';
+        // folded, an item is its icon: its name is still read out, and shows as a tip under the mouse
+        document.querySelectorAll('#navMainPanel .nav-item').forEach((el) => {
+            const text = el.querySelector('.nav-item-text');
+            if (folded && text) el.title = (text.firstChild?.textContent || text.textContent || '').trim();
+            else el.removeAttribute('title');
+        });
+        if (folded) { setShown('navMainPanel', true); setShown('navToolsPanel', false); } // the Tools panel needs the room
+        if (remember) { try { localStorage.setItem('tml.railFolded', folded ? '1' : '0'); } catch (e) { /* not remembered, that's all */ } }
+    }
+    { // open unless it was folded here before - or, never having been set, the screen is too short for it (a phone on its side)
+        let saved = null; try { saved = localStorage.getItem('tml.railFolded'); } catch (e) { /* starts open */ }
+        setRailFolded(saved === '1' || (saved === null && railOn() && window.innerHeight < 500), false);
+    }
+    if (railOn()) document.getElementById('topTitle').textContent = 'Home'; // the rail carries the app's name (switchView does the same)
+    document.getElementById('navRailFoldBtn')?.addEventListener('click', (e) => { e.stopPropagation(); setRailFolded(!document.body.classList.contains('rail-folded'), true); });
+    // Tools opens its panel of icons, which a folded rail has no room for - so it opens the rail first.
+    document.getElementById('navToolsBtn')?.addEventListener('click', () => { if (railOn() && document.body.classList.contains('rail-folded')) setRailFolded(false, true); }, true);
+
+    // Two panes: a list page and the pages it opens. On a wide screen the list stays on the left and what
+    // you tapped opens on the right; on anything narrower each is a screen of its own, as before. Nothing
+    // about what a tap does changes - only whether the list is still showing.
+    const PANES = {
+        rehearseView: { hint: 'Pick a piece to play.', details: ['flowPlayView'] },
+        metroBuilderView: { hint: 'Pick a piece to open it.', details: ['flowPlayView'] },
+        settingsView: { hint: 'Pick a setting.', details: ['settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView'] },
+        accountView: { hint: 'Pick what to look at.', details: ['accountSecurityView', 'accountDetailsView', 'accountBandsView', 'accountTeachersView'] },
+        aboutView: { hint: 'Pick what to read.', details: ['aboutReleasesView', 'aboutGradesView'] }
+    };
+    // The list a screen belongs beside: itself if it is a list, or the list it was opened from.
+    function paneListFor(viewName) {
+        if (PANES[viewName]) return viewName;
+        const from = viewStack[viewStack.length - 2];
+        return from && PANES[from] && PANES[from].details.includes(viewName) ? from : null;
+    }
+    // Opening a second thing from the list replaces the first rather than stacking on it, so Back goes to the list.
+    function paneReplaces(viewName) {
+        const top = viewStack[viewStack.length - 1], from = viewStack[viewStack.length - 2];
+        return PANES_QUERY.matches && top !== viewName && !!from && !!PANES[from] && PANES[from].details.includes(top) && PANES[from].details.includes(viewName);
+    }
+    function applyPanes(viewName) {
+        const page = document.querySelector('#mainContainer > .container');
+        if (!page) return;
+        const list = PANES_QUERY.matches ? paneListFor(viewName) : null;
+        page.querySelectorAll(':scope > .pane-list').forEach((el) => { if (el.id !== list) el.classList.remove('pane-list'); });
+        page.classList.toggle('two-pane', !!list);
+        page.classList.toggle('has-detail', !!list && list !== viewName);
+        if (!list || list === viewName) paneSelectedKey = null;
+        if (!list) { delete page.dataset.paneHint; markPaneSelected(); return; }
+        page.dataset.paneHint = PANES[list].hint;
+        const listEl = document.getElementById(list);
+        listEl.classList.add('pane-list');
+        setShown(listEl, true);
+        markPaneSelected();
+    }
+    // The row that was tapped is marked while what it opened is showing - found again by what it says
+    // (or its data- id) each time the list is drawn, since most lists are rebuilt when they change.
+    let paneSelectedKey = null;
+    const paneRowKey = (row) => Object.values(row.dataset).join('|') || row.textContent.trim();
+    function markPaneSelected() {
+        const page = document.querySelector('#mainContainer > .container');
+        if (!page) return;
+        const showing = page.classList.contains('has-detail') && paneSelectedKey !== null;
+        page.querySelectorAll('.pane-list .history-item').forEach((row) => row.classList.toggle('pane-selected', showing && paneRowKey(row) === paneSelectedKey));
+    }
+    {
+        const page = document.querySelector('#mainContainer > .container');
+        page?.addEventListener('click', (e) => {
+            const row = e.target.closest('.pane-list .history-item');
+            if (!row || e.target.closest('.list-item-menu-btn, .dropdown-menu')) return;
+            paneSelectedKey = paneRowKey(row);
+            setTimeout(markPaneSelected, 0);
+        }, true);
+        if (page && window.MutationObserver) new MutationObserver(() => { if (page.classList.contains('has-detail')) markPaneSelected(); }).observe(page, { childList: true, subtree: true });
+    }
+    // Turning a tablet, or resizing a window, across either width
+    PANES_QUERY.addEventListener('change', () => switchView(viewStack[viewStack.length - 1] || 'mainView', true));
+    RAIL_QUERY.addEventListener('change', () => { closeMenu(); if (railOn()) renderNavMenu(); switchView(viewStack[viewStack.length - 1] || 'mainView', true); });
 
     // ========================================
     // CUSTOM MODALS LOGIC
@@ -2200,6 +2300,7 @@
             flowCreateLeft(); // ML-404: a new piece left untouched isn't kept
         }
 
+        if (!isBack && paneReplaces(viewName)) viewStack.pop(); // ML-239
         if (!isBack && viewStack[viewStack.length - 1] !== viewName) viewStack.push(viewName);
 
         views.forEach(v => {
@@ -2209,12 +2310,14 @@
 
         const targetEl = document.getElementById(viewName);
         setShown(targetEl, true);
+        applyPanes(viewName); // ML-239: on a wide screen a list page keeps its list on the left
+        if (railOn()) renderNavMenu(); // ML-239: the rail is always showing, so it is kept as fresh as an opened menu
 
         const topBackBtn = document.getElementById('topBackBtn');
         if (viewName === 'mainView') {
             rehearseRefresh(); // ML-299: the Rehearse tile shows once there's a piece to play
             topBackBtn.classList.add('hidden-btn');
-            document.getElementById('topTitle').innerText = 'The Music Ledger';
+            document.getElementById('topTitle').innerText = railOn() ? 'Home' : 'The Music Ledger'; // ML-239: the rail carries the name
         } else {
             topBackBtn.classList.remove('hidden-btn');
         }
@@ -2382,7 +2485,8 @@
         if (MINI_TUNER_VIEWS.includes(viewName)) {
             const hostView = document.getElementById(viewName);
             const tuner = document.getElementById('metroBlkMiniTuner');
-            if (hostView && tuner && tuner.parentElement !== hostView) hostView.insertBefore(tuner, hostView.firstChild);
+            const host = hostView && (hostView.querySelector(':scope > .play-side') || hostView); // ML-239: above the controls
+            if (host && tuner && tuner.parentElement !== host) host.insertBefore(tuner, host.firstChild);
         }
         // Scoped to Flow/Metronome (unlike the timer/metronome mini-bars, it doesn't persist
         // elsewhere) - leaving both always closes it.

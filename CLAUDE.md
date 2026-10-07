@@ -107,6 +107,14 @@ The research behind them (who else does what, what they charge, Muzodo and Makin
   custom property that a class reads (`el.style.setProperty('--bar-h', ...)`).
   `npm run token-audit` fails on anything else. Details and the list of run-time
   properties: `specs/components/utilities-and-states.md`.
+- **Phone first, desktop friendly (ML-239).** Every screen is designed for a phone; from 700px up the same
+  screens use the room: the ☰ menu is a rail down the left that folds to icons, a page is a narrow or a
+  wide card, groups sit side by side when there is room, and from 1000px a list page keeps its list on
+  the left and opens what you tap on the right. The phone layout is never changed to suit a wide screen,
+  and what a tap does never changes. Read `specs/foundations/layout.md` before laying out a screen: decide
+  which of the five kinds of page it is (a new screen is a narrow page with no extra CSS), and add a list
+  page to `PANES` in `app.js`. The admin panel is the other way round (desktop first). The back-tests run
+  at 500px wide - the phone layout; a spec for the wide layout sets its own window.
 - **One button, one pop-up (owner rule, ML-400).** A choice from a set of options is one button
   showing the current answer that opens a pop-up to change it (`openFlowChoiceModal`, or a pick
   list for multi-select) - never the whole list of options laid out on the page. Navigation

@@ -30,6 +30,11 @@ export default defineConfig({
   },
   use: {
     baseURL: 'http://localhost:3000',
+    // ML-239: the back-tests are the phone suite. From 700px up the app is the tablet/desktop layout
+    // (a menu rail instead of the ☰ button, two panes), so the default 1280px window would no longer be
+    // the layout these specs were written against. 500px is the width the app's column always had on a
+    // desktop, so sizes and baselines stay as they were. A spec for the wide layout sets its own viewport.
+    viewport: { width: 500, height: 900 },
     trace: 'retain-on-failure',
     // The tuner spec needs a mic; a fake device avoids ever prompting for a
     // real one or depending on real audio hardware in CI/headless runs.

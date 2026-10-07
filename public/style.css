@@ -2468,7 +2468,7 @@
     .flow-ramp-tempo-unit { font-weight: var(--font-weight-normal); font-size: var(--font-xs); color: var(--label-color); }
 
     /* Mobile responsive - remove max-width and adjust spacing */
-    @media (max-width: 768px) {
+    @media (max-width: 699px) { /* ML-239: was 768 - from 700 up it is the tablet layout (the end of this file) */
         .nav-menu-backdrop { background: var(--menu-backdrop-bg); }
         body { align-items: stretch; }
         .top-bar { max-width: 100%; padding: var(--space-2) var(--space-4); }
@@ -2932,4 +2932,82 @@
         .time-block.is-new, .build-slot.is-new, .levelup.is-celebrating .levelup-stars .material-symbols-outlined, .levelup.is-celebrating .levelup-pair .level-chip:last-child { animation: none; }
         .rest-breath { animation: none; transform: scale(1.6); }
         .rest-ring-left { transition: none; }
+    }
+
+    /* =========================================================================================
+       ML-239: tablet and desktop. The phone layout above is untouched; everything here is added
+       on top from 700px up. The rules are in specs/foundations/layout.md:
+         - the ☰ menu becomes a rail down the left that folds to icons (specs/components/menu-rail.md)
+         - a page is a card: narrow for forms, steps and reading; wide for Home, playing and lists
+         - side-by-side groups stack by themselves when there isn't room (no extra breakpoints)
+         - a list page keeps its list on the left and opens what you tap on the right
+           (specs/components/two-pane.md; set by applyPanes in app.js from 1000px up)
+       ========================================================================================= */
+
+    /* On a phone the side-by-side groups are not boxes at all, so those screens are exactly as they were. */
+    .home-main, .home-tools, .play-side, .play-main { display: contents; }
+    .nav-rail-head { display: none; }
+    .history-item.pane-selected { border-left-color: var(--primary-action); background: var(--primary-action-tint); }
+
+    @media (min-width: 700px) {
+        /* --- the frame (the app page only: body.app-shell) --- */
+        body.app-shell { align-items: stretch; --rail-w: var(--rail-width); }
+        body.app-shell.rail-folded { --rail-w: var(--rail-width-folded); }
+        body.app-shell #mainContainer { max-width: none; width: auto; margin-left: var(--rail-w); }
+        body.app-shell :is(.top-bar, .session-bar, .offline-bar) { max-width: none; }
+        body.app-shell .top-bar { padding: var(--space-2) var(--space-6); min-height: var(--rail-head-height); }
+        body.app-shell .top-btn-burger { display: none; }
+        body.app-shell .nav-menu-backdrop { display: none; }
+        body.app-shell .flow-edit-sticky-bar-wrap { left: var(--rail-w); width: auto; right: 0; }
+        body.app-shell .flow-edit-sticky-bar { max-width: var(--page-max-narrow); }
+        body.app-shell .toast { left: calc(50% + var(--rail-w) / 2); }
+
+        /* --- a page is a card on the page colour: narrow unless it is one of the wide kinds --- */
+        body.app-shell .container { width: calc(100% - 2 * var(--space-5)); max-width: var(--page-max-narrow); margin: var(--space-5) auto; padding: var(--space-6); border-radius: var(--radius-xl); box-shadow: var(--shadow-md); min-height: 0; }
+        body.app-shell .container:has(> :is(#mainView, #flowPlayView):not(.hidden-group)) { max-width: var(--page-max-wide); }
+        body.app-shell .container.two-pane { max-width: var(--page-max-panes); }
+
+        /* --- the menu rail: the same menu, always there (.rail-demo shows its look on Admin -> Design) --- */
+        body.app-shell #burgerDropdown { display: flex; position: fixed; top: 0; bottom: 0; left: 0; right: auto; width: var(--rail-w); max-height: none; }
+        .rail-demo { width: var(--rail-width); }
+        .rail-demo.is-folded { width: var(--rail-width-folded); }
+        .rail-demo .nav-menu { display: flex; position: static; width: auto; }
+        :is(body.app-shell, .rail-demo) .nav-menu { flex-direction: column; min-width: 0; max-width: none; box-sizing: border-box; padding: var(--space-2); border: none; border-right: 1px solid var(--input-border); border-radius: 0; box-shadow: none; }
+        :is(body.app-shell, .rail-demo) .nav-rail-head { display: flex; align-items: center; gap: var(--space-2); min-height: var(--touch-target); padding: 0 0 var(--space-2) var(--space-3); }
+        .nav-rail-name { flex: 1 1 auto; min-width: 0; font-size: var(--font-base); font-weight: var(--font-weight-bold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .nav-rail-fold { flex: 0 0 auto; display: grid; place-items: center; width: var(--touch-target); height: var(--touch-target); padding: 0; border: none; border-radius: var(--radius-md); background: none; color: var(--label-color); cursor: pointer; }
+        .nav-rail-fold:hover { background: var(--input-bg); color: var(--text-color); }
+        :is(body.app-shell, .rail-demo) .nav-menu .nav-panel { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+        :is(body.app-shell, .rail-demo) .nav-menu .nav-panel.hidden-group { display: none; }
+        :is(body.app-shell, .rail-demo) .nav-menu .dropdown-item.nav-item:not(.hidden-group) { border-bottom: none; border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); }
+        :is(body.app-shell, .rail-demo) .nav-menu .nav-divider { margin: var(--space-2); }
+        :is(body.app-shell, .rail-demo) .nav-menu .nav-divider:has(+ [data-act="logout"]) { margin-top: auto; }
+        :is(body.app-shell, .rail-demo) .nav-menu .nav-section-title { padding: var(--space-1) var(--space-3); }
+
+        /* folded to icons: the names are still there for a screen reader, and show as a tip on hover */
+        :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-rail-head { padding: 0 0 var(--space-2); justify-content: center; }
+        :is(body.app-shell.rail-folded, .rail-demo.is-folded) :is(.nav-rail-name, .nav-section-title, .nav-item-chevron, .nav-item-meta) { display: none; }
+        :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-menu .nav-item-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* token-audit-ignore: standard screen-reader-only clip pattern */
+        :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-menu .dropdown-item.nav-item:not(.hidden-group) { justify-content: center; padding: var(--space-2) 0; }
+
+        /* --- Home: the greeting and the big button on one side, favourite tools on the other --- */
+        body.app-shell #mainView { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--pane-col-min)), 1fr)); column-gap: var(--space-8); align-items: start; }
+        body.app-shell :is(.home-main, .home-tools, .play-side, .play-main) { display: block; min-width: 0; }
+        body.app-shell .home-tools .tools-title { margin-top: 0; }
+        body.app-shell .tool-icon-row { grid-template-columns: repeat(auto-fill, minmax(var(--tile-col-min), 1fr)); }
+        body.app-shell .stats-page .dashboard-grid { grid-template-columns: repeat(auto-fill, minmax(var(--stat-col-min), 1fr)); }
+
+        /* --- playing a piece: the tuner, where you are and the controls on one side, the piece on the other --- */
+        body.app-shell #flowPlayView { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--play-col-min)), 1fr)); column-gap: var(--space-8); align-items: start; }
+        body.app-shell .play-main > .section-title:first-child { margin-top: 0; }
+
+        /* --- two panes: the list stays on the left, what you tapped opens on the right
+               (.two-pane is only ever set on the app page's card, or on an Admin -> Design example) --- */
+        .container.two-pane, .two-pane-demo { display: grid; grid-template-columns: var(--pane-list-width) minmax(0, 1fr); column-gap: var(--space-6); align-items: start; }
+        :is(.container.two-pane, .two-pane-demo) > * { grid-column: 2; min-width: 0; }
+        :is(.container.two-pane, .two-pane-demo) > .pane-list { grid-column: 1; grid-row: 1 / span 4; align-self: stretch; padding-right: var(--space-6); border-right: 1px solid var(--input-border); }
+        .container.two-pane > .pane-list { min-height: 60vh; }
+        :is(.container.two-pane, .two-pane-demo)::after { content: attr(data-pane-hint); grid-column: 2; align-self: center; justify-self: center; padding: var(--space-10) var(--space-5); color: var(--label-color); text-align: center; }
+        :is(.container.two-pane, .two-pane-demo).has-detail::after { content: none; }
+        .pane-list .section-title:first-child { margin-top: 0; }
     }

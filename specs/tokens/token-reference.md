@@ -324,6 +324,22 @@ one ladder, low to high. Never invent a number in a component.
 | Token | Value | Use for |
 |---|---|---|
 | `--app-max-width` | `500px` | single source of truth for the centred app column (ML-53) |
+
+## ML-239: tablet and desktop (specs/foundations/layout.md)
+
+| Token | Value | Use for |
+|---|---|---|
+| `--rail-width` | `232px` | the menu rail, open: icons and names |
+| `--rail-width-folded` | `64px` | the menu rail, folded to icons |
+| `--page-max-narrow` | `640px` | a form, a set of steps or a page of reading on a wide screen |
+| `--page-max-wide` | `1080px` | Home, playing and the two-pane pages on a wide screen |
+| `--pane-list-width` | `320px` | the list side of a two-pane page |
+| `--pane-col-min` | `320px` | narrowest a side-by-side column may get before the two stack |
+| `--page-max-panes` | `1320px` | a two-pane page: the list, and room for what opens beside it |
+| `--play-col-min` | `380px` | narrowest the controls and the piece get side by side on the play screen |
+| `--tile-col-min` | `96px` | narrowest a tool tile gets when a row fits as many as it can |
+| `--stat-col-min` | `180px` | narrowest a stat card gets on the Stats page's grid |
+| `--rail-head-height` | `58px` | the rail's head lines up with the top bar |
 | `--touch-target` | `48px` | minimum tap target for any button |
 | `--bottom-bar-clearance-lg` | `150px` | scroll room above the taller Flow details sticky bar |
 | `--toast-above-bottom-bar` | `100px` | where a toast sits on a screen with a bar pinned to the bottom (Quick entry's Back / Next, the piece edit screen's Cancel / Save), so it never covers the bar's buttons |

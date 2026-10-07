@@ -142,7 +142,7 @@ Menu group: open / shut (heading `aria-expanded`, count shown only when shut). W
 ```
 
 ## 8. Cross-references
-[tabs](tabs.md) · [stat-card](stat-card.md) · [pill-badge](pill-badge.md) · [modal](modal.md)
+[tabs](tabs.md) · [stat-card](stat-card.md) · [pill-badge](pill-badge.md) · [modal](modal.md) · [layout](../foundations/layout.md) (the member app is phone first; this panel is desktop first - checked at 390, 820 and 1180px for ML-239: the menu folds behind ☰ at 700px and below, and wide tables scroll inside `.admin-stat-table-wrap`)
 
 ## 9. Accessibility
 - The ☰ toggle is a real `<button>` with an accessible name that says what it does ("Show admin sections" / "Hide admin sections") and `aria-expanded`; Esc closes the open list and returns focus to the toggle.

@@ -7,7 +7,7 @@ modifying any UI code, read the relevant spec here.**
 |---|---|
 | [`public/tokens.css`](../public/tokens.css) | The tokens themselves - Layer 1 primitives (`--ds-*`) and Layer 2 aliases |
 | [`tokens/token-reference.md`](tokens/token-reference.md) | Master map of every token, its value (light/dark) and when to use it - generated, don't hand-edit |
-| [`foundations/`](foundations/) | The rules per category: [color](foundations/color.md), [spacing](foundations/spacing.md), [typography](foundations/typography.md), [radius](foundations/radius.md), [elevation](foundations/elevation.md), [motion](foundations/motion.md), [accessibility](foundations/accessibility.md) |
+| [`foundations/`](foundations/) | The rules per category: [layout - phone, tablet and desktop](foundations/layout.md), [color](foundations/color.md), [spacing](foundations/spacing.md), [typography](foundations/typography.md), [radius](foundations/radius.md), [elevation](foundations/elevation.md), [motion](foundations/motion.md), [accessibility](foundations/accessibility.md) |
 | [`components/`](components/) | One spec per component that exists in the app |
 | [`public/styleguide.html`](../public/styleguide.html) | Live rendered examples (open `/styleguide.html` on any environment) |
 

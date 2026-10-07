@@ -42,7 +42,7 @@ Put them in the screen body.
 ```
 
 ## 8. Cross-references
-[dropdown-menu](dropdown-menu.md) · [notification-centre](notification-centre.md) · [metronome](metronome.md) · [elevation](../foundations/elevation.md)
+[dropdown-menu](dropdown-menu.md) · [notification-centre](notification-centre.md) · [metronome](metronome.md) · [elevation](../foundations/elevation.md) · [menu-rail](menu-rail.md) (from 700px up the ☰ button is hidden and the menu is a rail; the bar spans the page beside it, and Home's title is "Home") · [layout](../foundations/layout.md)
 
 ## 9. Accessibility
 - The title is the page `<h1>` (`#topTitle`, `tabindex="-1"`): `switchView` updates `document.title` and moves focus to it on every screen change.
