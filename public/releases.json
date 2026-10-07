@@ -1,5 +1,41 @@
 [
   {
+    "version": "0.49.0",
+    "date": "2026-10-07",
+    "changes": [
+      {
+        "key": "ML-484",
+        "type": "New",
+        "summary": "Try out a new name: an admin switch between three brands (Music Ledger, Notably Better, Fivetto) - splash, name and mark only"
+      },
+      {
+        "key": "ML-483",
+        "type": "New",
+        "summary": "Take Resend out: it was never used, and email will move to a provider based in Europe"
+      },
+      {
+        "key": "ML-482",
+        "type": "New",
+        "summary": "Privacy policy: changing your email address is on for everyone; GDPR assessment re-run"
+      },
+      {
+        "key": "ML-481",
+        "type": "Fixes",
+        "summary": "time longer than 1 hour doesn't fit in timer pop up box"
+      },
+      {
+        "key": "ML-480",
+        "type": "Fixes",
+        "summary": "download data includes every band - should only be your bands"
+      },
+      {
+        "key": "ML-239",
+        "type": "New",
+        "summary": "Be able to use in tablet mode horizontal and vertical"
+      }
+    ]
+  },
+  {
     "version": "0.48.0",
     "date": "2026-10-07",
     "changes": [
