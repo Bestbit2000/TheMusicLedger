@@ -28,6 +28,12 @@ Each ticket has a Jira comment saying what was built. Their status is left for t
 
 ## Before it can go to sandbox - all with the owner
 
+**7 Oct 2026, the owner's answers:** design sign-off is **granted** (item 1 - push with
+`DESIGN_APPROVED=1` when he asks for the release). His two changes to "Young players" are in the policy;
+the rest of the policy wording was quoted to him and waits for his yes (item 2). **Yes to a notice for
+ML-478** (item 3) - wording drafted in the chat, his to agree; it is added on Admin → Notifications as an
+Important notice on each site at release. `docs/competitor-analysis.md` is committed. ML-238/239 wait.
+
 1. **Design sign-off.** Pictures of the real screens are in `signoff-pictures/` (not committed): ML-478
    (eight), ML-463 (three), ML-465 (three), ML-469 (three), ML-470 (two). One new CSS class:
    `.notification-important`. Run `npm run design-signoff` for the Admin → Design "what's new" pictures.
