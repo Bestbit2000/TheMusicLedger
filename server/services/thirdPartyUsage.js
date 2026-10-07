@@ -75,14 +75,6 @@ export const METERS = [
     }
   },
   {
-    key: 'resend-month', party: 'resend', name: 'Emails this month', unit: 'emails', limit: 3000, per: 'month', cumulative: true, source: 'app',
-    how: 'Resend says how many have been used each time the app sends one. No reading until an email has gone out through Resend.'
-  },
-  {
-    key: 'resend-day', party: 'resend', name: 'Emails today', unit: 'emails', limit: 100, per: 'day', cumulative: false, source: 'app',
-    how: 'Resend says how many have been used today each time the app sends one.'
-  },
-  {
     key: 'posthog-events', party: 'posthog', name: 'Analytics events', unit: 'events', limit: 1000000, per: 'month', cumulative: true, source: 'api', needs: 'POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID',
     how: 'PostHog\'s query API: the events recorded since the billing day (the 12th unless POSTHOG_BILLING_DAY says otherwise).',
     async read() {
@@ -140,19 +132,6 @@ export async function recordManualReading(meterKey, value, note) {
   const n = Number(value);
   if (!(n >= 0)) throw withStatus(400, 'Type the amount used as a number.');
   await storeReading(m.key, n, 'manual', m.per === 'total' ? null : periodFor(new Date(), m.per === 'day' ? { start: today(), end: today() } : null), note);
-}
-
-// Resend's reply to every send says how much of the allowance is used: x-resend-monthly-quota and,
-// on the free plan, x-resend-daily-quota. Called by mail.js; never lets a bad header stop an email.
-export async function recordResendQuota(headers) {
-  try {
-    const month = Number(headers.get('x-resend-monthly-quota'));
-    const day = Number(headers.get('x-resend-daily-quota'));
-    if (headers.get('x-resend-monthly-quota') !== null && month >= 0) await storeReading('resend-month', month, 'app', periodFor(new Date()), null);
-    if (headers.get('x-resend-daily-quota') !== null && day >= 0) await storeReading('resend-day', day, 'app', { start: today(), end: today() }, null);
-  } catch (error) {
-    console.error('Resend quota not recorded:', error.message);
-  }
 }
 
 // Where every meter stands: its latest reading, the status worked out from it, and its last readings.

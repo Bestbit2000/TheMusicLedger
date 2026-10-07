@@ -44,7 +44,7 @@ const startBandGroup = async (accountId, directoryBandId) => bands.setUpSharing(
 test('whether an email really went: only a site that sends them says "emailed" (ML-479)', () => {
   assert.deepEqual(emailOutcome('log'), HELD);
   assert.deepEqual(emailOutcome('smtp'), { emailed: true });
-  assert.deepEqual(emailOutcome('resend'), { emailed: true });
+  assert.deepEqual(emailOutcome('smtp'), { emailed: true });
   assert.equal(sentOrHeld('sent', 'held', 'log'), 'held');
   assert.equal(sentOrHeld('sent', 'held', 'smtp'), 'sent');
   // With nothing passed it follows the setting, and no setting at all means "kept, not sent"

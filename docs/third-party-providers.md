@@ -9,7 +9,7 @@ The register covers five groups:
 
 | Group | What | Examples |
 |---|---|---|
-| `service` | Services the live app needs | Neon, Vercel, Vercel Blob, Google sign-in, Gmail (sends the email - a free personal account, so no data processing agreement; see its entry), PostHog, Resend (built in, **not in use** - the owner, 6 Oct 2026), Have I Been Pwned, jsDelivr, YouTube, the OMR service |
+| `service` | Services the live app needs | Neon, Vercel, Vercel Blob, Google sign-in, Gmail (sends the email - a free personal account, so no data processing agreement; see its entry), PostHog, Have I Been Pwned, jsDelivr, YouTube, the OMR service |
 | `asset` | Fonts and icons | Bravura, OpenDyslexic, Lexend, Inter, Noto Music, Material Symbols |
 | `content` | Other people's material and ideas | ABRSM syllabuses (ML-313), Takadimi, MusicXML, band directory sources |
 | `library` | npm packages named in `package.json` and `server/package.json` | express, pg, @vercel/blob... |
@@ -137,8 +137,7 @@ The top of **Admin → Third parties** shows what the app costs and how close ea
   shows **pounds with US dollars underneath** at the owner's own rate (`app_config` `usd_per_gbp`, changed
   on the page): spent so far (every payment up to today), and what it is costing now a month and a year.
 - **Meters** (`METERS` in the service) are the things a plan limits. Each is read one of three ways:
-  - **counted by the app** - file storage (from our own records), this database's size, and Resend's email
-    counts (Resend's reply to each send carries them; `mail.js` records it);
+  - **counted by the app** - file storage (from our own records) and this database's size;
   - **asked from the provider** - Neon compute, storage and data sent out; PostHog events - when the key is set;
   - **typed in** - Vercel's figures, from Vercel → Usage. Any meter can be given a typed reading.
 - **Readings** (`third_party_usage_readings`) are taken once a day by Vercel's scheduler

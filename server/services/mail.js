@@ -3,7 +3,6 @@
 //   MAIL_PROVIDER=smtp    - any SMTP server, e.g. a dedicated Gmail account with an app password:
 //                           SMTP_HOST=smtp.gmail.com SMTP_PORT=465 SMTP_USER=... SMTP_PASS=<app password>
 //                           (needs `npm install nodemailer` in server/ - it's only loaded for this mode)
-//   MAIL_PROVIDER=resend  - Resend's HTTP API, once the app has its own domain: RESEND_API_KEY=...
 // MAIL_FROM is the sender, e.g. "The Music Ledger <musicledger.mail@gmail.com>".
 
 import pool from '../config/db.js';
@@ -35,20 +34,6 @@ export async function sendMail({ to, subject, text, html }) {
   if (provider === 'log') {
     await pool.query('INSERT INTO email_outbox (to_email, subject, body_text, body_html) VALUES ($1, $2, $3, $4)', [to, subject, text, html || null]);
     if (process.env.NODE_ENV !== 'test') console.log(`[mail:log] to ${to}: ${subject}`);
-    return;
-  }
-  if (provider === 'resend') {
-    if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY is not set.');
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: [to], subject, text, html }),
-      signal: AbortSignal.timeout(10000)
-    });
-    if (!res.ok) throw new Error(`Resend refused the email (${res.status}).`);
-    // ML-429: Resend's reply says how much of the allowance is used - kept as a usage reading (Admin -> Third
-    // parties). Loaded here, not at the top, because that service sends its warnings through this one.
-    await import('./thirdPartyUsage.js').then((usage) => usage.recordResendQuota(res.headers)).catch(() => {});
     return;
   }
   if (provider === 'smtp') {

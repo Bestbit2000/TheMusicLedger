@@ -305,56 +305,6 @@ export default [
     hosts: ['posthog.com']
   },
   {
-    key: 'resend',
-    name: 'Resend',
-    group: 'service',
-    // Not in use (the owner, 6 Oct 2026): the live site's MAIL_PROVIDER is "smtp" - a Gmail account (the
-    // entry above) - and he would rather not have a US email company handle the app's email. The code
-    // can still send through Resend (mail.js); if that is ever switched on, set this back to in_use,
-    // give it policyName 'Resend' and name it in the privacy policy in the same change.
-    status: 'not_in_use',
-    who: 'Plus Five Five, Inc. (USA)',
-    provides: 'Not used. An email service the app can send through (MAIL_PROVIDER "resend") - the option once the app has a domain of its own. The live site sends through a Gmail account instead.',
-    usedIn: 'server/services/mail.js (RESEND_API_KEY, MAIL_FROM)',
-    plan: 'Free plan',
-    cost: 'Free',
-    licence: 'Resend terms of service',
-    terms: [
-      { label: 'Terms of service', url: 'https://resend.com/legal/terms-of-service', dated: '27 Aug 2026' },
-      { label: 'Acceptable use', url: 'https://resend.com/legal/acceptable-use', dated: '27 Aug 2026' },
-      { label: 'Privacy policy', url: 'https://resend.com/legal/privacy-policy', dated: '27 Aug 2026' },
-      { label: 'Data processing agreement', url: 'https://resend.com/legal/dpa', dated: '31 Dec 2025' },
-      { label: 'Pricing', url: 'https://resend.com/pricing' }
-    ],
-    termsCheckedOn: CHECKED,
-    says: [
-      'The data processing agreement applies as soon as the terms are accepted - nothing to sign.',
-      'Resend is a processor of the addresses and messages. Processing is mainly in the USA.',
-      'Sent emails, links included, stay in Resend\'s logs for 30 days.',
-      'Price changes come with reasonable notice; terms changes apply when posted.',
-      'A free account that goes over its limits can be changed or closed.'
-    ],
-    asks: [
-      { text: 'Only email people who expect it. Password resets are asked for by the member. Invites go to people who haven\'t signed up, so keep them one-off, clearly from the named person, with no marketing.' },
-      { text: 'Keep bounces under 4% and spam complaints under 0.08%, or sending can be paused without warning. A mistyped invite address counts as a bounce.' },
-      { text: 'No bought or collected lists.' }
-    ],
-    watch: [
-      'The daily cap of 100 is the one most likely to be hit first: each member can send 5 invites a day.',
-      'Use a "sending only" API key, not a full-access one.',
-      'A domain of our own is needed to send from a proper address - there isn\'t one yet.'
-    ],
-    limits: [
-      { what: 'Emails', allowance: '3,000 a month' },
-      { what: 'Emails in a day', allowance: '100' },
-      { what: 'Sending domains', allowance: '3' }
-    ],
-    overLimit: 'Blocked: the send is refused until the day or month rolls over.',
-    nextTier: 'Pro - $20 a month for 50,000 emails with no daily cap; then $0.90 per 1,000.',
-    usageSource: 'Every reply from Resend says how many emails have been used this month and today, so the app can record it when it sends. The app also keeps its own log of what it sent.',
-    hosts: ['resend.com']
-  },
-  {
     key: 'pwned-passwords',
     policyName: 'Have I Been Pwned',
     name: 'Have I Been Pwned - Pwned Passwords',

@@ -5,8 +5,10 @@ Logging in with an email address and a password, next to Google. **Off until swi
 before anyone has logged in. A feature missing from the table reads as off (`isFeatureLive`).
 
 Owner decisions (2026-09-29): invite-only; the email address is the username; 2FA optional for
-everyone but required for super admins; Resend for email once the app has its own domain, a dedicated
-Gmail account (SMTP) until then.
+everyone but required for super admins; a dedicated
+Gmail account (SMTP) for email until the app has its own domain. (Resend was the first plan for that; the owner
+dropped it on 7 October 2026 - he wants a provider based in Europe - and its code was taken out. Any provider
+that offers SMTP works with no new code.)
 
 | Batch | What | Status |
 |---|---|---|
@@ -110,7 +112,6 @@ Gmail account (SMTP) until then.
 |---|---|---|
 | `log` (default) | written to the `email_outbox` table, never sent - local, dev and sandbox; back-tests read the links from it. The app says so wherever it would say "sent" (ML-479: `emailOutcome` / `sentOrHeld` in `mail.js`) - invites, band invitations, the admin's reset link, and "Forgot your password?", which answers "This site doesn't send emails, so no link has been sent." for every address alike | - |
 | `smtp` | any SMTP server - e.g. a dedicated Gmail account | `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_USER`, `SMTP_PASS` (a Google **app password**, needs 2-step verification on that Gmail account), and `npm install nodemailer` in `server/` |
-| `resend` | Resend's API, once the app has its own domain verified there | `RESEND_API_KEY` |
 
 Plus `MAIL_FROM` (e.g. `The Music Ledger <musicledger.mail@gmail.com>`) and `APP_URL` (e.g.
 `https://the-music-ledger.vercel.app`) wherever real email is sent. Gmail allows ~500 emails a day,

@@ -35,8 +35,8 @@ const COSTS = [
     note: '$20 plus UK VAT. The free plan is for non-commercial use and has no data processing contract, so this is required once anything is sold and expected once other people\'s information is held. Its $20 of included usage covers file storage.', source: { label: 'vercel.com', url: 'https://vercel.com/docs/plans/pro-plan' } },
   { id: 'database', group: 'host', name: 'Database (Neon), once it outgrows the free plan', calc: 'database', basis: 'published',
     note: 'Worked out from the member numbers and the usage figures on the Overview. Free to 100 compute-hours a month, then $0.106 an hour and $0.35 a GB.', source: { label: 'neon.com', url: 'https://neon.com/pricing' } },
-  { id: 'resend-pro', group: 'host', name: 'Resend Pro (email)', amount: 20, currency: 'USD', every: 'month', from: AT_LAUNCH, minMembers: 3000, meter: 'resend-month', basis: 'published',
-    note: 'Needed above 100 emails a day or 3,000 a month. The 3,000 members is my guess at when that happens.', source: { label: 'resend.com', url: 'https://resend.com/pricing' } },
+  { id: 'email-service', group: 'host', name: 'Email service, paid plan', amount: 20, currency: 'USD', every: 'month', from: AT_LAUNCH, minMembers: 3000, basis: 'estimate',
+    note: 'No provider is chosen yet (the owner wants one based in Europe). A guess at what a paid plan costs once the free allowance runs out, and at the 3,000 members when that happens.' },
   { id: 'pdf-server', group: 'host', name: 'A small server for PDF import', amount: 5, currency: 'GBP', every: 'month', from: AT_LAUNCH, basis: 'estimate',
     note: 'Only if "Create from file" is switched on. It may cost nothing on a pay-per-use service, or £4-£6 a month on a small server of its own.' },
   { id: 'uptime-checks', group: 'host', name: 'Uptime checks (a paid plan)', amount: 10, currency: 'GBP', every: 'month', from: AT_LAUNCH, basis: 'estimate',
@@ -77,7 +77,7 @@ const COSTS = [
 
 const JUST_ME = ['claude-max-build', 'claude-pro', 'database', 'ico-first'];
 const INVITE_ONLY = [...JUST_ME, 'vercel-pro', 'ico-yearly', 'domain'];
-const FREE_TO_ANYONE = [...INVITE_ONLY, 'business-address', 'google-play', 'resend-pro'];
+const FREE_TO_ANYONE = [...INVITE_ONLY, 'business-address', 'google-play', 'email-service'];
 const PREMIUM = [...FREE_TO_ANYONE, 'solicitor', 'company-set-up', 'confirmation-statement', 'filing-software', 'insurance'];
 const including = (ids) => Object.fromEntries(ids.map((id) => [id, true]));
 

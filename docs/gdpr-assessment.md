@@ -1,6 +1,6 @@
 # UK GDPR assessment (ML-221)
 
-**This is version 2, 6 October 2026.** It is a check of the app against the UK GDPR's principles and the
+**This is version 3, 7 October 2026.** It is a check of the app against the UK GDPR's principles and the
 rules around them, kept as a running record: each review adds a version, says what has happened since the
 last one, and shows how each gap is being filled. It is a careful reading by Claude, **not legal advice**.
 
@@ -10,13 +10,87 @@ last one, and shows how each gap is being filled. It is a careful reading by Cla
 |---|---|---|---|
 | 1 | 6 October 2026 | Claude, for Andrew Storey | The first assessment: every principle checked against the code, the live site, the policy, the third-party register and the three databases. 21 gaps found. Kept in full at the end of this document, as written. |
 | 2 | 6 October 2026 | Claude, for Andrew Storey | After the owner's decisions the same day: 4 gaps closed, 6 built or drafted and waiting on the owner, 8 with a ticket, 3 with the owner. |
+| 3 | 7 October 2026 | Claude, for Andrew Storey | A re-run after releases 0.47.0 and 0.48.0, at the owner's request: every gap checked again against the code, the live site and the three databases. 9 closed, 12 still open - none of them needs anything new built; all 12 wait on the owner. One new finding. |
 
 **Next review:** 6 October 2027, or sooner if what the app holds, or who receives it, changes. Each review:
 re-read the evidence named in version 1's rows, update the gap register below, add a row above, and write a
 "what has happened since" section. (The reminder is built, ML-470: Admin → Security → Reviews.) The same history is in
 git: every version of this file is a commit.
 
-## Where it stands now
+## Where it stands now (version 3)
+
+| | Principle or rule | Version 2 | Version 3 | Why |
+|---|---|---|---|---|
+| 1 | Lawfulness, fairness and transparency | Mostly met | Mostly met | The lawful reason for every item is now in the live policy, signed off. What keeps it at "mostly": members were never told in the app about the last-seen date (no notice has been published on production). |
+| 2 | Purpose limitation | Met | Met | dev and sandbox still hold one real-looking address each. |
+| 3 | Data minimisation | Met | **Met, better** | A teacher is a name only (the unused columns are gone), and the sign-in token no longer carries Google's keys. |
+| 4 | Accuracy | Mostly met | Mostly met | Changing an email address is built and released, but switched on for Super admin only. |
+| 5 | Storage limitation | Mostly met | Mostly met | The daily clear-up runs and nothing is past its time. The unused-accounts rule is released but **off** on production and sandbox. |
+| 6 | Integrity and confidentiality (security) | Mostly met | **Mostly met, closer** | Teachers and labels are private (ML-472, ML-473), the five headers are on the live site (checked), no script is written in a page. Left: the content security policy is still report-only. |
+| 7 | Accountability | Partly met, much closer | **Partly met** | Neon signed; reviews and reminders built; a place to record agreements. Still open: Vercel and Gmail have no agreement, no transfer safeguard is recorded, and the five documents are not yet confirmed as read. |
+| - | People's rights | Met | Met | - |
+| - | Transfers outside the UK | Mostly met | Mostly met | Every provider's safeguard is blank on production. |
+| - | Cookies and the device (PECR) | Met | Met | - |
+| - | Children | Met, with actions | Met, with actions | The three actions are done (policy lines for young players, who sees what in a band, the no-pressure rule). The two conditions stand: Vercel under contract, organisers told. |
+| - | Data breaches | In place | In place (drafted) | The plan exists; not yet confirmed as read through. |
+
+## Gap register at version 3
+
+Checked on 7 October 2026 against release 0.48.0 (commit `94c0d8d`), the live site and read-only counts on
+the three databases. The fuller history of each gap is in the version 2 register further down.
+
+**Closed (9)**
+
+| # | Gap | How it was checked |
+|---|---|---|
+| 1 | No lawful reason stated for three items | "Why we hold it" in the live policy names all seven purposes and which are legitimate interests. Wording signed off by the owner. |
+| 3 | Policy date | Live page says 7 October 2026, the day of its last change. |
+| 4 | People who are not members | `tutors` is a name and an owner only (migration 107); the policy says a teacher is not told; invites are cleared after 30 days. |
+| 7 | Dead invites and old feedback never cleared | The daily job runs `clearOldRecords` whether or not the retention rule is on. Production: 0 invites past 30 days. |
+| 10 | No security review; teachers and labels shared | Review done; ML-472 and ML-473 released in 0.47.0. |
+| 12 | PostHog's agreement | Recorded as in place on production. |
+| 17 | Complaints route | In the live policy. |
+| 18 | No regular review | Admin → Security → Reviews is live; `review_log` on production has the three first entries. |
+| 21 | ICO fee | Registered and paid. |
+
+**Still open (12) - all with the owner**
+
+| # | Gap | What is left | Weight |
+|---|---|---|---|
+| 11 | **Vercel has no data processing agreement** | Move to Pro, then record it on Admin → Third parties. Recorded as "not in place" on production. | **High** |
+| 13 | **The email provider has no agreement** | Neon's half is closed (signed 6 Oct). Email goes through a personal Gmail account with no agreement, and it keeps every sent email. Needs a provider with an agreement, sending from the app's own domain. | **High** |
+| 19 | Transfer safeguards not recorded | The boxes exist; all five are blank on production. Google sign-in is not recorded either. | Medium |
+| 14, 15, 16, 20 | The five documents | Drafted and on his machine. To do: read them, fill in the ICO registration number and provider columns, say they stand. | Medium |
+| 2 | Members never told about the last-seen date | The "Before you continue..." notice is built (ML-463). No notice of any kind has been published on production - that includes the agreed "My bands has changed" one. | Medium |
+| 6 | Unused accounts kept for ever | Built and released; the rule is off on production and sandbox. The policy already states it as fact. No account can reach 22 months before July 2028, so nobody is misled yet. Waits on gap 13 (email from the app's own domain). | Low for now |
+| 9 | Content security policy | The headers are closed. The policy is still report-only on the live site; switching it on is a small release of its own (`docs/site-security-review.md`). | Medium |
+| 5 | Email address can't be changed in the app | Built (ML-465); Live, but no account type has it, so Super admin only. Switch on in Admin → Feature access; then the policy's "where it is switched on for your account" can go. | Low |
+| 8 | Sign-up emails in the owner's inbox | A habit or an inbox rule: delete after 12 months. Can't be checked from here. | Low |
+
+**New at version 3**
+
+- **Production has three accounts with real-looking email addresses, not one.** Version 2 said the owner was
+  the only member. Besides his own and one local test account there are two others (created 27 September
+  and 1 October 2026; neither has used the app since last-seen began). If they are his own, nothing changes.
+  If they are other people, gaps 11 and 13 are no longer "before anyone is invited" - other people's names
+  and emails are already passing through Vercel and Gmail with no agreement. **The owner to say whose they are.**
+  - **The owner's answer, 7 October 2026:** they are two people reviewing the site for him - his wife and
+    his band's conductor. His teacher also has access (no third account was on production when checked).
+    So other people's names and emails **are** now held, and gaps 11 and 13 apply today, not "before anyone
+    is invited". All are adults known to him, which keeps the risk small, but the two agreements are now
+    the first thing to close, and nobody further should be invited until they are.
+- **The five documents (gaps 14, 15, 16, 20):** the owner has read them (7 October 2026) and keeps his own
+  copies. Those four gaps are closed, leaving 8 open. The ICO registration number does not need to be in
+  them; it is on the ICO's public register and his certificate.
+- **Resend is gone (7 October 2026, the owner):** it was never used on the live site and he wants an email
+  provider based in Europe. Its register entry, sending code and usage meters were taken out; where older
+  parts of this document say "Resend", read "the email provider", which today is Gmail.
+- The monthly site security review is next due about 6 November 2026; re-running it will record ML-474 and
+  ML-475 as closed.
+
+---
+
+## Where it stood at version 2
 
 | | Principle or rule | Version 1 | Version 2 | Why it moved |
 |---|---|---|---|---|
@@ -64,9 +138,11 @@ git: every version of this file is a commit.
   can see every other member's teacher names (ML-472) and private organisation names (ML-473). There is only
   one member today, so nothing has been exposed; both must be fixed before anyone else is invited.
 
-## Gap register
+## Gap register as at version 2
 
-Every gap found in version 1, and where it stands. **Closed** = done and checked. **Built / Drafted** =
+*Superseded by "Gap register at version 3" above; kept for the detail of how each gap was filled.*
+
+Every gap found in version 1, and where it stood. **Closed** = done and checked. **Built / Drafted** =
 done by Claude, waiting on the owner to review, switch on or release. **Ticket** = recorded, not started.
 **Owner** = only the owner can do it.
 

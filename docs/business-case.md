@@ -102,12 +102,12 @@ file). Each cost carries the link it was read from; those hosts are in the third
 Worth knowing about the figures:
 
 - **Claude** is priced in pounds with VAT for a UK subscriber (Max 5x £90, Pro £18 a month). **Vercel Pro**
-  is $20 plus UK VAT. Other dollar prices are as published; whether Neon and Resend add VAT was not confirmed.
+  is $20 plus UK VAT. Other dollar prices are as published; whether Neon adds VAT was not confirmed.
 - **Vercel Pro is in "Invite only"**, not just the paid scenarios: Vercel's data processing agreement
   covers only its paid plans. It is the owner's decision; switching it off shows the bare cost.
-- **A domain is in "Invite only"**: without one Resend delivers only to the owner's own address.
+- **A domain is in "Invite only"**: without one the app's email can only come from a Gmail account.
 - **Estimates**, marked as such on the page: a solicitor's read of the terms, the domain, a server for PDF
-  import, paid uptime checks, and the 3,000 members at which Resend's paid plan is assumed to start.
+  import, paid uptime checks, and the 3,000 members at which a paid email plan is assumed to start (no provider is chosen yet).
 - **Placeholders:** the member numbers for years 2 to 5, and the counts for other income. They are there
   to be typed over.
 - **Not confirmed** when the figures were read: Apple's price in pounds, the pound price of Claude Max
@@ -142,7 +142,7 @@ It takes every plan limit on Costs and usage (ML-429) with its latest reading, a
 - A limit with no reading shows none, never a guess.
 
 **The step up.** A limit can be linked to the cost that starts when it is reached (`cost.meter` = the usage
-meter's key - Resend Pro is linked to "Emails this month" in the starting plan). **Use N** sets that cost's
+meter's key). **Use N** sets that cost's
 "wait until there are this many members" to the number the reading says fit, in every scenario that includes
 it. It is a change like any other: it waits in the Save bar. It is one press, not automatic, so a forecast
 never moves without the owner seeing it. Sums: `BusinessCase.limits(meters, members)`.
