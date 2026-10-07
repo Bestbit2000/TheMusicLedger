@@ -1,8 +1,10 @@
-# Handover: after release 0.49.0
+# Handover: after release 0.50.0
 
 Written 7 October 2026. **Start here.** Replace this file with the next handover when there is one.
 
 ## Where things stand
+
+**0.50.0 (ML-486, the content security policy switched on) followed 0.49.0 the same evening.**
 
 **0.49.0 went to production and sandbox on 7 October 2026**: ML-239, ML-480, ML-481, ML-482, ML-483, ML-484.
 No migrations. The owner signed off the design (the layout, the brand mark and the timer pop-up) in the chat
@@ -16,17 +18,17 @@ that day, and said no notice to members was needed.
 | ML-480 | Download my information leaves out what a super admin entered for the app, the people a member invited, and the app's own workings. `docs/account-deletion.md` |
 | ML-482 | Privacy policy: "change my email" is on for everyone. GDPR assessment version 3: 15 gaps closed, 6 open |
 | ML-483 | Resend taken out (never used; he wants an email provider based in Europe) |
-| (ML-474) | The editor's YouTube preview uses the privacy-enhanced player; the security policy allows YouTube's player script. **The policy is still report-only** |
+| (ML-474) | The editor's YouTube preview uses the privacy-enhanced player; the security policy allows YouTube's player script |
 
 Checked before release: back-tests 60 of 60 (run 91), the axe scan 64 of 64 (run at 1280px, so in the wide
 layout), token audit, accessibility audit, design gate, third-party audit, the server's unit tests.
 
 ## Next, with the owner
 
-- **Switching the content security policy on (ML-474).** He walked sandbox on 7 Oct; it found the YouTube
-  framing error, now fixed. He is to walk sandbox **once more with 0.49.0 on it, playing a piece that has a
-  video**, with the console open. If it is quiet: set `CSP_ENFORCE=true` on both Vercel projects, then
-  `npm run sync-vercel-headers -- --enforce` and a small release. Steps: `docs/site-security-review.md`.
+- **The content security policy is on (0.50.0, ML-486, 7 Oct 2026).** Enforced on the pages (`vercel.json`) and the
+  server's answers (`CSP_ENFORCE=true` in Vercel for production and sandbox). A new outside address the app loads or
+  connects to must be added to `server/middleware/securityHeaders.js` and `npm run sync-vercel-headers -- --enforce`
+  run, or it will be blocked. On sandbox the console always shows two `manifest.json` lines - Vercel's sign-in wall.
 - **The name.** Production is on `music-ledger` until he switches it on Admin → App name. Dev was left on
   whatever he last chose (Fivetto when this was written). Emails keep the old name, so his wife will meet
   both. He is choosing in another chat, which also draws the artwork in `brand-trials/` on whatever branch

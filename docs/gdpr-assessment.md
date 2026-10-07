@@ -98,6 +98,9 @@ the three databases. The fuller history of each gap is in the version 2 register
   not been told. The two reviewers will be covered by the privacy policy, which names it, when they next
   sign in. No notice is to be sent. **15 closed, 6 open.**
 - The privacy policy's rights paragraph no longer says "where it is switched on for your account" (gap 5).
+- **Gap 9 closed, 7 October 2026 (0.50.0, ML-486):** the content security policy is enforced on the pages and the
+  server's answers, after the owner's sandbox walk. **16 closed, 5 open**: Vercel's agreement (11), Google sign-in's
+  safeguard (19), an email provider with an agreement (13), retention switched on (6), sign-up emails (8).
 - The monthly site security review is next due about 6 November 2026; re-running it will record ML-474 and
   ML-475 as closed.
 
