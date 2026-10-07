@@ -26,6 +26,15 @@ const NOT_FOLLOWED = new Set(['bands', 'band_members', 'notifications', 'securit
 //   APP_OWNED  - whole tables that are the app's records: left out.
 //   ROW_FILTER - a table that holds both: only the rows that are the member's own are taken.
 export const APP_OWNED = new Set(['notifications', 'third_party_costs', 'security_review_runs']);
+// Other people's details, and the app's own workings (the owner, 7 Oct 2026):
+//   OTHER_PEOPLE - invites the member sent hold the name and email address of the person invited. That is
+//                  someone else's information, so it does not go in a file the member takes away.
+//   HOUSEKEEPING - how the app keeps its place, not information about the member: which rest message comes
+//                  next, which notices have been opened, a timer or session that is running right now, and
+//                  the ids that stop something logged offline being saved twice.
+export const OTHER_PEOPLE = new Set(['auth_email_links', 'band_invites']);
+export const HOUSEKEEPING = new Set(['account_rest_decks', 'notification_reads', 'active_timer_sessions', 'active_practice_sessions', 'client_writes']);
+const LEFT_OUT = (table) => SECRET_TABLES.has(table) || APP_OWNED.has(table) || OTHER_PEOPLE.has(table) || HOUSEKEEPING.has(table);
 export const ROW_FILTER = {
   // My bands (a member's own 'label' rows) and a shared space they set up ('group') are theirs; the band
   // directory ('directory') is a list for everyone, whoever typed it in.
@@ -67,7 +76,7 @@ export async function exportMyAccount(accountId) {
 
   // 1. The member's own rows
   let frontier = [];
-  for (const link of keys.filter((k) => k.ref === 'accounts' && !SECRET_TABLES.has(k.tbl) && !APP_OWNED.has(k.tbl))) {
+  for (const link of keys.filter((k) => k.ref === 'accounts' && !LEFT_OUT(k.tbl))) {
     const only = ROW_FILTER[link.tbl] ? ` AND (${ROW_FILTER[link.tbl]})` : '';
     const { rows } = await pool.query(`SELECT * FROM ${link.tbl} WHERE ${link.col} = $1${only} ORDER BY 1`, [accountId]);
     const fresh = add(link.tbl, rows);
@@ -79,7 +88,7 @@ export async function exportMyAccount(accountId) {
     const next = [];
     for (const { table, ids } of frontier) {
       if (!ids.length) continue;
-      for (const child of keys.filter((k) => k.ref === table && !accountTables.has(k.tbl) && !SECRET_TABLES.has(k.tbl) && !APP_OWNED.has(k.tbl))) {
+      for (const child of keys.filter((k) => k.ref === table && !accountTables.has(k.tbl) && !LEFT_OUT(k.tbl))) {
         const { rows } = await pool.query(`SELECT * FROM ${child.tbl} WHERE ${child.col} = ANY($1) ORDER BY 1`, [ids]);
         const fresh = add(child.tbl, rows);
         if (fresh.length) next.push({ table: child.tbl, ids: fresh.map((r) => r.id).filter((id) => id !== undefined) });
@@ -96,7 +105,7 @@ export async function exportMyAccount(accountId) {
   return {
     app: 'The Music Ledger',
     exportedAt: new Date().toISOString(),
-    about: 'Everything The Music Ledger holds that belongs to this account. "account" is your details; "data" has one list per kind of record, named as the app stores them. Recordings and documents are listed with the address of each file, not the files themselves. Passwords and sign-in codes are never included.',
+    about: 'The information The Music Ledger holds about you. "account" is your details; "data" has one list per kind of record, named as the app stores them. Recordings and documents are listed with the address of each file, not the files themselves. Left out: passwords and sign-in codes; the name and email address of anyone you invited (that is their information, not yours); and the app\'s own workings, such as which notices you have opened.',
     account: clean(account),
     signIn: { hasPassword: password.rows.length > 0, twoStepOn: !!(twoStep.rows[0] && twoStep.rows[0].enabled_at) },
     data

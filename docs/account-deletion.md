@@ -79,6 +79,13 @@ having to ask. Owner's decision, 4 Oct 2026.
   (`third_party_costs`) and security review runs. Each of those rows records who entered it, which is why the
   owner's first download held all 45 directory bands. `APP_OWNED` and `ROW_FILTER` in the code. An ordinary
   member has no such rows. **A new table that records "created by" for an admin's own work goes in `APP_OWNED`.**
+- **Left out, other people's details (the owner, 7 Oct 2026):** invites the member sent - `auth_email_links` and
+  `band_invites` hold the name and email address of the person invited, which is that person's information.
+  `OTHER_PEOPLE` in the code.
+- **Left out, the app's own workings:** `account_rest_decks` (which rest message comes next),
+  `notification_reads`, `active_timer_sessions` and `active_practice_sessions` (what is running right now) and
+  `client_writes` (the ids that stop something logged offline being saved twice). `HOUSEKEEPING` in the code.
+  **A new table of that kind goes in the list**; anything that says something about the member stays in.
 - **Not followed:** `bands`, `band_members`, `notifications`, `security_review_runs` - the member's own rows
   are exported, but what hangs off them belongs to other people (a band's other members).
 - Recordings and documents are listed with the address of each file; the files themselves aren't in the JSON.

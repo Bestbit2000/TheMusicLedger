@@ -56,6 +56,10 @@ test('the export holds everything of the member\'s, nothing of anyone else\'s, a
   const notice = Number((await one(`INSERT INTO notifications (title, body, created_by_account_id) VALUES ('ML-480 export notice', 'For everyone', $1) RETURNING id`, [id])).id);
   cleanup.push(`DELETE FROM notifications WHERE id = ${notice}`);
 
+  // The owner, 7 Oct 2026: someone I invited is their information, not mine; and the app's own workings stay out
+  await pool.query(`INSERT INTO band_invites (band_id, email, invited_by_account_id) VALUES ($1, $2, $3)`, [band, `ml480-invited-${stamp}@themusicledger.local`, id]);
+  await pool.query(`INSERT INTO notification_reads (notification_id, account_id) VALUES ($1, $2)`, [notice, id]);
+
   const out = await exportMyAccount(id);
   const text = JSON.stringify(out);
 
@@ -73,6 +77,10 @@ test('the export holds everything of the member\'s, nothing of anyone else\'s, a
   assert.equal(text.includes('ML-480 directory band'), false); // the directory is everyone's list, whoever typed it in
   assert.equal(out.data.notifications, undefined); // an announcement is the app's
   assert.equal(text.includes('ML-480 export notice'), false);
+  assert.equal(out.data.band_invites, undefined);
+  assert.equal(text.includes('ml480-invited'), false);
+  assert.equal(out.data.auth_email_links, undefined);
+  for (const table of ['account_rest_decks', 'notification_reads', 'active_timer_sessions', 'active_practice_sessions', 'client_writes']) assert.equal(out.data[table], undefined, `${table} is the app's own workings`);
   assert.deepEqual(out.signIn, { hasPassword: true, twoStepOn: false });
 
   // Nobody else's
