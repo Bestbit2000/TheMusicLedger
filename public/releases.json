@@ -1,8 +1,30 @@
 [
   {
+    "version": "0.53.0",
+    "date": "2026-10-08",
+    "changes": [
+      {
+        "key": "ML-507",
+        "type": "New",
+        "summary": "Online Safety Act (Ofcom): does it apply, and a first run-through of what it asks"
+      },
+      {
+        "key": "ML-506",
+        "type": "New",
+        "summary": "Children's Code (ICO): a full run-through of the 15 standards, kept as a record"
+      }
+    ]
+  },
+  {
     "version": "0.52.0",
     "date": "2026-10-08",
-    "changes": []
+    "changes": [
+      {
+        "key": "ML-505",
+        "type": "New",
+        "summary": "Privacy policy: a line for young players about recordings, so the Recordings tool can be switched on for everyone"
+      }
+    ]
   },
   {
     "version": "0.51.0",
