@@ -80,12 +80,12 @@ adult's job. See action 2.
 
 | | Action | Who | Status |
 |---|---|---|---|
-| 1 | The upload confirmation and the Recordings tool's how-to say that anyone under 16 in a recording needs a parent's agreement | Claude | Done 8 October 2026, not yet released |
-| 2 | **An organiser is an adult.** Before someone sets up sharing for a band or sends a band invitation, they confirm once that they are 18 or over and responsible for the band; the terms say so. No proof is asked for - the same weight as the upload confirmation | Claude | Built 8 October 2026, not released. The terms say so. **A 16- or 17-year-old as organiser was considered and turned down by the owner (8 Oct 2026): safer that an adult sets up the band and gives a young helper the "change music" level, which lets them add and share the band's music without inviting anyone** |
-| 3 | Add the recordings section to the impact assessment (a new dated copy of document 5) | The owner | Draft is in his compliance folder |
-| 4 | The terms say what may not be shared, and what happens if it is | The owner (wording) | Open - also in `online-safety-assessment.md` |
-| 5 | A "Report this" button on anything a band shares | Claude | Built 8 October 2026 for a piece and everything on it, not released - see `online-safety-assessment.md` |
-| 6 | Tell a band's organisers how sharing with a band works, and that young players' parents must agree to recordings, before a band with young players is invited | The owner | Open (a condition since the first assessment) |
+| 1 | The upload confirmation and the Recordings tool's how-to say that anyone under 16 in a recording needs a parent's agreement | Claude | Done 8 October 2026, released in 0.52.0 |
+| 2 | **An organiser is an adult.** Before someone sets up sharing for a band or sends a band invitation, they confirm once that they are 18 or over and responsible for the band; the terms say so. No proof is asked for - the same weight as the upload confirmation | Claude | Built 8 October 2026, released in 0.53.0. The terms say so. **A 16- or 17-year-old as organiser was considered and turned down by the owner (8 Oct 2026): safer that an adult sets up the band and gives a young helper the "change music" level, which lets them add and share the band's music without inviting anyone** |
+| 3 | Add the recordings section to the impact assessment (a new dated copy of document 5) | The owner | Draft is in his compliance folder - ML-509 |
+| 4 | The terms say what may not be shared, and what happens if it is | The owner (wording) | Done 8 October 2026, released in 0.53.0 - also in `online-safety-assessment.md` |
+| 5 | A "Report this" button on anything a band shares | Claude | Built 8 October 2026 for a piece and everything on it, released in 0.53.0 - see `online-safety-assessment.md` |
+| 6 | Tell a band's organisers how sharing with a band works, and that young players' parents must agree to recordings, before a band with young players is invited | The owner | Open (a condition since the first assessment) - ML-509 |
 
 ## What would change the answer
 
