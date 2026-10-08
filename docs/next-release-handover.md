@@ -1,4 +1,10 @@
-# Handover: after release 0.50.0
+# Handover: after release 0.51.0
+
+**0.51.0 went to production and sandbox on 8 October 2026** (commit ca3c13b): ML-487, ML-456, the rehearsal score (ML-312, ML-488, ML-489), ML-278, ML-490, and Vercel on Pro with its spend reader. Migrations 115 to 120 are on all three databases. An Important notice was published on production. Everything below that says "not committed" or "not released" about those is now out.
+
+**Next:** (1) the Recordings tool stays Super admin only until the privacy policy's "Young players" part has its line about recordings - his wording; then switch on `rehearsal_recordings` and `recording_clip` for every account type (`docs/rehearsal-score.md`, "The Children's Code check"). (2) He adds `VERCEL_API_TOKEN` in Vercel. (3) ML-381's sub-tasks ML-492 to ML-497 and ML-501, as a release of their own - his answers are in a comment on ML-381.
+
+*The rest of this file was written after 0.50.0.*
 
 Written 7 October 2026. **Start here.** Replace this file with the next handover when there is one.
 
