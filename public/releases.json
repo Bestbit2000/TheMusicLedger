@@ -1,8 +1,18 @@
 [
   {
+    "version": "0.52.0",
+    "date": "2026-10-08",
+    "changes": []
+  },
+  {
     "version": "0.51.0",
     "date": "2026-10-08",
     "changes": [
+      {
+        "key": "ML-490",
+        "type": "New",
+        "summary": "Remove a recording on request: one action in the admin panel, and tell the people it belonged to"
+      },
       {
         "key": "ML-489",
         "type": "New",
