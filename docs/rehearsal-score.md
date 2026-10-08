@@ -129,7 +129,8 @@ The server runs the same check and refuses a list it would have to drop from.
 All tools → Practise → **Recordings** (`#recordingsView`, `data-tool="recordings"`).
 
 - **Upload** a whole rehearsal: up to **100 MB** (`MAX_REHEARSAL_FILE_BYTES`; about three hours at a phone
-  recorder's ordinary setting), mp3, m4a, wav or mp4. A recording put straight on a piece stays at 25 MB.
+  recorder's ordinary setting), **sound only**: mp3, m4a or wav. A video is refused (the Children's Code
+  check below). A recording put straight on a piece stays at 25 MB.
   It is sent **in parts** (`multipart: true`), so a part that fails is sent again instead of the whole file.
   It goes to the member's own folder in the file store, `recordings/<account id>/`; the server keeps an
   address only from that folder (`isRehearsalFileUrl`).
@@ -216,6 +217,26 @@ and want it removed, email themusicledgerapp@gmail.com." When that email comes, 
   stays with the band, as a band piece does (`rehearsal_recording_id` is SET NULL, not CASCADE), and so its
   file stays: after a deletion a stored file is only removed if nothing still points at it.
 - **Download my information** lists them.
+
+## The Children's Code check (8 October 2026)
+
+Done because the owner asked for the Recordings tool to be switched on for every account type. The full
+note is his to keep with the self-assessment (`compliance-documents/`, not in the repo). In short:
+
+| Standard | Finding |
+|---|---|
+| Best interests, detrimental use | A recording of the band is the band's music. No comments, no marking of places, nothing that singles out a player. Met. |
+| Impact assessment | Recordings of rehearsals with children in them is new. **The impact assessment needs a section on it** (drafted in the note). |
+| Transparency | The policy's "Young players" part says what is known about a young player "is all" - it needs a line on recordings. **The owner's wording; a draft is in the note.** |
+| Default settings | A recording is private to whoever uploaded it. Only a band's organiser can put it on a band's piece. Met. |
+| Data minimisation | **Changed:** the tool now takes sound only. A video of a youth band is far more than practising needs. |
+| Data sharing | Heard only by the band it was given to. A public piece never carries a recording. Vercel, which stores it, is under contract. Met. |
+| Nudge techniques, profiling | The limit is said once and blocks nothing else. Nothing is worked out about a player from a recording. Met. |
+| Online tools | Anyone in a recording can ask for it to be removed, and it is removed everywhere in one action (ML-490). The how-to now says to tell the band, and in a youth band the parents. Met, once the policy line for young players is in. |
+
+**Verdict: it can be switched on for everyone once the "Young players" line is in the privacy policy.** Until
+then it stays Super admin only. The condition from the first assessment still stands too: a band's organiser
+is told how sharing with a band works before a band with young players is invited.
 
 ## Still to do before any of it is switched on for members
 

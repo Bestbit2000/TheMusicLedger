@@ -15096,7 +15096,8 @@
             showWarningToast(`"${file.name}" is ${Math.round(file.size / (1024 * 1024))} MB and the most is ${maxMb} MB. Record at your phone's ordinary quality setting - a "lossless" or WAV recording is about ten times the size.`);
             return;
         }
-        if (!/\.(mp3|m4a|wav|mp4)$/i.test(file.name)) { showWarningToast('That kind of file can\'t be used. Save the recording as m4a or mp3.'); return; }
+        // Sound only (the Children's Code check, 8 Oct 2026): a video of a band is more than practising needs
+        if (!/\.(mp3|m4a|wav)$/i.test(file.name) || /^video\//.test(file.type)) { showWarningToast('That kind of file can\'t be used here. Save the recording as sound only: m4a or mp3.'); return; }
         const box = document.getElementById('recordingsUploadProgress');
         const percentEl = document.getElementById('recordingsUploadPercent');
         const fillEl = document.getElementById('recordingsUploadFill');

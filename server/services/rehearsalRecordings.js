@@ -97,6 +97,7 @@ export async function addRecording(accountId, { blobUrl, blobPathname, fileName,
   if (!blobUrl || !blobPathname) throw withStatus(400, 'Missing uploaded file details.');
   if (!isRehearsalFileUrl(blobUrl, accountId)) throw withStatus(400, 'That file is not one this app stored.');
   if (Number(fileSizeBytes) > MAX_REHEARSAL_FILE_BYTES) throw withStatus(413, TOO_BIG);
+  if (/^video\//i.test(String(mimeType || ''))) throw withStatus(400, 'Only a sound recording can be added here, not a video.');
   if (recordedOn && !isDay(recordedOn)) throw withStatus(400, 'The day it was recorded has to be a date.');
   await assertRoomForOne(accountId);
   const taken = await pool.query(

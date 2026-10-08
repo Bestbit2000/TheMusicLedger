@@ -1766,7 +1766,8 @@ router.post('/recordings/upload-token', requireAuthFromQueryOrHeader, resolveAcc
         await limitCalls('upload-token', req.accountId);
         return {
           maximumSizeInBytes: MAX_REHEARSAL_FILE_BYTES,
-          allowedContentTypes: ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav', 'video/mp4'],
+          // Sound only - no video (the Children's Code check, 8 Oct 2026: docs/rehearsal-score.md)
+          allowedContentTypes: ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav'],
           addRandomSuffix: true
         };
       },
