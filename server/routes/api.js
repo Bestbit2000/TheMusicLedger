@@ -24,7 +24,7 @@ import { runRetention, clearOldRecords } from '../services/retention.js';
 import { getBrand } from '../services/brand.js';
 import { deleteMyAccount } from '../services/accountDeletion.js';
 import { exportMyAccount } from '../services/accountExport.js';
-import { getAccountProfile, updateAccountProfile, confirmUploadRights, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
+import { getAccountProfile, updateAccountProfile, confirmUploadRights, confirmOrganiserAdult, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
 import { listDurationOptions, getDefaultDurationMinutes } from '../services/durationOptions.js';
 import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSignaturesWithUsage, setCustomTimeSignatureActive, deleteCustomTimeSignature } from '../services/timeSignatures.js';
@@ -41,6 +41,7 @@ import { MAX_PIECE_FILE_BYTES } from '../services/blobUrls.js';
 import { isFeatureEnabled, listEnabledFeatureKeys, getLimit, listLimits } from '../services/features.js';
 import { listRecordings as listRehearsalRecordings, addRecording as addRehearsalRecording, addCut as addRehearsalCut, deleteRecording as deleteRehearsalRecording, assertRoomForOne } from '../services/rehearsalRecordings.js';
 import { MAX_REHEARSAL_FILE_BYTES } from '../services/blobUrls.js';
+import { createReport } from '../services/contentReports.js';
 import { getActiveTimerSession, upsertActiveTimerSession, clearActiveTimerSession } from '../services/timerSessions.js';
 import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from '../services/flowAuthoringStats.js';
 import { exportFlowForUser } from '../services/flowTransfer.js';
@@ -925,6 +926,26 @@ router.delete('/account', requireAuth, resolveAccount, async (req, res) => {
   try {
     if ((req.body || {}).confirm !== 'DELETE') return res.status(400).json({ error: 'Type DELETE to confirm.' });
     res.json(await deleteMyAccount(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-506: "I am 18 or over and responsible for this band" - asked once, before setting up sharing or inviting
+router.post('/account/organiser-adult', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await confirmOrganiserAdult(req.accountId);
+    res.json({ confirmed: true });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-507: "Report this" - a piece a member can see (a band's, or a public one). Every member, always:
+// not behind a feature switch. server/services/contentReports.js
+router.post('/reports', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await createReport(req.accountId, req.body || {}));
   } catch (error) {
     sendError(res, error);
   }

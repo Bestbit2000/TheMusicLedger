@@ -1613,6 +1613,7 @@
             <button type="button" class="dropdown-item" id="flowLibraryItemMenuCopy"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">library_add</span><span class="dropdown-item-text">Copy to my library</span></button>
             <!-- ML-204: personal + band flows, gated by flow_export_musicxml (openFlowLibraryItemMenu) -->
             <button type="button" class="dropdown-item" id="flowLibraryItemMenuExport"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-7"/><path d="M9 13.5l3-3 3 3"/></svg><span class="dropdown-item-text">Export to MusicXML</span></button>
+            <button type="button" class="dropdown-item" id="flowLibraryItemMenuReport" aria-haspopup="dialog"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">flag</span><span class="dropdown-item-text">Report</span></button>
             <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="flowLibraryItemMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete</span></button>
         </div>
 
@@ -4476,6 +4477,20 @@
         <p class="text-muted modal-intro" id="offlineModalIntro"></p>
         <div class="mb-6" id="offlineList"></div>
         <button class="btn-submit no-margin" id="offlineSyncBtn" type="button">Sync now</button>
+    </div>
+</div>
+
+<!-- ML-507: Report this - a piece other people can see. Sent to the owner; the note is optional. -->
+<div class="modal" id="reportModal" role="dialog" aria-modal="true" aria-labelledby="reportModalTitle">
+    <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="reportModalTitle">Report this</h2>
+        <p class="text-muted modal-intro">Tell us if something here should not be: it is not theirs to share, it is not suitable, or someone in a recording does not want to be. <strong id="reportWhat"></strong> - with its recordings and documents - is sent to the person who runs the app. Nobody in the band is told who reported it.</p>
+        <label for="reportNote">What is wrong with it? (You can leave this empty.)</label>
+        <textarea id="reportNote" class="w-full mb-4" rows="4" maxlength="1000"></textarea>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" type="button" id="reportCancelBtn">Cancel</button>
+            <button class="btn-submit no-margin" type="button" id="reportSendBtn">Send report</button>
+        </div>
     </div>
 </div>
 

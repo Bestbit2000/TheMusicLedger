@@ -60,7 +60,7 @@
                 <div class="admin-nav-group-items" id="adminNavGroup-content">
                 <button class="admin-nav-item" data-section="flows" type="button">Flows</button>
                 <button class="admin-nav-item" data-section="warmups" type="button">Warm-ups</button>
-                <button class="admin-nav-item" data-section="recordings" type="button">Recordings</button>
+                <button class="admin-nav-item" data-section="recordings" type="button">Shared music <span id="reportsNavCount" class="admin-nav-count hidden-group"></span></button>
                 <button class="admin-nav-item" data-section="rest-messages" type="button">Rest messages</button>
                 <button class="admin-nav-item" data-section="theory-grades" type="button">Theory grades</button>
                 <button class="admin-nav-item" data-section="metadata" type="button">Metadata lists</button>
@@ -302,10 +302,16 @@
         <!-- ML-490: every recording and video held, and removing one on request - off every piece, out of
              the file store, the people it belonged to told. public/admin.js: initRecordingsAdmin. -->
         <section id="recordings-section" class="admin-section hidden-group">
-            <h1>Recordings</h1>
-            <p class="admin-intro">Every recording and video members have added. If someone who is in a recording asks for it to be removed - the privacy policy says they can - find it here and press <strong>Remove</strong>. It comes off every piece it is on and its file is deleted: it can't stay anywhere once one person objects. The people it belonged to are told what happened, why and what to do next, in the app and by email. You see the message before it goes. This can't be undone.</p>
-            <input type="search" id="adminRecordingsSearch" class="admin-flows-filter" placeholder="Search by name, piece, band or who added it" aria-label="Search recordings">
+            <h1>Shared music</h1>
+            <p class="admin-intro">Everything one member can show another: recordings and videos, documents, and the pieces a band shares or that are public. It is where you deal with a member's report, and where you take something down - because someone in a recording asked (the privacy policy says they can), or it is not theirs to share, or it breaks the terms. <strong>Remove</strong> takes it off every piece and deletes its file. The people it belonged to are told what happened, why and what to do next, in the app and by email; you see the message before it goes. This can't be undone.</p>
+            <h2 class="admin-stat-section-title">Reports from members</h2>
+            <p class="admin-intro">What members have reported from a piece's menu. Look at it, remove it below if it should go, then close the report with a line saying what you did. Nobody in the band is told who reported it.</p>
+            <div id="adminReports"></div>
+            <h2 class="admin-stat-section-title">Recordings and videos</h2>
+            <input type="search" id="adminRecordingsSearch" class="admin-flows-filter" placeholder="Search by name, piece, band or who added it" aria-label="Search everything shared">
             <div id="adminRecordings"><p class="admin-intro">Loading&hellip;</p></div>
+            <h2 class="admin-stat-section-title">Shared pieces and documents</h2>
+            <div id="adminShared"></div>
             <h2 class="admin-stat-section-title">Removed</h2>
             <p class="admin-intro">The record of each removal. Nothing about the person who asked is kept.</p>
             <div id="adminRecordingRemovals"></div>
@@ -761,6 +767,20 @@
 </div>
 
 <!-- ML-429: a usage figure typed in from a provider's own dashboard. -->
+<!-- ML-507 Shared music: close a member's report with what was done -->
+<div class="modal" id="reportCloseModal" role="dialog" aria-modal="true" aria-labelledby="reportCloseTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="reportCloseTitle">Close this report</h2>
+        <p class="admin-intro" id="reportCloseWhat"></p>
+        <div class="form-group"><label for="reportCloseOutcome">What did you do about it?</label><textarea id="reportCloseOutcome" rows="4" maxlength="1000" placeholder="e.g. Removed the recording and told the band's organiser. / Looked at it - nothing wrong."></textarea></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="reportCloseCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="reportCloseSaveBtn" type="button">Close the report</button>
+        </div>
+    </div>
+</div>
+
 <!-- ML-490 Recordings: remove one on request - the reason, and the message the members are sent -->
 <div class="modal" id="recordingRemoveModal" role="dialog" aria-modal="true" aria-labelledby="recordingRemoveTitle">
     <div class="modal-content">

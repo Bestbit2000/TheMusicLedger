@@ -2498,29 +2498,70 @@
     // it. server/services/recordingRemovals.js; docs/rehearsal-score.md.
     let adminRecordingsData = null;
     let removingRecording = null; // the row the pop-up is about
-    const RECORDING_KIND = { rehearsal: 'Rehearsal recording', piece: 'On a piece', video: 'YouTube link' };
+    const RECORDING_KIND = { rehearsal: 'Rehearsal recording', piece: 'On a piece', video: 'YouTube link', document: 'Document', score: 'Piece' };
     const piecesText = (pieces) => pieces.map(p => `${p.title}${p.band ? ` (${p.band})` : ''}`).join(', ');
     // What the members are told, by reason. Plain words: what happened, why, what to do next.
     function removalMessage(rec, reason) {
-        const what = rec.kind === 'video' ? `the video "${rec.title}"` : `the recording "${rec.title}"`;
-        const from = rec.pieces.length ? ` It has come off ${rec.pieces.length === 1 ? `the piece ${piecesText(rec.pieces)}` : `these pieces: ${piecesText(rec.pieces)}`}.` : '';
+        const what = rec.kind === 'video' ? `the video "${rec.title}"` : rec.kind === 'document' ? `the document "${rec.title}"` : rec.kind === 'score' ? `the piece "${rec.title}", with its recordings and documents,` : `the recording "${rec.title}"`;
+        const from = rec.kind !== 'score' && rec.pieces.length ? ` It has come off ${rec.pieces.length === 1 ? `the piece ${piecesText(rec.pieces)}` : `these pieces: ${piecesText(rec.pieces)}`}.` : '';
         const why = {
             person: 'Why: someone who is in it asked us to remove it. Anyone in a recording can ask for that, and when they do we have to remove it everywhere.',
             copyright: 'Why: we were told it may be someone else\'s copyright, and it can\'t stay in the app while that is in doubt.',
+            reported: 'Why: a member told us about it, and having looked at it we agree it should not be here.',
+            terms: 'Why: it breaks the terms of use, which say what may be shared in the app.',
             other: 'Why: '
         }[reason];
         const next = {
             person: 'What to do next: please don\'t upload it again. You are welcome to add a different recording, as long as everyone in it knows it is being shared.',
             copyright: 'What to do next: please don\'t upload it again unless you have the right to use it. If you do have that right, reply to tell us and we will look again.',
+            reported: 'What to do next: please don\'t add it again. The terms of use say what may be shared.',
+            terms: 'What to do next: please don\'t add it again. The terms of use say what may be shared.',
             other: 'What to do next: '
         }[reason];
         return [`We have removed ${what} from The Music Ledger.${from} Nothing else of yours has changed.`, why, next, 'If you think this is a mistake, or have a question, email themusicledgerapp@gmail.com.'].join('\n\n');
+    }
+    // One table shape for recordings and for shared pieces and documents (ML-507)
+    function sharedTable(all, q, heading, empty) {
+        const rows = all.filter(r => !q || [r.title, r.addedBy, piecesText(r.pieces)].join(' ').toLowerCase().includes(q));
+        return `<div class="admin-stat-table-wrap"><table class="admin-stat-table">
+            <thead><tr><th>${heading}</th><th>Kind</th><th>Added by</th><th>On</th><th>Size</th><th>Added</th><th></th></tr></thead>
+            <tbody>${rows.length ? rows.map(r => `
+                <tr>
+                    <td>${escapeHtml(r.title)}</td>
+                    <td>${RECORDING_KIND[r.kind]}</td>
+                    <td>${escapeHtml(r.addedBy)}</td>
+                    <td>${r.pieces.length ? escapeHtml(piecesText(r.pieces)) : 'No piece yet'}</td>
+                    <td>${r.sizeBytes ? `${(r.sizeBytes / (1024 * 1024)).toFixed(1)} MB` : '–'}</td>
+                    <td>${fmtDay(r.addedAt)}</td>
+                    <td><button class="admin-stat-exclude-btn" data-recording-remove="${r.kind}:${r.id}" type="button" aria-label="Remove ${escapeHtml(r.title)}">Remove</button></td>
+                </tr>`).join('') : `<tr><td colspan="7" class="admin-stat-empty">${all.length ? 'Nothing matches.' : empty}</td></tr>`}</tbody>
+        </table></div>`;
+    }
+    function renderAdminReports() {
+        const d = adminRecordingsData;
+        const open = d.reports.filter(r => r.open);
+        setNavCount('reportsNavCount', open.length);
+        document.getElementById('adminReports').innerHTML = `<div class="admin-stat-table-wrap"><table class="admin-stat-table">
+            <thead><tr><th>When</th><th>Piece</th><th>Band</th><th>What they said</th><th>Reported by</th><th>Where it stands</th><th></th></tr></thead>
+            <tbody>${d.reports.length ? d.reports.map(r => `
+                <tr>
+                    <td>${fmtDate(r.reportedAt)}</td>
+                    <td>${escapeHtml(r.title)}${r.stillThere ? '' : '<div class="admin-stat-tile-sub">no longer there</div>'}</td>
+                    <td>${escapeHtml(r.band || '–')}</td>
+                    <td>${escapeHtml(r.note || '(nothing written)')}</td>
+                    <td>${escapeHtml(r.reportedBy)}</td>
+                    <td>${r.open ? '<span class="admin-badge warn">Open</span>' : `<span class="admin-badge pass">Closed</span><div class="admin-stat-tile-sub">${escapeHtml(r.outcome)} - ${escapeHtml(r.closedBy)}, ${fmtDay(r.closedAt)}</div>`}</td>
+                    <td>${r.open ? `<button class="admin-stat-exclude-btn" data-report-close="${r.id}" type="button" aria-label="Close the report about ${escapeHtml(r.title)}">Close</button>` : ''}</td>
+                </tr>`).join('') : '<tr><td colspan="7" class="admin-stat-empty">Nothing has been reported.</td></tr>'}</tbody>
+        </table></div>`;
     }
     function renderAdminRecordings() {
         const d = adminRecordingsData;
         const box = document.getElementById('adminRecordings');
         if (!d || !box) return;
         const q = (document.getElementById('adminRecordingsSearch')?.value || '').trim().toLowerCase();
+        renderAdminReports();
+        document.getElementById('adminShared').innerHTML = sharedTable(d.shared, q, 'Piece or document', 'No band shares a piece yet, and no document has been added.');
         const rows = d.recordings.filter(r => !q || [r.title, r.addedBy, piecesText(r.pieces)].join(' ').toLowerCase().includes(q));
         box.innerHTML = `<div class="admin-stat-table-wrap"><table class="admin-stat-table">
             <thead><tr><th>Recording</th><th>Kind</th><th>Added by</th><th>On</th><th>Size</th><th>Added</th><th></th></tr></thead>
@@ -2556,10 +2597,13 @@
     }
     function openRecordingRemove(key) {
         const [kind, id] = key.split(':');
-        const rec = adminRecordingsData.recordings.find(r => r.kind === kind && String(r.id) === id);
+        const rec = [...adminRecordingsData.recordings, ...adminRecordingsData.shared].find(r => r.kind === kind && String(r.id) === id);
         if (!rec) return;
         removingRecording = rec;
-        document.getElementById('recordingRemoveWhat').textContent = `"${rec.title}", added by ${rec.addedBy}${rec.pieces.length ? `. On: ${piecesText(rec.pieces)}` : ''}. It will come off every piece and ${rec.kind === 'video' ? 'the link will be deleted' : 'its file will be deleted'}.`;
+        document.getElementById('recordingRemoveTitle').textContent = rec.kind === 'score' ? 'Remove this piece' : rec.kind === 'document' ? 'Remove this document' : 'Remove this recording';
+        document.getElementById('recordingRemoveWhat').textContent = rec.kind === 'score'
+            ? `"${rec.title}", added by ${rec.addedBy}${rec.pieces[0].band ? ` (${rec.pieces[0].band})` : ''}. The whole piece goes for everyone who can see it: its bars, recordings, documents and links, and it comes off their practice lists.`
+            : `"${rec.title}", added by ${rec.addedBy}${rec.pieces.length ? `. On: ${piecesText(rec.pieces)}` : ''}. It will come off every piece and ${rec.kind === 'video' ? 'the link will be deleted' : 'its file will be deleted'}.`;
         const reason = document.getElementById('recordingRemoveReason');
         reason.innerHTML = Object.entries(adminRecordingsData.reasons).map(([k, label]) => `<option value="${escapeHtml(k)}">${escapeHtml(label)}</option>`).join('');
         reason.value = 'person';
@@ -2590,9 +2634,31 @@
     }
     function initRecordingsAdmin() {
         document.getElementById('adminRecordingsSearch')?.addEventListener('input', renderAdminRecordings);
-        document.getElementById('adminRecordings')?.addEventListener('click', (e) => {
+        ['adminRecordings', 'adminShared'].forEach((id) => document.getElementById(id)?.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-recording-remove]');
             if (btn) openRecordingRemove(btn.dataset.recordingRemove);
+        }));
+        // ML-507: close a member's report with what was done
+        let closingReport = null;
+        document.getElementById('adminReports')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-report-close]');
+            const r = btn && adminRecordingsData.reports.find(x => String(x.id) === btn.dataset.reportClose);
+            if (!r) return;
+            closingReport = r;
+            document.getElementById('reportCloseWhat').textContent = `"${r.title}"${r.band ? ` (${r.band})` : ''}, reported by ${r.reportedBy}${r.note ? `: "${r.note}"` : ''}.`;
+            document.getElementById('reportCloseOutcome').value = '';
+            showModal('reportCloseModal');
+            document.getElementById('reportCloseOutcome').focus();
+        });
+        document.getElementById('reportCloseCancelBtn')?.addEventListener('click', () => { hideModal('reportCloseModal'); closingReport = null; });
+        document.getElementById('reportCloseSaveBtn')?.addEventListener('click', async () => {
+            if (!closingReport) return;
+            try {
+                adminRecordingsData = await apiCall(`/api/admin/reports/${closingReport.id}/close`, 'POST', { outcome: document.getElementById('reportCloseOutcome').value });
+                renderAdminRecordings();
+                hideModal('reportCloseModal');
+                closingReport = null;
+            } catch (error) { showToast(error.message); }
         });
         // Choosing another reason writes the message again - only if he hasn't started changing it
         document.getElementById('recordingRemoveReason')?.addEventListener('change', (e) => {

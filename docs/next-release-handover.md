@@ -4,6 +4,10 @@
 
 **Next:** (1) the Recordings tool stays Super admin only until the privacy policy's "Young players" part has its line about recordings - his wording; then switch on `rehearsal_recordings` and `recording_clip` for every account type (`docs/rehearsal-score.md`, "The Children's Code check"). (2) He adds `VERCEL_API_TOKEN` in Vercel. (3) ML-381's sub-tasks ML-492 to ML-497 and ML-501, as a release of their own - his answers are in a comment on ML-381.
 
+**0.52.0 followed the same day** (ML-505: the policy's "Young players" line about recordings), and the Recordings tool, start and end, and the rehearsal score were switched on for every account type on production and sandbox.
+
+**Built since 0.52.0, committed, NOT released (he said not yet):** the two run-throughs - `docs/childrens-code-assessment.md` (ML-506) and `docs/online-safety-assessment.md` (ML-507) - with the Online Safety Act as a review on Admin → Security → Reviews; a parent's agreement in the upload confirmation; an organiser confirms they are an adult; "Report" on a shared piece's menu; Admin → Recordings became Admin → Shared music (reports, documents and shared pieces as well). Migration 121, dev only. Back-test 67. **The privacy policy does not yet name the two new things kept** (the organiser date, a report made) and **the terms do not yet say what may not be shared** - drafts were given to him on 8 Oct. ML-508 (BandSafe and Making Music) waits for him to fetch their documents.
+
 *The rest of this file was written after 0.50.0.*
 
 Written 7 October 2026. **Start here.** Replace this file with the next handover when there is one.

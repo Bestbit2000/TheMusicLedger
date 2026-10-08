@@ -182,6 +182,24 @@ migration 119, `POST /api/account/upload-rights`); after that it is not asked ag
 - The date is the member's own information: it is in Download my information and is cleared when the
   account is deleted. **The privacy policy has to name it** (the owner's wording) before this is released.
 
+### An organiser is an adult, and "Report this" (ML-506, ML-507)
+
+Both came out of the two run-throughs (`docs/childrens-code-assessment.md`, `docs/online-safety-assessment.md`).
+
+- **An organiser is an adult.** Setting up sharing for a band, or inviting someone to one, is refused by the
+  server until the member has confirmed once that they are 18 or over and responsible for the band
+  (`requireAdult` in `bands.js`, reason `needs-adult`; `accounts.organiser_adult_confirmed_on`;
+  `POST /api/account/organiser-adult`). The app asks at that moment and then carries on with what they were
+  doing (`organiserAdultNeeded`). No proof is asked for. The back-tests' three local accounts are marked as
+  having confirmed when they sign in (`tests/helpers/auth.ts`).
+- **Report this.** The menu of a band's piece, or a public one, in My music has **Report**: an optional line
+  of text, sent to the owner (`content_reports`, `POST /api/reports`, `server/services/contentReports.js`).
+  Not behind a feature switch. A member's own private piece has no such item. Nobody in the band is told
+  who reported it, and a removal notice never says.
+- **Admin → Shared music** is the page that was Admin → Recordings: members' reports (closed with a line
+  saying what was done), recordings and videos, documents, and the pieces a band shares or that are public.
+  **Remove** now also takes down a document, or a whole piece with everything on it.
+
 ### Removing a recording on request (ML-490)
 
 The privacy policy says: "A recording may have other people in it. If you are in a recording in the app
@@ -265,6 +283,6 @@ is told how sharing with a band works before a band with young players is invite
 | Clips and marks on the server | `server/services/flows.js` (`setRecordingClip`, `setRecordingMarks`) |
 | The Recordings tool on the server | `server/services/rehearsalRecordings.js`, `server/services/blobUrls.js` |
 | Removing a recording on request | `server/services/recordingRemovals.js`; `public/admin.js` (`initRecordingsAdmin`) |
-| Migrations | `116_recording_clips.sql`, `117_recording_marks.sql`, `118_rehearsal_recordings.sql`, `119_upload_rights.sql`, `120_recording_removals.sql` |
-| Back-tests | 62 (start and end), 63 (the bars on a recording), 64 (the Recordings tool), 65 (the right to upload, the filter, clearing a list), 66 (removing a recording on request) |
+| Migrations | `116_recording_clips.sql`, `117_recording_marks.sql`, `118_rehearsal_recordings.sql`, `119_upload_rights.sql`, `120_recording_removals.sql`, `121_reports_and_organisers.sql` |
+| Back-tests | 62 (start and end), 63 (the bars on a recording), 64 (the Recordings tool), 65 (the right to upload, the filter, clearing a list), 66 (removing a recording on request), 67 (an organiser is an adult, Report this, the owner taking a piece down) |
 | Design spec | `specs/components/rehearsal-score.md` |

@@ -132,13 +132,13 @@ are written to meet both.
 | | Action | Who | Status |
 |---|---|---|---|
 | 1 | Run Ofcom's checker and its children's access tool, and keep what they produce with this record | The owner | Open |
-| 2 | **An organiser is an adult**: a one-time confirmation before setting up sharing or inviting, and a line in the terms. (The same action as in `childrens-code-assessment.md`.) | The owner to decide, Claude to build | Open |
+| 2 | **An organiser is an adult**: a one-time confirmation before setting up sharing or inviting, and a line in the terms. (The same action as in `childrens-code-assessment.md`.) | Claude | **Built 8 October 2026**, not released: the server refuses both until confirmed; the day is kept. The terms line is with the owner (action 4) |
 | 3 | Keep organisers messaging their band (ML-498) parked, and re-run this before building it: it would add contact between members, which changes sections 3 and 5 | - | Parked 8 October 2026 |
 | 4 | The terms say what may not be shared (anything illegal, anything sexual, anything hateful or bullying, anything not yours to share), that it will be removed and the account may be closed, how to report it, and who is responsible | The owner (wording) | Open |
-| 5 | **"Report this"** on any piece, recording, document, video link or band a member can see: one tap, an optional line of text, sent to the owner with what it was about. Always there, whatever features an account type has | Claude | Open |
-| 6 | **One place for the owner to take anything down**: extend Admin → Recordings to documents, pieces and practice lists. Each removal tells the people it belonged to and is kept on record, as recordings are now | Claude | Open |
+| 5 | **"Report this"** on any piece, recording, document, video link or band a member can see: one tap, an optional line of text, sent to the owner with what it was about. Always there, whatever features an account type has | Claude | **Built 8 October 2026**, not released: "Report" on the menu of a band's or a public piece in My music - the piece is reported with its recordings, documents and links. **Still to do:** the same on the play screen, and for a band's name or a practice list's name |
+| 6 | **One place for the owner to take anything down**: extend Admin → Recordings to documents, pieces and practice lists. Each removal tells the people it belonged to and is kept on record, as recordings are now | Claude | **Built 8 October 2026**, not released: the page is now Admin → Shared music - members' reports, recordings and videos, documents, and the pieces a band shares or that are public. **Still to do:** a band's practice list |
 | 7 | Add to the release process: "does this change what one member can show another, or let members contact each other?" - if so, this run-through is done again first | Claude | Open |
-| 8 | Reports are answered: say in the terms how quickly, and keep a simple log of each report and what was done | The owner, Claude | Open, with 5 |
+| 8 | Reports are answered: say in the terms how quickly, and keep a simple log of each report and what was done | The owner, Claude | The log is built (a report is closed with a line saying what was done). How quickly is for the terms (action 4) |
 
 ## What would change the answer
 

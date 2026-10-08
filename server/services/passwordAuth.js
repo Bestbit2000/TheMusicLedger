@@ -62,6 +62,7 @@ const CALL_LIMITS = {
   'upload-token': { max: 40, minutes: 60, what: 'uploads' },
   'add-band': { max: 10, minutes: 24 * 60, what: 'bands added' },
   feedback: { max: 20, minutes: 24 * 60, what: 'feedback notes' },
+  report: { max: 20, minutes: 24 * 60, what: 'reports' }, // ML-507: each one may email the owner
   'change-email': { max: 5, minutes: 24 * 60, what: 'email changes asked for' } // ML-465: each one emails an address the member typed
 };
 export async function limitCalls(kind, accountId) {

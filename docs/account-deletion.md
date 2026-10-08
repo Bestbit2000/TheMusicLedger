@@ -46,6 +46,12 @@ A super admin account can't be deleted by the button (it owns the public library
 is cleared when the account is anonymised (it is in `deleteMyAccount`'s UPDATE), and is in the download
 with the rest of the account row.
 
+## Being an organiser, and reports (ML-506, ML-507)
+
+`accounts.organiser_adult_confirmed_on` is cleared with the rest of the account row. A report the member
+made (`content_reports`) stays, with who made it set to nobody: it is the app's record of what it was told
+and what it did about it. It is in the download while the account exists.
+
 ## Rehearsal recordings (ML-489)
 
 A member's uploads to the Recordings tool (`rehearsal_recordings`) are their own: the rows go with the

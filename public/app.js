@@ -4770,6 +4770,22 @@
     // ---- ML-478: My bands - what a member does to a band on their own list. Each is one menu item (or
     // one choice in Tidy my bands); a choice from a set opens the usual choice pop-up.
     const sessionsWord = (n) => `${n} session${n === 1 ? '' : 's'}`;
+    // ML-506: an organiser is an adult. The server refuses to set up sharing or send an invitation for an
+    // account that hasn't confirmed it ('needs-adult'). Ask once, keep the day, then carry on with what
+    // they were doing. No proof is asked for - the same weight as the upload confirmation (ML-278).
+    function organiserAdultNeeded(error, again) {
+        if (error.reason !== 'needs-adult') return false;
+        showConfirmModal('Running a band\'s space',
+            'Setting up sharing for a band, or inviting people to it, is for adults: you choose who is invited and what the band shares. Please confirm that you are 18 or over and responsible for this band.',
+            async () => {
+                try {
+                    await apiCall('/api/account/organiser-adult', 'POST');
+                    if (accountProfile) accountProfile.organiserAdultConfirmedOn = todayIso();
+                    again();
+                } catch (e) { showWarningToast(e.message); }
+            }, false, 'I am 18 or over');
+        return true;
+    }
     async function myBandDo(action, done) {
         try {
             await action();
@@ -4777,7 +4793,7 @@
             renderAccountSummaries();
             if (done) showSuccessToast(done);
         } catch (error) {
-            showWarningToast(error.message);
+            if (!organiserAdultNeeded(error, () => myBandDo(action, done))) showWarningToast(error.message);
         }
     }
     function bandSetUpSharing(band) {
@@ -4929,7 +4945,7 @@
             renderBandMembers();
             if (done) showSuccessToast(done);
         } catch (error) {
-            if (!bandNameNeeded(error)) showWarningToast(error.message);
+            if (!bandNameNeeded(error) && !organiserAdultNeeded(error, () => bandMembersDo(action, done))) showWarningToast(error.message);
         }
     }
     document.getElementById('bandInviteLevelBtn')?.addEventListener('click', () => {
@@ -9940,6 +9956,7 @@
         if (flowCanDelete(flow)) items.push('Delete');
         if (ownership === 'Public' || ownership === 'Band') items.push('Copy'); // a band piece too (ML-441): your own copy to adjust
         if (ownership !== 'Public' && isFeatureEnabled('flow_export_musicxml')) items.push('Export');
+        if (ownership === 'Public' || ownership === 'Band') items.push('Report'); // ML-507: anything other people can see
         return items;
     }
 
@@ -9998,7 +10015,7 @@
         if (!menu) return;
         const flow = flowsListCache.find(f => f.id === id);
         const items = flow ? flowLibraryMenuItemsFor(flow) : [];
-        ['Play', 'Edit', 'Duplicate', 'Copy', 'Delete', 'Export'].forEach(item => {
+        ['Play', 'Edit', 'Duplicate', 'Copy', 'Delete', 'Export', 'Report'].forEach(item => {
             document.getElementById('flowLibraryItemMenu' + item)?.classList.toggle('hidden-group', !items.includes(item));
         });
         menu.classList.add('show');
@@ -10098,6 +10115,37 @@
             showSuccessToast('Exported ' + fileName);
         } catch (error) {
             showWarningToast('Error exporting flow: ' + error.message);
+        }
+    });
+    // ML-507: "Report this" - tells the owner about a piece other people can see (its recordings, documents
+    // and links go with it). Always there, whatever features an account type has. The note is optional.
+    let reportingFlowId = null;
+    document.getElementById('flowLibraryItemMenuReport')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = flowLibraryMenuTargetId;
+        closeFlowLibraryItemMenu();
+        const flow = flowsListCache.find(f => f.id === id);
+        if (!flow) return;
+        reportingFlowId = id;
+        document.getElementById('reportWhat').textContent = flow.title;
+        document.getElementById('reportNote').value = '';
+        showModal('reportModal');
+        document.getElementById('reportNote').focus();
+    });
+    document.getElementById('reportCancelBtn')?.addEventListener('click', () => { hideModal('reportModal'); reportingFlowId = null; });
+    document.getElementById('reportSendBtn')?.addEventListener('click', async () => {
+        if (reportingFlowId === null) return;
+        const btn = document.getElementById('reportSendBtn');
+        btn.disabled = true;
+        try {
+            await apiCall('/api/reports', 'POST', { kind: 'piece', id: reportingFlowId, note: document.getElementById('reportNote').value });
+            hideModal('reportModal');
+            reportingFlowId = null;
+            showSuccessToast('Reported. Thank you - we will look at it.');
+        } catch (error) {
+            showWarningToast(error.message);
+        } finally {
+            btn.disabled = false;
         }
     });
     document.getElementById('flowLibraryItemMenuDelete')?.addEventListener('click', (e) => {

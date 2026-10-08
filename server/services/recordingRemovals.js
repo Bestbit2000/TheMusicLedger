@@ -14,11 +14,14 @@ import pool from '../config/db.js';
 import { withStatus } from './flows.js';
 import { createTargetedNotification } from './notifications.js';
 import { sendMail } from './mail.js';
+import { listReports } from './contentReports.js';
 
 const ORGANISER_ROLES = ['admin', 'owner']; // as bands.js
 export const REMOVAL_REASONS = {
   person: 'Someone who is in the recording asked for it to be removed',
   copyright: "It may be someone else's copyright",
+  reported: 'A member reported it',
+  terms: 'It breaks the terms of use',
   other: 'Another reason'
 };
 const MAX_MESSAGE = 2000;
@@ -27,7 +30,7 @@ const fullName = (r) => [r.first_name, r.surname].filter(Boolean).join(' ').trim
 // Every recording and video held, newest first: a whole rehearsal in the Recordings tool (with the
 // pieces it has been given to), a recording put straight on a piece, and a YouTube link.
 export async function listRecordingsForAdmin() {
-  const [rehearsals, cuts, direct, removals] = await Promise.all([
+  const [rehearsals, cuts, direct, removals, documents, pieces, reports] = await Promise.all([
     pool.query(
       `SELECT rr.id, rr.title, rr.file_size_bytes, rr.created_at, a.first_name, a.surname
          FROM rehearsal_recordings rr JOIN accounts a ON a.id = rr.account_id
@@ -47,7 +50,23 @@ export async function listRecordingsForAdmin() {
         WHERE sr.rehearsal_recording_id IS NULL
           AND (sr.blob_url IS NULL OR sr.blob_url NOT IN (SELECT blob_url FROM rehearsal_recordings))
         ORDER BY sr.created_at DESC`),
-    pool.query('SELECT * FROM recording_removals ORDER BY removed_at DESC, id DESC LIMIT 100')
+    pool.query('SELECT * FROM recording_removals ORDER BY removed_at DESC, id DESC LIMIT 100'),
+    // ML-507: documents, and the pieces a band shares or that are public - everything one member can show another
+    pool.query(
+      `SELECT d.id, d.file_name, d.file_size_bytes, d.created_at, s.title AS piece_title, b.name AS band_name, a.first_name, a.surname
+         FROM score_documents d
+         JOIN scores s ON s.id = d.score_id
+         LEFT JOIN bands b ON b.id = s.owner_band_id
+         LEFT JOIN accounts a ON a.id = COALESCE(s.owner_account_id, s.added_by_account_id)
+        ORDER BY d.created_at DESC`),
+    pool.query(
+      `SELECT s.id, s.title, s.created_at, s.is_public, b.name AS band_name, a.first_name, a.surname
+         FROM scores s
+         LEFT JOIN bands b ON b.id = s.owner_band_id
+         LEFT JOIN accounts a ON a.id = COALESCE(s.added_by_account_id, s.owner_account_id)
+        WHERE s.owner_band_id IS NOT NULL OR s.is_public = true
+        ORDER BY s.created_at DESC`),
+    listReports()
   ]);
   const piece = (r) => ({ title: r.piece_title, band: r.band_name || null });
   return {
@@ -62,6 +81,17 @@ export async function listRecordingsForAdmin() {
         kind: r.type === 'youtube' ? 'video' : 'piece', id: Number(r.id), title: r.title, addedBy: r.first_name || r.surname ? fullName(r) : (r.band_name || 'A band'), addedAt: r.created_at,
         sizeBytes: r.file_size_bytes !== null ? Number(r.file_size_bytes) : null,
         pieces: [piece(r)]
+      }))
+    ],
+    reports,
+    shared: [
+      ...pieces.rows.map((r) => ({
+        kind: 'score', id: Number(r.id), title: r.title, addedBy: r.first_name || r.surname ? fullName(r) : (r.band_name || 'A band'), addedAt: r.created_at,
+        sizeBytes: null, pieces: [{ title: r.is_public ? 'Public library' : 'Shared with the band', band: r.band_name || null }]
+      })),
+      ...documents.rows.map((r) => ({
+        kind: 'document', id: Number(r.id), title: r.file_name, addedBy: r.first_name || r.surname ? fullName(r) : (r.band_name || 'A band'), addedAt: r.created_at,
+        sizeBytes: r.file_size_bytes !== null ? Number(r.file_size_bytes) : null, pieces: [piece(r)]
       }))
     ],
     removals: removals.rows.map((r) => ({
@@ -79,17 +109,37 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
   const text = String(message || '').trim();
   if (!text) throw withStatus(400, 'Write what the members will be told.');
   if (text.length > MAX_MESSAGE) throw withStatus(400, `The message can be up to ${MAX_MESSAGE} characters.`);
-  if (!['rehearsal', 'piece', 'video'].includes(kind) || !/^\d+$/.test(String(id))) throw withStatus(400, 'That recording is not one in the list.');
+  if (!['rehearsal', 'piece', 'video', 'document', 'score'].includes(kind) || !/^\d+$/.test(String(id))) throw withStatus(400, 'That is not one in the list.');
 
   const client = await pool.connect();
   let title = '';
   let blobUrl = null;
+  let moreBlobs = []; // a whole piece: every file on it
   let pieceCount = 0;
   const tell = new Set();
   try {
     await client.query('BEGIN');
-    let rows; // the recordings on pieces that go
-    if (kind === 'rehearsal') {
+    let rows = []; // the recordings on pieces that go
+    let scoreIdsGone = null;
+    if (kind === 'score') {
+      // ML-507: a whole piece a band shares (or a public one) - its bars, recordings, documents and links
+      const found = await client.query('SELECT id, title FROM scores WHERE id = $1 AND (owner_band_id IS NOT NULL OR is_public = true) FOR UPDATE', [id]);
+      if (!found.rows.length) throw withStatus(404, 'That piece has already gone.');
+      title = found.rows[0].title;
+      const files = await client.query(
+        'SELECT blob_url FROM score_recordings WHERE score_id = $1 AND blob_url IS NOT NULL UNION SELECT blob_url FROM score_documents WHERE score_id = $1', [id]);
+      moreBlobs = files.rows.map((f) => f.blob_url);
+      scoreIdsGone = [String(id)];
+    } else if (kind === 'document') {
+      const found = await client.query('SELECT id, score_id, file_name, blob_url FROM score_documents WHERE id = $1 FOR UPDATE', [id]);
+      if (!found.rows.length) throw withStatus(404, 'That document has already gone.');
+      title = found.rows[0].file_name;
+      blobUrl = found.rows[0].blob_url;
+      // the same stored file may be on other pieces: it comes off all of them
+      const same = await client.query('SELECT id, score_id FROM score_documents WHERE blob_url = $1', [blobUrl]);
+      scoreIdsGone = [...new Set(same.rows.map((r) => String(r.score_id)))];
+      await client.query('DELETE FROM score_documents WHERE id = ANY($1)', [same.rows.map((r) => r.id)]);
+    } else if (kind === 'rehearsal') {
       const found = await client.query('SELECT * FROM rehearsal_recordings WHERE id = $1 FOR UPDATE', [id]);
       if (!found.rows.length) throw withStatus(404, 'That recording has already gone.');
       title = found.rows[0].title;
@@ -104,7 +154,7 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
       // The same stored file may be on other pieces: it comes off all of them
       rows = blobUrl ? (await client.query('SELECT id, score_id FROM score_recordings WHERE blob_url = $1', [blobUrl])).rows : found.rows;
     }
-    const scoreIds = [...new Set(rows.map((r) => String(r.score_id)))];
+    const scoreIds = scoreIdsGone || [...new Set(rows.map((r) => String(r.score_id)))];
     pieceCount = scoreIds.length;
     if (scoreIds.length) {
       // Whose pieces they were: the owner of a personal piece; a band piece's organisers and whoever added it
@@ -122,6 +172,11 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
     }
     if (rows.length) await client.query('DELETE FROM score_recordings WHERE id = ANY($1)', [rows.map((r) => r.id)]);
     if (kind === 'rehearsal') await client.query('DELETE FROM rehearsal_recordings WHERE id = $1', [id]);
+    if (kind === 'score') {
+      // a practice session that names the piece keeps its history but lets go of the piece
+      await client.query('UPDATE session_segments SET score_id = NULL, metronome_segment_id = NULL WHERE score_id = $1', [id]);
+      await client.query('DELETE FROM scores WHERE id = $1', [id]);
+    }
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
@@ -133,15 +188,23 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
   // The file itself. It is removed whatever else happens next; if the store refuses, the page says so.
   let fileRemoved = false;
   let fileError = null;
-  if (blobUrl) {
-    try { await del([blobUrl]); fileRemoved = true; } catch (error) { fileError = error.message; console.error('Recording removal: the stored file could not be removed:', error.message); }
+  // A whole piece: only the files nothing else still points at (a rehearsal recording given to other pieces stays)
+  let goners = blobUrl ? [blobUrl] : [];
+  if (moreBlobs.length) {
+    const still = await pool.query(
+      'SELECT blob_url FROM score_recordings WHERE blob_url = ANY($1) UNION SELECT blob_url FROM score_documents WHERE blob_url = ANY($1) UNION SELECT blob_url FROM rehearsal_recordings WHERE blob_url = ANY($1)', [moreBlobs]);
+    const used = new Set(still.rows.map((r) => r.blob_url));
+    goners = moreBlobs.filter((u) => !used.has(u));
+  }
+  if (goners.length) {
+    try { await del(goners); fileRemoved = true; } catch (error) { fileError = error.message; console.error('Removal: a stored file could not be removed:', error.message); }
   }
 
   // Tell the people it belonged to (not an account that has since been deleted)
   const people = tell.size
     ? (await pool.query('SELECT id, email, first_name FROM accounts WHERE id = ANY($1) AND deleted_at IS NULL', [[...tell]])).rows
     : [];
-  const subject = 'A recording has been removed';
+  const subject = kind === 'score' ? 'A piece has been removed' : kind === 'document' ? 'A document has been removed' : 'A recording has been removed';
   if (people.length) await createTargetedNotification(adminAccountId, { title: subject, body: text, urgent: true }, people.map((p) => p.id));
   let emailsSent = 0;
   for (const p of people) {

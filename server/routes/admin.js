@@ -29,6 +29,7 @@ import { listFeedbackForAdmin, updateFeedbackAdmin } from '../services/feedback.
 import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitImport, MAX_IMPORT_BYTES } from '../services/flowTransfer.js';
 import { listNotificationsForAdmin, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
 import { listRecordingsForAdmin, removeRecordingOnRequest } from '../services/recordingRemovals.js';
+import { closeReport } from '../services/contentReports.js';
 import { getSecurityReview, runSecurityReviewNow } from '../services/securityReview.js';
 import { getSiteSecurityReview, runSiteSecurityReviewNow } from '../services/siteSecurityReview.js';
 import thirdPartyRegister from '../thirdParties/register.js';
@@ -953,6 +954,15 @@ router.post('/third-parties/usage/:meter', requireAuth, resolveAccount, requireS
 // ========================================
 router.get('/recordings', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
+    res.json(await listRecordingsForAdmin());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+// ML-507: a member's report is closed with a line saying what was done about it
+router.post('/reports/:id/close', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    await closeReport(req.accountId, req.params.id, (req.body || {}).outcome);
     res.json(await listRecordingsForAdmin());
   } catch (error) {
     sendError(res, error);

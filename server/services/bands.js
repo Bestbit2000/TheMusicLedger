@@ -371,6 +371,7 @@ export async function addOwnBand(accountId, name, website) {
 // adding the band. It gives no way into anyone else's space: two members who each set up sharing for
 // the same band have two spaces, and meet only by invitation. Asking again gives the same space back.
 export async function setUpSharing(accountId, labelId) {
+  await requireAdult(pool, accountId);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -527,6 +528,16 @@ async function requireName(db, accountId, message) {
   const { rows } = await db.query('SELECT display_name, first_name, surname FROM accounts WHERE id = $1', [accountId]);
   if (!rows.length || !nameOf(rows[0])) throw Object.assign(fail(409, message), { reason: 'needs-name' });
 }
+// ML-506 / ML-507: an organiser is an adult. Setting up sharing for a band, or inviting someone to
+// one, is running a space other people - perhaps children - are brought into: who is invited, what
+// each may do, what is shared. Before either, the member confirms once that they are 18 or over and
+// responsible for the band (accounts.organiser_adult_confirmed_on). No proof is asked for. `reason`
+// goes to the app with the words, so it can ask there and then (sendError).
+export const ADULT_BEFORE_ORGANISING = 'Running a band\'s space is for adults. To set up sharing or invite people, confirm that you are 18 or over and responsible for this band.';
+async function requireAdult(db, accountId) {
+  const { rows } = await db.query('SELECT organiser_adult_confirmed_on FROM accounts WHERE id = $1', [accountId]);
+  if (!rows.length || !rows[0].organiser_adult_confirmed_on) throw Object.assign(fail(409, ADULT_BEFORE_ORGANISING), { reason: 'needs-adult' });
+}
 export const NAME_BEFORE_INVITING = 'The invitation says who it is from, so add your name before you invite anyone. It is on My account, under My details.';
 export const NAME_BEFORE_JOINING = 'Everyone in the band will see your name, so add it before you join. It is on My account, under My details.';
 const purgeOldInvites = (db) => db.query(`DELETE FROM band_invites WHERE created_at < now() - make_interval(days => $1)`, [INVITE_DAYS]);
@@ -572,6 +583,7 @@ export async function listBandMembers(accountId, bandId) {
 // either way, and is on their My bands page. Whoever sends the email must have a name on their account.
 export async function inviteToBand(accountId, bandId, email, level = 'play', origin = '', { resend = false } = {}) {
   await assertOrganiser(pool, accountId, bandId);
+  await requireAdult(pool, accountId);
   const role = roleOfLevel(level);
   const to = cleanEmail(email);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to) || to.length > 254) throw fail(400, 'Enter the email address they sign in with.');
