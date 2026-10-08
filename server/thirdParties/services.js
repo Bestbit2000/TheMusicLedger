@@ -62,12 +62,12 @@ export default [
     name: 'Vercel',
     group: 'service',
     personalData: true, // ML-469: a data processing agreement and a transfer safeguard are recorded for it
-    status: 'attention',
+    status: 'in_use',
     who: 'Vercel Inc. (USA)',
     provides: 'Hosting: serves the app\'s pages and runs the server (one function). Every push to main deploys to production.',
     usedIn: 'vercel.json, api/[...slug].js; docs/release-process.md',
-    plan: 'Hobby plan',
-    cost: 'Free',
+    plan: 'Pro plan (since 7 Oct 2026)',
+    cost: '$20 a month plus VAT (about $24), which includes $20 of usage',
     licence: 'Vercel terms of service',
     terms: [
       { label: 'Terms of service', url: 'https://vercel.com/legal/terms', dated: '1 Jun 2026' },
@@ -75,16 +75,15 @@ export default [
       { label: 'Acceptable use', url: 'https://vercel.com/legal/acceptable-use-policy', dated: '21 Apr 2026' },
       { label: 'Privacy policy', url: 'https://vercel.com/legal/privacy-policy', dated: '1 Jun 2026' },
       { label: 'Data processing agreement', url: 'https://vercel.com/legal/dpa', dated: '31 Mar 2026' },
-      { label: 'Hobby plan', url: 'https://vercel.com/docs/plans/hobby' }
+      { label: 'Pro plan', url: 'https://vercel.com/docs/plans/pro-plan', dated: '15 Sep 2026' }
     ],
     termsCheckedOn: CHECKED,
-    attention: [
-      'The Hobby plan is for non-commercial personal use only. Taking payment from visitors, or advertising a paid product, counts as commercial - so the app must move to Pro ($20 a month) before Premium is sold or advertised.',
-      'Vercel\'s data processing agreement covers Pro and Enterprise only. On Hobby there is no processor contract for the names, emails and files held there.'
-    ],
     says: [
-      'Hobby is for personal, non-commercial use. Asking for donations is not commercial; taking payment, advertising a sale, being paid to build the site, or carrying ads is.',
-      'They can disable or remove a Hobby project with or without notice, and end the account at once if limits are passed.',
+      // The app moved from Hobby to Pro on 7 Oct 2026 (the owner): Hobby is non-commercial only and
+      // has no data processing agreement, which was gap 11 of the GDPR assessment.
+      'The data processing agreement covers Pro and Enterprise. It is binding from the moment the plan is taken - nothing to sign. The owner keeps a copy.',
+      'For information sent from the UK, the agreement includes the UK international data transfer addendum (its schedules 3 and 5).',
+      'Pro allows commercial use, so Premium can be sold or advertised.',
       'Changes to the terms apply when posted or emailed.',
       'Vercel is a US company and processes mainly in the USA; our server code is set to run in London (vercel.json).'
     ],
@@ -95,27 +94,21 @@ export default [
       { text: 'The build installs from the lockfile (npm ci), not whatever is newest.', check: { path: 'vercel.json', includes: 'npm ci && cd server && npm ci' } },
       { text: 'The root lockfile is in the repo.', check: { path: 'package-lock.json', includes: '"lockfileVersion"' } },
       { text: 'The server lockfile is in the repo.', check: { path: 'server/package-lock.json', includes: '"lockfileVersion"' } },
-      { text: 'Stay non-commercial while on Hobby: no payments, no advertising of a paid product, no ads.' },
       { text: 'No content that infringes someone\'s rights - members upload recordings and sheet music, so the terms say how to ask for something to be taken down.', check: { path: 'public/terms.html', includes: 'take it down' } },
       { text: 'One account only - no second account to get round the limits.' }
     ],
     watch: [
       'The server runs in London (lhr1, set in vercel.json since ML-425) - next to the database. It ran in Washington DC before, which made every database call cross the Atlantic.',
-      'A scheduled job (cron) on Hobby can run at most once a day.'
+      'Usage past what is included is billed, not blocked. Vercel emails at 75% of the $20; its spending notice is at $200 a month unless a lower limit is set in Vercel (Billing, Spend management).'
     ],
     limits: [
-      { what: 'Fast data transfer', allowance: '100 GB a month' },
-      { what: 'Fast origin transfer', allowance: '10 GB a month' },
+      { what: 'Usage credit (server time, memory, file storage and the rest)', allowance: '$20 a month' },
       { what: 'CDN requests', allowance: '1,000,000 a month' },
-      { what: 'Function invocations', allowance: '1,000,000 a month' },
-      { what: 'Function active CPU', allowance: '4 hours a month' },
-      { what: 'Function memory', allowance: '360 GB-hours a month' },
-      { what: 'Deployments', allowance: '100 a day' },
-      { what: 'Function run time', allowance: '300 seconds at most' }
+      { what: 'Data transfer', allowance: '1 TB a month' }
     ],
-    overLimit: 'Blocked, not billed: in most cases the feature stops until 30 days have passed.',
-    nextTier: 'Pro - $20 a month, which includes $20 of usage. Beyond that, pay for what you use (London rates: $0.15 per GB transferred, $0.60 per million invocations).',
-    usageSource: 'Vercel API: GET /v1/billing/charges gives the amount used per service per day. Whether it answers for a Hobby account is not confirmed.',
+    overLimit: 'Billed, not blocked: once the $20 is used, the rest is charged at the rates below.',
+    nextTier: 'Past what is included (rates on 7 Oct 2026): $0.177 per hour of server CPU, $0.0146 per GB-hour of memory, $0.15 per GB transferred, $2.40 per million CDN requests.',
+    usageSource: 'Vercel API: GET /v1/billing/charges gives what was used and what it cost, per service per day. Read daily once VERCEL_API_TOKEN is set (Costs and usage: "Where Vercel\'s usage is going").',
     hosts: ['vercel.app', 'vercel.com']
   },
   {
@@ -128,8 +121,8 @@ export default [
     who: 'Vercel Inc. (USA)',
     provides: 'File storage: members\' mp3 and mp4 recordings, and PDF, MusicXML, Sibelius and MuseScore documents attached to a piece.',
     usedIn: 'server/routes/api.js, server/services/flows.js (BLOB_READ_WRITE_TOKEN); the browser uploads straight to it',
-    plan: 'Hobby plan',
-    cost: 'Free',
+    plan: 'Pro plan (the same account as Vercel)',
+    cost: 'Comes out of Vercel\'s $20 a month of included usage',
     licence: 'Vercel terms of service (same as Vercel)',
     terms: [
       { label: 'Terms of service', url: 'https://vercel.com/legal/terms', dated: '1 Jun 2026' },
@@ -137,23 +130,19 @@ export default [
     ],
     termsCheckedOn: CHECKED,
     says: [
-      'The same terms as Vercel hosting, including the non-commercial rule on Hobby.',
-      'Reading a file also counts against the general Hobby transfer and request allowances.',
+      'The same terms and the same data processing agreement as Vercel hosting (Pro since 7 Oct 2026).',
       'Looking through the store in Vercel\'s dashboard counts as operations too.'
     ],
     asks: [],
     watch: [
-      'Going over a limit makes every recording and document unreachable for up to 30 days - for those features that is an outage.',
-      'Recordings can hold personal data (voices, faces). On Hobby they sit outside the data processing agreement.'
+      'Recordings can hold personal data (voices, faces). They are covered by Vercel\'s data processing agreement now the account is on Pro.',
+      'Storing a file is cheap; playing recordings back is what costs ($0.05 a GB).'
     ],
     limits: [
-      { what: 'Storage', allowance: '1 GB (monthly average)' },
-      { what: 'Simple operations (reads)', allowance: '10,000 a month' },
-      { what: 'Advanced operations (uploads, lists)', allowance: '2,000 a month' },
-      { what: 'Data transfer', allowance: '10 GB a month' }
+      { what: 'Storage, operations and transfer', allowance: 'No allowance of their own - paid from Vercel\'s $20 a month of usage' }
     ],
-    overLimit: 'No charge, but the store can\'t be reached until 30 days have passed. Vercel emails as the limit gets near.',
-    nextTier: 'On Pro (London rates): $0.024 per GB-month stored, $0.05 per GB transferred, $5.30 per million uploads.',
+    overLimit: 'Billed, not blocked, once Vercel\'s $20 a month is used.',
+    nextTier: 'Rates on 7 Oct 2026: $0.024 per GB stored a month, $0.05 per GB transferred, $0.42 per million reads, $5.30 per million uploads.',
     usageSource: 'The app already stores every file\'s size (score_recordings, score_documents), so storage can be added up from our own tables. Operations and transfer come from Vercel\'s billing API or dashboard.',
     hosts: ['vercel-storage.com']
   },

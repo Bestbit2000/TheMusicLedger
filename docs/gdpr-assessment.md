@@ -101,6 +101,15 @@ the three databases. The fuller history of each gap is in the version 2 register
 - **Gap 9 closed, 7 October 2026 (0.50.0, ML-486):** the content security policy is enforced on the pages and the
   server's answers, after the owner's sandbox walk. **16 closed, 5 open**: Vercel's agreement (11), Google sign-in's
   safeguard (19), an email provider with an agreement (13), retention switched on (6), sign-up emails (8).
+- **Gap 11 closed, 7 October 2026 (the owner):** the app is on **Vercel Pro**. Vercel's data processing
+  agreement covers Pro and is binding from the moment the plan is taken, with nothing to sign (its section 1,
+  read on vercel.com/legal/dpa the same day); the owner has downloaded a copy for his records. For information
+  sent from the UK it includes the UK international data transfer addendum (schedules 3 and 5), so Vercel's
+  transfer safeguard is "the UK addendum in its agreement". This also meets the first of the two conditions
+  under Children (Vercel under contract). **Still to record on production:** Admin → Third parties shows
+  Vercel and Vercel Blob as "not in place" until the owner changes them there. **17 closed, 4 open**: Google
+  sign-in's safeguard (19), an email provider with an agreement (13), retention switched on (6), sign-up
+  emails (8).
 - The monthly site security review is next due about 6 November 2026; re-running it will record ML-474 and
   ML-475 as closed.
 

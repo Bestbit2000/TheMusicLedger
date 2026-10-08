@@ -138,8 +138,19 @@ The top of **Admin → Third parties** shows what the app costs and how close ea
   on the page): spent so far (every payment up to today), and what it is costing now a month and a year.
 - **Meters** (`METERS` in the service) are the things a plan limits. Each is read one of three ways:
   - **counted by the app** - file storage (from our own records) and this database's size;
-  - **asked from the provider** - Neon compute, storage and data sent out; PostHog events - when the key is set;
-  - **typed in** - Vercel's figures, from Vercel → Usage. Any meter can be given a typed reading.
+  - **asked from the provider** - Neon compute, storage and data sent out; PostHog events; Vercel's usage in
+    dollars - when the key is set;
+  - **typed in** - any meter can be given a typed reading.
+- **Vercel is on Pro (7 Oct 2026), so its meter is money.** The plan includes $20 of usage a month and bills
+  the rest, so the one Vercel meter is "Vercel usage, in dollars" against $20. It is read from Vercel's billing
+  API (`GET /v1/billing/charges`), which gives every charge for a day, service by service: how much was used
+  and what it cost. Those lines are kept in `third_party_usage_lines` (migration 115) and shown under the
+  meters as **Where Vercel's usage is going**: each service's use and cost so far this billing period, where
+  both are heading at this rate, and the same for each member who used the app in the period (a count from
+  `accounts.last_seen_on` - Vercel does not say who used what, so it is an average). The sums are
+  `parseChargeLines`, `billingPeriod` and `spendBreakdown` in `costs.js`. File storage has no limit of its own
+  on Pro. The three typed-in Vercel meters (server calls, data transfer, CPU time) are gone - their limits were
+  the free plan's.
 - **Readings** (`third_party_usage_readings`) are taken once a day by Vercel's scheduler
   (`vercel.json` `crons` → `GET /api/cron/usage-readings`, 06:00 UTC), and by **Read now** on the page. The
   page shows the latest, the percent of the limit, where it is heading by the end of the period at this rate,
@@ -159,9 +170,15 @@ The top of **Admin → Third parties** shows what the app costs and how close ea
 | `NEON_PROJECT_ID` | Only if the project changes - it defaults to the one in `docs/environments.md`. | - |
 | `POSTHOG_PERSONAL_API_KEY`, `POSTHOG_PROJECT_ID` | PostHog's event count. | "Not connected". |
 | `POSTHOG_BILLING_DAY` | The day of the month PostHog's cycle starts (12 on the owner's account). | 12 is assumed. |
+| `VERCEL_API_TOKEN` | Vercel's usage in dollars, and where it is going. An access token made in Vercel (Account Settings → Tokens). It can read the whole Vercel account, so keep it to Production and mark it Sensitive. | "Not connected". |
+| `VERCEL_TEAM_ID` | Only if Vercel answers 403 or 404 without it: the team's id (Vercel → Settings → General). | The token's own account is asked. |
+| `VERCEL_BILLING_DAY` | The day of the month Vercel's billing period starts. | 7 is assumed (Pro was taken on 7 Oct 2026). |
 | `USAGE_ALERT_EMAIL` | Where warnings go. | `SIGNUP_ALERT_EMAIL` is used; with neither, no email (the page still shows it). |
 
 The Neon and PostHog calls were written from their documentation and **have not been run with real keys**:
 the first **Read now** after the keys are added is the test. A call that fails says so on the page ("Neon
-answered 403") and nothing else is affected. Vercel's own billing API was not confirmed to answer on the Hobby
-plan, so its three meters are typed in.
+answered 403") and nothing else is affected. The Vercel call is the same: written from Vercel's documentation
+(read 7 Oct 2026) and **not yet run with a real token**. Two things the first reading will show: whether usage
+the $20 credit pays for comes back with its value in `BilledCost` or `EffectiveCost` (the larger of the two is
+taken, so either works; if both are nothing the meter reads $0 while the amounts used still show), and what
+Vercel calls each service.

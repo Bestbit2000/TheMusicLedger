@@ -112,3 +112,86 @@ export function alertsDue(percent, alreadySent, thresholds = [75, 90]) {
   if (percent === null || percent === undefined) return [];
   return thresholds.filter((t) => percent >= t && !alreadySent.includes(t));
 }
+
+// ---- Vercel's bill, line by line (the spend reader)
+// Vercel's billing API answers in FOCUS format: one JSON object a line, each a charge for one
+// service on one day - what was used (ConsumedQuantity, ConsumedUnit) and what it cost. The same
+// service can come back several times for a day (a line per project or region), so the lines are
+// added up to one per day, service and kind of charge. A line that can't be read is skipped.
+//
+// cost is the larger of BilledCost and EffectiveCost: which of the two carries the value of usage
+// paid for by the plan's included credit is for the first real reading to show, and the larger is
+// right either way.
+export function parseChargeLines(text) {
+  const byKey = new Map();
+  String(text || '').split(/\r?\n/).forEach((raw) => {
+    const line = raw.trim();
+    if (!line) return;
+    let c;
+    try { c = JSON.parse(line); } catch (error) { return; }
+    if (!c || typeof c !== 'object' || !c.ChargePeriodStart) return;
+    const day = String(c.ChargePeriodStart).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+    const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+    const sku = String(c.SkuId || c.ServiceName || 'unknown').slice(0, 200);
+    const category = String(c.ChargeCategory || 'Usage');
+    const key = `${day}|${sku}|${category}`;
+    const row = byKey.get(key) || { day, sku, service: String(c.ServiceName || sku).slice(0, 200), category, unit: c.ConsumedUnit ? String(c.ConsumedUnit).slice(0, 60) : '', quantity: 0, cost: 0 };
+    row.quantity += num(c.ConsumedQuantity);
+    row.cost += Math.max(num(c.BilledCost), num(c.EffectiveCost));
+    byKey.set(key, row);
+  });
+  return [...byKey.values()].sort((a, b) => (a.day + a.sku).localeCompare(b.day + b.sku));
+}
+
+// The billing period `today` falls in, for a provider that bills from a day of the month:
+// { start, end }, both days inside the period. billingDay is kept to 1-28 so every month has one.
+export function billingPeriod(billingDay, today) {
+  const day = Math.min(28, Math.max(1, Math.floor(Number(billingDay)) || 1));
+  const now = new Date(dayOf(today));
+  const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (now.getUTCDate() < day ? 1 : 0), day);
+  const s = new Date(start);
+  return { start: iso(start), end: iso(Date.UTC(s.getUTCFullYear(), s.getUTCMonth() + 1, day) - DAY) };
+}
+
+// Where the usage in a period is going: one row a service with what was used and what it cost so
+// far, what both are heading for by the end of the period at this rate, and the same per member
+// who used the app in the period. Only usage counts - the plan's own fee, tax and credits are not
+// usage. The newest day in `lines` may be part-counted by the provider; the rate is taken over the
+// days gone, as meterStatus does, so it errs low early in a day rather than high.
+export function spendBreakdown(lines, period, today, activeMembers) {
+  const start = dayOf(period.start);
+  const end = dayOf(period.end);
+  const now = Math.min(Math.max(dayOf(today), start), end);
+  const daysIn = (now - start) / DAY + 1;
+  const daysTotal = (end - start) / DAY + 1;
+  const scale = daysTotal / daysIn;
+  const members = Number(activeMembers) > 0 ? Number(activeMembers) : 0;
+  const r4 = (n) => Math.round(n * 10000) / 10000;
+  const bySku = new Map();
+  const byDay = new Map();
+  (lines || []).forEach((l) => {
+    if (l.category !== 'Usage') return;
+    const d = dayOf(l.day);
+    if (d < start || d > end) return;
+    const row = bySku.get(l.sku) || { sku: l.sku, service: l.service, unit: l.unit, quantity: 0, cost: 0 };
+    row.quantity += Number(l.quantity) || 0;
+    row.cost += Number(l.cost) || 0;
+    if (!row.unit && l.unit) row.unit = l.unit;
+    bySku.set(l.sku, row);
+    byDay.set(l.day, (byDay.get(l.day) || 0) + (Number(l.cost) || 0));
+  });
+  const services = [...bySku.values()].map((s) => ({
+    ...s, quantity: r4(s.quantity), cost: r4(s.cost),
+    projectedQuantity: r4(s.quantity * scale), projectedCost: r4(s.cost * scale),
+    perMember: members ? { quantity: r4((s.quantity * scale) / members), cost: r4((s.cost * scale) / members) } : null
+  })).sort((a, b) => b.cost - a.cost || b.quantity - a.quantity || a.service.localeCompare(b.service));
+  const total = services.reduce((sum, s) => sum + s.cost, 0);
+  return {
+    period, daysIn, daysTotal, members,
+    total: r4(total), projected: r4(total * scale),
+    perMember: members ? r4((total * scale) / members) : null,
+    services,
+    daily: [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([day, cost]) => ({ day, cost: r4(cost) }))
+  };
+}

@@ -33,7 +33,8 @@ async function today() {
     const meter = money.usage.find((m) => m.key === 'neon-compute');
     if (meter && meter.status) out.database = { used: meter.status.value, limit: meter.limit, projected: meter.status.projected, readAt: meter.latest.readAt };
     // ML-443 Limits: every plan limit with its latest reading (none, or an old one, is "used: null")
-    out.meters = money.usage.map((m) => ({
+    // (a meter with no limit of its own - file storage on Vercel Pro - has nothing to run out of)
+    out.meters = money.usage.filter((m) => Number(m.limit) > 0).map((m) => ({
       key: m.key, party: m.party, name: m.name, unit: m.unit, limit: m.limit, per: m.per,
       used: m.status ? m.status.value : null, percent: m.status ? m.status.percent : null, projected: m.status ? m.status.projected : null,
       readAt: m.latest ? m.latest.readAt : null
