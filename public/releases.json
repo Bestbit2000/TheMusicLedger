@@ -1,5 +1,41 @@
 [
   {
+    "version": "0.51.0",
+    "date": "2026-10-08",
+    "changes": [
+      {
+        "key": "ML-489",
+        "type": "New",
+        "summary": "Rehearsal score, step B: the Recordings tool - a bigger upload, one rehearsal file given to several pieces"
+      },
+      {
+        "key": "ML-488",
+        "type": "New",
+        "summary": "Rehearsal score, step C: map a piece's bars onto a recording or video, repeat any bars, play slower"
+      },
+      {
+        "key": "ML-487",
+        "type": "Fixes",
+        "summary": "A YouTube video played in the piece editor carries on playing after Save, with no way to stop it"
+      },
+      {
+        "key": "ML-456",
+        "type": "New",
+        "summary": "Accept MuseScore files as a piece's score or part"
+      },
+      {
+        "key": "ML-312",
+        "type": "New",
+        "summary": "Rehearsal score, step A: set where a recording or video starts and ends on a piece"
+      },
+      {
+        "key": "ML-278",
+        "type": "New",
+        "summary": "Legal - upload for music owning the rights when uploading"
+      }
+    ]
+  },
+  {
     "version": "0.50.0",
     "date": "2026-10-07",
     "changes": [
