@@ -393,6 +393,12 @@
                     <svg class="tool-icon-svg" viewBox="0 0 1247 1246" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><defs><clipPath id="clipFrontpageFlow"><rect x="2535" y="380" width="1247" height="1246"/></clipPath></defs><g clip-path="url(#clipFrontpageFlow)" transform="translate(-2535 -380)"><rect x="3006" y="1338" width="351" height="82.0001"/><rect x="2782" y="962" width="788" height="81.9998"/><rect x="2742" y="1001" width="81.9998" height="187"/><rect x="3525" y="834" width="81.9998" height="167"/><path d="M2742 1003C2742 980.356 2760.36 962 2783 962 2805.64 962 2824 980.356 2824 1003 2824 1025.64 2805.64 1044 2783 1044 2760.36 1044 2742 1025.64 2742 1003Z" fill-rule="evenodd"/><path d="M3524 1002.5C3524 979.58 3542.58 961 3565.5 961 3588.42 961 3607 979.58 3607 1002.5 3607 1025.42 3588.42 1044 3565.5 1044 3542.58 1044 3524 1025.42 3524 1002.5Z" fill-rule="evenodd"/><path d="M3363.38 1208.22 3363.38 1547.78 3703.62 1547.78 3703.62 1208.22ZM3324.21 1130 3742.79 1130C3764.44 1130 3782 1147.52 3782 1169.13L3782 1586.87C3782 1608.48 3764.44 1626 3742.79 1626L3324.21 1626C3302.56 1626 3285 1608.48 3285 1586.87L3285 1169.13C3285 1147.52 3302.56 1130 3324.21 1130Z" fill-rule="evenodd"/><rect x="3006" y="588" width="351" height="80.9998"/><path d="M3363.38 458.378 3363.38 798.622 3703.62 798.622 3703.62 458.378ZM3324.21 380 3742.79 380C3764.44 380 3782 397.556 3782 419.213L3782 837.787C3782 859.443 3764.44 877 3742.79 877L3324.21 877C3302.56 877 3285 859.443 3285 837.787L3285 419.213C3285 397.556 3302.56 380 3324.21 380Z" fill-rule="evenodd"/><path d="M2613.22 458.378 2613.22 798.622 2952.78 798.622 2952.78 458.378ZM2574.13 380 2991.87 380C3013.48 380 3031 397.556 3031 419.213L3031 837.787C3031 859.443 3013.48 877 2991.87 877L2574.13 877C2552.52 877 2535 859.443 2535 837.787L2535 419.213C2535 397.556 2552.52 380 2574.13 380Z" fill-rule="evenodd"/><path d="M2613.22 1208.22 2613.22 1547.78 2952.78 1547.78 2952.78 1208.22ZM2574.13 1130 2991.87 1130C3013.48 1130 3031 1147.52 3031 1169.13L3031 1586.87C3031 1608.48 3013.48 1626 2991.87 1626L2574.13 1626C2552.52 1626 2535 1608.48 2535 1586.87L2535 1169.13C2535 1147.52 2552.52 1130 2574.13 1130Z" fill-rule="evenodd"/></g></svg>
                     <span class="tool-icon-label">Rehearse</span>
                 </button>
+                <!-- ML-489: Recordings - whole rehearsal recordings, uploaded once and given to pieces. Shown
+                     with rehearsal_recordings. -->
+                <button data-tool="recordings" class="tool-icon-btn hidden-group" id="recordingsToolBtn" data-act="view" data-arg="recordingsView" aria-label="Recordings">
+                    <span class="material-symbols-outlined" aria-hidden="true">graphic_eq</span>
+                    <span class="tool-icon-label">Recordings</span>
+                </button>
             </div>
         </div>
         <!-- ML-406: Learn - Theory, Skills (Pitch, Tempo, Pulse and Rhythm, one list like Theory's) and Range. -->
@@ -1453,6 +1459,9 @@
         </div>
         <button type="button" class="btn-nav" id="plAddPiecesBtn" aria-haspopup="dialog">+ Add pieces</button>
         <button type="button" class="btn-submit" id="plPlanBtn">Plan a session for this</button>
+        <!-- ML-489: once the concert has been played - clears the member's own Recordings-tool uploads that
+             are on this list's pieces, so there is room for the next concert's. Asks first. -->
+        <button type="button" class="btn-text btn-text-danger hidden-group" id="plClearRecordingsBtn">Delete this list's recordings</button>
         <button type="button" class="btn-text btn-text-danger" id="plDeleteBtn">Delete this list</button>
     </div>
 
@@ -1613,6 +1622,24 @@
          To start with only the ones not prepared yet; the filter adds the rest. A piece opens its path
          (piecePathView), where Prepare lives; a public one first asks: as it is, or a copy in your library
          (the copy remembers its original - scores.copied_from_score_id). app.js: PREPARE. -->
+    <!-- ML-489: Recordings (the rehearsal score, step B) - whole rehearsal recordings. The app does not
+         record: a rehearsal is recorded on the phone's own recorder and the file uploaded here, bigger than
+         a recording put straight on a piece may be. It is then given to pieces: each gets a cut of it, set
+         in the start-and-end pop-up (#clipModal). A narrow page, no classes of its own. app.js: the
+         Recordings tool. specs/components/rehearsal-score.md -->
+    <div id="recordingsView" class="hidden-group">
+        <p class="theory-intro">A whole rehearsal in one file. Upload it here, then give it to each piece that is in it. The file is kept once; each piece remembers where it starts and ends.</p>
+        <p class="metro-help-text"><strong>How to record a rehearsal:</strong> use your phone's own voice recorder - it keeps going when the screen locks. Put the phone where it can hear the whole band. Use the ordinary quality setting, not "lossless". Upload on wifi.</p>
+        <input type="file" id="recordingsFileInput" class="hidden-group" accept=".mp3,.m4a,.wav,.mp4,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,video/mp4">
+        <button type="button" class="flow-action-btn flow-action-btn-wide" id="recordingsUploadBtn"><span class="material-symbols-outlined" aria-hidden="true">upload</span> <span id="recordingsUploadLbl">Upload a rehearsal recording</span></button>
+        <div class="flow-upload-progress hidden-group" id="recordingsUploadProgress">
+            <div class="flow-upload-progress-text"><span id="recordingsUploadName">Uploading&hellip;</span><span id="recordingsUploadPercent">0%</span></div>
+            <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="recordingsUploadFill"></div></div>
+        </div>
+        <p class="theory-best-line" id="recordingsCount" role="status" aria-live="polite"></p>
+        <div id="recordingsList"></div>
+    </div>
+
     <div id="prepareListView" class="hidden-group">
         <p class="theory-intro">Get a piece ready to practise: play it through, mark how each bar went, and cut it into bits to work on. Pick a piece to start.</p>
         <div class="filter-strip">
@@ -1646,7 +1673,7 @@
         </div>
         <!-- ML-428: the Media steps' file pickers. The files are held until Save, when the piece exists. -->
         <input type="file" id="outlineAudioInput" class="hidden-group" accept=".mp3,.m4a,.wav,.mp4,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,video/mp4" multiple>
-        <input type="file" id="outlineDocsInput" class="hidden-group" accept=".pdf,.musicxml,.mxl,.sib,.musx,application/pdf" multiple>
+        <input type="file" id="outlineDocsInput" class="hidden-group" accept=".pdf,.musicxml,.mxl,.mscz,.mscx,.sib,.musx,application/pdf" multiple>
     </div>
 
     <div id="addPieceView" class="hidden-group">
@@ -1827,13 +1854,13 @@
                 <div class="flow-card-header">
                     <div>
                         <span class="flow-card-label">Documents &amp; scores</span>
-                        <p class="flow-card-sublabel">PDF scans, MusicXML or Sibelius parts</p>
+                        <p class="flow-card-sublabel">PDF scans, or MusicXML, MuseScore, Sibelius or Finale files</p>
                     </div>
                     <span class="flow-pill" id="flowDocumentsCountPill">0 files</span>
                 </div>
                 <div id="flowDocumentsList"></div>
                 <button type="button" class="flow-action-btn flow-action-btn-wide" id="flowUploadDocumentBtn"><span class="material-symbols-outlined">upload_file</span> Upload PDF or MusicXML score (up to 25 MB)</button>
-                <input type="file" id="flowDocumentFileInput" class="hidden-group" accept=".pdf,.musicxml,.mxl,.sib,.musx,application/pdf">
+                <input type="file" id="flowDocumentFileInput" class="hidden-group" accept=".pdf,.musicxml,.mxl,.mscz,.mscx,.sib,.musx,application/pdf">
                 <div class="flow-upload-progress hidden-group" id="flowDocumentUploadProgress">
                     <div class="flow-upload-progress-text"><span id="flowDocumentUploadName">Uploading&hellip;</span><span id="flowDocumentUploadPercent">0%</span></div>
                     <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="flowDocumentUploadFill"></div></div>
@@ -2324,6 +2351,73 @@
             </div>
             <button class="btn-submit" id="flowYouTubeSaveBtn">Add video to flow</button>
             <button class="btn-cancel btn-nav" data-act="hide-modal" data-arg="flowYouTubeModal">Cancel</button>
+        </div>
+    </div>
+
+    <!-- ML-312: where a recording or video starts and ends on the piece (the rehearsal score, step A).
+         Opened from a recording's "start and end" value box on the Media tab. The player is put into
+         #clipPlayerHost when it opens and taken out when it closes. No form fields, so a tap outside
+         closes it; every way of closing goes through clip-close, which stops the player.
+         specs/components/recording-clip.md -->
+    <div class="modal" id="clipModal" role="dialog" aria-modal="true" aria-labelledby="clipModalTitle">
+        <div class="modal-content"><button type="button" class="modal-close-x" data-act="clip-close" aria-label="Close">&times;</button>
+            <h2 id="clipModalTitle">Set start and end</h2>
+            <p class="metro-help-text"><strong id="clipModalName"></strong></p>
+            <p class="metro-help-text">Play it. Tap <strong>Starts here</strong> when the piece begins and <strong>Ends here</strong> when it is over. The recording itself is not changed.</p>
+            <div id="clipPlayerHost"></div>
+
+            <div class="section-title"><span>Start</span><span id="clipStartTime" aria-live="polite">The very start</span></div>
+            <button type="button" class="flow-action-btn flow-action-btn-wide" data-act="clip-mark" data-arg="start"><span class="material-symbols-outlined" aria-hidden="true">first_page</span> Starts here</button>
+            <div class="flex-row gap-sm">
+                <button type="button" class="btn-text" data-act="clip-nudge" data-arg="start" data-ms="-1000" aria-label="Start 1 second earlier">1 second back</button>
+                <button type="button" class="btn-text" data-act="clip-nudge" data-arg="start" data-ms="1000" aria-label="Start 1 second later">1 second on</button>
+            </div>
+
+            <div class="section-title"><span>End</span><span id="clipEndTime" aria-live="polite">The very end</span></div>
+            <button type="button" class="flow-action-btn flow-action-btn-wide" data-act="clip-mark" data-arg="end"><span class="material-symbols-outlined" aria-hidden="true">last_page</span> Ends here</button>
+            <div class="flex-row gap-sm">
+                <button type="button" class="btn-text" data-act="clip-nudge" data-arg="end" data-ms="-1000" aria-label="End 1 second earlier">1 second back</button>
+                <button type="button" class="btn-text" data-act="clip-nudge" data-arg="end" data-ms="1000" aria-label="End 1 second later">1 second on</button>
+            </div>
+
+            <p class="theory-best-line" id="clipSummary" role="status" aria-live="polite"></p>
+            <button type="button" class="btn-text" data-act="clip-try">Play from the start mark</button>
+            <button type="button" class="btn-text btn-text-danger hidden-group" id="clipClearBtn" data-act="clip-clear">Use all of it</button>
+            <button type="button" class="btn-submit" data-act="clip-save">Done</button>
+            <button type="button" class="btn-cancel btn-nav" data-act="clip-close">Cancel</button>
+        </div>
+    </div>
+
+    <!-- ML-488: marking where bars fall in a recording or video (the rehearsal score, step C). Opened
+         from the "bars marked" value box on a recording's slide on the play screen, by whoever can change
+         the piece. Its own player, put into #barMapPlayerHost when it opens and taken out when it closes.
+         It has a field to type into, so a tap outside does not close it. specs/components/rehearsal-score.md -->
+    <div class="modal" id="barMapModal" role="dialog" aria-modal="true" aria-labelledby="barMapModalTitle">
+        <div class="modal-content"><button type="button" class="modal-close-x" data-act="barmap-close" aria-label="Close">&times;</button>
+            <h2 id="barMapModalTitle">Mark the bars</h2>
+            <p class="metro-help-text"><strong id="barMapName"></strong></p>
+            <p class="metro-help-text">Play it. When the band reaches a bar you know, choose that bar and tap the button as it starts. A few are enough - where the speed changes, and after a pause. The bars in between are worked out for you.</p>
+            <div id="barMapPlayerHost"></div>
+
+            <div class="section-title"><span>Which bar</span><span id="barMapPlaceLbl" aria-live="polite"></span></div>
+            <div class="flex-row gap-sm">
+                <button type="button" class="btn-text" id="barMapPrevBtn" data-act="barmap-step" data-arg="-1" aria-label="The bar before">Bar before</button>
+                <button type="button" class="btn-text" id="barMapNextBtn" data-act="barmap-step" data-arg="1" aria-label="The next bar">Next bar</button>
+            </div>
+            <div class="form-group">
+                <label for="barMapBarInput">Or type a bar number</label>
+                <div class="flex-row gap-sm">
+                    <input type="number" id="barMapBarInput" inputmode="numeric" min="1" placeholder="e.g. 33">
+                    <button type="button" class="btn-cancel btn-nav no-margin" data-act="barmap-go">Go</button>
+                </div>
+            </div>
+            <button type="button" class="btn-submit" data-act="barmap-mark"><span id="barMapMarkBtnLbl">This is bar 1</span></button>
+
+            <div class="section-title"><span>Marked</span><span id="barMapCount"></span></div>
+            <div id="barMapList"></div>
+
+            <button type="button" class="btn-submit" data-act="barmap-save">Save</button>
+            <button type="button" class="btn-cancel btn-nav" data-act="barmap-close">Cancel</button>
         </div>
     </div>
 

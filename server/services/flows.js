@@ -12,8 +12,17 @@
 // action below (moveFlowToBand/removeFlowFromBand, publishFlow/unpublishFlow) -
 // never a direct column edit from elsewhere.
 
+import fs from 'node:fs';
+import vm from 'node:vm';
 import pool from '../config/db.js';
 import { del } from '@vercel/blob';
+import { listFlowBlocksUnchecked } from './flowBlocks.js'; // ML-488 (a cycle with flowBlocks.js, used only when called)
+
+// ML-312: the rules for a recording's start and end are in public/flowJourney.js, loaded here with vm
+// (as practiceLevels.js does) so the server checks a clip with the same code the pop-up runs.
+const journeySandbox = { self: {} };
+vm.runInNewContext(fs.readFileSync(new URL('../../public/flowJourney.js', import.meta.url), 'utf8'), journeySandbox);
+export const FlowJourney = journeySandbox.self.FlowJourney;
 import { isSuperAdmin } from './accounts.js';
 import { getConfigValue } from './appConfig.js';
 import { NOTE_VALUES } from './metronomeSegments.js';
@@ -37,7 +46,8 @@ async function delUnreferenced(blobUrls) {
   const urls = [...new Set(blobUrls.filter(Boolean))];
   if (!urls.length) return;
   const { rows } = await pool.query(
-    `SELECT blob_url FROM score_recordings WHERE blob_url = ANY($1) UNION SELECT blob_url FROM score_documents WHERE blob_url = ANY($1)`, [urls]);
+    `SELECT blob_url FROM score_recordings WHERE blob_url = ANY($1) UNION SELECT blob_url FROM score_documents WHERE blob_url = ANY($1)
+     UNION SELECT blob_url FROM rehearsal_recordings WHERE blob_url = ANY($1)`, [urls]); // ML-489: a cut's file belongs to the Recordings tool
   const stillUsed = new Set(rows.map((r) => r.blob_url));
   const free = urls.filter((u) => !stillUsed.has(u));
   if (free.length) await del(free);
@@ -75,14 +85,18 @@ function toFlowSummaryDto(row, canEdit, canDelete) {
     prepared: !!row.prepared,
     // ML-404: how many practice lists it's on - deleting it takes it off them, so the confirmation says so
     listCount: Number(row.list_count || 0),
+    // ML-489: how many recordings and videos it has - the lists say so, and My music can show only those
+    recordingCount: Number(row.recording_count || 0),
     canEdit: !!canEdit, // ML-310: a public piece is view/play/copy for everyone, edit for super admins
     // ML-411: your own piece, or a band piece you added (a super admin: any piece they can reach)
     canDelete: !!canDelete
   };
 }
 
-function toRecordingDto(row) {
+function toRecordingDto(row, markRows) {
   return {
+    // ML-488: the bar marks made on this recording, in the order the piece is played
+    marks: (markRows || []).filter((m) => String(m.recording_id) === String(row.id)).map((m) => ({ place: Number(m.place), number: Number(m.bar_number), pass: Number(m.pass), atMs: Number(m.at_ms) })),
     id: Number(row.id),
     type: row.type,
     title: row.title,
@@ -91,6 +105,9 @@ function toRecordingDto(row) {
     mimeType: row.mime_type,
     youtubeVideoId: row.youtube_video_id,
     youtubeThumbnailUrl: row.youtube_thumbnail_url,
+    // ML-312: where playing starts and stops, in milliseconds (null = the start / the end)
+    clipStartMs: row.clip_start_ms === null || row.clip_start_ms === undefined ? null : Number(row.clip_start_ms),
+    clipEndMs: row.clip_end_ms === null || row.clip_end_ms === undefined ? null : Number(row.clip_end_ms),
     createdAt: row.created_at
   };
 }
@@ -106,7 +123,7 @@ function toDocumentDto(row) {
   };
 }
 
-function toFlowDetailDto(score, recordingRows, documentRows, summary, canEdit, canDelete) {
+function toFlowDetailDto(score, recordingRows, documentRows, summary, canEdit, canDelete, markRows) {
   return {
     id: Number(score.id),
     title: score.title,
@@ -120,7 +137,7 @@ function toFlowDetailDto(score, recordingRows, documentRows, summary, canEdit, c
     canEdit: !!canEdit,
     canDelete: !!canDelete, // ML-411
     createdAt: score.created_at,
-    recordings: recordingRows.map(toRecordingDto),
+    recordings: recordingRows.map((r) => toRecordingDto(r, markRows)),
     documents: documentRows.map(toDocumentDto),
     blocksSummary: { count: Number(summary.block_count), totalBars: Number(summary.total_bars), totalSeconds: Number(summary.total_seconds || 0) }
   };
@@ -257,7 +274,8 @@ export async function listFlows(accountId) {
             -- Bar counts exclude the lead-in: it's a count-in, not part of the piece.
             COALESCE(SUM(ms.bar_count) FILTER (WHERE NOT ms.is_lead_in), 0) AS total_bars,
             EXISTS (SELECT 1 FROM piece_chunks pc WHERE pc.account_id = $1 AND pc.score_id = s.id AND pc.level IS NOT NULL) AS prepared,
-            (SELECT COUNT(*) FROM practice_list_scores pls WHERE pls.score_id = s.id) AS list_count
+            (SELECT COUNT(*) FROM practice_list_scores pls WHERE pls.score_id = s.id) AS list_count,
+            (SELECT COUNT(*) FROM score_recordings sr WHERE sr.score_id = s.id) AS recording_count
      FROM scores s
      LEFT JOIN metronome_segments ms ON ms.parent_score_id = s.id
      LEFT JOIN band_members bm ON bm.band_id = s.owner_band_id AND bm.account_id = $1
@@ -297,7 +315,10 @@ export async function getFlowDetail(accountId, scoreId) {
     isSuperAdmin(accountId)
   ]);
   const canDelete = canEdit && canDeleteFlow(score, accountId, superAdmin); // ML-411
-  return toFlowDetailDto(score, recordingRows, documentRows, summaryRows[0], canEdit, canDelete);
+  const { rows: markRows } = recordingRows.length
+    ? await pool.query('SELECT recording_id, place, bar_number, pass, at_ms FROM score_recording_marks WHERE recording_id = ANY($1) ORDER BY place', [recordingRows.map((r) => r.id)])
+    : { rows: [] };
+  return toFlowDetailDto(score, recordingRows, documentRows, summaryRows[0], canEdit, canDelete, markRows);
 }
 
 export async function updateFlowMetadata(accountId, scoreId, data) {
@@ -442,29 +463,84 @@ export async function deleteFlow(accountId, scoreId) {
 // client calls this right after `upload()` resolves, rather than relying on
 // Blob's own onUploadCompleted webhook, which Vercel can only reach on a real
 // deployed URL and never in local dev.
-export async function addUploadedRecording(accountId, scoreId, { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType }) {
+export async function addUploadedRecording(accountId, scoreId, { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType, clipStartMs, clipEndMs }) {
   await assertFlowAccess(accountId, scoreId);
   if (!blobUrl || !blobPathname) throw withStatus(400, 'Missing uploaded file details.');
   if (Number(fileSizeBytes) > MAX_PIECE_FILE_BYTES) throw withStatus(413, TOO_BIG);
+  const clip = cleanClip({ startMs: clipStartMs, endMs: clipEndMs });
   await assertOwnUnusedBlob(blobUrl, scoreId);
   await pool.query(
-    `INSERT INTO score_recordings (score_id, type, title, blob_url, blob_pathname, file_size_bytes, mime_type, order_index)
-     VALUES ($1, 'upload', $2, $3, $4, $5, $6, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
-    [scoreId, fileName || 'Untitled recording', blobUrl, blobPathname, fileSizeBytes || null, mimeType || null]
+    `INSERT INTO score_recordings (score_id, type, title, blob_url, blob_pathname, file_size_bytes, mime_type, clip_start_ms, clip_end_ms, order_index)
+     VALUES ($1, 'upload', $2, $3, $4, $5, $6, $7, $8, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
+    [scoreId, fileName || 'Untitled recording', blobUrl, blobPathname, fileSizeBytes || null, mimeType || null, clip.startMs, clip.endMs]
   );
   return getFlowDetail(accountId, scoreId);
 }
 
-export async function addYouTubeRecording(accountId, scoreId, { url, title }) {
+export async function addYouTubeRecording(accountId, scoreId, { url, title, clipStartMs, clipEndMs }) {
   await assertFlowAccess(accountId, scoreId);
+  const clip = cleanClip({ startMs: clipStartMs, endMs: clipEndMs });
   const videoId = extractYouTubeVideoId(url);
   if (!videoId) throw withStatus(400, "That doesn't look like a YouTube link.");
   const effectiveTitle = (title && title.trim()) || 'YouTube video';
   await pool.query(
-    `INSERT INTO score_recordings (score_id, type, title, youtube_video_id, youtube_thumbnail_url, order_index)
-     VALUES ($1, 'youtube', $2, $3, $4, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
-    [scoreId, effectiveTitle, videoId, `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`]
+    `INSERT INTO score_recordings (score_id, type, title, youtube_video_id, youtube_thumbnail_url, clip_start_ms, clip_end_ms, order_index)
+     VALUES ($1, 'youtube', $2, $3, $4, $5, $6, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
+    [scoreId, effectiveTitle, videoId, `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`, clip.startMs, clip.endMs]
   );
+  return getFlowDetail(accountId, scoreId);
+}
+
+// ML-312: where a recording or video starts and ends on its piece - two numbers beside the file, which
+// is never changed. Either may be empty (from the start / to the end). The rules are FlowJourney.cleanClip
+// (public/flowJourney.js), the same ones the pop-up uses; a clip that breaks them is refused, not mended.
+function cleanClip(clip) {
+  const out = FlowJourney.cleanClip(clip);
+  if (!out.ok) throw withStatus(400, out.message);
+  return out;
+}
+// ML-488: the bar marks on a recording, replaced whole ({ marks: [{ place, number, pass, atMs }] }). Whoever
+// can change the piece can map it. The marks are tidied by the same rule the map itself uses
+// (FlowJourney.usableMarks, against the piece's bars as they are now), so nothing is kept that the map
+// would ignore - a mark on a bar that isn't there, or one that makes the recording run backwards.
+const MAX_MARKS = 2000; // more than a mark a bar for any piece; stops a runaway list
+export async function setRecordingMarks(accountId, scoreId, recordingId, body) {
+  await assertFlowAccess(accountId, scoreId);
+  const given = body && Array.isArray(body.marks) ? body.marks : null;
+  if (!given) throw withStatus(400, 'Send the marks as a list.');
+  if (given.length > MAX_MARKS) throw withStatus(400, 'That is more marks than a piece has bars.');
+  const { rows: found } = await pool.query('SELECT id FROM score_recordings WHERE id = $1 AND score_id = $2', [recordingId, scoreId]);
+  if (!found.length) throw withStatus(404, 'Recording not found');
+  const all = await listFlowBlocksUnchecked(scoreId);
+  const leadIn = all.find((b) => b.isLeadIn) || null;
+  const places = FlowJourney.journeyPlaces(all.filter((b) => !b.isLeadIn), { leadIn });
+  const marks = FlowJourney.usableMarks(places, given);
+  if (marks.length !== given.length) throw withStatus(400, 'One of those marks does not fit the piece: each has to be a bar the piece plays, and later in the recording than the mark before it.');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM score_recording_marks WHERE recording_id = $1', [recordingId]);
+    for (const m of marks) {
+      await client.query('INSERT INTO score_recording_marks (recording_id, place, bar_number, pass, at_ms) VALUES ($1, $2, $3, $4, $5)', [recordingId, m.place, m.number, m.pass, m.atMs]);
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+  return getFlowDetail(accountId, scoreId);
+}
+
+export async function setRecordingClip(accountId, scoreId, recordingId, body) {
+  await assertFlowAccess(accountId, scoreId);
+  const clip = cleanClip(body || {});
+  const { rowCount } = await pool.query(
+    'UPDATE score_recordings SET clip_start_ms = $1, clip_end_ms = $2 WHERE id = $3 AND score_id = $4',
+    [clip.startMs, clip.endMs, recordingId, scoreId]
+  );
+  if (!rowCount) throw withStatus(404, 'Recording not found');
   return getFlowDetail(accountId, scoreId);
 }
 

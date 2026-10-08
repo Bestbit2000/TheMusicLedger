@@ -28,6 +28,7 @@ import { getFlowAuthoringStats, setFlowAuthoringSessionExcluded, currentAppVersi
 import { listFeedbackForAdmin, updateFeedbackAdmin } from '../services/feedback.js';
 import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitImport, MAX_IMPORT_BYTES } from '../services/flowTransfer.js';
 import { listNotificationsForAdmin, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
+import { listRecordingsForAdmin, removeRecordingOnRequest } from '../services/recordingRemovals.js';
 import { getSecurityReview, runSecurityReviewNow } from '../services/securityReview.js';
 import { getSiteSecurityReview, runSiteSecurityReviewNow } from '../services/siteSecurityReview.js';
 import thirdPartyRegister from '../thirdParties/register.js';
@@ -941,6 +942,25 @@ router.post('/third-parties/usage/:meter', requireAuth, resolveAccount, requireS
     await recordManualReading(req.params.meter, (req.body || {}).value, (req.body || {}).note);
     await sendUsageWarnings();
     res.json(await thirdPartiesPage());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ========================================
+// RECORDINGS (ML-490) - every recording and video held, and removing one on request: off every
+// piece, out of the file store, and the people it belonged to told. server/services/recordingRemovals.js
+// ========================================
+router.get('/recordings', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await listRecordingsForAdmin());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/recordings/remove', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await removeRecordingOnRequest(req.accountId, req.body || {}));
   } catch (error) {
     sendError(res, error);
   }

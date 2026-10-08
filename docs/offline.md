@@ -52,6 +52,9 @@ not only the ones opened lately. It costs a few dozen small requests a day per d
 Not kept: what is running now (`/api/timer/active`, `/api/practice/active`), notifications, the data
 export, two-step set-up, invites, admin answers (`NO_COPY`). Nothing is kept while previewing the app as
 another account type. Recordings and documents are files, not answers: they are not kept (owner's decision).
+The rehearsal score (ML-312, ML-488, ML-489) follows that: a recording's start and end, its bar marks and
+the Recordings tool's list are answers and are kept with the piece, but setting any of them, and uploading,
+needs a connection - none of those writes waits in the outbox.
 
 ### Syncing
 

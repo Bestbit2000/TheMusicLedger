@@ -53,7 +53,9 @@ export async function deleteMyAccount(accountId) {
     const files = await client.query(
       `SELECT r.blob_url FROM score_recordings r JOIN scores s ON s.id = r.score_id WHERE s.owner_account_id = $1 AND r.blob_url IS NOT NULL
        UNION ALL
-       SELECT d.blob_url FROM score_documents d JOIN scores s ON s.id = d.score_id WHERE s.owner_account_id = $1 AND d.blob_url IS NOT NULL`,
+       SELECT d.blob_url FROM score_documents d JOIN scores s ON s.id = d.score_id WHERE s.owner_account_id = $1 AND d.blob_url IS NOT NULL
+       UNION ALL
+       SELECT rr.blob_url FROM rehearsal_recordings rr WHERE rr.account_id = $1`, // ML-489: what they uploaded to the Recordings tool
       [accountId]
     );
     blobUrls = files.rows.map((r) => r.blob_url);
@@ -79,7 +81,7 @@ export async function deleteMyAccount(accountId) {
 
     await client.query(
       `UPDATE accounts SET email = $2, first_name = 'Deleted', surname = 'account', display_name = NULL, avatar = NULL,
-              account_level = 'standard_member', home_tools = NULL, home_stats = NULL, display_prefs = DEFAULT,
+              account_level = 'standard_member', home_tools = NULL, home_stats = NULL, upload_rights_confirmed_on = NULL, display_prefs = DEFAULT,
               practice_year_enabled = DEFAULT, practice_year_start_month = DEFAULT, practice_year_start_day = DEFAULT,
               practice_sub_beats_below = DEFAULT, token_version = $3, last_seen_on = NULL, retention_stage = 0, retention_stage_at = NULL, deleted_at = now()
         WHERE id = $1`,
@@ -102,6 +104,17 @@ export async function deleteMyAccount(accountId) {
 
   forgetTokenVersion(email);
   forgetAccountLevel(accountId);
+  // ML-489: a file is only removed if nothing is left pointing at it. A rehearsal recording an organiser
+  // gave to a BAND's piece stays with the band, like the piece itself, so its file has to stay too.
+  blobUrls = [...new Set(blobUrls)];
+  if (blobUrls.length) {
+    try {
+      const { rows } = await pool.query(
+        'SELECT blob_url FROM score_recordings WHERE blob_url = ANY($1) UNION SELECT blob_url FROM score_documents WHERE blob_url = ANY($1) UNION SELECT blob_url FROM rehearsal_recordings WHERE blob_url = ANY($1)', [blobUrls]);
+      const stillUsed = new Set(rows.map((r) => r.blob_url));
+      blobUrls = blobUrls.filter((u) => !stillUsed.has(u));
+    } catch (error) { console.error('Account deletion: could not check which stored files are still in use, so none were removed:', error.message); blobUrls = []; }
+  }
   // The account is gone whatever happens here; a file that can't be removed is logged for the owner.
   if (blobUrls.length) {
     try { await del(blobUrls); } catch (error) { console.error(`Account deletion: ${blobUrls.length} stored file(s) could not be removed:`, error.message); }

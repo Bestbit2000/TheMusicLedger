@@ -2492,6 +2492,118 @@
             btn.disabled = false;
         }
     }
+    // ===== ML-490: Recordings - every recording held, and removing one on request =====
+    // One action takes a recording off every piece and out of the file store and tells the people it
+    // belonged to. The message is written here from the reason, shown to the owner, and sent as he leaves
+    // it. server/services/recordingRemovals.js; docs/rehearsal-score.md.
+    let adminRecordingsData = null;
+    let removingRecording = null; // the row the pop-up is about
+    const RECORDING_KIND = { rehearsal: 'Rehearsal recording', piece: 'On a piece', video: 'YouTube link' };
+    const piecesText = (pieces) => pieces.map(p => `${p.title}${p.band ? ` (${p.band})` : ''}`).join(', ');
+    // What the members are told, by reason. Plain words: what happened, why, what to do next.
+    function removalMessage(rec, reason) {
+        const what = rec.kind === 'video' ? `the video "${rec.title}"` : `the recording "${rec.title}"`;
+        const from = rec.pieces.length ? ` It has come off ${rec.pieces.length === 1 ? `the piece ${piecesText(rec.pieces)}` : `these pieces: ${piecesText(rec.pieces)}`}.` : '';
+        const why = {
+            person: 'Why: someone who is in it asked us to remove it. Anyone in a recording can ask for that, and when they do we have to remove it everywhere.',
+            copyright: 'Why: we were told it may be someone else\'s copyright, and it can\'t stay in the app while that is in doubt.',
+            other: 'Why: '
+        }[reason];
+        const next = {
+            person: 'What to do next: please don\'t upload it again. You are welcome to add a different recording, as long as everyone in it knows it is being shared.',
+            copyright: 'What to do next: please don\'t upload it again unless you have the right to use it. If you do have that right, reply to tell us and we will look again.',
+            other: 'What to do next: '
+        }[reason];
+        return [`We have removed ${what} from The Music Ledger.${from} Nothing else of yours has changed.`, why, next, 'If you think this is a mistake, or have a question, email themusicledgerapp@gmail.com.'].join('\n\n');
+    }
+    function renderAdminRecordings() {
+        const d = adminRecordingsData;
+        const box = document.getElementById('adminRecordings');
+        if (!d || !box) return;
+        const q = (document.getElementById('adminRecordingsSearch')?.value || '').trim().toLowerCase();
+        const rows = d.recordings.filter(r => !q || [r.title, r.addedBy, piecesText(r.pieces)].join(' ').toLowerCase().includes(q));
+        box.innerHTML = `<div class="admin-stat-table-wrap"><table class="admin-stat-table">
+            <thead><tr><th>Recording</th><th>Kind</th><th>Added by</th><th>On</th><th>Size</th><th>Added</th><th></th></tr></thead>
+            <tbody>${rows.length ? rows.map(r => `
+                <tr>
+                    <td>${escapeHtml(r.title)}</td>
+                    <td>${RECORDING_KIND[r.kind]}</td>
+                    <td>${escapeHtml(r.addedBy)}</td>
+                    <td>${r.pieces.length ? escapeHtml(piecesText(r.pieces)) : 'No piece yet'}</td>
+                    <td>${r.sizeBytes ? `${(r.sizeBytes / (1024 * 1024)).toFixed(1)} MB` : '–'}</td>
+                    <td>${fmtDay(r.addedAt)}</td>
+                    <td><button class="admin-stat-exclude-btn" data-recording-remove="${r.kind}:${r.id}" type="button" aria-label="Remove ${escapeHtml(r.title)}">Remove</button></td>
+                </tr>`).join('') : `<tr><td colspan="7" class="admin-stat-empty">${d.recordings.length ? 'Nothing matches.' : 'No recordings or videos have been added.'}</td></tr>`}</tbody>
+        </table></div>`;
+        document.getElementById('adminRecordingRemovals').innerHTML = `<div class="admin-stat-table-wrap"><table class="admin-stat-table">
+            <thead><tr><th>When</th><th>Recording</th><th>Why</th><th>Pieces</th><th>File deleted</th><th>People told</th><th>Emails</th><th>By</th></tr></thead>
+            <tbody>${d.removals.length ? d.removals.map(x => `
+                <tr>
+                    <td>${fmtDate(x.removedAt)}</td>
+                    <td>${escapeHtml(x.title)}<div class="admin-stat-tile-sub">${RECORDING_KIND[x.kind]}</div></td>
+                    <td>${escapeHtml(d.reasons[x.reason] || x.reason)}</td>
+                    <td>${x.pieces}</td>
+                    <td>${x.kind === 'video' ? '–' : (x.fileRemoved ? 'Yes' : 'No - check the file store')}</td>
+                    <td>${x.peopleTold}</td>
+                    <td>${x.emailsSent}</td>
+                    <td>${escapeHtml(x.removedBy)}</td>
+                </tr>`).join('') : '<tr><td colspan="8" class="admin-stat-empty">Nothing has been removed.</td></tr>'}</tbody>
+        </table></div>`;
+    }
+    async function reloadAdminRecordings() {
+        adminRecordingsData = await apiCall('/api/admin/recordings');
+        renderAdminRecordings();
+    }
+    function openRecordingRemove(key) {
+        const [kind, id] = key.split(':');
+        const rec = adminRecordingsData.recordings.find(r => r.kind === kind && String(r.id) === id);
+        if (!rec) return;
+        removingRecording = rec;
+        document.getElementById('recordingRemoveWhat').textContent = `"${rec.title}", added by ${rec.addedBy}${rec.pieces.length ? `. On: ${piecesText(rec.pieces)}` : ''}. It will come off every piece and ${rec.kind === 'video' ? 'the link will be deleted' : 'its file will be deleted'}.`;
+        const reason = document.getElementById('recordingRemoveReason');
+        reason.innerHTML = Object.entries(adminRecordingsData.reasons).map(([k, label]) => `<option value="${escapeHtml(k)}">${escapeHtml(label)}</option>`).join('');
+        reason.value = 'person';
+        document.getElementById('recordingRemoveMessage').value = removalMessage(rec, 'person');
+        showModal('recordingRemoveModal');
+        reason.focus();
+    }
+    async function confirmRecordingRemove() {
+        if (!removingRecording) return;
+        const btn = document.getElementById('recordingRemoveConfirmBtn');
+        btn.disabled = true;
+        try {
+            const data = await apiCall('/api/admin/recordings/remove', 'POST', {
+                kind: removingRecording.kind, id: removingRecording.id,
+                reason: document.getElementById('recordingRemoveReason').value, message: document.getElementById('recordingRemoveMessage').value
+            });
+            adminRecordingsData = data;
+            renderAdminRecordings();
+            hideModal('recordingRemoveModal');
+            removingRecording = null;
+            const r = data.removed;
+            showToast(`Removed. ${r.peopleTold} ${r.peopleTold === 1 ? 'person' : 'people'} told${r.fileError ? ' - but the file could not be deleted: ' + r.fileError : ''}.`);
+        } catch (error) {
+            showToast(error.message);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+    function initRecordingsAdmin() {
+        document.getElementById('adminRecordingsSearch')?.addEventListener('input', renderAdminRecordings);
+        document.getElementById('adminRecordings')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-recording-remove]');
+            if (btn) openRecordingRemove(btn.dataset.recordingRemove);
+        });
+        // Choosing another reason writes the message again - only if he hasn't started changing it
+        document.getElementById('recordingRemoveReason')?.addEventListener('change', (e) => {
+            const box = document.getElementById('recordingRemoveMessage');
+            const written = Object.keys(adminRecordingsData.reasons).map(k => removalMessage(removingRecording, k));
+            if (!box.value.trim() || written.includes(box.value)) box.value = removalMessage(removingRecording, e.target.value);
+        });
+        document.getElementById('recordingRemoveCancelBtn')?.addEventListener('click', () => { hideModal('recordingRemoveModal'); removingRecording = null; });
+        document.getElementById('recordingRemoveConfirmBtn')?.addEventListener('click', confirmRecordingRemove);
+    }
+
     function initRestMessagesAdmin() {
         document.getElementById('addRestMessageBtn')?.addEventListener('click', () => openRestMessageForm(null));
         document.getElementById('restMessageFormCancelBtn')?.addEventListener('click', () => { hideModal('restMessageFormModal'); editingRestMessageId = null; });
@@ -2727,7 +2839,8 @@
     const money = (x) => `£${x.gbp.toFixed(2)}`;
     const dollars = (x) => `$${x.usd.toFixed(2)}`;
     const CADENCE_WORDS = { one_off: 'once', weekly: 'a week', monthly: 'a month', yearly: 'a year' };
-    const amountText = (n, unit) => `${Number(n) >= 100 ? Math.round(Number(n)).toLocaleString('en-GB') : (Math.round(Number(n) * 100) / 100)} ${unit}`;
+    const amountText = (n, unit) => (unit === 'USD' ? `$${Number(n).toFixed(2)}` : `${Number(n) >= 100 ? Math.round(Number(n)).toLocaleString('en-GB') : (Math.round(Number(n) * 100) / 100)} ${unit}`);
+    const limitText = (m) => (Number(m.limit) > 0 ? `${amountText(m.limit, m.unit)} ${{ month: 'a month', day: 'a day', total: 'in all' }[m.per]}` : 'no limit of its own');
     const partyName = (key) => ((thirdPartyData && thirdPartyData.entries.find((e) => e.key === key)) || { name: key }).name;
 
     function renderThirdPartyCosts(data) {
@@ -2776,7 +2889,7 @@
             <tr>
                 <td>${escapeHtml(m.name)}<div class="admin-stat-tile-sub">${escapeHtml(partyName(m.party))}</div></td>
                 <td>${m.latest ? amountText(m.latest.value, m.unit) : '–'}${m.latest && m.latest.note ? `<div class="admin-stat-tile-sub">${escapeHtml(m.latest.note)}</div>` : ''}</td>
-                <td>${amountText(m.limit, m.unit)}<div class="admin-stat-tile-sub">${{ month: 'a month', day: 'a day', total: 'in all' }[m.per]}</div></td>
+                <td>${Number(m.limit) > 0 ? `${amountText(m.limit, m.unit)}<div class="admin-stat-tile-sub">${{ month: 'a month', day: 'a day', total: 'in all' }[m.per]}</div>` : 'No limit'}</td>
                 <td><span class="admin-badge ${badge}">${s && s.percent !== null ? `${s.percent}%` : word}</span>${s && s.percent !== null ? `<div class="admin-stat-tile-sub">${word}</div>` : ''}</td>
                 <td>${heading}</td>
                 <td>${read}</td>
@@ -2794,7 +2907,45 @@
                 <thead><tr><th>What</th><th>Used</th><th>Limit</th><th>How full</th><th>Heading for</th><th>Last read</th><th></th></tr></thead>
                 <tbody>${rows}</tbody>
             </table></div>
-            <div class="admin-feature"><div class="admin-test-case"><details class="admin-security-details"><summary>How each one is measured</summary>${thirdPartyList(usage.map((m) => `<strong>${escapeHtml(m.name)}:</strong> ${escapeHtml(m.how)}`))}</details></div></div>`;
+            <div class="admin-feature"><div class="admin-test-case"><details class="admin-security-details"><summary>How each one is measured</summary>${thirdPartyList(usage.map((m) => `<strong>${escapeHtml(m.name)}:</strong> ${escapeHtml(m.how)}`))}</details></div></div>
+            ${renderVercelUsage(data.vercelUsage, usage.find((m) => m.key === 'vercel-spend'))}`;
+    }
+
+    // Where Vercel's usage is going: every service Vercel charges for, with what has been used and what
+    // it cost so far this billing period, what both are heading for at this rate, and the same per
+    // member who used the app in the period. The sums are spendBreakdown (server/thirdParties/costs.js).
+    const usd = (n) => (Number(n) > 0 && Number(n) < 0.01 ? 'under $0.01' : `$${Number(n).toFixed(2)}`);
+    const quantityText = (n, unit) => (unit ? amountText(n, unit) : '–');
+    function renderVercelUsage(v, meter) {
+        const title = '<h2 class="admin-stat-section-title">Where Vercel\'s usage is going</h2>';
+        if (!v) {
+            return `${title}<p class="admin-intro">${meter && !meter.connected
+                ? 'Not connected yet. Make an access token in Vercel (Account Settings → Tokens), add it to the project\'s environment variables as VERCEL_API_TOKEN, deploy, then press <strong>Read now</strong>.'
+                : 'No reading yet. Press <strong>Read now</strong>.'}</p>`;
+        }
+        const members = v.members;
+        const rows = v.services.length ? v.services.map((s) => `
+            <tr>
+                <td>${escapeHtml(s.service)}</td>
+                <td>${quantityText(s.quantity, s.unit)}</td>
+                <td>${quantityText(s.projectedQuantity, s.unit)}</td>
+                <td>${usd(s.cost)}</td>
+                <td>${usd(s.projectedCost)}</td>
+                <td>${s.perMember ? `${quantityText(s.perMember.quantity, s.unit)}<div class="admin-stat-tile-sub">${usd(s.perMember.cost)}</div>` : '–'}</td>
+            </tr>`).join('') : '<tr><td colspan="6" class="admin-stat-empty">Vercel has sent no usage for this period yet.</td></tr>';
+        return `${title}
+            <p class="admin-intro">Everything Vercel charges for, from its own bill, for the billing period ${fmtDay(v.period.start)} to ${fmtDay(v.period.end)} (day ${v.daysIn} of ${v.daysTotal}). "Heading for" is where each will be at the end of the period at this rate. The first $${v.included} of usage a month is included in the plan; anything past it is billed. Last read ${fmtDate(v.readAt)}.</p>
+            <div class="admin-stat-tiles">
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Used so far</div><div class="admin-stat-tile-value">${usd(v.total)}</div><div class="admin-stat-tile-sub">of $${v.included} included</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Heading for</div><div class="admin-stat-tile-value">${usd(v.projected)}</div><div class="admin-stat-tile-sub">${v.projected > v.included ? `${usd(v.projected - v.included)} would be billed` : 'nothing extra to pay'}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Members using the app</div><div class="admin-stat-tile-value">${members}</div><div class="admin-stat-tile-sub">seen this period</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">For each member</div><div class="admin-stat-tile-value">${v.perMember === null ? '–' : usd(v.perMember)}</div><div class="admin-stat-tile-sub">a period, at this rate</div></div>
+            </div>
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table">
+                <thead><tr><th>What</th><th>Used so far</th><th>Heading for</th><th>Cost so far</th><th>Heading for</th><th>For each member</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table></div>
+            <p class="admin-intro">"For each member" divides what the period is heading for by the ${members} member${members === 1 ? '' : 's'} who used the app in it. Vercel does not say who used what, so this is an average. With only a few members, much of it is your own testing and each release's build, so read it as the most a member is likely to cost.</p>`;
     }
 
     function openCostForm(id) {
@@ -2834,7 +2985,7 @@
         const m = thirdPartyData.usage.find((x) => x.key === key);
         readingMeterKey = key;
         document.getElementById('readingFormTitle').textContent = m.name;
-        document.getElementById('readingFormHow').textContent = `${m.how} The limit is ${amountText(m.limit, m.unit)} ${{ month: 'a month', day: 'a day', total: 'in all' }[m.per]}.`;
+        document.getElementById('readingFormHow').textContent = `${m.how} The limit is ${limitText(m)}.`;
         document.getElementById('readingValueLabel').textContent = `Used so far (${m.unit})`;
         document.getElementById('readingValueInput').value = '';
         document.getElementById('readingNoteInput').value = '';
@@ -3320,6 +3471,7 @@
         initFlows();
         initNotificationsAdmin();
         initRestMessagesAdmin();
+        initRecordingsAdmin();
         document.getElementById('adminShell').classList.remove('hidden-group');
         openPageFromAddress(); // ML-443: admin.html#accounts opens on Accounts
         if (!location.hash.slice(1) || location.hash === '#dashboard') window.AdminDashboard?.open(); // the first page reads itself
@@ -3332,6 +3484,7 @@
                 reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadInstrumentUsage(), Promise.resolve(renderTheoryGrades()), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadNotificationsAdmin(), reloadRestMessagesAdmin(), reloadWarmupsAdmin(), reloadPosthogLink(),
                 reloadSecurityReview().catch((error) => { document.getElementById('securityReview').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`; }),
                 reloadThirdParties().catch((error) => { document.getElementById('thirdParties').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`; }),
+                reloadAdminRecordings().catch((error) => { document.getElementById('adminRecordings').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`; }),
                 reloadFlowDefaultName(), reloadFlowDefaultTimeSig(), reloadFlowDefaultBpm(), reloadFlowDefaultBarCount(), reloadFlowDefaultNoteValue()
             ]);
         } catch (error) {

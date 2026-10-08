@@ -12,7 +12,7 @@ const serverIds = JSON.parse(/HOME_TOOL_IDS = (\[[^\]]*\])/.exec(accounts)[1].re
 const pageIds = [...html.matchAll(/data-tool="([a-z-]+)"/g)].map(m => m[1]);
 
 test('every tool on the All tools page is one the server accepts, and the other way round', () => {
-    assert.equal(pageIds.length, 11); // ML-406: Pitch, Tempo, Pulse and Rhythm are one Skills tile
+    assert.equal(pageIds.length, 12); // ML-406: Pitch, Tempo, Pulse and Rhythm are one Skills tile; ML-489: Recordings
     assert.equal([...pageIds].sort().join(), [...serverIds].sort().join());
 });
 
@@ -23,10 +23,10 @@ test('the tiles live on the All tools page, not on Home', () => {
 });
 
 // ML-409: My routine is Warm-ups and Scales; a piece's three tools sit together in Practise.
-test('My routine is Warm-ups then Scales, and Practise is Add a piece, Prepare, Rehearse', () => {
+test('My routine is Warm-ups then Scales, and Practise is Add a piece, Prepare, Rehearse, Recordings', () => {
     const tools = (from, to) => [...html.slice(html.indexOf(from), html.indexOf(to)).matchAll(/data-tool="([a-z-]+)"/g)].map(m => m[1]);
     assert.deepEqual(tools('id="toolGroup-routine"', 'id="toolGroup-practise"'), ['warmups', 'scales']);
-    assert.deepEqual(tools('id="toolGroup-practise"', 'id="toolGroup-learn"'), ['add-piece', 'prepare', 'rehearse']); // ML-400 / ML-401: add, prepare, then rehearse
+    assert.deepEqual(tools('id="toolGroup-practise"', 'id="toolGroup-learn"'), ['add-piece', 'prepare', 'rehearse', 'recordings']); // ML-400 / ML-401: add, prepare, then rehearse; ML-489: the band's recordings
 });
 
 // ML-388: how many fit comes from the home_tools limit (Admin -> Feature access), not a number in the code.

@@ -173,6 +173,12 @@ ML-390 - docs/practice-sessions.md).
 | `pieceRunSeconds(blocks, percent)`, `pieceSections(blocks)`, `bitsFromBars(levels, sectionStarts, cuts)` | ML-390: the run-through's time; the sections to paint in; painted bars -> focus bits. |
 | `playthroughParts(blocks, level)`, `partBlockMinutes(blocks, a, z, level)` | ML-390: the play-through parts; a part's block length (5, 10 or null). |
 
+The same file also holds the **rehearsal score** sums (ML-312, ML-488) - a recording's start and end
+(`cleanClip`, `nudgeClip`, `clipLabel`, `clockText`, `clipAction`) and the piece's bars mapped onto a
+recording (`journeyPlaces`, `placeLabel`, `usableMarks`, `recordingMap`, `placeAt`, `mapLoop`). They
+are described in [`rehearsal-score.md`](rehearsal-score.md) and tested in `recordingClip.test.js` and
+`rehearsalScore.test.js`. `mapLoop` follows `loopPlan`'s rule for which bars a repeat is; it ignores rest bars.
+
 ## The metronome player's sequence mode
 
 `createMetronomePlayer()` (app.js) has an opt-in **sequence mode**, used by Play Flow only:

@@ -33,9 +33,51 @@ layout), token audit, accessibility audit, design gate, third-party audit, the s
   whatever he last chose (Fivetto when this was written). Emails keep the old name, so his wife will meet
   both. He is choosing in another chat, which also draws the artwork in `brand-trials/` on whatever branch
   is checked out - **commit by file name, never `git add -A`.**
-- **GDPR, the six open gaps:** Vercel Pro (no domain needed), Google sign-in's safeguard on its card (no
-  Workspace needed), the content security policy (above), then the three that wait on a domain name - an
-  email provider with an agreement, retention switched on, sign-up emails.
+- **GDPR, four gaps open (17 of 21 closed):** Google sign-in's safeguard on its card (no Workspace needed),
+  an email provider with an agreement and retention switched on (both wait on a domain name), and sign-up
+  emails in his inbox. **Vercel is on Pro since 7 Oct 2026**, so its agreement is in place; the register
+  (`server/thirdParties/services.js`) says so, not yet released. He still has to record it on production's
+  Admin → Third parties (Vercel and Vercel Blob: in place, "the UK addendum in its agreement").
+- **Vercel's usage is read from its bill** (built 7 Oct 2026, not released): one meter in dollars against the
+  $20 Pro includes, and "Where Vercel's usage is going" under it - use and cost per service, where each is
+  heading, and for each member. Migration 115 (`third_party_usage_lines`), applied to dev only. **It has never
+  run against Vercel**: he has to make a token and set `VERCEL_API_TOKEN` in Vercel; the first Read now is the
+  test (`docs/third-party-providers.md`, "Costs and usage"). Check the billing day on Vercel → Billing (7 is
+  assumed).
+
+- **Built 7 Oct 2026 after 0.50.0, not committed or released:**
+  - **ML-487** (bug): a video or recording playing on the editor's Media tab stops when the editor is left
+    (`stopFlowEditorMedia` in `app.js`, called where `switchView` leaves the editor). Back-test 61.
+  - **ML-456**: MuseScore files (.mscz, .mscx) are accepted as a piece's score or part - the two file
+    pickers and their wording. Nothing on the server changed: an unknown file type already went up the
+    same way a Sibelius file does.
+  - **The rehearsal score - ML-312 (A), ML-488 (C), ML-489 (B)**: built overnight 7-8 Oct at his say-so, in
+    that order. A recording or video on a piece has a start and end; the piece's bars are mapped onto it
+    (repeat bars, start from a bar, play slower); the Recordings tool holds a whole rehearsal and gives it
+    to pieces. **Read `docs/rehearsal-score.md`** - it has what was built, his decisions, and the list of
+    what is still to do before members get it. In short:
+    - three features, all **Super admin only**; migrations 116, 117, 118 on **dev only**;
+    - no new CSS classes, but a new spec (`rehearsal-score.md`), so the design gate wants his sign-off -
+      the pictures are `signoff-pictures/ml312-*`, `ml488-*`, `ml489-*`;
+    - **the privacy policy was not touched** (his wording) and the Children's Code check is not done:
+      both are needed before the Recordings tool is switched on for anyone but him;
+    - never tried on a real phone, with a big file, or with a real YouTube video;
+    - back-tests 62, 63, 64; they upload a small file to the dev file store and delete it.
+  - **His answers on 8 Oct, built the same day:** Standard keeps 5 recordings, the rest 20; the bar tiles
+    light up for a recording and the playing tile is kept in view (the metronome too); "Delete this list's
+    recordings" on a practice list; My music's "With a recording" filter; rest bars stay metronome-only.
+    Mapping a band's piece is for organisers and members an organiser has let change the band's music -
+    how it already worked; he was asked to confirm that reading.
+  - **ML-278**: before a first upload of music a member confirms, once, that they have the right to upload
+    it; the day is kept (migration 119, dev only). **This one is for every member, not behind a switch**, so
+    it needs the privacy policy to name the date before release, and a decision on whether members need
+    telling. A draft of the policy wording was given to him in the chat on 8 Oct - not put in the page.
+    Back-test 65.
+  - **ML-490** (8 Oct, his ask): Admin → Content → Recordings - find any recording held and remove it on
+    request in one action: off every piece, the file deleted, the people it belonged to told by an urgent
+    notification only they see and by email, and a record kept. Notifications can now go to named members
+    (migration 120, dev only). Back-test 66.
+  - **The privacy policy and terms were changed on 8 Oct** with wording he agreed in the chat. "Why we hold it" has the reason for the upload date too.
 
 ## ML-239: what is and isn't done
 
@@ -64,7 +106,7 @@ layout), token audit, accessibility audit, design gate, third-party audit, the s
 ## Things to know
 
 - Other people have accounts on production: his wife and his band's conductor, and his teacher has access.
-  Nobody further should be invited until Vercel and the email provider have agreements.
+  Nobody further should be invited until the email provider has an agreement (Vercel's is in place).
 - The five compliance documents: he keeps his own copies. **Never overwrite them** - a redraft is a new
   dated file, with no ICO number in it.
 - `npm run design-signoff` empties the whole `design-signoff/` folder first - keep nothing else in it.

@@ -11,6 +11,16 @@ the unread count, and a Notifications screen. Two kinds of item feed it:
 Gate: feature `notifications` (admin Features page) - switches off the dot, the menu entry, the
 screen and the API together.
 
+## For particular members only (ML-490)
+
+A notification is for everyone (`audience = 'all'`) or for named members (`audience = 'accounts'`, with
+who in `notification_recipients`). The second kind is not written on the admin page: the app makes one when
+it has to tell particular people something about their own things - today, when a recording of theirs is
+removed on request (`createTargetedNotification`, used by `server/services/recordingRemovals.js`). It is
+published at once and urgent. Every query that gives a member their notifications (the list, mark as read,
+mark all read, the important notices) checks the audience, so nobody else ever sees it. It appears in the
+admin list like any other, where it can be withdrawn or deleted.
+
 ## Why "update available" exists
 
 The app's service worker (`public/sw.js`) is network-first, so any *fresh* load gets the latest

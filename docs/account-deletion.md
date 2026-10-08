@@ -40,6 +40,21 @@ An account nobody has used for a set time is deleted by the same function, after
 
 A super admin account can't be deleted by the button (it owns the public library): change its type first.
 
+## The right to upload (ML-278)
+
+`accounts.upload_rights_confirmed_on` - the day a member confirmed they have the right to upload music -
+is cleared when the account is anonymised (it is in `deleteMyAccount`'s UPDATE), and is in the download
+with the rest of the account row.
+
+## Rehearsal recordings (ML-489)
+
+A member's uploads to the Recordings tool (`rehearsal_recordings`) are their own: the rows go with the
+account, found from the database like every other table, and the download lists them. One thing is kept
+on purpose: a cut an organiser gave to a **band's** piece stays with the band, as a band piece does
+(`score_recordings.rehearsal_recording_id` is SET NULL). So its stored file must stay too - after a
+deletion, a stored file is removed only if no recording, document or rehearsal recording still points at
+it (`deleteMyAccount` checks before it calls the file store). `docs/rehearsal-score.md`.
+
 ## Signed out everywhere, and signing up again
 
 A login token is tied to an email and to `accounts.token_version`. Once the row no longer carries the

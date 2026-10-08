@@ -12,6 +12,9 @@ const MAX_TITLE_LENGTH = 120;
 const MAX_BODY_LENGTH = 4000;
 
 const LIVE_CONDITION = `n.withdrawn_at IS NULL AND n.publish_at <= now() AND (n.expires_at IS NULL OR n.expires_at > now())`;
+// ML-490: a notification is for everyone, or (audience 'accounts') only for the members named in
+// notification_recipients. `param` is the query's placeholder for the account, e.g. '$1'.
+const FOR_ACCOUNT = (param) => `(n.audience = 'all' OR EXISTS (SELECT 1 FROM notification_recipients nr WHERE nr.notification_id = n.id AND nr.account_id = ${param}))`;
 
 function toUserDto(row) {
   return {
@@ -37,7 +40,7 @@ export async function listNotificationsForAccount(accountId) {
     `SELECT n.id, n.title, n.body, n.publish_at, n.urgent, n.important, n.policy_link, r.read_at
      FROM notifications n
      LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.account_id = $1
-     WHERE ${LIVE_CONDITION}
+     WHERE ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')}
      ORDER BY n.publish_at DESC, n.id DESC
      LIMIT 100`,
     [accountId]
@@ -51,7 +54,7 @@ export async function listNotificationsForAccount(accountId) {
 export async function markNotificationRead(accountId, notificationId) {
   const { rowCount } = await pool.query(
     `INSERT INTO notification_reads (notification_id, account_id)
-     SELECT n.id, $2 FROM notifications n WHERE n.id = $1 AND ${LIVE_CONDITION}
+     SELECT n.id, $2 FROM notifications n WHERE n.id = $1 AND ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$2')}
      ON CONFLICT (notification_id, account_id) DO NOTHING`,
     [notificationId, accountId]
   );
@@ -69,7 +72,7 @@ export async function listImportantNotices(accountId) {
     `SELECT n.id, n.title, n.body, n.publish_at, n.urgent, n.important, n.policy_link, r.read_at
      FROM notifications n
      LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.account_id = $1
-     WHERE ${LIVE_CONDITION} AND n.important AND r.read_at IS NULL
+     WHERE ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')} AND n.important AND r.read_at IS NULL
      ORDER BY n.publish_at, n.id
      LIMIT 20`,
     [accountId]
@@ -92,7 +95,7 @@ export async function acknowledgeImportantNotice(accountId, notificationId) {
 export async function markAllNotificationsRead(accountId) {
   await pool.query(
     `INSERT INTO notification_reads (notification_id, account_id)
-     SELECT n.id, $1 FROM notifications n WHERE ${LIVE_CONDITION}
+     SELECT n.id, $1 FROM notifications n WHERE ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')}
      ON CONFLICT (notification_id, account_id) DO NOTHING`,
     [accountId]
   );
@@ -172,6 +175,30 @@ export async function createNotification(adminAccountId, data) {
     [v.title, v.body, v.publishAt, v.expiresAt, v.urgent, v.important, v.policyLink, adminAccountId]
   );
   return getAdminNotification(rows[0].id);
+}
+
+// ML-490: a notification for particular members only - used when something of theirs has been
+// removed. Published at once; urgent, so it pops up. Nobody else ever sees it.
+export async function createTargetedNotification(adminAccountId, { title, body, urgent }, accountIds) {
+  const ids = [...new Set((accountIds || []).map(String))];
+  if (!ids.length) return null;
+  const v = validateNotification({ title, body, urgent: urgent === true });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `INSERT INTO notifications (title, body, audience, publish_at, urgent, created_by_account_id) VALUES ($1, $2, 'accounts', now(), $3, $4) RETURNING id`,
+      [v.title, v.body, v.urgent, adminAccountId]
+    );
+    await client.query('INSERT INTO notification_recipients (notification_id, account_id) SELECT $1, unnest($2::bigint[])', [rows[0].id, ids]);
+    await client.query('COMMIT');
+    return Number(rows[0].id);
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function updateNotification(notificationId, data) {

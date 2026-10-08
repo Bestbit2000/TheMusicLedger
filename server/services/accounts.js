@@ -68,6 +68,8 @@ function toProfile(row, bands) {
     homeTools: row.home_tools || null,
     // ML-387: the stats on your home screen (ids from HOME_STAT_IDS) - null = the default two
     homeStats: row.home_stats || null,
+    // ML-278: the day they confirmed they have the right to upload music - null = not asked yet
+    uploadRightsConfirmedOn: row.upload_rights_confirmed_on || null, // read as text (to_char): a DATE turned into a JS Date slips a day in summer time
     email: row.email,
     accountLevel: row.account_level,
     createdAt: row.created_at,
@@ -80,11 +82,17 @@ function toProfile(row, bands) {
 // directory section).
 export async function getAccountProfile(accountId) {
   const { rows } = await pool.query(
-    'SELECT id, first_name, surname, display_name, avatar, home_tools, home_stats, email, account_level, created_at FROM accounts WHERE id = $1',
+    `SELECT id, first_name, surname, display_name, avatar, home_tools, home_stats, to_char(upload_rights_confirmed_on, 'YYYY-MM-DD') AS upload_rights_confirmed_on, email, account_level, created_at FROM accounts WHERE id = $1`,
     [accountId]
   );
   if (!rows.length) { const e = new Error('Account not found'); e.status = 404; throw e; }
   return toProfile(rows[0], await getAccountBands(accountId));
+}
+
+// ML-278: the member has confirmed, before their first upload of music, that they have the right to
+// upload it. The first day is the one kept; confirming again changes nothing.
+export async function confirmUploadRights(accountId) {
+  await pool.query('UPDATE accounts SET upload_rights_confirmed_on = COALESCE(upload_rights_confirmed_on, CURRENT_DATE) WHERE id = $1 AND deleted_at IS NULL', [accountId]);
 }
 
 // Email is Google-sourced (see server/config/passport.js) and never editable
@@ -98,7 +106,7 @@ export const AVATAR_IDS = ['cornet', 'euphonium', 'trombone', 'french-horn', 'sa
 // ML-378: the tools that can be on the home screen (the All tools page's data-tool ids - keep in step with
 // public/index.html). The app shows up to four of the ones switched on; a tool that's off for a while stays
 // chosen, so the list can hold more than four, but never more than there are tools.
-export const HOME_TOOL_IDS = ['metronome', 'tuner', 'timer', 'warmups', 'scales', 'add-piece', 'prepare', 'rehearse', 'theory', 'skills', 'range'];
+export const HOME_TOOL_IDS = ['metronome', 'tuner', 'timer', 'warmups', 'scales', 'add-piece', 'prepare', 'rehearse', 'theory', 'skills', 'range', 'recordings'];
 export function normaliseHomeTools(list) {
   if (list === null) return null;
   if (!Array.isArray(list)) { const e = new Error('Home tools must be a list.'); e.status = 400; throw e; }

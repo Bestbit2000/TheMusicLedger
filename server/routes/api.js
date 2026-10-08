@@ -24,7 +24,7 @@ import { runRetention, clearOldRecords } from '../services/retention.js';
 import { getBrand } from '../services/brand.js';
 import { deleteMyAccount } from '../services/accountDeletion.js';
 import { exportMyAccount } from '../services/accountExport.js';
-import { getAccountProfile, updateAccountProfile, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
+import { getAccountProfile, updateAccountProfile, confirmUploadRights, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
 import { listDurationOptions, getDefaultDurationMinutes } from '../services/durationOptions.js';
 import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSignaturesWithUsage, setCustomTimeSignatureActive, deleteCustomTimeSignature } from '../services/timeSignatures.js';
@@ -34,11 +34,13 @@ import { handleUpload } from '@vercel/blob/client';
 import { put } from '@vercel/blob';
 import { listInstruments, listAccountInstruments, setAccountInstruments, resolveSessionInstrument } from '../services/instruments.js';
 import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../services/range.js';
-import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
+import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
 import { importScoreFromFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/scoreImport.js';
 import { MAX_PIECE_FILE_BYTES } from '../services/blobUrls.js';
 import { isFeatureEnabled, listEnabledFeatureKeys, getLimit, listLimits } from '../services/features.js';
+import { listRecordings as listRehearsalRecordings, addRecording as addRehearsalRecording, addCut as addRehearsalCut, deleteRecording as deleteRehearsalRecording, assertRoomForOne } from '../services/rehearsalRecordings.js';
+import { MAX_REHEARSAL_FILE_BYTES } from '../services/blobUrls.js';
 import { getActiveTimerSession, upsertActiveTimerSession, clearActiveTimerSession } from '../services/timerSessions.js';
 import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from '../services/flowAuthoringStats.js';
 import { exportFlowForUser } from '../services/flowTransfer.js';
@@ -928,6 +930,16 @@ router.delete('/account', requireAuth, resolveAccount, async (req, res) => {
   }
 });
 
+// ML-278: "I have the right to upload this" - asked once, before a member's first upload of music
+router.post('/account/upload-rights', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await confirmUploadRights(req.accountId);
+    res.json({ confirmed: true });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.put('/account', requireAuth, resolveAccount, async (req, res) => {
   try {
     const { firstName, surname, displayName, avatar, homeTools, homeStats } = req.body || {};
@@ -1729,6 +1741,82 @@ router.post('/flows/:id/recordings/youtube', requireAuth, resolveAccount, async 
   }
 });
 
+// ========================================
+// THE RECORDINGS TOOL (ML-489) - whole rehearsal recordings, uploaded once and given to pieces.
+// server/services/rehearsalRecordings.js; docs/rehearsal-score.md.
+// ========================================
+router.use('/recordings', requireAuthFromQueryOrHeader, resolveAccount, requireFeature('rehearsal_recordings'));
+router.get('/recordings', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await listRehearsalRecordings(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+// The browser uploads straight to the file store (as a piece's recording does), into the member's own
+// folder. Refused before anything is sent if they have no room for another.
+router.post('/recordings/upload-token', requireAuthFromQueryOrHeader, resolveAccount, async (req, res) => {
+  try {
+    const result = await handleUpload({
+      body: req.body,
+      request: req,
+      onBeforeGenerateToken: async (pathname) => {
+        if (!String(pathname).startsWith(`recordings/${req.accountId}/`)) throw Object.assign(new Error('That is not your recordings folder.'), { status: 400 });
+        await assertRoomForOne(req.accountId);
+        await limitCalls('upload-token', req.accountId);
+        return {
+          maximumSizeInBytes: MAX_REHEARSAL_FILE_BYTES,
+          allowedContentTypes: ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav', 'video/mp4'],
+          addRandomSuffix: true
+        };
+      },
+      onUploadCompleted: async () => {}
+    });
+    res.json(result);
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/recordings', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await addRehearsalRecording(req.accountId, req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/recordings/:recordingId/cuts', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await addRehearsalCut(req.accountId, req.params.recordingId, req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.delete('/recordings/:recordingId', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await deleteRehearsalRecording(req.accountId, req.params.recordingId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-312: where a recording or video starts and ends on the piece ({ startMs, endMs }, either may be null)
+router.put('/flows/:id/recordings/:recordingId/clip', requireAuth, resolveAccount, requireFeature('recording_clip'), async (req, res) => {
+  try {
+    res.json(await setRecordingClip(req.accountId, req.params.id, req.params.recordingId, req.body));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-488: the bar marks on a recording, replaced whole ({ marks: [{ place, number, pass, atMs }] })
+router.put('/flows/:id/recordings/:recordingId/marks', requireAuth, resolveAccount, requireFeature('rehearsal_score'), async (req, res) => {
+  try {
+    res.json(await setRecordingMarks(req.accountId, req.params.id, req.params.recordingId, req.body));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.delete('/flows/:id/recordings/:recordingId', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await deleteRecording(req.accountId, req.params.id, req.params.recordingId));
@@ -1737,10 +1825,10 @@ router.delete('/flows/:id/recordings/:recordingId', requireAuth, resolveAccount,
   }
 });
 
-// Same client-upload shape as recordings, for PDF/MusicXML/Sibelius/MuseScore
+// Same client-upload shape as recordings, for PDF/MusicXML/MuseScore/Sibelius/Finale
 // score files - allowedContentTypes deliberately includes application/octet-stream
 // since browsers rarely report a specific MIME type for the proprietary
-// .sib/.musx formats (the file picker's own accept=".pdf,.musicxml,.mxl,.sib,.musx"
+// .mscz/.sib/.musx formats (the file picker's own accept=".pdf,.musicxml,.mxl,.mscz,.mscx,.sib,.musx"
 // already narrows what's offered before this even runs).
 router.post('/flows/:id/documents/upload-token', requireAuthFromQueryOrHeader, resolveAccount, async (req, res) => {
   try {

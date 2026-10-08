@@ -64,6 +64,30 @@
         'flow-open': (el) => openFlow(Number(actArg(el))),
         'flow-jump': (el) => jumpFlowToPlayIndex(Number(actArg(el))),
         'flow-recording-delete': (el) => deleteFlowRecording(actArg(el)),
+        // ML-312: a recording's start and end
+        'flow-recording-clip': (el) => openClipModal(actArg(el)),
+        'clip-close': () => closeClipModal(),
+        'clip-mark': (el) => clipMarkHere(actArg(el)),
+        'clip-nudge': (el) => clipNudge(actArg(el), Number(el.dataset.ms)),
+        'clip-try': () => clipPlayFromStart(),
+        'clip-clear': () => clipClear(),
+        'clip-save': () => saveClipModal(),
+        // ML-488: the rehearsal score
+        'rec-loop': () => openFlowLoopModal(),
+        'rec-speed': () => openRecSpeedChoice(),
+        'rec-map': (el) => openBarMapModal(actArg(el)),
+        'barmap-close': () => closeBarMapModal(),
+        'barmap-step': (el) => barMapStep(Number(actArg(el))),
+        'barmap-go': () => barMapGoToTypedBar(),
+        'barmap-mark': () => barMapMarkHere(),
+        'barmap-remove': (el) => barMapRemove(Number(actArg(el))),
+        'barmap-play': (el) => barMapPlayFrom(Number(actArg(el))),
+        'barmap-save': () => saveBarMapModal(),
+        // ML-489: the Recordings tool
+        'recordings-give': (el) => recordingsGive(actArg(el)),
+        'recordings-cut-change': (el) => recordingsCutChange(actArg(el)),
+        'recordings-cut-remove': (el) => recordingsCutRemove(actArg(el)),
+        'recordings-delete': (el) => recordingsDelete(actArg(el)),
         'flow-document-delete': (el) => deleteFlowDocument(actArg(el)),
         'timesig-delete': (el) => deleteMetroSegCustomTimeSig(Number(actArg(el))),
         'timesig-archive': (el) => archiveMetroSegCustomTimeSig(Number(actArg(el)))
@@ -483,7 +507,9 @@
             recordings: {
                 addUploaded: (flowId, data) => apiCall(`/api/flows/${flowId}/recordings`, 'POST', data),
                 addYouTube: (flowId, data) => apiCall(`/api/flows/${flowId}/recordings/youtube`, 'POST', data),
-                delete: (flowId, recordingId) => apiCall(`/api/flows/${flowId}/recordings/${recordingId}`, 'DELETE')
+                delete: (flowId, recordingId) => apiCall(`/api/flows/${flowId}/recordings/${recordingId}`, 'DELETE'),
+                setClip: (flowId, recordingId, clip) => apiCall(`/api/flows/${flowId}/recordings/${recordingId}/clip`, 'PUT', clip), // ML-312
+                setMarks: (flowId, recordingId, body) => apiCall(`/api/flows/${flowId}/recordings/${recordingId}/marks`, 'PUT', body) // ML-488
             },
             documents: {
                 add: (flowId, data) => apiCall(`/api/flows/${flowId}/documents`, 'POST', data),
@@ -1598,6 +1624,7 @@
         // ML-406: Skills (Pitch, Tempo, Pulse, Rhythm) shows while at least one of its tools is on.
         document.getElementById('skillsToolBtn')?.classList.toggle('hidden-group', !skillsHubTools().length);
         document.getElementById('rangeToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('range_trainer'));
+        document.getElementById('recordingsToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('rehearsal_recordings')); // ML-489
         const manage = isFeatureEnabled('flow_manage');
         const create = manage && isFeatureEnabled('flow_create'); // ML-345: Add a piece
         document.getElementById('myMusicNavItem')?.classList.toggle('hidden-group', !manage);
@@ -2200,7 +2227,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -2299,6 +2326,7 @@
         const hubEl = document.getElementById('flowDetailsHubView');
         if (isShown(hubEl) && viewName !== 'flowDetailsHubView') {
             flowStatsFinish('abandoned');
+            stopFlowEditorMedia(); // ML-487: the editor is hidden, not removed - what was playing would carry on
             flowCreateLeft(); // ML-404: a new piece left untouched isn't kept
         }
 
@@ -2355,6 +2383,7 @@
             if (viewName === 'settingsPlaybackView') renderMetroCalibRow(); // ML-347
         }
         if (viewName === 'prepareListView') { document.getElementById('topTitle').innerText = 'Prepare'; openPrepareList(isBack); }
+        if (viewName === 'recordingsView') { document.getElementById('topTitle').innerText = 'Recordings'; openRecordings(); } // ML-489
         if (viewName === 'inviteView') { document.getElementById('topTitle').innerText = 'Invite someone'; openInviteView(isBack); }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
         if (viewName === 'aboutReleasesView') { document.getElementById('topTitle').innerText = 'Release history'; renderAboutView(); } // ML-430
@@ -7310,7 +7339,7 @@
             <button type="button" class="history-item clickable" data-rehearse-id="${f.id}">
                 <span class="grow">
                     <strong>${escapeHtml(f.title)}</strong>
-                    <br><span class="text-sm text-muted">${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}</span>
+                    <br><span class="text-sm text-muted">${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}${recordingCountText(f)}</span>
                 </span>
                 <span class="material-symbols-outlined" aria-hidden="true">play_arrow</span>
             </button>`).join('');
@@ -9057,6 +9086,21 @@
     // ML-476: the biggest recording or document a piece can hold (the server's MAX_PIECE_FILE_BYTES, blobUrls.js).
     // Said on the upload buttons, and checked here so a big file is refused before it starts uploading.
     const MAX_PIECE_FILE_MB = 25;
+    // ML-278: before a member's first upload of music they confirm, once, that they have the right to
+    // upload it. The terms of use already say so; this puts it in front of them when it matters, and the
+    // day they agreed is kept on their account (accounts.upload_rights_confirmed_on). Every button that
+    // opens a file chooser for music goes through here. go() runs first, inside the tap, because a
+    // browser only opens a file chooser from the member's own tap; the day is saved straight after.
+    function withUploadRights(go) {
+        if (accountProfile && accountProfile.uploadRightsConfirmedOn) { go(); return; }
+        showConfirmModal('Before you upload',
+            'Only upload music you have the right to use: your own, your band\'s, or something you have permission for. Printed music and recordings are usually someone\'s copyright. If it is a recording of people, make sure they know it is being shared.',
+            () => {
+                if (accountProfile) accountProfile.uploadRightsConfirmedOn = todayIso();
+                go();
+                apiCall('/api/account/upload-rights', 'POST').catch(() => { if (accountProfile) accountProfile.uploadRightsConfirmedOn = null; });
+            }, false, 'I have the right to upload it');
+    }
     function pieceFileTooBig(file) {
         if (!file || file.size <= MAX_PIECE_FILE_MB * 1024 * 1024) return false;
         showWarningToast(`"${file.name}" is ${(file.size / (1024 * 1024)).toFixed(0)} MB. The most a piece can hold is ${MAX_PIECE_FILE_MB} MB - for a long recording or a video, add a YouTube link instead.`);
@@ -9192,6 +9236,7 @@
         document.getElementById('plName').disabled = !canEdit;
         document.getElementById('plDateBtn').disabled = !canEdit;
         ['plAddPiecesBtn', 'plDeleteBtn', 'plPieceMenuDelete'].forEach(id => setShown(id, canEdit));
+        setShown('plClearRecordingsBtn', isFeatureEnabled('rehearsal_recordings') && l.pieces.length > 0); // ML-489: your own uploads, so not tied to canEdit
         document.getElementById('plDateBtnText').textContent = plDateLabel(l.eventDate);
         document.getElementById('plDateBtn').setAttribute('aria-label', `Target date: ${l.eventDate ? plDateText(l.eventDate) : 'none'} - tap to change`);
         const f = plForecast(l);
@@ -9818,6 +9863,8 @@
             flowLibraryBandNames = Object.fromEntries(bands.map(b => [Number(b.id), b.displayName || b.name]));
         } catch { /* the pills fall back to "Band" */ }
     }
+    // " • 2 recordings" on a piece's row, when it has any (ML-489)
+    const recordingCountText = (f) => (f.recordingCount > 0 ? ` &bull; ${f.recordingCount} recording${f.recordingCount === 1 ? '' : 's'}` : '');
     function flowLibraryFilterKey(f) {
         if (f.isPublic) return 'public';
         return f.ownerBandId ? 'band:' + f.ownerBandId : 'mine';
@@ -9830,7 +9877,10 @@
         const bandKeys = Object.keys(counts).filter(k => k.startsWith('band:'))
             .map(k => [k, flowLibraryBandNames[Number(k.slice(5))] || 'Band'])
             .sort((a, b) => a[1].localeCompare(b[1]));
-        pills.innerHTML = [['all', 'All'], ['mine', 'Mine'], ...bandKeys, ['public', 'Public']].map(([key, label]) =>
+        // ML-489: only the pieces with a recording or video - there once any piece has one
+        counts.recorded = flowsListCache.filter(f => f.recordingCount > 0).length;
+        if (!counts.recorded && flowLibraryFilter === 'recorded') flowLibraryFilter = 'all';
+        pills.innerHTML = [['all', 'All'], ['mine', 'Mine'], ...bandKeys, ['public', 'Public'], ...(counts.recorded ? [['recorded', 'With a recording']] : [])].map(([key, label]) =>
             `<button type="button" class="filter-pill${flowLibraryFilter === key ? ' active' : ''}" data-flow-library-filter="${escapeHtml(key)}" aria-pressed="${flowLibraryFilter === key}">${escapeHtml(label)} <span class="filter-pill-count">${counts[key] || 0}</span></button>`).join('');
         pills.querySelectorAll('[data-flow-library-filter]').forEach(b => b.addEventListener('click', () => {
             flowLibraryFilter = b.dataset.flowLibraryFilter;
@@ -9843,7 +9893,7 @@
     });
     function flowLibraryVisible() {
         return flowsListCache.filter(f => {
-            if (flowLibraryFilter !== 'all' && flowLibraryFilterKey(f) !== flowLibraryFilter) return false;
+            if (flowLibraryFilter === 'recorded' ? !(f.recordingCount > 0) : (flowLibraryFilter !== 'all' && flowLibraryFilterKey(f) !== flowLibraryFilter)) return false;
             if (!flowLibraryQuery) return true;
             return (f.title || '').toLowerCase().includes(flowLibraryQuery) || (f.composer || '').toLowerCase().includes(flowLibraryQuery);
         // By name, A to Z (owner, 4 Oct 2026) - not the order they were added; capitals don't matter and "Piece 2" comes before "Piece 10"
@@ -9862,7 +9912,7 @@
             <div class="history-item clickable" data-flow-library-id="${f.id}">
                 <div role="button" tabindex="0" class="grow" data-act="flow-open" data-arg="${f.id}">
                     <strong>${escapeHtml(f.title)}</strong>
-                    <div class="text-sm text-muted">${f.composer ? escapeHtml(f.composer) + ' &bull; ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}</div>
+                    <div class="text-sm text-muted">${f.composer ? escapeHtml(f.composer) + ' &bull; ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}${recordingCountText(f)}</div>
                 </div>
                 ${flowLibraryMenuItemsFor(f).length ? `<button type="button" class="list-item-menu-btn" data-flow-library-menu-btn aria-label="Options for ${escapeHtml(f.title)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>` : ''}
             </div>
@@ -10450,7 +10500,7 @@
     }
 
     document.getElementById('flowFromFileDropBtn')?.addEventListener('click', () => {
-        document.getElementById('flowFromFileInput')?.click();
+        withUploadRights(() => document.getElementById('flowFromFileInput')?.click()); // ML-278
     });
     document.getElementById('flowFromFileInput')?.addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -10794,14 +10844,21 @@
         // YouTube iframe for a link) rather than an "open in a new tab" button - the point of
         // this card is quick playback while looking at the rest of the flow, not a detour to
         // another tab/app for a "small set of controls" you'd get there anyway.
+        // ML-312: the preview keeps to the recording's start and end too - YouTube by its own start/end
+        // settings, an upload by the standard "#t=start,end" on its address.
+        const clip = recordingClip(r);
         let playerHtml;
         if (isYoutube) {
-            playerHtml = `<div class="flow-media-player-video"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}" title="${escapeHtml(r.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+            playerHtml = `<div class="flow-media-player-video"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}${youTubeClipQuery(clip, '?')}" title="${escapeHtml(r.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
         } else if (isVideo) {
-            playerHtml = `<div class="flow-media-player-video"><video controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></video></div>`;
+            playerHtml = `<div class="flow-media-player-video"><video controls preload="metadata" src="${escapeHtml(r.blobUrl + uploadClipFragment(clip))}"></video></div>`;
         } else {
-            playerHtml = `<audio class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></audio>`;
+            playerHtml = `<audio class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl + uploadClipFragment(clip))}"></audio>`;
         }
+        // One button showing the answer, opening the pop-up that changes it ("one button, one pop-up")
+        const clipHtml = isFeatureEnabled('recording_clip')
+            ? `<button type="button" class="metroBlk-ctrl-value-btn w-full" data-act="flow-recording-clip" data-arg="${escapeHtml(r.id)}" aria-haspopup="dialog" aria-label="Start and end of ${escapeHtml(r.title)}: ${escapeHtml(FlowJourney.clipLabel(clip))} - tap to change"><strong>${escapeHtml(FlowJourney.clipLabel(clip))}</strong><span class="metroBlk-ctrl-value-label">start and end</span></button>`
+            : '';
         return `
             <div class="history-item flow-media-item">
                 <div class="flow-media-item-top">
@@ -10812,10 +10869,184 @@
                     <button type="button" class="flow-delete-btn" data-act="flow-recording-delete" data-arg="${escapeHtml(r.id)}" aria-label="Delete ${escapeHtml(r.title)}"><span class="material-symbols-outlined">delete</span></button>
                 </div>
                 ${playerHtml}
+                ${clipHtml}
             </div>
         `;
     }
+
+    // ===== ML-312: where a recording or video starts and ends on the piece (the rehearsal score, step A) =====
+    // The file is never changed: a cut is two numbers kept beside the recording (clipStartMs, clipEndMs;
+    // null = the very start / the very end). The rules are FlowJourney.cleanClip and friends, which the
+    // server runs too. docs/rehearsal-score.md; specs/components/recording-clip.md.
+    const recordingClip = (r) => ({ startMs: r && r.clipStartMs ? r.clipStartMs : null, endMs: r && r.clipEndMs ? r.clipEndMs : null });
+    // YouTube takes whole seconds: the start rounded down and the end rounded up, so nothing is cut short.
+    function youTubeClipQuery(clip, lead) {
+        const parts = [];
+        if (clip.startMs) parts.push(`start=${Math.floor(clip.startMs / 1000)}`);
+        if (clip.endMs) parts.push(`end=${Math.ceil(clip.endMs / 1000)}`);
+        return parts.length ? lead + parts.join('&') : '';
+    }
+    function uploadClipFragment(clip) {
+        if (!clip.startMs && !clip.endMs) return '';
+        const sec = (ms) => (ms / 1000).toFixed(2);
+        return `#t=${sec(clip.startMs || 0)}${clip.endMs ? `,${sec(clip.endMs)}` : ''}`;
+    }
+    // Make an <audio>/<video> keep to a clip: go to the start when Play is pressed outside it, stop at
+    // the end. clipOf is asked each time, so a change to the clip is picked up without re-wiring.
+    function keepPlayerToClip(el, clipOf) {
+        const check = (playing) => {
+            const clip = clipOf();
+            if (!clip || (!clip.startMs && !clip.endMs)) return;
+            const action = FlowJourney.clipAction(clip, el.currentTime * 1000, playing);
+            if (action === 'seek') el.currentTime = (clip.startMs || 0) / 1000;
+            else if (action === 'stop') { el.pause(); el.currentTime = (clip.startMs || 0) / 1000; }
+        };
+        el.addEventListener('play', () => check(false));
+        el.addEventListener('timeupdate', () => { if (!el.paused) check(true); });
+    }
+
+    // The pop-up. One recording at a time; its player is made when it opens and thrown away when it
+    // closes, so nothing is left playing behind it (ML-487's lesson).
+    let clipEdit = null; // { recordingId, clip: { startMs, endMs }, media: <audio>|<video>|null, yt: YT.Player|null }
+    const clipPositionMs = () => {
+        if (!clipEdit) return 0;
+        if (clipEdit.media) return (clipEdit.media.currentTime || 0) * 1000;
+        try { return (clipEdit.yt && clipEdit.yt.getCurrentTime ? clipEdit.yt.getCurrentTime() : 0) * 1000; } catch (error) { return 0; }
+    };
+    const clipDurationMs = () => {
+        if (!clipEdit) return null;
+        let seconds = 0;
+        if (clipEdit.media) seconds = clipEdit.media.duration;
+        else { try { seconds = clipEdit.yt && clipEdit.yt.getDuration ? clipEdit.yt.getDuration() : 0; } catch (error) { seconds = 0; } }
+        return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : null;
+    };
+    function clipSeekAndPlay(ms) {
+        if (!clipEdit) return;
+        if (clipEdit.media) { clipEdit.media.currentTime = ms / 1000; clipEdit.media.play().catch(() => { /* the browser wants a tap on the player first */ }); }
+        else if (clipEdit.yt && clipEdit.yt.seekTo) { try { clipEdit.yt.seekTo(ms / 1000, true); clipEdit.yt.playVideo(); } catch (error) { /* not ready yet */ } }
+    }
+    function renderClipModal() {
+        if (!clipEdit) return;
+        const { clip } = clipEdit;
+        document.getElementById('clipStartTime').textContent = clip.startMs ? FlowJourney.clockText(clip.startMs) : 'The very start';
+        document.getElementById('clipEndTime').textContent = clip.endMs ? FlowJourney.clockText(clip.endMs) : 'The very end';
+        document.getElementById('clipSummary').textContent = `Plays: ${FlowJourney.clipLabel(clip).toLowerCase()}.`;
+        setShown(document.getElementById('clipClearBtn'), !!(clip.startMs || clip.endMs));
+    }
+    // From a recording's row on a piece's Media tab. In Edit the answer is kept until Save, like everything
+    // else there (and always for a recording that hasn't been saved yet); otherwise it is saved at once.
+    function openClipModal(recordingId) {
+        const rec = (currentFlowDetail?.recordings || []).find(x => String(x.id) === String(recordingId));
+        if (!rec) return;
+        stopFlowEditorMedia(); // the row's own preview must not play over the pop-up's
+        openClipPopup({
+            ...rec, clip: recordingClip(rec),
+            onSave: async (checked) => {
+                if (flowEditMode === 'edit' || typeof rec.id === 'string') {
+                    currentFlowDetail.recordings = (currentFlowDetail.recordings || []).map(x => (String(x.id) === String(rec.id) ? { ...x, clipStartMs: checked.startMs, clipEndMs: checked.endMs } : x));
+                } else {
+                    currentFlowDetail = await API.flows.recordings.setClip(currentFlowId, rec.id, { startMs: checked.startMs, endMs: checked.endMs });
+                }
+                renderFlowRecordingsList();
+            }
+        });
+    }
+    // The pop-up itself, for anything that can be played: r is { title, type, youtubeVideoId | blobUrl,
+    // mimeType, clip, onSave(clip) }. The Recordings tool (ML-489) opens it the same way.
+    function openClipPopup(r) {
+        const isYoutube = r.type === 'youtube';
+        const isVideo = !isYoutube && (r.mimeType || '').startsWith('video/');
+        clipEdit = { clip: r.clip || { startMs: null, endMs: null }, media: null, yt: null, onSave: r.onSave };
+        document.getElementById('clipModalTitle').textContent = 'Set start and end';
+        document.getElementById('clipModalName').textContent = r.title;
+        const host = document.getElementById('clipPlayerHost');
+        if (isYoutube) {
+            host.innerHTML = `<div class="flow-media-player-video"><iframe id="clipYtFrame" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}?enablejsapi=1&amp;origin=${encodeURIComponent(location.origin)}" title="${escapeHtml(r.title)}" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+            const mine = clipEdit;
+            ensureFlowYtApi().then((YT) => {
+                const frame = document.getElementById('clipYtFrame');
+                if (clipEdit !== mine || !frame) return; // closed, or another opened, before YouTube was ready
+                mine.yt = new YT.Player(frame, {});
+            });
+        } else {
+            host.innerHTML = isVideo
+                ? `<div class="flow-media-player-video"><video id="clipMedia" controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></video></div>`
+                : `<audio id="clipMedia" class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></audio>`;
+            clipEdit.media = document.getElementById('clipMedia');
+        }
+        renderClipModal();
+        showModal('clipModal');
+    }
+    function closeClipModal() {
+        if (clipEdit) {
+            try { if (clipEdit.media) clipEdit.media.pause(); } catch (error) { /* nothing playing */ }
+            try { if (clipEdit.yt && clipEdit.yt.destroy) clipEdit.yt.destroy(); } catch (error) { /* already gone */ }
+        }
+        clipEdit = null;
+        document.getElementById('clipPlayerHost').innerHTML = '';
+        hideModal('clipModal');
+    }
+    // "Starts here" / "Ends here": the mark goes where the player is now.
+    function clipMarkHere(which) {
+        if (!clipEdit) return;
+        const at = Math.round(clipPositionMs());
+        const next = { ...clipEdit.clip, [which === 'start' ? 'startMs' : 'endMs']: at };
+        // A start put after the end (or an end before the start) lets go of the other mark - the one
+        // just tapped is the one meant.
+        if (next.startMs && next.endMs && next.endMs - next.startMs < FlowJourney.CLIP_MIN_LENGTH_MS) next[which === 'start' ? 'endMs' : 'startMs'] = null;
+        const checked = FlowJourney.cleanClip(next, clipDurationMs());
+        if (!checked.ok) { showWarningToast(which === 'end' && at < FlowJourney.CLIP_MIN_LENGTH_MS ? 'Play it to where the piece ends, then tap Ends here.' : checked.message); return; }
+        clipEdit.clip = { startMs: checked.startMs, endMs: checked.endMs };
+        renderClipModal();
+    }
+    function clipNudge(which, deltaMs) {
+        if (!clipEdit) return;
+        clipEdit.clip = FlowJourney.nudgeClip(clipEdit.clip, which, deltaMs, clipDurationMs());
+        renderClipModal();
+        // Hear where the mark now is: the start plays from it; the end plays its last two seconds.
+        clipSeekAndPlay(which === 'start' ? (clipEdit.clip.startMs || 0) : Math.max(clipEdit.clip.startMs || 0, (clipEdit.clip.endMs || clipDurationMs() || 0) - 2000));
+    }
+    function clipPlayFromStart() {
+        if (clipEdit) clipSeekAndPlay(clipEdit.clip.startMs || 0);
+    }
+    function clipClear() {
+        if (!clipEdit) return;
+        clipEdit.clip = { startMs: null, endMs: null };
+        renderClipModal();
+    }
+    async function saveClipModal() {
+        if (!clipEdit) return;
+        const checked = FlowJourney.cleanClip(clipEdit.clip, clipDurationMs());
+        if (!checked.ok) { showWarningToast(checked.message); return; }
+        const { onSave } = clipEdit;
+        try {
+            await onSave({ startMs: checked.startMs, endMs: checked.endMs });
+        } catch (error) {
+            showWarningToast('That couldn\'t be saved: ' + error.message);
+            return;
+        }
+        closeClipModal();
+    }
+
+    // ML-487: stop whatever the editor's Media tab is playing. Leaving the editor only hides it, so a
+    // recording or video left playing carried on with nothing on screen to stop it. An upload is
+    // paused where it is. A YouTube preview is a plain embed with no player to tell to stop (unlike
+    // the play screen's, see pauseAllFlowMedia), so its frame is loaded afresh: that stops it and
+    // leaves it ready to play again.
+    function pauseFlowEditorUploads() {
+        document.querySelectorAll('#flowAudioTracksList audio, #flowAudioTracksList video, #flowVideoLinksList video').forEach((el) => {
+            try { el.pause(); } catch (error) { /* nothing was playing */ }
+        });
+    }
+    function stopFlowEditorMedia() {
+        pauseFlowEditorUploads();
+        document.querySelectorAll('#flowVideoLinksList iframe').forEach((frame) => {
+            frame.setAttribute('src', frame.getAttribute('src'));
+        });
+    }
     function renderFlowRecordingsList() {
+        // A player taken off the page while playing carries on with nothing to stop it (ML-487)
+        pauseFlowEditorUploads();
         const recordings = currentFlowDetail?.recordings || [];
         const audioTracks = recordings.filter(r => r.type !== 'youtube');
         const videoLinks = recordings.filter(r => r.type === 'youtube');
@@ -10853,7 +11084,7 @@
     };
 
     document.getElementById('flowUploadRecordingBtn')?.addEventListener('click', () => {
-        document.getElementById('flowRecordingFileInput')?.click();
+        withUploadRights(() => document.getElementById('flowRecordingFileInput')?.click()); // ML-278
     });
     document.getElementById('flowRecordingFileInput')?.addEventListener('change', async (e) => {
         const file = e.target.files[0];
@@ -10974,7 +11205,7 @@
     };
 
     document.getElementById('flowUploadDocumentBtn')?.addEventListener('click', () => {
-        document.getElementById('flowDocumentFileInput')?.click();
+        withUploadRights(() => document.getElementById('flowDocumentFileInput')?.click()); // ML-278
     });
     document.getElementById('flowDocumentFileInput')?.addEventListener('change', async (e) => {
         const file = e.target.files[0];
@@ -13878,8 +14109,15 @@
         const newRecordings = curRecordings.filter(r => typeof r.id === 'string');
         const newDocuments = curDocuments.filter(d => typeof d.id === 'string');
         for (const r of newRecordings) {
-            if (r.type === 'youtube') await API.flows.recordings.addYouTube(currentFlowId, { url: r.sourceUrl, title: r.title });
-            else await API.flows.recordings.addUploaded(currentFlowId, { blobUrl: r.blobUrl, blobPathname: r.blobPathname, fileName: r.fileName, fileSizeBytes: r.fileSizeBytes, mimeType: r.mimeType });
+            const clip = { clipStartMs: r.clipStartMs || null, clipEndMs: r.clipEndMs || null }; // ML-312
+            if (r.type === 'youtube') await API.flows.recordings.addYouTube(currentFlowId, { url: r.sourceUrl, title: r.title, ...clip });
+            else await API.flows.recordings.addUploaded(currentFlowId, { blobUrl: r.blobUrl, blobPathname: r.blobPathname, fileName: r.fileName, fileSizeBytes: r.fileSizeBytes, mimeType: r.mimeType, ...clip });
+        }
+        // ML-312: a start and end changed on a recording that was already there
+        for (const r of curRecordings.filter(cr => typeof cr.id !== 'string')) {
+            const before = snapRecordings.find(sr => sr.id === r.id);
+            if (!before || ((before.clipStartMs || null) === (r.clipStartMs || null) && (before.clipEndMs || null) === (r.clipEndMs || null))) continue;
+            await API.flows.recordings.setClip(currentFlowId, r.id, { startMs: r.clipStartMs || null, endMs: r.clipEndMs || null });
         }
         for (const d of newDocuments) {
             await API.flows.documents.add(currentFlowId, { blobUrl: d.blobUrl, blobPathname: d.blobPathname, fileName: d.fileName, fileSizeBytes: d.fileSizeBytes, mimeType: d.mimeType });
@@ -14173,6 +14411,7 @@
     // Tapping a tile jumps playback to that bar's first appearance in the piece proper (not the intro).
     // While repeating bars (ML-302) it jumps within the current pass, and only to a bar in the loop.
     window.jumpFlowToPlayIndex = function(id) {
+        if (recJumpToBlock(id)) return; // ML-488: a recording's slide is showing - the tap starts it at that bar
         if (flowLoopPlan) {
             const pass = flowPlayQueue[flowPlayIndex] ? flowPlayQueue[flowPlayIndex].loopPass : 1;
             const index = flowPlayQueue.findIndex(p => p.loopPass === pass && p.blockId === id && p.kind !== 'rest');
@@ -14308,6 +14547,7 @@
             ...videoLinks.map(r => ({ type: 'video', data: r }))
         ];
         flowMediaActiveIndex = 0;
+        recTileBlockId = null; // ML-488: a new piece, or the play screen opened again - no recording has been played yet
     }
 
     function flowMediaSlideKey(slide) {
@@ -14348,6 +14588,7 @@
                             <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(r.mimeType || 'Audio file')}</span></div>
                         </div>
                         <audio class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}" data-flow-media-key="${flowMediaSlideKey(slide)}"></audio>
+                        ${recScoreControlsHtml(slide)}
                     </div>
                 </div>
             `;
@@ -14362,7 +14603,8 @@
                             <span class="flow-media-icon type-youtube"><span class="material-symbols-outlined icon-md">smart_display</span></span>
                             <div><strong>${escapeHtml(r.title)}</strong><span>YouTube video</span></div>
                         </div>
-                        <div class="flow-media-player-video"><iframe id="flowYtFrame-${r.id}" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}?enablejsapi=1&amp;origin=${origin}" title="${escapeHtml(r.title)}" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="flow-media-player-video"><iframe id="flowYtFrame-${r.id}" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}?enablejsapi=1&amp;origin=${origin}${youTubeClipQuery(recordingClip(r), "&amp;")}" title="${escapeHtml(r.title)}" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        ${recScoreControlsHtml(slide)}
                     </div>
                 </div>
             `;
@@ -14439,6 +14681,452 @@
     function pauseAllFlowMedia() {
         flowMediaSlides.forEach(pauseFlowMediaSlide);
     }
+
+    // ===== ML-488: the rehearsal score - a recording or video follows the piece's bars (step C) =====
+    // On a recording's slide: repeat (the piece's own repeat-bars setting, the one the metronome uses),
+    // play speed, and "bars" - the pop-up where whoever can change the piece marks where a few bars fall.
+    // Where every bar is in the recording is FlowJourney.recordingMap: the marks, the recording's start
+    // and end (ML-312), and the piece's own speeds and pauses. Nothing listens to the sound.
+    // docs/rehearsal-score.md; specs/components/rehearsal-score.md.
+    const recScoreOn = () => isFeatureEnabled('rehearsal_score');
+    const REC_SPEEDS = [100, 75, 50];  // percent - YouTube's player has these exact speeds too
+    const REC_LOOP_LEAD_MS = 400;      // a repeat starts this much early, so a map a touch out still catches the first note
+    let recSpeed = 100;                // for this visit to the play screen
+    let recTicker = null;
+    let recTileBlockId = null;         // the block the recording is in now - its tile lights up, as the metronome's does
+    const recActiveSlide = () => { const s = flowMediaSlides[flowMediaActiveIndex]; return s && s.type !== 'metronome' ? s : null; };
+    const recMapFor = (r) => FlowJourney.recordingMap(currentFlowBlocks, { leadIn: flowLeadInBlock }, r.marks || [], recordingClip(r));
+    // One way to drive either kind of player. null until the player is there (YouTube arrives late).
+    function recPlayerOf(slide) {
+        if (!slide) return null;
+        if (slide.type === 'audio') {
+            const el = document.querySelector(`#flowMediaTrack audio[data-flow-media-key="${flowMediaSlideKey(slide)}"]`);
+            if (!el) return null;
+            return {
+                positionMs: () => el.currentTime * 1000, playing: () => !el.paused,
+                seek: (ms) => { el.currentTime = ms / 1000; }, play: () => el.play().catch(() => { /* wants a tap on the player first */ }),
+                setSpeed: (pct) => { el.playbackRate = pct / 100; }
+            };
+        }
+        const yt = flowYtPlayers[slide.data.id];
+        if (!yt || typeof yt.getCurrentTime !== 'function') return null;
+        return {
+            positionMs: () => yt.getCurrentTime() * 1000, playing: () => yt.getPlayerState() === window.YT.PlayerState.PLAYING,
+            seek: (ms) => yt.seekTo(ms / 1000, true), play: () => yt.playVideo(),
+            setSpeed: (pct) => yt.setPlaybackRate(pct / 100)
+        };
+    }
+    function recScoreControlsHtml(slide) {
+        if (!recScoreOn()) return '';
+        const key = flowMediaSlideKey(slide);
+        const mapBtn = currentFlowDetail && currentFlowDetail.canEdit
+            ? `<button type="button" class="metroBlk-ctrl-value-btn" data-act="rec-map" data-arg="${escapeHtml(slide.data.id)}" data-rec-map-btn aria-haspopup="dialog"><strong data-rec-map-lbl></strong><span class="metroBlk-ctrl-value-label">bars marked</span></button>`
+            : '';
+        return `
+            <div class="metro-transport-grid" data-rec-controls="${key}">
+                <button type="button" class="metroBlk-ctrl-value-btn" data-act="rec-loop" data-rec-loop-btn aria-haspopup="dialog"><strong data-rec-loop-lbl>off</strong><span class="metroBlk-ctrl-value-label">repeat</span></button>
+                <button type="button" class="metroBlk-ctrl-value-btn" data-act="rec-speed" data-rec-speed-btn aria-haspopup="dialog"><strong data-rec-speed-lbl>100%</strong><span class="metroBlk-ctrl-value-label">play speed</span></button>
+                ${mapBtn}
+            </div>
+            <p class="theory-best-line" data-rec-bar-line="${key}" role="status" aria-live="off"></p>`;
+    }
+    // What the three boxes say on every recording slide - after the repeat, the speed or a map changes.
+    function renderRecScoreControls() {
+        if (!recScoreOn()) return;
+        const loopOn = !!flowLoopPlan;
+        document.querySelectorAll('#flowMediaTrack [data-rec-controls]').forEach((box) => {
+            const slide = flowMediaSlides.find(s => s.type !== 'metronome' && flowMediaSlideKey(s) === box.dataset.recControls);
+            if (!slide) return;
+            const loopBtn = box.querySelector('[data-rec-loop-btn]');
+            box.querySelector('[data-rec-loop-lbl]').textContent = loopOn ? `${flowLoop.startBar}–${flowLoop.endBar}` : 'off';
+            loopBtn.classList.toggle('metroBlk-ctrl-value-btn-on', loopOn);
+            loopBtn.setAttribute('aria-label', loopOn ? `Repeat bars - ${flowLoopRangeText()}. Tap to change` : 'Repeat bars - off. Tap to set up');
+            box.querySelector('[data-rec-speed-lbl]').textContent = `${recSpeed}%`;
+            box.querySelector('[data-rec-speed-btn]').setAttribute('aria-label', `Play speed - ${recSpeed}%. Tap to change`);
+            const mapLbl = box.querySelector('[data-rec-map-lbl]');
+            if (mapLbl) {
+                const n = (slide.data.marks || []).length;
+                mapLbl.textContent = n ? String(n) : 'none';
+                box.querySelector('[data-rec-map-btn]').setAttribute('aria-label', `${n ? `${n} bar${n === 1 ? '' : 's'} marked` : 'No bars marked yet'} on ${slide.data.title} - tap to mark where bars fall`);
+            }
+        });
+    }
+    // While a recording plays, a few times a second: keep it inside the bars being repeated, and say
+    // which bar it is on. Stops itself when nothing is playing.
+    function recTick() {
+        const slide = recActiveSlide();
+        const player = recPlayerOf(slide);
+        if (!slide || !player) return;
+        let playing = false;
+        let at = 0;
+        try { playing = player.playing(); at = player.positionMs(); } catch (error) { return; }
+        const map = recMapFor(slide.data);
+        if (map && playing && flowLoopPlan) {
+            const loop = FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS);
+            if (loop.ok && (at >= loop.endMs || at < loop.startMs - 300)) { player.seek(loop.startMs); at = loop.startMs; }
+        }
+        const line = document.querySelector(`#flowMediaTrack [data-rec-bar-line="${flowMediaSlideKey(slide)}"]`);
+        if (map) {
+            // The bar tile for where the recording is lights up - the same tile the metronome would light
+            const k = FlowJourney.placeAt(map, at);
+            const blockId = k === -1 ? null : map.places[k].blockId;
+            if (blockId !== recTileBlockId) { recTileBlockId = blockId; renderFlowPlaybackTiles(); }
+        }
+        if (line && map) {
+            const place = FlowJourney.placeAt(map, at);
+            const text = place === -1 ? '' : `${FlowJourney.placeLabel(map.places, place)} of ${FlowJourney.totalBars(currentFlowBlocks)}`;
+            if (line.textContent !== text) line.textContent = text;
+        }
+        if (!playing && recTicker) { clearInterval(recTicker); recTicker = null; }
+    }
+    function recStartTicker() {
+        if (!recScoreOn()) return;
+        const player = recPlayerOf(recActiveSlide());
+        if (player) { try { player.setSpeed(recSpeed); } catch (error) { /* not ready yet */ } }
+        if (!recTicker) recTicker = setInterval(recTick, 100);
+        recTick();
+    }
+    // Pressing Play with repeat on starts at the repeat, wherever the slider was.
+    function recGoToLoopStart() {
+        const slide = recActiveSlide();
+        const player = recPlayerOf(slide);
+        if (!slide || !player || !flowLoopPlan) return;
+        const loop = FlowJourney.mapLoop(recMapFor(slide.data), flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS);
+        if (loop.ok) { try { player.seek(loop.startMs); } catch (error) { /* not ready yet */ } }
+    }
+    // Tapping a bar tile while a recording's slide is showing starts the recording at that bar (the
+    // first time the piece plays it). false = no recording showing, so the metronome takes the tap.
+    function recJumpToBlock(blockId) {
+        const slide = recActiveSlide();
+        if (!recScoreOn() || !slide) return false;
+        const player = recPlayerOf(slide);
+        const map = recMapFor(slide.data);
+        const place = map ? map.places.findIndex(p => p.blockId === blockId && p.kind === 'main') : -1;
+        if (!player || place === -1) return true; // a recording is showing: the tap is for it, even if it can't be used yet
+        if (flowLoopPlan) {
+            const loop = FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, 0);
+            if (loop.ok && (place < loop.fromPlace || place > loop.toPlace)) { showWarningToast(`${flowLoopRangeText()} are repeating - turn repeat off to play from there.`); return true; }
+        }
+        try { player.seek(map.places[place].startMs); player.play(); } catch (error) { /* not ready yet */ }
+        recStartTicker();
+        return true;
+    }
+    function openRecSpeedChoice() {
+        openFlowChoiceModal('Play speed', REC_SPEEDS.map(pct => ({ label: pct === 100 ? '100% - as recorded' : `${pct}% - slower, same pitch`, value: pct, selected: pct === recSpeed })), (opt) => {
+            recSpeed = opt.value;
+            const player = recPlayerOf(recActiveSlide());
+            if (player) { try { player.setSpeed(recSpeed); } catch (error) { /* not ready yet */ } }
+            renderRecScoreControls();
+        });
+    }
+
+    // --- Marking where bars fall: the "bars marked" pop-up ---
+    // Its own player, like the start-and-end pop-up's. The place being marked steps on by one after
+    // each mark, so tapping along bar by bar marks a run of bars; ◀ ▶ or a typed bar number moves it.
+    let barMap = null; // { recordingId, marks: [...], place, places, media, yt }
+    const barMapPositionMs = () => {
+        if (!barMap) return 0;
+        if (barMap.media) return (barMap.media.currentTime || 0) * 1000;
+        try { return (barMap.yt && barMap.yt.getCurrentTime ? barMap.yt.getCurrentTime() : 0) * 1000; } catch (error) { return 0; }
+    };
+    function barMapSeekAndPlay(ms) {
+        if (!barMap) return;
+        if (barMap.media) { barMap.media.currentTime = ms / 1000; barMap.media.play().catch(() => { /* wants a tap on the player first */ }); }
+        else if (barMap.yt && barMap.yt.seekTo) { try { barMap.yt.seekTo(ms / 1000, true); barMap.yt.playVideo(); } catch (error) { /* not ready yet */ } }
+    }
+    function renderBarMapModal() {
+        if (!barMap) return;
+        const label = FlowJourney.placeLabel(barMap.places, barMap.place);
+        document.getElementById('barMapPlaceLbl').textContent = label;
+        document.getElementById('barMapMarkBtnLbl').textContent = `This is ${label.charAt(0).toLowerCase()}${label.slice(1)}`;
+        document.getElementById('barMapPrevBtn').disabled = barMap.place <= 0;
+        document.getElementById('barMapNextBtn').disabled = barMap.place >= barMap.places.length - 1;
+        const used = FlowJourney.usableMarks(barMap.places, barMap.marks);
+        const list = document.getElementById('barMapList');
+        list.innerHTML = used.length
+            ? used.map(m => `
+                <div class="history-item">
+                    <div class="history-details"><div><strong>${escapeHtml(FlowJourney.placeLabel(barMap.places, m.place))}</strong><span>at ${escapeHtml(FlowJourney.clockText(m.atMs))}</span></div></div>
+                    <div class="flex-row gap-sm">
+                        <button type="button" class="btn-text" data-act="barmap-play" data-arg="${m.place}" aria-label="Play from ${escapeHtml(FlowJourney.placeLabel(barMap.places, m.place))}">Play</button>
+                        <button type="button" class="btn-text btn-text-danger" data-act="barmap-remove" data-arg="${m.place}" aria-label="Remove the mark on ${escapeHtml(FlowJourney.placeLabel(barMap.places, m.place))}">Remove</button>
+                    </div>
+                </div>`).join('')
+            : '<p class="text-muted">No bars marked yet. Until one is, bar 1 is taken to be at the recording\'s start mark and the rest follows the piece\'s speeds.</p>';
+        document.getElementById('barMapCount').textContent = used.length ? `${used.length} bar${used.length === 1 ? '' : 's'} marked` : '';
+    }
+    function openBarMapModal(recordingId) {
+        const r = (currentFlowDetail?.recordings || []).find(x => String(x.id) === String(recordingId));
+        const places = FlowJourney.journeyPlaces(currentFlowBlocks, { leadIn: flowLeadInBlock });
+        if (!r || !places.length) return;
+        pauseAllFlowMedia(); // the slide's own player must not play under the pop-up's
+        const isYoutube = r.type === 'youtube';
+        barMap = { recordingId: r.id, marks: FlowJourney.usableMarks(places, r.marks || []), places, place: 0, media: null, yt: null };
+        // Start on the bar after the last one marked - the next one you will want.
+        if (barMap.marks.length) barMap.place = Math.min(places.length - 1, barMap.marks[barMap.marks.length - 1].place + 1);
+        document.getElementById('barMapName').textContent = r.title;
+        const host = document.getElementById('barMapPlayerHost');
+        if (isYoutube) {
+            host.innerHTML = `<div class="flow-media-player-video"><iframe id="barMapYtFrame" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}?enablejsapi=1&amp;origin=${encodeURIComponent(location.origin)}" title="${escapeHtml(r.title)}" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+            const mine = barMap;
+            ensureFlowYtApi().then((YT) => {
+                const frame = document.getElementById('barMapYtFrame');
+                if (barMap !== mine || !frame) return;
+                mine.yt = new YT.Player(frame, {});
+            });
+        } else {
+            host.innerHTML = `<audio id="barMapMedia" class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></audio>`;
+            barMap.media = document.getElementById('barMapMedia');
+        }
+        document.getElementById('barMapBarInput').value = '';
+        renderBarMapModal();
+        showModal('barMapModal');
+    }
+    function closeBarMapModal() {
+        if (barMap) {
+            try { if (barMap.media) barMap.media.pause(); } catch (error) { /* nothing playing */ }
+            try { if (barMap.yt && barMap.yt.destroy) barMap.yt.destroy(); } catch (error) { /* already gone */ }
+        }
+        barMap = null;
+        document.getElementById('barMapPlayerHost').innerHTML = '';
+        hideModal('barMapModal');
+    }
+    function barMapStep(by) {
+        if (!barMap) return;
+        barMap.place = Math.min(barMap.places.length - 1, Math.max(0, barMap.place + by));
+        renderBarMapModal();
+    }
+    function barMapGoToTypedBar() {
+        if (!barMap) return;
+        const n = Math.round(Number(document.getElementById('barMapBarInput').value));
+        const place = barMap.places.findIndex(p => p.number === n && p.kind === 'main');
+        if (place === -1) { showWarningToast(`This piece has no bar ${Number.isFinite(n) ? n : 'like that'}.`); return; }
+        barMap.place = place;
+        renderBarMapModal();
+    }
+    // "This is bar 33": the bar being marked is where the player is now. Then on to the next bar.
+    function barMapMarkHere() {
+        if (!barMap) return;
+        const p = barMap.places[barMap.place];
+        const atMs = Math.round(barMapPositionMs());
+        const others = barMap.marks.filter(m => m.place !== p.place);
+        const before = others.filter(m => m.place < p.place).pop();
+        const after = others.find(m => m.place > p.place);
+        if (before && atMs <= before.atMs) { showWarningToast(`${FlowJourney.placeLabel(barMap.places, before.place)} is marked later than this (${FlowJourney.clockText(before.atMs)}). Play on to where this bar starts, or remove that mark.`); return; }
+        if (after && atMs >= after.atMs) { showWarningToast(`${FlowJourney.placeLabel(barMap.places, after.place)} is marked earlier than this (${FlowJourney.clockText(after.atMs)}). Go back to where this bar starts, or remove that mark.`); return; }
+        barMap.marks = [...others, { place: p.place, number: p.number, pass: p.pass, atMs }].sort((a, b) => a.place - b.place);
+        if (barMap.place < barMap.places.length - 1) barMap.place++;
+        renderBarMapModal();
+    }
+    function barMapRemove(place) {
+        if (!barMap) return;
+        barMap.marks = barMap.marks.filter(m => m.place !== place);
+        renderBarMapModal();
+    }
+    function barMapPlayFrom(place) {
+        const m = barMap && barMap.marks.find(x => x.place === place);
+        if (m) barMapSeekAndPlay(m.atMs);
+    }
+    async function saveBarMapModal() {
+        if (!barMap) return;
+        const { recordingId, marks } = barMap;
+        try {
+            currentFlowDetail = await API.flows.recordings.setMarks(currentFlowDetail.id, recordingId, { marks });
+        } catch (error) {
+            showWarningToast('That couldn\'t be saved: ' + error.message);
+            return;
+        }
+        closeBarMapModal();
+        // The slides hold the recordings as they were when the play screen opened: give them the new marks.
+        flowMediaSlides.forEach(s => { if (s.data) s.data = currentFlowDetail.recordings.find(r => r.id === s.data.id) || s.data; });
+        renderRecScoreControls();
+    }
+
+    // ===== ML-489: the Recordings tool (the rehearsal score, step B) =====
+    // Whole rehearsal recordings: uploaded once from a phone's own recorder (the app does not record),
+    // then given to pieces - each piece gets a cut, set in the start-and-end pop-up (ML-312). Anyone can
+    // use one on their own pieces; the server only offers a band's pieces to its organisers. How many a
+    // member may keep is a limit by account type. docs/rehearsal-score.md; specs/components/rehearsal-score.md.
+    let recordingsData = null; // the server's answer: { recordings, pieces, limit, used, maxBytes, folder }
+    const megabytes = (bytes) => (bytes >= 1024 * 1024 * 10 ? Math.round(bytes / (1024 * 1024)) : Math.round(bytes / (1024 * 1024) * 10) / 10);
+    function renderRecordings() {
+        const d = recordingsData;
+        const list = document.getElementById('recordingsList');
+        if (!d || !list) return;
+        const full = d.used >= d.limit;
+        const maxMb = Math.round(d.maxBytes / (1024 * 1024));
+        document.getElementById('recordingsUploadLbl').textContent = `Upload a rehearsal recording (up to ${maxMb} MB)`;
+        document.getElementById('recordingsUploadBtn').disabled = full;
+        // Said once, plainly, and it blocks nothing else (specs/README.md, "No pressure")
+        document.getElementById('recordingsCount').textContent = full
+            ? `You are keeping ${d.used} of ${d.limit} recording${d.limit === 1 ? '' : 's'}. Delete one you have finished with to add another.`
+            : `${d.used} of ${d.limit} recording${d.limit === 1 ? '' : 's'} kept.`;
+        list.innerHTML = d.recordings.length ? d.recordings.map(r => {
+            const about = [r.fileSizeBytes ? `${megabytes(r.fileSizeBytes)} MB` : '', r.recordedOn ? `recorded ${plDateText(r.recordedOn)}` : ''].filter(Boolean).join(' · ');
+            const cuts = r.cuts.length ? r.cuts.map(c => `
+                <div class="history-item">
+                    <div class="history-details"><div><strong>${escapeHtml(c.pieceTitle)}</strong><span>${escapeHtml(FlowJourney.clipLabel({ startMs: c.clipStartMs, endMs: c.clipEndMs }))}${c.band ? ` · ${escapeHtml(c.band)}` : ''}</span></div></div>
+                    <div class="flex-row gap-sm">
+                        <button type="button" class="btn-text" data-act="recordings-cut-change" data-arg="${c.id}" aria-label="Change where ${escapeHtml(c.pieceTitle)} starts and ends">Change</button>
+                        <button type="button" class="btn-text btn-text-danger" data-act="recordings-cut-remove" data-arg="${c.id}" aria-label="Take this recording off ${escapeHtml(c.pieceTitle)}">Remove</button>
+                    </div>
+                </div>`).join('') : '<p class="text-muted">Not on a piece yet.</p>';
+            return `
+                <section class="flow-card" data-recording-id="${r.id}">
+                    <div class="flow-card-header">
+                        <div><span class="flow-card-label">${escapeHtml(r.title)}</span>${about ? `<p class="flow-card-sublabel">${escapeHtml(about)}</p>` : ''}</div>
+                        <span class="flow-pill">${r.cuts.length} piece${r.cuts.length === 1 ? '' : 's'}</span>
+                    </div>
+                    ${cuts}
+                    <button type="button" class="flow-action-btn flow-action-btn-wide" data-act="recordings-give" data-arg="${r.id}" aria-haspopup="dialog"><span class="material-symbols-outlined" aria-hidden="true">library_add</span> Give it to a piece</button>
+                    <button type="button" class="btn-text btn-text-danger" data-act="recordings-delete" data-arg="${r.id}">Delete this recording</button>
+                </section>`;
+        }).join('') : '<p class="text-muted">No recordings here yet.</p>';
+    }
+    async function openRecordings() {
+        document.getElementById('recordingsList').innerHTML = recordingsData ? document.getElementById('recordingsList').innerHTML : '<p class="text-muted">Loading...</p>';
+        try {
+            recordingsData = await apiCall('/api/recordings');
+            renderRecordings();
+        } catch (error) {
+            document.getElementById('recordingsList').innerHTML = `<p class="text-muted">${escapeHtml(error.message)}</p>`;
+        }
+    }
+    const recordingById = (id) => (recordingsData ? recordingsData.recordings.find(r => String(r.id) === String(id)) : null);
+    const recordingCutById = (id) => {
+        for (const r of (recordingsData ? recordingsData.recordings : [])) {
+            const cut = r.cuts.find(c => String(c.id) === String(id));
+            if (cut) return { rec: r, cut };
+        }
+        return null;
+    };
+    // "Give it to a piece": which piece (one pop-up), then where it starts and ends (the next).
+    function recordingsGive(recordingId) {
+        const rec = recordingById(recordingId);
+        if (!rec) return;
+        const pieces = recordingsData.pieces.filter(p => !rec.cuts.some(c => c.scoreId === p.id));
+        if (!pieces.length) { showWarningToast(recordingsData.pieces.length ? 'It is already on every piece you can add it to.' : 'Make a piece first (Add a piece), then give this recording to it.'); return; }
+        openFlowChoiceModal('Which piece?', pieces.map(p => ({
+            html: `<span><strong>${escapeHtml(p.title)}</strong>${p.band ? `<br><span class="text-sm text-muted">${escapeHtml(p.band)}</span>` : ''}</span>`, piece: p
+        })), (opt) => {
+            openClipPopup({
+                title: `${opt.piece.title} - in ${rec.title}`, type: 'upload', blobUrl: rec.blobUrl, mimeType: rec.mimeType, clip: { startMs: null, endMs: null },
+                onSave: async (clip) => {
+                    recordingsData = await apiCall(`/api/recordings/${rec.id}/cuts`, 'POST', { scoreId: opt.piece.id, startMs: clip.startMs, endMs: clip.endMs });
+                    renderRecordings();
+                    showSuccessToast(`It is on ${opt.piece.title} now.`);
+                }
+            });
+        });
+    }
+    function recordingsCutChange(cutId) {
+        const found = recordingCutById(cutId);
+        if (!found) return;
+        const { rec, cut } = found;
+        openClipPopup({
+            title: `${cut.pieceTitle} - in ${rec.title}`, type: 'upload', blobUrl: rec.blobUrl, mimeType: rec.mimeType, clip: { startMs: cut.clipStartMs, endMs: cut.clipEndMs },
+            onSave: async (clip) => {
+                await API.flows.recordings.setClip(cut.scoreId, cut.id, { startMs: clip.startMs, endMs: clip.endMs });
+                await openRecordings();
+            }
+        });
+    }
+    function recordingsCutRemove(cutId) {
+        const found = recordingCutById(cutId);
+        if (!found) return;
+        showConfirmModal('Take it off the piece', `Take this recording off "${found.cut.pieceTitle}"? The recording stays here.`, async () => {
+            try {
+                await API.flows.recordings.delete(found.cut.scoreId, found.cut.id);
+                await openRecordings();
+            } catch (error) { showWarningToast(error.message); }
+        }, true, 'Take it off');
+    }
+    function recordingsDelete(recordingId) {
+        const rec = recordingById(recordingId);
+        if (!rec) return;
+        const on = rec.cuts.length ? ` It will come off ${rec.cuts.length === 1 ? `"${rec.cuts[0].pieceTitle}"` : `${rec.cuts.length} pieces`} too.` : '';
+        showConfirmModal('Delete recording', `Delete "${rec.title}"?${on} Keep your own copy of the file if you may want it again - this can't be undone.`, async () => {
+            try {
+                recordingsData = await apiCall(`/api/recordings/${rec.id}`, 'DELETE');
+                renderRecordings();
+            } catch (error) { showWarningToast(error.message); }
+        }, true, 'Delete');
+    }
+    // "Delete this list's recordings" on a practice list (the owner, 8 Oct 2026): the limit only works if
+    // clearing up after a concert is easy. It is about the member's OWN uploads in the Recordings tool:
+    // one that is only on this list's pieces is deleted, file and all; one that is also on a piece outside
+    // the list just comes off this list's pieces. Says what it will do first.
+    async function plClearRecordings() {
+        const l = plState.list;
+        if (!l) return;
+        let data;
+        try { data = await apiCall('/api/recordings'); } catch (error) { showWarningToast(error.message); return; }
+        const inList = new Set(l.pieces.map(p => Number(p.scoreId)));
+        const whole = [];   // recordings to delete
+        const cuts = [];    // cuts to take off, where the recording is used elsewhere too
+        data.recordings.forEach(r => {
+            const here = r.cuts.filter(c => inList.has(c.scoreId));
+            if (!here.length) return;
+            if (here.length === r.cuts.length) whole.push(r); else cuts.push(...here);
+        });
+        if (!whole.length && !cuts.length) { showInfoToast('None of your recordings are on this list\'s pieces.'); return; }
+        const says = [
+            whole.length ? `${whole.length} recording${whole.length === 1 ? '' : 's'} will be deleted (${whole.map(r => `"${r.title}"`).join(', ')}).` : '',
+            cuts.length ? `${cuts.length === 1 ? 'One is' : `${cuts.length} are`} also on pieces outside this list, so ${cuts.length === 1 ? 'it' : 'they'} will only come off this list's pieces.` : '',
+            'Keep your own copies of the files if you may want them again - this can\'t be undone.'
+        ].filter(Boolean).join(' ');
+        showConfirmModal(`Delete this list's recordings`, says, async () => {
+            try {
+                for (const r of whole) await apiCall(`/api/recordings/${r.id}`, 'DELETE');
+                for (const c of cuts) await API.flows.recordings.delete(c.scoreId, c.id);
+                recordingsData = null;
+                showSuccessToast(whole.length ? `${whole.length} recording${whole.length === 1 ? '' : 's'} deleted` : 'Taken off this list\'s pieces');
+            } catch (error) { showWarningToast(error.message); }
+        }, true, 'Delete');
+    }
+    document.getElementById('plClearRecordingsBtn')?.addEventListener('click', plClearRecordings);
+
+    document.getElementById('recordingsUploadBtn')?.addEventListener('click', () => withUploadRights(() => document.getElementById('recordingsFileInput')?.click())); // ML-278
+    document.getElementById('recordingsFileInput')?.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (!file || !recordingsData) return;
+        const maxMb = Math.round(recordingsData.maxBytes / (1024 * 1024));
+        if (file.size > recordingsData.maxBytes) {
+            showWarningToast(`"${file.name}" is ${Math.round(file.size / (1024 * 1024))} MB and the most is ${maxMb} MB. Record at your phone's ordinary quality setting - a "lossless" or WAV recording is about ten times the size.`);
+            return;
+        }
+        if (!/\.(mp3|m4a|wav|mp4)$/i.test(file.name)) { showWarningToast('That kind of file can\'t be used. Save the recording as m4a or mp3.'); return; }
+        const box = document.getElementById('recordingsUploadProgress');
+        const percentEl = document.getElementById('recordingsUploadPercent');
+        const fillEl = document.getElementById('recordingsUploadFill');
+        document.getElementById('recordingsUploadName').innerText = file.name;
+        percentEl.innerText = '0%';
+        fillEl.style.setProperty('--progress', '0%');
+        box.classList.remove('hidden-group');
+        document.getElementById('recordingsUploadBtn').disabled = true;
+        try {
+            // Sent in parts (multipart): a part that fails is sent again, so a dropped connection in a
+            // band room doesn't mean starting a 60 MB upload from nothing.
+            const blob = await window.vercelBlobUpload(`${recordingsData.folder}/${file.name}`, file, {
+                access: 'public',
+                multipart: true,
+                handleUploadUrl: `${API_BASE_URL}/api/recordings/upload-token?token=${encodeURIComponent(auth.token)}`,
+                onUploadProgress: (progress) => {
+                    const pct = Math.round(progress.percentage);
+                    percentEl.innerText = `${pct}%`;
+                    fillEl.style.setProperty('--progress', `${pct}%`);
+                }
+            });
+            recordingsData = await apiCall('/api/recordings', 'POST', { blobUrl: blob.url, blobPathname: blob.pathname, fileName: file.name, fileSizeBytes: file.size, mimeType: blob.contentType || file.type });
+            showSuccessToast('Recording uploaded');
+        } catch (error) {
+            showWarningToast('The upload didn\'t finish: ' + error.message);
+        } finally {
+            box.classList.add('hidden-group');
+            renderRecordings();
+        }
+    });
 
     // When there's more than one slide, renderFlowMediaCarousel pads the track with one preview
     // slide on each end (a clone of the last slide up front, a clone of the first slide at the
@@ -14623,7 +15311,12 @@
 
         track.querySelectorAll('audio[data-flow-media-key]').forEach(el => {
             el.addEventListener('play', () => stopAllFlowMediaExcept(el.dataset.flowMediaKey));
+            // ML-312: the recording starts at the piece and stops when it is over
+            const slide = flowMediaSlides.find(s => s.type === 'audio' && flowMediaSlideKey(s) === el.dataset.flowMediaKey);
+            if (slide) keepPlayerToClip(el, () => recordingClip(slide.data));
+            el.addEventListener('play', recStartTicker); // ML-488
         });
+        renderRecScoreControls();
 
         const videoSlides = flowMediaSlides.filter(s => s.type === 'video');
         if (videoSlides.length) {
@@ -14635,7 +15328,15 @@
                     flowYtPlayers[id] = new YT.Player(frameEl, {
                         events: {
                             onStateChange: (e) => {
-                                if (e.data === YT.PlayerState.PLAYING) stopAllFlowMediaExcept(`video-${id}`);
+                                if (e.data !== YT.PlayerState.PLAYING) return;
+                                stopAllFlowMediaExcept(`video-${id}`);
+                                recStartTicker(); // ML-488
+                                // ML-312: YouTube starts at the clip itself (start/end on the frame's
+                                // address); this covers Play pressed after the slider was dragged outside it.
+                                const clip = recordingClip(slide.data);
+                                try {
+                                    if ((clip.startMs || clip.endMs) && FlowJourney.clipAction(clip, e.target.getCurrentTime() * 1000, false) === 'seek') e.target.seekTo((clip.startMs || 0) / 1000, true);
+                                } catch (error) { /* the player went away */ }
                             }
                         }
                     });
@@ -14654,15 +15355,37 @@
     }
 
     // The tiles, plus what the repeat control adds on top of them (ML-302).
+    // Which block's tile is lit: where a recording is, when a recording's slide is showing and it has been
+    // played (ML-488); otherwise where the metronome is.
+    function flowActiveTileBlockId() {
+        if (recScoreOn() && recActiveSlide() && recTileBlockId !== null) return recTileBlockId;
+        return flowPlayQueue[flowPlayIndex] ? flowPlayQueue[flowPlayIndex].blockId : null;
+    }
+    // The tile that is playing is kept in view (the owner, 8 Oct 2026): when the lit tile changes while
+    // something is playing, it is scrolled to if it is off the screen. Only then - never while stopped, so
+    // looking around the piece isn't undone - and only as far as needed.
+    let flowLastLitTileId = null;
+    function flowKeepLitTileInView() {
+        const id = flowActiveTileBlockId();
+        if (id === flowLastLitTileId) return;
+        flowLastLitTileId = id;
+        const rec = recPlayerOf(recActiveSlide());
+        let playing = flowPlayer.isPlaying();
+        if (!playing && rec) { try { playing = rec.playing(); } catch (error) { playing = false; } }
+        if (!playing) return;
+        const el = document.querySelector('#flowPlayTiles .metroBlk-tile-active, #flowPlayTiles [aria-current="true"]');
+        if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    }
     function renderFlowPlaybackTiles() {
         renderFlowPlaybackTileList();
         markFlowLoopTiles();
         renderFlowLoopButton();
+        flowKeepLitTileInView();
     }
     function renderFlowPlaybackTileList() {
         const leadInSlot = document.getElementById('flowPlayLeadInSlot');
         const tilesUi = document.getElementById('flowPlayTiles');
-        const currentId = flowPlayQueue[flowPlayIndex] ? flowPlayQueue[flowPlayIndex].blockId : null;
+        const currentId = flowActiveTileBlockId();
         // ML-113: the lead-in is the first tile in every layout, the same shape as the bars after it -
         // part of the journey, not a special row.
         if (leadInSlot) leadInSlot.innerHTML = '';
@@ -14844,6 +15567,7 @@
             // For the back-tests' own setup: the app's API client (seeding Flows as the logged-in test
             // account, through the same validation as the editor), and the two screens they drive.
             api: API,
+            call: apiCall, // ML-489: any endpoint, as the signed-in test account (the Recordings tool has no entry in API)
             openPlay: (id) => goToFlowPlayView(id),
             // ML-302: repeat bars on ({ startBar, endBar, restBars }) or off (null), as the sheet does.
             setLoop: (settings) => { applyFlowLoop(settings ? { restBars: 0, ...settings } : null); return snapshot(); },
@@ -15018,6 +15742,7 @@
     }
 
     function renderFlowLoopButton() {
+        renderRecScoreControls(); // ML-488: a recording's slide shows the same repeat
         const btn = document.getElementById('flowLoopBtn');
         const lbl = document.getElementById('flowLoopLbl');
         if (!btn || !lbl) return;
@@ -20497,7 +21222,7 @@
     const OUTLINE_MEDIA = [
         { list: 'audio', title: 'MP3 / MP4 files', hint: `A file with the music on it: MP3, M4A, WAV or MP4, up to ${MAX_PIECE_FILE_MB} MB.`, icon: 'music_note', add: 'Choose an MP3 / MP4 file', addMore: 'Add another file', input: 'outlineAudioInput' },
         { list: 'video', title: 'YouTube links', hint: 'A recording of it on YouTube.', icon: 'smart_display', add: 'Add a YouTube link', addMore: 'Add another YouTube link' },
-        { list: 'docs', title: 'Scores and parts', hint: `The written music: PDF, MusicXML, Sibelius (.sib) or Finale (.musx), up to ${MAX_PIECE_FILE_MB} MB.`, icon: 'description', add: 'Choose a score or part', addMore: 'Add another file', input: 'outlineDocsInput' }
+        { list: 'docs', title: 'Scores and parts', hint: `The written music: PDF, MusicXML, MuseScore (.mscz), Sibelius (.sib) or Finale (.musx), up to ${MAX_PIECE_FILE_MB} MB.`, icon: 'description', add: 'Choose a score or part', addMore: 'Add another file', input: 'outlineDocsInput' }
     ];
     function outlineMediaStepHtml() {
         const sizeOf = (f) => (f.size ? `${(f.size / (1024 * 1024)).toFixed(1)} MB` : '');
@@ -20537,7 +21262,7 @@
             const m = OUTLINE_MEDIA.find(x => x.list === list);
             if (!m) return;
             if (m.list === 'video') { outline.videoOpen = true; outlineRerenderKeeping('#outlineVideoUrl'); return; }
-            document.getElementById(m.input)?.click();
+            withUploadRights(() => document.getElementById(m.input)?.click()); // ML-278
             return;
         }
         if (step.table) { document.querySelector(`#${OUTLINE_ROW_TABLES[step.table].id} input`)?.focus(); return; }

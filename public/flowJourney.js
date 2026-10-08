@@ -744,7 +744,217 @@
         return issues;
     }
 
+    // ---- ML-312: a recording's start and end (the rehearsal score, step A) ----
+    // A recording or a YouTube video on a piece can be "cut": where playing starts and where it
+    // stops, in milliseconds from the start of the file. The file is never changed. Either end may
+    // be left open (null): from the very start, or to the very end. docs/rehearsal-score.md.
+    const CLIP_MAX_MS = 12 * 60 * 60 * 1000; // twelve hours - longer than any recording, short of an INTEGER's limit
+    const CLIP_MIN_LENGTH_MS = 1000;         // a cut shorter than a second is a slip of the finger
+
+    // Tidy and check a clip as typed, tapped or sent: { ok, startMs, endMs } with whole milliseconds
+    // (null = open), or { ok: false, message } saying what is wrong in the owner's words. A start of 0
+    // is the same as no start. durationMs, when known, keeps both inside the recording.
+    function cleanClip(clip, durationMs) {
+        const c = clip || {};
+        const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
+        let startMs = num(c.startMs);
+        let endMs = num(c.endMs);
+        const bad = (message) => ({ ok: false, message });
+        if (startMs !== null && !(Number.isFinite(startMs) && startMs >= 0)) return bad('The start has to be a time in the recording.');
+        if (endMs !== null && !(Number.isFinite(endMs) && endMs > 0)) return bad('The end has to be a time in the recording.');
+        if (startMs !== null) startMs = Math.round(startMs);
+        if (endMs !== null) endMs = Math.round(endMs);
+        const length = Number(durationMs) > 0 ? Math.round(Number(durationMs)) : null;
+        if (length !== null) {
+            if (startMs !== null && startMs >= length) return bad('The start is after the end of the recording.');
+            if (endMs !== null && endMs >= length) endMs = null; // at or past the end is "to the end"
+        }
+        if ((startMs !== null && startMs > CLIP_MAX_MS) || (endMs !== null && endMs > CLIP_MAX_MS)) return bad('That time is longer than a recording can be.');
+        if (startMs === 0) startMs = null;
+        if (startMs !== null && endMs !== null && endMs - startMs < CLIP_MIN_LENGTH_MS) return bad('The end has to be at least a second after the start.');
+        if (startMs === null && endMs !== null && endMs < CLIP_MIN_LENGTH_MS) return bad('The end has to be at least a second after the start.');
+        return { ok: true, startMs, endMs };
+    }
+
+    // Move one end of a clip by deltaMs (a nudge), kept inside the recording and clear of the other
+    // end. which is 'start' or 'end'. An open end being nudged starts from where it really is: 0 for
+    // the start, the recording's length for the end (so it needs durationMs to move at all).
+    function nudgeClip(clip, which, deltaMs, durationMs) {
+        const c = { startMs: clip && clip.startMs !== undefined ? clip.startMs : null, endMs: clip && clip.endMs !== undefined ? clip.endMs : null };
+        const length = Number(durationMs) > 0 ? Number(durationMs) : null;
+        if (which === 'start') {
+            const ceiling = (c.endMs !== null ? c.endMs : (length !== null ? length : CLIP_MAX_MS)) - CLIP_MIN_LENGTH_MS;
+            const next = Math.min(Math.max(0, (c.startMs || 0) + deltaMs), Math.max(0, ceiling));
+            c.startMs = next <= 0 ? null : Math.round(next);
+        } else {
+            const from = c.endMs !== null ? c.endMs : length;
+            if (from === null) return c;
+            const floor = (c.startMs || 0) + CLIP_MIN_LENGTH_MS;
+            const next = Math.max(floor, from + deltaMs);
+            c.endMs = length !== null && next >= length ? null : Math.round(next);
+        }
+        return c;
+    }
+
+    // 75300 -> "1:15", 3723000 -> "1:02:03". Whole seconds, rounded down - what a player's own clock shows.
+    function clockText(ms) {
+        const total = Math.max(0, Math.floor(Number(ms) / 1000) || 0);
+        const h = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        const two = (n) => String(n).padStart(2, '0');
+        return h ? `${h}:${two(m)}:${two(s)}` : `${m}:${two(s)}`;
+    }
+
+    // What a clip says on its button: "0:12 to 3:40", "From 0:12", "Up to 3:40", or "All of it".
+    function clipLabel(clip) {
+        const s = clip && clip.startMs ? clip.startMs : null;
+        const e = clip && clip.endMs ? clip.endMs : null;
+        if (s !== null && e !== null) return `${clockText(s)} to ${clockText(e)}`;
+        if (s !== null) return `From ${clockText(s)}`;
+        if (e !== null) return `Up to ${clockText(e)}`;
+        return 'All of it';
+    }
+
+    // What a player should do at `positionMs`, given the clip: 'seek' to startMs when it is before
+    // the start or (not playing yet) at or past the end; 'stop' when it has just played up to the
+    // end; otherwise 'play'. Half a second of grace past the end is still "at the end", because a
+    // player reports its position a few times a second, not continuously.
+    function clipAction(clip, positionMs, playing) {
+        const s = clip && clip.startMs ? clip.startMs : 0;
+        const e = clip && clip.endMs ? clip.endMs : null;
+        const at = Number(positionMs) || 0;
+        if (at < s - 250) return 'seek';
+        if (e !== null && at >= e) return playing && at < e + 500 ? 'stop' : 'seek';
+        return 'play';
+    }
+
+    // ---- ML-488: the rehearsal score - the piece's bars mapped onto a recording (step C) ----
+    // A recording of the piece is laid against the journey: every bar the piece plays, in the order
+    // it plays them (repeats and all), gets a time in the recording. Nothing listens to the sound.
+    // The piece already says how long each bar should last (its speeds, changes of speed and
+    // pauses - barSeconds); a few MARKS made by ear ("this is bar 33", at 1:42) pin that to what
+    // the band really did, and the bars between two marks are stretched or squeezed to fit, keeping
+    // their proportions. docs/rehearsal-score.md.
+    //
+    // A PLACE is a bar's position in the journey, counted from 0 with the lead-in bar left out (it is
+    // the metronome's count-in, not part of the music). A bar inside a repeat has two places.
+
+    // Every place: { place, kind, blockIndex, blockId, bar (0-based in its block), number (the piece's
+    // own bar number), pass, seconds (how long the piece says it lasts), at (seconds from the start
+    // of the piece, by the piece's own speeds) }.
+    function journeyPlaces(blocks, opts) {
+        let at = 0;
+        return buildJourney(blocks, opts).steps.filter(s => s.kind !== 'leadIn' && s.blockIndex >= 0).map((s, place) => {
+            const seconds = barSeconds(blocks, s.blockIndex, s.bar, 100);
+            const out = { place, kind: s.kind, blockIndex: s.blockIndex, blockId: s.blockId, bar: s.bar, number: barNumberOf(blocks, s.blockIndex, s.bar), pass: s.pass, seconds, at };
+            at += seconds;
+            return out;
+        });
+    }
+
+    // "Bar 33", or "Bar 33 (2nd time)" when the piece plays that bar more than once.
+    function placeLabel(places, place) {
+        const p = places[place];
+        if (!p) return '';
+        const times = places.filter(x => x.number === p.number);
+        if (times.length < 2) return `Bar ${p.number}`;
+        const nth = times.indexOf(p) + 1;
+        const ord = nth === 1 ? '1st' : nth === 2 ? '2nd' : nth === 3 ? '3rd' : `${nth}th`;
+        return `Bar ${p.number} (${ord} time)`;
+    }
+
+    // The marks that can be used, in order. A mark is { place, number, pass, atMs }: number and pass
+    // are what the place was when it was made, so a mark is dropped if the piece has since been
+    // changed under it. Also dropped: a mark outside the piece, one at a time that isn't a time, and
+    // any that would make the recording run backwards (each must be later than the one before).
+    function usableMarks(places, marks) {
+        const seen = new Set();
+        const sorted = (marks || [])
+            .map(m => ({ place: Number(m.place), number: Number(m.number), pass: Number(m.pass), atMs: Math.round(Number(m.atMs)) }))
+            .filter(m => Number.isInteger(m.place) && places[m.place] && places[m.place].number === m.number && places[m.place].pass === m.pass && Number.isFinite(m.atMs) && m.atMs >= 0)
+            .sort((a, b) => a.place - b.place)
+            .filter(m => (seen.has(m.place) ? false : (seen.add(m.place), true)));
+        const out = [];
+        sorted.forEach(m => { if (!out.length || m.atMs > out[out.length - 1].atMs) out.push(m); });
+        return out;
+    }
+
+    // The map: each place with startMs and endMs in the recording.
+    //   - clip.startMs (step A's start mark, or 0) is where the first bar begins, unless a mark says
+    //     otherwise; clip.endMs, when set, is where the last bar ends.
+    //   - between two fixed points the bars share the time in proportion to their own lengths;
+    //   - before the first and after the last, they run at the piece's speeds scaled by how far out
+    //     the nearest stretch was (a band that is 10% slow is assumed to carry on 10% slow).
+    // Returns { places: [...place, startMs, endMs], marks (the usable ones), totalMs } - or null for
+    // a piece with no bars.
+    function recordingMap(blocks, opts, marks, clip) {
+        const places = journeyPlaces(blocks, opts);
+        if (!places.length) return null;
+        const n = places.length;
+        const pieceEnd = places[n - 1].at + places[n - 1].seconds; // seconds, by the piece's own speeds
+        const used = usableMarks(places, marks);
+        // Fixed points: [seconds into the piece, ms into the recording], strictly increasing in both.
+        const points = used.map(m => [places[m.place].at, m.atMs]);
+        const startMs = clip && clip.startMs ? clip.startMs : 0;
+        if (!points.length || (points[0][0] > 0 && startMs < points[0][1])) points.unshift([0, startMs]);
+        const endMs = clip && clip.endMs ? clip.endMs : null;
+        const last = points[points.length - 1];
+        if (endMs !== null && last[0] < pieceEnd && endMs > last[1]) points.push([pieceEnd, endMs]);
+
+        const ratioOf = (a, b) => (b[1] - a[1]) / ((b[0] - a[0]) * 1000); // recording ms for each ms of the piece
+        const firstRatio = points.length > 1 ? ratioOf(points[0], points[1]) : 1;
+        const lastRatio = points.length > 1 ? ratioOf(points[points.length - 2], points[points.length - 1]) : 1;
+        const timeOf = (t) => {
+            if (t <= points[0][0]) return points[0][1] - (points[0][0] - t) * 1000 * firstRatio;
+            const end = points[points.length - 1];
+            if (t >= end[0]) return end[1] + (t - end[0]) * 1000 * lastRatio;
+            let k = 1;
+            while (points[k][0] < t) k++;
+            const a = points[k - 1];
+            const b = points[k];
+            return a[1] + ((t - a[0]) / (b[0] - a[0])) * (b[1] - a[1]);
+        };
+        const out = places.map(p => ({ ...p, startMs: Math.max(0, Math.round(timeOf(p.at))), endMs: Math.max(0, Math.round(timeOf(p.at + p.seconds))) }));
+        return { places: out, marks: used, totalMs: out[n - 1].endMs };
+    }
+
+    // Which place is playing at `ms` in the recording: its index, or -1 before the first bar or
+    // after the last.
+    function placeAt(map, ms) {
+        if (!map || !map.places.length) return -1;
+        const ps = map.places;
+        if (ms < ps[0].startMs || ms >= ps[ps.length - 1].endMs) return -1;
+        let lo = 0;
+        let hi = ps.length - 1;
+        while (lo < hi) {
+            const mid = (lo + hi + 1) >> 1;
+            if (ps[mid].startMs <= ms) lo = mid; else hi = mid - 1;
+        }
+        return lo;
+    }
+
+    // Repeat bars on a recording: the stretch of the recording that bars startBar..endBar are, by the
+    // same rule as loopPlan - from the first time the start bar plays in the piece proper to the next
+    // time the end bar plays. { ok, startMs, endMs, fromPlace, toPlace } or { ok: false, reason }.
+    // leadMs starts it that much early (never before the bar before), so a map that is a touch out
+    // still catches the first note.
+    function mapLoop(map, startBar, endBar, leadMs) {
+        if (!map) return { ok: false, reason: 'noMap' };
+        const ps = map.places;
+        const s = ps.findIndex(p => p.kind === 'main' && p.number === startBar);
+        if (s === -1) return { ok: false, reason: 'startNeverPlays' };
+        let e = -1;
+        for (let k = s; k < ps.length; k++) { if (ps[k].kind === 'main' && ps[k].number === endBar) { e = k; break; } }
+        if (e === -1) return { ok: false, reason: 'endNotReached' };
+        const floor = s > 0 ? ps[s - 1].startMs : Math.max(0, ps[0].startMs - (Number(leadMs) || 0));
+        const startMs = Math.max(floor, ps[s].startMs - (Number(leadMs) || 0));
+        return { ok: true, startMs, endMs: ps[e].endMs, fromPlace: s, toPlace: e };
+    }
+
     return {
+        journeyPlaces, placeLabel, usableMarks, recordingMap, placeAt, mapLoop,
+        cleanClip, nudgeClip, clockText, clipLabel, clipAction, CLIP_MIN_LENGTH_MS,
         METER_TABLE, meterInfo, writtenBeatsPerBar, writtenBeatToClick, pauseStepsPerBeat,
         buildJourney, passagesOf, loopPlan, countInSteps, barNumberOf, totalBars, tempoAt, rampSpans, pausesInBar,
         repeatBarInvalid, introInvalid, pauseInvalid, rampInvalid,

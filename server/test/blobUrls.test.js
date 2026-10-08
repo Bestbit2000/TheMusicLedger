@@ -46,3 +46,21 @@ test('anything that is not a stored file is refused', () => {
 test('a piece id that is not a whole positive number is refused', () => {
   for (const id of [0, -1, 1.5, 'abc', null, undefined]) assert.equal(isPieceFileUrl(`${STORE}/flows/9/a.pdf`, id), false, String(id));
 });
+
+// ML-489: a rehearsal recording is kept only from the member's own folder in the store
+test('a rehearsal recording has to be in the member\'s own recordings folder', async () => {
+  const { isRehearsalFileUrl } = await import('../services/blobUrls.js');
+  const STORE_URL = 'https://abc123.public.blob.vercel-storage.com';
+  assert.equal(isRehearsalFileUrl(`${STORE_URL}/recordings/7/Rehearsal%202%20Oct-U9h24FMMc9tE9ek2ZHY5hF6ycigUhm.m4a`, 7), true);
+  assert.equal(isRehearsalFileUrl(`${STORE_URL}/recordings/7/x.m4a`, '7'), true);
+  assert.equal(isRehearsalFileUrl(`${STORE_URL}/recordings/8/x.m4a`, 7), false);      // someone else's folder
+  assert.equal(isRehearsalFileUrl(`${STORE_URL}/recordings/70/x.m4a`, 7), false);     // 70 is not 7
+  assert.equal(isRehearsalFileUrl(`${STORE_URL}/flows/7/recordings/x.m4a`, 7), false); // a piece's file, not a rehearsal
+  assert.equal(isRehearsalFileUrl(`${STORE_URL}/recordings/7/../8/x.m4a`, 7), false);
+  assert.equal(isRehearsalFileUrl('https://evil.example.com/recordings/7/x.m4a', 7), false);
+  assert.equal(isRehearsalFileUrl(`http://abc123.public.blob.vercel-storage.com/recordings/7/x.m4a`, 7), false);
+  assert.equal(isRehearsalFileUrl(`${STORE_URL}/recordings/7/x.m4a?x=1`, 7), false);
+  assert.equal(isRehearsalFileUrl('javascript:alert(1)', 7), false);
+  assert.equal(isRehearsalFileUrl(`${STORE_URL}/recordings/7/x.m4a`, 0), false);
+  assert.equal(isRehearsalFileUrl(`${STORE_URL}/recordings/7/x.m4a`, 'abc'), false);
+});
