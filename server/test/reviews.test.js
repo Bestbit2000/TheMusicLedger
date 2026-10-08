@@ -10,11 +10,11 @@ const monthly = REVIEWS.find((r) => r.key === 'site-security');
 const on = (iso) => new Date(`${iso}T12:00:00Z`);
 
 describe('the list of reviews', () => {
-  test('the three that are marked, and the two with checks of their own', () => {
-    assert.deepEqual(MARKED_KEYS, ['data-protection', 'childrens-code', 'breach-plan']);
+  test('the four that are marked, and the two with checks of their own', () => {
+    assert.deepEqual(MARKED_KEYS, ['data-protection', 'childrens-code', 'online-safety', 'breach-plan']);
     assert.deepEqual(REVIEWS.filter((r) => r.kind === 'checks').map((r) => [r.key, r.tab, r.months]), [['site-security', 'site', 1], ['omr-security', 'omr', 1]]);
     for (const r of REVIEWS) assert.ok(r.name && r.about && r.where && r.months > 0, `${r.key} is incomplete`);
-    assert.deepEqual(REVIEWS.filter((r) => r.kind === 'marked').map((r) => r.months), [12, 12, 12]);
+    assert.deepEqual(REVIEWS.filter((r) => r.kind === 'marked').map((r) => r.months), [12, 12, 12, 12]); // ML-507 added the Online Safety Act assessments
   });
 });
 

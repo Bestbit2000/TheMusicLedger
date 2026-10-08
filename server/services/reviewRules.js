@@ -9,8 +9,13 @@ export const REVIEWS = [
     about: 'The UK GDPR assessment: what is held, why, who receives it, and the gaps. Do it again sooner if what is held, or who receives it, changes.',
     where: 'docs/gdpr-assessment.md, and documents 1 and 2 in your compliance documents' },
   { key: 'childrens-code', kind: 'marked', name: 'Children\'s Code self-assessment and impact assessment', months: 12,
-    about: 'The 15 standards of the Children\'s Code, and the data protection impact assessment. Do it again sooner if a new feature touches the young players rule.',
-    where: 'Documents 4 and 5 in your compliance documents; the rule is in specs/README.md' },
+    about: 'The 15 standards of the Children\'s Code, and the data protection impact assessment. Do it again sooner if a new feature touches the young players rule - the run-through ends with a list of what would change the answer.',
+    where: 'docs/childrens-code-assessment.md (the run-through, ML-506); documents 4 and 5 in your compliance documents; the rule is in specs/README.md' },
+  // ML-507: members share music with their band, so the Online Safety Act applies. Ofcom asks for the
+  // assessments to be reviewed at least yearly, and before any significant change to how the service works.
+  { key: 'online-safety', kind: 'marked', name: 'Online Safety Act assessments', months: 12,
+    about: 'Whether the Act applies, the illegal content risk assessment, the children\'s access assessment and the children\'s risk assessment. Ofcom asks for this at least once a year, and before any change to what one member can show another or to how members can contact each other. Confirm it with Ofcom\'s own checker and toolkit.',
+    where: 'docs/online-safety-assessment.md (ML-507), with what Ofcom\'s tools produce' },
   { key: 'breach-plan', kind: 'marked', name: 'Data breach plan walk-through', months: 12,
     about: 'Read the plan through as if it had just happened: who you would tell, within 72 hours, and where the details are kept.',
     where: 'Document 3 in your compliance documents' },

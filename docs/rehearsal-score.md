@@ -234,8 +234,11 @@ note is his to keep with the self-assessment (`compliance-documents/`, not in th
 | Nudge techniques, profiling | The limit is said once and blocks nothing else. Nothing is worked out about a player from a recording. Met. |
 | Online tools | Anyone in a recording can ask for it to be removed, and it is removed everywhere in one action (ML-490). The how-to now says to tell the band, and in a youth band the parents. Met, once the policy line for young players is in. |
 
-**Verdict: it can be switched on for everyone once the "Young players" line is in the privacy policy.** Until
-then it stays Super admin only. The condition from the first assessment still stands too: a band's organiser
+**Verdict: it can be switched on for everyone once the "Young players" line is in the privacy policy.** That
+line went out in 0.52.0 on 8 October 2026, and the three features were switched on for every account type the
+same day. The whole app was then run through the Children's Code (`docs/childrens-code-assessment.md`,
+ML-506) and the Online Safety Act (`docs/online-safety-assessment.md`, ML-507); the upload confirmation and
+the tool's how-to now ask for a parent's agreement for anyone under 16 in a recording. The condition from the first assessment still stands too: a band's organiser
 is told how sharing with a band works before a band with young players is invited.
 
 ## Still to do before any of it is switched on for members

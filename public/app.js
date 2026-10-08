@@ -9094,7 +9094,7 @@
     function withUploadRights(go) {
         if (accountProfile && accountProfile.uploadRightsConfirmedOn) { go(); return; }
         showConfirmModal('Before you upload',
-            'Only upload music you have the right to use: your own, your band\'s, or something you have permission for. Printed music and recordings are usually someone\'s copyright. If it is a recording of people, make sure they know it is being shared.',
+            'Only upload music you have the right to use: your own, your band\'s, or something you have permission for. Printed music and recordings are usually someone\'s copyright. If it is a recording of people, make sure they know it is being shared - and if any of them are under 16, that a parent has agreed.',
             () => {
                 if (accountProfile) accountProfile.uploadRightsConfirmedOn = todayIso();
                 go();
