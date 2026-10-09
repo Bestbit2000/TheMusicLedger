@@ -467,7 +467,9 @@
         'send-reset': (a) => [a.hasPassword ? 'Send a reset link' : 'Send a link to add a password', emailsAreSent ? `Email ${a.email} a link to choose a new password? It works once, for an hour.` : `Make a link for ${a.email} to choose a new password? This site doesn't send emails, so it won't reach them from here.`],
         unlock: (a) => ['Unlock', `Let ${accountDisplayName(a)} try their password and codes again straight away?`],
         'two-step/off': (a) => ['Turn off two-step sign-in', `Turn off ${accountDisplayName(a)}'s two-step sign-in - for a lost phone with no recovery codes? Only do this once you're sure it's really them.${a.accountLevel === 'super_admin' ? ' As a super admin, they\'ll have to set it up again at their next password login.' : ' They can set it up again in Sign-in and security.'}`],
-        'sign-out': (a) => ['Sign out everywhere', `Sign ${accountDisplayName(a)} out on every device? They'll need to log in again.`]
+        'sign-out': (a) => ['Sign out everywhere', `Sign ${accountDisplayName(a)} out on every device? They'll need to log in again.`],
+        // ML-514: for a member who asks us to and can't sign in to do it themselves - the ordinary deletion
+        delete: (a) => ['Delete this account', `Delete the account for ${accountDisplayName(a)} (${a.email})? Their name, email address, pieces, recordings and settings are deleted, and they are signed out everywhere. Their practice history stays as anonymous statistics. ${emailsAreSent ? 'They are emailed to say it has been done.' : "This site doesn't send emails, so they won't be told from here."} This can't be undone.`]
     };
 
     // ===== ML-415 / ML-416: one floating ⋮ menu for a table row =====
@@ -600,7 +602,9 @@
                 ...(passwordLoginOn ? [act('send-reset', 'link')] : []),
                 ...(a.lockedUntil ? [act('unlock', 'lock_open')] : []),
                 ...(a.twoStepOn ? [act('two-step/off', 'phonelink_erase')] : []),
-                act('sign-out', 'logout')
+                act('sign-out', 'logout'),
+                // a super admin account is never deleted from here (it owns the public library): change its type first
+                ...(a.accountLevel === 'super_admin' ? [] : [{ ...act('delete', 'delete'), danger: true }])
             ]);
         }));
         el.querySelectorAll('[data-invite-menu]').forEach(btn => btn.addEventListener('click', () => {
@@ -638,7 +642,7 @@
             } catch (error) {
                 showToast(error.message);
             }
-        }, false);
+        }, key === 'delete'); // only the deletion is shown as destructive
     }
     // Change account type: one pop-up, the current type selected; it saves as soon as one is picked
     function openAccountType(a) {

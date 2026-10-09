@@ -75,6 +75,15 @@ stay out. The marker is dropped then, and after 31 days in any case (tokens last
 
 ## In the admin panel
 
+- **Deleting an account for someone (ML-514).** The privacy policy says a member can ask us to delete their
+  information; someone who can't sign in can't use their own button. Admin → Members → Accounts: a row's ⋮
+  menu has **Delete this account** (last, in the destructive colour), which asks first and then runs
+  `deleteAccountAsAdmin` - the ordinary `deleteMyAccount`, so exactly the same things go and stay. The
+  member is then emailed to say it has been done and to tell us if they didn't ask (`deletedForYouEmail`;
+  not sent to a `.local`, `.invalid` or `.test` address, and a failed email changes nothing). A super admin
+  can't delete their own account this way, and a super admin account isn't offered it at all.
+  **Nothing about who asked, or why, is written down in the app** - the request is the email in the
+  hello@ mailbox, kept or deleted there like any other. `POST /api/admin/accounts/:id/delete`.
 - Accounts doesn't list a deleted account.
 - Usage → Recent sessions shows its runs under "Deleted account".
 - The stored files are removed after the database change. If that fails the account is still deleted and

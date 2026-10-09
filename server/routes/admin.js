@@ -14,6 +14,7 @@ import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listWarmupsForAdmin, createWarmup, updateWarmup, setWarmupActive, moveWarmup, deleteWarmup } from '../services/warmups.js';
 import { listAccountsForAdmin, setAccountLevel, getAccountProfile } from '../services/accounts.js';
+import { deleteAccountAsAdmin } from '../services/accountDeletion.js';
 import { getReviews, markReviewed } from '../services/reviews.js';
 import { adminRequestEmailChange } from '../services/emailChange.js';
 import { getFeatureAccess, saveFeatureAccess, clearFeatureCache } from '../services/features.js';
@@ -389,6 +390,11 @@ router.post('/accounts/:id/two-step/off', requireAuth, resolveAccount, requireSu
   accountAction((req) => adminTurnOffTwoStep(req.params.id), 'Two-step sign-in is off for them - they can set it up again'));
 router.post('/accounts/:id/sign-out', requireAuth, resolveAccount, requireSuperAdmin,
   accountAction((req) => adminSignOutEverywhere(req.params.id), 'Signed out on every device'));
+// ML-514: delete someone's account for them, when they ask and can't sign in to do it themselves. The
+// ordinary deletion (docs/account-deletion.md); they are emailed to say it has been done.
+router.post('/accounts/:id/delete', requireAuth, resolveAccount, requireSuperAdmin,
+  accountAction((req) => deleteAccountAsAdmin(req.accountId, req.params.id),
+    (done) => (done.emailed ? `The account for ${done.email} has been deleted, and they have been emailed to say so.` : `The account for ${done.email} has been deleted. No email was sent to say so.`)));
 
 // ML-355: invite someone to log in with their email and a password (password_login must be on).
 router.get('/invites', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {

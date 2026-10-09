@@ -14,6 +14,7 @@ import { del } from '@vercel/blob';
 import pool from '../config/db.js';
 import { deletedEmailHash, forgetTokenVersion } from './tokenVersions.js';
 import { forgetAccountLevel } from './accounts.js';
+import { sendMail, emailOutcome } from './mail.js';
 
 // Tables whose rows stay attached to the anonymised account: the statistics, and the bands the
 // member started (a band carries on for its other members).
@@ -120,4 +121,35 @@ export async function deleteMyAccount(accountId) {
     try { await del(blobUrls); } catch (error) { console.error(`Account deletion: ${blobUrls.length} stored file(s) could not be removed:`, error.message); }
   }
   return { deleted: true, filesRemoved: blobUrls.length };
+}
+
+// ML-514: a super admin deletes someone's account for them - for a member who asks us to (the privacy
+// policy says they can) and can't sign in to do it. It is the ordinary deletion, nothing more and nothing
+// kept that isn't kept there; the member is then told it has been done. Nothing about who asked, or why,
+// is written down - the request is the email in our own mailbox.
+// A local test address (dev's accounts, or one left on a live site by mistake) can't receive email.
+const canBeEmailed = (email) => !/\.(local|invalid|test)$/i.test(String(email || ''));
+export function deletedForYouEmail(firstName) {
+  return {
+    subject: 'Your Notably Better account has been deleted',
+    text: [`Hello${firstName ? ` ${firstName}` : ''},`, '',
+      'Your Notably Better account has been deleted, as we were asked. Your name, email address, pieces and settings are gone, and you have been signed out everywhere.',
+      '', 'If you did not ask for this, please tell us: hello@notablybetter.com.',
+      '', 'You are welcome back at any time - signing up again starts a fresh account.', '', 'Notably Better'].join('\n')
+  };
+}
+export async function deleteAccountAsAdmin(adminAccountId, accountId) {
+  const id = Number(accountId);
+  if (!Number.isInteger(id) || id <= 0) throw withStatus(404, 'No such account.');
+  if (id === Number(adminAccountId)) throw withStatus(400, "You can't delete your own account from here. Use Account, My details, in the app.");
+  const { rows } = await pool.query('SELECT email, first_name, deleted_at FROM accounts WHERE id = $1', [id]);
+  if (!rows.length || rows[0].deleted_at) throw withStatus(404, 'That account has already been deleted.');
+  const { email, first_name: firstName } = rows[0];
+  await deleteMyAccount(id); // refuses a super admin account, as it does for the member's own button
+  // The account goes first and the email after, so the email is never untrue. A failed email changes nothing.
+  let emailed = false;
+  if (canBeEmailed(email)) {
+    try { await sendMail({ to: email, ...deletedForYouEmail(firstName) }); emailed = emailOutcome().emailed; } catch (error) { console.error('Account deletion: the email to say so could not be sent:', error.message); }
+  }
+  return { email, emailed };
 }

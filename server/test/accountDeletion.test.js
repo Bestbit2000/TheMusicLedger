@@ -101,3 +101,54 @@ test('a super admin account is not deleted by the button', { skip: !onDev && 'ne
   await assert.rejects(() => deleteMyAccount(id), /super admin/);
   assert.equal((await one('SELECT deleted_at FROM accounts WHERE id = $1', [id])).deleted_at, null);
 });
+
+// ML-514: a super admin deletes an account for a member who asks. The ordinary deletion, then an email
+// to say so (on dev that is a row in email_outbox). Never their own account, never a super admin's.
+test('a super admin can delete an account for a member: the ordinary deletion, then an email to say so', { skip: !onDev && 'needs the dev database' }, async () => {
+  const { deleteAccountAsAdmin, deletedForYouEmail } = await import('../services/accountDeletion.js');
+  const adminEmail = `ml514-admin-${stamp}@themusicledger.local`;
+  const admin = Number((await one(`INSERT INTO accounts (email, first_name, surname, account_level) VALUES ($1, 'Ada', 'Admin', 'super_admin') RETURNING id`, [adminEmail])).id);
+  made.push(admin);
+  const other = Number((await one(`INSERT INTO accounts (email, first_name, surname, account_level) VALUES ($1, 'Otto', 'Owner', 'super_admin') RETURNING id`, [`ml514-other-admin-${stamp}@themusicledger.local`])).id);
+  made.push(other);
+  const memberEmail = `ml514-member-${stamp}@example.com`; // an address that could be emailed (it lands in the outbox here)
+  const member = Number((await one(`INSERT INTO accounts (email, first_name, surname) VALUES ($1, 'Mina', 'Member') RETURNING id`, [memberEmail])).id);
+  made.push(member);
+  const local = Number((await one(`INSERT INTO accounts (email, first_name, surname) VALUES ($1, 'Local', 'Dev') RETURNING id`, [`ml514-local-${stamp}@themusicledger.local`])).id);
+  made.push(local);
+  const outbox = async (to) => (await pool.query('SELECT subject, body_text FROM email_outbox WHERE to_email = $1', [to])).rows;
+
+  // not their own, not another super admin's, and not one that isn't there
+  await assert.rejects(deleteAccountAsAdmin(admin, admin), (e) => e.status === 400);
+  await assert.rejects(deleteAccountAsAdmin(admin, other), (e) => e.status === 403);
+  await assert.rejects(deleteAccountAsAdmin(admin, 0), (e) => e.status === 404);
+  await assert.rejects(deleteAccountAsAdmin(admin, 'abc'), (e) => e.status === 404);
+  assert.equal((await one('SELECT deleted_at FROM accounts WHERE id = $1', [other])).deleted_at, null);
+
+  // a member: gone exactly as their own button would do it, and told
+  const done = await deleteAccountAsAdmin(admin, member);
+  assert.equal(done.email, memberEmail);
+  assert.equal(done.emailed, false); // this site only keeps its emails
+  const row = await one('SELECT email, first_name, surname, deleted_at FROM accounts WHERE id = $1', [member]);
+  assert.equal(row.email, anonymisedEmail(member));
+  assert.equal(`${row.first_name} ${row.surname}`, 'Deleted account');
+  assert.ok(row.deleted_at);
+  const sent = await outbox(memberEmail);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].subject, 'Your Notably Better account has been deleted');
+  assert.match(sent[0].body_text, /^Hello Mina,\n/);
+  assert.match(sent[0].body_text, /If you did not ask for this, please tell us: hello@notablybetter\.com\./);
+  assert.deepEqual(deletedForYouEmail('').text.split('\n')[0], 'Hello,');
+  // twice is refused, and sends nothing more
+  await assert.rejects(deleteAccountAsAdmin(admin, member), (e) => e.status === 404);
+  assert.equal((await outbox(memberEmail)).length, 1);
+
+  // a local test address is deleted too, with no email attempted
+  const quiet = await deleteAccountAsAdmin(admin, local);
+  assert.equal(quiet.emailed, false);
+  assert.equal((await outbox(quiet.email)).length, 0);
+  assert.ok((await one('SELECT deleted_at FROM accounts WHERE id = $1', [local])).deleted_at);
+
+  await pool.query('DELETE FROM email_outbox WHERE to_email = $1', [memberEmail]);
+  for (const e of [memberEmail, quiet.email]) await pool.query('DELETE FROM deleted_account_markers WHERE email_hash = $1', [deletedEmailHash(e)]);
+});

@@ -68,6 +68,10 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
   someone who has lost the old one). It opens `#accountEmailChangeModal` - the address they use now, a field for
   the new one, **Send the link**. The link goes to the new address; nothing changes until it is opened there.
   No new classes.
+- **Accounts - delete this account (ML-514):** the last item in a row's menu, in the destructive colour
+  (`.account-band-menu-delete`, as Cancel invite is), for a member who asks us to and can't sign in. It opens
+  the panel's own confirm (`#adminConfirmModal`, with its red **Delete** button) saying what goes, what stays,
+  that they are emailed and that it can't be undone. Not offered on a super admin's row. No new classes.
 - **Third parties (ML-462):** each card can hold the owner's own **reference and note** (shown as
   `.admin-run-notes` lines; a `.admin-stat-exclude-btn` opens the `#partyRecordModal` form), and each "Needs
   attention" line has a `.admin-stat-exclude-btn` **Mark as done** - it then reads "Dealt with <date>" in
