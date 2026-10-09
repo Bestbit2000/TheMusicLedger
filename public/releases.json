@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.55.0",
+    "date": "2026-10-09",
+    "changes": [
+      {
+        "key": "ML-515",
+        "type": "New",
+        "summary": "We made it easier for us to see how close the app is to the limits of the services it runs on."
+      },
+      {
+        "key": "ML-514",
+        "type": "New",
+        "summary": "We can now delete an account for someone who asks us to and can't sign in to do it themselves."
+      }
+    ]
+  },
+  {
     "version": "0.54.0",
     "date": "2026-10-09",
     "changes": [
