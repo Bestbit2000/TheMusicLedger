@@ -2587,7 +2587,7 @@
             <div class="mb-2">
                 <strong class="text-sm">${g.label}</strong>
                 <ul class="release-change-list">
-                    ${g.items.map(c => `<li class="mb-1">${c.summary}</li>`).join('')}
+                    ${g.items.map(c => `<li class="mb-1">${escapeHtml(c.summary)}</li>`).join('')}
                 </ul>
             </div>`).join('');
     }
