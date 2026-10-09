@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.54.0",
+    "date": "2026-10-09",
+    "changes": [
+      {
+        "key": "ML-513",
+        "type": "New",
+        "summary": "We renamed the app Notably Better, with a new address, notablybetter.com, and our emails now come from our own address."
+      }
+    ]
+  },
+  {
     "version": "0.53.0",
     "date": "2026-10-08",
     "changes": [
