@@ -121,7 +121,7 @@ describe('warm-ups: slurs and the range (ML-361)', () => {
     });
     test('the 078 migration: 22 lip slurs and flexibility warm-ups, every slur valid, the same notes as 055', () => {
         const sql = fs.readFileSync(new URL('../../db/migrations/078_warmup_slurs.sql', import.meta.url), 'utf8');
-        const found = [...sql.matchAll(/SET notes = '(\[.*?\])'::jsonb.*?\n WHERE title = '((?:[^']|'')+)' AND kind = '([a-z-]+)' AND notes = '(\[.*?\])'::jsonb/g)];
+        const found = [...sql.matchAll(/SET notes = '(\[.*?\])'::jsonb.*?\r?\n WHERE title = '((?:[^']|'')+)' AND kind = '([a-z-]+)' AND notes = '(\[.*?\])'::jsonb/g)];
         assert.equal(found.length, 22);
         for (const [, after, title, kind, before] of found) {
             assert.ok(['lip-slurs', 'flexibility'].includes(kind), title);

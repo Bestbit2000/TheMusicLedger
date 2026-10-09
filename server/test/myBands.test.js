@@ -20,7 +20,8 @@ const made = [];
 const one = async (sql, params) => (await pool.query(sql, params)).rows[0];
 const emailOf = (name) => `ml478-${name}-${stamp}@themusicledger.local`;
 const account = async (name) => {
-  const id = Number((await one(`INSERT INTO accounts (email, first_name, surname) VALUES ($1, $2, 'Test') RETURNING id`, [emailOf(name), name])).id);
+  // ML-506: only an adult may set up sharing or invite, so every account here has confirmed it
+  const id = Number((await one(`INSERT INTO accounts (email, first_name, surname, organiser_adult_confirmed_on) VALUES ($1, $2, 'Test', CURRENT_DATE) RETURNING id`, [emailOf(name), name])).id);
   accounts.push(id);
   return id;
 };

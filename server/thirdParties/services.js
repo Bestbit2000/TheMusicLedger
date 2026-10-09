@@ -324,13 +324,20 @@ export default [
     licence: 'Fasthosts General Terms and Conditions, with its Data Processing Agreement and Acceptable Use Policy',
     terms: [
       { label: 'General terms and conditions', url: 'https://www.fasthosts.co.uk/terms/general-terms-and-conditions', dated: 'May 2026' },
-      { label: 'Data processing agreement (PDF)', url: 'https://static.fasthosts.co.uk/legal/dpa/fasthosts-dpa.pdf' },
+      { label: 'Data processing agreement (PDF)', url: 'https://static.fasthosts.co.uk/legal/dpa/fasthosts-dpa.pdf', dated: 'version 1.2' },
+      { label: 'Companies Fasthosts uses (PDF)', url: 'https://static.fasthosts.co.uk/legal/dpa/sub-processor-list-for-dpa.pdf' },
       { label: 'Acceptable use policy', url: 'https://www.fasthosts.co.uk/terms/policies/acceptable-use-policy' },
       { label: 'Privacy notice', url: 'https://www.fasthosts.co.uk/terms/policies/privacy-notice' }
     ],
     termsCheckedOn: '2026-10-09',
     says: [
-      'The data processing agreement is part of the terms (they take it in by reference), so it applies from the moment the account is made - nothing to sign.',
+      'The data processing agreement is part of the terms (they take it in by reference, and it says so itself), so it applies from the moment the service starts - nothing to sign. Fasthosts is the processor and we are the controller.',
+      'It says processing is mainly in the United Kingdom or the European Union; if information has to go anywhere else, Fasthosts must meet the law\'s rules for that.',
+      'It tells us at once if it learns our information has been breached, and passes on to us anyone who asks it about their information.',
+      'When the service ends it deletes what it holds, unless we ask for it back (which it may charge for). We are asked to delete what is in the mailbox ourselves before ending it.',
+      'It may use other companies; the list is at a link in the agreement, and we are expected to look at it ourselves for changes. We may object to a change, and Fasthosts may then stop the service.',
+      'Its proof that it looks after information properly is an ISO 27001 certificate, shown on request. Help with a request, an audit or a claim may be charged for.',
+      'It can change the agreement with reasonable notice; if we object, it can end the service.',
       'Services run for at least 12 months and renew by themselves for the same length again unless cancelled at least 30 days before the renewal date. A domain\'s automatic renewal can be switched off.',
       'Prices and the service can change with 30 days\' notice by email; a new price starts when the current term ends.',
       'Fasthosts can end a service for any reason with 30 days\' notice, and suspend at once if it thinks its acceptable use policy has been broken.',
@@ -345,7 +352,8 @@ export default [
     ],
     watch: [
       'If the domain lapses, the site\'s address, every email link and the mailbox all stop together. Leave automatic renewal on, and note the renewal date.',
-      'The data processing agreement is a PDF that could not be read here, and the acceptable use policy and privacy notice were not read. Where the mailbox is kept (Fasthosts says its data centres are in the UK) is not confirmed from the agreement.',
+      'The data processing agreement (version 1.2) was read in full on 9 Oct 2026 from the owner\'s copy. The list of companies Fasthosts uses, its acceptable use policy and its privacy notice were not read. The agreement says "mainly in the UK or the EU" - it does not promise the mailbox stays in the UK.',
+      'Look at the list of companies Fasthosts uses now and then: the agreement puts that on us, and nothing tells us when it changes.',
       'The first-year price is usually an offer: check what the domain and the mailbox cost at renewal.',
       'Emails sent to hello@ stay in the mailbox until deleted. Clear out ones that have been dealt with from time to time - the privacy policy says they are kept until we delete them.',
       'Give the mailbox its own strong password, and two-step sign-in on the Fasthosts account if it is offered.'

@@ -30,8 +30,9 @@ const made = [];
 const addresses = [];
 const one = async (sql, params) => (await pool.query(sql, params)).rows[0];
 const address = (name) => { const a = `ml473-mail-${name}-${stamp}@themusicledger.local`; addresses.push(a); return a; };
+// ML-506: only an adult may set up sharing or invite, so the accounts that run a band here have confirmed it.
 const account = async (name) => {
-  const id = Number((await one(`INSERT INTO accounts (email, first_name, surname) VALUES ($1, $2, 'Test') RETURNING id`, [address(name), name])).id);
+  const id = Number((await one(`INSERT INTO accounts (email, first_name, surname, organiser_adult_confirmed_on) VALUES ($1, $2, 'Test', CURRENT_DATE) RETURNING id`, [address(name), name])).id);
   accounts.push(id);
   return id;
 };
@@ -117,7 +118,7 @@ test('an invitation into a band emails the address once: who, which band, and on
 test('an account with no name can neither invite nor join until it has one - and is never "A member" in an email (ML-479)', { skip }, async () => {
   const needsName = (e) => e.status === 409 && e.reason === 'needs-name';
   const nameless = async (name) => {
-    const id = Number((await one(`INSERT INTO accounts (email, first_name, surname) VALUES ($1, '', '') RETURNING id`, [address(name)])).id);
+    const id = Number((await one(`INSERT INTO accounts (email, first_name, surname, organiser_adult_confirmed_on) VALUES ($1, '', '', CURRENT_DATE) RETURNING id`, [address(name)])).id);
     accounts.push(id);
     return id;
   };
