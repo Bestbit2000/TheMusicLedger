@@ -209,7 +209,7 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
   let emailsSent = 0;
   for (const p of people) {
     if (!p.email) continue;
-    try { await sendMail({ to: p.email, subject: `The Music Ledger: ${subject.toLowerCase()}`, text: `Hello ${p.first_name || ''},\n\n${text}\n` }); emailsSent++; } catch (error) { console.error('Recording removal: an email could not be sent:', error.message); }
+    try { await sendMail({ to: p.email, subject: `Notably Better: ${subject.toLowerCase()}`, text: `Hello ${p.first_name || ''},\n\n${text}\n` }); emailsSent++; } catch (error) { console.error('Recording removal: an email could not be sent:', error.message); }
   }
 
   const by = (await pool.query('SELECT first_name, surname FROM accounts WHERE id = $1', [adminAccountId])).rows[0];

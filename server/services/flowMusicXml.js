@@ -194,7 +194,7 @@ export function flowToMusicXml(flow, blocks, opts = {}) {
   out.push('<identification>');
   if (flow.composer) out.push(`<creator type="composer">${esc(flow.composer)}</creator>`);
   if (flow.arranger) out.push(`<creator type="arranger">${esc(flow.arranger)}</creator>`);
-  out.push(`<encoding><software>TheMusicLedger${opts.appVersion ? ' ' + esc(opts.appVersion) : ''}</software><encoding-date>${encodingDate}</encoding-date></encoding>`);
+  out.push(`<encoding><software>Notably Better${opts.appVersion ? ' ' + esc(opts.appVersion) : ''}</software><encoding-date>${encodingDate}</encoding-date></encoding>`);
   out.push('<miscellaneous>');
   out.push(`<miscellaneous-field name="${EXTENSION_PREFIX}flow">${esc(JSON.stringify(flowExt))}</miscellaneous-field>`);
   out.push('</miscellaneous>');

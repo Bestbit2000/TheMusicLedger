@@ -82,7 +82,7 @@ test('an invitation into a band emails the address once: who, which band, and on
   assert.equal(sent.length, 1);
   assert.equal(sent[0].subject, `anna Test has invited you to join ML-473 Mail Band ${stamp}`);
   assert.match(sent[0].body_text, new RegExp(`sign in with this email address \\(${member.replace(/[.+]/g, '\\$&')}\\)`));
-  assert.match(sent[0].body_text, /Open The Music Ledger: https:\/\/app\.example\/\?band-invite=1\n/); // nothing about who or which band in the link
+  assert.match(sent[0].body_text, /Open Notably Better: https:\/\/app\.example\/\?band-invite=1\n/); // nothing about who or which band in the link
   assert.match(sent[0].body_text, /waits for 30 days/);
 
   // Changing what they may do is not a second email; "send again" is, and gives it another 30 days
@@ -110,7 +110,7 @@ test('an invitation into a band emails the address once: who, which band, and on
     assert.equal(await auth.invitesSentToday(anna), 0);
     await pool.query('DELETE FROM auth_email_links WHERE lower(email) = $1', [newcomer]);
   } else {
-    assert.match(sent[0].body_text, /Open The Music Ledger: https:\/\/app\.example\/\?band-invite=1\n/);
+    assert.match(sent[0].body_text, /Open Notably Better: https:\/\/app\.example\/\?band-invite=1\n/);
   }
 });
 

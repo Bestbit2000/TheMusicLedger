@@ -2942,12 +2942,10 @@
            (specs/components/two-pane.md; set by applyPanes in app.js from 1000px up)
        ========================================================================================= */
 
-    /* ML-484: the brand's small mark - beside the app's name at the top of Home (phone) and in the head of the
-       menu rail (specs/components/brand-mark.md). The picture is the brand's own artwork; only its size and
-       corners are ours. Until the brand is known for the first time (public/brand.js sets data-brand-ready on
-       <html>) the sign-in picture, the mark and the name are held back, so nobody sees one name then another. */
+    /* The app's small mark - beside the app's name at the top of Home (phone) and in the head of the menu
+       rail (specs/components/brand-mark.md). The picture is the app's own artwork; only its size and corners
+       are set here. */
     .brand-mark { flex: 0 0 auto; width: var(--icon-xl); height: var(--icon-xl); margin-right: var(--space-2); border-radius: var(--radius-sm); }
-    html:not([data-brand-ready]) body.app-shell :is(.splash-image, .brand-mark, .nav-rail-name) { visibility: hidden; }
 
     /* On a phone the side-by-side groups are not boxes at all, so those screens are exactly as they were. */
     .home-main, .home-tools, .play-side, .play-main { display: contents; }
@@ -2962,7 +2960,7 @@
         body.app-shell :is(.top-bar, .session-bar, .offline-bar) { max-width: none; }
         body.app-shell .top-bar { padding: var(--space-2) var(--space-6); min-height: var(--rail-head-height); }
         body.app-shell .top-btn-burger { display: none; }
-        body.app-shell .top-bar > .brand-mark { display: none; } /* ML-484: the rail's head carries the mark and the name */
+        body.app-shell .top-bar > .brand-mark { display: none; } /* the rail's head carries the mark and the name */
         /* Back is a button you can see is a button: a square that lights up under the mouse (owner, 7 Oct 2026) */
         body.app-shell .top-btn-back { justify-content: center; width: var(--touch-target); height: var(--touch-target); padding: 0 0 var(--space-0-5); margin: 0 var(--space-3) 0 calc(-1 * var(--space-2)); border-radius: var(--radius-md); transition: background var(--duration-fast) ease; }
         body.app-shell .top-btn-back:hover { background: var(--primary-action-tint); }

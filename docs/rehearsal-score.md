@@ -203,7 +203,7 @@ Both came out of the two run-throughs (`docs/childrens-code-assessment.md`, `doc
 ### Removing a recording on request (ML-490)
 
 The privacy policy says: "A recording may have other people in it. If you are in a recording in the app
-and want it removed, email themusicledgerapp@gmail.com." When that email comes, the owner acts on it from
+and want it removed, email hello@notablybetter.com." When that email comes, the owner acts on it from
 **Admin → Content → Recordings** (`admin.html#recordings`).
 
 - **The page** lists every recording and video held - a whole rehearsal in the Recordings tool, a recording

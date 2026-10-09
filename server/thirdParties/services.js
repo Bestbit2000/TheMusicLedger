@@ -168,7 +168,7 @@ export default [
     termsCheckedOn: CHECKED,
     attention: [
       'The sign-in consent screen is still in "Testing" in the Google Cloud console: only listed test users can sign in with Google. Publishing it opens Google sign-in to anyone - the owner\'s decision.',
-      'Google may not accept a vercel.app address for brand verification - a domain of our own is needed for that.'
+      'The app now has a domain of its own (notablybetter.com). Add it to the consent screen (home page, privacy policy and terms links) and apply for brand verification, so the sign-in screen shows the app\'s name.'
     ],
     says: [
       'Google can end access at any time.',
@@ -188,7 +188,7 @@ export default [
     ],
     watch: [
       'Whether the app is "In production" or still "Testing" in the Google Cloud console, and its verification status - not checked.',
-      'A domain of our own is needed for brand verification - there isn\'t one yet.'
+      'The redirect address Google sends people back to is https://notablybetter.com/auth/callback (GOOGLE_REDIRECT_URI in Vercel) - it must be listed on the sign-in client in the Google Cloud console.'
     ],
     limits: [
       { what: 'Users while in "Testing"', allowance: '100 test users' }
@@ -200,10 +200,12 @@ export default [
   {
     key: 'gmail-smtp',
     policyName: 'Google',
-    name: 'Gmail (sends the app\'s email)',
+    name: 'Gmail (sent the app\'s email until Brevo)',
     group: 'service',
-    personalData: true, // ML-469: a data processing agreement and a transfer safeguard are recorded for it
-    status: 'attention',
+    // Not in use since the app was renamed Notably Better: Brevo sends the emails and the mailbox is at
+    // Fasthosts. Kept as the record of what was used, and what is left to clear up.
+    status: 'not_in_use',
+    statusNote: 'Replaced by Brevo (sending) and Fasthosts (the mailbox) when the app was renamed. Still to do by hand: delete the app password, clear Sent and the Bin once more after the switch, and look at the old inbox now and then - the old policy gave that address.',
     who: 'Google LLC (USA)',
     provides: 'Sends the app\'s emails - invites, band invitations, password resets, retention warnings, sign-up and upgrade alerts - from a Gmail account the owner set up for the app, over SMTP (MAIL_PROVIDER "smtp"). A copy of every email sent stays in that account\'s Sent folder.',
     usedIn: 'server/services/mail.js (SMTP_HOST smtp.gmail.com, SMTP_USER, SMTP_PASS - an app password, MAIL_FROM); the nodemailer package',
@@ -243,6 +245,117 @@ export default [
     nextTier: 'Google Workspace - a paid account per user, about 2,000 emails a day, with a data processing agreement and a choice of data region. Price not checked.',
     usageSource: 'No reading. Gmail does not report a count over SMTP; the app would have to count what it sends.',
     hosts: ['smtp.gmail.com']
+  },
+  {
+    // The owner opened the account on 8 Oct 2026 to take over from the Gmail account, with the app's own
+    // domain (notablybetter.com). The live site sends through it once its SMTP settings are changed on
+    // the day of the release that renames the app - the same release names it in the privacy policy.
+    key: 'brevo',
+    policyName: 'Brevo',
+    name: 'Brevo (sends the app\'s email)',
+    group: 'service',
+    personalData: true, // it will carry names and email addresses; its data processing agreement is part of its terms
+    status: 'in_use',
+    who: 'Sendinblue SAS, trading as Brevo (France)',
+    provides: 'Sends the app\'s emails - invites, band invitations, password resets, retention warnings, sign-up and upgrade alerts - over SMTP, from noreply@notablybetter.com. It can also hold a mailing list people sign up to (none yet). It does not give us a mailbox to read - that is Fasthosts.',
+    usedIn: 'server/services/mail.js (MAIL_PROVIDER "smtp": SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS - Brevo\'s SMTP key, MAIL_FROM); the nodemailer package; the domain\'s DNS records',
+    plan: 'Free plan',
+    cost: 'Free',
+    licence: 'Brevo Terms of Service',
+    terms: [
+      { label: 'Terms of service (the data processing agreement is its Appendix 3)', url: 'https://www.brevo.com/legal/termsofuse/', dated: '1 Oct 2025' },
+      { label: 'Acceptable use policy (Appendix 7)', url: 'https://www.brevo.com/legal/antispampolicy/' },
+      { label: 'Privacy policy', url: 'https://www.brevo.com/legal/privacypolicy/', dated: '1 Oct 2025' },
+      { label: 'Pricing', url: 'https://www.brevo.com/pricing/' }
+    ],
+    termsCheckedOn: '2026-10-08',
+    says: [
+      'The data processing agreement is part of the terms, so it applies from the moment the account is made - nothing to sign. Brevo is the processor and we are the controller.',
+      'Its own hosting is in France and Belgium (OVH and Google Cloud). Some of the companies it uses are in the USA - Cloudflare in front of its site, Zendesk for support - under standard contractual clauses or the EU-US Data Privacy Framework.',
+      'It tells us without undue delay if there is a data breach.',
+      'Prices can change on a subscription\'s anniversary, with at least 30 days\' notice. Prices are shown without VAT.',
+      'The free service can be suspended, limited or ended at any time without notice. A paid one needs 30 days\' notice unless we have broken the terms.',
+      'An account nobody has signed in to or used for six months can be deleted, after an email warning.',
+      'When the plan\'s sending limit is reached, sending stops.',
+      'The agreement is under French law, in the Commercial Court of Paris.',
+      'It may name us as a customer in its own marketing unless we email to say no.'
+    ],
+    asks: [
+      { text: 'Only email people who expect it. App emails go to someone a member asked us to write to, or who asked themselves.' },
+      { text: 'A mailing list is only people who ticked a box themselves (never ticked for them) knowing what they will be sent, and we can show when each one agreed.' },
+      { text: 'Every email that was not set off by the person\'s own action has an unsubscribe link that is easy to find.' },
+      { text: 'Never a bought or collected list of addresses - for app emails as well as a mailing list.' },
+      { text: 'Keep "Anonymous email tracking" on for the app\'s emails (Brevo: Settings, Transactional emails, Tracking - the owner switched it on, 8 Oct 2026). Brevo has no switch that turns tracking off; with this on, opens and clicks are counted but not tied to a person.' },
+      { text: 'Keep the SMTP key out of the code - it lives in the environment settings only.' },
+      { text: 'The privacy policy says who sends our emails and that opens and clicks are counted, not who by.', check: { path: 'public/privacy.html', includes: ['Brevo', 'but not who by'] } },
+      { text: 'Leave "Block unauthorized IP addresses" off for SMTP keys: the app runs on Vercel, which has no fixed address, so switching it on stops every email.' },
+      { text: 'The package that talks to it is in the register.', check: { path: 'server/thirdParties/librariesAndTools.js', includes: 'nodemailer' } }
+    ],
+    watch: [
+      'Only parts of the terms were read on 8 Oct 2026: the general terms on prices, ending and the law, and the data processing agreement\'s transfers, breach notice and list of companies used. Of the acceptable use policy only the start was read (bought lists, consent, the unsubscribe link); its list of content it will not carry and any limits on bounces and complaints were not - read the rest before the first email to a mailing list.',
+      'The agreement\'s definitions count the United Kingdom with the EEA, and no separate UK addendum was found. France is covered by the UK\'s adequacy decision for the EU; whether that is enough for the US companies it uses was not settled here.',
+      'Brevo keeps a log of every email sent (to whom, the subject, whether it arrived). How long, and whether it can be shortened, was not found - the privacy policy\'s line about copies of emails depends on it.',
+      'Brevo still sends every link in an email through its own counting address first (r.mail on our domain) and adds a picture that counts an open.',
+      'The daily limit is shared by everything the account sends, the app\'s emails and any mailing list together.',
+      'Sign in to Brevo at least every few months: whether emails sent by the app count as "using" the account for the six-month rule is not stated.',
+      'Whether the free plan puts Brevo\'s logo on emails sent by the app over SMTP, or only on campaigns made in its editor, is not confirmed - the first email sent through it will show.'
+    ],
+    limits: [
+      { what: 'Emails in a day (free plan)', allowance: '300, once Brevo has approved the account for sending' }
+    ],
+    overLimit: 'Blocked: sending stops until the next day. The app tells the member the email could not be sent.',
+    nextTier: 'Starter - £6 a month plus VAT for 5,000 emails a month and 500 contacts, no daily limit. Removing Brevo\'s logo is shown as an extra £7.20 a month on Starter, or is included in Standard at £13 a month (prices on 8 Oct 2026).',
+    usageSource: 'No reading yet. Brevo\'s API reports what was sent; a meter could be added to Costs and usage once it is sending.',
+    hosts: ['brevo.com']
+  },
+  {
+    key: 'fasthosts',
+    policyName: 'Fasthosts',
+    name: 'Fasthosts (the domain and our mailbox)',
+    group: 'service',
+    personalData: true, // emails people send us are stored in the mailbox; its data processing agreement is part of its terms
+    status: 'in_use',
+    who: 'Fasthosts Internet Limited (UK), part of the IONOS group (Germany)',
+    provides: 'The domain notablybetter.com and its DNS records (which point the site at Vercel and prove our emails are ours), and one mailbox, hello@notablybetter.com - the address the privacy policy and terms give for questions, privacy requests, complaints and reports.',
+    usedIn: 'Nothing in the code. The DNS records are kept in Fasthosts\' control panel (Advanced DNS): an A record and www for Vercel, Brevo\'s DKIM and brand records, the Brevo code, SPF and DMARC, and Fasthosts\' own mail records.',
+    plan: 'A .com domain and one Mail Basic mailbox (2 GB), on a 12-month contract from October 2026',
+    cost: 'Not written here - the owner enters it on Costs and usage',
+    paid: true,
+    licence: 'Fasthosts General Terms and Conditions, with its Data Processing Agreement and Acceptable Use Policy',
+    terms: [
+      { label: 'General terms and conditions', url: 'https://www.fasthosts.co.uk/terms/general-terms-and-conditions', dated: 'May 2026' },
+      { label: 'Data processing agreement (PDF)', url: 'https://static.fasthosts.co.uk/legal/dpa/fasthosts-dpa.pdf' },
+      { label: 'Acceptable use policy', url: 'https://www.fasthosts.co.uk/terms/policies/acceptable-use-policy' },
+      { label: 'Privacy notice', url: 'https://www.fasthosts.co.uk/terms/policies/privacy-notice' }
+    ],
+    termsCheckedOn: '2026-10-09',
+    says: [
+      'The data processing agreement is part of the terms (they take it in by reference), so it applies from the moment the account is made - nothing to sign.',
+      'Services run for at least 12 months and renew by themselves for the same length again unless cancelled at least 30 days before the renewal date. A domain\'s automatic renewal can be switched off.',
+      'Prices and the service can change with 30 days\' notice by email; a new price starts when the current term ends.',
+      'Fasthosts can end a service for any reason with 30 days\' notice, and suspend at once if it thinks its acceptable use policy has been broken.',
+      'It may reset passwords or suspend access without notice to keep an account safe.',
+      'The agreement is under English law.'
+    ],
+    asks: [
+      { text: 'Keep a working card or PayPal account on the Fasthosts account - without one, access is restricted.' },
+      { text: 'Keep the contact details on the account right: renewal and price notices go to that email address.' },
+      { text: 'The privacy policy says where an email sent to us is kept.', check: { path: 'public/privacy.html', includes: 'Fasthosts' } },
+      { text: 'The mailbox is for reading and answering by hand. The app\'s own emails go through Brevo, never through this mailbox.' }
+    ],
+    watch: [
+      'If the domain lapses, the site\'s address, every email link and the mailbox all stop together. Leave automatic renewal on, and note the renewal date.',
+      'The data processing agreement is a PDF that could not be read here, and the acceptable use policy and privacy notice were not read. Where the mailbox is kept (Fasthosts says its data centres are in the UK) is not confirmed from the agreement.',
+      'The first-year price is usually an offer: check what the domain and the mailbox cost at renewal.',
+      'Emails sent to hello@ stay in the mailbox until deleted. Clear out ones that have been dealt with from time to time - the privacy policy says they are kept until we delete them.',
+      'Give the mailbox its own strong password, and two-step sign-in on the Fasthosts account if it is offered.'
+    ],
+    limits: [
+      { what: 'Mailbox size', allowance: '2 GB' }
+    ],
+    overLimit: 'A full mailbox turns new emails away - the sender gets an error.',
+    usageSource: 'No reading. The mailbox size shows in Fasthosts\' control panel.',
+    hosts: ['fasthosts.co.uk', 'livemail.co.uk']
   },
   {
     key: 'posthog',

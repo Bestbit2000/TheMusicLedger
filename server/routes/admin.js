@@ -38,7 +38,6 @@ import { getBusinessCase, saveBusinessCase, resetBusinessCase } from '../service
 import { getAdminDashboard } from '../services/adminDashboard.js';
 import { listRecords, saveRecord, setAttentionDone, saveAgreement } from '../services/thirdPartyRecords.js';
 import { retentionStatus, saveRule, runRetention, clearOldRecords } from '../services/retention.js';
-import { getBrand, setBrand, BRANDS } from '../services/brand.js';
 import { applyRecords } from '../thirdParties/records.js';
 import { getInstrumentUsageStats } from '../services/instruments.js';
 import { listRestMessages, createRestMessage, updateRestMessage, setRestMessageActive, deleteRestMessage, moveRestMessage } from '../services/restMessages.js';
@@ -1012,23 +1011,6 @@ router.post('/business-case/reset', requireAuth, resolveAccount, requireSuperAdm
 router.get('/dashboard', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     res.json(await getAdminDashboard());
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-// ML-484: the name the app goes by on screen - a trial of candidate names. Everyone sees the change on
-// their next page load. docs/brand-trial.md.
-router.get('/brand', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
-  try {
-    res.json({ brand: await getBrand(), brands: BRANDS });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-router.put('/brand', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
-  try {
-    res.json({ brand: await setBrand(req.body && req.body.brand), brands: BRANDS });
   } catch (error) {
     sendError(res, error);
   }

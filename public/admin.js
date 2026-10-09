@@ -1921,7 +1921,7 @@
             const meta = [
                 escapeHtml(f.fileName),
                 `${plural(f.blockCount, 'block')}, ${plural(f.totalBars, 'bar')}`,
-                f.ownFormat ? 'TheMusicLedger export' : 'other software',
+                f.ownFormat ? 'Notably Better export' : 'other software',
                 f.youtubeCount ? plural(f.youtubeCount, 'YouTube link') : null,
                 // ML-401: how often a public piece has been taken up - prepared as it is, or copied to a library
                 f.ownership === 'public' ? `taken up ${f.preparedBy + f.copyCount} ${f.preparedBy + f.copyCount === 1 ? 'time' : 'times'} (${f.preparedBy} prepared it, ${f.copyCount} ${f.copyCount === 1 ? 'copy' : 'copies'})` : null,
@@ -2518,7 +2518,7 @@
             terms: 'What to do next: please don\'t add it again. The terms of use say what may be shared.',
             other: 'What to do next: '
         }[reason];
-        return [`We have removed ${what} from The Music Ledger.${from} Nothing else of yours has changed.`, why, next, 'If you think this is a mistake, or have a question, email themusicledgerapp@gmail.com.'].join('\n\n');
+        return [`We have removed ${what} from Notably Better.${from} Nothing else of yours has changed.`, why, next, 'If you think this is a mistake, or have a question, email hello@notablybetter.com.'].join('\n\n');
     }
     // One table shape for recordings and for shared pieces and documents (ML-507)
     function sharedTable(all, q, heading, empty) {

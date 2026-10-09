@@ -66,7 +66,7 @@ test('asking: the link goes to the new address, and nothing changes until it is 
   assert.equal((await outbox(sam.email)).length, 0);
   // The new address has the link; the old address is shown mostly hidden (the new one may have been mistyped)
   const [mail] = await outbox(to);
-  assert.equal(mail.subject, 'Confirm your new email address for The Music Ledger');
+  assert.equal(mail.subject, 'Confirm your new email address for Notably Better');
   assert.match(mail.body_text, /Confirm my new email address: https:\/\/app\.example\/\?change-email=[\w-]+\n/);
   assert.ok(mail.body_text.includes(change.maskEmail(sam.email)));
   assert.ok(!mail.body_text.includes(sam.email));
@@ -136,7 +136,7 @@ test('confirming: the address changes, every device is signed out, invitations f
   // The old address is told, with the new one mostly hidden
   const told = await outbox(kim.email);
   assert.equal(told.length, 1);
-  assert.equal(told[0].subject, 'Your Music Ledger email address has changed');
+  assert.equal(told[0].subject, 'Your Notably Better email address has changed');
   assert.ok(told[0].body_text.includes(change.maskEmail(to)));
   assert.ok(!told[0].body_text.includes(to));
   assert.match(told[0].body_text, /signed out everywhere/);
@@ -174,7 +174,7 @@ test('a super admin can start it for someone who has lost the old address - the 
   const sent = await change.adminRequestEmailChange(admin.id, jo.id, to, ORIGIN); // no password asked: the inbox proves it
   assert.equal(sent.sentTo, to);
   const [mail] = await outbox(to);
-  assert.match(mail.body_text, /The Music Ledger team has been asked to change the email address on your account/);
+  assert.match(mail.body_text, /The Notably Better team has been asked to change the email address on your account/);
   assert.equal((await one('SELECT email FROM accounts WHERE id = $1', [jo.id])).email, jo.email, 'nothing changes until the link is used');
   assert.deepEqual(await change.confirmEmailChange(linkFrom(mail.body_text), ORIGIN), { email: to, wasThisDevice: false });
   assert.equal((await one('SELECT email FROM accounts WHERE id = $1', [jo.id])).email, to);

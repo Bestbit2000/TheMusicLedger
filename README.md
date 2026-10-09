@@ -1,4 +1,6 @@
-# The Music Ledger
+# Notably Better
+
+(The repository keeps its first name, TheMusicLedger - see `docs/app-name.md`.)
 
 A practice tracking app that syncs with Google Sheets. Originally built with Google Apps Script, now rebuilt as a web app with Node.js backend and Google Sheets API integration.
 
@@ -33,7 +35,7 @@ cd TheMusicLedger
    - Create OAuth 2.0 credentials (Web Application)
    - Add redirect URIs:
      - `http://localhost:3000/auth/callback` (local development)
-     - `https://the-music-ledger.vercel.app/auth/callback` (production)
+     - `https://notablybetter.com/auth/callback` (production)
 
 3. Create `.env` file in the `server/` directory
 ```

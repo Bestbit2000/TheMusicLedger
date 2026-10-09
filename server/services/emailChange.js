@@ -79,12 +79,12 @@ async function start(account, newEmail, origin, { startedBy, byAdmin = false }) 
     const { text, html } = emailBody(
       [hello,
         byAdmin
-          ? `The Music Ledger team has been asked to change the email address on your account (${maskEmail(account.email)}) to this one.`
-          : `You asked to use this address to sign in to The Music Ledger, in place of ${maskEmail(account.email)}.`,
+          ? `The Notably Better team has been asked to change the email address on your account (${maskEmail(account.email)}) to this one.`
+          : `You asked to use this address to sign in to Notably Better, in place of ${maskEmail(account.email)}.`,
         'Nothing changes until you confirm it. When you do, you are signed out everywhere and sign in again with this address.'],
       'Confirm my new email address', `${String(origin).replace(/\/+$/, '')}/?change-email=${secret}`,
       `The link works once, for ${CHANGE_MINUTES} minutes. If you didn't ask for this, ignore this email and nothing will change.`);
-    await sendMail({ to, subject: 'Confirm your new email address for The Music Ledger', text, html });
+    await sendMail({ to, subject: 'Confirm your new email address for Notably Better', text, html });
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
@@ -185,11 +185,11 @@ export async function confirmEmailChange(secret, origin, signedInToken = null) {
   try {
     const { text, html } = emailBody(
       [`Hi${firstName ? ` ${firstName}` : ''},`,
-        `The email address for your Music Ledger account has been changed to ${maskEmail(newEmail)}.`,
+        `The email address for your Notably Better account has been changed to ${maskEmail(newEmail)}.`,
         'You have been signed out everywhere. From now on, sign in with the new address.'],
-      'Open The Music Ledger', String(origin).replace(/\/+$/, ''),
+      'Open Notably Better', String(origin).replace(/\/+$/, ''),
       'If this wasn\'t you, reply to this email straight away so we can put it right.');
-    await sendMail({ to: oldEmail, subject: 'Your Music Ledger email address has changed', text, html });
+    await sendMail({ to: oldEmail, subject: 'Your Notably Better email address has changed', text, html });
   } catch (error) {
     console.error('Email change: the old address could not be told:', error.message);
   }

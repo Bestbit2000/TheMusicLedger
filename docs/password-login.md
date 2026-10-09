@@ -8,7 +8,8 @@ Owner decisions (2026-09-29): invite-only; the email address is the username; 2F
 everyone but required for super admins; a dedicated
 Gmail account (SMTP) for email until the app has its own domain. (Resend was the first plan for that; the owner
 dropped it on 7 October 2026 - he wants a provider based in Europe - and its code was taken out. Any provider
-that offers SMTP works with no new code.)
+that offers SMTP works with no new code.) **Since the app was renamed Notably Better (October 2026) the
+emails are sent by Brevo, from the app's own domain** - `docs/app-name.md`.
 
 | Batch | What | Status |
 |---|---|---|
@@ -111,11 +112,12 @@ that offers SMTP works with no new code.)
 | `MAIL_PROVIDER` | Where | Needs |
 |---|---|---|
 | `log` (default) | written to the `email_outbox` table, never sent - local, dev and sandbox; back-tests read the links from it. The app says so wherever it would say "sent" (ML-479: `emailOutcome` / `sentOrHeld` in `mail.js`) - invites, band invitations, the admin's reset link, and "Forgot your password?", which answers "This site doesn't send emails, so no link has been sent." for every address alike | - |
-| `smtp` | any SMTP server - e.g. a dedicated Gmail account | `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_USER`, `SMTP_PASS` (a Google **app password**, needs 2-step verification on that Gmail account), and `npm install nodemailer` in `server/` |
+| `smtp` | any SMTP server - the live site uses Brevo | `SMTP_HOST=smtp-relay.brevo.com`, `SMTP_PORT=587`, `SMTP_USER` (the SMTP login Brevo shows - not the address you sign in to Brevo with), `SMTP_PASS` (an SMTP key made in Brevo), and the `nodemailer` package in `server/` |
 
-Plus `MAIL_FROM` (e.g. `The Music Ledger <musicledger.mail@gmail.com>`) and `APP_URL` (e.g.
-`https://the-music-ledger.vercel.app`) wherever real email is sent. Gmail allows ~500 emails a day,
-plenty for invite-only.
+Plus `MAIL_FROM` (`Notably Better <noreply@notablybetter.com>` - the address must be a sender Brevo has
+verified) and `APP_URL` (`https://notablybetter.com`) wherever real email is sent. Brevo's free plan allows
+300 emails a day. In Brevo, "Anonymous email tracking" stays on and "Block unauthorized IP addresses" stays
+off - the reasons are in the register entry.
 
 **New sign-up alerts (ML-392):** when an account is created - a first Google login, or an invite accepted
 with a password - `server/services/signupAlert.js` emails `SIGNUP_ALERT_EMAIL` the name, email, date (UK
@@ -126,7 +128,7 @@ would go to `email_outbox` like every other email. A failed alert is logged and 
 
 ## Turning it on (sandbox, then production)
 
-1. Create the Gmail account, turn on 2-step verification, make an app password.
+1. In Brevo: verify the sending domain and a sender, and make an SMTP key.
 2. `npm install nodemailer` in `server/` (a release).
 3. In Vercel (that environment): `MAIL_PROVIDER=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
    `SMTP_PASS`, `MAIL_FROM`, `APP_URL`.

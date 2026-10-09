@@ -1,9 +1,9 @@
 // ML-355: sending email. Which service is a setting, not code (docs/password-login.md):
 //   MAIL_PROVIDER=log     (the default) - written to the email_outbox table, never sent. Local and dev.
-//   MAIL_PROVIDER=smtp    - any SMTP server, e.g. a dedicated Gmail account with an app password:
-//                           SMTP_HOST=smtp.gmail.com SMTP_PORT=465 SMTP_USER=... SMTP_PASS=<app password>
+//   MAIL_PROVIDER=smtp    - any SMTP server. The live site sends through Brevo:
+//                           SMTP_HOST=smtp-relay.brevo.com SMTP_PORT=587 SMTP_USER=<SMTP login> SMTP_PASS=<SMTP key>
 //                           (needs `npm install nodemailer` in server/ - it's only loaded for this mode)
-// MAIL_FROM is the sender, e.g. "The Music Ledger <musicledger.mail@gmail.com>".
+// MAIL_FROM is the sender: "Notably Better <noreply@notablybetter.com>".
 
 import pool from '../config/db.js';
 
@@ -30,7 +30,7 @@ export function sentOrHeld(sent, held, provider = mailProvider()) {
 
 export async function sendMail({ to, subject, text, html }) {
   const provider = mailProvider();
-  const from = process.env.MAIL_FROM || 'The Music Ledger <no-reply@themusicledger.local>';
+  const from = process.env.MAIL_FROM || 'Notably Better <noreply@notablybetter.com>';
   if (provider === 'log') {
     await pool.query('INSERT INTO email_outbox (to_email, subject, body_text, body_html) VALUES ($1, $2, $3, $4)', [to, subject, text, html || null]);
     if (process.env.NODE_ENV !== 'test') console.log(`[mail:log] to ${to}: ${subject}`);

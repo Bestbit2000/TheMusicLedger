@@ -1,4 +1,4 @@
-# TheMusicLedger
+# Notably Better (repository: TheMusicLedger)
 
 Music practice tracking app, backed by Postgres (Neon) via an Express backend
 (`server/`) and a static frontend (`public/`), deployed on Vercel. Google
@@ -71,14 +71,14 @@ points at changes depending on what's checked out, and production should never
 be touched by accident. This doc exists in the repo (not just Jira `ML-21`)
 specifically so a Claude session without Jira access still has full context.
 
-**The name on screen is one of three for now (ML-484).** "The Music Ledger" is a working title; while a
-new name is tried out, Admin → App name switches what the app is called **on screen** - the sign-in
-picture, the name and small mark at the top of Home and in the menu rail, the browser tab - between The
-Music Ledger, Notably Better and Fivetto, for everyone. It is a trial, not a rename: the privacy policy,
-terms, emails, manifest and installed icons always say The Music Ledger. Write the app's name on screen
-with `Brand.name()` (`public/brand.js`), never as a new literal, and read
-[`docs/brand-trial.md`](docs/brand-trial.md) before touching the sign-in screen, the top bar's title or
-the rail's head. A back-test must never leave dev on a trial name.
+**The app is called Notably Better** (renamed from the working title "The Music Ledger" in October 2026).
+It lives at `https://notablybetter.com`, sends email from `noreply@notablybetter.com` through Brevo, and
+is written to at `hello@notablybetter.com` (a Fasthosts mailbox). The repository, the Vercel project, the
+Jira project (`ML`) and a few names inside the machinery (`musicledger:` in MusicXML, `tml.` storage
+keys, the `@themusicledger.local` test accounts) keep the old name on purpose. Write the app's name on
+screen with `Brand.name()` (`public/brand.js`), never as a new literal, and read
+[`docs/app-name.md`](docs/app-name.md) before touching the name, the address, the sign-in picture or the
+installed app's icons.
 
 ## Product values
 

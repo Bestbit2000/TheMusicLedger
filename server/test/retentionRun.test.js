@@ -59,9 +59,9 @@ test('a run takes each due account one step: first email, second email, deletion
   assert.deepEqual([out.firstEmails, out.secondEmails, out.deleted, out.problems.length], [1, 1, 1, 0]);
 
   assert.equal((await state(fresh.id)).retention_stage, 1);
-  assert.deepEqual(await sentTo(fresh.email), ['Your Music Ledger account has not been used for a while']);
+  assert.deepEqual(await sentTo(fresh.email), ['Your Notably Better account has not been used for a while']);
   assert.equal((await state(warned.id)).retention_stage, 2);
-  assert.deepEqual(await sentTo(warned.email), ['Last reminder: your Music Ledger account will be deleted soon']);
+  assert.deepEqual(await sentTo(warned.email), ['Last reminder: your Notably Better account will be deleted soon']);
   assert.equal((await state(tooSoon.id)).retention_stage, 1);
   assert.deepEqual(await sentTo(tooSoon.email), []);
 
@@ -69,7 +69,7 @@ test('a run takes each due account one step: first email, second email, deletion
   assert.ok(gone.deleted_at, 'the account is deleted');
   assert.equal(gone.first_name, 'Deleted');
   assert.match(gone.email, /@deleted\.invalid$/);
-  assert.deepEqual(await sentTo(last.email), ['Your Music Ledger account has been deleted']);
+  assert.deepEqual(await sentTo(last.email), ['Your Notably Better account has been deleted']);
 
   assert.equal((await state(admin.id)).retention_stage, 0);
   assert.deepEqual(await sentTo(admin.email), []);

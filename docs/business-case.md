@@ -105,7 +105,7 @@ Worth knowing about the figures:
   is $20 plus UK VAT. Other dollar prices are as published; whether Neon adds VAT was not confirmed.
 - **Vercel Pro is in "Invite only"**, not just the paid scenarios: Vercel's data processing agreement
   covers only its paid plans. It is the owner's decision; switching it off shows the bare cost.
-- **A domain is in "Invite only"**: without one the app's email can only come from a Gmail account.
+- **A domain is in "Invite only"**: without one the app's email can only come from a Gmail account. (The app has had one, notablybetter.com, since October 2026.)
 - **Estimates**, marked as such on the page: a solicitor's read of the terms, the domain, a server for PDF
   import, paid uptime checks, and the 3,000 members at which a paid email plan is assumed to start (no provider is chosen yet).
 - **Placeholders:** the member numbers for years 2 to 5, and the counts for other income. They are there

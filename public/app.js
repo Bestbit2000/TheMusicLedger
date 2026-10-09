@@ -1944,8 +1944,8 @@
     document.getElementById('burgerDropdown')?.addEventListener('click', (e) => {
         if (!e.target.closest('button, a')) e.stopPropagation();
     });
-    // ML-484: the name the app goes by on screen - one of three while a new name is tried out (public/brand.js).
-    const appName = () => (window.Brand ? window.Brand.name() : 'The Music Ledger');
+    // The app's name, kept in one place (public/brand.js).
+    const appName = () => window.Brand.name();
     function closeMenu() {
         const dropdown = document.getElementById('burgerDropdown');
         if(dropdown) dropdown.classList.remove('show');
@@ -2351,7 +2351,7 @@
         } else {
             topBackBtn.classList.remove('hidden-btn');
         }
-        setShown('topBrandMark', viewName === 'mainView'); // ML-484: the mark sits beside the app's name, so on Home only
+        setShown('topBrandMark', viewName === 'mainView'); // the mark sits beside the app's name, so on Home only
 
         if (viewName === 'statsHomeView') { document.getElementById('topTitle').innerText = 'Stats'; renderStatsHome(); }
         if (viewName === 'toolResultsView') { document.getElementById('topTitle').innerText = 'Tool results'; renderToolResults(); }
@@ -2876,7 +2876,7 @@
             <path d="M56 70 C62 88 72 100 92 100"/>
         </svg>
         <h2 class="notifications-empty-title">You're all caught up!</h2>
-        <p class="text-muted no-margin">This is where you'll see what's new in each release, and news from the Music Ledger team.</p>
+        <p class="text-muted no-margin">This is where you'll see what's new in each release, and news from the Notably Better team.</p>
         <button type="button" class="btn-nav mt-5" data-notifications-home>Start practising</button>
     </div>`;
     function renderNotificationsView() {
@@ -5090,12 +5090,12 @@
         const id = `twoStepSetupCode-${lookName}`;
         box.innerHTML = `
             ${intro ? `<p class="${look.text}">${escapeHtml(intro)}</p>` : ''}
-            <p class="${look.text}"><strong>1.</strong> Add The Music Ledger to an authenticator app on your phone - Google Authenticator, Microsoft Authenticator, 1Password and others all work.</p>
+            <p class="${look.text}"><strong>1.</strong> Add Notably Better to an authenticator app on your phone - Google Authenticator, Microsoft Authenticator, 1Password and others all work.</p>
             <button type="button" class="${look.btn}" data-two-step-open>Add to my authenticator app</button>
             <p class="${look.text}">On a computer, or the button doesn't open an app? Type this setup key into the app instead:</p>
             <p class="two-step-key" aria-label="Setup key">${escapeHtml(details.secret)}</p>
             <button type="button" class="${look.link}" data-two-step-copy-key>Copy the setup key</button>
-            <p class="${look.text}"><strong>2.</strong> Type the 6-digit code the app shows for The Music Ledger.</p>
+            <p class="${look.text}"><strong>2.</strong> Type the 6-digit code the app shows for Notably Better.</p>
             ${twoStepCodeField(id, 'Code', look)}
             <p class="${look.msg} hidden-group" data-two-step-msg role="alert"></p>
             <button type="button" class="${look.btn}" data-two-step-confirm>Turn on two-step sign-in</button>`;
@@ -7096,8 +7096,8 @@
         btn.setAttribute('aria-label', `Account type: ${ACCOUNT_LEVEL_LABELS[inviteLevel] || inviteLevel} - tap to change`);
         // ML-479: dev and sandbox keep their emails and send none
         document.getElementById('inviteIntro').textContent = d && d.emailsAreSent === false
-            ? "Invite someone to The Music Ledger. This site doesn't send emails, so the link to choose a password won't reach them from here."
-            : 'Invite someone to The Music Ledger. They get an email with a link to choose a password - it works once, for 7 days.';
+            ? "Invite someone to Notably Better. This site doesn't send emails, so the link to choose a password won't reach them from here."
+            : 'Invite someone to Notably Better. They get an email with a link to choose a password - it works once, for 7 days.';
         document.getElementById('inviteSendBtn').disabled = !on || d.left <= 0;
         document.getElementById('inviteLeftLine').textContent = !d ? '' : !on ? "Invites aren't switched on at the moment."
             : d.left <= 0 ? `You've sent ${d.limit} invites in the last day - you can send more tomorrow.`
@@ -7161,7 +7161,7 @@
             ['inviteEmailInput', 'inviteFirstInput', 'inviteSurnameInput'].forEach(id => { document.getElementById(id).value = ''; });
             // ML-479: where no email goes (dev, sandbox) the server's message says so
             if (res.invite.notSentHere) showWarningToast(res.message);
-            else showSuccessToast(`Invite sent to ${res.invite.email}. Remind them to look in their junk folder.`);
+            else showSuccessToast(`Invite sent to ${res.invite.email}. If it doesn't arrive, it may be in their junk folder.`);
         } catch (err) { showWarningToast('Invite not sent: ' + err.message); }
         renderInvite();
     });

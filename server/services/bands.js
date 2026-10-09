@@ -618,7 +618,7 @@ export async function inviteToBand(accountId, bandId, email, level = 'play', ori
     const from = nameOf(rows[0]); // never empty: requireName, above
     const band = rows[0].band_name;
     const home = String(origin).replace(/\/+$/, '');
-    const intro = `${from} has invited you to join ${band} on The Music Ledger - the practice app the band uses for its music.`;
+    const intro = `${from} has invited you to join ${band} on Notably Better - the practice app the band uses for its music.`;
     // Someone with no account yet gets a link to choose a password (so a Google account isn't needed);
     // anyone else just needs the front door - they sign in the way they already do.
     const newcomer = await passwordLinkForNewcomer(to, home);
@@ -629,7 +629,7 @@ export async function inviteToBand(accountId, bandId, email, level = 'play', ori
         `The link works once, for ${newcomer.days} days; ask ${from} to send it again if it has run out. If you weren't expecting this, you can ignore it and nothing will happen.`)
       : emailBody(['Hi,', intro,
           `To see the invitation, open the app and sign in with this email address (${to}). It will be waiting on My account, under My bands.`],
-        'Open The Music Ledger', `${home}/?band-invite=1`,
+        'Open Notably Better', `${home}/?band-invite=1`,
         `The invitation waits for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email and nothing will happen.`);
     await sendMail({ to, subject: `${from} has invited you to join ${band}`, text, html });
     return emailOutcome();

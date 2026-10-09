@@ -41,7 +41,7 @@ describe('setup details', () => {
   });
   test('the authenticator link names the app and the account', () => {
     const url = otpauthUrl('MZXW6YTBOI', 'sam+1@example.com');
-    assert.equal(url, 'otpauth://totp/The%20Music%20Ledger%3Asam%2B1%40example.com?secret=MZXW6YTBOI&issuer=The%20Music%20Ledger&algorithm=SHA1&digits=6&period=30');
+    assert.equal(url, 'otpauth://totp/Notably%20Better%3Asam%2B1%40example.com?secret=MZXW6YTBOI&issuer=Notably%20Better&algorithm=SHA1&digits=6&period=30');
   });
   test('the stored secret is encrypted, and decrypts back', () => {
     const secret = Buffer.from('0123456789abcdefghij');

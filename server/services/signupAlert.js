@@ -41,7 +41,7 @@ export function signupAlertEmail({ firstName, surname, email, method, device, at
   const name = `${firstName || ''} ${surname || ''}`.trim() || '(no name given)';
   const when = at.toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'full', timeStyle: 'short' });
   const text = [
-    'Someone new has signed up to The Music Ledger.',
+    'Someone new has signed up to Notably Better.',
     '',
     `Name: ${name}`,
     `Email: ${email}`,

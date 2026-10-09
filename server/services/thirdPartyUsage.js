@@ -225,7 +225,7 @@ export async function sendUsageWarnings() {
         '',
         'See Admin → Third parties for what happens past the limit and what the next plan costs.'
       ].filter((line, i) => line || i === 2).join('\n');
-      await sendMail({ to, subject: `The Music Ledger: ${m.name} at ${Math.floor(m.status.percent)}% of its limit`, text });
+      await sendMail({ to, subject: `Notably Better: ${m.name} at ${Math.floor(m.status.percent)}% of its limit`, text });
     }
     // Recorded even with nobody to email, so turning the address on later doesn't send old news
     for (const t of due) await pool.query('INSERT INTO third_party_usage_alerts (meter_key, threshold, period_key) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [m.key, t, periodKey]);

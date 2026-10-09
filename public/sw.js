@@ -5,8 +5,8 @@
 // member's data on the device after sign-out, where the next person to sign in could be shown it. The
 // copy of a member's data for offline use is kept by public/offline.js instead - it belongs to one
 // member and is wiped at sign-out. Bumping CACHE_NAME drops the old cache, answers and all.
-const CACHE_NAME = 'music-ledger-v2';
-const APP_SHELL = ['/', '/index.html', '/tokens.css', '/style.css', '/display-prefs.js', '/brand.js', '/images/brands/music-ledger-mark.svg', '/images/brands/notably-better-mark.svg', '/images/brands/fivetto-mark.svg', '/flowJourney.js', '/practicePlan.js', '/pieceOutline.js', '/notation.js', '/range.js', '/rangeBar.js', '/avatars.js', '/homeGreeting.js', '/theoryEngine.js', '/scaleGrades.js', '/warmups.js', '/drills.js', '/rhythm.js', '/fonts/bravura.woff2', '/fonts/inter-latin.woff2', '/fonts/material-symbols-outlined.woff2', '/offline.js', '/app.js', '/a11y.js'];
+const CACHE_NAME = 'music-ledger-v3';
+const APP_SHELL = ['/', '/index.html', '/tokens.css', '/style.css', '/display-prefs.js', '/brand.js', '/images/brands/notably-better-mark.svg', '/flowJourney.js', '/practicePlan.js', '/pieceOutline.js', '/notation.js', '/range.js', '/rangeBar.js', '/avatars.js', '/homeGreeting.js', '/theoryEngine.js', '/scaleGrades.js', '/warmups.js', '/drills.js', '/rhythm.js', '/fonts/bravura.woff2', '/fonts/inter-latin.woff2', '/fonts/material-symbols-outlined.woff2', '/offline.js', '/app.js', '/a11y.js'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

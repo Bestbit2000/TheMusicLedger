@@ -81,7 +81,7 @@ says it has been done and that they are welcome back.
 
 ## Before switching it on in production
 
-- The app must be sending email from its own domain (not from the Gmail account), or the run will refuse.
+- The app must really be sending email (it does, through Brevo, from its own domain), or the run will refuse.
 - The privacy policy's "How long we keep it" already describes the rule. If the numbers are changed in
   production, change the policy in the same breath.
 - Nobody can reach 22 months before August 2028, so there is no hurry - but it should be on well before.

@@ -141,9 +141,6 @@ Menu group: open / shut (heading `aria-expanded`, count shown only when shut). W
 </div>
 ```
 
-**App name (ML-484)** is in the **Content** group: it sets what the app shows, like Rest messages. One value box
-showing the name in use, the shared choice pop-up with each name and its [brand mark](brand-mark.md), then a
-confirm. `public/admin-brand.js`; no classes of its own.
 
 ## 8. Cross-references
 [tabs](tabs.md) · [stat-card](stat-card.md) · [pill-badge](pill-badge.md) · [modal](modal.md) · [layout](../foundations/layout.md) (the member app is phone first; this panel is desktop first - checked at 390, 820 and 1180px for ML-239: the menu folds behind ☰ at 700px and below, and wide tables scroll inside `.admin-stat-table-wrap`)

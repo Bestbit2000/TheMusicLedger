@@ -17,7 +17,7 @@ remembered on the device (`localStorage`, `tml.railFolded`). Owner's decision, 7
 The admin panel has its own side menu ([admin-shell](admin-shell.md)).
 
 ## 3. Anatomy
-- **The head** - `div.nav-rail-head`, first thing in `.nav-menu`: the [brand mark](brand-mark.md) (ML-484), the app's name (`span.nav-rail-name` - the name on screen, `Brand.name()`) and the
+- **The head** - `div.nav-rail-head`, first thing in `.nav-menu`: the [brand mark](brand-mark.md), the app's name (`span.nav-rail-name`) and the
   fold button (`button.nav-rail-fold#navRailFoldBtn`, icon `menu_open` open / `menu` folded). Hidden on a phone.
 - **The items** - the menu's own `.nav-item` buttons, `.nav-section-title`s and `.nav-divider`s, unchanged
   ([dropdown-menu](dropdown-menu.md)). The row lines between items go; each item is a rounded row.
@@ -54,7 +54,7 @@ Tools opens the rail first (its panel needs the room).
 ```html
 <div id="burgerDropdown" class="dropdown-menu nav-menu">
   <div class="nav-rail-head">
-    <span class="nav-rail-name">The Music Ledger</span>
+    <span class="nav-rail-name">Notably Better</span>
     <button type="button" class="nav-rail-fold" id="navRailFoldBtn" aria-label="Fold the menu to icons" aria-pressed="false">
       <span class="material-symbols-outlined" aria-hidden="true">menu_open</span>
     </button>

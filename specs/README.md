@@ -1,4 +1,4 @@
-# The Music Ledger - design system specs (ML-198)
+# Notably Better - design system specs (ML-198)
 
 Structured, LLM-readable specs for every visual decision in the app. **Before writing or
 modifying any UI code, read the relevant spec here.**

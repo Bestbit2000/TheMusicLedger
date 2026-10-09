@@ -103,9 +103,9 @@ export async function exportMyAccount(accountId) {
   ]);
 
   return {
-    app: 'The Music Ledger',
+    app: 'Notably Better',
     exportedAt: new Date().toISOString(),
-    about: 'The information The Music Ledger holds about you. "account" is your details; "data" has one list per kind of record, named as the app stores them. Recordings and documents are listed with the address of each file, not the files themselves. Left out: passwords and sign-in codes; the name and email address of anyone you invited (that is their information, not yours); and the app\'s own workings, such as which notices you have opened.',
+    about: 'The information Notably Better holds about you. "account" is your details; "data" has one list per kind of record, named as the app stores them. Recordings and documents are listed with the address of each file, not the files themselves. Left out: passwords and sign-in codes; the name and email address of anyone you invited (that is their information, not yours); and the app\'s own workings, such as which notices you have opened.',
     account: clean(account),
     signIn: { hasPassword: password.rows.length > 0, twoStepOn: !!(twoStep.rows[0] && twoStep.rows[0].enabled_at) },
     data

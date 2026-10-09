@@ -508,10 +508,10 @@ export function musicXmlToFlow(xmlString) {
   let flowExt = {};
   const flowField = miscFields.find(f => attr(f, 'name') === `${EXTENSION_PREFIX}flow`);
   if (flowField) {
-    try { flowExt = JSON.parse(textOf(flowField)); } catch { warnings.push('The file\'s TheMusicLedger flow details couldn\'t be read - imported without them.'); }
+    try { flowExt = JSON.parse(textOf(flowField)); } catch { warnings.push('The file\'s Notably Better flow details couldn\'t be read - imported without them.'); }
   }
   if (flowExt.formatVersion > FLOW_MUSICXML_FORMAT_VERSION) {
-    warnings.push(`This file was exported by a newer version of TheMusicLedger (format ${flowExt.formatVersion}) - anything newer than format ${FLOW_MUSICXML_FORMAT_VERSION} is ignored.`);
+    warnings.push(`This file was exported by a newer version of Notably Better (format ${flowExt.formatVersion}) - anything newer than format ${FLOW_MUSICXML_FORMAT_VERSION} is ignored.`);
   }
 
   const parts = childrenOf(root, 'part');

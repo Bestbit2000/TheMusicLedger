@@ -14,7 +14,7 @@ const WINDOW = 1;            // accept the step before and after too - phone clo
 const LOCK_AFTER = 5;
 const LOCK_MINUTES = 15;
 const RECOVERY_CODES = 10;
-export const ISSUER = 'The Music Ledger';
+export const ISSUER = 'Notably Better';
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
 

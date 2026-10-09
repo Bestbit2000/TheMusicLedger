@@ -175,9 +175,9 @@ export async function createInvite({ email, firstName, surname, accountLevel, cr
     const url = `${origin}/?invite=${secret}`;
     const hello = firstName ? `Hi ${String(firstName).trim()},` : 'Hi,';
     const { text, html } = emailBody(
-      [hello, `You've been invited to The Music Ledger${existing ? ' - this lets you log in with your email and a password as well as Google' : ''}. Choose a password to get started.`],
+      [hello, `You've been invited to Notably Better${existing ? ' - this lets you log in with your email and a password as well as Google' : ''}. Choose a password to get started.`],
       'Choose your password', url, `This link works once, for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email.`);
-    await sendMail({ to, subject: "You're invited to The Music Ledger", text, html });
+    await sendMail({ to, subject: "You're invited to Notably Better", text, html });
     await client.query('COMMIT');
     return { email: to, existingAccount: !!existing, ...emailOutcome() }; // ML-479: emailed, or notSentHere
   } catch (e) {
@@ -350,9 +350,9 @@ export async function forgotPassword(email, ip, origin) {
       const secret = await newLink(client, { purpose: 'reset', email: account.email, minutes: RESET_MINUTES });
       const url = `${origin}/?reset=${secret}`;
       const { text, html } = emailBody(
-        [`Hi${account.first_name ? ` ${account.first_name}` : ''},`, `Someone (hopefully you) asked to ${account.password_hash ? 'reset the password' : 'set a password'} for your Music Ledger account.`],
+        [`Hi${account.first_name ? ` ${account.first_name}` : ''},`, `Someone (hopefully you) asked to ${account.password_hash ? 'reset the password' : 'set a password'} for your Notably Better account.`],
         'Choose a new password', url, `This link works once, for ${RESET_MINUTES} minutes. If it wasn't you, ignore this email - your password hasn't changed.`);
-      await sendMail({ to: account.email, subject: 'Your Music Ledger password', text, html });
+      await sendMail({ to: account.email, subject: 'Your Notably Better password', text, html });
     }
     await client.query('COMMIT');
   } catch (e) {
@@ -431,9 +431,9 @@ export async function adminSendReset(accountId, origin) {
     const secret = await newLink(client, { purpose: 'reset', email: account.email, minutes: RESET_MINUTES });
     const url = `${origin}/?reset=${secret}`;
     const { text, html } = emailBody(
-      [`Hi${account.first_name ? ` ${account.first_name}` : ''},`, 'The Music Ledger team has sent you a link to choose a new password for your account.'],
+      [`Hi${account.first_name ? ` ${account.first_name}` : ''},`, 'The Notably Better team has sent you a link to choose a new password for your account.'],
       'Choose a new password', url, `This link works once, for ${RESET_MINUTES} minutes. If you weren't expecting it, you can ignore this email - your password hasn't changed.`);
-    await sendMail({ to: account.email, subject: 'Your Music Ledger password', text, html });
+    await sendMail({ to: account.email, subject: 'Your Notably Better password', text, html });
     await client.query('COMMIT');
   } catch (e) {
     await client.query('ROLLBACK').catch(() => {});

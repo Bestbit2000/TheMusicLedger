@@ -187,7 +187,7 @@ regenerate the token reference if tokens changed. The Design page is how the own
 8. Check a page on the live site still carries the security headers (ML-477). The pages are static files
    that Vercel serves without Express, so only the deployed site shows this - the local server can't:
    ```bash
-   curl -sI https://the-music-ledger.vercel.app/ | grep -iE "x-content-type|x-frame|referrer|permissions|content-security"
+   curl -sI https://notablybetter.com/ | grep -iE "x-content-type|x-frame|referrer|permissions|content-security"
    ```
    Five lines should come back, each once (the same for `/app.js` and for `/api/account`).
 

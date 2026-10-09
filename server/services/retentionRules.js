@@ -80,17 +80,17 @@ export const ruleInWords = (rule) => `An account not used for ${span(rule.first,
 export function retentionEmail(step, { firstName, rule, removeOn, appUrl }) {
   const hello = `Hello${firstName ? ` ${firstName}` : ''},`;
   const day = new Date(removeOn).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
-  const sign = 'The Music Ledger';
+  const sign = 'Notably Better';
   if (step === 3) {
     return {
-      subject: 'Your Music Ledger account has been deleted',
-      text: [hello, '', `Your Music Ledger account had not been used for ${span(rule.remove, rule.unit)}, so, as we said we would, we have deleted it. Your name, email address, pieces and settings are gone.`,
+      subject: 'Your Notably Better account has been deleted',
+      text: [hello, '', `Your Notably Better account had not been used for ${span(rule.remove, rule.unit)}, so, as we said we would, we have deleted it. Your name, email address, pieces and settings are gone.`,
         '', 'You are welcome back at any time - signing up again starts a fresh account.', '', sign].join('\n')
     };
   }
   return {
-    subject: step === 1 ? 'Your Music Ledger account has not been used for a while' : 'Last reminder: your Music Ledger account will be deleted soon',
-    text: [hello, '', `You have not used The Music Ledger for ${span(step === 1 ? rule.first : rule.second, rule.unit)}. We don't keep information about people who have stopped using the app, so your account will be deleted on ${day}.`,
+    subject: step === 1 ? 'Your Notably Better account has not been used for a while' : 'Last reminder: your Notably Better account will be deleted soon',
+    text: [hello, '', `You have not used Notably Better for ${span(step === 1 ? rule.first : rule.second, rule.unit)}. We don't keep information about people who have stopped using the app, so your account will be deleted on ${day}.`,
       '', `To keep it, just sign in before then${appUrl ? `: ${appUrl}` : ''}. That is all you need to do.`,
       '', 'If you no longer want it, you need do nothing.' + (step === 1 ? ' We will remind you once more before it goes.' : ' This is the last reminder.'), '', sign].join('\n')
   };

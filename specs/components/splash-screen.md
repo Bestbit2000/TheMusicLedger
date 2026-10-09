@@ -37,15 +37,14 @@ Loading (no button) · Ready (button shown) · Button focus (`--focus-ring`) · 
 ```html
 <div class="splash-screen"><div class="splash-content">
   <img class="splash-image" src="images/splash.png" alt="">
-  <h1 class="splash-title">The Music Ledger</h1>
+  <h1 class="splash-title">Notably Better</h1>
   <p class="splash-subtitle">Track your practice</p>
   <button class="splash-google-btn show" aria-label="Sign in with Google"><img src="icons/google-sign-in-light.svg" alt="" width="180" height="40"></button>
 </div></div>
 ```
 
-**The picture follows the name on screen (ML-484).** `img.splash-image#splashImage` is one of three while a new name
-is tried out; `public/brand.js` sets its `src` and `alt` and holds it back until the brand is known, and falls
-back to the Music Ledger picture if a trial picture can't be fetched. `docs/brand-trial.md`.
+**The picture is the app's own** (`img.splash-image#splashImage`, `images/brands/notably-better-splash.jpg`): the
+name, a strapline and a stave that climbs. Its `alt` is the app's name. `docs/app-name.md`.
 
 ## 8. Cross-references
 [button](button.md) · [color](../foundations/color.md)

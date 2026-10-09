@@ -58,7 +58,7 @@ the three databases. The fuller history of each gap is in the version 2 register
 | # | Gap | What is left | Weight |
 |---|---|---|---|
 | 11 | **Vercel has no data processing agreement** | Move to Pro, then record it on Admin → Third parties. Recorded as "not in place" on production. | **High** |
-| 13 | **The email provider has no agreement** | Neon's half is closed (signed 6 Oct). Email goes through a personal Gmail account with no agreement, and it keeps every sent email. Needs a provider with an agreement, sending from the app's own domain. | **High** |
+| 13 | **The email provider has no agreement** | Neon's half is closed (signed 6 Oct). Email goes through a personal Gmail account with no agreement, and it keeps every sent email. Needs a provider with an agreement, sending from the app's own domain. **Update, 9 October 2026: done with the rename to Notably Better - emails are sent by Brevo (France) from notablybetter.com and the mailbox is at Fasthosts (UK); each one's data processing agreement is part of its terms. Still for the owner: record both on Admin → Third parties, and delete the old Gmail app password.** | **High** |
 | 19 | Transfer safeguards not recorded | The boxes exist; all five are blank on production. Google sign-in is not recorded either. | Medium |
 | 14, 15, 16, 20 | The five documents | Drafted and on his machine. To do: read them, fill in the ICO registration number and provider columns, say they stand. | Medium |
 | 2 | Members never told about the last-seen date | The "Before you continue..." notice is built (ML-463). No notice of any kind has been published on production - that includes the agreed "My bands has changed" one. | Medium |

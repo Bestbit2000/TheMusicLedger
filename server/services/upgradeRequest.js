@@ -14,7 +14,7 @@ export function upgradeRequestEmail({ firstName, surname, email, accountLevel, f
   const name = `${firstName || ''} ${surname || ''}`.trim() || '(no name given)';
   const when = at.toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'full', timeStyle: 'short' });
   const text = [
-    `${name} tapped "Upgrade now" for ${featureName} in The Music Ledger.`,
+    `${name} tapped "Upgrade now" for ${featureName} in Notably Better.`,
     '',
     `Name: ${name}`,
     `Email: ${email}`,

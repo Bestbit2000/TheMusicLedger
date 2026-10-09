@@ -1,4 +1,4 @@
-// ML-267: the register of third parties - every person and company The Music Ledger depends on,
+// ML-267: the register of third parties - every person and company Notably Better depends on,
 // what they give us, their terms, and what those terms ask of us. Admin -> Third parties shows it;
 // `npm run third-party-audit` (and the release gate) checks the code against it.
 // How to add or re-check an entry: docs/third-party-providers.md.

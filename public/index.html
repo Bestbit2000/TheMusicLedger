@@ -6,20 +6,19 @@
          (Edit Flow's sticky bottom bar uses it for the home indicator) - without it every safe-area
          inset is just 0, silently. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>The Music Ledger</title>
+    <title>Notably Better</title>
 
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0a">
 
-    <!-- ML-484: the tab icon is the brand's mark, drawn to read at 16 pixels (public/brand.js swaps both
-         links when the name on screen is one of the trial names). The installed-app icons below don't change. -->
-    <link rel="icon" type="image/png" sizes="64x64" href="images/brands/music-ledger-tab.png" id="brandTabIconPng">
-    <link rel="icon" type="image/svg+xml" href="images/brands/music-ledger-tab.svg" id="brandTabIcon">
+    <!-- The tab icon is the app's mark, drawn bolder and without its stave so it reads at 16 pixels. -->
+    <link rel="icon" type="image/png" sizes="64x64" href="images/brands/notably-better-tab.png">
+    <link rel="icon" type="image/svg+xml" href="images/brands/notably-better-tab.svg">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Music Ledger">
+    <meta name="apple-mobile-web-app-title" content="Notably Better">
 
     <!-- ML-430: every font is self-hosted (public/fonts/, declared in style.css) - nothing is loaded from
          Google Fonts. Noto Music covers the real Segno (U+1D10B)/Coda (U+1D10C) glyphs from Unicode's
@@ -35,7 +34,7 @@
 <!-- LOGIN / SPLASH SCREEN -->
 <div id="loginScreen" class="splash-screen">
     <div class="splash-content">
-        <img src="images/LedgeSplash.jpg" alt="The Music Ledger" class="splash-image" id="splashImage">
+        <img src="images/brands/notably-better-splash.jpg" alt="Notably Better" class="splash-image" id="splashImage">
         <h1 class="splash-title">Welcome</h1>
         <p id="loginStatusText" class="splash-subtitle">Just a moment, getting ready to open&hellip;</p>
         <!-- ML-430: Google's own "Sign in with Google" button - their picture (white theme), unaltered, as their
@@ -117,10 +116,10 @@
 <div class="top-bar-sticky-group">
     <div class="top-bar">
         <button class="top-btn-back hidden-btn" id="topBackBtn" data-act="go-back">&lt;</button>
-        <!-- ML-484: the brand's small mark beside the name - on Home only, where the title is the app's name
+        <!-- The app's small mark beside the name - on Home only, where the title is the app's name
              (on a wide screen the rail's head carries both instead). Decoration: the name is right beside it. -->
-        <img class="brand-mark" id="topBrandMark" src="images/brands/music-ledger-mark.svg" alt="" aria-hidden="true">
-        <h1 class="top-bar-title" id="topTitle" tabindex="-1">The Music Ledger</h1>
+        <img class="brand-mark" id="topBrandMark" src="images/brands/notably-better-mark.svg" alt="" aria-hidden="true">
+        <h1 class="top-bar-title" id="topTitle" tabindex="-1">Notably Better</h1>
         <!-- Metronome Blocks only (ML-91) - toggles the tuner on/off from here instead of a button
              half way down the page that scrolls out of view; shown/hidden by switchView. -->
         <!-- Disappears entirely while the tuner is open (renderTopTunerToggleState) - Settings/Close
@@ -163,8 +162,8 @@
                 <!-- ML-239: on a tablet or desktop this menu is a rail down the left (specs/components/menu-rail.md).
                      Its head - the app's name and the button that folds it to icons - shows only then. -->
                 <div class="nav-rail-head">
-                    <img class="brand-mark" id="railBrandMark" src="images/brands/music-ledger-mark.svg" alt="" aria-hidden="true">
-                    <span class="nav-rail-name" id="railBrandName">The Music Ledger</span>
+                    <img class="brand-mark" id="railBrandMark" src="images/brands/notably-better-mark.svg" alt="" aria-hidden="true">
+                    <span class="nav-rail-name" id="railBrandName">Notably Better</span>
                     <button type="button" class="nav-rail-fold" id="navRailFoldBtn" aria-label="Fold the menu to icons" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true" id="navRailFoldIcon">menu_open</span></button>
                 </div>
                 <div class="nav-panel" id="navMainPanel">
@@ -280,8 +279,7 @@
 
 </div>
 
-<!-- ML-484: which name the app goes by on screen (docs/brand-trial.md). Here, not at the end, so the
-     sign-in picture, the name and the mark are right before anything is drawn. -->
+<!-- The app's name, in one place (Brand.name() - docs/app-name.md). -->
 <script src="brand.js"></script>
 
 <div class="container">
@@ -1064,8 +1062,8 @@
          a value box with its own pop-up, and two pop-ups don't stack). Email and name, Send, how many are
          left today, then your own invites that are waiting, each with Cancel. app.js: INVITE SOMEONE. -->
     <div id="inviteView" class="hidden-group">
-        <p class="theory-intro" id="inviteIntro">Invite someone to The Music Ledger. They get an email with a link to choose a password - it works once, for 7 days.</p>
-        <p class="level-notice mb-4"><strong>Tell them to look in their junk folder.</strong> The email comes from themusicledgerapp@gmail.com and will probably land there.</p>
+        <p class="theory-intro" id="inviteIntro">Invite someone to Notably Better. They get an email with a link to choose a password - it works once, for 7 days.</p>
+        <p class="level-notice mb-4"><strong>If it doesn't arrive, tell them to look in their junk folder.</strong> The email comes from noreply@notablybetter.com.</p>
         <div class="form-group"><label for="inviteEmailInput">Their email</label><input type="email" id="inviteEmailInput" autocomplete="off" data-form-type="other" maxlength="200" placeholder="e.g. sam@example.com"></div>
         <div class="form-group"><label for="inviteFirstInput">Their first name</label><input type="text" id="inviteFirstInput" autocomplete="off" data-form-type="other" maxlength="80"></div>
         <div class="form-group"><label for="inviteSurnameInput">Their surname</label><input type="text" id="inviteSurnameInput" autocomplete="off" data-form-type="other" maxlength="80"></div>
@@ -1095,7 +1093,7 @@
 
     <!-- ML-313: where the grade content comes from, and that we aren't connected with the exam board -->
     <div id="aboutGradesView" class="hidden-group">
-        <p class="text-sm text-muted">The grade lists in Scales and the grades in Theory follow the syllabuses published by ABRSM (the Associated Board of the Royal Schools of Music). The Music Ledger is an independent app: it isn't affiliated with, endorsed by or approved by ABRSM. Exam requirements belong to ABRSM and can change, so always check the current syllabus at <a class="external-link" href="https://www.abrsm.org" target="_blank" rel="noopener noreferrer"><span class="external-link-text">abrsm.org</span><span class="material-symbols-outlined external-link-icon" aria-hidden="true">open_in_new</span></a> before an exam.</p>
+        <p class="text-sm text-muted">The grade lists in Scales and the grades in Theory follow the syllabuses published by ABRSM (the Associated Board of the Royal Schools of Music). Notably Better is an independent app: it isn't affiliated with, endorsed by or approved by ABRSM. Exam requirements belong to ABRSM and can change, so always check the current syllabus at <a class="external-link" href="https://www.abrsm.org" target="_blank" rel="noopener noreferrer"><span class="external-link-text">abrsm.org</span><span class="material-symbols-outlined external-link-icon" aria-hidden="true">open_in_new</span></a> before an exam.</p>
     </div>
 
     <!-- Quick Play (front page): a simplified, always-editable variant of the Blocks/Flow builder
@@ -2960,7 +2958,7 @@
                 </div>
                 <p class="text-sm" id="scalesGradeListName" aria-live="polite"></p>
                 <!-- ML-313: shown with an ABRSM list. The requirements are ABRSM's own; we aren't connected with them. -->
-                <p class="text-sm text-muted hidden-group" id="scalesGradeDisclaimer">The Music Ledger isn't affiliated with or endorsed by ABRSM. The scale requirements are ABRSM's and can change - check the current syllabus at <a class="external-link" href="https://www.abrsm.org" target="_blank" rel="noopener noreferrer"><span class="external-link-text">abrsm.org</span><span class="material-symbols-outlined external-link-icon" aria-hidden="true">open_in_new</span></a>.</p>
+                <p class="text-sm text-muted hidden-group" id="scalesGradeDisclaimer">Notably Better isn't affiliated with or endorsed by ABRSM. The scale requirements are ABRSM's and can change - check the current syllabus at <a class="external-link" href="https://www.abrsm.org" target="_blank" rel="noopener noreferrer"><span class="external-link-text">abrsm.org</span><span class="material-symbols-outlined external-link-icon" aria-hidden="true">open_in_new</span></a>.</p>
                 <div class="scales-pool-line">
                     <p class="scales-pool-count" id="scalesPoolCount" aria-live="polite"></p>
                     <button type="button" class="scales-range-link" id="scalesSeeRangeBtn" aria-haspopup="dialog">See your range</button>

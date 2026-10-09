@@ -30,7 +30,7 @@ every member sees it - and with no connection nothing is shown.
 Empty: `.notifications-empty` › a line drawing (`svg.notifications-empty-art`, someone relaxing back in a deckchair
 with a euphonium; `aria-hidden`; lines in `--label-color`, the instrument a `.is-solid` group filled with
 `--container-bg` so it hides the lines behind it) › `h2.notifications-empty-title` "You're all caught up!" ›
-a `.text-muted` line: "This is where you'll see what's new in each release, and news from the Music Ledger
+a `.text-muted` line: "This is where you'll see what's new in each release, and news from the Notably Better
 team." (Only what actually feeds the list - releases and super-admin announcements. No milestones.)
 › a `.btn-nav` **Start practising** button to Home, so the screen isn't a dead end (Home has the practice
 session, the tools and the timer).

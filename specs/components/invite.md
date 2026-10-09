@@ -20,8 +20,8 @@ email-and-password login (`password_login`) is Live - an invite is that kind of 
   a fresh email, counted as one of today's.
 - **Where the site doesn't send email** (dev and sandbox, ML-479) the intro line (`#inviteIntro`) and the toast
   after Send invite / Send again say so: the invite is made, but nothing has gone to the person.
-- **The junk warning is always shown**: the email comes from themusicledgerapp@gmail.com and will probably
-  land in junk.
+- **The junk line is always shown**: if the email doesn't arrive, it may be in their junk folder. It comes
+  from noreply@notablybetter.com.
 - It's a **page, not a pop-up**: the account type is a value box with its own pop-up, and pop-ups don't stack.
 - **Don't use** it for admin-only invite work (every pending invite, any account) - that stays on Admin → Accounts.
 
@@ -57,7 +57,7 @@ None of its own. The warning is `.level-notice` (`--status-amber-bg` / `--status
 
 ## 7. Code example
 ```html
-<p class="level-notice"><strong>Tell them to look in their junk folder.</strong> The email comes from themusicledgerapp@gmail.com and will probably land there.</p>
+<p class="level-notice"><strong>If it doesn't arrive, tell them to look in their junk folder.</strong> The email comes from noreply@notablybetter.com.</p>
 <div class="form-group"><label for="inviteEmailInput">Their email</label><input type="email" id="inviteEmailInput" autocomplete="off" data-form-type="other"></div>
 <button type="button" class="btn-submit">Send invite</button>
 <p class="theory-best-line" role="status" aria-live="polite">You can send 4 more invites today.</p>

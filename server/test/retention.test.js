@@ -100,7 +100,7 @@ describe('the emails', () => {
     const m = retentionEmail(1, about);
     assert.match(m.subject, /has not been used for a while/);
     assert.match(m.text, /^Hello Sam,/);
-    assert.match(m.text, /not used The Music Ledger for 22 months/);
+    assert.match(m.text, /not used Notably Better for 22 months/);
     assert.match(m.text, /deleted on 15 January 2029/);
     assert.match(m.text, /just sign in before then: https:\/\/example\.test/);
     assert.match(m.text, /remind you once more/);
