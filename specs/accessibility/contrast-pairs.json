@@ -701,6 +701,30 @@
       "fg": "--success-text",
       "bg": "--input-bg",
       "use": "Business case (ML-443): a result that is up, on a scenario card or a total row"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--meter-ok",
+      "bg": "--container-bg",
+      "use": "Usage bar (ML-515): the fill (fine) on its track"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--meter-near",
+      "bg": "--container-bg",
+      "use": "Usage bar (ML-515): the fill (getting near) on its track"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--meter-full",
+      "bg": "--container-bg",
+      "use": "Usage bar (ML-515): the fill (nearly full or over) on its track"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--control-border",
+      "bg": "--input-bg",
+      "use": "Usage bar (ML-515): the track's edge inside a stat tile"
     }
   ]
 }

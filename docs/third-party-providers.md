@@ -154,7 +154,9 @@ The top of **Admin → Third parties** shows what the app costs and how close ea
 - **Readings** (`third_party_usage_readings`) are taken once a day by Vercel's scheduler
   (`vercel.json` `crons` → `GET /api/cron/usage-readings`, 06:00 UTC), and by **Read now** on the page. The
   page shows the latest, the percent of the limit, where it is heading by the end of the period at this rate,
-  and the day the limit would be reached.
+  and the day the limit would be reached. Used so far and heading for are each drawn as a bar against the
+  limit (ML-515, `usageBar` in `public/admin.js`): amber from 75% and red from 90%, the steps the warning
+  emails use. Vercel's cost so far and the cost it is heading for are bars against the $20 in the same way.
 - **Warnings**: an email to the owner at 75% and at 90%, once per meter and period
   (`third_party_usage_alerts`).
 - **The limits are facts about each plan**, written in `METERS` with the date they were checked

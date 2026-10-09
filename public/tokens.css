@@ -288,6 +288,9 @@
     --success-text: var(--ds-green-800, #2e7d32);          /* green text/icons */
     --warning-text: var(--ds-amber-800, #7a5c00);          /* amber text/icons */
     --tuner-in-tune-text: var(--ds-tuner-green-800, #1d7e46); /* tuner in-tune state as text/outline */
+    --meter-ok: var(--ds-green-800, #2e7d32);              /* usage bar fill: well inside the limit (3:1 against its track) */
+    --meter-near: var(--ds-orange-800, #9a5b00);           /* usage bar fill: getting near the limit (from 75%) */
+    --meter-full: var(--ds-red-700, #c62828);              /* usage bar fill: nearly at the limit, or past it (from 90%) */
     --tuner-in-tune-green: var(--ds-green-400, #2ecc71);         /* tuner in-tune state only (brighter than --success-color) */
     --tuner-in-tune-tint: var(--ds-green-a28, rgba(46, 204, 113, 0.28)); /* tuner card background while in tune */
     --tuner-in-tune-zone: var(--ds-green-a45, rgba(46, 204, 113, 0.45)); /* in-tune band on the needle track */
@@ -519,6 +522,9 @@ body.dark-mode {
     --success-text: var(--ds-green-300, #66bb6a);
     --warning-text: var(--ds-amber-400, #ffca28);
     --tuner-in-tune-text: var(--ds-green-400, #2ecc71);
+    --meter-ok: var(--ds-green-300, #66bb6a);
+    --meter-near: var(--ds-orange-500, #ff9800);
+    --meter-full: var(--ds-red-300, #f7746a);
     --cat-practise-text: var(--ds-green-300, #66bb6a);
     --cat-rehearsal-text: var(--ds-blue-300, #6ab7f7);
     --cat-lesson-text: var(--ds-purple-300, #ce93d8);

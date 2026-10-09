@@ -53,6 +53,7 @@ That's the only inline style allowed, and the audit lets it through. The propert
 | Property | Set by | Read by |
 |---|---|---|
 | `--bar-h`, `--bar-top` | chart and tuner renderers | `.chart-bar`, `.chart-bar-projection`, `.tuner-history-bar`, `.tuner-dynamics-bar` |
+| `--bar-w` | `usageBar` (admin.js, ML-515) | `.usage-bar-fill` |
 | `--line-pos` | chart renderers | `.grid-line`, `.chart-y-label` |
 | `--series` | a `.series-*` class (charts spec), or inline on Admin → Design's category bars | `.chart-bar`, `.chart-bar-projection`, `.chart-legend-swatch` |
 | `--pct` | each slider's update function | `.slider-fill` (width), `.slider-thumb` (left) |

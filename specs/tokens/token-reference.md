@@ -84,6 +84,9 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 | `--success-text` | `#2e7d32` | `#66bb6a` | green text/icons |
 | `--warning-text` | `#7a5c00` | `#ffca28` | amber text/icons |
 | `--tuner-in-tune-text` | `#1d7e46` | `#2ecc71` | tuner in-tune state as text/outline |
+| `--meter-ok` | `#2e7d32` | `#66bb6a` | usage bar fill: well inside the limit (3:1 against its track) |
+| `--meter-near` | `#9a5b00` | `#ff9800` | usage bar fill: getting near the limit (from 75%) |
+| `--meter-full` | `#c62828` | `#f7746a` | usage bar fill: nearly at the limit, or past it (from 90%) |
 | `--tuner-in-tune-green` | `#2ecc71` | (same) | tuner in-tune state only (brighter than --success-color) |
 | `--tuner-in-tune-tint` | `rgba(46, 204, 113, 0.28)` | (same) | tuner card background while in tune |
 | `--tuner-in-tune-zone` | `rgba(46, 204, 113, 0.45)` | (same) | in-tune band on the needle track |

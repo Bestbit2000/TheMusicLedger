@@ -456,3 +456,15 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-dash-need:hover { background: var(--input-bg); }
 .admin-dash-need .admin-badge { flex-shrink: 0; }
 .admin-dash-need-text { flex: 1; min-width: 0; }
+
+/* ML-515 - usage bar (specs/components/usage-bar.md): how much of a limit is used. The track is the limit,
+   the fill is what is used (--bar-w, set by the renderer), and the fill's colour says whether that is fine,
+   getting near or nearly full. The words beside it say the same, so colour is never the only signal. */
+.usage-meter { display: flex; flex-direction: column; gap: var(--space-1); min-width: calc(var(--space-10) * 2); }
+.usage-bar { display: block; box-sizing: border-box; width: 100%; height: var(--space-3); border: 1px solid var(--control-border); border-radius: var(--radius-pill); background: var(--container-bg); overflow: hidden; }
+.usage-bar-fill { display: block; width: var(--bar-w); min-width: var(--space-1); max-width: 100%; height: 100%; background: var(--meter-ok); }
+.usage-bar.is-near .usage-bar-fill { background: var(--meter-near); }
+.usage-bar.is-full .usage-bar-fill { background: var(--meter-full); }
+.usage-meter-text { font-size: var(--font-sm); color: var(--label-color); }
+.admin-stat-tile .usage-meter { order: 2; margin-top: var(--space-2); min-width: 0; }
+.admin-stat-table .usage-meter { margin-top: var(--space-1); } /* clear of the amount written above it */

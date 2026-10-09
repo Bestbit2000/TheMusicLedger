@@ -2947,6 +2947,14 @@
     }
 
     const USAGE_LEVEL = { pass: ['pass', 'Fine'], warn: ['warn', 'Getting near'], fail: ['fail', 'Nearly full'], info: ['never', '–'] };
+    // ML-515: how much of a limit is used, as a bar - its length is how full, its colour whether that is
+    // fine. The same steps as the warning emails: amber from 75%, red from 90%. The words stay beside it.
+    function usageBar(amount, limit, what) {
+        if (amount === null || amount === undefined || !(Number(limit) > 0)) return '';
+        const percent = Math.round((Number(amount) / Number(limit)) * 1000) / 10;
+        const [cls, word] = percent > 100 ? ['is-full', 'Over the limit'] : percent >= 90 ? ['is-full', 'Nearly full'] : percent >= 75 ? ['is-near', 'Getting near'] : ['', 'Fine'];
+        return `<div class="usage-meter"><span class="usage-bar ${cls}" role="img" aria-label="${escapeHtml(what)}: ${percent}% of the limit - ${word}"><span class="usage-bar-fill" style="--bar-w:${Math.min(100, Math.max(0, percent))}%"></span></span><span class="usage-meter-text">${percent}% &middot; ${word}</span></div>`;
+    }
     function renderThirdPartyUsage(data) {
         const usage = data.usage;
         if (!usage) return '';
@@ -2960,21 +2968,21 @@
                 <td>${escapeHtml(m.name)}<div class="admin-stat-tile-sub">${escapeHtml(partyName(m.party))}</div></td>
                 <td>${m.latest ? amountText(m.latest.value, m.unit) : '–'}${m.latest && m.latest.note ? `<div class="admin-stat-tile-sub">${escapeHtml(m.latest.note)}</div>` : ''}</td>
                 <td>${Number(m.limit) > 0 ? `${amountText(m.limit, m.unit)}<div class="admin-stat-tile-sub">${{ month: 'a month', day: 'a day', total: 'in all' }[m.per]}</div>` : 'No limit'}</td>
-                <td><span class="admin-badge ${badge}">${s && s.percent !== null ? `${s.percent}%` : word}</span>${s && s.percent !== null ? `<div class="admin-stat-tile-sub">${word}</div>` : ''}</td>
-                <td>${heading}</td>
+                <td>${s && s.percent !== null ? usageBar(s.value, s.limit, 'Used so far') : `<span class="admin-badge ${badge}">${word}</span>`}</td>
+                <td>${heading}${s && s.projected !== null ? usageBar(s.projected, s.limit, 'Heading for') : ''}</td>
                 <td>${read}</td>
                 <td><button class="admin-stat-exclude-btn" data-reading="${m.key}" type="button">Type a reading</button></td>
             </tr>`;
         }).join('');
         return `
             <h2 class="admin-stat-section-title">Usage against each plan's limits</h2>
-            <p class="admin-intro">The latest reading of each thing a plan limits, and where it is heading by the end of the period at this rate. Read once a day; <strong>Read now</strong> takes one straight away. ${data.alertsGoTo ? 'You are emailed at 75% and at 90%.' : 'No warning emails yet: set USAGE_ALERT_EMAIL (or SIGNUP_ALERT_EMAIL) on Vercel.'} The limits were checked against each provider's pricing page on ${fmtDay(data.limitsCheckedOn)}.</p>
+            <p class="admin-intro">The latest reading of each thing a plan limits, and where it is heading by the end of the period at this rate. Each bar is the whole limit: its length is how much is used, and it turns amber at 75% and red at 90%. Read once a day; <strong>Read now</strong> takes one straight away. ${data.alertsGoTo ? 'You are emailed at 75% and at 90%.' : 'No warning emails yet: set USAGE_ALERT_EMAIL (or SIGNUP_ALERT_EMAIL) on Vercel.'} The limits were checked against each provider's pricing page on ${fmtDay(data.limitsCheckedOn)}.</p>
             <div class="admin-security-toolbar">
                 <button class="btn-submit no-margin" id="usageReadBtn" type="button">Read now</button>
                 <span id="usageReadStatus" class="admin-test-case-meta" role="status" aria-live="polite"></span>
             </div>
             <div class="admin-stat-table-wrap"><table class="admin-stat-table">
-                <thead><tr><th>What</th><th>Used</th><th>Limit</th><th>How full</th><th>Heading for</th><th>Last read</th><th></th></tr></thead>
+                <thead><tr><th>What</th><th>Used</th><th>Limit</th><th>Used so far</th><th>Heading for</th><th>Last read</th><th></th></tr></thead>
                 <tbody>${rows}</tbody>
             </table></div>
             <div class="admin-feature"><div class="admin-test-case"><details class="admin-security-details"><summary>How each one is measured</summary>${thirdPartyList(usage.map((m) => `<strong>${escapeHtml(m.name)}:</strong> ${escapeHtml(m.how)}`))}</details></div></div>
@@ -3006,8 +3014,8 @@
         return `${title}
             <p class="admin-intro">Everything Vercel charges for, from its own bill, for the billing period ${fmtDay(v.period.start)} to ${fmtDay(v.period.end)} (day ${v.daysIn} of ${v.daysTotal}). "Heading for" is where each will be at the end of the period at this rate. The first $${v.included} of usage a month is included in the plan; anything past it is billed. Last read ${fmtDate(v.readAt)}.</p>
             <div class="admin-stat-tiles">
-                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Used so far</div><div class="admin-stat-tile-value">${usd(v.total)}</div><div class="admin-stat-tile-sub">of $${v.included} included</div></div>
-                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Heading for</div><div class="admin-stat-tile-value">${usd(v.projected)}</div><div class="admin-stat-tile-sub">${v.projected > v.included ? `${usd(v.projected - v.included)} would be billed` : 'nothing extra to pay'}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Used so far</div><div class="admin-stat-tile-value">${usd(v.total)}</div><div class="admin-stat-tile-sub">of ${v.included} included</div>${usageBar(v.total, v.included, 'Used so far')}</div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Heading for</div><div class="admin-stat-tile-value">${usd(v.projected)}</div><div class="admin-stat-tile-sub">${v.projected > v.included ? `${usd(v.projected - v.included)} would be billed` : 'nothing extra to pay'}</div>${usageBar(v.projected, v.included, 'Heading for')}</div>
                 <div class="admin-stat-tile"><div class="admin-stat-tile-label">Members using the app</div><div class="admin-stat-tile-value">${members}</div><div class="admin-stat-tile-sub">seen this period</div></div>
                 <div class="admin-stat-tile"><div class="admin-stat-tile-label">For each member</div><div class="admin-stat-tile-value">${v.perMember === null ? '–' : usd(v.perMember)}</div><div class="admin-stat-tile-sub">a period, at this rate</div></div>
             </div>

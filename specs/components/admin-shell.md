@@ -105,6 +105,7 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
 - **Every page has its own address** (`admin.html#accounts`). A reload stays on the page, Back and Forward
   work, and a link can go straight to a page. No address means the Dashboard.
 - **Costs and usage** is its own page (it was the top of Third parties); the same server answer draws both.
+  Each limit is shown as two [usage bars](usage-bar.md) (ML-515): used so far and heading for.
 
 ### Dashboard (ML-443)
 
