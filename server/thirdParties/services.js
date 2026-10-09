@@ -198,58 +198,8 @@ export default [
     hosts: ['accounts.google.com', 'policies.google.com', 'oauth2.googleapis.com']
   },
   {
-    key: 'gmail-smtp',
-    policyName: 'Google',
-    name: 'Gmail (sent the app\'s email until Brevo)',
-    group: 'service',
-    // Not in use since the app was renamed Notably Better: Brevo sends the emails and the mailbox is at
-    // Fasthosts. Kept as the record of what was used, and what is left to clear up.
-    status: 'not_in_use',
-    statusNote: 'Replaced by Brevo (sending) and Fasthosts (the mailbox) when the app was renamed. Still to do by hand: delete the app password, clear Sent and the Bin once more after the switch, and look at the old inbox now and then - the old policy gave that address.',
-    who: 'Google LLC (USA)',
-    provides: 'Sends the app\'s emails - invites, band invitations, password resets, retention warnings, sign-up and upgrade alerts - from a Gmail account the owner set up for the app, over SMTP (MAIL_PROVIDER "smtp"). A copy of every email sent stays in that account\'s Sent folder.',
-    usedIn: 'server/services/mail.js (SMTP_HOST smtp.gmail.com, SMTP_USER, SMTP_PASS - an app password, MAIL_FROM); the nodemailer package',
-    plan: 'A free personal Gmail account',
-    cost: 'Free',
-    licence: 'Google Terms of Service and the Gmail Program Policies',
-    terms: [
-      { label: 'Google terms of service', url: 'https://policies.google.com/terms' },
-      { label: 'Gmail program policies', url: 'https://support.google.com/mail/answer/10178035' },
-      { label: 'Gmail sending limits', url: 'https://support.google.com/mail/answer/22839' },
-      { label: 'Google privacy policy', url: 'https://policies.google.com/privacy' },
-      { label: 'Google Workspace data regions (the paid alternative)', url: 'https://knowledge.workspace.google.com/admin/compliance/choose-a-geographic-location-for-your-data' }
-    ],
-    termsCheckedOn: '2026-10-06',
-    attention: [
-      'A free personal Gmail account comes with no data processing agreement: Google\'s agreement and its choice of where data is kept (the USA or Europe) are part of Google Workspace, the paid service. So the names and addresses in the app\'s emails are held by a US company on its ordinary consumer terms - decide whether to move the sending account to Google Workspace (with the Europe data region), or to an email service based in the EU.',
-      'Sent emails stay in the account\'s Sent folder until someone deletes them - nothing clears them. Either tidy it by hand every month or so, or set up a way to clear it; the privacy policy says how long they are kept.',
-      'Only the sending limits page was read on 6 Oct 2026; the terms and program policies have not been read through yet.'
-    ],
-    says: [
-      'A personal account can send about 500 emails in a day; past that, sending stops with an error and comes back within 1 to 24 hours.'
-    ],
-    asks: [
-      { text: 'Use an app password for SMTP_PASS (never the account\'s own password), and keep two-step verification on for that account.' },
-      { text: 'Only email people who expect it: an invite or invitation asked for by a member, a reset the member asked for. No marketing.' },
-      { text: 'The package that talks to Gmail is in the register.', check: { path: 'server/thirdParties/librariesAndTools.js', includes: 'nodemailer' } }
-    ],
-    watch: [
-      'The daily limit is shared by everything the app sends. Each member can send 5 invites a day and each band organiser 20 band invitations, so about 25 busy organisers in one day would reach it - and then password resets stop too until it comes back.',
-      'Email from a gmail.com address sent by an app often lands in junk; Google can also suspend an account it thinks is sending in bulk. A domain of our own, with a proper sending service, is the lasting answer.',
-      'Nothing counts these emails yet (Admin - Costs and usage has no meter for them).'
-    ],
-    limits: [
-      { what: 'Emails in a day', allowance: 'about 500 (a personal account)' }
-    ],
-    overLimit: 'Blocked: sending is refused for 1 to 24 hours. The app tells the member the email could not be sent.',
-    nextTier: 'Google Workspace - a paid account per user, about 2,000 emails a day, with a data processing agreement and a choice of data region. Price not checked.',
-    usageSource: 'No reading. Gmail does not report a count over SMTP; the app would have to count what it sends.',
-    hosts: ['smtp.gmail.com']
-  },
-  {
-    // The owner opened the account on 8 Oct 2026 to take over from the Gmail account, with the app's own
-    // domain (notablybetter.com). The live site sends through it once its SMTP settings are changed on
-    // the day of the release that renames the app - the same release names it in the privacy policy.
+    // The live site has sent through Brevo since release 0.54.0 (9 Oct 2026), when the app was renamed and
+    // given its own domain. Before that it sent from a free Gmail account, which is no longer used.
     key: 'brevo',
     policyName: 'Brevo',
     name: 'Brevo (sends the app\'s email)',
@@ -298,7 +248,7 @@ export default [
       'Brevo still sends every link in an email through its own counting address first (r.mail on our domain) and adds a picture that counts an open.',
       'The daily limit is shared by everything the account sends, the app\'s emails and any mailing list together.',
       'Sign in to Brevo at least every few months: whether emails sent by the app count as "using" the account for the six-month rule is not stated.',
-      'Whether the free plan puts Brevo\'s logo on emails sent by the app over SMTP, or only on campaigns made in its editor, is not confirmed - the first email sent through it will show.'
+      'The free plan puts no Brevo logo on emails the app sends over SMTP (the owner checked the first one, 9 Oct 2026). A campaign made in Brevo\'s own editor may still carry one.'
     ],
     limits: [
       { what: 'Emails in a day (free plan)', allowance: '300, once Brevo has approved the account for sending' }
