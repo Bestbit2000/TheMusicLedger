@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import axios from 'axios';
+import { loadReleaseNotes, needsNotes, noteProblem, printProblems } from './releaseNotes.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
@@ -55,6 +56,24 @@ async function fetchChangesForVersion(versionName) {
     }));
 }
 
+// What a member reads is the line in release-notes.json, not the Jira summary.
+// A release from NOTES_REQUIRED_FROM on must have a line for every issue;
+// older ones keep the Jira summary until a line is written for them.
+function applyReleaseNotes(releases) {
+  const notes = loadReleaseNotes();
+  const problems = [];
+  for (const release of releases) {
+    for (const change of release.changes) {
+      const problem = noteProblem(notes[change.key]);
+      if (!problem) change.summary = notes[change.key];
+      else if (needsNotes(release.version) || notes[change.key] !== undefined) {
+        problems.push({ key: `${change.key} (${release.version})`, problem });
+      }
+    }
+  }
+  return problems;
+}
+
 async function main() {
   const versions = await fetchReleasedVersions();
   const releases = [];
@@ -62,6 +81,13 @@ async function main() {
   for (const version of versions) {
     const changes = await fetchChangesForVersion(version.name);
     releases.push({ version: version.name, date: version.releaseDate, changes });
+  }
+
+  const problems = applyReleaseNotes(releases);
+  if (problems.length) {
+    console.error('public/releases.json was NOT written - these issues have no usable release note:');
+    printProblems(problems);
+    process.exit(1);
   }
 
   const outPath = path.join(__dirname, '..', 'public', 'releases.json');

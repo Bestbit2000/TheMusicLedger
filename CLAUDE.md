@@ -182,6 +182,12 @@ on 2026-09-08 with no version bump and no release notes at all.
 
 **Every release, ask whether members need telling** (owner's rule, 6 Oct 2026): a change to what is held about them, something that works differently or has gone, or something they must do gets a notice on Admin → Notifications as part of the release; if nothing does, say "no notice needed" in the Jira issue. Claude proposes, the owner decides. See step 1 in `docs/release-process.md`.
 
+**Release notes are written for members, not copied from Jira** (owner's rule, 9 Oct 2026): every issue
+in a release has one line in `release-notes.json` - what changed for a member, starting "We ...", never a
+person's name - and that line is what About → Release history shows. Write it with the work (it goes
+through sandbox like any code); `cut-release` and `sync-releases` refuse to run without it. See "Release
+notes: one line per issue" in `docs/release-process.md`.
+
 **Sandbox must always match production.** Release with
 `git push --atomic origin main main:sandbox`, never `main` alone. The hook blocks a
 push to `main` whose code differs from `origin/sandbox` (apart from the release

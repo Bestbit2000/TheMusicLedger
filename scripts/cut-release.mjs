@@ -1,5 +1,6 @@
 // Automates the Jira side of "cut a release": tags the given issues with a
-// Fix Version (creating it if it doesn't exist), transitions each issue to
+// Fix Version (creating it if it doesn't exist) - once each has its line in
+// release-notes.json - transitions each issue to
 // Released, marks the Version released, and bumps the root package.json
 // version to match. Deliberately does NOT run sync-releases or commit/push -
 // review `public/releases.json` after regenerating it, and commit/push
@@ -14,6 +15,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import axios from 'axios';
+import { problemsFor, printProblems } from './releaseNotes.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
@@ -34,6 +36,15 @@ const [, , version, ...issueKeys] = process.argv;
 if (!version || issueKeys.length === 0) {
   console.error('Usage: node scripts/cut-release.mjs <version> <ISSUE-1> [ISSUE-2 ...]');
   console.error('Example: node scripts/cut-release.mjs 0.4.1 ML-37');
+  process.exit(1);
+}
+
+// Checked before anything is changed in Jira: every issue needs its line for
+// the app's release history (docs/release-process.md).
+const noteProblems = problemsFor(issueKeys);
+if (noteProblems.length) {
+  console.error('Nothing was changed. These issues have no usable release note:');
+  printProblems(noteProblems);
   process.exit(1);
 }
 

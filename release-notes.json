@@ -1,0 +1,12 @@
+{
+  "ML-507": "We added a Report button to shared music, so anything that shouldn't be there can be flagged and taken down.",
+  "ML-506": "We now ask anyone who sets up sharing for a band to confirm they are an adult.",
+  "ML-505": "We added a line to the privacy policy for young players about recordings.",
+  "ML-490": "We can now remove a recording from every piece when someone in it asks, and tell the people it belonged to.",
+  "ML-489": "We added the Recordings tool, so one recording of a whole rehearsal can be given to several pieces.",
+  "ML-488": "We made it possible to match a piece's bars to a recording or video, so you can repeat any bars or play them slower.",
+  "ML-487": "We fixed a YouTube video that carried on playing after you saved a piece.",
+  "ML-456": "We now accept MuseScore files as a piece's score or part.",
+  "ML-312": "We added a start and an end to a recording or video on a piece, so it plays only the part you want.",
+  "ML-278": "We now ask you to confirm, once, that you have the right to upload music before your first upload."
+}

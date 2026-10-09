@@ -130,7 +130,10 @@ regenerate the token reference if tokens changed. The Design page is how the own
    document 4, `compliance-documents/`; summary in `docs/gdpr-assessment.md`) **before** it is released,
    and say in the Jira issue that it was checked. If the answer to one of the Code's standards changes,
    the self-assessment is updated in the same release.
-2. Run the Jira-side automation:
+2. **First, make sure every issue has its release note** in `release-notes.json` (see "Release notes:
+   one line per issue" below). The file is ordinary code that goes through sandbox, so write the line
+   with the work, not at the last minute - `cut-release` refuses to start without it.
+   Then run the Jira-side automation:
    ```bash
    npm run cut-release -- <version> <ISSUE-1> [ISSUE-2 ...]
    # e.g. npm run cut-release -- 0.4.1 ML-37
@@ -142,7 +145,8 @@ regenerate the token reference if tokens changed. The Design page is how the own
    ```bash
    npm run sync-releases
    ```
-   Writes `public/releases.json` from every released Jira Version. **Must be
+   Writes `public/releases.json` from every released Jira Version, with each issue's line from
+   `release-notes.json` in place of its Jira summary. **Must be
    committed** — Vercel's build only runs `npm install`, never this script.
 4. Review the diff of `package.json` and `public/releases.json`, then commit:
    ```bash
@@ -190,6 +194,35 @@ regenerate the token reference if tokens changed. The Design page is how the own
    curl -sI https://notablybetter.com/ | grep -iE "x-content-type|x-frame|referrer|permissions|content-security"
    ```
    Five lines should come back, each once (the same for `/app.js` and for `/api/account`).
+
+## Release notes: one line per issue
+
+What a member reads on ☰ About → Release history is **not** the Jira summary. A summary is written for
+whoever does the work ("Rehearsal score, step B: the Recordings tool - a bigger upload..."); the app
+shows one line per issue written for the member, kept in `release-notes.json` (issue key → line) at the
+top of the repo (owner's rule, 9 Oct 2026).
+
+How to write one:
+
+- **It starts "We ..."** and says what we did: "We added...", "We fixed...", "We now ask...", "We made
+  it possible to...". Never a person's name - there is one of us, and "We" is the app speaking.
+- **One line, one sentence, 180 characters at most**, ending in a full stop. There is always more
+  detail; leave it in Jira.
+- **Say what changed for the member**, in the words on screen (a piece, My music, Rehearse, a band) -
+  not how it was built. No issue numbers, no "step A", no table, file or feature-switch names.
+- **A fix says what now works**, or what stopped going wrong: "We fixed a YouTube video that carried on
+  playing after you saved a piece."
+- **Work a member never sees still gets a line**, in plain words: "We tightened the app's security
+  behind the scenes." Don't dress it up, and don't claim more than was released.
+- The young players rule applies here too: no pressure, nothing that sells.
+
+Claude writes the lines; the owner can change any of them in the file before the release is cut.
+
+`npm run cut-release` checks the line for every issue it is given before it touches Jira, and
+`npm run sync-releases` refuses to write `public/releases.json` if an issue in a release from 0.51.0 on
+has no line, or a line that breaks the rules above (`scripts/releaseNotes.mjs`). Older releases show
+their Jira summaries until a line is written for them - adding one to `release-notes.json` and running
+`npm run sync-releases` is all it takes.
 
 ## Sandbox = production parity
 
