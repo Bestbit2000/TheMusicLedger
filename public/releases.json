@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.56.0",
+    "date": "2026-10-10",
+    "changes": [
+      {
+        "key": "ML-516",
+        "type": "Fixes",
+        "summary": "We made Major and Minor clearer in the Keys quiz when it has both: the one being asked is lit up on every question."
+      },
+      {
+        "key": "ML-512",
+        "type": "New",
+        "summary": "We now check, before every release, whether it changes what members can show each other."
+      },
+      {
+        "key": "ML-511",
+        "type": "New",
+        "summary": "We can now take down a band's practice list, or change a band's name, if it breaks the rules."
+      },
+      {
+        "key": "ML-510",
+        "type": "New",
+        "summary": "We added Report to the play screen, to a shared band and to a band's practice list."
+      },
+      {
+        "key": "ML-502",
+        "type": "New",
+        "summary": "We can now warn a member who breaks the rules, and close their account if it carries on."
+      }
+    ]
+  },
+  {
     "version": "0.55.0",
     "date": "2026-10-09",
     "changes": [
