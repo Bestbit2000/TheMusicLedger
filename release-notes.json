@@ -1,4 +1,5 @@
 {
+  "ML-519": "We made the extra check on the part of the app that holds members' details quicker to set up, with a code to scan.",
   "ML-518": "We added an extra check before anyone can open the part of the app that holds members' details.",
   "ML-516": "We made Major and Minor clearer in the Keys quiz when it has both: the one being asked is lit up on every question.",
   "ML-502": "We can now warn a member who breaks the rules, and close their account if it carries on.",

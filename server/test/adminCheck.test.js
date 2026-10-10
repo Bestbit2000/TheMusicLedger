@@ -104,6 +104,31 @@ describe('the check rides on the sign-in token', () => {
   });
 });
 
+describe('the QR code on the set-up screen (ML-519)', () => {
+  const LINK = 'otpauth://totp/Notably%20Better%3Aa%40example.com?secret=ZRFVQTBOBT2DKHQIVMUZ5H3DFD5P6IXL&issuer=Notably%20Better&algorithm=SHA1&digits=6&period=30';
+  test('is a square QR code with the three corner squares a scanner looks for', async () => {
+    const { qrModules } = await import('../services/adminCheck.js');
+    const m = qrModules(LINK);
+    assert.ok(m.length >= 21 && m.every((row) => row.length === m.length));
+    const corner = (r0, c0) => Array.from({ length: 7 }, (_, r) => Array.from({ length: 7 }, (__, c) => (m[r0 + r][c0 + c] ? '#' : '.')).join('')).join('/');
+    const FINDER = '#######/#.....#/#.###.#/#.###.#/#.###.#/#.....#/#######';
+    assert.equal(corner(0, 0), FINDER);
+    assert.equal(corner(0, m.length - 7), FINDER);
+    assert.equal(corner(m.length - 7, 0), FINDER);
+  });
+  test('is sent as a picture that carries its own black on white and a quiet border', async () => {
+    const { qrImage, qrModules } = await import('../services/adminCheck.js');
+    const uri = qrImage(LINK);
+    assert.match(uri, /^data:image\/svg\+xml;base64,/);
+    const svg = Buffer.from(uri.split(',')[1], 'base64').toString('utf8');
+    const size = qrModules(LINK).length + 8;
+    assert.ok(svg.includes(`viewBox="0 0 ${size} ${size}"`));
+    assert.ok(svg.includes('fill="#fff"') && svg.includes('fill="#000"'));
+    assert.ok(!/<script|href|on\w+=/.test(svg));
+    assert.notEqual(qrImage(LINK), qrImage(LINK.replace('ZRFV', 'AAAA')));
+  });
+});
+
 describe('the guard on every admin route', () => {
   const run = (adm, env) => {
     const kept = { ...process.env };

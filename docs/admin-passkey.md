@@ -50,7 +50,10 @@ is `APP_URL` where that is set (as for emailed links), otherwise the one the req
 
 - A super admin who signs in **with Google** has never been asked for an authenticator app (two-step
   sign-in was only for password sign-ins). The first time they open the admin panel where the check is on,
-  it walks them through setting one up (`POST /api/admin/gate/authenticator`, then `.../confirm`), shows the
+  it walks them through setting one up (`POST /api/admin/gate/authenticator`, then `.../confirm`) - a QR code
+  to scan from a computer's screen (ML-519: drawn on the server by `qrImage`, sent as a picture with the setup
+  key and never kept; the `qrcode-generator` package), a button for someone reading on the phone itself, and
+  the key to type - shows the
   ten recovery codes once, and offers to add a passkey to the device.
   **That first set-up is the one moment the check rests on the sign-in alone** - so each super admin should
   open the admin panel and do it straight after the release, and straight after being made a super admin.

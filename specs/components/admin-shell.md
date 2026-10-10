@@ -63,7 +63,9 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
   takes the page (`.admin-logged-out`, the block the "not signed in" notices use): a heading, a line of why,
   one `.btn-submit` ("Use my passkey", or "Continue" under a code field in a `.form-group`), the other way in
   as an `.admin-stat-exclude-btn`, and an `.admin-link` back to the app. Messages are `role="alert"`; Enter in
-  a field presses its button. The first-time set-up reuses two-step's `.two-step-key` and `.recovery-codes`.
+  a field presses its button. The first-time set-up reuses two-step's `.two-step-key` and `.recovery-codes`, and shows a QR code
+  (ML-519): an `<img>` 220px square with alt text, always black on white - the picture carries its own
+  colours so a phone can scan it in dark mode too.
   When the check runs out mid-session the shell is hidden, not rebuilt, so the page comes back as it was.
 - **My passkeys (ML-518, Release and checks → My passkeys):** a table of the admin's own passkeys (name,
   added, last used, Rename / Remove as `.admin-stat-exclude-btn`), **Add a passkey to this device**

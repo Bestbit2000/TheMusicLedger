@@ -114,9 +114,11 @@
         host().innerHTML = `
             <h1>Set up the admin check</h1>
             <p>The admin panel holds members' details, so from now on it asks you to prove it's you. First, an authenticator app - it is the way in on a device with no passkey, and the way to add a passkey.</p>
-            <p><strong>1.</strong> Add Notably Better to an authenticator app on your phone - Google Authenticator, Microsoft Authenticator, 1Password and others all work.</p>
+            <p><strong>1.</strong> Add Notably Better to an authenticator app on your phone - Google Authenticator, Microsoft Authenticator, 1Password and others all work. In the app, choose to add an account and scan this code:</p>
+            ${details.qr ? `<p><img src="${esc(details.qr)}" width="220" height="220" alt="QR code to scan with your authenticator app"></p>` : ''}
+            <p>Reading this on the phone itself?</p>
             <button type="button" class="btn-submit" data-gate="open-app">Add to my authenticator app</button>
-            <p>On a computer, or the button doesn't open an app? Type this setup key into the app instead:</p>
+            <p>Or type this setup key into the app:</p>
             <p class="two-step-key" aria-label="Setup key">${esc(details.secret)}</p>
             <p><button type="button" class="admin-stat-exclude-btn" data-gate="copy-key">Copy the setup key</button></p>
             <p><strong>2.</strong> Type the 6-digit code the app shows for Notably Better.</p>

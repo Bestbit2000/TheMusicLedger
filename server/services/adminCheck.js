@@ -9,6 +9,7 @@
 // small file (public/admin-passkeys.js).
 
 import { generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse } from '@simplewebauthn/server';
+import qrcode from 'qrcode-generator';
 import pool from '../config/db.js';
 import { twoStepStatus, beginSetup, confirmSetup, verifyLoginCode, newRecoveryCodes, ISSUER } from './twoStep.js';
 import { appUrl, limitCalls } from './passwordAuth.js';
@@ -87,7 +88,29 @@ export async function passByCode(req, code) {
 // sign-in alone, which is why each super admin should do it straight away.
 export async function beginAuthenticator(req) {
   await limitCalls('admin-check', req.accountId);
-  return beginSetup(req.accountId, req.userId); // refuses if two-step is already on
+  const details = await beginSetup(req.accountId, req.userId); // refuses if two-step is already on
+  return { ...details, qr: qrImage(details.otpauthUrl) };
+}
+
+// ML-519: the same set-up link as a QR code, for a phone's authenticator app to scan from a computer's
+// screen. Drawn here and sent as a picture (an SVG in a data: address) - it holds the setup key, so like
+// the key it is shown once and never kept. Always black on white with the quiet border a scanner needs,
+// whatever the page's colours. The QR sums are the qrcode-generator package.
+export function qrModules(text) {
+  const qr = qrcode(0, 'M');
+  qr.addData(text);
+  qr.make();
+  const count = qr.getModuleCount();
+  return Array.from({ length: count }, (_, row) => Array.from({ length: count }, (__, col) => qr.isDark(row, col)));
+}
+export function qrImage(text) {
+  const QUIET = 4;
+  const modules = qrModules(text);
+  const size = modules.length + QUIET * 2;
+  let path = '';
+  modules.forEach((row, r) => row.forEach((dark, c) => { if (dark) path += `M${c + QUIET} ${r + QUIET}h1v1h-1z`; }));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges"><rect width="${size}" height="${size}" fill="#fff"/><path d="${path}" fill="#000"/></svg>`;
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
 }
 export async function confirmAuthenticator(req, code) {
   await limitCalls('admin-check', req.accountId);

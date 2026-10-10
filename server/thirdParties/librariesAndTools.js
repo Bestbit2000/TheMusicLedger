@@ -50,6 +50,11 @@ export const libraries = [
     termsCheckedOn: '2026-10-10',
     says: ['It brings in about two dozen packages of its own (the @peculiar/asn1 family, tiny-cbor, tsyringe and others) to read the certificates and encodings a passkey uses. All run on our server only; nothing is sent to their authors.']
   }),
+  npm('qrcode-generator', 'MIT', 'Kazuhiko Arase', 'Works out the QR code shown when a super admin sets up their authenticator app for the admin panel (ML-519). It runs on our server; it brings in no other packages.', LIVE, {
+    termsCheckedOn: '2026-10-10',
+    noLicenceFile: 'The package ships no licence file; its package.json and the notice at the top of its code declare MIT.',
+    says: ['The word "QR Code" is a registered trademark of DENSO WAVE INCORPORATED - the package asks nothing about it, and using the codes themselves is free.']
+  }),
   npm('dotenv', 'BSD-2-Clause', 'Scott Motte', 'Reads the .env settings file on a developer\'s machine.', LIVE),
   npm('axios', 'MIT', 'Matt Zabriskie and contributors', 'Web requests in the release scripts (cut-release, sync-releases).', 'Release scripts on a developer\'s machine; also listed for the server, which doesn\'t use it'),
   npm('@neon/config', 'Apache-2.0', 'Neon (Databricks, Inc.)', 'Neon\'s project settings file (neon.ts).', DEV),
