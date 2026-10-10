@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.58.0",
+    "date": "2026-10-10",
+    "changes": [
+      {
+        "key": "ML-519",
+        "type": "New",
+        "summary": "We made the extra check on the part of the app that holds members' details quicker to set up, with a code to scan."
+      }
+    ]
+  },
+  {
     "version": "0.57.0",
     "date": "2026-10-10",
     "changes": [
