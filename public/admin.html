@@ -28,6 +28,10 @@
     <a class="btn-submit" href="/">Go to Notably Better</a>
 </div>
 
+<!-- ML-518: "prove it's you" - a passkey or a code - before the panel opens, and again after 15 minutes
+     without use (public/admin-passkeys.js; the server refuses every admin route without it). -->
+<div id="adminGate" class="admin-logged-out hidden-group" aria-live="polite"></div>
+
 <div id="adminShell" class="admin-shell hidden-group">
     <!-- ML-240: on a phone (max-width 700px) the section list folds away behind the ☰ toggle and
          the head row shows which section is open; on wider screens it's the fixed sidebar as before. -->
@@ -79,6 +83,8 @@
                 <div class="admin-nav-group-items" id="adminNavGroup-release">
                 <button class="admin-nav-item" data-section="release-tests" type="button">Release tests</button>
                 <button class="admin-nav-item" data-section="security" type="button">Security <span id="securityNavCount" class="admin-nav-count hidden-group"></span></button>
+                <!-- ML-518: the super admin's own passkeys for this address -->
+                <button class="admin-nav-item" data-section="passkeys" type="button">My passkeys</button>
                 <button class="admin-nav-item" data-section="third-parties" type="button">Third parties <span id="thirdPartiesNavCount" class="admin-nav-count hidden-group"></span></button>
                 <button class="admin-nav-item" data-section="design" type="button">Design</button>
                 </div>
@@ -370,6 +376,12 @@
         </section>
         <!-- ML-267: the register of third parties (server/thirdParties/register.js) - read-only here; it
              changes with a release, and `npm run third-party-audit` checks it (docs/third-party-providers.md). -->
+        <!-- ML-518: the super admin's own passkeys, new recovery codes, and Lock (public/admin-passkeys.js, docs/admin-passkey.md) -->
+        <section id="passkeys-section" class="admin-section hidden-group">
+            <h1>My passkeys</h1>
+            <p class="admin-intro">The admin panel holds members' details, so it asks you to prove it's you before it opens - with a passkey (this device's fingerprint, face or PIN), or a code from your authenticator app. Your fingerprint or face never leaves the device: the device checks it and tells the site yes or no.</p>
+            <div id="adminPasskeys"><p class="admin-intro">Loading&hellip;</p></div>
+        </section>
         <!-- ML-464: the retention rule, who is next, and Run now (public/admin-retention.js, docs/retention.md) -->
         <section id="retention-section" class="admin-section hidden-group">
             <h1>Retention</h1>
@@ -647,6 +659,23 @@
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="featureFormCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="featureFormSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ML-518: name a passkey (a new one, or renaming) - and, for a new one on a check made with a
+     passkey, the code that making one needs. -->
+<div class="modal" id="passkeyNameModal" role="dialog" aria-modal="true" aria-labelledby="passkeyNameTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="passkeyNameTitle">Name this passkey</h2>
+        <p class="admin-intro" id="passkeyNameIntro"></p>
+        <div class="form-group"><label for="passkeyNameInput">Name</label><input type="text" id="passkeyNameInput" maxlength="40" autocomplete="off"></div>
+        <div class="form-group hidden-group" id="passkeyCodeGroup"><label for="passkeyCodeInput">Code from your authenticator app</label><input type="text" id="passkeyCodeInput" inputmode="numeric" autocomplete="one-time-code" maxlength="20" spellcheck="false"></div>
+        <p class="admin-intro hidden-group" id="passkeyNameMessage" role="alert"></p>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="passkeyNameCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="passkeyNameSaveBtn" type="button">Save</button>
         </div>
     </div>
 </div>
@@ -1031,6 +1060,7 @@
 <script src="scaleGrades.js"></script>
 <script src="warmups.js"></script>
 <script src="avatars.js"></script>
+<script src="admin-passkeys.js"></script>
 <script src="admin.js"></script>
 <script src="admin-design.js"></script>
 <!-- ML-443: the page the panel opens on -->

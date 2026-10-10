@@ -3,6 +3,7 @@ import { getOrCreateAccount, isSuperAdmin, getAccountLevel, touchLastSeen } from
 import { featureContext, ACCOUNT_TYPE_KEYS } from '../services/features.js';
 import { tokenIsCurrent } from '../services/tokenVersions.js';
 import { isWriteId, claimWrite, releaseWrite } from '../services/clientWrites.js';
+import { adminCheckRequired, checkState, slidToken } from '../services/adminCheckRules.js';
 
 // ML-355: a token signed before the account's last password reset is refused ("signed out everywhere").
 // A database error answers 500, not 401 - a 401 logs the app out (ML-48), which a blip mustn't do.
@@ -47,6 +48,7 @@ export async function requireAuth(req, res, next) {
     if (await rejectOldToken(tokenData, res)) return;
     dropGoogleKeys(tokenData, res);
 
+    req.tokenPayload = tokenData; // ML-518: the admin panel's check rides on the token (requireAdminCheck)
     req.tokenVersion = Number(tokenData.tv || 0);
     req.userId = tokenData.userId;
     req.firstName = tokenData.firstName || '';
@@ -146,5 +148,22 @@ export async function requireSuperAdmin(req, res, next) {
   } catch (error) {
     res.status(500).json({ error: 'Failed to verify admin access' });
   }
+}
+
+// ML-518: on top of being a super admin, the admin panel asks them to prove it is them - a passkey or
+// an authenticator code - and that check lasts 15 minutes without use, 8 hours at most
+// (docs/admin-passkey.md). Chained after requireSuperAdmin on every admin route but the ones that
+// make the check (/gate...). The check is written in the sign-in token itself (`adm`), which only the
+// server can sign; while the panel is in use the token is handed back with the time moved on
+// (X-Refreshed-Token, as ML-475 does). Not asked where the local dev sign-in is on.
+export function requireAdminCheck(req, res, next) {
+  if (!adminCheckRequired()) return next();
+  const now = Date.now();
+  const state = checkState(req.tokenPayload?.adm, now);
+  if (!state.fresh) return res.status(403).json({ error: 'Prove it\'s you to carry on in the admin panel.', adminCheck: 'needed' });
+  if (state.slide) {
+    try { res.set('X-Refreshed-Token', slidToken(req.tokenPayload, now)); } catch (error) { console.error('Admin check not moved on:', error.message); }
+  }
+  next();
 }
 

@@ -15,6 +15,7 @@ import { buildReview, saveRun, osvLookup } from './securityReview.js';
 import { currentAppVersion } from './flowAuthoringStats.js';
 import { headerFindings } from '../middleware/securityHeaders.js';
 import { mailIsReal, mailProvider } from './mail.js';
+import { adminCheckRequired } from './adminCheckRules.js';
 import assistedHistory from '../securityReviews/site.js';
 
 export const TARGET = {
@@ -38,7 +39,7 @@ export const SECTIONS = [
 const DEEP = 'Ask Claude Code: "re-run the ML-231 site security review" (docs/site-security-review.md says how).';
 export const CHECKS = [
   { key: 'auto.route-guards', section: 'access', mode: 'automated', title: 'Every route still has its guard',
-    rerun: 'Run now. Reads the route files: every admin route needs requireSuperAdmin, and every app route needs a signed-in account unless it is on the short list of deliberate exceptions.' },
+    rerun: 'Run now. Reads the route files: every admin route needs requireSuperAdmin and the "prove it\'s you" check (requireAdminCheck), and every app route needs a signed-in account unless it is on the short list of deliberate exceptions.' },
   { key: 'auto.signed-out-probe', section: 'access', mode: 'automated', title: 'What the live site says to someone not signed in',
     rerun: 'Run now. Asks this site for a member\'s data, an admin page\'s data and the daily job with no sign-in and with a made-up one; each must be refused. Also checks the test logins are shut.' },
   { key: 'object-access', section: 'access', mode: 'assisted', title: 'Can a member reach another member\'s things? (every route that takes an id)', rerun: DEEP },
@@ -50,7 +51,7 @@ export const CHECKS = [
   { key: 'file-uploads', section: 'input', mode: 'assisted', title: 'Uploaded files: where they may come from, how big, who can delete them', rerun: DEEP },
 
   { key: 'auto.admin-sign-in', section: 'signin', mode: 'automated', title: 'Administrators\' sign-in',
-    rerun: 'Run now. Counts super admin accounts and checks that any with a password also has two-step sign-in.' },
+    rerun: 'Run now. Counts super admin accounts, checks that any with a password also has two-step sign-in, and that the admin panel\'s "prove it\'s you" check is being asked.' },
   { key: 'sessions-and-tokens', section: 'signin', mode: 'assisted', title: 'The sign-in token: where it is kept, how long it lasts, what is in it', rerun: DEEP },
   { key: 'test-logins', section: 'signin', mode: 'assisted', title: 'The local and test logins can\'t be used on the live site', rerun: DEEP },
   { key: 'rate-limits', section: 'signin', mode: 'assisted', title: 'Limits on repeated tries', rerun: DEEP },
@@ -107,7 +108,8 @@ export function routesIn(source) {
   }
   return out;
 }
-// What is wrong with a routes file. kind: 'admin' (every route needs requireSuperAdmin) or 'app'.
+// What is wrong with a routes file. kind: 'admin' (every route needs requireSuperAdmin, and requireAdminCheck
+// unless it is one of the /gate routes that make the check - ML-518) or 'app'.
 export function routeGuardFindings(source, kind) {
   const routes = routesIn(source);
   const problems = [];
@@ -116,6 +118,8 @@ export function routeGuardFindings(source, kind) {
     const name = `${r.method} ${r.path}`;
     if (kind === 'admin') {
       if (!(has('requireAuth') && has('resolveAccount') && has('requireSuperAdmin'))) problems.push(`${name} is not limited to super admins`);
+      // ML-518: and the "prove it's you" check, on all but the routes that make it
+      else if (!has('requireAdminCheck') && !/^\/gate(\/|$)/.test(r.path)) problems.push(`${name} does not ask for the admin check`);
     } else if (!OPEN_ROUTES[name]) {
       const signedIn = has('requireAuth') || has(QUERY_AUTH);
       if (!signedIn) problems.push(`${name} does not need a sign-in`);
@@ -136,7 +140,7 @@ async function checkRouteGuards() {
   if (admin.count < 50 || app.count < 100) return { status: 'error', summary: 'The route files could not be read properly, so this check proves nothing.', details: [`${admin.count} admin routes and ${app.count} app routes found - far fewer than there are.`] };
   return {
     status: problems.length ? 'fail' : 'pass',
-    summary: problems.length ? `${problems.length} route${problems.length === 1 ? ' has' : 's have'} lost a guard.` : `All ${admin.count} admin routes are limited to super admins, and all ${app.count} app routes need a signed-in account.`,
+    summary: problems.length ? `${problems.length} route${problems.length === 1 ? ' has' : 's have'} lost a guard.` : `All ${admin.count} admin routes are limited to super admins and ask for the "prove it's you" check, and all ${app.count} app routes need a signed-in account.`,
     details: problems.length ? problems : Object.entries(OPEN_ROUTES).map(([r, why]) => `Deliberately open: ${r} - ${why}`)
   };
 }
@@ -267,14 +271,21 @@ async function checkSettings({ origin }) {
 
 async function checkAdminSignIn() {
   const { rows } = await pool.query(
-    `SELECT a.id, (p.account_id IS NOT NULL) AS has_password, (t.enabled_at IS NOT NULL) AS two_step
+    `SELECT a.id, (p.account_id IS NOT NULL) AS has_password, (t.enabled_at IS NOT NULL) AS two_step,
+            EXISTS (SELECT 1 FROM admin_passkeys k WHERE k.account_id = a.id) AS has_passkey
        FROM accounts a LEFT JOIN account_passwords p ON p.account_id = a.id LEFT JOIN account_two_step t ON t.account_id = a.id
       WHERE a.account_level = 'super_admin' AND a.deleted_at IS NULL`);
   const exposed = rows.filter((r) => r.has_password && !r.two_step).length;
+  // ML-518: the admin panel asks for a passkey or an authenticator code. A super admin with no authenticator
+  // app yet sets one up the first time they open the panel - until then that account rests on its sign-in alone.
+  const notSetUp = rows.filter((r) => !r.two_step).length;
+  const asked = adminCheckRequired();
   return {
-    status: exposed ? 'fail' : rows.length > 3 ? 'warn' : 'pass',
+    status: exposed || !asked ? 'fail' : rows.length > 3 || notSetUp ? 'warn' : 'pass',
     summary: exposed ? `${exposed} super admin account${exposed === 1 ? ' has' : 's have'} a password but no two-step sign-in.` : `${rows.length} super admin account${rows.length === 1 ? '' : 's'}; none can sign in with a password alone.`,
     details: [`${rows.filter((r) => r.has_password).length} with a password (all need two-step); ${rows.filter((r) => !r.has_password).length} sign in through Google only.`,
+      asked ? 'The admin panel asks each of them to prove it is them (a passkey or a code), every 15 minutes without use.' : 'The admin panel\'s "prove it\'s you" check is NOT being asked on this site (it is only left off on a developer\'s machine).',
+      `${rows.filter((r) => r.has_passkey).length} of ${rows.length} have a passkey; ${notSetUp} ${notSetUp === 1 ? 'has' : 'have'} no authenticator app yet${notSetUp ? ' - each should open the admin panel and set it up' : ''}.`,
       ...(rows.length > 3 ? ['More than three super admins: check each one is still needed (Admin → Accounts).'] : [])]
   };
 }

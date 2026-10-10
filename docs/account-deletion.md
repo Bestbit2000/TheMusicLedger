@@ -121,7 +121,8 @@ having to ask. Owner's decision, 4 Oct 2026.
   `OTHER_PEOPLE` in the code.
 - **Left out, the app's own workings:** `account_rest_decks` (which rest message comes next),
   `notification_reads`, `active_timer_sessions` and `active_practice_sessions` (what is running right now) and
-  `client_writes` (the ids that stop something logged offline being saved twice). `HOUSEKEEPING` in the code.
+  `client_writes` (the ids that stop something logged offline being saved twice) and `admin_passkey_challenges`
+  (ML-518: the question asked of a device while a passkey is checked). `HOUSEKEEPING` in the code.
   **A new table of that kind goes in the list**; anything that says something about the member stays in.
 - **Not followed:** `bands`, `band_members`, `notifications`, `security_review_runs` - the member's own rows
   are exported, but what hangs off them belongs to other people (a band's other members).

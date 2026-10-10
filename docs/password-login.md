@@ -72,6 +72,12 @@ emails are sent by Brevo, from the app's own domain** - `docs/app-name.md`.
   Recovery codes are stored as SHA-256 only. Tables: `account_two_step`, `account_recovery_codes`
   (migration 075).
 
+**The admin panel (ML-518).** Since ML-518 the same authenticator app and recovery codes are also what a
+super admin uses to open the admin panel on a device with no passkey - whichever way they sign in, Google
+included. A super admin who signs in with Google sets the app up the first time they open the panel
+(`/api/admin/gate/authenticator`), which is the one place two-step is set up without a password. See
+[`docs/admin-passkey.md`](admin-passkey.md).
+
 ## Changing your password, and the admin tools (batch 3)
 
 - **My account → Sign-in and security → Change password:** the current password (wrong ones count

@@ -20,13 +20,22 @@ export function signToken(payload, ttlMs = DEFAULT_TTL_MS) {
 
 // ML-475: what a sign-in token may carry - who it is, and the housekeeping. Anything else (a token
 // signed before 0.48.0 held Google's own access and refresh keys) is left behind when one is re-issued.
-const KEPT = ['userId', 'email', 'firstName', 'surname', 'tv', 'isTestAccount'];
+const KEPT = ['userId', 'email', 'firstName', 'surname', 'tv', 'isTestAccount', 'adm'];
 export const carriesGoogleKeys = (payload) => !!payload && ('access_token' in payload || 'refresh_token' in payload || 'expiry_date' in payload);
 // The same sign-in, without them: same member, same token version, and the same end date (not a new 30 days).
 export function withoutGoogleKeys(payload) {
   const clean = Object.fromEntries(KEPT.filter((k) => payload[k] !== undefined).map((k) => [k, payload[k]]));
   const left = payload.exp ? payload.exp - Date.now() : DEFAULT_TTL_MS;
   return signToken(clean, Math.max(left, 0));
+}
+
+// ML-518: the same sign-in with something changed (the admin panel's "it's you" check, `adm`) - same
+// member, same token version, same end date. A change of undefined takes the field out.
+export function reissue(payload, changes = {}) {
+  const next = { ...Object.fromEntries(KEPT.filter((k) => payload[k] !== undefined).map((k) => [k, payload[k]])), ...changes };
+  for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
+  const left = payload.exp ? payload.exp - Date.now() : DEFAULT_TTL_MS;
+  return signToken(next, Math.max(left, 0));
 }
 
 export function verifyToken(token) {

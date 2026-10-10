@@ -33,7 +33,7 @@ export const APP_OWNED = new Set(['notifications', 'third_party_costs', 'securit
 //                  next, which notices have been opened, a timer or session that is running right now, and
 //                  the ids that stop something logged offline being saved twice.
 export const OTHER_PEOPLE = new Set(['auth_email_links', 'band_invites']);
-export const HOUSEKEEPING = new Set(['account_rest_decks', 'notification_reads', 'active_timer_sessions', 'active_practice_sessions', 'client_writes']);
+export const HOUSEKEEPING = new Set(['account_rest_decks', 'notification_reads', 'active_timer_sessions', 'active_practice_sessions', 'client_writes', 'admin_passkey_challenges']);
 const LEFT_OUT = (table) => SECRET_TABLES.has(table) || APP_OWNED.has(table) || OTHER_PEOPLE.has(table) || HOUSEKEEPING.has(table);
 export const ROW_FILTER = {
   // My bands (a member's own 'label' rows) and a shared space they set up ('group') are theirs; the band

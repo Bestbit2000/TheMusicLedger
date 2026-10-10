@@ -13,6 +13,7 @@ same pieces. It is a careful review by Claude, not a penetration test by a speci
 | Security headers | [`server/middleware/securityHeaders.js`](../server/middleware/securityHeaders.js) |
 | Fetching a member's web address safely | [`server/utils/publicUrl.js`](../server/utils/publicUrl.js) |
 | Tests | `server/test/siteSecurity.test.js` (includes the real route files), `server/test/publicUrl.test.js` |
+| The admin panel's "prove it's you" check (ML-518) | [`docs/admin-passkey.md`](admin-passkey.md) - every admin route needs `requireAdminCheck` as well as `requireSuperAdmin`; the route-guard check and its unit test cover both, and "Administrators' sign-in" fails if the check is not being asked |
 | Shared with the OMR review | `buildReview`, `saveRun`, `osvLookup` in `server/services/securityReview.js`; tables `security_review_runs` / `_results` |
 
 ## Two kinds of check

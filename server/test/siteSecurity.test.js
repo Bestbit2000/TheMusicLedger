@@ -28,7 +28,16 @@ describe('reading a routes file', () => {
   });
   test('an admin route without requireSuperAdmin is a problem', () => {
     const out = routeGuardFindings(`router.get('/x', requireAuth, resolveAccount, async (req, res) => {}); router.get('/y', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {});`, 'admin');
-    assert.deepEqual(out, { count: 2, problems: ['GET /x is not limited to super admins'] });
+    assert.deepEqual(out, { count: 2, problems: ['GET /x is not limited to super admins', 'GET /y does not ask for the admin check'] });
+  });
+  test('an admin route also needs the "prove it\'s you" check, unless it is one that makes the check (ML-518)', () => {
+    const out = routeGuardFindings(`
+      router.get('/gate', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {});
+      router.post('/gate/code', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {});
+      router.get('/gateway', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {});
+      router.get('/accounts', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {});
+      router.post('/gate/open', requireAuth, resolveAccount, async (req, res) => {});`, 'admin');
+    assert.deepEqual(out.problems, ['GET /gateway does not ask for the admin check', 'POST /gate/open is not limited to super admins']);
   });
   test('an app route needs a sign-in and an account, unless it is one of the deliberate exceptions', () => {
     const out = routeGuardFindings(`
@@ -46,6 +55,9 @@ describe('the real route files (checked on every release)', () => {
     const out = routeGuardFindings(source('admin.js'), 'admin');
     assert.ok(out.count >= 80, `only ${out.count} admin routes were found - the reader has stopped understanding the file`);
     assert.deepEqual(out.problems, []);
+    // ML-518: and the routes that make the check are the seven that were meant to be
+    const gate = routesIn(source('admin.js')).filter((r) => !r.guards.includes('requireAdminCheck')).map((r) => `${r.method} ${r.path}`);
+    assert.deepEqual(gate, ['GET /gate', 'POST /gate/code', 'POST /gate/authenticator', 'POST /gate/authenticator/confirm', 'POST /gate/passkey/options', 'POST /gate/passkey', 'POST /gate/lock']);
   });
   test('every app route needs a signed-in account, apart from the listed exceptions', () => {
     const out = routeGuardFindings(source('api.js'), 'app');

@@ -7,9 +7,14 @@
 // "super admin" means. This used to only require being logged in at all,
 // same as any other route (no admin-role gating existed anywhere in the
 // app) - closed as part of shipping account levels rather than left open.
+//
+// ML-518: and requireAdminCheck after it - the super admin has proved it is them (a passkey or a
+// code) in the last 15 minutes of use. Only the /gate routes, which make that check, go without.
+// A unit test fails a release where a route has lost either guard (docs/admin-passkey.md).
 
 import express from 'express';
-import { requireAuth, resolveAccount, requireSuperAdmin } from '../middleware/auth.js';
+import { requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck } from '../middleware/auth.js';
+import { gateStatus, passByCode, beginAuthenticator, confirmAuthenticator, passkeyCheckOptions, passByPasskey, lock, listPasskeys, passkeyRegisterOptions, addPasskey, renamePasskey, removePasskey, freshRecoveryCodes } from '../services/adminCheck.js';
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listWarmupsForAdmin, createWarmup, updateWarmup, setWarmupActive, moveWarmup, deleteWarmup } from '../services/warmups.js';
@@ -47,9 +52,35 @@ import { listRestMessages, createRestMessage, updateRestMessage, setRestMessageA
 const router = express.Router();
 
 // ========================================
+// PROVE IT'S YOU (ML-518) - docs/admin-passkey.md
+// ========================================
+// The /gate routes make the check, so they are the only admin routes without requireAdminCheck
+// (the route-guard test knows them by that prefix). Each answers with the sign-in token carrying
+// the check; the page swaps to it.
+const gateRoute = (fn) => async (req, res) => {
+  try { res.json(await fn(req)); } catch (error) { sendError(res, error); }
+};
+router.get('/gate', requireAuth, resolveAccount, requireSuperAdmin, gateRoute((req) => gateStatus(req)));
+router.post('/gate/code', requireAuth, resolveAccount, requireSuperAdmin, gateRoute((req) => passByCode(req, req.body?.code)));
+router.post('/gate/authenticator', requireAuth, resolveAccount, requireSuperAdmin, gateRoute((req) => beginAuthenticator(req)));
+router.post('/gate/authenticator/confirm', requireAuth, resolveAccount, requireSuperAdmin, gateRoute((req) => confirmAuthenticator(req, req.body?.code)));
+router.post('/gate/passkey/options', requireAuth, resolveAccount, requireSuperAdmin, gateRoute((req) => passkeyCheckOptions(req)));
+router.post('/gate/passkey', requireAuth, resolveAccount, requireSuperAdmin, gateRoute((req) => passByPasskey(req, req.body?.response)));
+router.post('/gate/lock', requireAuth, resolveAccount, requireSuperAdmin, gateRoute((req) => lock(req)));
+
+// My passkeys: the super admin's own, for the address they are on. Adding one needs a check made with a code.
+const passkeyId = (req) => (/^\d{1,15}$/.test(req.params.id) ? req.params.id : '0');
+router.get('/passkeys', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, gateRoute((req) => listPasskeys(req)));
+router.post('/passkeys/options', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, gateRoute((req) => passkeyRegisterOptions(req)));
+router.post('/passkeys', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, gateRoute((req) => addPasskey(req, req.body?.response, req.body?.name)));
+router.post('/passkeys/recovery-codes', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, gateRoute((req) => freshRecoveryCodes(req, req.body?.code)));
+router.put('/passkeys/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, gateRoute((req) => renamePasskey(req, passkeyId(req), req.body?.name)));
+router.delete('/passkeys/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, gateRoute((req) => removePasskey(req, passkeyId(req))));
+
+// ========================================
 // RELEASE TESTS (ML-29 back-test registry)
 // ========================================
-router.get('/backtest', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/backtest', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const [features, testCases, links, runs, results] = await Promise.all([
       pool.query('SELECT id, feature_key, name, description FROM features ORDER BY name'),
@@ -139,7 +170,7 @@ router.get('/backtest', requireAuth, resolveAccount, requireSuperAdmin, async (r
 // Flat list of every test case with the feature(s) it covers - ML-26's
 // "link under Release tests to see the list of test cases and the features
 // they're designed to test".
-router.get('/test-cases', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/test-cases', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const [testCases, links, features, results] = await Promise.all([
       pool.query(
@@ -209,7 +240,7 @@ function toFeature(row) {
   };
 }
 
-router.get('/features', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/features', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT id, feature_key, name, description, enabled, created_at FROM features ORDER BY name'
@@ -221,7 +252,7 @@ router.get('/features', requireAuth, resolveAccount, requireSuperAdmin, async (r
   }
 });
 
-router.post('/features', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/features', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const { featureKey, name, description, enabled } = req.body;
     if (!featureKey || !name) {
@@ -244,14 +275,14 @@ router.post('/features', requireAuth, resolveAccount, requireSuperAdmin, async (
 
 // ML-345: Admin -> Feature access - every feature by account type, and Live (the master switch).
 // Saved together (one transaction), since it changes production for real people.
-router.get('/feature-access', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/feature-access', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await getFeatureAccess());
   } catch (error) {
     sendError(res, error);
   }
 });
-router.put('/feature-access', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/feature-access', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await saveFeatureAccess(req.body || {}));
   } catch (error) {
@@ -259,7 +290,7 @@ router.put('/feature-access', requireAuth, resolveAccount, requireSuperAdmin, as
   }
 });
 
-router.put('/features/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/features/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     clearFeatureCache(); // ML-345: Live may change
     const { featureKey, name, description, enabled } = req.body;
@@ -285,7 +316,7 @@ router.put('/features/:id', requireAuth, resolveAccount, requireSuperAdmin, asyn
 // Deleting a feature only removes its rows in the test_case_features join
 // table (ON DELETE CASCADE there) - a test case can cover several features,
 // so removing one never deletes the test case itself or its run history.
-router.delete('/features/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.delete('/features/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const { rows } = await pool.query('DELETE FROM features WHERE id = $1 RETURNING id', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Feature not found' });
@@ -300,35 +331,35 @@ router.delete('/features/:id', requireAuth, resolveAccount, requireSuperAdmin, a
 // WARM-UPS (ML-294) - super admins add, edit, reorder, switch on/off and delete the Warm-ups tool's
 // exercises. Every save is checked by services/warmups.js (bars add up, pitches in range).
 // ========================================
-router.get('/warmups', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/warmups', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ exercises: await listWarmupsForAdmin() });
   } catch (error) {
     sendError(res, error);
   }
 });
-router.post('/warmups', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/warmups', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ exercise: await createWarmup(req.body || {}) });
   } catch (error) {
     sendError(res, error);
   }
 });
-router.put('/warmups/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/warmups/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ exercise: await updateWarmup(req.params.id, req.body || {}) });
   } catch (error) {
     sendError(res, error);
   }
 });
-router.put('/warmups/:id/active', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/warmups/:id/active', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ exercise: await setWarmupActive(req.params.id, req.body && req.body.isActive) });
   } catch (error) {
     sendError(res, error);
   }
 });
-router.put('/warmups/:id/move', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/warmups/:id/move', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await moveWarmup(req.params.id, Number(req.body && req.body.direction));
     res.json({ exercises: await listWarmupsForAdmin() });
@@ -336,7 +367,7 @@ router.put('/warmups/:id/move', requireAuth, resolveAccount, requireSuperAdmin, 
     sendError(res, error);
   }
 });
-router.delete('/warmups/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.delete('/warmups/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await deleteWarmup(req.params.id);
     res.json({ message: 'Exercise deleted' });
@@ -348,7 +379,7 @@ router.delete('/warmups/:id', requireAuth, resolveAccount, requireSuperAdmin, as
 // ========================================
 // ACCOUNTS (ML-77) - view/manage every account's site-wide level.
 // ========================================
-router.get('/accounts', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/accounts', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ accounts: await listAccountsForAdmin(), blockedWithoutAccount: await blockedWithoutAccount() });
   } catch (error) {
@@ -357,7 +388,7 @@ router.get('/accounts', requireAuth, resolveAccount, requireSuperAdmin, async (r
   }
 });
 
-router.put('/accounts/:id/level', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/accounts/:id/level', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await setAccountLevel(req.params.id, req.body.accountLevel);
     res.json({ message: 'Account level updated' });
@@ -378,47 +409,47 @@ const accountAction = (fn, message) => async (req, res) => {
 };
 // ML-465: start a change of email address for someone who has lost the old one. The link goes to the
 // new address, and nothing changes until it is opened there.
-router.post('/accounts/:id/change-email', requireAuth, resolveAccount, requireSuperAdmin,
+router.post('/accounts/:id/change-email', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck,
   accountAction((req) => adminRequestEmailChange(req.accountId, req.params.id, (req.body || {}).newEmail, appUrl(req)),
     (sent) => (sent.notSentHere
       ? `A link was made for ${sent.sentTo}, but this site doesn't send emails - nothing has gone to them.`
       : `A link has been sent to ${sent.sentTo}. Their address changes when they open it (within ${sent.minutes} minutes).`)));
-router.post('/accounts/:id/send-reset', requireAuth, resolveAccount, requireSuperAdmin,
+router.post('/accounts/:id/send-reset', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck,
   accountAction((req) => adminSendReset(req.params.id, appUrl(req)), (email) => sentOrHeld(`Reset link sent to ${email}`, `Reset link made for ${email}, but this site doesn't send emails - nothing has gone to them.`)));
-router.post('/accounts/:id/unlock', requireAuth, resolveAccount, requireSuperAdmin,
+router.post('/accounts/:id/unlock', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck,
   accountAction((req) => adminUnlock(req.params.id), 'Unlocked - they can try again now'));
-router.post('/accounts/:id/two-step/off', requireAuth, resolveAccount, requireSuperAdmin,
+router.post('/accounts/:id/two-step/off', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck,
   accountAction((req) => adminTurnOffTwoStep(req.params.id), 'Two-step sign-in is off for them - they can set it up again'));
-router.post('/accounts/:id/sign-out', requireAuth, resolveAccount, requireSuperAdmin,
+router.post('/accounts/:id/sign-out', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck,
   accountAction((req) => adminSignOutEverywhere(req.params.id), 'Signed out on every device'));
 // ML-514: delete someone's account for them, when they ask and can't sign in to do it themselves. The
 // ordinary deletion (docs/account-deletion.md); they are emailed to say it has been done.
-router.post('/accounts/:id/delete', requireAuth, resolveAccount, requireSuperAdmin,
+router.post('/accounts/:id/delete', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck,
   accountAction((req) => deleteAccountAsAdmin(req.accountId, req.params.id),
     (done) => (done.emailed ? `The account for ${done.email} has been deleted, and they have been emailed to say so.` : `The account for ${done.email} has been deleted. No email was sent to say so.`)));
 
 // ML-502: warn a member, close their account, or reopen it (server/services/accountClosing.js). The
 // record is what has been done about the account so far, shown before the owner acts.
 const toldOrNot = (done, did) => `${did} ${done.emailed ? `They have been emailed at ${done.email}.` : 'No email was sent to say so.'}`;
-router.get('/accounts/:id/record', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/accounts/:id/record', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await accountRecord(req.params.id));
   } catch (error) {
     sendError(res, error);
   }
 });
-router.post('/accounts/:id/warn', requireAuth, resolveAccount, requireSuperAdmin,
+router.post('/accounts/:id/warn', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck,
   accountAction((req) => warnAccount(req.accountId, req.params.id, req.body || {}), (done) => toldOrNot(done, 'The warning is on their record and they will see it in the app.')));
-router.post('/accounts/:id/close', requireAuth, resolveAccount, requireSuperAdmin,
+router.post('/accounts/:id/close', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck,
   accountAction((req) => closeAccount(req.accountId, req.params.id, req.body || {}), (done) => toldOrNot(done, 'The account is closed: they are signed out everywhere and can\'t sign back in.')));
-router.post('/accounts/:id/reopen', requireAuth, resolveAccount, requireSuperAdmin,
+router.post('/accounts/:id/reopen', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck,
   accountAction((req) => reopenAccount(req.accountId, req.params.id), (done) => toldOrNot(done, 'The account is open again.')));
 // An address left on the block list after its account was deleted - typed in, since the list holds no addresses
-router.post('/blocked-emails/unblock', requireAuth, resolveAccount, requireSuperAdmin,
+router.post('/blocked-emails/unblock', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck,
   accountAction((req) => unblockEmail((req.body || {}).email), (done) => `${done.email} is off the block list and can sign up again.`));
 
 // ML-355: invite someone to log in with their email and a password (password_login must be on).
-router.get('/invites', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/invites', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ enabled: await passwordLoginEnabled(), invites: await listPendingInvites(), emailsAreSent: mailIsReal() });
   } catch (error) {
@@ -426,7 +457,7 @@ router.get('/invites', requireAuth, resolveAccount, requireSuperAdmin, async (re
   }
 });
 
-router.post('/invites', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/invites', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const { email, firstName, surname, accountLevel } = req.body || {};
     const invite = await createInvite({ email, firstName, surname, accountLevel, createdBy: req.accountId, origin: appUrl(req) });
@@ -436,7 +467,7 @@ router.post('/invites', requireAuth, resolveAccount, requireSuperAdmin, async (r
   }
 });
 
-router.delete('/invites/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.delete('/invites/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await cancelInvite(req.params.id);
     res.json({ message: 'Invite cancelled' });
@@ -451,7 +482,7 @@ router.delete('/invites/:id', requireAuth, resolveAccount, requireSuperAdmin, as
 // (server/routes/api.js's POST /account/bands) - same reachability/duplicate
 // checks either way, just a different caller/permission gate.
 // ========================================
-router.get('/bands', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/bands', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ bands: await listBandsForAdmin() });
   } catch (error) {
@@ -460,7 +491,7 @@ router.get('/bands', requireAuth, resolveAccount, requireSuperAdmin, async (req,
   }
 });
 
-router.post('/bands', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/bands', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const { name, website, ...details } = req.body;
     // ML-247: adding a band to the directory doesn't make the admin a member of it.
@@ -472,7 +503,7 @@ router.post('/bands', requireAuth, resolveAccount, requireSuperAdmin, async (req
   }
 });
 
-router.put('/bands/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/bands/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await updateBandAdmin(req.params.id, req.body || {});
     res.json({ message: 'Band updated' });
@@ -483,7 +514,7 @@ router.put('/bands/:id', requireAuth, resolveAccount, requireSuperAdmin, async (
 
 // Archived rather than deleted outright if still in use (real members or
 // session history) - see deleteOrArchiveBandAdmin.
-router.delete('/bands/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.delete('/bands/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const { archived, memberCount, sessionCount } = await deleteOrArchiveBandAdmin(req.params.id);
     // ML-247: say what's still using it, not just "still in use".
@@ -504,7 +535,7 @@ router.delete('/bands/:id', requireAuth, resolveAccount, requireSuperAdmin, asyn
 // values (read-only usage view - see listNoteValueUsage), and Metronome
 // Blocks' play-speed presets.
 // ========================================
-router.get('/durations', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/durations', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ durations: await listDurationOptionsForAdmin() });
   } catch (error) {
@@ -512,7 +543,7 @@ router.get('/durations', requireAuth, resolveAccount, requireSuperAdmin, async (
   }
 });
 
-router.post('/durations', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/durations', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ duration: await createDurationOption(req.body.minutes) });
   } catch (error) {
@@ -520,7 +551,7 @@ router.post('/durations', requireAuth, resolveAccount, requireSuperAdmin, async 
   }
 });
 
-router.put('/durations/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/durations/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const { minutes, sortOrder, active, isDefault } = req.body;
     await updateDurationOption(req.params.id, { minutes, sortOrder, active, isDefault });
@@ -530,7 +561,7 @@ router.put('/durations/:id', requireAuth, resolveAccount, requireSuperAdmin, asy
   }
 });
 
-router.delete('/durations/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.delete('/durations/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await deleteDurationOption(req.params.id);
     res.json({ message: 'Duration deleted' });
@@ -539,7 +570,7 @@ router.delete('/durations/:id', requireAuth, resolveAccount, requireSuperAdmin, 
   }
 });
 
-router.get('/time-signatures', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/time-signatures', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ timeSignatures: await listTimeSignatureOptionsForAdmin() });
   } catch (error) {
@@ -547,7 +578,7 @@ router.get('/time-signatures', requireAuth, resolveAccount, requireSuperAdmin, a
   }
 });
 
-router.post('/time-signatures', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/time-signatures', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const { numerator, denominator, label } = req.body;
     res.json({ timeSignature: await createTimeSignatureOption(numerator, denominator, label) });
@@ -556,7 +587,7 @@ router.post('/time-signatures', requireAuth, resolveAccount, requireSuperAdmin, 
   }
 });
 
-router.put('/time-signatures/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/time-signatures/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const { numerator, denominator, label, sortOrder, active } = req.body;
     await updateTimeSignatureOption(req.params.id, { numerator, denominator, label, sortOrder, active });
@@ -567,7 +598,7 @@ router.put('/time-signatures/:id', requireAuth, resolveAccount, requireSuperAdmi
 });
 
 // Archived rather than deleted outright if any block anywhere still references it.
-router.delete('/time-signatures/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.delete('/time-signatures/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const archived = await deleteOrArchiveTimeSignatureOption(req.params.id);
     res.json({ message: archived ? 'Time signature archived (still in use)' : 'Time signature deleted', archived });
@@ -582,7 +613,7 @@ router.delete('/time-signatures/:id', requireAuth, resolveAccount, requireSuperA
 // ========================================
 
 // Read-only - note_value is a fixed CHECK constraint, not a manageable table (see listNoteValueUsage).
-router.get('/usage/note-values', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/usage/note-values', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ noteValues: await listNoteValueUsage() });
   } catch (error) {
@@ -591,7 +622,7 @@ router.get('/usage/note-values', requireAuth, resolveAccount, requireSuperAdmin,
 });
 
 // ML-309: practice time by instrument (sessions.instrument_id), plus who plays what.
-router.get('/usage/instruments', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/usage/instruments', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await getInstrumentUsageStats());
   } catch (error) {
@@ -601,7 +632,7 @@ router.get('/usage/instruments', requireAuth, resolveAccount, requireSuperAdmin,
 
 // Matched by value against sessions.total_duration_minutes, not a real reference - see
 // listDurationUsageStats.
-router.get('/usage/durations', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/usage/durations', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const [durationUsage, sessionMinutes] = await Promise.all([listDurationUsageStats(), listSessionMinuteCounts()]);
     res.json({ durationUsage, sessionMinutes }); // ML-308: sessionMinutes feeds the two charts
@@ -615,7 +646,7 @@ router.get('/usage/durations', requireAuth, resolveAccount, requireSuperAdmin, a
 // Super-admin-only like everything else in this file, which matters more here than most: these rows
 // are attributed prose written by named users, not aggregate numbers.
 // ========================================
-router.get('/feedback', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/feedback', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await listFeedbackForAdmin({ status: req.query.status, category: req.query.category }));
   } catch (error) {
@@ -626,7 +657,7 @@ router.get('/feedback', requireAuth, resolveAccount, requireSuperAdmin, async (r
 // PUT rather than the PATCH the ticket names - every other update route in this app is a PUT that
 // merges only the fields present (see /flows/:id, /features/:id), and the behaviour asked for is
 // exactly that. Matching the house convention beats matching the verb in the ticket text.
-router.put('/feedback/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/feedback/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const { status, category, adminResponse } = req.body || {};
     res.json(await updateFeedbackAdmin(req.params.id, { status, category, adminResponse }));
@@ -638,7 +669,7 @@ router.put('/feedback/:id', requireAuth, resolveAccount, requireSuperAdmin, asyn
 // Flow authoring time (ML-199) - the baseline for how long building a Flow by hand actually takes.
 // Super-admin-only like everything in this file, which is also what the ticket asked for: these
 // rows are per-user timings, not aggregate product analytics.
-router.get('/usage/flow-authoring', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/usage/flow-authoring', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await getFlowAuthoringStats());
   } catch (error) {
@@ -647,7 +678,7 @@ router.get('/usage/flow-authoring', requireAuth, resolveAccount, requireSuperAdm
 });
 
 // Drop a run from the statistics without destroying it - see setFlowAuthoringSessionExcluded.
-router.put('/usage/flow-authoring/:id/excluded', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/usage/flow-authoring/:id/excluded', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await setFlowAuthoringSessionExcluded(req.params.id, req.body?.isExcluded, req.body?.reason));
   } catch (error) {
@@ -655,7 +686,7 @@ router.put('/usage/flow-authoring/:id/excluded', requireAuth, resolveAccount, re
   }
 });
 
-router.get('/playback-speeds', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/playback-speeds', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ playbackSpeeds: await listPlaybackSpeedsForAdmin() });
   } catch (error) {
@@ -663,7 +694,7 @@ router.get('/playback-speeds', requireAuth, resolveAccount, requireSuperAdmin, a
   }
 });
 
-router.post('/playback-speeds', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/playback-speeds', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ playbackSpeed: await createPlaybackSpeedOption(req.body.percent) });
   } catch (error) {
@@ -671,7 +702,7 @@ router.post('/playback-speeds', requireAuth, resolveAccount, requireSuperAdmin, 
   }
 });
 
-router.put('/playback-speeds/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/playback-speeds/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const { percent, active } = req.body;
     await updatePlaybackSpeedOption(req.params.id, { percent, active });
@@ -681,7 +712,7 @@ router.put('/playback-speeds/:id', requireAuth, resolveAccount, requireSuperAdmi
   }
 });
 
-router.delete('/playback-speeds/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.delete('/playback-speeds/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await deletePlaybackSpeedOption(req.params.id);
     res.json({ message: 'Playback speed deleted' });
@@ -695,7 +726,7 @@ router.delete('/playback-speeds/:id', requireAuth, resolveAccount, requireSuperA
 // dashboard link, that shouldn't need a release to change. Only known keys
 // (seeded by migration) can be read/written - see services/appConfig.js.
 // ========================================
-router.get('/config/:key', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/config/:key', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ key: req.params.key, value: await getConfigValue(req.params.key) });
   } catch (error) {
@@ -703,7 +734,7 @@ router.get('/config/:key', requireAuth, resolveAccount, requireSuperAdmin, async
   }
 });
 
-router.put('/config/:key', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/config/:key', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ key: req.params.key, value: await setConfigValue(req.params.key, req.body.value) });
   } catch (error) {
@@ -717,7 +748,7 @@ router.put('/config/:key', requireAuth, resolveAccount, requireSuperAdmin, async
 // at a future time (no scheduler - "live" is computed at read time, see services/notifications.js),
 // optional expiry, withdraw (keeps read stats) or delete.
 // ========================================
-router.get('/notifications', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/notifications', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await listNotificationsForAdmin());
   } catch (error) {
@@ -725,7 +756,7 @@ router.get('/notifications', requireAuth, resolveAccount, requireSuperAdmin, asy
   }
 });
 
-router.post('/notifications', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/notifications', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await createNotification(req.accountId, req.body));
   } catch (error) {
@@ -733,7 +764,7 @@ router.post('/notifications', requireAuth, resolveAccount, requireSuperAdmin, as
   }
 });
 
-router.put('/notifications/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/notifications/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await updateNotification(req.params.id, req.body));
   } catch (error) {
@@ -741,7 +772,7 @@ router.put('/notifications/:id', requireAuth, resolveAccount, requireSuperAdmin,
   }
 });
 
-router.put('/notifications/:id/withdrawn', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/notifications/:id/withdrawn', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await setNotificationWithdrawn(req.params.id, !!req.body?.withdrawn));
   } catch (error) {
@@ -749,7 +780,7 @@ router.put('/notifications/:id/withdrawn', requireAuth, resolveAccount, requireS
   }
 });
 
-router.delete('/notifications/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.delete('/notifications/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await deleteNotification(req.params.id);
     res.json({ message: 'Notification deleted' });
@@ -769,18 +800,18 @@ const restRoute = (fn) => async (req, res) => {
     sendError(res, error);
   }
 };
-router.get('/rest-messages', requireAuth, resolveAccount, requireSuperAdmin, restRoute(async () => ({ messages: await listRestMessages() })));
-router.post('/rest-messages', requireAuth, resolveAccount, requireSuperAdmin, restRoute(req => createRestMessage(req.body || {})));
-router.put('/rest-messages/:id', requireAuth, resolveAccount, requireSuperAdmin, restRoute(req => updateRestMessage(Number(req.params.id), req.body || {})));
-router.put('/rest-messages/:id/active', requireAuth, resolveAccount, requireSuperAdmin, restRoute(req => setRestMessageActive(Number(req.params.id), !!req.body?.active)));
-router.put('/rest-messages/:id/move', requireAuth, resolveAccount, requireSuperAdmin, restRoute(async req => ({ messages: await moveRestMessage(Number(req.params.id), req.body?.dir) })));
-router.delete('/rest-messages/:id', requireAuth, resolveAccount, requireSuperAdmin, restRoute(req => deleteRestMessage(Number(req.params.id))));
+router.get('/rest-messages', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, restRoute(async () => ({ messages: await listRestMessages() })));
+router.post('/rest-messages', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, restRoute(req => createRestMessage(req.body || {})));
+router.put('/rest-messages/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, restRoute(req => updateRestMessage(Number(req.params.id), req.body || {})));
+router.put('/rest-messages/:id/active', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, restRoute(req => setRestMessageActive(Number(req.params.id), !!req.body?.active)));
+router.put('/rest-messages/:id/move', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, restRoute(async req => ({ messages: await moveRestMessage(Number(req.params.id), req.body?.dir) })));
+router.delete('/rest-messages/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, restRoute(req => deleteRestMessage(Number(req.params.id))));
 
 // ========================================
 // FLOW TRANSFER (ML-204) - copying flows between environments (e.g. production -> dev/sandbox for
 // testing) as MusicXML. See server/services/flowTransfer.js and docs/flow-musicxml.md.
 // ========================================
-router.get('/flows', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/flows', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json({ flows: await listFlowsForAdmin() });
   } catch (error) {
@@ -790,7 +821,7 @@ router.get('/flows', requireAuth, resolveAccount, requireSuperAdmin, async (req,
 
 // One id -> a .musicxml file; several -> a .zip. Sent as a download (Content-Disposition) - the
 // admin page fetches it with the auth header and saves the blob, since a plain link can't carry one.
-router.post('/flows/export', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/flows/export', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
     const { fileName, contentType, body } = await exportFlows(ids, {
@@ -810,7 +841,7 @@ router.post('/flows/export', requireAuth, resolveAccount, requireSuperAdmin, asy
 // KB each, so even a large .zip is far inside the request cap and needs no Blob round-trip.
 const rawImportBody = express.raw({ type: () => true, limit: MAX_IMPORT_BYTES });
 
-router.post('/flows/import/preview', requireAuth, resolveAccount, requireSuperAdmin, rawImportBody, async (req, res) => {
+router.post('/flows/import/preview', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, rawImportBody, async (req, res) => {
   try {
     const preview = await previewImport(req.accountId, req.body, String(req.query.fileName || 'upload.musicxml'));
     res.json(previewSummary(preview));
@@ -819,7 +850,7 @@ router.post('/flows/import/preview', requireAuth, resolveAccount, requireSuperAd
   }
 });
 
-router.post('/flows/import', requireAuth, resolveAccount, requireSuperAdmin, rawImportBody, async (req, res) => {
+router.post('/flows/import', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, rawImportBody, async (req, res) => {
   try {
     res.json(await commitImport(req.accountId, req.body, String(req.query.fileName || 'upload.musicxml')));
   } catch (error) {
@@ -834,14 +865,14 @@ router.post('/flows/import', requireAuth, resolveAccount, requireSuperAdmin, raw
 // ========================================
 // ML-470: the reviews that come round (data protection, the Children's Code, the breach plan, and the
 // two security reviews): when each was last done, when it is due, and "Mark as reviewed".
-router.get('/reviews', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/reviews', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await getReviews());
   } catch (error) {
     sendError(res, error);
   }
 });
-router.post('/reviews/:key', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/reviews/:key', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const profile = await getAccountProfile(req.accountId);
     // by their full name, as a record should say it - never the email address
@@ -852,7 +883,7 @@ router.post('/reviews/:key', requireAuth, resolveAccount, requireSuperAdmin, asy
   }
 });
 
-router.get('/security-review', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/security-review', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(req.query.target === 'site' ? await getSiteSecurityReview() : await getSecurityReview());
   } catch (error) {
@@ -860,7 +891,7 @@ router.get('/security-review', requireAuth, resolveAccount, requireSuperAdmin, a
   }
 });
 
-router.post('/security-review/run', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/security-review/run', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     // ML-231: ?target=site reviews this site; with nothing, the PDF import service (ML-192)
     if (req.query.target === 'site') {
@@ -892,7 +923,7 @@ async function thirdPartiesPage() {
 }
 
 // ML-462: what the owner records about a third party on the site - a reference and a note...
-router.put('/third-parties/:key/record', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/third-parties/:key/record', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await saveRecord(req.params.key, req.body, thirdPartyKeys());
     res.json(await thirdPartiesPage());
@@ -902,7 +933,7 @@ router.put('/third-parties/:key/record', requireAuth, resolveAccount, requireSup
 });
 
 // ML-469: ...whether a data processing agreement is in place (and since when), and the transfer safeguard
-router.put('/third-parties/:key/agreement', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/third-parties/:key/agreement', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await saveAgreement(req.params.key, req.body, thirdPartyRegister.entries.filter((e) => e.personalData).map((e) => e.key));
     res.json(await thirdPartiesPage());
@@ -912,7 +943,7 @@ router.put('/third-parties/:key/agreement', requireAuth, resolveAccount, require
 });
 
 // ...and a "needs attention" item marked as dealt with, or open again
-router.post('/third-parties/:key/attention', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/third-parties/:key/attention', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const entry = thirdPartyRegister.entries.find((e) => e.key === req.params.key);
     await setAttentionDone(req.params.key, String((req.body || {}).text || ''), !!(req.body || {}).done, (entry && entry.attention) || [], thirdPartyKeys());
@@ -921,11 +952,11 @@ router.post('/third-parties/:key/attention', requireAuth, resolveAccount, requir
     sendError(res, error);
   }
 });
-router.get('/third-parties', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/third-parties', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   res.json(await thirdPartiesPage());
 });
 
-router.post('/third-parties/costs', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/third-parties/costs', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await addCost(req.accountId, req.body, thirdPartyKeys());
     res.json(await thirdPartiesPage());
@@ -934,7 +965,7 @@ router.post('/third-parties/costs', requireAuth, resolveAccount, requireSuperAdm
   }
 });
 
-router.put('/third-parties/costs/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/third-parties/costs/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await updateCost(req.params.id, req.body, thirdPartyKeys());
     res.json(await thirdPartiesPage());
@@ -943,7 +974,7 @@ router.put('/third-parties/costs/:id', requireAuth, resolveAccount, requireSuper
   }
 });
 
-router.delete('/third-parties/costs/:id', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.delete('/third-parties/costs/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await deleteCost(req.params.id);
     res.json(await thirdPartiesPage());
@@ -953,7 +984,7 @@ router.delete('/third-parties/costs/:id', requireAuth, resolveAccount, requireSu
 });
 
 // "Read now": every meter that can be read without a person, then any warning that is now due.
-router.post('/third-parties/usage/read', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/third-parties/usage/read', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const results = await readMeters();
     const warnings = await sendUsageWarnings();
@@ -964,7 +995,7 @@ router.post('/third-parties/usage/read', requireAuth, resolveAccount, requireSup
 });
 
 // A number typed in from a provider's dashboard.
-router.post('/third-parties/usage/:meter', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/third-parties/usage/:meter', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await recordManualReading(req.params.meter, (req.body || {}).value, (req.body || {}).note);
     await sendUsageWarnings();
@@ -978,7 +1009,7 @@ router.post('/third-parties/usage/:meter', requireAuth, resolveAccount, requireS
 // RECORDINGS (ML-490) - every recording and video held, and removing one on request: off every
 // piece, out of the file store, and the people it belonged to told. server/services/recordingRemovals.js
 // ========================================
-router.get('/recordings', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/recordings', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await listRecordingsForAdmin());
   } catch (error) {
@@ -986,7 +1017,7 @@ router.get('/recordings', requireAuth, resolveAccount, requireSuperAdmin, async 
   }
 });
 // ML-507: a member's report is closed with a line saying what was done about it
-router.post('/reports/:id/close', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/reports/:id/close', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await closeReport(req.accountId, req.params.id, (req.body || {}).outcome);
     res.json(await listRecordingsForAdmin());
@@ -994,7 +1025,7 @@ router.post('/reports/:id/close', requireAuth, resolveAccount, requireSuperAdmin
     sendError(res, error);
   }
 });
-router.post('/recordings/remove', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/recordings/remove', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await removeRecordingOnRequest(req.accountId, req.body || {}));
   } catch (error) {
@@ -1002,7 +1033,7 @@ router.post('/recordings/remove', requireAuth, resolveAccount, requireSuperAdmin
   }
 });
 // ML-511: a band's name that breaks the terms - renamed (the band can't be removed), its organisers told
-router.post('/recordings/rename-band', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/recordings/rename-band', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await renameBandOnRequest(req.accountId, req.body || {}));
   } catch (error) {
@@ -1016,7 +1047,7 @@ router.post('/recordings/rename-band', requireAuth, resolveAccount, requireSuper
 // The owner's plan of what each way of rolling the app out costs and could earn, for up to five
 // years. One document, read and saved whole; the sums are public/businessCase.js, which the page runs
 // itself so a changed figure redraws at once. See docs/business-case.md.
-router.get('/business-case', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/business-case', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await getBusinessCase());
   } catch (error) {
@@ -1024,7 +1055,7 @@ router.get('/business-case', requireAuth, resolveAccount, requireSuperAdmin, asy
   }
 });
 
-router.put('/business-case', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/business-case', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await saveBusinessCase((req.body || {}).plan));
   } catch (error) {
@@ -1033,7 +1064,7 @@ router.put('/business-case', requireAuth, resolveAccount, requireSuperAdmin, asy
 });
 
 // Back to the starting figures - the saved plan is thrown away.
-router.post('/business-case/reset', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/business-case/reset', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await resetBusinessCase());
   } catch (error) {
@@ -1043,7 +1074,7 @@ router.post('/business-case/reset', requireAuth, resolveAccount, requireSuperAdm
 
 // ML-443: the page the panel opens on - people, the build, money and what needs the owner, all read
 // from what the app already holds (server/services/adminDashboard.js).
-router.get('/dashboard', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/dashboard', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await getAdminDashboard());
   } catch (error) {
@@ -1053,14 +1084,14 @@ router.get('/dashboard', requireAuth, resolveAccount, requireSuperAdmin, async (
 
 // ML-464: retention - the rule (a switch, a unit, three lengths of time), who is next, and "Run now".
 // The same job runs once a day from the scheduler (routes/api.js). docs/retention.md.
-router.get('/retention', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.get('/retention', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await retentionStatus());
   } catch (error) {
     sendError(res, error);
   }
 });
-router.put('/retention', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.put('/retention', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await saveRule(req.body || {});
     res.json(await retentionStatus());
@@ -1068,7 +1099,7 @@ router.put('/retention', requireAuth, resolveAccount, requireSuperAdmin, async (
     sendError(res, error);
   }
 });
-router.post('/retention/run', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+router.post('/retention/run', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     const result = await runRetention({ appUrl: process.env.APP_URL || `${req.protocol}://${req.get('host')}` });
     Object.assign(result, await clearOldRecords()); // the old records go whether or not the rule itself ran

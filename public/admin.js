@@ -15,7 +15,14 @@
         document.body.classList.add('dark-mode');
     }
 
-    const token = localStorage.getItem('authToken');
+    let token = localStorage.getItem('authToken');
+    // ML-518: the admin panel's "prove it's you" check rides on the sign-in token, so the server hands
+    // the token back when the check is made and as the panel is used. Kept where the app keeps it.
+    function setToken(next) {
+        if (!next) return;
+        token = next;
+        try { localStorage.setItem('authToken', next); } catch (e) { /* this page still has it */ }
+    }
     if (!token) {
         document.getElementById('loggedOutNotice').classList.remove('hidden-group');
         return;
@@ -31,8 +38,11 @@
             },
             ...(body ? { body: JSON.stringify(body) } : {})
         });
+        setToken(response.headers.get('X-Refreshed-Token'));
         if (!response.ok) {
             const err = await response.json().catch(() => ({}));
+            // ML-518: the check has run out (15 minutes without use) - ask again, over the page as it stands
+            if (response.status === 403 && err.adminCheck === 'needed') window.AdminGate?.open(enterPanel);
             const error = new Error(err.error || `API error: ${response.status}`);
             error.status = response.status;
             error.body = err;
@@ -3725,6 +3735,7 @@
         initNotificationsAdmin();
         initRestMessagesAdmin();
         initRecordingsAdmin();
+        loaded = true;
         document.getElementById('adminShell').classList.remove('hidden-group');
         openPageFromAddress(); // ML-443: admin.html#accounts opens on Accounts
         if (!location.hash.slice(1) || location.hash === '#dashboard') window.AdminDashboard?.open(); // the first page reads itself
@@ -3749,6 +3760,13 @@
     // regular (non-admin-gated) /api/account endpoint before loading anything
     // admin-only, since a non-super-admin's requests to /api/admin/* would
     // otherwise just 403 one at a time with no clear explanation.
+    // ML-518: a super admin proves it is them before anything admin-only is asked for (a passkey, or a
+    // code) - public/admin-passkeys.js draws the screen, the server enforces it on every admin route.
+    let loaded = false;
+    function enterPanel() {
+        if (loaded) document.getElementById('adminShell').classList.remove('hidden-group');
+        else load();
+    }
     async function checkAccessAndLoad() {
         try {
             const profile = await apiCall('/api/account');
@@ -3756,6 +3774,8 @@
                 document.getElementById('notAuthorizedNotice').classList.remove('hidden-group');
                 return;
             }
+            const gate = await apiCall('/api/admin/gate');
+            if (gate.required && !gate.fresh) { window.AdminGate.open(enterPanel, gate); return; }
             await load();
         } catch (error) {
             document.getElementById('loggedOutNotice').classList.remove('hidden-group');
@@ -3763,7 +3783,7 @@
     }
 
     // ML-443: what a page kept in its own file (admin-business.js) needs from this one.
-    window.AdminPanel = { apiCall, escapeHtml, showToast, showModal, hideModal, showConfirmModal, openRowMenu };
+    window.AdminPanel = { apiCall, escapeHtml, showToast, showModal, hideModal, showConfirmModal, openRowMenu, setToken };
 
     checkAccessAndLoad();
 })();

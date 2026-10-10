@@ -59,6 +59,17 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
   invite's ⋮: Cancel invite.
 - **Flows:** the ⋮ holds View, Edit, Publish / Unpublish (not a band's piece) and Export - they were four
   buttons a row.
+- **Prove it's you (ML-518):** before the shell shows, and again after 15 minutes without use, `#adminGate`
+  takes the page (`.admin-logged-out`, the block the "not signed in" notices use): a heading, a line of why,
+  one `.btn-submit` ("Use my passkey", or "Continue" under a code field in a `.form-group`), the other way in
+  as an `.admin-stat-exclude-btn`, and an `.admin-link` back to the app. Messages are `role="alert"`; Enter in
+  a field presses its button. The first-time set-up reuses two-step's `.two-step-key` and `.recovery-codes`.
+  When the check runs out mid-session the shell is hidden, not rebuilt, so the page comes back as it was.
+- **My passkeys (ML-518, Release and checks → My passkeys):** a table of the admin's own passkeys (name,
+  added, last used, Rename / Remove as `.admin-stat-exclude-btn`), **Add a passkey to this device**
+  (`.btn-submit`) and **Lock the admin panel now** in an `.admin-security-toolbar`, and new recovery codes for
+  a code. Naming a passkey is one pop-up (`#passkeyNameModal`, with the close X). No classes of its own.
+  `docs/admin-passkey.md`.
 - **Retention (ML-464, Members → Retention):** the rule and who is next. A toggle switch (on / off), a value
   box for the unit that opens a pop-up (Hours / Days / Months / Years), three number fields, the rule in words,
   then **Save the rule** (`.btn-submit`) and **Run now** (`.admin-stat-exclude-btn`, asks first and says how
@@ -91,7 +102,7 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
 - **Four groups, by the job being done**, with the Dashboard above them: **Members** (Accounts, Bands, Feature
   access, Notifications, Retention, Feedback), **Content** (Flows, Warm-ups, Rest messages, Theory grades, Metadata lists),
   **Business** (Business case, Costs and usage, Usage) and **Release and checks** (Release tests, Security,
-  Third parties, Design). A new page goes in the group whose job it does.
+  My passkeys, Third parties, Design). A new page goes in the group whose job it does.
 - **A heading opens and closes its group.** It is a `<button>` with `aria-expanded` and `aria-controls`, at
   least `--touch-target` tall, in `--label-color`; its arrow points down when open and right when shut. Which
   groups are shut is remembered on that device (`localStorage`, a convenience - the menu works without it).
