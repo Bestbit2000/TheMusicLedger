@@ -45,6 +45,7 @@ export async function answer(page: Page, right: boolean) {
     const q = await question(page);
     await page.evaluate(() => (window as any).__theoryTest.advance(400));
     // ML-438: a scale with major and minor keys in play takes two taps - its note, then Major or Minor
+    // (ML-516: a key signature's lit Major / Minor is `shownModes`, not `modes` - that is still one tap)
     if (q.modes) {
         const cut = q.correct.lastIndexOf(' ');
         const note = q.correct.slice(0, cut);

@@ -409,6 +409,12 @@ order. Mixed and the weak spots round deal the same questions, so they get it to
 - **One tap** when the question says the mode: every key signature ("Which major key?" / "Which minor key?"), and a
   scale when only major keys are in play ("Which major scale is this?"). The right answer is the key's note
   (`correct: key.tonic`).
+- **Major / Minor are under the keyboard on every question of a major-and-minor quiz (ML-516).** A key
+  signature's question still says the mode and still takes one tap, but the mode is also shown there: the one
+  being asked is lit and the other can't be tapped (the question's `shownModes` and `modeGiven` - not `modes`, which means the mode is part of the answer). It used to
+  be only the small word in the question, which was easy to miss at speed when the next question was a
+  scale with the two buttons. Major-only quizzes are unchanged. Scoring, timing and old results are unchanged
+  - nothing extra is tapped, and `taps` is still saved only for a scale.
 - **Two taps** for a scale when major and minor keys are both in play ("Which scale is this?"): the note, and
   **Major** or **Minor** under the keyboard (the question's `modes`; `#theoryModes`). Either order; the half picked so
   far is shown (`aria-pressed`) and can be changed until the other half is tapped. The right answer is the key's id

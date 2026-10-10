@@ -12,7 +12,7 @@ import { signToken, verifyToken } from '../utils/authToken.js';
 import { hashPassword, verifyPassword, spendPasswordTime, passwordProblem } from './passwords.js';
 import { sendMail, mailIsReal, emailBody, emailOutcome } from './mail.js';
 import { isFeatureLive } from './features.js';
-import { deletedEmailHash, forgetTokenVersion, currentTokenVersion } from './tokenVersions.js';
+import { deletedEmailHash, forgetTokenVersion, currentTokenVersion, emailIsShutOut, SHUT_OUT_MESSAGE } from './tokenVersions.js';
 import { twoStepStatus, beginSetup, confirmSetup, verifyLoginCode } from './twoStep.js';
 import { sendSignupAlert } from './signupAlert.js';
 
@@ -91,6 +91,8 @@ function signLoginToken(account) {
 // but has no userId, so it can never be used as one (requireAuth refuses it).
 const CHALLENGE_MS = 10 * 60 * 1000;
 async function completeLogin(account) {
+  // ML-502: a closed account - or an address on the block list - is told so, and given nothing
+  if (await emailIsShutOut(account.email)) throw fail(403, SHUT_OUT_MESSAGE);
   const { enabled } = await twoStepStatus(account.id);
   const challenge = (purpose) => signToken({ purpose, accountId: Number(account.id), email: account.email, tv: account.token_version }, CHALLENGE_MS);
   if (enabled) return { twoStep: true, challenge: challenge('two-step') };
@@ -103,6 +105,7 @@ async function accountFromChallenge(token, purpose) {
   if (data.purpose !== purpose || !data.email) throw fail(401, 'That took too long - log in again.');
   const account = await accountByEmail(pool, data.email);
   if (!account || Number(account.id) !== data.accountId || Number(data.tv || 0) < (await currentTokenVersion(account.email))) throw fail(401, 'That took too long - log in again.');
+  if (await emailIsShutOut(account.email)) throw fail(403, SHUT_OUT_MESSAGE); // ML-502: closed between the password and the code
   return account;
 }
 export async function secondStep(challenge, code, ip) {
@@ -284,6 +287,8 @@ export async function acceptInvite(secret, password, ip, device = {}) {
     if (!link) throw fail(404, 'This invite has expired or already been used - ask for a new one.');
     let account = await accountByEmail(client, link.email);
     const isNew = !account;
+    // ML-502: an address on the block list doesn't start a new account by invitation either
+    if (isNew && await emailIsShutOut(link.email)) throw fail(403, SHUT_OUT_MESSAGE);
     if (!account) {
       // A new account gets the invite's name and type; an existing (Google) one keeps its own.
       // ML-430: an email whose account was deleted takes over the token number the deletion left (as getOrCreateAccount does)

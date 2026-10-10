@@ -199,6 +199,17 @@ Both came out of the two run-throughs (`docs/childrens-code-assessment.md`, `doc
 - **Admin → Shared music** is the page that was Admin → Recordings: members' reports (closed with a line
   saying what was done), recordings and videos, documents, and the pieces a band shares or that are public.
   **Remove** now also takes down a document, or a whole piece with everything on it.
+- **Report, everywhere a member meets shared things (ML-510).** The same pop-up is on the play screen's
+  menu (a band's or a public piece), on a shared band in My bands ("Report the name" - `kind` `band`, the
+  band's shared space) and on a band's practice list ("Report this list" - `kind` `list`). Something only
+  the member can see - their own list, a band they are alone in - has no Report, and the server refuses it.
+- **Practice lists and band names on Shared music (ML-511).** "Bands and their practice lists" lists both.
+  **Remove** takes a band's practice list away (its pieces stay). A band can't be removed - its members,
+  pieces and lists hang off it - so a name that breaks the terms is changed with **Rename**
+  (`renameBandOnRequest`, `POST /api/admin/recordings/rename-band`): the shared space gets the new name,
+  and so does each member's own My bands entry for it where it still had the old one. The band's
+  organisers are told either way, and both are kept in `recording_removals` (`kind` `list` or `band`;
+  for a band, `title` is the name it had). Migration `122_report_bands_and_lists.sql`; back-test 69.
 
 ### Removing a recording on request (ML-490)
 

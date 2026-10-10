@@ -1,7 +1,7 @@
 import express from 'express';
 import passport from '../config/passport.js';
 import { signToken } from '../utils/authToken.js';
-import { currentTokenVersion, forgetTokenVersion } from '../services/tokenVersions.js';
+import { currentTokenVersion, forgetTokenVersion, emailIsShutOut, SHUT_OUT_MESSAGE } from '../services/tokenVersions.js';
 import { passwordLoginEnabled, login, forgotPassword, resetPassword, describeLink, acceptInvite, appUrl, secondStep, setupFromChallenge, confirmSetupFromChallenge } from '../services/passwordAuth.js';
 import { mailIsReal } from '../services/mail.js';
 import { limitLinkTries } from '../services/passwordAuth.js';
@@ -21,6 +21,7 @@ const router = express.Router();
 // ML-475: the sign-in token goes back to the page after the "#". That part of an address is never sent
 // to a server, so the token is in no request log and no Referer; the page reads it and takes it out of
 // the address at once (AuthManager.handleCallback). It used to be "?authToken=...", which is sent.
+const closedPage = (req) => `${req.protocol}://${req.get('host')}/#closed`; // ML-502 (AuthManager.handleCallback)
 const handBack = (req, authToken, userId) =>
   `${req.protocol}://${req.get('host')}/#authToken=${encodeURIComponent(authToken)}&userId=${encodeURIComponent(userId)}`;
 
@@ -50,6 +51,7 @@ router.get('/login', async (req, res, next) => {
     const admin = req.query.as === 'admin';
     const standard = req.query.as === 'standard';
     const userId = admin ? 'local-admin@themusicledger.local' : standard ? 'local-standard@themusicledger.local' : 'local-dev@themusicledger.local';
+    if (await emailIsShutOut(userId)) return res.redirect(closedPage(req)); // as the real sign-in does (ML-502), so it can be back-tested
     const authToken = signToken({
       userId,
       tv: await freshTokenVersion(userId),
@@ -78,6 +80,8 @@ router.get('/callback', (req, res, next) => {
 
     let authToken;
     try {
+      // ML-502: a closed account, or an address on the block list, gets no token - the sign-in screen says why
+      if (await emailIsShutOut(tokenData.userId)) return res.redirect(closedPage(req));
       authToken = signToken({ ...tokenData, tv: await freshTokenVersion(tokenData.userId) });
     } catch (e) {
       console.error('OAuth callback token error:', e.message);
@@ -108,6 +112,7 @@ router.post('/test-login', async (req, res) => {
   }
 
   const userId = req.body?.userId || 'claude-test@themusicledger.local';
+  if (await emailIsShutOut(userId)) return res.status(403).json({ error: SHUT_OUT_MESSAGE });
   const authToken = signToken({ userId, email: userId, isTestAccount: true, tv: await freshTokenVersion(userId) });
   res.json({ authToken, userId });
 });

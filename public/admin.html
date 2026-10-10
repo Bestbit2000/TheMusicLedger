@@ -143,6 +143,8 @@
                 <div class="filter-strip-pills" id="accountsFilterPills" role="group" aria-label="Show accounts"></div>
             </div>
             <div id="accountsList">Loading&hellip;</div>
+            <!-- ML-502: the block list a closed account leaves behind, once the account itself has been deleted -->
+            <p class="admin-intro hidden-group" id="blockedEmailsNote"><span id="blockedEmailsCount"></span> The list holds no addresses, so to let one back in, type it: <button type="button" class="admin-stat-exclude-btn" id="unblockEmailBtn" aria-haspopup="dialog">Unblock an address</button></p>
         </section>
         <section id="bands-section" class="admin-section hidden-group">
             <h1>Bands</h1>
@@ -296,17 +298,20 @@
              the file store, the people it belonged to told. public/admin.js: initRecordingsAdmin. -->
         <section id="recordings-section" class="admin-section hidden-group">
             <h1>Shared music</h1>
-            <p class="admin-intro">Everything one member can show another: recordings and videos, documents, and the pieces a band shares or that are public. It is where you deal with a member's report, and where you take something down - because someone in a recording asked (the privacy policy says they can), or it is not theirs to share, or it breaks the terms. <strong>Remove</strong> takes it off every piece and deletes its file. The people it belonged to are told what happened, why and what to do next, in the app and by email; you see the message before it goes. This can't be undone.</p>
+            <p class="admin-intro">Everything one member can show another: recordings and videos, documents, the pieces a band shares or that are public, a band's practice lists and its name. It is where you deal with a member's report, and where you take something down - because someone in a recording asked (the privacy policy says they can), or it is not theirs to share, or it breaks the terms. <strong>Remove</strong> takes it off every piece and deletes its file. The people it belonged to are told what happened, why and what to do next, in the app and by email; you see the message before it goes. This can't be undone. A band itself can't be removed without taking its music with it, so a name that breaks the terms is changed with <strong>Rename</strong>.</p>
             <h2 class="admin-stat-section-title">Reports from members</h2>
-            <p class="admin-intro">What members have reported from a piece's menu. Look at it, remove it below if it should go, then close the report with a line saying what you did. Nobody in the band is told who reported it.</p>
+            <p class="admin-intro">What members have reported: a piece, a band's practice list or a band's name. Look at it, remove it below if it should go (or rename the band), then close the report with a line saying what you did. Nobody in the band is told who reported it.</p>
             <div id="adminReports"></div>
             <h2 class="admin-stat-section-title">Recordings and videos</h2>
             <input type="search" id="adminRecordingsSearch" class="admin-flows-filter" placeholder="Search by name, piece, band or who added it" aria-label="Search everything shared">
             <div id="adminRecordings"><p class="admin-intro">Loading&hellip;</p></div>
             <h2 class="admin-stat-section-title">Shared pieces and documents</h2>
             <div id="adminShared"></div>
+            <!-- ML-511: a band's practice lists (Remove) and its name (Rename) -->
+            <h2 class="admin-stat-section-title">Bands and their practice lists</h2>
+            <div id="adminBandThings"></div>
             <h2 class="admin-stat-section-title">Removed</h2>
-            <p class="admin-intro">The record of each removal. Nothing about the person who asked is kept.</p>
+            <p class="admin-intro">The record of each removal, and of each band renamed (under the name it had). Nothing about the person who asked is kept.</p>
             <div id="adminRecordingRemovals"></div>
         </section>
         <section id="rest-messages-section" class="admin-section hidden-group">
@@ -774,6 +779,36 @@
     </div>
 </div>
 
+<!-- ML-511 Shared music: a band's name that breaks the terms - the new name, the reason, and what its organisers are told -->
+<div class="modal" id="bandRenameModal" role="dialog" aria-modal="true" aria-labelledby="bandRenameTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="bandRenameTitle">Rename this band</h2>
+        <p class="admin-intro" id="bandRenameWhat"></p>
+        <div class="form-group">
+            <label for="bandRenameName">Its new name</label>
+            <input type="text" id="bandRenameName" maxlength="80" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label for="bandRenameReason">Why is it being renamed?</label>
+            <select id="bandRenameReason">
+                <option value="reported">A member reported it</option>
+                <option value="terms">It breaks the terms of use</option>
+                <option value="other">Another reason</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="bandRenameMessage">What they will be told</label>
+            <textarea id="bandRenameMessage" rows="10" maxlength="2000"></textarea>
+        </div>
+        <p class="admin-intro">Check the message says what happened, why, and what to do next. It goes to the band's organisers.</p>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="bandRenameCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="bandRenameConfirmBtn" type="button">Rename it and tell them</button>
+        </div>
+    </div>
+</div>
+
 <!-- ML-490 Recordings: remove one on request - the reason, and the message the members are sent -->
 <div class="modal" id="recordingRemoveModal" role="dialog" aria-modal="true" aria-labelledby="recordingRemoveTitle">
     <div class="modal-content">
@@ -835,6 +870,43 @@
         <div class="flex-row gap-md">
             <button class="btn-cancel btn-nav no-margin" id="accountEmailChangeCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="accountEmailChangeSendBtn" type="button">Send the link</button>
+        </div>
+    </div>
+</div>
+
+<!-- ML-502 Accounts: warn a member or close their account - what has been done so far, the reason, and what they are told -->
+<div class="modal" id="accountDisciplineModal" role="dialog" aria-modal="true" aria-labelledby="accountDisciplineTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="accountDisciplineTitle">Warn this member</h2>
+        <p class="admin-intro" id="accountDisciplineWho"></p>
+        <div id="accountDisciplineRecord"></div>
+        <div id="accountDisciplineForm">
+            <div class="form-group">
+                <label for="accountDisciplineReason">Why?</label>
+                <select id="accountDisciplineReason"></select>
+            </div>
+            <div class="form-group">
+                <label for="accountDisciplineMessage">What they will be told</label>
+                <textarea id="accountDisciplineMessage" rows="10" maxlength="2000"></textarea>
+            </div>
+            <p class="admin-intro">Check the message says what happened, why, and what to do next. It goes only to them.</p>
+        </div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="accountDisciplineCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="accountDisciplineConfirmBtn" type="button">Warn them</button>
+        </div>
+    </div>
+</div>
+<div class="modal" id="unblockEmailModal" role="dialog" aria-modal="true" aria-labelledby="unblockEmailTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="unblockEmailTitle">Unblock an address</h2>
+        <p class="admin-intro">For someone whose account was closed and has since been deleted. Their address comes off the block list and they can sign up again, as a new member.</p>
+        <div class="form-group"><label for="unblockEmailInput">Their email address</label><input type="email" id="unblockEmailInput" maxlength="254" autocomplete="off"></div>
+        <div class="flex-row gap-md">
+            <button class="btn-cancel btn-nav no-margin" id="unblockEmailCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="unblockEmailConfirmBtn" type="button">Unblock it</button>
         </div>
     </div>
 </div>

@@ -468,6 +468,8 @@
         unlock: (a) => ['Unlock', `Let ${accountDisplayName(a)} try their password and codes again straight away?`],
         'two-step/off': (a) => ['Turn off two-step sign-in', `Turn off ${accountDisplayName(a)}'s two-step sign-in - for a lost phone with no recovery codes? Only do this once you're sure it's really them.${a.accountLevel === 'super_admin' ? ' As a super admin, they\'ll have to set it up again at their next password login.' : ' They can set it up again in Sign-in and security.'}`],
         'sign-out': (a) => ['Sign out everywhere', `Sign ${accountDisplayName(a)} out on every device? They'll need to log in again.`],
+        // ML-502: a closed account, after an appeal - they can sign in again and the address comes off the block list
+        reopen: (a) => ['Reopen this account', `Reopen the account for ${accountDisplayName(a)} (${a.email})? They can sign in again, with everything as they left it. ${emailsAreSent ? 'They are emailed to say so.' : "This site doesn't send emails, so they won't be told from here."}`],
         // ML-514: for a member who asks us to and can't sign in to do it themselves - the ordinary deletion
         delete: (a) => ['Delete this account', `Delete the account for ${accountDisplayName(a)} (${a.email})? Their name, email address, pieces, recordings and settings are deleted, and they are signed out everywhere. Their practice history stays as anonymous statistics. ${emailsAreSent ? 'They are emailed to say it has been done.' : "This site doesn't send emails, so they won't be told from here."} This can't be undone.`]
     };
@@ -523,10 +525,13 @@
     let accountsQuery = '';
     const accountLevelLabel = (level) => (ACCOUNT_LEVELS.find(([v]) => v === level) || [0, level || ''])[1];
     const inviteName = (i) => [i.firstName, i.surname].filter(Boolean).join(' ') || i.email;
+    const accountWarnings = (a) => (a.warnings ? ` <span class="admin-badge warn">${a.warnings} warning${a.warnings === 1 ? '' : 's'}</span>` : '');
     function accountSignIn(a) {
         const parts = [a.hasPassword ? 'Google or password' : 'Google'];
         if (a.hasPassword && a.twoStepOn) parts.push('two-step');
-        return escapeHtml(parts.join(' · ')) + (a.lockedUntil ? ` <span class="admin-feedback-badge cat" title="Too many wrong tries - locked until ${escapeHtml(fmtDate(a.lockedUntil))}">Locked</span>` : '');
+        // ML-502: a closed account can't sign in at all; warnings so far are counted beside it
+        if (a.closedAt) return `<span class="admin-badge fail" title="Closed on ${escapeHtml(fmtDate(a.closedAt))} - can't sign in">Closed</span>${accountWarnings(a)}`;
+        return escapeHtml(parts.join(' · ')) + accountWarnings(a) + (a.lockedUntil ? ` <span class="admin-feedback-badge cat" title="Too many wrong tries - locked until ${escapeHtml(fmtDate(a.lockedUntil))}">Locked</span>` : '');
     }
     // ML-443: the day a member last used the app (accounts.last_seen_on). Empty until they next use it.
     const daysSinceSeen = (a) => (a.lastSeenOn ? Math.round((Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()) - Date.parse(`${a.lastSeenOn}T00:00:00Z`)) / 86400000) : null);
@@ -542,7 +547,7 @@
         const hit = (name, email) => !q || name.toLowerCase().includes(q) || String(email || '').toLowerCase().includes(q);
         const f = accountsFilter;
         const accounts = f === 'invited' ? [] : allAccounts.filter(a => hit(accountDisplayName(a), a.email)
-            && (f === 'all' || (f === 'seen:week' ? (daysSinceSeen(a) !== null && daysSinceSeen(a) < 7) : f === 'seen:lapsed' ? (daysSinceSeen(a) !== null && daysSinceSeen(a) >= LAPSED_DAYS) : f === 'auth:google' ? !a.hasPassword : f === 'auth:password' ? !!a.hasPassword : a.accountLevel === f)));
+            && (f === 'all' || (f === 'seen:week' ? (daysSinceSeen(a) !== null && daysSinceSeen(a) < 7) : f === 'seen:lapsed' ? (daysSinceSeen(a) !== null && daysSinceSeen(a) >= LAPSED_DAYS) : f === 'auth:google' ? !a.hasPassword : f === 'auth:password' ? !!a.hasPassword : f === 'closed' ? !!a.closedAt : f === 'warned' ? a.warnings > 0 : a.accountLevel === f)));
         const invites = f === 'all' || f === 'invited' ? allInvites.filter(i => hit(inviteName(i), i.email)) : [];
         return { accounts, invites };
     }
@@ -554,7 +559,9 @@
             ['auth:password', 'Email + password', count(a => !!a.hasPassword)],
             ['seen:week', 'Seen this week', count(a => daysSinceSeen(a) !== null && daysSinceSeen(a) < 7)],
             ['seen:lapsed', `Not seen for ${LAPSED_DAYS} days`, count(a => daysSinceSeen(a) !== null && daysSinceSeen(a) >= LAPSED_DAYS)],
-            ['invited', 'Invites not accepted', allInvites.length]];
+            ['warned', 'Warned', count(a => a.warnings > 0)],
+            ['closed', 'Closed', count(a => !!a.closedAt)],
+            ['invited', 'Invites not accepted', allInvites.length]].filter(p => !['warned', 'closed'].includes(p[0]) || p[2] > 0);
         if (!pills.some(p => p[0] === accountsFilter)) accountsFilter = 'all';
         const box = document.getElementById('accountsFilterPills');
         box.innerHTML = pills.map(([key, label, n]) => `<button type="button" class="filter-pill${accountsFilter === key ? ' active' : ''}" data-accounts-filter="${key}" aria-pressed="${accountsFilter === key}">${escapeHtml(label)} <span class="filter-pill-count">${n}</span></button>`).join('');
@@ -603,6 +610,11 @@
                 ...(a.lockedUntil ? [act('unlock', 'lock_open')] : []),
                 ...(a.twoStepOn ? [act('two-step/off', 'phonelink_erase')] : []),
                 act('sign-out', 'logout'),
+                // ML-502: warn, close or reopen - never a super admin's account, as with deleting
+                ...(a.accountLevel === 'super_admin' ? [] : a.closedAt
+                    ? [{ label: 'Warnings and closing so far', icon: 'history', run: () => openAccountDiscipline(a, 'record') }, act('reopen', 'lock_open')]
+                    : [{ label: a.warnings ? 'Warn them again' : 'Warn them', icon: 'warning', run: () => openAccountDiscipline(a, 'warn') },
+                        { label: 'Close this account', icon: 'block', danger: true, run: () => openAccountDiscipline(a, 'close') }]),
                 // a super admin account is never deleted from here (it owns the public library): change its type first
                 ...(a.accountLevel === 'super_admin' ? [] : [{ ...act('delete', 'delete'), danger: true }])
             ]);
@@ -629,6 +641,90 @@
             const { message } = await apiCall(`/api/admin/accounts/${emailChangeAccount.id}/change-email`, 'POST', { newEmail: document.getElementById('accountEmailChangeInput').value });
             hideModal('accountEmailChangeModal');
             showToast(message, 'success');
+        } catch (error) { showToast(error.message); } finally { btn.disabled = false; }
+    });
+
+    // ===== ML-502: warn a member, or close their account =====
+    // One pop-up: what has been done about the account so far, the reason, and the message they are sent -
+    // written here from the reason, shown to the owner and sent as he leaves it. server/services/accountClosing.js
+    const DISCIPLINE_KIND = { warning: 'Warned', closed: 'Closed', reopened: 'Reopened' };
+    let discipline = null; // { account, mode: 'warn' | 'close' | 'record', reasons, written }
+    function disciplineMessage(mode, reason) {
+        const why = {
+            shared: 'Why: something you shared in the app breaks the terms of use, which say what may be shared.',
+            conduct: 'Why: the way you have treated other members breaks the terms of use.',
+            repeated: 'Why: it has carried on after we warned you about it.',
+            other: 'Why: '
+        }[reason];
+        return (mode === 'close'
+            ? ['We have closed your Notably Better account, so you can no longer sign in.', why,
+                'What happens now: anything you shared with a band stays with the band. Your own pieces and practice history are kept for now. If you would like them deleted, or a copy of them, email us and we will do it.',
+                'If you think this is a mistake, email hello@notablybetter.com and we will look again.']
+            : ['This is a warning about your Notably Better account.', why,
+                'What to do next: please read the terms of use (notablybetter.com/terms.html) and keep to them. If it happens again we may close your account.',
+                'If you think this is a mistake, or have a question, email hello@notablybetter.com.']).join('\n\n');
+    }
+    async function openAccountDiscipline(a, mode) {
+        let data;
+        try { data = await apiCall(`/api/admin/accounts/${a.id}/record`); } catch (error) { showToast(error.message); return; }
+        discipline = { account: a, mode, reasons: data.reasons, written: '' };
+        const el = (id) => document.getElementById(id);
+        el('accountDisciplineTitle').textContent = mode === 'close' ? 'Close this account' : mode === 'warn' ? 'Warn this member' : 'Warnings and closing so far';
+        el('accountDisciplineWho').textContent = `${accountDisplayName(a)} (${a.email}). ` + (mode === 'close'
+            ? "They are signed out everywhere and can't sign back in, and this address can't be used to sign up again. Nothing is deleted, so you can reopen it. What they shared with a band stays - take anything down on Shared music."
+            : mode === 'warn' ? 'They see the warning when they next open the app, and it is kept on their record.' : '');
+        el('accountDisciplineRecord').innerHTML = data.record.length
+            ? `<div class="admin-stat-table-wrap"><table class="admin-stat-table"><thead><tr><th>When</th><th>What</th><th>Why</th><th>By</th></tr></thead><tbody>${data.record.map(r => `
+                <tr><td>${fmtDate(r.at)}</td><td>${DISCIPLINE_KIND[r.kind] || escapeHtml(r.kind)}</td><td>${escapeHtml(data.reasons[r.reason] || '–')}</td><td>${escapeHtml(r.by)}</td></tr>`).join('')}</tbody></table></div>`
+            : '<p class="admin-intro">Nothing so far: no warnings, never closed.</p>';
+        setShown('accountDisciplineForm', mode !== 'record');
+        setShown('accountDisciplineConfirmBtn', mode !== 'record');
+        el('accountDisciplineCancelBtn').textContent = mode === 'record' ? 'Close' : 'Cancel';
+        el('accountDisciplineConfirmBtn').textContent = mode === 'close' ? 'Close it and tell them' : 'Warn them';
+        const first = data.record.some(r => r.kind === 'warning') && mode === 'close' ? 'repeated' : 'shared';
+        el('accountDisciplineReason').innerHTML = Object.entries(data.reasons).map(([k, label]) => `<option value="${escapeHtml(k)}">${escapeHtml(label)}</option>`).join('');
+        el('accountDisciplineReason').value = first;
+        discipline.written = disciplineMessage(mode, first);
+        el('accountDisciplineMessage').value = discipline.written;
+        showModal('accountDisciplineModal');
+    }
+    // Choosing another reason writes the message again - only if he hasn't started changing it
+    document.getElementById('accountDisciplineReason')?.addEventListener('change', (e) => {
+        const box = document.getElementById('accountDisciplineMessage');
+        if (box.value.trim() && box.value !== discipline.written) return;
+        discipline.written = disciplineMessage(discipline.mode, e.target.value);
+        box.value = discipline.written;
+    });
+    document.getElementById('accountDisciplineCancelBtn')?.addEventListener('click', () => { hideModal('accountDisciplineModal'); discipline = null; });
+    document.getElementById('accountDisciplineConfirmBtn')?.addEventListener('click', async (e) => {
+        if (!discipline) return;
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        try {
+            const { message } = await apiCall(`/api/admin/accounts/${discipline.account.id}/${discipline.mode}`, 'POST', {
+                reason: document.getElementById('accountDisciplineReason').value, message: document.getElementById('accountDisciplineMessage').value
+            });
+            hideModal('accountDisciplineModal');
+            discipline = null;
+            showToast(message, 'success');
+            await reloadAccounts();
+        } catch (error) { showToast(error.message); } finally { btn.disabled = false; }
+    });
+    // The block list holds no addresses, so one left behind by a deleted account is taken off by typing it
+    document.getElementById('unblockEmailBtn')?.addEventListener('click', () => {
+        document.getElementById('unblockEmailInput').value = '';
+        showModal('unblockEmailModal');
+        document.getElementById('unblockEmailInput').focus();
+    });
+    document.getElementById('unblockEmailCancelBtn')?.addEventListener('click', () => hideModal('unblockEmailModal'));
+    document.getElementById('unblockEmailConfirmBtn')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        try {
+            const { message } = await apiCall('/api/admin/blocked-emails/unblock', 'POST', { email: document.getElementById('unblockEmailInput').value });
+            hideModal('unblockEmailModal');
+            showToast(message, 'success');
+            await reloadAccounts();
         } catch (error) { showToast(error.message); } finally { btn.disabled = false; }
     });
 
@@ -672,8 +768,11 @@
 
     async function reloadAccounts() {
         await reloadInvites(); // first: it says whether password login is on (the reset link item)
-        const { accounts } = await apiCall('/api/admin/accounts');
+        const { accounts, blockedWithoutAccount } = await apiCall('/api/admin/accounts');
         allAccounts = accounts;
+        // ML-502: addresses still blocked after their account was deleted
+        setShown('blockedEmailsNote', blockedWithoutAccount > 0);
+        document.getElementById('blockedEmailsCount').textContent = `${blockedWithoutAccount} email address${blockedWithoutAccount === 1 ? ' is' : 'es are'} still blocked after the account was deleted.`;
         renderAccountsList();
     }
 
@@ -2502,10 +2601,12 @@
     // it. server/services/recordingRemovals.js; docs/rehearsal-score.md.
     let adminRecordingsData = null;
     let removingRecording = null; // the row the pop-up is about
-    const RECORDING_KIND = { rehearsal: 'Rehearsal recording', piece: 'On a piece', video: 'YouTube link', document: 'Document', score: 'Piece' };
+    const RECORDING_KIND = { rehearsal: 'Rehearsal recording', piece: 'On a piece', video: 'YouTube link', document: 'Document', score: 'Piece', list: 'Practice list', band: 'Band name' };
+    const REPORT_KIND = { piece: 'Piece', list: 'Practice list', band: 'Band name' };
     const piecesText = (pieces) => pieces.map(p => `${p.title}${p.band ? ` (${p.band})` : ''}`).join(', ');
     // What the members are told, by reason. Plain words: what happened, why, what to do next.
     function removalMessage(rec, reason) {
+        if (rec.kind === 'list') return listRemovalMessage(rec, reason);
         const what = rec.kind === 'video' ? `the video "${rec.title}"` : rec.kind === 'document' ? `the document "${rec.title}"` : rec.kind === 'score' ? `the piece "${rec.title}", with its recordings and documents,` : `the recording "${rec.title}"`;
         const from = rec.kind !== 'score' && rec.pieces.length ? ` It has come off ${rec.pieces.length === 1 ? `the piece ${piecesText(rec.pieces)}` : `these pieces: ${piecesText(rec.pieces)}`}.` : '';
         const why = {
@@ -2524,6 +2625,26 @@
         }[reason];
         return [`We have removed ${what} from Notably Better.${from} Nothing else of yours has changed.`, why, next, 'If you think this is a mistake, or have a question, email hello@notablybetter.com.'].join('\n\n');
     }
+    // ML-511: a band's practice list. Only the list goes - its pieces stay with the band.
+    function listRemovalMessage(rec, reason) {
+        const why = {
+            copyright: 'Why: we were told its name may be someone else\'s to use, and it can\'t stay in the app while that is in doubt.',
+            reported: 'Why: a member told us about it, and having looked at it we agree it should not be here.',
+            terms: 'Why: it breaks the terms of use, which say what may be shared in the app.',
+            other: 'Why: '
+        }[reason];
+        const next = reason === 'other' ? 'What to do next: ' : 'What to do next: you are welcome to make the list again with a name that fits the terms of use.';
+        return [`We have removed the practice list "${rec.title}"${rec.pieces[0].band ? ` from ${rec.pieces[0].band}` : ''} in Notably Better. The pieces that were on it are still there, and nothing else of the band's has changed.`, why, next, 'If you think this is a mistake, or have a question, email hello@notablybetter.com.'].join('\n\n');
+    }
+    // ML-511: a band's name. The band stays, with everything it has - only the name changes.
+    function renameMessage(band, newName, reason) {
+        const why = {
+            reported: 'Why: a member told us about the name, and having looked at it we agree it should not be here.',
+            terms: 'Why: the name breaks the terms of use, which say what may be shared in the app.',
+            other: 'Why: '
+        }[reason];
+        return [`We have changed the name of your band "${band.title}" in Notably Better. It is now "${newName || '...'}". Its members, pieces and practice lists are all as they were.`, why, 'What to do next: nothing, unless you would like a different name - email hello@notablybetter.com and we will change it.', 'If you think this is a mistake, or have a question, email the same address.'].join('\n\n');
+    }
     // One table shape for recordings and for shared pieces and documents (ML-507)
     function sharedTable(all, q, heading, empty) {
         const rows = all.filter(r => !q || [r.title, r.addedBy, piecesText(r.pieces)].join(' ').toLowerCase().includes(q));
@@ -2537,7 +2658,9 @@
                     <td>${r.pieces.length ? escapeHtml(piecesText(r.pieces)) : 'No piece yet'}</td>
                     <td>${r.sizeBytes ? `${(r.sizeBytes / (1024 * 1024)).toFixed(1)} MB` : '–'}</td>
                     <td>${fmtDay(r.addedAt)}</td>
-                    <td><button class="admin-stat-exclude-btn" data-recording-remove="${r.kind}:${r.id}" type="button" aria-label="Remove ${escapeHtml(r.title)}">Remove</button></td>
+                    <td>${r.kind === 'band'
+                        ? `<button class="admin-stat-exclude-btn" data-band-rename="${r.id}" type="button" aria-label="Rename ${escapeHtml(r.title)}">Rename</button>`
+                        : `<button class="admin-stat-exclude-btn" data-recording-remove="${r.kind}:${r.id}" type="button" aria-label="Remove ${escapeHtml(r.title)}">Remove</button>`}</td>
                 </tr>`).join('') : `<tr><td colspan="7" class="admin-stat-empty">${all.length ? 'Nothing matches.' : empty}</td></tr>`}</tbody>
         </table></div>`;
     }
@@ -2546,11 +2669,11 @@
         const open = d.reports.filter(r => r.open);
         setNavCount('reportsNavCount', open.length);
         document.getElementById('adminReports').innerHTML = `<div class="admin-stat-table-wrap"><table class="admin-stat-table">
-            <thead><tr><th>When</th><th>Piece</th><th>Band</th><th>What they said</th><th>Reported by</th><th>Where it stands</th><th></th></tr></thead>
+            <thead><tr><th>When</th><th>What</th><th>Band</th><th>What they said</th><th>Reported by</th><th>Where it stands</th><th></th></tr></thead>
             <tbody>${d.reports.length ? d.reports.map(r => `
                 <tr>
                     <td>${fmtDate(r.reportedAt)}</td>
-                    <td>${escapeHtml(r.title)}${r.stillThere ? '' : '<div class="admin-stat-tile-sub">no longer there</div>'}</td>
+                    <td>${escapeHtml(r.title)}<div class="admin-stat-tile-sub">${REPORT_KIND[r.kind] || ''}${r.stillThere ? '' : (r.kind === 'band' ? ' - renamed since' : ' - no longer there')}</div></td>
                     <td>${escapeHtml(r.band || '–')}</td>
                     <td>${escapeHtml(r.note || '(nothing written)')}</td>
                     <td>${escapeHtml(r.reportedBy)}</td>
@@ -2565,7 +2688,9 @@
         if (!d || !box) return;
         const q = (document.getElementById('adminRecordingsSearch')?.value || '').trim().toLowerCase();
         renderAdminReports();
-        document.getElementById('adminShared').innerHTML = sharedTable(d.shared, q, 'Piece or document', 'No band shares a piece yet, and no document has been added.');
+        const bandThings = (r) => r.kind === 'list' || r.kind === 'band';
+        document.getElementById('adminShared').innerHTML = sharedTable(d.shared.filter(r => !bandThings(r)), q, 'Piece or document', 'No band shares a piece yet, and no document has been added.');
+        document.getElementById('adminBandThings').innerHTML = sharedTable(d.shared.filter(bandThings), q, 'Band or practice list', 'Nobody has set up sharing for a band yet.');
         const rows = d.recordings.filter(r => !q || [r.title, r.addedBy, piecesText(r.pieces)].join(' ').toLowerCase().includes(q));
         box.innerHTML = `<div class="admin-stat-table-wrap"><table class="admin-stat-table">
             <thead><tr><th>Recording</th><th>Kind</th><th>Added by</th><th>On</th><th>Size</th><th>Added</th><th></th></tr></thead>
@@ -2581,14 +2706,14 @@
                 </tr>`).join('') : `<tr><td colspan="7" class="admin-stat-empty">${d.recordings.length ? 'Nothing matches.' : 'No recordings or videos have been added.'}</td></tr>`}</tbody>
         </table></div>`;
         document.getElementById('adminRecordingRemovals').innerHTML = `<div class="admin-stat-table-wrap"><table class="admin-stat-table">
-            <thead><tr><th>When</th><th>Recording</th><th>Why</th><th>Pieces</th><th>File deleted</th><th>People told</th><th>Emails</th><th>By</th></tr></thead>
+            <thead><tr><th>When</th><th>What</th><th>Why</th><th>Pieces</th><th>File deleted</th><th>People told</th><th>Emails</th><th>By</th></tr></thead>
             <tbody>${d.removals.length ? d.removals.map(x => `
                 <tr>
                     <td>${fmtDate(x.removedAt)}</td>
                     <td>${escapeHtml(x.title)}<div class="admin-stat-tile-sub">${RECORDING_KIND[x.kind]}</div></td>
                     <td>${escapeHtml(d.reasons[x.reason] || x.reason)}</td>
                     <td>${x.pieces}</td>
-                    <td>${x.kind === 'video' ? '–' : (x.fileRemoved ? 'Yes' : 'No - check the file store')}</td>
+                    <td>${['video', 'list', 'band'].includes(x.kind) ? '–' : (x.fileRemoved ? 'Yes' : 'No - check the file store')}</td>
                     <td>${x.peopleTold}</td>
                     <td>${x.emailsSent}</td>
                     <td>${escapeHtml(x.removedBy)}</td>
@@ -2604,14 +2729,17 @@
         const rec = [...adminRecordingsData.recordings, ...adminRecordingsData.shared].find(r => r.kind === kind && String(r.id) === id);
         if (!rec) return;
         removingRecording = rec;
-        document.getElementById('recordingRemoveTitle').textContent = rec.kind === 'score' ? 'Remove this piece' : rec.kind === 'document' ? 'Remove this document' : 'Remove this recording';
+        document.getElementById('recordingRemoveTitle').textContent = rec.kind === 'score' ? 'Remove this piece' : rec.kind === 'list' ? 'Remove this practice list' : rec.kind === 'document' ? 'Remove this document' : 'Remove this recording';
         document.getElementById('recordingRemoveWhat').textContent = rec.kind === 'score'
             ? `"${rec.title}", added by ${rec.addedBy}${rec.pieces[0].band ? ` (${rec.pieces[0].band})` : ''}. The whole piece goes for everyone who can see it: its bars, recordings, documents and links, and it comes off their practice lists.`
+            : rec.kind === 'list' ? `"${rec.title}", a practice list of ${rec.addedBy}. Only the list goes, for everyone in the band: the pieces on it stay. The band's organisers are told.`
             : `"${rec.title}", added by ${rec.addedBy}${rec.pieces.length ? `. On: ${piecesText(rec.pieces)}` : ''}. It will come off every piece and ${rec.kind === 'video' ? 'the link will be deleted' : 'its file will be deleted'}.`;
         const reason = document.getElementById('recordingRemoveReason');
-        reason.innerHTML = Object.entries(adminRecordingsData.reasons).map(([k, label]) => `<option value="${escapeHtml(k)}">${escapeHtml(label)}</option>`).join('');
-        reason.value = 'person';
-        document.getElementById('recordingRemoveMessage').value = removalMessage(rec, 'person');
+        // a practice list has nobody "in" it: that reason is for recordings
+        const first = rec.kind === 'list' ? 'reported' : 'person';
+        reason.innerHTML = Object.entries(adminRecordingsData.reasons).filter(([k]) => rec.kind !== 'list' || k !== 'person').map(([k, label]) => `<option value="${escapeHtml(k)}">${escapeHtml(label)}</option>`).join('');
+        reason.value = first;
+        document.getElementById('recordingRemoveMessage').value = removalMessage(rec, first);
         showModal('recordingRemoveModal');
         reason.focus();
     }
@@ -2638,10 +2766,57 @@
     }
     function initRecordingsAdmin() {
         document.getElementById('adminRecordingsSearch')?.addEventListener('input', renderAdminRecordings);
-        ['adminRecordings', 'adminShared'].forEach((id) => document.getElementById(id)?.addEventListener('click', (e) => {
+        ['adminRecordings', 'adminShared', 'adminBandThings'].forEach((id) => document.getElementById(id)?.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-recording-remove]');
             if (btn) openRecordingRemove(btn.dataset.recordingRemove);
         }));
+        // ML-511: a band's name that breaks the terms is changed, and its organisers told. The message is
+        // written again as he types the new name or picks another reason - until he changes it himself.
+        let renamingBand = null;
+        let renameWritten = '';
+        const renameEl = (id) => document.getElementById(id);
+        const writeRename = () => {
+            const box = renameEl('bandRenameMessage');
+            if (box.value.trim() && box.value !== renameWritten) return;
+            renameWritten = renameMessage(renamingBand, renameEl('bandRenameName').value.trim(), renameEl('bandRenameReason').value);
+            box.value = renameWritten;
+        };
+        document.getElementById('adminBandThings')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-band-rename]');
+            const band = btn && adminRecordingsData.shared.find(r => r.kind === 'band' && String(r.id) === btn.dataset.bandRename);
+            if (!band) return;
+            renamingBand = band;
+            renameEl('bandRenameWhat').textContent = `"${band.title}", set up by ${band.addedBy} - ${band.pieces[0].title}. A band can't be removed without taking its music with it, so its name is changed. Its organisers are told.`;
+            renameEl('bandRenameName').value = '';
+            renameEl('bandRenameReason').value = 'reported';
+            renameEl('bandRenameMessage').value = '';
+            renameWritten = '';
+            writeRename();
+            showModal('bandRenameModal');
+            renameEl('bandRenameName').focus();
+        });
+        renameEl('bandRenameName')?.addEventListener('input', writeRename);
+        renameEl('bandRenameReason')?.addEventListener('change', writeRename);
+        renameEl('bandRenameCancelBtn')?.addEventListener('click', () => { hideModal('bandRenameModal'); renamingBand = null; });
+        renameEl('bandRenameConfirmBtn')?.addEventListener('click', async () => {
+            if (!renamingBand) return;
+            const btn = renameEl('bandRenameConfirmBtn');
+            btn.disabled = true;
+            try {
+                const data = await apiCall('/api/admin/recordings/rename-band', 'POST', {
+                    id: renamingBand.id, name: renameEl('bandRenameName').value, reason: renameEl('bandRenameReason').value, message: renameEl('bandRenameMessage').value
+                });
+                adminRecordingsData = data;
+                renderAdminRecordings();
+                hideModal('bandRenameModal');
+                renamingBand = null;
+                showToast(`Renamed. ${data.renamed.peopleTold} ${data.renamed.peopleTold === 1 ? 'person' : 'people'} told.`);
+            } catch (error) {
+                showToast(error.message);
+            } finally {
+                btn.disabled = false;
+            }
+        });
         // ML-507: close a member's report with what was done
         let closingReport = null;
         document.getElementById('adminReports')?.addEventListener('click', (e) => {

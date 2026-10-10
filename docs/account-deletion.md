@@ -52,6 +52,13 @@ with the rest of the account row.
 made (`content_reports`) stays, with who made it set to nobody: it is the app's record of what it was told
 and what it did about it. It is in the download while the account exists.
 
+## A closed account (ML-502)
+
+The record of warnings and closing (`account_actions`) is the member's own: it goes with the account and
+is in the download. `accounts.closed_at` is cleared. **The block list is kept**: `blocked_emails` holds
+the closed account's email address as a keyed hash with no link to the account, so the same address can't
+sign up again after the account is deleted - the privacy policy says so. `docs/account-closing.md`.
+
 ## Rehearsal recordings (ML-489)
 
 A member's uploads to the Recordings tool (`rehearsal_recordings`) are their own: the rows go with the

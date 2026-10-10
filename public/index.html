@@ -1044,6 +1044,8 @@
         <button type="button" class="dropdown-item" id="accountBandMenuDirectory"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">link</span><span class="dropdown-item-text">It's a band in the list</span></button>
         <button type="button" class="dropdown-item" id="accountBandMenuMerge"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">merge</span><span class="dropdown-item-text">Same as another of mine</span></button>
         <button type="button" class="dropdown-item" id="accountBandMenuHide"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">visibility_off</span><span class="dropdown-item-text">I don't play with them now</span></button>
+        <!-- ML-510: a shared band's name, when someone else is in the band to see it -->
+        <button type="button" class="dropdown-item hidden-group" id="accountBandMenuReport" aria-haspopup="dialog"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">flag</span><span class="dropdown-item-text">Report the name</span></button>
         <button type="button" class="dropdown-item account-band-menu-delete hidden-group" id="accountBandMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Stop sharing</span></button>
     </div>
 
@@ -1459,6 +1461,8 @@
         <button type="button" class="btn-submit" id="plPlanBtn">Plan a session for this</button>
         <!-- ML-489: once the concert has been played - clears the member's own Recordings-tool uploads that
              are on this list's pieces, so there is room for the next concert's. Asks first. -->
+        <!-- ML-510: a band's list - its name is seen by the whole band. Never on a list of your own. -->
+        <button type="button" class="btn-text hidden-group" id="plReportBtn" aria-haspopup="dialog">Report this list</button>
         <button type="button" class="btn-text btn-text-danger hidden-group" id="plClearRecordingsBtn">Delete this list's recordings</button>
         <button type="button" class="btn-text btn-text-danger" id="plDeleteBtn">Delete this list</button>
     </div>
@@ -2036,6 +2040,8 @@
                     <button type="button" class="dropdown-item hidden-group" id="flowPlayMenuCopy"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">library_add</span><span class="dropdown-item-text">Copy to my library</span></button>
                     <button type="button" class="dropdown-item" id="flowPlayMenuLoadLibrary"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h12a2 2 0 0 1 2 2v12"/><path d="M5 7h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/><path d="M10 10.5v6.5"/><path d="M7 14.5l3 3 3-3"/></svg><span class="dropdown-item-text">Load from library</span></button>
                     <button type="button" class="dropdown-item" id="flowPlayMenuCreateNew"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">add</span><span class="dropdown-item-text">Create new</span></button>
+                    <!-- ML-510: the same Report as on the piece's menu in My music - a band's or a public piece Last on the menu. -->
+                    <button type="button" class="dropdown-item hidden-group" id="flowPlayMenuReport" aria-haspopup="dialog"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">flag</span><span class="dropdown-item-text">Report</span></button>
                 </div>
             </div>
         </div>
@@ -4478,11 +4484,12 @@
     </div>
 </div>
 
-<!-- ML-507: Report this - a piece other people can see. Sent to the owner; the note is optional. -->
+<!-- ML-507: Report this - a piece other people can see. Sent to the owner; the note is optional.
+     ML-510: also a band's name and a band's practice list - openReport (app.js) fills in the words. -->
 <div class="modal" id="reportModal" role="dialog" aria-modal="true" aria-labelledby="reportModalTitle">
     <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
         <h2 id="reportModalTitle">Report this</h2>
-        <p class="text-muted modal-intro">Tell us if something here should not be: it is not theirs to share, it is not suitable, or someone in a recording does not want to be. <strong id="reportWhat"></strong> - with its recordings and documents - is sent to the person who runs the app. Nobody in the band is told who reported it.</p>
+        <p class="text-muted modal-intro">Tell us if something here should not be: <span id="reportWhy"></span>. <span id="reportLead"></span><strong id="reportWhat"></strong><span id="reportWith"></span> is sent to the person who runs the app. Nobody in the band is told who reported it.</p>
         <label for="reportNote">What is wrong with it? (You can leave this empty.)</label>
         <textarea id="reportNote" class="w-full mb-4" rows="4" maxlength="1000"></textarea>
         <div class="flex-row gap-md">

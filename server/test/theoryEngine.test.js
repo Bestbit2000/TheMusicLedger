@@ -199,6 +199,14 @@ describe('keys', () => {
             assert.deepEqual(q.answers.map(a => a.id), T.KEY_BUTTONS);
             assert.equal(q.correct, key.tonic);
             assert.equal(q.modes, undefined);
+            // ML-516: with major and minor both in play the mode is also shown under the keyboard, given
+            assert.deepEqual(q.shownModes.map(m => m.id), ['major', 'minor']);
+            assert.equal(q.modeGiven, key.mode);
+        }
+        // ...and in a major-only quiz there is no such row
+        for (const q of take(source('keys', { show: 'keySignatures', upTo: 7, modes: 'major' }, { seed: 3 }), 20)) {
+            assert.equal(q.shownModes, null);
+            assert.equal(q.modeGiven, null);
         }
         assert.ok(T.KEY_BUTTONS.includes('Cb') && T.ALL_KEYS.every(k => T.KEY_BUTTONS.includes(k.tonic)), 'every key has its button');
     });

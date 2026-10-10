@@ -134,6 +134,10 @@ async function main() {
   console.log('Before it goes out: does anything in this release need telling to members (their information,');
   console.log('something that works differently, something they must do)? If so, write the notice on');
   console.log('Admin -> Notifications; if not, say "no notice needed" in the Jira issue. docs/release-process.md');
+  console.log('');
+  console.log('And: does this release change what one member can show another, or let members contact each');
+  console.log('other? If so, the Online Safety Act run-through (docs/online-safety-assessment.md) is done again');
+  console.log('first, and the Children\'s Code self-assessment is checked. Say which in the Jira issue.');
 }
 
 main().catch((err) => {

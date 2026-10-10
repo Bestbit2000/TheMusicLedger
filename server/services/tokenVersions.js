@@ -20,21 +20,38 @@ export function deletedEmailHash(email) {
 const TTL_MS = 30000;
 const cache = new Map();
 
-export async function currentTokenVersion(email) {
+// ML-502: `shutOut` - the address may not sign in at all: its account has been closed, or (with no
+// account) the address is on the block list a closed account leaves behind. Read with the version,
+// so it costs nothing extra on a request and reaches every server within the same half minute.
+async function lookUp(email) {
   const key = String(email || '').toLowerCase();
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL_MS) return hit.version;
-  const { rows } = await pool.query('SELECT token_version FROM accounts WHERE lower(email) = $1', [key]);
+  if (hit && Date.now() - hit.at < TTL_MS) return hit;
+  const { rows } = await pool.query('SELECT token_version, closed_at IS NOT NULL AS closed FROM accounts WHERE lower(email) = $1', [key]);
   let version = 0; // no account yet: its first login
+  let shutOut = false;
   if (rows.length) {
     version = Number(rows[0].token_version);
+    shutOut = rows[0].closed;
   } else {
     // ...unless the account was deleted (ML-430): tokens from before that stay signed out
-    const marker = await pool.query('SELECT token_version FROM deleted_account_markers WHERE email_hash = $1', [deletedEmailHash(key)]);
+    const hash = deletedEmailHash(key);
+    const marker = await pool.query('SELECT token_version FROM deleted_account_markers WHERE email_hash = $1', [hash]);
     if (marker.rows.length) version = Number(marker.rows[0].token_version);
+    shutOut = (await pool.query('SELECT 1 FROM blocked_emails WHERE email_hash = $1', [hash])).rows.length > 0;
   }
-  cache.set(key, { version, at: Date.now() });
-  return version;
+  const entry = { version, shutOut, at: Date.now() };
+  cache.set(key, entry);
+  return entry;
+}
+export async function currentTokenVersion(email) {
+  return (await lookUp(email)).version;
+}
+// Asked where a sign-in is about to be given, so the person is told why instead of being bounced.
+export const SHUT_OUT_MESSAGE = 'This account has been closed, so you can\'t sign in. If you think this is a mistake, email hello@notablybetter.com.';
+export async function emailIsShutOut(email) {
+  forgetTokenVersion(email);
+  return (await lookUp(email)).shutOut;
 }
 
 export function forgetTokenVersion(email) {
@@ -43,5 +60,6 @@ export function forgetTokenVersion(email) {
 
 export async function tokenIsCurrent(tokenData) {
   if (!tokenData.userId) return false;
-  return Number(tokenData.tv || 0) >= (await currentTokenVersion(tokenData.userId));
+  const now = await lookUp(tokenData.userId);
+  return !now.shutOut && Number(tokenData.tv || 0) >= now.version; // ML-502: no token is good for a closed account
 }

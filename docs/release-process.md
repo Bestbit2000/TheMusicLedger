@@ -130,6 +130,13 @@ regenerate the token reference if tokens changed. The Design page is how the own
    document 4, `compliance-documents/`; summary in `docs/gdpr-assessment.md`) **before** it is released,
    and say in the Jira issue that it was checked. If the answer to one of the Code's standards changes,
    the self-assessment is updated in the same release.
+   **Ask, every release: does this change what one member can show another, or let members contact
+   each other?** (ML-512.) A new thing a band can share, a new place a member's words or files are seen
+   by someone else, a message, a comment, a profile, a search that reaches outside a band. If so, the
+   Online Safety Act run-through (`docs/online-safety-assessment.md`) is done again **first**, and the
+   Children's Code self-assessment is checked; say in the Jira issue that both were done. If not, say
+   "no change to what members can show each other" in the Jira issue. "What would change the answer" at
+   the end of the run-through lists the changes that always need it.
 2. **First, make sure every issue has its release note** in `release-notes.json` (see "Release notes:
    one line per issue" below). The file is ordinary code that goes through sandbox, so write the line
    with the work, not at the last minute - `cut-release` refuses to start without it.

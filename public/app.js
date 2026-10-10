@@ -165,6 +165,12 @@
             const fromHash = read(window.location.hash.replace(/^#/, ''));
             const fromQuery = read(window.location.search);
             const { token, userId } = fromHash.token ? fromHash : fromQuery;
+            // ML-502: the server hands back "#closed" instead of a sign-in when the account has been closed
+            if (window.location.hash === '#closed') {
+                this.closedNotice = true;
+                window.history.replaceState({}, document.title, window.location.pathname);
+                return false;
+            }
 
             if (token && userId) {
                 this.accept(token, userId);
@@ -1262,7 +1268,9 @@
         setShown('mainContainer', false);
         setShown('loginScreen', true);
         const statusText = document.getElementById('loginStatusText');
-        if (statusText) statusText.textContent = bandInviteWaiting()
+        if (statusText) statusText.textContent = auth.closedNotice
+            ? 'This account has been closed, so you can\'t sign in. If you think this is a mistake, email hello@notablybetter.com.'
+            : bandInviteWaiting()
             ? 'You have been invited to join a band. Sign in with the email address the invitation was sent to, and it will be waiting for you.'
             : 'Please log in to continue';
         const btn = document.getElementById('loginBtn');
@@ -4740,6 +4748,7 @@
         item('accountBandMenuMembers', !!shared);
         item('accountBandMenuLeave', shared && !shared.onlyYou);
         item('accountBandMenuDelete', shared && shared.onlyYou);
+        item('accountBandMenuReport', shared && !shared.onlyYou); // ML-510: a name somebody else can see
         item('accountBandMenuDirectory', band && !shared && !band.directoryBandId);
         item('accountBandMenuMerge', band && myBandsShown().length > 1);
         item('accountBandMenuHide', band && !shared);
@@ -8990,6 +8999,7 @@
         setShown('flowPlayMenuEditDetails', currentFlowDetail.canEdit);
         setShown('flowPlayMenuEditFlow', currentFlowDetail.canEdit);
         setShown('flowPlayMenuCopy', (!currentFlowDetail.canEdit && currentFlowDetail.isPublic) || !!currentFlowDetail.ownerBandId);
+        setShown('flowPlayMenuReport', !!currentFlowDetail.isPublic || !!currentFlowDetail.ownerBandId);
         setShown('flowPlayMenuLevels', isFeatureEnabled('practice_levels'));
         const c = [...levels.chunks, ...levels.groups].find(x => x && x.id === chunk.id);
         if (!c) throw new Error('those bars have changed - check the piece\'s Levels');
@@ -9252,6 +9262,7 @@
         document.getElementById('plName').disabled = !canEdit;
         document.getElementById('plDateBtn').disabled = !canEdit;
         ['plAddPiecesBtn', 'plDeleteBtn', 'plPieceMenuDelete'].forEach(id => setShown(id, canEdit));
+        setShown('plReportBtn', !!l.bandId); // ML-510: a band's list; always there, whatever the account type
         setShown('plClearRecordingsBtn', isFeatureEnabled('rehearsal_recordings') && l.pieces.length > 0); // ML-489: your own uploads, so not tied to canEdit
         document.getElementById('plDateBtnText').textContent = plDateLabel(l.eventDate);
         document.getElementById('plDateBtn').setAttribute('aria-label', `Target date: ${l.eventDate ? plDateText(l.eventDate) : 'none'} - tap to change`);
@@ -10119,28 +10130,57 @@
     });
     // ML-507: "Report this" - tells the owner about a piece other people can see (its recordings, documents
     // and links go with it). Always there, whatever features an account type has. The note is optional.
-    let reportingFlowId = null;
+    // ML-510: the same pop-up reports a band's name ('band': its shared space) or a band's practice list
+    // ('list') - only the words about what is sent change.
+    const REPORT_WORDS = {
+        piece: { why: 'it is not theirs to share, it is not suitable, or someone in a recording does not want to be', lead: '', after: ' - with its recordings and documents -' },
+        band: { why: 'the name is not suitable, or is not theirs to use', lead: 'The band\'s name, ', after: ',' },
+        list: { why: 'the name is not suitable, or is not theirs to use', lead: 'The practice list\'s name, ', after: ',' }
+    };
+    let reporting = null; // { kind, id }
+    function openReport(kind, id, title) {
+        reporting = { kind, id };
+        const words = REPORT_WORDS[kind];
+        document.getElementById('reportWhy').textContent = words.why;
+        document.getElementById('reportLead').textContent = words.lead;
+        document.getElementById('reportWhat').textContent = title;
+        document.getElementById('reportWith').textContent = words.after;
+        document.getElementById('reportNote').value = '';
+        showModal('reportModal');
+        document.getElementById('reportNote').focus();
+    }
     document.getElementById('flowLibraryItemMenuReport')?.addEventListener('click', (e) => {
         e.stopPropagation();
         const id = flowLibraryMenuTargetId;
         closeFlowLibraryItemMenu();
         const flow = flowsListCache.find(f => f.id === id);
-        if (!flow) return;
-        reportingFlowId = id;
-        document.getElementById('reportWhat').textContent = flow.title;
-        document.getElementById('reportNote').value = '';
-        showModal('reportModal');
-        document.getElementById('reportNote').focus();
+        if (flow) openReport('piece', id, flow.title);
     });
-    document.getElementById('reportCancelBtn')?.addEventListener('click', () => { hideModal('reportModal'); reportingFlowId = null; });
+    // the play screen: report what you are looking at or hearing without going back to the list
+    document.getElementById('flowPlayMenuReport')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeFlowPlayMenu();
+        if (currentFlowDetail) openReport('piece', currentFlowDetail.id, currentFlowDetail.title);
+    });
+    document.getElementById('accountBandMenuReport')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const band = myBandById(accountBandMenuTargetId);
+        closeAccountBandMenu();
+        if (band && band.shared) openReport('band', band.shared.bandId, band.shared.name || band.displayName);
+    });
+    document.getElementById('plReportBtn')?.addEventListener('click', () => {
+        const l = plState.list;
+        if (l && l.bandId) openReport('list', l.id, l.name);
+    });
+    document.getElementById('reportCancelBtn')?.addEventListener('click', () => { hideModal('reportModal'); reporting = null; });
     document.getElementById('reportSendBtn')?.addEventListener('click', async () => {
-        if (reportingFlowId === null) return;
+        if (!reporting) return;
         const btn = document.getElementById('reportSendBtn');
         btn.disabled = true;
         try {
-            await apiCall('/api/reports', 'POST', { kind: 'piece', id: reportingFlowId, note: document.getElementById('reportNote').value });
+            await apiCall('/api/reports', 'POST', { kind: reporting.kind, id: reporting.id, note: document.getElementById('reportNote').value });
             hideModal('reportModal');
-            reportingFlowId = null;
+            reporting = null;
             showSuccessToast('Reported. Thank you - we will look at it.');
         } catch (error) {
             showWarningToast(error.message);
@@ -10181,6 +10221,7 @@
             setShown('flowPlayMenuEditDetails', detail.canEdit);
             setShown('flowPlayMenuEditFlow', detail.canEdit);
             setShown('flowPlayMenuCopy', (!detail.canEdit && detail.isPublic) || !!detail.ownerBandId);
+            setShown('flowPlayMenuReport', !!detail.isPublic || !!detail.ownerBandId); // ML-510: anything other people can see
             setShown('flowPlayMenuLevels', isFeatureEnabled('practice_levels'));
             switchView('flowPlayView');
         } catch (error) {
@@ -20310,9 +20351,12 @@
         r.pick = null;
         theoryTypedAccidental = ''; // (a # or - typed for the last question doesn't carry over)
         const modes = document.getElementById('theoryModes');
-        setShown(modes, !!q.modes);
-        modes.innerHTML = (q.modes || []).map(m => `<button type="button" class="theory-answer" data-id="${escapeHtml(m.id)}" aria-pressed="false">${escapeHtml(m.label)}</button>`).join('');
-        modes.querySelectorAll('.theory-answer').forEach(b => b.addEventListener('click', () => theoryAnswer(b.dataset.id, 'mode')));
+        const modeRow = q.modes || q.shownModes || [];
+        setShown(modes, modeRow.length > 0);
+        // ML-516: a key signature's question says the mode, so there it is given - lit, and the other one can't
+        // be tapped. The row is there on every question of a major-and-minor quiz; only the note is tapped.
+        modes.innerHTML = modeRow.map(m => `<button type="button" class="theory-answer" data-id="${escapeHtml(m.id)}" aria-pressed="${q.modeGiven === m.id}"${q.modeGiven && q.modeGiven !== m.id ? ' disabled' : ''}>${escapeHtml(m.label)}</button>`).join('');
+        if (q.modes) modes.querySelectorAll('.theory-answer').forEach(b => b.addEventListener('click', () => theoryAnswer(b.dataset.id, 'mode')));
         if (q.modes) answers.querySelectorAll('.theory-answer').forEach(b => b.setAttribute('aria-pressed', 'false'));
         theoryUpdateTally();
         r.shownAt = theoryNow();
@@ -20333,19 +20377,20 @@
         const q = r.question;
         // ML-438: a two-tap answer (the note and Major / Minor, in either order) waits for its other half -
         // what's picked so far is shown, and can be changed until the second half is tapped
-        if (q.modes) {
+        const twoTap = !!q.modes; // (ML-516: a key signature's given mode is `shownModes` - shown, not answered)
+        if (twoTap) {
             r.pick = { ...(r.pick || {}), [part]: id };
             document.querySelectorAll(`#${part === 'mode' ? 'theoryModes' : 'theoryAnswers'} .theory-answer`).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === id)));
             if (!r.pick.note || !r.pick.mode) return;
             id = `${r.pick.note} ${r.pick.mode}`;
         }
         const correct = id === q.correct;
-        r.answers.push({ questionId: q.id, answerId: id, correct, ms: Math.round(theoryNow() - r.shownAt), block: r.block, ...(q.modes ? { taps: 2 } : {}) });
+        r.answers.push({ questionId: q.id, answerId: id, correct, ms: Math.round(theoryNow() - r.shownAt), block: r.block, ...(twoTap ? { taps: 2 } : {}) });
         r.blockAnswered++;
         // Smart learn: a later deal in this same round already knows, and a miss comes back 3 questions on.
         r.source.record(q.id, correct, r.answers[r.answers.length - 1].ms);
         r.locked = true;
-        if (q.modes) {
+        if (twoTap) {
             // each half is marked on its own: the note on the keyboard, Major / Minor underneath
             const cut = q.correct.lastIndexOf(' ');
             [['note', q.correct.slice(0, cut), 'theoryAnswers'], ['mode', q.correct.slice(cut + 1), 'theoryModes']].forEach(([half, right, box]) => {

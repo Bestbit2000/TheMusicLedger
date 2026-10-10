@@ -30,7 +30,7 @@ const fullName = (r) => [r.first_name, r.surname].filter(Boolean).join(' ').trim
 // Every recording and video held, newest first: a whole rehearsal in the Recordings tool (with the
 // pieces it has been given to), a recording put straight on a piece, and a YouTube link.
 export async function listRecordingsForAdmin() {
-  const [rehearsals, cuts, direct, removals, documents, pieces, reports] = await Promise.all([
+  const [rehearsals, cuts, direct, removals, documents, pieces, reports, lists, bands] = await Promise.all([
     pool.query(
       `SELECT rr.id, rr.title, rr.file_size_bytes, rr.created_at, a.first_name, a.surname
          FROM rehearsal_recordings rr JOIN accounts a ON a.id = rr.account_id
@@ -66,7 +66,18 @@ export async function listRecordingsForAdmin() {
          LEFT JOIN accounts a ON a.id = COALESCE(s.added_by_account_id, s.owner_account_id)
         WHERE s.owner_band_id IS NOT NULL OR s.is_public = true
         ORDER BY s.created_at DESC`),
-    listReports()
+    listReports(),
+    // ML-511: a band's practice lists, and the bands themselves (a band's name is seen by its members)
+    pool.query(
+      `SELECT pl.id, pl.name, pl.created_at, b.name AS band_name
+         FROM practice_lists pl JOIN bands b ON b.id = pl.owner_band_id
+        ORDER BY pl.created_at DESC`),
+    pool.query(
+      `SELECT g.id, g.name, g.created_at, a.first_name, a.surname,
+              (SELECT COUNT(*) FROM band_members m WHERE m.band_id = g.id) AS members
+         FROM bands g LEFT JOIN accounts a ON a.id = g.created_by_account_id
+        WHERE g.kind = 'group' AND g.active
+        ORDER BY g.created_at DESC`)
   ]);
   const piece = (r) => ({ title: r.piece_title, band: r.band_name || null });
   return {
@@ -92,6 +103,14 @@ export async function listRecordingsForAdmin() {
       ...documents.rows.map((r) => ({
         kind: 'document', id: Number(r.id), title: r.file_name, addedBy: r.first_name || r.surname ? fullName(r) : (r.band_name || 'A band'), addedAt: r.created_at,
         sizeBytes: r.file_size_bytes !== null ? Number(r.file_size_bytes) : null, pieces: [piece(r)]
+      })),
+      ...lists.rows.map((r) => ({
+        kind: 'list', id: Number(r.id), title: r.name, addedBy: r.band_name || 'A band', addedAt: r.created_at,
+        sizeBytes: null, pieces: [{ title: 'Shared with the band', band: r.band_name || null }]
+      })),
+      ...bands.rows.map((r) => ({
+        kind: 'band', id: Number(r.id), title: r.name, addedBy: r.first_name || r.surname ? fullName(r) : 'A member', addedAt: r.created_at,
+        sizeBytes: null, pieces: [{ title: `${r.members} member${Number(r.members) === 1 ? '' : 's'}`, band: null }]
       }))
     ],
     removals: removals.rows.map((r) => ({
@@ -109,7 +128,7 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
   const text = String(message || '').trim();
   if (!text) throw withStatus(400, 'Write what the members will be told.');
   if (text.length > MAX_MESSAGE) throw withStatus(400, `The message can be up to ${MAX_MESSAGE} characters.`);
-  if (!['rehearsal', 'piece', 'video', 'document', 'score'].includes(kind) || !/^\d+$/.test(String(id))) throw withStatus(400, 'That is not one in the list.');
+  if (!['rehearsal', 'piece', 'video', 'document', 'score', 'list'].includes(kind) || !/^\d+$/.test(String(id))) throw withStatus(400, 'That is not one in the list.');
 
   const client = await pool.connect();
   let title = '';
@@ -130,6 +149,15 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
         'SELECT blob_url FROM score_recordings WHERE score_id = $1 AND blob_url IS NOT NULL UNION SELECT blob_url FROM score_documents WHERE score_id = $1', [id]);
       moreBlobs = files.rows.map((f) => f.blob_url);
       scoreIdsGone = [String(id)];
+    } else if (kind === 'list') {
+      // ML-511: a band's practice list. Its pieces stay - only the list goes; the band's organisers are told
+      const found = await client.query('SELECT id, name, owner_band_id FROM practice_lists WHERE id = $1 AND owner_band_id IS NOT NULL FOR UPDATE', [id]);
+      if (!found.rows.length) throw withStatus(404, 'That practice list has already gone.');
+      title = found.rows[0].name;
+      scoreIdsGone = [];
+      const organisers = await client.query('SELECT account_id FROM band_members WHERE band_id = $1 AND role = ANY($2)', [found.rows[0].owner_band_id, ORGANISER_ROLES]);
+      organisers.rows.forEach((o) => tell.add(String(o.account_id)));
+      await client.query('DELETE FROM practice_lists WHERE id = $1', [id]); // a session planned from it keeps its history (SET NULL)
     } else if (kind === 'document') {
       const found = await client.query('SELECT id, score_id, file_name, blob_url FROM score_documents WHERE id = $1 FOR UPDATE', [id]);
       if (!found.rows.length) throw withStatus(404, 'That document has already gone.');
@@ -204,7 +232,7 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
   const people = tell.size
     ? (await pool.query('SELECT id, email, first_name FROM accounts WHERE id = ANY($1) AND deleted_at IS NULL', [[...tell]])).rows
     : [];
-  const subject = kind === 'score' ? 'A piece has been removed' : kind === 'document' ? 'A document has been removed' : 'A recording has been removed';
+  const subject = kind === 'score' ? 'A piece has been removed' : kind === 'list' ? 'A practice list has been removed' : kind === 'document' ? 'A document has been removed' : 'A recording has been removed';
   if (people.length) await createTargetedNotification(adminAccountId, { title: subject, body: text, urgent: true }, people.map((p) => p.id));
   let emailsSent = 0;
   for (const p of people) {
@@ -218,4 +246,64 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
     [by ? fullName(by) : '', reason, title, kind, pieceCount, fileRemoved, people.length, emailsSent, text]
   );
   return { removed: { title, pieces: pieceCount, fileRemoved, fileError, peopleTold: people.length, emailsSent }, ...(await listRecordingsForAdmin()) };
+}
+
+// ML-511: a band's name that breaks the terms. The band can't be removed - its members, pieces and
+// practice lists hang off it - so the owner gives it another name and its organisers are told what
+// happened, why and what to do next. Members who still had the old name on their own My bands entry
+// for it get the new one too. Kept on the same record as a removal; `title` there is the name it had.
+const RENAME_REASONS = ['reported', 'terms', 'other'];
+const BAND_NAME_MAX = 80; // as a name on My bands
+export async function renameBandOnRequest(adminAccountId, { id, name, reason, message }) {
+  if (!RENAME_REASONS.includes(reason)) throw withStatus(400, 'Choose why it is being renamed.');
+  const newName = String(name || '').trim();
+  if (!newName) throw withStatus(400, 'Give the band its new name.');
+  if (newName.length > BAND_NAME_MAX) throw withStatus(400, `A band's name can be up to ${BAND_NAME_MAX} characters.`);
+  const text = String(message || '').trim();
+  if (!text) throw withStatus(400, 'Write what the organisers will be told.');
+  if (text.length > MAX_MESSAGE) throw withStatus(400, `The message can be up to ${MAX_MESSAGE} characters.`);
+  if (!/^\d+$/.test(String(id))) throw withStatus(400, 'That is not one in the list.');
+
+  const client = await pool.connect();
+  let oldName = '';
+  let tell = [];
+  try {
+    await client.query('BEGIN');
+    const found = await client.query(`SELECT name FROM bands WHERE id = $1 AND kind = 'group' FOR UPDATE`, [id]);
+    if (!found.rows.length) throw withStatus(404, 'That band has already gone.');
+    oldName = found.rows[0].name;
+    if (oldName === newName) throw withStatus(400, 'That is the name it has now.');
+    await client.query('UPDATE bands SET name = $2 WHERE id = $1', [id, newName]);
+    // each member's own entry for it, where it still carries the old name and the new one isn't already theirs
+    await client.query(
+      `UPDATE bands l SET name = $2
+        WHERE l.kind = 'label' AND l.shared_band_id = $1 AND lower(l.name) = lower($3)
+          AND NOT EXISTS (SELECT 1 FROM bands o WHERE o.kind = 'label' AND o.created_by_account_id = l.created_by_account_id
+                                                   AND o.id <> l.id AND lower(o.name) = lower($2))`,
+      [id, newName, oldName]);
+    tell = (await client.query('SELECT account_id FROM band_members WHERE band_id = $1 AND role = ANY($2)', [id, ORGANISER_ROLES])).rows.map((o) => String(o.account_id));
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  const people = tell.length
+    ? (await pool.query('SELECT id, email, first_name FROM accounts WHERE id = ANY($1) AND deleted_at IS NULL', [tell])).rows
+    : [];
+  const subject = 'A band has been renamed';
+  if (people.length) await createTargetedNotification(adminAccountId, { title: subject, body: text, urgent: true }, people.map((p) => p.id));
+  let emailsSent = 0;
+  for (const p of people) {
+    if (!p.email) continue;
+    try { await sendMail({ to: p.email, subject: `Notably Better: ${subject.toLowerCase()}`, text: `Hello ${p.first_name || ''},\n\n${text}\n` }); emailsSent++; } catch (error) { console.error('Band rename: an email could not be sent:', error.message); }
+  }
+  const by = (await pool.query('SELECT first_name, surname FROM accounts WHERE id = $1', [adminAccountId])).rows[0];
+  await pool.query(
+    'INSERT INTO recording_removals (removed_by, reason, title, kind, pieces, file_removed, people_told, emails_sent, message) VALUES ($1, $2, $3, $4, 0, false, $5, $6, $7)',
+    [by ? fullName(by) : '', reason, oldName, 'band', people.length, emailsSent, text]
+  );
+  return { renamed: { from: oldName, to: newName, peopleTold: people.length, emailsSent }, ...(await listRecordingsForAdmin()) };
 }

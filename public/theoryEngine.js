@@ -398,7 +398,7 @@
         const includeRelative = o.keyIds ? keys.some(k => k.mode === 'minor') : o.modes === 'both';
         const out = [];
         for (const clef of clefs) for (const key of keys) {
-            if (o.show !== 'scales') out.push({ type: 'keySignature', key, clef });
+            if (o.show !== 'scales') out.push({ type: 'keySignature', key, clef, includeRelative });
             if (o.show !== 'keySignatures') {
                 const forms = key.mode === 'minor' ? minorForms : [null];
                 for (const form of forms) out.push({ type: 'scale', key, clef, form, includeRelative });
@@ -418,6 +418,12 @@
             },
             layout: 'keyboard',
             answers: keyButtons(naming),
+            // ML-516: with major and minor keys both in play, Major / Minor sit under the keyboard on every
+            // question, as they do for a scale - here the one being asked is lit and the other can't be
+            // tapped, so the mode is plain at a glance. Still one tap: the note.
+            // (Not `modes`: that means "the mode is part of the answer", as on a scale.)
+            shownModes: item.includeRelative ? KEY_MODES : null,
+            modeGiven: item.includeRelative ? key.mode : null,
             correct: key.tonic,
             correctLabel: keyLabel(key, naming),
         };
@@ -1434,7 +1440,7 @@
         if (type === 'keySignature' || type === 'scale') {
             const key = ALL_KEYS.find(k => k.id === b);
             if (!Notation.CLEFS[a] || !key) return null;
-            if (type === 'keySignature') return { type, key, clef: a };
+            if (type === 'keySignature') return { type, key, clef: a, includeRelative: true };
             const form = key.mode === 'minor' ? (c === 'melodic' ? 'melodic' : 'harmonic') : null;
             return { type, key, clef: a, form, includeRelative: true };
         }

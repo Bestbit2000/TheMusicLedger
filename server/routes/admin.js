@@ -15,6 +15,7 @@ import pool from '../config/db.js';
 import { listWarmupsForAdmin, createWarmup, updateWarmup, setWarmupActive, moveWarmup, deleteWarmup } from '../services/warmups.js';
 import { listAccountsForAdmin, setAccountLevel, getAccountProfile } from '../services/accounts.js';
 import { deleteAccountAsAdmin } from '../services/accountDeletion.js';
+import { accountRecord, warnAccount, closeAccount, reopenAccount, blockedWithoutAccount, unblockEmail } from '../services/accountClosing.js';
 import { getReviews, markReviewed } from '../services/reviews.js';
 import { adminRequestEmailChange } from '../services/emailChange.js';
 import { getFeatureAccess, saveFeatureAccess, clearFeatureCache } from '../services/features.js';
@@ -29,7 +30,7 @@ import { getFlowAuthoringStats, setFlowAuthoringSessionExcluded, currentAppVersi
 import { listFeedbackForAdmin, updateFeedbackAdmin } from '../services/feedback.js';
 import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitImport, MAX_IMPORT_BYTES } from '../services/flowTransfer.js';
 import { listNotificationsForAdmin, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
-import { listRecordingsForAdmin, removeRecordingOnRequest } from '../services/recordingRemovals.js';
+import { listRecordingsForAdmin, removeRecordingOnRequest, renameBandOnRequest } from '../services/recordingRemovals.js';
 import { closeReport } from '../services/contentReports.js';
 import { getSecurityReview, runSecurityReviewNow } from '../services/securityReview.js';
 import { getSiteSecurityReview, runSiteSecurityReviewNow } from '../services/siteSecurityReview.js';
@@ -349,7 +350,7 @@ router.delete('/warmups/:id', requireAuth, resolveAccount, requireSuperAdmin, as
 // ========================================
 router.get('/accounts', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
-    res.json({ accounts: await listAccountsForAdmin() });
+    res.json({ accounts: await listAccountsForAdmin(), blockedWithoutAccount: await blockedWithoutAccount() });
   } catch (error) {
     console.error('Admin accounts fetch error:', error);
     sendError(res, error);
@@ -395,6 +396,26 @@ router.post('/accounts/:id/sign-out', requireAuth, resolveAccount, requireSuperA
 router.post('/accounts/:id/delete', requireAuth, resolveAccount, requireSuperAdmin,
   accountAction((req) => deleteAccountAsAdmin(req.accountId, req.params.id),
     (done) => (done.emailed ? `The account for ${done.email} has been deleted, and they have been emailed to say so.` : `The account for ${done.email} has been deleted. No email was sent to say so.`)));
+
+// ML-502: warn a member, close their account, or reopen it (server/services/accountClosing.js). The
+// record is what has been done about the account so far, shown before the owner acts.
+const toldOrNot = (done, did) => `${did} ${done.emailed ? `They have been emailed at ${done.email}.` : 'No email was sent to say so.'}`;
+router.get('/accounts/:id/record', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await accountRecord(req.params.id));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/accounts/:id/warn', requireAuth, resolveAccount, requireSuperAdmin,
+  accountAction((req) => warnAccount(req.accountId, req.params.id, req.body || {}), (done) => toldOrNot(done, 'The warning is on their record and they will see it in the app.')));
+router.post('/accounts/:id/close', requireAuth, resolveAccount, requireSuperAdmin,
+  accountAction((req) => closeAccount(req.accountId, req.params.id, req.body || {}), (done) => toldOrNot(done, 'The account is closed: they are signed out everywhere and can\'t sign back in.')));
+router.post('/accounts/:id/reopen', requireAuth, resolveAccount, requireSuperAdmin,
+  accountAction((req) => reopenAccount(req.accountId, req.params.id), (done) => toldOrNot(done, 'The account is open again.')));
+// An address left on the block list after its account was deleted - typed in, since the list holds no addresses
+router.post('/blocked-emails/unblock', requireAuth, resolveAccount, requireSuperAdmin,
+  accountAction((req) => unblockEmail((req.body || {}).email), (done) => `${done.email} is off the block list and can sign up again.`));
 
 // ML-355: invite someone to log in with their email and a password (password_login must be on).
 router.get('/invites', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
@@ -976,6 +997,14 @@ router.post('/reports/:id/close', requireAuth, resolveAccount, requireSuperAdmin
 router.post('/recordings/remove', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
   try {
     res.json(await removeRecordingOnRequest(req.accountId, req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+// ML-511: a band's name that breaks the terms - renamed (the band can't be removed), its organisers told
+router.post('/recordings/rename-band', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await renameBandOnRequest(req.accountId, req.body || {}));
   } catch (error) {
     sendError(res, error);
   }

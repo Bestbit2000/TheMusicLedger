@@ -98,7 +98,7 @@ test('Set up sharing is deliberate: it makes me the organiser of a space that sh
   const space = await bands.setUpSharing(anna, id);
   assert.equal(await bands.setUpSharing(anna, id), space, 'asking again gives the same space');
   const e = await entry(anna, `Sharing Band ${stamp}`);
-  assert.deepEqual(e.shared, { bandId: space, level: 'organiser', isOrganiser: true, members: 1, onlyYou: true });
+  assert.deepEqual(e.shared, { bandId: space, name: `Sharing Band ${stamp}`, level: 'organiser', isOrganiser: true, members: 1, onlyYou: true });
   assert.deepEqual((await bands.getAccountBands(anna)).map((b) => [b.id, b.isOrganiser, b.directoryBandId]), [[space, true, dir]]);
   // Ben adding the same band gets nothing of Anna's: his is private, and sharing it makes a second space
   const bens = await bands.addBandFromDirectory(ben, dir);

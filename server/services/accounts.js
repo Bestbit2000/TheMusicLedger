@@ -210,7 +210,8 @@ export async function listAccountsForAdmin() {
   const { rows } = await pool.query(
     `SELECT a.id, a.first_name, a.surname, a.email, a.account_level, a.created_at, to_char(a.last_seen_on, 'YYYY-MM-DD') AS last_seen_on,
             p.account_id IS NOT NULL AS has_password, p.last_login_at, p.locked_until AS password_locked_until,
-            t.enabled_at AS two_step_enabled_at, t.locked_until AS two_step_locked_until
+            t.enabled_at AS two_step_enabled_at, t.locked_until AS two_step_locked_until,
+            a.closed_at, (SELECT count(*) FROM account_actions x WHERE x.account_id = a.id AND x.kind = 'warning')::int AS warnings
        FROM accounts a
        LEFT JOIN account_passwords p ON p.account_id = a.id
        LEFT JOIN account_two_step t ON t.account_id = a.id
@@ -223,6 +224,7 @@ export async function listAccountsForAdmin() {
     accountLevel: r.account_level, createdAt: r.created_at, lastSeenOn: r.last_seen_on,
     hasPassword: r.has_password, lastPasswordLoginAt: r.last_login_at,
     twoStepOn: !!r.two_step_enabled_at,
+    closedAt: r.closed_at, warnings: r.warnings, // ML-502
     lockedUntil: lockedUntil(r.password_locked_until, r.two_step_locked_until)
   }));
 }

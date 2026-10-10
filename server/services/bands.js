@@ -290,7 +290,7 @@ export async function listMyBands(accountId) {
     `SELECT l.id, l.name, l.active, l.needs_tidy, l.directory_band_id,
             d.website, d.ensemble_type, d.town, d.county, d.rehearsal_postcode, d.section_level, d.parent_band_id, d.notes,
             (SELECT pb.name FROM bands pb WHERE pb.id = d.parent_band_id) AS parent_name,
-            g.id AS group_id, bm.role,
+            g.id AS group_id, g.name AS group_name, bm.role,
             (SELECT COUNT(*) FROM band_members m WHERE m.band_id = g.id) AS group_members,
             (SELECT COUNT(*) FROM sessions s WHERE s.band_id = l.id) AS session_count
        FROM bands l
@@ -308,6 +308,7 @@ export async function listMyBands(accountId) {
     sessions: Number(r.session_count),
     shared: r.group_id ? {
       bandId: Number(r.group_id),
+      name: r.group_name, // the name the whole band sees - the member's own entry may be called something else
       level: levelOf(r.role),
       isOrganiser: ORGANISER_ROLES.includes(r.role),
       members: Number(r.group_members),

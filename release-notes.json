@@ -1,4 +1,9 @@
 {
+  "ML-516": "We made Major and Minor clearer in the Keys quiz when it has both: the one being asked is lit up on every question.",
+  "ML-502": "We can now warn a member who breaks the rules, and close their account if it carries on.",
+  "ML-512": "We now check, before every release, whether it changes what members can show each other.",
+  "ML-511": "We can now take down a band's practice list, or change a band's name, if it breaks the rules.",
+  "ML-510": "We added Report to the play screen, to a shared band and to a band's practice list.",
   "ML-515": "We made it easier for us to see how close the app is to the limits of the services it runs on.",
   "ML-514": "We can now delete an account for someone who asks us to and can't sign in to do it themselves.",
   "ML-513": "We renamed the app Notably Better, with a new address, notablybetter.com, and our emails now come from our own address.",
