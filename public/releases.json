@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.57.0",
+    "date": "2026-10-10",
+    "changes": [
+      {
+        "key": "ML-518",
+        "type": "New",
+        "summary": "We added an extra check before anyone can open the part of the app that holds members' details."
+      }
+    ]
+  },
+  {
     "version": "0.56.0",
     "date": "2026-10-10",
     "changes": [
