@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.59.0",
+    "date": "2026-10-11",
+    "changes": [
+      {
+        "key": "ML-246",
+        "type": "New",
+        "summary": "We are trying out a way to add a piece from a photo of the music. It is not switched on for members yet."
+      }
+    ]
+  },
+  {
     "version": "0.58.0",
     "date": "2026-10-10",
     "changes": [
