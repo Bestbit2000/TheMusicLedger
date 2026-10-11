@@ -105,6 +105,15 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   outline `PieceOutline.buildBlocks` reads.
 - `PUT /api/flows/:id/blocks/all` saves the blocks in one request.
 
+**Opened from a photo or PDF (ML-246).** When the piece was read from a photo (`outline.read`), every step starts
+with **one button** - an `.outline-extra` (icon `photo_camera`, "Read from your PDF: Medium confidence" over "2
+things to check - tap to see them", a chevron; `.has-clash` when the rating is Low, and the word Low is in the
+text, so colour is not the only sign) - which opens `#flowChoiceModal` with a row per check (the check over "Look
+at this first" / "Worth a look" / "For you to decide"). Tapping a check goes to the step it is about. One button,
+one pop-up: the list is never laid out on the step. The check's words come from the reader, so they are escaped
+like member-typed text. On the last step a super admin also has a `.display-toggle-row` switch, **Keep this as a
+test** (off to start with). No new classes. `docs/piece-from-photo.md`.
+
 ## 6. States
 | State | How |
 |---|---|

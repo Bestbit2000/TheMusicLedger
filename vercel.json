@@ -11,7 +11,8 @@
   ],
   "functions": {
     "api/[...slug].js": {
-      "includeFiles": "public/**"
+      "includeFiles": "public/**",
+      "maxDuration": 300
     }
   },
   "headers": [

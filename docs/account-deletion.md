@@ -61,6 +61,11 @@ sign up again after the account is deleted - the privacy policy says so. `docs/a
 
 ## Rehearsal recordings (ML-489)
 
+The log of pieces read from a photo (`piece_reads`, and `piece_read_pieces` / `piece_read_reruns` under it,
+ML-246) is deleted with the account. A read's pages are never kept - except a test a super admin chose to keep
+(`piece_reads.test_files`, in the file store under `piece-read-tests/`), which deletion does **not** remove from
+the file store today. Only a super admin can keep one; if that ever changes, deletion must delete those files.
+
 A member's uploads to the Recordings tool (`rehearsal_recordings`) are their own: the rows go with the
 account, found from the database like every other table, and the download lists them. One thing is kept
 on purpose: a cut an organiser gave to a **band's** piece stays with the band, as a band piece does

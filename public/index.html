@@ -1686,6 +1686,8 @@
         <div class="hidden-group mb-4" id="addPieceListGroup">
             <button type="button" class="metroBlk-ctrl-value-btn w-full" id="addPieceListBtn" aria-haspopup="dialog" aria-label="Practice list: On its own - tap to change"><strong>On its own</strong><span class="metroBlk-ctrl-value-label">practice list</span></button>
         </div>
+        <!-- ML-246: the photos or PDF to read. On a phone the chooser offers the camera, the gallery and Drive. -->
+        <input type="file" id="pieceReadInput" class="hidden-group" accept="image/jpeg,image/png,image/webp,application/pdf,.pdf" multiple>
         <h2 class="step-question" id="addPieceHowLabel">How do you want to make it?</h2>
         <!-- The square icon tiles My music's start screen had until ML-329, two to a row - they go
              somewhere, so they look different from the two value boxes above. -->
@@ -1694,6 +1696,9 @@
             <!-- ML-424: Quick entry - the piece as an outline (bars, marks, what's different, extras). Hidden
                  until piece_quick_entry is on for you (applyFlowImportFormats). -->
             <button type="button" class="metroBlk-entry-choice hidden-group" id="metroBlkEntryQuickBtn"><span class="material-symbols-outlined" aria-hidden="true">bolt</span><strong>Quick entry</strong><span class="metro-help-text">Bars and marks first, then what's different</span></button>
+            <!-- ML-246: a photo of the part, or a PDF, read into Quick entry. Hidden until piece_from_photo is on
+                 for you (applyFlowImportFormats). While it reads, its help line says what is happening. -->
+            <button type="button" class="metroBlk-entry-choice hidden-group" id="metroBlkEntryPhotoBtn"><span class="material-symbols-outlined" aria-hidden="true">photo_camera</span><strong>From a photo or PDF</strong><span class="metro-help-text" aria-live="polite">Photograph the part, then check what was read</span></button>
             <!-- ML-204: two gates share this tile - flow_import_musicxml ("Import from MusicXML") and
                  flow_import_from_file (PDF/scan via OMR, ML-190). Starts hidden; its label and help line
                  follow whichever are on (applyFlowImportFormats). -->

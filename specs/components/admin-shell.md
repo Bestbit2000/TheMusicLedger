@@ -67,6 +67,12 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
   (ML-519): an `<img>` 220px square with alt text, always black on white - the picture carries its own
   colours so a phone can scan it in dark mode too.
   When the check runs out mid-session the shell is hidden, not rebuilt, so the page comes back as it was.
+- **Photo reads (ML-246, Release and checks → Photo reads):** how reading a piece from a photo is doing - a line
+  of totals, a small table ("Is the rating right?": saved, bars right, nothing changed, for High / Medium / Low)
+  and a table of every read (when, piece, rating badge, bars read → saved, what was changed, seconds, cost, and
+  its buttons: Mark as checked, and for a kept test Read again and Stop keeping the file - each behind the
+  panel's confirm pop-up). Built from the panel's own tables, badges (`.pass` High, `.warn` Medium, `.fail` Low,
+  `.info` Test) and `.admin-stat-exclude-btn` buttons: no classes of its own (`public/admin-piece-reads.js`).
 - **My passkeys (ML-518, Release and checks → My passkeys):** a table of the admin's own passkeys (name,
   added, last used, Rename / Remove as `.admin-stat-exclude-btn`), **Add a passkey to this device**
   (`.btn-submit`) and **Lock the admin panel now** in an `.admin-security-toolbar`, and new recovery codes for
@@ -103,8 +109,8 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
 
 - **Four groups, by the job being done**, with the Dashboard above them: **Members** (Accounts, Bands, Feature
   access, Notifications, Retention, Feedback), **Content** (Flows, Warm-ups, Rest messages, Theory grades, Metadata lists),
-  **Business** (Business case, Costs and usage, Usage) and **Release and checks** (Release tests, Security,
-  My passkeys, Third parties, Design). A new page goes in the group whose job it does.
+  **Business** (Business case, Costs and usage, Usage) and **Release and checks** (Release tests, Photo reads,
+  Security, My passkeys, Third parties, Design). A new page goes in the group whose job it does.
 - **A heading opens and closes its group.** It is a `<button>` with `aria-expanded` and `aria-controls`, at
   least `--touch-target` tall, in `--label-color`; its arrow points down when open and right when shut. Which
   groups are shut is remembered on that device (`localStorage`, a convenience - the menu works without it).

@@ -43,7 +43,7 @@ export function currentAppVersion() {
 }
 
 const KINDS = ['create', 'edit'];
-const CREATION_SOURCES = ['manual', 'from_file', 'quick']; // quick: ML-424, a piece entered as an outline
+const CREATION_SOURCES = ['manual', 'from_file', 'quick', 'photo']; // photo: ML-246, read from a photo and finished in Quick entry // quick: ML-424, a piece entered as an outline
 // 'extras' is the single Extras step of 0.39 (ML-424); ML-428 split it into one question a step and added About and Media.
 const QUICK_STEPS = ['about', 'howLong', 'marks', 'time', 'speed', 'extras', 'xIntro', 'xRepeats', 'xPauses', 'xRamps', 'xSigns', 'mAudio', 'mVideo', 'mDocs', 'media', 'tempo']; // media: the one Media step (it was three until 0.44); tempo: time and speed as one step (0.44)
 // ML-424: the per-step figures and what the piece held - only known shapes are kept
@@ -320,7 +320,7 @@ export async function getFlowAuthoringStats() {
     pool.query(
       // One row per version and way in, so a version's quick entry runs aren't averaged with its bar-by-bar ones
       `SELECT app_version, creation_source, ${STAT_COLUMNS} FROM flow_authoring_sessions
-        WHERE ${MANUAL_CREATE}
+        WHERE ${ELIGIBLE} AND kind = 'create' AND creation_source IN ('manual', 'quick', 'photo')
         GROUP BY app_version, creation_source
         ORDER BY string_to_array(COALESCE(app_version, '0'), '.')::int[] DESC NULLS LAST, creation_source DESC`
     ),
@@ -399,7 +399,7 @@ export async function getFlowAuthoringStats() {
             ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY total_bars_end))::int AS bars,
             ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY active_seconds::numeric / NULLIF(total_bars_end, 0)))::numeric, 2)::float AS seconds_per_bar
        FROM flow_authoring_sessions
-      WHERE ${ELIGIBLE} AND kind = 'create' AND creation_source IN ('manual', 'quick')
+      WHERE ${ELIGIBLE} AND kind = 'create' AND creation_source IN ('manual', 'quick', 'photo')
       GROUP BY 1 ORDER BY 1`
   );
 

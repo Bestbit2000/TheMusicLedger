@@ -36,6 +36,8 @@ import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../
 import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
 import { importScoreFromFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/scoreImport.js';
+import { readForAccount, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES } from '../services/pieceReads.js';
+import { MAX_READ_BYTES } from '../services/pieceReader.js';
 import { MAX_PIECE_FILE_BYTES } from '../services/blobUrls.js';
 import { isFeatureEnabled, listEnabledFeatureKeys, getLimit, listLimits } from '../services/features.js';
 import { listRecordings as listRehearsalRecordings, addRecording as addRehearsalRecording, addCut as addRehearsalCut, deleteRecording as deleteRehearsalRecording, assertRoomForOne } from '../services/rehearsalRecordings.js';
@@ -2016,6 +2018,52 @@ router.get('/flows/:id/blocks', requireAuth, resolveAccount, async (req, res) =>
 router.post('/flows/:id/blocks', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await createFlowBlock(req.accountId, req.params.id, req.body));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-246: a piece from a photo or PDF (docs/piece-from-photo.md). The pages go to the file store first -
+// a request to this server can't carry them (Vercel's ~4.5 MB cap) - into a folder of the account's own;
+// /piece-read fetches them, has them read, and deletes them. Nothing of the picture is kept, unless the
+// owner keeps the read as a test: those pages are uploaded again, to the tests folder, when the piece is
+// saved. Each read costs money, so it has its own hourly limit as well as the feature's gate.
+router.post('/piece-read/upload-token', requireAuthFromQueryOrHeader, resolveAccount, requireFeature('piece_from_photo'), async (req, res) => {
+  try {
+    const result = await handleUpload({
+      body: req.body,
+      request: req,
+      onBeforeGenerateToken: async (pathname) => {
+        const forTest = pathname.startsWith(testUploadPrefix(req.accountId));
+        // Keeping a file is the owner's test library - never a member's (it would break "the photo is not kept").
+        if (forTest && req.realAccountLevel !== 'super_admin') throw withStatus(403, "This feature isn't available right now.");
+        if (!forTest && !pathname.startsWith(readUploadPrefix(req.accountId))) throw withStatus(400, "That isn't somewhere a photo can be sent.");
+        await limitCalls('upload-token', req.accountId);
+        return { allowedContentTypes: READ_CONTENT_TYPES, maximumSizeInBytes: MAX_READ_BYTES, addRandomSuffix: true };
+      },
+      onUploadCompleted: async () => {}
+    });
+    res.json(result);
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/piece-read', requireAuth, resolveAccount, requireFeature('piece_from_photo'), async (req, res) => {
+  try {
+    await limitCalls('piece-read', req.accountId);
+    res.json(await readForAccount(req.accountId, req.body?.files));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// The piece that came from a read has been saved: the outline as saved goes in the log beside the read.
+router.put('/piece-read/:id/saved', requireAuth, resolveAccount, requireFeature('piece_from_photo'), async (req, res) => {
+  try {
+    const body = req.body || {};
+    if (body.testFiles && req.realAccountLevel !== 'super_admin') throw withStatus(403, "This feature isn't available right now.");
+    res.json(await markPieceReadSaved(req.accountId, req.params.id, body.index, { flowId: body.flowId, saved: body.saved, testFiles: body.testFiles || null }));
   } catch (error) {
     sendError(res, error);
   }

@@ -45,6 +45,7 @@ import { getBusinessCase, saveBusinessCase, resetBusinessCase } from '../service
 import { getAdminDashboard } from '../services/adminDashboard.js';
 import { listRecords, saveRecord, setAttentionDone, saveAgreement } from '../services/thirdPartyRecords.js';
 import { retentionStatus, saveRule, runRetention, clearOldRecords } from '../services/retention.js';
+import { listReads as listPieceReads, setChecked as setPieceReadChecked, rerunRead as rerunPieceRead, dropTestFiles as dropPieceReadTestFiles } from '../services/pieceReads.js';
 import { applyRecords } from '../thirdParties/records.js';
 import { getInstrumentUsageStats } from '../services/instruments.js';
 import { listRestMessages, createRestMessage, updateRestMessage, setRestMessageActive, deleteRestMessage, moveRestMessage } from '../services/restMessages.js';
@@ -1077,6 +1078,41 @@ router.post('/business-case/reset', requireAuth, resolveAccount, requireSuperAdm
 router.get('/dashboard', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await getAdminDashboard());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-246: Admin -> Photo reads. Every piece read from a photo or PDF - its rating, what it cost, and what
+// was changed before it was saved - and the test library: a read whose file was kept can be read again
+// with today's prompt and model (which costs money each time). docs/piece-from-photo.md.
+router.get('/piece-reads', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await listPieceReads());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.put('/piece-reads/pieces/:id/checked', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    await setPieceReadChecked(req.params.id, req.body?.on === true);
+    res.json(await listPieceReads());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/piece-reads/:id/rerun', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    const rerun = await rerunPieceRead(req.params.id);
+    res.json({ rerun, ...(await listPieceReads()) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.delete('/piece-reads/:id/test-files', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    await dropPieceReadTestFiles(req.params.id);
+    res.json(await listPieceReads());
   } catch (error) {
     sendError(res, error);
   }

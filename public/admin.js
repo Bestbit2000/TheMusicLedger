@@ -1369,7 +1369,7 @@
         // ML-428: five stages with steps inside; 'extras' is the single Extras step pieces made on 0.39 recorded
         const stepNames = { about: 'About', howLong: 'Structure: how long', marks: 'Structure: marks', time: 'Tempo: time', speed: 'Tempo: speed', extras: 'Extras (0.39, one step)', xIntro: 'Order of play: introduction', xRepeats: 'Order of play: repeats', xPauses: 'Tempo: pauses', xRamps: 'Tempo: gradual speed changes', xSigns: 'Order of play: signs and jumps', mAudio: 'Media: recording', mVideo: 'Media: YouTube', mDocs: 'Media: score or part', media: 'Media', tempo: 'Tempo: time and speed (one step, briefly)' };
         const methodRows = methods.length
-            ? methods.map(m => `<tr><td>${m.creationSource === 'quick' ? 'Quick entry' : 'Bar by bar'}</td><td>${m.n}</td><td>${fmtSeconds(m.seconds)}</td><td>${m.taps || '–'}</td><td>${m.keys || '–'}</td><td>${m.bars}</td><td>${m.secondsPerBar === null ? '–' : fmtRate(m.secondsPerBar)}</td></tr>`).join('')
+            ? methods.map(m => `<tr><td>${m.creationSource === 'quick' ? 'Quick entry' : m.creationSource === 'photo' ? 'From a photo' : 'Bar by bar'}</td><td>${m.n}</td><td>${fmtSeconds(m.seconds)}</td><td>${m.taps || '–'}</td><td>${m.keys || '–'}</td><td>${m.bars}</td><td>${m.secondsPerBar === null ? '–' : fmtRate(m.secondsPerBar)}</td></tr>`).join('')
             : '<tr><td colspan="7" class="admin-stat-empty">No completed pieces yet.</td></tr>';
         const stepRows = steps.length
             ? steps.map(s => `<tr><td>${stepNames[s.step] || escapeHtml(s.step)}</td><td>${s.n}</td><td>${fmtSeconds(s.seconds)}</td><td>${s.taps}</td><td>${s.keys}</td><td>${s.visits}</td></tr>`).join('')
@@ -1439,7 +1439,7 @@
                 <tr class="${r.isExcluded ? 'admin-stat-row-excluded' : ''}">
                     <td>${escapeHtml(r.flowTitle || 'Untitled')}${r.flowDeleted ? ' <span class="admin-stat-pill">deleted</span>' : ''}</td>
                     <td>${escapeHtml(r.email)}</td>
-                    <td>${r.kind}${r.creationSource === 'from_file' ? ' (import)' : r.creationSource === 'quick' ? ' (quick entry)' : ''}</td>
+                    <td>${r.kind}${r.creationSource === 'from_file' ? ' (import)' : r.creationSource === 'quick' ? ' (quick entry)' : r.creationSource === 'photo' ? ' (from a photo)' : ''}</td>
                     <td>${r.outcome}</td>
                     <td>${fmtSeconds(r.activeSeconds)}</td>
                     <td>${fmtSeconds(r.barsActiveSeconds)}</td>
@@ -1457,10 +1457,10 @@
 
         el.innerHTML = `
             ${tiles}
-            ${statTable('By app version', data.byVersion, 'Version', r => `${r.appVersion || 'unknown'}${r.creationSource === 'quick' ? ' (quick entry)' : ' (bar by bar)'}`,
+            ${statTable('By app version', data.byVersion, 'Version', r => `${r.appVersion || 'unknown'}${r.creationSource === 'quick' ? ' (quick entry)' : r.creationSource === 'photo' ? ' (from a photo)' : ' (bar by bar)'}`,
                 'The before/after comparison. Cut a release, keep building flows the same way, and compare the rows &ndash; anything else (a different device, a much longer piece) is a confound, which is what the two tables below are for.')}
             ${quickEntryTables(data)}
-            ${statTable('Create vs edit', data.byKind, 'Session', r => `${r.kind}${r.creationSource === 'from_file' ? ' (import)' : r.creationSource === 'quick' ? ' (quick entry)' : ''}`,
+            ${statTable('Create vs edit', data.byKind, 'Session', r => `${r.kind}${r.creationSource === 'from_file' ? ' (import)' : r.creationSource === 'quick' ? ' (quick entry)' : r.creationSource === 'photo' ? ' (from a photo)' : ''}`,
                 'Initial creation against later editing stints, per ML-199. Per bar is blank for edits &ndash; see the note above.')}
             ${statTable('By length of music', data.bySize, 'Flow length', r => r.bucket,
                 'Whether a longer piece costs proportionally more or there&rsquo;s a fixed overhead. If per-bar holds steady across the buckets, the cost is genuinely per bar and the redesign should attack bar entry; if it falls as flows get longer, the overhead is in the setup around it.')}

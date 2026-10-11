@@ -1675,6 +1675,7 @@
         const btn = document.getElementById('metroBlkEntryFromFileBtn');
         btn?.classList.toggle('hidden-group', !pdf && !musicxml);
         setShown('metroBlkEntryQuickBtn', isFeatureEnabled('piece_quick_entry')); // ML-424
+        setShown('metroBlkEntryPhotoBtn', isFeatureEnabled('piece_from_photo') && isFeatureEnabled('piece_quick_entry')); // ML-246: it ends in Quick entry
         const label = flowImportTitle();
         const help = pdf && musicxml ? 'Import from a PDF or MusicXML score'
             : pdf ? 'Import from a PDF score' : 'Open a MusicXML or .mxl file from notation software';
@@ -20796,7 +20797,7 @@
         document.getElementById('outlineQuestion').textContent = cur.question();
         const html = cur.kinds ? outlineExtrasStepHtml(cur) : cur.media ? outlineMediaStepHtml(cur)
             : { about: outlineAboutHtml, howLong: outlineHowLongHtml, marks: outlineMarksHtml, time: outlineTimeStepHtml, speed: outlineSpeedStepHtml }[cur.key]();
-        document.getElementById('outlineBody').innerHTML = html;
+        document.getElementById('outlineBody').innerHTML = outlineReadPanelHtml() + html; // ML-246: what to check, when the piece was read from a photo
         // Back (not on the first step) and Next - Save on the last step, which is off while something won't work
         const last = outline.step === total - 1;
         let blocked = false;
@@ -21346,6 +21347,7 @@
         return `
             <p class="text-sm text-muted no-margin">All of this can be added later too, from My music. If there is nothing to add, save the piece. Files are uploaded when you save.</p>
             ${sections}
+            ${outlineReadKeepHtml()}
             ${other}<p class="outline-sum no-margin">${outlineSummaryText()}</p>
             ${blocked ? '<p class="text-sm text-danger no-margin" role="alert">Something earlier needs fixing before the piece can be saved. Use Back to go to it.</p>' : ''}`;
     }
@@ -21564,12 +21566,13 @@
         const totalBars = outline.o.bars;
         // The stopwatch (ML-199): one finished 'create' row, source 'quick', with the steps - the whole piece,
         // since nothing is left to do on the edit screen (ML-428)
-        flowStatsRequest(`/api/flows/${created.id}/authoring-sessions`, 'POST', { kind: 'create', creationSource: 'quick', deviceKind: flowStatsDeviceKind(), idleThresholdSeconds: FLOW_STATS_IDLE_THRESHOLD_SECONDS, blockCountStart: 0 })
+        flowStatsRequest(`/api/flows/${created.id}/authoring-sessions`, 'POST', { kind: 'create', creationSource: outline.source === 'photo' ? 'photo' : 'quick', deviceKind: flowStatsDeviceKind(), idleThresholdSeconds: FLOW_STATS_IDLE_THRESHOLD_SECONDS, blockCountStart: 0 })
             .then(row => row && flowStatsRequest(`/api/flows/authoring-sessions/${row.id}`, 'PUT', {
                 activeSeconds: st.active, barsActiveSeconds: st.active, elapsedSeconds: Math.round((Date.now() - st.startedAtMs) / 1000),
                 blockCountEnd: payload.length, totalBarsEnd: totalBars, blocksAdded: payload.length, blocksEdited: 0, blocksDeleted: 0,
                 tapCount: st.taps, keyCount: st.keys, steps: st.steps, outlineCounts: counts, outcome: 'completed'
             }));
+        if (outline.read) await outlineReadSaved(created.id, say, failed); // ML-246: the log, and the owner's test copy
         if (failed.length) showWarningToast(`"${about.title}" is saved, but these couldn't be added: ${failed.join(', ')}. Add them from My music.`);
         else showSuccessToast(`"${about.title}" is saved: ${payload.length} blocks. Entered in ${fmtMinSec(st.active)} · ${st.taps} taps · ${st.keys} keys.`);
         outlineClose();
@@ -21581,6 +21584,184 @@
         } else {
             switchView(viewStack[viewStack.length - 1] || 'mainView', true);
         }
+        pieceReadOfferNext(); // ML-246: the file held more than one piece
+    }
+
+    // ========================================
+    // A PIECE FROM A PHOTO OR PDF (ML-246)
+    // The third way into Quick entry: photos of the part (or a PDF) are sent to be read - bars, time
+    // signatures, speeds, marks, repeats, signs - and Quick entry opens already filled in, with a rating
+    // that says how much to check (docs/piece-from-photo.md). The pages go to the file store, are read by
+    // the server and deleted there; nothing of them is kept. Every step of Quick entry then shows one
+    // button at the top ("Read from your photo: Medium confidence") that opens the list of what to check.
+    // Rules for the read and the rating: public/pieceRead.js, run on the server.
+    // ========================================
+    const PIECE_READ_MAX_FILES = 12; // as MAX_READ_FILES / MAX_READ_BYTES in server/services/pieceReader.js
+    const PIECE_READ_MAX_MB = 24;
+    const pieceReadBtn = document.getElementById('metroBlkEntryPhotoBtn');
+    const pieceReadInput = document.getElementById('pieceReadInput');
+    let pieceReadBusy = false;
+    let pieceReadMore = null; // the pieces of a read not opened yet (a file can hold several): { read, pieces, target }
+    pieceReadBtn?.addEventListener('click', () => {
+        if (pieceReadBusy || !isFeatureEnabled('piece_from_photo')) return;
+        withUploadRights(() => pieceReadInput.click()); // ML-278
+    });
+    pieceReadInput?.addEventListener('change', () => {
+        const files = [...pieceReadInput.files];
+        pieceReadInput.value = '';
+        if (files.length) pieceReadStart(files);
+    });
+    // What stops a choice of files being sent, in words - or null. One PDF, or photos; never both.
+    function pieceReadProblem(files) {
+        const isPdf = (f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+        const isPhoto = (f) => ['image/jpeg', 'image/png', 'image/webp'].includes(f.type);
+        if (files.some(f => !isPdf(f) && !isPhoto(f))) return 'Choose photos (JPEG, PNG or WebP) or a PDF.';
+        if (files.some(isPdf) && files.length > 1) return 'Choose one PDF, or photos - not both together.';
+        if (files.length > PIECE_READ_MAX_FILES) return `That is more than ${PIECE_READ_MAX_FILES} photos. Send the piece in fewer, or as one PDF.`;
+        if (files.reduce((n, f) => n + f.size, 0) > PIECE_READ_MAX_MB * 1024 * 1024) return `Those are more than ${PIECE_READ_MAX_MB} MB together, which is more than can be read in one go.`;
+        return null;
+    }
+    async function pieceReadUpload(files, folder, say) {
+        const sent = [];
+        for (let i = 0; i < files.length; i++) {
+            const ext = (files[i].name.match(/\.[a-z0-9]{2,5}$/i) || [''])[0].toLowerCase();
+            const blob = await window.vercelBlobUpload(`${folder}/${accountProfile.id}/${Date.now()}-${i + 1}${ext}`, files[i], {
+                access: 'public',
+                handleUploadUrl: `${API_BASE_URL}/api/piece-read/upload-token?token=${encodeURIComponent(auth.token)}`,
+                onUploadProgress: (progress) => say(`Sending ${files.length > 1 ? `${i + 1} of ${files.length}` : 'it'}: ${Math.round(progress.percentage)}%`)
+            });
+            sent.push({ blobUrl: blob.url, blobPathname: blob.pathname });
+        }
+        return sent;
+    }
+    async function pieceReadStart(files) {
+        const problem = pieceReadProblem(files);
+        if (problem) { showWarningToast(problem); return; }
+        const target = addPieceTakeTarget();
+        const help = pieceReadBtn.querySelector('.metro-help-text');
+        const was = help.textContent;
+        const say = (text) => { help.textContent = text; };
+        pieceReadBusy = true;
+        pieceReadBtn.disabled = true;
+        pieceReadBtn.setAttribute('aria-busy', 'true');
+        try {
+            if (!accountProfile) accountProfile = await API.account.get();
+            const sent = await pieceReadUpload(files, 'piece-read', say);
+            say('Reading the music - about a minute');
+            showInfoToast('Reading the music. This takes about a minute - stay on this screen.');
+            const result = await apiCall('/api/piece-read', 'POST', { files: sent });
+            const read = { id: result.readId, files, kind: files.length === 1 && /pdf/i.test(files[0].type + files[0].name) ? 'PDF' : (files.length > 1 ? 'photos' : 'photo') };
+            pieceReadChoose(read, result.pieces, target);
+        } catch (error) {
+            showWarningToast(error.offline ? 'Reading a piece from a photo needs a connection.' : (error.message || "The music couldn't be read."));
+        } finally {
+            pieceReadBusy = false;
+            pieceReadBtn.disabled = false;
+            pieceReadBtn.removeAttribute('aria-busy');
+            say(was);
+        }
+    }
+    const pieceReadLevelWord = (level) => ({ high: 'High', medium: 'Medium', low: 'Low' }[level] || 'Medium');
+    // One piece: straight into Quick entry. Several (movements, or two pieces on one PDF): which one first -
+    // the rest are offered again after each is saved, so the file is only read (and paid for) once.
+    function pieceReadChoose(read, pieces, target) {
+        if (!pieces.length) return;
+        if (pieces.length === 1) { pieceReadMore = null; outlineOpenFromRead(target, pieces[0], read); return; }
+        pieceReadMore = { read, pieces, target };
+        openFlowChoiceModal(`${pieces.length} pieces were read - which one?`, pieces.map(p => ({ piece: p, html: addPieceRow(p.about.name || `Piece ${p.index + 1}`, `${p.outline.bars} bars · ${pieceReadLevelWord(p.rating.level)} confidence`) })), (opt) => {
+            pieceReadMore.pieces = pieceReadMore.pieces.filter(p => p !== opt.piece);
+            outlineOpenFromRead(target, opt.piece, read);
+        });
+    }
+    // The read as Quick entry's own state. The tables' rows are what Quick entry works from (o.time and the
+    // repeat and pause extras are rebuilt from them), so each is filled in as if it had been typed.
+    async function outlineOpenFromRead(target, piece, read) {
+        outlineClose();
+        try { await loadMetroBlkTimeSignatures(); } catch (e) { /* a time signature made for this read shows as "?" until it loads */ }
+        await openPieceOutline(target, true);
+        if (!outline) return;
+        const r = piece.outline, o = outline.o;
+        const text = (v) => String(v || '');
+        outline.source = 'photo';
+        outline.read = { id: read.id, index: piece.index, rating: piece.rating, files: read.files, kind: read.kind, keep: false };
+        outline.about = { title: text(piece.about.name), composer: text(piece.about.composer), arranger: text(piece.about.arranger), publisher: text(piece.about.publisher), notes: '' };
+        Object.assign(o, {
+            bars: r.bars, mainSig: outlineSigInfo(r.mainSig) ? r.mainSig : o.mainSig, mainBpm: r.mainBpm, mainNote: r.mainNote || null, markKind: r.markKind,
+            marks: r.marks.map(m => (r.markKind === 'numbers' ? { bar: m.bar } : { bar: m.bar, label: m.label })),
+            speeds: r.speeds.map(s => ({ ...s })),
+            extras: r.extras.filter(x => x.type === 'ramp' || x.type === 'sign').map(x => (x.type === 'ramp' ? { startBeat: 1, ...x } : { ...x }))
+        });
+        outline.marksText = r.markKind === 'numbers' ? r.marks.map(m => m.bar).join(', ') : '';
+        outline.markRows = [...(r.markKind === 'text' ? r.marks.map(m => ({ bar: String(m.bar), label: m.label })) : []), { bar: '', label: '' }];
+        outline.speedRows = [...r.speeds.map(s => ({ bar: String(s.bar), bpm: String(s.bpm), noteValue: s.noteValue })), { bar: '', bpm: '', noteValue: undefined }];
+        const runs = [];
+        Object.keys(r.time).map(Number).sort((a, b) => a - b).forEach(bar => {
+            const key = r.time[bar], last = runs[runs.length - 1];
+            if (last && last.key === key && last.bar + last.bars === bar) last.bars++;
+            else runs.push({ bar, key, bars: 1 });
+        });
+        outline.timeRows = [...runs.filter(x => outlineSigInfo(x.key)).map(x => ({ bar: String(x.bar), sig: outlineSigLabel(x.key), key: x.key, bars: String(x.bars), end: String(x.bar + x.bars - 1) })), outlineTimeBlank()];
+        const repeats = OUTLINE_ROW_TABLES.repeat, pauses = OUTLINE_ROW_TABLES.pause;
+        outline.repeatRows = [...r.extras.filter(x => x.type === 'repeat' || x.type === 'repeatEndings').map(x => ({ ...repeats.blank(), from: String(x.from), to: String(x.to), times: x.times === 2 ? '' : String(x.times), e1From: x.e1From ? String(x.e1From) : '', e2To: x.e2To ? String(x.e2To) : '' })), repeats.blank()];
+        outline.pauseRows = [...r.extras.filter(x => x.type === 'pause').map(x => ({ ...pauses.blank(), bar: String(x.bar), beat: x.beat === 1 ? '' : String(x.beat), kind: x.kind === 'caesura' ? 'caesura' : '' })), pauses.blank()];
+        renderOutline();
+    }
+    // The one button at the top of every step, and the pop-up it opens (one button, one pop-up).
+    function outlineReadPanelHtml() {
+        const read = outline && outline.read;
+        if (!read) return '';
+        const n = read.rating.checks.length;
+        return `<button type="button" class="outline-extra${read.rating.level === 'low' ? ' has-clash' : ''}" data-outline="readChecks" aria-haspopup="dialog">
+            <span class="material-symbols-outlined" aria-hidden="true">photo_camera</span>
+            <span class="outline-extra-text"><strong>Read from your ${read.kind}: ${pieceReadLevelWord(read.rating.level)} confidence</strong><span class="text-sm text-muted">${n === 1 ? '1 thing to check - tap to see it' : `${n} things to check - tap to see them`}</span></span>
+            <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span></button>`;
+    }
+    // Which step a check is about, so tapping it goes there
+    const OUTLINE_READ_STEP = { time: 'time', 'free-bar': 'time', speed: 'speed', ramp: 'xRamps', number: 'marks', special: 'xRepeats', 'left-out': 'xRepeats' };
+    function outlineReadShowChecks() {
+        const said = { low: 'Look at this first', medium: 'Worth a look', info: 'For you to decide' };
+        openFlowChoiceModal(`${pieceReadLevelWord(outline.read.rating.level)} confidence - what to check`, outline.read.rating.checks.map(c => ({ check: c, html: addPieceRow(c.text, said[c.level] || said.medium) })), (opt) => {
+            const key = OUTLINE_READ_STEP[opt.check.kind] || 'howLong';
+            const step = OUTLINE_STEPS.findIndex(s => s.key === key);
+            if (step > -1 && step !== outline.step) outlineGoStep(step);
+        });
+    }
+    // The owner's test library: a switch on the last step, his alone. On, the pages are kept (sent again, to
+    // the tests folder) with the read and the piece as saved, so the read can be done again later.
+    function outlineReadKeepHtml() {
+        const read = outline && outline.read;
+        if (!read || !currentAccountIsSuperAdmin || !read.files || !read.files.length) return '';
+        return `<div class="display-toggle-row">
+                <span id="outlineReadKeepLabel">Keep this as a test<span class="display-toggle-help">The ${read.kind} is kept so the read can be tried again later. Only you see this.</span></span><label class="toggle-switch"><input type="checkbox" id="outlineReadKeep" aria-labelledby="outlineReadKeepLabel"${read.keep ? ' checked' : ''}><span class="toggle-slider"></span></label>
+            </div>`;
+    }
+    // After Save: the outline as saved goes in the log beside what was read (and the pages, for a test).
+    async function outlineReadSaved(flowId, say, failed) {
+        const read = outline.read;
+        try {
+            let testFiles = null;
+            if (read.keep && currentAccountIsSuperAdmin) {
+                say('Keeping the test...');
+                testFiles = await pieceReadUpload(read.files, 'piece-read-tests', say);
+            }
+            await apiCall(`/api/piece-read/${read.id}/saved`, 'PUT', { index: read.index, flowId, saved: outline.o, ...(testFiles ? { testFiles } : {}) });
+        } catch (error) {
+            if (read.keep) failed.push('the test copy of the ' + read.kind);
+        }
+    }
+    // A file with more pieces in it: after one is saved, the rest are offered again
+    function pieceReadOfferNext() {
+        const more = pieceReadMore;
+        if (!more || !more.pieces.length) { pieceReadMore = null; return false; }
+        openFlowChoiceModal('There is more in that file', [
+            ...more.pieces.map(p => ({ piece: p, html: addPieceRow(p.about.name || `Piece ${p.index + 1}`, `${p.outline.bars} bars · ${pieceReadLevelWord(p.rating.level)} confidence`) })),
+            { done: true, html: addPieceRow('No more from this file', 'What was read of the others is thrown away') }
+        ], (opt) => {
+            if (opt.done) { pieceReadMore = null; return; }
+            more.pieces = more.pieces.filter(p => p !== opt.piece);
+            outlineOpenFromRead(more.target, opt.piece, more.read);
+        });
+        return true;
     }
 
     // --- One listener for the whole screen ---
@@ -21628,6 +21809,8 @@
             openFlowChoiceModal('Content of rehearsal marks', OUTLINE_MARK_KINDS.map(k => ({ key: k.key, selected: k.key === o.markKind, html: `<span><strong>${k.label}</strong><br><span class="text-sm text-muted">${k.sub}</span></span>` })), (opt) => { o.markKind = opt.key; renderOutline(); });
         } else if (action === 'addExtra' || action === 'pickFile') {
             outlineAddForStep(OUTLINE_STEPS[outline.step], t.dataset.mediaList);
+        } else if (action === 'readChecks') {
+            outlineReadShowChecks();
         } else if (action === 'addVideo') {
             outlineAddVideo();
         } else if (action === 'save') {
@@ -21670,6 +21853,7 @@
     }
     outlineView?.addEventListener('change', (e) => {
         if (!outline) return;
+        if (e.target.id === 'outlineReadKeep' && outline.read) outline.read.keep = e.target.checked; // ML-246
         if (e.target.id === 'outlineLeadIn') outline.o.leadIn = e.target.checked;
         if (e.target.id === 'outlineIntroOn') {
             outlineIntro().on = e.target.checked;

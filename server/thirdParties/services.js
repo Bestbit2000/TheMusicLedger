@@ -465,6 +465,53 @@ export default [
     hosts: ['youtube.com', 'youtube-nocookie.com', 'youtu.be']
   },
   {
+    // ML-246: reads a piece's structure from a photo or PDF. In use by the owner alone (the feature is
+    // Super admin only) while he tests it, which is why it is not in the privacy policy yet.
+    key: 'vercel-ai-gateway',
+    name: 'Vercel AI Gateway (reads a piece from a photo)',
+    group: 'service',
+    status: 'attention',
+    statusNote: 'In use by the owner only, while it is tested: the feature piece_from_photo is Super admin only.',
+    notInPolicy: 'Only the owner can use it while it is tested, so no member\'s information is sent. The policy has to name it before the feature is switched on for any member.',
+    who: 'Vercel Inc. (USA), which passes each request to the model\'s maker - Anthropic PBC (USA) for the model the trial used',
+    provides: 'A vision model looks at a photo or PDF of a part and answers with its structure - bars, time signatures, speeds, rehearsal marks, repeats, signs - which becomes a Quick entry outline with a high / medium / low rating.',
+    usedIn: 'server/services/pieceReader.js (AI_GATEWAY_API_KEY, PIECE_READER_MODEL), server/services/pieceReads.js, public/pieceRead.js, scripts/piece-read-trial.mjs; Add a piece -> From a photo or PDF; Admin -> Photo reads; docs/piece-from-photo.md',
+    plan: 'Pay as you go, on the same Vercel account as the hosting',
+    cost: 'About 14 US cents a piece with the model the trial chose (measured 10 Oct 2026 on three pieces). The model maker\'s list price, with nothing added by Vercel. Paid from AI Gateway Credits, which are bought separately - they do not come out of the hosting plan\'s $20.',
+    paid: true,
+    licence: 'Vercel terms of service (same as Vercel), with the AI Gateway pages below',
+    terms: [
+      { label: 'Terms of service', url: 'https://vercel.com/legal/terms', dated: '1 Jun 2026' },
+      { label: 'Data processing agreement', url: 'https://vercel.com/legal/dpa', dated: '31 Mar 2026' },
+      { label: 'AI Gateway pricing', url: 'https://vercel.com/docs/ai-gateway/pricing', dated: '8 Sep 2026' },
+      { label: 'AI Gateway zero data retention', url: 'https://vercel.com/docs/ai-gateway/security-and-compliance/zdr', dated: '22 Sep 2026' }
+    ],
+    termsCheckedOn: '2026-10-10',
+    says: [
+      'No markup and no platform fee: each request costs the model maker\'s list price for the tokens used.',
+      'A free allowance covers only some models; any other model needs credits bought first, and buying credits ends the free allowance.',
+      'The gateway itself does not keep prompts or answers: they are deleted when the request is done.',
+      'A request can ask for zero data retention, at no extra cost on Pro. It is then only sent to a provider that has agreed with Vercel not to keep or train on what is sent - Anthropic is one. If no such provider serves the model, the request fails.',
+      'One Anthropic model (claude-fable-5) is outside zero data retention on every provider: what is sent is kept for 30 days.',
+      'A spending limit (a budget) can be set for the team, a project or a key.'
+    ],
+    asks: [
+      { text: 'Every request asks for zero data retention.', check: { path: 'server/services/pieceReader.js', includes: 'zeroDataRetention: true' } },
+      { text: 'Never set PIECE_READER_MODEL to a model that is outside zero data retention (claude-fable-5 today).' }
+    ],
+    attention: [
+      'Before any member can use it: the privacy policy has to say that a photo of music sent to be read goes to Vercel and on to the model\'s maker, and is not kept. The wording is the owner\'s.',
+      'Set a budget in Vercel (AI Gateway, Budgets), so a mistake cannot run up a bill.',
+      'Put AI_GATEWAY_API_KEY on each environment the feature is used on (it is on Production; sandbox needs its own).',
+      'Before any member can use it: build the allowance (the owner\'s thinking: none for Standard, about 30 reads a quarter for Premium).'
+    ],
+    watch: [
+      'The photo is of sheet music, not of a person - but a member could send any picture. Nothing is stored by the app, and zero data retention is asked for on every request.',
+      'The model\'s answer is checked field by field before it is used (PieceRead.normalise) and anything shown from it must be escaped like any member-typed text.'
+    ],
+    hosts: ['ai-gateway.vercel.sh']
+  },
+  {
     key: 'omr-service',
     name: 'Audiveris and solfascribe-omr',
     group: 'service',
