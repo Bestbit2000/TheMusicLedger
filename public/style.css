@@ -1217,6 +1217,9 @@
        just this one, so it can't just be shrunk generally) - only matters while open, but set
        unconditionally since it's harmless while collapsed too. */
     .metroBlk-mini-tuner { box-sizing: border-box; margin-top: calc(-1 * var(--space-3)); background: var(--container-bg); border: 2px solid var(--input-border); border-width: 0; border-radius: var(--radius-md); padding: 0 var(--space-4); margin-bottom: 0; max-height: 0; opacity: 0; overflow: hidden; pointer-events: none; transition: max-height var(--duration-base) ease, opacity var(--duration-base) ease, padding var(--duration-base) ease, margin-bottom var(--duration-base) ease, border-width var(--duration-base) ease, background var(--duration-fast) linear, border-color var(--duration-fast) linear; }
+    /* ML-107: closed, its buttons are out of reach of the keyboard and a screen reader too - it now sits (closed)
+       on screens like the 30-second rest, where an unseen button would be a surprise. */
+    .metroBlk-mini-tuner:not(.metroBlk-mini-tuner-open) { visibility: hidden; }
     .metroBlk-mini-tuner.metroBlk-mini-tuner-open { border-width: 2px; padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); max-height: 220px; opacity: 1; pointer-events: auto; }
     /* ML-385: while open it stays pinned under the top bar (--header-h, measured by app.js) as the page
        scrolls, like the Display preview - so the note is always in view while you play. Opaque, so nothing
