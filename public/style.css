@@ -2924,7 +2924,7 @@
        (flowKeepLitTileInView; --play-pin-h is the top bar's height plus the pinned part's, set by app.js). Not on a screen too
        short to leave room for the tiles. */
     @media (min-height: 600px) {
-        #flowPlayView > .play-side { display: block; position: sticky; top: var(--header-h, var(--space-0)); z-index: var(--z-sticky); background: var(--container-bg); padding-bottom: var(--space-2); }
+        #flowPlayView > .play-side { display: block; position: sticky; top: var(--header-h, var(--space-0)); z-index: var(--z-sticky); background: var(--container-bg); margin-top: calc(-1 * var(--space-3)); padding: var(--space-3) 0 var(--space-2); } /* the tuner starts --space-3 above its place (its own negative margin): the top padding, taken back by the margin, keeps that inside the pinned box instead of under the top bar */
     }
     #flowPlayTiles > * { scroll-margin-top: calc(var(--play-pin-h) + var(--space-2)); }
     .nav-rail-head { display: none; }
