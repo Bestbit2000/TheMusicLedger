@@ -1587,11 +1587,10 @@
          ends on My music. Reached from the Add a piece tool, My music and Rehearse. app.js: ADD A PIECE. -->
     <!-- ML-424: Quick piece entry - five steps drawn into #outlineBody by the QUICK PIECE ENTRY section of
          app.js (rules: public/pieceOutline.js, docs/quick-piece-entry.md, specs/components/piece-outline.md). -->
-    <!-- ML-158: the Tuning fork - a note to tune to, picked on a stave and held until stopped. One panel
-         (#forkPanel, the TUNING FORK section of app.js), here and - moved across while it is open - in the
-         Tuner's pop-up (#tuningForkModal). specs/components/tuning-fork.md. -->
+    <!-- ML-158: the Tuning fork - a note to tune to, picked on a stave and held until stopped (the TUNING FORK
+         section of app.js). specs/components/tuning-fork.md. -->
     <div id="tuningForkView" class="hidden-group">
-        <div id="tuningForkHost">
+        <div>
             <div class="fork" id="forkPanel">
                 <div class="fork-sound">
                     <span class="fork-waves fork-waves-left" aria-hidden="true"><span class="fork-wave fork-wave-1"></span><span class="fork-wave fork-wave-2"></span><span class="fork-wave fork-wave-3"></span></span>
@@ -2411,8 +2410,6 @@
             <!-- Every Tuner setting (notation + display) lives in one popup off this cog now
                  (#tunerSettingsModal) - closes on its own X or a tap outside it. -->
             <button type="button" class="tuner-card-settings-btn" id="tunerSettingsBtn" aria-label="Tuner settings"><span class="material-symbols-outlined">settings</span></button>
-            <!-- ML-158: the Tuning fork as a pop-up, from the card's other corner (tuning_fork) -->
-            <button type="button" class="tuner-card-settings-btn tuner-card-fork-btn hidden-group" id="tunerForkBtn" aria-label="Tuning fork - play a note to tune to" aria-haspopup="dialog"><span class="material-symbols-outlined">sensors</span></button>
             <!-- tunerConcertCol is hidden (updateTunerTranspositionLabel, app.js) whenever it would
                  just repeat the other column - transposition is 0 (concert pitch itself, nothing to
                  transpose), or "show concert" is off - so the remaining column expands to fill the row
@@ -3722,17 +3719,6 @@
      Use this plan saves it. The X closes without changing the plan. -->
 <!-- ML-424: one extra of a piece's outline (a repeat, a pause, a speed-up, a sign, the intro) - a short
      form of bar numbers, with a line saying in plain words what it will do or what's wrong with it. -->
-<!-- ML-158: the Tuning fork from the Tuner's card - the tool's own panel (#forkPanel) is moved in here while
-     it is open. The Tuner stops listening while the note sounds. -->
-<div class="modal" id="tuningForkModal" role="dialog" aria-modal="true" aria-labelledby="tuningForkModalTitle" aria-describedby="tuningForkModalHelp">
-    <div class="modal-content">
-        <button type="button" class="modal-close-x" data-fork-close aria-label="Close">&times;</button>
-        <h2 id="tuningForkModalTitle">Tuning fork</h2>
-        <p class="metro-help-text" id="tuningForkModalHelp">The tuner stops listening while the note sounds.</p>
-        <div id="tuningForkModalHost"></div>
-    </div>
-</div>
-
 <div class="modal" id="outlineExtraModal" role="dialog" aria-modal="true" aria-labelledby="outlineExtraTitle">
     <div class="modal-content">
         <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>

@@ -2165,8 +2165,6 @@
     .fork.is-sounding .fork-wave-2 { animation-delay: var(--duration-fast); }
     .fork.is-sounding .fork-wave-3 { animation-delay: var(--duration-base); }
     @keyframes fork-wave { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
-    /* The Tuner card's second button: the Tuning fork, in the corner opposite the cog */
-    .tuner-card-fork-btn { right: auto; left: var(--space-3); }
     .range-stave-btn { display: block; width: 100%; min-height: calc(var(--touch-target) * 3); margin: var(--space-1) 0 var(--space-2); padding: var(--space-2); box-sizing: border-box; background: var(--input-bg); border: 2px solid var(--control-border); border-radius: var(--radius-md); color: var(--text-color); cursor: pointer; }
     .range-stave-btn svg { display: block; margin: 0 auto; max-width: 100%; height: auto; pointer-events: none; }
     /* The key-note picker: the keyboard layout - 7 columns, sharps above, flats below (placement shared with .theory-answers-keyboard). */

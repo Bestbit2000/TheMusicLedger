@@ -34,8 +34,6 @@ Idle (neutral border) · Out of tune (gold border) · In tune (green border + gr
 </div>
 ```
 
-- **The Tuning fork button (ML-158):** a second `.tuner-card-settings-btn` in the card's top left corner (`.tuner-card-fork-btn`) opens the [Tuning fork](tuning-fork.md) as a pop-up; the tuner stops listening while its note sounds.
-
 ## 8. Cross-references
 [card](card.md) · [slider](slider.md) · [charts](charts.md) · [motion](../foundations/motion.md)
 

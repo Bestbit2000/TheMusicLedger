@@ -7,11 +7,10 @@ section of `public/app.js`; `#tuningForkView` and `#tuningForkModal` in `index.h
 
 ## Where it is
 
-- **A tool of its own:** All tools → Everyday → Tuning fork (and Home, if made a favourite).
-- **From the Tuner:** a button in the top left of the tuner's card opens the same thing as a pop-up. The
-  Tuner had no menu - only the cog, which goes straight to its settings - so it is a second button.
+A tool of its own: All tools → Everyday → Tuning fork (and Home, if made a favourite).
 
-Both show one panel (`#forkPanel`), moved into whichever is open.
+**Not on the Tuner** (owner, 12 Oct 2026). The ticket asked for it there too, and a button on the tuner's
+card that opened it as a pop-up was built - then taken out the same day: he didn't want it on the Tuner.
 
 ## The note
 
@@ -34,10 +33,9 @@ One held note (`forkStart` / `forkStop`): a soft triangle wave with a quieter oc
 note can still be heard on a phone's small speaker. It fades in and out, and a change of note or volume
 while it sounds is followed without a restart. It has its own audio context, made on the first Play.
 
-**Nothing listens while it sounds.** A tuner would hear the fork and call you in tune, so starting the note
-pauses the Tuner and closes the mini tuner; when the note stops the Tuner starts again (if you are still on
-it). The note stops by itself when you leave the screen, close the pop-up any way, or the app goes to the
-background.
+The note stops by itself when you leave the screen or the app goes to the background. Nothing listens
+while it sounds: its screen has no tuner on it, and leaving the screen stops the note. (If it is ever put
+beside a tuner, pause the tuner first - it would hear the fork and call you in tune.)
 
 ## What is kept
 

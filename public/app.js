@@ -1640,7 +1640,6 @@
         document.getElementById('skillsToolBtn')?.classList.toggle('hidden-group', !skillsHubTools().length);
         document.getElementById('rangeToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('range_trainer'));
         document.getElementById('tuningForkToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('tuning_fork')); // ML-158
-        document.getElementById('tunerForkBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('tuning_fork'));
         document.getElementById('recordingsToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('rehearsal_recordings')); // ML-489
         const manage = isFeatureEnabled('flow_manage');
         const create = manage && isFeatureEnabled('flow_create'); // ML-345: Add a piece
@@ -2413,7 +2412,7 @@
         if (viewName === 'gapTrainerView') { document.getElementById('topTitle').innerText = 'Pulse'; renderGapTrainerSetup(); gapPlayer.prewarm(); }
         if (viewName === 'earView') { document.getElementById('topTitle').innerText = 'Pitch'; renderEarSetup(); }
         if (viewName === 'rangeView') { document.getElementById('topTitle').innerText = 'Range'; renderRangeView(); rangePlayer.prewarm(); }
-        if (viewName === 'tuningForkView') { document.getElementById('topTitle').innerText = 'Tuning fork'; openTuningForkView(); }
+        if (viewName === 'tuningForkView') { document.getElementById('topTitle').innerText = 'Tuning fork'; renderFork(); }
         if (viewName === 'setupView') { document.getElementById('topTitle').innerText = 'Set-up'; if (!setup) setup = { step: 0, first: false, nameAsked: setupNeedsName() }; renderSetup(); }
         if (viewName === 'rhythmView') { document.getElementById('topTitle').innerText = 'Rhythm'; renderRhythmView(); rhythmPlayer.prewarm(); }
         if (viewName === 'rhythmPlayView') document.getElementById('topTitle').innerText = 'Rhythm';
@@ -18839,10 +18838,8 @@
     //  - it starts on the instrument's usual tuning note (TuningFork.usualNote: concert B flat for brass and
     //    woodwind, concert A otherwise, in the octave that sits nearest the middle of the stave);
     //  - it follows the Tuner's "A =" setting;
-    //  - while it sounds nothing listens: the Tuner and the mini tuner are paused (a tuner would hear the fork
-    //    and call you in tune) and the Tuner starts again when it stops.
-    // One panel (#forkPanel), in two places: the Tuning fork tool (#tuningForkView) and a pop-up from the
-    // Tuner's card (#tuningForkModal) - the same element, moved into whichever is open, like the mini tuner.
+    //  - it is a tool of its own (#tuningForkView). A button on the Tuner that opened it as a pop-up was built
+    //    and taken out again the same day: the owner didn't want it on the Tuner.
     // Nothing is sent to the server: the note for each instrument and the volume are kept on this device
     // ('tml.fork'), so it works offline. The switch is tuning_fork. specs/components/tuning-fork.md.
     const FORK_STORE = 'tml.fork';
@@ -18890,15 +18887,10 @@
     // follow a change while it sounds. Its own audio context, made on the first Play. ---
     let forkCtx = null;
     let forkVoice = null; // { oscs, gain } while sounding
-    let forkPausedTuner = false;
     const forkSounding = () => !!forkVoice;
     const forkLevel = () => (fork.volume / 100) * 0.4;
     function forkStart() {
         if (forkVoice) return;
-        // nothing listens while it sounds
-        if (metroBlkMiniTunerActive) closeMetroBlkMiniTuner();
-        forkPausedTuner = tunerEngine.isActive() && isShown('tunerView');
-        if (tunerEngine.isActive()) stopTuner();
         if (!forkCtx) { const Ctx = window.AudioContext || window.webkitAudioContext; forkCtx = new Ctx(); }
         if (forkCtx.state === 'suspended') forkCtx.resume();
         const t = forkCtx.currentTime, freq = forkFrequency();
@@ -18926,8 +18918,6 @@
         gain.gain.setTargetAtTime(0, t, 0.03);
         oscs.forEach(({ osc }) => osc.stop(t + 0.25));
         renderFork();
-        if (forkPausedTuner && isShown('tunerView')) startTuner(); // the Tuner picks up where it left off
-        forkPausedTuner = false;
     }
     // A new note or a new "A =" while it sounds: slide to it, don't restart
     function forkRetune() {
@@ -18985,33 +18975,6 @@
         document.getElementById('forkUsualBtn').disabled = pitch === forkUsualNote(inst);
         renderForkVolume();
     }
-    // The panel lives in the tool's own screen, and is lent to the Tuner's pop-up while that is open
-    function forkPanelInto(hostId) {
-        const panel = document.getElementById('forkPanel'), host = document.getElementById(hostId);
-        if (panel && host && panel.parentElement !== host) host.appendChild(panel);
-    }
-    function openTuningForkView() {
-        forkPanelInto('tuningForkHost');
-        renderFork();
-    }
-    function openTuningForkPopup() {
-        forkPanelInto('tuningForkModalHost');
-        renderFork();
-        showModal('tuningForkModal');
-    }
-    function closeTuningForkPopup() {
-        forkStop();
-        hideModal('tuningForkModal');
-    }
-    document.getElementById('tunerForkBtn')?.addEventListener('click', openTuningForkPopup);
-    document.getElementById('tuningForkModal')?.addEventListener('click', (e) => { if (e.target === e.currentTarget || e.target.closest('[data-fork-close]')) closeTuningForkPopup(); });
-    // (Escape and a tap outside close a pop-up without telling anyone - a11y.js - so the note is stopped when
-    // the pop-up is seen to have closed, whichever way it went)
-    (() => {
-        const modal = document.getElementById('tuningForkModal');
-        if (!modal || typeof MutationObserver === 'undefined') return;
-        new MutationObserver(() => { if (!modal.classList.contains('show')) forkStop(); }).observe(modal, { attributes: true, attributeFilter: ['class'] });
-    })();
     document.addEventListener('visibilitychange', () => { if (document.hidden) forkStop(); });
 
     document.getElementById('forkPlayBtn')?.addEventListener('click', () => (forkSounding() ? forkStop() : forkStart()));

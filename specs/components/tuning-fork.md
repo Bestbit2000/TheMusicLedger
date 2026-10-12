@@ -1,22 +1,21 @@
 # Tuning fork
 
 ## 1. Metadata
-- **Name:** Tuning fork (`#tuningForkView`, `#tuningForkModal`, `#forkPanel`: `.fork`, `.fork-sound`, `.fork-waves`, `.fork-waves-left`, `.fork-wave`, `.fork-wave-1` / `-2` / `-3`, `.is-sounding`; `.tuner-card-fork-btn`)
+- **Name:** Tuning fork (`#tuningForkView`, `#forkPanel`: `.fork`, `.fork-sound`, `.fork-waves`, `.fork-waves-left`, `.fork-wave`, `.fork-wave-1` / `-2` / `-3`, `.is-sounding`)
 - **Category:** Tool
 - **Status:** New (ML-158)
 
 ## 2. Overview
 A note to tune to. You pick it on a stave, press play, and it sounds until you stop it. It is a tool of its
-own (All tools, Everyday) and a pop-up from the Tuner's card - the same panel in both. Feature
-`tuning_fork`. How it behaves is in `docs/tuning-fork.md`.
+own (All tools, Everyday). Feature `tuning_fork`. How it behaves is in `docs/tuning-fork.md`.
 
 The owner's decisions (12 Oct 2026): the note is shown **as written for your instrument** with what it
-sounds as underneath; it starts on the instrument's **usual tuning note**; opened from the Tuner, **the
-tuner stops listening while the note sounds**; and it is called **Tuning fork**.
+sounds as underneath; it starts on the instrument's **usual tuning note**; it is called **Tuning fork**;
+and it is **not on the Tuner** - a button there that opened it as a pop-up was built and taken out.
 
 It is built from the range picker's stave and −/+ ([range](range.md)), the play button and volume slider
 ([metronome](metronome.md), [slider](slider.md)) and the value box. What is new is the sound waves either
-side of the stave, and a second button on the Tuner's card.
+side of the stave.
 
 ## 3. Anatomy
 - **The panel** `.fork` (a column, `--space-3` apart):
@@ -32,10 +31,6 @@ side of the stave, and a second button on the Tuner's card.
   - `.metro-volume-row` - `.metro-mute-btn` and the slider. On the panel, not behind a button: the ticket
     asks for the volume to be showing.
   - `.btn-text` "Back to the usual tuning note" (off while it is on that note).
-- **The pop-up** `#tuningForkModal`: X · "Tuning fork" · one line, "The tuner stops listening while the
-  note sounds." · the panel.
-- **On the Tuner's card:** `.tuner-card-settings-btn.tuner-card-fork-btn`, the cog's twin in the opposite
-  (top left) corner.
 - **The tile:** an ordinary `.tool-icon-btn` in Everyday, after Timer. Its icon is not a tuning fork - the
   Tuner's already is.
 
@@ -49,13 +44,11 @@ side of the stave, and a second button on the Tuner's card.
 | `.fork-wave` | width / radius | `--space-2` / `--radius-circle` |
 | `.fork-wave-1`, `-2`, `-3` | height | `--space-5`, `--space-7`, `--space-9` |
 | `.fork.is-sounding .fork-wave` | animation | `fork-wave`, `--duration-pulse`; the 2nd and 3rd arcs start `--duration-fast` and `--duration-base` later |
-| `.tuner-card-fork-btn` | left | `--space-3` |
 
 Everything else is its own component's.
 
 ## 5. Props / API
-- `openTuningForkView()` / `openTuningForkPopup()` / `closeTuningForkPopup()` - the panel is one element,
-  moved into whichever is open.
+- `renderFork()` draws the panel.
 - `forkStart()` / `forkStop()` / `forkSounding()`; `setForkNote(pitch)`; `setForkVolume(0-100)`.
 - `forkUsualNote(instrument)` - the usual tuning note, written for that instrument.
 - Kept on the device only (`tml.fork`): the note for each instrument, the instrument chosen here, the volume.
@@ -66,7 +59,7 @@ Everything else is its own component's.
   reduced motion they are simply gold and still.
 - **Muted:** `.metro-volume-row.is-muted`, as on the metronome.
 - **No instrument:** treble clef at concert pitch, starting on A; a line says how to get the written note.
-- It stops by itself when you leave the screen, close the pop-up (any way) or the app goes to the background.
+- It stops by itself when you leave the screen or the app goes to the background.
 
 ## 7. Code example
 ```html
