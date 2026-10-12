@@ -47,7 +47,7 @@ and the rest are grey. It's used on the planner, the session screen and the bar.
 - Runner: app.js, the "ML-390 (was ML-320's planner)" section: `practiceRun`, `renderPracticeRun` (keeps the bar
   and strips in step every second and on every `switchView`), `sessionTimeUp`, `sessionAfterBlock`, `startRest`,
   `finishPracticeRun`.
-- Home: `#startPracticeSessionBtn` replaces `#startChallengeBtn` when `practice_levels` is on.
+- Home: `#startPracticeSessionBtn`, shown when `practice_levels` is on.
 
 ## 6. States
 | State | Treatment |

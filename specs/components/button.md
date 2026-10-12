@@ -28,7 +28,7 @@ Full-width, text-labelled buttons. The app has **three levels** and one corner r
 `--font-base`, `--font-weight-bold`, `--touch-target`, `--opacity-disabled`.
 
 ## 5. Props / API
-- **Inline (content-width) buttons (ML-288):** `.btn-inline` (a Save/Join beside an input), `.btn-inline-sm` (the tighter row of challenge actions, no stacked-button margin), `.btn-inline-xs` (an Archive button inside a list row). Each is `width: auto` with its own padding.
+- **Inline (content-width) buttons (ML-288):** `.btn-inline` (a Save/Join beside an input), `.btn-inline-sm` (the tighter one for a row of actions, no stacked-button margin), `.btn-inline-xs` (an Archive button inside a list row). Each is `width: auto` with its own padding.
 - `.btn-icon-delete.centered-action` centres the round delete button under the content above it (the teacher/organisation pop-up).
 - `.btn-submit.is-danger` is the action button of a confirm pop-up that **deletes something for good**: outlined, not filled -
   `--container-bg` fill, `--danger-text` words and 2px border (5.6:1 in light mode). A "sure?" that deletes nothing

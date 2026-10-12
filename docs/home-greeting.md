@@ -6,7 +6,7 @@ Home is short on purpose - one clear action, a few tools, everything else a tap 
 
 1. The **greeting** (below) - avatar, greeting, one encouraging line.
 1. **My stats** (ML-387) - numbers you chose on the Stats page (see below). Hidden until you've logged something.
-2. **Start a practice session** - the one gold button (or Start a challenge, when practice sessions are off).
+2. **Start a practice session** - the one gold button.
 3. **Log time you've already played** - a link (`.btn-text`) to Add session time, not a second button.
 4. **My favourite tools** (ML-412 - it was "My tools"), **4 for Standard, 8 for everyone else** (the `home_tools` limit on Admin → Feature access, ML-388 - four to a row, so 8 is two rows), copies of the All tools tiles (`renderHomeTools`),
    in **your** order. Until you choose your own, the default follows what your account type has switched on:

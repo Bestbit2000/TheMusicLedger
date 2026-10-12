@@ -538,10 +538,6 @@
     .section-title::first-letter { text-transform: uppercase; }
 
     /* A <button> since ML-210 (tap it for Move up / Move down) - reset the native button look. */
-    .drag-handle { background: none; border: none; font-family: inherit; min-width: var(--touch-target); min-height: var(--touch-target); justify-content: center; cursor: grab; padding: 0 var(--space-3); color: var(--label-color); font-size: var(--font-md); display:flex; align-items:center; }
-    .drag-handle:active { cursor: grabbing; }
-    .draggable-item { transition: box-shadow var(--duration-base); display:flex; width:100%; }
-    .draggable-item.dragging { opacity: 0.5; box-shadow: var(--shadow-lg); }
 
     .scroll-wrapper { position: relative; width: 100%; display: flex; align-items: center; margin-bottom: var(--space-1); }
     .scroll-btn { position: absolute; z-index: var(--z-float); background: var(--input-bg); border: 2px solid var(--control-border); border-radius: var(--radius-circle); width: 30px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-color); font-weight: var(--font-weight-bold); box-shadow: var(--shadow-sm); }
@@ -627,12 +623,7 @@
     .btn-icon-copy { padding: 0; background: transparent; color: var(--text-color); border: 2px solid var(--control-border); width: 48px; height: 48px; border-radius: var(--radius-circle); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
     .play-card { background: var(--container-bg); padding: var(--space-6) var(--space-5); border-radius: var(--radius-lg); border: 2px solid var(--primary-action-strong); text-align: center; margin-bottom: var(--space-6); transition: transform var(--duration-base) ease, opacity var(--duration-base) ease; }
-    .play-card.slide-out-left, .play-card.slide-in-left { transform: translateX(-40px); opacity: 0; }
-    .play-card.slide-out-right, .play-card.slide-in-right { transform: translateX(40px); opacity: 0; }
     .play-piece { font-size: var(--font-xl); font-weight: var(--font-weight-bold); margin-bottom: var(--space-1); color: var(--primary-action-strong); }
-    .play-ref { font-size: var(--font-md); font-weight: var(--font-weight-bold); margin-bottom: var(--space-4); }
-    .play-meta { font-size: var(--font-base); color: var(--label-color); display: flex; justify-content: center; gap: var(--space-4); margin-bottom: var(--space-3); }
-    .play-stats { font-size: var(--font-sm); color: var(--label-color); background: var(--container-bg); padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); display: inline-block; }
 
     /* background: var(--container-bg) not --input-bg - this card isn't clickable, and --input-bg is
        reserved for tappable surfaces (the Settings boxes below, the needle track, etc.) so dark mode
@@ -1601,10 +1592,6 @@
     .qp-history-item-body { flex-grow: 1; cursor: pointer; display: flex; align-items: center; gap: var(--space-3); }
     /* ML-288: a row's left edge in its session category's colour (.category-* sets --category-accent). */
     .history-item.category-edge { border-left-color: var(--category-accent); }
-    /* Challenge editor: an item's left edge shows its status - open (gold), complete, closed. */
-    .history-item.challenge-item-edge { border-left: 4px solid var(--primary-action); }
-    .history-item.challenge-item-edge.is-complete { border-left-color: var(--success-color); }
-    .history-item.challenge-item-edge.is-closed { border-left-color: var(--control-off-bg); }
     .history-item.is-muted { opacity: var(--opacity-muted); } /* an archived teacher/organisation */
     .history-item.qp-history-item-selected { border-left-color: var(--primary-action); background: var(--primary-action-tint); }
     .qp-history-star { color: var(--primary-action-strong); font-variation-settings: 'FILL' 1; font-size: var(--font-lg); }
@@ -2585,8 +2572,8 @@
     .mb-4 { margin-bottom: var(--space-4); }
     .mb-5 { margin-bottom: var(--space-5); }
     .mb-6 { margin-bottom: var(--space-6); }
-    /* An inline (content-width) button, e.g. Save/Join beside an input. -sm is the tighter row of
-       challenge actions, which sits in a flex row so never takes the stacked-button margin. */
+    /* An inline (content-width) button, e.g. Save/Join beside an input. -sm is the tighter one for a row
+       of actions, which sits in a flex row so never takes the stacked-button margin. */
     .btn-inline { width: auto; padding: var(--space-3) var(--space-5); }
     .btn-inline-sm { width: auto; padding: var(--space-2) var(--space-4); margin: 0; }
     /* A small native checkbox inside a filter/label row. */
@@ -2616,25 +2603,8 @@
     /* Stats filter pills: an active category pill takes that category's colour (see .filter-pill.active). */
     .filter-pill[data-filter-cat] { --filter-pill-accent: var(--category-accent); --filter-pill-accent-text: var(--category-accent-text); }
 
-    /* ML-288: small form/section patterns that used to be inline styles. */
-    /* A tinted block that groups related fields inside a form (challenge task options). -row lays out
-       a label and its control either side of one line. */
-    .inset-panel { background: var(--secondary-color); padding: var(--space-4); border-radius: var(--radius-md); }
-    .inset-panel.inset-panel-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-3) var(--space-4); }
-    /* Manage challenges: the filter checkboxes in a bordered box. */
-    .challenge-filter-box { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); background: var(--input-bg); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--input-border); }
-    /* Edit challenge: the progress summary line under the name. */
-    /* Challenge session summary: one row per task worked on - name and ref left, status right. */
-    .summary-item-row { padding: var(--space-3); border-bottom: 1px solid var(--input-border); display: flex; justify-content: space-between; }
-    /* Challenge session summary title - gold, or green once every challenge is complete. */
-    .summary-title { color: var(--primary-action-strong); }
-    .summary-title.is-complete { color: var(--success-text); }
     /* About: the bulleted change list under each release. */
     .release-change-list { margin: var(--space-1) 0 0 0; padding-left: var(--space-5); }
-    .challenge-edit-stats { font-weight: var(--font-weight-bold); margin-top: var(--space-2); margin-bottom: var(--space-4); font-size: var(--font-base); color: var(--primary-action-strong); }
-    /* A sub-heading inside a form, after a .divider-dashed (the challenge editor's Tasks). */
-    .form-subheading { margin-top: 0; margin-bottom: var(--space-4); font-size: var(--font-md); color: var(--text-color); }
-    .divider-dashed { border: 0; border-top: 1px dashed var(--input-border); margin: var(--space-6) 0 var(--space-4) 0; }
 
     /* =========================================================================================
        ML-288: run-time placement and motion. Where something is, or how far it's been dragged, is
@@ -2949,6 +2919,14 @@
 
     /* On a phone the side-by-side groups are not boxes at all, so those screens are exactly as they were. */
     .home-main, .home-tools, .play-side, .play-main { display: contents; }
+    /* Playing a piece: where you are and the controls stay pinned under the top bar (--header-h, measured by
+       app.js) and the piece's tiles scroll beneath, the one that is playing brought to the top
+       (flowKeepLitTileInView; --play-pin-h is the top bar's height plus the pinned part's, set by app.js). Not on a screen too
+       short to leave room for the tiles. */
+    @media (min-height: 600px) {
+        #flowPlayView > .play-side { display: block; position: sticky; top: var(--header-h, var(--space-0)); z-index: var(--z-sticky); background: var(--container-bg); padding-bottom: var(--space-2); }
+    }
+    #flowPlayTiles > * { scroll-margin-top: calc(var(--play-pin-h) + var(--space-2)); }
     .nav-rail-head { display: none; }
     .history-item.pane-selected { border-left-color: var(--primary-action); background: var(--primary-action-tint); }
 
@@ -2971,7 +2949,7 @@
 
         /* --- a page is a card on the page colour: narrow unless it is one of the wide kinds --- */
         body.app-shell .container { width: calc(100% - 2 * var(--space-5)); max-width: var(--page-max-narrow); margin: var(--space-5) auto; padding: var(--space-6); border-radius: var(--radius-xl); box-shadow: var(--shadow-md); min-height: 0; }
-        body.app-shell .container:has(> :is(#mainView, #flowPlayView):not(.hidden-group)) { max-width: var(--page-max-wide); }
+        body.app-shell .container:not(.two-pane):has(> :is(#mainView, #flowPlayView):not(.hidden-group)) { max-width: var(--page-max-wide); } /* not beside a list: there the two-pane width below is the one that counts */
         body.app-shell .container.two-pane { max-width: var(--page-max-panes); }
 
         /* --- the menu rail: the same menu, always there (.rail-demo shows its look on Admin -> Design) --- */

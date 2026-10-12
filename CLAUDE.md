@@ -9,9 +9,9 @@ OAuth is still used for login only (`server/config/passport.js`).
 
 A full relational schema (accounts/bands/tutors, scores with sectioned
 multi-bar metronome data per Jira `ML-35`, practice lists, sessions, scales,
-technique exercises, challenges, and a monetization layer) is applied to all
-three Neon branches (`production`/`sandbox`/`dev`). Beyond `sessions` and
-`challenges`, `adhoc_metronome_setups`/`metronome_segments` (ad-hoc rows,
+technique exercises, and a monetization layer) is applied to all
+three Neon branches (`production`/`sandbox`/`dev`). Challenges were taken out by `ML-324`
+(practice sessions replaced them). Beyond `sessions`, `adhoc_metronome_setups`/`metronome_segments` (ad-hoc rows,
 `parent_score_id` null) are wired up as **Quick Play's history** (`ML-34`), plus
 `time_signature_options`/`account_time_signatures` and `playback_speed_options`,
 behind `/api/metronome/*` and `/api/time-signatures*` in `server/routes/api.js`.

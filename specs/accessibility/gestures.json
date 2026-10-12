@@ -45,11 +45,6 @@
       "id": "wireFlowRampSwipe",
       "gesture": "swipe a tempo ramp row left to reveal Delete",
       "alternative": "Ramp row ⋮ menu > Delete (flowRampRowMenu)"
-    },
-    {
-      "id": "draggable-list",
-      "gesture": "drag the ☰ handle to reorder challenges and practice-list items",
-      "alternative": "tap the ☰ handle > Move up / Move down (reorderMenu); arrow keys on the handle"
     }
   ]
 }

@@ -48,7 +48,6 @@ account type**, not per person.
 | Practice sessions | `practice_levels` | yes | yes |
 | Show history on the Metronome | `metronome_history` | **new** | - |
 | Rewind history on the Tuner | `tuner_rewind` | **new** | - |
-| Challenges in the menu | `challenges` | yes | **no - to wire** (menu item and "Start a challenge") |
 | My music in the menu | `flow_manage` | yes | yes |
 | Export to MusicXML | `flow_export_musicxml` | yes | yes |
 | Add a piece (the tool, and in My music - ML-400) | `flow_create` | **new** | - |
@@ -71,7 +70,6 @@ since they need My music.
 4. **Server checks for the new gates** where there's an endpoint:
    - creating a piece (`POST /api/flows`) needs `flow_create` or `metronome_save_to_flow`
    - Metronome history (`/api/metronome/*` history) needs `metronome_history`
-   - challenges endpoints need `challenges`
    - teachers endpoints need `manage_tutor`
 
    Tuner rewind and the Rehearse tile are browser-only.
@@ -81,11 +79,10 @@ since they need My music.
 Wire the new and unwired gates in `renderFeatureGates`:
 
 - the Rehearse tile, the Metronome's Show history link, the Tuner's rewind controls
-- Challenges (menu item and "Start a challenge")
 - Add a piece (the All tools tile and My music's button, ML-400)
 - My account's My teachers row
 
-When Challenges and Practice sessions are both off, the home screen keeps just **Add session time**.
+When Practice sessions are off, the home screen keeps just **Add session time**. (Challenges, and the `challenges` switch, were taken out by ML-324.)
 
 ## Admin → Feature access (the new page)
 

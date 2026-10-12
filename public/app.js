@@ -39,10 +39,8 @@
     const CLICK_ACTIONS = {
         'view': (el) => switchView(actArg(el)),
         'view-menu': (el) => { switchView(actArg(el)); closeMenu(); },
-        'view-back': (el) => switchView(actArg(el), true),
         'go-back': () => goBack(),
         'hide-modal': (el) => hideModal(actArg(el)),
-        'show-modal': (el) => showModal(actArg(el)),
         'close-toast': (el) => closeToast(actArg(el)),
         'scroll-area': (el) => scrollArea(el, Number(actArg(el))),
         'open-page': (el) => window.open(actArg(el), '_blank', 'noopener'),          // one of the app's own pages (/privacy.html)
@@ -54,13 +52,6 @@
         'prompt-close': () => closePromptModal(),
         'list-add': (el) => addListItem(actArg(el)),
         'list-edit': (el) => editListItem(actArg(el), el.dataset.arg2),
-        'item-detail': (el) => openItemDetailModal(actArg(el) === undefined ? null : actArg(el)),
-        'item-delete': (el) => deleteChallengeItem(actArg(el), el.dataset.arg2),
-        'challenge-open': (el) => openEditChallenge(actArg(el)),
-        'challenge-start': (el) => startChallenge(actArg(el)),
-        'challenge-edit': () => editEntireChallenge(),
-        'challenge-close': () => closeEntireChallenge(),
-        'challenge-delete': () => deleteEntireChallenge(),
         'flow-open': (el) => openFlow(Number(actArg(el))),
         'flow-jump': (el) => jumpFlowToPlayIndex(Number(actArg(el))),
         'flow-recording-delete': (el) => deleteFlowRecording(actArg(el)),
@@ -453,6 +444,20 @@
     }
 
     // API endpoint wrappers
+    // Archiving (the owner, 12 Oct 2026): a piece or practice list that is done with is left out of every
+    // list in the app - API.flows.list and API.practiceLists.list hand back only what is current, so no
+    // screen has to remember to hide anything - and what was left out is kept here for the Archived filter.
+    let flowsArchivedCache = [];
+    let plArchivedLists = [];
+    function flowsSplitArchived(list) {
+        flowsArchivedCache = list.filter(f => f.archived);
+        return list.filter(f => !f.archived);
+    }
+    function listsSplitArchived(r) {
+        const lists = (r && r.lists) || [];
+        plArchivedLists = lists.filter(l => l.archived);
+        return { ...r, lists: lists.filter(l => !l.archived) };
+    }
     const API = {
         dropdownOptions: (token) => apiCall('/api/dropdown-options', 'GET', null, token),
         sessions: {
@@ -467,16 +472,6 @@
             getActive: () => apiCall('/api/timer/active'),
             syncActive: (data) => apiCall('/api/timer/active', 'PUT', data),
             clearActive: () => apiCall('/api/timer/active', 'DELETE')
-        },
-        challenges: {
-            get: (token) => apiCall('/api/challenges', 'GET', null, token),
-            create: (data) => apiCall('/api/challenges', 'POST', data),
-            update: (row, data) => apiCall(`/api/challenges/${row}`, 'PUT', data),
-            delete: (row) => apiCall(`/api/challenges/${row}`, 'DELETE'),
-            close: (id) => apiCall(`/api/challenges/${id}/close`, 'PUT'),
-            updateGroup: (id, data) => apiCall(`/api/challenges/group/${id}`, 'PUT', data),
-            deleteGroup: (id) => apiCall(`/api/challenges/group/${id}`, 'DELETE'),
-            addItem: (groupId, data) => apiCall(`/api/challenges/group/${groupId}/items`, 'POST', data)
         },
         metronomeBlocks: {
             timeSignatures: {
@@ -513,7 +508,8 @@
         // the module script in index.html), and the plain recordings/documents endpoints just
         // record the resulting URL once that upload has actually finished.
         flows: {
-            list: () => apiCall('/api/flows').then(flowsStillThere), // ML-404: minus a new piece just taken away again
+            list: () => apiCall('/api/flows').then(flowsStillThere).then(flowsSplitArchived), // ML-404: minus a new piece just taken away again; minus what is archived
+            setArchived: (id, archived, forAll) => apiCall(`/api/flows/${id}/archive`, 'PUT', { archived, forAll: !!forAll }),
             create: (data) => apiCall('/api/flows', 'POST', data),
             get: (id) => apiCall(`/api/flows/${id}`),
             update: (id, data) => apiCall(`/api/flows/${id}`, 'PUT', data),
@@ -562,7 +558,8 @@
         // ML-315/316: a piece's practice Levels (chunks, per account) - PRACTICE LEVELS in routes/api.js
         // ML-319: practice lists
         practiceLists: {
-            list: () => apiCall('/api/practice/lists'),
+            list: () => apiCall('/api/practice/lists').then(listsSplitArchived),
+            setArchived: (id, archived, forAll) => apiCall(`/api/practice/lists/${id}/archive`, 'PUT', { archived, forAll: !!forAll }),
             get: (id) => apiCall(`/api/practice/lists/${id}`),
             create: (data) => apiCall('/api/practice/lists', 'POST', data),
             update: (id, data) => apiCall(`/api/practice/lists/${id}`, 'PUT', data),
@@ -718,13 +715,6 @@
     // ML-410: the category is a noun on screen ("Practice", beside Rehearsal / Lesson / Performance); its stored value stays "Practise".
     const categoryLabel = (cat) => (cat === 'Practise' ? 'Practice' : cat);
 
-    // Challenge Data
-    let allChallenges = [];
-    let currentSessionLog = { time: 0, items: [] };
-    let activeChallengeItems = [];
-    let currentPlayIndex = 0;
-    let currentSessionChallengeId = null;
-    let editChallengeMeta = {};
 
     function parseDateSafely(dateStr) {
         if (!dateStr) return new Date();
@@ -1638,9 +1628,8 @@
         renderInviteNav(); // ML-402
         document.getElementById('theoryToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('theory_practice'));
         document.getElementById('scalesToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('scales_practice'));
-        // ML-320: Start a practice session replaces Start a challenge.
+        // ML-320: Start a practice session (it replaced Start a challenge; challenges went with ML-324).
         document.getElementById('startPracticeSessionBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('practice_levels'));
-        document.getElementById('startChallengeBtn')?.classList.toggle('hidden-group', isFeatureEnabled('practice_levels') || !isFeatureEnabled('challenges'));
         document.getElementById('warmupsToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('warmups'));
         // ML-299: My music (create / import / library / edit) and Play Flow's "Create new".
         // ML-406: Skills (Pitch, Tempo, Pulse, Rhythm) shows while at least one of its tools is on.
@@ -1658,7 +1647,6 @@
         // ML-345: the other gates by account type
         document.getElementById('qpShowHistoryBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('metronome_history'));
         document.getElementById('tunerRewindGroup')?.classList.toggle('hidden-group', !isFeatureEnabled('tuner_rewind'));
-        document.getElementById('challengesNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('challenges'));
         document.getElementById('accountTeachersRow')?.classList.toggle('hidden-group', !isFeatureEnabled('manage_tutor'));
         // ML-328: the Metronome's "Save to flow" - its own gate, so it can be limited per person later.
         document.getElementById('qpSaveToFlowBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('metronome_save_to_flow'));
@@ -1775,8 +1763,7 @@
 
     function fetchDataAndRender(token) {
         return Promise.all([
-            API.sessions.get(token).then(data => { rawData = data; renderAllViews(); }),
-            loadChallenges(token)
+            API.sessions.get(token).then(data => { rawData = data; renderAllViews(); })
         ]).then(() => {
             displayMainApp();
         }).catch(err => {
@@ -1889,8 +1876,7 @@
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
         // ML-406: Pitch, Tempo, Pulse and Rhythm live under Skills
         tapTempoView: 'skillsHubView', gapTrainerView: 'skillsHubView', earView: 'skillsHubView', rhythmView: 'skillsHubView', drillResultsView: 'skillsHubView',
-        tapTempoPlayView: 'skillsHubView', gapTrainerPlayView: 'skillsHubView', earPlayView: 'skillsHubView', rhythmPlayView: 'skillsHubView',
-        challengeSelectView: 'manageChallengesView', challengePlayView: 'manageChallengesView', challengeSummaryView: 'manageChallengesView', editChallengeView: 'manageChallengesView' };
+        tapTempoPlayView: 'skillsHubView', gapTrainerPlayView: 'skillsHubView', earPlayView: 'skillsHubView', rhythmPlayView: 'skillsHubView' };
     function markNavCurrent() {
         const top = viewStack[viewStack.length - 1] || 'mainView';
         const paneList = document.querySelector('#mainContainer > .container.two-pane > .pane-list')?.id; // ML-239
@@ -2250,7 +2236,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'manageChallengesView', 'challengeSelectView', 'challengePlayView', 'challengeSummaryView', 'editChallengeView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
@@ -2279,9 +2265,7 @@
 
     const viewAliasMap = {
         'main': 'mainView', 'history': 'historyView', 'stats': 'statsView', 'addForm': 'entryForm',
-        'settings': 'settingsView', 'challengesList': 'manageChallengesView',
-        'challengeSelect': 'challengeSelectView', 'challengePlay': 'challengePlayView',
-        'challengeSummary': 'challengeSummaryView', 'editChallenge': 'editChallengeView',
+        'settings': 'settingsView',
         'quickPlay': 'quickPlayView', 'tuner': 'tunerView', 'timer': 'timerView'
     };
 
@@ -2435,11 +2419,6 @@
         if (viewName === 'flowFromFileView') { document.getElementById('topTitle').innerText = flowImportTitle(); resetFlowFromFileScreen(); }
         if (viewName === 'addPieceView') { document.getElementById('topTitle').innerText = 'Add a piece'; openAddPiece(isBack); }
         if (viewName === 'pieceOutlineView') { document.getElementById('topTitle').innerText = 'Add a piece'; renderOutline(); } // ML-424
-        if (viewName === 'manageChallengesView') { document.getElementById('topTitle').innerText = 'Manage challenges'; renderChallengesList(); }
-        if (viewName === 'challengeSelectView') { document.getElementById('topTitle').innerText = 'Select challenge'; renderChallengeSelect(); }
-        if (viewName === 'challengePlayView') { document.getElementById('topTitle').innerText = 'Practise'; }
-        if (viewName === 'challengeSummaryView') { document.getElementById('topTitle').innerText = 'Session complete'; topBackBtn.classList.add('hidden-btn'); }
-        if (viewName === 'editChallengeView') { document.getElementById('topTitle').innerText = 'Edit challenge'; }
         if (viewName === 'quickPlayView') {
             document.getElementById('topTitle').innerText = 'Metronome';
             qpPlayer.prewarm();
@@ -2952,671 +2931,6 @@
             showWarningToast('Error marking notifications as read: ' + error.message);
         }
     });
-
-    // ========================================
-    // CHALLENGE LOGIC
-    // ========================================
-
-    async function loadChallenges(token) {
-        try {
-            allChallenges = await API.challenges.get(token);
-        } catch (error) {
-            allChallenges = [];
-            if (error.status === 403) return; // ML-345: challenges are off for this account type
-            showWarningToast('Error loading challenges: ' + error.message);
-            return;
-        }
-        try {
-            if(isShown('editChallengeView')) renderEditChallengeItems();
-            if(isShown('manageChallengesView')) renderChallengesList();
-            if(isShown('challengeSelectView')) renderChallengeSelect();
-        } catch (error) {
-            showWarningToast('Error loading challenges: ' + error.message);
-        }
-    }
-
-    document.getElementById('challTypeRadios')?.addEventListener('change', (e) => {
-        const type = e.target.value;
-        const perfFields = document.getElementById('cPerformanceFields');
-        const techFields = document.getElementById('cTechniqueFields');
-        const whoGroup = document.getElementById('cWhoGroup');
-        const pieceLbl = document.getElementById('cPieceLabel');
-
-        if(type === 'Performance') {
-            perfFields.classList.remove('hidden-group');
-            techFields.classList.add('hidden-group');
-            whoGroup.classList.remove('hidden-group');
-            pieceLbl.innerText = "Piece name";
-        } else {
-            perfFields.classList.add('hidden-group');
-            techFields.classList.remove('hidden-group');
-            whoGroup.classList.add('hidden-group');
-            pieceLbl.innerText = "Exercise/Book name";
-        }
-    });
-
-    document.getElementById('cTechAutoGenToggle')?.addEventListener('change', (e) => {
-        if(e.target.checked) {
-            document.getElementById('cTechAutoGenYes').classList.remove('hidden-group');
-            document.getElementById('cTechAutoGenNo').classList.add('hidden-group');
-        } else {
-            document.getElementById('cTechAutoGenYes').classList.add('hidden-group');
-            document.getElementById('cTechAutoGenNo').classList.remove('hidden-group');
-        }
-    });
-
-    document.querySelectorAll('input[name="techBpmMode"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            if(e.target.value === 'fixed') {
-                document.getElementById('cTechBpmFixedGroup').classList.remove('hidden-group');
-                document.getElementById('cTechBpmRandomGroup').classList.add('hidden-group');
-            } else {
-                document.getElementById('cTechBpmFixedGroup').classList.add('hidden-group');
-                document.getElementById('cTechBpmRandomGroup').classList.remove('hidden-group');
-            }
-        });
-    });
-
-    document.getElementById('saveNewChallBtn')?.addEventListener('click', async () => {
-        const type = document.querySelector('input[name="challType"]:checked')?.value;
-        const who = document.getElementById('cWho')?.value;
-        const name = document.getElementById('cName')?.value;
-        const piece = document.getElementById('cPiece')?.value;
-
-        if(!name || !piece) return showWarningToast("Name and piece are required!");
-
-        let itemsToSave = [];
-        if (type === 'Performance') {
-            itemsToSave.push({
-                type, who, name, piece,
-                ref: document.getElementById('cRef')?.value,
-                barFrom: document.getElementById('cBarFrom')?.value,
-                barTo: document.getElementById('cBarTo')?.value,
-                bpm: document.getElementById('cBPM')?.value
-            });
-        } else {
-            const isAuto = document.getElementById('cTechAutoGenToggle')?.checked;
-            if (!isAuto) {
-                itemsToSave.push({
-                    type, who: '', name, piece,
-                    ref: document.getElementById('cTechManualRef')?.value,
-                    bpm: document.getElementById('cTechManualBpm')?.value
-                });
-            } else {
-                const prefix = document.getElementById('cTechPrefix')?.value || '';
-                const fNum = parseInt(document.getElementById('cTechFrom')?.value);
-                const tNum = parseInt(document.getElementById('cTechTo')?.value);
-                const bpmMode = document.querySelector('input[name="techBpmMode"]:checked')?.value;
-
-                const fixedBpm = document.getElementById('cTechBpmFixed')?.value;
-                const minBpm = parseInt(document.getElementById('cTechBpmMin')?.value) || 60;
-                const maxBpm = parseInt(document.getElementById('cTechBpmMax')?.value) || 120;
-                const interval = parseInt(document.getElementById('cTechBpmInterval')?.value) || 5;
-
-                if (!isNaN(fNum) && !isNaN(tNum) && tNum >= fNum) {
-                    for(let i = fNum; i <= tNum; i++) {
-                        let finalBpm = '';
-                        if (bpmMode === 'fixed') { finalBpm = fixedBpm; }
-                        else {
-                            let steps = Math.floor((maxBpm - minBpm) / interval);
-                            if (steps < 0) steps = 0;
-                            let rStep = Math.floor(Math.random() * (steps + 1));
-                            finalBpm = minBpm + (rStep * interval);
-                        }
-                        let refStr = prefix ? `${prefix} ${i}`.trim() : `${i}`;
-                        itemsToSave.push({ type, who: '', name, piece, ref: refStr, bpm: finalBpm });
-                    }
-                } else { return showWarningToast("Please enter valid From and To numbers."); }
-            }
-        }
-
-        const btn = document.getElementById('saveNewChallBtn');
-        btn.innerText = "Creating...";
-        btn.disabled = true;
-
-        try {
-            const result = await API.challenges.create({ type, who: who || null, name, items: itemsToSave });
-            showSuccessToast("Challenge created!");
-            btn.innerText = "Create & add tasks";
-            btn.disabled = false;
-            hideModal('addChallengeModal');
-            ['cName','cPiece','cRef','cBarFrom','cBarTo','cBPM','cTechFrom','cTechTo'].forEach(id => {
-                let el = document.getElementById(id);
-                if(el) el.value = '';
-            });
-            await loadChallenges();
-        } catch (error) {
-            showWarningToast("Creation error: " + error.message);
-            btn.innerText = "Create & add tasks";
-            btn.disabled = false;
-        }
-    });
-
-    // List view filters
-    document.getElementById('toggleShowCompletedChallenges')?.addEventListener('change', renderChallengesList);
-    document.getElementById('filterChallPerf')?.addEventListener('change', renderChallengesList);
-    document.getElementById('filterChallTech')?.addEventListener('change', renderChallengesList);
-
-    function renderChallengesList() {
-        try {
-            const ui = document.getElementById('challengesListUI');
-            if (!ui) return;
-            ui.innerHTML = '';
-            if(!allChallenges.length) {
-                ui.innerHTML = "<p>No active challenges found.</p>";
-                return;
-            }
-
-            let groups = {};
-            allChallenges.forEach(c => {
-                if(!groups[c.id]) {
-                    groups[c.id] = { id: c.id, name: c.name, type: c.type, total:0, complete:0, time:0, p: c.priority };
-                }
-                groups[c.id].total++;
-                if(isChallengeDone(c.status)) groups[c.id].complete++;
-                groups[c.id].time += c.timeSpent || 0;
-            });
-
-            let showCompleted = document.getElementById('toggleShowCompletedChallenges')?.checked;
-            let showPerf = document.getElementById('filterChallPerf')?.checked;
-            let showTech = document.getElementById('filterChallTech')?.checked;
-
-            let sortedIds = Object.keys(groups).sort((a,b) => groups[a].p - groups[b].p);
-
-            sortedIds.forEach(id => {
-                let g = groups[id];
-                if(g.type === 'Performance' && !showPerf) return;
-                if(g.type === 'Technique' && !showTech) return;
-
-                let pct = Math.round((g.complete / g.total) * 100) || 0;
-                if(!showCompleted && pct === 100) return;
-
-                const typeClass = g.type === 'Performance' ? 'category-performance' : 'category-lesson';
-                let typeIcon = g.type === 'Performance' ? '🎭' : '🛠️';
-
-                ui.innerHTML += `<div class="history-item draggable-item items-center pl-1 category-edge ${typeClass}" draggable="true" data-id="${g.id}">
-                    <button type="button" class="drag-handle" aria-label="Reorder ${escapeHtml(g.name)} - drag, or tap for Move up / Move down" aria-haspopup="menu" aria-expanded="false">☰</button>
-                    <div role="button" tabindex="0" class="grow" data-act="challenge-open" data-arg="${escapeHtml(g.id)}">
-                        <div class="flex-row justify-between w-full mb-2">
-                            <strong>${typeIcon} ${escapeHtml(g.name)}</strong>
-                            <span class="fw-bold${pct === 100 ? ' text-success' : ''}">${pct}%</span>
-                        </div>
-                        <div class="text-sm text-muted">
-                            ${g.complete} / ${g.total} tasks complete | ${formatMins(g.time)} total time
-                        </div>
-                    </div>
-                </div>`;
-            });
-            setupDragAndDrop(ui, 'challenge');
-        } catch(err) { showWarningToast("Error loading challenges: " + err.message); }
-    }
-
-    function renderChallengeSelect() {
-        try {
-            const ui = document.getElementById('selectChallengesList');
-            if (!ui) return;
-            ui.innerHTML = '';
-
-            if(!allChallenges.length) {
-                ui.innerHTML = '<p>No challenges created yet.</p>';
-                return;
-            }
-
-            let groups = {};
-            allChallenges.forEach(c => {
-                if(!groups[c.id]) {
-                    groups[c.id] = { id: c.id, name: c.name, type: c.type, incomplete: 0 };
-                }
-                if(!isChallengeDone(c.status)) groups[c.id].incomplete++;
-            });
-
-            Object.values(groups).forEach(g => {
-                if (g.incomplete > 0) {
-                    const typeIcon = g.type === 'Performance' ? '🎭' : '🛠️';
-                    const typeClass = g.type === 'Performance' ? 'category-performance' : 'category-lesson';
-                    ui.innerHTML += `<button class="history-item category-edge ${typeClass} pl-1 w-full text-left flex-col items-start gap-xs" data-act="challenge-start" data-arg="${escapeHtml(g.id)}">
-                        <div class="w-full"><strong>${typeIcon} ${escapeHtml(g.name)}</strong></div>
-                        <div class="text-muted text-sm">${g.incomplete} remaining</div>
-                    </button>`;
-                }
-            });
-        } catch(err) { showWarningToast("Error loading challenge select: " + err.message); }
-    }
-
-    // --- CHALLENGE EDITOR (Items View) ---
-    document.getElementById('toggleShowCompletedItems')?.addEventListener('change', renderEditChallengeItems);
-
-    window.openEditChallenge = function(id) {
-        editChallengeMeta.id = id;
-        renderEditChallengeItems();
-        switchView('editChallengeView');
-    }
-
-    window.editEntireChallenge = function() {
-        showPromptModal('Rename challenge', editChallengeMeta.name, async (newName) => {
-            if(newName && newName !== editChallengeMeta.name) {
-                showInfoToast("Renaming...");
-                try {
-                    await API.challenges.updateGroup(editChallengeMeta.id, { name: newName });
-                    showSuccessToast("Challenge renamed!");
-                    editChallengeMeta.name = newName;
-                    document.getElementById('ecName').innerText = newName;
-                    await loadChallenges();
-                } catch (error) {
-                    showWarningToast(error.message);
-                }
-            }
-        });
-    }
-
-    // "Closed" is distinct from "Complete" so a challenge abandoned partway
-    // through doesn't read as finished, but both take it out of the active/
-    // incomplete pool everywhere else in the UI.
-    function isChallengeDone(status) {
-        return status === 'Complete' || status === 'Closed';
-    }
-
-    window.closeEntireChallenge = function() {
-        const items = allChallenges.filter(c => c.id == editChallengeMeta.id && !isChallengeDone(c.status));
-        if (!items.length) return showWarningToast('Nothing left to close on this challenge.');
-        showConfirmModal('Close challenge', `Mark the remaining ${items.length} task(s) as closed (not completed)?`, async () => {
-            showInfoToast('Closing...');
-            try {
-                await API.challenges.close(editChallengeMeta.id);
-                showSuccessToast('Challenge closed');
-                await loadChallenges();
-                renderEditChallengeItems();
-            } catch (error) {
-                showWarningToast('Error: ' + error.message);
-            }
-        }, false);
-    }
-
-    window.deleteEntireChallenge = function() {
-        const items = allChallenges.filter(c => c.id == editChallengeMeta.id);
-        const count = items.length;
-        showConfirmModal('Delete challenge', `Are you sure? This will remove the challenge and all ${count} tasks.`, async () => {
-            showInfoToast("Deleting challenge...");
-            try {
-                await API.challenges.deleteGroup(editChallengeMeta.id);
-                showSuccessToast("Challenge deleted");
-                await loadChallenges();
-                goBack();
-            } catch (error) {
-                showWarningToast("Error: " + error.message);
-            }
-        });
-    }
-
-    function renderEditChallengeItems() {
-        try {
-            const items = allChallenges.filter(c => c.id == editChallengeMeta.id);
-            const ecItemsList = document.getElementById('ecItemsList');
-            const ecStats = document.getElementById('ecStats');
-            const ecName = document.getElementById('ecName');
-            const ecWhoType = document.getElementById('ecWhoType');
-
-            if(!ecItemsList || !items.length) {
-                if(ecItemsList) ecItemsList.innerHTML = "<p>No tasks remaining in this challenge.</p>";
-                if(ecStats) ecStats.innerText = "0 / 0 tasks complete | 0h 0m total time";
-                return;
-            }
-
-            editChallengeMeta.type = items[0].type;
-            editChallengeMeta.who = items[0].who;
-            editChallengeMeta.name = items[0].name;
-
-            if(ecName) ecName.innerText = editChallengeMeta.name;
-            if(ecWhoType) ecWhoType.innerText = `${editChallengeMeta.type} ${editChallengeMeta.who ? 'for ' + editChallengeMeta.who : ''}`;
-
-            let completeCount = items.filter(i => isChallengeDone(i.status)).length;
-            let totalTime = items.reduce((sum, i) => sum + (i.timeSpent || 0), 0);
-            if(ecStats) ecStats.innerText = `${completeCount} / ${items.length} tasks complete | ${formatMins(totalTime)} total time`;
-
-            let showCompleted = document.getElementById('toggleShowCompletedItems')?.checked;
-            ecItemsList.innerHTML = '';
-
-            items.forEach(item => {
-                if(!showCompleted && isChallengeDone(item.status)) return;
-                let refStr = item.ref || '';
-                if (item.barFrom || item.barTo) refStr += ` (Bars ${item.barFrom || '?'} - ${item.barTo || '?'})`;
-                const edgeState = item.status === 'Complete' ? ' is-complete' : (item.status === 'Closed' ? ' is-closed' : '');
-
-                ecItemsList.innerHTML += `
-                <div class="history-item draggable-item items-center pl-1 challenge-item-edge${edgeState}" draggable="true" data-id="${item.row}">
-                    <button type="button" class="drag-handle" aria-label="Reorder ${escapeHtml(item.piece)} - drag, or tap for Move up / Move down" aria-haspopup="menu" aria-expanded="false">☰</button>
-                    <div class="grow">
-                        <div class="flex-row justify-between w-full">
-                            <strong>${escapeHtml(item.piece)}</strong>
-                            <span class="text-sm text-muted">${escapeHtml(item.status)}</span>
-                        </div>
-                        <div class="text-sm text-muted mb-2">${escapeHtml(refStr)} ${item.bpm ? '| ' + escapeHtml(item.bpm) + ' bpm' : ''}</div>
-                        <div class="flex-row gap-xs w-full">
-                            <button class="btn-edit flex-1" data-act="item-detail" data-arg="${escapeHtml(item.row)}" aria-haspopup="dialog">Edit</button>
-                            <button class="btn-delete flex-1" data-act="item-delete" data-arg="${escapeHtml(item.row)}" data-arg2="${escapeHtml(item.piece)}">Delete</button>
-                        </div>
-                    </div>
-                </div>`;
-            });
-            setupDragAndDrop(ecItemsList, 'item');
-        } catch(err) { showWarningToast("Error loading challenge editor: " + err.message); }
-    }
-
-    window.openItemDetailModal = function(row = null) {
-        const modal = document.getElementById('itemDetailModal');
-        const title = document.getElementById('itemModalTitle');
-        document.getElementById('itemEditId').value = row || '';
-        if(row) {
-            title.innerText = "Edit task";
-            const item = allChallenges.find(c => c.row == row);
-            if (item) {
-                document.getElementById('iPiece').value = item.piece;
-                document.getElementById('iRef').value = item.ref || '';
-                document.getElementById('iBarFrom').value = item.barFrom || '';
-                document.getElementById('iBarTo').value = item.barTo || '';
-                document.getElementById('iBPM').value = item.bpm || '';
-            }
-        } else {
-            title.innerText = "Add new task";
-            ['iPiece','iRef','iBarFrom','iBarTo','iBPM'].forEach(id => {
-                const el = document.getElementById(id);
-                if(el) el.value = '';
-            });
-        }
-        showModal(modal);
-    }
-
-    document.getElementById('saveItemBtn')?.addEventListener('click', async () => {
-        const row = document.getElementById('itemEditId').value;
-        const piece = document.getElementById('iPiece')?.value;
-        if(!piece) return showWarningToast("Task piece name is required!");
-
-        const ref = document.getElementById('iRef')?.value;
-        const bf = document.getElementById('iBarFrom')?.value;
-        const bt = document.getElementById('iBarTo')?.value;
-        const bpm = document.getElementById('iBPM')?.value;
-        const details = { piece, ref: ref || '', barFrom: bf || '', barTo: bt || '', bpm: bpm || '' };
-
-        const btn = document.getElementById('saveItemBtn');
-        btn.innerText = "Saving...";
-        btn.disabled = true;
-
-        try {
-            if (row) {
-                await API.challenges.update(row, details);
-            } else {
-                await API.challenges.addItem(editChallengeMeta.id, details);
-            }
-            btn.innerText = "Save task";
-            btn.disabled = false;
-            hideModal('itemDetailModal');
-            await loadChallenges();
-            showSuccessToast("Task saved!");
-        } catch (error) {
-            btn.innerText = "Save task";
-            btn.disabled = false;
-            showWarningToast("Error: " + error.message);
-        }
-    });
-
-    window.deleteChallengeItem = function(row, pieceName) {
-        showConfirmModal('Delete task', `Delete "${pieceName}"?`, async () => {
-            showInfoToast("Deleting...");
-            try {
-                await API.challenges.delete(row);
-                showSuccessToast("Task deleted");
-                await loadChallenges();
-            } catch (error) {
-                showWarningToast("Error: " + error.message);
-            }
-        });
-    }
-
-    // Saves a reordered challenge/practice list - shared by drag-and-drop and the tap/keyboard
-    // alternative below, so both paths persist exactly the same way.
-    async function saveListOrder(container, type) {
-        const allIds = Array.from(container.querySelectorAll('.draggable-item')).map(el => el.getAttribute('data-id'));
-        try {
-            showInfoToast("Updating order...");
-            await Promise.all(allIds.map((id, idx) => type === 'challenge'
-                ? API.challenges.updateGroup(id, { priority: idx })
-                : API.challenges.update(id, { priority: idx })));
-            closeToast('toastInfo');
-            showSuccessToast("Order updated");
-        } catch (error) {
-            showWarningToast("Error updating order: " + error.message);
-        }
-    }
-
-    // ML-210 (WCAG 2.5.7): dragging must never be the only way to reorder. The ☰ handle is a button:
-    // tapping it offers Move up / Move down (one shared floating menu, same pattern as the account
-    // band menu), and with a keyboard the arrow keys move the item directly.
-    let reorderMenuItem = null, reorderMenuContainer = null, reorderMenuType = null;
-    function moveListItem(item, container, type, dir) {
-        const sibling = dir < 0 ? item.previousElementSibling : item.nextElementSibling;
-        if (!sibling || !sibling.classList.contains('draggable-item')) return false;
-        if (dir < 0) container.insertBefore(item, sibling); else container.insertBefore(sibling, item);
-        saveListOrder(container, type);
-        return true;
-    }
-    function openReorderMenu(handle, container, type) {
-        const menu = document.getElementById('reorderMenu');
-        if (!menu) return;
-        reorderMenuItem = handle.closest('.draggable-item');
-        reorderMenuContainer = container;
-        reorderMenuType = type;
-        const prev = reorderMenuItem.previousElementSibling, next = reorderMenuItem.nextElementSibling;
-        document.getElementById('reorderMenuUp').classList.toggle('hidden-group', !(prev && prev.classList.contains('draggable-item')));
-        document.getElementById('reorderMenuDown').classList.toggle('hidden-group', !(next && next.classList.contains('draggable-item')));
-        menu.classList.add('show');
-        const r = handle.getBoundingClientRect();
-        placeAt(menu, Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)), Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8));
-    }
-    document.addEventListener('click', () => document.getElementById('reorderMenu')?.classList.remove('show'));
-    ['reorderMenuUp', 'reorderMenuDown'].forEach((id, i) => document.getElementById(id)?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        document.getElementById('reorderMenu').classList.remove('show');
-        if (reorderMenuItem) moveListItem(reorderMenuItem, reorderMenuContainer, reorderMenuType, i === 0 ? -1 : 1);
-    }));
-
-    function setupDragAndDrop(container, type) {
-        let draggedEl = null;
-        const items = container.querySelectorAll('.draggable-item');
-
-        container.querySelectorAll('.drag-handle').forEach(handle => {
-            handle.addEventListener('click', (e) => { e.stopPropagation(); openReorderMenu(handle, container, type); });
-            handle.addEventListener('keydown', (e) => {
-                if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-                e.preventDefault();
-                if (moveListItem(handle.closest('.draggable-item'), container, type, e.key === 'ArrowUp' ? -1 : 1)) handle.focus();
-            });
-        });
-
-        items.forEach(item => {
-            item.addEventListener('dragstart', (e) => {
-                draggedEl = item;
-                e.dataTransfer.effectAllowed = 'move';
-            });
-
-            item.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                if (item !== draggedEl) {
-                    container.insertBefore(draggedEl, item);
-                }
-            });
-
-            item.addEventListener('dragend', async () => {
-                if (draggedEl) {
-                    await saveListOrder(container, type);
-                    draggedEl = null;
-                }
-            });
-        });
-    }
-
-    async function startChallenge(id) {
-        currentSessionChallengeId = id;
-        activeChallengeItems = allChallenges.filter(c => c.id == id && !isChallengeDone(c.status));
-        currentPlayIndex = 0;
-        currentSessionLog = { time: 0, items: [] };
-
-        if(activeChallengeItems.length === 0) return endChallengeSession(true);
-        switchView('challengePlayView');
-        loadNextChallengeItem();
-    }
-
-    function loadNextChallengeItem() {
-        if (currentPlayIndex >= activeChallengeItems.length) {
-            endChallengeSession(true);
-            return;
-        }
-
-        const item = activeChallengeItems[currentPlayIndex];
-        document.getElementById('playPiece').innerText = item.piece;
-        document.getElementById('playRef').innerText = item.ref || 'No reference';
-        document.getElementById('playBpm').innerText = item.bpm || 'No BPM';
-        document.getElementById('playStatus').innerText = `Task ${currentPlayIndex + 1} of ${activeChallengeItems.length}`;
-        document.querySelector('input[name="playStatus"][value="Attempted"]').checked = true;
-        document.querySelector('input[name="playTime"][value="30"]').checked = true;
-        document.getElementById('playCustomTime').value = '';
-        document.getElementById('customTimeGroup')?.classList.add('hidden-group');
-    }
-
-    // Lets the player browse back and forth through the challenge's task
-    // order (set when the challenge was created) without having to save
-    // progress just to look at a neighbouring task.
-    window.goToChallengeItem = function(delta) {
-        const newIndex = currentPlayIndex + delta;
-        if (!Number.isInteger(newIndex) || newIndex < 0 || newIndex >= activeChallengeItems.length) return;
-        currentPlayIndex = newIndex;
-        animateChallengeCardTransition(delta, loadNextChallengeItem);
-    };
-
-    // Slides the task card out in the direction of the swipe, swaps its
-    // content once off-screen, then slides the new task in from the
-    // opposite side - without this a swipe just changed text in place with
-    // no visual sign anything had happened.
-    let challengeCardAnimating = false;
-    function animateChallengeCardTransition(direction, renderFn) {
-        const card = document.querySelector('#challengePlayView .play-card');
-        if (!card || challengeCardAnimating) { renderFn(); return; }
-
-        challengeCardAnimating = true;
-        const outClass = direction > 0 ? 'slide-out-left' : 'slide-out-right';
-        const inClass = direction > 0 ? 'slide-in-right' : 'slide-in-left';
-
-        card.classList.add(outClass);
-        card.addEventListener('transitionend', function onOut() {
-            card.classList.remove(outClass);
-            renderFn();
-            card.classList.add(inClass);
-            void card.offsetWidth; // force reflow so the "entry" position registers before animating away from it
-            requestAnimationFrame(() => {
-                card.classList.remove(inClass);
-                card.addEventListener('transitionend', () => { challengeCardAnimating = false; }, { once: true });
-            });
-        }, { once: true });
-    }
-
-    (function setupChallengePlaySwipe() {
-        const el = document.getElementById('challengePlayView');
-        if (!el) return;
-        let startX = 0, startY = 0;
-        // a11y: only records where a swipe/drag gesture starts - nothing activates on press (WCAG 2.5.2)
-        el.addEventListener('touchstart', (e) => {
-            startX = e.touches[0].clientX;
-            startY = e.touches[0].clientY;
-        }, { passive: true });
-        el.addEventListener('touchend', (e) => {
-            const dx = e.changedTouches[0].clientX - startX;
-            const dy = e.changedTouches[0].clientY - startY;
-            if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-                goToChallengeItem(dx < 0 ? 1 : -1);
-            }
-        }, { passive: true });
-    })();
-
-    async function processChallengeSave(proceedNext) {
-        const item = activeChallengeItems[currentPlayIndex];
-        const timeRadio = document.querySelector('input[name="playTime"]:checked')?.value;
-        const addTime = timeRadio === 'custom' ? document.getElementById('playCustomTime')?.value : timeRadio;
-        const newStatus = document.querySelector('input[name="playStatus"]:checked')?.value;
-
-        if(!addTime || isNaN(addTime)) return showWarningToast("Please provide a valid time!");
-
-        const btnNext = document.getElementById('saveNextBtn');
-        const btnEnd = document.getElementById('saveEndBtn');
-        btnNext.disabled = true;
-        btnEnd.disabled = true;
-        showInfoToast("Saving...");
-
-        try {
-            await API.challenges.update(item.row, {
-                status: newStatus,
-                timeSpent: (item.timeSpent || 0) + Number(addTime)
-            });
-
-            showSuccessToast(`Saved ${addTime} mins`);
-            currentSessionLog.time += Number(addTime);
-            currentSessionLog.items.push({ piece: item.piece, ref: item.ref, status: newStatus, time: addTime });
-
-            item.timeSpent = (item.timeSpent || 0) + Number(addTime);
-            item.status = newStatus;
-            btnNext.disabled = false;
-            btnEnd.disabled = false;
-
-            if(proceedNext) {
-                currentPlayIndex++;
-                loadNextChallengeItem();
-            } else {
-                endChallengeSession(false);
-            }
-        } catch (error) {
-            showWarningToast("Error saving: " + error.message);
-            btnNext.disabled = false;
-            btnEnd.disabled = false;
-        }
-    }
-
-    document.getElementById('saveNextBtn')?.addEventListener('click', () => processChallengeSave(true));
-    document.getElementById('saveEndBtn')?.addEventListener('click', () => processChallengeSave(false));
-
-    document.getElementById('playTimeRadios')?.addEventListener('change', (e) => {
-        if (e.target.name !== 'playTime') return;
-        const customGroup = document.getElementById('customTimeGroup');
-        if (e.target.value === 'custom') {
-            customGroup.classList.remove('hidden-group');
-            document.getElementById('playCustomTime')?.focus();
-        } else {
-            customGroup.classList.add('hidden-group');
-        }
-    });
-
-    window.endChallengeSession = function(allCompleted = false) {
-        switchView('challengeSummaryView');
-        const title = document.getElementById('summaryTitle');
-        if (allCompleted) {
-            title.innerText = "All challenges complete! 🎉";
-            title.classList.add('is-complete');
-        } else {
-            title.innerText = "Session complete!";
-            title.classList.remove('is-complete');
-        }
-
-        document.getElementById('sumTime').innerText = formatMins(currentSessionLog.time);
-        document.getElementById('sumItems').innerText = currentSessionLog.items.length;
-
-        let ul = document.getElementById('sumCompletedItems');
-        if(ul) {
-            ul.innerHTML = '';
-            currentSessionLog.items.forEach(i => {
-                const statusClass = i.status === 'Complete' ? 'text-success' : 'text-selection';
-                ul.innerHTML += `<div class="summary-item-row"><span><strong>${i.piece}</strong> ${i.ref}</span><span class="fw-bold ${statusClass}">${i.status} (${i.time}m)</span></div>`;
-            });
-        }
-        fetchDataAndRender();
-    }
 
     // ========================================
     // GENERAL DASHBOARD/STATS LOGIC
@@ -7208,7 +6522,7 @@
     const addPieceListSub = (l) => `${l.bandName ? `${l.bandName} · ` : ''}${plDateText(l.eventDate)} · ${l.pieceCount} piece${l.pieceCount === 1 ? '' : 's'}`;
     function addPieceOwnerChoices() {
         return [{ value: null, title: 'Just me', sub: 'Only you see it' },
-            ...addPiece.bands.map(b => ({ value: Number(b.id), title: b.displayName || b.name, sub: 'Everyone in the band will see and play it' }))];
+            ...addPiece.bands.map(b => ({ value: Number(b.id), title: b.displayName || b.name, sub: 'Anyone who has joined the band on this app can see and play it' }))];
     }
     function addPieceListChoices() {
         return [{ value: null, title: 'On its own', sub: 'A single piece, not part of a list' },
@@ -8368,7 +7682,7 @@
             if (src.type === 'list' && src.listId) {
                 const l = await API.practiceLists.get(src.listId);
                 src.listName = l.name;
-                ids = l.pieces.map(p => p.scoreId);
+                ids = l.pieces.filter(p => !p.archived).map(p => p.scoreId);
             } else if (src.type === 'pieces') ids = src.scoreIds || [];
             sessPlan.pieces = ids && !ids.length ? [] : (await API.practice.pieces(ids)).pieces || [];
         } catch (e) {
@@ -9185,22 +8499,29 @@
     }));
     document.querySelectorAll('[data-new-list]').forEach(b => b.addEventListener('click', () => newPracticeList()));
     // The practice lists, drawn into both screens' Practice lists tab
+    let plShowArchived = false;
     async function renderPracticeListRows() {
         if (!isFeatureEnabled('practice_levels')) return;
         const boxes = document.querySelectorAll('[data-practice-lists]');
         try {
-            const { lists } = await API.practiceLists.list();
-            const html = lists.length ? lists.map(l => `
+            const { lists: current } = await API.practiceLists.list();
+            // Archived lists are out of the way until asked for: two pills, there only once a list is archived
+            if (!plArchivedLists.length) plShowArchived = false;
+            const lists = plShowArchived ? plArchivedLists : current;
+            const pill = (on, label, n) => `<button type="button" class="filter-pill${on ? ' active' : ''}" data-list-archived="${label === 'Archived'}" aria-pressed="${on}">${label} <span class="filter-pill-count">${n}</span></button>`;
+            const pills = plArchivedLists.length ? `<div class="filter-strip-pills mb-2" role="group" aria-label="Show practice lists">${pill(!plShowArchived, 'Current', current.length)}${pill(plShowArchived, 'Archived', plArchivedLists.length)}</div>` : '';
+            const html = pills + (lists.length ? lists.map(l => `
                 <div class="history-item">
                     <button type="button" class="level-row-body grow text-left" data-list="${l.id}">
                         <span><strong>${escapeHtml(l.name)}</strong><br><span class="text-sm text-muted">${l.bandName ? `${escapeHtml(l.bandName)} · ` : ''}${plDateText(l.eventDate)} · ${l.pieceCount} piece${l.pieceCount === 1 ? '' : 's'}</span></span>
                     </button>
-                </div>`).join('') : '<p class="text-sm text-muted">A list is the pieces you\'re working towards - give it a target date and it shows the pace you need.</p>';
+                </div>`).join('') : '<p class="text-sm text-muted">A list is the pieces you\'re working towards - give it a target date and it shows the pace you need.</p>');
             boxes.forEach(box => {
                 box.innerHTML = html;
+                box.querySelectorAll('[data-list-archived]').forEach(b => b.addEventListener('click', () => { plShowArchived = b.dataset.listArchived === 'true'; renderPracticeListRows(); }));
                 box.querySelectorAll('[data-list]').forEach(b => b.addEventListener('click', () => openPracticeList(Number(b.dataset.list))));
             });
-            document.querySelectorAll('[data-list-count]').forEach(el => { el.textContent = lists.length ? String(lists.length) : ''; });
+            document.querySelectorAll('[data-list-count]').forEach(el => { el.textContent = current.length ? String(current.length) : ''; });
         } catch (e) {
             boxes.forEach(box => { box.innerHTML = ''; });
         }
@@ -9214,8 +8535,12 @@
             showWarningToast('List not loaded: ' + e.message);
         }
     }
+    // An archived piece stays on its lists but isn't counted: the forecast is worked out without it, and its
+    // place in the answer (pieces[i] lines up with list.pieces[i]) says so.
     function plForecast(list) {
-        return PracticePlan.forecast({ pieces: list.pieces, eventDate: list.eventDate, today: todayIso() });
+        const f = PracticePlan.forecast({ pieces: list.pieces.filter(p => !p.archived), eventDate: list.eventDate, today: todayIso() });
+        let k = 0;
+        return { ...f, pieces: list.pieces.map(p => (p.archived ? { title: p.title, archived: true, prep: false, blocks: 0 } : f.pieces[k++])) };
     }
     // ML-332: the target date button and its pop-up - no target date, or pick one. ML-348: dd mmm yy,
     // so the longest date still fits the button's fixed quarter width.
@@ -9277,6 +8602,9 @@
         document.getElementById('plName').disabled = !canEdit;
         document.getElementById('plDateBtn').disabled = !canEdit;
         ['plAddPiecesBtn', 'plDeleteBtn', 'plPieceMenuDelete'].forEach(id => setShown(id, canEdit));
+        // Archive / Restore: anyone, for themselves; a list archived for the whole band comes back only for someone who can change it
+        setShown('plArchiveBtn', !l.archived || !l.archivedForAll || canEdit);
+        document.getElementById('plArchiveBtn').textContent = l.archived ? 'Restore this list' : 'Archive this list';
         setShown('plReportBtn', !!l.bandId); // ML-510: a band's list; always there, whatever the account type
         setShown('plClearRecordingsBtn', isFeatureEnabled('rehearsal_recordings') && l.pieces.length > 0); // ML-489: your own uploads, so not tied to canEdit
         document.getElementById('plDateBtnText').textContent = plDateLabel(l.eventDate);
@@ -9303,11 +8631,11 @@
             const pb = f.pieces[i];
             // ML-334: a piece not set up yet is fine on a list - its first block is preparation for
             // practice (giving it Levels), which you can do now.
-            const note = pb.prep ? 'Not prepared yet - a Prepare block first' : pb.blocks === 0 ? 'Ready' : `${pb.blocks} block${pb.blocks === 1 ? '' : 's'} to be ready`;
+            const note = pb.archived ? 'Archived - not counted' : pb.prep ? 'Not prepared yet - a Prepare block first' : pb.blocks === 0 ? 'Ready' : `${pb.blocks} block${pb.blocks === 1 ? '' : 's'} to be ready`;
             return `<div class="history-item">
                 <button type="button" class="level-row-body grow text-left" data-piece="${p.scoreId}" aria-label="${escapeHtml(p.title)} - ${note}. ${pb.prep ? 'Prepare it now' : 'Open its path'}">
                     <span class="grow"><strong>${escapeHtml(p.title)}</strong><br><span class="text-sm text-muted">${note}</span>
-                    ${pb.prep ? '<span class="text-sm fw-bold">Prepare it now &rsaquo;</span>' : levelBarHtml(map, { label: false, cls: 'mt-1' })}</span>
+                    ${pb.archived ? '' : pb.prep ? '<span class="text-sm fw-bold">Prepare it now &rsaquo;</span>' : levelBarHtml(map, { label: false, cls: 'mt-1' })}</span>
                 </button>
                 <button type="button" class="list-item-menu-btn" data-piece-menu="${p.scoreId}" aria-label="Options for ${escapeHtml(p.title)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined" aria-hidden="true">more_vert</span></button>
             </div>`;
@@ -9318,7 +8646,7 @@
             e.stopPropagation();
             openPlPieceMenu(b, Number(b.dataset.pieceMenu));
         }));
-        document.getElementById('plPlanBtn').disabled = !l.pieces.length;
+        document.getElementById('plPlanBtn').disabled = !l.pieces.some(p => !p.archived);
     }
     // ML-349: a piece row's ⋮ menu - Prepare levels / Edit levels, then Delete (asks first, then Undo).
     let plPieceMenuTargetId = null;
@@ -9415,6 +8743,27 @@
         // ML-333/342: a session for a list is the Concert plan (Warm-up, then Pieces) on its pieces (ML-390: the steps).
         const l = plState.list;
         openSessionSetup({ source: { type: 'list', listId: l.id, listName: l.name }, template: 'concert' });
+    });
+    // Archive a list that is done with (or bring it back): it leaves the Practice lists tab, the session
+    // builder and the home screen's next-concert line until Archived is chosen. Its pieces are not touched.
+    async function plSetArchived(l, archived, forAll) {
+        try {
+            plState.list = await API.practiceLists.setArchived(l.id, archived, forAll);
+            renderPracticeList();
+            renderPracticeListRows();
+            showSuccessToast(!archived ? 'Back in your practice lists' : forAll ? `Archived for everyone in ${l.bandName || 'the band'}` : 'Archived - choose Archived on the Practice lists tab to see it again');
+        } catch (e) { showWarningToast((archived ? 'Not archived: ' : 'Not brought back: ') + e.message); }
+    }
+    document.getElementById('plArchiveBtn')?.addEventListener('click', () => {
+        const l = plState.list;
+        if (!l) return;
+        if (l.archived) return plSetArchived(l, false, l.archivedForAll && l.canEdit !== false);
+        if (!(l.bandId && l.canEdit !== false)) return plSetArchived(l, true, false);
+        const band = l.bandName || 'the band';
+        openFlowChoiceModal('Archive it for who?', [
+            { forAll: false, html: addPieceRow('Just me', `It stays in ${band}'s lists for everyone else`) },
+            { forAll: true, html: addPieceRow(`Everyone in ${band}`, 'Nobody in the band sees it until it is brought back') }
+        ], (c) => plSetArchived(l, true, c.forAll));
     });
     document.getElementById('plDeleteBtn')?.addEventListener('click', () => {
         const l = plState.list;
@@ -9922,7 +9271,10 @@
         // ML-489: only the pieces with a recording or video - there once any piece has one
         counts.recorded = flowsListCache.filter(f => f.recordingCount > 0).length;
         if (!counts.recorded && flowLibraryFilter === 'recorded') flowLibraryFilter = 'all';
-        pills.innerHTML = [['all', 'All'], ['mine', 'Mine'], ...bandKeys, ['public', 'Public'], ...(counts.recorded ? [['recorded', 'With a recording']] : [])].map(([key, label]) =>
+        // Archived: last, and only there once something is archived - the one way to see those pieces again
+        counts.archived = flowsArchivedCache.length;
+        if (!counts.archived && flowLibraryFilter === 'archived') flowLibraryFilter = 'all';
+        pills.innerHTML = [['all', 'All'], ['mine', 'Mine'], ...bandKeys, ['public', 'Public'], ...(counts.recorded ? [['recorded', 'With a recording']] : []), ...(counts.archived ? [['archived', 'Archived']] : [])].map(([key, label]) =>
             `<button type="button" class="filter-pill${flowLibraryFilter === key ? ' active' : ''}" data-flow-library-filter="${escapeHtml(key)}" aria-pressed="${flowLibraryFilter === key}">${escapeHtml(label)} <span class="filter-pill-count">${counts[key] || 0}</span></button>`).join('');
         pills.querySelectorAll('[data-flow-library-filter]').forEach(b => b.addEventListener('click', () => {
             flowLibraryFilter = b.dataset.flowLibraryFilter;
@@ -9934,8 +9286,9 @@
         renderFlowsList();
     });
     function flowLibraryVisible() {
-        return flowsListCache.filter(f => {
-            if (flowLibraryFilter === 'recorded' ? !(f.recordingCount > 0) : (flowLibraryFilter !== 'all' && flowLibraryFilterKey(f) !== flowLibraryFilter)) return false;
+        return (flowLibraryFilter === 'archived' ? flowsArchivedCache : flowsListCache).filter(f => {
+            if (flowLibraryFilter === 'archived') { /* every archived piece, whoever's it is */ }
+            else if (flowLibraryFilter === 'recorded' ? !(f.recordingCount > 0) : (flowLibraryFilter !== 'all' && flowLibraryFilterKey(f) !== flowLibraryFilter)) return false;
             if (!flowLibraryQuery) return true;
             return (f.title || '').toLowerCase().includes(flowLibraryQuery) || (f.composer || '').toLowerCase().includes(flowLibraryQuery);
         // By name, A to Z (owner, 4 Oct 2026) - not the order they were added; capitals don't matter and "Piece 2" comes before "Piece 10"
@@ -9947,14 +9300,14 @@
         if (!ui) return;
         renderFlowLibraryFilter();
         setShown('flowBulkDeleteBtn', flowsListCache.some(flowCanDelete));
-        if (!flowsListCache.length) { ui.innerHTML = '<p>No pieces yet - tap "Add a piece" to make one.</p>'; return; }
+        if (!flowsListCache.length && !flowsArchivedCache.length) { ui.innerHTML = '<p>No pieces yet - tap "Add a piece" to make one.</p>'; return; }
         const visible = flowLibraryVisible();
         if (!visible.length) { ui.innerHTML = '<p class="text-muted">No pieces match.</p>'; return; }
         ui.innerHTML = visible.map(f => `
             <div class="history-item clickable" data-flow-library-id="${f.id}">
                 <div role="button" tabindex="0" class="grow" data-act="flow-open" data-arg="${f.id}">
                     <strong>${escapeHtml(f.title)}</strong>
-                    <div class="text-sm text-muted">${f.composer ? escapeHtml(f.composer) + ' &bull; ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}${recordingCountText(f)}</div>
+                    <div class="text-sm text-muted">${f.composer ? escapeHtml(f.composer) + ' &bull; ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${flowOwnershipLabel(f)}${recordingCountText(f)}${flowArchivedText(f)}</div>
                 </div>
                 ${flowLibraryMenuItemsFor(f).length ? `<button type="button" class="list-item-menu-btn" data-flow-library-menu-btn aria-label="Options for ${escapeHtml(f.title)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>` : ''}
             </div>
@@ -9974,14 +9327,25 @@
     // (flowCanDelete, ML-411 - the server decides: canDelete); a public piece can be copied into your own library to change
     // it (ML-310); ML-204's Export covers band flows too, but never public library flows (the server
     // refuses those anyway - exportFlowForUser).
+    // An archived piece: Play, Restore (not when it was archived for the whole band and you can't change the
+    // band's music), Delete and Report - the rest come back with it.
+    const flowById = (id) => flowsListCache.find(f => f.id === id) || flowsArchivedCache.find(f => f.id === id);
+    const flowArchivedText = (f) => (!f.archived ? '' : ` &bull; Archived${f.archivedForAll && f.ownerBandId ? ' for the band' : ''}`);
     function flowLibraryMenuItemsFor(flow) {
         const ownership = flowOwnershipLabel(flow);
         const items = flow.totalBars > 0 ? ['Play'] : []; // ML-329
+        if (flow.archived) {
+            if (!flow.archivedForAll || flow.canEdit) items.push('Restore');
+            if (flowCanDelete(flow)) items.push('Delete');
+            if (ownership === 'Public' || ownership === 'Band') items.push('Report');
+            return items;
+        }
         if (flow.canEdit) items.push('Edit');
         if (ownership === 'Personal') items.push('Duplicate');
         if (flowCanDelete(flow)) items.push('Delete');
         if (ownership === 'Public' || ownership === 'Band') items.push('Copy'); // a band piece too (ML-441): your own copy to adjust
         if (ownership !== 'Public' && isFeatureEnabled('flow_export_musicxml')) items.push('Export');
+        items.push('Archive');
         if (ownership === 'Public' || ownership === 'Band') items.push('Report'); // ML-507: anything other people can see
         return items;
     }
@@ -10039,9 +9403,9 @@
         flowLibraryMenuTargetId = id;
         const menu = document.getElementById('flowLibraryItemMenu');
         if (!menu) return;
-        const flow = flowsListCache.find(f => f.id === id);
+        const flow = flowById(id);
         const items = flow ? flowLibraryMenuItemsFor(flow) : [];
-        ['Play', 'Edit', 'Duplicate', 'Copy', 'Delete', 'Export', 'Report'].forEach(item => {
+        ['Play', 'Edit', 'Duplicate', 'Copy', 'Delete', 'Export', 'Archive', 'Restore', 'Report'].forEach(item => {
             document.getElementById('flowLibraryItemMenu' + item)?.classList.toggle('hidden-group', !items.includes(item));
         });
         menu.classList.add('show');
@@ -10168,7 +9532,7 @@
         e.stopPropagation();
         const id = flowLibraryMenuTargetId;
         closeFlowLibraryItemMenu();
-        const flow = flowsListCache.find(f => f.id === id);
+        const flow = flowById(id);
         if (flow) openReport('piece', id, flow.title);
     });
     // the play screen: report what you are looking at or hearing without going back to the list
@@ -10203,11 +9567,41 @@
             btn.disabled = false;
         }
     });
+    // Archive: the piece leaves every list until Archived is chosen in My music; nothing is deleted. Your own
+    // piece, or a public one, is archived for you. A band's piece is archived for you too - unless you may
+    // change the band's music, when you are asked: just me, or everyone in the band.
+    async function flowSetArchived(flow, archived, forAll) {
+        try {
+            await API.flows.setArchived(flow.id, archived, forAll);
+            await loadFlowsList();
+            showSuccessToast(!archived ? 'Back in My music' : forAll ? `Archived for everyone in ${flowBandName(flow)}` : 'Archived - choose Archived in My music to see it again');
+        } catch (error) {
+            showWarningToast((archived ? 'Not archived: ' : 'Not brought back: ') + error.message);
+        }
+    }
+    document.getElementById('flowLibraryItemMenuArchive')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const flow = flowById(flowLibraryMenuTargetId);
+        closeFlowLibraryItemMenu();
+        if (!flow) return;
+        if (!(flow.ownerBandId && flow.canEdit && !flow.isPublic)) return flowSetArchived(flow, true, false);
+        const band = flowBandName(flow);
+        openFlowChoiceModal('Archive it for who?', [
+            { forAll: false, html: addPieceRow('Just me', `It stays in ${band}'s music for everyone else`) },
+            { forAll: true, html: addPieceRow(`Everyone in ${band}`, 'Nobody in the band sees it until it is brought back') }
+        ], (c) => flowSetArchived(flow, true, c.forAll));
+    });
+    document.getElementById('flowLibraryItemMenuRestore')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const flow = flowById(flowLibraryMenuTargetId);
+        closeFlowLibraryItemMenu();
+        if (flow) flowSetArchived(flow, false, flow.archivedForAll && flow.canEdit);
+    });
     document.getElementById('flowLibraryItemMenuDelete')?.addEventListener('click', (e) => {
         e.stopPropagation();
         const id = flowLibraryMenuTargetId;
         closeFlowLibraryItemMenu();
-        const flow = flowsListCache.find(f => f.id === id);
+        const flow = flowById(id);
         // ML-411: a band piece goes for the whole band, so the question says so
         const message = flow && flow.ownerBandId
             ? `Delete "${flow.title}" from ${flowBandName(flow)}? Everyone in the band loses it: it comes off their practice lists and their Levels for it go too. This can't be undone.`
@@ -10255,7 +9649,7 @@
     window.openFlow = function(id) {
         currentFlowId = id;
         flowEditMode = 'edit';
-        const listEntry = flowsListCache.find(f => f.id === id);
+        const listEntry = flowById(id);
         if (listEntry && listEntry.blockCount > 0) {
             goToFlowPlayView(id);
         } else if (listEntry && !listEntry.canEdit) {
@@ -10836,7 +10230,7 @@
     const flowAudienceIs = (f) => (f.isPublic ? 'public' : f.ownerBandId ? `band:${f.ownerBandId}` : 'me');
     function flowAudienceChoices() {
         return [{ key: 'me', to: 'me', title: 'Just me', sub: 'Only you see it' },
-            ...flowAudienceBands.map(b => ({ key: `band:${Number(b.id)}`, to: 'band', bandId: Number(b.id), title: b.displayName || b.name, sub: 'Everyone in the band will see and play it' })),
+            ...flowAudienceBands.map(b => ({ key: `band:${Number(b.id)}`, to: 'band', bandId: Number(b.id), title: b.displayName || b.name, sub: 'Anyone who has joined the band on this app can see and play it' })),
             ...(currentAccountIsSuperAdmin ? [{ key: 'public', to: 'public', title: 'Everyone', sub: 'Public - everyone can play it and copy it' }] : [])];
     }
     function renderFlowVisibility() {
@@ -11950,7 +11344,7 @@
         // reordering is scoped strictly to the grab handle, deleting to a horizontal swipe that only
         // intercepts the gesture once it's confirmed horizontal, and neither touches the page's own
         // vertical scroll otherwise (see .flow-block-box's touch-action:pan-y in style.css). Replaces
-        // the old whole-card HTML5 draggable="true", whose touch-action:none on the entire card blocked
+        // the old whole-card HTML5 draggable attribute, whose touch-action:none on the entire card blocked
         // native scroll from ever starting on a bar card at all.
         container.querySelectorAll('.flow-block-box').forEach((boxEl) => {
             const blockId = flowBlockIdFromDataset(boxEl.dataset.blockId);
@@ -14546,7 +13940,18 @@
     }
 
     const FLOW_ORDINALS = ['1st', '2nd', '3rd'];
-    // "Intro · A · 3 of 8 bars · 2nd time · 3/4 · 96 bpm · 𝄐" - HTML (the fermata suffix is a glyph).
+    // The piece's own number (1-based) of a block's first bar - what its tile shows when it has no mark.
+    function flowBlockStartBar(blockId) {
+        let startBar = 1;
+        for (const s of currentFlowBlocks) {
+            if (s.id === blockId) return startBar;
+            startBar += s.barCount || 0;
+        }
+        return null;
+    }
+    // "Intro · Bar 11 · [A] · 2nd time · 3/4 · 96 bpm · 𝄐" - HTML (the mark is boxed as on its tile; the
+    // fermata suffix is a glyph). The bar is the piece's own bar number, then which block it is in: its
+    // rehearsal mark, or "bars 33 to 40" when it has none (the owner, 12 Oct 2026).
     function flowNowPlayingLabel() {
         const pos = flowScreenPosition();
         if (!pos) return '';
@@ -14568,8 +13973,11 @@
         const parts = [];
         if (flowLoopPlan) parts.push(`Repeat ${p.loopPass}`);
         if (p.kind === 'intro') parts.push('Intro');
-        if (block.rehearsalMark) parts.push(escapeHtml(block.rehearsalMark));
-        parts.push(`${pos.bar + 1} of ${block.barCount} bar${block.barCount === 1 ? '' : 's'}`);
+        const startBar = flowBlockStartBar(p.blockId);
+        if (startBar === null) parts.push(`${pos.bar + 1} of ${block.barCount} bar${block.barCount === 1 ? '' : 's'}`);
+        else parts.push(`Bar ${startBar + pos.bar}`);
+        if (block.rehearsalMark) parts.push(`<span class="flow-bar-detail-mark">${escapeHtml(block.rehearsalMark)}</span>`);
+        else if (startBar !== null && block.barCount > 1) parts.push(`bars ${startBar} to ${startBar + block.barCount - 1}`);
         if (p.kind === 'main' && flowRepeatedBlockIds.has(p.blockId)) parts.push(`${FLOW_ORDINALS[p.pass - 1] || `${p.pass}th`} time`);
         parts.push(block.timeSignatureLabel || `${block.numerator}/${block.denominator}`, `${bpm} bpm`);
         return parts.join(' · ') + metroBlkFermataLabelSuffix(block);
@@ -14704,10 +14112,7 @@
             return `
                 <div class="flow-media-slide" data-slide-key="${flowMediaSlideKey(slide)}">
                     <div class="metroBlk-row">
-                        <div class="flow-media-slide-header">
-                            <span class="flow-media-icon type-youtube"><span class="material-symbols-outlined icon-md">smart_display</span></span>
-                            <div><strong>${escapeHtml(r.title)}</strong><span>YouTube video</span></div>
-                        </div>
+                        <!-- No icon, title or "YouTube video" line above it (the owner, 12 Oct 2026): the video shows its own title, and the room is for the bars -->
                         <div class="flow-media-player-video"><iframe id="flowYtFrame-${r.id}" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}?enablejsapi=1&amp;origin=${origin}${youTubeClipQuery(recordingClip(r), "&amp;")}" title="${escapeHtml(r.title)}" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
                         ${recScoreControlsHtml(slide)}
                     </div>
@@ -15467,9 +14872,22 @@
         if (recScoreOn() && recActiveSlide() && recTileBlockId !== null) return recTileBlockId;
         return flowPlayQueue[flowPlayIndex] ? flowPlayQueue[flowPlayIndex].blockId : null;
     }
-    // The tile that is playing is kept in view (the owner, 8 Oct 2026): when the lit tile changes while
-    // something is playing, it is scrolled to if it is off the screen. Only then - never while stopped, so
-    // looking around the piece isn't undone - and only as far as needed.
+    // The tile that is playing is kept at the top (the owner, 12 Oct 2026): where you are and the controls
+    // stay pinned under the top bar (.play-side, style.css) and, when the lit tile changes while something
+    // is playing, the tiles scroll so its row is the first one under them. Never while stopped, so looking
+    // around the piece isn't undone. --play-pin-h is how much of the screen the top bar and the pinned part
+    // cover above the tiles (the top bar alone when the pinned part sits beside them, or isn't pinned) - a run-time value the tiles'
+    // scroll-margin reads.
+    function flowSetPinHeight() {
+        const view = document.getElementById('flowPlayView');
+        const side = document.getElementById('flowPlaySide');
+        const tiles = document.getElementById('flowPlayTiles');
+        if (!view || !side || !tiles) return;
+        const sideBox = side.getBoundingClientRect();
+        const above = getComputedStyle(side).position === 'sticky' && tiles.getBoundingClientRect().left < sideBox.right;
+        const header = document.querySelector('.top-bar-sticky-group');
+        view.style.setProperty('--play-pin-h', `${(header ? header.offsetHeight : 0) + (above ? Math.round(sideBox.height) : 0)}px`);
+    }
     let flowLastLitTileId = null;
     function flowKeepLitTileInView() {
         const id = flowActiveTileBlockId();
@@ -15480,7 +14898,9 @@
         if (!playing && rec) { try { playing = rec.playing(); } catch (error) { playing = false; } }
         if (!playing) return;
         const el = document.querySelector('#flowPlayTiles .metroBlk-tile-active, #flowPlayTiles [aria-current="true"]');
-        if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+        if (!el) return;
+        flowSetPinHeight();
+        el.scrollIntoView({ block: 'start', inline: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
     }
     function renderFlowPlaybackTiles() {
         renderFlowPlaybackTileList();
@@ -15617,6 +15037,7 @@
         stopAllFlowMediaExcept('metronome');
         flowPlayer.play();
         updateFlowPlayIcon();
+        flowLastLitTileId = null; // pressing Play brings the bar that plays to the top, wherever you had scrolled to
         renderFlowPlaybackRow();
     }
     function pauseFlow() {

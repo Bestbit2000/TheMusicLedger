@@ -31,9 +31,9 @@ Don't lay a screen out one-off. Decide which kind it is:
 
 | Kind | Examples | On a wide screen |
 |---|---|---|
-| Home | Home | Wide card (`--page-max-wide`). `.home-main` (greeting, numbers, Start a practice session) beside `.home-tools` (favourite tools). |
-| List, then one thing | My music, Rehearse, Settings, My account, About | [Two panes](../components/two-pane.md): the list stays on the left, what you tap opens on the right (`--page-max-panes`). |
-| Playing | Play a piece | Wide card. `.play-side` (the mini tuner, where you are, the controls) beside `.play-main` (the piece). |
+| Home | Home | Wide card that fills the room beside the menu (`--page-max-wide`). `.home-main` (greeting, numbers, Start a practice session) beside `.home-tools` (favourite tools). |
+| List, then one thing | My music, Rehearse, Settings, My account, About | [Two panes](../components/two-pane.md): the list stays on the left, what you tap opens on the right; the card fills the room beside the menu (`--page-max-panes`). |
+| Playing | Play a piece | Wide card. `.play-side` (the mini tuner, where you are, the controls) beside `.play-main` (the piece). `.play-side` stays pinned under the top bar at every width while the piece scrolls. |
 | Steps and forms | Session set-up, Quick entry, Add a piece, My details, the tools | Narrow card (`--page-max-narrow`), centred. A wide form is harder to use, not easier. |
 | Reading | Release history, results, the policies | Narrow card. Long lines are harder to read, more so with the dyslexia-friendly settings. |
 
@@ -64,9 +64,9 @@ A grid of tiles fits as many as it can the same way: `repeat(auto-fill, minmax(v
 | `--rail-width-folded` | 64px | the menu rail, folded to icons |
 | `--rail-head-height` | 58px | the rail's head and the top bar line up |
 | `--page-max-narrow` | 640px | a narrow page |
-| `--page-max-wide` | 1080px | Home, playing |
-| `--page-max-panes` | 1320px | a two-pane page |
-| `--pane-list-width` | 320px | the list side of two panes |
+| `--page-max-wide` | none | Home, playing - they fill the room beside the menu (the owner, 12 Oct 2026) |
+| `--page-max-panes` | none | a two-pane page - it fills the room beside the menu (the owner, 12 Oct 2026) |
+| `--pane-list-width` | 320px to 420px (24% of the screen) | the list side of two panes - a little wider on a wider screen |
 | `--pane-col-min` | 320px | narrowest a side-by-side group gets before the two stack |
 | `--play-col-min` | 380px | the same, for the play screen's two groups |
 | `--tile-col-min` | 96px | narrowest a tool tile gets |

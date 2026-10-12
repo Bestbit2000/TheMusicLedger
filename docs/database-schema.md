@@ -378,6 +378,7 @@ See [practice-sessions.md](practice-sessions.md) for how they fit together.
 |---|---|---|
 | `practice_lists` | Owned by an account or a band; can target an upcoming event (e.g. a concert rehearsal list). **Wired up (ML-319) for personal lists:** a concert's pieces, its date and how you plan to practise for it - the readiness forecast (`PracticePlan.forecast`, public/practicePlan.js) is worked out in the browser from the pieces' `piece_chunks` | id, owner_account_id, owner_band_id, target_session_id, name, event_date, sessions_per_week (default 3), session_minutes (default 45) (063) |
 | `practice_list_scores` | Scores in the list, ordered | practice_list_id, score_id, order_index |
+| `archived_scores`, `archived_practice_lists` | A piece or practice list this member has archived for themselves - hidden from their lists until they ask for what is archived (migration 126). Archived for everyone is `archived_at` on `scores` / `practice_lists`. See docs/practice-sessions.md, "Archiving pieces and practice lists" | account_id, score_id / practice_list_id, archived_at |
 | `practice_list_segment_overrides` | Whole-segment include/exclude for this list | practice_list_id, metronome_segment_id, included |
 
 ### Sessions
@@ -419,9 +420,7 @@ See `docs/theory-practice.md`.
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `challenges` | A group of tasks (matches the current sheet's grouped-by-id rows) | id, account_id, name, type, challenge_priority |
-| `challenge_items` | One task, pointing at a real score/segment instead of free-text | id, challenge_id, score_id, metronome_segment_id, bar_from, bar_to, target_bpm, status, item_priority |
-| `challenge_logs` | Each practice instance logged against an item, replacing the sheet's aggregate counters | id, challenge_item_id, session_id, logged_at, duration_minutes, bpm_achieved |
+| `challenges`, `challenge_items`, `challenge_logs` | **Removed (ML-324, migration 127, 12 Oct 2026).** Practice sessions replaced Challenges completely and the owner wanted none of their history kept. Nothing else pointed at these tables; practice time is in `sessions` and was not touched. | - |
 
 ### Tool-level settings
 

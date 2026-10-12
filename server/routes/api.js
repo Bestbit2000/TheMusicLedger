@@ -11,7 +11,7 @@ import { nextRestMessage } from '../services/restMessages.js';
 import { assertScaleLevelsEnabled, getScaleLevels, answerScale, setScaleLevel } from '../services/scaleLevels.js';
 import { listPracticeChunks, savePracticeSession, listTemplates, saveTemplate, deleteTemplate, getActivePractice, putActivePractice, clearActivePractice } from '../services/practiceSessions.js';
 import { recordSkillResult, getSkillsAndLists, createSkillList, updateSkillList, deleteSkillList, listWarmupLists, saveWarmupList, deleteWarmupList } from '../services/skills.js';
-import { listPracticeLists, createPracticeList, updatePracticeList, deletePracticeList, setPracticeListPieces, getPracticeList } from '../services/practiceLists.js';
+import { listPracticeLists, createPracticeList, updatePracticeList, deletePracticeList, setPracticeListPieces, getPracticeList, setPracticeListArchived } from '../services/practiceLists.js';
 import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader } from '../middleware/auth.js';
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
@@ -33,7 +33,7 @@ import { handleUpload } from '@vercel/blob/client';
 import { put } from '@vercel/blob';
 import { listInstruments, listAccountInstruments, setAccountInstruments, resolveSessionInstrument } from '../services/instruments.js';
 import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../services/range.js';
-import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
+import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
 import { importScoreFromFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/scoreImport.js';
 import { readForAccount, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES } from '../services/pieceReads.js';
@@ -70,17 +70,6 @@ const CATEGORY_TO_SESSION_TYPE = {
 const SESSION_TYPE_TO_CATEGORY = Object.fromEntries(
   Object.entries(CATEGORY_TO_SESSION_TYPE).map(([category, type]) => [type, category])
 );
-
-// pg returns BIGINT columns (ids) as strings, to avoid silent precision loss
-// on values outside JS's safe integer range - but the frontend does a
-// strict === comparison assuming `row` is a number (public/app.js, openEdit).
-// `row`/challenge-item ids are always Number()-wrapped in responses below to
-// preserve that, rather than touching the frontend.
-function toIntOrNull(value) {
-  if (value === undefined || value === null || value === '') return null;
-  const n = Number(value);
-  return Number.isNaN(n) ? null : n;
-}
 
 // The sheet only ever stored a date, not a time of day, and this app
 // originally followed suit by stamping every session at midday GMT/UTC
@@ -266,6 +255,7 @@ router.get('/practice/lists', requireAuth, resolveAccount, practiceListRoute(req
 router.post('/practice/lists', requireAuth, resolveAccount, practiceListRoute(req => createPracticeList(req.accountId, req.body || {})));
 router.get('/practice/lists/:id', requireAuth, resolveAccount, practiceListRoute(req => getPracticeList(req.accountId, req.params.id)));
 router.put('/practice/lists/:id', requireAuth, resolveAccount, practiceListRoute(req => updatePracticeList(req.accountId, req.params.id, req.body || {})));
+router.put('/practice/lists/:id/archive', requireAuth, resolveAccount, practiceListRoute(req => setPracticeListArchived(req.accountId, req.params.id, { archived: req.body?.archived === true, forAll: req.body?.forAll === true })));
 router.delete('/practice/lists/:id', requireAuth, resolveAccount, practiceListRoute(req => deletePracticeList(req.accountId, req.params.id)));
 router.put('/practice/lists/:id/pieces', requireAuth, resolveAccount, practiceListRoute(req => setPracticeListPieces(req.accountId, req.params.id, req.body?.scoreIds)));
 // ML-320 follow-ups: your own templates, and the session running now (kept across reloads and devices).
@@ -1107,8 +1097,9 @@ router.delete('/account/bands/:id/full', requireAuth, resolveAccount, async (req
 });
 
 // ========================================
-// CHALLENGES
+// FEATURES THAT ARE OFF FOR SOME ACCOUNT TYPES
 // ========================================
+// (Challenges lived here until ML-324 took them out - practice sessions replaced them.)
 // ML-345: whole areas that are off for some account types - the server refuses them too, not just the
 // app. Runs before each route's own requireAuth/resolveAccount (they run again there; cheap, cached).
 const requireFeature = (...keys) => async (req, res, next) => {
@@ -1119,253 +1110,12 @@ const requireFeature = (...keys) => async (req, res, next) => {
     sendError(res, error);
   }
 };
-// Reading the challenges list with challenges off just gets an empty list - the app asks for it at
-// startup, before it knows which features this account has. Anything else is refused.
-router.use('/challenges', requireAuth, resolveAccount, async (req, res, next) => {
-  if (req.method === 'GET' && req.path === '/' && !(await isFeatureEnabled('challenges'))) return res.json([]);
-  next();
-}, requireFeature('challenges'));
+// A copy of the app from before ML-324 still asks for the challenges list as it opens, and would show
+// "Error loading challenges" until it is reloaded. It gets an empty list. Nothing else of Challenges is
+// left; this can go once no device can still be running a copy from before release 0.60.0.
+router.get('/challenges', requireAuth, resolveAccount, (req, res) => res.json([]));
 router.use('/metronome/history', requireAuth, resolveAccount, requireFeature('metronome_history'));
 router.use('/settings/teachers', requireAuth, resolveAccount, requireFeature('manage_tutor'));
-
-router.get('/challenges', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    const { rows } = await pool.query(
-      `SELECT c.id AS challenge_id, c.type, c.name AS challenge_name, c.challenge_priority,
-              ci.id AS item_id, ci.piece_name, ci.ref, ci.bar_from, ci.bar_to, ci.target_bpm,
-              ci.status, ci.item_priority,
-              COALESCE(SUM(cl.duration_minutes), 0) AS time_spent,
-              COUNT(cl.id) AS sessions
-       FROM challenges c
-       JOIN challenge_items ci ON ci.challenge_id = c.id
-       LEFT JOIN challenge_logs cl ON cl.challenge_item_id = ci.id
-       WHERE c.account_id = $1
-       GROUP BY c.id, ci.id
-       ORDER BY COALESCE(c.challenge_priority, 999), COALESCE(ci.item_priority, 999)`,
-      [req.accountId]
-    );
-
-    res.json(rows.map(r => ({
-      row: Number(r.item_id),
-      id: String(r.challenge_id),
-      type: r.type || '',
-      who: '',
-      name: r.challenge_name || '',
-      piece: r.piece_name || '',
-      ref: r.ref || '',
-      barFrom: r.bar_from ?? '',
-      barTo: r.bar_to ?? '',
-      bpm: r.target_bpm ?? '',
-      timeSpent: Number(r.time_spent) || 0,
-      sessions: Number(r.sessions) || 0,
-      status: r.status || 'To do',
-      challPriority: r.challenge_priority ?? 999,
-      itemPriority: r.item_priority ?? 999
-    })));
-  } catch (error) {
-    console.error('Challenges fetch error:', error);
-    sendError(res, error);
-  }
-});
-
-router.post('/challenges', requireAuth, resolveAccount, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { items } = req.body;
-    await client.query('BEGIN');
-
-    let challengeId = null;
-    if (items[0].id) {
-      const existing = await client.query(
-        'SELECT id FROM challenges WHERE id = $1 AND account_id = $2',
-        [items[0].id, req.accountId]
-      );
-      if (existing.rows.length) challengeId = existing.rows[0].id;
-    }
-
-    if (!challengeId) {
-      const maxPriority = await client.query(
-        'SELECT COALESCE(MAX(challenge_priority), 0) AS max FROM challenges WHERE account_id = $1',
-        [req.accountId]
-      );
-      const nextPriority = items[0].id ? items[0].challPriority : Number(maxPriority.rows[0].max) + 1;
-
-      const inserted = await client.query(
-        'INSERT INTO challenges (account_id, name, type, challenge_priority) VALUES ($1, $2, $3, $4) RETURNING id',
-        [req.accountId, items[0].name || '', items[0].type || '', nextPriority]
-      );
-      challengeId = inserted.rows[0].id;
-    }
-
-    for (let idx = 0; idx < items.length; idx++) {
-      const item = items[idx];
-      await client.query(
-        `INSERT INTO challenge_items (challenge_id, piece_name, ref, bar_from, bar_to, target_bpm, status, item_priority)
-         VALUES ($1, $2, $3, $4, $5, $6, 'To do', $7)`,
-        [challengeId, item.piece || null, item.ref || null, toIntOrNull(item.barFrom), toIntOrNull(item.barTo), toIntOrNull(item.bpm), idx + 1]
-      );
-    }
-
-    await client.query('COMMIT');
-    res.json({ newId: String(challengeId) });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    sendError(res, error);
-  } finally {
-    client.release();
-  }
-});
-
-router.put('/challenges/:row', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    const { row } = req.params;
-    const { timeSpent, status, piece, ref, barFrom, barTo, bpm, priority } = req.body;
-
-    // Editing a task's details (piece/ref/bars/bpm), logging practice progress
-    // (timeSpent/status), and reordering (priority, from dragging a task within
-    // a challenge) are independent - only touch whichever ones the caller
-    // actually sent.
-    if ([piece, ref, barFrom, barTo, bpm].some(v => v !== undefined)) {
-      await pool.query(
-        `UPDATE challenge_items ci SET piece_name = $1, ref = $2, bar_from = $3, bar_to = $4, target_bpm = $5
-         FROM challenges c
-         WHERE ci.challenge_id = c.id AND ci.id = $6 AND c.account_id = $7`,
-        [piece || null, ref || null, toIntOrNull(barFrom), toIntOrNull(barTo), toIntOrNull(bpm), row, req.accountId]
-      );
-    }
-
-    if (priority !== undefined) {
-      await pool.query(
-        `UPDATE challenge_items ci SET item_priority = $1 FROM challenges c
-         WHERE ci.challenge_id = c.id AND ci.id = $2 AND c.account_id = $3`,
-        [priority, row, req.accountId]
-      );
-    }
-
-    if (timeSpent !== undefined || status !== undefined) {
-      if (status !== undefined) {
-        await pool.query(
-          `UPDATE challenge_items ci SET status = $1 FROM challenges c
-           WHERE ci.challenge_id = c.id AND ci.id = $2 AND c.account_id = $3`,
-          [status, row, req.accountId]
-        );
-      }
-      // A logged instance, even one with no extra time (e.g. just a status
-      // change) - matches the old sheet counting every such update as one
-      // more session, not just ones with time > 0.
-      await pool.query(
-        `INSERT INTO challenge_logs (challenge_item_id, duration_minutes)
-         SELECT ci.id, $1 FROM challenge_items ci JOIN challenges c ON c.id = ci.challenge_id
-         WHERE ci.id = $2 AND c.account_id = $3`,
-        [timeSpent || 0, row, req.accountId]
-      );
-    }
-
-    res.json({ message: 'Challenge updated' });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-// Appends a new task to an existing challenge group (mirrors what POST
-// /challenges does for a brand-new challenge, but for one more task under
-// an existing one).
-router.post('/challenges/group/:id/items', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { piece, ref, barFrom, barTo, bpm } = req.body;
-
-    const existing = await pool.query('SELECT id FROM challenges WHERE id = $1 AND account_id = $2', [id, req.accountId]);
-    if (!existing.rows.length) return res.status(404).json({ error: 'Challenge not found' });
-
-    const maxPriority = await pool.query(
-      'SELECT COALESCE(MAX(item_priority), 0) AS max FROM challenge_items WHERE challenge_id = $1',
-      [id]
-    );
-
-    await pool.query(
-      `INSERT INTO challenge_items (challenge_id, piece_name, ref, bar_from, bar_to, target_bpm, status, item_priority)
-       VALUES ($1, $2, $3, $4, $5, $6, 'To do', $7)`,
-      [id, piece || null, ref || null, toIntOrNull(barFrom), toIntOrNull(barTo), toIntOrNull(bpm), Number(maxPriority.rows[0].max) + 1]
-    );
-
-    res.json({ message: 'Task added' });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-// Whole-challenge operations act on every item sharing a challenge id, not a
-// single item - renaming or deleting "the challenge" means every task
-// under it.
-router.put('/challenges/group/:id', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, priority } = req.body;
-
-    const fields = [];
-    const values = [];
-    if (name !== undefined) { fields.push(`name = $${fields.length + 1}`); values.push(name); }
-    if (priority !== undefined) { fields.push(`challenge_priority = $${fields.length + 1}`); values.push(priority); }
-
-    let updated = 0;
-    if (fields.length) {
-      values.push(id, req.accountId);
-      const result = await pool.query(
-        `UPDATE challenges SET ${fields.join(', ')} WHERE id = $${values.length - 1} AND account_id = $${values.length}`,
-        values
-      );
-      updated = result.rowCount;
-    }
-
-    res.json({ message: 'Challenge updated', updated });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-router.delete('/challenges/group/:id', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    const { id } = req.params;
-    // ML-231: only ever count the caller's own challenge (the count used to be anyone's)
-    const itemCount = await pool.query('SELECT COUNT(*) AS count FROM challenge_items ci JOIN challenges c ON c.id = ci.challenge_id WHERE ci.challenge_id = $1 AND c.account_id = $2', [id, req.accountId]);
-    await pool.query('DELETE FROM challenges WHERE id = $1 AND account_id = $2', [id, req.accountId]);
-    res.json({ message: 'Challenge deleted', deleted: Number(itemCount.rows[0].count) });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-// Closes every not-yet-complete task in a challenge in one go, marking them
-// "Closed" rather than "Complete" so abandoned work doesn't read as finished.
-router.put('/challenges/:id/close', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await pool.query(
-      `UPDATE challenge_items ci SET status = 'Closed'
-       FROM challenges c
-       WHERE ci.challenge_id = c.id AND c.id = $1 AND c.account_id = $2 AND ci.status != 'Complete'`,
-      [id, req.accountId]
-    );
-    res.json({ message: 'Challenge closed', updated: result.rowCount });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-router.delete('/challenges/:row', requireAuth, resolveAccount, async (req, res) => {
-  try {
-    const { row } = req.params;
-    await pool.query(
-      `DELETE FROM challenge_items ci USING challenges c
-       WHERE ci.challenge_id = c.id AND ci.id = $1 AND c.account_id = $2`,
-      [row, req.accountId]
-    );
-    res.json({ message: 'Challenge deleted' });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
 
 // ========================================
 // MULTI-BAR METRONOME (Jira ML-35) - ad-hoc/standalone only this release,
@@ -1648,6 +1398,15 @@ router.put('/flows/:id/remove-from-band', requireAuth, resolveAccount, async (re
 router.put('/flows/:id/audience', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await setFlowAudience(req.accountId, req.params.id, req.body?.to, req.body?.bandId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// Archive a piece that is done with, or bring it back: { archived, forAll } - see setFlowArchived
+router.put('/flows/:id/archive', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await setFlowArchived(req.accountId, req.params.id, { archived: req.body?.archived === true, forAll: req.body?.forAll === true }));
   } catch (error) {
     sendError(res, error);
   }

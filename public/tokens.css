@@ -489,10 +489,10 @@
     --rail-width: 256px;          /* the menu rail, open: icons and names */
     --rail-width-folded: 64px;    /* the menu rail, folded to icons */
     --page-max-narrow: 640px;     /* a form, a set of steps or a page of reading on a wide screen */
-    --page-max-wide: 1080px;      /* Home, playing and the two-pane pages on a wide screen */
-    --pane-list-width: 320px;     /* the list side of a two-pane page */
+    --page-max-wide: none;        /* Home and playing fill the room beside the menu on a wide screen */
+    --pane-list-width: clamp(320px, 24vw, 420px);     /* the list side of a two-pane page: a little wider as the screen gets wider */
     --pane-col-min: 320px;        /* narrowest a side-by-side column may get before the two stack */
-    --page-max-panes: 1320px;     /* a two-pane page: the list, and room for what opens beside it */
+    --page-max-panes: none;       /* a two-pane page fills the room beside the menu: the list, and what opens beside it */
     --play-col-min: 380px;        /* narrowest the controls and the piece get side by side on the play screen */
     --tile-col-min: 96px;         /* narrowest a tool tile gets when a row fits as many as it can */
     --stat-col-min: 180px;        /* narrowest a stat card gets on the Stats page's grid */

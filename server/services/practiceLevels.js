@@ -243,7 +243,11 @@ async function tidyPlaythrough(client, accountId, scoreId) {
 export async function listPracticePieces(accountId, scoreIds) {
   let ids = Array.isArray(scoreIds) ? scoreIds.map(Number).filter(n => Number.isInteger(n) && n > 0).slice(0, 60) : null;
   if (!ids) {
-    const { rows } = await pool.query('SELECT DISTINCT score_id FROM piece_chunks WHERE account_id = $1', [accountId]);
+    // "Everything I'm working on" leaves out what this member has archived, or what is archived for everyone
+    const { rows } = await pool.query(
+      `SELECT DISTINCT pc.score_id FROM piece_chunks pc JOIN scores s ON s.id = pc.score_id
+        WHERE pc.account_id = $1 AND s.archived_at IS NULL
+          AND NOT EXISTS (SELECT 1 FROM archived_scores ar WHERE ar.account_id = $1 AND ar.score_id = pc.score_id)`, [accountId]);
     ids = rows.map(r => Number(r.score_id));
   }
   const out = [];

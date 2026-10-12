@@ -66,10 +66,12 @@ A recording's or video's slide has three value boxes under the player and a line
 - **The bar tiles light up** for where the recording is, as they do for the metronome (the owner, 8 Oct
   2026): `flowActiveTileBlockId` is where a recording is when its slide is showing and it has been played,
   otherwise where the metronome is.
-- **The playing tile is kept in view** - for a recording and for the metronome alike. When the lit tile
-  changes while something is playing it is scrolled to if it is off the screen (`flowKeepLitTileInView`):
-  only while playing, so looking around the piece is never undone, and only as far as needed. Smooth
-  unless the device asks for less motion.
+- **The playing tile is kept at the top** - for a recording and for the metronome alike. Where you are and
+  the controls (`.play-side`) stay pinned under the top bar, on a phone as on a wide screen (not on a screen
+  under 600px tall), and when the lit tile changes while something is playing the tiles scroll so its row
+  is the first one under them (`flowKeepLitTileInView`; `--play-pin-h` is the top bar's height plus the pinned part's). Only
+  while playing, so looking around the piece is never undone; pressing Play brings it back. Smooth unless
+  the device asks for less motion.
 - **Rest bars are for the metronome only.** On a recording a repeat goes straight round; nothing waits.
 
 ### Who can map a piece (the owner, 8 Oct 2026)

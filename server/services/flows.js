@@ -89,7 +89,11 @@ function toFlowSummaryDto(row, canEdit, canDelete) {
     recordingCount: Number(row.recording_count || 0),
     canEdit: !!canEdit, // ML-310: a public piece is view/play/copy for everyone, edit for super admins
     // ML-411: your own piece, or a band piece you added (a super admin: any piece they can reach)
-    canDelete: !!canDelete
+    canDelete: !!canDelete,
+    // Archived: hidden from this member's lists until they ask to see what is archived. archivedForAll:
+    // archived on the piece itself (for everyone who can see it) rather than just for this member.
+    archived: !!(row.archived_for_all || row.archived_mine),
+    archivedForAll: !!row.archived_for_all
   };
 }
 
@@ -275,7 +279,9 @@ export async function listFlows(accountId) {
             COALESCE(SUM(ms.bar_count) FILTER (WHERE NOT ms.is_lead_in), 0) AS total_bars,
             EXISTS (SELECT 1 FROM piece_chunks pc WHERE pc.account_id = $1 AND pc.score_id = s.id AND pc.level IS NOT NULL) AS prepared,
             (SELECT COUNT(*) FROM practice_list_scores pls WHERE pls.score_id = s.id) AS list_count,
-            (SELECT COUNT(*) FROM score_recordings sr WHERE sr.score_id = s.id) AS recording_count
+            (SELECT COUNT(*) FROM score_recordings sr WHERE sr.score_id = s.id) AS recording_count,
+            (s.archived_at IS NOT NULL) AS archived_for_all,
+            EXISTS (SELECT 1 FROM archived_scores ar WHERE ar.account_id = $1 AND ar.score_id = s.id) AS archived_mine
      FROM scores s
      LEFT JOIN metronome_segments ms ON ms.parent_score_id = s.id
      LEFT JOIN band_members bm ON bm.band_id = s.owner_band_id AND bm.account_id = $1
@@ -291,6 +297,32 @@ export async function listFlows(accountId) {
     // Only what you can reach at all (canEdit) - a super admin doesn't get Delete on a band they aren't in
     return toFlowSummaryDto(r, canEdit, canEdit && canDeleteFlow(r, accountId, superAdmin));
   });
+}
+
+// Archive a piece that is done with, or bring it back. Nothing is deleted and it stays on its practice
+// lists; an archived piece is only left out of the lists until the member asks for what is archived.
+// forAll false: just for this member - any piece they can see (their own, a band's, a public one).
+// forAll true: on the piece itself, for everyone who can see it - only someone who may change it (its
+// owner; for a band's piece an organiser or a member who can change the band's music). Never a public
+// piece: nobody tidies away the public library for everyone.
+// Bringing back with forAll clears this member's own mark too, so the piece is back for them either way.
+export async function setFlowArchived(accountId, scoreId, { archived, forAll } = {}) {
+  const score = await assertFlowReadAccess(accountId, scoreId);
+  if (forAll) {
+    if (score.is_public) throw withStatus(400, 'A public piece can only be archived for yourself.');
+    await assertFlowAccess(accountId, scoreId);
+    await pool.query('UPDATE scores SET archived_at = CASE WHEN $2 THEN COALESCE(archived_at, now()) ELSE NULL END WHERE id = $1', [scoreId, !!archived]);
+  }
+  if (archived && !forAll) {
+    await pool.query('INSERT INTO archived_scores (account_id, score_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [accountId, scoreId]);
+  } else if (!archived) {
+    await pool.query('DELETE FROM archived_scores WHERE account_id = $1 AND score_id = $2', [accountId, scoreId]);
+  }
+  const { rows } = await pool.query(
+    `SELECT (s.archived_at IS NOT NULL) AS for_all,
+            EXISTS (SELECT 1 FROM archived_scores ar WHERE ar.account_id = $2 AND ar.score_id = s.id) AS mine
+       FROM scores s WHERE s.id = $1`, [scoreId, accountId]);
+  return { id: Number(scoreId), archived: !!(rows[0].for_all || rows[0].mine), archivedForAll: !!rows[0].for_all };
 }
 
 export async function getFlowDetail(accountId, scoreId) {

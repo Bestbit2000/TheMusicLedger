@@ -46,7 +46,7 @@ later table exists. Each file has a comment marking where this happens.
 | `004_practice_lists.sql` | practice_lists, practice_list_scores, practice_list_segment_overrides |
 | `005_sessions.sql` | sessions, session_participants, session_segments (+ closes both circular FKs) |
 | `006_scales_and_technique.sql` | scale_definitions, scale_practice_logs, technique_exercise_sets, technique_exercise_logs |
-| `007_challenges.sql` | challenges, challenge_items, challenge_logs |
+| `007_challenges.sql` | challenges, challenge_items, challenge_logs (all three dropped again by `127_remove_challenges.sql`, ML-324) |
 | `008_monetization.sql` | subscription_plans, subscriptions, plan_feature_flags |
 | `009_bands_active_flag.sql` | bands.active (archive/unarchive, Sheets cutover) |
 | `010_challenge_items_free_text_bridge.sql` | challenge_items.piece_name, challenge_items.ref |

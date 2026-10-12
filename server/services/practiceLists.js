@@ -18,6 +18,9 @@ function toList(row) {
     bandId: row.owner_band_id == null ? null : Number(row.owner_band_id),
     bandName: row.band_name || null,
     canEdit: row.can_edit !== false, // ML-473: false for a band's list when you are a "play" member
+    // Archived (see setPracticeListArchived): for this member, and whether that is on the list itself
+    archived: !!(row.archived_at || row.archived_mine),
+    archivedForAll: !!row.archived_at,
   };
 }
 // DATE columns come back as a local-midnight Date; keep them as the plain calendar day.
@@ -55,7 +58,8 @@ function validateFields(data, partial) {
 // change the band's things (ML-473) - a "play" member reads it and plans from it.
 async function assertListOwner(accountId, listId, toChange = false) {
   const { rows } = await pool.query(
-    `SELECT pl.*, b.name AS band_name, COALESCE(pl.owner_account_id = $2 OR ${BAND_CAN_CHANGE_SQL}, false) AS can_edit
+    `SELECT pl.*, b.name AS band_name, COALESCE(pl.owner_account_id = $2 OR ${BAND_CAN_CHANGE_SQL}, false) AS can_edit,
+            EXISTS (SELECT 1 FROM archived_practice_lists ar WHERE ar.account_id = $2 AND ar.practice_list_id = pl.id) AS archived_mine
        FROM practice_lists pl
        LEFT JOIN bands b ON b.id = pl.owner_band_id
        LEFT JOIN band_members bm ON bm.band_id = pl.owner_band_id AND bm.account_id = $2
@@ -69,7 +73,8 @@ async function assertListOwner(accountId, listId, toChange = false) {
 export async function listPracticeLists(accountId) {
   const { rows } = await pool.query(
     `SELECT pl.*, b.name AS band_name, (SELECT COUNT(*) FROM practice_list_scores s WHERE s.practice_list_id = pl.id) AS piece_count,
-            COALESCE(pl.owner_account_id = $1 OR ${BAND_CAN_CHANGE_SQL}, false) AS can_edit
+            COALESCE(pl.owner_account_id = $1 OR ${BAND_CAN_CHANGE_SQL}, false) AS can_edit,
+            EXISTS (SELECT 1 FROM archived_practice_lists ar WHERE ar.account_id = $1 AND ar.practice_list_id = pl.id) AS archived_mine
        FROM practice_lists pl LEFT JOIN bands b ON b.id = pl.owner_band_id
        LEFT JOIN band_members bm ON bm.band_id = pl.owner_band_id AND bm.account_id = $1
       WHERE pl.owner_account_id = $1 OR bm.account_id IS NOT NULL
@@ -111,6 +116,20 @@ export async function deletePracticeList(accountId, listId) {
   return { deleted: true };
 }
 
+// Archive a list that is done with, or bring it back - the same two ways as a piece (setFlowArchived in
+// flows.js): just for this member, or on the list itself for everyone who can see it, which only someone
+// who may change the list can do. Its pieces are not archived with it.
+export async function setPracticeListArchived(accountId, listId, { archived, forAll } = {}) {
+  await assertListOwner(accountId, listId, !!forAll);
+  if (forAll) await pool.query('UPDATE practice_lists SET archived_at = CASE WHEN $2 THEN COALESCE(archived_at, now()) ELSE NULL END WHERE id = $1', [listId, !!archived]);
+  if (archived && !forAll) {
+    await pool.query('INSERT INTO archived_practice_lists (account_id, practice_list_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [accountId, listId]);
+  } else if (!archived) {
+    await pool.query('DELETE FROM archived_practice_lists WHERE account_id = $1 AND practice_list_id = $2', [accountId, listId]);
+  }
+  return getPracticeList(accountId, listId);
+}
+
 // The list's pieces, in order (any the account can read - its own, its bands', public ones).
 export async function setPracticeListPieces(accountId, listId, scoreIds) {
   await assertListOwner(accountId, listId, true);
@@ -140,10 +159,11 @@ export async function getPracticeList(accountId, listId) {
   const list = toList(await assertListOwner(accountId, listId));
   const { rows: pieces } = await pool.query(
     `SELECT s.id, s.title,
-            (SELECT COALESCE(SUM(ms.bar_count), 0)::int FROM metronome_segments ms WHERE ms.parent_score_id = s.id AND NOT ms.is_lead_in) AS total_bars
+            (SELECT COALESCE(SUM(ms.bar_count), 0)::int FROM metronome_segments ms WHERE ms.parent_score_id = s.id AND NOT ms.is_lead_in) AS total_bars,
+            (s.archived_at IS NOT NULL OR EXISTS (SELECT 1 FROM archived_scores ar WHERE ar.account_id = $2 AND ar.score_id = s.id)) AS archived
        FROM practice_list_scores pls JOIN scores s ON s.id = pls.score_id
       WHERE pls.practice_list_id = $1 ORDER BY pls.order_index`,
-    [listId]
+    [listId, accountId]
   );
   const ids = pieces.map(p => Number(p.id));
   const { rows: chunks } = ids.length
@@ -156,6 +176,7 @@ export async function getPracticeList(accountId, listId) {
     scoreId: Number(p.id),
     title: p.title,
     totalBars: p.total_bars,
+    archived: !!p.archived, // an archived piece stays on the list but is not counted or planned
     chunks: chunks.filter(c => Number(c.score_id) === Number(p.id)).map(c => ({
       id: Number(c.id), kind: c.kind, startBar: c.start_bar, endBar: c.end_bar, level: c.level == null ? null : Number(c.level), label: c.label,
     })),

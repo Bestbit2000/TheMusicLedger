@@ -1,7 +1,7 @@
 # Card
 
 ## 1. Metadata
-- **Name:** Card (`.flow-card`, `.flow-blocks-card`, `.play-card`, `.tuner-card`, `.about-running-note`, `.play-*`, `.slide-in-*`, `.slide-out-*`, `.summary-title`, `.challenge-edit-stats`, `.release-change-list`)
+- **Name:** Card (`.flow-card`, `.flow-blocks-card`, `.play-card`, `.tuner-card`, `.about-running-note`, `.play-piece`, `.release-change-list`)
 - **Category:** Layout / surfaces
 - **Status:** Stable
 
@@ -18,7 +18,7 @@ A bordered surface that groups related content inside the app column. Cards are 
 | Variant | Surface | Radius | Use |
 |---|---|---|---|
 | `.flow-card` | `--container-bg`, 1px `--input-border` | `--radius-xl` | Sections of the Flow editor/detail |
-| `.play-card` | `--container-bg`, 2px `--primary-action-strong` | `--radius-lg` | The current piece in Quick play (slides left/right between items) |
+| `.play-card` | `--container-bg`, 2px `--primary-action-strong` | `--radius-lg` | The version you are running, on About (`.play-piece` is its big line) |
 | `.tuner-card` | `--container-bg`, 2px state border | `--radius-lg` | Live tuner readout (see [tuner](tuner.md)) |
 | `.about-running-note` | `--input-bg`, 1px `--primary-action` | `--radius-md` | Highlighted informational note |
 
@@ -27,13 +27,10 @@ Container › optional header row (title + `.flow-pill` / actions) › content.
 
 ## 4. Tokens used
 `--container-bg`, `--input-bg`, `--input-border`, `--primary-action`, `--radius-md`/`-lg`/`-xl`,
-`--space-3`…`--space-6`, `--font-sm`…`--font-xl`, `--duration-base` (play-card slide).
+`--space-3`…`--space-6`, `--font-sm`…`--font-xl`.
 
 ## 5. Props / API
-- `.summary-title` is the challenge session summary's heading - gold, green (`.is-complete`) once every challenge is done.
-- `.challenge-edit-stats` is the progress line under a challenge's name on Edit challenge.
 - `.release-change-list` is the bulleted change list under each release on About.
-`.play-card.slide-out-left/-right/.slide-in-left/-right` drive the swipe animation (JS toggles them).
 
 ## 6. States
 Static surfaces. State is shown by border colour where a card has one (tuner in/out of tune).

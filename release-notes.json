@@ -1,4 +1,10 @@
 {
+  "ML-324": "We removed Challenges, now that practice sessions have replaced them.",
+  "ML-526": "We made Home, My music and the other list pages fill a wide screen, with a slightly wider list.",
+  "ML-525": "We removed the heading above a YouTube video on the play screen, to leave more room for the bars.",
+  "ML-524": "We made it clearer that a band piece is seen by anyone who has joined the band on this app.",
+  "ML-523": "We made it possible to archive pieces and practice lists you have finished with, and to bring them back from an Archived filter.",
+  "ML-522": "We now keep the bar that is playing at the top of the play screen, with the metronome and controls pinned above it, and show its bar number.",
   "ML-521": "We gave reading a piece from a photo more time for long pieces, and it now says clearly when a piece can't be read.",
   "ML-520": "We fixed a fault that could sign some members out every time they opened the app.",
   "ML-246": "We are trying out a way to add a piece from a photo of the music. It is not switched on for members yet.",

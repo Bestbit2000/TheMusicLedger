@@ -3530,7 +3530,7 @@
         ['Tools - Practise', ['rehearse']],
         ['Tools - Learn', ['theory_practice', 'theory_grades', 'theory_smart_learn', 'ear_training', 'tap_tempo', 'gap_trainer', 'range_trainer', 'rhythm_trainer']],
         ['Practice sessions', ['practice_levels', 'scales_levels']],
-        ['Menu', ['challenges', 'flow_manage', 'manage_tutor', 'notifications', 'feedback', 'invite_members']],
+        ['Menu', ['flow_manage', 'manage_tutor', 'notifications', 'feedback', 'invite_members']],
         ['My music', ['flow_create', 'flow_import_musicxml', 'flow_import_from_file', 'flow_export_musicxml', 'flow_playback', 'flow_editor', 'flow_consistency_check']],
         ['Metronome and tuner', ['metronome_history', 'metronome_save_to_flow', 'tuner_rewind']]
     ];

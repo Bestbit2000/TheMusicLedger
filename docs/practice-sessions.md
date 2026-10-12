@@ -14,10 +14,10 @@ it).
 | Skills lists | ML-321 | `SKILLS` in app.js, `#skillsView`, `server/services/skills.js` |
 | Scales Levels: a Scales block's three scales, each at its Level | ML-391 | `PracticePlan.scale*`, `scalesLadder` in app.js, `server/services/scaleLevels.js`, migration 096 |
 | Other "Level" labels renamed (Help, Notes, Difficulty, Account type) | ML-318 | - |
-| Cleaning up challenges | ML-324 (to do) | - |
+| Challenges taken out (screens, endpoints, tables) | ML-324 | migration 127 |
 
-Everything is behind the `practice_levels` feature. With it on, **Start a practice session**
-replaces **Start a challenge** on the home screen.
+Everything is behind the `practice_levels` feature. With it on, **Start a practice session** is the home
+screen's gold button. (It replaced **Start a challenge**; Challenges were taken out altogether by ML-324.)
 
 ## The session (ML-320, made into steps by ML-390)
 
@@ -333,3 +333,31 @@ drawn by one piece of code (`setMusicTab`, `openMusicTabs`, `renderPracticeListR
 - With practice lists off for the account type (`practice_levels`) there are no tabs: just the pieces.
 - **Adding a piece:** Quick entry's Save goes back to where Add a piece was opened from, **unless the piece was
   made for a practice list** - then it opens My music on the Practice lists tab, where the list now has it.
+
+## Archiving pieces and practice lists (12 Oct 2026)
+
+A piece or a practice list that is done with can be **archived**: it leaves every list in the app until the
+member asks to see what is archived, and can be brought back. Nothing is deleted. The owner's rule: you should
+not be lost in a sea of music you no longer need.
+
+- **Two ways** (`db/migrations/126_archive_pieces_and_lists.sql`). *Just for me*: a row in `archived_scores` /
+  `archived_practice_lists` - any piece or list the member can see, their own, a band's or a public piece; nobody
+  else's lists change. *For everyone*: `archived_at` on the piece or list itself - only someone who may change it
+  (its owner; for a band's, an organiser or a member who can change the band's music), and never a public piece.
+  A piece or list is archived for a member when either says so (`archived`; `archivedForAll` says which).
+- **Who is asked.** A member who can change a band's music is asked "Archive it for who?" - Just me, or Everyone
+  in the band. Everyone else archives for themselves, with no question.
+- **Where it shows.** `API.flows.list` and `API.practiceLists.list` hand back only what is current, so Rehearse,
+  Prepare, the session builder, the piece pickers and the home screen's next-concert line all leave archived
+  things out without knowing about it. What was left out is kept beside them (`flowsArchivedCache`,
+  `plArchivedLists`) for the one place it can be seen again: the **Archived** pill in My music (last, there only
+  once something is archived) and the **Current / Archived** pills on the Practice lists tab.
+- **Archive / Restore** are on a piece's ⋮ menu in My music, and a button on the practice list's own screen. A
+  piece archived for the whole band is brought back only by someone who can change the band's music.
+- **An archived piece stays on its practice lists** but is not counted: the list shows it as "Archived - not
+  counted", the forecast leaves it out (`plForecast`), a session planned from the list leaves it out, and so does
+  "everything I'm working on" (`listPracticePieces`). Archiving a list does not archive its pieces.
+- Server: `setFlowArchived` (`server/services/flows.js`, `PUT /api/flows/:id/archive`) and
+  `setPracticeListArchived` (`server/services/practiceLists.js`, `PUT /api/practice/lists/:id/archive`), both
+  `{ archived, forAll }`. It needs a connection, like any other edit (`docs/offline.md`).
+- Account deletion and the download find the two new tables by themselves (`docs/account-deletion.md`).

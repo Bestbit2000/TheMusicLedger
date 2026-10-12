@@ -16,7 +16,7 @@ per-row "more" menus (`.account-band-menu`, positioned by JS next to the ⋮ but
 **Navigation menu (☰, ML-259 / ML-222):** `.dropdown-menu.nav-menu` › groups, each after a `.nav-divider` line and most with a `.nav-section-title`:
 
 1. Home, Notifications (with its `.notif-count`), **Tools ›** (ML-326).
-2. Progress: Stats (ML-327: the Stats dashboard - Streaks, Session history and Tool results are reached from its cards, not the menu), Challenges.
+2. Progress: Stats (ML-327: the Stats dashboard - Streaks, Session history and Tool results are reached from its cards, not the menu).
 3. You: My music (ML-299: create, import, library and edit pieces - the old Flow start screen, gated by `flow_manage`; the home tool that plays them is Rehearse, shown in Tools only once there is a piece), My account, Settings, Administration (super admins). No name by My account (ML-289) - the email under Log out already says who you are.
 4. Send feedback, About (version as `.nav-item-meta`).
 5. Log out on its own, last, with the signed-in email under it as a `.nav-item-sub` line.
