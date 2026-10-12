@@ -23,7 +23,7 @@ import { getBusinessCase } from '../services/businessCase.js';
 import { runRetention, clearOldRecords } from '../services/retention.js';
 import { deleteMyAccount } from '../services/accountDeletion.js';
 import { exportMyAccount } from '../services/accountExport.js';
-import { getAccountProfile, updateAccountProfile, confirmUploadRights, confirmOrganiserAdult, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
+import { getAccountProfile, updateAccountProfile, confirmUploadRights, confirmOrganiserAdult, markSetupDone, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
 import { listDurationOptions, getDefaultDurationMinutes } from '../services/durationOptions.js';
 import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSignaturesWithUsage, setCustomTimeSignatureActive, deleteCustomTimeSignature } from '../services/timeSignatures.js';
@@ -941,6 +941,16 @@ router.post('/reports', requireAuth, resolveAccount, async (req, res) => {
 });
 
 // ML-278: "I have the right to upload this" - asked once, before a member's first upload of music
+// ML-517: set-up has been finished or left - it won't come up by itself again.
+router.post('/account/setup-done', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await markSetupDone(req.accountId);
+    res.json({ ok: true });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.post('/account/upload-rights', requireAuth, resolveAccount, async (req, res) => {
   try {
     await confirmUploadRights(req.accountId);

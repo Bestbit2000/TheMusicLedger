@@ -26,10 +26,13 @@ export async function getOrCreateAccount(email, firstName = '', surname = '', cl
   // over the token number the deletion left, so sign-ins from before the deletion stay signed out.
   const marker = deletedEmailHash(email);
   const inserted = await pool.query(
-    `INSERT INTO accounts (email, first_name, surname, token_version)
-     VALUES ($1, $2, $3, COALESCE((SELECT token_version FROM deleted_account_markers WHERE email_hash = $4), 0))
+    // ML-517: a new member hasn't seen set-up yet (setup_done_on NULL). The local test accounts
+    // (@themusicledger.local - /auth/login on a developer's machine, the back-tests) start with it done, so a
+    // freshly made one lands on the home screen like every other.
+    `INSERT INTO accounts (email, first_name, surname, token_version, setup_done_on)
+     VALUES ($1, $2, $3, COALESCE((SELECT token_version FROM deleted_account_markers WHERE email_hash = $4), 0), CASE WHEN $5 THEN CURRENT_DATE END)
      ON CONFLICT (email) DO NOTHING RETURNING id`,
-    [email, firstName, surname, marker]
+    [email, firstName, surname, marker, String(email).toLowerCase().endsWith('@themusicledger.local')]
   );
   if (inserted.rows.length) await pool.query('DELETE FROM deleted_account_markers WHERE email_hash = $1', [marker]);
   if (!inserted.rows.length) return (await pool.query('SELECT id FROM accounts WHERE email = $1', [email])).rows[0].id;
@@ -72,6 +75,8 @@ function toProfile(row, bands) {
     // ML-506: the day they confirmed they are 18 or over and responsible for a band - null = not asked yet
     organiserAdultConfirmedOn: row.organiser_adult_confirmed_on || null,
     uploadRightsConfirmedOn: row.upload_rights_confirmed_on || null, // read as text (to_char): a DATE turned into a JS Date slips a day in summer time
+    // ML-517: the day they finished or left set-up - null = not seen yet (it comes up after signing in)
+    setupDoneOn: row.setup_done_on || null,
     email: row.email,
     accountLevel: row.account_level,
     createdAt: row.created_at,
@@ -84,7 +89,7 @@ function toProfile(row, bands) {
 // directory section).
 export async function getAccountProfile(accountId) {
   const { rows } = await pool.query(
-    `SELECT id, first_name, surname, display_name, avatar, home_tools, home_stats, to_char(upload_rights_confirmed_on, 'YYYY-MM-DD') AS upload_rights_confirmed_on, to_char(organiser_adult_confirmed_on, 'YYYY-MM-DD') AS organiser_adult_confirmed_on, email, account_level, created_at FROM accounts WHERE id = $1`,
+    `SELECT id, first_name, surname, display_name, avatar, home_tools, home_stats, to_char(upload_rights_confirmed_on, 'YYYY-MM-DD') AS upload_rights_confirmed_on, to_char(organiser_adult_confirmed_on, 'YYYY-MM-DD') AS organiser_adult_confirmed_on, to_char(setup_done_on, 'YYYY-MM-DD') AS setup_done_on, email, account_level, created_at FROM accounts WHERE id = $1`,
     [accountId]
   );
   if (!rows.length) { const e = new Error('Account not found'); e.status = 404; throw e; }
@@ -95,6 +100,12 @@ export async function getAccountProfile(accountId) {
 // upload it. The first day is the one kept; confirming again changes nothing.
 export async function confirmUploadRights(accountId) {
   await pool.query('UPDATE accounts SET upload_rights_confirmed_on = COALESCE(upload_rights_confirmed_on, CURRENT_DATE) WHERE id = $1 AND deleted_at IS NULL', [accountId]);
+}
+
+// ML-517: the member has finished or left set-up, so it doesn't come up again by itself. The first day is
+// the one kept; going through it again from Settings changes nothing here.
+export async function markSetupDone(accountId) {
+  await pool.query('UPDATE accounts SET setup_done_on = COALESCE(setup_done_on, CURRENT_DATE) WHERE id = $1 AND deleted_at IS NULL', [accountId]);
 }
 
 // ML-506: the member has confirmed they are 18 or over and responsible for a band, before setting up

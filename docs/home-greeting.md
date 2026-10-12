@@ -121,3 +121,39 @@ Not included (owner's call): "projected hours available" (there's no such settin
 
 The extras (concert, pace, Level 5s, range note) are loaded once per visit, only for features that are
 on (`loadHomeExtras`). A failed request just leaves that line out.
+
+## Set-up for new members (ML-517)
+
+Three short steps the first time a new member signs in, so the app suits them from the start. Feature
+**`member_setup`** (off until switched on: Admin → Feature access). Screens: the SET-UP section of
+`public/app.js`, `#setupView` in `index.html`, spec `specs/components/setup.md`. Decided with the owner on
+12 Oct 2026.
+
+| Step | Asks | Saved by |
+|---|---|---|
+| What I play | The instrument (it becomes the main one), the clef they read where the instrument has a choice (ML-528), and a first name if the account has none - an invitation to a band can't be accepted without one (ML-479) | `PUT /api/account/instruments`, `.../instruments/:id/clef`, `PUT /api/account` |
+| How it looks | Light or dark, text size, font, background tint, more spacing - each on its own, no dyslexia preset (owner, 30 Sep 2026) | `saveDisplayPrefs` (`PUT /api/account/display`) |
+| Who I play with | Bands on my own list, from the directory or typed in | `POST /api/account/bands/:id/join`, `POST /api/account/bands` |
+
+- **Every step can be left empty.** Next carries on whatever; there is no Skip button and nothing is
+  required. Each choice is saved as it is made, so there is no Save either.
+- **When it comes up:** once after signing in (`maybeStartSetup`, at the end of `initializeApp`), when the
+  switch is on, there is a connection and `accounts.setup_done_on` is empty. Someone who arrived from a
+  band's invitation goes to My bands as before, and gets set-up at their next sign-in. An important notice
+  is a pop-up and sits on top of it.
+- **Done means seen.** Finishing, or leaving the page any way (`switchView` → `setupLeft`), posts
+  `/api/account/setup-done`, which keeps the first day. Closing the app part-way does not, so it comes up
+  once more. It never comes up by itself after that ("No pressure": nothing is asked twice).
+- **Again:** Settings → **Set up again** opens the same three steps with what is already chosen showing.
+- **Who is new:** `setup_done_on` is NULL for an account made after migration `129`. Every account that
+  existed then was marked done, and the local test accounts (`@themusicledger.local`) are made done
+  (`getOrCreateAccount`), so the back-tests land on the home screen. A test of set-up itself empties the
+  column for its account first.
+- **What it leaves out, on purpose:** range (owner: not for now), the metronome and tuner settings (they
+  are kept on the device, not the account), and anything to do with sharing a band's music - the bands step
+  stops at "on my list".
+- **The date is personal information:** named in the privacy policy, in the member's download, and emptied
+  when the account is deleted (`docs/account-deletion.md`).
+- **The pop-up you can search** (`openSearchChoiceModal`) is the ordinary choice pop-up with a search box,
+  for a list too long to scroll (76 instruments, the band directory). Use it for the next long list rather
+  than a drop-down.

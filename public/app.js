@@ -1237,7 +1237,9 @@
             } catch (timerError) {
                 console.warn('Failed to restore active timer:', timerError.message);
             }
+            const invited = bandInviteWaiting();
             openBandInviteAfterLogin(); // ML-473: came from a band invitation's email
+            if (!invited) maybeStartSetup(); // ML-517: a new member's three steps (not on top of an invitation)
             syncOffline(); // ML-220: send anything logged offline last time
             setTimeout(keepOfflineCopy, 8000); // ...and, once a day, read what the offline tools need
         } catch (error) {
@@ -1626,6 +1628,7 @@
         document.getElementById('notificationsNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('notifications'));
         renderNotificationIndicators();
         document.getElementById('feedbackNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('feedback'));
+        document.getElementById('settingsSetupLink')?.classList.toggle('hidden-group', !isFeatureEnabled('member_setup')); // ML-517
         renderInviteNav(); // ML-402
         document.getElementById('theoryToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('theory_practice'));
         document.getElementById('scalesToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('scales_practice'));
@@ -2237,7 +2240,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     // ML-107 (owner's list, 12 Oct 2026): anywhere you have your instrument up while looking at the screen - the
@@ -2310,6 +2313,7 @@
         if (isShown('gapTrainerPlayView') && viewName !== 'gapTrainerPlayView') gapStop();
         if (isShown('earPlayView') && viewName !== 'earPlayView') earStop();
         if (isShown('rangeView') && viewName !== 'rangeView') rangeStop();
+        if (setup && viewName !== 'setupView') setupLeft(); // ML-517: leaving set-up any way marks it done
         if (isShown('rhythmPlayView') && viewName !== 'rhythmPlayView') rhythmStop();
 
         if (viewStack[viewStack.length - 1] === 'quickPlayView' && viewName !== 'quickPlayView' && qpPlayer.isPlaying()) {
@@ -2406,6 +2410,7 @@
         if (viewName === 'gapTrainerView') { document.getElementById('topTitle').innerText = 'Pulse'; renderGapTrainerSetup(); gapPlayer.prewarm(); }
         if (viewName === 'earView') { document.getElementById('topTitle').innerText = 'Pitch'; renderEarSetup(); }
         if (viewName === 'rangeView') { document.getElementById('topTitle').innerText = 'Range'; renderRangeView(); rangePlayer.prewarm(); }
+        if (viewName === 'setupView') { document.getElementById('topTitle').innerText = 'Set-up'; if (!setup) setup = { step: 0, first: false, nameAsked: setupNeedsName() }; renderSetup(); }
         if (viewName === 'rhythmView') { document.getElementById('topTitle').innerText = 'Rhythm'; renderRhythmView(); rhythmPlayer.prewarm(); }
         if (viewName === 'rhythmPlayView') document.getElementById('topTitle').innerText = 'Rhythm';
         if (viewName === 'skillsHubView') { document.getElementById('topTitle').innerText = 'Skills'; renderSkillsHub(); }
@@ -12017,6 +12022,249 @@
     }
     // Closes on its X, Cancel, or a tap on the backdrop (ML-400 - as the other pop-ups).
     document.getElementById('flowChoiceModal')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeFlowChoiceModal(); });
+
+    // --- A choice list you can search (ML-517): the same pop-up as openFlowChoiceModal, for a list too long
+    // to scroll - every instrument, every band in the directory. items: [{ label, sub, group, value }] in
+    // the order to show them (a group's name is a heading above its first item). The box at the top narrows
+    // the list as you type; with nothing typed a long list shows its first rows and says how many more
+    // there are. opts.other is one last row that needs typing ("My band isn't on the list") - it grows its
+    // own box in the pop-up, as an 'extra' option does: { label, sub, build(el, close) }.
+    const SEARCH_CHOICE_ROWS = 40;
+    function openSearchChoiceModal(title, items, onSelect, opts = {}) {
+        document.getElementById('flowChoiceTitle').innerText = title;
+        const inlineExtra = document.getElementById('flowChoiceInlineExtra');
+        inlineExtra.classList.add('hidden-group');
+        inlineExtra.innerHTML = '';
+        const container = document.getElementById('flowChoiceOptions');
+        container.innerHTML = `<input type="search" class="mb-4" id="flowChoiceSearch" placeholder="${escapeHtml(opts.placeholder || 'Search')}" aria-label="${escapeHtml(opts.placeholder || 'Search')}" autocomplete="off"><div id="flowChoiceSearchList"></div>`;
+        const input = document.getElementById('flowChoiceSearch');
+        const list = document.getElementById('flowChoiceSearchList');
+        const words = (it) => `${it.label} ${it.sub || ''} ${it.group || ''}`.toLowerCase();
+        const draw = () => {
+            const q = input.value.trim().toLowerCase();
+            const hits = items.filter(it => !q || q.split(/\s+/).every(w => words(it).includes(w)));
+            const shown = q ? hits.slice(0, SEARCH_CHOICE_ROWS * 2) : hits.slice(0, opts.all ? hits.length : SEARCH_CHOICE_ROWS);
+            let group = null;
+            list.innerHTML = shown.map(it => {
+                const head = it.group && it.group !== group ? `<span class="flow-tile-section-label">${escapeHtml(it.group)}</span>` : '';
+                group = it.group || group;
+                return `${head}<button type="button" class="flow-choice-option${it.selected ? ' selected' : ''}" data-search-idx="${items.indexOf(it)}" aria-pressed="${!!it.selected}">${it.sub ? addPieceRow(it.label, it.sub) : `<span><strong>${escapeHtml(it.label)}</strong></span>`}${it.selected ? '<span class="material-symbols-outlined" aria-hidden="true">check</span>' : ''}</button>`;
+            }).join('')
+                + (hits.length > shown.length ? `<p class="text-sm text-muted">${hits.length - shown.length} more - type a few letters to find one.</p>` : '')
+                + (hits.length ? '' : '<p class="text-sm text-muted">Nothing matches that.</p>')
+                + (opts.other ? `<button type="button" class="flow-choice-option" data-search-other>${addPieceRow(opts.other.label, opts.other.sub || '')}</button>` : '');
+        };
+        input.addEventListener('input', draw);
+        list.onclick = (e) => {
+            const other = e.target.closest('[data-search-other]');
+            if (other) {
+                const box = document.createElement('div');
+                box.className = 'flow-choice-option plan-card selected';
+                box.setAttribute('role', 'group');
+                box.setAttribute('aria-label', opts.other.label);
+                box.innerHTML = `${addPieceRow(opts.other.label, opts.other.sub || '')}<div></div>`;
+                other.replaceWith(box);
+                opts.other.build(box.lastElementChild, () => hideModal('flowChoiceModal'), input.value.trim());
+                return;
+            }
+            const row = e.target.closest('[data-search-idx]');
+            if (!row) return;
+            hideModal('flowChoiceModal');
+            onSelect(items[Number(row.dataset.searchIdx)]);
+        };
+        draw();
+        showModal('flowChoiceModal');
+    }
+
+    // ---------------------------------------------------------------- SET-UP (ML-517)
+    // Three short steps the first time a new member signs in - what they play, how the app looks, who they
+    // play with - so the app suits them from the start. Decided with the owner on 12 Oct 2026:
+    //  - every step can be left empty: Next just carries on, and nothing here is asked twice;
+    //  - it is a page, not a pop-up that must be answered - the < at the top (or the menu) leaves it;
+    //  - finishing or leaving it marks it done on the account (accounts.setup_done_on), so it never comes up
+    //    by itself again; "Set up again" in Settings goes through it whenever you like;
+    //  - each choice is saved as it is made, by the code that My instruments, Display and reading and
+    //    My bands already use - set-up keeps nothing of its own;
+    //  - range is left out for now, and the bands step stops at "on my own list" (private): it never leads
+    //    into sharing. The switch is member_setup. specs/components/setup.md.
+    const SETUP_STEPS = [
+        { key: 'play', name: 'What I play', next: 'how it looks', question: 'What do you play?' },
+        { key: 'look', name: 'How it looks', next: 'who I play with', question: 'How do you like it to look?' },
+        { key: 'bands', name: 'Who I play with', next: null, question: 'Who do you play with?' }
+    ];
+    let setup = null; // { step, first } while the page is open - first: it came up by itself after signing in
+    const setupOn = () => isFeatureEnabled('member_setup');
+    const setupValueBox = (act, value, label) => `<button type="button" class="metroBlk-ctrl-value-btn w-full" data-setup="${act}" aria-haspopup="dialog"><strong>${escapeHtml(value)}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(label)}</span></button>`;
+    const SETUP_LOOK = {
+        theme: { label: 'light or dark', title: 'Light or dark?', key: 'darkMode', options: [[false, 'Light', 'Dark words on a light page'], [true, 'Dark', 'Light words on a dark page']] },
+        textSize: { label: 'text size', title: 'Text size', key: 'textSize', options: [['standard', 'Standard', ''], ['large', 'Large', ''], ['larger', 'Extra large', '']] },
+        font: { label: 'font', title: 'Font', key: 'font', options: [['standard', 'Standard', 'The app\'s own'], ['lexend', 'Lexend', 'Wider letters, made to be easier to read'], ['opendyslexic', 'OpenDyslexic', 'Weighted letters, made for dyslexic readers']] },
+        background: { label: 'background tint', title: 'Background tint', key: 'background', options: [['standard', 'Standard', ''], ['cream', 'Cream', ''], ['blue', 'Pale blue', ''], ['green', 'Pale green', ''], ['yellow', 'Soft yellow', ''], ['peach', 'Peach', '']] }
+    };
+    const setupLookValue = (id) => { const c = SETUP_LOOK[id]; return (c.options.find(([v]) => v === displayPrefs[c.key]) || c.options[0])[1]; };
+    const setupMain = () => (myInstruments || []).find(i => i.isPrimary) || (myInstruments || [])[0] || null;
+    const setupNeedsName = () => !((accountProfile && accountProfile.firstName) || '').trim();
+    function setupPlayHtml() {
+        const main = setupMain();
+        const hello = setup.first
+            ? `Welcome${accountProfile && (accountProfile.displayName || accountProfile.firstName) ? `, ${escapeHtml(accountProfile.displayName || accountProfile.firstName)}` : ''}. Three quick things so the app suits you. Leave any of them empty - you can come back to this in Settings.`
+            : 'Change anything here - each choice is saved as you make it.';
+        return `
+            <p class="text-sm text-muted no-margin">${hello}</p>
+            ${setupNeedsName() || setup.nameAsked ? `<div class="form-group no-margin"><label for="setupFirstName">My first name</label><input type="text" id="setupFirstName" autocomplete="given-name" maxlength="60" value="${escapeHtml((accountProfile && accountProfile.firstName) || '')}"></div>` : ''}
+            ${setupValueBox('instrument', main ? main.name : 'Choose', 'my instrument')}
+            ${instrumentHasClefChoice(main) ? setupValueBox('clef', CLEF_NAMES[main.theoryClef] || main.theoryClef, 'the clef I read') : ''}
+            <p class="text-sm text-muted no-margin">${(myInstruments || []).length > 1 ? `You also play ${escapeHtml(myInstruments.filter(i => i !== main).map(i => i.name).join(', '))}. ` : ''}Play more than one? Add the others in My instruments, on the menu.</p>`;
+    }
+    function setupLookHtml() {
+        return `
+            <p class="text-sm text-muted no-margin">Each choice shows straight away. There is more in Settings, under Display and reading.</p>
+            <div class="outline-pair">${['theme', 'textSize', 'font', 'background'].map(id => setupValueBox(`look:${id}`, setupLookValue(id), SETUP_LOOK[id].label)).join('')}</div>
+            <div class="display-toggle-row">
+                <span id="setupSpacingLabel">More space between lines and letters<span class="display-toggle-help">And no italics</span></span><label class="toggle-switch"><input type="checkbox" id="setupSpacing" aria-labelledby="setupSpacingLabel"${displayPrefs.dyslexia ? ' checked' : ''}><span class="toggle-slider"></span></label>
+            </div>`;
+    }
+    function setupBandsHtml() {
+        const mine = myBandsShown();
+        return `
+            <p class="text-sm text-muted no-margin">The bands or groups you play with. This list is private to you: it is who you can say a rehearsal or a performance was with.</p>
+            ${mine.map(b => `<div class="history-item"><span class="grow"><strong>${escapeHtml(b.displayName || b.name)}</strong></span><span class="material-symbols-outlined" aria-hidden="true">check</span></div>`).join('')}
+            <button type="button" class="outline-add" data-setup="band" aria-haspopup="dialog">+ ${mine.length ? 'Add another band' : 'Add a band'}</button>`;
+    }
+    function renderSetup() {
+        if (!setup) return;
+        const total = SETUP_STEPS.length, cur = SETUP_STEPS[setup.step];
+        const bar = document.getElementById('setupBar');
+        bar.setAttribute('aria-label', `Step ${setup.step + 1} of ${total}: ${cur.name}`);
+        bar.innerHTML = SETUP_STEPS.map((s, i) => `<span class="step-bar-piece${i < setup.step ? ' is-done' : i === setup.step ? ' is-now' : ''}"></span>`).join('');
+        document.getElementById('setupWhereText').innerHTML = `<strong>${escapeHtml(cur.name)}</strong> · step ${setup.step + 1} of ${total}`;
+        document.getElementById('setupQuestion').textContent = cur.question;
+        document.getElementById('setupBody').innerHTML = { play: setupPlayHtml, look: setupLookHtml, bands: setupBandsHtml }[cur.key]();
+        document.getElementById('setupFoot').innerHTML = `${setup.step > 0 ? '<button type="button" class="btn-cancel btn-nav no-margin" data-setup="back">Back</button>' : ''}<button type="button" class="btn-submit no-margin" data-setup="next">${cur.next ? `Next: ${cur.next}` : 'Finish'}</button>`;
+    }
+    // Redraws the step and puts the keyboard back on the button that was used (its pop-up has closed)
+    function setupRedraw(act) {
+        renderSetup();
+        if (act) document.querySelector(`#setupView [data-setup="${act}"]`)?.focus();
+    }
+    // The name box is saved on the way out of its step - only if something was typed and it has changed
+    async function setupSaveName() {
+        const box = document.getElementById('setupFirstName');
+        if (!box) return;
+        const typed = box.value.trim();
+        if (!typed || typed === ((accountProfile && accountProfile.firstName) || '')) return;
+        try {
+            await API.account.update({ firstName: typed });
+            accountProfile = { ...(accountProfile || {}), firstName: typed };
+            renderHomeGreeting();
+        } catch (error) { showWarningToast('Name not saved: ' + error.message); }
+    }
+    async function setupPickInstrument() {
+        try { if (!instrumentCatalogue) instrumentCatalogue = await API.instruments.list(); }
+        catch (error) { showWarningToast('Instruments not loaded: ' + error.message); return; }
+        const main = setupMain();
+        openSearchChoiceModal('What do you play?', instrumentCatalogue.map(i => ({ label: i.name, group: i.family, value: i.id, selected: !!main && main.id === i.id })), async (it) => {
+            // the one chosen becomes the main instrument; any others already on the list stay
+            const ids = [...new Set([...(myInstruments || []).map(i => i.id), it.value])];
+            try { myInstruments = await API.account.setInstruments(ids, it.value); }
+            catch (error) { showWarningToast('Instrument not saved: ' + error.message); }
+            setupRedraw('instrument');
+        }, { placeholder: 'Search instruments', all: true });
+    }
+    function setupPickLook(id) {
+        const c = SETUP_LOOK[id];
+        openFlowChoiceModal(c.title, c.options.map(([value, title, sub]) => ({ value, selected: displayPrefs[c.key] === value, html: sub ? addPieceRow(title, sub) : `<span><strong>${title}</strong></span>` })), async (opt) => {
+            await saveDisplayPrefs({ [c.key]: opt.value });
+            setupRedraw(`look:${id}`);
+        });
+    }
+    async function setupPickBand() {
+        const mineIds = new Set(myBandsShown().map(b => b.directoryBandId));
+        const items = (accountBandsData.allBands || []).filter(b => !mineIds.has(b.id))
+            .map(b => ({ label: b.listName || b.displayName, sub: [b.town, b.parentName ? `part of ${b.parentName}` : ''].filter(Boolean).join(' · '), value: b.id }))
+            .sort((a, b) => a.label.localeCompare(b.label, 'en', { sensitivity: 'base' }));
+        const added = async (work) => {
+            try { await work(); await loadAccountBands(); }
+            catch (error) { showWarningToast('Band not added: ' + error.message); }
+            setupRedraw('band');
+        };
+        openSearchChoiceModal('Who do you play with?', items, (it) => added(() => API.account.joinBand(it.value)), {
+            placeholder: 'Search bands by name or town',
+            other: {
+                label: 'My band isn\'t on the list', sub: 'Type its name',
+                build(el, close, typed) {
+                    el.innerHTML = '<div class="form-group"><label for="setupNewBandName">Band name</label><input type="text" id="setupNewBandName" maxlength="120" autocomplete="off"></div><button type="button" class="btn-submit no-margin" id="setupNewBandAdd">Add it</button>';
+                    const box = el.querySelector('#setupNewBandName');
+                    box.value = typed || '';
+                    box.focus();
+                    el.querySelector('#setupNewBandAdd').addEventListener('click', () => {
+                        const name = box.value.trim();
+                        if (!name) { showWarningToast('Type the band\'s name.'); box.focus(); return; }
+                        close();
+                        added(() => API.account.addBand(name, ''));
+                    });
+                }
+            }
+        });
+    }
+    // Opens set-up. first: it came up by itself for a new member (the welcome says so).
+    async function openSetup(first) {
+        setup = { step: 0, first: !!first, nameAsked: false };
+        setup.nameAsked = setupNeedsName();
+        switchView('setupView');
+        // what each step shows, fresh: my instruments, and my bands with the directory to pick from
+        await Promise.all([loadMyInstruments(), API.account.getBands().then(d => { accountBandsData = d; }).catch(() => {})]);
+        if (setup) renderSetup();
+    }
+    // Leaving set-up, by Finish or any other way: the name box is kept, and the account is marked so it
+    // doesn't come up by itself again.
+    function setupLeft() {
+        if (!setup) return;
+        setupSaveName();
+        setup = null;
+        if (accountProfile && !accountProfile.setupDoneOn) {
+            accountProfile.setupDoneOn = new Date().toISOString().slice(0, 10);
+            apiCall('/api/account/setup-done', 'POST').catch(() => { /* it comes up once more next time */ });
+        }
+    }
+    // After signing in: a new member who hasn't seen set-up goes to it. Needs a connection (every choice is
+    // saved on the account), and never gets in the way of a band's invitation, which opens My bands instead.
+    async function maybeStartSetup() {
+        if (!setupOn() || !navigator.onLine) return;
+        try {
+            if (!accountProfile) accountProfile = await API.account.get();
+            if (accountProfile.setupDoneOn) return;
+            openSetup(true);
+        } catch (e) { /* not this time */ }
+    }
+    document.getElementById('setupView')?.addEventListener('click', async (e) => {
+        const t = e.target.closest('[data-setup]');
+        if (!t || !setup) return;
+        const act = t.dataset.setup;
+        if (act === 'instrument') return setupPickInstrument();
+        if (act === 'clef') return openInstrumentClefChoice(setupMain(), () => setupRedraw('clef'));
+        if (act.startsWith('look:')) return setupPickLook(act.slice(5));
+        if (act === 'band') return setupPickBand();
+        if (act === 'back' || act === 'next') {
+            await setupSaveName();
+            if (!setup) return;
+            if (act === 'next' && setup.step === SETUP_STEPS.length - 1) {
+                const first = setup.first;
+                switchView('mainView'); // (leaving the page is what marks it done - setupLeft)
+                showSuccessToast(first ? 'All set. Welcome!' : 'All set.');
+                return;
+            }
+            setup.step += act === 'next' ? 1 : -1;
+            renderSetup();
+            window.scrollTo({ top: 0 });
+            document.getElementById('setupQuestion')?.focus();
+        }
+    });
+    document.getElementById('setupView')?.addEventListener('change', async (e) => {
+        if (e.target.id !== 'setupSpacing' || !setup) return;
+        await saveDisplayPrefs({ dyslexia: e.target.checked });
+    });
+    document.getElementById('settingsSetupLink')?.addEventListener('click', () => openSetup(false));
 
     // --- Repeat bar / volta - which repeat pass(es) (1-9) this bar plays on, multi-select rather
     // than the old binary 1st/2nd pair (some pieces use a section on passes 1, 3, 5 and a different

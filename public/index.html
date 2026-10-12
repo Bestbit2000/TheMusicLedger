@@ -605,6 +605,8 @@
         <button type="button" class="history-item settings-link" data-act="view" data-arg="settingsStatsView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">bar_chart</span><span class="settings-link-text"><span class="settings-link-title">Stats</span><span class="settings-link-sub" id="settingsStatsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" data-act="view" data-arg="settingsTunerView"><span class="settings-link-icon" data-tool-icon="tunerView" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">Tuner</span><span class="settings-link-sub" id="settingsTunerSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" data-act="view" data-arg="settingsPlaybackView"><span class="settings-link-icon" data-tool-icon="quickPlayView" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">Metronome &amp; playback</span><span class="settings-link-sub" id="settingsPlaybackSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <!-- ML-517: the new member's three steps, to go through again (member_setup) -->
+        <button type="button" class="history-item settings-link hidden-group" id="settingsSetupLink"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">checklist</span><span class="settings-link-text"><span class="settings-link-title">Set up again</span><span class="settings-link-sub">What I play, how it looks, who I play with</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
     </div>
 
     <!-- ML-356: Display and reading - saved on the account, so it follows you to every device. -->
@@ -1580,6 +1582,21 @@
          ends on My music. Reached from the Add a piece tool, My music and Rehearse. app.js: ADD A PIECE. -->
     <!-- ML-424: Quick piece entry - five steps drawn into #outlineBody by the QUICK PIECE ENTRY section of
          app.js (rules: public/pieceOutline.js, docs/quick-piece-entry.md, specs/components/piece-outline.md). -->
+    <!-- ML-517: set-up for a new member - three steps (what I play, how it looks, who I play with), drawn by
+         the SET-UP section of app.js. The same step bar, question and Back / Next foot as Quick entry.
+         specs/components/setup.md. -->
+    <div id="setupView" class="hidden-group">
+        <div class="step-bar" id="setupBar" role="img"></div>
+        <p class="text-sm text-muted mb-3" id="setupWhereText"></p>
+        <h2 class="step-question" id="setupQuestion" tabindex="-1"></h2>
+        <div class="outline" id="setupBody"></div>
+        <div class="flow-edit-sticky-bar-wrap">
+            <div class="flow-edit-sticky-bar">
+                <div class="flow-edit-sticky-bar-actions step-foot" id="setupFoot"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="pieceOutlineView" class="hidden-group">
         <!-- ML-449: where you are - one bar, a piece a step, and one line ("Tempo · step 4 of 13") -->
         <div class="step-bar" id="outlineBar" role="img"></div>

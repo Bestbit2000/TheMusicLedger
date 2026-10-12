@@ -191,6 +191,8 @@ nothing has been run anywhere yet, so nothing is costly to revisit:
 - `128_instrument_clef.sql` (ML-528): `instruments.other_clefs` (the other clefs an instrument is read
   in, each with its transposition) and `account_instruments.clef` (the one a player reads; NULL = the
   instrument's own). See "The clef you read" in `docs/range.md`.
+- `129_member_setup.sql` (ML-517): `accounts.setup_done_on` (the day a member finished or left set-up;
+  every account that already existed is marked as done) and the `member_setup` feature.
 - No rollback ("down") scripts — for a pre-launch schema with no real data in it
   yet, fixing forward with a new numbered file is simpler than maintaining
   reverse migrations for a schema that's still likely to shift.
