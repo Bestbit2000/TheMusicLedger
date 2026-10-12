@@ -1,5 +1,46 @@
 [
   {
+    "version": "0.60.0",
+    "date": "2026-10-12",
+    "changes": [
+      {
+        "key": "ML-527",
+        "type": "Fixes",
+        "summary": "We fixed the admin check so it can be answered when it comes up while a pop-up is open."
+      },
+      {
+        "key": "ML-526",
+        "type": "New",
+        "summary": "We made Home, My music and the other list pages fill a wide screen, with a slightly wider list."
+      },
+      {
+        "key": "ML-525",
+        "type": "New",
+        "summary": "We removed the heading above a YouTube video on the play screen, to leave more room for the bars."
+      },
+      {
+        "key": "ML-524",
+        "type": "New",
+        "summary": "We made it clearer that a band piece is seen by anyone who has joined the band on this app."
+      },
+      {
+        "key": "ML-523",
+        "type": "New",
+        "summary": "We made it possible to archive pieces and practice lists you have finished with, and to bring them back from an Archived filter."
+      },
+      {
+        "key": "ML-522",
+        "type": "New",
+        "summary": "We now keep the bar that is playing at the top of the play screen, with the metronome and controls pinned above it, and show its bar number."
+      },
+      {
+        "key": "ML-324",
+        "type": "New",
+        "summary": "We removed Challenges, now that practice sessions have replaced them."
+      }
+    ]
+  },
+  {
     "version": "0.59.1",
     "date": "2026-10-12",
     "changes": [
