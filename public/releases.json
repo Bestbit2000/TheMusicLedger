@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.59.1",
+    "date": "2026-10-12",
+    "changes": [
+      {
+        "key": "ML-521",
+        "type": "Fixes",
+        "summary": "We gave reading a piece from a photo more time for long pieces, and it now says clearly when a piece can't be read."
+      },
+      {
+        "key": "ML-520",
+        "type": "Fixes",
+        "summary": "We fixed a fault that could sign some members out every time they opened the app."
+      }
+    ]
+  },
+  {
     "version": "0.59.0",
     "date": "2026-10-11",
     "changes": [
