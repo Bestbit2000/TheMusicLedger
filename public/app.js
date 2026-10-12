@@ -208,9 +208,21 @@
             return this.token ? { 'Authorization': `Bearer ${this.token}` } : {};
         }
 
+        // A sign-in handed back by the server (X-Refreshed-Token, or after a password change). Only taken
+        // when it is this member's and still has time to run: a browser once replayed an old one from an
+        // answer it had kept, and the app swapped a good sign-in for a dead one on every page load.
         updateToken(newToken) {
+            if (!this.isUsable(newToken)) return;
             localStorage.setItem('authToken', newToken);
             this.token = newToken;
+        }
+        isUsable(token) {
+            if (!isValidTokenShape(token)) return false;
+            try {
+                const payload = JSON.parse(atob(token.split('.')[0].replace(/-/g, '+').replace(/_/g, '/')));
+                if (payload.exp && Date.now() > payload.exp) return false;
+                return !this.userId || !payload.userId || String(payload.userId).toLowerCase() === String(this.userId).toLowerCase();
+            } catch (e) { return false; }
         }
     }
 
@@ -257,6 +269,7 @@
 
         const options = {
             method,
+            cache: 'no-store', // never an answer the browser kept - see server/app.js (a kept answer replayed an old sign-in)
             headers: {
                 'Content-Type': 'application/json',
                 ...(effectiveToken ? { 'Authorization': `Bearer ${effectiveToken}` } : {}),
@@ -371,6 +384,7 @@
             try {
                 res = await fetch(`${API_BASE_URL}${item.endpoint}`, {
                     method: item.method,
+                    cache: 'no-store',
                     headers: { 'Content-Type': 'application/json', ...auth.getAuthHeader(), 'X-Client-Write-Id': item.id, 'X-Client-Write-At': item.at },
                     ...(item.body ? { body: JSON.stringify(item.body) } : {})
                 });
@@ -10364,6 +10378,7 @@
             if (!auth.isAuthenticated) return null;
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method,
+                cache: 'no-store',
                 keepalive,
                 headers: {
                     'Content-Type': 'application/json',
@@ -21641,20 +21656,29 @@
         const help = pieceReadBtn.querySelector('.metro-help-text');
         const was = help.textContent;
         const say = (text) => { help.textContent = text; };
+        let ticking = null;
         pieceReadBusy = true;
         pieceReadBtn.disabled = true;
         pieceReadBtn.setAttribute('aria-busy', 'true');
         try {
             if (!accountProfile) accountProfile = await API.account.get();
             const sent = await pieceReadUpload(files, 'piece-read', say);
-            say('Reading the music - about a minute');
-            showInfoToast('Reading the music. This takes about a minute - stay on this screen.');
+            // A long part can take a few minutes: the line counts up, so it is plain it hasn't stopped
+            const began = Date.now();
+            const tick = () => { const s = Math.round((Date.now() - began) / 1000); say(`Reading the music: ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} so far`); };
+            tick();
+            ticking = setInterval(tick, 1000);
+            showInfoToast('Reading the music. A short piece takes about a minute, a long one a few - stay on this screen.');
             const result = await apiCall('/api/piece-read', 'POST', { files: sent });
             const read = { id: result.readId, files, kind: files.length === 1 && /pdf/i.test(files[0].type + files[0].name) ? 'PDF' : (files.length > 1 ? 'photos' : 'photo') };
             pieceReadChoose(read, result.pieces, target);
         } catch (error) {
-            showWarningToast(error.offline ? 'Reading a piece from a photo needs a connection.' : (error.message || "The music couldn't be read."));
+            // Said in a pop-up that stays, not a toast: after minutes of waiting, a message that has gone
+            // by the time you look back is the same as nothing happening (owner, 12 Oct 2026)
+            showConfirmModal("The music couldn't be read", error.offline ? 'Reading a piece from a photo needs a connection.' : (error.message || 'Something went wrong while it was being read.'),
+                () => withUploadRights(() => pieceReadInput.click()), false, 'Choose again', 'Close');
         } finally {
+            if (ticking) clearInterval(ticking);
             pieceReadBusy = false;
             pieceReadBtn.disabled = false;
             pieceReadBtn.removeAttribute('aria-busy');

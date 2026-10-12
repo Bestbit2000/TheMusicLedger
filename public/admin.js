@@ -31,6 +31,7 @@
 
     async function apiCall(endpoint, method = 'GET', body = null) {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            cache: 'no-store', // as the app's apiCall: never an answer the browser kept
             method,
             headers: {
                 Authorization: `Bearer ${token}`,

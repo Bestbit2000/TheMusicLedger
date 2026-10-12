@@ -179,7 +179,9 @@ export async function readPieceFromFiles(buffers, { fetchImpl = fetch } = {}) {
     response = await fetchImpl(GATEWAY_URL, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(Number(process.env.PIECE_READER_TIMEOUT_MS) || 110000),
+      // 4 and a half minutes: the server function is allowed 5 (vercel.json). 110 seconds was enough for the
+      // 2 to 4 page test pieces and not for the first long part tried on production (12 Oct 2026).
+      signal: AbortSignal.timeout(Number(process.env.PIECE_READER_TIMEOUT_MS) || 270000),
       body: JSON.stringify({
         model,
         stream: false,
@@ -196,7 +198,7 @@ export async function readPieceFromFiles(buffers, { fetchImpl = fetch } = {}) {
       })
     });
   } catch (err) {
-    throw withStatus(422, err?.name === 'TimeoutError' ? 'Reading the music took too long - try fewer pages at a time.' : "Couldn't reach the reader - try again shortly.");
+    throw withStatus(422, err?.name === 'TimeoutError' ? 'Reading the music took longer than the four and a half minutes it is given. Send the piece in two halves, or fewer pages at a time.' : "Couldn't reach the reader - try again shortly.");
   }
   if (!response.ok) {
     // The gateway's own message can name the account or the key, so only its status is passed on.
@@ -205,7 +207,7 @@ export async function readPieceFromFiles(buffers, { fetchImpl = fetch } = {}) {
   }
   const answer = await response.json().catch(() => null);
   const choice = answer?.choices?.[0];
-  if (choice?.finish_reason === 'length') throw withStatus(422, 'That is too much music to read in one go - send fewer pages at a time.');
+  if (choice?.finish_reason === 'length') throw withStatus(422, 'That is more music than can be read in one go. Send the piece in two halves, or fewer pages at a time.');
   const raw = parseAnswer(choice?.message?.content);
   const { pieces } = PieceRead.normalise(raw, PieceOutline.MAX_BARS);
   if (!pieces.length) throw withStatus(422, "Couldn't find a piece of music on that - try a clearer photo, or enter the piece by hand.");

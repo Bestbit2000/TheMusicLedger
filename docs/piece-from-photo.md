@@ -255,7 +255,10 @@ one-time "I have the right to upload it" (ML-278) comes first, as for any music.
 2. `POST /api/piece-read` fetches them (only from our own store, only from that account's folder), has them
    read, **deletes them**, turns the read's time signatures into the account's own (making one of the
    account's own where the shared list hasn't got it), logs the read, and answers with the outline and rating
-   for each piece. A read takes 20 to 90 seconds; the server function is allowed 300 (`vercel.json`).
+   for each piece. A short piece takes 20 to 90 seconds and a long part a few minutes: the reader is given four
+   and a half (`PIECE_READER_TIMEOUT_MS`, 270 seconds) and the server function five (`vercel.json`). It was 110
+   seconds until the first long part on production timed out (ML-521); the tile now counts the time up, and a
+   read that fails says so in a pop-up that stays.
 3. One piece opens straight in Quick entry. Several (movements, or two pieces on one PDF) ask which first, and
    the rest are offered again after each save - the file is read, and paid for, once.
 4. **Quick entry opens filled in** (`outlineOpenFromRead`): its tables' rows are set as if they had been

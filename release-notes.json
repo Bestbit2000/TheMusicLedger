@@ -1,4 +1,6 @@
 {
+  "ML-521": "We gave reading a piece from a photo more time for long pieces, and it now says clearly when a piece can't be read.",
+  "ML-520": "We fixed a fault that could sign some members out every time they opened the app.",
   "ML-246": "We are trying out a way to add a piece from a photo of the music. It is not switched on for members yet.",
   "ML-519": "We made the extra check on the part of the app that holds members' details quicker to set up, with a code to scan.",
   "ML-518": "We added an extra check before anyone can open the part of the app that holds members' details.",

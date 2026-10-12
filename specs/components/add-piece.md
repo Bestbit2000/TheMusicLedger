@@ -51,11 +51,14 @@ The tiles: `--control-border`, `--input-bg`, `--text-color`, `--primary-action-s
 ends there): `button.metroBlk-entry-choice#metroBlkEntryPhotoBtn` (icon `photo_camera`), with a hidden file input
 (`#pieceReadInput`: photos or one PDF). Tapping it opens the file chooser (after the one-time upload confirmation).
 While the pages are sent and read - up to a minute and a half - the tile is disabled, `aria-busy`, and **its own
-help line says what is happening** ("Sending it: 40%", "Reading the music - about a minute"; the line is
-`aria-live="polite"`), with one info toast asking the member to stay on the screen. No new classes. When the read
+help line says what is happening** ("Sending it: 40%", then "Reading the music: 1:20 so far", counting up - a long
+part takes a few minutes; the line is `aria-live="polite"`), with one info toast asking the member to stay on the
+screen. No new classes. When the read
 comes back Quick entry opens filled in ([piece-outline](piece-outline.md)); a file with several pieces asks which
-first in `#flowChoiceModal`. What stops it (not a photo or PDF, too many, too big, offline, the reader's own
-message) is a warning toast, and the tile goes back to how it was. `docs/piece-from-photo.md`.
+first in `#flowChoiceModal`. A choice that can't be sent (not a photo or PDF, too many, too big) is a warning toast. **A read that fails
+is said in the confirm pop-up (`#confirmModal`), which stays until it is closed** - "The music couldn't be read",
+the reason, **Choose again** and Close - because a toast that has gone after minutes of waiting looks like
+nothing happened (ML-521). The tile goes back to how it was. `docs/piece-from-photo.md`.
 
 ## 5. Props / API
 - app.js, the "ADD A PIECE (ML-400)" section: `openAddPiece` (a fresh visit starts on Just me / On its own; Back keeps

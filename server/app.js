@@ -46,6 +46,14 @@ app.use(passport.initialize());
 // requests carry it (Sec-CH-UA-Model), for the owner's new sign-up email. Other browsers ignore this.
 app.use((req, res, next) => { res.set('Accept-CH', 'Sec-CH-UA-Model'); next(); });
 
+// An answer from the server is never kept by a browser. Express gives every JSON answer an ETag, so a
+// browser asks "has it changed?" and, on "no" (304), hands the app the answer it kept - headers and all.
+// One of those headers is X-Refreshed-Token (ML-475): a kept answer carrying it was replayed for weeks,
+// and each time the app swapped its good sign-in for that old one - which, once it had run out, signed the
+// member out on every page load. Found on 12 Oct 2026; it is very likely what ML-48 was. The app also asks
+// with cache: 'no-store' (apiCall), which is what frees a browser that already holds such an answer.
+app.use(['/api', '/auth'], (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+
 // Routes FIRST (before static files)
 app.use('/auth', authRoutes);
 app.use('/api', apiRoutes);
