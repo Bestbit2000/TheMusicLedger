@@ -20576,18 +20576,24 @@
     const OUTLINE_ROW_TABLES = {
         repeat: {
             rows: 'repeatRows', id: 'outlineRepeatRows', css: 'outline-row-repeat', types: ['repeat', 'repeatEndings'],
-            blank: () => ({ from: '', to: '', times: '', e1From: '', e2To: '', e2Auto: '' }), // e2Auto: '1' while the last ending is the filled-in bar
+            // e2Auto: '1' while the last ending is the filled-in bar. mids (ML-460): the bars the endings between the
+            // 1st and the last end at, as "18,20" - a different ending for each time through, typed in the Endings pop-up
+            blank: () => ({ from: '', to: '', times: '', e1From: '', e2To: '', e2Auto: '', mids: '' }),
             cols: [['from', 'From bar', 'from bar', 'bar'], ['to', 'To bar', 'to bar', 'bar'], ['times', 'Times', 'times played - 2 if empty', 'e.g. 2'], ['e1From', '1st ending', 'the bar the 1st ending starts at - empty for a plain repeat', 'bar'], ['e2To', 'Last ending', 'the bar the last ending ends at - the bar after the repeat if empty', 'bar']],
             // Played 3 or more times there are still two endings: the 1st is for every time but the last, the last
             // ending for the last time (PieceOutline.buildBlocks) - so the columns say 1st and Last, not 1st and 2nd.
-            help: 'Bars played more than once. Leave "times" empty for twice - for a hymn or carol sung through 6 times, put 6. For 1st and 2nd time bars, fill in the bar the 1st ending starts at; "to bar" is where it ends. The last ending is taken as the one bar after the repeat - change it if it is longer. Played 3 or more times, the 1st ending is for every time but the last.',
+            help: 'Bars played more than once. Leave "times" empty for twice - for a hymn or carol sung through 6 times, put 6. For 1st and 2nd time bars, fill in the bar the 1st ending starts at; "to bar" is where it ends. The last ending is taken as the one bar after the repeat - change it if it is longer. Played 3 or more times, the 1st ending is for every time but the last - for a different ending each time (1. 2. 3.), tap the row\'s Endings button.',
             extra(r) {
                 const n = (v) => (v === '' ? NaN : Number(v));
-                const base = { from: n(r.from), to: n(r.to), times: r.times === '' ? 2 : n(r.times) };
-                if (r.e1From === '' && r.e2To === '') return { type: 'repeat', ...base };
+                const mids = r.mids ? r.mids.split(',').map(n) : [];
+                // played twice unless it says - or once for each ending, when there are more than two
+                const base = { from: n(r.from), to: n(r.to), times: r.times === '' ? mids.length + 2 : n(r.times) };
+                if (r.e1From === '' && r.e2To === '' && !mids.length) return { type: 'repeat', ...base };
                 // the last ending is nearly always the one bar after the repeat, so that is what an empty box means
-                return { type: 'repeatEndings', ...base, e1From: n(r.e1From), e2To: r.e2To === '' ? base.to + 1 : n(r.e2To) };
+                return { type: 'repeatEndings', ...base, e1From: n(r.e1From), e2To: r.e2To === '' ? base.to + 1 : n(r.e2To), ...(mids.length ? { mids } : {}) };
             },
+            // How many endings the row has: none for a plain repeat, else the 1st, the last and any between
+            endings: (r) => (r.e1From === '' && r.e2To === '' && !r.mids ? 0 : (r.mids ? r.mids.split(',').length : 0) + 2),
             // As the 1st ending (or the end of the repeat) is typed, the last ending's box is filled in with the bar
             // after the repeat - until a different bar is typed there. Returns the columns it changed.
             sync(r, col) {
@@ -20599,8 +20605,8 @@
                 r.e2Auto = fill ? '1' : '';
                 return ['e2To'];
             },
-            started: (r) => r.from !== '' || r.to !== '' || r.times !== '' || r.e1From !== '' || r.e2To !== '',
-            ready: (r) => r.from !== '' && r.to !== '' && !(r.e1From === '' && r.e2To !== '')
+            started: (r) => r.from !== '' || r.to !== '' || r.times !== '' || r.e1From !== '' || r.e2To !== '' || !!r.mids,
+            ready: (r) => r.from !== '' && r.to !== '' && !(r.e1From === '' && (r.e2To !== '' || !!r.mids))
         },
         pause: {
             rows: 'pauseRows', id: 'outlinePauseRows', css: 'outline-row-pause', types: ['pause'],
@@ -20641,16 +20647,18 @@
         built.clashes.forEach(c => { const x = o.extras[c.extra]; if (x && x.row) problems[x.row.table].push({ row: x.row.index, message: c.message }); });
         return problems;
     }
+    const outlineEndsLabel = (i, n) => `Row ${i + 1}: ${n ? `${n} endings` : 'no endings'} - tap to change`;
     const outlineTableRowHtml = (t) => (r, i) => `<div class="outline-row ${t.css}">
         ${t.cols.map(([col, , label, hint]) => `<input type="number" inputmode="${col === 'holdBeats' ? 'decimal' : 'numeric'}" ${col === 'holdBeats' ? 'step="any" ' : ''}data-xrow="${i}" data-xcol="${col}" value="${escapeHtml(String(r[col]))}" placeholder="${hint}" aria-label="Row ${i + 1}: ${label}" enterkeyhint="next">`).join('')}
-        ${t === OUTLINE_ROW_TABLES.pause ? `<button type="button" class="outline-cell-btn" data-xkind="${i}" aria-haspopup="dialog" aria-label="Row ${i + 1}: ${r.kind === 'caesura' ? 'a caesura - a silent break' : 'a fermata - a held pause'} - tap to change">${theoryGlyphs([r.kind === 'caesura' ? 'caesura' : 'fermataAbove'])}</button>` : ''}</div>`;
+        ${t === OUTLINE_ROW_TABLES.pause ? `<button type="button" class="outline-cell-btn" data-xkind="${i}" aria-haspopup="dialog" aria-label="Row ${i + 1}: ${r.kind === 'caesura' ? 'a caesura - a silent break' : 'a fermata - a held pause'} - tap to change">${theoryGlyphs([r.kind === 'caesura' ? 'caesura' : 'fermataAbove'])}</button>` : ''}
+        ${t === OUTLINE_ROW_TABLES.repeat ? `<button type="button" class="outline-cell-btn" data-xends="${i}" aria-haspopup="dialog" aria-label="${outlineEndsLabel(i, t.endings(r))}">${t.endings(r)}</button>` : ''}</div>`;
     function outlineTableHtml(key) {
         const t = OUTLINE_ROW_TABLES[key];
         const rows = outlineRowsOf(t);
         return `
             <p class="text-sm text-muted no-margin">${escapeHtml(t.help)}</p>
             <div class="outline-table" id="${t.id}" data-xtable="${key}">
-                <div class="outline-row ${t.css}" aria-hidden="true">${t.cols.map(([, head]) => `<span class="outline-th">${head}</span>`).join('')}${key === 'pause' ? '<span class="outline-th">Kind</span>' : ''}</div>
+                <div class="outline-row ${t.css}" aria-hidden="true">${t.cols.map(([, head]) => `<span class="outline-th">${head}</span>`).join('')}${key === 'pause' ? '<span class="outline-th">Kind</span>' : ''}${key === 'repeat' ? '<span class="outline-th">Endings</span>' : ''}</div>
                 ${rows.map(outlineTableRowHtml(t)).join('')}
             </div>
             <p class="text-sm text-muted no-margin" id="outlineRowsCheck" aria-live="polite"></p>`;
@@ -20919,8 +20927,79 @@
         renderOutlineExtraForm();
         document.getElementById(e.target.id)?.focus();
     });
+    // --- ML-460: a repeat row's endings, in the same pop-up. The table's two boxes do a 1st and a last ending; this
+    // is where a different ending for each time through goes (1. 2. 3. ...): where the 1st ending starts, then the
+    // bar each ending after it ends at. An emptied box takes its ending out; Done writes the row's boxes.
+    function outlineOpenEndings(i) {
+        const r = outline.repeatRows[i];
+        const ends = [...(r.mids ? r.mids.split(',') : []), r.e2To];
+        outlineExtraDraft = { endsRow: i, e1From: r.e1From, ends };
+        document.getElementById('outlineExtraTitle').textContent = 'Endings';
+        document.getElementById('outlineExtraSaveBtn').textContent = 'Done';
+        setShown('outlineExtraRemoveBtn', false);
+        renderOutlineEndingsForm();
+        showModal('outlineExtraModal');
+        document.querySelector('#outlineExtraForm input[type="number"]')?.focus();
+    }
+    function renderOutlineEndingsForm() {
+        const d = outlineExtraDraft;
+        const num = (key, value, label) => `<label class="outline-field"><input type="number" inputmode="numeric" data-ends="${key}" value="${escapeHtml(String(value))}" enterkeyhint="next" min="1"><span class="outline-field-label">${escapeHtml(label)}</span></label>`;
+        document.getElementById('outlineExtraForm').innerHTML = `
+            <div class="outline-pair">${num('e1From', d.e1From, '1st ending starts at bar')}${d.ends.map((v, k) => num(k, v, `${PieceOutline.ordinal(k + 2)} ending ends at bar`)).join('')}</div>
+            <button type="button" class="outline-add" data-ends-add>+ Add another ending</button>
+            <p class="text-sm text-muted no-margin">The 1st ending ends where the repeat does. To take an ending out, empty its box.</p>`;
+        outlineEndingsCheck();
+    }
+    // The row as it would be with what is typed in the pop-up
+    function outlineEndingsRow() {
+        const d = outlineExtraDraft, r = outline.repeatRows[d.endsRow];
+        const ends = d.ends.filter(v => v !== '');
+        const row = { ...r, e1From: d.e1From, e2To: ends.length ? ends[ends.length - 1] : '', mids: ends.slice(0, -1).join(','), e2Auto: '' };
+        // as in the table: with only the 1st ending typed, the last is the one bar after the repeat
+        if (row.e1From !== '' && row.e2To === '' && r.to !== '' && Number.isInteger(Number(r.to))) { row.e2To = String(Number(r.to) + 1); row.e2Auto = '1'; }
+        return row;
+    }
+    // In plain words which bars each time through plays - or what's wrong
+    function outlineEndingsCheck() {
+        const el = document.getElementById('outlineExtraCheck');
+        const say = (text, bad) => { el.textContent = text; el.classList.toggle('text-danger', !!bad); };
+        const t = OUTLINE_ROW_TABLES.repeat, row = outlineEndingsRow();
+        if (row.from === '' || row.to === '') return say('Fill in the repeat\'s from bar and to bar in the table first.');
+        if (!t.endings(row)) return say('No endings: the same bars each time.');
+        if (!t.ready(row)) return say('Which bar does the 1st ending start at?');
+        const x = t.extra(row);
+        const problem = PieceOutline.extraProblem(outline.o, x);
+        if (problem) return say(problem, true);
+        const bars = (a, b) => (a === b ? `${a}` : `${a}-${b}`);
+        say(PieceOutline.endingsOf(x).map((e, k) => {
+            const when = e.passes.length > 1 ? `Times ${e.passes[0]} to ${e.passes[e.passes.length - 1]}` : `Time ${e.passes[0]}`;
+            return `${when}: bars ${k ? `${x.e1From > x.from ? `${bars(x.from, x.e1From - 1)}, then ` : ''}${bars(e.from, e.to)}` : bars(x.from, x.to)}.`;
+        }).join(' '));
+    }
+    document.getElementById('outlineExtraForm')?.addEventListener('input', (e) => {
+        const key = e.target.dataset.ends;
+        if (key === undefined || !outlineExtraDraft || !outlineExtraDraft.ends) return;
+        if (key === 'e1From') outlineExtraDraft.e1From = e.target.value;
+        else outlineExtraDraft.ends[Number(key)] = e.target.value;
+        outlineEndingsCheck();
+    });
+    document.getElementById('outlineExtraForm')?.addEventListener('click', (e) => {
+        if (!e.target.closest('[data-ends-add]') || !outlineExtraDraft || !outlineExtraDraft.ends) return;
+        outlineExtraDraft.ends.push('');
+        renderOutlineEndingsForm();
+        document.querySelector(`#outlineExtraForm input[data-ends="${outlineExtraDraft.ends.length - 1}"]`)?.focus();
+    });
+    function outlineEndingsDone() {
+        const i = outlineExtraDraft.endsRow, t = OUTLINE_ROW_TABLES.repeat, rows = outlineRowsOf(t);
+        rows[i] = outlineEndingsRow();
+        if (t.started(rows[rows.length - 1])) rows.push(t.blank());
+        outlineExtraDraft = null;
+        hideModal('outlineExtraModal');
+        outlineRerenderKeeping(`[data-xends="${i}"]`);
+    }
     document.getElementById('outlineExtraSaveBtn')?.addEventListener('click', () => {
         if (!outlineExtraDraft) return;
+        if (outlineExtraDraft.ends) { outlineEndingsDone(); return; }
         const filled = !Object.entries(outlineExtraDraft.x).some(([k, v]) => v === '' && !(outlineExtraDraft.x.type === 'intro' && k === 'to') && !(k === 'bpm' && outlineExtraDraft.x.target !== 'custom'));
         if (!filled) { showWarningToast('Fill in the bar numbers first.'); return; }
         const x = outlineExtraClean();
@@ -21226,6 +21305,7 @@
             });
             return;
         }
+        if (t.dataset.xends !== undefined) { outlineOpenEndings(Number(t.dataset.xends)); return; }
         if (t.dataset.outlineExtra !== undefined) { outlineOpenExtra(Number(t.dataset.outlineExtra)); return; }
         if (t.dataset.outlineMediaRemove !== undefined) { outline.media[t.dataset.mediaList].splice(Number(t.dataset.outlineMediaRemove), 1); renderOutline(); return; }
         if (t.dataset.speedNote !== undefined) {
@@ -21332,6 +21412,9 @@
             xrow[t.dataset.xcol] = t.value;
             // (a repeat's last ending fills itself in with the bar after the repeat)
             if (table.sync) table.sync(xrow, t.dataset.xcol).forEach(col => { const box = document.querySelector(`#${table.id} [data-xrow="${t.dataset.xrow}"][data-xcol="${col}"]`); if (box) box.value = xrow[col]; });
+            // (and a repeat row's Endings button counts them as they are typed)
+            const endsBtn = table.endings && document.querySelector(`#${table.id} [data-xends="${t.dataset.xrow}"]`);
+            if (endsBtn) { const n = table.endings(xrow); endsBtn.textContent = n; endsBtn.setAttribute('aria-label', outlineEndsLabel(Number(t.dataset.xrow), n)); }
             outlineGrowTable(outlineRowsOf(table), table.blank, outlineTableRowHtml(table), table.id);
             outlineRowsRefresh(key);
             return;

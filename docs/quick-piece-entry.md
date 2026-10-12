@@ -29,7 +29,7 @@ whole piece is made in Quick entry - it never opens the edit screen, so one piec
 | Tempo | `time` | "Most of it is in" - the time signature as a tile (`mainSig`) - then **where it switches**: a table - from bar, the time (typed like `3/4`, or picked), bars / to bar (each fills in the other; one is needed). After a row the piece is back in the main time. A typed time signature the app doesn't have is added to the player's own (ML-425, ML-440, ML-442) | `outline.timeRows` → `time: { bar: sig }` (`outlineTimeApply`) |
 | | `speed` | "It starts at" - bpm and beat note as tiles (`mainBpm`, `mainNote`) - then **where it switches**: a table - from bar, bpm, beat note (shown as the note it will play at). A bar 1 row sets the starting speed and the tiles follow it; a blank row is ignored. A switch is sudden, at a bar | `speeds: [...]` |
 | Extras | `xIntro` | Is there an intro? A **switch** (off to start with); on, its two boxes are on the step - from bar, to bar (empty = to the end). No pop-up: there is only ever one (owner, 5 Oct 2026) | `outline.intro { on, from, to }` → `extras` (`outlineIntroApply`) |
-| | `xRepeats` | Are there any repeats? Yes: **a table** (ML-435) - from bar, to bar, times (2 if empty), and for 1st and 2nd time bars the bar the 1st ending starts at (the **last ending** fills itself in as the bar after the repeat - `sync` - and can be changed; played 3 or more times, the 1st ending is for every time but the last), i.e. the bar the 1st ending starts at and the bar the 2nd ending ends at | `outline.repeatRows` → `extras` (`outlineRowsApply`) |
+| | `xRepeats` | Are there any repeats? Yes: **a table** (ML-435) - from bar, to bar, times (2 if empty), and for 1st and 2nd time bars the bar the 1st ending starts at (the **last ending** fills itself in as the bar after the repeat - `sync` - and can be changed; played 3 or more times, the 1st ending is for every time but the last), i.e. the bar the 1st ending starts at and the bar the 2nd ending ends at. The row's **Endings** button (ML-460) shows how many endings it has and opens them in a pop-up, for a different ending each time through | `outline.repeatRows` → `extras` (`outlineRowsApply`) |
 | | `xPauses` | Are there any pauses or breaks? Yes: **a table** (ML-435) - in bar, on beat (1 if empty), beats held (2 if empty), Pause or Break | `outline.pauseRows` → `extras` |
 | | `xRamps` | **Where does the speed change gradually?** - a rall., rit. or accel. over some bars. Straight after the switches so the two aren't taken for each other, and still its own step | `extras: [...]` |
 | | `xSigns` | Are there any signs or jumps? (D.S., D.C., Coda, Fine) | |
@@ -80,6 +80,15 @@ on one. A count-in is a lead-in block of one bar in bar 1's time and speed. Then
 - **Endings:** the 1st ending starts part-way through the repeat's last block ("from bar N",
   `repeatEndingStartBar`) for passes 1 to times-1; the block(s) after it up to the 2nd ending's last bar are for
   the final pass. If something else already splits the 1st ending's bars, it starts a block of its own.
+- **A different ending each time through (ML-460):** "1. 2. 3." as a carol or hymn has for each verse. The
+  repeat's extra carries `mids` - the bar each ending between the 1st and the last ends at, in order - and
+  `PieceOutline.endingsOf` gives every ending's bars and the times it is played. Each ending is a block of its own
+  for one time through, and every one but the last goes back (a repeat end with the same "times played").
+  "Times" left empty is one for each ending; played more times than there are endings, the 1st ending takes
+  the extra times. Fewer times than endings, or endings out of order, is a clash. It is typed in the row's
+  **Endings** pop-up (`outlineOpenEndings`): where the 1st ending starts, then the bar each one after it ends
+  at, "+ Add another ending", and a line saying which bars each time plays. An emptied box takes its ending
+  out. A piece read from a photo (ML-246) still gives a 1st and a last ending only.
 - **Pause:** a fermata or a caesura on its block, at the bar and beat given. How a held pause sounds (tone, silent,
   count through) isn't asked: it is each player's own playback setting, and playback ignores the value stored on the pause.
 - **Speed up or slow down:** a ramp on its block, from a bar and beat to the end of a bar, reaching a typed bpm or

@@ -92,6 +92,23 @@
         return [...counts.entries()].map(([sig, bars]) => ({ sig, bars }));
     }
 
+    // --- A repeat's endings (ML-460). Two to start with: the 1st (from `e1From` to the repeat's last bar) and
+    // the last (the bars after the repeat, to `e2To`). `mids` adds the ones in between - the bar each ends at,
+    // in order - for a different ending each time through (1. 2. 3. ...), each of which goes back but the last.
+    // Played more times than there are endings, the 1st ending takes the extra times.
+    // [{ from, to, passes }] in order; nothing for a plain repeat.
+    const ORDINALS = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
+    const ordinal = (n) => ORDINALS[n - 1] || `${n}th`;
+    const midsOf = (x) => (Array.isArray(x.mids) ? x.mids.map(int) : []);
+    function endingsOf(x) {
+        if (x.type !== 'repeatEndings') return [];
+        const ends = [...midsOf(x), x.e2To];
+        const times = int(x.times), n = ends.length + 1;
+        const out = [{ from: x.e1From, to: x.to, passes: Array.from({ length: Math.max(1, times - n + 1) }, (_, k) => k + 1) }];
+        ends.forEach((end, k) => out.push({ from: (k ? ends[k - 1] : x.to) + 1, to: end, passes: [times - n + 2 + k] }));
+        return out;
+    }
+
     // --- The extras, checked on their own (bar numbers that make sense). Returns a message or null. ---
     function extraProblem(o, x) {
         const bars = (...list) => list.every(b => inPiece(o, b));
@@ -102,7 +119,11 @@
             if (x.type === 'repeatEndings') {
                 if (!bars(x.e1From, x.e2To)) return 'An ending\'s bars aren\'t in the piece.';
                 if (x.e1From < x.from || x.e1From > x.to) return 'The 1st ending has to be inside the repeat.';
-                if (x.e2To <= x.to) return 'The last ending comes after the repeat.';
+                const mids = midsOf(x);
+                if (!bars(...mids)) return 'An ending\'s bars aren\'t in the piece.';
+                if (mids.some((m, k) => m <= (k ? mids[k - 1] : x.to))) return 'Each ending comes after the one before it.';
+                if (x.e2To <= (mids.length ? mids[mids.length - 1] : x.to)) return mids.length ? 'The last ending comes after the one before it.' : 'The last ending comes after the repeat.';
+                if (int(x.times) < mids.length + 2) return `It has ${mids.length + 2} endings, so it is played at least ${mids.length + 2} times.`;
             }
             return null;
         }
@@ -164,7 +185,7 @@
         speedRows(o).forEach(s => cut(s.bar));
         good.forEach(({ x }) => {
             if (x.type === 'repeat' || x.type === 'repeatEndings') { cut(x.from); cut(x.to + 1); }
-            if (x.type === 'repeatEndings') cut(x.e2To + 1);
+            if (x.type === 'repeatEndings') { midsOf(x).forEach(m => cut(m + 1)); cut(x.e2To + 1); }
             if (x.type === 'sign') cut(SIGNS[x.sign].at === 'start' ? x.bar : x.bar + 1);
         });
         // A 1st ending starts part-way through the repeat's last block ("from bar N"). If something else
@@ -194,14 +215,15 @@
                 last.isRepeatEnd = true;
                 last.repeatPlayCount = int(x.times);
                 if (x.type === 'repeatEndings') {
-                    const firstPasses = Array.from({ length: int(x.times) - 1 }, (_, k) => k + 1);
-                    blocks.filter(b => b.to >= x.e1From && b.from <= x.to).forEach(b => {
-                        b.repeatEndingNumbers = firstPasses.slice();
-                        b.repeatEndingStartBar = Math.max(1, x.e1From - b.from + 1);
-                    });
-                    blocks.filter(b => b.from > x.to && b.to <= x.e2To).forEach(b => {
-                        b.repeatEndingNumbers = [int(x.times)];
-                        b.repeatEndingStartBar = 1;
+                    const endings = endingsOf(x);
+                    // an ending in the middle goes back too - unless another repeat already ends on its last bar
+                    if (endings.slice(1, -1).some(e => endingAt(e.to).isRepeatEnd)) return clash('Another repeat starts or ends on the same bar.');
+                    endings.forEach((e, k) => {
+                        blocks.filter(b => (k ? b.from >= e.from : b.to >= e.from) && b.to <= e.to).forEach(b => {
+                            b.repeatEndingNumbers = e.passes.slice();
+                            b.repeatEndingStartBar = k ? 1 : Math.max(1, e.from - b.from + 1);
+                        });
+                        if (k && k < endings.length - 1) { const b = endingAt(e.to); b.isRepeatEnd = true; b.repeatPlayCount = int(x.times); }
                     });
                 }
             } else if (x.type === 'pause') {
@@ -249,7 +271,11 @@
     function describeExtra(x) {
         const range = (a, b) => (a === b ? `bar ${a}` : `bars ${a} to ${b}`);
         if (x.type === 'repeat') return { title: `Repeat ${range(x.from, x.to)}`, sub: `Played ${x.times} times` };
-        if (x.type === 'repeatEndings') return { title: `Repeat ${range(x.from, x.to)}, with endings`, sub: `1st ending ${range(x.e1From, x.to)} · ${x.times > 2 ? 'last' : '2nd'} ending ${range(x.to + 1, x.e2To)} · played ${x.times} times` };
+        if (x.type === 'repeatEndings') {
+            const endings = endingsOf(x);
+            const name = (k) => (k === endings.length - 1 && x.times > endings.length ? 'last' : ordinal(k + 1));
+            return { title: `Repeat ${range(x.from, x.to)}, with endings`, sub: `${endings.map((e, k) => `${name(k)} ending ${range(e.from, e.to)}`).join(' · ')} · played ${x.times} times` };
+        }
         if (x.type === 'pause') return { title: `${x.kind === 'caesura' ? 'Break' : 'Pause'} in bar ${x.bar}`, sub: `On beat ${x.beat}, held for ${x.holdBeats} beat${Number(x.holdBeats) === 1 ? '' : 's'}` };
         if (x.type === 'ramp') return { title: `Speed up or slow down, ${range(x.from, x.to)}`, sub: x.target === 'next' ? 'To the next speed' : `To ${x.bpm} bpm` };
         if (x.type === 'sign') return { title: `${(SIGNS[x.sign] || {}).label || 'Sign'}`, sub: `${(SIGNS[x.sign] || {}).at === 'start' ? 'At the start of' : 'At the end of'} bar ${x.bar}` };
@@ -257,5 +283,5 @@
         return { title: 'Extra', sub: '' };
     }
 
-    return { MAX_BARS, SIGNS, EXTRA_KINDS, parseBarList, marksOf, sigAt, speedRows, speedAt, sections, timeSummary, extraProblem, buildBlocks, summary, describeExtra };
+    return { MAX_BARS, SIGNS, EXTRA_KINDS, parseBarList, marksOf, sigAt, speedRows, speedAt, sections, timeSummary, extraProblem, endingsOf, ordinal, buildBlocks, summary, describeExtra };
 }));

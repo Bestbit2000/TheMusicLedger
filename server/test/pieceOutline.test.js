@@ -143,6 +143,39 @@ describe('extras and clashes (ML-424)', () => {
         assert.deepEqual([blockAt(blocks, 9).repeatEndingNumbers, blockAt(blocks, 9).repeatEndingStartBar, blockAt(blocks, 9).repeatPlayCount], [[1, 2], 7, 3]);
         assert.deepEqual(blockAt(blocks, 17).repeatEndingNumbers, [3]);
     });
+    // ML-460: a different ending for each time through (1. 2. 3.) - `mids` is where each ending between the
+    // 1st and the last ends
+    const three = { type: 'repeatEndings', from: 9, to: 16, times: 3, e1From: 15, mids: [18], e2To: 20 };
+    const meter = (blocks) => blocks.map(b => ({ ...b, numerator: 4, denominator: 4 }));
+    test('three endings, one for each time: each goes back but the last', () => {
+        const { blocks, clashes } = build([three]);
+        assert.deepEqual(clashes, []);
+        assert.deepEqual(starts(blocks), [1, 9, 17, 19, 21, 25]);
+        const first = blockAt(blocks, 9), second = blockAt(blocks, 17), third = blockAt(blocks, 19);
+        assert.deepEqual([first.repeatEndingNumbers, first.repeatEndingStartBar, first.isRepeatEnd, first.repeatPlayCount], [[1], 7, true, 3]);
+        assert.deepEqual([second.repeatEndingNumbers, second.repeatEndingStartBar, second.isRepeatEnd, second.repeatPlayCount], [[2], 1, true, 3]);
+        assert.deepEqual([third.repeatEndingNumbers, third.isRepeatEnd], [[3], false]);
+        assert.deepEqual(blockAt(blocks, 21).repeatEndingNumbers, []);
+    });
+    test('three endings are played in the right order, and the bar editor\'s check is happy', () => {
+        const blocks = meter(raw.buildBlocks({ ...base, extras: [three] }).blocks);
+        assert.deepEqual(JSON.parse(JSON.stringify(FlowJourney.checkFlow(blocks).filter(i => i.severity === 'error'))), []);
+        const written = Array.from(FlowJourney.buildJourney(blocks).steps, s => blocks[s.blockIndex].from + s.bar);
+        assert.deepEqual(written.slice(8, 34), [9, 10, 11, 12, 13, 14, 15, 16, 9, 10, 11, 12, 13, 14, 17, 18, 9, 10, 11, 12, 13, 14, 19, 20, 21, 22]);
+    });
+    test('played more times than there are endings: the 1st ending takes the extra times', () => {
+        const { blocks } = build([{ ...three, times: 5 }]);
+        assert.deepEqual([blockAt(blocks, 9).repeatEndingNumbers, blockAt(blocks, 17).repeatEndingNumbers, blockAt(blocks, 19).repeatEndingNumbers], [[1, 2, 3], [4], [5]]);
+        assert.equal(PO.describeExtra({ ...three, times: 5 }).sub, '1st ending bars 15 to 16 · 2nd ending bars 17 to 18 · last ending bars 19 to 20 · played 5 times');
+        assert.equal(PO.describeExtra(three).sub, '1st ending bars 15 to 16 · 2nd ending bars 17 to 18 · 3rd ending bars 19 to 20 · played 3 times');
+    });
+    test('endings that are out of order, or more endings than times played, are clashes', () => {
+        assert.equal(build([{ ...three, mids: [16] }]).clashes[0].message, 'Each ending comes after the one before it.');
+        assert.equal(build([{ ...three, mids: [18, 18], times: 4 }]).clashes[0].message, 'Each ending comes after the one before it.');
+        assert.equal(build([{ ...three, e2To: 18 }]).clashes[0].message, 'The last ending comes after the one before it.');
+        assert.equal(build([{ ...three, times: 2 }]).clashes[0].message, 'It has 3 endings, so it is played at least 3 times.');
+        assert.equal(build([{ ...three, mids: [99] }]).clashes[0].message, 'An ending\'s bars aren\'t in the piece.');
+    });
     test('an intro: from a bar, to a bar', () => {
         const { blocks } = build([{ type: 'intro', from: 19, to: 24 }]);
         assert.deepEqual([blockAt(blocks, 17).introStartBarOffset, blockAt(blocks, 17).introEndBarOffset], [3, 8]);

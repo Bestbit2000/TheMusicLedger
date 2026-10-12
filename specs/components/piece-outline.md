@@ -68,7 +68,7 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   start (`.outline-cell-fixed` × 3); the beat note of a row is an `.outline-cell-btn` (the note it will play at, drawn: its own, or the one carried on from the row above).
 - **Repeats and Pauses (ML-435) are tables:** after Yes, `.outline-table` › `.outline-row.outline-row-repeat` (from
   bar, to bar, times, 1st ending, last ending (it fills itself in with the bar after the repeat) - five narrow number boxes; the two ending boxes filled in make it a
-  repeat with endings) or `.outline-row.outline-row-pause` (in bar, on beat, beats held, and an `.outline-cell-btn`
+  repeat with endings - and, ML-460, an `.outline-cell-btn` showing how many endings the row has, which opens them in the extra pop-up: where the 1st ending starts, the bar each ending after it ends at in an `.outline-pair` of `.outline-field`s, "+ Add another ending" (`.outline-add`), a line saying which bars each time through plays, and Done) or `.outline-row.outline-row-pause` (in bar, on beat, beats held, and an `.outline-cell-btn`
   showing Pause or Break, which opens the choice pop-up to change it). Empty boxes take the usual answer (twice; beat 1; 2 beats). A new row appears as the
   last is typed in; a row that can't be used is named with its reason ("Row 2: Its bar isn't in the piece."). They
   replaced a pop-up per repeat or pause (about four taps each).
