@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.61.0",
+    "date": "2026-10-12",
+    "changes": [
+      {
+        "key": "ML-528",
+        "type": "New",
+        "summary": "We now keep the clef you read on your account, so a euphonium, baritone, trombone or tuba player chooses treble or bass once and every tool follows."
+      },
+      {
+        "key": "ML-517",
+        "type": "New",
+        "summary": "We added three quick set-up steps for new members - what you play, how the app looks and who you play with - which you can go through again from Settings."
+      },
+      {
+        "key": "ML-460",
+        "type": "New",
+        "summary": "We made Quick entry take a repeat with a different ending for each time through, as a carol or hymn has for each verse."
+      },
+      {
+        "key": "ML-158",
+        "type": "New",
+        "summary": "We added the Tuning fork: a note to tune to, shown as your part writes it."
+      },
+      {
+        "key": "ML-107",
+        "type": "New",
+        "summary": "We added the tuner button to more of the screens you play at: a practice session and its rest, preparing a piece, and the Timer."
+      }
+    ]
+  },
+  {
     "version": "0.60.0",
     "date": "2026-10-12",
     "changes": [
