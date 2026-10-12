@@ -33,6 +33,27 @@ before changing a rule. Owner decisions: 2026-09-28 (this release's chat).
   (concert = written + n) for the clef the app reads the instrument in (`theory_clef`: brass band
   treble where there is one - a treble-clef euphonium is −14). The tuner hears concert pitch;
   `PlayRange.heardWritten` turns it into the written note.
+- **The clef you read (ML-528).** Some brass is read two ways: a euphonium, baritone, tenor or valve
+  trombone, E♭ or B♭ tuba is a transposing treble-clef part in a brass band and a bass-clef part at concert
+  pitch in a wind band (a tenor trombone also in tenor clef). `instruments.other_clefs` lists those other
+  clefs with their own transposition (`[{"clef":"bass","writtenToConcert":0}]`), and each player chooses
+  the one they read **once, on the account** - My instruments → an instrument's ⋮ → **My clef…**
+  (`account_instruments.clef`, NULL = the instrument's own; `PUT /api/account/instruments/:id/clef`). It
+  used to be chosen in each tool on each device.
+  - **Nothing stored moves.** `range_low` / `range_high`, `bottom_note` / `top_note`, `range_note_levels`
+    and `range_goes` stay written in the instrument's **own** clef. The server moves every written note
+    into the player's clef on the way out and back on the way in
+    (`server/services/instrumentClef.js`: `clefView` gives the clef, its transposition and the `shift` in
+    semitones; `toMine` / `toOwn`). Written C4 on a treble-clef euphonium is B♭2 for a bass-clef reader:
+    shift −14. A moved note is spelled the usual way a range is.
+  - **So the app needs no clef logic of its own.** `GET /api/account/instruments` and `GET /api/range` hand
+    each instrument back as the player reads it: `theoryClef` (`clef` in the range answer),
+    `writtenToConcert`, the instrument's range and the player's, all in that clef; `ownClef` and
+    `clefChoices` say what the instrument's own is and what can be chosen. Scales, Warm-ups, Theory, the
+    range picker and the Range tool start from it. The Clef button in Scales and Warm-ups still changes
+    the clef **for that visit** - it is no longer kept on the device.
+  - A new place that sends or stores a written note for an instrument goes through `clefView` the same
+    way. Tests: `server/test/instrumentClef.test.js`.
 - **Changing the catalogue:** edit `written_to_concert_semitones` / `written_range` in
   `band_instruments_master_catalog.json`, then write a new migration with
   `node scripts/generate-instrument-ranges-migration.mjs band_instruments_master_catalog.json` (it

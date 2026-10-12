@@ -10,6 +10,7 @@ import vm from 'node:vm';
 import pool from '../config/db.js';
 import { withStatus } from './flows.js';
 import { isFeatureEnabled } from './features.js';
+import { clefView, shiftPitch, toMine, toOwn } from './instrumentClef.js';
 
 const sandbox = { self: {} };
 for (const f of ['notation.js', 'range.js']) {
@@ -24,10 +25,14 @@ export async function assertRangeEnabled() {
 
 // ML-370: a 4th above the usual top on brass and woodwind (PlayRange.outerLimit).
 const outerOf = (r) => plain(PlayRange.outerLimit(r.range_low, r.range_high, r.family));
+// ML-528: everything stored is written in the instrument's own clef; a player who reads another one is
+// sent - and sends - the same notes written for theirs (instrumentClef.js).
+const viewOf = (r) => clefView(r, r.my_clef);
+const outerMine = (r) => { const o = outerOf(r), v = viewOf(r); return o && { low: toMine(v, o.low), high: toMine(v, o.high), usualHigh: toMine(v, o.usualHigh) }; };
 
 async function accountInstrument(accountId, instrumentId, client = pool) {
   const { rows } = await client.query(
-    `SELECT ai.bottom_note, ai.top_note, i.id, i.name, i.theory_clef, i.written_to_concert, i.range_low, i.range_high, i.family
+    `SELECT ai.bottom_note, ai.top_note, ai.clef AS my_clef, i.id, i.name, i.theory_clef, i.other_clefs, i.written_to_concert, i.range_low, i.range_high, i.family
      FROM account_instruments ai JOIN instruments i ON i.id = ai.instrument_id
      WHERE ai.account_id = $1 AND ai.instrument_id = $2`,
     [accountId, instrumentId]
@@ -39,7 +44,7 @@ async function accountInstrument(accountId, instrumentId, client = pool) {
 // My instruments with their range, and the Level of every note beyond it that you've tried.
 export async function getRange(accountId) {
   const { rows } = await pool.query(
-    `SELECT ai.bottom_note, ai.top_note, ai.is_primary, i.id, i.name, i.theory_clef, i.written_to_concert, i.range_low, i.range_high, i.family
+    `SELECT ai.bottom_note, ai.top_note, ai.is_primary, ai.clef AS my_clef, i.id, i.name, i.theory_clef, i.other_clefs, i.written_to_concert, i.range_low, i.range_high, i.family
      FROM account_instruments ai JOIN instruments i ON i.id = ai.instrument_id
      WHERE ai.account_id = $1 ORDER BY ai.is_primary DESC, ai.created_at, i.name`,
     [accountId]
@@ -49,14 +54,17 @@ export async function getRange(accountId) {
     [accountId]
   );
   return {
-    instruments: rows.map(r => ({
-      instrumentId: Number(r.id), name: r.name, isPrimary: r.is_primary, clef: r.theory_clef,
-      writtenToConcert: r.written_to_concert, outer: outerOf(r),
-      bottom: r.bottom_note, top: r.top_note,
-      levels: levels.filter(l => Number(l.instrument_id) === Number(r.id)).map(l => ({
-        midi: l.note_midi, note: l.note, level: l.level, bestBeats: Number(l.best_beats), streak: l.streak, goes: l.goes
-      }))
-    }))
+    instruments: rows.map(r => {
+      const v = viewOf(r);
+      return {
+        instrumentId: Number(r.id), name: r.name, isPrimary: r.is_primary, clef: v.clef,
+        writtenToConcert: v.writtenToConcert, outer: outerMine(r),
+        bottom: toMine(v, r.bottom_note), top: toMine(v, r.top_note),
+        levels: levels.filter(l => Number(l.instrument_id) === Number(r.id)).map(l => ({
+          midi: l.note_midi + v.shift, note: toMine(v, l.note), level: l.level, bestBeats: Number(l.best_beats), streak: l.streak, goes: l.goes
+        }))
+      };
+    })
   };
 }
 
@@ -70,7 +78,9 @@ export async function setRange(accountId, instrumentId, { bottom, top } = {}) {
     return getRange(accountId);
   }
   // Kept as spelled on the picker (F♯ going up, G♭ coming down): a letter, one sharp or flat, an octave.
-  const clean = (p) => (/^[A-G](#|b)?\d$/.test(String(p)) ? String(p) : null);
+  // (sent as the player reads it - ML-528 - and kept in the instrument's own clef)
+  const view = viewOf(r);
+  const clean = (p) => (/^[A-G](#|b)?\d$/.test(String(p)) ? toOwn(view, String(p)) : null);
   const range = { bottom: clean(bottom), top: clean(top) };
   const problem = PlayRange.checkRange(range, outer);
   if (problem) throw withStatus(400, problem);
@@ -114,7 +124,8 @@ export async function recordGo(accountId, instrumentId, { direction, beats, bpm,
       [accountId, instrumentId, direction, t.midi, Math.min(PlayRange.MAX_BEATS, Math.round(b * 100) / 100), tempo, method, after.level]
     );
     await client.query('COMMIT');
-    return { note: t.pitch, midi: t.midi, ...after };
+    const view = viewOf(r);
+    return { note: toMine(view, t.pitch), midi: t.midi + view.shift, ...after };
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -134,7 +145,7 @@ export async function moveRange(accountId, instrumentId, { direction } = {}) {
     'SELECT level FROM range_note_levels WHERE account_id = $1 AND instrument_id = $2 AND note_midi = $3',
     [accountId, instrumentId, t.midi]
   );
-  if (!rows.length || rows[0].level < 5) throw withStatus(400, `${PlayRange.label(t.pitch)} isn't at Level 5 yet.`);
+  if (!rows.length || rows[0].level < 5) throw withStatus(400, `${PlayRange.label(shiftPitch(t.pitch, viewOf(r).shift))} isn't at Level 5 yet.`);
   await pool.query(
     `UPDATE account_instruments SET ${direction === 'up' ? 'top_note' : 'bottom_note'} = $3 WHERE account_id = $1 AND instrument_id = $2`,
     [accountId, instrumentId, t.pitch]

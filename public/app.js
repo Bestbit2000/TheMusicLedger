@@ -660,6 +660,7 @@
             getBands: () => apiCall('/api/account/bands'),
             getInstruments: () => apiCall('/api/account/instruments'),
             setInstruments: (instrumentIds, primaryId) => apiCall('/api/account/instruments', 'PUT', { instrumentIds, primaryId }),
+            setInstrumentClef: (id, clef) => apiCall(`/api/account/instruments/${id}/clef`, 'PUT', { clef }), // ML-528
             addBand: (name, website) => apiCall('/api/account/bands', 'POST', { name, website }),
             joinBand: (id) => apiCall(`/api/account/bands/${id}/join`, 'POST'),
             leaveBand: (id) => apiCall(`/api/account/bands/${id}`, 'DELETE'),
@@ -2399,7 +2400,7 @@
         if (viewName === 'aboutReleasesView') { document.getElementById('topTitle').innerText = 'Release history'; renderAboutView(); } // ML-430
         if (viewName === 'aboutGradesView') document.getElementById('topTitle').innerText = 'Exam grades';
         if (viewName === 'theoryView') { document.getElementById('topTitle').innerText = 'Theory'; renderTheoryList(); }
-        if (viewName === 'scalesView') { document.getElementById('topTitle').innerText = 'Scales'; renderScales(); scalesRenderBpm(); scalesRenderVolume(); scalesUpdatePlayUi(); scalesPlayer.prewarm(); }
+        if (viewName === 'scalesView') { document.getElementById('topTitle').innerText = 'Scales'; scalesUseMyClef(); renderScales(); scalesRenderBpm(); scalesRenderVolume(); scalesUpdatePlayUi(); scalesPlayer.prewarm(); }
         if (viewName === 'warmupsView') { document.getElementById('topTitle').innerText = 'Warm-ups'; openWarmupsView(); }
         if (viewName === 'tapTempoView') { document.getElementById('topTitle').innerText = 'Tempo'; renderTapTempoSetup(); tapPlayer.prewarm(); }
         if (viewName === 'gapTrainerView') { document.getElementById('topTitle').innerText = 'Pulse'; renderGapTrainerSetup(); gapPlayer.prewarm(); }
@@ -3854,7 +3855,7 @@
         if (!list) return;
         list.innerHTML = myInstruments.length ? myInstruments.map(i => `
             <div class="history-item">
-                <span class="grow"><strong>${escapeHtml(i.name)}</strong><br><span class="text-sm text-muted">${i.isPrimary ? 'Main instrument' : escapeHtml(i.family)}${isFeatureEnabled('range_trainer') && i.bottomNote && i.topNote ? ` · range ${PlayRange.label(i.bottomNote)} to ${PlayRange.label(i.topNote)}` : ''}</span>${accountInstrumentRangeBar(i)}</span>
+                <span class="grow"><strong>${escapeHtml(i.name)}</strong><br><span class="text-sm text-muted">${i.isPrimary ? 'Main instrument' : escapeHtml(i.family)}${instrumentHasClefChoice(i) ? ` · ${i.theoryClef} clef` : ''}${isFeatureEnabled('range_trainer') && i.bottomNote && i.topNote ? ` · range ${PlayRange.label(i.bottomNote)} to ${PlayRange.label(i.topNote)}` : ''}</span>${accountInstrumentRangeBar(i)}</span>
                 <button type="button" class="list-item-menu-btn" data-instrument-menu-id="${i.id}" aria-label="Options for ${escapeHtml(i.name)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
             </div>`).join('') : '<div class="text-muted">No instruments yet - choose the one you play below.</div>';
         list.querySelectorAll('[data-instrument-menu-id]').forEach(btn => btn.addEventListener('click', (e) => {
@@ -3870,6 +3871,31 @@
                     .map(i => `<option value="${i.id}">${escapeHtml(i.name)}</option>`).join('')}</optgroup>`).join('');
         }
         renderAccountSummaries();
+    }
+    // ML-528: the clef you read an instrument in - yours, on every device (account_instruments.clef). Only some
+    // instruments are read more than one way (a euphonium, baritone, trombone or tuba: a treble-clef part in a
+    // brass band, bass clef at concert pitch in a wind band). The server hands back each instrument as you read
+    // it - its clef, its transposition, its range and yours all in that clef - so Scales, Warm-ups, Theory and
+    // Range need no clef of their own; each starts from this one.
+    const instrumentHasClefChoice = (inst) => !!inst && (inst.clefChoices || []).length > 1;
+    const CLEF_NAMES = { treble: 'Treble clef', bass: 'Bass clef', alto: 'Alto clef', tenor: 'Tenor clef' };
+    function openInstrumentClefChoice(inst, then) {
+        if (!instrumentHasClefChoice(inst)) return;
+        openFlowChoiceModal(`${inst.name}: which clef do you read?`, inst.clefChoices.map(clef => ({
+            clef, selected: inst.theoryClef === clef,
+            html: addPieceRow(CLEF_NAMES[clef] || clef, clef === inst.ownClef ? 'Written for the instrument, as a brass band part is' : 'At concert pitch, as a concert or wind band part is')
+        })), async (opt) => {
+            if (opt.clef === inst.theoryClef) return;
+            try {
+                myInstruments = await API.account.setInstrumentClef(inst.id, opt.clef);
+                rangeData = null; // its notes are written in the new clef now
+                scalesClefPicked = false;
+                renderAccountInstruments();
+                if (then) then();
+            } catch (error) {
+                showWarningToast('Clef not saved: ' + error.message);
+            }
+        });
     }
     async function saveMyInstruments(ids, primaryId) {
         try {
@@ -3892,6 +3918,7 @@
         accountInstrumentMenuTargetId = id;
         setShown('accountInstrumentMenuMain', !myInstruments.find(i => i.id === id)?.isPrimary);
         setShown('accountInstrumentMenuRange', isFeatureEnabled('range_trainer') && !!myInstruments.find(i => i.id === id)?.rangeLow); // ML-322
+        setShown('accountInstrumentMenuClef', instrumentHasClefChoice(myInstruments.find(i => i.id === id))); // ML-528
         menu.classList.add('show');
         const r = btnEl.getBoundingClientRect();
         const left = Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8));
@@ -3904,6 +3931,11 @@
         closeAccountInstrumentMenu();
         rangeData = null; // fresh, in case it changed on another screen
         openRangePicker(accountInstrumentMenuTargetId);
+    });
+    document.getElementById('accountInstrumentMenuClef')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAccountInstrumentMenu();
+        openInstrumentClefChoice(myInstruments.find(i => i.id === accountInstrumentMenuTargetId));
     });
     document.getElementById('accountInstrumentMenuMain')?.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -22794,6 +22826,18 @@
         return scalesClone(SCALES_DEFAULTS);
     })();
     if (!TheoryEngine.ALL_KEYS.some(k => k.id === scales.keyId)) scales.keyId = SCALES_DEFAULTS.keyId;
+    // ML-528: Scales starts in the clef you read your instrument in (My instruments), each time you come to
+    // it. The Clef button still changes it - for this visit; it is no longer a setting of this device.
+    let scalesClefPicked = false;
+    function scalesUseMyClef() {
+        if (scalesClefPicked || scalesLadder) return;
+        const inst = scalesGradeInstrument();
+        const clef = inst && SCALES_CLEFS.some(([v]) => v === inst.theoryClef) ? inst.theoryClef : null;
+        if (!clef || clef === scales.clef) return;
+        scales.clef = clef;
+        scales.tonicOctave = null;
+        scalesSave();
+    }
     function scalesSave() {
         if (scalesLadder) return; // ML-391: a Scales block borrows the settings - yours come back after it
         try { localStorage.setItem(SCALES_STORE, JSON.stringify(scales)); } catch (e) { /* private browsing - still works for this visit */ }
@@ -23048,7 +23092,7 @@
     // The setting row (ML-357): clef, direction, detail - tap one to choose, it closes.
     document.getElementById('scalesClefBtn')?.addEventListener('click', () => {
         scalesFillGrid('scalesClefGrid', SCALES_CLEFS.map(([v, l]) => ({ value: l, caption: 'clef', selected: scales.clef === v, v })),
-            (o) => { scales.clef = o.v; scales.tonicOctave = null; hideModal('scalesClefModal'); scalesChanged(); });
+            (o) => { scales.clef = o.v; scales.tonicOctave = null; scalesClefPicked = true; hideModal('scalesClefModal'); scalesChanged(); });
         showModal('scalesClefModal');
     });
     document.getElementById('scalesDirBtn')?.addEventListener('click', () => {
@@ -23118,6 +23162,8 @@
         const inst = scalesGradeInstrument();
         renderInstrumentChoice(document.getElementById('scalesGradeInstrument'), inst, (id) => {
             scales.gradeInstrumentId = id;
+            scalesClefPicked = false; // the new instrument, in the clef you read it in
+            scalesUseMyClef();
             scalesSave();
             scalesRenderPool();
             if (scaleLevelsOn()) loadScaleLevels().then(scalesRenderPool); // ML-391: this instrument's Levels
@@ -23557,8 +23603,9 @@
     let warmups = (() => {
         try {
             const saved = JSON.parse(localStorage.getItem(WARMUPS_STORE) || 'null');
-            // A bass clef chosen before ML-361 stays chosen.
-            if (saved && saved.clefSet === undefined) saved.clefSet = saved.clef === 'bass';
+            // ML-528: the clef is the one you read your instrument in (My instruments). The Clef button changes
+            // it for this visit only - a clef chosen on this device before is no longer kept.
+            if (saved) saved.clefSet = false;
             if (saved && !saved.metronomeOffOnce) { saved.metronome = false; saved.metronomeOffOnce = true; }
             if (saved) return { ...WARMUPS_DEFAULTS, ...saved, kinds: Array.isArray(saved.kinds) ? saved.kinds : WARMUPS_DEFAULTS.kinds.slice() };
         } catch (e) { /* unreadable - defaults */ }

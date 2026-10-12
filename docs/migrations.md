@@ -188,6 +188,9 @@ nothing has been run anywhere yet, so nothing is costly to revisit:
 - Nothing has been run against any real database.
 - The data migration script that reads the Google Sheet and loads history into
   `sessions`/`challenges` (per `ML-21`) is separate work, not part of these files.
+- `128_instrument_clef.sql` (ML-528): `instruments.other_clefs` (the other clefs an instrument is read
+  in, each with its transposition) and `account_instruments.clef` (the one a player reads; NULL = the
+  instrument's own). See "The clef you read" in `docs/range.md`.
 - No rollback ("down") scripts — for a pre-launch schema with no real data in it
   yet, fixing forward with a new numbered file is simpler than maintaining
   reverse migrations for a schema that's still likely to shift.

@@ -31,7 +31,7 @@ import { renameAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, createQu
 import { listActivePlaybackSpeeds } from '../services/playbackSpeeds.js';
 import { handleUpload } from '@vercel/blob/client';
 import { put } from '@vercel/blob';
-import { listInstruments, listAccountInstruments, setAccountInstruments, resolveSessionInstrument } from '../services/instruments.js';
+import { listInstruments, listAccountInstruments, setAccountInstruments, setAccountInstrumentClef, resolveSessionInstrument } from '../services/instruments.js';
 import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../services/range.js';
 import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
@@ -470,6 +470,15 @@ router.get('/account/instruments', requireAuth, resolveAccount, async (req, res)
 router.put('/account/instruments', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await setAccountInstruments(req.accountId, req.body?.instrumentIds, req.body?.primaryId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-528: the clef this member reads one of their instruments in (treble or bass for a euphonium, say).
+router.put('/account/instruments/:instrumentId/clef', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await setAccountInstrumentClef(req.accountId, Number(req.params.instrumentId), String(req.body?.clef || '')));
   } catch (error) {
     sendError(res, error);
   }
