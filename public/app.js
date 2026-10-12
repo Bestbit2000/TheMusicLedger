@@ -2239,7 +2239,10 @@
     const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
-    const MINI_TUNER_VIEWS = ['metroBuilderView', 'quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView'];
+    // ML-107 (owner's list, 12 Oct 2026): anywhere you have your instrument up while looking at the screen - the
+    // play screens, a running practice session and its rest, Prepare's play-through and a piece's path, and the
+    // Timer. Not My music (a list now), and not Range, Rhythm or Pitch, which listen through the microphone themselves.
+    const MINI_TUNER_VIEWS = ['quickPlayView', 'flowPlayView', 'scalesView', 'warmupsView', 'sessionRunView', 'sessionRestView', 'prepareRunView', 'piecePathView', 'timerView'];
     let viewStack = ['mainView'];
     // Which tab flowDetailsHubView should open on next - set by a caller just before switchView,
     // read/cleared by that view's own switchView case. null means the default (Details).
@@ -2525,16 +2528,18 @@
         // Scoped to Flow/Metronome (unlike the timer/metronome mini-bars, it doesn't persist
         // elsewhere) - leaving both always closes it.
         updateMetroBlkMiniTunerVisibility(viewName);
-        // The toggle that owns the tuner's on/off state (ML-91) only exists on these two screens.
+        // The toggle that owns the tuner's on/off state (ML-91) only exists on these screens.
         document.getElementById('topTunerToggleBtn')?.classList.toggle('hidden-group', !MINI_TUNER_VIEWS.includes(viewName));
 
         if (viewName === 'tunerView') {
             document.getElementById('topTitle').innerText = 'Tuner';
             startTuner();
         }
-        // Don't kill the shared tuner engine's mic session just because the builder re-renders itself
-        // (e.g. switching between saved setups) while its own mini tuner is the thing using it.
-        else if (!(viewName === 'metroBuilderView' && metroBlkMiniTunerActive)) { stopTuner(); }
+        // Don't stop the shared tuner engine's microphone while the mini tuner is open on a screen that has it
+        // (ML-107): the screen showing itself again (another piece, the window resized across a layout width) or
+        // going from one such screen to the next - a session's block to its rest - leaves it listening. It used to
+        // stop here with the strip still open, reading "-".
+        else if (!(metroBlkMiniTunerActive && MINI_TUNER_VIEWS.includes(viewName))) { stopTuner(); }
 
         // The headphone test beats (Settings -> Metronome & playback) stop when you leave that screen.
         if (viewName !== 'settingsPlaybackView' && metroCalibPlayerRef?.isPlaying()) setMetroCalibPlaying(false);
@@ -18394,14 +18399,13 @@
         tunerEngine.stop();
     }
 
-    // --- Flow/Metronome mini tuner ---
+    // --- The mini tuner ---
     // Shares the tunerEngine singleton above rather than running a second mic session - only one of
     // the full Tuner view / this mini widget is ever visible at a time, but they're independent
     // renderers subscribed to the same onPitch feed. One shared widget element, physically moved
-    // into whichever of Flow (metroBuilderView) or Metronome (quickPlayView) is the active view (see
-    // switchView) rather than a copy per screen - opening it elsewhere isn't possible, and navigating
-    // away from both always closes it (see updateMetroBlkMiniTunerVisibility), same lifecycle as the
-    // full Tuner view itself.
+    // into whichever of the MINI_TUNER_VIEWS is the active view (see switchView) rather than a copy
+    // per screen - opening it elsewhere isn't possible, and navigating away from all of them always
+    // closes it (see updateMetroBlkMiniTunerVisibility), same lifecycle as the full Tuner view itself.
     let metroBlkMiniTunerActive = false;
     // Which instrument the mini tuner is currently reading as - seeded from the persisted Settings
     // default each time it opens, but changing it here (ML-84) only ever updates this in-memory copy,

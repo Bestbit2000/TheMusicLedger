@@ -11,6 +11,13 @@ running-timer pill when a timer is active, and the ☰ burger menu. The metronom
 directly beneath it inside `.top-bar-sticky-group`. **Don't** add screen-specific actions here.
 Put them in the screen body.
 
+**The tuner toggle (ML-107)** shows on the screens where you have your instrument up while looking at them:
+Metronome, the Rehearse play screen, Scales, Warm-ups, a running practice session and its 30-second rest,
+Prepare's play-through and a piece's path, and the Timer (`MINI_TUNER_VIEWS` in `app.js`). It opens the mini
+tuner strip under the bar - you keep your place and whatever is playing carries on - and hides while the strip
+is open. Not on a list or set-up screen, and not on Range, Rhythm or Pitch, which listen through the microphone
+themselves. A new screen you play at joins that list.
+
 ## 3. Anatomy
 `.top-bar-sticky-group` (sticky, `--z-header`) › `.top-bar` › [`.top-btn-back`] [`.top-bar-title`] [`.top-tuner-toggle`] [`.top-bar-timer-pill`] [`#navBurgerMenuBtn.top-btn` + `.notif-dot`]
 
