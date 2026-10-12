@@ -3525,7 +3525,7 @@
     // See docs/feature-access-plan.md.
     // ========================================
     const ACCESS_GROUPS = [
-        ['Tools - Everyday', ['metronome', 'tuner', 'timer']],
+        ['Tools - Everyday', ['metronome', 'tuner', 'timer', 'tuning_fork']],
         ['Tools - My routine', ['warmups', 'scales_practice']],
         ['Tools - Practise', ['rehearse']],
         ['Tools - Learn', ['theory_practice', 'theory_grades', 'theory_smart_learn', 'ear_training', 'tap_tempo', 'gap_trainer', 'range_trainer', 'rhythm_trainer']],

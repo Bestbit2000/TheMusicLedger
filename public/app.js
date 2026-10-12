@@ -1639,6 +1639,8 @@
         // ML-406: Skills (Pitch, Tempo, Pulse, Rhythm) shows while at least one of its tools is on.
         document.getElementById('skillsToolBtn')?.classList.toggle('hidden-group', !skillsHubTools().length);
         document.getElementById('rangeToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('range_trainer'));
+        document.getElementById('tuningForkToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('tuning_fork')); // ML-158
+        document.getElementById('tunerForkBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('tuning_fork'));
         document.getElementById('recordingsToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('rehearsal_recordings')); // ML-489
         const manage = isFeatureEnabled('flow_manage');
         const create = manage && isFeatureEnabled('flow_create'); // ML-345: Add a piece
@@ -2240,7 +2242,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     // ML-107 (owner's list, 12 Oct 2026): anywhere you have your instrument up while looking at the screen - the
@@ -2314,6 +2316,7 @@
         if (isShown('earPlayView') && viewName !== 'earPlayView') earStop();
         if (isShown('rangeView') && viewName !== 'rangeView') rangeStop();
         if (setup && viewName !== 'setupView') setupLeft(); // ML-517: leaving set-up any way marks it done
+        if (forkSounding() && viewName !== 'tuningForkView') forkStop(); // ML-158: the tuning note stops when you leave it
         if (isShown('rhythmPlayView') && viewName !== 'rhythmPlayView') rhythmStop();
 
         if (viewStack[viewStack.length - 1] === 'quickPlayView' && viewName !== 'quickPlayView' && qpPlayer.isPlaying()) {
@@ -2410,6 +2413,7 @@
         if (viewName === 'gapTrainerView') { document.getElementById('topTitle').innerText = 'Pulse'; renderGapTrainerSetup(); gapPlayer.prewarm(); }
         if (viewName === 'earView') { document.getElementById('topTitle').innerText = 'Pitch'; renderEarSetup(); }
         if (viewName === 'rangeView') { document.getElementById('topTitle').innerText = 'Range'; renderRangeView(); rangePlayer.prewarm(); }
+        if (viewName === 'tuningForkView') { document.getElementById('topTitle').innerText = 'Tuning fork'; openTuningForkView(); }
         if (viewName === 'setupView') { document.getElementById('topTitle').innerText = 'Set-up'; if (!setup) setup = { step: 0, first: false, nameAsked: setupNeedsName() }; renderSetup(); }
         if (viewName === 'rhythmView') { document.getElementById('topTitle').innerText = 'Rhythm'; renderRhythmView(); rhythmPlayer.prewarm(); }
         if (viewName === 'rhythmPlayView') document.getElementById('topTitle').innerText = 'Rhythm';
@@ -18824,6 +18828,221 @@
         }
         renderTopTunerToggleState();
     }
+
+    // ========================================
+    // TUNING FORK (ML-158)
+    // ========================================
+    // A note to tune to: pick it on a stave, press play, and it sounds until you stop it. Decided with the
+    // owner on 12 Oct 2026:
+    //  - the note is shown as WRITTEN for your instrument (My instruments - its clef and transposition, in the
+    //    clef you read, ML-528), with what it sounds as at concert pitch named under it;
+    //  - it starts on the instrument's usual tuning note (TuningFork.usualNote: concert B flat for brass and
+    //    woodwind, concert A otherwise, in the octave that sits nearest the middle of the stave);
+    //  - it follows the Tuner's "A =" setting;
+    //  - while it sounds nothing listens: the Tuner and the mini tuner are paused (a tuner would hear the fork
+    //    and call you in tune) and the Tuner starts again when it stops.
+    // One panel (#forkPanel), in two places: the Tuning fork tool (#tuningForkView) and a pop-up from the
+    // Tuner's card (#tuningForkModal) - the same element, moved into whichever is open, like the mini tuner.
+    // Nothing is sent to the server: the note for each instrument and the volume are kept on this device
+    // ('tml.fork'), so it works offline. The switch is tuning_fork. specs/components/tuning-fork.md.
+    const FORK_STORE = 'tml.fork';
+    const FORK_CLEFS = ['treble', 'bass', 'alto', 'tenor'];
+    const FORK_CLEF_MIDDLE = { treble: 71, bass: 50, alto: 60, tenor: 57 }; // the middle line, as a MIDI number
+    const FORK_FALLBACK_RANGE = { low: 'C2', high: 'C7' }; // with no instrument (or one with no range): what a stave can show
+    let fork = (() => {
+        const start = { volume: 70, notes: {}, instrumentId: null };
+        try { const saved = JSON.parse(localStorage.getItem(FORK_STORE) || 'null'); if (saved) return { ...start, ...saved, notes: { ...(saved.notes || {}) } }; } catch (e) { /* unreadable - start afresh */ }
+        return start;
+    })();
+    const forkSave = () => { try { localStorage.setItem(FORK_STORE, JSON.stringify(fork)); } catch (e) { /* private browsing - this visit only */ } };
+    let forkVolumeBeforeMute = fork.volume || 70;
+    // The instrument the note is written for: the one chosen here, else the main one. null = none on the account.
+    const forkInstrument = () => (myInstruments || []).find(i => i.id === fork.instrumentId) || (myInstruments || []).find(i => i.isPrimary) || (myInstruments || [])[0] || null;
+    const forkClef = (inst) => (inst && FORK_CLEFS.includes(inst.theoryClef) ? inst.theoryClef : 'treble');
+    const forkShift = (inst) => (inst && FORK_CLEFS.includes(inst.theoryClef) ? Number(inst.writtenToConcert) || 0 : 0); // concert = written + this
+    const forkOuter = (inst) => (inst && FORK_CLEFS.includes(inst.theoryClef) && instrumentOuter(inst)) || FORK_FALLBACK_RANGE;
+    // The usual tuning note, written for the instrument: a band tunes to concert B flat (written C on a B flat
+    // instrument, G on an E flat one); strings and anything else to concert A. In the octave nearest the
+    // middle of the stave that the instrument can play.
+    function forkUsualNote(inst) {
+        const concertPc = inst && ['Brass', 'Woodwind'].includes(inst.family) ? 10 : 9;
+        const shift = forkShift(inst), outer = forkOuter(inst);
+        const lo = PlayRange.midiOf(outer.low), hi = PlayRange.midiOf(outer.high), middle = FORK_CLEF_MIDDLE[forkClef(inst)];
+        let best = null;
+        for (let written = 12; written <= 108; written++) {
+            if ((((written + shift) % 12) + 12) % 12 !== concertPc || written < lo || written > hi) continue;
+            if (best === null || Math.abs(written - middle) < Math.abs(best - middle)) best = written;
+        }
+        return PlayRange.pitchOf(best === null ? middle : best, 'usual');
+    }
+    const forkKey = (inst) => (inst ? String(inst.id) : 'none');
+    function forkNote(inst = forkInstrument()) {
+        const saved = fork.notes[forkKey(inst)];
+        const outer = forkOuter(inst);
+        if (saved && /^[A-G](#|b)?\d$/.test(saved) && PlayRange.midiOf(saved) >= PlayRange.midiOf(outer.low) && PlayRange.midiOf(saved) <= PlayRange.midiOf(outer.high)) return saved;
+        return forkUsualNote(inst);
+    }
+    const forkConcertMidi = (inst = forkInstrument()) => PlayRange.midiOf(forkNote(inst)) + forkShift(inst);
+    const forkFrequency = () => (tunerA4Freq || 440) * Math.pow(2, (forkConcertMidi() - 69) / 12);
+
+    // --- The sound: one held note. A soft triangle with a quieter octave above it, so a low note (a tuba's
+    // B flat) can still be heard on a phone's small speaker. Fades in and out; the pitch and the volume
+    // follow a change while it sounds. Its own audio context, made on the first Play. ---
+    let forkCtx = null;
+    let forkVoice = null; // { oscs, gain } while sounding
+    let forkPausedTuner = false;
+    const forkSounding = () => !!forkVoice;
+    const forkLevel = () => (fork.volume / 100) * 0.4;
+    function forkStart() {
+        if (forkVoice) return;
+        // nothing listens while it sounds
+        if (metroBlkMiniTunerActive) closeMetroBlkMiniTuner();
+        forkPausedTuner = tunerEngine.isActive() && isShown('tunerView');
+        if (tunerEngine.isActive()) stopTuner();
+        if (!forkCtx) { const Ctx = window.AudioContext || window.webkitAudioContext; forkCtx = new Ctx(); }
+        if (forkCtx.state === 'suspended') forkCtx.resume();
+        const t = forkCtx.currentTime, freq = forkFrequency();
+        const gain = forkCtx.createGain();
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(forkLevel(), t + 0.04);
+        gain.connect(forkCtx.destination);
+        const oscs = [['triangle', 1, 1], ['sine', 2, 0.25]].map(([type, times, level]) => {
+            const osc = forkCtx.createOscillator(), part = forkCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq * times, t);
+            part.gain.value = level;
+            osc.connect(part).connect(gain);
+            osc.start(t);
+            return { osc, times };
+        });
+        forkVoice = { oscs, gain };
+        renderFork();
+    }
+    function forkStop() {
+        if (!forkVoice) return;
+        const { oscs, gain } = forkVoice, t = forkCtx.currentTime;
+        forkVoice = null;
+        gain.gain.cancelScheduledValues(t);
+        gain.gain.setTargetAtTime(0, t, 0.03);
+        oscs.forEach(({ osc }) => osc.stop(t + 0.25));
+        renderFork();
+        if (forkPausedTuner && isShown('tunerView')) startTuner(); // the Tuner picks up where it left off
+        forkPausedTuner = false;
+    }
+    // A new note or a new "A =" while it sounds: slide to it, don't restart
+    function forkRetune() {
+        if (!forkVoice) return;
+        const t = forkCtx.currentTime, freq = forkFrequency();
+        forkVoice.oscs.forEach(({ osc, times }) => osc.frequency.setTargetAtTime(freq * times, t, 0.02));
+    }
+    function setForkVolume(v) {
+        fork.volume = Math.round(Math.min(100, Math.max(0, v)));
+        if (fork.volume > 0) forkVolumeBeforeMute = fork.volume;
+        if (forkVoice) forkVoice.gain.gain.setTargetAtTime(forkLevel(), forkCtx.currentTime, 0.02);
+        forkSave();
+        renderForkVolume();
+    }
+    function setForkNote(pitch) {
+        const inst = forkInstrument();
+        fork.notes[forkKey(inst)] = pitch;
+        forkSave();
+        forkRetune();
+        renderFork();
+    }
+
+    // --- The panel ---
+    const forkConcertLabel = (inst) => PlayRange.label(PlayRange.pitchOf(forkConcertMidi(inst), 'flat')).replace(/\d+$/, '');
+    function renderForkVolume() {
+        const fill = document.getElementById('forkVolumeFill'), thumb = document.getElementById('forkVolumeThumb');
+        if (!fill || !thumb) return;
+        fill.style.setProperty('--pct', `${fork.volume}%`);
+        thumb.style.setProperty('--pct', `${fork.volume}%`);
+        thumb.setAttribute('aria-valuenow', fork.volume);
+        thumb.setAttribute('aria-valuetext', `${fork.volume}%`);
+        const muted = fork.volume === 0;
+        document.getElementById('forkMuteIcon').textContent = muted ? 'volume_off' : 'volume_up';
+        document.getElementById('forkMuteBtn').setAttribute('aria-pressed', String(muted));
+        document.getElementById('forkVolumeRow').classList.toggle('is-muted', muted);
+    }
+    function renderFork() {
+        const panel = document.getElementById('forkPanel');
+        if (!panel) return;
+        const inst = forkInstrument(), pitch = forkNote(inst), sounding = forkSounding();
+        const written = PlayRange.label(pitch), shift = forkShift(inst);
+        document.getElementById('forkStave').innerHTML = theoryScaleSvg(Notation.staff({ clef: forkClef(inst), items: [{ type: 'note', pitch }], stepRange: RANGE_PICKER_STEPS, minWidth: 12, tappable: true }), 1.4);
+        document.getElementById('forkStave').setAttribute('aria-label', `Tuning note: ${written}. Tap the stave near a note to pick it`);
+        document.getElementById('forkValue').textContent = written;
+        document.getElementById('forkSub').textContent = shift ? `sounds as concert ${forkConcertLabel(inst)}` : 'concert pitch';
+        const instBtn = document.getElementById('forkInstrumentBtn');
+        setShown(instBtn, (myInstruments || []).length > 1);
+        if (inst) instBtn.querySelector('strong').textContent = inst.name;
+        setShown('forkNoInstrument', !inst);
+        panel.classList.toggle('is-sounding', sounding);
+        document.getElementById('forkPlayIcon').textContent = sounding ? 'stop' : 'play_arrow';
+        document.getElementById('forkPlayLbl').textContent = sounding ? 'stop' : 'play';
+        document.getElementById('forkPlayBtn').setAttribute('aria-pressed', String(sounding));
+        document.getElementById('forkPlayBtn').setAttribute('aria-label', sounding ? `Stop the note (${written})` : `Play ${written}`);
+        document.getElementById('forkUsualBtn').disabled = pitch === forkUsualNote(inst);
+        renderForkVolume();
+    }
+    // The panel lives in the tool's own screen, and is lent to the Tuner's pop-up while that is open
+    function forkPanelInto(hostId) {
+        const panel = document.getElementById('forkPanel'), host = document.getElementById(hostId);
+        if (panel && host && panel.parentElement !== host) host.appendChild(panel);
+    }
+    function openTuningForkView() {
+        forkPanelInto('tuningForkHost');
+        renderFork();
+    }
+    function openTuningForkPopup() {
+        forkPanelInto('tuningForkModalHost');
+        renderFork();
+        showModal('tuningForkModal');
+    }
+    function closeTuningForkPopup() {
+        forkStop();
+        hideModal('tuningForkModal');
+    }
+    document.getElementById('tunerForkBtn')?.addEventListener('click', openTuningForkPopup);
+    document.getElementById('tuningForkModal')?.addEventListener('click', (e) => { if (e.target === e.currentTarget || e.target.closest('[data-fork-close]')) closeTuningForkPopup(); });
+    // (Escape and a tap outside close a pop-up without telling anyone - a11y.js - so the note is stopped when
+    // the pop-up is seen to have closed, whichever way it went)
+    (() => {
+        const modal = document.getElementById('tuningForkModal');
+        if (!modal || typeof MutationObserver === 'undefined') return;
+        new MutationObserver(() => { if (!modal.classList.contains('show')) forkStop(); }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+    })();
+    document.addEventListener('visibilitychange', () => { if (document.hidden) forkStop(); });
+
+    document.getElementById('forkPlayBtn')?.addEventListener('click', () => (forkSounding() ? forkStop() : forkStart()));
+    document.getElementById('forkStave')?.addEventListener('click', (e) => {
+        const svg = e.currentTarget.querySelector('svg');
+        if (!svg || e.detail === 0) return; // keyboard "click": - and + do the picking
+        const inst = forkInstrument();
+        const rect = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
+        const y = (e.clientY - rect.top) * (vb.height / rect.height);
+        const step = Number(svg.dataset.stepHi) - (y - Number(svg.dataset.stepPad)) / (Notation.S / 2);
+        setForkNote(PlayRange.pitchAtStep(step, forkClef(inst), forkOuter(inst)));
+    });
+    document.getElementById('forkMinus')?.addEventListener('click', () => setForkNote(PlayRange.stepSemitone(forkNote(), -1, forkOuter(forkInstrument()))));
+    document.getElementById('forkPlus')?.addEventListener('click', () => setForkNote(PlayRange.stepSemitone(forkNote(), 1, forkOuter(forkInstrument()))));
+    document.getElementById('forkUsualBtn')?.addEventListener('click', () => setForkNote(forkUsualNote(forkInstrument())));
+    document.getElementById('forkInstrumentBtn')?.addEventListener('click', () => {
+        const cur = forkInstrument();
+        openFlowChoiceModal('Which instrument?', (myInstruments || []).map(i => ({ id: i.id, selected: !!cur && cur.id === i.id, html: `<span><strong>${escapeHtml(i.name)}</strong></span>${cur && cur.id === i.id ? '<span class="material-symbols-outlined" aria-hidden="true">check</span>' : ''}` })), (opt) => {
+            fork.instrumentId = opt.id;
+            forkSave();
+            forkRetune();
+            renderFork();
+            document.getElementById('forkInstrumentBtn')?.focus();
+        });
+    });
+    setupSliderInteraction(document.getElementById('forkVolumeTrack'), document.getElementById('forkVolumeThumb'), {
+        onDragRatio: (ratio) => setForkVolume(ratio * 100),
+        onArrowStep: (dir) => setForkVolume(fork.volume + dir * 5),
+        onRelease: () => {}
+    });
+    document.getElementById('forkMuteBtn')?.addEventListener('click', () => setForkVolume(fork.volume > 0 ? 0 : (forkVolumeBeforeMute || 70)));
 
     // ========================================
     // WAKE LOCK (ML-59)

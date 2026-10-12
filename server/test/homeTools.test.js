@@ -12,7 +12,7 @@ const serverIds = JSON.parse(/HOME_TOOL_IDS = (\[[^\]]*\])/.exec(accounts)[1].re
 const pageIds = [...html.matchAll(/data-tool="([a-z-]+)"/g)].map(m => m[1]);
 
 test('every tool on the All tools page is one the server accepts, and the other way round', () => {
-    assert.equal(pageIds.length, 12); // ML-406: Pitch, Tempo, Pulse and Rhythm are one Skills tile; ML-489: Recordings
+    assert.equal(pageIds.length, 13); // ML-406: Pitch, Tempo, Pulse and Rhythm are one Skills tile; ML-489: Recordings; ML-158: Tuning fork
     assert.equal([...pageIds].sort().join(), [...serverIds].sort().join());
 });
 

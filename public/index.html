@@ -354,6 +354,11 @@
                     <span class="material-symbols-outlined">timer</span>
                     <span class="tool-icon-label">Timer</span>
                 </button>
+                <!-- ML-158: a note to tune to (tuning_fork) -->
+                <button data-tool="tuning-fork" class="tool-icon-btn hidden-group" id="tuningForkToolBtn" data-act="view" data-arg="tuningForkView" aria-label="Tuning fork">
+                    <span class="material-symbols-outlined">sensors</span>
+                    <span class="tool-icon-label">Tuning fork</span>
+                </button>
             </div>
         </div>
         <div class="tool-group" id="toolGroup-routine" role="group" aria-labelledby="toolGroupTitle-routine">
@@ -1582,6 +1587,42 @@
          ends on My music. Reached from the Add a piece tool, My music and Rehearse. app.js: ADD A PIECE. -->
     <!-- ML-424: Quick piece entry - five steps drawn into #outlineBody by the QUICK PIECE ENTRY section of
          app.js (rules: public/pieceOutline.js, docs/quick-piece-entry.md, specs/components/piece-outline.md). -->
+    <!-- ML-158: the Tuning fork - a note to tune to, picked on a stave and held until stopped. One panel
+         (#forkPanel, the TUNING FORK section of app.js), here and - moved across while it is open - in the
+         Tuner's pop-up (#tuningForkModal). specs/components/tuning-fork.md. -->
+    <div id="tuningForkView" class="hidden-group">
+        <div id="tuningForkHost">
+            <div class="fork" id="forkPanel">
+                <div class="fork-sound">
+                    <span class="fork-waves fork-waves-left" aria-hidden="true"><span class="fork-wave fork-wave-1"></span><span class="fork-wave fork-wave-2"></span><span class="fork-wave fork-wave-3"></span></span>
+                    <button type="button" class="range-stave-btn" id="forkStave" aria-label="Tuning note - tap the stave near a note to pick it"></button>
+                    <span class="fork-waves" aria-hidden="true"><span class="fork-wave fork-wave-1"></span><span class="fork-wave fork-wave-2"></span><span class="fork-wave fork-wave-3"></span></span>
+                </div>
+                <div class="metro-speed-row no-margin" role="group" aria-label="Tuning note">
+                    <button type="button" class="metro-bpm-step" id="forkMinus" aria-label="A semitone lower">&minus;</button>
+                    <div class="metro-speed-readout"><div id="forkValue" aria-live="polite"></div><div class="metro-speed-sub" id="forkSub"></div></div>
+                    <button type="button" class="metro-bpm-step" id="forkPlus" aria-label="A semitone higher">+</button>
+                </div>
+                <button type="button" class="metroBlk-ctrl-value-btn w-full hidden-group" id="forkInstrumentBtn" aria-haspopup="dialog"><strong></strong><span class="metroBlk-ctrl-value-label">instrument</span></button>
+                <p class="metro-help-text no-margin hidden-group" id="forkNoInstrument">At concert pitch. Add your instrument in My instruments to see the note as your part writes it.</p>
+                <button type="button" class="metro-play-grid-btn" id="forkPlayBtn" aria-pressed="false">
+                    <span class="material-symbols-outlined" id="forkPlayIcon" aria-hidden="true">play_arrow</span>
+                    <span class="metroBlk-ctrl-value-label" id="forkPlayLbl">play</span>
+                </button>
+                <div class="metro-volume-row no-margin" id="forkVolumeRow">
+                    <button type="button" class="metro-mute-btn" id="forkMuteBtn" aria-label="Mute" aria-pressed="false"><span class="material-symbols-outlined" id="forkMuteIcon" aria-hidden="true">volume_up</span></button>
+                    <div class="slider-wrap no-margin">
+                        <div class="slider-track" id="forkVolumeTrack">
+                            <div class="slider-fill" id="forkVolumeFill"></div>
+                            <div class="slider-thumb" id="forkVolumeThumb" tabindex="0" role="slider" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="70"></div>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-text" id="forkUsualBtn">Back to the usual tuning note</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ML-517: set-up for a new member - three steps (what I play, how it looks, who I play with), drawn by
          the SET-UP section of app.js. The same step bar, question and Back / Next foot as Quick entry.
          specs/components/setup.md. -->
@@ -2370,6 +2411,8 @@
             <!-- Every Tuner setting (notation + display) lives in one popup off this cog now
                  (#tunerSettingsModal) - closes on its own X or a tap outside it. -->
             <button type="button" class="tuner-card-settings-btn" id="tunerSettingsBtn" aria-label="Tuner settings"><span class="material-symbols-outlined">settings</span></button>
+            <!-- ML-158: the Tuning fork as a pop-up, from the card's other corner (tuning_fork) -->
+            <button type="button" class="tuner-card-settings-btn tuner-card-fork-btn hidden-group" id="tunerForkBtn" aria-label="Tuning fork - play a note to tune to" aria-haspopup="dialog"><span class="material-symbols-outlined">sensors</span></button>
             <!-- tunerConcertCol is hidden (updateTunerTranspositionLabel, app.js) whenever it would
                  just repeat the other column - transposition is 0 (concert pitch itself, nothing to
                  transpose), or "show concert" is off - so the remaining column expands to fill the row
@@ -3679,6 +3722,17 @@
      Use this plan saves it. The X closes without changing the plan. -->
 <!-- ML-424: one extra of a piece's outline (a repeat, a pause, a speed-up, a sign, the intro) - a short
      form of bar numbers, with a line saying in plain words what it will do or what's wrong with it. -->
+<!-- ML-158: the Tuning fork from the Tuner's card - the tool's own panel (#forkPanel) is moved in here while
+     it is open. The Tuner stops listening while the note sounds. -->
+<div class="modal" id="tuningForkModal" role="dialog" aria-modal="true" aria-labelledby="tuningForkModalTitle" aria-describedby="tuningForkModalHelp">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-fork-close aria-label="Close">&times;</button>
+        <h2 id="tuningForkModalTitle">Tuning fork</h2>
+        <p class="metro-help-text" id="tuningForkModalHelp">The tuner stops listening while the note sounds.</p>
+        <div id="tuningForkModalHost"></div>
+    </div>
+</div>
+
 <div class="modal" id="outlineExtraModal" role="dialog" aria-modal="true" aria-labelledby="outlineExtraTitle">
     <div class="modal-content">
         <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>

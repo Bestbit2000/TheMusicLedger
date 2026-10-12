@@ -2149,6 +2149,24 @@
     .range-staff svg { display: block; width: 100%; height: auto; }
     .range-staff .is-now { fill: var(--primary-action-strong); }
     .range-edge { margin-bottom: var(--space-4); }
+    /* ML-158: the Tuning fork - the range picker's stave with sound waves either side of it, which light and
+       ripple outwards while the note sounds (still, and simply lit, with reduced motion). */
+    .fork { display: grid; gap: var(--space-3); }
+    .fork-sound { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); }
+    .fork-sound .range-stave-btn { margin: 0; }
+    .fork-waves { display: flex; align-items: center; gap: var(--space-0-5); color: var(--input-border); }
+    .fork-waves-left { transform: scaleX(-1); }
+    .fork-wave { width: var(--space-2); border: 3px solid transparent; border-right-color: currentColor; border-radius: var(--radius-circle); }
+    .fork-wave-1 { height: var(--space-5); }
+    .fork-wave-2 { height: var(--space-7); }
+    .fork-wave-3 { height: var(--space-9); }
+    .fork.is-sounding .fork-waves { color: var(--primary-action-strong); }
+    .fork.is-sounding .fork-wave { animation: fork-wave var(--duration-pulse) ease-in-out infinite; }
+    .fork.is-sounding .fork-wave-2 { animation-delay: var(--duration-fast); }
+    .fork.is-sounding .fork-wave-3 { animation-delay: var(--duration-base); }
+    @keyframes fork-wave { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+    /* The Tuner card's second button: the Tuning fork, in the corner opposite the cog */
+    .tuner-card-fork-btn { right: auto; left: var(--space-3); }
     .range-stave-btn { display: block; width: 100%; min-height: calc(var(--touch-target) * 3); margin: var(--space-1) 0 var(--space-2); padding: var(--space-2); box-sizing: border-box; background: var(--input-bg); border: 2px solid var(--control-border); border-radius: var(--radius-md); color: var(--text-color); cursor: pointer; }
     .range-stave-btn svg { display: block; margin: 0 auto; max-width: 100%; height: auto; pointer-events: none; }
     /* The key-note picker: the keyboard layout - 7 columns, sharps above, flats below (placement shared with .theory-answers-keyboard). */

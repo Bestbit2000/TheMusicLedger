@@ -42,6 +42,7 @@ const SCREENS: { view: string; name: string }[] = [
     { view: 'prepareListView', name: 'Prepare' }, // ML-401
     { view: 'inviteView', name: 'Invite someone' }, // ML-402
     { view: 'setupView', name: 'Set-up' }, // ML-517 (member_setup)
+    { view: 'tuningForkView', name: 'Tuning fork' }, // ML-158 (tuning_fork)
     { view: 'accountBandsView', name: 'My bands' }, // ML-473 (invitations waiting, what you can do in each band)
 ];
 

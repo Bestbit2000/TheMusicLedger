@@ -193,6 +193,8 @@ nothing has been run anywhere yet, so nothing is costly to revisit:
   instrument's own). See "The clef you read" in `docs/range.md`.
 - `129_member_setup.sql` (ML-517): `accounts.setup_done_on` (the day a member finished or left set-up;
   every account that already existed is marked as done) and the `member_setup` feature.
+- `130_tuning_fork.sql` (ML-158): the `tuning_fork` feature. No tables - the Tuning fork keeps nothing
+  on the server.
 - No rollback ("down") scripts — for a pre-launch schema with no real data in it
   yet, fixing forward with a new numbered file is simpler than maintaining
   reverse migrations for a schema that's still likely to shift.
