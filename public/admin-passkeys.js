@@ -55,6 +55,7 @@
     // ========================================
     // The "prove it's you" screen
     // ========================================
+    let coveredModals = []; // pop-ups that were open when the check was asked for
     let done = null;    // what to do once the check is made (admin.js: open, or show again, the panel)
     let status = null;  // the server's GET /api/admin/gate
     const host = () => $('adminGate');
@@ -66,6 +67,10 @@
     async function open(onPass, known) {
         if (done) return; // already asking
         done = onPass;
+        // The check can run out with a pop-up open (a notice half written). The pop-up would sit over this
+        // screen, with no way to reach it - so it is put away, as it stands, and brought back by finish().
+        coveredModals = [...document.querySelectorAll('.modal.show')];
+        coveredModals.forEach(m => m.classList.remove('show'));
         $('adminShell').classList.add('hidden-group');
         host().classList.remove('hidden-group');
         host().innerHTML = '<p>Checking&hellip;</p>';
@@ -78,6 +83,8 @@
     function finish() {
         const next = done;
         done = null;
+        coveredModals.forEach(m => m.classList.add('show')); // back as it was left - nothing typed is lost
+        coveredModals = [];
         host().classList.add('hidden-group');
         host().innerHTML = '';
         if (next) next();

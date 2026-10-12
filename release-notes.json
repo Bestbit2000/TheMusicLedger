@@ -1,4 +1,5 @@
 {
+  "ML-527": "We fixed the admin check so it can be answered when it comes up while a pop-up is open.",
   "ML-324": "We removed Challenges, now that practice sessions have replaced them.",
   "ML-526": "We made Home, My music and the other list pages fill a wide screen, with a slightly wider list.",
   "ML-525": "We removed the heading above a YouTube video on the play screen, to leave more room for the bars.",
