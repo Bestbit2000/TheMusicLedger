@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.62.0",
+    "date": "2026-10-19",
+    "changes": [
+      {
+        "key": "ML-533",
+        "type": "New",
+        "summary": "We now let you match a piece's speeds to a recording, so the metronome lands on the bars you marked in it."
+      },
+      {
+        "key": "ML-532",
+        "type": "New",
+        "summary": "We added YouTube videos to the Recordings tool, so one video can be given to several pieces, each with its own start and end."
+      },
+      {
+        "key": "ML-531",
+        "type": "New",
+        "summary": "We now let a recording or video be of one movement of a piece, so its bars line up from that movement's first bar."
+      },
+      {
+        "key": "ML-530",
+        "type": "New",
+        "summary": "We now let you rehearse, prepare and practise one movement of a piece on its own, and a practice list can hold just the movement your concert plays."
+      },
+      {
+        "key": "ML-529",
+        "type": "New",
+        "summary": "We now let a piece be in movements: a suite whose bar numbers carry on is one piece, each movement keeps its own repeats and jumps, and a photo or PDF of one can come in whole."
+      }
+    ]
+  },
+  {
     "version": "0.61.0",
     "date": "2026-10-12",
     "changes": [
