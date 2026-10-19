@@ -208,3 +208,32 @@ describe('where the recording is, and repeating bars on it', () => {
         assert.deepEqual(FJ.mapLoop(null, 1, 2, 0), { ok: false, reason: 'noMap' });
     });
 });
+
+describe('a recording of one movement (ML-531)', () => {
+    // Dawn: bars 1-4 · Harvest: bars 5-8, with a repeat of 5-6 · Dusk: bar 9
+    const suite = () => [blk('A', { barCount: 4 }), blk('B', { barCount: 2, movementStart: true, isRepeatStart: true, isRepeatEnd: true }), blk('C', { barCount: 2 }), blk('D', { movementStart: true })];
+    test('its places are that movement only, place 0 its first bar', () => {
+        const places = FJ.journeyPlaces(suite(), { movement: 2 });
+        assert.deepEqual(places.map(p => p.number), [5, 6, 5, 6, 7, 8]);
+        assert.deepEqual(places.map(p => p.pass), [1, 1, 2, 2, 1, 1]);
+        assert.equal(places[0].at, 0);
+        assert.equal(FJ.journeyPlaces(suite(), {}).length, 4 + 6 + 1); // the whole piece, as before
+    });
+    test('its start mark is the movement\'s first bar, and repeat bars work in it by bar number', () => {
+        const map = FJ.recordingMap(suite(), { movement: 2 }, [], { startMs: 30000, endMs: null });
+        assert.equal(map.places[0].number, 5);
+        assert.equal(map.places[0].startMs, 30000);
+        assert.equal(map.places[1].startMs, 32000);
+        const loop = FJ.mapLoop(map, 7, 8, 0);
+        assert.equal(loop.ok, true);
+        assert.equal(loop.startMs, 30000 + 4 * 2000);
+        assert.equal(FJ.mapLoop(map, 2, 3, 0).reason, 'startNeverPlays'); // bars of another movement aren't in it
+    });
+    test('marks made on the whole piece don\'t fit a movement\'s recording, and are left out', () => {
+        const whole = FJ.journeyPlaces(suite(), {});
+        const marks = [mark(whole, 4, 9000)]; // bar 5, place 4 of the whole piece
+        assert.equal(FJ.usableMarks(FJ.journeyPlaces(suite(), { movement: 2 }), marks).length, 0);
+        const mv = FJ.journeyPlaces(suite(), { movement: 2 });
+        assert.equal(FJ.usableMarks(mv, [mark(mv, 0, 9000)]).length, 1);
+    });
+});

@@ -14,7 +14,7 @@
 
 import { del } from '@vercel/blob';
 import pool from '../config/db.js';
-import { withStatus, assertFlowAccess, FlowJourney } from './flows.js';
+import { withStatus, assertFlowAccess, FlowJourney, checkedMovement } from './flows.js';
 import { getLimit } from './features.js';
 import { isRehearsalFileUrl, MAX_REHEARSAL_FILE_BYTES } from './blobUrls.js';
 
@@ -53,7 +53,16 @@ async function piecesFor(accountId) {
       ORDER BY lower(s.title), s.id`,
     [accountId, ORGANISER_ROLES]
   );
-  return rows.map((r) => ({ id: Number(r.id), title: r.title, band: r.band_name || null }));
+  // ML-531: each piece's movements when it has more than one, so a recording can be given to one of them
+  const ids = rows.map((r) => Number(r.id));
+  const { rows: segs } = ids.length ? await pool.query(
+    `SELECT parent_score_id, bar_count, movement_start, movement_title FROM metronome_segments
+      WHERE parent_score_id = ANY($1::bigint[]) AND NOT is_lead_in ORDER BY parent_score_id, order_index`, [ids]) : { rows: [] };
+  const movementsOf = (id) => {
+    const moves = FlowJourney.movements(segs.filter((s) => Number(s.parent_score_id) === id).map((s) => ({ barCount: s.bar_count, movementStart: s.movement_start, movementTitle: s.movement_title })));
+    return moves.length > 1 ? moves.map((m) => ({ number: m.number, title: m.title, startBar: m.startBar, endBar: m.endBar })) : [];
+  };
+  return rows.map((r) => ({ id: Number(r.id), title: r.title, band: r.band_name || null, movements: movementsOf(Number(r.id)) }));
 }
 
 // Everything the tool shows: the member's recordings, each with the pieces it has been given to.
@@ -61,7 +70,7 @@ export async function listRecordings(accountId) {
   const [{ rows }, { rows: cutRows }, limit, pieces] = await Promise.all([
     pool.query('SELECT * FROM rehearsal_recordings WHERE account_id = $1 ORDER BY created_at DESC, id DESC', [accountId]),
     pool.query(
-      `SELECT sr.id, sr.rehearsal_recording_id, sr.score_id, sr.clip_start_ms, sr.clip_end_ms, s.title AS piece_title, b.name AS band_name
+      `SELECT sr.id, sr.rehearsal_recording_id, sr.score_id, sr.clip_start_ms, sr.clip_end_ms, sr.movement_number, s.title AS piece_title, b.name AS band_name
          FROM score_recordings sr
          JOIN rehearsal_recordings rr ON rr.id = sr.rehearsal_recording_id
          JOIN scores s ON s.id = sr.score_id
@@ -85,7 +94,8 @@ export async function listRecordings(accountId) {
       fileSizeBytes: r.file_size_bytes !== null ? Number(r.file_size_bytes) : null, mimeType: r.mime_type, createdAt: r.created_at,
       cuts: cutRows.filter((c) => String(c.rehearsal_recording_id) === String(r.id)).map((c) => ({
         id: Number(c.id), scoreId: Number(c.score_id), pieceTitle: c.piece_title, band: c.band_name || null,
-        clipStartMs: ms(c.clip_start_ms), clipEndMs: ms(c.clip_end_ms)
+        clipStartMs: ms(c.clip_start_ms), clipEndMs: ms(c.clip_end_ms),
+        movement: c.movement_number === null ? null : Number(c.movement_number) // ML-531
       }))
     }))
   };
@@ -119,7 +129,7 @@ async function mine(accountId, recordingId) {
 
 // Gives a recording to a piece: a cut - where the piece starts and ends in the file. The member must be
 // able to change the piece, and for a band's piece must be one of the band's organisers.
-export async function addCut(accountId, recordingId, { scoreId, startMs, endMs }) {
+export async function addCut(accountId, recordingId, { scoreId, startMs, endMs, movement }) {
   const rec = await mine(accountId, recordingId);
   const score = await assertFlowAccess(accountId, scoreId);
   if (score.owner_band_id) {
@@ -130,10 +140,11 @@ export async function addCut(accountId, recordingId, { scoreId, startMs, endMs }
   }
   const clip = FlowJourney.cleanClip({ startMs, endMs });
   if (!clip.ok) throw withStatus(400, clip.message);
+  const mvt = await checkedMovement(scoreId, movement); // ML-531: a cut of one movement
   await pool.query(
-    `INSERT INTO score_recordings (score_id, type, title, blob_url, blob_pathname, file_size_bytes, mime_type, clip_start_ms, clip_end_ms, rehearsal_recording_id, order_index)
-     VALUES ($1, 'upload', $2, $3, $4, $5, $6, $7, $8, $9, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
-    [scoreId, rec.title, rec.blob_url, rec.blob_pathname, rec.file_size_bytes, rec.mime_type, clip.startMs, clip.endMs, rec.id]
+    `INSERT INTO score_recordings (score_id, type, title, blob_url, blob_pathname, file_size_bytes, mime_type, clip_start_ms, clip_end_ms, rehearsal_recording_id, movement_number, order_index)
+     VALUES ($1, 'upload', $2, $3, $4, $5, $6, $7, $8, $9, $10, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
+    [scoreId, rec.title, rec.blob_url, rec.blob_pathname, rec.file_size_bytes, rec.mime_type, clip.startMs, clip.endMs, rec.id, mvt]
   );
   return listRecordings(accountId);
 }

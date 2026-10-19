@@ -33,7 +33,7 @@ import { handleUpload } from '@vercel/blob/client';
 import { put } from '@vercel/blob';
 import { listInstruments, listAccountInstruments, setAccountInstruments, setAccountInstrumentClef, resolveSessionInstrument } from '../services/instruments.js';
 import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../services/range.js';
-import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
+import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, setRecordingMovement, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
 import { importScoreFromFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/scoreImport.js';
 import { readForAccount, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES } from '../services/pieceReads.js';
@@ -1594,6 +1594,15 @@ router.delete('/recordings/:recordingId', requireAuth, resolveAccount, async (re
 router.put('/flows/:id/recordings/:recordingId/clip', requireAuth, resolveAccount, requireFeature('recording_clip'), async (req, res) => {
   try {
     res.json(await setRecordingClip(req.accountId, req.params.id, req.params.recordingId, req.body));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-531: which movement of a piece in movements a recording is of ({ movement: n | null }) - clears its marks
+router.put('/flows/:id/recordings/:recordingId/movement', requireAuth, resolveAccount, requireFeature('recording_clip'), async (req, res) => {
+  try {
+    res.json(await setRecordingMovement(req.accountId, req.params.id, req.params.recordingId, req.body));
   } catch (error) {
     sendError(res, error);
   }

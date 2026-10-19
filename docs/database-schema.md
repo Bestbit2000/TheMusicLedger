@@ -204,6 +204,8 @@ Notes on fields that took a few passes to nail down:
   describe the block as a whole (a volta ending is typically its own short block) -
   **both may be true together** ("1. 2." combined bracket, before a 3rd ending), so
   this is deliberately not a `CHECK`-enforced exclusive choice.
+- **`score_recordings.movement_number`** (ML-531, migration 133): a recording of one movement of a piece in movements
+  (NULL = the whole piece) - its places and marks follow that movement; `docs/rehearsal-score.md`.
 - **`movement_start`, `movement_title`** (ML-529, migration 131): a piece in movements - a suite whose bar
   numbers carry on while its rehearsal letters start again. `movement_start` marks the block a movement's first bar
   is in (the first block always starts the first movement); `movement_title` is its name. Each movement has its own

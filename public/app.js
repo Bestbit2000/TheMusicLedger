@@ -57,6 +57,7 @@
         'flow-recording-delete': (el) => deleteFlowRecording(actArg(el)),
         // ML-312: a recording's start and end
         'flow-recording-clip': (el) => openClipModal(actArg(el)),
+        'flow-recording-movement': (el) => openRecordingMovementChoice(actArg(el)), // ML-531
         'clip-close': () => closeClipModal(),
         'clip-mark': (el) => clipMarkHere(actArg(el)),
         'clip-nudge': (el) => clipNudge(actArg(el), Number(el.dataset.ms)),
@@ -525,6 +526,7 @@
                 addYouTube: (flowId, data) => apiCall(`/api/flows/${flowId}/recordings/youtube`, 'POST', data),
                 delete: (flowId, recordingId) => apiCall(`/api/flows/${flowId}/recordings/${recordingId}`, 'DELETE'),
                 setClip: (flowId, recordingId, clip) => apiCall(`/api/flows/${flowId}/recordings/${recordingId}/clip`, 'PUT', clip), // ML-312
+                setMovement: (flowId, recordingId, movement) => apiCall(`/api/flows/${flowId}/recordings/${recordingId}/movement`, 'PUT', { movement }), // ML-531
                 setMarks: (flowId, recordingId, body) => apiCall(`/api/flows/${flowId}/recordings/${recordingId}/marks`, 'PUT', body) // ML-488
             },
             documents: {
@@ -10513,6 +10515,12 @@
         const clipHtml = isFeatureEnabled('recording_clip')
             ? `<button type="button" class="metroBlk-ctrl-value-btn w-full" data-act="flow-recording-clip" data-arg="${escapeHtml(r.id)}" aria-haspopup="dialog" aria-label="Start and end of ${escapeHtml(r.title)}: ${escapeHtml(FlowJourney.clipLabel(clip))} - tap to change"><strong>${escapeHtml(FlowJourney.clipLabel(clip))}</strong><span class="metroBlk-ctrl-value-label">start and end</span></button>`
             : '';
+        // ML-531: which movement it is of, for a piece in movements
+        const moves = FlowJourney.movements(currentFlowBlocks || []);
+        const mv = r.movementNumber && moves.length > 1 ? moves.find(m => m.number === r.movementNumber) : null;
+        const movementHtml = moves.length > 1
+            ? `<button type="button" class="metroBlk-ctrl-value-btn w-full mt-2" data-act="flow-recording-movement" data-arg="${escapeHtml(r.id)}" aria-haspopup="dialog" aria-label="${escapeHtml(r.title)} is of ${mv ? escapeHtml(FlowJourney.movementLabel(mv, true)) : 'the whole piece'} - tap to change"><strong>${mv ? mv.number : 'all'}</strong><span class="metroBlk-ctrl-value-label">movement</span></button>`
+            : '';
         return `
             <div class="history-item flow-media-item">
                 <div class="flow-media-item-top">
@@ -10524,8 +10532,32 @@
                 </div>
                 ${playerHtml}
                 ${clipHtml}
+                ${movementHtml}
             </div>
         `;
+    }
+    // ML-531: which movement a recording is of - the whole piece, or one movement. Its marks were made against the old
+    // first bar, so a change clears them (the pop-up says so when there are any). Kept until Save in Edit, like the clip.
+    function openRecordingMovementChoice(recordingId) {
+        const rec = (currentFlowDetail?.recordings || []).find(x => String(x.id) === String(recordingId));
+        if (!rec) return;
+        const moves = FlowJourney.movements(currentFlowBlocks || []);
+        const cur = rec.movementNumber || null;
+        const marks = (rec.marks || []).length;
+        openFlowChoiceModal(marks ? `Which movement is it of? Changing it takes off its ${marks} bar mark${marks === 1 ? '' : 's'}.` : 'Which movement is it of?', [
+            { n: null, selected: !cur, html: addPieceRow('The whole piece', 'Its start is bar 1') },
+            ...moves.map(m => ({ n: m.number, selected: cur === m.number, html: addPieceRow(FlowJourney.movementLabel(m, true), `Its start is bar ${m.startBar}`) }))
+        ], async (opt) => {
+            if ((opt.n || null) === cur) return;
+            try {
+                if (flowEditMode === 'edit' || typeof rec.id === 'string') {
+                    currentFlowDetail.recordings = (currentFlowDetail.recordings || []).map(x => (String(x.id) === String(rec.id) ? { ...x, movementNumber: opt.n || null, marks: [] } : x));
+                } else {
+                    currentFlowDetail = await API.flows.recordings.setMovement(currentFlowId, rec.id, opt.n || null);
+                }
+                renderFlowRecordingsList();
+            } catch (e) { showWarningToast('Not saved: ' + e.message); }
+        });
     }
 
     // ===== ML-312: where a recording or video starts and ends on the piece (the rehearsal score, step A) =====
@@ -14077,11 +14109,16 @@
         const newRecordings = curRecordings.filter(r => typeof r.id === 'string');
         const newDocuments = curDocuments.filter(d => typeof d.id === 'string');
         for (const r of newRecordings) {
-            const clip = { clipStartMs: r.clipStartMs || null, clipEndMs: r.clipEndMs || null }; // ML-312
+            const clip = { clipStartMs: r.clipStartMs || null, clipEndMs: r.clipEndMs || null, movementNumber: r.movementNumber || null }; // ML-312, ML-531
             if (r.type === 'youtube') await API.flows.recordings.addYouTube(currentFlowId, { url: r.sourceUrl, title: r.title, ...clip });
             else await API.flows.recordings.addUploaded(currentFlowId, { blobUrl: r.blobUrl, blobPathname: r.blobPathname, fileName: r.fileName, fileSizeBytes: r.fileSizeBytes, mimeType: r.mimeType, ...clip });
         }
         // ML-312: a start and end changed on a recording that was already there
+        // ML-531: the movement changed on a recording that was already there (its marks go)
+        for (const r of curRecordings.filter(cr => typeof cr.id !== 'string')) {
+            const before = snapRecordings.find(sr => sr.id === r.id);
+            if (before && (before.movementNumber || null) !== (r.movementNumber || null)) await API.flows.recordings.setMovement(currentFlowId, r.id, r.movementNumber || null);
+        }
         for (const r of curRecordings.filter(cr => typeof cr.id !== 'string')) {
             const before = snapRecordings.find(sr => sr.id === r.id);
             if (!before || ((before.clipStartMs || null) === (r.clipStartMs || null) && (before.clipEndMs || null) === (r.clipEndMs || null))) continue;
@@ -14528,7 +14565,9 @@
     function buildFlowMediaSlides() {
         Object.values(flowYtPlayers).forEach(player => { try { player.destroy(); } catch (error) { /* already gone */ } });
         flowYtPlayers = {};
-        const recordings = currentFlowDetail?.recordings || [];
+        // ML-531: with one movement chosen, a recording of another movement isn't offered (one of the whole piece is)
+        const only = flowChosenMovement();
+        const recordings = (currentFlowDetail?.recordings || []).filter(r => !only || !recMovement(r) || r.movementNumber === only.number);
         const audioTracks = recordings.filter(r => r.type !== 'youtube');
         const videoLinks = recordings.filter(r => r.type === 'youtube');
         flowMediaSlides = [
@@ -14575,7 +14614,7 @@
                     <div class="metroBlk-row">
                         <div class="flow-media-slide-header">
                             <span class="flow-media-icon type-audio"><span class="material-symbols-outlined icon-md">music_note</span></span>
-                            <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(r.mimeType || 'Audio file')}</span></div>
+                            <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(recMovement(r) ? FlowJourney.movementLabel(recMovement(r), true) : (r.mimeType || 'Audio file'))}</span></div>
                         </div>
                         <audio class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}" data-flow-media-key="${flowMediaSlideKey(slide)}"></audio>
                         ${recScoreControlsHtml(slide)}
@@ -14617,7 +14656,7 @@
                 ? '<span class="flow-media-icon type-audio"><span class="material-symbols-outlined icon-md">music_note</span></span>'
                 : '<span class="flow-media-icon type-youtube"><span class="material-symbols-outlined icon-md">smart_display</span></span>';
             title = r.title;
-            subtitle = slide.type === 'audio' ? (r.mimeType || 'Audio file') : 'YouTube video';
+            subtitle = slide.type === 'audio' ? (recMovement(r) ? FlowJourney.movementLabel(recMovement(r), true) : (r.mimeType || 'Audio file')) : 'YouTube video'; // ML-531
         }
         return `
             <div class="flow-media-slide flow-media-slide-preview" data-clone="true" aria-hidden="true">
@@ -14681,8 +14720,12 @@
     let recSpeed = 100;                // for this visit to the play screen
     let recTicker = null;
     let recTileBlockId = null;         // the block the recording is in now - its tile lights up, as the metronome's does
+    const recDroppedTold = new Set();  // ML-531: recordings whose left-out marks have been mentioned this visit
     const recActiveSlide = () => { const s = flowMediaSlides[flowMediaActiveIndex]; return s && s.type !== 'metronome' ? s : null; };
-    const recMapFor = (r) => FlowJourney.recordingMap(currentFlowBlocks, { leadIn: flowLeadInBlock }, r.marks || [], recordingClip(r));
+    // ML-531: a recording of one movement is mapped onto that movement's bars - its start mark is the movement's first bar
+    const recOpts = (r) => ({ leadIn: flowLeadInBlock, movement: r.movementNumber || null });
+    const recMovement = (r) => (r.movementNumber ? FlowJourney.movements(currentFlowBlocks).find(m => m.number === r.movementNumber && FlowJourney.movements(currentFlowBlocks).length > 1) || null : null);
+    const recMapFor = (r) => FlowJourney.recordingMap(currentFlowBlocks, recOpts(r), r.marks || [], recordingClip(r));
     // One way to drive either kind of player. null until the player is there (YouTube arrives late).
     function recPlayerOf(slide) {
         if (!slide) return null;
@@ -14731,8 +14774,17 @@
             box.querySelector('[data-rec-speed-lbl]').textContent = `${recSpeed}%`;
             box.querySelector('[data-rec-speed-btn]').setAttribute('aria-label', `Play speed - ${recSpeed}%. Tap to change`);
             const mapLbl = box.querySelector('[data-rec-map-lbl]');
+            // ML-531: the marks that still fit the piece - a change to its bars (or making it a piece in movements) can
+            // leave some that don't; they are left out, and the member is told once
+            const stored = (slide.data.marks || []).length;
+            const usable = stored ? FlowJourney.usableMarks(FlowJourney.journeyPlaces(currentFlowBlocks, recOpts(slide.data)), slide.data.marks).length : 0;
+            if (stored > usable && !recDroppedTold.has(slide.data.id)) {
+                recDroppedTold.add(slide.data.id);
+                const k = stored - usable;
+                showWarningToast(`${k} bar mark${k === 1 ? '' : 's'} on ${slide.data.title} no longer fit${k === 1 ? 's' : ''} the piece's bars and ${k === 1 ? 'is' : 'are'} left out. Mark ${k === 1 ? 'it' : 'them'} again if you need to.`);
+            }
             if (mapLbl) {
-                const n = (slide.data.marks || []).length;
+                const n = usable;
                 mapLbl.textContent = n ? String(n) : 'none';
                 box.querySelector('[data-rec-map-btn]').setAttribute('aria-label', `${n ? `${n} bar${n === 1 ? '' : 's'} marked` : 'No bars marked yet'} on ${slide.data.title} - tap to mark where bars fall`);
             }
@@ -14761,7 +14813,8 @@
         }
         if (line && map) {
             const place = FlowJourney.placeAt(map, at);
-            const text = place === -1 ? '' : `${FlowJourney.placeLabel(map.places, place)} of ${FlowJourney.totalBars(currentFlowBlocks)}`;
+            const mv = recMovement(slide.data);
+            const text = place === -1 ? '' : mv ? `${FlowJourney.placeLabel(map.places, place)} · ${FlowJourney.movementLabel(mv, false)}, bars ${mv.startBar}-${mv.endBar}` : `${FlowJourney.placeLabel(map.places, place)} of ${FlowJourney.totalBars(currentFlowBlocks)}`;
             if (line.textContent !== text) line.textContent = text;
         }
         if (!playing && recTicker) { clearInterval(recTicker); recTicker = null; }
@@ -14789,6 +14842,8 @@
         const player = recPlayerOf(slide);
         const map = recMapFor(slide.data);
         const place = map ? map.places.findIndex(p => p.blockId === blockId && p.kind === 'main') : -1;
+        const mv = recMovement(slide.data);
+        if (player && place === -1 && mv) { showWarningToast(`This recording is of ${FlowJourney.movementLabel(mv, true)} - tap a bar in it.`); return true; }
         if (!player || place === -1) return true; // a recording is showing: the tap is for it, even if it can't be used yet
         if (flowLoopPlan) {
             const loop = FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, 0);
@@ -14839,16 +14894,16 @@
                         <button type="button" class="btn-text btn-text-danger" data-act="barmap-remove" data-arg="${m.place}" aria-label="Remove the mark on ${escapeHtml(FlowJourney.placeLabel(barMap.places, m.place))}">Remove</button>
                     </div>
                 </div>`).join('')
-            : '<p class="text-muted">No bars marked yet. Until one is, bar 1 is taken to be at the recording\'s start mark and the rest follows the piece\'s speeds.</p>';
+            : `<p class="text-muted">No bars marked yet. Until one is, ${barMap.movement ? `bar ${barMap.movement.startBar} (the start of ${escapeHtml(FlowJourney.movementLabel(barMap.movement, false))})` : 'bar 1'} is taken to be at the recording's start mark and the rest follows the piece's speeds.</p>`;
         document.getElementById('barMapCount').textContent = used.length ? `${used.length} bar${used.length === 1 ? '' : 's'} marked` : '';
     }
     function openBarMapModal(recordingId) {
         const r = (currentFlowDetail?.recordings || []).find(x => String(x.id) === String(recordingId));
-        const places = FlowJourney.journeyPlaces(currentFlowBlocks, { leadIn: flowLeadInBlock });
+        const places = r ? FlowJourney.journeyPlaces(currentFlowBlocks, recOpts(r)) : []; // ML-531: a movement's recording - its bars
         if (!r || !places.length) return;
         pauseAllFlowMedia(); // the slide's own player must not play under the pop-up's
         const isYoutube = r.type === 'youtube';
-        barMap = { recordingId: r.id, marks: FlowJourney.usableMarks(places, r.marks || []), places, place: 0, media: null, yt: null };
+        barMap = { recordingId: r.id, marks: FlowJourney.usableMarks(places, r.marks || []), places, place: 0, media: null, yt: null, movement: recMovement(r) };
         // Start on the bar after the last one marked - the next one you will want.
         if (barMap.marks.length) barMap.place = Math.min(places.length - 1, barMap.marks[barMap.marks.length - 1].place + 1);
         document.getElementById('barMapName').textContent = r.title;
@@ -14887,7 +14942,7 @@
         if (!barMap) return;
         const n = Math.round(Number(document.getElementById('barMapBarInput').value));
         const place = barMap.places.findIndex(p => p.number === n && p.kind === 'main');
-        if (place === -1) { showWarningToast(`This piece has no bar ${Number.isFinite(n) ? n : 'like that'}.`); return; }
+        if (place === -1) { showWarningToast(barMap.movement ? `This recording is of ${FlowJourney.movementLabel(barMap.movement, false)}: bars ${barMap.movement.startBar} to ${barMap.movement.endBar}.` : `This piece has no bar ${Number.isFinite(n) ? n : 'like that'}.`); return; }
         barMap.place = place;
         renderBarMapModal();
     }
@@ -14952,7 +15007,7 @@
             const about = [r.fileSizeBytes ? `${megabytes(r.fileSizeBytes)} MB` : '', r.recordedOn ? `recorded ${plDateText(r.recordedOn)}` : ''].filter(Boolean).join(' · ');
             const cuts = r.cuts.length ? r.cuts.map(c => `
                 <div class="history-item">
-                    <div class="history-details"><div><strong>${escapeHtml(c.pieceTitle)}</strong><span>${escapeHtml(FlowJourney.clipLabel({ startMs: c.clipStartMs, endMs: c.clipEndMs }))}${c.band ? ` · ${escapeHtml(c.band)}` : ''}</span></div></div>
+                    <div class="history-details"><div><strong>${escapeHtml(c.pieceTitle)}${c.movement ? ` · Mvt ${c.movement}` : ''}</strong><span>${escapeHtml(FlowJourney.clipLabel({ startMs: c.clipStartMs, endMs: c.clipEndMs }))}${c.band ? ` · ${escapeHtml(c.band)}` : ''}</span></div></div>
                     <div class="flex-row gap-sm">
                         <button type="button" class="btn-text" data-act="recordings-cut-change" data-arg="${c.id}" aria-label="Change where ${escapeHtml(c.pieceTitle)} starts and ends">Change</button>
                         <button type="button" class="btn-text btn-text-danger" data-act="recordings-cut-remove" data-arg="${c.id}" aria-label="Take this recording off ${escapeHtml(c.pieceTitle)}">Remove</button>
@@ -14988,22 +15043,36 @@
         return null;
     };
     // "Give it to a piece": which piece (one pop-up), then where it starts and ends (the next).
+    // ML-531: a piece in movements can take it once for the whole piece or once per movement - which movement comes
+    // between the piece and the start and end.
     function recordingsGive(recordingId) {
         const rec = recordingById(recordingId);
         if (!rec) return;
-        const pieces = recordingsData.pieces.filter(p => !rec.cuts.some(c => c.scoreId === p.id));
+        const free = (p) => {
+            const mine = rec.cuts.filter(c => c.scoreId === p.id);
+            const moves = p.movements || [];
+            return [...(mine.some(c => !c.movement) ? [] : [null]), ...moves.filter(m => !mine.some(c => c.movement === m.number)).map(m => m.number)];
+        };
+        const pieces = recordingsData.pieces.filter(p => ((p.movements || []).length ? free(p).length : !rec.cuts.some(c => c.scoreId === p.id)));
         if (!pieces.length) { showWarningToast(recordingsData.pieces.length ? 'It is already on every piece you can add it to.' : 'Make a piece first (Add a piece), then give this recording to it.'); return; }
+        const setStartAndEnd = (piece, m) => openClipPopup({
+            title: `${piece.title}${m ? ` · ${FlowJourney.movementLabel(m, false)}` : ''} - in ${rec.title}`, type: 'upload', blobUrl: rec.blobUrl, mimeType: rec.mimeType, clip: { startMs: null, endMs: null },
+            onSave: async (clip) => {
+                recordingsData = await apiCall(`/api/recordings/${rec.id}/cuts`, 'POST', { scoreId: piece.id, startMs: clip.startMs, endMs: clip.endMs, movement: m ? m.number : null });
+                renderRecordings();
+                showSuccessToast(`It is on ${piece.title}${m ? ` (${FlowJourney.movementLabel(m, true)})` : ''} now.`);
+            }
+        });
         openFlowChoiceModal('Which piece?', pieces.map(p => ({
             html: `<span><strong>${escapeHtml(p.title)}</strong>${p.band ? `<br><span class="text-sm text-muted">${escapeHtml(p.band)}</span>` : ''}</span>`, piece: p
         })), (opt) => {
-            openClipPopup({
-                title: `${opt.piece.title} - in ${rec.title}`, type: 'upload', blobUrl: rec.blobUrl, mimeType: rec.mimeType, clip: { startMs: null, endMs: null },
-                onSave: async (clip) => {
-                    recordingsData = await apiCall(`/api/recordings/${rec.id}/cuts`, 'POST', { scoreId: opt.piece.id, startMs: clip.startMs, endMs: clip.endMs });
-                    renderRecordings();
-                    showSuccessToast(`It is on ${opt.piece.title} now.`);
-                }
-            });
+            const p = opt.piece;
+            if (!(p.movements || []).length) { setStartAndEnd(p, null); return; }
+            const left = free(p);
+            openFlowChoiceModal('Which movement is it of?', left.map(n => {
+                const m = n ? p.movements.find(x => x.number === n) : null;
+                return { m, html: m ? addPieceRow(FlowJourney.movementLabel(m, true), `Bars ${m.startBar}-${m.endBar}`) : addPieceRow('The whole piece', `All ${p.movements.length} movements`) };
+            }), (o) => setStartAndEnd(p, o.m));
         });
     }
     function recordingsCutChange(cutId) {
@@ -15755,6 +15824,8 @@
         flowMovement = n;
         buildFlowPlayQueue();
         renderFlowPlaybackRow();
+        buildFlowMediaSlides(); // ML-531: the recordings offered follow the movement
+        renderFlowMediaCarousel();
     }
     function openFlowMovementChoice() {
         const moves = FlowJourney.movements(currentFlowBlocks);

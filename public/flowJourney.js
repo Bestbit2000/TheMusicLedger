@@ -943,9 +943,10 @@
     // Every place: { place, kind, blockIndex, blockId, bar (0-based in its block), number (the piece's
     // own bar number), pass, seconds (how long the piece says it lasts), at (seconds from the start
     // of the piece, by the piece's own speeds) }.
+    // ML-531: opts.movement - a recording of one movement: its places are that movement's journey, place 0 its first bar.
     function journeyPlaces(blocks, opts) {
         let at = 0;
-        return buildJourney(blocks, opts).steps.filter(s => s.kind !== 'leadIn' && s.blockIndex >= 0).map((s, place) => {
+        return (opts && opts.movement ? movementJourney(blocks, opts, opts.movement) : buildJourney(blocks, opts)).steps.filter(s => s.kind !== 'leadIn' && s.blockIndex >= 0).map((s, place) => {
             const seconds = barSeconds(blocks, s.blockIndex, s.bar, 100);
             const out = { place, kind: s.kind, blockIndex: s.blockIndex, blockId: s.blockId, bar: s.bar, number: barNumberOf(blocks, s.blockIndex, s.bar), pass: s.pass, seconds, at };
             at += seconds;

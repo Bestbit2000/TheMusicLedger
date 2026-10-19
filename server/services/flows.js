@@ -112,6 +112,8 @@ function toRecordingDto(row, markRows) {
     // ML-312: where playing starts and stops, in milliseconds (null = the start / the end)
     clipStartMs: row.clip_start_ms === null || row.clip_start_ms === undefined ? null : Number(row.clip_start_ms),
     clipEndMs: row.clip_end_ms === null || row.clip_end_ms === undefined ? null : Number(row.clip_end_ms),
+    // ML-531: a recording of one movement of a piece in movements (null: the whole piece)
+    movementNumber: row.movement_number === null || row.movement_number === undefined ? null : Number(row.movement_number),
     createdAt: row.created_at
   };
 }
@@ -495,30 +497,32 @@ export async function deleteFlow(accountId, scoreId) {
 // client calls this right after `upload()` resolves, rather than relying on
 // Blob's own onUploadCompleted webhook, which Vercel can only reach on a real
 // deployed URL and never in local dev.
-export async function addUploadedRecording(accountId, scoreId, { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType, clipStartMs, clipEndMs }) {
+export async function addUploadedRecording(accountId, scoreId, { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType, clipStartMs, clipEndMs, movementNumber }) {
   await assertFlowAccess(accountId, scoreId);
   if (!blobUrl || !blobPathname) throw withStatus(400, 'Missing uploaded file details.');
   if (Number(fileSizeBytes) > MAX_PIECE_FILE_BYTES) throw withStatus(413, TOO_BIG);
   const clip = cleanClip({ startMs: clipStartMs, endMs: clipEndMs });
+  const movement = await checkedMovement(scoreId, movementNumber);
   await assertOwnUnusedBlob(blobUrl, scoreId);
   await pool.query(
-    `INSERT INTO score_recordings (score_id, type, title, blob_url, blob_pathname, file_size_bytes, mime_type, clip_start_ms, clip_end_ms, order_index)
-     VALUES ($1, 'upload', $2, $3, $4, $5, $6, $7, $8, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
-    [scoreId, fileName || 'Untitled recording', blobUrl, blobPathname, fileSizeBytes || null, mimeType || null, clip.startMs, clip.endMs]
+    `INSERT INTO score_recordings (score_id, type, title, blob_url, blob_pathname, file_size_bytes, mime_type, clip_start_ms, clip_end_ms, movement_number, order_index)
+     VALUES ($1, 'upload', $2, $3, $4, $5, $6, $7, $8, $9, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
+    [scoreId, fileName || 'Untitled recording', blobUrl, blobPathname, fileSizeBytes || null, mimeType || null, clip.startMs, clip.endMs, movement]
   );
   return getFlowDetail(accountId, scoreId);
 }
 
-export async function addYouTubeRecording(accountId, scoreId, { url, title, clipStartMs, clipEndMs }) {
+export async function addYouTubeRecording(accountId, scoreId, { url, title, clipStartMs, clipEndMs, movementNumber }) {
   await assertFlowAccess(accountId, scoreId);
   const clip = cleanClip({ startMs: clipStartMs, endMs: clipEndMs });
+  const movement = await checkedMovement(scoreId, movementNumber);
   const videoId = extractYouTubeVideoId(url);
   if (!videoId) throw withStatus(400, "That doesn't look like a YouTube link.");
   const effectiveTitle = (title && title.trim()) || 'YouTube video';
   await pool.query(
-    `INSERT INTO score_recordings (score_id, type, title, youtube_video_id, youtube_thumbnail_url, clip_start_ms, clip_end_ms, order_index)
-     VALUES ($1, 'youtube', $2, $3, $4, $5, $6, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
-    [scoreId, effectiveTitle, videoId, `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`, clip.startMs, clip.endMs]
+    `INSERT INTO score_recordings (score_id, type, title, youtube_video_id, youtube_thumbnail_url, clip_start_ms, clip_end_ms, movement_number, order_index)
+     VALUES ($1, 'youtube', $2, $3, $4, $5, $6, $7, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
+    [scoreId, effectiveTitle, videoId, `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`, clip.startMs, clip.endMs, movement]
   );
   return getFlowDetail(accountId, scoreId);
 }
@@ -531,6 +535,38 @@ function cleanClip(clip) {
   if (!out.ok) throw withStatus(400, out.message);
   return out;
 }
+// ML-531: a recording's movement - null (the whole piece), or one of the piece's movements when it has more than one.
+export async function checkedMovement(scoreId, movement) {
+  if (movement === null || movement === undefined || movement === '') return null;
+  const n = Number(movement);
+  const blocks = (await listFlowBlocksUnchecked(scoreId)).filter((b) => !b.isLeadIn);
+  const moves = FlowJourney.movements(blocks);
+  if (!(moves.length > 1 && moves.some((m) => m.number === n))) throw withStatus(400, 'That movement is not one of the piece\'s.');
+  return n;
+}
+// ML-531: which movement a recording is of. Its marks were counted from the old first bar, so a change clears them.
+export async function setRecordingMovement(accountId, scoreId, recordingId, body) {
+  await assertFlowAccess(accountId, scoreId);
+  const movement = await checkedMovement(scoreId, body && body.movement);
+  const { rows } = await pool.query('SELECT movement_number FROM score_recordings WHERE id = $1 AND score_id = $2', [recordingId, scoreId]);
+  if (!rows.length) throw withStatus(404, 'Recording not found');
+  const was = rows[0].movement_number === null ? null : Number(rows[0].movement_number);
+  if (was !== movement) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('UPDATE score_recordings SET movement_number = $1 WHERE id = $2', [movement, recordingId]);
+      await client.query('DELETE FROM score_recording_marks WHERE recording_id = $1', [recordingId]);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  return getFlowDetail(accountId, scoreId);
+}
 // ML-488: the bar marks on a recording, replaced whole ({ marks: [{ place, number, pass, atMs }] }). Whoever
 // can change the piece can map it. The marks are tidied by the same rule the map itself uses
 // (FlowJourney.usableMarks, against the piece's bars as they are now), so nothing is kept that the map
@@ -541,11 +577,12 @@ export async function setRecordingMarks(accountId, scoreId, recordingId, body) {
   const given = body && Array.isArray(body.marks) ? body.marks : null;
   if (!given) throw withStatus(400, 'Send the marks as a list.');
   if (given.length > MAX_MARKS) throw withStatus(400, 'That is more marks than a piece has bars.');
-  const { rows: found } = await pool.query('SELECT id FROM score_recordings WHERE id = $1 AND score_id = $2', [recordingId, scoreId]);
+  const { rows: found } = await pool.query('SELECT id, movement_number FROM score_recordings WHERE id = $1 AND score_id = $2', [recordingId, scoreId]);
   if (!found.length) throw withStatus(404, 'Recording not found');
   const all = await listFlowBlocksUnchecked(scoreId);
   const leadIn = all.find((b) => b.isLeadIn) || null;
-  const places = FlowJourney.journeyPlaces(all.filter((b) => !b.isLeadIn), { leadIn });
+  // ML-531: a recording of one movement is mapped onto that movement's places
+  const places = FlowJourney.journeyPlaces(all.filter((b) => !b.isLeadIn), { leadIn, movement: found[0].movement_number === null ? null : Number(found[0].movement_number) });
   const marks = FlowJourney.usableMarks(places, given);
   if (marks.length !== given.length) throw withStatus(400, 'One of those marks does not fit the piece: each has to be a bar the piece plays, and later in the recording than the mark before it.');
   const client = await pool.connect();

@@ -107,7 +107,8 @@ later are not offered across a movement start, and a drag in the grid only goes 
 a movement starts belongs to the place, not the bar: when a movement's first bar is moved or deleted, the bar now
 first in it starts it and takes its name (`flowRestoreMovementPlaces`), and a duplicated bar never starts a movement.
 Tests: the "movements (ML-529)" group in `server/test/flowJourney.test.js`, and back-test #79. Playing or practising one
-movement on its own is ML-530; a recording of one movement is ML-531.
+movement on its own is ML-530 (below); a recording of one movement is ML-531 (`docs/rehearsal-score.md`, "A recording
+of one movement").
 
 ## One movement (ML-530)
 

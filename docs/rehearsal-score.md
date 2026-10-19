@@ -90,7 +90,7 @@ A recording's or video's slide has three value boxes under the player and a line
   out (it is the metronome's count-in). A bar inside a repeat has two places - which is why a mark is on a
   place and not just a bar number.
 - The piece says how long each bar should last (`barSeconds`: its speed, changes of speed, pauses).
-- **Fixed points:** the recording's start mark is where bar 1 begins; its end mark, if set, is where the
+- **Fixed points:** the recording's start mark is where bar 1 begins (for a recording of one movement, ML-531, that movement's first bar); its end mark, if set, is where the
   last bar ends; each mark pins its bar. A mark on bar 1 wins over the start mark.
 - **Between** two fixed points the bars share the time in proportion to their own lengths, so a slow bar
   stays longer than a fast one.
@@ -125,6 +125,33 @@ The server runs the same check and refuses a list it would have to drop from.
 - **A stop-and-go take does not match the piece.** If the conductor stops at bar 40 and goes back to 33,
   the recording is off from there. Map a run-through, and end the cut where the band stops.
 - **YouTube lands within about half a second**, and plays its own adverts.
+
+## A recording of one movement (ML-531)
+
+A piece in movements (ML-529) can have a recording of just **one** of its movements - a concert recording of
+movement 2, or a cut of a whole rehearsal that covers one movement. `score_recordings.movement_number` (migration
+133; NULL = the whole piece) - the movement's number, so editing the piece moves it with the music, and a number the
+piece no longer has reads as the whole piece.
+
+- **The map:** `journeyPlaces(blocks, { movement })` is that movement's journey (`movementJourney`), so place 0 - and
+  so the recording's start mark - is **the movement's first bar**, and its marks are its own places. `recordingMap`,
+  `placeAt` and `mapLoop` work unchanged; repeat bars in another movement are simply not in it.
+- **Setting it:** a piece's Media tab gives each recording a **movement** value box next to start and end, for a
+  piece in movements only (the whole piece, or a movement - one pop-up). Kept until Save in Edit, like the clip
+  (`saveFlowMediaEdits`). `PUT /api/flows/:id/recordings/:recordingId/movement` `{ movement }`; the add calls take
+  `movementNumber`. **Changing it takes the recording's bar marks off**: they were counted from the old first bar.
+  The pop-up says so when there are any.
+- **The Recordings tool:** "Give it to a piece" asks **which movement** between the piece and its start and end, for a
+  piece in movements; a piece can take a recording once for the whole piece and once per movement. A cut's row says
+  "· Mvt 2". `addCut` takes `movement`.
+- **The play screen:** a recording of a movement says so on its slide; the bar line reads "Bar 93 · Mvt 2, bars
+  87-150"; a tap on a bar of another movement says the recording is of that movement. **With one movement chosen in
+  Rehearse (ML-530), a recording of another movement isn't offered**; one of the whole piece always is.
+- **Marks that no longer fit** - after the piece's bars change, or it is made a piece in movements and its jumps now
+  stay inside each movement - are left out, as before; now the member is told once a visit how many ("2 bar marks on
+  ... no longer fit the piece's bars"), and "bars marked" counts only the ones that fit.
+
+Tests: "a recording of one movement (ML-531)" in `server/test/rehearsalScore.test.js`; back-test 82.
 
 ## B: the Recordings tool (ML-489)
 
@@ -296,6 +323,6 @@ is told how sharing with a band works before a band with young players is invite
 | Clips and marks on the server | `server/services/flows.js` (`setRecordingClip`, `setRecordingMarks`) |
 | The Recordings tool on the server | `server/services/rehearsalRecordings.js`, `server/services/blobUrls.js` |
 | Removing a recording on request | `server/services/recordingRemovals.js`; `public/admin.js` (`initRecordingsAdmin`) |
-| Migrations | `116_recording_clips.sql`, `117_recording_marks.sql`, `118_rehearsal_recordings.sql`, `119_upload_rights.sql`, `120_recording_removals.sql`, `121_reports_and_organisers.sql` |
-| Back-tests | 62 (start and end), 63 (the bars on a recording), 64 (the Recordings tool), 65 (the right to upload, the filter, clearing a list), 66 (removing a recording on request), 67 (an organiser is an adult, Report this, the owner taking a piece down) |
+| Migrations | `133_recording_movement.sql` (ML-531), `116_recording_clips.sql`, `117_recording_marks.sql`, `118_rehearsal_recordings.sql`, `119_upload_rights.sql`, `120_recording_removals.sql`, `121_reports_and_organisers.sql` |
+| Back-tests | 62 (start and end), 63 (the bars on a recording), 64 (the Recordings tool), 65 (the right to upload, the filter, clearing a list), 66 (removing a recording on request), 67 (an organiser is an adult, Report this, the owner taking a piece down), 82 (a recording of one movement) |
 | Design spec | `specs/components/rehearsal-score.md` |

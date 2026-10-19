@@ -15,6 +15,9 @@ never changed: where things are in it is kept as numbers. Full description: `doc
 - **Start and end** (ML-312, `recording_clip`): every recording and video on a piece's Media tab has one
   value box, "start and end", showing the answer ("0:12 to 3:40", "All of it"). It opens a pop-up where the
   two are set by listening and tapping.
+- **Which movement** (ML-531): on a piece in movements, a second value box under it (`.metroBlk-ctrl-value-btn.w-full.mt-2`),
+  "all" or the movement's number over "movement", opening one pop-up (the whole piece, or each movement with the bar
+  it starts at). The Recordings tool asks the same between the piece and its start and end; a cut's row adds "· Mvt 2".
 - **The bars on a recording** (ML-488, `rehearsal_score`): on the play screen, a recording's slide has three
   value boxes - repeat, play speed, bars marked - and a line saying which bar is playing.
 - **The Recordings tool** (ML-489, `rehearsal_recordings`): a page of whole rehearsal recordings, each a card
