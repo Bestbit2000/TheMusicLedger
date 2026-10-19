@@ -7,6 +7,7 @@ Claude, **not legal advice**.
 | Version | Date | By | What it is |
 |---|---|---|---|
 | 1 | 8 October 2026 | Claude, for Andrew Storey | The first run-through kept in the repo. Done because recordings were switched on for every account type that day. The owner's own self-assessment (document 4) and impact assessment (document 5) are in his compliance documents; this does not replace them. |
+| 2 | 19 October 2026 | Claude, for Andrew Storey | Checked before ML-534 (a band's logo, and the welcome for someone invited to a band). **No standard's answer changes**: the logo belongs to the band, not to a person (8); only an adult organiser adds it and the band and its invitees see it (7, 9); it is reported and removed like anything else a band shares (6, 15); the welcome shows only what the band shares and nothing about anyone's practice, and joining is still the person's own tap (1, 5, 13). The Members page asks for the band's logo, not a photo of people (`online-safety-assessment.md`, action 10). |
 
 **Next review:** 8 October 2027, or sooner if a new feature touches the young players rule
 (`specs/README.md`). It is on Admin → Security → Reviews. Each review adds a row above and updates the table.

@@ -1,6 +1,6 @@
 # Online Safety Act run-through (ML-507)
 
-**Version 1, 8 October 2026**, against release 0.52.0. A first pass at what the Online Safety Act 2023
+**Version 2, 19 October 2026**, against release 0.63.0 (version 1: 8 October 2026, release 0.52.0). A first pass at what the Online Safety Act 2023
 asks of this app, done from Ofcom's published guidance. It is a careful reading by Claude, **not legal
 advice**, and **the owner should confirm it with Ofcom's own tools** (below) - they are the official
 route and they produce the records Ofcom expects.
@@ -8,8 +8,9 @@ route and they produce the records Ofcom expects.
 | Version | Date | By | What it is |
 |---|---|---|---|
 | 1 | 8 October 2026 | Claude, for Andrew Storey | The first run-through: scope, an illegal content risk assessment, a children's access assessment, a children's risk assessment, and the measures expected of a small low-risk service. |
+| 2 | 19 October 2026 | Claude, for Andrew Storey | Done again before ML-534: **a band's logo** - the first picture one member uploads for others to see, shown to the band, to people it invites and in the invitation email. Sections 2, 3, 5 and 6, actions 9 and 10 and "What would change the answer" are updated; the rest still holds. See "Version 2" below. |
 
-**Next review:** 8 October 2027 at the latest. Ofcom asks for a review at least once a year, **and before
+**Next review:** 19 October 2027 at the latest. Ofcom asks for a review at least once a year, **and before
 any significant change** to how the service works. It is on Admin → Security → Reviews.
 
 **Ofcom's own tools - use these to confirm what is below:**
@@ -50,7 +51,10 @@ This is the whole of it, and the smallness of the list is the main reason the ri
 | A YouTube link and its title | A member with "change music" | The band |
 | A practice list's name | A member with "change music" | The band |
 | A band's name | Whoever sets up sharing | The band, and people invited to it |
+| A band's logo: one picture, PNG, JPEG or WebP, up to 1 MB (version 2, ML-534) | An organiser of the band - an adult (action 2) | The band; people invited to it, on the welcome and at the top of the invitation email |
 | A member's name and picture (initials or one of twelve drawings - no photo upload) | The member | The band |
+
+(A band's logo is the only picture a member can upload for others to see. It belongs to the band, not to a person.)
 | A public piece | The owner only | Everyone |
 
 **What the app does not have:** messages between members, comments, a public profile, a way to search for
@@ -66,11 +70,11 @@ bad it would be, given what section 2 shows the app can and cannot do.
 
 | Kind of illegal content | Risk | Why |
 |---|---|---|
-| Child sexual abuse material (images, or links to it) | **Low, not negligible** | A PDF can hold images and a YouTube title is free text, so it is possible. But a file reaches only one band's members, the band is invitation-only, every upload is tied to a named account, and nothing can be found from outside. It would be very serious, so it is not rated negligible. |
+| Child sexual abuse material (images, or links to it) | **Low, not negligible** | A PDF can hold images and a YouTube title is free text, so it is possible. But a file reaches only one band's members, the band is invitation-only, every upload is tied to a named account, and nothing can be found from outside. A band's logo is an image, but only an organiser - who has confirmed they are an adult - can add one, there is one per band, and it reaches only the band and the people it invites (version 2). It would be very serious, so it is not rated negligible. |
 | Grooming | **Low** | There are no messages, comments or profiles, so one member cannot contact another through the app. An organiser sees members' names and typed their email addresses to invite them. The risk that is left is an adult using a band as cover; see action 2. |
 | Terrorism; hate; harassment, stalking, threats and abuse | Low | Only a title, a band's name or a file could carry it, and only to the band. No comments or messages. |
 | Controlling or coercive behaviour | Negligible | No way to contact or follow a person. |
-| Intimate image abuse; extreme pornography | Low | Only as a file in a PDF or a link, to one band. No photo or video upload in the Recordings tool; a piece's own recording may be an mp4. |
+| Intimate image abuse; extreme pornography | Low | Only as a file in a PDF or a link, to one band, or as a band's logo, which only an adult organiser can add and which the band and anyone it invites would see at once. No photo or video upload in the Recordings tool; a piece's own recording may be an mp4. |
 | Sexual exploitation of adults; human trafficking; unlawful immigration | Negligible | Nothing is advertised and nobody can be contacted. |
 | Fraud and financial offences; proceeds of crime | Negligible | No payments, no messages, no listings. |
 | Drugs and psychoactive substances; firearms, knives and other weapons | Negligible | Nothing can be offered or sought. |
@@ -103,10 +107,11 @@ The content the Act names as harmful to children, against what the app can carry
 
 | Kind | Risk | Why |
 |---|---|---|
-| Primary priority: pornography; content encouraging suicide, self-harm or an eating disorder | **Low** | Possible only as a file or a link shared with one band by someone trusted to change its music. The terms should forbid it outright (action 4) |
+| Primary priority: pornography; content encouraging suicide, self-harm or an eating disorder | **Low** | Possible only as a file or a link shared with one band by someone trusted to change its music, or as a band's logo added by its adult organiser. The terms forbid it outright (action 4) |
 | Priority: bullying; abuse and hate; violence; harmful substances; dangerous stunts | **Low** | No comments or messages. A band's name, a piece's title or a practice list's name is the only free text another member sees. A rehearsal recording could embarrass a player: nothing can be written on it, and anyone in it can have it removed |
 | Other content harmful to children | Low | As above |
 | Contact from adults | **Low, see action 2** | No contact through the app. An organiser chooses who is invited |
+| A photo of young players used as a band's logo (version 2) | **Low** | Not harmful content, but a picture of children shown to everyone the band invites and sent in its emails. The help line asks for the band's logo, not a photo of people, and one the band has the right to use; anyone in it can have it removed (action 10) |
 
 **Overall: low risk for children**, for the same reason as section 3.
 
@@ -118,7 +123,7 @@ Ofcom's words for a service that has assessed itself, with good reason, as low r
 |---|---|---|
 | "Easy-to-find, understandable terms and conditions" | Terms and a privacy policy, plain English, readable signed out, linked from sign-in and About. They cover copyright and recordings with other people in them. **They do not yet say what may not be shared**, or that it will be removed. | **Action 4** |
 | "A complaints tool that allows users to report illegal or harmful material when they see it", with "a process to deal with those complaints" | An email address, and the Feedback form in the menu. **There is no "report this" on a shared piece, recording or document**, and Feedback can be switched off for an account type. | **Action 5** |
-| "The ability to review content and take it down quickly" | The owner can remove any recording or video link everywhere in one action, with the people told (Admin → Recordings, ML-490), and rename or remove a band (Admin → Bands). **A piece, a document or a practice list in someone else's band has no such page** - today that would mean going to the database. | **Action 6** |
+| "The ability to review content and take it down quickly" | The owner can remove any recording or video link everywhere in one action, with the people told (Admin → Recordings, ML-490), and rename or remove a band (Admin → Bands). Since version 2 a band's logo is reported with the band ("its name or its logo") and is a row of its own on Admin → Shared music, removed with its file in one action and the band's organisers told. **A piece, a document or a practice list in someone else's band has no such page** - today that would mean going to the database. | **Action 6** |
 | "A specific individual responsible for compliance, who we can contact" | The owner, named in the privacy policy with an email address. | Say so in the terms (part of action 4) |
 | A written record of each assessment, kept up to date | This document, with a version history, and the yearly review on Admin → Security → Reviews. | **Action 1**: confirm with Ofcom's tools |
 | A new assessment before a significant change | Asked before every release since ML-512 (`docs/release-process.md`, step 1). | Done - action 7 |
@@ -139,10 +144,41 @@ are written to meet both.
 | 6 | **One place for the owner to take anything down**: extend Admin → Recordings to documents, pieces and practice lists. Each removal tells the people it belonged to and is kept on record, as recordings are now | Claude | **Built 8 October 2026**, released in 0.53.0: the page is now Admin → Shared music - members' reports, recordings and videos, documents, and the pieces a band shares or that are public. **Finished 10 October 2026 (ML-511):** the page also lists every band's practice lists (Remove - the pieces stay) and every band (Rename - a band can't be removed without its music, so a name that breaks the terms is changed). The band's organisers are told each time and both are on the same record |
 | 7 | Add to the release process: "does this change what one member can show another, or let members contact each other?" - if so, this run-through is done again first | Claude | **Done 10 October 2026 (ML-512):** the question is in step 1 of `docs/release-process.md`, printed by `npm run cut-release`, and in CLAUDE.md |
 | 8 | Reports are answered: say in the terms how quickly, and keep a simple log of each report and what was done | The owner, Claude | The log is built (a report is closed with a line saying what was done). How quickly is for the terms (action 4). **10 October 2026 (ML-502):** the owner can also warn the member and close their account - `docs/account-closing.md` |
+| 9 | **A band's logo is covered by Report and take-down** (version 2): reported with the band, removed on Admin → Shared music with its file, the organisers told; only an organiser can add one; a picture only (never SVG, which can carry script); kept only in the band's own folder of the file store | Claude | **Built 19 October 2026 (ML-534)**, released in 0.63.0 |
+| 10 | Say on the Members page that the logo should be the band's logo, **not a photo of people**, so a picture of young players is not shown to everyone the band invites | The owner (wording) | **Done 19 October 2026**, released in 0.63.0: the help line says "Use the band's logo, not a photo of people. Only use a logo the band has the right to use." Admin → Shared music removes one on request |
+
+## Version 2: a band's logo (ML-534, 19 October 2026)
+
+**What changed.** An organiser can add a logo to a band: one picture (PNG, JPEG or WebP, up to 1 MB) per
+band. It shows on My bands for every member, on the "Welcome to the band" screen someone sees when they
+arrive from an invitation, and at the top of the invitation email. That makes it the first picture a member
+uploads for others to see, which version 1 listed as a change that needs this run-through. The welcome
+itself adds no free text: it is built from what the band already shares (how many pieces, its practice
+lists with their dates, how many recordings) and never carries a message an organiser writes.
+
+**Who could misuse it, and how far it reaches.** Only an organiser - who has confirmed they are an adult
+and responsible for the band (action 2). It reaches the band's members, and people the organiser invites
+by their email address. It cannot be found from outside the band, it is not public, and nothing about
+who sees it is recorded (the email uses the same address for the picture for everyone, so it says nothing
+about who opened it).
+
+**What stops it being misused.** The terms already say what may not be shared (action 4). A member can
+report it with the band; the owner removes it, with its file, in one action on Admin → Shared music, and
+the band's organisers are told (action 9). The file can only be one of three picture types - never SVG -
+and is kept only in that band's folder of the file store, so one band's organiser can never place or
+delete another band's picture.
+
+**Answer: still low risk, for adults and for children.** The risk added is small: an adult, named and
+answerable, can show one picture to the people they invited, and anyone shown it can report it. The one
+new concern for children is not harmful content but a **photo of young players used as the logo**; the
+Members page now asks for the band's logo, not a photo of people (action 10).
+
+**The Children's Code** (`docs/childrens-code-assessment.md`) was checked the same day: no standard's
+answer changes (its version 2).
 
 ## What would change the answer
 
 Run this again **before** building any of these: messages or comments between members; a member profile
 others can open; any way to find or search for members or bands' content from outside a band; photo or
-video upload; live audio or video; sign-up without an invitation; letting members make a piece public;
+video upload beyond a band's logo (version 2); live audio or video; sign-up without an invitation; letting members make a piece public;
 a band directory that shows members.
