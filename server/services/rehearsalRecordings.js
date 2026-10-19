@@ -14,7 +14,7 @@
 
 import { del } from '@vercel/blob';
 import pool from '../config/db.js';
-import { withStatus, assertFlowAccess, FlowJourney, checkedMovement } from './flows.js';
+import { withStatus, assertFlowAccess, FlowJourney, checkedMovement, extractYouTubeVideoId } from './flows.js';
 import { getLimit } from './features.js';
 import { isRehearsalFileUrl, MAX_REHEARSAL_FILE_BYTES } from './blobUrls.js';
 
@@ -31,7 +31,8 @@ export async function recordingsLimit() {
   return Number.isFinite(n) && n >= 0 ? n : DEFAULT_LIMIT;
 }
 async function countMine(accountId) {
-  const { rows } = await pool.query('SELECT count(*)::int AS n FROM rehearsal_recordings WHERE account_id = $1', [accountId]);
+  // ML-532: only stored files count - a YouTube video takes no room
+  const { rows } = await pool.query('SELECT count(*)::int AS n FROM rehearsal_recordings WHERE account_id = $1 AND youtube_video_id IS NULL', [accountId]);
   return rows[0].n;
 }
 // Refuses before any file goes up, and again when it is kept - the first saves the member an upload.
@@ -85,12 +86,13 @@ export async function listRecordings(accountId) {
   const ms = (v) => (v === null || v === undefined ? null : Number(v));
   return {
     limit,
-    used: rows.length,
+    used: rows.filter((r) => !r.youtube_video_id).length, // ML-532: a YouTube video doesn't count
     maxBytes: MAX_REHEARSAL_FILE_BYTES,
     folder: `recordings/${Number(accountId)}`, // where the browser uploads to: the member's own folder in the file store
     pieces,
     recordings: rows.map((r) => ({
       id: Number(r.id), title: r.title, recordedOn: day(r.recorded_on), blobUrl: r.blob_url,
+      type: r.youtube_video_id ? 'youtube' : 'upload', youtubeVideoId: r.youtube_video_id || null, // ML-532
       fileSizeBytes: r.file_size_bytes !== null ? Number(r.file_size_bytes) : null, mimeType: r.mime_type, createdAt: r.created_at,
       cuts: cutRows.filter((c) => String(c.rehearsal_recording_id) === String(r.id)).map((c) => ({
         id: Number(c.id), scoreId: Number(c.score_id), pieceTitle: c.piece_title, band: c.band_name || null,
@@ -121,6 +123,19 @@ export async function addRecording(accountId, { blobUrl, blobPathname, fileName,
   return listRecordings(accountId);
 }
 
+// ML-532: a YouTube video in the tool - a whole concert or film score, given to pieces like an upload. No file is
+// stored, so it doesn't count against the limit. The address is the member's word: only the video's id is kept.
+export async function addYouTubeRehearsal(accountId, { url, title, recordedOn }) {
+  const videoId = extractYouTubeVideoId(url);
+  if (!videoId) throw withStatus(400, "That doesn't look like a YouTube link.");
+  if (recordedOn && !isDay(recordedOn)) throw withStatus(400, 'The day it was recorded has to be a date.');
+  const { rows } = await pool.query('SELECT 1 FROM rehearsal_recordings WHERE account_id = $1 AND youtube_video_id = $2', [accountId, videoId]);
+  if (rows.length) throw withStatus(409, 'That video is here already.');
+  const name = String(title || 'YouTube video').trim().slice(0, 200) || 'YouTube video';
+  await pool.query('INSERT INTO rehearsal_recordings (account_id, title, recorded_on, youtube_video_id) VALUES ($1, $2, $3, $4)', [accountId, name, recordedOn || null, videoId]);
+  return listRecordings(accountId);
+}
+
 async function mine(accountId, recordingId) {
   const { rows } = await pool.query('SELECT * FROM rehearsal_recordings WHERE id = $1 AND account_id = $2', [recordingId, accountId]);
   if (!rows.length) throw withStatus(404, 'Recording not found');
@@ -141,6 +156,15 @@ export async function addCut(accountId, recordingId, { scoreId, startMs, endMs, 
   const clip = FlowJourney.cleanClip({ startMs, endMs });
   if (!clip.ok) throw withStatus(400, clip.message);
   const mvt = await checkedMovement(scoreId, movement); // ML-531: a cut of one movement
+  if (rec.youtube_video_id) {
+    // ML-532: a cut of a YouTube video is an ordinary YouTube recording on the piece
+    await pool.query(
+      `INSERT INTO score_recordings (score_id, type, title, youtube_video_id, youtube_thumbnail_url, clip_start_ms, clip_end_ms, rehearsal_recording_id, movement_number, order_index)
+       VALUES ($1, 'youtube', $2, $3, $4, $5, $6, $7, $8, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
+      [scoreId, rec.title, rec.youtube_video_id, `https://img.youtube.com/vi/${rec.youtube_video_id}/mqdefault.jpg`, clip.startMs, clip.endMs, rec.id, mvt]
+    );
+    return listRecordings(accountId);
+  }
   await pool.query(
     `INSERT INTO score_recordings (score_id, type, title, blob_url, blob_pathname, file_size_bytes, mime_type, clip_start_ms, clip_end_ms, rehearsal_recording_id, movement_number, order_index)
      VALUES ($1, 'upload', $2, $3, $4, $5, $6, $7, $8, $9, $10, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
@@ -164,7 +188,8 @@ export async function deleteRecording(accountId, recordingId) {
   } finally {
     client.release();
   }
-  // Only once nothing points at the file any more (a cut made before this tool tracked them would).
+  // Only once nothing points at the file any more (a cut made before this tool tracked them would). A YouTube video has none.
+  if (!rec.blob_url) return listRecordings(accountId);
   const still = await pool.query('SELECT 1 FROM score_recordings WHERE blob_url = $1 UNION ALL SELECT 1 FROM rehearsal_recordings WHERE blob_url = $1 LIMIT 1', [rec.blob_url]);
   if (!still.rows.length) {
     try { await del([rec.blob_url]); } catch (error) { console.error('Recordings: a stored file could not be removed:', error.message); }

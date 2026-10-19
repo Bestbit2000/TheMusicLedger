@@ -153,6 +153,26 @@ piece no longer has reads as the whole piece.
 
 Tests: "a recording of one movement (ML-531)" in `server/test/rehearsalScore.test.js`; back-test 82.
 
+## Matching the piece's speeds to a recording (ML-533)
+
+Mark the bars makes the **recording** follow the bars. When the piece's own speeds are off - The Snowman against a
+YouTube performance, 19 Oct 2026 - the **metronome** can be made to follow the recording too: "Mark the bars" has
+**Match the piece's speeds to these marks** (for whoever can change the piece). It saves the marks, then says what
+would change ("1 speed would change, by up to 13 bpm (bars 1-8: 120 to 107). The metronome would then meet the bars
+you marked to within 0.06 seconds."), changes the speeds only when asked, and Undo puts them back.
+
+`FlowJourney.matchSpeeds(blocks, opts, marks, clip)`:
+- each block's speed is scaled by how long its bars last on the recording against how long they last at its own
+  speed, every time it plays, over the stretch the fixed points measure (`recordingMap`'s `span`); a block outside it
+  keeps its speed;
+- speeds are whole numbers (bpm is a SMALLINT): the rounding left over is carried into the next block, so the error
+  never builds up across the piece;
+- a ramp to a set speed is scaled with its block;
+- a mark that isn't on a block's first bar can only be met roughly - a speed changes at a block - and the message says
+  so. Splitting a block at such a mark, or speeds with decimals, would be the next step if that isn't near enough.
+
+Tests: "matching the piece's speeds to a recording (ML-533)" in `server/test/rehearsalScore.test.js`; back-test 83.
+
 ## B: the Recordings tool (ML-489)
 
 All tools → Practise → **Recordings** (`#recordingsView`, `data-tool="recordings"`).
@@ -169,6 +189,16 @@ All tools → Practise → **Recordings** (`#recordingsView`, `data-tool="record
   each cut; Remove takes it off the piece and leaves the recording.
 - **Delete** a recording: its cuts go with it - on the member's pieces and on a band's - and the file is
   removed once nothing points at it.
+
+### A YouTube video in the tool (ML-532)
+
+**Add a YouTube video** (under Upload) puts a video in the tool - a whole concert, or a whole film score - to give to
+pieces, or movements (ML-531), with a start and end each, as an upload is. It opens the piece's own YouTube pop-up,
+worded for the tool. Only the video's id is kept (`rehearsal_recordings.youtube_video_id`, migration 134; `blob_url`
+is empty for it - exactly one of the two is set), so it **doesn't count against the limit**, and the same video can't
+be added twice. A cut of it is an ordinary YouTube recording on the piece (`score_recordings` type youtube, with
+`rehearsal_recording_id`), so Mark the bars, repeat bars and matching the speeds work as for any recording. Deleting
+it takes its cuts off; there is no file to remove. `POST /api/recordings/youtube` `{ url, title }`.
 
 ### The owner's rules (7 October 2026)
 
@@ -323,6 +353,6 @@ is told how sharing with a band works before a band with young players is invite
 | Clips and marks on the server | `server/services/flows.js` (`setRecordingClip`, `setRecordingMarks`) |
 | The Recordings tool on the server | `server/services/rehearsalRecordings.js`, `server/services/blobUrls.js` |
 | Removing a recording on request | `server/services/recordingRemovals.js`; `public/admin.js` (`initRecordingsAdmin`) |
-| Migrations | `133_recording_movement.sql` (ML-531), `116_recording_clips.sql`, `117_recording_marks.sql`, `118_rehearsal_recordings.sql`, `119_upload_rights.sql`, `120_recording_removals.sql`, `121_reports_and_organisers.sql` |
-| Back-tests | 62 (start and end), 63 (the bars on a recording), 64 (the Recordings tool), 65 (the right to upload, the filter, clearing a list), 66 (removing a recording on request), 67 (an organiser is an adult, Report this, the owner taking a piece down), 82 (a recording of one movement) |
+| Migrations | `134_rehearsal_youtube.sql` (ML-532), `133_recording_movement.sql` (ML-531), `116_recording_clips.sql`, `117_recording_marks.sql`, `118_rehearsal_recordings.sql`, `119_upload_rights.sql`, `120_recording_removals.sql`, `121_reports_and_organisers.sql` |
+| Back-tests | 62 (start and end), 63 (the bars on a recording), 64 (the Recordings tool), 65 (the right to upload, the filter, clearing a list), 66 (removing a recording on request), 67 (an organiser is an adult, Report this, the owner taking a piece down), 82 (a recording of one movement), 83 (a YouTube video in the tool; matching the speeds) |
 | Design spec | `specs/components/rehearsal-score.md` |

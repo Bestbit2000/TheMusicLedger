@@ -40,7 +40,7 @@ import { readForAccount, markSaved as markPieceReadSaved, readUploadPrefix, test
 import { MAX_READ_BYTES } from '../services/pieceReader.js';
 import { MAX_PIECE_FILE_BYTES } from '../services/blobUrls.js';
 import { isFeatureEnabled, listEnabledFeatureKeys, getLimit, listLimits } from '../services/features.js';
-import { listRecordings as listRehearsalRecordings, addRecording as addRehearsalRecording, addCut as addRehearsalCut, deleteRecording as deleteRehearsalRecording, assertRoomForOne } from '../services/rehearsalRecordings.js';
+import { listRecordings as listRehearsalRecordings, addRecording as addRehearsalRecording, addCut as addRehearsalCut, deleteRecording as deleteRehearsalRecording, assertRoomForOne, addYouTubeRehearsal } from '../services/rehearsalRecordings.js';
 import { MAX_REHEARSAL_FILE_BYTES } from '../services/blobUrls.js';
 import { createReport } from '../services/contentReports.js';
 import { getActiveTimerSession, upsertActiveTimerSession, clearActiveTimerSession } from '../services/timerSessions.js';
@@ -1575,6 +1575,15 @@ router.post('/recordings', requireAuth, resolveAccount, async (req, res) => {
     sendError(res, error);
   }
 });
+// ML-532: a YouTube video in the Recordings tool ({ url, title, recordedOn })
+router.post('/recordings/youtube', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await addYouTubeRehearsal(req.accountId, req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.post('/recordings/:recordingId/cuts', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await addRehearsalCut(req.accountId, req.params.recordingId, req.body || {}));

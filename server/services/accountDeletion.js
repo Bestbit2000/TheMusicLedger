@@ -56,7 +56,7 @@ export async function deleteMyAccount(accountId) {
        UNION ALL
        SELECT d.blob_url FROM score_documents d JOIN scores s ON s.id = d.score_id WHERE s.owner_account_id = $1 AND d.blob_url IS NOT NULL
        UNION ALL
-       SELECT rr.blob_url FROM rehearsal_recordings rr WHERE rr.account_id = $1`, // ML-489: what they uploaded to the Recordings tool
+       SELECT rr.blob_url FROM rehearsal_recordings rr WHERE rr.account_id = $1 AND rr.blob_url IS NOT NULL`, // ML-489: what they uploaded to the Recordings tool (ML-532: not a YouTube one)
       [accountId]
     );
     blobUrls = files.rows.map((r) => r.blob_url);

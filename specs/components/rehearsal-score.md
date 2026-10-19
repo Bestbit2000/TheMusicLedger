@@ -20,6 +20,11 @@ never changed: where things are in it is kept as numbers. Full description: `doc
   it starts at). The Recordings tool asks the same between the piece and its start and end; a cut's row adds "· Mvt 2".
 - **The bars on a recording** (ML-488, `rehearsal_score`): on the play screen, a recording's slide has three
   value boxes - repeat, play speed, bars marked - and a line saying which bar is playing.
+- **Match the piece's speeds** (ML-533): in "Mark the bars", a `.btn-nav` under Save, "Match the piece's speeds to these
+  marks". It asks first in the shared confirm pop-up (what changes, how near the marks will be; "Change the speeds" /
+  "Leave them"), then an Undo toast.
+- **A YouTube video in the tool** (ML-532): a second `.flow-action-btn.flow-action-btn-wide` under Upload, "Add a YouTube
+  video", opening the piece's YouTube pop-up (`#flowYouTubeModal`) worded for the tool. Its card says "YouTube video".
 - **The Recordings tool** (ML-489, `rehearsal_recordings`): a page of whole rehearsal recordings, each a card
   with the pieces it has been given to.
 - **One button, one pop-up** throughout: every choice is a value box showing the answer.

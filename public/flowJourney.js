@@ -1017,7 +1017,61 @@
             return a[1] + ((t - a[0]) / (b[0] - a[0])) * (b[1] - a[1]);
         };
         const out = places.map(p => ({ ...p, startMs: Math.max(0, Math.round(timeOf(p.at))), endMs: Math.max(0, Math.round(timeOf(p.at + p.seconds))) }));
-        return { places: out, marks: used, totalMs: out[n - 1].endMs };
+        // span (ML-533): the stretch of the piece, in its own seconds, that fixed points measure - outside it the map guesses
+        return { places: out, marks: used, totalMs: out[n - 1].endMs, span: [points[0][0], points[points.length - 1][0]] };
+    }
+
+    // ML-533: the piece's speeds matched to a recording's marked bars - so the metronome lands where the recording does.
+    // Each block's speed is scaled by how long its bars last on the recording against how long they last at its own
+    // speed (every time it plays, over the stretch the marks measure; a block outside that stretch keeps its speed).
+    // Speeds are whole numbers: the rounding left over is carried into the next block, so the error never builds up.
+    // A ramp to a set speed is scaled with its block. Returns { ok, changes: [{ blockIndex, blockId, fromBar, toBar,
+    // oldBpm, newBpm }], blocks (the piece with the new speeds), inside: the marks not on a block's first bar (hit only
+    // roughly), maxErrorSeconds: the furthest any mark then is from where the recording has it } or { ok: false, reason }.
+    function matchSpeeds(blocks, opts, marks, clip) {
+        const map = recordingMap(blocks, opts, marks, clip);
+        if (!map || !map.marks.length) return { ok: false, reason: 'noMarks' };
+        const [s0, s1] = map.span;
+        if (!(s1 > s0)) return { ok: false, reason: 'noMarks' };
+        const per = new Map(); // block index -> { nominal (all its places), coveredNominal, coveredActual }
+        map.places.forEach(p => {
+            const e = per.get(p.blockIndex) || { nominal: 0, coveredNominal: 0, coveredActual: 0 };
+            e.nominal += p.seconds;
+            const overlap = Math.max(0, Math.min(p.at + p.seconds, s1) - Math.max(p.at, s0));
+            if (overlap > 0 && p.seconds > 0) {
+                e.coveredNominal += overlap;
+                e.coveredActual += ((p.endMs - p.startMs) / 1000) * (overlap / p.seconds);
+            }
+            per.set(p.blockIndex, e);
+        });
+        const out = blocks.map(b => ({ ...b, ramps: (b.ramps || []).map(r => ({ ...r })) }));
+        const changes = [];
+        let carry = 0; // seconds the rounded speeds are ahead (+) or behind (-) the recording so far
+        blocks.forEach((b, i) => {
+            const e = per.get(i);
+            if (!e || e.coveredNominal < 0.25 || !(e.coveredActual > 0)) return;
+            const factor = e.coveredNominal / e.coveredActual;
+            const old = Number(b.bpm);
+            const target = e.nominal / factor; // how long the block should last, every time it plays
+            const length = (bpm) => (e.nominal * old) / bpm;
+            const ideal = old * factor;
+            const pick = [Math.floor(ideal), Math.ceil(ideal)].filter(v => v >= 20 && v <= 400);
+            if (!pick.length) return;
+            const bpm = pick.reduce((best, v) => (Math.abs(carry + length(v) - target) < Math.abs(carry + length(best) - target) ? v : best));
+            carry += length(bpm) - target;
+            if (bpm === old) return;
+            out[i].bpm = bpm;
+            out[i].ramps = out[i].ramps.map(r => (r.targetMode === 'custom' && r.targetBpm ? { ...r, targetBpm: Math.max(20, Math.min(400, Math.round(r.targetBpm * bpm / old))) } : r));
+            changes.push({ blockIndex: i, blockId: b.id, fromBar: barNumberOf(blocks, i, 0), toBar: barNumberOf(blocks, i, barCountOf(b) - 1), oldBpm: old, newBpm: bpm });
+        });
+        // How close the metronome then lands to each mark, counted from the first mark
+        const after = journeyPlaces(out, opts);
+        const m0 = map.marks[0];
+        const errorOf = (m) => Math.abs((after[m.place].at - after[m0.place].at) - (m.atMs - m0.atMs) / 1000);
+        const atStart = map.marks.filter(m => map.places[m.place].bar === 0);
+        // a mark part-way through a block: the speed can't change there, so it is met only as near as the block allows
+        const inside = map.marks.filter(m => map.places[m.place].bar !== 0).map(m => ({ number: m.number, pass: m.pass, errorSeconds: errorOf(m) }));
+        return { ok: true, changes, blocks: out, inside, maxErrorSeconds: Math.max(0, ...atStart.map(errorOf)) };
     }
 
     // Which place is playing at `ms` in the recording: its index, or -1 before the first bar or
@@ -1062,6 +1116,6 @@
         barRangeLabel, checkFlow,
         LEVELS, levelPercents, levelPercent, sessionSubBeats, slowestTempo, barSeconds, chunkFit, suggestSplit, barLevels,
         pieceRunSeconds, pieceSections, bitsFromBars, playthroughParts, partBlockMinutes,
-        movements, movementOfBar, movementLabel, movementJourney, movementPrefix, playthroughLabels
+        movements, movementOfBar, movementLabel, movementJourney, movementPrefix, playthroughLabels, matchSpeeds
     };
 }));

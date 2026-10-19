@@ -237,3 +237,44 @@ describe('a recording of one movement (ML-531)', () => {
         assert.equal(FJ.usableMarks(mv, [mark(mv, 0, 9000)]).length, 1);
     });
 });
+
+describe('matching the piece\'s speeds to a recording (ML-533)', () => {
+    // two 8-bar blocks of 4/4 at 120 - two seconds a bar
+    const two = () => [blk('A', { barCount: 8 }), blk('B', { barCount: 8 })];
+    test('a block the band played slower gets a slower speed; the marks are then hit to a fraction of a second', () => {
+        const blocks = two();
+        const places = FJ.journeyPlaces(blocks, {});
+        // bar 1 at 0 s, bar 9 at 18 s (A took 18 s, not 16), the end of B at 34 s
+        const out = FJ.matchSpeeds(blocks, {}, [mark(places, 0, 0), mark(places, 8, 18000)], { startMs: null, endMs: 34000 });
+        assert.equal(out.ok, true);
+        assert.deepEqual(out.changes.map(c => [c.fromBar, c.toBar, c.oldBpm, c.newBpm]), [[1, 8, 120, 107]]);
+        assert.equal(out.blocks[1].bpm, 120);
+        assert.ok(out.maxErrorSeconds < 0.1);
+        assert.deepEqual(out.inside, []);
+    });
+    test('the rounding is carried on, so the error doesn\'t build up', () => {
+        const blocks = [blk('A', { barCount: 4 }), blk('B', { barCount: 4 }), blk('C', { barCount: 4 }), blk('D', { barCount: 4 })];
+        const places = FJ.journeyPlaces(blocks, {});
+        // every block 1.25% slow: 8.1 s instead of 8 s
+        const ms = [0, 8100, 16200, 24300];
+        const out = FJ.matchSpeeds(blocks, {}, ms.map((t, k) => mark(places, k * 4, t)), { startMs: null, endMs: 32400 });
+        assert.ok(out.maxErrorSeconds < 0.1, `max error ${out.maxErrorSeconds}`);
+        assert.ok(out.blocks.every(b => Number.isInteger(b.bpm)));
+    });
+    test('a mark inside a block is listed - it is hit only roughly', () => {
+        const blocks = two();
+        const places = FJ.journeyPlaces(blocks, {});
+        const out = FJ.matchSpeeds(blocks, {}, [mark(places, 0, 0), mark(places, 4, 9000)], { startMs: null, endMs: null });
+        assert.deepEqual(out.inside.map(m => [m.number, m.pass]), [[5, 1]]);
+        assert.ok(out.inside[0].errorSeconds >= 0);
+    });
+    test('a ramp to a set speed is scaled with its block; with no bar marked there is nothing to match', () => {
+        const blocks = [blk('A', { barCount: 8, ramps: [{ startBarOffset: 4, startBeatOffset: 1, endMode: 'block_end', targetMode: 'custom', targetBpm: 100 }] }), blk('B', { barCount: 8 })];
+        const places = FJ.journeyPlaces(blocks, {});
+        const out = FJ.matchSpeeds(blocks, {}, [mark(places, 0, 0), mark(places, 8, 20000)], { startMs: null, endMs: null });
+        const a = out.blocks[0];
+        assert.ok(a.bpm < 120);
+        assert.equal(a.ramps[0].targetBpm, Math.round(100 * a.bpm / 120));
+        assert.equal(FJ.matchSpeeds(two(), {}, [], { startMs: 1000, endMs: null }).reason, 'noMarks');
+    });
+});

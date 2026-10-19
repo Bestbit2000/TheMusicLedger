@@ -1563,9 +1563,11 @@
          Recordings tool. specs/components/rehearsal-score.md -->
     <div id="recordingsView" class="hidden-group">
         <p class="theory-intro">A whole rehearsal in one file. Upload it here, then give it to each piece that is in it. The file is kept once; each piece remembers where it starts and ends.</p>
-        <p class="metro-help-text"><strong>How to record a rehearsal:</strong> use your phone's own voice recorder - it keeps going when the screen locks. Put the phone where it can hear the whole band. Use the ordinary quality setting, not "lossless". Upload on wifi. Tell the band it is being recorded. If anyone in it is under 16, a parent needs to have agreed - as for a photograph. Sound only: a video can't be added here.</p>
+        <p class="metro-help-text"><strong>How to record a rehearsal:</strong> use your phone's own voice recorder - it keeps going when the screen locks. Put the phone where it can hear the whole band. Use the ordinary quality setting, not "lossless". Upload on wifi. Tell the band it is being recorded. If anyone in it is under 16, a parent needs to have agreed - as for a photograph. An upload is sound only - a video file can't be added. A video that is already on YouTube can be added as a link.</p>
         <input type="file" id="recordingsFileInput" class="hidden-group" accept=".mp3,.m4a,.wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav">
         <button type="button" class="flow-action-btn flow-action-btn-wide" id="recordingsUploadBtn"><span class="material-symbols-outlined" aria-hidden="true">upload</span> <span id="recordingsUploadLbl">Upload a rehearsal recording</span></button>
+        <!-- ML-532: a YouTube video - a whole concert or film score - given to pieces like an upload; it stores nothing -->
+        <button type="button" class="flow-action-btn flow-action-btn-wide" id="recordingsYouTubeBtn" aria-haspopup="dialog"><span class="material-symbols-outlined" aria-hidden="true">smart_display</span> Add a YouTube video</button>
         <div class="flow-upload-progress hidden-group" id="recordingsUploadProgress">
             <div class="flow-upload-progress-text"><span id="recordingsUploadName">Uploading&hellip;</span><span id="recordingsUploadPercent">0%</span></div>
             <div class="flow-upload-progress-track"><div class="flow-upload-progress-fill" id="recordingsUploadFill"></div></div>
@@ -2408,6 +2410,8 @@
             <div id="barMapList"></div>
 
             <button type="button" class="btn-submit" data-act="barmap-save">Save</button>
+            <!-- ML-533: the piece's own speeds (so the metronome) matched to these marks - saves the marks first, then asks -->
+            <button type="button" class="btn-nav" data-act="barmap-match" id="barMapMatchBtn">Match the piece's speeds to these marks</button>
             <button type="button" class="btn-cancel btn-nav" data-act="barmap-close">Cancel</button>
         </div>
     </div>

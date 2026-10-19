@@ -1,4 +1,6 @@
 {
+  "ML-533": "We now let you match a piece's speeds to a recording, so the metronome lands on the bars you marked in it.",
+  "ML-532": "We added YouTube videos to the Recordings tool, so one video can be given to several pieces, each with its own start and end.",
   "ML-531": "We now let a recording or video be of one movement of a piece, so its bars line up from that movement's first bar.",
   "ML-530": "We now let you rehearse, prepare and practise one movement of a piece on its own, and a practice list can hold just the movement your concert plays.",
   "ML-529": "We now let a piece be in movements: a suite whose bar numbers carry on is one piece, each movement keeps its own repeats and jumps, and a photo or PDF of one can come in whole.",

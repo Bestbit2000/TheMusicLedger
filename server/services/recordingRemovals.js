@@ -48,7 +48,7 @@ export async function listRecordingsForAdmin() {
          LEFT JOIN bands b ON b.id = s.owner_band_id
          LEFT JOIN accounts a ON a.id = COALESCE(s.owner_account_id, s.added_by_account_id)
         WHERE sr.rehearsal_recording_id IS NULL
-          AND (sr.blob_url IS NULL OR sr.blob_url NOT IN (SELECT blob_url FROM rehearsal_recordings))
+          AND (sr.blob_url IS NULL OR sr.blob_url NOT IN (SELECT blob_url FROM rehearsal_recordings WHERE blob_url IS NOT NULL))
         ORDER BY sr.created_at DESC`),
     pool.query('SELECT * FROM recording_removals ORDER BY removed_at DESC, id DESC LIMIT 100'),
     // ML-507: documents, and the pieces a band shares or that are public - everything one member can show another
@@ -173,7 +173,7 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
       title = found.rows[0].title;
       blobUrl = found.rows[0].blob_url;
       tell.add(String(found.rows[0].account_id));
-      rows = (await client.query('SELECT id, score_id FROM score_recordings WHERE rehearsal_recording_id = $1 OR blob_url = $2', [id, blobUrl])).rows;
+      rows = (await client.query('SELECT id, score_id FROM score_recordings WHERE rehearsal_recording_id = $1 OR ($2::text IS NOT NULL AND blob_url = $2)', [id, blobUrl])).rows; // ML-532: a YouTube one has no file
     } else {
       const found = await client.query('SELECT id, score_id, type, title, blob_url FROM score_recordings WHERE id = $1 FOR UPDATE', [id]);
       if (!found.rows.length) throw withStatus(404, 'That recording has already gone.');

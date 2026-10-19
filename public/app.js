@@ -75,6 +75,7 @@
         'barmap-remove': (el) => barMapRemove(Number(actArg(el))),
         'barmap-play': (el) => barMapPlayFrom(Number(actArg(el))),
         'barmap-save': () => saveBarMapModal(),
+        'barmap-match': () => matchSpeedsToBarMap(), // ML-533
         // ML-489: the Recordings tool
         'recordings-give': (el) => recordingsGive(actArg(el)),
         'recordings-cut-change': (el) => recordingsCutChange(actArg(el)),
@@ -10818,15 +10819,32 @@
         }
     });
 
-    document.getElementById('flowAddYouTubeBtn')?.addEventListener('click', () => {
+    // ML-532: the same pop-up adds a YouTube video to the Recordings tool - ytModalFor says which
+    let ytModalFor = 'piece';
+    function openYouTubeModal(forWhat) {
+        ytModalFor = forWhat;
+        const tool = forWhat === 'recordings';
+        document.getElementById('flowYouTubeModalTitle').textContent = tool ? 'Add a YouTube video' : 'Add YouTube reference';
+        document.getElementById('flowYouTubeSaveBtn').textContent = tool ? 'Add it to my recordings' : 'Add video to flow';
         document.getElementById('flowYouTubeUrlInput').value = '';
         document.getElementById('flowYouTubeTitleInput').value = '';
         showModal('flowYouTubeModal');
-    });
+    }
+    document.getElementById('flowAddYouTubeBtn')?.addEventListener('click', () => openYouTubeModal('piece'));
+    document.getElementById('recordingsYouTubeBtn')?.addEventListener('click', () => openYouTubeModal('recordings'));
     document.getElementById('flowYouTubeSaveBtn')?.addEventListener('click', async () => {
         const url = document.getElementById('flowYouTubeUrlInput').value.trim();
         const title = document.getElementById('flowYouTubeTitleInput').value.trim();
         if (!url) return showWarningToast('YouTube link required.');
+        if (ytModalFor === 'recordings') {
+            try {
+                recordingsData = await apiCall('/api/recordings/youtube', 'POST', { url, title });
+                hideModal('flowYouTubeModal');
+                renderRecordings();
+                showSuccessToast('Added. Now give it to a piece.');
+            } catch (error) { showWarningToast(error.message); }
+            return;
+        }
         if (!currentFlowId) return;
         try {
             if (flowEditMode === 'edit') {
@@ -14970,18 +14988,68 @@
         if (m) barMapSeekAndPlay(m.atMs);
     }
     async function saveBarMapModal() {
-        if (!barMap) return;
+        if (!barMap) return false;
         const { recordingId, marks } = barMap;
         try {
             currentFlowDetail = await API.flows.recordings.setMarks(currentFlowDetail.id, recordingId, { marks });
         } catch (error) {
             showWarningToast('That couldn\'t be saved: ' + error.message);
-            return;
+            return false;
         }
         closeBarMapModal();
         // The slides hold the recordings as they were when the play screen opened: give them the new marks.
         flowMediaSlides.forEach(s => { if (s.data) s.data = currentFlowDetail.recordings.find(r => r.id === s.data.id) || s.data; });
         renderRecScoreControls();
+        return true;
+    }
+
+    // ML-533: the piece's own speeds matched to a recording's marks, so the metronome lands where the recording does
+    // (FlowJourney.matchSpeeds). The marks are saved first; then it says what would change and asks; then each block
+    // that changes is saved, with an Undo that puts the old speeds back.
+    async function matchSpeedsToBarMap() {
+        if (!barMap) return;
+        const recordingId = barMap.recordingId;
+        if (!FlowJourney.usableMarks(barMap.places, barMap.marks).length) { showWarningToast('Mark at least one bar first - where the speed changes, and after a pause.'); return; }
+        if (!(await saveBarMapModal())) return;
+        const r = (currentFlowDetail.recordings || []).find(x => x.id === recordingId);
+        if (!r) return;
+        const out = FlowJourney.matchSpeeds(currentFlowBlocks, recOpts(r), r.marks || [], recordingClip(r));
+        if (!out.ok) { showWarningToast('Mark at least one bar first.'); return; }
+        if (!out.changes.length) { showSuccessToast('The piece\'s speeds already match this recording.'); return; }
+        const range = (c) => (c.fromBar === c.toBar ? `bar ${c.fromBar}` : `bars ${c.fromBar}-${c.toBar}`);
+        const most = Math.max(...out.changes.map(c => Math.abs(c.newBpm - c.oldBpm)));
+        const list = out.changes.slice(0, 6).map(c => `${range(c)}: ${c.oldBpm} to ${c.newBpm}`).join('; ') + (out.changes.length > 6 ? `; and ${out.changes.length - 6} more` : '');
+        const near = out.maxErrorSeconds < 0.05 ? 'exactly' : `to within ${out.maxErrorSeconds.toFixed(out.maxErrorSeconds < 1 ? 2 : 1)} seconds`;
+        const onStarts = out.inside.length ? ' at the start of a block of bars' : '';
+        const secs = (s) => `${s.toFixed(s < 1 ? 2 : 1)} seconds`;
+        const worst = out.inside.length ? Math.max(...out.inside.map(m => m.errorSeconds)) : 0;
+        const inside = out.inside.length ? ` ${out.inside.length === 1 ? `The mark on bar ${out.inside[0].number} is` : `${out.inside.length} marks (bars ${out.inside.map(m => m.number).join(', ')}) are`} part-way through a block of bars, where the speed can't change: ${out.inside.length === 1 ? 'it would be' : 'they would be up to'} ${secs(worst)} out. To meet ${out.inside.length === 1 ? 'it' : 'them'} too, split the bars there in the edit screen, then match again.` : '';
+        showConfirmModal('Match the piece\'s speeds?',
+            `${out.changes.length} speed${out.changes.length === 1 ? '' : 's'} would change, by up to ${most} bpm (${list}). The metronome would then meet the bars you marked${onStarts} ${near}.${inside} You can undo it straight after.`,
+            () => applyMatchedSpeeds(out), false, 'Change the speeds', 'Leave them');
+    }
+    async function applyMatchedSpeeds(out) {
+        const before = out.changes.map(c => ({ id: c.blockId, bpm: c.oldBpm, ramps: (currentFlowBlocks[c.blockIndex].ramps || []).map(x => ({ ...x })) }));
+        const after = out.changes.map(c => ({ id: c.blockId, bpm: c.newBpm, ramps: out.blocks[c.blockIndex].ramps || [] }));
+        const write = async (list) => {
+            for (const b of list) await API.flows.blocks.update(b.id, { bpm: b.bpm, ramps: b.ramps });
+            const blocks = await API.flows.blocks.list(currentFlowDetail.id); // the play screen has the piece in currentFlowDetail
+            flowLeadInBlock = blocks.find(x => x.isLeadIn) || null;
+            currentFlowBlocks = blocks.filter(x => !x.isLeadIn);
+            buildFlowPlayQueue();
+            renderFlowPlaybackRow();
+            renderFlowPlaybackTiles(); // the tiles show each block's speed
+            renderFlowPlaySummary();
+            renderRecScoreControls();
+        };
+        try {
+            await write(after);
+            showUndoToast(`${out.changes.length} speed${out.changes.length === 1 ? '' : 's'} changed to match the recording`, async () => {
+                try { await write(before); } catch (e) { showWarningToast('The old speeds couldn\'t be put back: ' + e.message); }
+            });
+        } catch (e) {
+            showWarningToast('The speeds couldn\'t all be saved: ' + e.message);
+        }
     }
 
     // ===== ML-489: the Recordings tool (the rehearsal score, step B) =====
@@ -15004,7 +15072,7 @@
             ? `You are keeping ${d.used} of ${d.limit} recording${d.limit === 1 ? '' : 's'}. Delete one you have finished with to add another.`
             : `${d.used} of ${d.limit} recording${d.limit === 1 ? '' : 's'} kept.`;
         list.innerHTML = d.recordings.length ? d.recordings.map(r => {
-            const about = [r.fileSizeBytes ? `${megabytes(r.fileSizeBytes)} MB` : '', r.recordedOn ? `recorded ${plDateText(r.recordedOn)}` : ''].filter(Boolean).join(' · ');
+            const about = [r.type === 'youtube' ? 'YouTube video' : '', r.fileSizeBytes ? `${megabytes(r.fileSizeBytes)} MB` : '', r.recordedOn ? `recorded ${plDateText(r.recordedOn)}` : ''].filter(Boolean).join(' · ');
             const cuts = r.cuts.length ? r.cuts.map(c => `
                 <div class="history-item">
                     <div class="history-details"><div><strong>${escapeHtml(c.pieceTitle)}${c.movement ? ` · Mvt ${c.movement}` : ''}</strong><span>${escapeHtml(FlowJourney.clipLabel({ startMs: c.clipStartMs, endMs: c.clipEndMs }))}${c.band ? ` · ${escapeHtml(c.band)}` : ''}</span></div></div>
@@ -15043,6 +15111,8 @@
         return null;
     };
     // "Give it to a piece": which piece (one pop-up), then where it starts and ends (the next).
+    // ML-532: what the start-and-end pop-up plays - the stored file, or the YouTube video
+    const recordingsSource = (rec) => (rec.type === 'youtube' ? { type: 'youtube', youtubeVideoId: rec.youtubeVideoId } : { type: 'upload', blobUrl: rec.blobUrl, mimeType: rec.mimeType });
     // ML-531: a piece in movements can take it once for the whole piece or once per movement - which movement comes
     // between the piece and the start and end.
     function recordingsGive(recordingId) {
@@ -15056,7 +15126,7 @@
         const pieces = recordingsData.pieces.filter(p => ((p.movements || []).length ? free(p).length : !rec.cuts.some(c => c.scoreId === p.id)));
         if (!pieces.length) { showWarningToast(recordingsData.pieces.length ? 'It is already on every piece you can add it to.' : 'Make a piece first (Add a piece), then give this recording to it.'); return; }
         const setStartAndEnd = (piece, m) => openClipPopup({
-            title: `${piece.title}${m ? ` · ${FlowJourney.movementLabel(m, false)}` : ''} - in ${rec.title}`, type: 'upload', blobUrl: rec.blobUrl, mimeType: rec.mimeType, clip: { startMs: null, endMs: null },
+            title: `${piece.title}${m ? ` · ${FlowJourney.movementLabel(m, false)}` : ''} - in ${rec.title}`, ...recordingsSource(rec), clip: { startMs: null, endMs: null },
             onSave: async (clip) => {
                 recordingsData = await apiCall(`/api/recordings/${rec.id}/cuts`, 'POST', { scoreId: piece.id, startMs: clip.startMs, endMs: clip.endMs, movement: m ? m.number : null });
                 renderRecordings();
@@ -15080,7 +15150,7 @@
         if (!found) return;
         const { rec, cut } = found;
         openClipPopup({
-            title: `${cut.pieceTitle} - in ${rec.title}`, type: 'upload', blobUrl: rec.blobUrl, mimeType: rec.mimeType, clip: { startMs: cut.clipStartMs, endMs: cut.clipEndMs },
+            title: `${cut.pieceTitle} - in ${rec.title}`, ...recordingsSource(rec), clip: { startMs: cut.clipStartMs, endMs: cut.clipEndMs },
             onSave: async (clip) => {
                 await API.flows.recordings.setClip(cut.scoreId, cut.id, { startMs: clip.startMs, endMs: clip.endMs });
                 await openRecordings();
