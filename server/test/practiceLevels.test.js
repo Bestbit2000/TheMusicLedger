@@ -166,6 +166,16 @@ describe('getting a piece ready (ML-390)', () => {
     test('the play-through: the whole piece when it fits a block once at Level 4', () => {
         assert.deepEqual(FJ.playthroughParts([blk({ barCount: 60, numerator: 3, bpm: 132 })]), [[1, 60]]);
     });
+    test('a piece in movements: no part runs past the end of a movement (ML-530)', () => {
+        // two short movements that would fit in one go are still two parts; a long one is cut on its own
+        assert.deepEqual(FJ.playthroughParts([blk({ barCount: 20 }), blk({ barCount: 20, movementStart: true })]), [[1, 20], [21, 40]]);
+        assert.deepEqual(FJ.playthroughParts([blk({ barCount: 10 }), blk({ barCount: 96, bpm: 80, movementStart: true })]), [[1, 10], [11, 58], [59, 106]]);
+    });
+    test('play-through names are counted within each movement (ML-530)', () => {
+        const blocks = [blk({ barCount: 10 }), blk({ barCount: 96, bpm: 80, movementStart: true })];
+        assert.deepEqual(FJ.playthroughLabels(blocks, FJ.playthroughParts(blocks)), ['Play-through', 'Play-through, first half', 'Play-through, second half']);
+        assert.deepEqual(FJ.playthroughLabels([blk({ barCount: 30 })], [[1, 10], [11, 20], [21, 30]]), ['Play-through, part 1 of 3', 'Play-through, part 2 of 3', 'Play-through, part 3 of 3']);
+    });
     test('a longer piece: the fewest equal parts that each play once in a block - two halves', () => {
         const long = [blk({ barCount: 96, bpm: 80 })]; // 96 x 3 s = 4:48 at full speed
         assert.deepEqual(FJ.playthroughParts(long), [[1, 48], [49, 96]]);

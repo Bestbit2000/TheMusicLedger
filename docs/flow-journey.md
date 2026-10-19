@@ -109,6 +109,30 @@ first in it starts it and takes its name (`flowRestoreMovementPlaces`), and a du
 Tests: the "movements (ML-529)" group in `server/test/flowJourney.test.js`, and back-test #79. Playing or practising one
 movement on its own is ML-530; a recording of one movement is ML-531.
 
+## One movement (ML-530)
+
+**Rehearse** can play one movement of a piece in movements: the **Movement** box by the layout switch opens "Which
+movement?" - the whole piece, or each movement with its bars. Remembered per piece on the device
+(`localStorage['tml.rehearseMovement']`), like the repeat. `movementJourney(blocks, opts, number)` is the journey's steps
+inside that movement (the lead-in only with the first) - movements never jump into each other, so that is exactly the
+movement played on its own; the queue ends at its last bar and resets to its first. Only its tiles show; a tap on a
+bar outside it says to choose the whole piece. **Repeat bars** stay inside it: `loopPlan` takes `movement` and answers
+`outsideMovement` for a bar outside it, and the sheet's steppers, sliders and typed bars run over its bars only. Never
+in a practice or a run-through (`flowSession`): those have their own bars, and the box is hidden.
+
+**Practice** in a piece in movements:
+- **Names:** a practice bit is named "Mvt 2 · A" (or "Mvt 2 · Bars 21-25") wherever it is shown - the piece's path,
+  the rating question, a session's blocks and the block chooser. The movement is added when shown
+  (`movementPrefix`; `levelsChunkName` in app.js), never saved in the label, so it can't go stale when movements are
+  edited. `/api/practice/pieces` sends each bit's `mvt` and the piece's `movements`.
+- **Prepare** puts the movement heading over the sections in the paint and cut screens, and **the heat map** has a
+  heading per movement with its rows of ten starting again at the movement's first bar.
+- **The play-through** never runs past a movement's end: `playthroughParts` cuts each movement on its own, the "whole"
+  option is "Each movement whole" (or "in one go", up to 10 minutes each), and the parts are named within their
+  movement (`playthroughLabels`: "Play-through, first half", shown as "Mvt 2 · Play-through, first half").
+
+A practice list holding just one movement of a piece is still to come (ML-530, part B).
+
 ## Repeat bars (ML-302)
 
 Rehearse's **repeat** control plays a start..end bar range over and over. It's a playback setting, not
@@ -260,6 +284,7 @@ appears. It's never active on sandbox or production.
 | 15 | Display | Label, highlighted bar and dots in 1/2/4 columns; tap to jump; screenshots |
 | 16 | Editor | Every option of all 12 settings through the real pickers; saved and shown everywhere |
 | 17 | Checker | The ML-248 review: messages, outlines, fix / carry on; screenshots |
+| 80 | One movement (ML-530) | Rehearse plays one movement, its tiles only, the repeat inside it; practice names "Mvt 2 · ..."; the heat map's headings |
 | 79 | Movements (ML-529) | Each movement's own D.S. and repeat, straight on; Rehearse and edit-screen headings; moves kept inside a movement; Quick entry's movements table |
 
 **Screenshot baselines** live in `tests/visual-baselines/` (committed). When a change to the look is

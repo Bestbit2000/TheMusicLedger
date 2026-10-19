@@ -43,6 +43,17 @@ async function pieceBarCount(scoreId, client = pool) {
   return rows[0].bars;
 }
 
+// ML-530: a piece's movements when it has more than one ([] otherwise) - so a practice bit's name can say which
+// movement it is in ("Mvt 2 · A"), the rehearsal letters starting again at A in each.
+async function pieceMovements(scoreId) {
+  const { rows } = await pool.query(
+    'SELECT bar_count, movement_start, movement_title FROM metronome_segments WHERE parent_score_id = $1 AND NOT is_lead_in ORDER BY order_index',
+    [scoreId]
+  );
+  const moves = FlowJourney.movements(rows.map(r => ({ barCount: r.bar_count, movementStart: r.movement_start, movementTitle: r.movement_title })));
+  return moves.length > 1 ? moves.map(m => ({ number: m.number, title: m.title, startBar: m.startBar, endBar: m.endBar })) : [];
+}
+
 async function subBeatsBelow(accountId) {
   const { rows } = await pool.query('SELECT practice_sub_beats_below FROM accounts WHERE id = $1', [accountId]);
   return rows.length ? Number(rows[0].practice_sub_beats_below) : FlowJourney.LEVELS.SUB_BEATS_BELOW;
@@ -214,7 +225,8 @@ async function tidyPlaythrough(client, accountId, scoreId) {
     const total = FlowJourney.totalBars(blocks);
     if (!total) return;
     const parts = FlowJourney.playthroughParts(blocks, TARGET);
-    const label = (k) => (parts.length === 1 ? 'Play-through' : parts.length === 2 ? `Play-through, ${k ? 'second' : 'first'} half` : `Play-through, part ${k + 1} of ${parts.length}`);
+    const labels = FlowJourney.playthroughLabels(blocks, parts); // ML-530: counted within each movement
+    const label = (k) => labels[k];
     const order = Math.max(0, ...chunks.map(c => c.sortOrder)) + 1;
     for (let k = 0; k < parts.length; k++) {
       await client.query(
@@ -254,20 +266,22 @@ export async function listPracticePieces(accountId, scoreIds) {
   for (const scoreId of [...new Set(ids)]) {
     let score;
     try { score = await assertFlowReadAccess(accountId, scoreId); } catch (e) { continue; }
-    const [{ rows }, totalBars] = await Promise.all([
+    const [{ rows }, totalBars, movements] = await Promise.all([
       pool.query(
         `SELECT pc.*, (SELECT MAX(c.created_at) FROM chunk_level_changes c
                         WHERE c.chunk_id = pc.id AND c.source IN ('during', 'rating')) AS last_practised
            FROM piece_chunks pc WHERE pc.account_id = $1 AND pc.score_id = $2 ORDER BY pc.sort_order, pc.start_bar, pc.id`,
         [accountId, scoreId]),
       pieceBarCount(scoreId),
+      pieceMovements(scoreId),
     ]);
     const chunks = rows.map(r => ({ ...toChunk(r), lastPractised: r.last_practised }));
+    chunks.forEach(c => { const m = movements.find(x => c.startBar >= x.startBar && c.startBar <= x.endBar); if (m) c.mvt = m.number; });
     if (chunks.some(c => c.kind === 'group')) {
       const blocks = (await listFlowBlocksUnchecked(scoreId)).filter(b => !b.isLeadIn);
       chunks.filter(c => c.kind === 'group').forEach(g => { g.minutes = FlowJourney.partBlockMinutes(blocks, g.startBar, g.endBar, TARGET) || 10; });
     }
-    out.push({ scoreId, title: score.title, totalBars, chunks, barsChanged: rows.some(r => r.bars_total_at_setup !== totalBars) });
+    out.push({ scoreId, title: score.title, totalBars, chunks, movements, barsChanged: rows.some(r => r.bars_total_at_setup !== totalBars) });
   }
   return out;
 }

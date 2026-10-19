@@ -2028,6 +2028,11 @@
         <!-- ML-209/ML-207: 1 / 2 / 4-column switch for the tiles below - same control and icons as the Bars
              tab's (flowPlayLayout, app.js). Defaults to 4 columns. -->
         <div class="flow-bars-toolbar flow-play-layout-bar">
+            <!-- ML-530: which movement plays - shown for a piece in movements (renderFlowMovementButton) -->
+            <button type="button" class="metroBlk-ctrl-value-btn flow-movement-btn hidden-group" id="flowMovementBtn" aria-haspopup="dialog">
+                <strong id="flowMovementLbl">all</strong>
+                <span class="metroBlk-ctrl-value-label">movement</span>
+            </button>
             <div class="flow-layout-toggle" role="group" aria-label="Bar layout">
                 <button type="button" class="flow-layout-btn" data-flow-play-layout="1" aria-pressed="false" aria-label="1 column" title="1 column"><svg class="flow-layout-icon" viewBox="0 0 100 100" aria-hidden="true" fill="currentColor"><rect x="0" y="0" width="100" height="42" rx="3"/><rect x="0" y="58" width="100" height="42" rx="3"/></svg></button>
                 <button type="button" class="flow-layout-btn" data-flow-play-layout="2" aria-pressed="false" aria-label="2 columns" title="2 columns"><svg class="flow-layout-icon" viewBox="0 0 100 100" aria-hidden="true" fill="currentColor"><rect x="0" y="0" width="42" height="42" rx="3"/><rect x="58" y="0" width="42" height="42" rx="3"/><rect x="0" y="58" width="42" height="42" rx="3"/><rect x="58" y="58" width="42" height="42" rx="3"/></svg></button>
@@ -4178,7 +4183,7 @@
                     <div class="slider-fill" id="flowLoopStartSliderFill"></div>
                     <div class="slider-thumb" id="flowLoopStartSliderThumb" tabindex="0" role="slider" aria-label="Start bar" aria-valuemin="1" aria-valuemax="1" aria-valuenow="1"></div>
                 </div>
-                <div class="slider-scale"><span>1</span><span id="flowLoopStartMaxLbl">1</span></div>
+                <div class="slider-scale"><span id="flowLoopStartMinLbl">1</span><span id="flowLoopStartMaxLbl">1</span></div>
             </div>
         </div>
         <div class="flow-tile-section">
@@ -4193,7 +4198,7 @@
                     <div class="slider-fill" id="flowLoopEndSliderFill"></div>
                     <div class="slider-thumb" id="flowLoopEndSliderThumb" tabindex="0" role="slider" aria-label="End bar" aria-valuemin="1" aria-valuemax="1" aria-valuenow="1"></div>
                 </div>
-                <div class="slider-scale"><span>1</span><span id="flowLoopEndMaxLbl">1</span></div>
+                <div class="slider-scale"><span id="flowLoopEndMinLbl">1</span><span id="flowLoopEndMaxLbl">1</span></div>
             </div>
             <p class="metro-help-text" id="flowLoopPreview" aria-live="polite"></p>
         </div>

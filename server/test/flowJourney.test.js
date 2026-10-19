@@ -649,3 +649,37 @@ describe('movements (ML-529)', () => {
         assert.deepEqual(FJ.pieceSections(plain).map(s => s.startBar), [1, 9, 11, 19]);
     });
 });
+
+describe('one movement on its own (ML-530)', () => {
+    const mv = (name, o = {}) => blk(name, { movementStart: true, ...o });
+    const suite = () => [blk('A', { barCount: 2, isSegno: true }), blk('B', { gotoSegno: true }), mv('C', { barCount: 2, isRepeatStart: true }), blk('D', { isRepeatEnd: true }), mv('E')];
+    const names = (blocks, steps) => { const n = new Map(blocks.map(b => [b.id, b.name])); return steps.filter(s => s.kind === 'main').map(s => `${n.get(s.blockId)}${s.bar + 1}`).join(' '); };
+    test('a movement plays only its own bars, with its own repeats', () => {
+        const blocks = suite();
+        assert.equal(names(blocks, FJ.movementJourney(blocks, {}, 2).steps), 'C1 C2 D1 C1 C2 D1');
+        assert.equal(names(blocks, FJ.movementJourney(blocks, {}, 1).steps), 'A1 A2 B1 A1 A2 B1');
+        assert.equal(names(blocks, FJ.movementJourney(blocks, {}, 3).steps), 'E1');
+    });
+    test('the lead-in plays only with the first movement; no movement or a wrong one is the whole piece', () => {
+        const blocks = suite();
+        const leadIn = { id: 999 };
+        assert.equal(FJ.movementJourney(blocks, { leadIn }, 1).steps[0].kind, 'leadIn');
+        assert.equal(FJ.movementJourney(blocks, { leadIn }, 2).steps[0].kind, 'main');
+        assert.equal(FJ.movementJourney(blocks, {}, null).steps.length, FJ.buildJourney(blocks, {}).steps.length);
+        assert.equal(FJ.movementJourney(blocks, {}, 9).steps.length, FJ.buildJourney(blocks, {}).steps.length);
+        assert.equal(FJ.movementJourney([blk('A', { barCount: 3 })], {}, 1).steps.length, 3);
+    });
+    test('repeat bars stay inside the chosen movement', () => {
+        const blocks = suite(); // bars: A 1-2, B 3, C 4-5, D 6, E 7
+        assert.equal(FJ.loopPlan(blocks, { startBar: 4, endBar: 6, restBars: 0, movement: 2 }).ok, true);
+        const out = FJ.loopPlan(blocks, { startBar: 3, endBar: 6, restBars: 0, movement: 2 });
+        assert.equal(out.reason, 'outsideMovement');
+        assert.equal(out.movement.startBar, 4);
+        assert.equal(FJ.loopPlan(blocks, { startBar: 3, endBar: 6, restBars: 0 }).ok, true); // the whole piece: as before
+    });
+    test('practice names: "Mvt 2 · " in a piece in movements only', () => {
+        const blocks = suite();
+        assert.equal(FJ.movementPrefix(FJ.movements(blocks), 4), 'Mvt 2 · ');
+        assert.equal(FJ.movementPrefix(FJ.movements([blk('A', { barCount: 4 })]), 2), '');
+    });
+});

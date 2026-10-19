@@ -111,6 +111,24 @@
     function movementOfBar(blocks, barNumber) {
         return movements(blocks).find(m => barNumber >= m.startBar && barNumber <= m.endBar) || null;
     }
+    // ML-530: one movement played on its own - the journey's steps that are in it (the lead-in only with the
+    // first movement). Movements never jump into each other, so these are exactly that movement's journey.
+    // number missing, or not a movement of a piece in movements: the whole piece.
+    function movementJourney(blocks, opts, number) {
+        const journey = buildJourney(blocks, opts);
+        const moves = movements(blocks);
+        const m = moves.length > 1 ? moves.find(x => x.number === number) : null;
+        if (!m) return journey;
+        const steps = journey.steps.filter(s => (s.kind === 'leadIn' ? m.number === 1 : s.blockIndex >= m.startBlock && s.blockIndex <= m.endBlock));
+        return { steps, end: m.number === moves.length ? journey.end : 'end', movement: m };
+    }
+    // "Mvt 2 · " in front of a practice bit's name when the piece has more than one movement, else ''. moves is
+    // movements(blocks) (or the server's copy of it); bar is the bit's first bar.
+    function movementPrefix(moves, bar) {
+        if (!moves || moves.length < 2) return '';
+        const m = moves.find(x => bar >= x.startBar && bar <= x.endBar);
+        return m ? `Mvt ${m.number} · ` : '';
+    }
     // "Mvt 2", or "Mvt 2: Harvest" with its name - for when the piece has more than one movement.
     function movementLabel(m, withTitle) {
         if (!m) return '';
@@ -361,6 +379,11 @@
         if (!Number.isInteger(startBar) || !Number.isInteger(endBar) || startBar < 1 || endBar < 1 || startBar > total || endBar > total) {
             return { ok: false, reason: 'range' };
         }
+        // ML-530: while one movement is chosen, both bars have to be in it
+        const only = opts.movement ? movements(blocks).find(x => x.number === opts.movement) : null;
+        if (only && movements(blocks).length > 1 && (startBar < only.startBar || startBar > only.endBar || endBar < only.startBar || endBar > only.endBar)) {
+            return { ok: false, reason: 'outsideMovement', movement: only };
+        }
         const steps = buildJourney(blocks, { leadIn: opts.leadIn }).steps;
         const numberOf = (s) => barNumberOf(blocks, s.blockIndex, s.bar);
         const s = steps.findIndex(st => st.kind === 'main' && numberOf(st) === startBar);
@@ -599,18 +622,34 @@
     // The play-through (once every bar is at Level 4): the whole piece in one part when it plays through
     // once in a block at that Level, otherwise the fewest equal parts that each do - two halves for most
     // pieces. Returns [[startBar, endBar], ...].
+    // ML-530: in a piece in movements no part runs past the end of a movement - each movement is cut on its own.
     function playthroughParts(blocks, level) {
         const total = totalBars(blocks);
         if (!total) return [];
         const lv = level || LEVELS.TARGET;
         const fits = (a, z) => { const f = chunkFit(blocks, { startBar: a, endBar: z, level: lv }); return !f.ok || f.runs >= LEVELS.PLAYTHROUGH_RUNS; };
-        for (let parts = 1; parts <= total; parts++) {
-            const size = Math.ceil(total / parts);
-            const out = [];
-            for (let a = 1; a <= total; a += size) out.push([a, Math.min(total, a + size - 1)]);
-            if (out.every(([a, z]) => fits(a, z))) return out;
-        }
-        return [[1, total]];
+        const cut = (from, to) => {
+            const bars = to - from + 1;
+            for (let parts = 1; parts <= bars; parts++) {
+                const size = Math.ceil(bars / parts);
+                const out = [];
+                for (let a = from; a <= to; a += size) out.push([a, Math.min(to, a + size - 1)]);
+                if (out.every(([a, z]) => fits(a, z))) return out;
+            }
+            return [[from, to]];
+        };
+        return movements(blocks).flatMap(m => cut(m.startBar, m.endBar));
+    }
+    // The play-through parts' names: "Play-through", "Play-through, first half", "Play-through, part 2 of 3" - counted
+    // within each movement in a piece in movements (ML-530), where the name shown has "Mvt 2 · " in front of it.
+    function playthroughLabels(blocks, parts) {
+        const moves = movements(blocks);
+        const moveOf = (bar) => moves.find(m => bar >= m.startBar && bar <= m.endBar) || moves[0];
+        return parts.map(([a], k) => {
+            const mine = parts.filter(([b]) => moveOf(b) === moveOf(a));
+            const n = mine.length, i = mine.findIndex(([b]) => b === a);
+            return n === 1 ? 'Play-through' : n === 2 ? `Play-through, ${i ? 'second' : 'first'} half` : `Play-through, part ${i + 1} of ${n}`;
+        });
     }
     // How long a block a part needs: 5 minutes when it plays once in 4:30, 10 when it needs up to 9:30
     // ("one long go"), null when even that isn't enough (make the parts smaller).
@@ -1021,6 +1060,6 @@
         barRangeLabel, checkFlow,
         LEVELS, levelPercents, levelPercent, sessionSubBeats, slowestTempo, barSeconds, chunkFit, suggestSplit, barLevels,
         pieceRunSeconds, pieceSections, bitsFromBars, playthroughParts, partBlockMinutes,
-        movements, movementOfBar, movementLabel
+        movements, movementOfBar, movementLabel, movementJourney, movementPrefix, playthroughLabels
     };
 }));

@@ -1904,6 +1904,8 @@
 
     /* Play Flow's 1 / 2 / 4-column switch: its own row under the title, on the right like the Bars tab's. */
     .flow-play-layout-bar { justify-content: flex-end; margin-bottom: var(--space-2); }
+    /* ML-530: while Rehearse's Movement value box shows, it sits on the left and the layout switch on the right */
+    .flow-play-layout-bar:has(> .flow-movement-btn:not(.hidden-group)) { justify-content: space-between; }
 
     /* ML-248: bars the save-time review found a problem with - outlined (an outline, not a border, so
        nothing shifts) in whichever Bars layout is showing, until the problem is fixed. */
