@@ -204,6 +204,12 @@ Notes on fields that took a few passes to nail down:
   describe the block as a whole (a volta ending is typically its own short block) -
   **both may be true together** ("1. 2." combined bracket, before a 3rd ending), so
   this is deliberately not a `CHECK`-enforced exclusive choice.
+- **`movement_start`, `movement_title`** (ML-529, migration 131): a piece in movements - a suite whose bar
+  numbers carry on while its rehearsal letters start again. `movement_start` marks the block a movement's first bar
+  is in (the first block always starts the first movement); `movement_title` is its name. Each movement has its own
+  repeats, jumps and Fine, and the next follows straight on - the rules are in `docs/flow-journey.md`, "Movements".
+  Kept on the blocks rather than in a table of their own so copying, duplicating and moving a piece carries them
+  with no extra step.
 - **`is_section_boundary`** (ML-103 follow-up): a plain double barline marking a
   phrase/section boundary - visually and musically distinct from `is_repeat_start`
   (no repeat dots, no repeat implication). Same first-bar anchoring as the other

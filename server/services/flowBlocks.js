@@ -38,7 +38,7 @@ async function getBlockDtoById(segmentId) {
             ms.time_signature_id, ms.account_time_signature_id, ms.note_value,
             ms.rehearsal_mark, ms.is_repeat_start, ms.is_repeat_end, ms.is_section_boundary, ms.is_final_barline, ms.repeat_play_count,
             ms.goto_coda, ms.goto_start_dc, ms.is_coda, ms.is_segno, ms.goto_segno, ms.goto_segno_then_coda,
-            ms.goto_start_dc_then_coda, ms.is_fine,
+            ms.goto_start_dc_then_coda, ms.is_fine, ms.movement_start, ms.movement_title,
             ms.is_first_time_bar, ms.is_second_time_bar, ms.repeat_ending_numbers, ms.repeat_ending_start_bar,
             ms.intro_start_bar_offset, ms.intro_start_beat_offset, ms.intro_end_bar_offset, ms.intro_end_beat_offset,
             ms.ramp_start_bar_offset, ms.ramp_start_beat_offset, ms.ramp_duration_bars,
@@ -67,7 +67,7 @@ async function getBlockForFlow(accountId, segmentId) {
             ms.time_signature_id, ms.account_time_signature_id, ms.note_value,
             ms.rehearsal_mark, ms.is_repeat_start, ms.is_repeat_end, ms.is_section_boundary, ms.is_final_barline, ms.repeat_play_count,
             ms.goto_coda, ms.goto_start_dc, ms.is_coda, ms.is_segno, ms.goto_segno, ms.goto_segno_then_coda,
-            ms.goto_start_dc_then_coda, ms.is_fine,
+            ms.goto_start_dc_then_coda, ms.is_fine, ms.movement_start, ms.movement_title,
             ms.is_first_time_bar, ms.is_second_time_bar, ms.repeat_ending_numbers, ms.repeat_ending_start_bar,
             ms.intro_start_bar_offset, ms.intro_start_beat_offset, ms.intro_end_bar_offset, ms.intro_end_beat_offset,
             ms.ramp_start_bar_offset, ms.ramp_start_beat_offset, ms.ramp_duration_bars
@@ -107,6 +107,8 @@ async function getBlockForFlow(accountId, segmentId) {
     gotoSegnoThenCoda: row.goto_segno_then_coda,
     gotoStartDcThenCoda: row.goto_start_dc_then_coda,
     isFine: row.is_fine,
+    movementStart: !!row.movement_start,
+    movementTitle: row.movement_title || null,
     isFirstTimeBar: row.is_first_time_bar,
     isSecondTimeBar: row.is_second_time_bar,
     repeatEndingNumbers: row.repeat_ending_numbers || [],
@@ -138,7 +140,7 @@ export async function listFlowBlocksUnchecked(scoreId) {
             ms.time_signature_id, ms.account_time_signature_id, ms.note_value,
             ms.rehearsal_mark, ms.is_repeat_start, ms.is_repeat_end, ms.is_section_boundary, ms.is_final_barline, ms.repeat_play_count,
             ms.goto_coda, ms.goto_start_dc, ms.is_coda, ms.is_segno, ms.goto_segno, ms.goto_segno_then_coda,
-            ms.goto_start_dc_then_coda, ms.is_fine,
+            ms.goto_start_dc_then_coda, ms.is_fine, ms.movement_start, ms.movement_title,
             ms.is_first_time_bar, ms.is_second_time_bar, ms.repeat_ending_numbers, ms.repeat_ending_start_bar,
             ms.intro_start_bar_offset, ms.intro_start_beat_offset, ms.intro_end_bar_offset, ms.intro_end_beat_offset,
             ms.ramp_start_bar_offset, ms.ramp_start_beat_offset, ms.ramp_duration_bars,
@@ -246,7 +248,7 @@ export async function updateFlowBlock(accountId, segmentId, data) {
     'timeSignatureId', 'accountTimeSignatureId', 'noteValue',
     'rehearsalMark', 'isRepeatStart', 'isRepeatEnd', 'isSectionBoundary', 'isFinalBarline', 'repeatPlayCount',
     'gotoCoda', 'gotoStartDc', 'isCoda', 'isSegno', 'gotoSegno', 'gotoSegnoThenCoda',
-    'gotoStartDcThenCoda', 'isFine',
+    'gotoStartDcThenCoda', 'isFine', 'movementStart', 'movementTitle',
     'isFirstTimeBar', 'isSecondTimeBar', 'repeatEndingNumbers', 'repeatEndingStartBar',
     'introStartBarOffset', 'introStartBeatOffset', 'introEndBarOffset', 'introEndBeatOffset',
     'rampStartBarOffset', 'rampStartBeatOffset', 'rampDurationBars'
@@ -301,7 +303,8 @@ export async function duplicateFlowBlock(accountId, segmentId) {
       'UPDATE metronome_segments SET order_index = order_index + 1 WHERE parent_score_id = $1 AND order_index > $2',
       [source.scoreId, source.orderIndex]
     );
-    const normalized = validateSegmentPayload(source);
+    // ML-529: the copy goes in the same movement - it never starts a movement of its own
+    const normalized = validateSegmentPayload({ ...source, movementStart: false, movementTitle: null });
     const columns = ['parent_score_id', 'order_index', ...SEGMENT_COLUMNS];
     const values = [source.scoreId, source.orderIndex + 1, ...segmentColumnValues(normalized)];
     const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
@@ -348,6 +351,7 @@ export async function copyAllFlowBlocks(sourceScoreId, destScoreId) {
         repeatPlayCount: row.repeat_play_count, gotoCoda: row.goto_coda, gotoStartDc: row.goto_start_dc,
         isCoda: row.is_coda, isSegno: row.is_segno, gotoSegno: row.goto_segno, gotoSegnoThenCoda: row.goto_segno_then_coda,
         gotoStartDcThenCoda: row.goto_start_dc_then_coda, isFine: row.is_fine,
+        movementStart: row.movement_start, movementTitle: row.movement_title,
         isFirstTimeBar: row.is_first_time_bar, isSecondTimeBar: row.is_second_time_bar,
         repeatEndingNumbers: row.repeat_ending_numbers,
         repeatEndingStartBar: row.repeat_ending_start_bar,

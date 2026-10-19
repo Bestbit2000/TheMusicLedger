@@ -184,3 +184,31 @@ describe('extras and clashes (ML-424)', () => {
         assert.deepEqual(PO.summary(mammaMia), { bars: 145, marks: 13, speeds: 5, exceptions: 1, extras: 4, blocks: 22, clashes: 0 });
     });
 });
+
+describe('movements (ML-529)', () => {
+    const suite = (over) => ({ bars: 40, leadIn: false, mainSig: '4/4', mainBpm: 100, mainNote: null, markKind: 'text',
+        marks: [{ bar: 1, label: 'A' }, { bar: 9, label: 'B' }, { bar: 17, label: 'A' }, { bar: 29, label: 'A' }],
+        movements: [{ bar: 1, title: 'Dawn' }, { bar: 17, title: 'Harvest' }, { bar: 29, title: '' }], time: {}, speeds: [], extras: [], ...over });
+    test('a new block at each movement, which starts it and carries its name; letters stay as written', () => {
+        const { blocks, clashes } = PO.buildBlocks(suite());
+        assert.deepEqual(clashes, []);
+        assert.deepEqual(starts(blocks), [1, 9, 17, 29]);
+        assert.deepEqual(blocks.map(b => [b.movementStart, b.movementTitle, b.rehearsalMark]), [[true, 'Dawn', 'A'], [false, null, 'B'], [true, 'Harvest', 'A'], [true, null, 'A']]);
+    });
+    test('the first movement starts at bar 1 even with no row for it', () => {
+        assert.deepEqual(PO.movementsOf(suite({ movements: [{ bar: 20, title: 'II' }] })), [{ bar: 1, title: null }, { bar: 20, title: 'II' }]);
+        assert.deepEqual(PO.movementsOf(suite({ movements: [] })), []);
+        assert.deepEqual(PO.movementsOf(suite({ movements: [{ bar: 99, title: 'past the end' }] })), []);
+    });
+    test('a repeat or an intro that runs into the next movement is a clash', () => {
+        const { clashes } = PO.buildBlocks(suite({ extras: [{ type: 'repeat', from: 13, to: 20, times: 2 }, { type: 'intro', from: 25, to: 30 }, { type: 'repeat', from: 17, to: 20, times: 2 }] }));
+        assert.deepEqual(clashes.map(c => c.extra), [0, 1]);
+    });
+    test('the blocks play each movement straight on, with D.C. inside its own movement', () => {
+        const { blocks } = PO.buildBlocks(suite({ extras: [{ type: 'sign', sign: 'dc', bar: 28 }] }));
+        const fj = FlowJourney.buildJourney(blocks.map(b => ({ ...b, numerator: 4, denominator: 4 })), {});
+        const bars = JSON.parse(JSON.stringify(fj.steps.map(s => blocks[s.blockIndex].from + s.bar)));
+        assert.equal(bars.length, 40 + 12);
+        assert.deepEqual(bars.slice(26, 30), [27, 28, 17, 18]);
+    });
+});

@@ -1307,6 +1307,9 @@
        this strip has exactly those three children. */
     .metroBlk-tile-strip.flow-play-tile-strip { grid-auto-rows: auto; }
     .flow-play-tile-strip .metroBlk-tile { grid-row: span 3; display: grid; grid-template-rows: subgrid; row-gap: var(--space-1); align-content: center; justify-items: center; align-items: center; }
+    /* ML-529: the heading over the first bar of each movement of a piece in movements (Rehearse) - across the
+       whole row of tiles in every layout, closer to its tiles than a page section-title. */
+    .flow-movement-head { grid-column: 1 / -1; margin: var(--space-3) 0 0 0; }
     .metroBlk-tile.lead-in { border-color: var(--selection-text); background: var(--selection-tint); }
     .metroBlk-tile-sig { font-size: var(--font-lg); font-weight: var(--font-weight-bold); }
     .metroBlk-tile-bpm { font-size: var(--font-sm); color: var(--label-color); }

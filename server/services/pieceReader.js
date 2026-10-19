@@ -152,7 +152,9 @@ export function parseAnswer(text) {
 }
 
 // buffers: the pages, in order - one PDF, or one or more photos. Returns
-//   { pieces: [{ read, about, outline, sigs, rating }], model, usage: { inputTokens, outputTokens }, ms }
+//   { pieces: [{ read, about, outline, sigs, rating }], whole, model, usage: { inputTokens, outputTokens }, ms }
+// whole (ML-529) is the same shape: the pieces put together as one piece in movements, when they look like
+// the movements of one work - or null.
 // where read is the checked answer, outline is ready for Quick entry (time signatures as "3/4" keys, with
 // `sigs` saying what each is, for the caller to turn into the account's own) and rating is
 // { level, checks }. Throws withStatus 4xx with a message for the member; nothing is stored.
@@ -212,11 +214,13 @@ export async function readPieceFromFiles(buffers, { fetchImpl = fetch } = {}) {
   const { pieces } = PieceRead.normalise(raw, PieceOutline.MAX_BARS);
   if (!pieces.length) throw withStatus(422, "Couldn't find a piece of music on that - try a clearer photo, or enter the piece by hand.");
 
+  const asRead = (read) => {
+    const fitted = PieceRead.fit(read);
+    return { read, about: fitted.about, outline: fitted.o, sigs: fitted.sigs, rating: PieceRead.rate(read, fitted) };
+  };
   return {
-    pieces: pieces.map(read => {
-      const fitted = PieceRead.fit(read);
-      return { read, about: fitted.about, outline: fitted.o, sigs: fitted.sigs, rating: PieceRead.rate(read, fitted) };
-    }),
+    pieces: pieces.map(asRead),
+    whole: PieceRead.looksLikeOneWork(pieces) ? asRead(PieceRead.join(pieces)) : null,
     model,
     usage: { inputTokens: Number(answer?.usage?.prompt_tokens) || 0, outputTokens: Number(answer?.usage?.completion_tokens) || 0 },
     ms: Date.now() - started

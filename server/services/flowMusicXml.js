@@ -116,6 +116,9 @@ function blockExtension(b, index) {
   }
   if (b.isFirstTimeBar) ext.isFirstTimeBar = true;
   if (b.isSecondTimeBar) ext.isSecondTimeBar = true;
+  // ML-529: a movement starts here, and its name
+  if (b.movementStart) ext.movementStart = true;
+  if (b.movementTitle) ext.movementTitle = b.movementTitle;
   // The volta printed from the legacy flags (repeatEndingNumbersFor) isn't a real
   // repeatEndingNumbers value - flagged so the reader doesn't turn it into one.
   if ((b.isFirstTimeBar || b.isSecondTimeBar) && !(b.repeatEndingNumbers && b.repeatEndingNumbers.length)) ext.legacyEndingOnly = true;
@@ -207,6 +210,12 @@ export function flowToMusicXml(flow, blocks, opts = {}) {
   let lastTime = null;
   let lastTempoKey = null;
   let isFirstMeasure = true;
+  // ML-529: in a piece in movements, each movement's number and name are printed over its first bar ("2. Harvest" -
+  // a number first, so a movement called Coda or Fine is never read back as one). The first regular block always
+  // starts the first movement.
+  const firstRegular = blocks.findIndex(x => !x.isLeadIn);
+  const inMovements = blocks.some((x, k) => k !== firstRegular && !x.isLeadIn && x.movementStart);
+  let movementNo = 0;
 
   blocks.forEach((b, blockIndex) => {
     const nextBlock = blocks[blockIndex + 1] || null;
@@ -314,6 +323,10 @@ export function flowToMusicXml(flow, blocks, opts = {}) {
 
       if (isBlockStart) {
         parts.push(directionXml(dt(`<other-direction print-object="no">${esc(EXTENSION_PREFIX + JSON.stringify(blockExtension(b, blockIndex)))}</other-direction>`)));
+        if (inMovements && !b.isLeadIn && (blockIndex === firstRegular || b.movementStart)) {
+          movementNo++;
+          parts.push(directionXml(wordsXml(`${movementNo}.${b.movementTitle ? ` ${b.movementTitle}` : ''}`), { placement: 'above' }));
+        }
         if (b.isSegno) parts.push(directionXml(dt('<segno/>'), { placement: 'above', sound: { segno: 'segno' } }));
         if (b.isCoda) parts.push(directionXml(dt('<coda/>'), { placement: 'above', sound: { coda: 'coda' } }));
         const tempoKey = `${b.bpm}/${denominator}/${noteValue}`;

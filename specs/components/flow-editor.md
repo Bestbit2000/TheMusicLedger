@@ -66,6 +66,16 @@ The rehearsal-mark box in each block header (`.flow-block-mark-box` / `.flow-blo
 
 Block colours and volta/intro bracket geometry are computed in JS. Geometry may be inline, but colours must reference tokens.
 
+**A piece in movements (ML-529):** the bar list has the Rehearse heading (`h3.section-title.flow-movement-head`, "Mvt 2 ·
+Harvest") over each movement's first bar in all three layouts. A bar only moves within its own movement: Move up / down
+(⋮) and Move earlier / later (bar pop-up) are hidden or greyed out across a movement start, and a held tile in the grid
+only takes its own movement's slots.
+
+**Start of bar pop-up, movements (ML-529):** under the two barline tiles, with the `piece_movements` feature or in a piece already
+in movements: "A movement starts here" as a `.display-toggle-row` switch (not on the first bar, which always starts the first movement),
+and when on, a `.form-group` text box for the movement's name (`#flowBarStartMovement.mt-4`). Both save as they change and the pop-up
+stays open; a barline tile still closes it.
+
 **Edit Flow pop-ups (ML-281):** the same rule in every pop-up - a box that only *contains* something tappable is a display surface; only the tappable thing is lighter. The switch rows (`.flow-volta-toggle-row`: Alternate ending, Start intro / End intro early) are `--container-bg` with an `--input-border` outline - only the switch is tappable; the bar-range badge in pop-up titles (`.flow-modal-bar-pill`) is a label, so transparent with an outline. A chip made entirely of buttons (the saved time signature: pick it, or × to remove it) stays `--input-bg`, because all of it is tappable.
 
 **Pauses and Ramps pop-ups (ML-281):** each field is a `.flow-pause-field-card` - a display box, so `--container-bg` with an `--input-border` outline. Only what you tap is lighter: the − / + circles (`.metro-bpm-step`) and the choice buttons (`.flow-pause-kind-btn`: `--input-bg` with a 2px `--control-border` edge, gold when selected). Never give the card itself `--input-bg` - that's the "you can tap this" surface ([color](../foundations/color.md)).

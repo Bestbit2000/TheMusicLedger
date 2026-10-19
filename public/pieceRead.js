@@ -75,7 +75,8 @@
         const freeBars = keep(p.freeBars, r => { const b = bar(r.bar); return b ? { bar: b, text: str(r.text, 60) } : null; }).sort(byBar);
         const pickup = Number(p.pickupBeats);
         return {
-            title: str(p.title), movement: str(p.movement), composer: str(p.composer), arranger: str(p.arranger), publisher: str(p.publisher), part: str(p.part, 60),
+            // ML-529: a movement's own number is printed with its name ("1) S.P.Q.R", "II. Andante"); the app numbers them itself
+            title: str(p.title), movement: str(p.movement).replace(/^(\d{1,2}|[IVXL]{1,5})\s*[).:-]\s*/i, ''), composer: str(p.composer), arranger: str(p.arranger), publisher: str(p.publisher), part: str(p.part, 60),
             bars, systems, tail, clashes, freeBars, time, speeds, marks, repeats, signs, pauses, ramps, special, doubts, dropped,
             numbersAt: ['start', 'end', 'none'].includes(p.numbersAt) ? p.numbersAt : 'none',
             pickupBeats: pickup > 0 && pickup < 32 ? pickup : null,
@@ -87,7 +88,75 @@
     function normalise(raw, maxBars) {
         const limit = maxBars || (outlineRules() ? outlineRules().MAX_BARS : 2000);
         const list = raw && Array.isArray(raw.pieces) ? raw.pieces : [];
-        return { pieces: list.slice(0, MAX_PIECES).filter(p => p && typeof p === 'object').map(p => normalisePiece(p, limit)).filter(Boolean) };
+        return { pieces: list.slice(0, MAX_PIECES).filter(p => p && typeof p === 'object').map(p => normalisePiece(p, limit)).filter(Boolean).map(fromBarOne) };
+    }
+
+    // ---------- movements (ML-529) ----------
+    // Every bar number in a checked piece moved by `by` (negative to move down). Anything that ends up before
+    // bar 1 or past `bars` is left out. Used to start a movement at bar 1, and to put movements end to end.
+    function shiftPiece(piece, by, bars) {
+        const ok = (b) => b !== null && b >= 1 && b <= bars;
+        const mv = (b) => (b === null || b === undefined ? b : b + by);
+        const each = (list, fields) => list.map(r => { const x = { ...r }; fields.forEach(f => { x[f] = mv(r[f]); }); return x; }).filter(x => ok(x[fields[0]]));
+        return {
+            ...piece, bars,
+            systems: each(piece.systems, ['firstBar']), tail: each(piece.tail, ['bar']), clashes: each(piece.clashes, ['bar']),
+            freeBars: each(piece.freeBars, ['bar']), time: each(piece.time, ['bar']), speeds: each(piece.speeds, ['bar']),
+            marks: each(piece.marks, ['bar']), repeats: each(piece.repeats, ['from', 'to', 'e1From', 'e2To']), signs: each(piece.signs, ['bar']),
+            pauses: each(piece.pauses, ['bar']), ramps: each(piece.ramps, ['from', 'to']), special: each(piece.special, ['from', 'to']),
+            doubts: piece.doubts.map(d => ({ ...d, from: mv(d.from), to: mv(d.to) })).map(d => (d.from !== null && !ok(d.from) ? { ...d, from: null, to: null } : d))
+        };
+    }
+    // A movement whose printed bar numbers carry on from the one before (its first line starts at bar 87) is
+    // counted from bar 1 here, so a movement read as a piece of its own has no empty bars in front of it.
+    // `printedFrom` keeps the bar its numbers started at. A piece that starts at bar 1 is left as it is.
+    // The count line by line says where it starts; a time signature given for a bar before that is the one
+    // in force at its first bar.
+    function fromBarOne(piece) {
+        const first = piece.systems.length ? piece.systems[0].firstBar : (piece.time.length ? piece.time[0].bar : 1);
+        const by = first - 1;
+        if (!(by > 0) || by >= piece.bars) return { ...piece, printedFrom: 1 };
+        const before = piece.time.filter(t => t.bar <= first);
+        const time = [...(before.length ? [{ ...before[before.length - 1], bar: first }] : []), ...piece.time.filter(t => t.bar > first)];
+        return { ...shiftPiece({ ...piece, time }, -by, piece.bars - by), printedFrom: first };
+    }
+    const sameTitle = (a, b) => str(a).toLowerCase() === str(b).toLowerCase();
+    // Do the pieces read look like the movements of one work? Two or more, the same title, and named as
+    // movements (the first may have no name of its own).
+    function looksLikeOneWork(pieces) {
+        if (!pieces || pieces.length < 2 || !str(pieces[0].title)) return false;
+        return pieces.every(p => sameTitle(p.title, pieces[0].title)) && pieces.slice(1).every(p => str(p.movement));
+    }
+    // The movements put end to end as one piece: the bar numbers carry on, each movement starts where the one
+    // before ended, and `movements` says where each starts and what it is called. Where a movement's printed
+    // numbers carry on from the last but don't meet the count of the one before, the count is kept and the
+    // place is listed as Low (as for any printed number that disagrees with the count).
+    function join(pieces) {
+        const list = pieces.map(p => (p.printedFrom ? p : fromBarOne(p)));
+        const bars = list.reduce((n, p) => n + p.bars, 0);
+        const firstOf = (k) => list[k].title || null;
+        const pick = (field) => (list.find(p => p[field]) || {})[field] || null;
+        const joined = {
+            title: firstOf(0), movement: null, composer: pick('composer'), arranger: pick('arranger'), publisher: pick('publisher'), part: pick('part'),
+            bars, numbersAt: list[0].numbersAt, pickupBeats: list[0].pickupBeats,
+            endSeen: list[list.length - 1].endSeen, cropped: list.some(p => p.cropped), pagesMissing: list.some(p => p.pagesMissing),
+            dropped: list.reduce((n, p) => n + (p.dropped || 0), 0), printedFrom: 1,
+            systems: [], tail: [], clashes: [], freeBars: [], time: [], speeds: [], marks: [], repeats: [], signs: [], pauses: [], ramps: [], special: [], doubts: [],
+            movements: [], extraChecks: []
+        };
+        let at = 0;
+        list.forEach((p, k) => {
+            const moved = shiftPiece(p, at, at + p.bars);
+            ['systems', 'clashes', 'freeBars', 'time', 'speeds', 'marks', 'repeats', 'signs', 'pauses', 'ramps', 'special', 'doubts'].forEach(f => joined[f].push(...moved[f]));
+            if (k === list.length - 1) joined.tail = moved.tail;
+            joined.movements.push({ bar: at + 1, title: p.movement || (k === 0 ? null : p.title) || null });
+            if (p.printedFrom > 1 && p.printedFrom !== at + 1) {
+                joined.extraChecks.push({ level: 'low', kind: 'count', from: at + 1, to: at + 1, text: `Movement ${k + 1}'s bar numbers start at ${p.printedFrom}, but the movements before it were counted as ${at} bars. Check the bars before bar ${at + 1}.` });
+            }
+            if (k > 0 && !moved.speeds.some(s => s.bar === at + 1)) joined.extraChecks.push({ level: 'info', kind: 'speed', from: at + 1, to: at + 1, text: `No speed is printed at the start of movement ${k + 1} (bar ${at + 1}): it carries on at the speed before.` });
+            at += p.bars;
+        });
+        return joined;
     }
 
     // ---------- speeds from words ----------
@@ -172,7 +241,8 @@
             else note('info', 'ramp', r.from, r.to, `"${r.text || (r.kind === 'faster' ? 'accel.' : 'rall.')}" at ${range(r.from, r.to)} was not put in: the speed it reaches isn't printed.`);
         });
 
-        const o = { bars: piece.bars, leadIn: false, mainSig, mainBpm, mainNote: mainNote || null, markKind: !piece.marks.length ? 'none' : (numbered ? 'numbers' : 'text'), marks: piece.marks.map(m => ({ bar: m.bar, label: m.label })), time, speeds, extras };
+        const o = { bars: piece.bars, leadIn: false, mainSig, mainBpm, mainNote: mainNote || null, markKind: !piece.marks.length ? 'none' : (numbered ? 'numbers' : 'text'), marks: piece.marks.map(m => ({ bar: m.bar, label: m.label })), time, speeds, extras,
+            movements: (piece.movements || []).map(m => ({ bar: m.bar, title: m.title || '' })) };
 
         // Quick entry won't save an outline with a clash in it, so anything that clashes is taken out and
         // listed instead - the piece always arrives ready to save.
@@ -189,6 +259,7 @@
             }
         }
 
+        if (piece.printedFrom > 1) note('info', 'numbers', 1, 1, `The bar numbers on the page start at ${piece.printedFrom}, carrying on from the movement before: here the bars are counted from 1.`);
         if (piece.pickupBeats) note('info', 'pickup', 1, 1, `There is a pickup of ${piece.pickupBeats} beat${piece.pickupBeats === 1 ? '' : 's'} before bar 1. It was not put in.`);
         piece.freeBars.forEach(f => note('medium', 'free-bar', f.bar, f.bar, `Bar ${f.bar} has no set length${f.text ? ` ("${f.text}")` : ''}: count its beats and set it by hand.`));
         piece.special.forEach(s => note('medium', 'special', s.from, s.to, `${range(s.from, s.to)}: "${s.text}" is printed. The app plays these bars every time.`));
@@ -264,6 +335,7 @@
         // reads that were right. Low is kept for what the sums above prove.
         piece.doubts.forEach(d => add(d.level === 'high' ? 'info' : 'medium', 'doubt', d.from, d.to, d.note));
         ((fitted && fitted.notes) || []).forEach(n => checks.push(n));
+        (piece.extraChecks || []).forEach(c => checks.push(c)); // ML-529: what joining the movements found
 
         // One line per place: a second check on the same bars at the same level adds nothing to look at.
         const seen = new Set();
@@ -303,5 +375,5 @@
         return out;
     }
 
-    return { NOTE_VALUES, SIGN_KEYS, UNANCHORED_BARS, DEFAULT_BPM, normalise, bpmForWords, fit, rate, compare };
+    return { NOTE_VALUES, SIGN_KEYS, UNANCHORED_BARS, DEFAULT_BPM, normalise, bpmForWords, fit, rate, compare, fromBarOne, looksLikeOneWork, join };
 }));

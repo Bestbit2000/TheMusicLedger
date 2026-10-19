@@ -63,6 +63,15 @@ made on 0.39 recorded). Admin → Usage shows them stage by stage.
 
 A time signature is the same `public:<id>` / `custom:<id>` string the shared time signature pop-up hands back.
 
+**Movements (ML-529).** With the `piece_movements` feature, the How long step has a second switch, "It's in
+movements" (off to start with). On, a table asks where each movement starts - by the bar number printed on the music,
+since the numbers carry on - and its name; the first row is bar 1. It is kept as `outline.moves` and goes into the
+outline as `o.movements: [{ bar, title }]` (`PieceOutline.movementsOf`: one per bar, the first always at bar 1). A
+block starts at every movement and the first block of each carries `movementStart` and `movementTitle`. A repeat or
+an intro that runs into the next movement is a clash ("a repeat stays inside its movement"). The rehearsal marks can
+start again at A in each movement: marks are kept by bar, so the same letter twice is fine. Turning it on and naming
+only movement 1 is refused at Next ("say where the second movement starts").
+
 ## How the outline becomes blocks (`PieceOutline.buildBlocks`)
 
 A new block starts at bar 1 and at every:

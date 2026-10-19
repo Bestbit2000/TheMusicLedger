@@ -115,6 +115,15 @@ for (const files of jobs) {
     p.rating.checks.forEach(c => console.log(`      ${c.level.padEnd(6)} ${c.text}`));
     if (truth && result.pieces.length === 1) compare(truth, factsOfRead(p.read)).forEach(line => console.log(`      vs the piece  ${line}`));
   });
+  // ML-529: the movements of one work, put together as one piece in movements
+  if (result.whole) {
+    const w = result.whole;
+    console.log(`  [as one piece] ${w.about.name || '(no title read)'} - ${w.outline.bars} bars - ${w.rating.level.toUpperCase()}`);
+    console.log(`      movements: ${w.outline.movements.map(m => `${m.bar}${m.title ? ` ${m.title}` : ''}`).join(' | ')}`);
+    console.log(`      marks: ${w.outline.marks.map(m => `${m.label}@${m.bar}`).join(' ')}`);
+    w.rating.checks.forEach(c => console.log(`      ${c.level.padEnd(6)} ${c.text}`));
+    if (truth) compare(truth, factsOfRead(w.read)).forEach(line => console.log(`      vs the piece  ${line}`));
+  }
 }
 console.log(`\n${totals.files} file${totals.files === 1 ? '' : 's'} read: ${totals.levels.high} high, ${totals.levels.medium} medium, ${totals.levels.low} low.`);
 console.log(`${totals.input} tokens in, ${totals.output} out, ${(totals.ms / 1000).toFixed(0)} s in all. Cost: these two numbers against the model's price on Vercel -> AI Gateway -> Models.`);

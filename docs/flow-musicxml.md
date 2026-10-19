@@ -68,7 +68,8 @@ to sit on a specific beat. One part, one-line percussion staff.
   carries only what standard MusicXML can't:
   `isLeadIn`, `noteValueUnset`, intro start/end
   offsets, fermata `holdBeats`/`playbackMode`, ramp `endMode`/`targetMode`, legacy columns
-  (`rehearsalMark`, `isFirstTimeBar`/`isSecondTimeBar`, the single legacy ramp), and raw offsets
+  (`rehearsalMark`, `isFirstTimeBar`/`isSecondTimeBar`, the single legacy ramp), ML-529's `movementStart` /
+  `movementTitle`, and raw offsets
   that are stale (past the end of a block that was shortened after they were set).
 
 `formatVersion` is 1. A reader seeing a newer version imports what it understands and warns.

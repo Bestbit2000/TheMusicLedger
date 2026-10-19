@@ -1830,7 +1830,7 @@ router.post('/piece-read/upload-token', requireAuthFromQueryOrHeader, resolveAcc
 router.post('/piece-read', requireAuth, resolveAccount, requireFeature('piece_from_photo'), async (req, res) => {
   try {
     await limitCalls('piece-read', req.accountId);
-    res.json(await readForAccount(req.accountId, req.body?.files));
+    res.json(await readForAccount(req.accountId, req.body?.files, { joinMovements: await isFeatureEnabled('piece_movements') }));
   } catch (error) {
     sendError(res, error);
   }

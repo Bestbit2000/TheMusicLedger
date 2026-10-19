@@ -343,6 +343,7 @@ function buildBlocks(bars, ownFormat, warnings, flowHasToCoda) {
       gotoCoda: group.some(b => b.toCoda),
       gotoSegno: false, gotoSegnoThenCoda: false, gotoStartDc: false, gotoStartDcThenCoda: false,
       isFirstTimeBar: !!ext.isFirstTimeBar, isSecondTimeBar: !!ext.isSecondTimeBar,
+      movementStart: !!ext.movementStart, movementTitle: ext.movementTitle ? String(ext.movementTitle).slice(0, 80) : null, // ML-529
       repeatEndingNumbers: [], repeatEndingStartBar: null,
       introStartBarOffset: ext.introStartBarOffset ?? null, introStartBeatOffset: ext.introStartBeatOffset ?? null,
       introEndBarOffset: ext.introEndBarOffset ?? null, introEndBeatOffset: ext.introEndBeatOffset ?? null,

@@ -584,3 +584,68 @@ describe('back-to-back sets of alternate endings (ML-311)', () => {
         assert.ok(codes(blocks).includes('ending-pass-twice'));
     });
 });
+
+describe('movements (ML-529)', () => {
+    // A suite: bar numbers carry on, each movement has its own signs and jumps, and they play straight on.
+    const mv = (name, title, o = {}) => blk(name, { movementStart: true, movementTitle: title, ...o });
+    test('movements play straight on into each other', () => {
+        const r = play([blk('A', { movementTitle: 'Dawn', barCount: 2 }), mv('B', 'Harvest'), mv('C', 'Dusk', { barCount: 2 })]);
+        assert.equal(r.s, 'A1 A2 B1 C1 C2');
+        assert.equal(r.end, 'end');
+    });
+    test('a final barline ends a movement, not the piece; the last one ends the piece', () => {
+        const blocks = [blk('A', { isFinalBarline: true }), mv('B', null), mv('C', null, { isFinalBarline: true })];
+        const r = play(blocks);
+        assert.equal(r.s, 'A1 B1 C1');
+        assert.equal(r.end, 'finalBarline');
+        assert.deepEqual(codes(blocks), []);
+    });
+    test('a D.S. goes back to the segno in its own movement, not an earlier one', () => {
+        const blocks = [blk('A', { isSegno: true }), blk('B'), mv('C', null), blk('D', { isSegno: true }), blk('E', { gotoSegno: true })];
+        assert.equal(play(blocks).s, 'A1 B1 C1 D1 E1 D1 E1');
+        assert.deepEqual(codes(blocks), []);
+    });
+    test('a D.C. goes back to the start of its movement', () => {
+        assert.equal(play([blk('A'), mv('B', null), blk('C', { gotoStartDc: true }), mv('D', null)]).s, 'A1 B1 C1 B1 C1 D1');
+    });
+    test('D.C. al Fine ends the movement at its Fine and the next movement plays', () => {
+        const blocks = [blk('A'), mv('B', null), blk('C', { isFine: true }), blk('D', { gotoStartDc: true }), mv('E', null)];
+        const r = play(blocks);
+        assert.equal(r.s, 'A1 B1 C1 D1 B1 C1 E1');
+        assert.equal(r.end, 'end');
+    });
+    test('after a jump, the next movement takes its repeats again', () => {
+        const blocks = [blk('A', { isSegno: true }), blk('B', { gotoSegno: true }), mv('C', null, { isRepeatStart: true }), blk('D', { isRepeatEnd: true })];
+        assert.equal(play(blocks).s, 'A1 B1 A1 B1 C1 D1 C1 D1');
+    });
+    test('To Coda goes to the coda in its own movement', () => {
+        const blocks = [blk('A'), blk('B', { isCoda: true }), mv('C', null, { isSegno: true }), blk('D', { gotoCoda: true }), blk('E', { gotoSegnoThenCoda: true }), blk('F', { isCoda: true })];
+        assert.equal(play(blocks).s, 'A1 B1 C1 D1 E1 C1 D1 F1');
+    });
+    test('a repeat with no start goes back to the start of its movement', () => {
+        assert.equal(play([blk('A'), mv('B', null), blk('C', { isRepeatEnd: true })]).s, 'A1 B1 C1 B1 C1');
+    });
+    test('the checker counts signs, codas and jumps per movement', () => {
+        const blocks = [blk('A', { isSegno: true }), blk('B', { gotoSegno: true }), mv('C', null, { isSegno: true }), blk('D', { gotoSegno: true })];
+        assert.deepEqual(codes(blocks), []);
+        const two = [blk('A'), mv('B', null, { isSegno: true }), blk('C', { isSegno: true }), blk('D', { gotoSegno: true })];
+        const issue = FJ.checkFlow(two).find(i => i.code === 'two-segnos');
+        assert.ok(issue && /in movement 2/.test(issue.message));
+        // A D.S. with its segno in an earlier movement has no segno to go to.
+        assert.deepEqual(codes([blk('A', { isSegno: true }), mv('B', null, { gotoSegno: true })]), ['ds-no-segno']);
+    });
+    test('movements(): numbers, names and bar ranges; a piece with none is one movement', () => {
+        const blocks = [blk('A', { barCount: 4, movementTitle: 'Dawn' }), blk('B', { barCount: 2 }), mv('C', 'Harvest', { barCount: 3 })];
+        assert.deepEqual(FJ.movements(blocks).map(m => [m.number, m.title, m.startBar, m.endBar]), [[1, 'Dawn', 1, 6], [2, 'Harvest', 7, 9]]);
+        assert.equal(FJ.movementOfBar(blocks, 7).number, 2);
+        assert.equal(FJ.movements([blk('A', { barCount: 3 })]).length, 1);
+        assert.equal(FJ.movementLabel(FJ.movements(blocks)[1], true), 'Mvt 2: Harvest');
+    });
+    test('practice sections never cross into the next movement', () => {
+        const blocks = [blk('A', { barCount: 10, rehearsalMark: 'A' }), mv('B', null, { barCount: 3 }), blk('C', { barCount: 4, rehearsalMark: 'A' })];
+        assert.deepEqual(FJ.pieceSections(blocks).map(s => [s.startBar, s.endBar, s.label]), [[1, 10, 'A'], [11, 13, null], [14, 17, 'A']]);
+        // No marks: every 8 bars of each movement.
+        const plain = [blk('A', { barCount: 10 }), mv('B', null, { barCount: 9 })];
+        assert.deepEqual(FJ.pieceSections(plain).map(s => s.startBar), [1, 9, 11, 19]);
+    });
+});

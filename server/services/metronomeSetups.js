@@ -197,6 +197,8 @@ export function toSegmentDto(row, fermatas = [], rehearsalMarks = [], ramps = []
     gotoSegnoThenCoda: row.goto_segno_then_coda,
     gotoStartDcThenCoda: row.goto_start_dc_then_coda,
     isFine: row.is_fine,
+    movementStart: !!row.movement_start,
+    movementTitle: row.movement_title || null,
     isFirstTimeBar: row.is_first_time_bar,
     isSecondTimeBar: row.is_second_time_bar,
     repeatEndingNumbers: row.repeat_ending_numbers || [],

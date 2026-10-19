@@ -81,9 +81,11 @@ export function outlineWithKeys(o, keys) {
 }
 
 // Reads the uploaded pages for an account. Returns { readId, ms, pieces: [{ index, about, outline, rating }] }.
+// ML-529: with joinMovements, the movements of one work also come as one piece in movements - the last entry,
+// with `whole: true` and its own index (it is logged as a piece found, like the others).
 // The pages are deleted from the file store whatever happens. A failure is logged too - a read that the
 // gateway refused or that found no music is part of how well this works.
-export async function readForAccount(accountId, rawFiles) {
+export async function readForAccount(accountId, rawFiles, { joinMovements = false } = {}) {
   const files = checkedFiles(rawFiles, readUploadPrefix(accountId));
   let buffers = [];
   let result;
@@ -108,7 +110,8 @@ export async function readForAccount(accountId, rawFiles) {
   const readId = Number(rows[0].id);
 
   const pieces = [];
-  for (const [index, p] of result.pieces.entries()) {
+  const found = joinMovements && result.whole ? [...result.pieces, result.whole] : result.pieces;
+  for (const [index, p] of found.entries()) {
     const { o, lost } = outlineWithKeys(p.outline, await sigKeys(accountId, p.sigs));
     const rating = lost.length
       ? { level: 'low', checks: [{ level: 'low', kind: 'time', from: Math.min(...lost), to: Math.max(...lost), text: `A time signature was read that the app can't use (bar ${Math.min(...lost)}). Those bars were put in the piece's main time: set them by hand.` }, ...p.rating.checks] }
@@ -116,7 +119,7 @@ export async function readForAccount(accountId, rawFiles) {
     await pool.query(
       `INSERT INTO piece_read_pieces (read_id, piece_index, title, bars, rating, read, outline, checks) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [readId, index, p.about.name || null, o.bars, rating.level, JSON.stringify(p.read), JSON.stringify(o), JSON.stringify(rating.checks)]);
-    pieces.push({ index, about: p.about, outline: o, rating });
+    pieces.push({ index, about: p.about, outline: o, rating, ...(p === result.whole ? { whole: true, movements: o.movements.length } : {}) });
   }
   return { readId, ms: result.ms, pieces };
 }
@@ -207,7 +210,9 @@ export async function rerunRead(readId) {
     throw error;
   }
   const pieces = [];
-  for (const [index, p] of result.pieces.entries()) {
+  // A read saved as one piece in movements is read again the same way (its index is after the pieces).
+  const found = result.whole && savedRows.some(s => s.piece_index >= result.pieces.length) ? [...result.pieces, result.whole] : result.pieces;
+  for (const [index, p] of found.entries()) {
     const { o } = outlineWithKeys(p.outline, await sigKeys(accountId, p.sigs));
     const saved = savedRows.find(s => s.piece_index === index)?.saved || null;
     let changes = null;

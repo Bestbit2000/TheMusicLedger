@@ -82,3 +82,21 @@ test('round-trip: legacy columns (single rehearsal mark, 1st/2nd-time flags, sin
   const parsed = musicXmlToFlow(flowToMusicXml(fixtureFlow(fixture), fixtureBlocksAsDtos(fixture)));
   parsed.blocks.forEach((block, i) => assert.deepEqual(normalise(block), normalise(fixture.blocks[i]), `block ${i}`));
 });
+
+// ML-529: a piece in movements - where each starts and its name come back, the letters start again at A, and
+// each movement's number and name is printed over its first bar (a number first, so "Coda" stays a name).
+test('round-trip: a piece in movements', () => {
+  const blk = (o) => ({ barCount: 4, bpm: 100, noteValue: 'crotchet', timeSignature: { numerator: 4, denominator: 4 }, fermatas: [], ramps: [], rehearsalMarks: [], ...o });
+  const fixture = { title: 'Iceni Autumn', blocks: [
+    blk({ movementStart: true, movementTitle: 'Dawn', rehearsalMark: 'A' }), blk({ rehearsalMark: 'B' }),
+    blk({ movementStart: true, movementTitle: 'Coda', rehearsalMark: 'A', timeSignature: { numerator: 3, denominator: 4 } }),
+    blk({ movementStart: true, rehearsalMark: 'A' })
+  ] };
+  const xml = flowToMusicXml(fixtureFlow(fixture), fixtureBlocksAsDtos(fixture));
+  assert.match(xml, /<words>1\. Dawn<\/words>/);
+  assert.match(xml, /<words>2\. Coda<\/words>/);
+  assert.match(xml, /<words>3\.<\/words>/);
+  const parsed = musicXmlToFlow(xml);
+  assert.deepEqual(parsed.warnings, []);
+  assert.deepEqual(parsed.blocks.map(b => [b.movementStart, b.movementTitle, b.rehearsalMark, b.isCoda]), [[true, 'Dawn', 'A', false], [false, null, 'B', false], [true, 'Coda', 'A', false], [true, null, 'A', false]]);
+});

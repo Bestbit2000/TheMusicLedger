@@ -53,6 +53,21 @@
         return [...byBar.entries()].sort((a, b) => a[0] - b[0]).map(([bar, label]) => ({ bar, label }));
     }
 
+    // ML-529: the movements as [{ bar, title }], in bar order, one per bar; the first always starts at bar 1
+    // (unnamed if no row says bar 1). None when the piece isn't in movements. Bar numbers carry on through them.
+    function movementsOf(o) {
+        const byBar = new Map();
+        (o.movements || []).forEach(m => {
+            const bar = int(m.bar);
+            if (inPiece(o, bar)) byBar.set(bar, String(m.title || '').trim().slice(0, 80) || null);
+        });
+        if (!byBar.size) return [];
+        if (!byBar.has(1)) byBar.set(1, null);
+        return [...byBar.entries()].sort((a, b) => a[0] - b[0]).map(([bar, title]) => ({ bar, title }));
+    }
+    // The movement a bar is in: the bar its movement starts at (1 when the piece isn't in movements).
+    const movementStartFor = (o, bar) => movementsOf(o).reduce((s, m) => (m.bar <= bar ? m.bar : s), 1);
+
     // A bar's time signature: its own if it's an exception, else the main one.
     const sigAt = (o, bar) => (o.time && o.time[bar]) || o.mainSig;
     // The speed rows that count, in bar order: a bar in the piece and a real bpm; bar 1 is the main speed's.
@@ -125,6 +140,8 @@
                 if (x.e2To <= (mids.length ? mids[mids.length - 1] : x.to)) return mids.length ? 'The last ending comes after the one before it.' : 'The last ending comes after the repeat.';
                 if (int(x.times) < mids.length + 2) return `It has ${mids.length + 2} endings, so it is played at least ${mids.length + 2} times.`;
             }
+            // ML-529: a repeat stays inside its movement
+            if (movementStartFor(o, x.type === 'repeatEndings' ? x.e2To : x.to) !== movementStartFor(o, x.from)) return 'It runs into the next movement - a repeat stays inside its movement.';
             return null;
         }
         if (x.type === 'pause') {
@@ -147,6 +164,7 @@
         if (x.type === 'intro') {
             if (!bars(x.from)) return 'Its bars aren\'t in the piece.';
             if (x.to != null && (!bars(x.to) || x.to < x.from)) return 'It ends before it starts.';
+            if (x.to != null && movementStartFor(o, x.to) !== movementStartFor(o, x.from)) return 'It runs into the next movement - an intro stays inside its movement.';
             return null;
         }
         return 'Not a kind of extra.';
@@ -159,7 +177,7 @@
         introStartBarOffset: null, introStartBeatOffset: null, introEndBarOffset: null, introEndBeatOffset: null,
         rampStartBarOffset: null, rampStartBeatOffset: null, rampDurationBars: null,
         isSegno: false, isCoda: false, gotoSegno: false, gotoSegnoThenCoda: false, gotoCoda: false, gotoStartDc: false,
-        gotoStartDcThenCoda: false, isFine: false,
+        gotoStartDcThenCoda: false, isFine: false, movementStart: false, movementTitle: null,
         rehearsalMark: null, rehearsalMarks: [], fermatas: [], ramps: []
     });
 
@@ -181,6 +199,7 @@
         const cuts = new Set([1]);
         const cut = (bar) => { if (bar > 1 && bar <= o.bars) cuts.add(bar); };
         marksOf(o).forEach(m => cut(m.bar));
+        movementsOf(o).forEach(m => cut(m.bar));
         for (let b = 2; b <= o.bars; b++) if (sigAt(o, b) !== sigAt(o, b - 1)) cut(b);
         speedRows(o).forEach(s => cut(s.bar));
         good.forEach(({ x }) => {
@@ -197,10 +216,12 @@
 
         const starts = [...cuts].sort((a, b) => a - b);
         const marks = new Map(marksOf(o).map(m => [m.bar, m.label]));
+        const moves = new Map(movementsOf(o).map(m => [m.bar, m.title]));
         const blocks = starts.map((from, k) => {
             const to = (starts[k + 1] || o.bars + 1) - 1;
             const sp = speedAt(o, from);
-            return { ...DEFAULTS(), id: `o${k + 1}`, from, to, barCount: to - from + 1, sig: sigAt(o, from), bpm: sp.bpm, noteValue: sp.noteValue || null, rehearsalMark: marks.get(from) || null };
+            return { ...DEFAULTS(), id: `o${k + 1}`, from, to, barCount: to - from + 1, sig: sigAt(o, from), bpm: sp.bpm, noteValue: sp.noteValue || null, rehearsalMark: marks.get(from) || null,
+                ...(moves.has(from) ? { movementStart: true, movementTitle: moves.get(from) } : {}) };
         });
         const at = (bar) => blocks.find(b => bar >= b.from && bar <= b.to);
         const startingAt = (bar) => blocks.find(b => b.from === bar);
@@ -283,5 +304,5 @@
         return { title: 'Extra', sub: '' };
     }
 
-    return { MAX_BARS, SIGNS, EXTRA_KINDS, parseBarList, marksOf, sigAt, speedRows, speedAt, sections, timeSummary, extraProblem, endingsOf, ordinal, buildBlocks, summary, describeExtra };
+    return { MAX_BARS, SIGNS, EXTRA_KINDS, parseBarList, marksOf, movementsOf, sigAt, speedRows, speedAt, sections, timeSummary, extraProblem, endingsOf, ordinal, buildBlocks, summary, describeExtra };
 }));

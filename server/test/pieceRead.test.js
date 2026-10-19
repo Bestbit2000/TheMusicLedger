@@ -351,3 +351,59 @@ describe('the log and the test library (server/services/pieceReads.js)', async (
     assert.equal(costUsd('someone/else', 10000, 4000), null);
   });
 });
+
+describe('a piece in movements (ML-529)', () => {
+  // Iceni Autumn's shape: one work, the bar numbers carrying on, the letters starting again at A.
+  const suite = () => PR.normalise({ pieces: [
+    piece({ title: 'Iceni Autumn', movement: 'Dawn', bars: 20, systems: lines([1, 11], 20), marks: [{ bar: 1, label: 'A' }, { bar: 11, label: 'B' }], speeds: [{ bar: 1, bpm: 96, note: 'crotchet', text: null, handwritten: false }] }),
+    piece({ title: 'Iceni Autumn', movement: 'Harvest', bars: 36, systems: lines([21, 29], 36), time: [{ bar: 21, beats: 3, beatType: 4 }], marks: [{ bar: 21, label: 'A' }, { bar: 29, label: 'B' }], speeds: [{ bar: 21, bpm: 132, note: 'crotchet', text: null, handwritten: false }], repeats: [{ from: 21, to: 28, times: 2, firstEndingFrom: null, lastEndingTo: null }] }),
+    piece({ title: 'ICENI AUTUMN', movement: 'Dusk', bars: 46, systems: lines([37], 46), marks: [{ bar: 37, label: 'A' }] })
+  ] }).pieces;
+
+  test('a movement whose bar numbers carry on is counted from bar 1 when read on its own', () => {
+    const [, harvest] = suite();
+    assert.equal(harvest.bars, 16);
+    assert.equal(harvest.printedFrom, 21);
+    assert.deepEqual(harvest.marks, [{ bar: 1, label: 'A' }, { bar: 9, label: 'B' }]);
+    assert.deepEqual(harvest.repeats.map(r => [r.from, r.to]), [[1, 8]]);
+    const fitted = PR.fit(harvest);
+    assert.equal(fitted.o.bars, 16);
+    assert.equal(fitted.o.mainSig, '3/4');
+    assert.deepEqual(Object.keys(fitted.o.time), []);
+    assert.equal(PR.rate(harvest, fitted).checks.filter(c => c.kind === 'count').length, 0);
+  });
+  test('a movement\'s printed number is taken off its name - the app numbers them itself', () => {
+    const names = ['1) S.P.Q.R', 'II. Andante', '3: Boudicca - Battles and Requiem', 'Intermezzo'].map(movement => PR.normalise({ pieces: [piece({ movement })] }).pieces[0].movement);
+    assert.deepEqual(names, ['S.P.Q.R', 'Andante', 'Boudicca - Battles and Requiem', 'Intermezzo']);
+  });
+  test('they look like one work: the same title, and named as movements', () => {
+    assert.equal(PR.looksLikeOneWork(suite()), true);
+    assert.equal(PR.looksLikeOneWork(suite().slice(0, 1)), false);
+    assert.equal(PR.looksLikeOneWork([...suite().slice(0, 2), { ...suite()[2], title: 'Something else' }]), false);
+    assert.equal(PR.looksLikeOneWork(suite().map(p => ({ ...p, movement: '' }))), false);
+  });
+  test('joined: one piece, the bars as printed, a movement at each start, the letters as printed', () => {
+    const whole = PR.join(suite());
+    assert.equal(whole.bars, 46);
+    assert.deepEqual(whole.movements, [{ bar: 1, title: 'Dawn' }, { bar: 21, title: 'Harvest' }, { bar: 37, title: 'Dusk' }]);
+    const fitted = PR.fit(whole);
+    assert.equal(fitted.about.name, 'Iceni Autumn');
+    assert.deepEqual(fitted.o.marks.map(m => `${m.bar}${m.label}`), ['1A', '11B', '21A', '29B', '37A']);
+    const { blocks, clashes } = PO.buildBlocks(fitted.o);
+    assert.deepEqual(clashes, []);
+    assert.deepEqual(blocks.filter(b => b.movementStart).map(b => [b.from, b.movementTitle]), [[1, 'Dawn'], [21, 'Harvest'], [37, 'Dusk']]);
+    assert.equal(blocks.find(b => b.from === 21).bpm, 132);
+    const rating = PR.rate(whole, fitted);
+    assert.equal(rating.checks.filter(c => c.level === 'low').length, 0);
+    assert.ok(rating.checks.some(c => c.kind === 'speed' && /movement 3/.test(c.text)));
+  });
+  test('joined where a movement\'s printed numbers miss the count before it: the count is kept, and it is Low', () => {
+    const [dawn, harvest, dusk] = suite();
+    const whole = PR.join([{ ...dawn, bars: 19, systems: lines([1, 11], 19), tail: tailFor({ systems: lines([1, 11], 19) }) }, harvest, dusk]);
+    assert.equal(whole.bars, 45);
+    assert.deepEqual(whole.movements.map(m => m.bar), [1, 20, 36]);
+    const rating = PR.rate(whole, PR.fit(whole));
+    assert.equal(rating.level, 'low');
+    assert.ok(rating.checks.some(c => c.level === 'low' && /Movement 2's bar numbers start at 21/.test(c.text)));
+  });
+});

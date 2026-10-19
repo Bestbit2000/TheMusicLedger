@@ -75,6 +75,40 @@ the next bar's first beat. The top line ("Bar 36 · bars 33 to 40 · 4/4 · 112 
 number, then the block it is in - its rehearsal mark, boxed, or its bars when it has none; nothing for a
 one-bar block), the highlighted bar and the bpm update from each click's own position, never early.
 
+## Movements (ML-529)
+
+A piece can be in **movements** - a suite whose bar numbers carry on from one movement to the next, while its
+rehearsal letters start again at A in each. A movement starts at a block: `movementStart` (the first block always
+starts the first movement) and `movementTitle` (columns `movement_start`, `movement_title`, migration 131). A piece
+with no movement starts is one movement, and every rule above is unchanged for it.
+
+Each movement is a piece of its own for the order of play, and the next one follows **straight on** (owner, 19 Oct
+2026 - no gap):
+
+- **Repeats and endings** never reach back into the movement before: a repeat with no start goes back to the start of
+  its movement, and a set of endings never runs across a movement start.
+- **D.C.** goes to the movement's first bar, **D.S.** to the segno in its own movement, **To Coda** to the coda in
+  its own movement. A D.S. whose only segno is in another movement is ignored, and the checker says so.
+- **Fine** (after a jump) and a **final barline** end the movement; the next movement plays. Only the end of the last
+  movement ends the piece.
+- **A new movement starts everything over:** pass 1, and no jump taken - so the next movement's repeats play again
+  after a D.S. in the one before.
+- **The intro** stops at the end of the movement it starts in.
+- **The checker** counts segnos, codas, D.S./D.C. and Fines per movement, and says "in movement 2" in its message.
+- **`pieceSections`** starts a section at every movement, and its every-8-bars fallback counts from each movement's
+  first bar - so painting and cutting never cross from one movement into the next.
+
+`movements(blocks)` lists them (`{ number, title, startBlock, endBlock, startBar, endBar }`), `movementOfBar` finds
+the one a bar is in and `movementLabel` gives "Mvt 2" or "Mvt 2: Harvest". Rehearse puts a heading over each
+movement's first tile and starts the now-playing line with the movement ("Mvt 2 · Bar 93 · A") when a piece has more
+than one. **The edit screen** shows the same headings in its bar list (all three layouts) and lets a bar move
+only within its own movement (owner, 19 Oct 2026): the ⋮ menu's Move up / down and the bar pop-up's Move earlier /
+later are not offered across a movement start, and a drag in the grid only goes to its own movement's places. Where
+a movement starts belongs to the place, not the bar: when a movement's first bar is moved or deleted, the bar now
+first in it starts it and takes its name (`flowRestoreMovementPlaces`), and a duplicated bar never starts a movement.
+Tests: the "movements (ML-529)" group in `server/test/flowJourney.test.js`, and back-test #79. Playing or practising one
+movement on its own is ML-530; a recording of one movement is ML-531.
+
 ## Repeat bars (ML-302)
 
 Rehearse's **repeat** control plays a start..end bar range over and over. It's a playback setting, not
@@ -226,6 +260,7 @@ appears. It's never active on sandbox or production.
 | 15 | Display | Label, highlighted bar and dots in 1/2/4 columns; tap to jump; screenshots |
 | 16 | Editor | Every option of all 12 settings through the real pickers; saved and shown everywhere |
 | 17 | Checker | The ML-248 review: messages, outlines, fix / carry on; screenshots |
+| 79 | Movements (ML-529) | Each movement's own D.S. and repeat, straight on; Rehearse and edit-screen headings; moves kept inside a movement; Quick entry's movements table |
 
 **Screenshot baselines** live in `tests/visual-baselines/` (committed). When a change to the look is
 intended, re-run with `--update-snapshots`, **check each new image by eye**, and commit it.

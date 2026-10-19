@@ -118,6 +118,10 @@ function validateSegmentPayload(data) {
   // back to simply the last block in the flow.
   const gotoStartDcThenCoda = !!data.gotoStartDcThenCoda;
   const isFine = !!data.isFine;
+  // ML-529: a movement starts at this block (the first block always starts the first), and its name.
+  const movementStart = !!data.movementStart;
+  const movementTitle = data.movementTitle === null || data.movementTitle === undefined
+    ? null : (String(data.movementTitle).trim().slice(0, 80) || null);
 
   // Deliberately no mutual-exclusion CHECK: both may be true together, meaning a
   // combined "1. 2." bracket before a 3rd ending (see docs/database-schema.md).
@@ -277,6 +281,8 @@ function validateSegmentPayload(data) {
     gotoSegnoThenCoda,
     gotoStartDcThenCoda,
     isFine,
+    movementStart,
+    movementTitle,
     isFirstTimeBar,
     isSecondTimeBar,
     repeatEndingNumbers,
@@ -301,7 +307,7 @@ const SEGMENT_COLUMNS = [
   'time_signature_id', 'account_time_signature_id', 'note_value',
   'rehearsal_mark', 'is_repeat_start', 'is_repeat_end', 'is_section_boundary', 'is_final_barline', 'repeat_play_count',
   'goto_coda', 'goto_start_dc', 'is_coda', 'is_segno', 'goto_segno', 'goto_segno_then_coda',
-  'goto_start_dc_then_coda', 'is_fine',
+  'goto_start_dc_then_coda', 'is_fine', 'movement_start', 'movement_title',
   'is_first_time_bar', 'is_second_time_bar', 'repeat_ending_numbers', 'repeat_ending_start_bar',
   'intro_start_bar_offset', 'intro_start_beat_offset', 'intro_end_bar_offset', 'intro_end_beat_offset',
   'ramp_start_bar_offset', 'ramp_start_beat_offset', 'ramp_duration_bars'
@@ -313,7 +319,7 @@ function segmentColumnValues(normalized) {
     normalized.pickupBeats, normalized.timeSignatureId, normalized.accountTimeSignatureId, normalized.noteValue,
     normalized.rehearsalMark, normalized.isRepeatStart, normalized.isRepeatEnd, normalized.isSectionBoundary, normalized.isFinalBarline, normalized.repeatPlayCount,
     normalized.gotoCoda, normalized.gotoStartDc, normalized.isCoda, normalized.isSegno, normalized.gotoSegno, normalized.gotoSegnoThenCoda,
-    normalized.gotoStartDcThenCoda, normalized.isFine,
+    normalized.gotoStartDcThenCoda, normalized.isFine, normalized.movementStart, normalized.movementTitle,
     normalized.isFirstTimeBar, normalized.isSecondTimeBar, normalized.repeatEndingNumbers, normalized.repeatEndingStartBar,
     normalized.introStartBarOffset, normalized.introStartBeatOffset, normalized.introEndBarOffset, normalized.introEndBeatOffset,
     normalized.rampStartBarOffset, normalized.rampStartBeatOffset, normalized.rampDurationBars

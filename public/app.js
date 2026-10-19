@@ -10836,7 +10836,7 @@
             introStartBarOffset: null, introStartBeatOffset: null, introEndBarOffset: null, introEndBeatOffset: null,
             rampStartBarOffset: null, rampStartBeatOffset: null, rampDurationBars: null,
             isSegno: false, isCoda: false, gotoSegno: false, gotoSegnoThenCoda: false, gotoCoda: false, gotoStartDc: false,
-            gotoStartDcThenCoda: false, isFine: false,
+            gotoStartDcThenCoda: false, isFine: false, movementStart: false, movementTitle: null,
             rehearsalMark: null, rehearsalMarks: [], fermatas: [], ramps: [],
             pickupBeats: null, repeatLeadIn: false, quietSecondsBeforeLeadIn: 0, noteValue: null
         };
@@ -10873,6 +10873,7 @@
             gotoCoda: !!b.gotoCoda, gotoStartDc: !!b.gotoStartDc, isCoda: !!b.isCoda, isSegno: !!b.isSegno,
             gotoSegno: !!b.gotoSegno, gotoSegnoThenCoda: !!b.gotoSegnoThenCoda,
             gotoStartDcThenCoda: !!b.gotoStartDcThenCoda, isFine: !!b.isFine,
+            movementStart: !!b.movementStart, movementTitle: b.movementTitle || null,
             isFirstTimeBar: !!b.isFirstTimeBar, isSecondTimeBar: !!b.isSecondTimeBar,
             repeatEndingNumbers: b.repeatEndingNumbers || [], repeatEndingStartBar: b.repeatEndingStartBar ?? null,
             introStartBarOffset: b.introStartBarOffset, introStartBeatOffset: b.introStartBeatOffset,
@@ -11383,7 +11384,7 @@
             renderFlowBarGrid(container);
             return;
         }
-        container.innerHTML = currentFlowBlocks.map((b, idx) => flowBlockCardHtml(b, idx, currentFlowBlocks[idx + 1])).join('');
+        container.innerHTML = currentFlowBlocks.map((b, idx) => flowMovementHeadHtml(idx) + flowBlockCardHtml(b, idx, currentFlowBlocks[idx + 1])).join('');
 
         // Same gesture split as Quick Play's own bar boxes (wireQpBarGrabHandle/wireQpBarSwipe) -
         // reordering is scoped strictly to the grab handle, deleting to a horizontal swipe that only
@@ -11436,10 +11437,10 @@
         // (flowMoveBlockUp/Down) slide the tiles here exactly as they slide the cards in 1-column.
         // Both grid layouts share .flow-bar-grid-tile, so the tap/hold/drag wiring below is identical.
         container.innerHTML = currentFlowBlocks.map((b, idx) => {
-            if (flowBarLayout === '2') return flowBarDetailTileHtml(b, idx, currentFlowBlocks[idx + 1]);
+            if (flowBarLayout === '2') return flowMovementHeadHtml(idx) + flowBarDetailTileHtml(b, idx, currentFlowBlocks[idx + 1]);
             const tile = flowBarSummaryTile(b, startBar);
             startBar += b.barCount || 0;
-            return `<button type="button" class="metroBlk-tile flow-bar-grid-tile" data-block-id="${b.id}" title="${tile.name}" aria-label="Edit ${tile.name}" aria-haspopup="dialog">${tile.inner}</button>`;
+            return flowMovementHeadHtml(idx) + `<button type="button" class="metroBlk-tile flow-bar-grid-tile" data-block-id="${b.id}" title="${tile.name}" aria-label="Edit ${tile.name}" aria-haspopup="dialog">${tile.inner}</button>`;
         }).join('');
         container.querySelectorAll('.flow-bar-grid-tile').forEach(tile => {
             const blockId = flowBlockIdFromDataset(tile.dataset.blockId);
@@ -11672,6 +11673,9 @@
         d.active = true;
         d.scrollY0 = window.scrollY;
         d.slots = flowBarGridTiles(d).map(t => t.getBoundingClientRect());
+        // ML-529: the slots it can go to - its own movement's
+        d.range = flowMovementRange(flowBarGridTiles(d).indexOf(held));
+        d.places = flowMovementPlaces();
         held.classList.add('flow-bar-grid-tile-held');
         flowBarGridUpdate(d);
         requestAnimationFrame(() => flowBarGridAutoScroll(d));
@@ -11701,10 +11705,14 @@
         });
         const tiles = flowBarGridTiles(d);
         const from = tiles.indexOf(held);
-        if (target >= 0 && target !== from) {
+        const inRange = !d.range || (target >= d.range[0] && target <= d.range[1]);
+        if (target >= 0 && target !== from && inRange) {
             const others = tiles.filter(t => t !== held);
             const before = new Map(others.map(t => [t, t.getBoundingClientRect()]));
-            d.container.insertBefore(held, others[target] || null);
+            // At the end of a movement, it goes before the next movement's heading, not after it
+            let ref = others[target] || null;
+            if (ref && target !== (d.range ? d.range[0] : 0) && ref.previousElementSibling?.classList.contains('flow-movement-head')) ref = ref.previousElementSibling;
+            d.container.insertBefore(held, ref);
             // FLIP the tiles that shifted: jump back to where they were, then slide to the new slot.
             others.forEach(t => {
                 t.classList.remove('flow-bar-grid-tile-shuffling');
@@ -11755,6 +11763,7 @@
             if (!changed) return;
             const byId = new Map(currentFlowBlocks.map(b => [String(b.id), b]));
             currentFlowBlocks = domIds.map(id => byId.get(id)).filter(Boolean);
+            if (d.places) flowRestoreMovementPlaces(d.places);
         }, { raiseUid: d.blockId });
         if (changed) flowPersistBlockOrder();
     }
@@ -11795,9 +11804,9 @@
             </div>
             ${flowBlockTileSectionsHtml(b, currentFlowBlocks[idx + 1])}
             <div class="flow-tile-grid flow-tile-grid-3-centered flow-bar-popup-actions">
-                <button type="button" class="flow-bar-popup-action" data-bar-popup="earlier"${first ? ' disabled' : ''}>Move earlier</button>
+                <button type="button" class="flow-bar-popup-action" data-bar-popup="earlier"${flowCanMoveUp(idx) ? '' : ' disabled'}>Move earlier</button>
                 <button type="button" class="flow-bar-popup-action" data-bar-popup="duplicate">Duplicate</button>
-                <button type="button" class="flow-bar-popup-action" data-bar-popup="later"${last ? ' disabled' : ''}>Move later</button>
+                <button type="button" class="flow-bar-popup-action" data-bar-popup="later"${flowCanMoveDown(idx) ? '' : ' disabled'}>Move later</button>
             </div>
             ${currentFlowBlocks.length > 1 ? '<button type="button" class="btn-text btn-text-danger flow-bar-popup-delete" data-bar-popup="delete">Delete this bar</button>' : ''}
         `;
@@ -11842,29 +11851,63 @@
     // happens, animated via flowAnimateBlocksChange (FLIP) so the displaced block visibly slides into
     // its new spot instead of the re-render just snapping it there - same "swap, don't just rebuild"
     // shape as Quick Play's own qpSwapBarPositions.
+    // --- ML-529: a piece in movements. A bar is moved only within its own movement (owner, 19 Oct 2026), and where
+    // a movement starts belongs to the place, not the bar: after a move, the bar now first in a movement starts it
+    // and carries its name. ---
+    // The block indexes [first, last] of the movement block i is in (the whole piece when it has none).
+    function flowMovementRange(i) {
+        const m = FlowJourney.movements(currentFlowBlocks).find(x => i >= x.startBlock && i <= x.endBlock);
+        return m ? [m.startBlock, m.endBlock] : [0, currentFlowBlocks.length - 1];
+    }
+    const flowSameMovement = (i, j) => { const [s, e] = flowMovementRange(i); return j >= s && j <= e; };
+    // Where each movement starts, by position, to put back after the order changes
+    function flowMovementPlaces() {
+        return FlowJourney.movements(currentFlowBlocks).map(m => ({ at: m.startBlock, start: !!currentFlowBlocks[m.startBlock].movementStart, title: currentFlowBlocks[m.startBlock].movementTitle || null }));
+    }
+    function flowRestoreMovementPlaces(places) {
+        const changed = [];
+        currentFlowBlocks.forEach((b, k) => {
+            const p = places.find(x => x.at === k);
+            const start = p ? p.start : false, title = p ? p.title : null;
+            if (!!b.movementStart !== start || (b.movementTitle || null) !== title) { b.movementStart = start; b.movementTitle = title; changed.push(b); }
+        });
+        // Outside the staged edit, each bar is saved as it changes
+        if (flowEditMode !== 'edit') changed.forEach(b => API.flows.blocks.update(b.id, { movementStart: b.movementStart, movementTitle: b.movementTitle }).catch(error => showWarningToast('Error saving the movement: ' + error.message)));
+    }
     function flowSwapBlockPositions(i, j) {
+        if (!flowSameMovement(i, j)) return;
         const movedId = currentFlowBlocks[i].id;
+        const places = flowMovementPlaces();
         flowAnimateBlocksChange(() => {
             [currentFlowBlocks[i], currentFlowBlocks[j]] = [currentFlowBlocks[j], currentFlowBlocks[i]];
+            flowRestoreMovementPlaces(places);
         }, { raiseUid: movedId });
         flowPersistBlockOrder();
     }
+    // Can block idx move earlier / later? Not past the start or end of the piece, or of its movement.
+    const flowCanMoveUp = (idx) => idx > 0 && flowSameMovement(idx, idx - 1);
+    const flowCanMoveDown = (idx) => idx >= 0 && idx < currentFlowBlocks.length - 1 && flowSameMovement(idx, idx + 1);
     function flowMoveBlockUp(blockId) {
         const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
-        if (idx <= 0) return;
+        if (!flowCanMoveUp(idx)) return;
         flowSwapBlockPositions(idx, idx - 1);
     }
     function flowMoveBlockDown(blockId) {
         const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
-        if (idx < 0 || idx >= currentFlowBlocks.length - 1) return;
+        if (!flowCanMoveDown(idx)) return;
         flowSwapBlockPositions(idx, idx + 1);
     }
     // Same confirm-before-delete flow the 3-dot menu's own Delete item already used - shared so the
     // swipe-revealed delete button below behaves identically, not a lighter no-confirm shortcut.
     function flowDeleteBlockConfirm(blockId) {
         showConfirmModal('Delete bar', "Delete this bar? This can't be undone.", async () => {
+            // ML-529: a movement keeps its start and name when its first bar is deleted - the next bar in it takes them
+            const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
+            const places = flowMovementPlaces().filter(p => p.at !== idx || flowMovementRange(idx)[1] > idx).map(p => (p.at > idx ? { ...p, at: p.at - 1 } : p));
+            const keepPlaces = () => flowRestoreMovementPlaces(places);
             if (flowEditMode === 'edit') {
                 currentFlowBlocks = currentFlowBlocks.filter(b => b.id !== blockId);
+                keepPlaces();
                 flowStatsNoteBlockDeleted();
                 renderFlowBlocksStudio();
                 return;
@@ -11872,6 +11915,7 @@
             try {
                 await API.flows.blocks.delete(blockId);
                 currentFlowBlocks = currentFlowBlocks.filter(b => b.id !== blockId);
+                keepPlaces();
                 flowStatsNoteBlockDeleted();
                 renderFlowBlocksStudio(); // not just renderFlowBlocksList - the total bars/runtime summary needs refreshing too
             } catch (error) {
@@ -12536,7 +12580,34 @@
                 hideModal('flowBarStartModal');
             }, { once: true });
         });
+        flowBarStartMovementRender(blockId);
         showModal('flowBarStartModal');
+    }
+    // ML-529: a movement starts at the start of a bar - a switch (the first bar always starts the first
+    // movement, so it has none) and the movement's name. Shown with the piece_movements feature, or when the
+    // piece is already in movements. The switch and the name save as they change; the pop-up stays open.
+    function flowBarStartMovementRender(blockId) {
+        const box = document.getElementById('flowBarStartMovement');
+        if (!box) return;
+        const b = flowFindBlockById(blockId);
+        const first = currentFlowBlocks[0] === b;
+        const inMovements = FlowJourney.movements(currentFlowBlocks).length > 1;
+        if (!b || b.isLeadIn || (!isFeatureEnabled('piece_movements') && !inMovements) || (first && !inMovements)) { box.innerHTML = ''; return; }
+        const on = first || !!b.movementStart;
+        box.innerHTML = `
+            ${first ? '' : `<div class="display-toggle-row">
+                <span id="flowMovementStartLabel">A movement starts here<span class="display-toggle-help">The bar numbers carry on; the repeats and jumps stay inside each movement</span></span><label class="toggle-switch"><input type="checkbox" id="flowMovementStart" aria-labelledby="flowMovementStartLabel"${on ? ' checked' : ''}><span class="toggle-slider"></span></label>
+            </div>`}
+            ${on ? `<div class="form-group"><label for="flowMovementTitle">${first ? 'The first movement is called' : 'The movement is called'}</label>
+            <input type="text" id="flowMovementTitle" maxlength="80" autocomplete="off" placeholder="e.g. Harvest" value="${escapeHtml(b.movementTitle || '')}"></div>` : ''}`;
+        document.getElementById('flowMovementStart')?.addEventListener('change', async (e) => {
+            await flowUpdateBlock(blockId, { movementStart: e.target.checked, ...(e.target.checked ? {} : { movementTitle: null }) });
+            flowBarStartMovementRender(blockId);
+            if (e.target.checked) document.getElementById('flowMovementTitle')?.focus();
+        });
+        document.getElementById('flowMovementTitle')?.addEventListener('change', (e) => {
+            flowUpdateBlock(blockId, { movementTitle: e.target.value.trim() || null, ...(first ? { movementStart: true } : {}) });
+        });
     }
 
     // Shared option-card markup for the End-of-bar picker below - icon (+ a repeat count next to
@@ -13747,8 +13818,8 @@
     function openFlowBlockMenu(btnEl, blockId) {
         flowBlockMenuTargetId = blockId;
         const idx = currentFlowBlocks.findIndex(b => b.id === blockId);
-        document.getElementById('flowBlockMenuMoveUp')?.classList.toggle('hidden-group', idx <= 0);
-        document.getElementById('flowBlockMenuMoveDown')?.classList.toggle('hidden-group', idx < 0 || idx >= currentFlowBlocks.length - 1);
+        document.getElementById('flowBlockMenuMoveUp')?.classList.toggle('hidden-group', !flowCanMoveUp(idx));
+        document.getElementById('flowBlockMenuMoveDown')?.classList.toggle('hidden-group', !flowCanMoveDown(idx));
         // A flow always has to keep at least one block (matches "Create your own" always seeding
         // one) - same "hide, don't just no-op" precedent as Quick Play's own qpBarMenuDelete.
         document.getElementById('flowBlockMenuDelete')?.classList.toggle('hidden-group', currentFlowBlocks.length <= 1);
@@ -13781,7 +13852,7 @@
         if (idx < 0) return;
         if (flowEditMode === 'edit') {
             const source = currentFlowBlocks[idx];
-            const dup = { ...source, id: `tmp${++flowTempBlockCounter}`, fermatas: [...(source.fermatas || [])], rehearsalMarks: [...(source.rehearsalMarks || [])] };
+            const dup = { ...source, id: `tmp${++flowTempBlockCounter}`, fermatas: [...(source.fermatas || [])], rehearsalMarks: [...(source.rehearsalMarks || [])], movementStart: false, movementTitle: null }; // ML-529: in the same movement
             currentFlowBlocks.splice(idx + 1, 0, dup);
             flowStatsNoteBlockAdded();
             renderFlowBlocksStudio();
@@ -14262,6 +14333,8 @@
         if (flowLoopPlan) parts.push(`Repeat ${p.loopPass}`);
         if (p.kind === 'intro') parts.push('Intro');
         const startBar = flowBlockStartBar(p.blockId);
+        // ML-529: in a piece in movements, which movement this is ("Mvt 2 · Bar 93 · A")
+        if (startBar !== null && FlowJourney.movements(currentFlowBlocks).length > 1) parts.push(FlowJourney.movementLabel(FlowJourney.movementOfBar(currentFlowBlocks, startBar), false));
         if (startBar === null) parts.push(`${pos.bar + 1} of ${block.barCount} bar${block.barCount === 1 ? '' : 's'}`);
         else parts.push(`Bar ${startBar + pos.bar}`);
         if (block.rehearsalMark) parts.push(`<span class="flow-bar-detail-mark">${escapeHtml(block.rehearsalMark)}</span>`);
@@ -15196,6 +15269,15 @@
         renderFlowLoopButton();
         flowKeepLitTileInView();
     }
+    // ML-529: a heading over the first bar of each movement, when the piece has more than one - "Mvt 2 · Harvest".
+    // It spans the whole row of tiles in every layout.
+    function flowMovementHeadHtml(idx) {
+        const moves = FlowJourney.movements(currentFlowBlocks);
+        if (moves.length < 2) return '';
+        const m = moves.find(x => x.startBlock === idx);
+        if (!m) return '';
+        return `<h3 class="section-title flow-movement-head">${escapeHtml(FlowJourney.movementLabel(m, false))}${m.title ? ` · ${escapeHtml(m.title)}` : ''}</h3>`;
+    }
     function renderFlowPlaybackTileList() {
         const leadInSlot = document.getElementById('flowPlayLeadInSlot');
         const tilesUi = document.getElementById('flowPlayTiles');
@@ -15218,12 +15300,12 @@
             tilesUi.classList.toggle('flow-bar-list-1', oneCol);
             if (oneCol) {
                 tilesUi.innerHTML = flowLeadInPlayTileHtml('1', leadActive) + currentFlowBlocks.map((s, idx) =>
-                    flowBarFullTileHtml(s, idx, currentFlowBlocks[idx + 1], { active: s.id === currentId })).join('');
+                    flowMovementHeadHtml(idx) + flowBarFullTileHtml(s, idx, currentFlowBlocks[idx + 1], { active: s.id === currentId })).join('');
                 return;
             }
             if (twoCol) {
                 tilesUi.innerHTML = flowLeadInPlayTileHtml('2', leadActive) + currentFlowBlocks.map((s, idx) =>
-                    flowBarDetailTileHtml(s, idx, currentFlowBlocks[idx + 1], { play: true, active: s.id === currentId })).join('');
+                    flowMovementHeadHtml(idx) + flowBarDetailTileHtml(s, idx, currentFlowBlocks[idx + 1], { play: true, active: s.id === currentId })).join('');
                 return;
             }
             let startBar = 1;
@@ -15233,10 +15315,10 @@
                 const bpm = currentFlowBlocks[0].bpm; // a lead-in plays at bar 1's tempo
                 leadInTile = '<div role="button" tabindex="0" class="metroBlk-tile' + (lead.id === currentId ? ' metroBlk-tile-active' : '') + '" data-block-id="' + lead.id + '" title="Lead-in, ' + bpm + ' bpm, 1 bar" aria-label="Jump to the lead-in, ' + bpm + ' bpm, 1 bar" data-act="flow-jump" data-arg="' + lead.id + '"><div class="metroBlk-tile-sig text-md">Lead&#8209;in</div><div class="metroBlk-tile-bpm">' + bpm + ' bpm</div><div class="metroBlk-tile-bars">1 bar</div></div>';
             }
-            tilesUi.innerHTML = leadInTile + currentFlowBlocks.map(s => {
+            tilesUi.innerHTML = leadInTile + currentFlowBlocks.map((s, idx) => {
                 const tile = flowBarSummaryTile(s, startBar);
                 startBar += s.barCount || 0;
-                return `<div role="button" tabindex="0" class="metroBlk-tile${s.id === currentId ? ' metroBlk-tile-active' : ''}" data-block-id="${s.id}" title="${tile.name}" aria-label="Jump to ${tile.name}" data-act="flow-jump" data-arg="${s.id}">${tile.inner}</div>`;
+                return flowMovementHeadHtml(idx) + `<div role="button" tabindex="0" class="metroBlk-tile${s.id === currentId ? ' metroBlk-tile-active' : ''}" data-block-id="${s.id}" title="${tile.name}" aria-label="Jump to ${tile.name}" data-act="flow-jump" data-arg="${s.id}">${tile.inner}</div>`;
             }).join('');
         }
     }
@@ -20675,6 +20757,7 @@
     // plus what won't work: the extras that clash, and anything the bar-by-bar editor's own check refuses.
     function outlineBuild() {
         outlineTimeApply(); // the time rows as bars, whatever step is showing
+        outlineMovesApply(); // ML-529: the movements
         outlineIntroApply(); // the intro's switch and bars as an extra
         outlineRowsApply(); // and the repeat and pause rows as extras
         const built = PieceOutline.buildBlocks(outline.o);
@@ -20731,7 +20814,38 @@
             <div class="display-toggle-row">
                 <span id="outlineLeadInLabel">A count-in bar<span class="display-toggle-help">A bar of clicks before bar 1</span></span><label class="toggle-switch"><input type="checkbox" id="outlineLeadIn" aria-labelledby="outlineLeadInLabel"${o.leadIn ? ' checked' : ''}><span class="toggle-slider"></span></label>
             </div>
+            ${outlineMovesHtml()}
 `;
+    }
+    // ML-529: a piece in movements - a switch (off to start with), and on, a table: the bar each movement starts at
+    // (as printed - the numbers carry on) and its name. Shown with the piece_movements feature, or when a read
+    // brought movements in.
+    const outlineMoves = () => { if (!outline.moves) outline.moves = { on: false, rows: [{ bar: '1', title: '' }, { bar: '', title: '' }] }; return outline.moves; };
+    const outlineMoveRowHtml = (r, i) => `<div class="outline-row outline-row-marks">
+        <input type="number" inputmode="numeric" data-move-row="${i}" data-move-col="bar" value="${escapeHtml(String(r.bar))}" placeholder="bar" aria-label="Movement ${i + 1}: the bar it starts at" enterkeyhint="next">
+        <input type="text" data-move-row="${i}" data-move-col="title" value="${escapeHtml(r.title)}" placeholder="e.g. Harvest" maxlength="80" aria-label="Movement ${i + 1}: its name" enterkeyhint="next" autocomplete="off"></div>`;
+    function outlineMovesHtml() {
+        const m = outlineMoves();
+        if (!isFeatureEnabled('piece_movements') && !m.on) return '';
+        return `
+            <div class="display-toggle-row">
+                <span id="outlineMovesLabel">It's in movements<span class="display-toggle-help">One piece in several parts, like a suite</span></span><label class="toggle-switch"><input type="checkbox" id="outlineMovesOn" aria-labelledby="outlineMovesLabel"${m.on ? ' checked' : ''}><span class="toggle-slider"></span></label>
+            </div>
+            ${m.on ? `
+            <p class="text-sm text-muted no-margin">The bar each movement starts at, as printed on the music, and its name. The bar numbers carry on from one movement to the next; the rehearsal marks can start again at A.</p>
+            <div class="outline-table" id="outlineMoveRows">
+                <div class="outline-row outline-row-marks" aria-hidden="true"><span class="outline-th">Starts at bar</span><span class="outline-th">Name</span></div>
+                ${m.rows.map(outlineMoveRowHtml).join('')}
+            </div>
+            <p class="text-sm text-muted no-margin" id="outlineMovesCheck" aria-live="polite"></p>` : ''}`;
+    }
+    // The rows as o.movements. Returns the bars typed that aren't bars of the piece.
+    function outlineMovesApply() {
+        const m = outlineMoves(), o = outline.o;
+        const typed = m.on ? m.rows.filter(r => String(r.bar).trim() !== '') : [];
+        const bad = typed.filter(r => !(Number.isInteger(Number(r.bar)) && Number(r.bar) >= 1 && (!o.bars || Number(r.bar) <= o.bars))).map(r => String(r.bar));
+        o.movements = typed.filter(r => !bad.includes(String(r.bar))).map(r => ({ bar: Number(r.bar), title: r.title }));
+        return bad;
     }
     // The time signature step and the speed step are built the same way: what most of it is in as tiles (the bar
     // editor's), then the table of where it switches.
@@ -21654,12 +21768,19 @@
     const pieceReadLevelWord = (level) => ({ high: 'High', medium: 'Medium', low: 'Low' }[level] || 'Medium');
     // One piece: straight into Quick entry. Several (movements, or two pieces on one PDF): which one first -
     // the rest are offered again after each is saved, so the file is only read (and paid for) once.
+    // ML-529: the movements of one work also come as one piece in movements (whole) - offered first, the
+    // movements one at a time below it.
     function pieceReadChoose(read, pieces, target) {
         if (!pieces.length) return;
-        if (pieces.length === 1) { pieceReadMore = null; outlineOpenFromRead(target, pieces[0], read); return; }
-        pieceReadMore = { read, pieces, target };
-        openFlowChoiceModal(`${pieces.length} pieces were read - which one?`, pieces.map(p => ({ piece: p, html: addPieceRow(p.about.name || `Piece ${p.index + 1}`, `${p.outline.bars} bars · ${pieceReadLevelWord(p.rating.level)} confidence`) })), (opt) => {
-            pieceReadMore.pieces = pieceReadMore.pieces.filter(p => p !== opt.piece);
+        const whole = pieces.find(p => p.whole);
+        const parts = pieces.filter(p => !p.whole);
+        if (parts.length === 1 && !whole) { pieceReadMore = null; outlineOpenFromRead(target, parts[0], read); return; }
+        pieceReadMore = { read, pieces: parts, target };
+        const rows = parts.map(p => ({ piece: p, html: addPieceRow(p.about.name || `Piece ${p.index + 1}`, `${whole ? 'This movement as a piece of its own · ' : ''}${p.outline.bars} bars · ${pieceReadLevelWord(p.rating.level)} confidence`) }));
+        if (whole) rows.unshift({ piece: whole, html: addPieceRow(`${whole.about.name || 'The whole piece'}, as one piece`, `With its ${whole.movements} movements · ${whole.outline.bars} bars · ${pieceReadLevelWord(whole.rating.level)} confidence`) });
+        openFlowChoiceModal(whole ? `${parts.length} movements of one piece were read` : `${parts.length} pieces were read - which one?`, rows, (opt) => {
+            if (opt.piece.whole) pieceReadMore = null;
+            else pieceReadMore.pieces = pieceReadMore.pieces.filter(p => p !== opt.piece);
             outlineOpenFromRead(target, opt.piece, read);
         });
     }
@@ -21678,12 +21799,13 @@
         Object.assign(o, {
             bars: r.bars, mainSig: outlineSigInfo(r.mainSig) ? r.mainSig : o.mainSig, mainBpm: r.mainBpm, mainNote: r.mainNote || null, markKind: r.markKind,
             marks: r.marks.map(m => (r.markKind === 'numbers' ? { bar: m.bar } : { bar: m.bar, label: m.label })),
-            speeds: r.speeds.map(s => ({ ...s })),
+            speeds: r.speeds.map(s => ({ ...s })), movements: (r.movements || []).map(m => ({ ...m })),
             extras: r.extras.filter(x => x.type === 'ramp' || x.type === 'sign').map(x => (x.type === 'ramp' ? { startBeat: 1, ...x } : { ...x }))
         });
         outline.marksText = r.markKind === 'numbers' ? r.marks.map(m => m.bar).join(', ') : '';
         outline.markRows = [...(r.markKind === 'text' ? r.marks.map(m => ({ bar: String(m.bar), label: m.label })) : []), { bar: '', label: '' }];
         outline.speedRows = [...r.speeds.map(s => ({ bar: String(s.bar), bpm: String(s.bpm), noteValue: s.noteValue })), { bar: '', bpm: '', noteValue: undefined }];
+        outline.moves = (r.movements || []).length ? { on: true, rows: [...r.movements.map(m => ({ bar: String(m.bar), title: m.title || '' })), { bar: '', title: '' }] } : null;
         const runs = [];
         Object.keys(r.time).map(Number).sort((a, b) => a - b).forEach(bar => {
             const key = r.time[bar], last = runs[runs.length - 1];
@@ -21828,6 +21950,11 @@
         if (cur.table && !outlineRowsRefresh(cur.table)) { outlineRowsToast('outlineRowsCheck'); return false; }
         if (cur.kinds && !cur.table && outlineStepExtras(cur).some(({ i }) => outlineBuild().clashes.find(c => c.extra === i))) { showWarningToast('Fix what is marked before going on.'); return false; }
         if (cur.key === 'howLong' && !outlineHowLongRead()) return false;
+        if (cur.key === 'howLong') {
+            const bad = outlineMovesApply();
+            if (bad.length) { showWarningToast(`A movement starts at a bar of the piece - ${bad.slice(0, 3).join(', ')} isn't one.`); return false; }
+            if (outlineMoves().on && PieceOutline.movementsOf(outline.o).length < 2) { showWarningToast('Say where the second movement starts, or switch movements off.'); return false; }
+        }
         if (cur.key === 'xIntro') { const problem = outlineIntroApply(); if (problem) { const check = document.getElementById('outlineIntroCheck'); if (check) check.textContent = problem; showWarningToast(problem); return false; } }
         if (cur.key === 'marks') outlineMarksRefresh();
         if (cur.key === 'time' && !outline.o.mainSig) { showWarningToast('Pick the time signature most of it is in.'); return false; }
@@ -21846,6 +21973,11 @@
         if (!outline) return;
         if (e.target.id === 'outlineReadKeep' && outline.read) outline.read.keep = e.target.checked; // ML-246
         if (e.target.id === 'outlineLeadIn') outline.o.leadIn = e.target.checked;
+        if (e.target.id === 'outlineMovesOn') {
+            outlineHowLongKeep();
+            outlineMoves().on = e.target.checked;
+            outlineRerenderKeeping(e.target.checked ? '[data-move-row="1"][data-move-col="bar"]' : '#outlineMovesOn');
+        }
         if (e.target.id === 'outlineIntroOn') {
             outlineIntro().on = e.target.checked;
             outlineRerenderKeeping(e.target.checked ? '#outlineIntroFrom' : '#outlineIntroOn');
@@ -21865,6 +21997,14 @@
         if (t.id === 'outlineBars') { outlineHowLongKeep(); return; } // kept as typed, so leaving and coming back doesn't lose it
         if (t.id === 'outlineMarksText') { outline.marksText = t.value; outlineMarksRefresh(); return; }
         if (t.id === 'outlineIntroFrom' || t.id === 'outlineIntroTo') { outlineIntro()[t.id === 'outlineIntroFrom' ? 'from' : 'to'] = t.value; outlineIntroRefresh(); return; }
+        if (t.dataset.moveRow !== undefined) {
+            outlineMoves().rows[Number(t.dataset.moveRow)][t.dataset.moveCol] = t.value;
+            outlineGrowTable(outlineMoves().rows, () => ({ bar: '', title: '' }), outlineMoveRowHtml, 'outlineMoveRows');
+            const bad = outlineMovesApply();
+            const check = document.getElementById('outlineMovesCheck');
+            if (check) check.innerHTML = bad.length ? `<span class="text-danger">Not a bar of this piece: ${escapeHtml(bad.slice(0, 6).join(', '))}</span>` : '';
+            return;
+        }
         if (t.dataset.markRow !== undefined) {
             outline.markRows[Number(t.dataset.markRow)][t.dataset.markCol] = t.value;
             outlineGrowTable(outline.markRows, () => ({ bar: '', label: '' }), outlineMarkRowHtml, 'outlineMarkRows');

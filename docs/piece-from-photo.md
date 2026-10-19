@@ -243,6 +243,38 @@ Each file's pieces are printed with their rating and checks, the seconds and tok
 time signature, rehearsal marks, repeats, where the speed changes. `--json <folder>` keeps each answer; keep
 that folder out of the repo.
 
+## A piece in movements (ML-529)
+
+The reader gives each movement of a work as a piece of its own (the prompt has said so since the start). Two things
+follow from that, both in `pieceRead.js`:
+
+- **A movement whose bar numbers carry on starts at bar 1** (`fromBarOne`, run by `normalise`). Its first line's
+  first bar (the count line by line) says where it starts; every bar number is moved down, and a time signature given
+  for a bar before that is the one in force at its first bar. Before this, movement 2 of a suite numbered from 87 came
+  out as 150 bars, 86 of them empty 4/4. It is listed ("the bar numbers on the page start at 87...") and kept as
+  `printedFrom`.
+- **The movements of one work can be one piece** (`looksLikeOneWork`, `join`): two or more pieces with the same title
+  (any case), named as movements (the first may have no name). `join` puts them end to end - the bar numbers carry on
+  whatever the page did - with `movements: [{ bar, title }]`, and `fit` passes those to the outline. Where a
+  movement's printed numbers carry on but don't meet the count of the movements before it, the count is kept and the
+  spot is **Low** (rule 3 above). A movement with no speed printed at its start carries on at the speed before, and
+  that is listed.
+
+With the `piece_movements` feature, `readPieceFromFiles` also returns `whole` and `readForAccount` logs it as one more
+piece found (the next `piece_index`), marked `whole: true`. Add a piece offers it **first** in the pop-up ("Iceni
+Autumn, as one piece - with its 4 movements"), each movement on its own below it (owner, 19 Oct 2026). Choosing the
+whole piece opens Quick entry with "It's in movements" on and the table filled in; choosing a movement offers the
+other movements again after it is saved, as before. Reading again (Admin → Photo reads) reads a saved whole piece as
+a whole piece. The letters stay as printed. A movement's own number printed with its name ("1) S.P.Q.R", "II.
+Andante") is taken off it - the app numbers the movements itself. Tests: "a piece in movements (ML-529)" in
+`server/test/pieceRead.test.js`.
+
+**The first real one (19 Oct 2026): Iceni Autumn**, a 4-movement suite, one PDF. Opus 5.5, 58 seconds, 12,822 tokens
+in and 7,027 out (about 19 cents). The four movements came back with their names; the printed numbers carry on (38,
+145, 382) and met the count of the movements before them every time, so the whole piece - 442 bars, 1-37, 38-144,
+145-381, 382-442 - was rated **High**, with the letters starting again at A in each movement, as printed. Movement 3
+alone was Medium (its final barline was not seen).
+
 ## On the screen
 
 **Add a piece → From a photo or PDF** (the third tile; it needs `piece_from_photo` and `piece_quick_entry`,

@@ -83,6 +83,40 @@
     const hasIntroStart = (b) => b && b.introStartBarOffset !== null && b.introStartBarOffset !== undefined;
     const hasIntroEnd = (b) => b && b.introEndBarOffset !== null && b.introEndBarOffset !== undefined;
 
+    // --- ML-529: movements. A movement starts at a block with movementStart (block 0 always starts the
+    // first). Each movement is a piece of its own for repeats, endings and jumps - D.C. goes to its first
+    // bar, D.S. to its own segno, To Coda to its own coda, Fine and a final barline end it - and the next
+    // movement follows straight on. A piece with no movement starts is one movement: nothing changes. ---
+    const startsMovement = (blocks, k) => k === 0 || !!(blocks[k] && blocks[k].movementStart);
+    // For each block, the index of the first block of its movement.
+    function movementStarts(blocks) {
+        let s = 0;
+        return blocks.map((b, k) => { if (startsMovement(blocks, k)) s = k; return s; });
+    }
+    // The movements, in order: [{ number, title, startBlock, endBlock, startBar, endBar }]. Bars are the
+    // piece's own numbers (they carry on through the movements).
+    function movements(blocks) {
+        const out = [];
+        let bar = 1;
+        (blocks || []).forEach((b, k) => {
+            if (startsMovement(blocks, k)) out.push({ number: out.length + 1, title: (b.movementTitle && String(b.movementTitle).trim()) || null, startBlock: k, endBlock: k, startBar: bar, endBar: bar });
+            const m = out[out.length - 1];
+            m.endBlock = k;
+            bar += barCountOf(b);
+            m.endBar = bar - 1;
+        });
+        return out;
+    }
+    // The movement a bar of the piece is in (1-based bar number), or null.
+    function movementOfBar(blocks, barNumber) {
+        return movements(blocks).find(m => barNumber >= m.startBar && barNumber <= m.endBar) || null;
+    }
+    // "Mvt 2", or "Mvt 2: Harvest" with its name - for when the piece has more than one movement.
+    function movementLabel(m, withTitle) {
+        if (!m) return '';
+        return withTitle && m.title ? `Mvt ${m.number}: ${m.title}` : `Mvt ${m.number}`;
+    }
+
     // Does a new set of alternate endings start at block k (which has endings)? ML-311: two sets can
     // sit back to back - "1. 2." then the next section's own "1. 2." - so a run of ending blocks isn't
     // always one set. A new set starts at a repeat start, or at an ending for time 1 straight after a
@@ -92,7 +126,7 @@
         const b = blocks[k];
         const prev = blocks[k - 1];
         if (!hasVoltas(b) || !hasVoltas(prev)) return false;
-        if (b.isRepeatStart) return true;
+        if (b.isRepeatStart || b.movementStart) return true;
         return b.repeatEndingNumbers.includes(1) && !prev.repeatEndingNumbers.includes(1) && !prev.isRepeatEnd;
     }
     // The set of alternate endings that block i belongs to ([start, end] indices).
@@ -120,8 +154,11 @@
     // endings (a "1." and "2." that both repeat belong to one region). None found: the region's start.
     function repeatStartFor(blocks, e) {
         const [gs] = hasVoltas(blocks[e]) ? voltaGroup(blocks, e) : [e];
-        let low = 0;
-        for (let k = gs - 1; k >= 0; k--) {
+        // ML-529: never back past the start of this movement.
+        let ms = e;
+        while (ms > 0 && !startsMovement(blocks, ms)) ms--;
+        let low = ms;
+        for (let k = gs - 1; k >= ms; k--) {
             // An earlier repeat's end - or, if it's inside a set of endings, the end of that whole set
             // (its last ending may have no repeat end of its own).
             if (blocks[k].isRepeatEnd) { low = (hasVoltas(blocks[k]) ? voltaGroup(blocks, k)[1] : k) + 1; break; }
@@ -178,7 +215,7 @@
                 if (hasVoltas(b) && !b.repeatEndingNumbers.includes(finalPassOfGroup(blocks, k))) to = Math.min(to, preEndingBars(b) - 1);
                 for (let bar = from; bar <= to; bar++) push({ kind: 'intro', blockIndex: k, blockId: b.id, bar, pass: 1, via: null });
                 hadIntro = true;
-                if (k === ei || b.isFinalBarline) break;
+                if (k === ei || b.isFinalBarline || startsMovement(blocks, k + 1)) break;
             }
         }
 
@@ -190,6 +227,10 @@
         let alCoda = false;      // ...and it was an "al Coda" one: To Coda is now live
         const jumpsTaken = new Set();
         let end = 'end';
+        // ML-529: each block's movement, as [first block, last block].
+        const mStart = movementStarts(blocks);
+        const mEnd = blocks.map((b, k) => { let e = k; while (e + 1 < n && !startsMovement(blocks, e + 1)) e++; return e; });
+        const inMovement = (pred, from, to) => { for (let k = from; k <= to; k++) if (pred(blocks[k])) return k; return -1; };
 
         while (i < n) {
             const b = blocks[i];
@@ -215,12 +256,12 @@
                 continue;
             }
             if (afterJump && alCoda && b.gotoCoda) {
-                let c = firstIndex(blocks, x => x.isCoda, i + 1);
-                if (c === -1) c = firstIndex(blocks, x => x.isCoda);
+                let c = inMovement(x => x.isCoda, i + 1, mEnd[i]);
+                if (c === -1) c = inMovement(x => x.isCoda, mStart[i], mEnd[i]);
                 if (c !== -1 && c !== i) { i = c; pass = 1; via = 'coda'; alCoda = false; continue; }
             }
             if (hasDsDc(b) && !jumpsTaken.has(i)) {
-                const target = isDs(b) ? firstIndex(blocks, x => x.isSegno) : 0;
+                const target = isDs(b) ? inMovement(x => x.isSegno, mStart[i], mEnd[i]) : mStart[i];
                 if (target !== -1) {
                     jumpsTaken.add(i);
                     afterJump = true;
@@ -229,16 +270,25 @@
                     continue;
                 }
             }
-            if (afterJump && b.isFine) { end = 'fine'; break; }
-            if (b.isFinalBarline) { end = 'finalBarline'; break; }
+            // ML-529: Fine and a final barline end this movement; the next one follows straight on.
+            if ((afterJump && b.isFine) || b.isFinalBarline) {
+                if (mEnd[i] + 1 < n) { i = advance(mEnd[i]); continue; }
+                end = b.isFinalBarline && !(afterJump && b.isFine) ? 'finalBarline' : 'fine';
+                break;
+            }
             i = advance(i);
         }
         return { steps, end };
 
         // Moving forward (not jumping): a new repeat region starts over at pass 1 - at a repeat start,
-        // or once a region's endings (or its closing repeat) are behind us.
+        // or once a region's endings (or its closing repeat) are behind us. A new movement starts
+        // everything over: pass 1, and no jump taken yet.
         function advance(from) {
             const next = from + 1;
+            if (next < n && startsMovement(blocks, next)) {
+                pass = 1; afterJump = false; alCoda = false;
+                return next;
+            }
             if (next < n) {
                 const prev = blocks[from];
                 const nb = blocks[next];
@@ -519,11 +569,15 @@
             (b.rehearsalMarks || []).forEach(m => { const n = barNumberOf(blocks, i, m.barOffset || 0); starts.add(n); labels[n] = m.mark; });
             if ((b.isSectionBoundary || b.isFinalBarline) && i < blocks.length - 1) starts.add(first + Math.max(1, barCountOf(b)));
         });
-        let s = [...starts].filter(n => n >= 1 && n <= total).sort((a, z) => a - z);
-        if (s.length < 2) {
-            s = [];
-            for (let a = 1; a <= total; a += LEVELS.SECTION_BARS) s.push(a);
+        // ML-529: a section never crosses into the next movement; with nothing else to go by, every 8 bars
+        // of each movement.
+        const moves = movements(blocks);
+        if ([...starts].filter(n => n >= 1 && n <= total).length < 2) {
+            starts.clear();
+            moves.forEach(m => { for (let a = m.startBar; a <= m.endBar; a += LEVELS.SECTION_BARS) starts.add(a); });
         }
+        moves.forEach(m => starts.add(m.startBar));
+        const s = [...starts].filter(n => n >= 1 && n <= total).sort((a, z) => a - z);
         return s.map((a, k) => ({ startBar: a, endBar: (s[k + 1] || total + 1) - 1, label: labels[a] || null }));
     }
     // Painted bars -> focus bits. levels: each bar's Level (index 0 = bar 1; null = not painted yet);
@@ -623,7 +677,7 @@
             if (!b.isRepeatStart) return;
             let found = false;
             for (let j = k; j < n; j++) {
-                if (j > k && blocks[j].isRepeatStart) break;
+                if (j > k && (blocks[j].isRepeatStart || blocks[j].movementStart)) break;
                 if (blocks[j].isRepeatEnd) { found = true; break; }
             }
             if (!found) add('repeat-start-no-end', 'error', [k], `${label(k)} starts a repeat, but there's no end repeat after it.`);
@@ -632,8 +686,8 @@
             if (!b.isRepeatEnd) return;
             const [gs] = hasVoltas(b) ? voltaGroup(blocks, k) : [k];
             let earlierEnd = -1;
-            for (let j = gs - 1; j >= 0; j--) if (blocks[j].isRepeatEnd) { earlierEnd = j; break; }
-            if (earlierEnd === -1) return; // back to the start of the piece - fine
+            for (let j = gs - 1; j >= 0 && !blocks[j + 1].movementStart; j--) if (blocks[j].isRepeatEnd) { earlierEnd = j; break; }
+            if (earlierEnd === -1) return; // back to the start of the piece (or of its movement) - fine
             let hasStart = false;
             for (let j = k; j > earlierEnd; j--) if (blocks[j].isRepeatStart) { hasStart = true; break; }
             if (!hasStart) add('repeat-end-no-start', 'error', [k], `${label(k)} ends a repeat with no start repeat before it. After an earlier repeat, it's unclear where it goes back to - add a start repeat.`);
@@ -675,37 +729,43 @@
             if (doubled.length) add('ending-pass-twice', 'warning', group, `${group.map(label).join(', ')}: more than one ending is marked for time ${doubled.join(', ')} - they'll all play.`);
         });
 
-        // Signs and jumps.
-        const segnos = idxWhere(b => b.isSegno);
-        const codas = idxWhere(b => b.isCoda);
-        const dsdc = idxWhere(hasDsDc);
-        const toCodas = idxWhere(b => b.gotoCoda);
-        const fines = idxWhere(b => b.isFine);
-        if (segnos.length > 1) add('two-segnos', 'error', segnos, `There's more than one segno (${segnos.map(label).join(', ')}) - a D.S. can only go back to one.`);
-        if (codas.length > 1) add('two-codas', 'error', codas, `There's more than one coda (${codas.map(label).join(', ')}) - To Coda can only go to one.`);
-        if (dsdc.length > 1) add('two-jumps', 'error', dsdc, `There's more than one D.S./D.C. (${dsdc.map(label).join(', ')}) - a piece only takes one.`);
-        dsdc.forEach(k => {
-            const b = blocks[k];
-            if (isDs(b) && !segnos.length) add('ds-no-segno', 'error', [k], `${label(k)} says D.S. (back to the sign), but there's no segno sign anywhere.`);
-            else if (isDs(b) && segnos[0] > k) add('segno-after-ds', 'warning', [k, segnos[0]], `${label(k)}'s D.S. jumps forward: the segno is at ${label(segnos[0])}, after it.`);
-            const target = isDs(b) ? (segnos[0] ?? -1) : 0;
-            if (isAlCoda(b)) {
-                if (!toCodas.length) add('al-coda-no-to-coda', 'error', [k], `${label(k)} says al Coda, but no bar says To Coda.`);
-                if (!codas.length) add('al-coda-no-coda', 'error', [k], `${label(k)} says al Coda, but there's no coda sign to go to.`);
-                else if (codas[0] <= k) add('coda-before-jump', 'warning', [codas[0]], `The coda (${label(codas[0])}) comes before the ${isDs(b) ? 'D.S.' : 'D.C.'} at ${label(k)} - it's normally after it.`);
-                toCodas.forEach(t => {
-                    if (target !== -1 && (t < target || t > k)) add('to-coda-unreachable', 'warning', [t], `${label(t)}'s To Coda is never reached after the jump (it's outside ${label(target)} to ${label(k)}).`);
-                });
-            } else if (fines.length) {
-                fines.forEach(f => {
-                    if (target !== -1 && (f < target || f > k)) add('fine-unreachable', 'warning', [f], `${label(f)}'s Fine is never reached after the ${isDs(b) ? 'D.S.' : 'D.C.'} at ${label(k)}.`);
-                });
-            }
+        // Signs and jumps - each movement on its own (ML-529): a D.S. or To Coda never leaves its movement.
+        const moves = movements(blocks);
+        const inMv = moves.length > 1;
+        moves.forEach(mv => {
+            const of = (pred) => idxWhere(pred).filter(k => k >= mv.startBlock && k <= mv.endBlock);
+            const where = inMv ? ` in movement ${mv.number}` : '';
+            const segnos = of(b => b.isSegno);
+            const codas = of(b => b.isCoda);
+            const dsdc = of(hasDsDc);
+            const toCodas = of(b => b.gotoCoda);
+            const fines = of(b => b.isFine);
+            if (segnos.length > 1) add('two-segnos', 'error', segnos, `There's more than one segno${where} (${segnos.map(label).join(', ')}) - a D.S. can only go back to one.`);
+            if (codas.length > 1) add('two-codas', 'error', codas, `There's more than one coda${where} (${codas.map(label).join(', ')}) - To Coda can only go to one.`);
+            if (dsdc.length > 1) add('two-jumps', 'error', dsdc, `There's more than one D.S./D.C.${where} (${dsdc.map(label).join(', ')}) - ${inMv ? 'a movement' : 'a piece'} only takes one.`);
+            dsdc.forEach(k => {
+                const b = blocks[k];
+                if (isDs(b) && !segnos.length) add('ds-no-segno', 'error', [k], `${label(k)} says D.S. (back to the sign), but there's no segno sign ${inMv ? `in movement ${mv.number}` : 'anywhere'}.`);
+                else if (isDs(b) && segnos[0] > k) add('segno-after-ds', 'warning', [k, segnos[0]], `${label(k)}'s D.S. jumps forward: the segno is at ${label(segnos[0])}, after it.`);
+                const target = isDs(b) ? (segnos[0] ?? -1) : mv.startBlock;
+                if (isAlCoda(b)) {
+                    if (!toCodas.length) add('al-coda-no-to-coda', 'error', [k], `${label(k)} says al Coda, but no bar${where} says To Coda.`);
+                    if (!codas.length) add('al-coda-no-coda', 'error', [k], `${label(k)} says al Coda, but there's no coda sign${where} to go to.`);
+                    else if (codas[0] <= k) add('coda-before-jump', 'warning', [codas[0]], `The coda (${label(codas[0])}) comes before the ${isDs(b) ? 'D.S.' : 'D.C.'} at ${label(k)} - it's normally after it.`);
+                    toCodas.forEach(t => {
+                        if (target !== -1 && (t < target || t > k)) add('to-coda-unreachable', 'warning', [t], `${label(t)}'s To Coda is never reached after the jump (it's outside ${label(target)} to ${label(k)}).`);
+                    });
+                } else if (fines.length) {
+                    fines.forEach(f => {
+                        if (target !== -1 && (f < target || f > k)) add('fine-unreachable', 'warning', [f], `${label(f)}'s Fine is never reached after the ${isDs(b) ? 'D.S.' : 'D.C.'} at ${label(k)}.`);
+                    });
+                }
+            });
+            if (toCodas.length && !codas.length && !dsdc.some(k => isAlCoda(blocks[k]))) add('to-coda-no-coda', 'error', toCodas, `${toCodas.map(label).join(', ')} says To Coda, but there's no coda sign${where} to go to.`);
+            else if (toCodas.length && !dsdc.some(k => isAlCoda(blocks[k]))) add('to-coda-unused', 'warning', toCodas, `${toCodas.map(label).join(', ')} says To Coda, but there's no D.S./D.C. al Coda${where}, so it's ignored.`);
+            if (fines.length && !dsdc.some(k => !isAlCoda(blocks[k]))) add('fine-unused', 'warning', fines, `${fines.map(label).join(', ')} is marked Fine, but Fine only ends ${inMv ? 'a movement' : 'the piece'} after a D.S. or D.C. - there isn't one${where}, so it's ignored.`);
+            if (fines.length > 1) add('two-fines', 'warning', fines, `There's more than one Fine${where} (${fines.map(label).join(', ')}) - ${inMv ? 'the movement' : 'the piece'} ends at the first one reached after the jump.`);
         });
-        if (toCodas.length && !codas.length && !dsdc.some(k => isAlCoda(blocks[k]))) add('to-coda-no-coda', 'error', toCodas, `${toCodas.map(label).join(', ')} says To Coda, but there's no coda sign to go to.`);
-        else if (toCodas.length && !dsdc.some(k => isAlCoda(blocks[k]))) add('to-coda-unused', 'warning', toCodas, `${toCodas.map(label).join(', ')} says To Coda, but there's no D.S./D.C. al Coda, so it's ignored.`);
-        if (fines.length && !dsdc.some(k => !isAlCoda(blocks[k]))) add('fine-unused', 'warning', fines, `${fines.map(label).join(', ')} is marked Fine, but Fine only ends the piece after a D.S. or D.C. - there isn't one, so it's ignored.`);
-        if (fines.length > 1) add('two-fines', 'warning', fines, `There's more than one Fine (${fines.map(label).join(', ')}) - the piece ends at the first one reached after the jump.`);
 
         // Intro.
         const introStarts = idxWhere(hasIntroStart);
@@ -960,6 +1020,7 @@
         repeatBarInvalid, introInvalid, pauseInvalid, rampInvalid,
         barRangeLabel, checkFlow,
         LEVELS, levelPercents, levelPercent, sessionSubBeats, slowestTempo, barSeconds, chunkFit, suggestSplit, barLevels,
-        pieceRunSeconds, pieceSections, bitsFromBars, playthroughParts, partBlockMinutes
+        pieceRunSeconds, pieceSections, bitsFromBars, playthroughParts, partBlockMinutes,
+        movements, movementOfBar, movementLabel
     };
 }));
