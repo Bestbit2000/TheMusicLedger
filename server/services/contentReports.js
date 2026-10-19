@@ -28,7 +28,7 @@ async function reportTarget(accountId, kind, id) {
         WHERE g.id = $1 AND bm.account_id = $2`, [id, accountId]);
     if (!rows.length) throw withStatus(404, 'Band not found');
     if (Number(rows[0].members) === 1) throw withStatus(400, 'You are the only one in this band - nobody else can see its name.');
-    return { title: rows[0].name, bandName: rows[0].name, what: `the band name "${rows[0].name}"` };
+    return { title: rows[0].name, bandName: rows[0].name, what: `the band "${rows[0].name}" - its name or its logo` }; // ML-534: the logo too
   }
   if (kind === 'list') {
     const { rows } = await pool.query(

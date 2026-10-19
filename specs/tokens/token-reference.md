@@ -249,6 +249,8 @@ edge, icon/text and fill
 
 | Token | Value | Use for |
 |---|---|---|
+| `--band-logo-sm` | `32px` | ML-534 a band's logo on its My bands row |
+| `--band-logo-lg` | `96px` | ML-534 a band's logo on the welcome and its Members page |
 | `--level-cell-size` | `24px` | one bar's square in a piece's Level map (display only, not a tap target) |
 | `--level-strip-height` | `12px` | the thin one-row strip (Range's notes past your range) |
 | `--level-bar-height` | `20px` | ML-390 a piece's Levels bar chart on a list row - holds the Level number |
@@ -506,6 +508,7 @@ one ladder, low to high. Never invent a number in a component.
 | `--ds-size-40` | `40px` |
 | `--ds-size-48` | `48px` |
 | `--ds-size-64` | `64px` |
+| `--ds-size-96` | `96px` |
 | `--ds-font-inter` | `'Inter', 'Segoe UI', Tahoma, sans-serif` |
 | `--ds-font-mono` | `ui-monospace, 'SFMono-Regular', Consolas, monospace` |
 | `--ds-font-music` | `'Noto Music', serif` |

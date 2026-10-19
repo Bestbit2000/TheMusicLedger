@@ -32,7 +32,7 @@ export const CSP = {
   'script-src': ["'self'", 'https://cdn.jsdelivr.net', 'https://eu-assets.i.posthog.com', 'https://www.youtube.com'], // youtube.com: the player's own script (iframe_api), loaded only when a piece with a video is played
   'style-src': ["'self'", "'unsafe-inline'"],
   'font-src': ["'self'"],
-  'img-src': ["'self'", 'data:', 'blob:', 'https://img.youtube.com'],
+  'img-src': ["'self'", 'data:', 'blob:', 'https://img.youtube.com', 'https://*.public.blob.vercel-storage.com'], // the file store: a band's logo (ML-534)
   'media-src': ["'self'", 'blob:', 'https://*.public.blob.vercel-storage.com'],
   'connect-src': ["'self'", 'https://eu.i.posthog.com', 'https://eu-assets.i.posthog.com', 'https://*.public.blob.vercel-storage.com', 'https://blob.vercel-storage.com', 'https://vercel.com', 'https://cdn.jsdelivr.net'], // jsdelivr: only the browser's developer tools ask for it (the source maps of the upload script it serves) - allowed so a console check isn't full of blocked lines that hide a real one
   'frame-src': ['https://www.youtube-nocookie.com'],

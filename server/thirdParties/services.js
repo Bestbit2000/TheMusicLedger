@@ -119,7 +119,7 @@ export default [
     personalData: true, // ML-469: a data processing agreement and a transfer safeguard are recorded for it
     status: 'in_use',
     who: 'Vercel Inc. (USA)',
-    provides: 'File storage: members\' mp3 and mp4 recordings, and PDF, MusicXML, Sibelius and MuseScore documents attached to a piece.',
+    provides: 'File storage: members\' mp3 and mp4 recordings, PDF, MusicXML, Sibelius and MuseScore documents attached to a piece, and a band\'s logo (ML-534).',
     usedIn: 'server/routes/api.js, server/services/flows.js (BLOB_READ_WRITE_TOKEN); the browser uploads straight to it',
     plan: 'Pro plan (the same account as Vercel)',
     cost: 'Comes out of Vercel\'s $20 a month of included usage',

@@ -676,6 +676,9 @@
             setBandMemberLevel: (id, memberId, level) => apiCall(`/api/account/bands/${id}/members/${memberId}`, 'PUT', { level }),
             removeBandMember: (id, memberId) => apiCall(`/api/account/bands/${id}/members/${memberId}`, 'DELETE'),
             acceptBandInvite: (inviteId, labelId) => apiCall(`/api/account/band-invites/${inviteId}/accept`, 'POST', { labelId: labelId ?? null }),
+            bandInviteWelcome: (inviteId) => apiCall(`/api/account/band-invites/${inviteId}/welcome`), // ML-534
+            setBandLogo: (bandId, data) => apiCall(`/api/account/bands/${bandId}/logo`, 'PUT', data),
+            removeBandLogo: (bandId) => apiCall(`/api/account/bands/${bandId}/logo`, 'DELETE'),
             // ML-478: a band on your own list (labelId)
             shareBand: (labelId) => apiCall(`/api/account/my-bands/${labelId}/share`, 'POST'),
             hideBand: (labelId) => apiCall(`/api/account/my-bands/${labelId}/hide`, 'POST'),
@@ -1429,11 +1432,80 @@
         // (and clears the address bar itself)
         if (!params.has('invite')) window.history.replaceState({}, document.title, window.location.pathname);
     }
-    function openBandInviteAfterLogin() {
+    async function openBandInviteAfterLogin() {
         if (!bandInviteWaiting()) return;
         try { sessionStorage.removeItem(BAND_INVITE_KEY); } catch (e) { /* asked once more next time */ }
+        // ML-534: welcomed by the band - its logo, who invited them, what it shares - when there is an invitation
+        if (isFeatureEnabled('band_welcome') && await openBandWelcome()) return;
         switchView('accountBandsView');
     }
+
+    // ===== ML-534: "Welcome to the band" =====
+    // For someone who arrives from a band's invitation. Everything on it comes from the band's own data (what it
+    // shares here) - never anything about a member's practice - and nothing an organiser writes. Joining is one tap,
+    // still their own yes; then set-up straight away, with the band already on their list.
+    let bandWelcome = null; // { invite, data }
+    async function openBandWelcome(inviteId) {
+        try {
+            await loadAccountBands();
+            const invites = accountBandsData.invites || [];
+            const invite = inviteId ? invites.find(i => String(i.id) === String(inviteId)) : invites[0];
+            if (!invite) return false;
+            bandWelcome = { invite, data: await API.account.bandInviteWelcome(invite.id) };
+            switchView('bandWelcomeView');
+            return true;
+        } catch (e) { return false; }
+    }
+    function renderBandWelcome() {
+        if (!bandWelcome) { switchView('accountBandsView'); return; }
+        const { invite, data } = bandWelcome;
+        const logo = document.getElementById('bandWelcomeLogo');
+        setShown(logo, !!data.logoUrl);
+        if (data.logoUrl) { logo.src = data.logoUrl; logo.alt = `The logo of ${data.bandName}`; }
+        document.getElementById('bandWelcomeTitle').textContent = `Welcome to ${data.bandName}`;
+        document.getElementById('bandWelcomeWho').textContent = `${data.invitedBy} invited you to join the band here, so you can practise its music.`;
+        const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+        const row = (icon, title, sub) => `<div class="history-item"><span class="band-row-main"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">${icon}</span><span class="band-row-text"><span>${escapeHtml(title)}</span>${sub ? `<span class="text-sm text-muted">${escapeHtml(sub)}</span>` : ''}</span></span></div>`;
+        const rows = [];
+        if (data.pieces) rows.push(row('library_music', plural(data.pieces, 'piece'), 'To play and practise, at your own speed'));
+        data.lists.forEach(l => rows.push(row('event', l.name, [l.eventDate ? plDateText(l.eventDate) : '', plural(l.pieces, 'piece')].filter(Boolean).join(' · '))));
+        if (data.recordings) rows.push(row('graphic_eq', plural(data.recordings, 'recording'), 'Of the band, to practise along with'));
+        document.getElementById('bandWelcomeShares').innerHTML = rows.length ? rows.join('') : '<p class="metro-help-text">Nothing yet - the band\'s organisers put its music here.</p>';
+        document.getElementById('bandWelcomeNote').textContent = `You will be able to ${bandLevel(invite.level).youCan}. Everyone in the band will see your name, and you will see theirs - never anyone's practice.`;
+        document.getElementById('bandWelcomeJoinBtn').textContent = `Join ${data.bandName}`;
+    }
+    async function joinFromWelcome(labelId) {
+        const btn = document.getElementById('bandWelcomeJoinBtn');
+        btn.disabled = true;
+        try {
+            await API.account.acceptBandInvite(bandWelcome.invite.id, labelId);
+            await loadAccountBands();
+            renderAccountSummaries();
+            showSuccessToast(`You have joined ${bandWelcome.data.bandName}`);
+            bandWelcome = null;
+            // then set-up straight away (owner, 19 Oct 2026); if it is done already, their bands
+            switchView('accountBandsView');
+            await maybeStartSetup();
+        } catch (error) {
+            if (!bandNameNeeded(error)) showWarningToast(error.message);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+    document.getElementById('bandWelcomeJoinBtn')?.addEventListener('click', () => {
+        if (!bandWelcome) return;
+        const invite = bandWelcome.invite;
+        // ML-478: the same question as on My bands when it might be one of theirs already
+        if (!invite.sameAs && invite.choices && invite.choices.length) {
+            openFlowChoiceModal('Is this the same band as one of yours?', [
+                ...invite.choices.map(c => ({ key: c.id, html: addPieceRow(c.name, `Yes - it becomes ${invite.bandName}, and keeps its sessions`) })),
+                { key: 'new', html: addPieceRow('No, it is a new band', `${invite.bandName} is added to my bands`) }
+            ], (opt) => joinFromWelcome(opt.key === 'new' ? null : opt.key));
+            return;
+        }
+        joinFromWelcome(null);
+    });
+    document.getElementById('bandWelcomeLaterBtn')?.addEventListener('click', () => { bandWelcome = null; switchView('accountBandsView'); });
 
     // ===== ML-465: "confirm my new email address" - the screen its emailed link opens =====
     // Signed in or not (the old address may be lost). It says what will change and waits for a tap - an
@@ -1881,7 +1953,7 @@
     const NAV_PARENT_VIEW = { statsView: 'statsHomeView', streakStatsView: 'statsHomeView', historyView: 'statsHomeView', toolResultsView: 'statsHomeView', flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView', piecePathView: 'rehearseView', prepareRunView: 'rehearseView', levelsPaintView: 'rehearseView', levelsCutView: 'rehearseView', practiceListView: 'rehearseView',
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
         aboutReleasesView: 'aboutView', aboutGradesView: 'aboutView',
-        accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountBandsView: 'accountView', bandMembersView: 'accountView', tidyBandsView: 'accountView', accountTeachersView: 'accountView',
+        accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountBandsView: 'accountView', bandMembersView: 'accountView', bandWelcomeView: 'accountView', tidyBandsView: 'accountView', accountTeachersView: 'accountView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
         // ML-406: Pitch, Tempo, Pulse and Rhythm live under Skills
         tapTempoView: 'skillsHubView', gapTrainerView: 'skillsHubView', earView: 'skillsHubView', rhythmView: 'skillsHubView', drillResultsView: 'skillsHubView',
@@ -2245,7 +2317,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     // ML-107 (owner's list, 12 Oct 2026): anywhere you have your instrument up while looking at the screen - the
@@ -2391,6 +2463,7 @@
         if (viewName === 'accountSecurityView') { document.getElementById('topTitle').innerText = 'Sign-in and security'; loadAccountSecurity(); }
         if (viewName === 'accountBandsView') { document.getElementById('topTitle').innerText = 'My bands'; loadAccountBands(); }
         if (viewName === 'bandMembersView') { document.getElementById('topTitle').innerText = bandMembers.bandName || 'Members'; loadBandMembers(); } // ML-473
+        if (viewName === 'bandWelcomeView') { document.getElementById('topTitle').innerText = 'Welcome'; renderBandWelcome(); } // ML-534
         if (viewName === 'tidyBandsView') { document.getElementById('topTitle').innerText = 'Tidy my bands'; loadAccountBands(); } // ML-478
         if (viewName === 'entryForm') renderSessionInstrumentPicker('instrumentGroup', 'sessionInstrument', null);
         if (viewName === 'accountTeachersView') { document.getElementById('topTitle').innerText = 'My teachers'; loadTeacherList(); }
@@ -4068,7 +4141,7 @@
         } else {
             container.innerHTML = shown.map(b => `
                 <div class="history-item">
-                    <span class="band-row-text"><span>${escapeHtml(b.displayName)}</span><span class="text-sm text-muted">${escapeHtml(b.shared ? `Shared - ${bandLevel(b.shared.level).label}` : 'Not shared')}</span>${bandWebsiteLinkHtml(b.website)}</span>
+                    <span class="band-row-main">${b.shared && b.shared.logoUrl ? `<img class="band-logo band-logo-sm" src="${escapeHtml(b.shared.logoUrl)}" alt="">` : ''}<span class="band-row-text"><span>${escapeHtml(b.displayName)}</span><span class="text-sm text-muted">${escapeHtml(b.shared ? `Shared - ${bandLevel(b.shared.level).label}` : 'Not shared')}</span>${bandWebsiteLinkHtml(b.website)}</span></span>
                     <button type="button" class="list-item-menu-btn" data-band-menu-id="${b.id}" aria-label="Options for ${escapeHtml(b.displayName)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 </div>
             `).join('');
@@ -4287,9 +4360,54 @@
         }
         renderBandMembers();
     }
+    // ML-534: the band's logo on its Members page - an organiser adds, changes or takes it off
+    function renderBandLogo() {
+        const d = bandMembers.data;
+        const on = !!(d && d.isOrganiser && isFeatureEnabled('band_welcome'));
+        setShown('bandLogoSection', on);
+        if (!on) return;
+        const img = document.getElementById('bandLogoPreview');
+        setShown(img, !!d.logoUrl);
+        if (d.logoUrl) img.src = d.logoUrl;
+        document.getElementById('bandLogoBtn').textContent = d.logoUrl ? 'Change the logo' : 'Add a logo';
+        setShown('bandLogoRemoveBtn', !!d.logoUrl);
+    }
+    document.getElementById('bandLogoBtn')?.addEventListener('click', () => document.getElementById('bandLogoInput')?.click());
+    document.getElementById('bandLogoInput')?.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!file || !bandMembers.bandId) return;
+        if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) { showWarningToast('A logo has to be a picture: PNG, JPEG or WebP.'); return; }
+        if (file.size > 1024 * 1024) { showWarningToast('A logo can be up to 1 MB.'); return; }
+        const btn = document.getElementById('bandLogoBtn');
+        btn.disabled = true;
+        try {
+            const bandId = bandMembers.bandId;
+            const ext = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[file.type];
+            const blob = await window.vercelBlobUpload(`band-logos/${bandId}/logo.${ext}`, file, {
+                access: 'public', contentType: file.type,
+                handleUploadUrl: `${API_BASE_URL}/api/account/bands/${bandId}/logo/upload-token?token=${encodeURIComponent(auth.token)}`
+            });
+            bandMembers.data = await API.account.setBandLogo(bandId, { blobUrl: blob.url, blobPathname: blob.pathname, fileSizeBytes: file.size, mimeType: file.type });
+            renderBandMembers();
+            showSuccessToast('The logo is on the band now');
+        } catch (error) {
+            showWarningToast('The logo could not be added: ' + error.message);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+    document.getElementById('bandLogoRemoveBtn')?.addEventListener('click', () => {
+        if (!bandMembers.bandId) return;
+        showConfirmModal('Take the logo off?', 'The band goes back to having no logo. You can add one again at any time.', async () => {
+            try { bandMembers.data = await API.account.removeBandLogo(bandMembers.bandId); renderBandMembers(); }
+            catch (error) { showWarningToast(error.message); }
+        }, true, 'Take it off');
+    });
     function renderBandMembers() {
         const d = bandMembers.data;
         if (!d) return;
+        renderBandLogo();
         const n = d.members.length;
         document.getElementById('bandMembersIntro').textContent = d.isOrganiser
             ? `${n} ${n === 1 ? 'person' : 'people'} in this band. Tap someone to change what they can do.`
@@ -12435,7 +12553,8 @@
         }
     }
     // After signing in: a new member who hasn't seen set-up goes to it. Needs a connection (every choice is
-    // saved on the account), and never gets in the way of a band's invitation, which opens My bands instead.
+    // saved on the account), and never gets in the way of a band's invitation, which opens My bands instead -
+    // or, with band_welcome on, the band's welcome, which starts set-up as soon as they join (ML-534).
     async function maybeStartSetup() {
         if (!setupOn() || !navigator.onLine) return;
         try {

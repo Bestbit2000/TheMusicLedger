@@ -30,6 +30,18 @@ export function isPieceFileUrl(blobUrl, scoreId) {
   return path.startsWith(`flows/${id}/`) || path.startsWith('flows/from-file/');
 }
 
+// ML-534: a band's logo - in that band's own folder (band-logos/<band id>/...), so one band's organiser can never
+// keep, or later delete, another band's file. An image only: png, jpeg or webp (never svg, which can carry script).
+export function isBandLogoFileUrl(blobUrl, bandId) {
+  const path = storedPath(blobUrl);
+  if (path === null) return false;
+  const id = Number(bandId);
+  if (!Number.isInteger(id) || id <= 0) return false;
+  return path.startsWith(`band-logos/${id}/`);
+}
+export const MAX_BAND_LOGO_BYTES = 1024 * 1024; // 1 MB - plenty for a logo shown small
+export const BAND_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
 // ML-489: a whole rehearsal recording, uploaded to the Recordings tool before it is on any piece. It
 // goes in the member's own folder (recordings/<account id>/...), so one member can never keep - and
 // then delete - a file another member uploaded.

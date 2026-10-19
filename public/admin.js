@@ -2612,12 +2612,13 @@
     // it. server/services/recordingRemovals.js; docs/rehearsal-score.md.
     let adminRecordingsData = null;
     let removingRecording = null; // the row the pop-up is about
-    const RECORDING_KIND = { rehearsal: 'Rehearsal recording', piece: 'On a piece', video: 'YouTube link', document: 'Document', score: 'Piece', list: 'Practice list', band: 'Band name' };
-    const REPORT_KIND = { piece: 'Piece', list: 'Practice list', band: 'Band name' };
+    const RECORDING_KIND = { rehearsal: 'Rehearsal recording', piece: 'On a piece', video: 'YouTube link', document: 'Document', score: 'Piece', list: 'Practice list', band: 'Band name', logo: 'Band logo' };
+    const REPORT_KIND = { piece: 'Piece', list: 'Practice list', band: 'Band name or logo' };
     const piecesText = (pieces) => pieces.map(p => `${p.title}${p.band ? ` (${p.band})` : ''}`).join(', ');
     // What the members are told, by reason. Plain words: what happened, why, what to do next.
     function removalMessage(rec, reason) {
         if (rec.kind === 'list') return listRemovalMessage(rec, reason);
+        if (rec.kind === 'logo') return logoRemovalMessage(rec, reason);
         const what = rec.kind === 'video' ? `the video "${rec.title}"` : rec.kind === 'document' ? `the document "${rec.title}"` : rec.kind === 'score' ? `the piece "${rec.title}", with its recordings and documents,` : `the recording "${rec.title}"`;
         const from = rec.kind !== 'score' && rec.pieces.length ? ` It has come off ${rec.pieces.length === 1 ? `the piece ${piecesText(rec.pieces)}` : `these pieces: ${piecesText(rec.pieces)}`}.` : '';
         const why = {
@@ -2646,6 +2647,17 @@
         }[reason];
         const next = reason === 'other' ? 'What to do next: ' : 'What to do next: you are welcome to make the list again with a name that fits the terms of use.';
         return [`We have removed the practice list "${rec.title}"${rec.pieces[0].band ? ` from ${rec.pieces[0].band}` : ''} in Notably Better. The pieces that were on it are still there, and nothing else of the band's has changed.`, why, next, 'If you think this is a mistake, or have a question, email hello@notablybetter.com.'].join('\n\n');
+    }
+    // ML-534: a band's logo. The band stays, with everything it has - only the picture goes.
+    function logoRemovalMessage(rec, reason) {
+        const why = {
+            copyright: 'Why: we were told the picture may be someone else\'s to use, and it can\'t stay in the app while that is in doubt.',
+            reported: 'Why: a member told us about it, and having looked at it we agree it should not be here.',
+            terms: 'Why: it breaks the terms of use, which say what may be shared in the app.',
+            other: 'Why: '
+        }[reason] || 'Why: ';
+        const next = reason === 'other' ? 'What to do next: ' : 'What to do next: you are welcome to add a different logo that fits the terms of use.';
+        return [`We have removed the logo of your band "${rec.pieces[0].band}" in Notably Better. Its members, pieces and practice lists are all as they were.`, why, next, 'If you think this is a mistake, or have a question, email hello@notablybetter.com.'].join('\n\n');
     }
     // ML-511: a band's name. The band stays, with everything it has - only the name changes.
     function renameMessage(band, newName, reason) {
@@ -2699,7 +2711,7 @@
         if (!d || !box) return;
         const q = (document.getElementById('adminRecordingsSearch')?.value || '').trim().toLowerCase();
         renderAdminReports();
-        const bandThings = (r) => r.kind === 'list' || r.kind === 'band';
+        const bandThings = (r) => r.kind === 'list' || r.kind === 'band' || r.kind === 'logo';
         document.getElementById('adminShared').innerHTML = sharedTable(d.shared.filter(r => !bandThings(r)), q, 'Piece or document', 'No band shares a piece yet, and no document has been added.');
         document.getElementById('adminBandThings').innerHTML = sharedTable(d.shared.filter(bandThings), q, 'Band or practice list', 'Nobody has set up sharing for a band yet.');
         const rows = d.recordings.filter(r => !q || [r.title, r.addedBy, piecesText(r.pieces)].join(' ').toLowerCase().includes(q));
@@ -2740,15 +2752,17 @@
         const rec = [...adminRecordingsData.recordings, ...adminRecordingsData.shared].find(r => r.kind === kind && String(r.id) === id);
         if (!rec) return;
         removingRecording = rec;
-        document.getElementById('recordingRemoveTitle').textContent = rec.kind === 'score' ? 'Remove this piece' : rec.kind === 'list' ? 'Remove this practice list' : rec.kind === 'document' ? 'Remove this document' : 'Remove this recording';
+        document.getElementById('recordingRemoveTitle').textContent = rec.kind === 'score' ? 'Remove this piece' : rec.kind === 'list' ? 'Remove this practice list' : rec.kind === 'document' ? 'Remove this document' : rec.kind === 'logo' ? 'Remove this band logo' : 'Remove this recording';
         document.getElementById('recordingRemoveWhat').textContent = rec.kind === 'score'
             ? `"${rec.title}", added by ${rec.addedBy}${rec.pieces[0].band ? ` (${rec.pieces[0].band})` : ''}. The whole piece goes for everyone who can see it: its bars, recordings, documents and links, and it comes off their practice lists.`
             : rec.kind === 'list' ? `"${rec.title}", a practice list of ${rec.addedBy}. Only the list goes, for everyone in the band: the pieces on it stay. The band's organisers are told.`
+            : rec.kind === 'logo' ? `${rec.title}, added by ${rec.addedBy}. Only the picture goes - its file is deleted; the band and everything in it stay. The band's organisers are told.`
             : `"${rec.title}", added by ${rec.addedBy}${rec.pieces.length ? `. On: ${piecesText(rec.pieces)}` : ''}. It will come off every piece and ${rec.kind === 'video' ? 'the link will be deleted' : 'its file will be deleted'}.`;
         const reason = document.getElementById('recordingRemoveReason');
-        // a practice list has nobody "in" it: that reason is for recordings
-        const first = rec.kind === 'list' ? 'reported' : 'person';
-        reason.innerHTML = Object.entries(adminRecordingsData.reasons).filter(([k]) => rec.kind !== 'list' || k !== 'person').map(([k, label]) => `<option value="${escapeHtml(k)}">${escapeHtml(label)}</option>`).join('');
+        // a practice list or a logo has nobody "in" it: that reason is for recordings
+        const noPerson = rec.kind === 'list' || rec.kind === 'logo';
+        const first = noPerson ? 'reported' : 'person';
+        reason.innerHTML = Object.entries(adminRecordingsData.reasons).filter(([k]) => !noPerson || k !== 'person').map(([k, label]) => `<option value="${escapeHtml(k)}">${escapeHtml(label)}</option>`).join('');
         reason.value = first;
         document.getElementById('recordingRemoveMessage').value = removalMessage(rec, first);
         showModal('recordingRemoveModal');

@@ -905,6 +905,22 @@
         <div id="accountBandsHiddenList"></div>
     </div>
 
+    <!-- ML-534: "Welcome to the band" - someone who arrives from a band's invitation (renderBandWelcome). The band's
+         logo, who invited them and what the band shares here, from the band's own data; one button joins (their own
+         yes), then set-up. "Not now" leaves the invitation waiting on My bands. -->
+    <div id="bandWelcomeView" class="hidden-group">
+        <div class="flex-col items-center text-center gap-md mb-4">
+            <img id="bandWelcomeLogo" class="band-logo band-logo-lg hidden-group" alt="">
+            <h2 id="bandWelcomeTitle" class="no-margin"></h2>
+            <p class="metro-help-text no-margin" id="bandWelcomeWho"></p>
+        </div>
+        <div class="section-title">What the band shares here</div>
+        <div id="bandWelcomeShares"></div>
+        <p class="metro-help-text mt-4" id="bandWelcomeNote"></p>
+        <button type="button" class="btn-submit" id="bandWelcomeJoinBtn">Join the band</button>
+        <button type="button" class="btn-cancel btn-nav" id="bandWelcomeLaterBtn">Not now</button>
+    </div>
+
     <!-- ML-478: Tidy my bands - each name logged before My bands was one list, as a value box that
          opens the choice pop-up (a band in the list / the same as another of mine / keep as my own /
          I don't play with them now). One button, one pop-up. renderTidyBands. -->
@@ -922,6 +938,19 @@
         <div id="bandMembersList"></div>
         <p class="metro-help-text hidden-group" id="bandMembersWaiting"></p>
         <div class="hidden-group" id="bandMembersOrganiser">
+            <!-- ML-534: the band's logo - an organiser adds, changes or takes it off (renderBandLogo) -->
+            <div class="hidden-group" id="bandLogoSection">
+                <div class="section-title mt-4">The band's logo</div>
+                <p class="metro-help-text">Everyone in the band sees it, and so does someone you invite, on the welcome. A picture - PNG, JPEG or WebP - up to 1 MB. Only use a logo the band has the right to use.</p>
+                <div class="flex-row items-center gap-md mb-2">
+                    <img id="bandLogoPreview" class="band-logo band-logo-lg hidden-group" alt="The band's logo">
+                    <div class="flex-col gap-sm">
+                        <button type="button" class="btn-nav no-margin" id="bandLogoBtn">Add a logo</button>
+                        <button type="button" class="btn-text btn-text-danger hidden-group" id="bandLogoRemoveBtn">Take the logo off</button>
+                    </div>
+                </div>
+                <input type="file" id="bandLogoInput" accept="image/png,image/jpeg,image/webp" class="hidden-group" aria-label="Choose the band's logo">
+            </div>
             <div class="section-title mt-4">Invite someone</div>
             <p class="metro-help-text" id="bandInviteHelp">Type their email address. They are sent an email, and the invitation waits on their My bands page for 30 days. They sign in with that same address to join.</p>
             <div class="form-group">

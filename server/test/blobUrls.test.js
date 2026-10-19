@@ -64,3 +64,17 @@ test('a rehearsal recording has to be in the member\'s own recordings folder', a
   assert.equal(isRehearsalFileUrl(`${STORE_URL}/recordings/7/x.m4a`, 0), false);
   assert.equal(isRehearsalFileUrl(`${STORE_URL}/recordings/7/x.m4a`, 'abc'), false);
 });
+
+// ML-534: a band's logo is only kept - and only ever deleted - in that band's own folder
+test('a band logo is accepted in its own band\'s folder, and nowhere else', async () => {
+  const { isBandLogoFileUrl } = await import('../services/blobUrls.js');
+  assert.equal(isBandLogoFileUrl(`${STORE}/band-logos/12/logo-AeWFxdsUno951vi759dzm7kn7IEwGg.png`, 12), true);
+  assert.equal(isBandLogoFileUrl(`${STORE}/band-logos/12/logo.webp`, '12'), true);
+  assert.equal(isBandLogoFileUrl(`${STORE}/band-logos/13/logo.png`, 12), false); // another band's
+  assert.equal(isBandLogoFileUrl(`${STORE}/band-logos/120/logo.png`, 12), false); // not a prefix of another id
+  assert.equal(isBandLogoFileUrl(`${STORE}/flows/12/recordings/a.png`, 12), false);
+  assert.equal(isBandLogoFileUrl('https://example.com/band-logos/12/logo.png', 12), false); // not the file store
+  assert.equal(isBandLogoFileUrl('/icons/icon-192.png', 12), false);
+  assert.equal(isBandLogoFileUrl(`${STORE}/band-logos/12/logo.png`, 0), false);
+  assert.equal(isBandLogoFileUrl(null, 12), false);
+});

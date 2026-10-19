@@ -103,6 +103,36 @@ Code: `server/services/bands.js`; tests `server/test/bandGroups.test.js` (dev da
 to a band says everyone in it will see and play it with its recordings and documents, and that it stays
 with the band if you leave; a band's practice list says the same.
 
+## A band's logo and its welcome (ML-534, migration 135)
+
+The owner's decisions (19 Oct 2026). Feature `band_welcome`, Super admin only until switched on.
+
+- **The logo.** An organiser adds, changes or takes off the band's logo on its **Members** page. A PNG, JPEG or
+  WebP up to 1 MB (never SVG, which can carry script). The browser sends it straight to the file store (Vercel
+  Blob) into the band's own folder, `band-logos/<band id>/`; only an organiser of that band gets an upload
+  token, and the address is checked again when it is kept (`isBandLogoFileUrl`, `server/services/blobUrls.js`).
+  Columns `bands.logo_url`, `logo_pathname`, `logo_set_by_account_id`, `logo_set_at`. The old file is deleted
+  when it is changed or taken off, and when the band itself goes (the last member leaves, or Stop sharing) -
+  and only ever a file in that band's folder. It shows small on My bands, for every member, on the welcome, and at the top of the band's invitation
+  email (the HTML part only; the same address for everyone, so nothing says who opened it; an email reader that
+  hides pictures still has the band's name in words).
+- **The logo stays with the band**, like its pieces: deleting the account of the organiser who added it leaves
+  it, and `logo_set_by_account_id` points at the anonymised row.
+- **Taking one down.** A logo can be reported with the band ("its name or its logo"), and Admin → Recordings
+  lists every band's logo as a row of its own ("Band logo"): removing it deletes the file, clears the columns
+  and tells the band's organisers. The band and everything in it stay.
+- **The welcome** - for someone who arrives from a band's invitation email. Once signed in they see
+  "Welcome to <band>": the logo, who invited them, and **what the band shares here**, built only from the band's
+  own data - how many pieces, each practice list with its concert date and how many pieces, how many
+  recordings (`bandInviteWelcome`, `GET /api/account/band-invites/:id/welcome`, for the person invited only).
+  Never a message an organiser writes, and never anyone's practice. Then what they will be able to do and that
+  the band will see their name.
+- **Joining is one tap** - "Join <band>" - but still their own yes: nothing joins them by itself. The same
+  "Is this the same band as one of yours?" question as My bands when it might be. **Not now** leaves the
+  invitation waiting on My bands.
+- **Set-up straight after joining**, for someone who hasn't done it - with the band already on its last step.
+  Someone who has goes to My bands.
+
 ## What a band has
 
 | Column | What | Notes |

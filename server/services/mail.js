@@ -53,10 +53,15 @@ export async function sendMail({ to, subject, text, html }) {
 // The one layout every email from the app uses: a few lines, one button, a small footer (and the same in
 // plain text). Everything is escaped here - pass words, not HTML.
 const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-export function emailBody(lines, buttonText, url, footer) {
+// ML-534: an optional picture at the top (a band's logo on its invitation) - an https address only, the same
+// one for everyone (nothing in it says who opened the email). The plain text has no picture; the words say it all.
+export function emailBody(lines, buttonText, url, footer, { image } = {}) {
   const text = `${lines.join('\n\n')}\n\n${buttonText}: ${url}\n\n${footer}`;
+  const picture = image && /^https:\/\//.test(String(image.src || ''))
+    ? `<p><img src="${esc(image.src)}" alt="${esc(image.alt || '')}" width="96" height="96" style="width:96px;height:96px;object-fit:contain;border:1px solid #ddd;border-radius:6px"></p>\n`
+    : '';
   const html = `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.5;color:#222;max-width:520px">
-${lines.map(l => `<p>${esc(l)}</p>`).join('\n')}
+${picture}${lines.map(l => `<p>${esc(l)}</p>`).join('\n')}
 <p><a href="${esc(url)}" style="display:inline-block;background:#c9a227;color:#111;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:bold">${esc(buttonText)}</a></p>
 <p style="font-size:13px;color:#555">Or copy this link: ${esc(url)}</p>
 <p style="font-size:13px;color:#555">${esc(footer)}</p></div>`;

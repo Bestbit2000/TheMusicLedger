@@ -20,9 +20,12 @@
 
 import { publicSiteAnswers } from '../utils/publicUrl.js';
 import pool from '../config/db.js';
+import { del } from '@vercel/blob';
 import { accountDisplayName } from './accounts.js';
+import { isBandLogoFileUrl, MAX_BAND_LOGO_BYTES, BAND_LOGO_TYPES } from './blobUrls.js';
 import { sendMail, emailBody, emailOutcome } from './mail.js';
 import { passwordLinkForNewcomer } from './passwordAuth.js';
+import { isFeatureEnabled } from './features.js';
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
 
@@ -290,7 +293,7 @@ export async function listMyBands(accountId) {
     `SELECT l.id, l.name, l.active, l.needs_tidy, l.directory_band_id,
             d.website, d.ensemble_type, d.town, d.county, d.rehearsal_postcode, d.section_level, d.parent_band_id, d.notes,
             (SELECT pb.name FROM bands pb WHERE pb.id = d.parent_band_id) AS parent_name,
-            g.id AS group_id, g.name AS group_name, bm.role,
+            g.id AS group_id, g.name AS group_name, g.logo_url AS group_logo_url, bm.role,
             (SELECT COUNT(*) FROM band_members m WHERE m.band_id = g.id) AS group_members,
             (SELECT COUNT(*) FROM sessions s WHERE s.band_id = l.id) AS session_count
        FROM bands l
@@ -309,6 +312,7 @@ export async function listMyBands(accountId) {
     shared: r.group_id ? {
       bandId: Number(r.group_id),
       name: r.group_name, // the name the whole band sees - the member's own entry may be called something else
+      logoUrl: r.group_logo_url || null, // ML-534
       level: levelOf(r.role),
       isOrganiser: ORGANISER_ROLES.includes(r.role),
       members: Number(r.group_members),
@@ -483,7 +487,9 @@ export async function leaveBand(accountId, bandId) {
   );
   if (!Number(rows[0].others)) {
     if (Number(rows[0].things)) throw fail(409, 'You are the only one in this band, and it still has pieces or practice lists. Stop sharing (they go with it), or invite someone else first.');
+    const logo = await bandLogoUrl(bandId);
     await pool.query(`DELETE FROM bands WHERE id = $1 AND kind = 'group'`, [bandId]); // (the entry on My bands stays: shared_band_id is set to null)
+    await deleteLogoFile(logo, bandId); // ML-534: the logo goes with the band
     return;
   }
   await pool.query('DELETE FROM band_members WHERE band_id = $1 AND account_id = $2', [bandId, accountId]);
@@ -507,7 +513,44 @@ export async function deleteBandIfSoleMember(accountId, bandId) {
   await assertMember(pool, accountId, bandId);
   const { rows: memberRows } = await pool.query('SELECT account_id FROM band_members WHERE band_id = $1', [bandId]);
   if (memberRows.length !== 1) throw fail(409, 'This band has other members, so it can only be left, not deleted.');
+  const logo = await bandLogoUrl(bandId);
   await pool.query(`DELETE FROM bands WHERE id = $1 AND kind = 'group'`, [bandId]);
+  await deleteLogoFile(logo, bandId); // ML-534
+}
+
+// ---- ML-534: a band's logo. An organiser uploads it (the browser sends the file straight to the file store, into
+// the band's own folder - the token route checks they are an organiser); the address is checked before it is kept,
+// and the old file is deleted. It belongs to the band: shown to its members and to someone invited to it.
+async function bandLogoUrl(bandId) {
+  const { rows } = await pool.query(`SELECT logo_url FROM bands WHERE id = $1 AND kind = 'group'`, [bandId]);
+  return rows.length ? rows[0].logo_url : null;
+}
+// Only ever a file in the band's own folder of the file store - never any other address
+async function deleteLogoFile(url, bandId) {
+  if (!url || !isBandLogoFileUrl(url, bandId)) return;
+  try { await del([url]); } catch (error) { console.error('Band logo: a stored file could not be removed:', error.message); }
+}
+export async function assertBandOrganiser(accountId, bandId) {
+  await assertOrganiser(pool, accountId, bandId);
+}
+export async function setBandLogo(accountId, bandId, { blobUrl, fileSizeBytes, mimeType, blobPathname } = {}) {
+  await assertOrganiser(pool, accountId, bandId);
+  if (!isBandLogoFileUrl(blobUrl, bandId)) throw fail(400, 'That file is not one this app stored for the band.');
+  if (Number(fileSizeBytes) > MAX_BAND_LOGO_BYTES) throw fail(413, 'A logo can be up to 1 MB.');
+  if (mimeType && !BAND_LOGO_TYPES.includes(String(mimeType))) throw fail(400, 'A logo has to be a picture: PNG, JPEG or WebP.');
+  const old = await bandLogoUrl(bandId);
+  await pool.query(
+    `UPDATE bands SET logo_url = $2, logo_pathname = $3, logo_set_by_account_id = $4, logo_set_at = now() WHERE id = $1 AND kind = 'group'`,
+    [bandId, blobUrl, blobPathname || null, accountId]);
+  if (old && old !== blobUrl) await deleteLogoFile(old, bandId);
+  return listBandMembers(accountId, bandId);
+}
+export async function removeBandLogo(accountId, bandId) {
+  await assertOrganiser(pool, accountId, bandId);
+  const old = await bandLogoUrl(bandId);
+  await pool.query(`UPDATE bands SET logo_url = NULL, logo_pathname = NULL, logo_set_by_account_id = NULL, logo_set_at = NULL WHERE id = $1 AND kind = 'group'`, [bandId]);
+  await deleteLogoFile(old, bandId);
+  return listBandMembers(accountId, bandId);
 }
 
 // ---- Members and invitations (ML-473). An organiser invites, and says what the new member may do.
@@ -561,6 +604,7 @@ export async function listBandMembers(accountId, bandId) {
   return {
     isOrganiser,
     yourLevel: levelOf(role),
+    logoUrl: await bandLogoUrl(bandId), // ML-534
     members: members.map((m) => ({
       accountId: Number(m.id),
       // a name, never the email address (accountDisplayName falls back to it; other members don't get it)
@@ -614,10 +658,13 @@ export async function inviteToBand(accountId, bandId, email, level = 'play', ori
   if (!sending) return { emailed: false };
   try {
     const { rows } = await pool.query(
-      `SELECT g.name AS band_name, a.display_name, a.first_name, a.surname
+      `SELECT g.name AS band_name, g.logo_url, a.display_name, a.first_name, a.surname
          FROM bands g, accounts a WHERE g.id = $1 AND a.id = $2`, [bandId, accountId]);
     const from = nameOf(rows[0]); // never empty: requireName, above
     const band = rows[0].band_name;
+    // ML-534: the band's logo at the top, when it has one (and only ever its own stored file)
+    const logo = rows[0].logo_url && isBandLogoFileUrl(rows[0].logo_url, bandId) && await isFeatureEnabled('band_welcome')
+      ? { image: { src: rows[0].logo_url, alt: `The logo of ${band}` } } : {};
     const home = String(origin).replace(/\/+$/, '');
     const intro = `${from} has invited you to join ${band} on Notably Better - the practice app the band uses for its music.`;
     // Someone with no account yet gets a link to choose a password (so a Google account isn't needed);
@@ -627,11 +674,11 @@ export async function inviteToBand(accountId, bandId, email, level = 'play', ori
       ? emailBody(['Hi,', intro,
           `You don't have an account yet. Choose a password to make one - it takes a minute - and the invitation will be waiting for you on My bands. (If ${to} is a Google address, you can sign in with Google at ${home} instead.)`],
         'Choose a password', newcomer.url,
-        `The link works once, for ${newcomer.days} days; ask ${from} to send it again if it has run out. If you weren't expecting this, you can ignore it and nothing will happen.`)
+        `The link works once, for ${newcomer.days} days; ask ${from} to send it again if it has run out. If you weren't expecting this, you can ignore it and nothing will happen.`, logo)
       : emailBody(['Hi,', intro,
           `To see the invitation, open the app and sign in with this email address (${to}). It will be waiting on My account, under My bands.`],
         'Open Notably Better', `${home}/?band-invite=1`,
-        `The invitation waits for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email and nothing will happen.`);
+        `The invitation waits for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email and nothing will happen.`, logo);
     await sendMail({ to, subject: `${from} has invited you to join ${band}`, text, html });
     return emailOutcome();
   } catch (error) {
@@ -667,7 +714,7 @@ const sameBand = (labels, bandName, directoryBandId) =>
 export async function listMyBandInvites(accountId) {
   await purgeOldInvites(pool);
   const { rows } = await pool.query(
-    `SELECT i.id, i.created_at, i.role, g.id AS band_id, g.name AS band_name, g.directory_band_id, s.display_name, s.first_name, s.surname
+    `SELECT i.id, i.created_at, i.role, g.id AS band_id, g.name AS band_name, g.logo_url, g.directory_band_id, s.display_name, s.first_name, s.surname
        FROM band_invites i
        JOIN accounts me ON lower(me.email) = lower(i.email)
        JOIN bands g ON g.id = i.band_id AND g.kind = 'group' AND g.active
@@ -680,11 +727,38 @@ export async function listMyBandInvites(accountId) {
   return rows.map((r) => {
     const same = sameBand(labels, r.band_name, r.directory_band_id);
     return {
-      id: Number(r.id), bandId: Number(r.band_id), bandName: r.band_name, level: levelOf(r.role),
+      id: Number(r.id), bandId: Number(r.band_id), bandName: r.band_name, logoUrl: r.logo_url || null, level: levelOf(r.role),
       invitedBy: accountDisplayName({ ...r, email: null }) || 'A member', sentAt: r.created_at,
       sameAs: same ? brief(same) : null, choices: same ? [] : labels.map(brief)
     };
   });
+}
+
+// ML-534: the welcome for someone invited - who invited them and what the band shares here, from the band's own data
+// only: how many pieces, its practice lists (with their concert dates and how many pieces each), how many recordings.
+// Never anything about a member's practice. Only the person the invitation is addressed to gets it (myInvite).
+export async function bandInviteWelcome(accountId, inviteId) {
+  const inv = await myInvite(pool, accountId, inviteId);
+  const bandId = inv.band_id;
+  const [band, pieces, lists, recordings] = await Promise.all([
+    pool.query(`SELECT logo_url FROM bands WHERE id = $1`, [bandId]),
+    pool.query(`SELECT COUNT(*)::int AS n FROM scores WHERE owner_band_id = $1 AND archived_at IS NULL`, [bandId]),
+    pool.query(
+      `SELECT pl.name, pl.event_date,
+              (SELECT COUNT(*)::int FROM practice_list_scores pls JOIN scores s ON s.id = pls.score_id WHERE pls.practice_list_id = pl.id AND s.archived_at IS NULL) AS pieces
+         FROM practice_lists pl
+        WHERE pl.owner_band_id = $1 AND pl.archived_at IS NULL
+        ORDER BY pl.event_date IS NULL, pl.event_date, lower(pl.name) LIMIT 12`, [bandId]),
+    pool.query(`SELECT COUNT(*)::int AS n FROM score_recordings sr JOIN scores s ON s.id = sr.score_id WHERE s.owner_band_id = $1 AND s.archived_at IS NULL`, [bandId])
+  ]);
+  const day = (d) => (d ? new Date(d).toISOString().slice(0, 10) : null);
+  return {
+    inviteId: Number(inv.id), bandId: Number(bandId), bandName: inv.band_name, logoUrl: band.rows[0] ? band.rows[0].logo_url || null : null,
+    invitedBy: accountDisplayName({ ...inv, email: null }) || 'A member', level: levelOf(inv.role),
+    pieces: pieces.rows[0].n,
+    lists: lists.rows.map((l) => ({ name: l.name, eventDate: day(l.event_date), pieces: l.pieces })),
+    recordings: recordings.rows[0].n
+  };
 }
 
 async function myInvite(db, accountId, inviteId) {

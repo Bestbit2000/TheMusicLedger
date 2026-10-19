@@ -69,7 +69,8 @@ None of its own - every class is an existing component's:
   line says so, and the closing toast is "All set. Welcome!").
 - `maybeStartSetup()` - called once after signing in: opens it when `member_setup` is on, there is a
   connection, and the account's `setupDoneOn` is empty. Not when the member arrived from a band's
-  invitation (that opens My bands; set-up comes up at the next sign-in).
+  invitation (that opens My bands; set-up comes up at the next sign-in) - with `band_welcome` on, the band's
+  welcome opens instead and set-up starts straight after **Join** (ML-534).
 - `setupLeft()` - run by `switchView` on the way out, however it is left: saves a typed name and posts
   `/api/account/setup-done`.
 - `openSearchChoiceModal(title, items, onSelect, { placeholder, all, other })` - `items`

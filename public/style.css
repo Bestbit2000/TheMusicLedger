@@ -169,6 +169,11 @@
     .avatar .is-solid { fill: var(--primary-action-tint); }
     .avatar .is-dot { fill: currentColor; stroke: none; }
     .avatar-initials { font-size: var(--font-sm); font-weight: var(--font-weight-bold); }
+    /* ML-534: a band's logo - an organiser's picture, shown whole (never cropped) on a plain ground */
+    .band-logo { flex: none; display: block; object-fit: contain; border-radius: var(--radius-sm); background: var(--container-bg); border: 1px solid var(--input-border); box-sizing: border-box; }
+    .band-logo-sm { width: var(--band-logo-sm); height: var(--band-logo-sm); }
+    .band-logo-lg { width: var(--band-logo-lg); height: var(--band-logo-lg); }
+    .band-row-main { display: flex; align-items: center; gap: var(--space-3); min-width: 0; } /* a My bands row: the logo (if any) beside the name */
     /* The home greeting: avatar, then the greeting with one line of encouragement under it */
     .home-greeting { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-6); } /* a clear break before Start a practice session */
     .home-greeting-text { min-width: 0; }

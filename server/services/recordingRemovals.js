@@ -73,9 +73,10 @@ export async function listRecordingsForAdmin() {
          FROM practice_lists pl JOIN bands b ON b.id = pl.owner_band_id
         ORDER BY pl.created_at DESC`),
     pool.query(
-      `SELECT g.id, g.name, g.created_at, a.first_name, a.surname,
+      `SELECT g.id, g.name, g.created_at, a.first_name, a.surname, g.logo_url, g.logo_set_at, la.first_name AS logo_first_name, la.surname AS logo_surname,
               (SELECT COUNT(*) FROM band_members m WHERE m.band_id = g.id) AS members
          FROM bands g LEFT JOIN accounts a ON a.id = g.created_by_account_id
+         LEFT JOIN accounts la ON la.id = g.logo_set_by_account_id
         WHERE g.kind = 'group' AND g.active
         ORDER BY g.created_at DESC`)
   ]);
@@ -111,6 +112,11 @@ export async function listRecordingsForAdmin() {
       ...bands.rows.map((r) => ({
         kind: 'band', id: Number(r.id), title: r.name, addedBy: r.first_name || r.surname ? fullName(r) : 'A member', addedAt: r.created_at,
         sizeBytes: null, pieces: [{ title: `${r.members} member${Number(r.members) === 1 ? '' : 's'}`, band: null }]
+      })),
+      // ML-534: a band's logo - an image every member, and everyone invited, sees
+      ...bands.rows.filter((r) => r.logo_url).map((r) => ({
+        kind: 'logo', id: Number(r.id), title: `The logo of ${r.name}`, addedBy: r.logo_first_name || r.logo_surname ? fullName({ first_name: r.logo_first_name, surname: r.logo_surname }) : 'An organiser',
+        addedAt: r.logo_set_at, sizeBytes: null, logoUrl: r.logo_url, pieces: [{ title: 'Shown to the band', band: r.name }]
       }))
     ],
     removals: removals.rows.map((r) => ({
@@ -128,7 +134,7 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
   const text = String(message || '').trim();
   if (!text) throw withStatus(400, 'Write what the members will be told.');
   if (text.length > MAX_MESSAGE) throw withStatus(400, `The message can be up to ${MAX_MESSAGE} characters.`);
-  if (!['rehearsal', 'piece', 'video', 'document', 'score', 'list'].includes(kind) || !/^\d+$/.test(String(id))) throw withStatus(400, 'That is not one in the list.');
+  if (!['rehearsal', 'piece', 'video', 'document', 'score', 'list', 'logo'].includes(kind) || !/^\d+$/.test(String(id))) throw withStatus(400, 'That is not one in the list.');
 
   const client = await pool.connect();
   let title = '';
@@ -149,6 +155,16 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
         'SELECT blob_url FROM score_recordings WHERE score_id = $1 AND blob_url IS NOT NULL UNION SELECT blob_url FROM score_documents WHERE score_id = $1', [id]);
       moreBlobs = files.rows.map((f) => f.blob_url);
       scoreIdsGone = [String(id)];
+    } else if (kind === 'logo') {
+      // ML-534: a band's logo. The band and everything in it stay - the picture goes, file and all; its organisers are told
+      const found = await client.query(`SELECT id, name, logo_url FROM bands WHERE id = $1 AND kind = 'group' AND logo_url IS NOT NULL FOR UPDATE`, [id]);
+      if (!found.rows.length) throw withStatus(404, 'That logo has already gone.');
+      title = `The logo of ${found.rows[0].name}`;
+      blobUrl = found.rows[0].logo_url;
+      scoreIdsGone = [];
+      const organisers = await client.query('SELECT account_id FROM band_members WHERE band_id = $1 AND role = ANY($2)', [id, ORGANISER_ROLES]);
+      organisers.rows.forEach((o) => tell.add(String(o.account_id)));
+      await client.query('UPDATE bands SET logo_url = NULL, logo_pathname = NULL, logo_set_by_account_id = NULL, logo_set_at = NULL WHERE id = $1', [id]);
     } else if (kind === 'list') {
       // ML-511: a band's practice list. Its pieces stay - only the list goes; the band's organisers are told
       const found = await client.query('SELECT id, name, owner_band_id FROM practice_lists WHERE id = $1 AND owner_band_id IS NOT NULL FOR UPDATE', [id]);
@@ -232,7 +248,7 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
   const people = tell.size
     ? (await pool.query('SELECT id, email, first_name FROM accounts WHERE id = ANY($1) AND deleted_at IS NULL', [[...tell]])).rows
     : [];
-  const subject = kind === 'score' ? 'A piece has been removed' : kind === 'list' ? 'A practice list has been removed' : kind === 'document' ? 'A document has been removed' : 'A recording has been removed';
+  const subject = kind === 'score' ? 'A piece has been removed' : kind === 'list' ? 'A practice list has been removed' : kind === 'document' ? 'A document has been removed' : kind === 'logo' ? 'A band logo has been removed' : 'A recording has been removed';
   if (people.length) await createTargetedNotification(adminAccountId, { title: subject, body: text, urgent: true }, people.map((p) => p.id));
   let emailsSent = 0;
   for (const p of people) {

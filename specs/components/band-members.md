@@ -4,9 +4,11 @@
 - **Name:** My bands, band members and invitations (`#accountBandsView` with `#accountBandInvites`,
   `#tidyBandsView`, `#bandMembersView` - no classes of their own: `.metro-help-text`, `.section-title`,
   `.form-group`, the value box `.metroBlk-ctrl-value-btn.w-full`, `.btn-submit`, `.btn-cancel.btn-inline`,
-  `.btn-text`, `.history-item` (`.settings-link`, `.is-muted`), `.band-row-text`, the floating `.dropdown-menu`)
+  `.btn-text`, `.history-item` (`.settings-link`, `.is-muted`), `.band-row-text`, the floating `.dropdown-menu`);
+  ML-534 adds `#bandWelcomeView`, `#bandLogoSection` and three classes: `.band-logo` (`.band-logo-sm`,
+  `.band-logo-lg`) and `.band-row-main`
 - **Category:** Flow / input
-- **Status:** New (ML-473); My bands as one list, ML-478
+- **Status:** New (ML-473); My bands as one list, ML-478; a band's logo and its welcome, ML-534
 
 ## 2. Overview
 **My bands is every band you play with** (ML-478, the owner's model, 6 Oct 2026) - and exactly what the
@@ -54,6 +56,21 @@ who runs a band). Two places:
   pop-up, not buttons on the row.
 - **Don't use** it for the directory (Admin → Bands).
 
+**A band's logo and its welcome** (ML-534, feature `band_welcome`; the owner's decisions, 19 Oct 2026):
+- **The logo** - an organiser adds, changes or takes it off on the band's **Members** page (`#bandLogoSection`,
+  above Invite someone): a preview (`.band-logo.band-logo-lg`), **Add a logo** / **Change the logo** and
+  **Take the logo off** (asks first). A PNG, JPEG or WebP up to 1 MB, kept in the file store under
+  `band-logos/<band>/`. It is shown whole on a plain ground (`object-fit: contain`), never cropped.
+- **On My bands** a shared band with a logo shows it small beside its name (`.band-row-main` › `.band-logo-sm`).
+  The picture is decoration there (`alt=""`) - the name is beside it.
+- **The welcome** (`#bandWelcomeView`) - for someone arriving from a band's invitation email, once signed in.
+  The logo, "Welcome to <band>", who invited them, then **What the band shares here**, built only from the
+  band's own data: how many pieces, each practice list (its concert date and how many pieces), how many
+  recordings. Then what they will be able to do and that the band will see their name - never anyone's practice.
+  Nothing an organiser writes. **Join <band>** (one tap - it is still their own yes; the same "Is this the same
+  band as one of yours?" question when it might be) and **Not now** (the invitation waits on My bands). After
+  joining, set-up starts straight away when it hasn't been done; otherwise My bands.
+
 ## 3. Anatomy
 - `#accountBandsView` › `#accountBandInvites` › `button.history-item.settings-link#tidyBandsLink` (hidden when
   nothing is unsorted) › `#accountBandsList`: a `.history-item` per band › `.band-row-text` (name; "Shared - ..."
@@ -90,6 +107,9 @@ None of its own - see [form-field](form-field.md), [button](button.md), [list-ro
   `POST /api/account/band-invites/:inviteId/accept` and `/decline`. `level` is `organiser`, `change` or `play`.
 
 ## 6. States
+- **No logo:** the preview is hidden and the button says **Add a logo**; My bands rows and the welcome show no picture.
+- **The welcome, nothing shared yet:** "Nothing yet - the band's organisers put its music here."
+- **`band_welcome` off for the account:** arriving from the email opens My bands, as before; the Members page has no logo section.
 - **No bands:** "No bands yet. Add the ones you play with below."
 - **Nothing to tidy:** the Tidy my bands row is hidden; the page itself says "All sorted. Nothing left to tidy."
 - **Nothing hidden:** the "Bands I don't play with now" heading is hidden.
@@ -127,3 +147,7 @@ None of its own - see [form-field](form-field.md), [button](button.md), [list-ro
   again** names its band in its `aria-label`; a Tidy value box's label says the name, how many sessions and
   "tap to say what it is". Merging asks first, in words, and says it can't be undone.
 - The email box is `type="email"` with `autocapitalize="off"`; an error is a toast, in words.
+- ML-534: the logo's preview and the welcome's logo have an `alt` naming the band; on a My bands row it is
+  `alt=""` (the name is beside it). The file picker is a real `<input type="file">` with an `aria-label`, opened
+  by a `<button>`. The welcome is a heading (`h2`) and plain rows - what it says is words, not the picture.
+  No new colour pairs (the logo's border is `--input-border` on `--container-bg`), no gestures.

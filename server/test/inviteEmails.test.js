@@ -36,7 +36,7 @@ const account = async (name) => {
   accounts.push(id);
   return id;
 };
-const outbox = async (to) => (await pool.query('SELECT subject, body_text FROM email_outbox WHERE to_email = $1 ORDER BY id', [to])).rows;
+const outbox = async (to) => (await pool.query('SELECT subject, body_text, body_html FROM email_outbox WHERE to_email = $1 ORDER BY id', [to])).rows;
 const skip = !onDev && 'needs the dev database, with emails written to the outbox';
 // ML-478: adding a band from the directory is private; a shared space is a separate, deliberate step.
 // These tests are about the space, so this does both.
@@ -85,6 +85,25 @@ test('an invitation into a band emails the address once: who, which band, and on
   assert.match(sent[0].body_text, new RegExp(`sign in with this email address \\(${member.replace(/[.+]/g, '\\$&')}\\)`));
   assert.match(sent[0].body_text, /Open Notably Better: https:\/\/app\.example\/\?band-invite=1\n/); // nothing about who or which band in the link
   assert.match(sent[0].body_text, /waits for 30 days/);
+  assert.doesNotMatch(sent[0].body_html, /<img/); // no logo, no picture
+
+  // ML-534: a band with a logo has it at the top of the email (the HTML only), with the band's name as its text
+  const logoUrl = `https://abc123xyz.public.blob.vercel-storage.com/band-logos/${space}/logo-x.png`;
+  await pool.query('UPDATE bands SET logo_url = $2 WHERE id = $1', [space, logoUrl]);
+  const withLogo = address('withlogo');
+  accounts.push(Number((await one(`INSERT INTO accounts (email, first_name, surname) VALUES ($1, 'Has', 'Logo') RETURNING id`, [withLogo])).id));
+  assert.deepEqual(await bands.inviteToBand(anna, space, withLogo, 'play', 'https://app.example/'), HELD);
+  const logoMail = (await outbox(withLogo))[0];
+  assert.ok(logoMail.body_html.includes(`<img src="${logoUrl}" alt="The logo of ML-473 Mail Band ${stamp}"`));
+  assert.doesNotMatch(logoMail.body_text, /band-logos/); // the plain text has no picture
+  // ...and an address that isn't the band's own stored file is never put in
+  await pool.query('UPDATE bands SET logo_url = $2 WHERE id = $1', [space, 'https://example.com/band-logos/1/x.png']);
+  const otherLogo = address('otherlogo');
+  accounts.push(Number((await one(`INSERT INTO accounts (email, first_name, surname) VALUES ($1, 'No', 'Logo') RETURNING id`, [otherLogo])).id));
+  await bands.inviteToBand(anna, space, otherLogo, 'play', 'https://app.example/');
+  assert.doesNotMatch((await outbox(otherLogo))[0].body_html, /<img/);
+  await pool.query('UPDATE bands SET logo_url = NULL WHERE id = $1', [space]);
+  await pool.query('DELETE FROM band_invites WHERE band_id = $1 AND email = ANY($2)', [space, [withLogo, otherLogo]]); // the rest is about the first one
 
   // Changing what they may do is not a second email; "send again" is, and gives it another 30 days
   assert.deepEqual(await bands.inviteToBand(anna, space, member, 'change', 'https://app.example'), { emailed: false });

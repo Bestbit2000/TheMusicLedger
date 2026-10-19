@@ -139,7 +139,8 @@ Three short steps the first time a new member signs in, so the app suits them fr
   required. Each choice is saved as it is made, so there is no Save either.
 - **When it comes up:** once after signing in (`maybeStartSetup`, at the end of `initializeApp`), when the
   switch is on, there is a connection and `accounts.setup_done_on` is empty. Someone who arrived from a
-  band's invitation goes to My bands as before, and gets set-up at their next sign-in. An important notice
+  band's invitation goes to My bands as before, and gets set-up at their next sign-in - or, with `band_welcome`
+  on (ML-534), to the band's welcome, and set-up starts as soon as they join. An important notice
   is a pop-up and sits on top of it.
 - **Done means seen.** Finishing, or leaving the page any way (`switchView` → `setupLeft`), posts
   `/api/account/setup-done`, which keeps the first day. Closing the app part-way does not, so it comes up

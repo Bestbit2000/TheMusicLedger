@@ -17,7 +17,8 @@ import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, leaveBand, deleteBandIfSoleMember, listWhoOptions,
   listMyBands, addBandFromDirectory, addOwnBand, setUpSharing, hideMyBand, showMyBand, keepMyBand, mergeMyBands, linkMyBandToDirectory,
-  listBandMembers, inviteToBand, cancelBandInvite, listMyBandInvites, acceptBandInvite, declineBandInvite, removeBandMember, setBandMemberLevel } from '../services/bands.js';
+  listBandMembers, inviteToBand, cancelBandInvite, listMyBandInvites, acceptBandInvite, declineBandInvite, removeBandMember, setBandMemberLevel,
+  assertBandOrganiser, setBandLogo, removeBandLogo, bandInviteWelcome } from '../services/bands.js';
 import { readMeters, sendUsageWarnings } from '../services/thirdPartyUsage.js';
 import { getBusinessCase } from '../services/businessCase.js';
 import { runRetention, clearOldRecords } from '../services/retention.js';
@@ -38,7 +39,7 @@ import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, dupl
 import { importScoreFromFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/scoreImport.js';
 import { readForAccount, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES } from '../services/pieceReads.js';
 import { MAX_READ_BYTES } from '../services/pieceReader.js';
-import { MAX_PIECE_FILE_BYTES } from '../services/blobUrls.js';
+import { MAX_PIECE_FILE_BYTES, MAX_BAND_LOGO_BYTES, BAND_LOGO_TYPES } from '../services/blobUrls.js';
 import { isFeatureEnabled, listEnabledFeatureKeys, getLimit, listLimits } from '../services/features.js';
 import { listRecordings as listRehearsalRecordings, addRecording as addRehearsalRecording, addCut as addRehearsalCut, deleteRecording as deleteRehearsalRecording, assertRoomForOne, addYouTubeRehearsal } from '../services/rehearsalRecordings.js';
 import { MAX_REHEARSAL_FILE_BYTES } from '../services/blobUrls.js';
@@ -1130,6 +1131,51 @@ const requireFeature = (...keys) => async (req, res, next) => {
     sendError(res, error);
   }
 };
+
+// ML-534: the welcome to someone invited - who invited them and what the band shares (theirs only)
+router.get('/account/band-invites/:inviteId/welcome', requireAuth, resolveAccount, requireFeature('band_welcome'), async (req, res) => {
+  try {
+    res.json(await bandInviteWelcome(req.accountId, req.params.inviteId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-534: a band's logo. The browser uploads straight to the file store, into the band's own folder; only an
+// organiser gets a token. Then the address is kept (checked again), or the logo taken off.
+router.post('/account/bands/:id/logo/upload-token', requireAuthFromQueryOrHeader, resolveAccount, requireFeature('band_welcome'), async (req, res) => {
+  try {
+    const bandId = Number(req.params.id);
+    const result = await handleUpload({
+      body: req.body,
+      request: req,
+      onBeforeGenerateToken: async (pathname) => {
+        if (!Number.isInteger(bandId) || !String(pathname).startsWith(`band-logos/${bandId}/`)) throw Object.assign(new Error('That is not this band\'s folder.'), { status: 400 });
+        await assertBandOrganiser(req.accountId, bandId);
+        await limitCalls('upload-token', req.accountId);
+        return { maximumSizeInBytes: MAX_BAND_LOGO_BYTES, allowedContentTypes: BAND_LOGO_TYPES, addRandomSuffix: true };
+      },
+      onUploadCompleted: async () => {}
+    });
+    res.json(result);
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.put('/account/bands/:id/logo', requireAuth, resolveAccount, requireFeature('band_welcome'), async (req, res) => {
+  try {
+    res.json(await setBandLogo(req.accountId, req.params.id, req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.delete('/account/bands/:id/logo', requireAuth, resolveAccount, requireFeature('band_welcome'), async (req, res) => {
+  try {
+    res.json(await removeBandLogo(req.accountId, req.params.id));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
 // A copy of the app from before ML-324 still asks for the challenges list as it opens, and would show
 // "Error loading challenges" until it is reloaded. It gets an empty list. Nothing else of Challenges is
 // left; this can go once no device can still be running a copy from before release 0.60.0.
