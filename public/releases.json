@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.63.0",
+    "date": "2026-10-19",
+    "changes": [
+      {
+        "key": "ML-534",
+        "type": "New",
+        "summary": "We now let a band's organiser add the band's logo, and someone invited to a band is welcomed by it, sees what the band shares and joins in one tap."
+      }
+    ]
+  },
+  {
     "version": "0.62.0",
     "date": "2026-10-19",
     "changes": [
