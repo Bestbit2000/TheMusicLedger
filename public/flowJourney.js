@@ -574,8 +574,9 @@
 
     // --- Getting a piece ready (ML-390): the run-through, painting bars, focus bits, the play-through ---
     // The whole piece once, as it's played (repeats, jumps, intro and pauses; not the lead-in), at percent %.
-    function pieceRunSeconds(blocks, percent) {
-        return buildJourney(blocks, {}).steps
+    // ML-530: movement - one movement's run-through (its number), else the whole piece.
+    function pieceRunSeconds(blocks, percent, movement) {
+        return movementJourney(blocks, {}, movement).steps
             .filter(st => st.kind !== 'leadIn' && st.blockIndex >= 0)
             .reduce((sum, st) => sum + barSeconds(blocks, st.blockIndex, st.bar, percent), 0);
     }

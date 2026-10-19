@@ -564,7 +564,8 @@
             create: (data) => apiCall('/api/practice/lists', 'POST', data),
             update: (id, data) => apiCall(`/api/practice/lists/${id}`, 'PUT', data),
             remove: (id) => apiCall(`/api/practice/lists/${id}`, 'DELETE'),
-            setPieces: (id, scoreIds) => apiCall(`/api/practice/lists/${id}/pieces`, 'PUT', { scoreIds })
+            // ML-530: each a piece id (keeps its movement) or { scoreId, movement }
+            setPieces: (id, pieces) => apiCall(`/api/practice/lists/${id}/pieces`, 'PUT', { pieces })
         },
         // ML-320: the practice session builder
         practice: {
@@ -6796,35 +6797,67 @@
         levels.blocks = currentFlowBlocks.slice();
         levels.total = FlowJourney.totalBars(levels.blocks);
         levels.title = detail.title || 'This piece';
+        levels.scope = null; // ML-530: the whole piece until a caller says one movement
         applyPieceLevels(lv);
     }
     const levelsMap = () => FlowJourney.barLevels(levels.total, [...levels.chunks, ...levels.groups]);
+    // ML-530: the path can be for one movement of a piece in movements - from a practice list that holds just that
+    // movement, or chosen with the path's Movement box. levels.scope: { number, title, startBar, endBar }, or null for
+    // the whole piece. The run-through, painting, cutting, focus bits and play-through are then that movement's; the
+    // other movements' Levels are kept as they are.
+    const inLevelsScope = (c) => !levels.scope || (c.startBar >= levels.scope.startBar && c.endBar <= levels.scope.endBar);
+    const outsideLevelsScope = (c) => !!levels.scope && (c.endBar < levels.scope.startBar || c.startBar > levels.scope.endBar);
+    const scopedChunks = () => levels.chunks.filter(inLevelsScope);
+    const scopedGroups = () => levels.groups.filter(inLevelsScope);
+    const levelsFrom = () => (levels.scope ? levels.scope.startBar : 1);
+    const levelsTo = () => (levels.scope ? levels.scope.endBar : levels.total);
+    // A movement the piece really has (by number), or null
+    function levelsScopeFor(movement) {
+        const n = movement && typeof movement === 'object' ? movement.number : movement;
+        return n ? levelsMoves().find(m => m.number === Number(n)) || null : null;
+    }
+    function renderPathMovementButton() {
+        const btn = document.getElementById('pathMovementBtn');
+        if (!btn) return;
+        setShown(btn, levelsMoves().length > 1);
+        const m = levels.scope;
+        document.getElementById('pathMovementLbl').textContent = m ? String(m.number) : 'all';
+        btn.setAttribute('aria-label', m ? `Movement: ${FlowJourney.movementLabel(m, true)}. Tap to choose another` : 'Movement: the whole piece. Tap to choose one');
+    }
+    document.getElementById('pathMovementBtn')?.addEventListener('click', () => {
+        const moves = levelsMoves();
+        openFlowChoiceModal('Which movement?', [
+            { n: null, selected: !levels.scope, html: addPieceRow('The whole piece', `All ${moves.length} movements`) },
+            ...moves.map(m => ({ n: m.number, selected: !!levels.scope && levels.scope.number === m.number, html: addPieceRow(FlowJourney.movementLabel(m, true), `Bars ${m.startBar}-${m.endBar}`) }))
+        ], (opt) => { levels.scope = levelsScopeFor(opt.n); renderPiecePath(); });
+    });
     // Where the piece is on its path.
     function pieceStage() {
-        const set = levels.chunks.filter(c => c.level != null);
+        const set = scopedChunks().filter(c => c.level != null);
         if (!set.length) return 'prepare';
-        if (set.some(c => c.level < PracticePlan.TARGET_LEVEL) || set.length < levels.chunks.length) return 'practise';
-        const parts = levels.groups;
+        if (set.some(c => c.level < PracticePlan.TARGET_LEVEL) || set.length < scopedChunks().length) return 'practise';
+        const parts = scopedGroups();
         if (parts.length ? parts.some(g => g.level !== 5) : set.some(c => c.level < 5)) return 'playthrough';
         return 'ready';
     }
-    const focusBits = () => levels.chunks.filter(c => c.level != null && c.level < PracticePlan.TARGET_LEVEL);
+    const focusBits = () => scopedChunks().filter(c => c.level != null && c.level < PracticePlan.TARGET_LEVEL);
     function levelsWeakest() {
         const cs = focusBits().filter(c => c.id);
         return cs.length ? cs.slice().sort((a, b) => a.level - b.level || a.startBar - b.startBar)[0] : null;
     }
-    const nextPart = () => levels.groups.filter(g => g.id && g.level != null && g.level < 5).sort((a, b) => a.level - b.level || a.startBar - b.startBar)[0] || null;
+    const nextPart = () => scopedGroups().filter(g => g.id && g.level != null && g.level < 5).sort((a, b) => a.level - b.level || a.startBar - b.startBar)[0] || null;
 
-    async function openPiecePath(scoreId) {
+    async function openPiecePath(scoreId, opts) {
         try { await loadPieceLevels(scoreId); } catch (e) { showWarningToast('Piece not loaded: ' + e.message); return; }
+        levels.scope = levelsScopeFor(opts && opts.movement); // ML-530
         prep.fromSession = false;
         switchView('piecePathView');
         renderPiecePath();
     }
-    // ML-530: in a piece in movements (moves: FlowJourney.movements) each movement has its heading and its rows of
-    // ten start again at its first bar.
+    // ML-530: in a piece in movements (moves: the movements to show - all of them, or the one the path is for; null or
+    // [] for a piece with one) each movement has its heading and its rows of ten start again at its first bar.
     function renderLevelMapInto(el, map, moves) {
-        const parts = moves && moves.length > 1 ? moves : [{ startBar: 1, endBar: map.length }];
+        const parts = moves && moves.length ? moves : [{ startBar: 1, endBar: map.length }];
         el.innerHTML = parts.map(m => (m.number ? levelsMovementHead(m) : '') + map.slice(m.startBar - 1, m.endBar).map((lv, j) => {
             const n = m.startBar + j;
             const label = j % 10 === 0 ? `<span class="level-map-bars" aria-hidden="true">${n}<span class="level-map-bars-to"> - ${Math.min(n + 9, m.endBar)}</span></span>` : '';
@@ -6855,23 +6888,26 @@
         <span><span class="level-cell lv-5">5</span>Full speed</span></div>`;
     function renderPiecePath() {
         document.getElementById('topTitle').innerText = levels.title;
-        document.getElementById('pathSub').textContent = `${levels.total} bar${levels.total === 1 ? '' : 's'}`;
+        const sc = levels.scope;
+        const scBars = levelsTo() - levelsFrom() + 1;
+        document.getElementById('pathSub').textContent = sc ? `${FlowJourney.movementLabel(sc, true)} · bars ${sc.startBar}-${sc.endBar} (${scBars} bar${scBars === 1 ? '' : 's'})` : `${levels.total} bar${levels.total === 1 ? '' : 's'}`;
+        renderPathMovementButton();
         setShown('pathBarsChanged', levels.barsChanged);
-        renderLevelMapInto(document.getElementById('pathMap'), levelsMap(), levelsMoves());
+        renderLevelMapInto(document.getElementById('pathMap'), levelsMap(), sc ? [sc] : levelsMoves().length > 1 ? levelsMoves() : null);
         const stage = pieceStage();
         const order = ['prepare', 'practise', 'playthrough', 'ready'];
         const at = order.indexOf(stage);
         const bits = focusBits();
         const byLevel = [1, 2, 3].map(n => [n, bits.filter(c => c.level === n).length]).filter(([, c]) => c);
         const chips = (list) => `<span class="focus-summary">${list.map(c => `<span class="level-chip lv-${c.level || 0}">${c.level || ''}</span>`).join('')}</span>`;
-        const partsText = levels.groups.length
-            ? levels.groups.map(g => `${levelsChunkName(g)}: ${g.level == null ? 'not yet' : `Level ${g.level}`}`).join(' · ')
-            : 'The whole piece, or two halves if it\'s long';
+        const partsText = scopedGroups().length
+            ? scopedGroups().map(g => `${levelsChunkName(g)}: ${g.level == null ? 'not yet' : `Level ${g.level}`}`).join(' · ')
+            : `${sc ? 'The whole movement' : 'The whole piece'}, or two halves if it's long`;
         const stages = [
             { key: 'prepare', icon: 'construction', title: 'Prepare', sub: 'About 10 minutes, once: a run-through, then paint and cut the bars.',
                 steps: at === 0 ? ['Get the music (it\'s in My music)', 'Play it through once', 'Paint how each bar went', 'Cut it into focus bits'] : null },
             { key: 'practise', icon: 'music_note', title: 'Practise', sub: bits.length ? `${bits.length} focus bit${bits.length === 1 ? '' : 's'} below Level ${PracticePlan.TARGET_LEVEL}: ${byLevel.map(([n, c]) => `${c} at ${n}`).join(', ')}.` : `Five-minute blocks until every bar is at Level ${PracticePlan.TARGET_LEVEL}.`, extra: bits.length ? chips(bits) : '' },
-            { key: 'playthrough', icon: 'play_circle', title: 'Play-through', sub: `The whole piece, Level ${PracticePlan.TARGET_LEVEL} up to 5 (full speed). ${partsText}.` }
+            { key: 'playthrough', icon: 'play_circle', title: 'Play-through', sub: `${sc ? 'The whole movement' : 'The whole piece'}, Level ${PracticePlan.TARGET_LEVEL} up to 5 (full speed). ${partsText}.` }
         ];
         document.getElementById('piecePath').innerHTML = stages.map((s, i) => {
             const state = i < at ? 'is-done' : i === at ? 'is-now' : '';
@@ -6896,12 +6932,13 @@
         setShown(card, show);
         if (!show) return;
         // ML-530: in a piece in movements "whole" is each movement whole - a part never runs past a movement's end
-        const moves = levelsMoves();
-        const wholeParts = moves.length > 1 ? moves.map(m => [m.startBar, m.endBar]) : [[1, levels.total]];
+        const moves = levels.scope ? [levels.scope] : levelsMoves();
+        const wholeParts = levels.scope || moves.length > 1 ? moves.map(m => [m.startBar, m.endBar]) : [[1, levels.total]];
         const minutes = wholeParts.map(([a, z]) => FlowJourney.partBlockMinutes(levels.blocks, a, z, PracticePlan.TARGET_LEVEL));
         const whole = minutes.some(m => m == null) ? null : Math.max(...minutes);
-        const auto = FlowJourney.playthroughParts(levels.blocks, PracticePlan.TARGET_LEVEL);
-        const isWhole = levels.groups.length === wholeParts.length && wholeParts.every(([a, z], k) => levels.groups[k].startBar === a && levels.groups[k].endBar === z);
+        const auto = FlowJourney.playthroughParts(levels.blocks, PracticePlan.TARGET_LEVEL).filter(([a, z]) => inLevelsScope({ startBar: a, endBar: z }));
+        const groups = scopedGroups();
+        const isWhole = groups.length === wholeParts.length && wholeParts.every(([a, z], k) => groups[k].startBar === a && groups[k].endBar === z);
         const inMoves = moves.length > 1;
         const opts = [];
         if (whole === 5) opts.push(['whole', inMoves ? 'Each movement whole' : 'The whole piece', inMoves ? 'Each fits in one five-minute block' : 'It fits in one five-minute block']);
@@ -6909,21 +6946,27 @@
             opts.push(['auto', !inMoves && auto.length === 2 ? 'Two halves (suggested)' : `${auto.length} parts (suggested)`, `Each part is its own five-minute block`]);
             if (whole === 10) opts.push(['whole', inMoves ? 'Each movement in one go' : 'One long go', inMoves ? 'Each movement in a block of its own, up to 10 minutes' : 'The whole piece in a 10-minute block']);
         }
-        document.getElementById('pathThroughNote').textContent = levels.groups.length ? `Now: ${levels.groups.map(g => `${levelsChunkName(g)} (${g.level == null ? 'not yet' : `Level ${g.level}`})`).join(', ')}.` : 'Once every bar is at Level 4 the piece gets its play-through parts.';
+        document.getElementById('pathThroughNote').textContent = groups.length ? `Now: ${groups.map(g => `${levelsChunkName(g)} (${g.level == null ? 'not yet' : `Level ${g.level}`})`).join(', ')}.` : 'Once every bar is at Level 4 the piece gets its play-through parts.';
         const box = document.getElementById('pathThroughOptions');
         box.innerHTML = opts.length > 1 ? opts.map(([k, t, s]) => {
-            const on = k === 'whole' ? isWhole : !isWhole && levels.groups.length === auto.length;
+            const on = k === 'whole' ? isWhole : !isWhole && groups.length === auto.length;
             return `<button type="button" class="flow-choice-option level-answer${on ? ' selected' : ''}" aria-pressed="${on}" data-through="${k}"><span><strong>${t}</strong><br><span class="text-sm text-muted">${s}</span></span></button>`;
         }).join('') : '';
         box.querySelectorAll('[data-through]').forEach(b => b.addEventListener('click', () => setPlaythroughParts(b.dataset.through === 'whole' ? wholeParts : auto)));
     }
-    async function setPlaythroughParts(parts) {
-        const level = Math.min(...levels.chunks.map(c => c.level || 0)) >= PracticePlan.TARGET_LEVEL ? PracticePlan.TARGET_LEVEL : null;
+    // The play-through parts for the path's scope (the whole piece, or one movement - ML-530: another movement's
+    // parts are kept). Saved; the piece's Levels come back.
+    async function savePlaythroughParts(parts) {
+        const level = Math.min(...scopedChunks().map(c => c.level || 0)) >= PracticePlan.TARGET_LEVEL ? PracticePlan.TARGET_LEVEL : null;
         const labels = FlowJourney.playthroughLabels(levels.blocks, parts); // ML-530: counted within each movement
         const label = (k) => labels[k];
         const body = [...levels.chunks.map(c => ({ id: c.id, kind: c.kind, startBar: c.startBar, endBar: c.endBar, level: c.level, label: c.label })),
+            ...levels.groups.filter(g => !inLevelsScope(g)).map(g => ({ id: g.id, kind: 'group', startBar: g.startBar, endBar: g.endBar, level: g.level, label: g.label })),
             ...parts.map(([a, z], k) => ({ kind: 'group', startBar: a, endBar: z, level, label: label(k) }))];
-        try { applyPieceLevels(await API.levels.save(levels.flowId, body)); renderPiecePath(); showSuccessToast('Play-through saved'); }
+        applyPieceLevels(await API.levels.save(levels.flowId, body));
+    }
+    async function setPlaythroughParts(parts) {
+        try { await savePlaythroughParts(parts); renderPiecePath(); showSuccessToast('Play-through saved'); }
         catch (e) { showWarningToast('Not saved: ' + e.message); }
     }
     document.getElementById('pathGoBtn')?.addEventListener('click', () => {
@@ -6944,17 +6987,18 @@
     }
     function renderPrepareRun() {
         renderCountInControls();
-        const pct = FlowJourney.levelPercents(FlowJourney.slowestTempo(levels.blocks, 1, levels.total));
+        const pct = FlowJourney.levelPercents(FlowJourney.slowestTempo(levels.blocks, levelsFrom(), levelsTo()));
         const lv = Math.max(1, Math.min(5, prep.runLevel || 2));
         const el = document.getElementById('prepSpeedPicker');
         el.innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" class="level-pick lv-${n}${lv === n ? ' selected' : ''}" aria-pressed="${lv === n}" data-level="${n}" aria-label="Level ${n}, ${pct[n - 1]}% speed">${n}<small>${pct[n - 1]}%</small></button>`).join('');
         el.querySelectorAll('[data-level]').forEach(b => b.addEventListener('click', () => { prep.runLevel = Number(b.dataset.level); renderPrepareRun(); }));
-        document.getElementById('prepTime').textContent = fmtMinSec(FlowJourney.pieceRunSeconds(levels.blocks, pct[lv - 1]));
+        document.getElementById('prepTime').textContent = fmtMinSec(FlowJourney.pieceRunSeconds(levels.blocks, pct[lv - 1], levels.scope ? levels.scope.number : null));
         document.getElementById('prepSpeedWord').textContent = pct[lv - 1] === 100 ? 'Full speed' : `${LEVEL_WORDS[lv - 1]} · ${pct[lv - 1]}%`;
     }
     document.getElementById('prepPlayBtn')?.addEventListener('click', () => {
         const lv = prep.runLevel || 2;
-        startLevelPractice({ id: null, kind: 'runthrough', startBar: 1, endBar: levels.total, level: lv, label: 'The whole piece' }, 'runthrough');
+        const sc = levels.scope; // ML-530: one movement's run-through
+        startLevelPractice({ id: null, kind: 'runthrough', startBar: levelsFrom(), endBar: levelsTo(), level: lv, label: sc ? FlowJourney.movementLabel(sc, true) : 'The whole piece', movement: sc ? sc.number : null }, 'runthrough');
     });
     document.getElementById('prepSkipBtn')?.addEventListener('click', () => openPaint({ pot: prep.runLevel || 3 }));
     // The run-through has reached the end (or Done): on to painting, with the Level it was played at.
@@ -6975,7 +7019,7 @@
     };
     function openPaintState() {
         paint.levels = FlowJourney.barLevels(levels.total, levels.chunks);
-        paint.sections = FlowJourney.pieceSections(levels.blocks);
+        paint.sections = FlowJourney.pieceSections(levels.blocks).filter(inLevelsScope); // ML-530: the path's movement only
         paint.undo = [];
     }
     function openPaint(opts) {
@@ -7021,7 +7065,7 @@
         const before = paint.levels.slice();
         if (paint.tool === 'brush') paint.levels[n - 1] = paint.pot;
         else if (paint.tool === 'rubber') paint.levels[n - 1] = null;
-        else if (paint.tool === 'all') paint.levels = paint.levels.map(() => paint.pot);
+        else if (paint.tool === 'all') paint.levels = paint.levels.map((v, i) => (i + 1 >= levelsFrom() && i + 1 <= levelsTo() ? paint.pot : v));
         else if (paint.tool === 'section') {
             const s = paint.sections.find(x => n >= x.startBar && n <= x.endBar);
             if (s) for (let k = s.startBar; k <= s.endBar; k++) if (!paint.levels[k - 1]) paint.levels[k - 1] = paint.pot;
@@ -7059,8 +7103,9 @@
     }
     document.getElementById('paintTypeBtn')?.addEventListener('click', () => {
         const from = document.getElementById('paintTypeFrom'), to = document.getElementById('paintTypeTo');
-        from.max = to.max = String(levels.total);
-        from.value = 1; to.value = Math.min(levels.total, 4);
+        from.min = to.min = String(levelsFrom());
+        from.max = to.max = String(levelsTo());
+        from.value = levelsFrom(); to.value = Math.min(levelsTo(), levelsFrom() + 3);
         paintTypeLevel = paint.pot;
         renderPaintTypePicker();
         showModal('paintTypeModal');
@@ -7068,7 +7113,7 @@
     });
     document.getElementById('paintTypeCloseBtn')?.addEventListener('click', () => hideModal('paintTypeModal'));
     document.getElementById('paintTypeDoneBtn')?.addEventListener('click', () => {
-        const clamp = (v) => Math.max(1, Math.min(levels.total, Math.round(Number(v) || 1)));
+        const clamp = (v) => Math.max(levelsFrom(), Math.min(levelsTo(), Math.round(Number(v) || 1)));
         const a = clamp(document.getElementById('paintTypeFrom').value), z = clamp(document.getElementById('paintTypeTo').value);
         paint.undo.push(paint.levels.slice());
         for (let n = Math.min(a, z); n <= Math.max(a, z); n++) paint.levels[n - 1] = paintTypeLevel;
@@ -7092,7 +7137,8 @@
         switchView('levelsCutView');
         renderCut();
     }
-    const currentBits = () => FlowJourney.bitsFromBars(paint.levels, sectionStarts(), [...cut.cuts]);
+    // ML-530: on a movement's path, only its bits (the bar after it is a break, so none runs out of it)
+    const currentBits = () => FlowJourney.bitsFromBars(paint.levels, [...sectionStarts(), levelsTo() + 1], [...cut.cuts]).filter(inLevelsScope);
     function bitFit(b) {
         if (b.level == null) return null;
         const f = FlowJourney.chunkFit(levels.blocks, { startBar: b.startBar, endBar: b.endBar, level: b.level });
@@ -7129,12 +7175,13 @@
         document.getElementById('cutSummaryChips').innerHTML = focus.map(b => `<span class="level-chip lv-${b.level}">${b.level}</span>`).join('');
         const blocks = focus.reduce((n, b) => n + (PracticePlan.TARGET_LEVEL - b.level), 0);
         const long = focus.filter(b => { const f = bitFit(b); return f && f.fits === 'tooLong'; }).length;
-        const unpainted = paint.levels.filter(v => !v).length;
+        const scopeLevels = paint.levels.slice(levelsFrom() - 1, levelsTo());
+        const unpainted = scopeLevels.filter(v => !v).length;
         document.getElementById('cutSummaryText').textContent = (focus.length
             ? `${focus.length} focus bit${focus.length === 1 ? '' : 's'} below Level ${PracticePlan.TARGET_LEVEL} · about ${blocks} five-minute block${blocks === 1 ? '' : 's'} to get them all there.`
-            : unpainted === paint.levels.length ? 'Paint the bars first.' : `Every painted bar is at Level ${PracticePlan.TARGET_LEVEL} or more - on to the play-through!`)
+            : unpainted === scopeLevels.length ? 'Paint the bars first.' : `Every painted bar is at Level ${PracticePlan.TARGET_LEVEL} or more - on to the play-through!`)
             + (long ? ` ${long} still too long - cut ${long === 1 ? 'it' : 'them'} smaller.` : '')
-            + (unpainted && unpainted < paint.levels.length ? ` ${unpainted} bar${unpainted === 1 ? '' : 's'} not painted yet.` : '');
+            + (unpainted && unpainted < scopeLevels.length ? ` ${unpainted} bar${unpainted === 1 ? '' : 's'} not painted yet.` : '');
     }
     document.getElementById('cutSections')?.addEventListener('click', (e) => {
         const split = e.target.closest('[data-split]');
@@ -7154,18 +7201,19 @@
     });
     document.getElementById('cutTypeBtn')?.addEventListener('click', () => {
         const from = document.getElementById('cutTypeFrom'), to = document.getElementById('cutTypeTo');
-        from.max = to.max = String(levels.total);
-        from.value = 1; to.value = Math.min(levels.total, 4);
+        from.min = to.min = String(levelsFrom());
+        from.max = to.max = String(levelsTo());
+        from.value = levelsFrom(); to.value = Math.min(levelsTo(), levelsFrom() + 3);
         showModal('cutTypeModal');
         from.focus();
     });
     document.getElementById('cutTypeCloseBtn')?.addEventListener('click', () => hideModal('cutTypeModal'));
     document.getElementById('cutTypeDoneBtn')?.addEventListener('click', () => {
-        const clamp = (v) => Math.max(1, Math.min(levels.total, Math.round(Number(v) || 1)));
+        const clamp = (v) => Math.max(levelsFrom(), Math.min(levelsTo(), Math.round(Number(v) || 1)));
         const a = clamp(document.getElementById('cutTypeFrom').value), z = clamp(document.getElementById('cutTypeTo').value);
         const [s, e] = [Math.min(a, z), Math.max(a, z)];
-        if (s > 1) cut.cuts.add(s);
-        if (e < levels.total) cut.cuts.add(e + 1);
+        if (s > levelsFrom()) cut.cuts.add(s);
+        if (e < levelsTo()) cut.cuts.add(e + 1);
         hideModal('cutTypeModal');
         renderCut();
     });
@@ -7177,6 +7225,8 @@
         const old = new Map(levels.chunks.map(c => [`${c.startBar}-${c.endBar}`, c.id]));
         const labelOf = (b) => { const s = paint.sections.find(x => x.startBar === b.startBar && x.endBar === b.endBar); return s && s.label ? s.label : null; };
         const body = [...bits.map(b => ({ id: old.get(`${b.startBar}-${b.endBar}`), kind: 'chunk', startBar: b.startBar, endBar: b.endBar, level: b.level, label: labelOf(b) })),
+            // ML-530: on a movement's path the other movements' bits stay as they are
+            ...levels.chunks.filter(outsideLevelsScope).map(c => ({ id: c.id, kind: c.kind, startBar: c.startBar, endBar: c.endBar, level: c.level, label: c.label })),
             ...levels.groups.map(g => ({ id: g.id, kind: 'group', startBar: g.startBar, endBar: g.endBar, level: g.level, label: g.label }))];
         const btn = document.getElementById('cutDoneBtn');
         btn.disabled = true;
@@ -7756,8 +7806,15 @@
                 const l = await API.practiceLists.get(src.listId);
                 src.listName = l.name;
                 ids = l.pieces.filter(p => !p.archived).map(p => p.scoreId);
+                src.movements = Object.fromEntries(l.pieces.filter(p => p.movement).map(p => [p.scoreId, p.movement]));
             } else if (src.type === 'pieces') ids = src.scoreIds || [];
             sessPlan.pieces = ids && !ids.length ? [] : (await API.practice.pieces(ids)).pieces || [];
+            // ML-530: a piece the list holds as one movement counts only that movement's bits
+            const only = (src.type === 'list' && src.movements) || {};
+            sessPlan.pieces = sessPlan.pieces.map(p => {
+                const m = only[p.scoreId];
+                return m ? { ...p, movement: m, chunks: (p.chunks || []).filter(c => c.startBar >= m.startBar && c.endBar <= m.endBar) } : p;
+            });
         } catch (e) {
             if (src.type === 'list') sessPlan.source = { type: 'all' }; // the list has gone
             sessPlan.pieces = [];
@@ -8332,7 +8389,7 @@
         const b = r.blocks[r.index];
         b.started = true;
         if (b.kind === 'rehearsal') {
-            if (b.stage === 'prepare' && b.scoreId) { practiceRunSave(); await startPrepareInSession(b.scoreId); return; }
+            if (b.stage === 'prepare' && b.scoreId) { practiceRunSave(); await startPrepareInSession(b.scoreId, b.movement); return; }
             if (b.stage === 'playthrough') {
                 try { await startPlaythroughBlock(b); } catch (e) { showWarningToast('Could not open the piece: ' + e.message); switchView('sessionRunView'); }
                 return;
@@ -8371,8 +8428,9 @@
         switchView(view || 'sessionRunView');
     }
     // A session's Prepare block: the piece's path, straight into its run-through.
-    async function startPrepareInSession(scoreId) {
+    async function startPrepareInSession(scoreId, movement) {
         try { await loadPieceLevels(scoreId); } catch (e) { showWarningToast('Piece not loaded: ' + e.message); switchView('sessionRunView'); return; }
+        levels.scope = levelsScopeFor(movement); // ML-530: a list's one movement
         switchView('piecePathView');
         renderPiecePath();
         prep.fromSession = true;
@@ -8384,7 +8442,10 @@
         let chunk = b.chunk;
         if (!chunk) {
             await loadPieceLevels(b.scoreId);
-            if (!levels.groups.length) {
+            levels.scope = levelsScopeFor(b.movement); // ML-530: a list's one movement - its own parts
+            if (levels.scope && !scopedGroups().length) {
+                await savePlaythroughParts(FlowJourney.playthroughParts(levels.blocks, PracticePlan.TARGET_LEVEL).filter(([a, z]) => inLevelsScope({ startBar: a, endBar: z })));
+            } else if (!levels.groups.length) {
                 const body = levels.chunks.map(c => ({ id: c.id, kind: c.kind, startBar: c.startBar, endBar: c.endBar, level: c.level, label: c.label }));
                 applyPieceLevels(await API.levels.save(levels.flowId, body));
             }
@@ -8700,21 +8761,24 @@
         nc.textContent = `Not counted: ${f.notCounted.join('; ')}.`;
         const box = document.getElementById('plPieces');
         box.innerHTML = l.pieces.length ? l.pieces.map((p, i) => {
-            const map = FlowJourney.barLevels(p.totalBars, p.chunks);
+            // ML-530: a piece on the list as one movement - that movement's bars only
+            const m = p.movement;
+            const map = m ? FlowJourney.barLevels(m.endBar, p.chunks).slice(m.startBar - 1) : FlowJourney.barLevels(p.totalBars, p.chunks);
+            const name = m ? `${p.title} · ${FlowJourney.movementLabel(m, true)}` : p.title;
             const pb = f.pieces[i];
             // ML-334: a piece not set up yet is fine on a list - its first block is preparation for
             // practice (giving it Levels), which you can do now.
             const note = pb.archived ? 'Archived - not counted' : pb.prep ? 'Not prepared yet - a Prepare block first' : pb.blocks === 0 ? 'Ready' : `${pb.blocks} block${pb.blocks === 1 ? '' : 's'} to be ready`;
             return `<div class="history-item">
-                <button type="button" class="level-row-body grow text-left" data-piece="${p.scoreId}" aria-label="${escapeHtml(p.title)} - ${note}. ${pb.prep ? 'Prepare it now' : 'Open its path'}">
-                    <span class="grow"><strong>${escapeHtml(p.title)}</strong><br><span class="text-sm text-muted">${note}</span>
+                <button type="button" class="level-row-body grow text-left" data-piece="${p.scoreId}" aria-label="${escapeHtml(name)} - ${note}. ${pb.prep ? 'Prepare it now' : 'Open its path'}">
+                    <span class="grow"><strong>${escapeHtml(name)}</strong><br><span class="text-sm text-muted">${note}</span>
                     ${pb.archived ? '' : pb.prep ? '<span class="text-sm fw-bold">Prepare it now &rsaquo;</span>' : levelBarHtml(map, { label: false, cls: 'mt-1' })}</span>
                 </button>
                 <button type="button" class="list-item-menu-btn" data-piece-menu="${p.scoreId}" aria-label="Options for ${escapeHtml(p.title)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined" aria-hidden="true">more_vert</span></button>
             </div>`;
         }).join('') + (f.pieces.some(pb => !pb.prep) ? levelLegendHtml() : '') : '<p class="text-sm text-muted">No pieces yet.</p>';
         sizeLevelBars(box);
-        box.querySelectorAll('[data-piece]').forEach(b => b.addEventListener('click', () => openPiecePath(Number(b.dataset.piece))));
+        box.querySelectorAll('[data-piece]').forEach(b => b.addEventListener('click', () => { const id = Number(b.dataset.piece); openPiecePath(id, { movement: (l.pieces.find(p => p.scoreId === id) || {}).movement }); }));
         box.querySelectorAll('[data-piece-menu]').forEach(b => b.addEventListener('click', (e) => {
             e.stopPropagation();
             openPlPieceMenu(b, Number(b.dataset.pieceMenu));
@@ -8729,6 +8793,8 @@
         if (!menu || i < 0) return;
         plPieceMenuTargetId = id;
         document.getElementById('plPieceMenuLevelsText').textContent = plForecast(plState.list).pieces[i].prep ? 'Prepare this piece' : 'Its path and Levels';
+        // ML-530: a piece in movements - the whole piece on this list, or one movement (someone who can change the list)
+        setShown('plPieceMenuMovement', plState.list.canEdit !== false && (plState.list.pieces[i].movements || []).length > 1);
         menu.classList.add('show');
         const r = btnEl.getBoundingClientRect();
         placeAt(menu, Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8)),
@@ -8739,7 +8805,23 @@
     document.getElementById('plPieceMenuLevels')?.addEventListener('click', (e) => {
         e.stopPropagation();
         closePlPieceMenu();
-        openPiecePath(plPieceMenuTargetId);
+        openPiecePath(plPieceMenuTargetId, { movement: (plState.list.pieces.find(p => p.scoreId === plPieceMenuTargetId) || {}).movement });
+    });
+    // ML-530: the list holds the whole piece or one of its movements - a concert that plays only one
+    const plItems = (pieces) => pieces.map(p => ({ scoreId: p.scoreId, movement: p.movement ? p.movement.number : null }));
+    document.getElementById('plPieceMenuMovement')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closePlPieceMenu();
+        const piece = plState.list.pieces.find(p => p.scoreId === plPieceMenuTargetId);
+        if (!piece) return;
+        const cur = piece.movement ? piece.movement.number : null;
+        openFlowChoiceModal('Which movement is on this list?', [
+            { n: null, selected: !cur, html: addPieceRow('The whole piece', `All ${piece.movements.length} movements`) },
+            ...piece.movements.map(m => ({ n: m.number, selected: cur === m.number, html: addPieceRow(FlowJourney.movementLabel(m, true), `Bars ${m.startBar}-${m.endBar}`) }))
+        ], (opt) => {
+            if (opt.n === cur) return;
+            plSetPieces(plItems(plState.list.pieces).map(x => (x.scoreId === piece.scoreId ? { ...x, movement: opt.n } : x)));
+        });
     });
     document.getElementById('plPieceMenuDelete')?.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -8748,8 +8830,8 @@
         const piece = plState.list.pieces.find(p => p.scoreId === id);
         if (!piece) return;
         showConfirmModal('Delete piece', `Take "${piece.title}" off this list? It stays in My music.`, async () => {
-            const listId = plState.list.id, before = plState.list.pieces.map(p => p.scoreId);
-            if (await plSetPieces(before.filter(x => x !== id))) showUndoToast(`${piece.title} taken off the list`, () => { if (plState.list?.id === listId) plSetPieces(before); });
+            const listId = plState.list.id, before = plItems(plState.list.pieces);
+            if (await plSetPieces(before.filter(x => x.scoreId !== id))) showUndoToast(`${piece.title} taken off the list`, () => { if (plState.list?.id === listId) plSetPieces(before); });
         }, true, 'Delete');
     });
     async function plSetPieces(ids) {
@@ -15649,7 +15731,8 @@
         const moves = FlowJourney.movements(currentFlowBlocks);
         flowMovement = moves.length > 1 && moves.some(m => m.number === n) ? n : null;
     }
-    const flowMovementNow = () => (flowSession ? null : flowMovement);
+    // A practice has its own bars; a run-through of one movement (Prepare on a movement's path) plays just that movement
+    const flowMovementNow = () => (flowSession ? (flowSession.mode === 'runthrough' && flowSession.chunk.movement) || null : flowMovement);
     function flowChosenMovement() {
         const n = flowMovementNow();
         return n ? FlowJourney.movements(currentFlowBlocks).find(m => m.number === n) || null : null;

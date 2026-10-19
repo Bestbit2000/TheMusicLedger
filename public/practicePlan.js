@@ -130,7 +130,8 @@
             const base = (p.chunks || []).filter(c => !isGroup(c));
             const groups = (p.chunks || []).filter(isGroup);
             const set = base.filter(c => c.level != null);
-            const item = (stage, chunk, extra) => ({ stage, scoreId: p.scoreId, title: p.title, chunk: chunk ? { ...chunk, scoreId: p.scoreId, title: p.title } : null, ...extra });
+            // ML-530: a piece on a practice list as one movement carries it, so its Prepare and play-through are that movement's
+            const item = (stage, chunk, extra) => ({ stage, scoreId: p.scoreId, title: p.title, movement: p.movement || null, chunk: chunk ? { ...chunk, scoreId: p.scoreId, title: p.title } : null, ...extra });
             if (!set.length) { prepare.push(item('prepare', null)); return; }
             set.filter(c => c.level < TARGET_LEVEL).forEach(c => rest.push(item('practise', c, { level: c.level, lastPractised: c.lastPractised })));
             const inside = (g) => base.filter(c => c.startBar >= g.startBar && c.endBar <= g.endBar);

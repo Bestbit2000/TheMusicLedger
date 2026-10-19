@@ -131,7 +131,9 @@ in a practice or a run-through (`flowSession`): those have their own bars, and t
   option is "Each movement whole" (or "in one go", up to 10 minutes each), and the parts are named within their
   movement (`playthroughLabels`: "Play-through, first half", shown as "Mvt 2 · Play-through, first half").
 
-A practice list holding just one movement of a piece is still to come (ML-530, part B).
+A practice list can hold just one movement of a piece, and a piece's path can be for one movement (its Movement box):
+the run-through, painting, cutting, focus bits and play-through are then that movement's - `docs/practice-sessions.md`,
+"One movement on a list".
 
 ## Repeat bars (ML-302)
 
@@ -284,6 +286,7 @@ appears. It's never active on sandbox or production.
 | 15 | Display | Label, highlighted bar and dots in 1/2/4 columns; tap to jump; screenshots |
 | 16 | Editor | Every option of all 12 settings through the real pickers; saved and shown everywhere |
 | 17 | Checker | The ML-248 review: messages, outlines, fix / carry on; screenshots |
+| 81 | One movement on a list (ML-530) | A list piece as one movement: the row, its path, its run-through and painting, a session from the list |
 | 80 | One movement (ML-530) | Rehearse plays one movement, its tiles only, the repeat inside it; practice names "Mvt 2 · ..."; the heat map's headings |
 | 79 | Movements (ML-529) | Each movement's own D.S. and repeat, straight on; Rehearse and edit-screen headings; moves kept inside a movement; Quick entry's movements table |
 

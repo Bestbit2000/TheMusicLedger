@@ -257,7 +257,8 @@ router.get('/practice/lists/:id', requireAuth, resolveAccount, practiceListRoute
 router.put('/practice/lists/:id', requireAuth, resolveAccount, practiceListRoute(req => updatePracticeList(req.accountId, req.params.id, req.body || {})));
 router.put('/practice/lists/:id/archive', requireAuth, resolveAccount, practiceListRoute(req => setPracticeListArchived(req.accountId, req.params.id, { archived: req.body?.archived === true, forAll: req.body?.forAll === true })));
 router.delete('/practice/lists/:id', requireAuth, resolveAccount, practiceListRoute(req => deletePracticeList(req.accountId, req.params.id)));
-router.put('/practice/lists/:id/pieces', requireAuth, resolveAccount, practiceListRoute(req => setPracticeListPieces(req.accountId, req.params.id, req.body?.scoreIds)));
+// ML-530: pieces as [{ scoreId, movement }] (or plain ids, as before - a plain id keeps its movement)
+router.put('/practice/lists/:id/pieces', requireAuth, resolveAccount, practiceListRoute(req => setPracticeListPieces(req.accountId, req.params.id, req.body?.pieces || req.body?.scoreIds)));
 // ML-320 follow-ups: your own templates, and the session running now (kept across reloads and devices).
 router.get('/practice/templates', requireAuth, resolveAccount, practiceListRoute(req => listTemplates(req.accountId).then(templates => ({ templates }))));
 router.post('/practice/templates', requireAuth, resolveAccount, practiceListRoute(req => saveTemplate(req.accountId, null, req.body || {})));

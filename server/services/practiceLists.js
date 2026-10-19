@@ -4,7 +4,7 @@
 // forecast still uses their own Levels. The readiness forecast is worked out in the browser from what
 // getPracticeList returns (PracticePlan.forecast). See db/migrations/063_practice_lists.sql.
 import pool from '../config/db.js';
-import { withStatus, assertFlowReadAccess } from './flows.js';
+import { withStatus, assertFlowReadAccess, FlowJourney } from './flows.js';
 import { BAND_CAN_CHANGE_SQL, PLAY_ONLY_MESSAGE } from './flowPermissions.js';
 
 function toList(row) {
@@ -130,18 +130,32 @@ export async function setPracticeListArchived(accountId, listId, { archived, for
   return getPracticeList(accountId, listId);
 }
 
-// The list's pieces, in order (any the account can read - its own, its bands', public ones).
-export async function setPracticeListPieces(accountId, listId, scoreIds) {
+// The list's pieces, in order (any the account can read - its own, its bands', public ones). Each is a piece id,
+// or { scoreId, movement } - ML-530: one movement of a piece in movements (movement null: the whole piece). A plain
+// id keeps the movement the piece already had on the list, so a caller that only knows ids never loses it.
+export async function setPracticeListPieces(accountId, listId, items) {
   await assertListOwner(accountId, listId, true);
-  if (!Array.isArray(scoreIds) || scoreIds.length > 50) throw withStatus(400, 'A list has up to 50 pieces.');
-  const ids = [...new Set(scoreIds.map(Number))];
-  for (const id of ids) await assertFlowReadAccess(accountId, id);
+  if (!Array.isArray(items) || items.length > 50) throw withStatus(400, 'A list has up to 50 pieces.');
+  const { rows: before } = await pool.query('SELECT score_id, movement_number FROM practice_list_scores WHERE practice_list_id = $1', [listId]);
+  const had = new Map(before.map(r => [Number(r.score_id), r.movement_number == null ? null : Number(r.movement_number)]));
+  const seen = new Set();
+  const pieces = [];
+  for (const item of items) {
+    const plain = item === null || typeof item !== 'object';
+    const id = Number(plain ? item : item.scoreId);
+    if (!Number.isInteger(id) || id < 1 || seen.has(id)) continue;
+    seen.add(id);
+    let movement = plain ? (had.get(id) ?? null) : (item.movement == null ? null : Number(item.movement));
+    if (movement !== null && !(Number.isInteger(movement) && movement >= 1 && movement <= 99)) throw withStatus(400, 'That movement is not one of the piece\'s.');
+    pieces.push({ id, movement });
+  }
+  for (const p of pieces) await assertFlowReadAccess(accountId, p.id);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     await client.query('DELETE FROM practice_list_scores WHERE practice_list_id = $1', [listId]);
-    for (let i = 0; i < ids.length; i++) {
-      await client.query('INSERT INTO practice_list_scores (practice_list_id, score_id, order_index) VALUES ($1, $2, $3)', [listId, ids[i], i]);
+    for (let i = 0; i < pieces.length; i++) {
+      await client.query('INSERT INTO practice_list_scores (practice_list_id, score_id, order_index, movement_number) VALUES ($1, $2, $3, $4)', [listId, pieces[i].id, i, pieces[i].movement]);
     }
     await client.query('COMMIT');
   } catch (error) {
@@ -153,12 +167,29 @@ export async function setPracticeListPieces(accountId, listId, scoreIds) {
   return getPracticeList(accountId, listId);
 }
 
+// ML-530: each piece's movements when it has more than one, by piece id - [{ number, title, startBar, endBar }].
+async function movementsByPiece(ids) {
+  if (!ids.length) return new Map();
+  const { rows } = await pool.query(
+    `SELECT parent_score_id, bar_count, movement_start, movement_title FROM metronome_segments
+      WHERE parent_score_id = ANY($1::bigint[]) AND NOT is_lead_in ORDER BY parent_score_id, order_index`, [ids]);
+  const out = new Map();
+  ids.forEach(id => {
+    const blocks = rows.filter(r => Number(r.parent_score_id) === id).map(r => ({ barCount: r.bar_count, movementStart: r.movement_start, movementTitle: r.movement_title }));
+    const moves = FlowJourney.movements(blocks);
+    out.set(id, moves.length > 1 ? moves.map(m => ({ number: m.number, title: m.title, startBar: m.startBar, endBar: m.endBar })) : []);
+  });
+  return out;
+}
+
 // The list, and for each piece its bars and this account's chunks - everything the list screen and
-// the forecast need.
+// the forecast need. ML-530: a piece on the list as one movement has that `movement` and only the chunks inside
+// it, so the forecast and the sessions count just its bars; `movements` lists the piece's movements (none when it
+// has only one) for choosing.
 export async function getPracticeList(accountId, listId) {
   const list = toList(await assertListOwner(accountId, listId));
   const { rows: pieces } = await pool.query(
-    `SELECT s.id, s.title,
+    `SELECT s.id, s.title, pls.movement_number,
             (SELECT COALESCE(SUM(ms.bar_count), 0)::int FROM metronome_segments ms WHERE ms.parent_score_id = s.id AND NOT ms.is_lead_in) AS total_bars,
             (s.archived_at IS NOT NULL OR EXISTS (SELECT 1 FROM archived_scores ar WHERE ar.account_id = $2 AND ar.score_id = s.id)) AS archived
        FROM practice_list_scores pls JOIN scores s ON s.id = pls.score_id
@@ -172,14 +203,22 @@ export async function getPracticeList(accountId, listId) {
         WHERE account_id = $1 AND score_id = ANY($2::bigint[]) ORDER BY sort_order, start_bar, id`,
       [accountId, ids])
     : { rows: [] };
-  list.pieces = pieces.map(p => ({
-    scoreId: Number(p.id),
-    title: p.title,
-    totalBars: p.total_bars,
-    archived: !!p.archived, // an archived piece stays on the list but is not counted or planned
-    chunks: chunks.filter(c => Number(c.score_id) === Number(p.id)).map(c => ({
-      id: Number(c.id), kind: c.kind, startBar: c.start_bar, endBar: c.end_bar, level: c.level == null ? null : Number(c.level), label: c.label,
-    })),
-  }));
+  const moves = await movementsByPiece(ids);
+  list.pieces = pieces.map(p => {
+    const movements = moves.get(Number(p.id)) || [];
+    const movement = p.movement_number == null ? null : movements.find(m => m.number === Number(p.movement_number)) || null;
+    const inside = (c) => !movement || (c.start_bar >= movement.startBar && c.end_bar <= movement.endBar);
+    return {
+      scoreId: Number(p.id),
+      title: p.title,
+      totalBars: p.total_bars,
+      movement,
+      movements,
+      archived: !!p.archived, // an archived piece stays on the list but is not counted or planned
+      chunks: chunks.filter(c => Number(c.score_id) === Number(p.id) && inside(c)).map(c => ({
+        id: Number(c.id), kind: c.kind, startBar: c.start_bar, endBar: c.end_bar, level: c.level == null ? null : Number(c.level), label: c.label,
+      })),
+    };
+  });
   return list;
 }

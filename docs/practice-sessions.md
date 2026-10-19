@@ -273,6 +273,30 @@ sub-beats, the 4:30 chunk length rule, the heat map, and the practice mode.
   - **"Plan a session for this"** opens the three steps on the list's pieces with the Concert plan (ML-390).
 - **Each member's forecast** uses their own Levels.
 
+## One movement on a list (ML-530)
+
+A practice list can hold **one movement** of a piece in movements - for a concert that plays only one (owner, 19 Oct
+2026: preparing and practising then cover that movement only). `practice_list_scores.movement_number` (migration 132;
+NULL = the whole piece) - the movement's number, not its bars, so editing the piece moves it with the music, and a
+number the piece no longer has reads as the whole piece.
+
+- **Choosing it:** the piece's ⋮ on the list - **Which movement** (only for a piece in movements, and only for someone
+  who can change the list) - one pop-up: the whole piece, or each movement with its bars. The row then reads
+  "Iceni Autumn · Mvt 2: Harvest" and its Level bar is that movement's bars.
+- **The server** (`getPracticeList`): such a piece has `movement` ({ number, title, startBar, endBar }) and only the
+  chunks inside it, so **the forecast** counts just its bars (a movement not painted yet is "Not prepared yet", even
+  when another movement is); `movements` lists the piece's movements for choosing. `setPracticeListPieces` takes
+  `[{ scoreId, movement }]`; a plain id keeps the movement the piece already had, so nothing that only knows ids loses it.
+- **Its path** opens on that movement (`openPiecePath(id, { movement })`; `levels.scope`): the path's own **Movement**
+  box (the whole piece or one movement - also there for any piece in movements) says which. On a movement's path the
+  heat map is its bars, the run-through plays just it (`flowSession.chunk.movement`; `movementJourney`), painting and
+  "Fill all" are its bars, cutting makes its bits, its stage and focus bits are its own, and its play-through parts
+  are its own. Saving keeps the other movements' bits and parts as they were.
+- **Sessions from the list** (`refreshSessionPieces`) get only that movement's bits; a Prepare or Play-through block
+  carries the movement (`piecePool`'s items) and opens the path on it.
+
+Back-test #81.
+
 ## Skills (ML-321; lists ML-339, grades ML-338)
 
 - **Skills lists (ML-339):** you can keep several named lists (`skill_lists`), each a set of skills in

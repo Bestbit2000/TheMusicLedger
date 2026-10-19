@@ -1374,6 +1374,7 @@
         <!-- ML-349: one shared ⋮ menu for every piece row - Prepare levels (Edit levels once it has
              them), then Delete. Same pattern as My music's flowLibraryItemMenu. -->
         <div class="dropdown-menu metroBlk-tile-menu" id="plPieceMenu">
+            <button type="button" class="dropdown-item hidden-group" id="plPieceMenuMovement" aria-haspopup="dialog"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">segment</span><span class="dropdown-item-text">Which movement</span></button>
             <button type="button" class="dropdown-item" id="plPieceMenuLevels"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">signal_cellular_alt</span><span class="dropdown-item-text" id="plPieceMenuLevelsText">Prepare levels</span></button>
             <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="plPieceMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete</span></button>
         </div>
@@ -1396,6 +1397,11 @@
          and a session's Prepare block. Screens: the "piece's path" section of app.js. -->
     <div id="piecePathView" class="hidden-group">
         <p class="metro-help-text" id="pathSub"></p>
+        <!-- ML-530: which movement this path is for - shown for a piece in movements -->
+        <button type="button" class="metroBlk-ctrl-value-btn hidden-group mb-2" id="pathMovementBtn" aria-haspopup="dialog">
+            <strong id="pathMovementLbl">all</strong>
+            <span class="metroBlk-ctrl-value-label">movement</span>
+        </button>
         <div class="level-notice hidden-group" id="pathBarsChanged" role="status">This piece's bars have changed since you painted them. Paint them again to check they still match.</div>
         <div class="level-map" id="pathMap" role="img"></div>
         <div class="level-legend" aria-hidden="true">
