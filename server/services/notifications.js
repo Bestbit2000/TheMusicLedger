@@ -158,22 +158,50 @@ function toAdminDto(row) {
     withdrawnAt: row.withdrawn_at,
     status: statusOf(row),
     readCount: Number(row.read_count || 0),
+    // ML-492: how many it is for - the members named, or (for everyone) every account that can still read it
+    recipientCount: row.recipient_count == null ? null : Number(row.recipient_count),
     createdBy: row.created_by_email || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
 }
 
-export async function listNotificationsForAdmin() {
-  const { rows } = await pool.query(
-    `SELECT n.*, a.email AS created_by_email,
-            (SELECT COUNT(*) FROM notification_reads r WHERE r.notification_id = n.id) AS read_count
+// ML-492: a notice for named members counts its readers out of those members; one for everyone out of every
+// account that can still read it (a deleted account is kept only as an anonymous row, so it isn't counted).
+const ADMIN_SELECT = `SELECT n.*, a.email AS created_by_email,
+            (SELECT COUNT(*) FROM notification_reads r WHERE r.notification_id = n.id) AS read_count,
+            CASE WHEN n.audience = 'accounts' THEN (SELECT COUNT(*) FROM notification_recipients nr WHERE nr.notification_id = n.id) END AS recipient_count
      FROM notifications n
-     LEFT JOIN accounts a ON a.id = n.created_by_account_id
-     ORDER BY n.publish_at DESC, n.id DESC`
-  );
-  const { rows: totals } = await pool.query('SELECT COUNT(*) AS n FROM accounts');
+     LEFT JOIN accounts a ON a.id = n.created_by_account_id`;
+
+export async function listNotificationsForAdmin() {
+  const { rows } = await pool.query(`${ADMIN_SELECT} ORDER BY n.publish_at DESC, n.id DESC`);
+  const { rows: totals } = await pool.query('SELECT COUNT(*) AS n FROM accounts WHERE deleted_at IS NULL');
   return { notifications: rows.map(toAdminDto), accountCount: Number(totals[0].n) };
+}
+
+// ML-492/493: who a notice is for, split into who has seen it (read it, or tapped Got it - with the day) and who
+// hasn't yet. For the owner only, on Admin -> Notifications: the app telling its members something, never anyone
+// checking on a player's practice - so never offered to a band organiser about their members.
+export async function notificationAudienceForAdmin(notificationId) {
+  if (!/^\d+$/.test(String(notificationId))) throw withStatus(404, 'Notification not found');
+  const { rows: found } = await pool.query('SELECT audience FROM notifications WHERE id = $1', [notificationId]);
+  if (!found.length) throw withStatus(404, 'Notification not found');
+  const { rows } = await pool.query(
+    `SELECT COALESCE(NULLIF(btrim(a.display_name), ''), a.email) AS name, a.email, r.read_at
+     FROM accounts a
+     LEFT JOIN notification_reads r ON r.notification_id = $1 AND r.account_id = a.id
+     WHERE a.deleted_at IS NULL
+       AND ($2 = 'all' OR EXISTS (SELECT 1 FROM notification_recipients nr WHERE nr.notification_id = $1 AND nr.account_id = a.id))
+     ORDER BY lower(COALESCE(NULLIF(btrim(a.display_name), ''), a.email)), a.id`,
+    [notificationId, found[0].audience]
+  );
+  const person = (r) => ({ name: r.name, email: r.email });
+  return {
+    audience: found[0].audience,
+    seen: rows.filter(r => r.read_at).map(r => ({ ...person(r), seenAt: r.read_at })),
+    notSeen: rows.filter(r => !r.read_at).map(person)
+  };
 }
 
 function parseTimestamp(value, label) {
@@ -260,13 +288,7 @@ export async function deleteNotification(notificationId) {
 }
 
 async function getAdminNotification(id) {
-  const { rows } = await pool.query(
-    `SELECT n.*, a.email AS created_by_email,
-            (SELECT COUNT(*) FROM notification_reads r WHERE r.notification_id = n.id) AS read_count
-     FROM notifications n LEFT JOIN accounts a ON a.id = n.created_by_account_id
-     WHERE n.id = $1`,
-    [id]
-  );
+  const { rows } = await pool.query(`${ADMIN_SELECT} WHERE n.id = $1`, [id]);
   if (!rows.length) throw withStatus(404, 'Notification not found');
   return toAdminDto(rows[0]);
 }

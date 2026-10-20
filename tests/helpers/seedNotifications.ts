@@ -71,3 +71,18 @@ export async function unclearForLocalDev(since: Date): Promise<void> {
     );
   });
 }
+
+// ML-492: a notice for named members only (audience 'accounts'), by their email addresses.
+export async function createTargetedNotice(title: string, body: string, emails: string[], urgent = false): Promise<number> {
+  return withClient(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO notifications (title, body, audience, publish_at, urgent) VALUES ($1, $2, 'accounts', now() - interval '1 minute', $3) RETURNING id`,
+      [title, body, urgent]
+    );
+    await client.query(
+      'INSERT INTO notification_recipients (notification_id, account_id) SELECT $1, id FROM accounts WHERE email = ANY($2::text[])',
+      [rows[0].id, emails]
+    );
+    return Number(rows[0].id);
+  });
+}

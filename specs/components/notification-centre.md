@@ -1,7 +1,7 @@
 # Notification centre
 
 ## 1. Metadata
-- **Name:** Notification centre (`.notif-dot`, `.notif-count`, `.notifications-toolbar`, `.notification-row`, `.has-clear` (a row whose notification can be cleared), `.notification-clear-btn` (ML-556), `.notification-item`, `.notification-head`, `.notification-unread-dot`, `.notification-date`, `.notification-body`, `.notification-update`, `.notification-release`, `.notifications-empty`, `.notifications-empty-art`, `.notifications-empty-title`, `.notification-important` (the "Before you continue..." pop-up's content, ML-463), `.notification-urgent` (the urgent pop-up's content), `.notification-urgent-tag`)
+- **Name:** Notification centre (`.notif-dot`, `.notif-count`, `.notifications-toolbar`, `.notification-row`, `.has-clear` (a row whose notification can be cleared), `.notification-clear-btn` (ML-556), `.notification-item`, `.notification-head`, `.notification-unread-dot`, `.notification-date`, `.notification-body`, `.notification-update`, `.notification-release`, `.notifications-empty`, `.notifications-empty-art`, `.notifications-empty-title`, `.notification-important` (the "Before you continue..." pop-up's content, ML-463), `.notification-urgent` (the urgent pop-up's content), `.notification-urgent-tag`, `.admin-who-list` (Admin → Notifications' "Who has seen it", ML-492/493))
 - **Category:** Feedback
 - **Status:** Stable (ML-201). Behaviour documented in [docs/notifications.md](../../docs/notifications.md)
 
@@ -34,6 +34,12 @@ title as a `.section-title` › `.notification-date` › `.notification-body` (i
 it. Got it is remembered on the account, so no other device shows it again; several show one at a time,
 oldest first; an urgent one waits its turn behind it. It doesn't depend on the `notifications` feature -
 every member sees it - and with no connection nothing is shown.
+Admin → Notifications (ML-492/493): each notice says who it is for in a `.admin-feedback-badge` ("For everyone" /
+"For 2 members") and "Read by N of M" out of those people. A notice for named members (**Who it's for**) or an urgent or
+important one (**Who has seen it**) has a button opening `#notificationWhoModal`: the title › "For ..." ›
+`.admin-stat-section-title` "Not seen yet (n)" › `ul.admin-who-list` (name, then the email in `.text-muted` when the name
+isn't the email) › "Seen (n)" › the same list with the day each saw it. For the owner only - never offered to a band
+organiser about their members.
 Empty: `.notifications-empty` › a line drawing (`svg.notifications-empty-art`, someone relaxing back in a deckchair
 with a euphonium; `aria-hidden`; lines in `--label-color`, the instrument a `.is-solid` group filled with
 `--container-bg` so it hides the lines behind it) › `h2.notifications-empty-title` "You're all caught up!" ›

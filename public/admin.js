@@ -2380,19 +2380,47 @@
                             <span class="admin-feedback-badge notification-status-${n.status}">${NOTIFICATION_STATUS_LABELS[n.status] || n.status}</span>
                             ${n.urgent ? '<span class="admin-feedback-badge notification-status-urgent">Urgent</span>' : ''}
                             ${n.important ? `<span class="admin-feedback-badge notification-status-urgent">Important${n.policyLink ? ' - with the privacy policy link' : ''}</span>` : ''}
-                            <span class="admin-feedback-badge cat">Read by ${n.readCount} of ${data.accountCount}</span>
+                            <span class="admin-feedback-badge cat">${n.audience === 'accounts' ? `For ${n.recipientCount} member${n.recipientCount === 1 ? '' : 's'}` : 'For everyone'}</span>
+                            <span class="admin-feedback-badge cat">Read by ${n.readCount} of ${n.audience === 'accounts' ? n.recipientCount : data.accountCount}</span>
                         </div>
                     </div>
                     <div class="admin-feature-actions">
+                        ${notificationHasWho(n) ? `<button class="btn-edit" type="button" data-notification-who="${n.id}">${n.urgent || n.important ? 'Who has seen it' : "Who it's for"}</button>` : ''}
                         <button class="btn-edit" type="button" data-notification-edit="${n.id}">Edit</button>
                         <button class="btn-edit" type="button" data-notification-withdraw="${n.id}">${n.status === 'withdrawn' ? 'Restore' : 'Withdraw'}</button>
                         <button class="btn-delete" type="button" data-notification-delete="${n.id}">Delete</button>
                     </div>
                 </div>
             </div>`).join('');
+        el.querySelectorAll('[data-notification-who]').forEach(btn => btn.addEventListener('click', () => openNotificationWho(notificationsById.get(Number(btn.dataset.notificationWho)))));
         el.querySelectorAll('[data-notification-edit]').forEach(btn => btn.addEventListener('click', () => openNotificationForm(notificationsById.get(Number(btn.dataset.notificationEdit)))));
         el.querySelectorAll('[data-notification-withdraw]').forEach(btn => btn.addEventListener('click', () => toggleNotificationWithdrawn(Number(btn.dataset.notificationWithdraw))));
         el.querySelectorAll('[data-notification-delete]').forEach(btn => btn.addEventListener('click', () => deleteNotificationAdmin(Number(btn.dataset.notificationDelete))));
+    }
+
+    // ML-492/493: who a notice is for, and who has seen it - offered on one for named members (whose names are
+    // asked for here, not shown on the list) and on an urgent or important one, where who hasn't tapped Got it matters.
+    // The owner's only: never offered to a band organiser about their members.
+    const notificationHasWho = (n) => n.audience === 'accounts' || n.urgent || n.important;
+    async function openNotificationWho(n) {
+        if (!n) return;
+        document.getElementById('notificationWhoTitle').textContent = n.title;
+        document.getElementById('notificationWhoFor').textContent = n.audience === 'accounts' ? `For ${n.recipientCount} named member${n.recipientCount === 1 ? '' : 's'}.` : 'For everyone.';
+        const box = document.getElementById('notificationWhoLists');
+        box.textContent = 'Loading...';
+        showModal('notificationWhoModal');
+        try {
+            const who = await apiCall(`/api/admin/notifications/${n.id}/audience`);
+            const person = (p) => `${escapeHtml(p.name)}${p.name !== p.email ? ` <span class="text-muted">${escapeHtml(p.email)}</span>` : ''}`;
+            const list = (rows, line) => rows.length ? `<ul class="admin-who-list">${rows.map(line).join('')}</ul>` : '<p class="admin-intro">Nobody.</p>';
+            box.innerHTML = `
+                <div class="admin-stat-section-title">Not seen yet (${who.notSeen.length})</div>
+                ${list(who.notSeen, p => `<li>${person(p)}</li>`)}
+                <div class="admin-stat-section-title">Seen (${who.seen.length})</div>
+                ${list(who.seen, p => `<li>${person(p)} <span class="text-muted">- ${escapeHtml(fmtDate(p.seenAt))}</span></li>`)}`;
+        } catch (error) {
+            box.textContent = 'Not loaded: ' + error.message;
+        }
     }
 
     async function reloadNotificationsAdmin() {
