@@ -642,6 +642,9 @@
             list: () => apiCall('/api/notifications'),
             read: (id) => apiCall(`/api/notifications/${id}/read`, 'POST'),
             readAll: () => apiCall('/api/notifications/read-all', 'POST'),
+            // ML-556: out of my list for good
+            clear: (id) => apiCall(`/api/notifications/${id}/clear`, 'POST'),
+            clearAll: () => apiCall('/api/notifications/clear-all', 'POST'),
             // ML-463: important notices - not behind the notifications feature
             important: () => apiCall('/api/notices/important'),
             acknowledge: (id) => apiCall(`/api/notices/important/${id}/ack`, 'POST')
@@ -2949,7 +2952,10 @@
         renderNotificationsUpdateCard();
         const list = document.getElementById('notificationsList');
         if (!list) return;
-        document.getElementById('notificationsToolbar')?.classList.toggle('hidden-group', !notificationsUnreadCount);
+        const anyClearable = notificationsCache.some(notificationClearable);
+        document.getElementById('notificationsToolbar')?.classList.toggle('hidden-group', !notificationsUnreadCount && !anyClearable);
+        setShown('notificationsMarkAllBtn', !!notificationsUnreadCount);
+        setShown('notificationsClearAllBtn', anyClearable);
         if (!notificationsCache.length) {
             list.innerHTML = isAppUpdateAvailable() ? '' : NOTIFICATIONS_EMPTY_HTML;
             // Not a dead end: Home has everything next - a practice session, the tools, the timer.
@@ -2958,16 +2964,49 @@
         }
         list.innerHTML = notificationsCache.map(n => {
             const expanded = expandedNotificationIds.has(n.id);
+            const clearable = notificationClearable(n);
             return `
-            <button type="button" class="notification-item${n.read ? '' : ' unread'}${expanded ? ' expanded' : ''}" data-notification-id="${n.id}" aria-expanded="${expanded}">
-                <div class="notification-head">${n.read ? '' : '<span class="notification-unread-dot" aria-label="Unread"></span>'}<strong>${escapeHtml(n.title)}</strong>${n.important ? '<span class="notification-urgent-tag">Important</span>' : n.urgent ? '<span class="notification-urgent-tag">Urgent</span>' : ''}</div>
-                <div class="notification-date">${escapeHtml(formatNotificationDate(n.publishAt))}</div>
-                <p class="notification-body">${escapeHtml(n.body)}</p>
-            </button>`;
+            <div class="notification-row${clearable ? ' has-clear' : ''}">
+                <button type="button" class="notification-item${n.read ? '' : ' unread'}${expanded ? ' expanded' : ''}" data-notification-id="${n.id}" aria-expanded="${expanded}">
+                    <div class="notification-head">${n.read ? '' : '<span class="notification-unread-dot" aria-label="Unread"></span>'}<strong>${escapeHtml(n.title)}</strong>${n.important ? '<span class="notification-urgent-tag">Important</span>' : n.urgent ? '<span class="notification-urgent-tag">Urgent</span>' : ''}</div>
+                    <div class="notification-date">${escapeHtml(formatNotificationDate(n.publishAt))}</div>
+                    <p class="notification-body">${escapeHtml(n.body)}</p>
+                </button>
+                ${clearable ? `<button type="button" class="notification-clear-btn" data-notification-clear="${n.id}" aria-label="Clear ${escapeHtml(n.title)}"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>` : ''}
+            </div>`;
         }).join('');
         list.querySelectorAll('[data-notification-id]').forEach(el => {
             el.addEventListener('click', () => openNotification(Number(el.dataset.notificationId)));
         });
+        list.querySelectorAll('[data-notification-clear]').forEach(el => {
+            el.addEventListener('click', () => clearNotification(Number(el.dataset.notificationClear)));
+        });
+    }
+
+    // ML-556: a notification can be cleared out of the list for good - apart from an urgent or important one
+    // still waiting for Got it (its pop-up is how it's read). Clearing reads it too.
+    function notificationClearable(n) { return n.read || !(n.urgent || n.important); }
+    async function clearNotification(id) {
+        const at = notificationsCache.findIndex(x => x.id === id);
+        if (at < 0) return;
+        const [gone] = notificationsCache.splice(at, 1); // optimistic - it goes at once
+        if (!gone.read) notificationsUnreadCount = Math.max(0, notificationsUnreadCount - 1);
+        expandedNotificationIds.delete(id);
+        renderNotificationIndicators();
+        renderNotificationsView();
+        // Focus stays in the list: on the notification that took its place, else the one before, else the screen
+        const items = document.querySelectorAll('#notificationsList .notification-item');
+        (items[Math.min(at, items.length - 1)] || document.querySelector('#notificationsList [data-notifications-home]'))?.focus();
+        try {
+            applyNotificationsResponse(await API.notifications.clear(id));
+        } catch (error) {
+            showWarningToast(error.offline ? error.message : 'Notification not cleared: ' + error.message);
+            // Not cleared (offline, say): put it back where it was
+            if (!notificationsCache.some(x => x.id === id)) notificationsCache.splice(Math.min(at, notificationsCache.length), 0, gone);
+            if (!gone.read) notificationsUnreadCount += 1;
+            renderNotificationIndicators();
+            renderNotificationsView();
+        }
     }
 
     // Opening a notification shows it in full and marks it read - reading IS marking as read.
@@ -2994,6 +3033,17 @@
         } catch (error) {
             showWarningToast('Error marking notifications as read: ' + error.message);
         }
+    });
+    // ML-556: Clear all asks first - they're gone for good
+    document.getElementById('notificationsClearAllBtn')?.addEventListener('click', () => {
+        showConfirmModal('Clear all notifications?', "They'll be gone from your list for good, on every device.", async () => {
+            try {
+                applyNotificationsResponse(await API.notifications.clearAll());
+                document.querySelector('#notificationsList .notification-item, #notificationsList [data-notifications-home]')?.focus();
+            } catch (error) {
+                showWarningToast(error.offline ? error.message : 'Notifications not cleared: ' + error.message);
+            }
+        }, false, 'Clear all');
     });
 
     // ========================================

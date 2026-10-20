@@ -59,3 +59,15 @@ export async function markAllLiveReadForLocalDev(): Promise<void> {
     );
   });
 }
+
+// ML-556: clearing is for good, so a spec that clears (Clear all reaches every live notification, not just
+// its own) puts back anything else it cleared for the local-dev account since it started.
+export async function unclearForLocalDev(since: Date): Promise<void> {
+  await withClient(async (client) => {
+    await client.query(
+      `UPDATE notification_reads r SET cleared_at = NULL FROM accounts a
+       WHERE a.id = r.account_id AND a.email = 'local-dev@themusicledger.local' AND r.cleared_at >= $1`,
+      [since]
+    );
+  });
+}

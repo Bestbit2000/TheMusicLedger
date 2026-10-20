@@ -1,7 +1,7 @@
 // ML-201: notification centre. See db/migrations/048_notifications.sql for the table reasoning.
 //
-// Two audiences: every account reads live notifications and marks them read (the only write a
-// normal account makes); super admins create/edit/withdraw/delete them from the admin panel. "Live"
+// Two audiences: every account reads live notifications, marks them read and clears them out of its
+// list (ML-556 - the only writes a normal account makes); super admins create/edit/withdraw/delete them from the admin panel. "Live"
 // is always computed from the clock at query time - there's no scheduler, so a notification
 // scheduled for 09:00 simply starts appearing in every client's next poll after 09:00.
 
@@ -40,7 +40,7 @@ export async function listNotificationsForAccount(accountId) {
     `SELECT n.id, n.title, n.body, n.publish_at, n.urgent, n.important, n.policy_link, r.read_at
      FROM notifications n
      LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.account_id = $1
-     WHERE ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')}
+     WHERE ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')} AND r.cleared_at IS NULL
      ORDER BY n.publish_at DESC, n.id DESC
      LIMIT 100`,
     [accountId]
@@ -97,6 +97,38 @@ export async function markAllNotificationsRead(accountId) {
     `INSERT INTO notification_reads (notification_id, account_id)
      SELECT n.id, $1 FROM notifications n WHERE ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')}
      ON CONFLICT (notification_id, account_id) DO NOTHING`,
+    [accountId]
+  );
+  return listNotificationsForAccount(accountId);
+}
+
+// ML-556: clearing takes a notification out of this member's list for good, and reads it too. An urgent or
+// important one has to be answered with Got it first (its pop-up is how it's read), so while it's unread it
+// can't be cleared. Clearing again is harmless (the first cleared_at is kept).
+const CLEARABLE = `NOT ((n.urgent OR n.important) AND NOT EXISTS (SELECT 1 FROM notification_reads r WHERE r.notification_id = n.id AND r.account_id = $1))`;
+const CLEAR_UPSERT = `ON CONFLICT (notification_id, account_id) DO UPDATE SET cleared_at = COALESCE(notification_reads.cleared_at, now())`;
+
+export async function clearNotification(accountId, notificationId) {
+  if (!/^\d+$/.test(String(notificationId))) throw withStatus(404, 'Notification not found');
+  const { rows } = await pool.query(
+    `SELECT ${CLEARABLE} AS clearable FROM notifications n WHERE n.id = $2 AND ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')}`,
+    [accountId, notificationId]
+  );
+  if (!rows.length) throw withStatus(404, 'Notification not found');
+  if (!rows[0].clearable) throw withStatus(409, 'Tap Got it on this notification before clearing it.');
+  await pool.query(
+    `INSERT INTO notification_reads (notification_id, account_id, cleared_at) VALUES ($2, $1, now()) ${CLEAR_UPSERT}`,
+    [accountId, notificationId]
+  );
+  return listNotificationsForAccount(accountId);
+}
+
+// Clear all: every live notification in the list, apart from an urgent or important one still waiting for Got it.
+export async function clearAllNotifications(accountId) {
+  await pool.query(
+    `INSERT INTO notification_reads (notification_id, account_id, cleared_at)
+     SELECT n.id, $1, now() FROM notifications n WHERE ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')} AND ${CLEARABLE}
+     ${CLEAR_UPSERT}`,
     [accountId]
   );
   return listNotificationsForAccount(accountId);

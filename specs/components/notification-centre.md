@@ -1,7 +1,7 @@
 # Notification centre
 
 ## 1. Metadata
-- **Name:** Notification centre (`.notif-dot`, `.notif-count`, `.notifications-toolbar`, `.notification-item`, `.notification-head`, `.notification-unread-dot`, `.notification-date`, `.notification-body`, `.notification-update`, `.notification-release`, `.notifications-empty`, `.notifications-empty-art`, `.notifications-empty-title`, `.notification-important` (the "Before you continue..." pop-up's content, ML-463), `.notification-urgent` (the urgent pop-up's content), `.notification-urgent-tag`)
+- **Name:** Notification centre (`.notif-dot`, `.notif-count`, `.notifications-toolbar`, `.notification-row`, `.has-clear` (a row whose notification can be cleared), `.notification-clear-btn` (ML-556), `.notification-item`, `.notification-head`, `.notification-unread-dot`, `.notification-date`, `.notification-body`, `.notification-update`, `.notification-release`, `.notifications-empty`, `.notifications-empty-art`, `.notifications-empty-title`, `.notification-important` (the "Before you continue..." pop-up's content, ML-463), `.notification-urgent` (the urgent pop-up's content), `.notification-urgent-tag`)
 - **Category:** Feedback
 - **Status:** Stable (ML-201). Behaviour documented in [docs/notifications.md](../../docs/notifications.md)
 
@@ -11,7 +11,14 @@ announcements plus the automatic "update available - reload" card). **Don't use*
 confirmations. Those are [toasts](toast.md).
 
 ## 3. Anatomy
-List: `.notifications-toolbar` (Mark all read) › `.notification-item[.unread][.expanded]` › `.notification-head` (`.notification-unread-dot` + title) › `.notification-date` › `.notification-body` (2-line clamp until expanded).
+List: `.notifications-toolbar` (**Mark all as read** while anything is unread, **Clear all** while anything can be cleared - each
+shown only when it has something to do) › `.notification-row[.has-clear]` › `.notification-item[.unread][.expanded]` › `.notification-head` (`.notification-unread-dot` + title) › `.notification-date` › `.notification-body` (2-line clamp until expanded), and beside it
+the row's `.notification-clear-btn` (ML-556).
+Clearing (ML-556): the × top right of a notification - a bare icon button (no fill, `--label-color`, a full
+`--touch-target`), the notification padded on the right so its title never runs under it - clears it out of the
+list for good, at once, with no question (it reads it too). **Clear all** asks first, in the confirm pop-up
+("Clear all notifications?" / **Clear all**). An urgent or important notification still waiting for Got it has
+no ×, and Clear all leaves it. There is no history of cleared ones. Needs a connection.
 Update card: `.notification-item.notification-update` with a `.btn-submit` Reload button.
 Urgent (ML-167): in the list, an amber `.notification-urgent-tag` "Urgent" after the title. While unread it also
 pops up - `#urgentNotificationModal` (`role=dialog`) › `.modal-content.notification-urgent` › the tag ›
@@ -39,13 +46,13 @@ session, the tools and the timer).
 `--danger-color` (dots, count), `--text-on-accent`, `--container-bg` (dot ring), `--input-bg`,
 `--input-border`, `--primary-action` (unread/update outline), `--text-color`, `--label-color`,
 `--status-amber-bg`/`--status-amber-fg` (urgent tag - an existing checked pair), `--font-xs`, `--font-weight-bold`, `--space-0-5`,
-`--radius-md`, `--radius-pill`, `--space-2`, `--space-3`, `--space-4`, `--space-5`, `--space-6`, `--font-sm`, `--font-lg`, `--line-height-base`.
+`--radius-md`, `--radius-pill`, `--radius-circle`, `--touch-target`, `--space-1` (the clear ×), `--space-2`, `--space-3`, `--space-4`, `--space-5`, `--space-6`, `--font-sm`, `--font-lg`, `--line-height-base`.
 
 ## 5. Props / API
 See [docs/notifications.md](../../docs/notifications.md) for the data flow and the update-available check.
 
 ## 6. States
-Unread (gold outline + red dot) · Read (plain outline) · Collapsed (2-line clamp) · Expanded · Empty (`.notifications-empty`) · Urgent (tag; pop-up until Got it).
+Unread (gold outline + red dot) · Read (plain outline) · Collapsed (2-line clamp) · Expanded · Empty (`.notifications-empty`) · Urgent (tag; pop-up until Got it) · Clearable (×) / not clearable (unread urgent or important: no ×).
 
 ## 7. Code example
 ```html
@@ -62,6 +69,8 @@ Unread (gold outline + red dot) · Read (plain outline) · Collapsed (2-line cla
 ## 9. Accessibility
 - The important notice (ML-463) is a dialog labelled by its heading and described by its message; focus goes
   to **Got it**; the privacy policy link says it opens in a new tab. Its words are friendly, not an alarm.
+- The clear × is a separate `<button>` beside the notification (never inside it), named "Clear" + the title. After
+  clearing one, focus goes to the notification that took its place (or the one before, or Start practising).
 - Each item is a `<button>`; unread state is shown by the dot **and** the outline, and should be in the name ("Unread: …") if the dot is the only cue.
 - The unread count badge in the menu is text, so it is read out with the item.
 

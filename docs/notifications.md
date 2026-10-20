@@ -114,6 +114,26 @@ Tapping a notification opens its full text and marks it read (reading *is* marki
 it follows you across devices. Titles/messages are plain text - line breaks kept, nothing rendered
 as HTML.
 
+## Clearing (ML-556)
+
+Every member can clear notifications out of their list - the **×** on a notification clears that one at once, and
+**Clear all** (it asks first) clears the lot. Members don't need a history of every notice (owner, 20 October 2026),
+so **cleared is for good**: there is no archive and no "show cleared", and because it is kept on the account
+(`notification_reads.cleared_at`, `138_clear_notifications.sql`) it is gone on every device.
+
+- **Clearing reads it too**, so the red dot and the count drop, and Admin's "Read by N of M" still counts it.
+- **An urgent or important notification has to be answered with Got it first** - its pop-up is how it's read -
+  so while it's unread it has no ×, Clear all leaves it, and `POST /api/notifications/:id/clear` refuses it (409).
+  Once answered it clears like any other.
+- **Update available** isn't stored, so it can't be cleared - it goes when the app reloads.
+- A notification sent to particular members (ML-490) is cleared by them like any other.
+- **The notification itself is untouched**: Withdraw, Restore and Delete on the admin page work as before. Delete
+  removes the cleared rows with the read ones.
+- **It needs a connection** (`docs/offline.md`): unlike reading, it isn't dropped quietly offline - the member is
+  told, and the notification stays.
+- Clearing again is harmless (the first `cleared_at` is kept). After the last one goes, the "You're all caught
+  up!" screen shows.
+
 ## Admin
 
 Admin → **Notifications**: create (title up to 120 characters, message up to 4000; publish now or
@@ -153,9 +173,10 @@ Roughly in the order they'd matter:
 | `db/migrations/048_notifications.sql` | Tables + the `notifications` feature row |
 | `server/services/notifications.js` | Live query, read/read-all, admin CRUD |
 | `server/routes/api.js` (`/api/notifications*`), `server/routes/admin.js` (`/api/admin/notifications*`) | Routes |
-| `public/app.js` (NOTIFICATIONS section) | Polling, dot/badge, screen, update card, About note, urgent pop-up |
+| `public/app.js` (NOTIFICATIONS section) | Polling, dot/badge, screen, update card, About note, urgent pop-up, clearing |
+| `db/migrations/138_clear_notifications.sql` | `notification_reads.cleared_at` (ML-556) |
 | `db/migrations/082_urgent_notifications.sql` | `notifications.urgent` (ML-167) |
 | `db/migrations/113_important_notices.sql` | `notifications.important`, `notifications.policy_link` (ML-463) |
 | Back-test case 56 (`createImportantNotice` in `tests/helpers/seedNotifications.ts`) | The pop-up on opening, must be answered, once per account, reaches a Standard member |
 | `public/admin.js` / `admin.html` | Admin section |
-| Back-test case 11 (`tests/helpers/seedNotifications.ts`) | Dot until read, scheduled/expired hidden, update notice for an older running release |
+| Back-test case 11 (`tests/helpers/seedNotifications.ts`) | Dot until read, scheduled/expired hidden, update notice for an older running release, clearing one and Clear all (ML-556) |

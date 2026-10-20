@@ -145,7 +145,12 @@
     #navBurgerMenuBtn { position: relative; }
     .notif-dot { position: absolute; top: 4px; right: 4px; width: 10px; height: 10px; border-radius: var(--radius-circle); background: var(--danger-color); box-shadow: var(--shadow-ring-surface); }
     .notif-count { display: inline-block; min-width: 20px; padding: 0 var(--space-2); margin-left: var(--space-2); border-radius: var(--radius-md); background: var(--danger-color); color: var(--text-on-accent); font-size: var(--font-sm); line-height: 20px; text-align: center; }
-    .notifications-toolbar { display: flex; justify-content: flex-end; margin-bottom: var(--space-4); }
+    .notifications-toolbar { display: flex; justify-content: flex-end; gap: var(--space-3); margin-bottom: var(--space-4); }
+    /* ML-556: a notification's × clears it out of the list for good - bare (low emphasis), top right, a full
+       touch target; the notification leaves room for it so the title never runs underneath */
+    .notification-row { position: relative; }
+    .notification-row.has-clear .notification-item { padding-right: calc(var(--touch-target) + var(--space-1)); }
+    .notification-clear-btn { position: absolute; top: var(--space-1); right: var(--space-1); width: var(--touch-target); height: var(--touch-target); padding: 0; border: none; border-radius: var(--radius-circle); background: transparent; color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .notifications-toolbar .btn-nav { width: auto; }
     .notification-item { display: block; width: 100%; box-sizing: border-box; text-align: left; font: inherit; color: var(--text-color); background: var(--input-bg); border: 1px solid var(--control-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-3); cursor: pointer; }
     .notification-item.unread { border-color: var(--primary-action-strong); }

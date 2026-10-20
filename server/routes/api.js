@@ -48,7 +48,7 @@ import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from
 import { exportFlowForUser } from '../services/flowTransfer.js';
 import { submitFeedback } from '../services/feedback.js';
 import { requestUpgrade } from '../services/upgradeRequest.js';
-import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead, listImportantNotices, acknowledgeImportantNotice } from '../services/notifications.js';
+import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead, clearNotification, clearAllNotifications, listImportantNotices, acknowledgeImportantNotice } from '../services/notifications.js';
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryLevels, getTheoryWeights, getTheoryPlayed } from '../services/theoryPractice.js';
 import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getDrillWeights, getRhythmLevels, setRhythmWord } from '../services/drills.js';
 import { securityStatus, requirePasswordAccount, changeOwnPassword, passwordLoginEnabled, appUrl, createInvite, listMyInvites, invitesSentToday, cancelMyInvite, resendMyInvite, limitCalls, INVITE_LEVELS } from '../services/passwordAuth.js';
@@ -151,6 +151,25 @@ router.post('/notifications/:id/read', requireAuth, resolveAccount, async (req, 
   try {
     await assertNotificationsEnabled();
     res.json({ ...(await markNotificationRead(req.accountId, req.params.id)), appVersion: currentAppVersion() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-556: clear notifications out of the member's own list, for good (and read them).
+router.post('/notifications/clear-all', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertNotificationsEnabled();
+    res.json({ ...(await clearAllNotifications(req.accountId)), appVersion: currentAppVersion() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+router.post('/notifications/:id/clear', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertNotificationsEnabled();
+    res.json({ ...(await clearNotification(req.accountId, req.params.id)), appVersion: currentAppVersion() });
   } catch (error) {
     sendError(res, error);
   }

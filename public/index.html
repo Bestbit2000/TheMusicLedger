@@ -1000,11 +1000,13 @@
 
     <!-- ML-201: notification centre. The update card (only when this device is running an older
          release than the server) always sits first; admin-written notifications below, newest first.
-         Tapping a notification opens it in full and marks it read. -->
+         Tapping a notification opens it in full and marks it read. Its × clears it out of the list for
+         good, and Clear all clears the lot (ML-556). -->
     <div id="notificationsView" class="hidden-group">
         <div id="notificationsUpdateCard" class="hidden-group"></div>
         <div class="notifications-toolbar hidden-group" id="notificationsToolbar">
             <button type="button" class="btn-cancel btn-nav no-margin" id="notificationsMarkAllBtn">Mark all as read</button>
+            <button type="button" class="btn-cancel btn-nav no-margin" id="notificationsClearAllBtn">Clear all</button>
         </div>
         <div id="notificationsList"></div>
     </div>

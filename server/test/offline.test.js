@@ -36,6 +36,12 @@ describe('what happens to a write with no connection', () => {
         assert.equal(O.classify('PUT', '/api/timer/active', {}).kind, 'quiet');
         assert.equal(O.classify('DELETE', '/api/practice/active').kind, 'quiet');
         assert.equal(O.classify('POST', '/api/notifications/3/read').kind, 'quiet');
+        assert.equal(O.classify('POST', '/api/notifications/read-all').kind, 'quiet');
+    });
+
+    test('clearing a notification needs a connection (ML-556)', () => {
+        assert.equal(O.classify('POST', '/api/notifications/3/clear').kind, 'online');
+        assert.equal(O.classify('POST', '/api/notifications/clear-all').kind, 'online');
     });
 
     test('the address is matched without its query, and the method must match', () => {

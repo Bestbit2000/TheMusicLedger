@@ -33,7 +33,8 @@ device (IndexedDB `music-ledger-offline`, store `answers`), keyed by its address
   round, a Skills round, a Level on a piece, a scale answer or Level, a skill step, a range go, Quick Play
   history. These are records of something done, so they can never clash with a change made elsewhere.
 - **A write that keeps the server in step with something running now** (the timer, a session in progress, a
-  notification read) is dropped quietly (`QUIET`): there is nothing to sync.
+  notification read) is dropped quietly (`QUIET`): there is nothing to sync. Clearing a notification
+  (ML-556) is not one of them - it needs a connection, so the notification isn't cleared on screen and back again later.
 - **Everything else needs a connection** and fails with "You are offline. This needs a connection." - making
   or editing a piece, Prepare (painting and cutting bars), practice lists, bands, the account, invites,
   uploads, changing your range, editing or deleting a session.

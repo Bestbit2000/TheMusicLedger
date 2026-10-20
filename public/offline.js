@@ -41,10 +41,11 @@
     ];
     // Writes that only keep the server in step with something running now (a timer, a session in
     // progress, a notification read). Offline they are dropped without a word: there is nothing to sync.
+    // Clearing a notification (ML-556) is not one of them: it needs a connection, like editing.
     const QUIET = [
         [/^(PUT|DELETE)$/, /^\/api\/timer\/active$/],
         [/^(PUT|DELETE)$/, /^\/api\/practice\/active$/],
-        [/^POST$/, /^\/api\/notifications\//]
+        [/^POST$/, /^\/api\/notifications\/(read-all|\d+\/read)$/]
     ];
     // Reads never answered from the device: what is running right now, and anything private or one-off.
     const NO_COPY = [/^\/api\/timer\/active$/, /^\/api\/practice\/active$/, /^\/api\/notifications/, /^\/api\/notices\//, /^\/api\/account\/export/, /^\/api\/account\/two-step/, /^\/api\/invites/, /^\/api\/admin\//];
