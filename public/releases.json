@@ -1,5 +1,116 @@
 [
   {
+    "version": "0.64.0",
+    "date": "2026-10-20",
+    "changes": [
+      {
+        "key": "ML-555",
+        "type": "Fixes",
+        "summary": "We switched the app's protection against harmful script back on for every page - an earlier update had turned it to warnings only."
+      },
+      {
+        "key": "ML-554",
+        "type": "Fixes",
+        "summary": "We now ask a band's organiser to confirm they are an adult before any organiser change, such as the band's logo or what a member can do."
+      },
+      {
+        "key": "ML-553",
+        "type": "Fixes",
+        "summary": "We made sure the pages of a photo or PDF read are always deleted, even when a read doesn't go through."
+      },
+      {
+        "key": "ML-552",
+        "type": "Fixes",
+        "summary": "We fixed how a band's name is shown on the History page."
+      },
+      {
+        "key": "ML-551",
+        "type": "Fixes",
+        "summary": "We tightened the checks on files added to pieces and bands, so only files stored by this app are kept."
+      },
+      {
+        "key": "ML-550",
+        "type": "Fixes",
+        "summary": "We made long bar numbers on the repeat button fit, on two lines."
+      },
+      {
+        "key": "ML-549",
+        "type": "Fixes",
+        "summary": "We gave the top of the play screen more room above the metronome and video buttons."
+      },
+      {
+        "key": "ML-548",
+        "type": "New",
+        "summary": "We took the empty \"Not known\" box out of the key under a prepared piece's Level bar, where every bar has a Level."
+      },
+      {
+        "key": "ML-547",
+        "type": "New",
+        "summary": "We removed the \"Next goal: every 1 up to 2\" line from setting up a session and from \"Did you nail it?\"."
+      },
+      {
+        "key": "ML-546",
+        "type": "Fixes",
+        "summary": "We put the Auto switch for a session's pieces on its own row, next to the words that explain it."
+      },
+      {
+        "key": "ML-545",
+        "type": "New",
+        "summary": "We removed the \"On a loop for the whole block\" box from the top of Warm-ups in a practice session."
+      },
+      {
+        "key": "ML-544",
+        "type": "New",
+        "summary": "We added a summary to the top of our list of regular checks, so we can see at a glance how many are up to date."
+      },
+      {
+        "key": "ML-543",
+        "type": "New",
+        "summary": "We removed the old way of importing a PDF, which a piece from a photo or PDF has replaced."
+      },
+      {
+        "key": "ML-542",
+        "type": "New",
+        "summary": "We made the count-in before you play big and easy to see - a number in a ring that counts down over the controls, never over the music."
+      },
+      {
+        "key": "ML-541",
+        "type": "New",
+        "summary": "We now let the go you are playing finish when a practice block's time runs out, instead of cutting it off part way."
+      },
+      {
+        "key": "ML-540",
+        "type": "New",
+        "summary": "We now show the piece and bars you are practising at the top of the screen while a practice block plays."
+      },
+      {
+        "key": "ML-539",
+        "type": "Fixes",
+        "summary": "We moved the one warm-up written in 2/4 into 4/4, so every warm-up counts you in with at least three beats."
+      },
+      {
+        "key": "ML-538",
+        "type": "New",
+        "summary": "We now play each warm-up twice in a row in a practice session, with a repeat sign at the end, before moving on to the next."
+      },
+      {
+        "key": "ML-537",
+        "type": "New",
+        "summary": "We made preparing a piece simpler: the run-through starts at full speed, and while you play you can change the Level and switch sub-beats on or off."
+      },
+      {
+        "key": "ML-536",
+        "type": "New",
+        "summary": "We now talk about setting each bar's level and focus sections instead of painting and bits, and added a Range tool that sets every bar from one to another."
+      },
+      {
+        "key": "ML-535",
+        "type": "Fixes",
+        "summary": "We made the slowest Level never slower than half speed, show Levels by name instead of a percentage, and gave the Prepare steps more room at the top."
+      }
+    ]
+  },
+  {
     "version": "0.63.0",
     "date": "2026-10-19",
     "changes": [
