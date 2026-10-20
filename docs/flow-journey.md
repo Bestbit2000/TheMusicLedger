@@ -133,7 +133,7 @@ in a practice or a run-through (`flowSession`): those have their own bars, and t
   movement (`playthroughLabels`: "Play-through, first half", shown as "Mvt 2 · Play-through, first half").
 
 A practice list can hold just one movement of a piece, and a piece's path can be for one movement (its Movement box):
-the run-through, painting, cutting, focus bits and play-through are then that movement's - `docs/practice-sessions.md`,
+the run-through, painting, cutting, focus sections and play-through are then that movement's - `docs/practice-sessions.md`,
 "One movement on a list".
 
 ## Repeat bars (ML-302)
@@ -173,9 +173,13 @@ A piece gets a **Level 1-5** per chunk of bars (`piece_chunks`, see `docs/databa
 practice session the Level sets the speed and sub-beats for you. The rules, all in `flowJourney.js`:
 
 - **Speed is a % of the piece's own tempo**, so ramps and tempo changes keep their shape. Level 5 =
-  100%. Level 1 = 40 ÷ the **slowest** conducted-beat tempo in the chunk (ramps included), rounded
-  **up** to 5%, so no bar drops below 40 bpm. Levels 2-4 are equal steps between, rounded to 5%.
-  120 bpm → 35 / 50 / 70 / 85 / 100. At or below 40 bpm every Level is 100%.
+  100%. Level 1 = **50%** (`LEVELS.MIN_PERCENT`, ML-535 - it went as low as 35%), or higher when
+  that would take a bar below 40 bpm: 40 ÷ the **slowest** conducted-beat tempo in the chunk (ramps
+  included), rounded **up** to 5%. Levels 2-4 are equal steps between, rounded to 5%. 80 bpm and
+  faster → 50 / 65 / 75 / 90 / 100; 60 bpm → 70 / 80 / 85 / 95 / 100. At or below 40 bpm every Level is
+  100%. **The % is never shown to a player** (ML-535): it differs from one focus section to the next, so a
+  Level is its number and its word (`LEVEL_WORDS` in app.js - Very slow, Slow, Steady, Nearly there,
+  Full speed).
 - **Session sub-beats** (`sessionSubBeats`): on for a bar when its beat at that Level is below the
   account's `practice_sub_beats_below` (default 100). Practice sessions only - Rehearse, Quick Play and
   the metronome keep the player's own sub-beat setting.
@@ -186,10 +190,10 @@ practice session the Level sets the speed and sub-beats for you. The rules, all 
   fits at every Level. `suggestSplit` gives the fewest equal parts that each fit 5+ runs.
 - **Getting a piece ready (ML-390)**: `pieceRunSeconds` (the whole piece once, as played - the Prepare
   run-through's time), `pieceSections` (rehearsal marks and section boundaries, or every 8 bars - painting and
-  cutting go section by section), `bitsFromBars` (painted bars -> focus bits: a run of one Level in a section,
+  cutting go section by section), `bitsFromBars` (painted bars -> focus sections: a run of one Level in a section,
   split at every knife cut), `playthroughParts` (once every bar is at Level 4: the whole piece if it plays once in
   a block at 4, else the fewest equal parts that do - two halves for most) and `partBlockMinutes` (5, 10 for
-  "one long go", or null). Focus bits go up to Level 4 (`LEVELS.TARGET`), then the play-through takes them to 5.
+  "one long go", or null). Focus sections go up to Level 4 (`LEVELS.TARGET`), then the play-through takes them to 5.
 - **The heat map** (`barLevels`): each bar's Level from the chunks; where they overlap (a hard passage
   on top of the whole piece) the narrowest wins; null = not set.
 
@@ -197,15 +201,17 @@ Tests: `server/test/practiceLevels.test.js`.
 
 **Practising at a Level (ML-317).** The play screen has a practice mode (`flowSession` in app.js),
 started from a piece's path ("Practise the weakest bars", "Play it through") and from session blocks. ML-390
-adds `mode: 'runthrough'` - Prepare's run-through: the whole piece once at the chosen Level, no loop and no
-Level up; at the end (or Done) it goes on to painting the bars.
+adds `mode: 'runthrough'` - Prepare's run-through: the whole piece once, starting at Level 5 (ML-537), no loop and
+nothing saved as it plays; at the end (or Done) it goes on to setting the level of each bar.
 
 - **The loop:** it repeats the chunk with Repeat bars (`restBars: 1`, the gap bar the chunk length rule
   assumes). This is set in memory only, so the piece's own saved repeat setting isn't touched.
 - **Speed and sub-beats:** the speed is the Level's %, and `flowSubBeatsMode = 'session'` asks
-  `sessionSubBeats` for every bar.
-- **The tiles:** repeat, sub beats and speed are swapped for **Level** (a live status), **Level up** (the
-  same bars at the next Level straight away, saved as `during`) and **Finish**.
+  `sessionSubBeats` for every bar (a run-through starts at `'off'`). ML-537: the **sub beats** switch turns them
+  on (`'auto'` - every bar) or off for the rest of the go; until it's touched, a block follows the Level.
+- **The tiles:** repeat, sub beats and speed are swapped for **Level** (a button: pick any Level, faster or
+  slower, straight away - in a block it's saved as `during`; ML-537, it was a status plus a Level up button),
+  **sub beats** (the switch) and **Finish**. The Level shows its number and word, never its % (ML-535).
 - **Finish:** "Did you nail it?" (ML-390) - Yes (up one, a short star celebration) / Not yet (stay) in one tap;
   "Too fast? Back to Level N" is a link under them, and "Move up even further" opens the jumps to higher Levels. Saved as `rating` with the speed played.
 - **Leaving:** leaving the play screen any other way ends the practice unrated. The player's own speed,
@@ -232,7 +238,7 @@ ML-390 - docs/practice-sessions.md).
 | `slowestTempo(blocks, startBar, endBar)`, `barSeconds(blocks, i, bar, percent)` | The chunk's slowest beat tempo; one bar's length at a speed. |
 | `chunkFit(blocks, { startBar, endBar, level \| percent })`, `suggestSplit(...)` | Runs of a chunk in a 4:30 block (`good`/`ok`/`tooLong`); a split that fits. |
 | `barLevels(totalBars, chunks)` | Each bar's Level for the heat map. |
-| `pieceRunSeconds(blocks, percent)`, `pieceSections(blocks)`, `bitsFromBars(levels, sectionStarts, cuts)` | ML-390: the run-through's time; the sections to paint in; painted bars -> focus bits. |
+| `pieceRunSeconds(blocks, percent)`, `pieceSections(blocks)`, `bitsFromBars(levels, sectionStarts, cuts)` | ML-390: the run-through's time; the sections to paint in; painted bars -> focus sections. |
 | `playthroughParts(blocks, level)`, `partBlockMinutes(blocks, a, z, level)` | ML-390: the play-through parts; a part's block length (5, 10 or null). |
 
 The same file also holds the **rehearsal score** sums (ML-312, ML-488) - a recording's start and end

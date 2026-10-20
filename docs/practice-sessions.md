@@ -55,7 +55,7 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
    the key under the list - an unset bar is "Not known" there) and where it is on its path.
 4. **Ready** (`#sessionPlanView`) - the strip and the timeline; tap a block to swap it; **Start**. A Pieces block
    offers what Auto would pick from the pieces chosen at step 3, and **"A different piece..."** (owner, 4 Oct 2026):
-   any piece of yours, then which part of it (its Prepare, a focus bit, a play-through part) - so one block can
+   any piece of yours, then which part of it (its Prepare, a focus section, a play-through part) - so one block can
    be given to a piece you have just prepared, whatever step 3 says.
 
 "Plan a session for this" on a practice list opens the steps on that list with the Concert plan.
@@ -63,7 +63,7 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
 ### What fills the Pieces blocks (Auto - `PracticePlan.piecePool`)
 
 - A piece with **no Levels yet** gets a **Prepare** block first (each once) - see "Getting a piece ready".
-- Then every **focus bit** (a chunk below **Level 4**) across the pieces, **lowest Level first**, then practised
+- Then every **focus section** (a chunk below **Level 4**) across the pieces, **lowest Level first**, then practised
   longest ago - so all the 1s go up to 2 before any 2 goes to 3 ("everyone up to the next Level").
 - Then **play-through parts** that are ready (every bar inside them at 4 or more), at Level 4 → 5. A part too long
   for a block gets a **10-minute block** ("one long go").
@@ -155,37 +155,54 @@ the countdown ring, **one message** with a picture, and Next up. **No Skip** - t
 
 ### Getting a piece ready: Prepare, Practise, Play-through (ML-390)
 
+**Words on screen (ML-536, owner 20 Oct 2026):** a piece's bars get a **level** (it was "painting"), and the piece is
+**split into focus sections** (they were "focus bits", and splitting was "cutting"). Always the whole phrase "focus
+section" - "section" alone is one of the piece's own sections (rehearsal marks, Fill section). The code keeps its old
+names (`paint`, `cut`, `bits`, `.cut-bit`).
+
 **The Prepare tool (ML-401)** is a second way in: All tools › Practise › Prepare lists the pieces you can see that
 you haven't prepared yet (a filter adds the rest) and opens a piece's path. A public piece can be prepared as it is
 or copied to your library first; a copy keeps `scores.copied_from_score_id`. See `specs/components/prepare-list.md`.
+From the Prepare tool the path is **Prepare alone** (ML-537, `prep.onlyPrepare` in app.js): no Practise or
+Play-through stops, a short explanation of what's about to happen (play it through, or look at the music and set the
+levels straight away; the lower the number, the sooner those bars get practised), the levels now as one bar chart
+when the bars have them, **Play it through** and **Skip play through and set the level directly**. Anywhere else the
+path keeps its three stops, and its heat map shows only once a bar has a level (no empty squares).
 
 Every piece follows three stops on **its path** (`#piecePathView`, [piece-path](../specs/components/piece-path.md)),
 opened from a practice list, Play Flow's menu (My Levels) and a session's Prepare block:
 
 1. **Prepare** (once, as long as it needs):
    - **the music** - it's in My music;
-   - **a run-through** (`#prepareRunView`): pick a speed you can get to the end at - Level 1-5, shown **as a % of
-     the piece's own speed** (Level 5 = 100%; never bpm - a piece changes speed from bar to bar), with how long the
-     whole piece takes at that speed (`FlowJourney.pieceRunSeconds`). It plays once (no loop), **without sub-beats**
-     (owner, 4 Oct 2026 - practice blocks keep the session's sub-beats at slow Levels); at the end, painting.
+   - **a run-through** (`#prepareRunView`): **at full speed** (ML-537 - there was a speed to pick first), with how
+     long the whole piece takes (`FlowJourney.pieceRunSeconds`). Too fast, and the **Level** button on the play
+     screen picks a slower Level while it plays (a Level is its number and its word - Very slow ... Full speed -
+     never its %, ML-535). It plays once (no loop), and starts **without sub-beats** (owner, 4 Oct 2026); the
+     **sub beats** switch on the play screen turns them on. At the end (or Done), setting the levels, starting from
+     the Level it was played at.
      **Count-in** (owner, 4 Oct 2026): a box under the speed, "1 bar · count-in before it starts" - None or 1-4
      clicking bars before it starts, to get from the play button back to the instrument. It is the player's own
      setting (`tml.practice.countIn` on the device, also in Settings → Metronome & playback), **used by practice
      blocks too** (then one gap bar between goes, as before). It is not the piece's lead-in, which is stored with
      the piece for the notes before bar 1 and plays after the count-in;
-     "I know how it goes" skips it;
-   - **paint the bars** (`#levelsPaintView`): the bars in the piece's sections (`FlowJourney.pieceSections`), a
-     paint box pinned to the bottom - **Brush**, **Fill section** (its empty bars), **Fill all** (the power fill;
-     then Brush comes back on), **Rubber**, **Undo**, and a Level pot. After a run-through the pot starts at the
-     Level it was played at: Fill all, then brush the bars that went wrong lower. **Type bars instead** keeps the
-     from-to entry;
-   - **cut it into focus bits** (`#levelsCutView`): a bit is a run of bars at the same Level in a section
-     (`FlowJourney.bitsFromBars`). **A focus bit must fit 5 goes in a block** (4:30, a gap bar between goes - was 3,
+     "Skip play through and set the level directly" skips it;
+   - **set the level of each bar** (`#levelsPaintView`; ML-536 - it was "painting", and the code's names still
+     say paint): the bars in the piece's sections (`FlowJourney.pieceSections`), 6 across on a phone, and a toolbox
+     pinned to the bottom - the Level to set, then **Fill bar**, **Fill section** (its empty bars), **Fill all** (the
+     power fill; then Fill bar comes back on), **Range** (tap the first bar, then the last), **Remove level** and
+     **Undo**, with the chosen tool's instruction under them. After a run-through the Level starts at the one it was
+     played at: Fill all, then give the bars that went wrong a lower one. **Type bars instead** keeps the from-to
+     entry;
+   - **split it into focus sections** (`#levelsCutView`): a bit is a run of bars at the same Level in a section
+     (`FlowJourney.bitsFromBars`). **A focus section must fit 5 goes in a block** (4:30, a gap bar between goes - was 3,
      ideally 4); one that doesn't is red, with **Split it for me** (`suggestSplit`). **The knife:** tap the bar where
      a new bit should start (tap again to join it up); Type bars instead for from-to. The summary shows the focus
      bits (below Level 4) and about how many blocks to get them all to 4.
    Saving replaces the piece's chunks with the bits (an old chunk with the same bars keeps its id and history).
-2. **Practise** - five-minute blocks on the focus bits until **every bar is at Level 4**.
+2. **Practise** - five-minute blocks on the focus sections until **every bar is at Level 4**. On the play screen the
+   **Level** button picks a faster or slower Level while you play (ML-537 - it was a Level up button), saved as it
+   happens; the **sub beats** switch starts the way the Level would set them (on when a bar's beat is slow at that
+   speed) and turns them on or off for the rest of the block.
 3. **Play-through** - once every bar is at 4 the server makes the piece's **play-through parts** (its join-up groups,
    `piece_chunks` kind `group`): the whole piece when it plays once in a block at Level 4, otherwise the fewest equal
    parts that do - **two halves** for most pieces (`FlowJourney.playthroughParts`). On the path you can choose
@@ -290,7 +307,7 @@ number the piece no longer has reads as the whole piece.
 - **Its path** opens on that movement (`openPiecePath(id, { movement })`; `levels.scope`): the path's own **Movement**
   box (the whole piece or one movement - also there for any piece in movements) says which. On a movement's path the
   heat map is its bars, the run-through plays just it (`flowSession.chunk.movement`; `movementJourney`), painting and
-  "Fill all" are its bars, cutting makes its bits, its stage and focus bits are its own, and its play-through parts
+  "Fill all" are its bars, cutting makes its bits, its stage and focus sections are its own, and its play-through parts
   are its own. Saving keeps the other movements' bits and parts as they were.
 - **Sessions from the list** (`refreshSessionPieces`) get only that movement's bits; a Prepare or Play-through block
   carries the movement (`piecePool`'s items) and opens the path on it.

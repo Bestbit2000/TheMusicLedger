@@ -385,7 +385,7 @@
                     <span class="tool-icon-label">Add a piece</span>
                 </button>
                 <!-- ML-401: Prepare - the pieces you can see that aren't prepared yet, each opening its path
-                     (run-through, paint the bars, cut into focus bits). Shown with practice_levels. -->
+                     (run-through, set the levels of the bars, split into focus sections). Shown with practice_levels. -->
                 <button data-tool="prepare" class="tool-icon-btn hidden-group" id="prepareToolBtn" data-act="view" data-arg="prepareListView" aria-label="Prepare">
                     <span class="material-symbols-outlined" aria-hidden="true">construction</span>
                     <span class="tool-icon-label">Prepare</span>
@@ -1419,8 +1419,8 @@
         <button type="button" class="btn-text btn-text-danger" id="plDeleteBtn">Delete this list</button>
     </div>
 
-    <!-- ML-390 (was ML-316's My Levels): a piece's path - Prepare (the music, a run-through, paint the
-         bars, cut into focus bits), Practise (five-minute blocks until every bar is at Level 4), then the
+    <!-- ML-390 (was ML-316's My Levels): a piece's path - Prepare (the music, a run-through, set the levels of the
+         bars, split into focus sections), Practise (five-minute blocks until every bar is at Level 4), then the
          Play-through (the whole piece, Level 4 up to 5). The heat map is the same silver-to-gold bar map
          (FlowJourney.barLevels). Per account. Opened from a practice list, Play Flow's menu (My Levels)
          and a session's Prepare block. Screens: the "piece's path" section of app.js. -->
@@ -1431,13 +1431,26 @@
             <strong id="pathMovementLbl">all</strong>
             <span class="metroBlk-ctrl-value-label">movement</span>
         </button>
-        <div class="level-notice hidden-group" id="pathBarsChanged" role="status">This piece's bars have changed since you painted them. Paint them again to check they still match.</div>
-        <div class="level-map" id="pathMap" role="img"></div>
-        <div class="level-legend" aria-hidden="true">
-            <span><span class="level-cell lv-0"></span>Not painted</span>
-            <span><span class="level-cell lv-1">1</span><span class="level-cell lv-2">2</span>Silver</span>
-            <span><span class="level-cell lv-3">3</span><span class="level-cell lv-4">4</span>Gold</span>
-            <span><span class="level-cell lv-5">5</span>Full speed</span>
+        <div class="level-notice hidden-group" id="pathBarsChanged" role="status">This piece's bars have changed since you set their levels. Set them again to check they still match.</div>
+        <!-- ML-537: opened from the Prepare tool, the page is Prepare alone - what's about to happen, and (when the
+             bars already have levels) how many are at each Level, as one bar chart. -->
+        <div class="hidden-group" id="pathPrepIntro">
+            <p>Each bar gets a level, from 1 (very slow) to 5 (full speed). <strong>The lower the number, the sooner those bars get practised.</strong></p>
+            <p>You can play the piece through once and then set the level of each bar by how it went, or look at the music and set the levels straight away. Then you split it into focus sections to practise.</p>
+            <div class="hidden-group mb-4" id="pathLevelBarBox">
+                <p class="text-sm text-muted mb-1">The levels now</p>
+                <div id="pathLevelBar"></div>
+            </div>
+        </div>
+        <!-- The heat map - one square a bar - once any bar has a level (ML-537: no empty squares before then) -->
+        <div class="hidden-group" id="pathMapBox">
+            <div class="level-map" id="pathMap" role="img"></div>
+            <div class="level-legend" aria-hidden="true">
+                <span><span class="level-cell lv-0"></span>Not set</span>
+                <span><span class="level-cell lv-1">1</span><span class="level-cell lv-2">2</span>Silver</span>
+                <span><span class="level-cell lv-3">3</span><span class="level-cell lv-4">4</span>Gold</span>
+                <span><span class="level-cell lv-5">5</span>Full speed</span>
+            </div>
         </div>
         <ol class="piece-path" id="piecePath" aria-label="Your path for this piece"></ol>
         <section class="flow-card hidden-group" id="pathThroughCard" aria-labelledby="pathThroughTitle">
@@ -1446,63 +1459,61 @@
             <div id="pathThroughOptions"></div>
         </section>
         <button type="button" class="btn-submit" id="pathGoBtn">Start preparing</button>
-        <button type="button" class="btn-nav hidden-group" id="pathPaintBtn">Paint the bars again</button>
-        <button type="button" class="btn-nav hidden-group" id="pathCutBtn">Focus bits</button>
+        <button type="button" class="btn-text hidden-group" id="pathSkipBtn">Skip play through and set the level directly</button>
+        <button type="button" class="btn-nav hidden-group" id="pathPaintBtn">Set the levels again</button>
+        <button type="button" class="btn-nav hidden-group" id="pathCutBtn">Focus sections</button>
     </div>
 
-    <!-- ML-390 Prepare 2 of 4: a run-through - pick a speed you can get to the end at (a Level's % of the
-         piece's own speed; Level 5 = 100%), see how long the whole piece takes, play it once. -->
+    <!-- ML-390 Prepare 2 of 4: a run-through - the whole piece once. ML-537: it starts at full speed (no speed to
+         pick first); too fast, and the Level button on the play screen picks a slower one while it plays. -->
     <div id="prepareRunView" class="hidden-group">
-        <h2 class="step-question" id="prepSpeedLabel">How fast can you play it through?</h2>
-        <p class="metro-help-text">Pick a speed you can get to the end at. It's fine to go slow!</p>
-        <div class="level-picker" id="prepSpeedPicker" role="group" aria-labelledby="prepSpeedLabel"></div>
+        <h2 class="step-question" id="prepRunTitle">Play it through</h2>
+        <p class="metro-help-text">It plays the whole piece once at full speed. Too fast? Tap the Level while it plays and pick a slower one.</p>
         <!-- Owner, 4 Oct 2026: clicking bars before it starts, to get from the play button back to the instrument.
              One button, one pop-up; remembered, and used by practice blocks too. -->
         <button type="button" class="metroBlk-ctrl-value-btn w-full mb-3" id="prepCountInBtn" aria-haspopup="dialog" aria-label="Count-in before it starts: 1 bar - tap to change"><strong>1 bar</strong><span class="metroBlk-ctrl-value-label">count-in before it starts</span></button>
-        <div class="dashboard-grid" aria-live="polite">
-            <div class="stat-card"><span class="label">for the whole piece</span><span class="value" id="prepTime">-</span></div>
-            <div class="stat-card"><span class="label">every bar slows the same</span><span class="value" id="prepSpeedWord">-</span></div>
-        </div>
+        <p class="text-sm text-muted">The whole piece takes <strong id="prepTime">-</strong> at full speed.</p>
         <button type="button" class="btn-submit" id="prepPlayBtn"><span class="material-symbols-outlined" aria-hidden="true">play_arrow</span> Play it through</button>
-        <p class="text-sm text-muted">After the last bar you'll paint the bars that went wrong.</p>
-        <button type="button" class="btn-text" id="prepSkipBtn">I know how it goes - go straight to painting</button>
+        <p class="text-sm text-muted">After the last bar you'll set the level of each bar by how it went.</p>
+        <button type="button" class="btn-text" id="prepSkipBtn">Skip play through and set the level directly</button>
     </div>
 
-    <!-- ML-390 Prepare 3 of 4: paint how each bar went. The bars sit in the piece's sections; the paint
-         box stays pinned at the bottom: Brush (tap a bar), Fill section (its empty bars), Fill all (the
-         whole piece) and Rubber, with a Level pot (colour and number) to paint with. Type bars instead
-         keeps the old from-to entry. -->
+    <!-- ML-390 Prepare 3 of 4: set the level of each bar (ML-536: was "paint"). The bars sit in the piece's
+         sections; the toolbox stays pinned at the bottom: the Level to set, then the tools - Fill bar (tap a bar),
+         Fill section (its empty bars), Fill all (the whole piece), Range (tap the first bar, then the last),
+         Remove level and Undo - with the chosen tool's instruction right under them. Type bars instead keeps the
+         old from-to entry. -->
     <div id="levelsPaintView" class="paint-page hidden-group">
-        <h2 class="step-question">Paint how each bar went</h2>
+        <h2 class="step-question">Set the level you want to practise for each bar</h2>
         <p class="metro-help-text" id="paintHint"></p>
         <div id="paintSections"></div>
         <button type="button" class="btn-text" id="paintTypeBtn" aria-haspopup="dialog">Type bars instead</button>
-        <div class="paint-toolbox" role="group" aria-label="Paint box">
+        <div class="paint-toolbox" role="group" aria-label="Set the level">
+            <div class="level-picker paint-pots" id="paintPots" role="group" aria-label="Level to set"></div>
             <div class="paint-tools" id="paintTools" role="group" aria-label="Tool">
-                <button type="button" class="paint-tool" data-paint-tool="brush" aria-pressed="true"><span class="material-symbols-outlined" aria-hidden="true">brush</span><span class="paint-tool-label">Brush</span></button>
+                <button type="button" class="paint-tool" data-paint-tool="brush" aria-pressed="true"><span class="material-symbols-outlined" aria-hidden="true">touch_app</span><span class="paint-tool-label">Fill bar</span></button>
                 <button type="button" class="paint-tool" data-paint-tool="section" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">format_color_fill</span><span class="paint-tool-label">Fill section</span></button>
                 <button type="button" class="paint-tool" data-paint-tool="all" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span><span class="paint-tool-label">Fill all</span></button>
-                <button type="button" class="paint-tool" data-paint-tool="rubber" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">ink_eraser</span><span class="paint-tool-label">Rubber</span></button>
+                <button type="button" class="paint-tool" data-paint-tool="range" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">arrow_range</span><span class="paint-tool-label">Range</span></button>
+                <button type="button" class="paint-tool" data-paint-tool="rubber" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">ink_eraser</span><span class="paint-tool-label">Remove level</span></button>
+                <button type="button" class="paint-tool" id="paintUndoBtn" disabled><span class="material-symbols-outlined" aria-hidden="true">undo</span><span class="paint-tool-label">Undo</span></button>
             </div>
-            <div class="level-picker paint-pots" id="paintPots" role="group" aria-label="Level to paint with"></div>
             <p class="text-sm text-muted no-margin" id="paintToolHint" aria-live="polite"></p>
-            <div class="flex-row gap-sm">
-                <button type="button" class="btn-nav grow no-margin" id="paintUndoBtn" disabled>Undo</button>
-                <button type="button" class="btn-submit grow no-margin" id="paintNextBtn">Next: cut into bits</button>
-            </div>
+            <button type="button" class="btn-submit no-margin" id="paintNextBtn">Next: split into focus sections</button>
         </div>
     </div>
 
-    <!-- ML-390 Prepare 4 of 4: focus bits - runs of bars at the same Level in a section. Each has to play
-         5 times in a block (4:30, a gap bar between goes); a bit that can't is red, with Split it for me.
-         Tap the bar where a new bit should start (the knife); Type bars instead for from-to. -->
+    <!-- ML-390 Prepare 4 of 4: focus sections (ML-536: were "focus bits", and cutting is splitting; the code still says
+         bit/cut) - runs of bars at the same Level in a section of the piece. Each has to play
+         5 times in a block (4:30, a gap bar between goes); a focus section that can't is red, with Split it for me.
+         Tap the bar where a new focus section should start (the knife); Type bars instead for from-to. -->
     <div id="levelsCutView" class="hidden-group">
-        <h2 class="step-question">Cut it into focus bits</h2>
-        <p class="metro-help-text">Each bit has to fit 5 goes in a block (4½ minutes, with a gap bar between goes). Tap the bar where a new bit should start; tap it again to join it back up.</p>
+        <h2 class="step-question">Split it into focus sections</h2>
+        <p class="metro-help-text">Each focus section has to fit 5 goes in a block (4½ minutes, with a gap bar between goes). Tap the bar where a new focus section should start; tap it again to join it back up.</p>
         <div id="cutSections"></div>
         <button type="button" class="btn-text" id="cutTypeBtn" aria-haspopup="dialog">Type bars instead</button>
         <section class="flow-card" aria-labelledby="cutSummaryTitle">
-            <div class="flow-card-header"><span class="flow-card-label" id="cutSummaryTitle">Your focus bits</span></div>
+            <div class="flow-card-header"><span class="flow-card-label" id="cutSummaryTitle">My focus sections</span></div>
             <div class="focus-summary" id="cutSummaryChips" aria-hidden="true"></div>
             <p class="text-sm text-muted no-margin" id="cutSummaryText" aria-live="polite"></p>
         </section>
@@ -1606,7 +1617,7 @@
     </div>
 
     <div id="prepareListView" class="hidden-group">
-        <p class="theory-intro">Get a piece ready to practise: play it through, mark how each bar went, and cut it into bits to work on. Pick a piece to start.</p>
+        <p class="theory-intro">Get a piece ready to practise: play it through, mark how each bar went, and split it into focus sections to work on. Pick a piece to start.</p>
         <div class="filter-strip">
             <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
             <div class="filter-strip-pills" id="prepareFilterPills" role="group" aria-label="Show pieces"></div>
@@ -2004,11 +2015,13 @@
                             <span class="metroBlk-ctrl-value-label">repeat</span>
                         </button>
                         <!-- ML-317: in a Levels practice (flowSession, app.js) these three replace repeat,
-                             sub beats and play speed - the Level sets all three, so you just play. -->
-                        <div class="metroBlk-ctrl-value-btn hidden-group" id="flowSessionLevelBtn" role="status" aria-live="polite">
+                             sub beats and play speed - the Level sets the speed and the loop, so you just play.
+                             ML-537: the Level is a button (pick a faster or slower Level while you play - it was
+                             a separate Level up button), and sub beats is a switch of its own. -->
+                        <button type="button" class="metroBlk-ctrl-value-btn hidden-group" id="flowSessionLevelBtn" aria-haspopup="dialog" aria-label="Level 1 - tap to change">
                             <strong id="flowSessionLevelLbl">1</strong>
                             <span class="metroBlk-ctrl-value-label" id="flowSessionLevelSub">level</span>
-                        </div>
+                        </button>
                         <button class="metro-play-grid-btn" id="flowPlayBtn" aria-label="Play - press and hold to reset to the start">
                             <span class="material-symbols-outlined" id="flowPlayIcon">play_arrow</span>
                             <span class="metroBlk-ctrl-value-label">play</span>
@@ -2017,9 +2030,9 @@
                             <strong id="flowSubdivideLbl">1</strong>
                             <span class="metroBlk-ctrl-value-label" id="flowSubdivideUnitLbl">sub beats</span>
                         </button>
-                        <button type="button" class="metro-play-grid-btn hidden-group" id="flowSessionUpBtn" aria-label="Level up - play these bars faster now">
-                            <span class="material-symbols-outlined" aria-hidden="true">arrow_upward</span>
-                            <span class="metroBlk-ctrl-value-label">level up</span>
+                        <button type="button" class="metroBlk-ctrl-value-btn hidden-group" id="flowSessionSubBtn" aria-pressed="false" aria-label="Sub beats">
+                            <strong id="flowSessionSubLbl">off</strong>
+                            <span class="metroBlk-ctrl-value-label">sub beats</span>
                         </button>
                         <button type="button" class="metroBlk-ctrl-value-btn" id="flowSpeedBtn" aria-label="Play speed - tap to change" aria-haspopup="dialog" aria-expanded="false">
                             <strong id="flowSpeedLbl">100%</strong>
@@ -3850,7 +3863,7 @@
 </div>
 
 <!-- ML-320 follow-up: your own session templates - opening blocks in order, a focus and a length. -->
-<!-- ML-390: Type bars instead (painting) - bars from-to at a Level, the typed way of painting. -->
+<!-- ML-390: Type bars instead (setting the levels, ML-536) - bars from-to at a Level, the typed way of the Range tool. -->
 <div class="modal" id="paintTypeModal" role="dialog" aria-modal="true" aria-labelledby="paintTypeTitle">
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="paintTypeCloseBtn" aria-label="Close">&times;</button>
@@ -3861,21 +3874,21 @@
         </div>
         <p class="text-sm fw-bold mb-2" id="paintTypeLevelLabel">At Level</p>
         <div class="level-picker" id="paintTypePicker" role="group" aria-labelledby="paintTypeLevelLabel"></div>
-        <button type="button" class="btn-submit" id="paintTypeDoneBtn">Paint these bars</button>
+        <button type="button" class="btn-submit" id="paintTypeDoneBtn">Set these bars</button>
     </div>
 </div>
 
-<!-- ML-390: Type bars instead (cutting) - make bars from-to a focus bit of their own. -->
+<!-- ML-390: Type bars instead (splitting) - make bars from-to a focus section of their own. -->
 <div class="modal" id="cutTypeModal" role="dialog" aria-modal="true" aria-labelledby="cutTypeTitle">
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="cutTypeCloseBtn" aria-label="Close">&times;</button>
         <h2 id="cutTypeTitle">Type bars instead</h2>
-        <p class="metro-help-text">These bars become a focus bit of their own.</p>
+        <p class="metro-help-text">These bars become a focus section of their own.</p>
         <div class="flex-row gap-sm">
             <div class="form-group grow"><label for="cutTypeFrom">From bar</label><input type="number" id="cutTypeFrom" min="1" inputmode="numeric"></div>
             <div class="form-group grow"><label for="cutTypeTo">To bar</label><input type="number" id="cutTypeTo" min="1" inputmode="numeric"></div>
         </div>
-        <button type="button" class="btn-submit" id="cutTypeDoneBtn">Make it a focus bit</button>
+        <button type="button" class="btn-submit" id="cutTypeDoneBtn">Make it a focus section</button>
     </div>
 </div>
 

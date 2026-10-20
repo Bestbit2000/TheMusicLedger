@@ -452,13 +452,14 @@
 
     // --- Practice Levels (ML-314 / ML-315): speed, sub-beats and chunk length for a practice session ---
     // A Level (1-5) is a % of the piece's own tempo, so ramps and tempo changes keep their shape.
-    // Level 5 = 100%. Level 1 = as slow as it goes without any bar in the chunk dropping below 40 bpm
-    // (rounded UP to 5%). Levels 2-4 are equal steps in between, rounded to 5%.
+    // Level 5 = 100%. Level 1 = 50% (ML-535), or slower than that never - and no bar in the chunk drops
+    // below 40 bpm (rounded UP to 5%), so a slow piece starts higher. Levels 2-4 are equal steps in
+    // between, rounded to 5%.
     // ML-390: a focus bit must play 5 times in a block (4:30, a gap bar between goes) - it was 3 (ideally 4).
     // A play-through part only has to play once; one that needs longer than a block gets a 10-minute block
     // (LONG_BLOCK_SECONDS of playing).
     const LEVELS = {
-        MIN_BPM: 40, STEP: 5, BLOCK_SECONDS: 270, MIN_RUNS: 5, GOOD_RUNS: 5, SUB_BEATS_BELOW: 100,
+        MIN_BPM: 40, MIN_PERCENT: 50, STEP: 5, BLOCK_SECONDS: 270, MIN_RUNS: 5, GOOD_RUNS: 5, SUB_BEATS_BELOW: 100,
         TARGET: 4, PLAYTHROUGH_RUNS: 1, LONG_BLOCK_SECONDS: 570, SECTION_BARS: 8
     };
     const clampLevel = (level) => Math.max(1, Math.min(5, Math.round(Number(level) || 1)));
@@ -468,7 +469,7 @@
     function levelPercents(slowestBpm) {
         const slow = Number(slowestBpm);
         if (!Number.isFinite(slow) || slow <= LEVELS.MIN_BPM) return [100, 100, 100, 100, 100];
-        const p1 = Math.min(100, Math.ceil((LEVELS.MIN_BPM / slow) * 100 / LEVELS.STEP - 1e-9) * LEVELS.STEP);
+        const p1 = Math.min(100, Math.max(LEVELS.MIN_PERCENT, Math.ceil((LEVELS.MIN_BPM / slow) * 100 / LEVELS.STEP - 1e-9) * LEVELS.STEP));
         const out = [p1];
         for (let k = 2; k <= 4; k++) out.push(Math.round((p1 + (k - 1) * (100 - p1) / 4) / LEVELS.STEP) * LEVELS.STEP);
         out.push(100);

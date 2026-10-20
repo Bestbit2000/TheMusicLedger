@@ -184,8 +184,9 @@ function checkMarkup() {
             const onclick = attrVal(attrs, 'onclick') || '';
             // ML-474: the actions that open a pop-up (show-modal, item-detail, feedback); open-url / open-page open a new tab, not a pop-up
             const act = attrVal(attrs, 'data-act') || '';
+            // ML-537: a value box with aria-pressed is an on/off switch (the play screen's sub beats) - it opens nothing
             const opensPopup = /\bopen\w*(Modal|Picker|Popup|Menu|Sheet)\s*\(/.test(onclick) || /^(show-modal|item-detail|feedback)$/.test(act)
-                || /class="[^"]*\b(list-item-menu-btn|qp-bar-menu-btn|metroBlk-ctrl-value-btn|metroBlk-mini-tuner-instrument-btn|top-bar-timer-pill)\b/.test(attrs) && !/window\.open/.test(attrs) && !/^open-(url|page)$/.test(act);
+                || /class="[^"]*\b(list-item-menu-btn|qp-bar-menu-btn|metroBlk-ctrl-value-btn|metroBlk-mini-tuner-instrument-btn|top-bar-timer-pill)\b/.test(attrs) && !/window\.open/.test(attrs) && !/^open-(url|page)$/.test(act) && !attr(attrs, 'aria-pressed');
             if (opensPopup && !attr(attrs, 'aria-haspopup')) add('S1', f, full.slice(0, 140), 'opens a picker/modal/menu - add aria-haspopup (and aria-expanded while open)');
         }
         // A4: form fields

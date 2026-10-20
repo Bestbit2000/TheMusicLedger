@@ -28,13 +28,14 @@ function blk(o = {}) {
 const close = (a, b, eps = 0.01) => assert.ok(Math.abs(a - b) < eps, `${a} is not ~${b}`);
 
 describe('Level speeds', () => {
-    test('120 bpm: 35 / 50 / 70 / 85 / 100 %', () => {
-        assert.deepEqual(FJ.levelPercents(120), [35, 50, 70, 85, 100]);
+    test('120 bpm: 50 / 65 / 75 / 90 / 100 % - Level 1 is never below 50% (ML-535)', () => {
+        assert.deepEqual(FJ.levelPercents(120), [50, 65, 75, 90, 100]);
+        assert.deepEqual(FJ.levelPercents(200), [50, 65, 75, 90, 100]);
     });
-    test('Level 1 rounds UP so no bar drops below 40 bpm', () => {
-        const [p1] = FJ.levelPercents(132);
-        assert.equal(p1, 35);
-        assert.ok(132 * p1 / 100 >= 40);
+    test('Level 1 rounds UP so no bar drops below 40 bpm - a slow piece starts higher', () => {
+        const [p1] = FJ.levelPercents(60);
+        assert.equal(p1, 70);
+        assert.ok(60 * p1 / 100 >= 40);
         assert.deepEqual(FJ.levelPercents(80), [50, 65, 75, 90, 100]);
         assert.equal(80 * FJ.levelPercents(80)[0] / 100, 40);
     });
@@ -43,6 +44,7 @@ describe('Level speeds', () => {
             const p = FJ.levelPercents(bpm);
             p.forEach(x => assert.equal(x % 5, 0));
             assert.ok(bpm * p[0] / 100 >= 40, `Level 1 at ${bpm} bpm is below 40`);
+            assert.ok(p[0] >= 50, `Level 1 at ${bpm} bpm is below 50%`);
             for (let k = 1; k < 5; k++) assert.ok(p[k] >= p[k - 1]);
         }
     });
@@ -51,9 +53,9 @@ describe('Level speeds', () => {
         assert.deepEqual(FJ.levelPercents(30), [100, 100, 100, 100, 100]);
     });
     test('levelPercent clamps the Level to 1-5', () => {
-        assert.equal(FJ.levelPercent(0, 120), 35);
+        assert.equal(FJ.levelPercent(0, 120), 50);
         assert.equal(FJ.levelPercent(9, 120), 100);
-        assert.equal(FJ.levelPercent(3, 120), 70);
+        assert.equal(FJ.levelPercent(3, 120), 75);
     });
 });
 
@@ -88,17 +90,17 @@ describe('chunk fit in a 4:30 block', () => {
     test('60 bars of 3/4 at 132, Level 1: one run, too long', () => {
         const f = FJ.chunkFit(snowman(), { startBar: 1, endBar: 60, level: 1 });
         assert.equal(f.ok, true);
-        assert.equal(f.percent, 35);
-        close(f.runSeconds, 60 * 3 * 60 / (132 * 0.35));
+        assert.equal(f.percent, 50); // ML-535: Level 1 is never below 50%
+        close(f.runSeconds, 60 * 3 * 60 / (132 * 0.5));
         assert.equal(f.runs, 1);
         assert.equal(f.fits, 'tooLong');
     });
-    test('the same bars split into 5 x 12 fit 5 goes each (ML-390: 5 goes, was 3)', () => {
-        assert.deepEqual(FJ.suggestSplit(snowman(), { startBar: 1, endBar: 60, level: 1 }), [[1, 12], [13, 24], [25, 36], [37, 48], [49, 60]]);
-        const f = FJ.chunkFit(snowman(), { startBar: 1, endBar: 12, level: 1 });
+    test('the same bars split into 4 x 15 fit 5 goes each (ML-390: 5 goes, was 3)', () => {
+        assert.deepEqual(FJ.suggestSplit(snowman(), { startBar: 1, endBar: 60, level: 1 }), [[1, 15], [16, 30], [31, 45], [46, 60]]);
+        const f = FJ.chunkFit(snowman(), { startBar: 1, endBar: 18, level: 1 });
         assert.equal(f.runs, 5);
         assert.equal(f.fits, 'good');
-        assert.equal(FJ.chunkFit(snowman(), { startBar: 1, endBar: 15, level: 1 }).fits, 'tooLong'); // 4 goes
+        assert.equal(FJ.chunkFit(snowman(), { startBar: 1, endBar: 19, level: 1 }).fits, 'tooLong'); // 4 goes
     });
     test('a chunk that fits is left alone, and fits better at higher Levels', () => {
         const blocks = [blk({ barCount: 8, bpm: 120 })];
