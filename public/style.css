@@ -2725,6 +2725,7 @@
     .splash-screen .notice-banner { position: absolute; top: 0; left: 0; right: 0; max-width: none; }
     .splash-screen:has(.notice-banner:not(.hidden-group)) { padding-top: calc(var(--touch-target) + var(--space-5)); } /* the sign-in picture starts under it */
     .notice-banner-full .notification-body { display: block; -webkit-line-clamp: unset; }
+    .notice-banner-full h2 { padding-right: var(--touch-target); } /* a long title stops short of the X */
     #noticeBannerModal { z-index: var(--z-over-splash); } /* opened from the sign-in screen too, which sits on top of everything */
     .offline-bar-btn { flex-shrink: 0; min-height: var(--touch-target); padding: 0 var(--space-3); background: none; border: 1px solid var(--status-amber-fg); border-radius: var(--radius-sm); color: var(--status-amber-fg); font-family: var(--font-sans); font-size: var(--font-sm); font-weight: var(--font-weight-bold); cursor: pointer; }
     .offline-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--input-border); text-align: left; }
