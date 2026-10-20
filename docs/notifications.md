@@ -149,6 +149,16 @@ has seen it**) opens a pop-up listing who hasn't seen it yet and who has, with t
 for the owner only: the app telling its members something, never anyone checking on a player's practice - so it is
 never offered to a band organiser about their members without a separate decision.
 
+## Housekeeping (ML-494)
+
+- **Old notices go.** The daily clear-up (`clearOldRecords`, docs/retention.md) deletes a notification 12 months
+  after it stopped being shown - it expired, or it was withdrawn, whichever came first (owner, 8 Oct 2026) - with its
+  read records and its list of who it was for. A live notice with no expiry is kept. The rule is `noticeIsOld` in
+  `retentionRules.js` (tested); Admin -> Security -> Reviews flags any the job has missed.
+- **A limit on repeated calls.** Reading, Mark all as read, clearing and Got it share the `notifications` call limit
+  (`limitCalls`, ML-476): 300 an hour per account, far more than anyone tapping. The minute-by-minute check for new
+  notices (`GET /api/notifications`) is not limited - every check would write a row to count it.
+
 ## Not built (yet) - what going properly multi-user would need (ML-381)
 
 Roughly in the order they'd matter:
@@ -168,8 +178,6 @@ Roughly in the order they'd matter:
 - **A maintenance banner** - a persistent strip for a planned outage, separate from the list.
 - **Real-time delivery** (SSE/websockets or a hosted pub/sub such as Pusher/Ably) if a minute's
   delay is ever too slow.
-- **Housekeeping** - delete old read rows / expired notices once there are many accounts, and
-  rate-limit the notifications endpoints.
 
 ## Code and tests
 

@@ -7,6 +7,17 @@
 // so the whole thing can be watched working on sandbox in hours instead of years.
 
 export const UNITS = ['hours', 'days', 'months', 'years'];
+
+// ML-494: a notification is kept for 12 months after it stopped being shown - it expired, or it was withdrawn
+// (owner, 8 Oct 2026) - and then goes with its read records and its list of who it was for. A notice with no
+// expiry that is still live is kept. clearOldRecords (retention.js) does the same sum in SQL.
+export const NOTICES_KEPT_MONTHS = 12;
+export function noticeIsOld({ expiresAt = null, withdrawnAt = null } = {}, now = new Date()) {
+  const ended = [expiresAt, withdrawnAt].filter(Boolean).map((d) => new Date(d)).filter((d) => d <= now);
+  if (!ended.length) return false;
+  const endedAt = new Date(Math.min(...ended.map((d) => d.getTime())));
+  return addPeriod(endedAt, NOTICES_KEPT_MONTHS, 'months') <= now;
+}
 export const DEFAULT_RULE = { enabled: false, unit: 'months', first: 22, second: 23, remove: 24 };
 const withStatus = (status, message) => Object.assign(new Error(message), { status });
 

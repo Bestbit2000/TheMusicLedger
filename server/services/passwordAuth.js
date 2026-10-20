@@ -65,7 +65,8 @@ const CALL_LIMITS = {
   'piece-read': { max: 20, minutes: 60, what: 'pieces read from a photo' }, // ML-246: each one is paid for
   report: { max: 20, minutes: 24 * 60, what: 'reports' }, // ML-507: each one may email the owner
   'admin-check': { max: 40, minutes: 60, what: 'tries at the admin check' }, // ML-518: passkey and code tries, and passkeys made
-  'change-email': { max: 5, minutes: 24 * 60, what: 'email changes asked for' } // ML-465: each one emails an address the member typed
+  'change-email': { max: 5, minutes: 24 * 60, what: 'email changes asked for' }, // ML-465: each one emails an address the member typed
+  notifications: { max: 300, minutes: 60, what: 'notification changes' } // ML-494: reading, clearing and Got it - each one writes
 };
 export async function limitCalls(kind, accountId) {
   const rule = CALL_LIMITS[kind];

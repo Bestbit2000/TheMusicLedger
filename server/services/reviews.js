@@ -23,7 +23,9 @@ async function overdueClearUps() {
   const { rows } = await pool.query(
     `SELECT (SELECT count(*) FROM auth_email_links WHERE purpose = 'invite' AND COALESCE(used_at, expires_at) < now() - interval '32 days')::int AS invites,
             (SELECT count(*) FROM band_invites WHERE created_at < now() - interval '32 days')::int AS band_invites,
-            (SELECT count(*) FROM feedback WHERE status = 'resolved' AND updated_at < now() - interval '12 months' - interval '2 days')::int AS feedback`);
+            (SELECT count(*) FROM feedback WHERE status = 'resolved' AND updated_at < now() - interval '12 months' - interval '2 days')::int AS feedback,
+            (SELECT count(*) FROM notifications WHERE LEAST(CASE WHEN expires_at <= now() THEN expires_at END, CASE WHEN withdrawn_at <= now() THEN withdrawn_at END)
+               < now() - interval '12 months' - interval '2 days')::int AS notices`);
   return rows[0];
 }
 
@@ -40,10 +42,10 @@ async function dataProtectionChecks(lastOn) {
   }
   const old = await part(overdueClearUps);
   if (old) {
-    const left = old.invites + old.band_invites + old.feedback;
+    const left = old.invites + old.band_invites + old.feedback + old.notices;
     checks.push(left
-      ? { ok: false, text: `The daily clear-up has left ${plural(old.invites + old.band_invites, 'old invite', 'old invites')} and ${plural(old.feedback, 'piece', 'pieces')} of old feedback that should have gone. Check the daily job is running (Retention).` }
-      : { ok: true, text: 'Nothing is being kept past its time: no invite older than 30 days, no dealt-with feedback older than 12 months.' });
+      ? { ok: false, text: `The daily clear-up has left ${plural(old.invites + old.band_invites, 'old invite', 'old invites')}, ${plural(old.feedback, 'piece', 'pieces')} of old feedback and ${plural(old.notices, 'old notification', 'old notifications')} that should have gone. Check the daily job is running (Retention).` }
+      : { ok: true, text: 'Nothing is being kept past its time: no invite older than 30 days, no dealt-with feedback older than 12 months, no notification more than 12 months after it ended.' });
   }
   return checks;
 }

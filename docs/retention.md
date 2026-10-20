@@ -41,7 +41,8 @@ is looked at:
 
 **Old records are cleared every day, whether the rule is on or off** (`clearOldRecords`, called by the
 daily job and by "Run now"): **invites** to the app 30 days after they were used or ran out, **invitations
-into a band** nobody answered after 30 days, and **feedback** 12 months after it was marked resolved. The
+into a band** nobody answered after 30 days, **feedback** 12 months after it was marked resolved, and (ML-494) a **notification** 12 months after it
+expired or was withdrawn, with its read records (docs/notifications.md, "Housekeeping"). The
 lengths are fixed in `retention.js`. Until 6 Oct 2026 this sat inside the retention run, so with the rule
 off - as it is everywhere - nothing was cleared, although the privacy policy said it was.
 

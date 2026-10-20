@@ -132,6 +132,7 @@ router.get('/notices/important', requireAuth, resolveAccount, async (req, res) =
 });
 router.post('/notices/important/:id/ack', requireAuth, resolveAccount, async (req, res) => {
   try {
+    await limitCalls('notifications', req.accountId);
     res.json(await acknowledgeImportantNotice(req.accountId, req.params.id));
   } catch (error) {
     sendError(res, error);
@@ -141,6 +142,7 @@ router.post('/notices/important/:id/ack', requireAuth, resolveAccount, async (re
 router.post('/notifications/read-all', requireAuth, resolveAccount, async (req, res) => {
   try {
     await assertNotificationsEnabled();
+    await limitCalls('notifications', req.accountId); // ML-494
     res.json({ ...(await markAllNotificationsRead(req.accountId)), appVersion: currentAppVersion() });
   } catch (error) {
     sendError(res, error);
@@ -150,6 +152,7 @@ router.post('/notifications/read-all', requireAuth, resolveAccount, async (req, 
 router.post('/notifications/:id/read', requireAuth, resolveAccount, async (req, res) => {
   try {
     await assertNotificationsEnabled();
+    await limitCalls('notifications', req.accountId);
     res.json({ ...(await markNotificationRead(req.accountId, req.params.id)), appVersion: currentAppVersion() });
   } catch (error) {
     sendError(res, error);
@@ -160,6 +163,7 @@ router.post('/notifications/:id/read', requireAuth, resolveAccount, async (req, 
 router.post('/notifications/clear-all', requireAuth, resolveAccount, async (req, res) => {
   try {
     await assertNotificationsEnabled();
+    await limitCalls('notifications', req.accountId);
     res.json({ ...(await clearAllNotifications(req.accountId)), appVersion: currentAppVersion() });
   } catch (error) {
     sendError(res, error);
@@ -169,6 +173,7 @@ router.post('/notifications/clear-all', requireAuth, resolveAccount, async (req,
 router.post('/notifications/:id/clear', requireAuth, resolveAccount, async (req, res) => {
   try {
     await assertNotificationsEnabled();
+    await limitCalls('notifications', req.accountId);
     res.json({ ...(await clearNotification(req.accountId, req.params.id)), appVersion: currentAppVersion() });
   } catch (error) {
     sendError(res, error);

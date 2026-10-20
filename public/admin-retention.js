@@ -88,8 +88,8 @@
                 load(out);
                 const r = out.result;
                 $('retentionStatus').textContent = r.ran
-                    ? `Done: ${r.firstEmails} first email${r.firstEmails === 1 ? '' : 's'}, ${r.secondEmails} second, ${r.deleted} deleted; ${r.invitesCleared} old invite${r.invitesCleared === 1 ? '' : 's'} and ${r.feedbackCleared} old feedback cleared.${r.problems.length ? ` ${r.problems.length} could not be done: ${r.problems[0]}` : ''}`
-                    : `${r.why} Old records were still cleared: ${r.invitesCleared + (r.bandInvitesCleared || 0)} invites, ${r.feedbackCleared} feedback.`;
+                    ? `Done: ${r.firstEmails} first email${r.firstEmails === 1 ? '' : 's'}, ${r.secondEmails} second, ${r.deleted} deleted; ${r.invitesCleared} old invite${r.invitesCleared === 1 ? '' : 's'}, ${r.feedbackCleared} old feedback and ${r.noticesCleared || 0} old notification${r.noticesCleared === 1 ? '' : 's'} cleared.${r.problems.length ? ` ${r.problems.length} could not be done: ${r.problems[0]}` : ''}`
+                    : `${r.why} Old records were still cleared: ${r.invitesCleared + (r.bandInvitesCleared || 0)} invites, ${r.feedbackCleared} feedback, ${r.noticesCleared || 0} notifications.`;
             } catch (error) { A.showToast(error.message); $('retentionStatus').textContent = ''; }
         }, going > 0);
     }

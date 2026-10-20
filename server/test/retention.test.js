@@ -1,7 +1,7 @@
 // ML-464: the retention rule (server/services/retentionRules.js). Pure - no database.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { tidyRule, addPeriod, unusedSince, dueDates, nextStep, isDue, removalDate, ruleInWords, retentionEmail, DEFAULT_RULE } from '../services/retentionRules.js';
+import { tidyRule, addPeriod, unusedSince, dueDates, nextStep, isDue, removalDate, ruleInWords, retentionEmail, DEFAULT_RULE, noticeIsOld, NOTICES_KEPT_MONTHS } from '../services/retentionRules.js';
 
 const FROM = '2026-10-06T00:00:00Z';
 const RULE = { enabled: true, unit: 'months', first: 22, second: 23, remove: 24 };
@@ -117,5 +117,24 @@ describe('the emails', () => {
     assert.match(m.text, /^Hello,/);
     assert.match(m.text, /not been used for 24 months/);
     assert.match(m.text, /welcome back/);
+  });
+});
+
+describe('old notifications (ML-494)', () => {
+  const now = new Date('2027-11-20T12:00:00Z');
+  test('kept for 12 months after it ended', () => {
+    assert.equal(NOTICES_KEPT_MONTHS, 12);
+    assert.equal(noticeIsOld({ expiresAt: '2026-11-19T12:00:00Z' }, now), true);
+    assert.equal(noticeIsOld({ expiresAt: '2026-11-21T12:00:00Z' }, now), false);
+    assert.equal(noticeIsOld({ withdrawnAt: '2026-10-01T00:00:00Z' }, now), true);
+  });
+  test('a live notice with no expiry is never cleared, and one that ends in the future is not either', () => {
+    assert.equal(noticeIsOld({}, now), false);
+    assert.equal(noticeIsOld({ expiresAt: '2028-01-01T00:00:00Z' }, now), false);
+  });
+  test('it counts from whichever came first, expiry or withdrawal', () => {
+    assert.equal(noticeIsOld({ expiresAt: '2027-06-01T00:00:00Z', withdrawnAt: '2026-10-01T00:00:00Z' }, now), true);
+    assert.equal(noticeIsOld({ expiresAt: '2026-10-01T00:00:00Z', withdrawnAt: '2027-06-01T00:00:00Z' }, now), true);
+    assert.equal(noticeIsOld({ expiresAt: '2027-06-01T00:00:00Z', withdrawnAt: '2027-07-01T00:00:00Z' }, now), false);
   });
 });
