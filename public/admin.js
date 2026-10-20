@@ -2381,8 +2381,8 @@
                             ${n.urgent ? '<span class="admin-feedback-badge notification-status-urgent">Urgent</span>' : ''}
                             ${n.important ? `<span class="admin-feedback-badge notification-status-urgent">Important${n.policyLink ? ' - with the privacy policy link' : ''}</span>` : ''}
                             ${n.banner ? '<span class="admin-feedback-badge notification-status-scheduled">Banner</span>' : ''}
-                            <span class="admin-feedback-badge cat">${n.audience === 'accounts' ? `For ${n.recipientCount} member${n.recipientCount === 1 ? '' : 's'}` : 'For everyone'}</span>
-                            <span class="admin-feedback-badge cat">Read by ${n.readCount} of ${n.audience === 'accounts' ? n.recipientCount : data.accountCount}</span>
+                            <span class="admin-feedback-badge cat">${escapeHtml(noticeAudienceWords(n))}</span>
+                            <span class="admin-feedback-badge cat">Read by ${n.readCount} of ${n.audience === 'all' ? data.accountCount : n.recipientCount}</span>
                         </div>
                     </div>
                     <div class="admin-feature-actions">
@@ -2402,11 +2402,20 @@
     // ML-492/493: who a notice is for, and who has seen it - offered on one for named members (whose names are
     // asked for here, not shown on the list) and on an urgent or important one, where who hasn't tapped Got it matters.
     // The owner's only: never offered to a band organiser about their members.
-    const notificationHasWho = (n) => n.audience === 'accounts' || n.urgent || n.important;
+    const notificationHasWho = (n) => n.audience !== 'all' || n.urgent || n.important;
+    // ML-496: "For everyone", "For 2 members", "For Premium members (3 now)", "For The Cobham Band (12 now)"
+    function noticeAudienceWords(n) {
+        const plural = (c, one, many) => `${c} ${c === 1 ? one : many}`;
+        if (n.audience === 'accounts') return `For ${plural(n.recipientCount, 'member', 'members')}`;
+        if (n.audience === 'account_level') return `For ${accountLevelLabel(n.audienceAccountLevel)}s (${n.recipientCount} now)`;
+        if (n.audience === 'band') return n.audienceBandName ? `For ${n.audienceBandName} (${n.recipientCount} now)` : 'For a band that has gone';
+        return 'For everyone';
+    }
     async function openNotificationWho(n) {
         if (!n) return;
         document.getElementById('notificationWhoTitle').textContent = n.title;
-        document.getElementById('notificationWhoFor').textContent = n.audience === 'accounts' ? `For ${n.recipientCount} named member${n.recipientCount === 1 ? '' : 's'}.` : 'For everyone.';
+        document.getElementById('notificationWhoFor').textContent = n.audience === 'accounts' ? `For ${n.recipientCount} named member${n.recipientCount === 1 ? '' : 's'}.`
+            : n.audience === 'all' ? 'For everyone.' : `${noticeAudienceWords(n)}. Whoever it covers while it is live gets it - these are the people it covers today.`;
         const box = document.getElementById('notificationWhoLists');
         box.textContent = 'Loading...';
         showModal('notificationWhoModal');
@@ -2421,6 +2430,77 @@
                 ${list(who.seen, p => `<li>${person(p)} <span class="text-muted">- ${escapeHtml(fmtDate(p.seenAt))}</span></li>`)}`;
         } catch (error) {
             box.textContent = 'Not loaded: ' + error.message;
+        }
+    }
+
+    // ===== ML-496: who a notice is for - Everyone, an account type, a band, or named members =====
+    // One value box for the kind and one for which (one button, one pop-up). An account type and a band are
+    // rules - whoever has the type or is in the band while it is live (owner, 8 Oct 2026); named members are a
+    // list. Set when it is made: an edit shows it but keeps it.
+    const NOTICE_AUDIENCES = [['all', 'Everyone'], ['account_level', 'An account type'], ['band', 'A band'], ['accounts', 'Named members']];
+    let noticeAudience = { audience: 'all', accountLevel: null, bandId: null, bandName: null, accountIds: [], count: null };
+    let noticeAudienceLocked = false;
+    let noticeAudiencePick = null; // the pop-up open now: { kind, rows, picked }
+    function renderNoticeAudience() {
+        const a = noticeAudience;
+        document.getElementById('notificationWhoLbl').textContent = (NOTICE_AUDIENCES.find(([k]) => k === a.audience) || [, 'Everyone'])[1];
+        const which = a.audience === 'account_level' ? (a.accountLevel ? accountLevelLabel(a.accountLevel) : 'Choose')
+            : a.audience === 'band' ? (a.bandName || 'Choose')
+            : a.audience === 'accounts' ? (a.accountIds.length ? `${a.accountIds.length} member${a.accountIds.length === 1 ? '' : 's'}` : a.count ? `${a.count} member${a.count === 1 ? '' : 's'}` : 'Choose') : '';
+        document.getElementById('notificationWhichLbl').textContent = which;
+        document.getElementById('notificationWhichKind').textContent = { account_level: 'account type', band: 'band', accounts: 'members' }[a.audience] || '';
+        setShown('notificationWhichBtn', a.audience !== 'all');
+        ['notificationWhoBtn', 'notificationWhichBtn'].forEach(id => { document.getElementById(id).disabled = noticeAudienceLocked; });
+        setShown('notificationWhoLocked', noticeAudienceLocked);
+        setShown('notificationBannerRow', a.audience === 'all'); // ML-495: a banner is for everyone
+    }
+    function openNoticeAudienceChoice(title, rows, { multi = false, search = false, picked = new Set(), onPick }) {
+        noticeAudiencePick = { rows, picked, multi, onPick };
+        document.getElementById('notificationAudienceTitle').textContent = title;
+        const q = document.getElementById('notificationAudienceSearch');
+        q.value = '';
+        setShown('notificationAudienceSearchRow', search);
+        setShown('notificationAudienceFooter', multi);
+        renderNoticeAudienceOptions();
+        showModal('notificationAudienceModal');
+    }
+    function renderNoticeAudienceOptions() {
+        const p = noticeAudiencePick;
+        if (!p) return;
+        const q = document.getElementById('notificationAudienceSearch').value.trim().toLowerCase();
+        const showing = p.rows.filter(r => !q || r.search.includes(q));
+        const box = document.getElementById('notificationAudienceOptions');
+        box.innerHTML = showing.length ? showing.map(r => {
+            const on = p.picked.has(r.key);
+            return `<button type="button" class="flow-choice-option level-answer${p.multi ? ' pick-row' : ''}${on ? ' selected' : ''}" aria-pressed="${on}" data-audience-key="${escapeHtml(r.key)}">${p.multi ? `<span class="material-symbols-outlined pick-row-check" aria-hidden="true">${on ? 'check_box' : 'check_box_outline_blank'}</span>` : ''}<span class="grow"><strong>${escapeHtml(r.name)}</strong>${r.sub ? `<br><span class="text-sm text-muted">${escapeHtml(r.sub)}</span>` : ''}</span></button>`;
+        }).join('') : '<p class="admin-intro">Nothing matches.</p>';
+        box.querySelectorAll('[data-audience-key]').forEach(b => b.addEventListener('click', () => {
+            const key = b.dataset.audienceKey;
+            if (!p.multi) { hideModal('notificationAudienceModal'); noticeAudiencePick = null; p.onPick(key); return; }
+            if (p.picked.has(key)) p.picked.delete(key); else p.picked.add(key);
+            renderNoticeAudienceOptions();
+        }));
+        const done = document.getElementById('notificationAudienceDoneBtn');
+        done.disabled = p.multi && !p.picked.size;
+        done.textContent = p.multi && p.picked.size ? `Done - ${p.picked.size} member${p.picked.size === 1 ? '' : 's'}` : 'Done';
+    }
+    async function chooseNoticeWhich() {
+        const a = noticeAudience;
+        try {
+            if (a.audience === 'account_level') {
+                openNoticeAudienceChoice('Which account type?', ACCOUNT_LEVELS.map(([key, name]) => ({ key, name, search: name.toLowerCase() })),
+                    { picked: new Set(a.accountLevel ? [a.accountLevel] : []), onPick: (key) => { a.accountLevel = key; renderNoticeAudience(); } });
+            } else if (a.audience === 'band') {
+                const { bands } = await apiCall('/api/admin/notifications/bands');
+                openNoticeAudienceChoice('Which band?', bands.map(b => ({ key: String(b.id), name: b.name, sub: `${b.members} member${b.members === 1 ? '' : 's'} now`, search: b.name.toLowerCase() })),
+                    { search: bands.length > 8, picked: new Set(a.bandId ? [String(a.bandId)] : []), onPick: (key) => { const b = bands.find(x => String(x.id) === key); a.bandId = b.id; a.bandName = b.name; renderNoticeAudience(); } });
+            } else if (a.audience === 'accounts') {
+                const { accounts } = await apiCall('/api/admin/accounts');
+                openNoticeAudienceChoice('Which members?', accounts.map(x => ({ key: String(x.id), name: accountDisplayName(x), sub: accountDisplayName(x) === x.email ? '' : x.email, search: `${accountDisplayName(x)} ${x.email}`.toLowerCase() })),
+                    { multi: true, search: true, picked: new Set(a.accountIds) });
+            }
+        } catch (error) {
+            showToast(error.message);
         }
     }
 
@@ -2451,7 +2531,11 @@
         document.getElementById('notificationImportantInput').checked = !!(n && n.important); // ML-463
         document.getElementById('notificationPolicyLinkInput').checked = !!(n && n.policyLink);
         document.getElementById('notificationBannerInput').checked = !!(n && n.banner); // ML-495
-        setShown('notificationBannerRow', !n || n.audience === 'all'); // a notice for named members is never a banner
+        // ML-496: who it is for - chosen for a new notice; an edit keeps it (the boxes are shown, not changeable)
+        noticeAudience = n ? { audience: n.audience, accountLevel: n.audienceAccountLevel, bandId: n.audienceBandId, bandName: n.audienceBandName, accountIds: [], count: n.recipientCount }
+            : { audience: 'all', accountLevel: null, bandId: null, bandName: null, accountIds: [], count: null };
+        noticeAudienceLocked = !!n;
+        renderNoticeAudience();
         setShown('notificationPolicyLinkRow', !!(n && n.important));
         syncNotificationPublishMode();
         showModal('notificationFormModal');
@@ -2473,7 +2557,12 @@
             urgent: document.getElementById('notificationUrgentInput').checked, // ML-167
             important: document.getElementById('notificationImportantInput').checked, // ML-463
             policyLink: document.getElementById('notificationImportantInput').checked && document.getElementById('notificationPolicyLinkInput').checked,
-            banner: document.getElementById('notificationBannerInput').checked // ML-495
+            banner: noticeAudience.audience === 'all' && document.getElementById('notificationBannerInput').checked, // ML-495
+            // ML-496: who it is for (used when it is made; an edit keeps who it was for)
+            audience: noticeAudience.audience,
+            accountLevel: noticeAudience.accountLevel,
+            bandId: noticeAudience.bandId,
+            accountIds: noticeAudience.accountIds
         };
         const btn = document.getElementById('notificationFormSaveBtn');
         btn.disabled = true;
@@ -2524,6 +2613,28 @@
         document.getElementById('notificationImportantInput')?.addEventListener('change', (e) => setShown('notificationPolicyLinkRow', e.target.checked));
         document.getElementById('notificationFormCancelBtn')?.addEventListener('click', closeNotificationForm);
         document.getElementById('notificationFormSaveBtn')?.addEventListener('click', saveNotificationForm);
+        // ML-496: who it is for
+        document.getElementById('notificationWhoBtn')?.addEventListener('click', () => {
+            openNoticeAudienceChoice('Who is it for?', NOTICE_AUDIENCES.map(([key, name]) => ({ key, name, search: name.toLowerCase() })), {
+                picked: new Set([noticeAudience.audience]),
+                onPick: (key) => {
+                    if (key === noticeAudience.audience) return;
+                    noticeAudience = { audience: key, accountLevel: null, bandId: null, bandName: null, accountIds: [], count: null };
+                    renderNoticeAudience();
+                    if (key !== 'all') chooseNoticeWhich();
+                }
+            });
+        });
+        document.getElementById('notificationWhichBtn')?.addEventListener('click', chooseNoticeWhich);
+        document.getElementById('notificationAudienceSearch')?.addEventListener('input', renderNoticeAudienceOptions);
+        // Its X (and Escape, and a tap outside - a11y.js comes here) closes it without changing anything
+        document.getElementById('notificationAudienceCloseBtn')?.addEventListener('click', () => { hideModal('notificationAudienceModal'); noticeAudiencePick = null; });
+        document.getElementById('notificationAudienceDoneBtn')?.addEventListener('click', () => {
+            if (noticeAudiencePick && noticeAudiencePick.multi) noticeAudience.accountIds = [...noticeAudiencePick.picked];
+            hideModal('notificationAudienceModal');
+            noticeAudiencePick = null;
+            renderNoticeAudience();
+        });
     }
 
     // ========================================

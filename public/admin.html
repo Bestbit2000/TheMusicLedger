@@ -542,6 +542,20 @@
         </div>
     </div>
 </div>
+<!-- ML-496: choosing who a notice is for - one list of options; for named members a search and ticks, then Done -->
+<div class="modal" id="notificationAudienceModal" role="dialog" aria-modal="true" aria-labelledby="notificationAudienceTitle">
+    <div class="modal-content modal-content-sticky-footer">
+        <div class="metroSeg-scroll-area">
+            <button type="button" class="modal-close-x" id="notificationAudienceCloseBtn" aria-label="Close">&times;</button>
+            <h2 id="notificationAudienceTitle">Who is it for?</h2>
+            <div class="form-group hidden-group" id="notificationAudienceSearchRow"><label for="notificationAudienceSearch">Search</label><input type="search" id="notificationAudienceSearch" autocomplete="off"></div>
+            <div id="notificationAudienceOptions"></div>
+        </div>
+        <div class="metroSeg-sticky-footer hidden-group" id="notificationAudienceFooter">
+            <button type="button" class="btn-submit no-margin" id="notificationAudienceDoneBtn">Done</button>
+        </div>
+    </div>
+</div>
 <!-- ML-492/493: who a notice is for - not seen yet, and seen (with the day). The owner's only. -->
 <div class="modal" id="notificationWhoModal" role="dialog" aria-modal="true" aria-labelledby="notificationWhoTitle">
     <div class="modal-content">
@@ -556,6 +570,16 @@
         <h2 id="notificationFormTitle">New notification</h2>
         <div class="form-group"><label for="notificationTitleInput">Title</label><input type="text" id="notificationTitleInput" maxlength="120" placeholder="e.g. New: export flows to MusicXML"></div>
         <div class="form-group"><label for="notificationBodyInput">Message</label><textarea id="notificationBodyInput" rows="6" maxlength="4000"></textarea></div>
+        <!-- ML-496: who it is for - one value box (Everyone, an account type, a band, named members), then which.
+             Set when the notice is made; an edit keeps it. -->
+        <div class="form-group">
+            <label for="notificationWhoBtn" id="notificationWhoHead">Who is it for</label>
+            <div class="flex-row gap-md">
+                <button type="button" class="metroBlk-ctrl-value-btn" id="notificationWhoBtn" aria-haspopup="dialog"><strong id="notificationWhoLbl">Everyone</strong><span class="metroBlk-ctrl-value-label">who</span></button>
+                <button type="button" class="metroBlk-ctrl-value-btn hidden-group" id="notificationWhichBtn" aria-haspopup="dialog" aria-describedby="notificationWhoHead"><strong id="notificationWhichLbl">Choose</strong><span class="metroBlk-ctrl-value-label" id="notificationWhichKind">which</span></button>
+            </div>
+            <p class="admin-intro hidden-group" id="notificationWhoLocked">Who it is for can't be changed once it has been sent.</p>
+        </div>
         <div class="form-group">
             <label for="notificationPublishMode">Publish</label>
             <select id="notificationPublishMode">

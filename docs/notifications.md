@@ -21,6 +21,25 @@ published at once and urgent. Every query that gives a member their notification
 mark all read, the important notices) checks the audience, so nobody else ever sees it. It appears in the
 admin list like any other, where it can be withdrawn or deleted.
 
+## Sending to a group (ML-496)
+
+On Admin → Notifications the form's **Who is it for** box (one button, one pop-up) offers **Everyone**, **An account
+type**, **A band** or **Named members**, and a second box says which (a type; a shared band - kind `group` - with
+how many are in it now; members ticked from a searchable list). The owner's decisions (8 Oct 2026):
+
+- **An account type is a rule** - whoever has that type while the notice is live gets it
+  (`audience = 'account_level'`, `audience_account_level`).
+- **A band is a rule too** - its members, and **someone who joins the band while the notice is still live gets it as
+  well** (`audience = 'band'`, `audience_band_id`). A band deleted later leaves its notices for nobody.
+- **Named members are a list**, fixed when it is sent (`audience = 'accounts'`, `notification_recipients`).
+- Not by instrument or plan (there are no plans yet).
+
+Who a notice is for is set when it is made: **an edit keeps it** (the boxes show it but can't be changed), so an edit
+never turns a notice for some members into one for everyone. Only a notice for everyone can be a banner (ML-495).
+The list says who each is for ("For Standard members (3 now)", "For The Cobham Band (12 now)") and counts readers
+out of the people it covers now; **Who has seen it** lists them. Every query a member's notices come from checks the
+rule (`FOR_ACCOUNT` in `server/services/notifications.js`, migration 140). Back-test case 87.
+
 ## Why "update available" exists
 
 The app's service worker (`public/sw.js`) is network-first, so any *fresh* load gets the latest
@@ -180,8 +199,7 @@ never offered to a band organiser about their members without a separate decisio
 
 Roughly in the order they'd matter:
 
-- **Targeting** (a band, an account type, an instrument, a plan) - `notifications.audience` exists,
-  always `'all'` for now, so this can be added without reshaping the table.
+- **Targeting by instrument or plan** - a band, an account type and named members are built (ML-496).
 - **Band admins notifying their own members** ("rehearsal moved to Thursday") - the biggest one for
   bands. Needs targeting plus a band-admin screen, with super-admin moderation/abuse limits.
 - **Push notifications** that arrive while the app is closed (Web Push via the service worker, VAPID
@@ -205,6 +223,7 @@ Roughly in the order they'd matter:
 | `public/app.js` (NOTIFICATIONS section) | Polling, dot/badge, screen, update card, About note, urgent pop-up, clearing |
 | `db/migrations/138_clear_notifications.sql` | `notification_reads.cleared_at` (ML-556) |
 | `db/migrations/139_notice_banner.sql` | `notifications.banner` (ML-495) |
+| `db/migrations/140_notice_audiences.sql` | `audience` 'account_level' and 'band' (ML-496) |
 | `db/migrations/082_urgent_notifications.sql` | `notifications.urgent` (ML-167) |
 | `db/migrations/113_important_notices.sql` | `notifications.important`, `notifications.policy_link` (ML-463) |
 | Back-test case 56 (`createImportantNotice` in `tests/helpers/seedNotifications.ts`) | The pop-up on opening, must be answered, once per account, reaches a Standard member |

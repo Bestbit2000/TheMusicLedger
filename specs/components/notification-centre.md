@@ -34,6 +34,10 @@ title as a `.section-title` › `.notification-date` › `.notification-body` (i
 it. Got it is remembered on the account, so no other device shows it again; several show one at a time,
 oldest first; an urgent one waits its turn behind it. It doesn't depend on the `notifications` feature -
 every member sees it - and with no connection nothing is shown.
+Admin → Notifications' form (ML-496): **Who is it for** - a `.metroBlk-ctrl-value-btn` (Everyone / An account type / A
+band / Named members) and, beside it, one for which; each opens `#notificationAudienceModal` (a sticky-footer modal
+over the form, `--z-modal-stacked`): `.flow-choice-option` rows, a search for bands and members, and for named members
+[pick list](pick-list.md) rows with **Done - N members**. On an edit both boxes are disabled with a line saying why.
 Admin → Notifications (ML-492/493): each notice says who it is for in a `.admin-feedback-badge` ("For everyone" /
 "For 2 members") and "Read by N of M" out of those people. A notice for named members (**Who it's for**) or an urgent or
 important one (**Who has seen it**) has a button opening `#notificationWhoModal`: the title › "For ..." ›

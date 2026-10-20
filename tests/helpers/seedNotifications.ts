@@ -98,3 +98,24 @@ export async function createBannerNotice(title: string, body: string, startsInMi
     return Number(rows[0].id);
   });
 }
+
+// ML-496: a throwaway shared band (kind 'group') with these members, for a notice sent to a band. Its name
+// starts with the spec's prefix so deleteTestGroups clears it (and its memberships) afterwards.
+export async function createTestGroup(name: string, emails: string[]): Promise<number> {
+  return withClient(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO bands (name, kind, created_by_account_id) SELECT $1, 'group', id FROM accounts WHERE email = $2 RETURNING id`,
+      [name, emails[0]]
+    );
+    await client.query(
+      `INSERT INTO band_members (band_id, account_id, role) SELECT $1, id, 'member' FROM accounts WHERE email = ANY($2::text[])`,
+      [rows[0].id, emails]
+    );
+    return Number(rows[0].id);
+  });
+}
+export async function deleteTestGroups(namePrefix: string): Promise<void> {
+  await withClient(async (client) => {
+    await client.query(`DELETE FROM bands WHERE kind = 'group' AND name LIKE $1`, [`${namePrefix}%`]);
+  });
+}

@@ -169,6 +169,8 @@ body.admin-body { display: block; background: var(--bg-color); }
    its spread invites a conclusion the sample can't support. */
 .admin-stat-tile-sub { font-size: var(--font-sm); color: var(--label-color); margin-top: var(--space-1); }
 
+/* ML-496: choosing who a notice is for opens over the notice's own form */
+#notificationAudienceModal { z-index: var(--z-modal-stacked); }
 /* ML-492/493: the names in Admin -> Notifications' "Who has seen it" pop-up */
 .admin-who-list { margin: 0; padding-left: var(--space-5); color: var(--text-color); }
 .admin-who-list li { margin-bottom: var(--space-1); word-break: break-word; }

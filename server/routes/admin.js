@@ -34,7 +34,7 @@ import { getConfigValue, setConfigValue } from '../services/appConfig.js';
 import { getFlowAuthoringStats, setFlowAuthoringSessionExcluded, currentAppVersion } from '../services/flowAuthoringStats.js';
 import { listFeedbackForAdmin, updateFeedbackAdmin } from '../services/feedback.js';
 import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitImport, MAX_IMPORT_BYTES } from '../services/flowTransfer.js';
-import { listNotificationsForAdmin, notificationAudienceForAdmin, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
+import { listNotificationsForAdmin, notificationAudienceForAdmin, listNoticeBands, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
 import { listRecordingsForAdmin, removeRecordingOnRequest, renameBandOnRequest } from '../services/recordingRemovals.js';
 import { closeReport } from '../services/contentReports.js';
 import { getSiteSecurityReview, runSiteSecurityReviewNow } from '../services/siteSecurityReview.js';
@@ -751,6 +751,15 @@ router.put('/config/:key', requireAuth, resolveAccount, requireSuperAdmin, requi
 router.get('/notifications', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await listNotificationsForAdmin());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-496: the shared bands a notice can be sent to
+router.get('/notifications/bands', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await listNoticeBands());
   } catch (error) {
     sendError(res, error);
   }

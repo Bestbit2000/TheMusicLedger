@@ -13,8 +13,16 @@ const MAX_BODY_LENGTH = 4000;
 
 const LIVE_CONDITION = `n.withdrawn_at IS NULL AND n.publish_at <= now() AND (n.expires_at IS NULL OR n.expires_at > now())`;
 // ML-490: a notification is for everyone, or (audience 'accounts') only for the members named in
-// notification_recipients. `param` is the query's placeholder for the account, e.g. '$1'.
-const FOR_ACCOUNT = (param) => `(n.audience = 'all' OR EXISTS (SELECT 1 FROM notification_recipients nr WHERE nr.notification_id = n.id AND nr.account_id = ${param}))`;
+// notification_recipients. ML-496: or for whoever has an account type (audience 'account_level') or is in a
+// band (audience 'band') while it is live - rules, so someone who joins a band later gets it too.
+// `param` is the query's placeholder (or column) for the account, e.g. '$1'.
+const FOR_ACCOUNT = (param) => `(n.audience = 'all'
+  OR (n.audience = 'accounts' AND EXISTS (SELECT 1 FROM notification_recipients nr WHERE nr.notification_id = n.id AND nr.account_id = ${param}))
+  OR (n.audience = 'account_level' AND EXISTS (SELECT 1 FROM accounts ax WHERE ax.id = ${param} AND ax.account_level = n.audience_account_level))
+  OR (n.audience = 'band' AND EXISTS (SELECT 1 FROM band_members bm WHERE bm.band_id = n.audience_band_id AND bm.account_id = ${param})))`;
+// The accounts a notice is for now (not deleted) - the same rule, from the notice's side
+const AUDIENCE_ACCOUNTS = `SELECT a.id FROM accounts a WHERE a.deleted_at IS NULL AND ${FOR_ACCOUNT('a.id')}`;
+export const NOTICE_ACCOUNT_LEVELS = ['super_admin', 'band_admin', 'premium_member', 'standard_member', 'beta_tester', 'teacher'];
 
 function toUserDto(row) {
   return {
@@ -163,6 +171,9 @@ function toAdminDto(row) {
     title: row.title,
     body: row.body,
     audience: row.audience,
+    audienceAccountLevel: row.audience_account_level || null, // ML-496
+    audienceBandId: row.audience_band_id == null ? null : Number(row.audience_band_id),
+    audienceBandName: row.audience_band_name || null,
     urgent: !!row.urgent,
     important: !!row.important,
     policyLink: !!row.policy_link,
@@ -172,7 +183,8 @@ function toAdminDto(row) {
     withdrawnAt: row.withdrawn_at,
     status: statusOf(row),
     readCount: Number(row.read_count || 0),
-    // ML-492: how many it is for - the members named, or (for everyone) every account that can still read it
+    // ML-492: how many it is for - the members named, those with the type or in the band now (ML-496), or (for
+    // everyone, null) every account that can still read it
     recipientCount: row.recipient_count == null ? null : Number(row.recipient_count),
     createdBy: row.created_by_email || null,
     createdAt: row.created_at,
@@ -184,9 +196,11 @@ function toAdminDto(row) {
 // account that can still read it (a deleted account is kept only as an anonymous row, so it isn't counted).
 const ADMIN_SELECT = `SELECT n.*, a.email AS created_by_email,
             (SELECT COUNT(*) FROM notification_reads r WHERE r.notification_id = n.id) AS read_count,
-            CASE WHEN n.audience = 'accounts' THEN (SELECT COUNT(*) FROM notification_recipients nr WHERE nr.notification_id = n.id) END AS recipient_count
+            CASE WHEN n.audience <> 'all' THEN (SELECT COUNT(*) FROM (${AUDIENCE_ACCOUNTS}) x) END AS recipient_count,
+            ab.name AS audience_band_name
      FROM notifications n
-     LEFT JOIN accounts a ON a.id = n.created_by_account_id`;
+     LEFT JOIN accounts a ON a.id = n.created_by_account_id
+     LEFT JOIN bands ab ON ab.id = n.audience_band_id`;
 
 export async function listNotificationsForAdmin() {
   const { rows } = await pool.query(`${ADMIN_SELECT} ORDER BY n.publish_at DESC, n.id DESC`);
@@ -201,14 +215,15 @@ export async function notificationAudienceForAdmin(notificationId) {
   if (!/^\d+$/.test(String(notificationId))) throw withStatus(404, 'Notification not found');
   const { rows: found } = await pool.query('SELECT audience FROM notifications WHERE id = $1', [notificationId]);
   if (!found.length) throw withStatus(404, 'Notification not found');
+  // ML-496: whoever it is for now - for a rule (a type, a band), the people it covers today
   const { rows } = await pool.query(
     `SELECT COALESCE(NULLIF(btrim(a.display_name), ''), a.email) AS name, a.email, r.read_at
-     FROM accounts a
-     LEFT JOIN notification_reads r ON r.notification_id = $1 AND r.account_id = a.id
-     WHERE a.deleted_at IS NULL
-       AND ($2 = 'all' OR EXISTS (SELECT 1 FROM notification_recipients nr WHERE nr.notification_id = $1 AND nr.account_id = a.id))
+     FROM notifications n
+     JOIN accounts a ON a.deleted_at IS NULL AND ${FOR_ACCOUNT('a.id')}
+     LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.account_id = a.id
+     WHERE n.id = $1
      ORDER BY lower(COALESCE(NULLIF(btrim(a.display_name), ''), a.email)), a.id`,
-    [notificationId, found[0].audience]
+    [notificationId]
   );
   const person = (r) => ({ name: r.name, email: r.email });
   return {
@@ -241,14 +256,67 @@ function validateNotification({ title, body, publishAt, expiresAt, urgent, impor
   return { title: t, body: b, publishAt: publish, expiresAt: expires, urgent: urgent === true, important: important === true, policyLink: important === true && policyLink === true, banner: banner === true };
 }
 
+// ML-496: who a new notice is for - everyone, an account type, a shared band, or named members (at least one,
+// at most 500, none of them deleted). Checked against the database, so a made-up id is refused.
+const MAX_NAMED = 500;
+async function tidyAudience(client, { audience = 'all', accountLevel = null, bandId = null, accountIds = [] } = {}) {
+  if (audience === 'all') return { audience: 'all', accountLevel: null, bandId: null, accountIds: [] };
+  if (audience === 'account_level') {
+    if (!NOTICE_ACCOUNT_LEVELS.includes(accountLevel)) throw withStatus(400, 'Choose an account type.');
+    return { audience, accountLevel, bandId: null, accountIds: [] };
+  }
+  if (audience === 'band') {
+    if (!/^\d+$/.test(String(bandId))) throw withStatus(400, 'Choose a band.');
+    const { rows } = await client.query("SELECT 1 FROM bands WHERE id = $1 AND kind = 'group'", [bandId]);
+    if (!rows.length) throw withStatus(400, 'That band is not a shared band any more.');
+    return { audience, accountLevel: null, bandId: Number(bandId), accountIds: [] };
+  }
+  if (audience === 'accounts') {
+    const ids = [...new Set((Array.isArray(accountIds) ? accountIds : []).map(String))].filter(id => /^\d+$/.test(id));
+    if (!ids.length) throw withStatus(400, 'Choose at least one member.');
+    if (ids.length > MAX_NAMED) throw withStatus(400, `A notice can name at most ${MAX_NAMED} members - send it to a group instead.`);
+    const { rows } = await client.query('SELECT id FROM accounts WHERE id = ANY($1::bigint[]) AND deleted_at IS NULL', [ids]);
+    if (rows.length !== ids.length) throw withStatus(400, 'One of those members is no longer here.');
+    return { audience, accountLevel: null, bandId: null, accountIds: ids };
+  }
+  throw withStatus(400, 'Choose who it is for.');
+}
+
 export async function createNotification(adminAccountId, data) {
   const v = validateNotification(data || {});
+  const client = await pool.connect();
+  let id;
+  try {
+    await client.query('BEGIN');
+    const who = await tidyAudience(client, data || {});
+    const { rows } = await client.query(
+      `INSERT INTO notifications (title, body, publish_at, expires_at, urgent, important, policy_link, banner, audience, audience_account_level, audience_band_id, created_by_account_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+      // ML-495: only a notice for everyone can be a banner
+      [v.title, v.body, v.publishAt, v.expiresAt, v.urgent, v.important, v.policyLink, v.banner && who.audience === 'all', who.audience, who.accountLevel, who.bandId, adminAccountId]
+    );
+    id = rows[0].id;
+    if (who.accountIds.length) await client.query('INSERT INTO notification_recipients (notification_id, account_id) SELECT $1, unnest($2::bigint[])', [id, who.accountIds]);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+  return getAdminNotification(id);
+}
+
+// ML-496: the shared bands a notice can be sent to, with how many are in each now
+export async function listNoticeBands() {
   const { rows } = await pool.query(
-    `INSERT INTO notifications (title, body, publish_at, expires_at, urgent, important, policy_link, banner, created_by_account_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-    [v.title, v.body, v.publishAt, v.expiresAt, v.urgent, v.important, v.policyLink, v.banner, adminAccountId]
+    `SELECT b.id, b.name, COUNT(a.id)::int AS members
+     FROM bands b JOIN band_members bm ON bm.band_id = b.id JOIN accounts a ON a.id = bm.account_id AND a.deleted_at IS NULL
+     WHERE b.kind = 'group'
+     GROUP BY b.id, b.name
+     ORDER BY lower(b.name), b.id`
   );
-  return getAdminNotification(rows[0].id);
+  return { bands: rows.map(r => ({ id: Number(r.id), name: r.name, members: r.members })) };
 }
 
 // ML-490: a notification for particular members only - used when something of theirs has been
@@ -275,6 +343,8 @@ export async function createTargetedNotification(adminAccountId, { title, body, 
   }
 }
 
+// Who a notice is for is set when it is made and kept on every edit (ML-492/496): an edit never turns a notice
+// for some members into one for everyone, or the other way round.
 export async function updateNotification(notificationId, data) {
   const v = validateNotification(data || {});
   // ML-495: a banner reaches everyone, signed in or not - so a notice for named members can never be one
